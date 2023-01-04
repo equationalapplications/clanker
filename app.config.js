@@ -1,8 +1,11 @@
-{
+import "dotenv/config";
+import * as pkg from "./package.json";
+
+export default {
   "expo": {
     "name": "yours-brightly-ai",
     "slug": "yours-brightly-ai",
-    "version": "1.0.0",
+    "version": pkg.version,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,9 +21,11 @@
       "**/*"
     ],
     "ios": {
+      "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": true
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
@@ -28,6 +33,26 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "@react-native-firebase/app",
+      "expo-build-properties",
+      {
+        "ios": {
+          "useFrameworks": "static"
+        }
+      }
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "",
+      },
+      "firebaseApiKey": process.env.FIREBASE_API_KEY,
+      "firebaseAuthDomain": process.env.FIREBASE_AUTH_DOMAIN,
+      "firebaseProjectId": process.env.FIREBASE_PROJECT_ID,
+      "firebaseStorageBucket": process.env.FIREBASE_STORAGE_BUCKET,
+      "firebaseMessagingSenderId": process.env.FIREBASE_MESSAGING_SENDER_ID,
+      "firebaseAppId": process.env.FIREBASE_APP_ID,
+    },
   }
 }
