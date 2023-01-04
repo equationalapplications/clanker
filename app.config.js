@@ -35,13 +35,7 @@ export default {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@react-native-firebase/app",
-      "expo-build-properties",
-      {
-        "ios": {
-          "useFrameworks": "static"
-        }
-      }
+      "@react-native-firebase/app"
     ],
     "extra": {
       "eas": {
