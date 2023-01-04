@@ -21,6 +21,7 @@ export default {
       "**/*"
     ],
     "ios": {
+      "bundleIdentifier": "com.equationalapplications.yoursbrightlyai",
       "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": true
     },
