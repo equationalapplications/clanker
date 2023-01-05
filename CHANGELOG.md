@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.0.0...v1.1.0) (2023-01-05)
+
+
+### Features
+
+* add firebase libraries ([34d7ff1](https://github.com/equationalapplications/yoursbrightlyai/commit/34d7ff1ef485b53cd6e1cfb124444de0a8405187))
+
 # 1.0.0 (2023-01-05)
 
 
