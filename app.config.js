@@ -38,13 +38,15 @@ export default {
     },
     "plugins": [
       "@react-native-firebase/app",
+      "@react-native-firebase/perf",
+      "@react-native-firebase/crashlytics"
       [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
+      "expo-build-properties",
+      {
+        "ios": {
+          "useFrameworks": "static"
         }
+      }
       ]
     ],
     "extra": {
