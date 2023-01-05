@@ -7,7 +7,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "prepare": "husky install",
-    "commit": "git-cz",
+    "commit": "git-cz"
   },
   "dependencies": {
     "@react-native-firebase/app": "^16.5.0",
