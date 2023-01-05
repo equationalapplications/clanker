@@ -5,7 +5,9 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "prepare": "husky install",
+    "commit": "git-cz",
   },
   "dependencies": {
     "@react-native-firebase/app": "^16.5.0",
@@ -26,9 +28,15 @@
     "@semantic-release/changelog": "^6.0.2",
     "@semantic-release/git": "^10.0.1",
     "commitizen": "^4.2.6",
+    "cz-conventional-changelog": "^3.3.0",
     "husky": "^8.0.3",
     "semantic-release": "^19.0.5",
     "semantic-release-react-native": "^1.8.0"
   },
-  "private": true
+  "private": true,
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  }
 }
