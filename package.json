@@ -30,6 +30,8 @@
     "expo-dev-client": "~2.0.1",
     "expo-splash-screen": "~0.17.5",
     "expo-status-bar": "~1.4.2",
+    "jest": "^26.6.3",
+    "jest-expo": "^47.0.1",
     "react": "18.1.0",
     "react-native": "0.70.5",
     "react-native-paper": "^5.1.2",
@@ -41,6 +43,8 @@
     "@commitlint/config-conventional": "^17.4.0",
     "@semantic-release/changelog": "^6.0.2",
     "@semantic-release/git": "^10.0.1",
+    "@types/react": "^18.0.26",
+    "@types/react-native": "^0.70.8",
     "@typescript-eslint/eslint-plugin": "^5.48.0",
     "@typescript-eslint/parser": "^5.48.0",
     "commitizen": "^4.2.6",
@@ -50,12 +54,33 @@
     "husky": "^8.0.3",
     "prettier": "^2.8.1",
     "semantic-release": "^19.0.5",
-    "semantic-release-react-native": "^1.8.0"
+    "semantic-release-react-native": "^1.8.0",
+    "typescript": "^4.9.4"
   },
   "private": true,
+  "eslintConfig": {
+    "extends": "universe/native"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "semi": false,
+    "singleQuote": false,
+    "trailingComma": "all"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)"
+    ]
+  },
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "husky": {
+    "hooks": {
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
     }
   }
 }
