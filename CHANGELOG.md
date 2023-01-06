@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.1.0...v1.2.0) (2023-01-06)
+
+
+### Features
+
+* add eslint and prettier ([420a727](https://github.com/equationalapplications/yoursbrightlyai/commit/420a7278814409deef97c1257562f3ab7810b61e))
+
 # [1.2.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.1.0...v1.2.0-staging.1) (2023-01-06)
 
 
