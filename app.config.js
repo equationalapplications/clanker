@@ -1,5 +1,5 @@
-import "dotenv/config";
-import * as pkg from "./package.json";
+import "dotenv/config"
+import * as pkg from "./package.json"
 
 export default {
   expo: {
@@ -59,4 +59,4 @@ export default {
       firebaseAppId: process.env.FIREBASE_APP_ID,
     },
   },
-};
+}
