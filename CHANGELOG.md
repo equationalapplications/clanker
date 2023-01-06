@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.2.0...v1.3.0) (2023-01-06)
+
+
+### Features
+
+* add react navigation and deps ([4601c00](https://github.com/equationalapplications/yoursbrightlyai/commit/4601c000c69f5995b52d1bc95923fdc5194357a8))
+
 # [1.3.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.2.0...v1.3.0-staging.1) (2023-01-06)
 
 
