@@ -3,8 +3,13 @@ import { NavigationContainer } from "@react-navigation/native"
 import { StatusBar } from "expo-status-bar"
 import React from "react"
 import { SafeAreaProvider } from "react-native-safe-area-context"
-
-import Example from "./Example"
+import {
+  HomeScreen,
+  LoginScreen,
+  RegisterScreen,
+  ForgotPasswordScreen,
+  Dashboard,
+} from './screens';
 
 export default function Entry() {
   const Drawer = createDrawerNavigator()
@@ -12,7 +17,11 @@ export default function Entry() {
     <SafeAreaProvider>
       <NavigationContainer>
         <Drawer.Navigator>
-          <Drawer.Screen name="Example" component={Example} />
+          <Drawer.Screen name="HomeScreen" component={HomeScreen} />
+          <Drawer.Screen name="LoginScreen" component={LoginScreen} />
+          <Drawer.Screen name="RegisterScreen" component={RegisterScreen} />
+          <Drawer.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
+          <Drawer.Screen name="Dashboard" component={Dashboard} />
         </Drawer.Navigator>
       </NavigationContainer>
       <StatusBar style="auto" />
