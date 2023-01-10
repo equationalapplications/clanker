@@ -17,7 +17,7 @@ type forgotPasswordScreenScreenScreenProp = NativeStackScreenProps<
   "ForgotPasswordScreen"
 >
 
-const ForgotPasswordScreen: React.FC<forgotPasswordScreenScreenScreenProp> = (props) => {
+const ForgotPasswordScreen = (props: forgotPasswordScreenScreenScreenProp) => {
   const [email, setEmail] = useState({ value: "", error: "" })
 
   const _onSendPressed = () => {
