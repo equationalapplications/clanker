@@ -10,14 +10,14 @@ import { RootNavigationParamList } from "../navigation/types"
 
 type dashboardScreenScreenProp = NativeStackScreenProps<RootNavigationParamList, "Dashboard">
 
-const Dashboard = (props: dashboardScreenScreenProp) => (
+const Dashboard = ({ navigation }: dashboardScreenScreenProp) => (
   <Background>
     <Logo />
     <Header>Let’s start</Header>
     <Paragraph>
       Your amazing app starts here. Open you favourite code editor and start editing this project.
     </Paragraph>
-    <Button mode="outlined" onPress={() => props.navigation.navigate("HomeScreen")}>
+    <Button mode="outlined" onPress={() => navigation.navigate("HomeScreen")}>
       Logout
     </Button>
   </Background>

@@ -14,7 +14,7 @@ import { RootNavigationParamList } from "../navigation/types"
 
 type registerScreenScreenProp = NativeStackScreenProps<RootNavigationParamList, "RegisterScreen">
 
-const RegisterScreen = (props: registerScreenScreenProp) => {
+const RegisterScreen = ({ navigation }: registerScreenScreenProp) => {
   const [name, setName] = useState({ value: "", error: "" })
   const [email, setEmail] = useState({ value: "", error: "" })
   const [password, setPassword] = useState({ value: "", error: "" })
@@ -31,12 +31,12 @@ const RegisterScreen = (props: registerScreenScreenProp) => {
       return
     }
 
-    props.navigation.navigate("Dashboard")
+    navigation.navigate("Dashboard")
   }
 
   return (
     <Background>
-      <BackButton goBack={() => props.navigation.navigate("HomeScreen")} />
+      <BackButton goBack={() => navigation.navigate("HomeScreen")} />
 
       <Logo />
 
@@ -80,7 +80,7 @@ const RegisterScreen = (props: registerScreenScreenProp) => {
 
       <View style={styles.row}>
         <Text style={styles.label}>Already have an account? </Text>
-        <TouchableOpacity onPress={() => props.navigation.navigate("LoginScreen")}>
+        <TouchableOpacity onPress={() => navigation.navigate("LoginScreen")}>
           <Text style={styles.link}>Login</Text>
         </TouchableOpacity>
       </View>
