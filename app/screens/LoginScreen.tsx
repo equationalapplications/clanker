@@ -14,7 +14,7 @@ import { RootNavigationParamList } from "../navigation/types"
 
 type loginScreenScreenScreenProp = NativeStackScreenProps<RootNavigationParamList, "LoginScreen">
 
-const LoginScreen = (props: loginScreenScreenScreenProp) => {
+const LoginScreen = ({ navigation }: loginScreenScreenScreenProp) => {
   const [email, setEmail] = useState({ value: "", error: "" })
   const [password, setPassword] = useState({ value: "", error: "" })
 
@@ -28,12 +28,12 @@ const LoginScreen = (props: loginScreenScreenScreenProp) => {
       return
     }
 
-    props.navigation.navigate("Dashboard")
+    navigation.navigate("Dashboard")
   }
 
   return (
     <Background>
-      <BackButton goBack={() => props.navigation.navigate("HomeScreen")} />
+      <BackButton goBack={() => navigation.navigate("HomeScreen")} />
 
       <Logo />
 
@@ -63,7 +63,7 @@ const LoginScreen = (props: loginScreenScreenScreenProp) => {
       />
 
       <View style={styles.forgotPassword}>
-        <TouchableOpacity onPress={() => props.navigation.navigate("ForgotPasswordScreen")}>
+        <TouchableOpacity onPress={() => navigation.navigate("ForgotPasswordScreen")}>
           <Text style={styles.label}>Forgot your password?</Text>
         </TouchableOpacity>
       </View>
@@ -74,7 +74,7 @@ const LoginScreen = (props: loginScreenScreenScreenProp) => {
 
       <View style={styles.row}>
         <Text style={styles.label}>Don’t have an account? </Text>
-        <TouchableOpacity onPress={() => props.navigation.navigate("RegisterScreen")}>
+        <TouchableOpacity onPress={() => navigation.navigate("RegisterScreen")}>
           <Text style={styles.link}>Sign up</Text>
         </TouchableOpacity>
       </View>

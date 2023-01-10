@@ -17,7 +17,7 @@ type forgotPasswordScreenScreenScreenProp = NativeStackScreenProps<
   "ForgotPasswordScreen"
 >
 
-const ForgotPasswordScreen = (props: forgotPasswordScreenScreenScreenProp) => {
+const ForgotPasswordScreen = ({ navigation }: forgotPasswordScreenScreenScreenProp) => {
   const [email, setEmail] = useState({ value: "", error: "" })
 
   const _onSendPressed = () => {
@@ -33,7 +33,7 @@ const ForgotPasswordScreen = (props: forgotPasswordScreenScreenScreenProp) => {
 
   return (
     <Background>
-      <BackButton goBack={() => props.navigation.navigate("LoginScreen")} />
+      <BackButton goBack={() => navigation.navigate("LoginScreen")} />
 
       <Logo />
 
@@ -56,10 +56,7 @@ const ForgotPasswordScreen = (props: forgotPasswordScreenScreenScreenProp) => {
         Send Reset Instructions
       </Button>
 
-      <TouchableOpacity
-        style={styles.back}
-        onPress={() => props.navigation.navigate("LoginScreen")}
-      >
+      <TouchableOpacity style={styles.back} onPress={() => navigation.navigate("LoginScreen")}>
         <Text style={styles.label}>← Back to login</Text>
       </TouchableOpacity>
     </Background>
