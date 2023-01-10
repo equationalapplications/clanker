@@ -1,27 +1,26 @@
-import React, { memo } from 'react';
-import Background from '../components/Background';
-import Logo from '../components/Logo';
-import Header from '../components/Header';
-import Paragraph from '../components/Paragraph';
-import Button from '../components/Button';
-import { Navigation } from '../types';
+import { NativeStackScreenProps } from "@react-navigation/native-stack"
+import React, { memo } from "react"
 
-type Props = {
-  navigation: Navigation;
-};
+import Background from "../components/Background"
+import Button from "../components/Button"
+import Header from "../components/Header"
+import Logo from "../components/Logo"
+import Paragraph from "../components/Paragraph"
+import { RootNavigationParamList } from "../navigation/types"
 
-const Dashboard = ({ navigation }: Props) => (
+type dashboardScreenScreenProp = NativeStackScreenProps<RootNavigationParamList, "Dashboard">
+
+const Dashboard: React.FC<dashboardScreenScreenProp> = (props) => (
   <Background>
     <Logo />
     <Header>Let’s start</Header>
     <Paragraph>
-      Your amazing app starts here. Open you favourite code editor and start
-      editing this project.
+      Your amazing app starts here. Open you favourite code editor and start editing this project.
     </Paragraph>
-    <Button mode="outlined" onPress={() => navigation.navigate('HomeScreen')}>
+    <Button mode="outlined" onPress={() => props.navigation.navigate("HomeScreen")}>
       Logout
     </Button>
   </Background>
-);
+)
 
-export default memo(Dashboard);
+export default memo(Dashboard)
