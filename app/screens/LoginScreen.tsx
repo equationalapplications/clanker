@@ -14,7 +14,7 @@ import { RootNavigationParamList } from "../navigation/types"
 
 type loginScreenScreenScreenProp = NativeStackScreenProps<RootNavigationParamList, "LoginScreen">
 
-const LoginScreen: React.FC<loginScreenScreenScreenProp> = (props) => {
+const LoginScreen = (props: loginScreenScreenScreenProp) => {
   const [email, setEmail] = useState({ value: "", error: "" })
   const [password, setPassword] = useState({ value: "", error: "" })
 

@@ -14,7 +14,7 @@ import { RootNavigationParamList } from "../navigation/types"
 
 type registerScreenScreenProp = NativeStackScreenProps<RootNavigationParamList, "RegisterScreen">
 
-const RegisterScreen: React.FC<registerScreenScreenProp> = (props) => {
+const RegisterScreen = (props: registerScreenScreenProp) => {
   const [name, setName] = useState({ value: "", error: "" })
   const [email, setEmail] = useState({ value: "", error: "" })
   const [password, setPassword] = useState({ value: "", error: "" })

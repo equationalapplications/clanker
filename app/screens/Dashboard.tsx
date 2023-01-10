@@ -10,7 +10,7 @@ import { RootNavigationParamList } from "../navigation/types"
 
 type dashboardScreenScreenProp = NativeStackScreenProps<RootNavigationParamList, "Dashboard">
 
-const Dashboard: React.FC<dashboardScreenScreenProp> = (props) => (
+const Dashboard = (props: dashboardScreenScreenProp) => (
   <Background>
     <Logo />
     <Header>Let’s start</Header>

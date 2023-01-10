@@ -10,7 +10,7 @@ import { RootNavigationParamList } from "../navigation/types"
 
 type homeScreenProp = NativeStackScreenProps<RootNavigationParamList, "HomeScreen">
 
-const HomeScreen: React.FC<homeScreenProp> = (props) => {
+const HomeScreen = (props: homeScreenProp) => {
   return (
     <Background>
       <Logo />
