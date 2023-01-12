@@ -34,19 +34,6 @@ export default {
     web: {
       favicon: "./assets/favicon.png",
     },
-    plugins: [
-      "@react-native-firebase/app",
-      "@react-native-firebase/perf",
-      "@react-native-firebase/crashlytics",
-      [
-        "expo-build-properties",
-        {
-          ios: {
-            useFrameworks: "static",
-          },
-        },
-      ],
-    ],
     extra: {
       eas: {
         projectId: "2333eead-a87c-4a6f-adea-b1b433f4740e",
