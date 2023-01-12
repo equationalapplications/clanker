@@ -24,7 +24,6 @@
     "@react-query-firebase/auth": "^1.0.0-dev.2",
     "@react-query-firebase/firestore": "^1.0.0-dev.7",
     "@react-query-firebase/functions": "^1.0.0-dev.1",
-    "@reduxjs/toolkit": "^1.9.1",
     "dotenv": "^16.0.3",
     "expo": "~47.0.9",
     "expo-build-properties": "~0.4.1",
