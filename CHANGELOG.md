@@ -1,3 +1,10 @@
+# [1.4.0-staging.2](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.4.0-staging.1...v1.4.0-staging.2) (2023-01-12)
+
+
+### Features
+
+* add support for web ([4e28147](https://github.com/equationalapplications/yoursbrightlyai/commit/4e281471c54ab8c36073804b21d369ffbbe71f5a))
+
 # [1.4.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.3.0...v1.4.0-staging.1) (2023-01-10)
 
 
