@@ -1,3 +1,19 @@
+# [1.4.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.3.0...v1.4.0) (2023-01-12)
+
+
+### Bug Fixes
+
+* adapt login for navigation ([aa44471](https://github.com/equationalapplications/yoursbrightlyai/commit/aa44471710af9f4aa2e68854b1de01063cac55a1))
+
+
+### Features
+
+* add callstack login template ([170e884](https://github.com/equationalapplications/yoursbrightlyai/commit/170e8849511c6ae8954814fa95d62c09d1768fb5))
+* add deps for login and redux ([9db8a86](https://github.com/equationalapplications/yoursbrightlyai/commit/9db8a86e81e8e6a81b02b66e684e16c060229773))
+* add root navigator ([801be12](https://github.com/equationalapplications/yoursbrightlyai/commit/801be12a45e6b97790f551e4173baa922de762ba))
+* add support for web ([4e28147](https://github.com/equationalapplications/yoursbrightlyai/commit/4e281471c54ab8c36073804b21d369ffbbe71f5a))
+* install @react-navigation/native-stack ([1cfbca8](https://github.com/equationalapplications/yoursbrightlyai/commit/1cfbca85cd20d9b41be62e6e4178ce3fcfc5e6d1))
+
 # [1.4.0-staging.2](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.4.0-staging.1...v1.4.0-staging.2) (2023-01-12)
 
 
