@@ -17,9 +17,13 @@
   },
   "dependencies": {
     "@expo/webpack-config": "^0.17.2",
+    "@react-native-firebase/firestore": "^16.5.0",
     "@react-navigation/drawer": "^6.5.6",
     "@react-navigation/native": "^6.1.1",
     "@react-navigation/native-stack": "^6.9.7",
+    "@react-query-firebase/auth": "^1.0.0-dev.2",
+    "@react-query-firebase/firestore": "^1.0.0-dev.7",
+    "@react-query-firebase/functions": "^1.0.0-dev.1",
     "@reduxjs/toolkit": "^1.9.1",
     "dotenv": "^16.0.3",
     "expo": "~47.0.9",
@@ -86,6 +90,20 @@
   "husky": {
     "hooks": {
       "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
+  "overrides": {
+    "@react-query-firebase/auth": {
+      "react": "18.1.0",
+      "react-dom": "18.1.0"
+    },
+    "@react-query-firebase/firestore": {
+      "react": "18.1.0",
+      "react-dom": "18.1.0"
+    },
+    "@react-query-firebase/functions": {
+      "react": "18.1.0",
+      "react-dom": "18.1.0"
     }
   }
 }
