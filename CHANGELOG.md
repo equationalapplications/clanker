@@ -1,3 +1,11 @@
+# [1.5.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.4.0...v1.5.0-staging.1) (2023-01-15)
+
+
+### Features
+
+* add react query firebase ([7efa8d8](https://github.com/equationalapplications/yoursbrightlyai/commit/7efa8d87bdafb7d1ffbc77b4d25a05e05084353b))
+* install react-query firebase ([0017d76](https://github.com/equationalapplications/yoursbrightlyai/commit/0017d7693b1e50c226a3ee0e6fc03801650c76fd))
+
 # [1.4.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.3.0...v1.4.0) (2023-01-12)
 
 
