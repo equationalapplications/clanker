@@ -1,31 +1,22 @@
 import { NavigationContainer } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
+import { useAuthUser } from "@react-query-firebase/auth"
 
-import {
-  HomeScreen,
-  LoginScreen,
-  RegisterScreen,
-  ForgotPasswordScreen,
-  Dashboard,
-} from "../screens"
-import { RootNavigationParamList } from "./types"
+import { auth } from "../config/firebaseConfig"
+import SignedInStack from "./SignedInStack"
+import SignedOutStack from "./SignedOutStack"
 
-const Stack = createNativeStackNavigator<RootNavigationParamList>()
+const RootStack = createNativeStackNavigator()
 
 const RootNavigator = () => {
+  const user = useAuthUser(["user"], auth)
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Stack.Screen name="HomeScreen" component={HomeScreen} />
-        <Stack.Screen name="LoginScreen" component={LoginScreen} />
-        <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
-        <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
-        <Stack.Screen name="Dashboard" component={Dashboard} />
-      </Stack.Navigator>
+      user.data ? (
+      <SignedInStack />
+      ) : (
+      <SignedOutStack />
+      );
     </NavigationContainer>
   )
 }

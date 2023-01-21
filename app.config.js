@@ -3,6 +3,7 @@ import * as pkg from "./package.json"
 
 export default {
   expo: {
+    scheme: "com.equationalapplications.yoursbrightlyai",
     name: "yours-brightly-ai",
     slug: "yours-brightly-ai",
     version: pkg.version,
@@ -20,12 +21,10 @@ export default {
     assetBundlePatterns: ["**/*"],
     ios: {
       bundleIdentifier: "com.equationalapplications.yoursbrightlyai",
-      googleServicesFile: "./GoogleService-Info.plist",
       supportsTablet: true,
     },
     android: {
       package: "com.equationalapplications.yoursbrightlyai",
-      googleServicesFile: "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#FFFFFF",
