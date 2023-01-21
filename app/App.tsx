@@ -1,70 +1,19 @@
-import { NavigationContainer } from "@react-navigation/native"
-import auth, { FirebaseAuthTypes } from "firebase/auth"
+/*import { NavigationContainer } from "@react-navigation/native"
 import { createContext, Fragment, ReactNode, useEffect, useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { Headline, ActivityIndicator, Provider as PaperProvider } from "react-native-paper"
 import { AlertsProvider } from "react-native-paper-alerts"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
+import { useAuthUser } from "@react-query-firebase/auth";
 
+import { auth } from "./config/firebaseConfig"
 import { useAppSettings } from "./components/AppSettings"
-import SignedInStack from "./signed-in/Stack"
-import SignedOutStack from "./signed-out/Stack"
-
-/**
- * Types
- */
-type User = FirebaseAuthTypes.User | null
-
-/**
- * Contexts
- */
-export const UserContext = createContext<User>(null)
+import SignedInStack from "./navigation/SignedInStack"
+import SignedOutStack from "./navigation/SignedOutStack"
 
 function App(): JSX.Element {
-  const [initializing, setInitializing] = useState(true)
-  const [listenUser, setListenUser] = useState(false)
-  const [user, setUser] = useState<User>(null)
   const appSettings = useAppSettings()
-
-  /** Listen for auth state changes */
-  useEffect(() => {
-    const authListener = auth().onAuthStateChanged((result) => {
-      setUser(result)
-      if (initializing && !listenUser) {
-        setInitializing(false)
-        setListenUser(true)
-      }
-    })
-
-    return () => {
-      if (authListener) {
-        authListener()
-      }
-    }
-  }, [initializing, listenUser])
-
-  /** Listen for user changes */
-  useEffect(() => {
-    let userListener: () => void
-
-    if (listenUser) {
-      userListener = auth().onIdTokenChanged((result) => {
-        setUser(result)
-      })
-    }
-
-    return () => {
-      if (userListener) {
-        userListener()
-      }
-    }
-  }, [listenUser])
-
-  if (initializing) {
-    let waiting = true
-    setTimeout(() => {
-      waiting = false
-    }, 1000)
+  const user = useAuthUser(["user"], auth);
 
     return (
       <View
@@ -73,7 +22,7 @@ function App(): JSX.Element {
           { backgroundColor: appSettings.currentTheme.colors.background },
         ]}
       >
-        {!waiting && (
+        {!user.isLoading && (
           <>
             <Headline style={[styles.padded, { color: appSettings.currentTheme.colors.text }]}>
               {appSettings.t("loading")}...
@@ -161,3 +110,4 @@ const styles = StyleSheet.create({
 })
 
 export default App
+*/

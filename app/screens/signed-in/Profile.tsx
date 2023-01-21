@@ -5,14 +5,14 @@ import { Platform, StyleSheet, View } from "react-native"
 import { Avatar, Caption, FAB, Headline, Subheading, useTheme, Title } from "react-native-paper"
 import Icon from "react-native-vector-icons/MaterialCommunityIcons"
 
-import { UserContext } from "../App"
-import Apple from "../auth-providers/Apple"
-import Facebook from "../auth-providers/Facebook"
-import Google from "../auth-providers/Google"
-import { fallbackLanguageLocale, useAppSettings } from "../components/AppSettings"
-import Provider from "../components/AuthProvider"
-import Hero from "../components/Hero"
-import { getProviders } from "../util/helpers"
+import { UserContext } from "../../App"
+import Apple from "../../auth-providers/Apple"
+import Facebook from "../../auth-providers/Facebook"
+import Google from "../../auth-providers/Google"
+import { fallbackLanguageLocale, useAppSettings } from "../../components/AppSettings"
+import Provider from "../../components/AuthProvider"
+import Hero from "../../components/Hero"
+import { getProviders } from "../../util/helpers"
 require("dayjs/locale/en")
 require("dayjs/locale/es")
 

@@ -15,7 +15,7 @@ import {
 import { useAlerts } from "react-native-paper-alerts"
 import Icon from "react-native-vector-icons/MaterialCommunityIcons"
 
-import { useAppSettings } from "../components/AppSettings"
+import { useAppSettings } from "../../components/AppSettings"
 
 function EditProfile(): JSX.Element | null {
   const user = auth().currentUser

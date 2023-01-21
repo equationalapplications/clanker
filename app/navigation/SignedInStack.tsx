@@ -2,11 +2,10 @@ import { createMaterialTopTabNavigator } from "@react-navigation/material-top-ta
 import { createStackNavigator } from "@react-navigation/stack"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { App as GettingStarted } from "../../luna-app/App"
 import { useAppSettings } from "../components/AppSettings"
 import { NotFound } from "../components/NotFound"
-import Profile from "./Profile"
-import Settings from "./Settings"
+import Profile from "../screens/signed-in/Profile"
+import Settings from "../screens/signed-in/Settings"
 
 const Stack = createStackNavigator()
 const TopTabs = createMaterialTopTabNavigator()
@@ -30,7 +29,7 @@ const ProfileStack = () => {
   )
 }
 
-const SignedIn = () => {
+const SignedInStack = () => {
   // Used for status bar layout in react-navigation
   const insets = useSafeAreaInsets()
   const appSettings = useAppSettings()
@@ -44,11 +43,6 @@ const SignedIn = () => {
   return (
     <TopTabs.Navigator initialRouteName="Home" screenOptions={screenOptions}>
       <TopTabs.Screen
-        name="Home"
-        options={{ title: appSettings.t("gettingStarted") }}
-        component={GettingStarted}
-      />
-      <TopTabs.Screen
         name="User"
         options={{ title: appSettings.t("userInfo") }}
         component={ProfileStack}
@@ -57,4 +51,4 @@ const SignedIn = () => {
   )
 }
 
-export default SignedIn
+export default SignedInStack

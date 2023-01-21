@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet } from "react-native"
 import { Button, HelperText, Paragraph, TextInput, useTheme } from "react-native-paper"
 import { useAlerts } from "react-native-paper-alerts"
 
-import { useAppSettings } from "../components/AppSettings"
+import { useAppSettings } from "../../components/AppSettings"
 
 function CreateAccount(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(false)
