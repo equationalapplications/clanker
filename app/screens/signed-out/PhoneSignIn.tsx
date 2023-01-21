@@ -1,7 +1,7 @@
 import { StyleSheet, View } from "react-native"
 import { useTheme } from "react-native-paper"
 
-import Phone from "../auth-providers/Phone"
+import Phone from "../../auth-providers/Phone"
 
 function PhoneSignIn(): JSX.Element {
   const theme = useTheme()

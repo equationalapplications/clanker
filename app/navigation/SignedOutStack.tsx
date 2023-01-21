@@ -1,11 +1,11 @@
-import { createStackNavigator } from "@react-navigation/stack"
+import { createStackNavigator } from "@react-navigation/stack-native "
 
 import { useAppSettings } from "../components/AppSettings"
 import { NotFound } from "../components/NotFound"
-import CreateAccount from "./CreateAccount"
-import ForgotPassword from "./ForgotPassword"
-import PhoneSignIn from "./PhoneSignIn"
-import SignIn from "./SignIn"
+import CreateAccount from "../screens/signed-out/CreateAccount"
+import ForgotPassword from "../screens/signed-out/ForgotPassword"
+import PhoneSignIn from "../screens/signed-out/PhoneSignIn"
+import SignIn from "../screens/signed-out/SignIn"
 const Stack = createStackNavigator()
 
 function SignedOutStack() {

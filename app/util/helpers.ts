@@ -1,4 +1,4 @@
-import { FirebaseAuthTypes } from "firebase/auth"
+import { User } from "firebase/auth"
 
 type ProviderID = "google.com" | "facebook.com" | "apple.com"
 
@@ -17,7 +17,7 @@ const providerTitles: { [key: string]: string } = {
 /**
  * Return array of user auth providers
  */
-export function getProviders(user: FirebaseAuthTypes.User | null): string[] {
+export function getProviders(user: User | null): string[] {
   if (user) {
     return user.providerData.map((provider) => provider.providerId)
   }
@@ -25,10 +25,7 @@ export function getProviders(user: FirebaseAuthTypes.User | null): string[] {
   return []
 }
 
-export function getProviderButtonTitle(
-  user: FirebaseAuthTypes.User | null,
-  providerID: ProviderID,
-) {
+export function getProviderButtonTitle(user: User | null, providerID: ProviderID) {
   const providers = getProviders(user)
   const isProvider = providers.includes(providerID)
   const isOnlyProvider = providers.length === 1 && isProvider

@@ -3,13 +3,13 @@ import { Fragment } from "react"
 import { Platform, StyleSheet, View } from "react-native"
 import { Button, useTheme } from "react-native-paper"
 
-import Apple from "../auth-providers/Apple"
-import EmailPassword from "../auth-providers/EmailPassword"
-import Facebook from "../auth-providers/Facebook"
-import Google from "../auth-providers/Google"
-import { useAppSettings } from "../components/AppSettings"
-import ProviderButton from "../components/AuthProviderButton"
-import Hero from "../components/Hero"
+import Apple from "../../auth-providers/Apple"
+import EmailPassword from "../../auth-providers/EmailPassword"
+import Facebook from "../../auth-providers/Facebook"
+import Google from "../../auth-providers/Google"
+import { useAppSettings } from "../../components/AppSettings"
+import ProviderButton from "../../components/AuthProviderButton"
+import Hero from "../../components/Hero"
 
 function SignIn() {
   const theme = useTheme()
