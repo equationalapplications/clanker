@@ -7,17 +7,21 @@ import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
+import { useAuthUser } from "@react-query-firebase/auth"
 import * as React from "react"
 import { ColorSchemeName, Pressable } from "react-native"
 
+import { auth } from "../app/config/firebaseConfig"
 import Colors from "../constants/Colors"
 import useColorScheme from "../hooks/useColorScheme"
 import ModalScreen from "../screens/ModalScreen"
 import NotFoundScreen from "../screens/NotFoundScreen"
 import TabOneScreen from "../screens/TabOneScreen"
 import TabTwoScreen from "../screens/TabTwoScreen"
-import { RootStackParamList, RootTabParamList, RootTabScreenProps } from "../types"
 import LinkingConfiguration from "./LinkingConfiguration"
+import SignIn from "../screens/SignIn"
+import CreateAccount from "../screens/CreateAccount"
+import { RootStackParamList, RootTabParamList, RootTabScreenProps } from "./types"
 
 export default function Navigation({ colorScheme }: { colorScheme: ColorSchemeName }) {
   return (
@@ -37,13 +41,36 @@ export default function Navigation({ colorScheme }: { colorScheme: ColorSchemeNa
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
 function RootNavigator() {
+  const user = useAuthUser(["user"], auth)
+
   return (
     <Stack.Navigator>
-      <Stack.Screen name="Root" component={BottomTabNavigator} options={{ headerShown: false }} />
-      <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
-      <Stack.Group screenOptions={{ presentation: "modal" }}>
-        <Stack.Screen name="Modal" component={ModalScreen} />
-      </Stack.Group>
+      {user.data ? (
+        <>
+          <Stack.Screen
+            name="Root"
+            component={BottomTabNavigator}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
+          <Stack.Group screenOptions={{ presentation: "modal" }}>
+            <Stack.Screen name="Modal" component={ModalScreen} />
+          </Stack.Group>
+        </>
+      ) : (
+        <>
+          <Stack.Screen
+            name="SignIn"
+            component={SignIn}
+            options={{ headerShown: false, title: "Sign In" }}
+          />
+          <Stack.Screen
+            name="CreateAccount"
+            options={{ title: "Create Account" }}
+            component={CreateAccount}
+          />
+        </>
+      )}
     </Stack.Navigator>
   )
 }
