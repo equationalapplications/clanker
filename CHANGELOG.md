@@ -1,3 +1,10 @@
+# [1.6.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.5.0...v1.6.0-staging.1) (2023-01-24)
+
+
+### Features
+
+* add protected navigation routes ([0590e2f](https://github.com/equationalapplications/yoursbrightlyai/commit/0590e2f6043560f27d8138499a7fd1c9fa5baf8b))
+
 # [1.5.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.4.0...v1.5.0) (2023-01-16)
 
 

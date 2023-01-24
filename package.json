@@ -1,8 +1,8 @@
 {
   "name": "yours-brightly-ai",
-  "version": "1.5.0",
+  "version": "1.6.0-staging.1",
   "scripts": {
-    "start": "expo start --dev-client",
+    "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
@@ -18,12 +18,14 @@
   "dependencies": {
     "@expo/vector-icons": "^13.0.0",
     "@expo/webpack-config": "^0.17.2",
-    "@react-navigation/bottom-tabs": "^6.0.5",
     "@react-native-masked-view/masked-view": "0.2.8",
+    "@react-navigation/bottom-tabs": "^6.0.5",
     "@react-navigation/drawer": "^6.5.6",
     "@react-navigation/native": "^6.1.1",
     "@react-navigation/native-stack": "^6.9.7",
     "@react-query-firebase/auth": "^1.0.0-dev.2",
+    "@react-query-firebase/firestore": "^1.0.0-dev.7",
+    "@react-query-firebase/functions": "^1.0.0-dev.1",
     "@types/i18n-js": "^3.8.4",
     "dotenv": "^16.0.3",
     "expo": "~47.0.9",
