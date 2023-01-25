@@ -20,7 +20,6 @@ import TabOneScreen from "../screens/TabOneScreen"
 import TabTwoScreen from "../screens/TabTwoScreen"
 import LinkingConfiguration from "./LinkingConfiguration"
 import SignIn from "../screens/SignIn"
-import CreateAccount from "../screens/CreateAccount"
 import { RootStackParamList, RootTabParamList, RootTabScreenProps } from "./types"
 
 export default function Navigation({ colorScheme }: { colorScheme: ColorSchemeName }) {
@@ -58,18 +57,11 @@ function RootNavigator() {
           </Stack.Group>
         </>
       ) : (
-        <>
-          <Stack.Screen
-            name="SignIn"
-            component={SignIn}
-            options={{ headerShown: false, title: "Sign In" }}
-          />
-          <Stack.Screen
-            name="CreateAccount"
-            options={{ title: "Create Account" }}
-            component={CreateAccount}
-          />
-        </>
+        <Stack.Screen
+          name="SignIn"
+          component={SignIn}
+          options={{ headerShown: false, title: "Sign In" }}
+        />
       )}
     </Stack.Navigator>
   )
