@@ -45,5 +45,19 @@ export default {
       firebaseAppId: process.env.FIREBASE_APP_ID,
       googleAuthClientId: process.env.GOOGLE_AUTH_CLIENT_ID,
     },
+    plugins: [
+      "react-native-fbsdk-next",
+      {
+        appID: process.env.FACEBOOK_AUTH_APP_ID,
+        clientToken: process.env.FACEBOOK_AUTH_CLIENT_TOKEN,
+        displayName: "Yours Brightly AI",
+        scheme: process.env.FACEBOOK_AUTH_SCHEME,
+        advertiserIDCollectionEnabled: false,
+        autoLogAppEventsEnabled: false,
+        isAutoInitEnabled: true,
+        iosUserTrackingPermission:
+          "This identifier will be used to deliver personalized ads to you.",
+      },
+    ],
   },
 }
