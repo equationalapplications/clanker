@@ -43,6 +43,7 @@ export default {
       firebaseStorageBucket: process.env.FIREBASE_STORAGE_BUCKET,
       firebaseMessagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
       firebaseAppId: process.env.FIREBASE_APP_ID,
+      googleAuthClientId: process.env.GOOGLE_AUTH_CLIENT_ID,
     },
   },
 }
