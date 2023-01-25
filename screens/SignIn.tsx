@@ -27,14 +27,25 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
         }
     }, [response])
 
+    const GoogleLoginOnPress = () => {
+        promptAsync()
+    }
+
+    const FacebookLoginOnPress = () => {
+
+    }
+
     return (
         <View style={styles.container}>
             <Button
                 disabled={!request}
                 title="Google Login"
-                onPress={() => {
-                    promptAsync()
-                }}
+                onPress={GoogleLoginOnPress}
+            />
+            <Button
+                disabled={!request}
+                title="Facebook Login"
+                onPress={FacebookLoginOnPress}
             />
         </View>
     )
