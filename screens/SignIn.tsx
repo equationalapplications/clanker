@@ -1,13 +1,13 @@
-import { useAuthUser } from "@react-query-firebase/auth"
+import { useAuthSignInWithCredential } from "@react-query-firebase/auth"
 import * as Google from "expo-auth-session/providers/google"
 import * as WebBrowser from "expo-web-browser"
-import { GoogleAuthProvider, signInWithCredential } from "firebase/auth"
+import { GoogleAuthProvider } from "firebase/auth"
 import { useEffect } from "react"
 import { StyleSheet, Button } from "react-native"
 import Constants from "expo-constants"
 
 import { auth } from "../app/config/firebaseConfig"
-import { Text, View } from "../components/Themed"
+import { View } from "../components/Themed"
 import { RootStackScreenProps } from "../navigation/types"
 
 WebBrowser.maybeCompleteAuthSession()
@@ -17,13 +17,13 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
         clientId: Constants.expoConfig?.extra?.googleAuthClientId,
     })
 
-    const user = useAuthUser(["user"], auth)
+    const mutation = useAuthSignInWithCredential(auth)
 
     useEffect(() => {
         if (response?.type === "success") {
             const { id_token } = response.params
             const credential = GoogleAuthProvider.credential(id_token)
-            signInWithCredential(auth, credential)
+            mutation.mutate(credential)
         }
     }, [response])
 
@@ -31,7 +31,7 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
         <View style={styles.container}>
             <Button
                 disabled={!request}
-                title="Login"
+                title="Google Login"
                 onPress={() => {
                     promptAsync()
                 }}
