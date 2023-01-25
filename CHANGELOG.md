@@ -1,3 +1,17 @@
+# [1.7.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.6.0...v1.7.0-staging.1) (2023-01-25)
+
+
+### Bug Fixes
+
+* add peer dependency for google auth ([49001e3](https://github.com/equationalapplications/yoursbrightlyai/commit/49001e3ee0b302cb208249e85a85cf8d476b6398))
+* remove unneeded createaccount screen ([3112196](https://github.com/equationalapplications/yoursbrightlyai/commit/31121968d528d78b22736a125fb0bf4c7372aaa6))
+
+
+### Features
+
+* add GoogleAuthProvider ([26b6426](https://github.com/equationalapplications/yoursbrightlyai/commit/26b6426bbcc2fc97a64d75bc6f3df61d332c9a91))
+* useAuthSignInWithCredential ([fbdb244](https://github.com/equationalapplications/yoursbrightlyai/commit/fbdb244bdcb96225cfed65c0b8ec8a161ea1e17d))
+
 # [1.6.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.5.0...v1.6.0) (2023-01-24)
 
 

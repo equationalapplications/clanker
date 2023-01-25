@@ -1,15 +1,41 @@
-import { StyleSheet } from "react-native"
+import { useAuthSignInWithCredential } from "@react-query-firebase/auth"
+import * as Google from "expo-auth-session/providers/google"
+import * as WebBrowser from "expo-web-browser"
+import { GoogleAuthProvider } from "firebase/auth"
+import { useEffect } from "react"
+import { StyleSheet, Button } from "react-native"
+import Constants from "expo-constants"
 
-import EditScreenInfo from "../components/EditScreenInfo"
-import { Text, View } from "../components/Themed"
+import { auth } from "../app/config/firebaseConfig"
+import { View } from "../components/Themed"
 import { RootStackScreenProps } from "../navigation/types"
 
+WebBrowser.maybeCompleteAuthSession()
+
 export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
+    const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+        clientId: Constants.expoConfig?.extra?.googleAuthClientId,
+    })
+
+    const mutation = useAuthSignInWithCredential(auth)
+
+    useEffect(() => {
+        if (response?.type === "success") {
+            const { id_token } = response.params
+            const credential = GoogleAuthProvider.credential(id_token)
+            mutation.mutate(credential)
+        }
+    }, [response])
+
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Sign In</Text>
-            <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-            <EditScreenInfo path="/screens/TabOneScreen.tsx" />
+            <Button
+                disabled={!request}
+                title="Google Login"
+                onPress={() => {
+                    promptAsync()
+                }}
+            />
         </View>
     )
 }
