@@ -1,42 +1,55 @@
 import { useAuthSignInWithCredential } from "@react-query-firebase/auth"
+import { ResponseType } from "expo-auth-session"
+import * as Facebook from "expo-auth-session/providers/facebook"
 import * as Google from "expo-auth-session/providers/google"
 import Constants from "expo-constants"
 import * as WebBrowser from "expo-web-browser"
-import { GoogleAuthProvider } from "firebase/auth"
+import { GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth"
 import { useEffect } from "react"
 import { StyleSheet, Button } from "react-native"
 
 import { auth } from "../app/config/firebaseConfig"
 import { View } from "../components/Themed"
-import { RootStackScreenProps } from "../navigation/types"
 
 WebBrowser.maybeCompleteAuthSession()
 
-export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+export default function SignIn() {
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
     clientId: Constants.expoConfig?.extra?.googleAuthClientId,
   })
 
-  const mutation = useAuthSignInWithCredential(auth)
+  const [facebookRequest, facebookResponse, facebookPromptAsync] = Facebook.useAuthRequest({
+    clientId: Constants.expoConfig?.extra?.facebookAuthAppId,
+    responseType: ResponseType.Token,
+  })
+
+  const mutationAuthSignInWithCredential = useAuthSignInWithCredential(auth)
 
   useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token } = response.params
+    if (googleResponse?.type === "success") {
+      const { id_token } = googleResponse.params
       const credential = GoogleAuthProvider.credential(id_token)
-      mutation.mutate(credential)
+      mutationAuthSignInWithCredential.mutate(credential)
     }
-  }, [response])
+    if (facebookResponse?.type === "success") {
+      const { access_token } = facebookResponse.params
+      const credential = FacebookAuthProvider.credential(access_token)
+      mutationAuthSignInWithCredential.mutate(credential)
+    }
+  }, [googleResponse, facebookResponse])
 
   const GoogleLoginOnPress = () => {
-    promptAsync()
+    googlePromptAsync()
   }
 
-  const FacebookLoginOnPress = () => {}
+  const FacebookLoginOnPress = () => {
+    facebookPromptAsync()
+  }
 
   return (
     <View style={styles.container}>
-      <Button disabled={!request} title="Google Login" onPress={GoogleLoginOnPress} />
-      <Button disabled={!request} title="Facebook Login" onPress={FacebookLoginOnPress} />
+      <Button disabled={!googleRequest} title="Google Login" onPress={GoogleLoginOnPress} />
+      <Button disabled={!facebookRequest} title="Facebook Login" onPress={FacebookLoginOnPress} />
     </View>
   )
 }
