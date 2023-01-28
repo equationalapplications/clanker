@@ -8,8 +8,8 @@ import { GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth"
 import { useEffect } from "react"
 import { StyleSheet, Button } from "react-native"
 
-import { auth } from "../app/config/firebaseConfig"
 import { View } from "../components/Themed"
+import { auth } from "../config/firebaseConfig"
 
 WebBrowser.maybeCompleteAuthSession()
 

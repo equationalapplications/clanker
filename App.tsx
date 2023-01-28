@@ -4,10 +4,10 @@ import { AlertsProvider } from "react-native-paper-alerts"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
 import { QueryClient, QueryClientProvider } from "react-query"
 
+import useCachedResources from "./app/hooks/useCachedResources"
+import useColorScheme from "./app/hooks/useColorScheme"
+import Navigation from "./app/navigation"
 import { theme } from "./app/theme"
-import useCachedResources from "./hooks/useCachedResources"
-import useColorScheme from "./hooks/useColorScheme"
-import Navigation from "./navigation"
 
 const queryClient = new QueryClient()
 

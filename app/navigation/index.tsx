@@ -11,7 +11,7 @@ import { useAuthUser } from "@react-query-firebase/auth"
 import * as React from "react"
 import { ColorSchemeName, Pressable } from "react-native"
 
-import { auth } from "../app/config/firebaseConfig"
+import { auth } from "../config/firebaseConfig"
 import Colors from "../constants/Colors"
 import useColorScheme from "../hooks/useColorScheme"
 import ModalScreen from "../screens/ModalScreen"
