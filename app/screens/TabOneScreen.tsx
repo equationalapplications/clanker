@@ -1,5 +1,6 @@
 import { useAuthSignOut } from "@react-query-firebase/auth"
 import { StyleSheet, Button } from "react-native"
+import Purchases from "react-native-purchases"
 
 import { Text, View } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"

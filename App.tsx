@@ -1,3 +1,4 @@
+import "expo-dev-client"
 import { StatusBar } from "expo-status-bar"
 import { Provider as PaperProvider } from "react-native-paper"
 import { AlertsProvider } from "react-native-paper-alerts"
