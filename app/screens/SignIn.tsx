@@ -7,8 +7,8 @@ import * as WebBrowser from "expo-web-browser"
 import { GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth"
 import { useEffect } from "react"
 import { StyleSheet } from "react-native"
-import ProviderButton from '../components/AuthProviderButton'
 
+import ProviderButton from "../components/AuthProviderButton"
 import { View } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"
 

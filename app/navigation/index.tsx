@@ -16,6 +16,7 @@ import Colors from "../constants/Colors"
 import useColorScheme from "../hooks/useColorScheme"
 import ModalScreen from "../screens/ModalScreen"
 import NotFoundScreen from "../screens/NotFoundScreen"
+import PaywallScreen from "../screens/PaywallScreen"
 import SignIn from "../screens/SignIn"
 import TabOneScreen from "../screens/TabOneScreen"
 import TabTwoScreen from "../screens/TabTwoScreen"
@@ -46,11 +47,13 @@ function RootNavigator() {
     <Stack.Navigator>
       {user.data ? (
         <>
+          <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
           <Stack.Screen
             name="Root"
             component={BottomTabNavigator}
             options={{ headerShown: false }}
           />
+
           <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
           <Stack.Group screenOptions={{ presentation: "modal" }}>
             <Stack.Screen name="Modal" component={ModalScreen} />

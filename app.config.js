@@ -45,6 +45,8 @@ export default {
       firebaseAppId: process.env.FIREBASE_APP_ID,
       googleAuthClientId: process.env.GOOGLE_AUTH_CLIENT_ID,
       facebookAuthAppId: process.env.FACEBOOK_AUTH_APP_ID,
+      revenueCatPurchasesApiKey: process.env.REVENUECAT_PURCHASES_API_KEY,
+      revenueCatPurchasesEntitlementId: "premium",
     },
   },
 }
