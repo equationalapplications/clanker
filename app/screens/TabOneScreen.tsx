@@ -1,8 +1,9 @@
 import { useAuthSignOut } from "@react-query-firebase/auth"
 import { StyleSheet, Button } from "react-native"
+import Purchases from "react-native-purchases"
 
-import { auth } from "../app/config/firebaseConfig"
 import { Text, View } from "../components/Themed"
+import { auth } from "../config/firebaseConfig"
 import { RootTabScreenProps } from "../navigation/types"
 
 export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne">) {

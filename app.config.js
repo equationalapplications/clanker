@@ -1,6 +1,10 @@
 import "dotenv/config"
 import * as pkg from "./package.json"
 
+const breakingChangeVersion = pkg.version.split(".")[0]
+
+const runtimeVer = breakingChangeVersion + ".0.0"
+
 export default {
   expo: {
     scheme: "com.equationalapplications.yoursbrightlyai",
@@ -16,8 +20,10 @@ export default {
       backgroundColor: "#ffffff",
     },
     updates: {
+      url: "https://u.expo.dev/2333eead-a87c-4a6f-adea-b1b433f4740e",
       fallbackToCacheTimeout: 0,
     },
+    runtimeVersion: runtimeVer,
     assetBundlePatterns: ["**/*"],
     ios: {
       bundleIdentifier: "com.equationalapplications.yoursbrightlyai",
@@ -45,6 +51,8 @@ export default {
       firebaseAppId: process.env.FIREBASE_APP_ID,
       googleAuthClientId: process.env.GOOGLE_AUTH_CLIENT_ID,
       facebookAuthAppId: process.env.FACEBOOK_AUTH_APP_ID,
+      revenueCatPurchasesApiKey: process.env.REVENUECAT_PURCHASES_API_KEY,
+      revenueCatPurchasesEntitlementId: "premium",
     },
   },
 }
