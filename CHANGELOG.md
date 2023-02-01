@@ -1,3 +1,13 @@
+# [1.8.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.7.0...v1.8.0) (2023-01-28)
+
+
+### Features
+
+* add expo-dev-client ([5f0725a](https://github.com/equationalapplications/yoursbrightlyai/commit/5f0725a91ae7a920476b1ae3e7cc4f5918a35003))
+* add facebook login button ([dc11d9a](https://github.com/equationalapplications/yoursbrightlyai/commit/dc11d9a02c4d81da1e30505ee6c79215d066c02c))
+* add react-native-fbsdk-next ([2bb21ea](https://github.com/equationalapplications/yoursbrightlyai/commit/2bb21eaa8beb7b94a23feab76d43788b35bc089e))
+* add signin with FacebookAuthProvider ([1d12f0a](https://github.com/equationalapplications/yoursbrightlyai/commit/1d12f0a7dfea44e822312b773dcc5f0b9ffce0ff))
+
 # [1.8.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.7.0...v1.8.0-staging.1) (2023-01-28)
 
 
