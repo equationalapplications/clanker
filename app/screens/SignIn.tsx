@@ -6,10 +6,11 @@ import Constants from "expo-constants"
 import * as WebBrowser from "expo-web-browser"
 import { GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth"
 import { useEffect } from "react"
-import { StyleSheet, Button } from "react-native"
+import { StyleSheet } from "react-native"
 
-import { auth } from "../app/config/firebaseConfig"
+import ProviderButton from "../components/AuthProviderButton"
 import { View } from "../components/Themed"
+import { auth } from "../config/firebaseConfig"
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -48,8 +49,12 @@ export default function SignIn() {
 
   return (
     <View style={styles.container}>
-      <Button disabled={!googleRequest} title="Google Login" onPress={GoogleLoginOnPress} />
-      <Button disabled={!facebookRequest} title="Facebook Login" onPress={FacebookLoginOnPress} />
+      <ProviderButton onPress={GoogleLoginOnPress} type="google">
+        Google
+      </ProviderButton>
+      <ProviderButton onPress={FacebookLoginOnPress} type="facebook">
+        Facebook
+      </ProviderButton>
     </View>
   )
 }
