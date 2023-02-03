@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react"
 import { View, Text, FlatList, Alert } from "react-native"
 import Purchases from "react-native-purchases"
 
-import { PackageItem } from "../../components/PackageItem"
+import PackageItem from "../../components/PackageItem"
 import styles from "./styles.js"
 
 /*
