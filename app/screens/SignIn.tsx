@@ -16,7 +16,8 @@ WebBrowser.maybeCompleteAuthSession()
 
 export default function SignIn() {
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
-    clientId: Constants.expoConfig?.extra?.googleAuthClientId,
+    webClientId: Constants.expoConfig?.extra?.googleWebClientId,
+    androidClientId: Constants.expoConfig?.extra?.googleAndroidClientId,
   })
 
   const [facebookRequest, facebookResponse, facebookPromptAsync] = Facebook.useAuthRequest({
