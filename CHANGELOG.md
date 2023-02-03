@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.8.0...v1.9.0) (2023-02-01)
+
+
+### Features
+
+* add paywall screen with purchases ([e5c34dd](https://github.com/equationalapplications/yoursbrightlyai/commit/e5c34ddb958e46cd5d5115125d6d8173919b855a))
+
 # [1.9.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.8.0...v1.9.0-staging.1) (2023-02-01)
 
 
