@@ -7,6 +7,7 @@ const runtimeVer = breakingChangeVersion + ".0.0"
 
 export default {
   expo: {
+    userInterfaceStyle: "automatic",
     scheme: "com.equationalapplications.yoursbrightlyai",
     name: "yours-brightly-ai",
     slug: "yours-brightly-ai",

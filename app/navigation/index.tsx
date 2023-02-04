@@ -47,13 +47,12 @@ function RootNavigator() {
     <Stack.Navigator>
       {user.data ? (
         <>
-          <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
           <Stack.Screen
             name="Root"
             component={BottomTabNavigator}
             options={{ headerShown: false }}
           />
-
+          <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
           <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
           <Stack.Group screenOptions={{ presentation: "modal" }}>
             <Stack.Screen name="Modal" component={ModalScreen} />
