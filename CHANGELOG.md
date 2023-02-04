@@ -1,3 +1,17 @@
+# [1.10.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.9.0...v1.10.0-staging.1) (2023-02-04)
+
+
+### Bug Fixes
+
+* remove duplicate key ([e7555c0](https://github.com/equationalapplications/yoursbrightlyai/commit/e7555c00ff4e528a1232bb3e6499db8b483da378))
+
+
+### Features
+
+* add app icon ([a62fa14](https://github.com/equationalapplications/yoursbrightlyai/commit/a62fa1438f7ba792804512f4f480be7c0e5a82ff))
+* support for auto dark / light mode ([6f27b38](https://github.com/equationalapplications/yoursbrightlyai/commit/6f27b383e6ee554089a4adc75d678978debc1d3d))
+* use uid for Purchases appUserID ([573b2db](https://github.com/equationalapplications/yoursbrightlyai/commit/573b2db99742b95d8471ad0bd0a8471d0c4ef01a))
+
 # [1.9.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.8.0...v1.9.0) (2023-02-01)
 
 

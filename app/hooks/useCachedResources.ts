@@ -4,9 +4,13 @@ import * as Font from "expo-font"
 import * as SplashScreen from "expo-splash-screen"
 import { useEffect, useState } from "react"
 import Purchases from "react-native-purchases"
+import { useAuthUser } from "@react-query-firebase/auth"
+
+import { auth } from "../config/firebaseConfig"
 
 export default function useCachedResources() {
   const [isLoadingComplete, setLoadingComplete] = useState(false)
+  const user = useAuthUser(["user"], auth)
 
   // Load any resources or data that we need prior to rendering the app
   useEffect(() => {
@@ -24,7 +28,7 @@ export default function useCachedResources() {
         Purchases.setDebugLogsEnabled(true)
         Purchases.configure({
           apiKey: Constants.expoConfig?.extra?.revenueCatPurchasesApiKey,
-          appUserID: null,
+          appUserID: user.data?.uid,
           observerMode: false,
           useAmazon: false,
         })
