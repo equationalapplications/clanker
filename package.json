@@ -13,7 +13,9 @@
     "lint": "eslint . --fix --ext .js,.ts,.tsx && npm run format",
     "test": "jest",
     "test:watch": "jest --watch",
-    "adb": "adb reverse tcp:8081 tcp:8081"
+    "adb": "adb reverse tcp:8081 tcp:8081",
+    "predeploy": "expo export:web",
+    "deploy-hosting": "npm run predeploy && firebase deploy --only hosting"
   },
   "dependencies": {
     "@expo/vector-icons": "^13.0.0",
