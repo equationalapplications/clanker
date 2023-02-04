@@ -7,14 +7,13 @@ const runtimeVer = breakingChangeVersion + ".0.0"
 
 export default {
   expo: {
-    userInterfaceStyle: "automatic",
     scheme: "com.equationalapplications.yoursbrightlyai",
     name: "yours-brightly-ai",
     slug: "yours-brightly-ai",
     version: pkg.version,
     orientation: "portrait",
     icon: "./assets/icon.png",
-    userInterfaceStyle: "light",
+    userInterfaceStyle: "automatic",
     splash: {
       image: "./assets/splash.png",
       resizeMode: "contain",
