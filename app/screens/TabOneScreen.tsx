@@ -1,6 +1,9 @@
 import { useAuthSignOut } from "@react-query-firebase/auth"
 import { StyleSheet, Button } from "react-native"
 import Purchases from "react-native-purchases"
+import { useAuthUser } from "@react-query-firebase/auth"
+import Constants from "expo-constants"
+import { useEffect } from "react"
 
 import { Text, View } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"
@@ -8,6 +11,20 @@ import { RootTabScreenProps } from "../navigation/types"
 
 export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne">) {
   const mutation = useAuthSignOut(auth)
+  const user = useAuthUser(["user"], auth)
+  console.log("user data", user.data)
+
+  useEffect(() => {
+    // Configure Purchases
+    Purchases.setDebugLogsEnabled(true)
+    Purchases.configure({
+      apiKey: Constants.expoConfig?.extra?.revenueCatPurchasesApiKey,
+      appUserID: user.data?.uid,
+      observerMode: false,
+      useAmazon: false,
+    })
+  }, [])
+
 
   const onPress = () => {
     mutation.mutate()
