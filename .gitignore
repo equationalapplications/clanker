@@ -16,3 +16,6 @@ web-build/
 # custom
 .env
 .firebase
+firebase-functions/firebase-debug.log
+firebase-functions/firestore-debug.log
+firebase-functions/ui-debug.log
