@@ -1,6 +1,7 @@
 import Constants from "expo-constants"
 import { initializeApp } from "firebase/app"
 import { getAuth } from "firebase/auth"
+import { getFirestore } from "firebase/firestore"
 
 // Initialize Firebase
 const firebase = initializeApp({
@@ -13,3 +14,4 @@ const firebase = initializeApp({
 })
 
 export const auth = getAuth(firebase)
+export const firestore = getFirestore(firebase)
