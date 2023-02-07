@@ -1,9 +1,17 @@
+import { useState } from "react"
 import { useAuthSignOut } from "@react-query-firebase/auth"
 import { StyleSheet, Button } from "react-native"
 import Purchases from "react-native-purchases"
 import { useAuthUser } from "@react-query-firebase/auth"
 import Constants from "expo-constants"
 import { useEffect } from "react"
+import { GiftedChat, User, IMessage } from "react-native-gifted-chat"
+import { doc } from "firebase/firestore"
+import {
+  useFirestoreDocument,
+  useFirestoreTransaction,
+} from "@react-query-firebase/firestore"
+import { firestore } from "../config/firebaseConfig"
 
 import { Text, View } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"
@@ -12,7 +20,23 @@ import { RootTabScreenProps } from "../navigation/types"
 export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne">) {
   const mutation = useAuthSignOut(auth)
   const user = useAuthUser(["user"], auth)
-  console.log("user data", user.data)
+  const uid = user?.data?.uid ?? ""
+  const ref = doc(firestore, "messages", uid)
+
+  const [messages, setMessages] = useState<IMessage[]>()
+  const [isTyping, setIsTyping] = useState<boolean>(false)
+
+  const chatUser: User = {
+    _id: user?.data?.uid ?? 0,
+    name: user.data?.displayName ?? "user",
+    avatar: "https://gravatar.com/avatar?d=wavatar",
+  };
+
+  const chatbotUser: User = {
+    _id: 1,
+    name: "Chatbot",
+    avatar: "https://gravatar.com/avatar?d=robohash",
+  };
 
   useEffect(() => {
     // Configure Purchases
@@ -30,10 +54,21 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
     mutation.mutate()
   }
 
+  const onSend = () => {
+
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Tab One</Text>
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
+      <GiftedChat
+        messages={messages}
+        onSend={onSend}
+        user={chatUser}
+        placeholder={"chat with me..."}
+        isTyping={isTyping}
+      />
       <Button title="Sign Out" onPress={onPress} />
     </View>
   )
