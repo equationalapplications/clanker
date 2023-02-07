@@ -9,6 +9,7 @@ import useCachedResources from "./app/hooks/useCachedResources"
 import useColorScheme from "./app/hooks/useColorScheme"
 import Navigation from "./app/navigation"
 import { theme } from "./app/theme"
+import { ErrorBoundary } from "./app/screens/ErrorScreen/ErrorBoundary"
 
 const queryClient = new QueryClient()
 
@@ -24,8 +25,10 @@ export default function App() {
         <QueryClientProvider client={queryClient}>
           <PaperProvider theme={theme}>
             <AlertsProvider>
-              <Navigation colorScheme={colorScheme} />
-              <StatusBar />
+              <ErrorBoundary catchErrors="always">
+                <Navigation colorScheme={colorScheme} />
+                <StatusBar />
+              </ErrorBoundary>
             </AlertsProvider>
           </PaperProvider>
         </QueryClientProvider>
