@@ -6,12 +6,13 @@ import { useAuthUser } from "@react-query-firebase/auth"
 import Constants from "expo-constants"
 import { useEffect } from "react"
 import { GiftedChat, User, IMessage } from "react-native-gifted-chat"
-import { doc } from "firebase/firestore"
+import { collection, doc } from "firebase/firestore"
 import {
   useFirestoreDocument,
   useFirestoreTransaction,
 } from "@react-query-firebase/firestore"
 import { firestore } from "../config/firebaseConfig"
+import * as Random from 'expo-random'
 
 import { Text, View } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"
@@ -21,7 +22,7 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
   const mutation = useAuthSignOut(auth)
   const user = useAuthUser(["user"], auth)
   const uid = user?.data?.uid ?? ""
-  const ref = doc(firestore, "messages", uid)
+  const refMessages = collection(firestore, "chat_rooms/solo_chat_room/user", uid, "messages");
 
   const [messages, setMessages] = useState<IMessage[]>()
   const [isTyping, setIsTyping] = useState<boolean>(false)
@@ -61,7 +62,6 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
       <GiftedChat
         messages={messages}
         onSend={onSend}
@@ -69,6 +69,7 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
         placeholder={"chat with me..."}
         isTyping={isTyping}
       />
+      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
       <Button title="Sign Out" onPress={onPress} />
     </View>
   )
