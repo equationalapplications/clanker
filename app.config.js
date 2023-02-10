@@ -33,7 +33,7 @@ export default {
       package: "com.equationalapplications.yoursbrightlyai",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#FFFFFF",
+        backgroundImage: "./assets/adaptive-icon-background.png",
       },
     },
     web: {
