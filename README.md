@@ -13,6 +13,7 @@ Collection: users_public
 
 Collection: users_private
     Document: uid // private data by uid
+        uid: uid // from firebase
         credits: number
         isProfilePublic: boolean
 
