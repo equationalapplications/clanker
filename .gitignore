@@ -19,3 +19,4 @@ web-build/
 firebase-functions/firebase-debug.log
 firebase-functions/firestore-debug.log
 firebase-functions/ui-debug.log
+firestore-debug.log
