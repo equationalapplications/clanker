@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useAuthSignOut } from "@react-query-firebase/auth"
 import { StyleSheet, Button } from "react-native"
 import Purchases from "react-native-purchases"
@@ -6,14 +6,14 @@ import { useAuthUser } from "@react-query-firebase/auth"
 import Constants from "expo-constants"
 import { useEffect } from "react"
 import { GiftedChat, User, IMessage } from "react-native-gifted-chat"
-import { collection, doc } from "firebase/firestore"
+import { collection, doc, addDoc } from "firebase/firestore"
 import {
   useFirestoreDocument,
   useFirestoreTransaction,
 } from "@react-query-firebase/firestore"
 import { firestore } from "../config/firebaseConfig"
-import * as Random from 'expo-random'
 
+import { getId } from "../utilities/getId"
 import { Text, View } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"
 import { RootTabScreenProps } from "../navigation/types"
@@ -22,7 +22,7 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
   const mutation = useAuthSignOut(auth)
   const user = useAuthUser(["user"], auth)
   const uid = user?.data?.uid ?? ""
-  const refMessages = collection(firestore, "chat_rooms/solo_chat_room/user", uid, "messages");
+  const refMessages = collection(firestore, "messages")
 
   const [messages, setMessages] = useState<IMessage[]>()
   const [isTyping, setIsTyping] = useState<boolean>(false)
@@ -55,9 +55,10 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
     mutation.mutate()
   }
 
-  const onSend = () => {
-
-  }
+  const onSend = useCallback((messages: IMessage[]) => {
+    const { _id, createdAt, text, user, } = messages[0]
+    addDoc(collection(firestore, 'messages'), { _id, createdAt, text, user });
+  }, []);
 
   return (
     <View style={styles.container}>

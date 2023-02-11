@@ -1,16 +1,30 @@
+rules_version = '2';
+// Allow read/write access on all documents to any user signed in to the application
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Default for all docs: Any logged-in user has read access
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2023, 3, 8);
+      allow read, write: if request.auth != null;
     }
+
+    // messages: Any logged-in user has read access. Allow only authenticated content owners write access.
+    match /messages/{messages} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == request.resource.data.user._id;
+    }
+
+    // users_private: Allow only authenticated content owners access
+    match /users_private/{users_private} {
+      allow read: if request.auth != null && request.auth.uid == users_private.uid;
+      allow write: if request.auth != null && request.auth.uid == request.resource.data.uid;
+    }
+
+    // users_public: Any logged-in user has read access. Allow only authenticated content owners write access.
+    match /users_public/{users_public} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == request.resource.data.uid;
+    }
+
   }
 }
