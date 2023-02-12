@@ -5,7 +5,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web",
+    "web": "expo start --web --https",
     "semantic-release": "semantic-release",
     "prepare": "husky install",
     "commit": "git-cz",
