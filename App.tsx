@@ -8,8 +8,8 @@ import { QueryClient, QueryClientProvider } from "react-query"
 import useCachedResources from "./app/hooks/useCachedResources"
 import useColorScheme from "./app/hooks/useColorScheme"
 import Navigation from "./app/navigation"
-import { theme } from "./app/theme"
 import { ErrorBoundary } from "./app/screens/ErrorScreen/ErrorBoundary"
+import { theme } from "./app/theme"
 
 const queryClient = new QueryClient()
 
