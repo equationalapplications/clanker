@@ -1,22 +1,16 @@
-import { useState, useCallback } from "react"
-import { useAuthSignOut } from "@react-query-firebase/auth"
-import { StyleSheet, Button } from "react-native"
-import Purchases from "react-native-purchases"
-import { useAuthUser } from "@react-query-firebase/auth"
+import { useAuthSignOut, useAuthUser } from "@react-query-firebase/auth"
+import { useFirestoreDocument, useFirestoreTransaction } from "@react-query-firebase/firestore"
 import Constants from "expo-constants"
-import { useEffect } from "react"
-import { GiftedChat, User, IMessage } from "react-native-gifted-chat"
 import { collection, doc, addDoc } from "firebase/firestore"
-import {
-  useFirestoreDocument,
-  useFirestoreTransaction,
-} from "@react-query-firebase/firestore"
-import { firestore } from "../config/firebaseConfig"
+import { useEffect, useState, useCallback } from "react"
+import { StyleSheet, Button } from "react-native"
+import { GiftedChat, User, IMessage } from "react-native-gifted-chat"
+import Purchases from "react-native-purchases"
 
-import { getId } from "../utilities/getId"
 import { Text, View } from "../components/Themed"
-import { auth } from "../config/firebaseConfig"
+import { firestore, auth } from "../config/firebaseConfig"
 import { RootTabScreenProps } from "../navigation/types"
+import { getId } from "../utilities/getId"
 
 export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne">) {
   const mutation = useAuthSignOut(auth)
@@ -31,13 +25,13 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
     _id: user?.data?.uid ?? 0,
     name: user.data?.displayName ?? "user",
     avatar: "https://gravatar.com/avatar?d=wavatar",
-  };
+  }
 
   const chatbotUser: User = {
     _id: 1,
     name: "Chatbot",
     avatar: "https://gravatar.com/avatar?d=robohash",
-  };
+  }
 
   useEffect(() => {
     // Configure Purchases
@@ -50,15 +44,14 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
     })
   }, [])
 
-
   const onPress = () => {
     mutation.mutate()
   }
 
   const onSend = useCallback((messages: IMessage[]) => {
-    const { _id, createdAt, text, user, } = messages[0]
-    addDoc(collection(firestore, 'messages'), { _id, createdAt, text, user });
-  }, []);
+    const { _id, createdAt, text, user } = messages[0]
+    addDoc(collection(firestore, "messages"), { _id, createdAt, text, user })
+  }, [])
 
   return (
     <View style={styles.container}>
@@ -67,7 +60,7 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
         messages={messages}
         onSend={onSend}
         user={chatUser}
-        placeholder={"chat with me..."}
+        placeholder="chat with me..."
         isTyping={isTyping}
       />
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />

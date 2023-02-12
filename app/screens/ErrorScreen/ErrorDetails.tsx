@@ -1,10 +1,10 @@
-import React, { ErrorInfo } from "react";
-import { ScrollView, View, Text, Button } from "react-native";
+import React, { ErrorInfo } from "react"
+import { ScrollView, View, Text, Button } from "react-native"
 
 export interface ErrorDetailsProps {
-  error: Error;
-  errorInfo: ErrorInfo;
-  onReset(): void;
+  error: Error
+  errorInfo: ErrorInfo
+  onReset(): void
 }
 
 export function ErrorDetails(props: ErrorDetailsProps) {
@@ -17,5 +17,5 @@ export function ErrorDetails(props: ErrorDetailsProps) {
 
       <Button title="Reset" onPress={props.onReset} />
     </View>
-  );
+  )
 }
