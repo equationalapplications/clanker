@@ -5,8 +5,8 @@ Copyright Equational Applications LLC
 ## Firestore Data  
 
 Collection: users_public
-    Document: _id 
-        _id: // uid from firebase auth
+    Document: uid 
+        uid: // uid from firebase auth
         name: displayName // from firebase auth
         avatar: string
         email: string // from firebase auth
