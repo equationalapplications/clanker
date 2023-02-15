@@ -1,28 +1,36 @@
 import { useAuthSignOut, useAuthUser } from "@react-query-firebase/auth"
-import { useFirestoreDocument, useFirestoreTransaction } from "@react-query-firebase/firestore"
+import {
+  useFirestoreTransaction,
+  useFirestoreCollectionMutation,
+} from "@react-query-firebase/firestore"
+import { useFunctionsQuery } from "@react-query-firebase/functions"
 import Constants from "expo-constants"
-import { collection, doc, addDoc } from "firebase/firestore"
+import { collection } from "firebase/firestore"
+import { httpsCallable } from "firebase/functions"
 import { useEffect, useState, useCallback } from "react"
 import { StyleSheet, Button } from "react-native"
 import { GiftedChat, User, IMessage } from "react-native-gifted-chat"
 import Purchases from "react-native-purchases"
 
 import { Text, View } from "../components/Themed"
-import { firestore, auth } from "../config/firebaseConfig"
+import { firestore, auth, functions } from "../config/firebaseConfig"
 import { RootTabScreenProps } from "../navigation/types"
-import { getId } from "../utilities/getId"
+
+const getReply = httpsCallable(functions, "getReply")
 
 export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne">) {
-  const mutation = useAuthSignOut(auth)
+  const authMutation = useAuthSignOut(auth)
   const user = useAuthUser(["user"], auth)
   const uid = user?.data?.uid ?? ""
-  const refMessages = collection(firestore, "messages")
+  const messagesRef = collection(firestore, "messages")
+  const messagesMutation = useFirestoreCollectionMutation(messagesRef)
+  const getReplyQuery = useFunctionsQuery("reply", functions, "getReply", "who are you?")
 
   const [messages, setMessages] = useState<IMessage[]>()
   const [isTyping, setIsTyping] = useState<boolean>(false)
 
   const chatUser: User = {
-    _id: user?.data?.uid ?? 0,
+    _id: uid,
     name: user.data?.displayName ?? "user",
     avatar: "https://gravatar.com/avatar?d=wavatar",
   }
@@ -38,24 +46,33 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
     Purchases.setDebugLogsEnabled(true)
     Purchases.configure({
       apiKey: Constants.expoConfig?.extra?.revenueCatPurchasesApiKey,
-      appUserID: user.data?.uid,
+      appUserID: uid,
       observerMode: false,
       useAmazon: false,
     })
   }, [])
 
   const onPress = () => {
-    mutation.mutate()
+    authMutation.mutate()
   }
 
-  const onSend = useCallback((messages: IMessage[]) => {
+  const onSend = useCallback(async (messages: IMessage[]) => {
+    console.log("onSend", messages)
+    setMessages((previousMessages) => GiftedChat.append(previousMessages, messages))
     const { _id, createdAt, text, user } = messages[0]
-    addDoc(collection(firestore, "messages"), { _id, createdAt, text, user })
+    messagesMutation.mutate({
+      _id,
+      createdAt,
+      text,
+      user,
+    })
+    const reply = await getReply({ text })
+    console.log("reply", reply.data)
   }, [])
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
+      {messagesMutation.isError && <Text>{messagesMutation.error.message}</Text>}
       <GiftedChat
         messages={messages}
         onSend={onSend}
@@ -72,8 +89,6 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   title: {
     fontSize: 20,
