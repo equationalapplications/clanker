@@ -16,36 +16,43 @@ Collection: users_private
         uid: uid // from firebase
         credits: number
         isProfilePublic: boolean
+        isPremium: boolean
+        defaultCharacter: string
 
-Collection: simulated_characters
+Collection: characters
     Document: uid // private data by uid
-        Collection: users_simulated_characters
+        Collection: users_characters
             Document: _id
                 _id: string || number
                 name: string
                 avatar: string
                 isCharacterPublic: boolean
+                context: string
+                emotions: string
 
-Collection: messages
-    Document: _id
-        _id: string | number
-        text: string
-        createdAt: Date | number
-        user:
-            _id: _id // of user or character
-            name: string
-            avatar: string
-
-
-Collection: solo_chat_rooms
+Collection: users_chats
     Document: uid // private data by uid
         Collection: messages
             Document: _id
-                _id: _id // of message
+                _id: string | number
+                text: string
+                createdAt: Date | number
+                user:
+                    _id: _id // of user or character
+                    name: string
+                    avatar: string
 
-Collection: social_chat_rooms
+Collection: pulic_chat_rooms
     Document: default_room
         Collection: messages
+            Document: _id
+                _id: string | number
+                text: string
+                createdAt: Date | number
+                user:
+                    _id: _id // of user or character
+                    name: string
+                    avatar: string
 
 
 
