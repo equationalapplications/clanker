@@ -5,7 +5,7 @@ import {
 } from "@react-query-firebase/firestore"
 import { useFunctionsQuery } from "@react-query-firebase/functions"
 import Constants from "expo-constants"
-import { collection } from "firebase/firestore"
+import { collection, doc } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
 import { useEffect, useState, useCallback } from "react"
 import { StyleSheet, Button } from "react-native"
@@ -16,15 +16,15 @@ import { Text, View } from "../components/Themed"
 import { firestore, auth, functions } from "../config/firebaseConfig"
 import { RootTabScreenProps } from "../navigation/types"
 
-const getReply = httpsCallable(functions, "getReply")
+const getReply: any = httpsCallable(functions, "getReply")
 
 export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne">) {
   const authMutation = useAuthSignOut(auth)
   const user = useAuthUser(["user"], auth)
   const uid = user?.data?.uid ?? ""
-  const messagesRef = collection(firestore, "messages")
+  const messagesRef = collection(firestore, `users_chats/{$uid}/messages`)
   const messagesMutation = useFirestoreCollectionMutation(messagesRef)
-  const getReplyQuery = useFunctionsQuery("reply", functions, "getReply", "who are you?")
+  //const getReplyQuery = useFunctionsQuery("reply", functions, "getReply", "who are you?")
 
   const [messages, setMessages] = useState<IMessage[]>()
   const [isTyping, setIsTyping] = useState<boolean>(false)
@@ -33,12 +33,6 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
     _id: uid,
     name: user.data?.displayName ?? "user",
     avatar: "https://gravatar.com/avatar?d=wavatar",
-  }
-
-  const chatbotUser: User = {
-    _id: 1,
-    name: "Chatbot",
-    avatar: "https://gravatar.com/avatar?d=robohash",
   }
 
   useEffect(() => {
@@ -60,19 +54,21 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
     console.log("onSend", messages)
     setMessages((previousMessages) => GiftedChat.append(previousMessages, messages))
     const { _id, createdAt, text, user } = messages[0]
+    const MessageDocRef = doc(firestore, `products/{$_id}`);
     messagesMutation.mutate({
       _id,
       createdAt,
       text,
       user,
     })
-    const reply = await getReply({ text })
-    console.log("reply", reply.data)
+    const { data } = await getReply({ message: text })
+    const reply = data.reply
+    console.log("reply", reply)
   }, [])
 
   return (
     <View style={styles.container}>
-      {messagesMutation.isError && <Text>{messagesMutation.error.message}</Text>}
+      {/*messagesMutation.isError && <Text>{messagesMutation.error.message}</Text>*/}
       <GiftedChat
         messages={messages}
         onSend={onSend}
