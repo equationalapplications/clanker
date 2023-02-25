@@ -21,7 +21,7 @@ Collection: users_private
 
 Collection: characters
     Document: uid // private data by uid
-        Collection: users_characters
+        Collection: user_characters
             Document: _id
                 _id: string || number
                 name: string
@@ -30,7 +30,7 @@ Collection: characters
                 context: string
                 emotions: string
 
-Collection: users_chats
+Collection: user_chats
     Document: uid // private data by uid
         Collection: messages
             Document: _id
