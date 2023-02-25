@@ -36,7 +36,7 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
   const chatUser: User = {
     _id: uid,
     name: user.data?.displayName ?? "user",
-    avatar: user.data?.photoURL ?? "https://gravatar.com/avatar?d=wavatar",
+    avatar: user.data?.photoURL,
   }
 
   useEffect(() => {
@@ -79,6 +79,7 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
     <View style={styles.container}>
       {/*messagesMutation.isError && <Text>{messagesMutation.error.message}</Text>*/}
       <GiftedChat
+        showUserAvatar={true}
         inverted={true}
         messages={messages}
         onSend={onSend}
