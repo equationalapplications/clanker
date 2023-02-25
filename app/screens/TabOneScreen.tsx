@@ -1,4 +1,4 @@
-import { useAuthSignOut, useAuthUser } from "@react-query-firebase/auth"
+import { useAuthUser } from "@react-query-firebase/auth"
 import {
   useFirestoreTransaction,
   useFirestoreDocumentMutation,
@@ -21,7 +21,6 @@ import { RootTabScreenProps } from "../navigation/types"
 const getReply: any = httpsCallable(functions, "getReply")
 
 export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne">) {
-  const authMutation = useAuthSignOut(auth)
   const user = useAuthUser(["user"], auth)
   const uid = user?.data?.uid ?? ""
   const messagesRef = collection(firestore, "user_chats", uid, "messages")
@@ -36,7 +35,7 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
   const chatUser: User = {
     _id: uid,
     name: user.data?.displayName ?? "user",
-    avatar: user.data?.photoURL,
+    avatar: user.data?.photoURL ?? undefined,
   }
 
   useEffect(() => {
@@ -49,10 +48,6 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
     //   useAmazon: false,
     // })
   }, [])
-
-  const onPress = () => {
-    authMutation.mutate()
-  }
 
   const onSend = useCallback(async (messages: IMessage[]) => {
     //setMessages((previousMessages) => GiftedChat.append(previousMessages, messages))
@@ -87,8 +82,7 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
         placeholder="chat with me..."
       //isTyping={isTyping}
       />
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <Button title="Sign Out" onPress={onPress} />
+
     </View>
   )
 }
