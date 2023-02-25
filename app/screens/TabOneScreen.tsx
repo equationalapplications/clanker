@@ -73,11 +73,13 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
   }, [])
 
   const messages = messagesQuery.data ?? []
+  messages.sort((a, b) => b.createdAt - a.createdAt)
 
   return (
     <View style={styles.container}>
       {/*messagesMutation.isError && <Text>{messagesMutation.error.message}</Text>*/}
       <GiftedChat
+        inverted={true}
         messages={messages}
         onSend={onSend}
         user={chatUser}
