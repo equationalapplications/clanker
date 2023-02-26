@@ -9,6 +9,8 @@ import { useEffect } from "react"
 import { StyleSheet } from "react-native"
 
 import ProviderButton from "../components/AuthProviderButton"
+import Logo from "../components/Logo"
+
 import { View } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"
 
@@ -50,6 +52,7 @@ export default function SignIn() {
 
   return (
     <View style={styles.container}>
+      <Logo />
       <ProviderButton onPress={GoogleLoginOnPress} type="google">
         Google
       </ProviderButton>
