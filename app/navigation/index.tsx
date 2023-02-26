@@ -55,7 +55,7 @@ function RootNavigator() {
           <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
           <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
           <Stack.Group screenOptions={{ presentation: "modal" }}>
-            <Stack.Screen name="Modal" component={ModalScreen} />
+            <Stack.Screen name="Modal" component={ModalScreen} options={{ title: "Subscribe" }} />
           </Stack.Group>
         </>
       ) : (
@@ -89,8 +89,8 @@ function BottomTabNavigator() {
         name="TabOne"
         component={TabOneScreen}
         options={({ navigation }: RootTabScreenProps<"TabOne">) => ({
-          title: "Tab One",
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: "Chat",
+          tabBarIcon: ({ color }) => <TabBarIcon name="file-text" color={color} />,
           headerRight: () => (
             <Pressable
               onPress={() => navigation.navigate("Modal")}
@@ -112,8 +112,8 @@ function BottomTabNavigator() {
         name="TabTwo"
         component={TabTwoScreen}
         options={{
-          title: "Tab Two",
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: "Settings",
+          tabBarIcon: ({ color }) => <TabBarIcon name="gear" color={color} />,
         }}
       />
     </BottomTab.Navigator>

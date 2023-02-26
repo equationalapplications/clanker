@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "react-query"
 import useCachedResources from "./app/hooks/useCachedResources"
 import useColorScheme from "./app/hooks/useColorScheme"
 import Navigation from "./app/navigation"
+import { ErrorBoundary } from "./app/screens/ErrorScreen/ErrorBoundary"
 import { theme } from "./app/theme"
 
 const queryClient = new QueryClient()
@@ -24,8 +25,10 @@ export default function App() {
         <QueryClientProvider client={queryClient}>
           <PaperProvider theme={theme}>
             <AlertsProvider>
-              <Navigation colorScheme={colorScheme} />
-              <StatusBar />
+              <ErrorBoundary catchErrors="always">
+                <Navigation colorScheme={colorScheme} />
+                <StatusBar />
+              </ErrorBoundary>
             </AlertsProvider>
           </PaperProvider>
         </QueryClientProvider>
