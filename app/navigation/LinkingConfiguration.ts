@@ -29,7 +29,7 @@ const linking: LinkingOptions<RootStackParamList> = {
         },
       },
       Paywall: "paywall",
-      Modal: "modal",
+      Subscribe: "subscribe",
       NotFound: "*",
     },
   },
