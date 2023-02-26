@@ -8,6 +8,7 @@ import { GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth"
 import { useEffect } from "react"
 import { StyleSheet } from "react-native"
 
+import { MonoText, TitleText } from "../components/StyledText"
 import ProviderButton from "../components/AuthProviderButton"
 import Logo from "../components/Logo"
 
@@ -52,6 +53,9 @@ export default function SignIn() {
 
   return (
     <View style={styles.container}>
+      <TitleText>Yours Brightly AI</TitleText>
+      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
+      <MonoText>Create Your Own Simulated Friend</MonoText>
       <Logo />
       <ProviderButton onPress={GoogleLoginOnPress} type="google">
         Google
