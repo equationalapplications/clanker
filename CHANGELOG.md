@@ -1,3 +1,38 @@
+# [1.11.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.10.0...v1.11.0-staging.1) (2023-02-26)
+
+
+### Bug Fixes
+
+* add linking for signin and paywall ([e8dd7fc](https://github.com/equationalapplications/yoursbrightlyai/commit/e8dd7fc8d302bbecd616ba1f4397342a9b71e028))
+* compare with uid ([1332125](https://github.com/equationalapplications/yoursbrightlyai/commit/1332125df9a440f174f166f447fe6fdd8b8f4269))
+* correct display name ([2c15142](https://github.com/equationalapplications/yoursbrightlyai/commit/2c15142406b63a2beccbf9e73bff5e92c28babbd))
+* import expo-random ([a34fb2a](https://github.com/equationalapplications/yoursbrightlyai/commit/a34fb2a8300ef0cda37769a69086a4588bef2d3e))
+* make SignIn the initial route ([1086176](https://github.com/equationalapplications/yoursbrightlyai/commit/1086176b4a6f3941eb90a26c738191c1424b328c))
+* scale adaptive-icon to 512 x 512 ([662c2a1](https://github.com/equationalapplications/yoursbrightlyai/commit/662c2a1b137b155d2c26bb1ae935dcdc0c0c6678))
+* scale image layer to fit ([7e9a920](https://github.com/equationalapplications/yoursbrightlyai/commit/7e9a920d0854e31084ffe6d6123007121a0e582e))
+* sort messages by createAt ([5004362](https://github.com/equationalapplications/yoursbrightlyai/commit/5004362c2290233ec24529df9151ae10c7cb5fff))
+* subscribe to firestore messages ([67c1d74](https://github.com/equationalapplications/yoursbrightlyai/commit/67c1d74b539c75e22b808d61d42ebb72cc3f9053))
+* update title and icon ([d3b269f](https://github.com/equationalapplications/yoursbrightlyai/commit/d3b269f78e926f8760845f8696eb17d402f22475))
+
+
+### Features
+
+* add Button component from paper login template ([ccc95b5](https://github.com/equationalapplications/yoursbrightlyai/commit/ccc95b558b2d1ec0b8469738c45d11150385d86f))
+* add ErrorBoundary ([a54d74d](https://github.com/equationalapplications/yoursbrightlyai/commit/a54d74d153c133ee83321d0387528820001eaff4))
+* add gifted chat ([a343fae](https://github.com/equationalapplications/yoursbrightlyai/commit/a343faed06803608ed2cc71718c976ed6e10cf5d))
+* add golden color scheme ([b96707b](https://github.com/equationalapplications/yoursbrightlyai/commit/b96707b1b38b2c89a31b91ade558406f5fc9b1a1))
+* add Logo component. display on SignIn ([b3f72dc](https://github.com/equationalapplications/yoursbrightlyai/commit/b3f72dc1e82b23ce8524f2258d2867cd44d2dd34))
+* add openai function ([60e7128](https://github.com/equationalapplications/yoursbrightlyai/commit/60e7128a9e272e6690690ad26d8412aa5c6d845b))
+* create TitleText component. add it to SignIn ([9f55cca](https://github.com/equationalapplications/yoursbrightlyai/commit/9f55cca4c0880442f5ace338fd83fbfb01a38adf))
+* export firestore ([d2839ab](https://github.com/equationalapplications/yoursbrightlyai/commit/d2839ab04178a5e4e4149c41752d8bcaee875fb8))
+* firebase init firestore ([e43d87e](https://github.com/equationalapplications/yoursbrightlyai/commit/e43d87e2b89d1be7cf1f70c3f990763adb2c5f4e))
+* firebase init functions ([84381cb](https://github.com/equationalapplications/yoursbrightlyai/commit/84381cb32200cf0ef4988a394f8efa25c0770d0b))
+* show user avatar ([67549ea](https://github.com/equationalapplications/yoursbrightlyai/commit/67549ea0f59bc617a75d6553046d6aec41a52609))
+* title "Settings". add logout button ([8356aae](https://github.com/equationalapplications/yoursbrightlyai/commit/8356aae0d1de653a99afee936a4c48faa046a70d))
+* title "Subscribe". remove EditScreenInfo ([a698564](https://github.com/equationalapplications/yoursbrightlyai/commit/a698564bbd03368c7c16db22028db56928a2283a))
+* title modal as "Subscribe" ([d0e3f95](https://github.com/equationalapplications/yoursbrightlyai/commit/d0e3f9541fdf5f7406c4746d63b0365482f36aa6))
+* use transparent adaptive icon background ([5ee7c96](https://github.com/equationalapplications/yoursbrightlyai/commit/5ee7c96ab5cb68cb88ad3b43ef36af8d6c445dd5))
+
 # [1.10.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.9.0...v1.10.0) (2023-02-04)
 
 
