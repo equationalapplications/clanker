@@ -18,8 +18,10 @@ import SubscribeModal from "../screens/SubscribeModal"
 import NotFoundScreen from "../screens/NotFoundScreen"
 import PaywallScreen from "../screens/PaywallScreen"
 import SignIn from "../screens/SignIn"
-import TabOneScreen from "../screens/TabOneScreen"
-import TabTwoScreen from "../screens/TabTwoScreen"
+import TabOneScreen from "../screens/Chat"
+import Settings from "../screens/Settings"
+import Characters from "../screens/Characters"
+import Profile from "../screens/Profile"
 import LinkingConfiguration from "./LinkingConfiguration"
 import { RootStackParamList, RootTabParamList, RootTabScreenProps } from "./types"
 
@@ -53,6 +55,8 @@ function RootNavigator() {
             options={{ headerShown: false }}
           />
           <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
+          <Stack.Screen name="Profile" component={Profile} options={{ title: "Profile" }} />
+          <Stack.Screen name="Characters" component={Characters} options={{ title: "Characters" }} />
           <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
           <Stack.Group screenOptions={{ presentation: "modal" }}>
             <Stack.Screen name="Subscribe" component={SubscribeModal} options={{ title: "Subscribe" }} />
@@ -80,17 +84,17 @@ function BottomTabNavigator() {
 
   return (
     <BottomTab.Navigator
-      initialRouteName="TabOne"
+      initialRouteName="Chat"
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,
       }}
     >
       <BottomTab.Screen
-        name="TabOne"
+        name="Chat"
         component={TabOneScreen}
-        options={({ navigation }: RootTabScreenProps<"TabOne">) => ({
+        options={({ navigation }: RootTabScreenProps<"Chat">) => ({
           title: "Chat",
-          tabBarIcon: ({ color }) => <TabBarIcon name="file-text" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="comments" color={color} />,
           headerRight: () => (
             <Pressable
               onPress={() => navigation.navigate("Subscribe")}
@@ -109,8 +113,8 @@ function BottomTabNavigator() {
         })}
       />
       <BottomTab.Screen
-        name="TabTwo"
-        component={TabTwoScreen}
+        name="Settings"
+        component={Settings}
         options={{
           title: "Settings",
           tabBarIcon: ({ color }) => <TabBarIcon name="gear" color={color} />,

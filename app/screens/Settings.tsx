@@ -1,21 +1,28 @@
 import { StyleSheet } from "react-native"
-import { useAuthSignOut } from "@react-query-firebase/auth"
 
-import { auth } from "../config/firebaseConfig"
 import { Text, View } from "../components/Themed"
 import Button from "../components/Button"
+import { RootTabScreenProps } from "../navigation/types"
 
-export default function TabTwoScreen() {
-  const authMutation = useAuthSignOut(auth)
-  const onPress = () => {
-    authMutation.mutate()
+export default function Settings({ navigation }: RootTabScreenProps<"Settings">) {
+
+  const onPressProfile = () => {
+    navigation.navigate("Profile")
   }
+
+  const onPressCharacters = () => {
+    navigation.navigate("Characters")
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Settings</Text>
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <Button mode={"contained"} onPress={onPress}>
-        <Text>Sign Out</Text>
+      <Button mode={"contained"} onPress={onPressProfile}>
+        <Text>Profile</Text>
+      </Button>
+      <Button mode={"contained"} onPress={onPressCharacters}>
+        <Text>Characters</Text>
       </Button>
     </View>
   )
