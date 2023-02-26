@@ -1,9 +1,9 @@
-import { StyleSheet, Button } from "react-native"
+import { StyleSheet } from "react-native"
 import { useAuthSignOut } from "@react-query-firebase/auth"
 
 import { auth } from "../config/firebaseConfig"
-import EditScreenInfo from "../components/EditScreenInfo"
 import { Text, View } from "../components/Themed"
+import Button from "../components/Button"
 
 export default function TabTwoScreen() {
   const authMutation = useAuthSignOut(auth)
@@ -14,7 +14,9 @@ export default function TabTwoScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Settings</Text>
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <Button title="Sign Out" onPress={onPress} />
+      <Button mode={"contained"} onPress={onPress}>
+        <Text>Sign Out</Text>
+      </Button>
     </View>
   )
 }
