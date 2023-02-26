@@ -14,7 +14,7 @@ import { ColorSchemeName, Pressable } from "react-native"
 import { auth } from "../config/firebaseConfig"
 import Colors from "../constants/Colors"
 import useColorScheme from "../hooks/useColorScheme"
-import ModalScreen from "../screens/ModalScreen"
+import SubscribeModal from "../screens/SubscribeModal"
 import NotFoundScreen from "../screens/NotFoundScreen"
 import PaywallScreen from "../screens/PaywallScreen"
 import SignIn from "../screens/SignIn"
@@ -55,7 +55,7 @@ function RootNavigator() {
           <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
           <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
           <Stack.Group screenOptions={{ presentation: "modal" }}>
-            <Stack.Screen name="Modal" component={ModalScreen} options={{ title: "Subscribe" }} />
+            <Stack.Screen name="Subscribe" component={SubscribeModal} options={{ title: "Subscribe" }} />
           </Stack.Group>
         </>
       ) : (
@@ -93,7 +93,7 @@ function BottomTabNavigator() {
           tabBarIcon: ({ color }) => <TabBarIcon name="file-text" color={color} />,
           headerRight: () => (
             <Pressable
-              onPress={() => navigation.navigate("Modal")}
+              onPress={() => navigation.navigate("Subscribe")}
               style={({ pressed }) => ({
                 opacity: pressed ? 0.5 : 1,
               })}
