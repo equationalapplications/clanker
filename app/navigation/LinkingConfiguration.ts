@@ -16,20 +16,22 @@ const linking: LinkingOptions<RootStackParamList> = {
       SignIn: "signin",
       Root: {
         screens: {
-          TabOne: {
+          Chat: {
             screens: {
-              TabOneScreen: "one",
+              TabOneScreen: "chat",
             },
           },
-          TabTwo: {
+          Settings: {
             screens: {
-              TabTwoScreen: "two",
+              TabTwoScreen: "settings",
             },
           },
         },
       },
       Paywall: "paywall",
       Subscribe: "subscribe",
+      Profile: "profile",
+      Characters: "characters",
       NotFound: "*",
     },
   },
