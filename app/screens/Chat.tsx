@@ -74,15 +74,14 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
     <View style={styles.container}>
       {/*messagesMutation.isError && <Text>{messagesMutation.error.message}</Text>*/}
       <GiftedChat
-        showUserAvatar={true}
-        inverted={true}
+        showUserAvatar
+        inverted
         messages={messages}
         onSend={onSend}
         user={chatUser}
         placeholder="chat with me..."
-      //isTyping={isTyping}
+        //isTyping={isTyping}
       />
-
     </View>
   )
 }

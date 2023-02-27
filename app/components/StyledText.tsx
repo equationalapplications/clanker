@@ -7,3 +7,7 @@ export function MonoText(props: TextProps) {
 export function TitleText(props: TextProps) {
   return <Text {...props} style={[props.style, { fontSize: 24 }]} />
 }
+
+export function ParagraphText(props: TextProps) {
+  return <Text {...props} style={[props.style, { width: "60%" }]} />
+}

@@ -14,16 +14,16 @@ import { ColorSchemeName, Pressable } from "react-native"
 import { auth } from "../config/firebaseConfig"
 import Colors from "../constants/Colors"
 import useColorScheme from "../hooks/useColorScheme"
-import SubscribeModal from "../screens/SubscribeModal"
+import Characters from "../screens/Characters"
+import TabOneScreen from "../screens/Chat"
 import NotFoundScreen from "../screens/NotFoundScreen"
 import PaywallScreen from "../screens/PaywallScreen"
-import SignIn from "../screens/SignIn"
-import TabOneScreen from "../screens/Chat"
-import Settings from "../screens/Settings"
-import Characters from "../screens/Characters"
-import Profile from "../screens/Profile"
-import Terms from "../screens/Terms"
 import Privacy from "../screens/Privacy"
+import Profile from "../screens/Profile"
+import Settings from "../screens/Settings"
+import SignIn from "../screens/SignIn"
+import SubscribeModal from "../screens/SubscribeModal"
+import Terms from "../screens/Terms"
 import LinkingConfiguration from "./LinkingConfiguration"
 import { RootStackParamList, RootTabParamList, RootTabScreenProps } from "./types"
 
@@ -58,12 +58,20 @@ function RootNavigator() {
           />
           <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
           <Stack.Screen name="Profile" component={Profile} options={{ title: "Profile" }} />
-          <Stack.Screen name="Characters" component={Characters} options={{ title: "Characters" }} />
+          <Stack.Screen
+            name="Characters"
+            component={Characters}
+            options={{ title: "Characters" }}
+          />
           <Stack.Screen name="Terms" component={Terms} options={{ title: "Terms" }} />
           <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy" }} />
           <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
           <Stack.Group screenOptions={{ presentation: "modal" }}>
-            <Stack.Screen name="Subscribe" component={SubscribeModal} options={{ title: "Subscribe" }} />
+            <Stack.Screen
+              name="Subscribe"
+              component={SubscribeModal}
+              options={{ title: "Subscribe" }}
+            />
           </Stack.Group>
         </>
       ) : (

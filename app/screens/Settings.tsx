@@ -1,11 +1,10 @@
 import { StyleSheet } from "react-native"
 
-import { Text, View } from "../components/Themed"
 import Button from "../components/Button"
+import { Text, View } from "../components/Themed"
 import { RootTabScreenProps } from "../navigation/types"
 
 export default function Settings({ navigation }: RootTabScreenProps<"Settings">) {
-
   const onPressProfile = () => {
     navigation.navigate("Profile")
   }
@@ -18,10 +17,10 @@ export default function Settings({ navigation }: RootTabScreenProps<"Settings">)
     <View style={styles.container}>
       <Text style={styles.title}>Settings</Text>
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <Button mode={"contained"} onPress={onPressProfile}>
+      <Button mode="contained" onPress={onPressProfile}>
         <Text>Profile</Text>
       </Button>
-      <Button mode={"contained"} onPress={onPressCharacters}>
+      <Button mode="contained" onPress={onPressCharacters}>
         <Text>Characters</Text>
       </Button>
     </View>
