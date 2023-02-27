@@ -1,3 +1,11 @@
+# [1.12.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.11.0...v1.12.0-staging.1) (2023-02-27)
+
+
+### Features
+
+* add Terms and Conditions and Privacy Policy ([fd08f12](https://github.com/equationalapplications/yoursbrightlyai/commit/fd08f12055d79b3716fbefafa23eb0fefb212b07))
+* update terms and privacy. run lint ([92c8e3f](https://github.com/equationalapplications/yoursbrightlyai/commit/92c8e3f4d4c033f1aeea2dc172ee6dfa75900dab))
+
 # [1.11.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.10.0...v1.11.0) (2023-02-26)
 
 
