@@ -22,6 +22,8 @@ import TabOneScreen from "../screens/Chat"
 import Settings from "../screens/Settings"
 import Characters from "../screens/Characters"
 import Profile from "../screens/Profile"
+import Terms from "../screens/Terms"
+import Privacy from "../screens/Privacy"
 import LinkingConfiguration from "./LinkingConfiguration"
 import { RootStackParamList, RootTabParamList, RootTabScreenProps } from "./types"
 
@@ -57,17 +59,24 @@ function RootNavigator() {
           <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
           <Stack.Screen name="Profile" component={Profile} options={{ title: "Profile" }} />
           <Stack.Screen name="Characters" component={Characters} options={{ title: "Characters" }} />
+          <Stack.Screen name="Terms" component={Terms} options={{ title: "Terms" }} />
+          <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy" }} />
           <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
           <Stack.Group screenOptions={{ presentation: "modal" }}>
             <Stack.Screen name="Subscribe" component={SubscribeModal} options={{ title: "Subscribe" }} />
           </Stack.Group>
         </>
       ) : (
-        <Stack.Screen
-          name="SignIn"
-          component={SignIn}
-          options={{ headerShown: false, title: "Sign In" }}
-        />
+        <>
+          <Stack.Screen
+            name="SignIn"
+            component={SignIn}
+            options={{ headerShown: false, title: "Sign In" }}
+          />
+          <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy" }} />
+          <Stack.Screen name="Terms" component={Terms} options={{ title: "Terms" }} />
+          <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
+        </>
       )}
     </Stack.Navigator>
   )

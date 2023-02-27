@@ -32,6 +32,8 @@ const linking: LinkingOptions<RootStackParamList> = {
       Subscribe: "subscribe",
       Profile: "profile",
       Characters: "characters",
+      Privacy: "privacy",
+      Terms: "terms",
       NotFound: "*",
     },
   },
