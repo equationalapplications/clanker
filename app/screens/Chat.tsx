@@ -20,7 +20,7 @@ import { RootTabScreenProps } from "../navigation/types"
 
 const getReply: any = httpsCallable(functions, "getReply")
 
-export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne">) {
+export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
   const user = useAuthUser(["user"], auth)
   const uid = user?.data?.uid ?? ""
   const messagesRef = collection(firestore, "user_chats", uid, "messages")
@@ -74,15 +74,14 @@ export default function TabOneScreen({ navigation }: RootTabScreenProps<"TabOne"
     <View style={styles.container}>
       {/*messagesMutation.isError && <Text>{messagesMutation.error.message}</Text>*/}
       <GiftedChat
-        showUserAvatar={true}
-        inverted={true}
+        showUserAvatar
+        inverted
         messages={messages}
         onSend={onSend}
         user={chatUser}
         placeholder="chat with me..."
-      //isTyping={isTyping}
+        //isTyping={isTyping}
       />
-
     </View>
   )
 }

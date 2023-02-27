@@ -3,7 +3,7 @@ import { Platform, StyleSheet } from "react-native"
 
 import { Text, View } from "../components/Themed"
 
-export default function ModalScreen() {
+export default function SubscribeModal() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Subscribe</Text>

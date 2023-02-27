@@ -8,16 +8,16 @@ import { GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth"
 import { useEffect } from "react"
 import { StyleSheet } from "react-native"
 
-import { MonoText, TitleText } from "../components/StyledText"
 import ProviderButton from "../components/AuthProviderButton"
+import Button from "../components/Button"
 import Logo from "../components/Logo"
-
-import { View } from "../components/Themed"
+import { MonoText, TitleText, ParagraphText } from "../components/StyledText"
+import { View, Text } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"
 
 WebBrowser.maybeCompleteAuthSession()
 
-export default function SignIn() {
+export default function SignIn({ navigation }) {
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
     webClientId: Constants.expoConfig?.extra?.googleWebClientId,
     androidClientId: Constants.expoConfig?.extra?.googleAndroidClientId,
@@ -51,6 +51,14 @@ export default function SignIn() {
     facebookPromptAsync()
   }
 
+  const onPressPrivacy = () => {
+    navigation.navigate("Privacy")
+  }
+
+  const onPressTerms = () => {
+    navigation.navigate("Terms")
+  }
+
   return (
     <View style={styles.container}>
       <TitleText>Yours Brightly AI</TitleText>
@@ -63,6 +71,14 @@ export default function SignIn() {
       <ProviderButton onPress={FacebookLoginOnPress} type="facebook">
         Facebook
       </ProviderButton>
+      <Text>
+        <Button mode="text" onPress={onPressTerms}>
+          Terms and Conditions
+        </Button>
+        <Button mode="text" onPress={onPressPrivacy}>
+          Privacy Policy
+        </Button>
+      </Text>
     </View>
   )
 }

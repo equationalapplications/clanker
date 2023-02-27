@@ -26,9 +26,9 @@ const functions = getFunctions(firebase)
 
 if (__DEV__) {
   console.log("dev")
- // rconnectAuthEmulator(auth, "http://localhost:9099")
- // connectFirestoreEmulator(firestore, "localhost", 8080)
- // rconnectFunctionsEmulator(functions, "localhost", 5001)
+  // rconnectAuthEmulator(auth, "http://localhost:9099")
+  // connectFirestoreEmulator(firestore, "localhost", 8080)
+  // rconnectFunctionsEmulator(functions, "localhost", 5001)
 }
 
 export { auth, firestore, functions }
