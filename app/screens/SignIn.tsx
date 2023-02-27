@@ -8,11 +8,10 @@ import { GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth"
 import { useEffect } from "react"
 import { StyleSheet } from "react-native"
 
-import { MonoText, TitleText } from "../components/StyledText"
-import Button from "../components/Button"
 import ProviderButton from "../components/AuthProviderButton"
+import Button from "../components/Button"
 import Logo from "../components/Logo"
-
+import { MonoText, TitleText, ParagraphText } from "../components/StyledText"
 import { View, Text } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"
 
@@ -72,18 +71,14 @@ export default function SignIn({ navigation }) {
       <ProviderButton onPress={FacebookLoginOnPress} type="facebook">
         Facebook
       </ProviderButton>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <Text>By using Yours Brightly AI app (the "App"), you acknowledge that you have read, understood, and agree to be bound by these
-        <Button mode={"text"} onPress={onPressTerms}>
+      <Text>
+        <Button mode="text" onPress={onPressTerms}>
           Terms and Conditions
         </Button>
-        and
-        <Button mode={"text"} onPress={onPressPrivacy}>
+        <Button mode="text" onPress={onPressPrivacy}>
           Privacy Policy
         </Button>
-        .
       </Text>
-      <Text>If you do not agree to these terms and conditions and privacy policy, do not use the App.</Text>
     </View>
   )
 }
