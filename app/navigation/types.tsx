@@ -21,6 +21,8 @@ export type RootStackParamList = {
   Paywall: undefined
   Characters: undefined
   Profile: undefined
+  Terms: undefined
+  Privacy: undefined
 }
 
 export type RootStackScreenProps<Screen extends keyof RootStackParamList> = NativeStackScreenProps<
