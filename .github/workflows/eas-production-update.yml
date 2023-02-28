@@ -40,11 +40,11 @@ jobs:
       - name: Update Production with EAS
         run: eas update --auto --branch production --non-interactive --no-wait
 
-#      - name: Deploy to Firebase Hosting
-#        run: npm run predeploy
-#      - uses: FirebaseExtended/action-hosting-deploy@v0
-#        with:
-#          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-#          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_YOUR_BRIGHTLY_AI }}'
-#          projectId: your-brightly-ai
-#          channelId: live
+      - name: Deploy to Firebase Hosting
+        run: npm run predeploy
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_YOUR_BRIGHTLY_AI }}'
+          projectId: your-brightly-ai
+          channelId: live
