@@ -8,10 +8,15 @@ import {
 } from "@react-query-firebase/firestore"
 import { collection, doc, addDoc } from "firebase/firestore"
 import { StyleSheet } from "react-native"
-import { TextInput } from "react-native-paper"
+import { TextInput, Avatar } from "react-native-paper"
+import { httpsCallable } from "firebase/functions"
 
 import { Text, View } from "../components/Themed"
+import Button from "../components/Button"
 import { firestore, auth, functions } from "../config/firebaseConfig"
+import { async } from "@firebase/util"
+
+const getImage: any = httpsCallable(functions, "getImage")
 
 export default function Characters() {
   const user = useAuthUser(["user"], auth)
@@ -35,10 +40,11 @@ export default function Characters() {
       subscribe: true,
     },
   )
-  console.log(defaultCharacter.data)
-  const nameValue = defaultCharacter.data?.name ?? ""
-  const traitsValue = defaultCharacter.data?.traits ?? ""
-  const emotionsValue = defaultCharacter.data?.emotions ?? ""
+  const avatar = defaultCharacter.data?.avatar ?? ""
+  const appearance = defaultCharacter.data?.appearance ?? ""
+  const name = defaultCharacter.data?.name ?? ""
+  const traits = defaultCharacter.data?.traits ?? ""
+  const emotions = defaultCharacter.data?.emotions ?? ""
   const defaultCharacterMutation = useFirestoreDocumentMutation(defaultCharacterRef, {
     merge: true,
   })
@@ -53,6 +59,10 @@ export default function Characters() {
     defaultCharacterMutation.mutate({ name: text })
   }
 
+  const onChangeTextAppearance = (text) => {
+    defaultCharacterMutation.mutate({ appearance: text })
+  }
+
   const onChangeTextTraits = (text) => {
     defaultCharacterMutation.mutate({ traits: text })
   }
@@ -61,13 +71,26 @@ export default function Characters() {
     defaultCharacterMutation.mutate({ emotions: text })
   }
 
+  const onPressGenerate = async () => {
+    const promptText = "A profile picture of " + appearance +
+      ", who is " + traits +
+      ", and is feeling " + emotions + "."
+    const { data } = await getImage({
+      text: promptText,
+      characterId: defaultCharacterId
+    })
+    console.log("getImage", data.reply)
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Characters</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <TextInput label="Name" value={nameValue} onChangeText={onChangeTextName} />
-      <TextInput label="Traits" value={traitsValue} onChangeText={onChangeTextTraits} />
-      <TextInput label="Emotions" value={emotionsValue} onChangeText={onChangeTextEmotions} />
+      <Avatar.Image size={256} source={avatar} />
+      <Button onPress={onPressGenerate}>Generate New Image</Button>
+      <View style={styles.separator} />
+      <TextInput label="Name" value={name} onChangeText={onChangeTextName} />
+      <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} />
+      <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} />
+      <TextInput label="Emotions" value={emotions} onChangeText={onChangeTextEmotions} />
     </View>
   )
 }
