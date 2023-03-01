@@ -1,3 +1,10 @@
+# [1.13.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.12.0...v1.13.0-staging.1) (2023-03-01)
+
+
+### Features
+
+* can edit character ([94a1e42](https://github.com/equationalapplications/yoursbrightlyai/commit/94a1e42e39b61e745b5072d7e68b1ceda2b51ad7))
+
 # [1.12.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.11.0...v1.12.0) (2023-02-27)
 
 
