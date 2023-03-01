@@ -8,7 +8,7 @@ import {
   useFirestoreCollectionMutation,
 } from "@react-query-firebase/firestore"
 import { collection, doc, addDoc } from "firebase/firestore"
-import { StyleSheet } from "react-native"
+import { StyleSheet, ScrollView } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
 import { httpsCallable } from "firebase/functions"
 
@@ -113,10 +113,10 @@ export default function Characters() {
       <Avatar.Image size={256} source={avatar} />
       <Button onPress={onPressGenerate}>Generate New Image</Button>
       <View style={styles.separator} />
-      <TextInput label="Name" value={name} onChangeText={onChangeTextName} style={styles.textInput} />
-      <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} style={styles.textInput} />
-      <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} style={styles.textInput} />
-      <TextInput label="Emotions" value={emotions} onChangeText={onChangeTextEmotions} style={styles.textInput} />
+      <TextInput label="Name" value={name} onChangeText={onChangeTextName} style={styles.textInput} multiline={true} />
+      <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} style={styles.textInput} multiline={true} />
+      <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} style={styles.textInput} multiline={true} />
+      <TextInput label="Emotions" value={emotions} onChangeText={onChangeTextEmotions} style={styles.textInput} multiline={true} />
     </View>
   )
 }
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     height: 1,
     width: "80%",
   },
-  TextInput: {
+  textInput: {
     width: "80%",
   },
 })
