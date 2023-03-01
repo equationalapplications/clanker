@@ -17,11 +17,9 @@
       }
     },
     "staging": {
-      "distribution": "internal",
-      "channel": "staging",
-      "android": {
-        "buildType": "apk"
-      }
+      "distribution": "store",
+      "autoIncrement": true,
+      "channel": "staging"
     },
     "production": {
       "distribution": "store",
@@ -30,6 +28,6 @@
     }
   },
   "submit": {
-    "production": {}
+    "staging": {}
   }
 }
