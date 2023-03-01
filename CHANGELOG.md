@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.13.0...v1.14.0) (2023-03-01)
+
+
+### Features
+
+* add get image button ([3a1e11c](https://github.com/equationalapplications/yoursbrightlyai/commit/3a1e11ce78e2453bda44e8fc9a1de63525c4dc59))
+
 # [1.14.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.13.0...v1.14.0-staging.1) (2023-03-01)
 
 
