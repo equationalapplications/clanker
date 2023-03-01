@@ -38,7 +38,7 @@ jobs:
         run: npx semantic-release
 
       - name: Update Production with EAS
-        run: eas update --auto --branch production --non-interactive
+        run: eas update --auto --branch production --non-interactive --no-wait
 
       - name: Deploy to Firebase Hosting
         run: npm run predeploy
