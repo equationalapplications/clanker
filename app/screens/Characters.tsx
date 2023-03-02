@@ -64,6 +64,10 @@ export default function Characters() {
   //})
 
   useEffect(() => {
+    setName(defaultCharacter.data?.name ?? "")
+    setAppearance(defaultCharacter.data?.appearance ?? "")
+    setTraits(defaultCharacter.data?.traits ?? "")
+    setEmotions(defaultCharacter.data?.emotions ?? "")
     const unsubscribe = navigation.addListener('focus', () => {
       // The screen is focused
       // Call any action
@@ -108,15 +112,22 @@ export default function Characters() {
     console.log("getImage", data.reply)
   }
 
+  const onPressErase = async () => {
+    defaultCharacterMutation.mutate({ context: "" })
+  }
+
   return (
     <View style={styles.container}>
-      <Avatar.Image size={256} source={avatar} />
-      <Button onPress={onPressGenerate}>Generate New Image</Button>
-      <View style={styles.separator} />
-      <TextInput label="Name" value={name} onChangeText={onChangeTextName} style={styles.textInput} multiline={true} />
-      <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} style={styles.textInput} multiline={true} />
-      <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} style={styles.textInput} multiline={true} />
-      <TextInput label="Emotions" value={emotions} onChangeText={onChangeTextEmotions} style={styles.textInput} multiline={true} />
+      <ScrollView>
+        <Avatar.Image size={256} source={avatar} />
+        <Button mode={"outlined"} onPress={onPressGenerate}>Generate New Image</Button>
+        <View style={styles.separator} />
+        <TextInput label="Name" value={name} onChangeText={onChangeTextName} style={styles.textInput} multiline={true} />
+        <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} style={styles.textInput} multiline={true} />
+        <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} style={styles.textInput} multiline={true} />
+        <TextInput label="Emotions" value={emotions} onChangeText={onChangeTextEmotions} style={styles.textInput} multiline={true} />
+        <Button mode={"outlined"} onPress={onPressErase}>Erase Memory</Button>
+      </ScrollView>
     </View>
   )
 }
