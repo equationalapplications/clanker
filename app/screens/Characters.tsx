@@ -1,18 +1,18 @@
-import { useState, useEffect } from "react"
+import { useNavigation } from "@react-navigation/native"
 import { useAuthUser } from "@react-query-firebase/auth"
 import {
   useFirestoreDocumentMutation,
   useFirestoreDocumentData,
 } from "@react-query-firebase/firestore"
 import { doc } from "firebase/firestore"
+import { httpsCallable } from "firebase/functions"
+import { useState, useEffect } from "react"
 import { StyleSheet, ScrollView } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
-import { httpsCallable } from "firebase/functions"
 
-import { Text, View } from "../components/Themed"
 import Button from "../components/Button"
+import { Text, View } from "../components/Themed"
 import { firestore, auth, functions } from "../config/firebaseConfig"
-import { useNavigation } from "@react-navigation/native"
 
 const getImage: any = httpsCallable(functions, "getImage")
 
@@ -60,18 +60,18 @@ export default function Characters() {
   //})
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener("focus", () => {
       // The screen is focused
       // Call any action
       setName(defaultCharacter.data?.name ?? "")
       setAppearance(defaultCharacter.data?.appearance ?? "")
       setTraits(defaultCharacter.data?.traits ?? "")
       setEmotions(defaultCharacter.data?.emotions ?? "")
-    });
+    })
 
     // Return the function to unsubscribe from the event so it gets removed on unmount
-    return unsubscribe;
-  }, [navigation]);
+    return unsubscribe
+  }, [navigation])
 
   const onChangeTextName = (text: string) => {
     setName(text)
@@ -94,12 +94,17 @@ export default function Characters() {
   }
 
   const onPressGenerate = async () => {
-    const promptText = "A profile picture of " + appearance +
-      ", who is " + traits +
-      ", and is feeling " + emotions + "."
+    const promptText =
+      "A profile picture of " +
+      appearance +
+      ", who is " +
+      traits +
+      ", and is feeling " +
+      emotions +
+      "."
     const { data } = await getImage({
       text: promptText,
-      characterId: defaultCharacterId
+      characterId: defaultCharacterId,
     })
     console.log("getImage", data.reply)
   }
@@ -108,17 +113,49 @@ export default function Characters() {
     defaultCharacterMutation.mutate({ context: "" })
   }
 
-  return (<View style={styles.container}>
-    <ScrollView style={{ marginTop: 30, width: "100%" }} contentContainerStyle={{ alignItems: "center" }}>
-      <Avatar.Image size={256} source={avatar} />
-      <Button mode={"outlined"} onPress={onPressGenerate}>Generate New Image</Button>
-      <TextInput label="Name" value={name} onChangeText={onChangeTextName} style={styles.textInput} multiline={true} />
-      <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} style={styles.textInput} multiline={true} />
-      <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} style={styles.textInput} multiline={true} />
-      <TextInput label="Emotions" value={emotions} onChangeText={onChangeTextEmotions} style={styles.textInput} multiline={true} />
-      <Button mode={"outlined"} onPress={onPressErase}>Erase Memory</Button>
-    </ScrollView>
-  </View>
+  return (
+    <View style={styles.container}>
+      <ScrollView
+        style={{ marginTop: 30, width: "100%" }}
+        contentContainerStyle={{ alignItems: "center" }}
+      >
+        <Avatar.Image size={256} source={avatar} />
+        <Button mode="outlined" onPress={onPressGenerate}>
+          Generate New Image
+        </Button>
+        <TextInput
+          label="Name"
+          value={name}
+          onChangeText={onChangeTextName}
+          style={styles.textInput}
+          multiline
+        />
+        <TextInput
+          label="Appearance"
+          value={appearance}
+          onChangeText={onChangeTextAppearance}
+          style={styles.textInput}
+          multiline
+        />
+        <TextInput
+          label="Traits"
+          value={traits}
+          onChangeText={onChangeTextTraits}
+          style={styles.textInput}
+          multiline
+        />
+        <TextInput
+          label="Emotions"
+          value={emotions}
+          onChangeText={onChangeTextEmotions}
+          style={styles.textInput}
+          multiline
+        />
+        <Button mode="outlined" onPress={onPressErase}>
+          Erase Memory
+        </Button>
+      </ScrollView>
+    </View>
   )
 }
 
@@ -138,6 +175,6 @@ const styles = StyleSheet.create({
     width: "80%",
   },
   textInput: {
-    width: "80%"
+    width: "80%",
   },
 })
