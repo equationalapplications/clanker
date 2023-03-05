@@ -109,11 +109,9 @@ export default function Characters() {
   }
 
   return (<View style={styles.container}>
-    <View style={{ marginTop: 30 }}>
+    <ScrollView style={{ marginTop: 30, width: "100%" }} contentContainerStyle={{ alignItems: "center" }}>
       <Avatar.Image size={256} source={avatar} />
       <Button mode={"outlined"} onPress={onPressGenerate}>Generate New Image</Button>
-    </View>
-    <ScrollView style={{ marginTop: 30, width: "100%" }} contentContainerStyle={{ alignItems: "center" }}>
       <TextInput label="Name" value={name} onChangeText={onChangeTextName} style={styles.textInput} multiline={true} />
       <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} style={styles.textInput} multiline={true} />
       <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} style={styles.textInput} multiline={true} />
