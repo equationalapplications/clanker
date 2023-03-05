@@ -1,3 +1,15 @@
+# [2.0.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.15.0...v2.0.0-staging.1) (2023-03-05)
+
+
+### Bug Fixes
+
+* add facebook scheme ([288b743](https://github.com/equationalapplications/yoursbrightlyai/commit/288b7438d12d2a6198835bee3183de55cf8fa2a3))
+
+
+### BREAKING CHANGES
+
+* new version of expo-linking and updated app scheme
+
 # [1.15.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.14.0...v1.15.0) (2023-03-05)
 
 
