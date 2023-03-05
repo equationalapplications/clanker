@@ -1,13 +1,10 @@
 import { useState, useEffect } from "react"
 import { useAuthUser } from "@react-query-firebase/auth"
 import {
-  useFirestoreTransaction,
   useFirestoreDocumentMutation,
   useFirestoreDocumentData,
-  useFirestoreQueryData,
-  useFirestoreCollectionMutation,
 } from "@react-query-firebase/firestore"
-import { collection, doc, addDoc } from "firebase/firestore"
+import { doc } from "firebase/firestore"
 import { StyleSheet, ScrollView } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
 import { httpsCallable } from "firebase/functions"
@@ -15,7 +12,6 @@ import { httpsCallable } from "firebase/functions"
 import { Text, View } from "../components/Themed"
 import Button from "../components/Button"
 import { firestore, auth, functions } from "../config/firebaseConfig"
-import { async } from "@firebase/util"
 import { useNavigation } from "@react-navigation/native"
 
 const getImage: any = httpsCallable(functions, "getImage")
@@ -64,10 +60,6 @@ export default function Characters() {
   //})
 
   useEffect(() => {
-    setName(defaultCharacter.data?.name ?? "")
-    setAppearance(defaultCharacter.data?.appearance ?? "")
-    setTraits(defaultCharacter.data?.traits ?? "")
-    setEmotions(defaultCharacter.data?.emotions ?? "")
     const unsubscribe = navigation.addListener('focus', () => {
       // The screen is focused
       // Call any action
@@ -116,19 +108,19 @@ export default function Characters() {
     defaultCharacterMutation.mutate({ context: "" })
   }
 
-  return (
-    <View style={styles.container}>
-      <ScrollView>
-        <Avatar.Image size={256} source={avatar} />
-        <Button mode={"outlined"} onPress={onPressGenerate}>Generate New Image</Button>
-        <View style={styles.separator} />
-        <TextInput label="Name" value={name} onChangeText={onChangeTextName} style={styles.textInput} multiline={true} />
-        <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} style={styles.textInput} multiline={true} />
-        <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} style={styles.textInput} multiline={true} />
-        <TextInput label="Emotions" value={emotions} onChangeText={onChangeTextEmotions} style={styles.textInput} multiline={true} />
-        <Button mode={"outlined"} onPress={onPressErase}>Erase Memory</Button>
-      </ScrollView>
+  return (<View style={styles.container}>
+    <View style={{ marginTop: 30 }}>
+      <Avatar.Image size={256} source={avatar} />
+      <Button mode={"outlined"} onPress={onPressGenerate}>Generate New Image</Button>
     </View>
+    <ScrollView style={{ marginTop: 30, width: "100%" }} contentContainerStyle={{ alignItems: "center" }}>
+      <TextInput label="Name" value={name} onChangeText={onChangeTextName} style={styles.textInput} multiline={true} />
+      <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} style={styles.textInput} multiline={true} />
+      <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} style={styles.textInput} multiline={true} />
+      <TextInput label="Emotions" value={emotions} onChangeText={onChangeTextEmotions} style={styles.textInput} multiline={true} />
+      <Button mode={"outlined"} onPress={onPressErase}>Erase Memory</Button>
+    </ScrollView>
+  </View>
   )
 }
 
@@ -148,6 +140,6 @@ const styles = StyleSheet.create({
     width: "80%",
   },
   textInput: {
-    width: "80%",
+    width: "80%"
   },
 })
