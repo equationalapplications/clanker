@@ -15,13 +15,11 @@ export default function Settings({ navigation }: RootTabScreenProps<"Settings">)
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <Button mode="contained" onPress={onPressProfile}>
-        <Text>Profile</Text>
+      <Button mode="outlined" onPress={onPressProfile}>
+        Profile
       </Button>
-      <Button mode="contained" onPress={onPressCharacters}>
-        <Text>Characters</Text>
+      <Button mode="outlined" onPress={onPressCharacters}>
+        Characters
       </Button>
     </View>
   )
