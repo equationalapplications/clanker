@@ -48,5 +48,5 @@ jobs:
       - name: Build Preview with EAS
         run: eas build --profile preview --platform android --non-interactive --no-wait
         
-      - name: Update Staging with EAS
-        run: eas update --auto --branch staging --non-interactive
+#      - name: Update Staging with EAS
+#        run: eas update --auto --branch preview --non-interactive
