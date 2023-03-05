@@ -1,24 +1,28 @@
+import { useState, useEffect } from "react"
 import { useAuthUser } from "@react-query-firebase/auth"
 import {
-  useFirestoreTransaction,
   useFirestoreDocumentMutation,
   useFirestoreDocumentData,
-  useFirestoreQueryData,
-  useFirestoreCollectionMutation,
 } from "@react-query-firebase/firestore"
-import { collection, doc, addDoc } from "firebase/firestore"
-import { StyleSheet } from "react-native"
+import { doc } from "firebase/firestore"
+import { StyleSheet, ScrollView } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
 import { httpsCallable } from "firebase/functions"
 
 import { Text, View } from "../components/Themed"
 import Button from "../components/Button"
 import { firestore, auth, functions } from "../config/firebaseConfig"
-import { async } from "@firebase/util"
+import { useNavigation } from "@react-navigation/native"
 
 const getImage: any = httpsCallable(functions, "getImage")
 
 export default function Characters() {
+  const navigation = useNavigation()
+  const [appearance, setAppearance] = useState("")
+  const [name, setName] = useState("")
+  const [traits, setTraits] = useState("")
+  const [emotions, setEmotions] = useState("")
+
   const user = useAuthUser(["user"], auth)
   const uid = user?.data?.uid ?? ""
   const userPrivateRef = doc(firestore, "users_private", uid)
@@ -41,10 +45,10 @@ export default function Characters() {
     },
   )
   const avatar = defaultCharacter.data?.avatar ?? ""
-  const appearance = defaultCharacter.data?.appearance ?? ""
-  const name = defaultCharacter.data?.name ?? ""
-  const traits = defaultCharacter.data?.traits ?? ""
-  const emotions = defaultCharacter.data?.emotions ?? ""
+  // const appearance = defaultCharacter.data?.appearance ?? ""
+  // const name = defaultCharacter.data?.name ?? ""
+  // const traits = defaultCharacter.data?.traits ?? ""
+  // const emotions = defaultCharacter.data?.emotions ?? ""
   const defaultCharacterMutation = useFirestoreDocumentMutation(defaultCharacterRef, {
     merge: true,
   })
@@ -55,19 +59,37 @@ export default function Characters() {
   //  subscribe: true,
   //})
 
-  const onChangeTextName = (text) => {
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // The screen is focused
+      // Call any action
+      setName(defaultCharacter.data?.name ?? "")
+      setAppearance(defaultCharacter.data?.appearance ?? "")
+      setTraits(defaultCharacter.data?.traits ?? "")
+      setEmotions(defaultCharacter.data?.emotions ?? "")
+    });
+
+    // Return the function to unsubscribe from the event so it gets removed on unmount
+    return unsubscribe;
+  }, [navigation]);
+
+  const onChangeTextName = (text: string) => {
+    setName(text)
     defaultCharacterMutation.mutate({ name: text })
   }
 
-  const onChangeTextAppearance = (text) => {
+  const onChangeTextAppearance = (text: string) => {
+    setAppearance(text)
     defaultCharacterMutation.mutate({ appearance: text })
   }
 
-  const onChangeTextTraits = (text) => {
+  const onChangeTextTraits = (text: string) => {
+    setTraits(text)
     defaultCharacterMutation.mutate({ traits: text })
   }
 
-  const onChangeTextEmotions = (text) => {
+  const onChangeTextEmotions = (text: string) => {
+    setEmotions(text)
     defaultCharacterMutation.mutate({ emotions: text })
   }
 
@@ -82,16 +104,21 @@ export default function Characters() {
     console.log("getImage", data.reply)
   }
 
-  return (
-    <View style={styles.container}>
+  const onPressErase = async () => {
+    defaultCharacterMutation.mutate({ context: "" })
+  }
+
+  return (<View style={styles.container}>
+    <ScrollView style={{ marginTop: 30, width: "100%" }} contentContainerStyle={{ alignItems: "center" }}>
       <Avatar.Image size={256} source={avatar} />
-      <Button onPress={onPressGenerate}>Generate New Image</Button>
-      <View style={styles.separator} />
-      <TextInput label="Name" value={name} onChangeText={onChangeTextName} />
-      <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} />
-      <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} />
-      <TextInput label="Emotions" value={emotions} onChangeText={onChangeTextEmotions} />
-    </View>
+      <Button mode={"outlined"} onPress={onPressGenerate}>Generate New Image</Button>
+      <TextInput label="Name" value={name} onChangeText={onChangeTextName} style={styles.textInput} multiline={true} />
+      <TextInput label="Appearance" value={appearance} onChangeText={onChangeTextAppearance} style={styles.textInput} multiline={true} />
+      <TextInput label="Traits" value={traits} onChangeText={onChangeTextTraits} style={styles.textInput} multiline={true} />
+      <TextInput label="Emotions" value={emotions} onChangeText={onChangeTextEmotions} style={styles.textInput} multiline={true} />
+      <Button mode={"outlined"} onPress={onPressErase}>Erase Memory</Button>
+    </ScrollView>
+  </View>
   )
 }
 
@@ -109,5 +136,8 @@ const styles = StyleSheet.create({
     marginVertical: 30,
     height: 1,
     width: "80%",
+  },
+  textInput: {
+    width: "80%"
   },
 })
