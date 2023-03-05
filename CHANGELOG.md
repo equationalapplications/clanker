@@ -1,3 +1,21 @@
+# [1.15.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.14.0...v1.15.0) (2023-03-05)
+
+
+### Bug Fixes
+
+* add state to TextInput to avoid jerky UI ([3875dc4](https://github.com/equationalapplications/yoursbrightlyai/commit/3875dc44364df9da81afbaf8af8c8add1da822cb))
+* call hooks in function ([2f6620c](https://github.com/equationalapplications/yoursbrightlyai/commit/2f6620ceb5c031fe23577c9a340d53ffbeba32f8))
+* scrollview style ([09a2281](https://github.com/equationalapplications/yoursbrightlyai/commit/09a22810706ccc7f0b107d38c37834751dd22afa))
+* scrollview style ([06b1f08](https://github.com/equationalapplications/yoursbrightlyai/commit/06b1f08ef9ec3bc290e58bef8bf30706bebce790))
+
+
+### Features
+
+* add erase memory ([4d9cd9f](https://github.com/equationalapplications/yoursbrightlyai/commit/4d9cd9fe86ea1b0717cf3d36c785630f76a801fc))
+* add mulitline TextInput ([8258f9d](https://github.com/equationalapplications/yoursbrightlyai/commit/8258f9d1470178fecfa288f21a64b1010cd6fc6c))
+* update privacy policy ([fb16100](https://github.com/equationalapplications/yoursbrightlyai/commit/fb16100731cfde88625c7c3955d9fcd4fce0f516))
+* use contained buttons ([9575d54](https://github.com/equationalapplications/yoursbrightlyai/commit/9575d54e37f0eb8cf5e06edcf1aca6c021f579dc))
+
 # [1.15.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.14.0...v1.15.0-staging.1) (2023-03-05)
 
 
