@@ -54,6 +54,11 @@ export default function Privacy() {
           App. Your continued use of the App following the posting of changes to this privacy policy
           constitutes your acceptance of those changes.
           {"\n\n"}
+          Data Deletion
+          {"\n"}
+          If you wish to have your data deleted, please contact us at
+          info@equationalapplications.com.
+          {"\n\n"}
           Contact Us
           {"\n"}
           If you have any questions or concerns about this privacy policy, please contact us at
