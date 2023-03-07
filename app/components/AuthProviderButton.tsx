@@ -10,6 +10,7 @@ interface Props {
   onPress: () => void
   loading?: boolean
   children: string
+  disabled?: boolean
 }
 
 function getSocialColor(type: SocialType): string {
@@ -25,7 +26,7 @@ function getSocialColor(type: SocialType): string {
   }
 }
 
-function ProviderButton({ style, type, onPress, loading, children }: Props): JSX.Element {
+function ProviderButton({ style, type, onPress, loading, children, disabled }: Props): JSX.Element {
   return (
     <Button
       style={[styles.button, style]}
@@ -35,6 +36,7 @@ function ProviderButton({ style, type, onPress, loading, children }: Props): JSX
       dark
       loading={loading}
       onPress={() => (loading ? null : onPress())}
+      disabled={disabled}
     >
       {children}
     </Button>
