@@ -65,10 +65,10 @@ export default function SignIn({ navigation }) {
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
       <MonoText>Create Your Own Simulated Friend</MonoText>
       <Logo />
-      <ProviderButton onPress={GoogleLoginOnPress} type="google">
+      <ProviderButton disabled={!googleRequest} onPress={GoogleLoginOnPress} type="google">
         Google
       </ProviderButton>
-      <ProviderButton onPress={FacebookLoginOnPress} type="facebook">
+      <ProviderButton disabled={!facebookRequest} onPress={FacebookLoginOnPress} type="facebook">
         Facebook
       </ProviderButton>
       <Text>
