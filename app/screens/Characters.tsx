@@ -129,6 +129,7 @@ export default function Characters() {
           onChangeText={onChangeTextName}
           style={styles.textInput}
           multiline
+          numberOfLines={3}
         />
         <TextInput
           label="Appearance"
@@ -136,6 +137,7 @@ export default function Characters() {
           onChangeText={onChangeTextAppearance}
           style={styles.textInput}
           multiline
+          numberOfLines={3}
         />
         <TextInput
           label="Traits"
@@ -143,6 +145,7 @@ export default function Characters() {
           onChangeText={onChangeTextTraits}
           style={styles.textInput}
           multiline
+          numberOfLines={3}
         />
         <TextInput
           label="Emotions"
@@ -150,6 +153,7 @@ export default function Characters() {
           onChangeText={onChangeTextEmotions}
           style={styles.textInput}
           multiline
+          numberOfLines={3}
         />
         <Button mode="outlined" onPress={onPressErase}>
           Erase Memory
