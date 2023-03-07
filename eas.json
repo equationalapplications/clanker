@@ -28,6 +28,6 @@
     }
   },
   "submit": {
-    "staging": {}
+    "production": {}
   }
 }
