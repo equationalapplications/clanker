@@ -1,3 +1,20 @@
+# [2.1.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v2.0.0...v2.1.0-staging.1) (2023-03-07)
+
+
+### Bug Fixes
+
+* roll back expo-linking ([529ffa2](https://github.com/equationalapplications/yoursbrightlyai/commit/529ffa209dcda60074cc47dd4b95ae30f06bdb5c))
+* roll back to default file ([e421c51](https://github.com/equationalapplications/yoursbrightlyai/commit/e421c51ff4331ab3a1573db2d3d386410b0a7937))
+* scheme remove array ([97e3ff2](https://github.com/equationalapplications/yoursbrightlyai/commit/97e3ff23ceafe5eaf21d7ed6261c14317c82f90f))
+* use expo doctor to update expo-linking ([6b0ebce](https://github.com/equationalapplications/yoursbrightlyai/commit/6b0ebce2024b85f7c5fab445081c44cf53550cdf))
+
+
+### Features
+
+* add android intentFilters ([0aedfa7](https://github.com/equationalapplications/yoursbrightlyai/commit/0aedfa7b7c57b4aebf324e3bde96a40eff517518))
+* add multiline 3 ([fa48379](https://github.com/equationalapplications/yoursbrightlyai/commit/fa4837918eb362ea1452ad5b8f2c364d0d9359ae))
+* disable provider login buttons until request ready ([f389cd3](https://github.com/equationalapplications/yoursbrightlyai/commit/f389cd3b087e31cdd29f61a8a93386b6476faea4))
+
 # [2.0.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v1.15.0...v2.0.0) (2023-03-05)
 
 
