@@ -37,6 +37,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundImage: "./assets/adaptive-icon-background.png",
     },
+    intentFilters: [
+      {
+        action: "VIEW",
+        data: [
+          {
+            scheme: "https",
+            host: "yours-brightly-ai.equationalapplications.com",
+            pathPrefix: "/",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+    ],
   },
   web: {
     favicon: "./assets/favicon.png",
