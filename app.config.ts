@@ -42,9 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         action: "VIEW",
         data: [
           {
-            scheme: "https",
-            host: "yours-brightly-ai.equationalapplications.com",
-            pathPrefix: "/",
+            scheme: "fb1503390336819593",
           },
         ],
         category: ["BROWSABLE", "DEFAULT"],
