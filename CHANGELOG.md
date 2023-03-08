@@ -1,3 +1,15 @@
+# [3.0.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v2.1.0...v3.0.0) (2023-03-08)
+
+
+### Bug Fixes
+
+* add android intentFilter for facebook auth ([c3aa83d](https://github.com/equationalapplications/yoursbrightlyai/commit/c3aa83de4e80aa0c75db09530de50836dc6e4945))
+
+
+### BREAKING CHANGES
+
+* scheme is needed when creating a development build
+
 # [3.0.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v2.1.0...v3.0.0-staging.1) (2023-03-08)
 
 
