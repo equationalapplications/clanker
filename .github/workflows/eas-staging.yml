@@ -1,4 +1,4 @@
-name: Staging Test, Release, and Build Preview APK
+name: Staging Test, Release, and Update
 
 on:
   push:
@@ -45,5 +45,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
-      - name: Build Preview with EAS
-        run: eas build --profile preview --platform android --non-interactive --no-wait
+      - name: Update Staging with EAS
+        run: eas update --auto --branch staging --non-interactive
