@@ -1,4 +1,4 @@
-name: Expo EAS Staging Build and Submit
+name: Staging Build and Submit
 
 on:
   # Allows you to run this workflow manually from the Actions tab
