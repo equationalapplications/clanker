@@ -1,4 +1,4 @@
-name: Expo EAS Staging Test and Update
+name: Staging Test, Release, and Build Preview APK
 
 on:
   push:
@@ -47,6 +47,3 @@ jobs:
 
       - name: Build Preview with EAS
         run: eas build --profile preview --platform android --non-interactive --no-wait
-        
-#      - name: Update Staging with EAS
-#        run: eas update --auto --branch staging --non-interactive
