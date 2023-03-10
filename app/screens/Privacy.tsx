@@ -1,15 +1,14 @@
-import { StyleSheet, ScrollView } from "react-native"
+import { StyleSheet, ScrollView, Text, View } from "react-native"
+import { Paragraph } from "react-native-paper"
 
 import { ParagraphText } from "../components/StyledText"
-import { Text, View } from "../components/Themed"
 
 export default function Privacy() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Privacy Policy</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
+      <View style={styles.separator} />
       <ScrollView contentContainerStyle={styles.scrollView}>
-        <ParagraphText style={styles.paragraph}>
+        <Paragraph>
           Equational Applications LLC ("we", "us", "our") is committed to protecting your privacy.
           This privacy policy explains how we collect, use, and disclose information through our
           Yours Brightly AI app (the "App"). By using the App, you consent to our collection, use,
@@ -71,7 +70,7 @@ export default function Privacy() {
           {"\n\n"}
           By using the App, you acknowledge that you have read, understood, and agree to be bound by
           this privacy policy. If you do not agree to this privacy policy, do not use the App.
-        </ParagraphText>
+        </Paragraph>
       </ScrollView>
     </View>
   )
@@ -84,20 +83,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   scrollView: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    marginTop: 30,
-    fontSize: 20,
-    fontWeight: "bold",
+    marginHorizontal: "10%",
+    width: "80%",
   },
   separator: {
     marginVertical: 30,
     height: 1,
     width: "80%",
-  },
-  paragraph: {
-    width: "60%",
+    alignItems: "center",
+    justifyContent: "center",
   },
 })

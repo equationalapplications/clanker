@@ -7,11 +7,10 @@ import {
 import { doc } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
 import { useState, useEffect } from "react"
-import { StyleSheet, ScrollView } from "react-native"
+import { StyleSheet, ScrollView, Text, View } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
 
 import Button from "../components/Button"
-import { Text, View } from "../components/Themed"
 import { firestore, auth, functions } from "../config/firebaseConfig"
 
 const getImage: any = httpsCallable(functions, "getImage")
