@@ -1,7 +1,6 @@
-import { StyleSheet } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 
 import Button from "../components/Button"
-import { Text, View } from "../components/Themed"
 import { RootTabScreenProps } from "../navigation/types"
 
 export default function Settings({ navigation }: RootTabScreenProps<"Settings">) {

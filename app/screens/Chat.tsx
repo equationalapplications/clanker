@@ -1,20 +1,16 @@
 import { useAuthUser } from "@react-query-firebase/auth"
 import {
-  useFirestoreTransaction,
-  useFirestoreDocumentMutation,
   useFirestoreQueryData,
   useFirestoreCollectionMutation,
 } from "@react-query-firebase/firestore"
 import { useFunctionsQuery } from "@react-query-firebase/functions"
-import Constants from "expo-constants"
 import { collection, doc, addDoc } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
 import { useEffect, useState, useCallback } from "react"
-import { StyleSheet, Button } from "react-native"
+import { StyleSheet, Button, View } from "react-native"
 import { GiftedChat, User, IMessage } from "react-native-gifted-chat"
 import Purchases from "react-native-purchases"
 
-import { Text, View } from "../components/Themed"
 import { firestore, auth, functions } from "../config/firebaseConfig"
 import { RootTabScreenProps } from "../navigation/types"
 

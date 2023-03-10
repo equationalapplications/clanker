@@ -1,8 +1,7 @@
 import { useAuthSignOut } from "@react-query-firebase/auth"
-import { StyleSheet } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 
 import Button from "../components/Button"
-import { Text, View } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"
 
 export default function Profile({ navigation }: RootTabScreenProps<"Profile">) {
