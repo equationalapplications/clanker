@@ -1,3 +1,15 @@
+# [3.1.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v3.0.0...v3.1.0) (2023-03-10)
+
+
+### Bug Fixes
+
+* use default TypeScript config ([5f77334](https://github.com/equationalapplications/yoursbrightlyai/commit/5f77334e0ab107c75efd55a68125b87cb4c63e9b))
+
+
+### Features
+
+* use CustomDefaultTheme ([e63e063](https://github.com/equationalapplications/yoursbrightlyai/commit/e63e063a8feae6715d6898a1e69737546d1e02f1))
+
 # [3.1.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v3.0.0...v3.1.0-staging.1) (2023-03-10)
 
 
