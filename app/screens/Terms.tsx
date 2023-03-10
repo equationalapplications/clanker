@@ -1,15 +1,14 @@
-import { StyleSheet, ScrollView } from "react-native"
+import { StyleSheet, ScrollView, Text, View } from "react-native"
+import { Paragraph } from "react-native-paper"
 
 import { ParagraphText } from "../components/StyledText"
-import { Text, View } from "../components/Themed"
 
 export default function Terms() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Terms and Conditions</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
+      <View style={styles.separator} />
       <ScrollView contentContainerStyle={styles.scrollView}>
-        <ParagraphText>
+        <Paragraph>
           By using the Yours Brightly AI application ("the App") developed by Equational
           Applications LLC, you agree to be bound by the following terms and conditions:
           {"\n"}
@@ -112,7 +111,7 @@ export default function Terms() {
           By using the App, you acknowledge that you have read, understood, and agree to be bound by
           these terms and conditions. If you do not agree to these terms and conditions, do not use
           the App.
-        </ParagraphText>
+        </Paragraph>
       </ScrollView>
     </View>
   )
@@ -125,17 +124,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   scrollView: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    marginTop: 30,
-    fontSize: 20,
-    fontWeight: "bold",
+    marginHorizontal: "10%",
+    width: "80%",
   },
   separator: {
     marginVertical: 30,
     height: 1,
     width: "80%",
+    alignItems: "center",
+    justifyContent: "center",
   },
 })
