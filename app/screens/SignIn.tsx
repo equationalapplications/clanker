@@ -6,13 +6,12 @@ import Constants from "expo-constants"
 import * as WebBrowser from "expo-web-browser"
 import { GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth"
 import { useEffect } from "react"
-import { StyleSheet } from "react-native"
+import { StyleSheet, View, Text } from "react-native"
 
 import ProviderButton from "../components/AuthProviderButton"
 import Button from "../components/Button"
 import Logo from "../components/Logo"
 import { MonoText, TitleText, ParagraphText } from "../components/StyledText"
-import { View, Text } from "../components/Themed"
 import { auth } from "../config/firebaseConfig"
 
 WebBrowser.maybeCompleteAuthSession()
