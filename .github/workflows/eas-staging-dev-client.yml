@@ -1,4 +1,4 @@
-name: Staging Build and Submit
+name: Expo EAS Staging Build Dev Client
 
 on:
   # Allows you to run this workflow manually from the Actions tab
@@ -26,5 +26,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: EAS Build and Submit
-        run: eas build -p android --profile staging --non-interactive --auto-submit --no-wait
+      - name: EAS Build Dev Client
+        run: eas build -p android --profile development --non-interactive --no-wait

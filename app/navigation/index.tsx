@@ -5,15 +5,13 @@
  */
 import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
-import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native"
+import { NavigationContainer } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { useAuthUser } from "@react-query-firebase/auth"
 import * as React from "react"
-import { ColorSchemeName, Pressable } from "react-native"
+import { Pressable } from "react-native"
 
 import { auth } from "../config/firebaseConfig"
-import Colors from "../constants/Colors"
-import useColorScheme from "../hooks/useColorScheme"
 import Characters from "../screens/Characters"
 import TabOneScreen from "../screens/Chat"
 import NotFoundScreen from "../screens/NotFoundScreen"
@@ -27,12 +25,9 @@ import Terms from "../screens/Terms"
 import LinkingConfiguration from "./LinkingConfiguration"
 import { RootStackParamList, RootTabParamList, RootTabScreenProps } from "./types"
 
-export default function Navigation({ colorScheme }: { colorScheme: ColorSchemeName }) {
+export default function Navigation({ theme }) {
   return (
-    <NavigationContainer
-      linking={LinkingConfiguration}
-      theme={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-    >
+    <NavigationContainer linking={LinkingConfiguration} theme={theme}>
       <RootNavigator />
     </NavigationContainer>
   )
@@ -63,8 +58,12 @@ function RootNavigator() {
             component={Characters}
             options={{ title: "Characters" }}
           />
-          <Stack.Screen name="Terms" component={Terms} options={{ title: "Terms" }} />
-          <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy" }} />
+          <Stack.Screen
+            name="Terms"
+            component={Terms}
+            options={{ title: "Terms and Conditions" }}
+          />
+          <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy Policy" }} />
           <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
           <Stack.Group screenOptions={{ presentation: "modal" }}>
             <Stack.Screen
@@ -97,14 +96,14 @@ function RootNavigator() {
 const BottomTab = createBottomTabNavigator<RootTabParamList>()
 
 function BottomTabNavigator() {
-  const colorScheme = useColorScheme()
-
   return (
     <BottomTab.Navigator
       initialRouteName="Chat"
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-      }}
+      screenOptions={
+        {
+          //  tabBarActiveTintColor: ,
+        }
+      }
     >
       <BottomTab.Screen
         name="Chat"
@@ -122,7 +121,7 @@ function BottomTabNavigator() {
               <FontAwesome
                 name="info-circle"
                 size={25}
-                color={Colors[colorScheme].text}
+                // color={ }
                 style={{ marginRight: 15 }}
               />
             </Pressable>
