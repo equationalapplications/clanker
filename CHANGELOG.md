@@ -1,3 +1,16 @@
+# [3.2.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v3.1.0...v3.2.0) (2023-03-11)
+
+
+### Bug Fixes
+
+* update state when character data changes ([8715ecb](https://github.com/equationalapplications/yoursbrightlyai/commit/8715ecbcde6946f60829360a042c73567b1bd346))
+* updateCharacter during useEffect ([c06371c](https://github.com/equationalapplications/yoursbrightlyai/commit/c06371c67c495cd889e1cedc4ac8a54454ce5f66))
+
+
+### Features
+
+* add loading indicator for image ([c440232](https://github.com/equationalapplications/yoursbrightlyai/commit/c440232fe686d07215977479816c93fadc350606))
+
 # [3.2.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v3.1.0...v3.2.0-staging.1) (2023-03-11)
 
 
