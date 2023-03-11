@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 
 import Button from "../components/Button"
 import { RootTabScreenProps } from "../navigation/types"
@@ -8,17 +8,10 @@ export default function Settings({ navigation }: RootTabScreenProps<"Settings">)
     navigation.navigate("Profile")
   }
 
-  const onPressCharacters = () => {
-    navigation.navigate("Characters")
-  }
-
   return (
     <View style={styles.container}>
       <Button mode="outlined" onPress={onPressProfile}>
         Profile
-      </Button>
-      <Button mode="outlined" onPress={onPressCharacters}>
-        Characters
       </Button>
     </View>
   )
