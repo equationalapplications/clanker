@@ -54,11 +54,6 @@ function RootNavigator() {
           <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
           <Stack.Screen name="Profile" component={Profile} options={{ title: "Profile" }} />
           <Stack.Screen
-            name="Characters"
-            component={Characters}
-            options={{ title: "Characters" }}
-          />
-          <Stack.Screen
             name="Terms"
             component={Terms}
             options={{ title: "Terms and Conditions" }}
@@ -98,13 +93,21 @@ const BottomTab = createBottomTabNavigator<RootTabParamList>()
 function BottomTabNavigator() {
   return (
     <BottomTab.Navigator
-      initialRouteName="Chat"
+      initialRouteName="Character"
       screenOptions={
         {
           //  tabBarActiveTintColor: ,
         }
       }
     >
+      <BottomTab.Screen
+        name="Character"
+        component={Characters}
+        options={{
+          title: "Character",
+          tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
+        }}
+      />
       <BottomTab.Screen
         name="Chat"
         component={TabOneScreen}
@@ -147,5 +150,5 @@ function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>["name"]
   color: string
 }) {
-  return <FontAwesome size={30} style={{ marginBottom: -3 }} {...props} />
+  return <FontAwesome size={30} {...props} />
 }
