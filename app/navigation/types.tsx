@@ -19,7 +19,6 @@ export type RootStackParamList = {
   NotFound: undefined
   SignIn: undefined
   Paywall: undefined
-  Characters: undefined
   Profile: undefined
   Terms: undefined
   Privacy: undefined
@@ -31,6 +30,7 @@ export type RootStackScreenProps<Screen extends keyof RootStackParamList> = Nati
 >
 
 export type RootTabParamList = {
+  Character: undefined
   Chat: undefined
   Settings: undefined
 }
