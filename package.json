@@ -1,6 +1,6 @@
 {
   "name": "yours-brightly-ai",
-  "version": "3.1.0",
+  "version": "3.2.0-staging.1",
   "scripts": {
     "start": "expo start --dev-client",
     "android": "expo run:android",
