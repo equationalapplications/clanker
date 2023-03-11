@@ -45,28 +45,22 @@ export default function Characters() {
     },
   )
   const avatar = defaultCharacter.data?.avatar ?? ""
-  // const appearance = defaultCharacter.data?.appearance ?? ""
-  // const name = defaultCharacter.data?.name ?? ""
-  // const traits = defaultCharacter.data?.traits ?? ""
-  // const emotions = defaultCharacter.data?.emotions ?? ""
+
   const defaultCharacterMutation = useFirestoreDocumentMutation(defaultCharacterRef, {
     merge: true,
   })
 
-  //const defaultCharacterRef = doc(charactersRef,)
-  //const charactersMutation = useFirestoreCollectionMutation(charactersRef)
-  //const charactersQuery = useFirestoreQueryData(["messages"], messagesRef, {
-  //  subscribe: true,
-  //})
+  const updateCharacter = () => {
+    setName(defaultCharacter.data?.name ?? "")
+    setAppearance(defaultCharacter.data?.appearance ?? "")
+    setTraits(defaultCharacter.data?.traits ?? "")
+    setEmotions(defaultCharacter.data?.emotions ?? "")
+  }
 
   useEffect(() => {
+    updateCharacter()
     const unsubscribe = navigation.addListener("focus", () => {
-      // The screen is focused
-      // Call any action
-      setName(defaultCharacter.data?.name ?? "")
-      setAppearance(defaultCharacter.data?.appearance ?? "")
-      setTraits(defaultCharacter.data?.traits ?? "")
-      setEmotions(defaultCharacter.data?.emotions ?? "")
+      updateCharacter()
     })
 
     // Return the function to unsubscribe from the event so it gets removed on unmount
@@ -75,22 +69,27 @@ export default function Characters() {
 
   const onChangeTextName = (text: string) => {
     setName(text)
-    defaultCharacterMutation.mutate({ name: text })
   }
 
   const onChangeTextAppearance = (text: string) => {
     setAppearance(text)
-    defaultCharacterMutation.mutate({ appearance: text })
   }
 
   const onChangeTextTraits = (text: string) => {
     setTraits(text)
-    defaultCharacterMutation.mutate({ traits: text })
   }
 
   const onChangeTextEmotions = (text: string) => {
     setEmotions(text)
-    defaultCharacterMutation.mutate({ emotions: text })
+  }
+
+  const onPressSave = () => {
+    defaultCharacterMutation.mutate({
+      name,
+      appearance,
+      traits,
+      emotions,
+    })
   }
 
   const onPressGenerate = async () => {
@@ -121,10 +120,7 @@ export default function Characters() {
         style={{ marginTop: 30, width: "100%" }}
         contentContainerStyle={{ alignItems: "center" }}
       >
-        {imageIsLoading
-          ? <ActivityIndicator />
-          : <Avatar.Image size={256} source={avatar} />
-        }
+        {imageIsLoading ? <ActivityIndicator /> : <Avatar.Image size={256} source={avatar} />}
         <Button mode="outlined" onPress={onPressGenerate}>
           Generate New Image
         </Button>
@@ -133,8 +129,7 @@ export default function Characters() {
           value={name}
           onChangeText={onChangeTextName}
           style={styles.textInput}
-          multiline
-          numberOfLines={3}
+          maxLength={30}
         />
         <TextInput
           label="Appearance"
@@ -143,6 +138,7 @@ export default function Characters() {
           style={styles.textInput}
           multiline
           numberOfLines={3}
+          maxLength={144}
         />
         <TextInput
           label="Traits"
@@ -151,6 +147,7 @@ export default function Characters() {
           style={styles.textInput}
           multiline
           numberOfLines={3}
+          maxLength={144}
         />
         <TextInput
           label="Emotions"
@@ -159,7 +156,11 @@ export default function Characters() {
           style={styles.textInput}
           multiline
           numberOfLines={3}
+          maxLength={144}
         />
+        <Button mode="outlined" onPress={onPressSave}>
+          Save Changes
+        </Button>
         <Button mode="outlined" onPress={onPressErase}>
           Erase Memory
         </Button>
