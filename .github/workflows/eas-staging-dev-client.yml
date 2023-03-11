@@ -1,4 +1,4 @@
-name: Expo EAS Staging Build Dev Client
+name: Staging Build Dev Client
 
 on:
   # Allows you to run this workflow manually from the Actions tab

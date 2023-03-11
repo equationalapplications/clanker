@@ -16,14 +16,19 @@ const linking: LinkingOptions<RootStackParamList> = {
       SignIn: "signin",
       Root: {
         screens: {
+          Character: {
+            screens: {
+              Characters: "character",
+            },
+          },
           Chat: {
             screens: {
-              TabOneScreen: "chat",
+              Chat: "chat",
             },
           },
           Settings: {
             screens: {
-              TabTwoScreen: "settings",
+              Settings: "settings",
             },
           },
         },
@@ -31,7 +36,6 @@ const linking: LinkingOptions<RootStackParamList> = {
       Paywall: "paywall",
       Subscribe: "subscribe",
       Profile: "profile",
-      Characters: "characters",
       Privacy: "privacy",
       Terms: "terms",
       NotFound: "*",
