@@ -59,13 +59,7 @@ export default function Characters() {
 
   useEffect(() => {
     updateCharacter()
-    const unsubscribe = navigation.addListener("focus", () => {
-      updateCharacter()
-    })
-
-    // Return the function to unsubscribe from the event so it gets removed on unmount
-    return unsubscribe
-  }, [navigation])
+  }, [defaultCharacter.data])
 
   const onChangeTextName = (text: string) => {
     setName(text)
@@ -126,7 +120,7 @@ export default function Characters() {
         </Button>
         <TextInput
           label="Name"
-          value={name}
+          value={defaultCharacter.data?.name ?? ""}
           onChangeText={onChangeTextName}
           style={styles.textInput}
           maxLength={30}
