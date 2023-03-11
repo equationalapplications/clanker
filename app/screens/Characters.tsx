@@ -7,7 +7,7 @@ import {
 import { doc } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
 import { useState, useEffect } from "react"
-import { StyleSheet, ScrollView, Text, View } from "react-native"
+import { StyleSheet, ScrollView, View, ActivityIndicator } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
 
 import Button from "../components/Button"
@@ -21,6 +21,7 @@ export default function Characters() {
   const [name, setName] = useState("")
   const [traits, setTraits] = useState("")
   const [emotions, setEmotions] = useState("")
+  const [imageIsLoading, setImageIsLoading] = useState(false)
 
   const user = useAuthUser(["user"], auth)
   const uid = user?.data?.uid ?? ""
@@ -93,6 +94,7 @@ export default function Characters() {
   }
 
   const onPressGenerate = async () => {
+    setImageIsLoading(true)
     const promptText =
       "A profile picture of " +
       appearance +
@@ -106,6 +108,7 @@ export default function Characters() {
       characterId: defaultCharacterId,
     })
     console.log("getImage", data.reply)
+    setImageIsLoading(false)
   }
 
   const onPressErase = async () => {
@@ -118,7 +121,10 @@ export default function Characters() {
         style={{ marginTop: 30, width: "100%" }}
         contentContainerStyle={{ alignItems: "center" }}
       >
-        <Avatar.Image size={256} source={avatar} />
+        {imageIsLoading
+          ? <ActivityIndicator />
+          : <Avatar.Image size={256} source={avatar} />
+        }
         <Button mode="outlined" onPress={onPressGenerate}>
           Generate New Image
         </Button>
