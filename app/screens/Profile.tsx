@@ -8,10 +8,10 @@ import { auth } from "../config/firebaseConfig"
 export default function Profile() {
   const user = useAuthUser(["user"], auth)
   const { photoURL, displayName, email } = user.data
-  const authMutation = useAuthSignOut(auth)
+  const mutationAuthSignOut = useAuthSignOut(auth)
 
   const onPressSignOut = () => {
-    authMutation.mutate()
+    mutationAuthSignOut.mutate()
   }
   return (
     <View style={styles.container}>
