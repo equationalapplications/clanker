@@ -17,6 +17,7 @@ const getImage: any = httpsCallable(functions, "getImage")
 
 export default function Characters() {
   const navigation = useNavigation()
+  const [avatar, setAvatar] = useState("")
   const [appearance, setAppearance] = useState("")
   const [name, setName] = useState("")
   const [traits, setTraits] = useState("")
@@ -44,21 +45,17 @@ export default function Characters() {
       subscribe: true,
     },
   )
-  const avatar = defaultCharacter.data?.avatar ?? ""
 
   const defaultCharacterMutation = useFirestoreDocumentMutation(defaultCharacterRef, {
     merge: true,
   })
 
-  const updateCharacter = () => {
+  useEffect(() => {
+    setAvatar(defaultCharacter.data?.avatar ?? "")
     setName(defaultCharacter.data?.name ?? "")
     setAppearance(defaultCharacter.data?.appearance ?? "")
     setTraits(defaultCharacter.data?.traits ?? "")
     setEmotions(defaultCharacter.data?.emotions ?? "")
-  }
-
-  useEffect(() => {
-    updateCharacter()
   }, [defaultCharacter.data])
 
   const onChangeTextName = (text: string) => {
@@ -120,7 +117,7 @@ export default function Characters() {
         </Button>
         <TextInput
           label="Name"
-          value={defaultCharacter.data?.name ?? ""}
+          value={name}
           onChangeText={onChangeTextName}
           style={styles.textInput}
           maxLength={30}
