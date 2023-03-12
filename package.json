@@ -93,7 +93,10 @@
   },
   "private": true,
   "eslintConfig": {
-    "extends": "universe/native"
+    "extends": "universe/native",
+    "env": {
+      "node": true
+    }
   },
   "prettier": {
     "printWidth": 100,
