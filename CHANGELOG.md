@@ -1,3 +1,17 @@
+# [4.0.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v3.2.0...v4.0.0) (2023-03-12)
+
+
+### Bug Fixes
+
+* the last commit changed metro config ([53041af](https://github.com/equationalapplications/yoursbrightlyai/commit/53041afb5b930110fdb18bc878f9e464992e4b2e))
+* use {uri: url} for avatar image source ([8f38a32](https://github.com/equationalapplications/yoursbrightlyai/commit/8f38a32430dd1ec140b2db504863d6d21b0cbbb4))
+* use firebase signInWithCredential ([fcd480b](https://github.com/equationalapplications/yoursbrightlyai/commit/fcd480bc3ea8a66f8881d2b70abe5ea557c493b3))
+
+
+### BREAKING CHANGES
+
+* changes to metro config changes build
+
 # [3.2.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v3.1.0...v3.2.0) (2023-03-11)
 
 
