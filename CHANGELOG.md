@@ -1,3 +1,20 @@
+# [4.1.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v4.0.0...v4.1.0) (2023-03-13)
+
+
+### Bug Fixes
+
+* add comma after prefix ([4cfd1c7](https://github.com/equationalapplications/yoursbrightlyai/commit/4cfd1c740424d3ecf83543c24ff6df3a3138b964))
+* add key to navigation groups ([12193b3](https://github.com/equationalapplications/yoursbrightlyai/commit/12193b35e936407b479b6bebc7c87ee675e8f62f))
+* add uid to useAuthUser key ([0bb9e8d](https://github.com/equationalapplications/yoursbrightlyai/commit/0bb9e8d86932054fb0c9db33f459e1a2a2798fbe))
+* add uid to useAuthUser key ([1d69fed](https://github.com/equationalapplications/yoursbrightlyai/commit/1d69fedf1058601bbeb6e834a720fd4eee91f4bd))
+
+
+### Features
+
+* add default avatar url ([e7c23e1](https://github.com/equationalapplications/yoursbrightlyai/commit/e7c23e1ca6474015ca21da2b4e320ed8569b56db))
+* add linking paths for tab screens ([f0d1e25](https://github.com/equationalapplications/yoursbrightlyai/commit/f0d1e25be77f71c1f880ba601b0c256867482b19))
+* useAuthSignInWithCredential ([7f75370](https://github.com/equationalapplications/yoursbrightlyai/commit/7f753707a7f920f73f413818a2d43f9410bfaeef))
+
 # [4.1.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v4.0.0...v4.1.0-staging.1) (2023-03-13)
 
 
