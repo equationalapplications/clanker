@@ -10,23 +10,26 @@ import * as Linking from "expo-linking"
 import { RootStackParamList } from "./types"
 
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: [Linking.createURL("/")],
+  prefixes: [Linking.createURL("/"), "https://yours-brightly-ai.equationalapplications.com"],
   config: {
     screens: {
       SignIn: "signin",
       Root: {
         screens: {
           Character: {
+            path: "character",
             screens: {
               Characters: "character",
             },
           },
           Chat: {
+            path: "chat",
             screens: {
               Chat: "chat",
             },
           },
           Settings: {
+            path: "settings",
             screens: {
               Settings: "settings",
             },
@@ -39,6 +42,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       Privacy: "privacy",
       Terms: "terms",
       NotFound: "*",
+
     },
   },
 }
