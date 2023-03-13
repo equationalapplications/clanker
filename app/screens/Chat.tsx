@@ -17,7 +17,7 @@ import { RootTabScreenProps } from "../navigation/types"
 const getReply: any = httpsCallable(functions, "getReply")
 
 export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
-  const user = useAuthUser(["user"], auth)
+  const user = useAuthUser(["user", auth.currentUser?.uid ?? ""], auth)
   const uid = user?.data?.uid ?? ""
   const messagesRef = collection(firestore, "user_chats", uid, "messages")
   const messagesMutation = useFirestoreCollectionMutation(messagesRef)
@@ -76,7 +76,7 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
         onSend={onSend}
         user={chatUser}
         placeholder="chat with me..."
-        //isTyping={isTyping}
+      //isTyping={isTyping}
       />
     </View>
   )

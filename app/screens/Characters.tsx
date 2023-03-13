@@ -17,14 +17,14 @@ const getImage: any = httpsCallable(functions, "getImage")
 
 export default function Characters() {
   const navigation = useNavigation()
-  const [avatar, setAvatar] = useState("")
+  const [avatar, setAvatar] = useState("https://www.gravatar.com/avatar?d=mp")
   const [appearance, setAppearance] = useState("")
   const [name, setName] = useState("")
   const [traits, setTraits] = useState("")
   const [emotions, setEmotions] = useState("")
   const [imageIsLoading, setImageIsLoading] = useState(false)
 
-  const user = useAuthUser(["user"], auth)
+  const user = useAuthUser(["user", auth.currentUser?.uid ?? ""], auth)
   const uid = user?.data?.uid ?? ""
   const userPrivateRef = doc(firestore, "users_private", uid)
   const userPrivate = useFirestoreDocumentData(["userPrivate"], userPrivateRef, {
@@ -51,7 +51,7 @@ export default function Characters() {
   })
 
   useEffect(() => {
-    setAvatar(defaultCharacter.data?.avatar ?? "")
+    setAvatar(defaultCharacter.data?.avatar ?? "https://www.gravatar.com/avatar?d=mp")
     setName(defaultCharacter.data?.name ?? "")
     setAppearance(defaultCharacter.data?.appearance ?? "")
     setTraits(defaultCharacter.data?.traits ?? "")
@@ -111,7 +111,7 @@ export default function Characters() {
         style={{ marginTop: 30, width: "100%" }}
         contentContainerStyle={{ alignItems: "center" }}
       >
-        {imageIsLoading ? (
+        {imageIsLoading && !avatar ? (
           <ActivityIndicator />
         ) : (
           <Avatar.Image size={256} source={{ uri: avatar }} />
