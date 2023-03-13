@@ -1,17 +1,30 @@
 import { useAuthSignOut, useAuthUser } from "@react-query-firebase/auth"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
+import { useQueryClient } from "react-query"
+import { useNavigation } from "@react-navigation/native"
 
 import Button from "../components/Button"
 import { auth } from "../config/firebaseConfig"
 
 export default function Profile() {
-  const user = useAuthUser(["user"], auth)
-  const { photoURL, displayName, email } = user.data
-  const authMutation = useAuthSignOut(auth)
+  const navigation = useNavigation()
+  const user = useAuthUser(["user", auth.currentUser?.uid ?? ""], auth)
+  const displayName = user.data?.displayName ?? ""
+  const email = user.data?.email ?? ""
+  const photoURL = user.data?.photoURL ?? "https://www.gravatar.com/avatar?d=mp"
+
+  const mutationAuthSignOut = useAuthSignOut(auth)
+  const queryClient = useQueryClient()
 
   const onPressSignOut = () => {
-    authMutation.mutate()
+    // queryClient.removeQueries("user")
+    // queryClient.resetQueries("user")
+    // auth.signOut()
+    mutationAuthSignOut.mutate()
+    navigation.navigate("SignIn")
+    //queryClient.resetQueries("user")
+    // queryClient.removeQueries("user")
   }
   return (
     <View style={styles.container}>
