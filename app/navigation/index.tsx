@@ -13,7 +13,7 @@ import { Pressable } from "react-native"
 
 import { auth } from "../config/firebaseConfig"
 import Characters from "../screens/Characters"
-import TabOneScreen from "../screens/Chat"
+import Chat from "../screens/Chat"
 import NotFoundScreen from "../screens/NotFoundScreen"
 import PaywallScreen from "../screens/PaywallScreen"
 import Privacy from "../screens/Privacy"
@@ -40,44 +40,54 @@ export default function Navigation({ theme }) {
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
 function RootNavigator() {
-  const user = useAuthUser(["user"], auth)
+  const user = useAuthUser(["user", auth.currentUser?.uid ?? ""], auth)
 
   return (
     <Stack.Navigator>
       {user.data ? (
         <>
-          <Stack.Screen
-            name="Root"
-            component={BottomTabNavigator}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
-          <Stack.Screen name="Profile" component={Profile} options={{ title: "Profile" }} />
-          <Stack.Screen
-            name="Terms"
-            component={Terms}
-            options={{ title: "Terms and Conditions" }}
-          />
-          <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy Policy" }} />
-          <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
-          <Stack.Group screenOptions={{ presentation: "modal" }}>
+          <Stack.Group navigationKey={user.data ? 'user' : 'guest'} >
             <Stack.Screen
-              name="Subscribe"
-              component={SubscribeModal}
-              options={{ title: "Subscribe" }}
+              name="Root"
+              component={BottomTabNavigator}
+              options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="SignIn"
+              component={SignIn}
+              options={{ headerShown: false, title: "Sign In" }}
+            />
+            <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
+            <Stack.Screen name="Profile" component={Profile} options={{ title: "Profile" }} />
+            <Stack.Screen
+              name="Terms"
+              component={Terms}
+              options={{ title: "Terms and Conditions" }}
+            />
+            <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy Policy" }} />
+            <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
+            <Stack.Group screenOptions={{ presentation: "modal" }}>
+              <Stack.Screen
+                name="Subscribe"
+                component={SubscribeModal}
+                options={{ title: "Subscribe" }}
+              />
+            </Stack.Group>
           </Stack.Group>
         </>
       ) : (
         <>
-          <Stack.Screen
-            name="SignIn"
-            component={SignIn}
-            options={{ headerShown: false, title: "Sign In" }}
-          />
-          <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy" }} />
-          <Stack.Screen name="Terms" component={Terms} options={{ title: "Terms" }} />
-          <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
+          <Stack.Group navigationKey={user.data ? 'user' : 'guest'} >
+            <Stack.Screen
+              name="SignIn"
+              component={SignIn}
+              options={{ headerShown: false, title: "Sign In" }}
+            />
+            <Stack.Screen name="Root" component={SignIn} options={{ title: "Privacy" }} />
+            <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy" }} />
+            <Stack.Screen name="Terms" component={Terms} options={{ title: "Terms" }} />
+            <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
+          </Stack.Group>
         </>
       )}
     </Stack.Navigator>
@@ -94,11 +104,6 @@ function BottomTabNavigator() {
   return (
     <BottomTab.Navigator
       initialRouteName="Character"
-      screenOptions={
-        {
-          //  tabBarActiveTintColor: ,
-        }
-      }
     >
       <BottomTab.Screen
         name="Character"
@@ -110,7 +115,7 @@ function BottomTabNavigator() {
       />
       <BottomTab.Screen
         name="Chat"
-        component={TabOneScreen}
+        component={Chat}
         options={({ navigation }: RootTabScreenProps<"Chat">) => ({
           title: "Chat",
           tabBarIcon: ({ color }) => <TabBarIcon name="comments" color={color} />,
