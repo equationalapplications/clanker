@@ -1,3 +1,10 @@
+# [4.2.0-staging.2](https://github.com/equationalapplications/yoursbrightlyai/compare/v4.2.0-staging.1...v4.2.0-staging.2) (2023-03-14)
+
+
+### Features
+
+* remove border. chage colors ([2929ce1](https://github.com/equationalapplications/yoursbrightlyai/commit/2929ce1ac5aa41568fe65b0403d0ce1d6c84242f))
+
 # [4.2.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v4.1.0...v4.2.0-staging.1) (2023-03-14)
 
 
