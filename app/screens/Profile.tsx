@@ -1,8 +1,8 @@
+import { useNavigation } from "@react-navigation/native"
 import { useAuthSignOut, useAuthUser } from "@react-query-firebase/auth"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
 import { useQueryClient } from "react-query"
-import { useNavigation } from "@react-navigation/native"
 
 import Button from "../components/Button"
 import { auth } from "../config/firebaseConfig"
