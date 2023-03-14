@@ -1,3 +1,10 @@
+# [4.2.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v4.1.0...v4.2.0-staging.1) (2023-03-14)
+
+
+### Features
+
+* add styling to chat ([52736ac](https://github.com/equationalapplications/yoursbrightlyai/commit/52736acf699660f93e021fa20e67c41a4e346020))
+
 # [4.1.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v4.0.0...v4.1.0) (2023-03-13)
 
 
