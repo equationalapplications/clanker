@@ -46,7 +46,7 @@ function RootNavigator() {
     <Stack.Navigator>
       {user.data ? (
         <>
-          <Stack.Group navigationKey={user.data ? 'user' : 'guest'} >
+          <Stack.Group navigationKey={user.data ? "user" : "guest"}>
             <Stack.Screen
               name="Root"
               component={BottomTabNavigator}
@@ -64,7 +64,11 @@ function RootNavigator() {
               component={Terms}
               options={{ title: "Terms and Conditions" }}
             />
-            <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy Policy" }} />
+            <Stack.Screen
+              name="Privacy"
+              component={Privacy}
+              options={{ title: "Privacy Policy" }}
+            />
             <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
             <Stack.Group screenOptions={{ presentation: "modal" }}>
               <Stack.Screen
@@ -77,7 +81,7 @@ function RootNavigator() {
         </>
       ) : (
         <>
-          <Stack.Group navigationKey={user.data ? 'user' : 'guest'} >
+          <Stack.Group navigationKey={user.data ? "user" : "guest"}>
             <Stack.Screen
               name="SignIn"
               component={SignIn}
@@ -102,9 +106,7 @@ const BottomTab = createBottomTabNavigator<RootTabParamList>()
 
 function BottomTabNavigator() {
   return (
-    <BottomTab.Navigator
-      initialRouteName="Character"
-    >
+    <BottomTab.Navigator initialRouteName="Character">
       <BottomTab.Screen
         name="Character"
         component={Characters}
