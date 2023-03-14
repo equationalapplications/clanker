@@ -72,8 +72,6 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
         styles.container,
         {
           backgroundColor: colors.background,
-          borderRadius: roundness,
-          borderColor: colors.outline,
         },
       ]}
     >
@@ -105,12 +103,12 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
             <Bubble
               {...props}
               wrapperStyle={{
-                left: { backgroundColor: colors.tertiary },
+                left: { backgroundColor: colors.secondary },
                 right: { backgroundColor: colors.primary },
               }}
               textStyle={{
-                left: { color: colors.onPrimary },
-                right: { color: colors.background },
+                left: { color: colors.onSecondary },
+                right: { color: colors.onPrimary },
               }}
             />
           )
@@ -123,7 +121,5 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
 const styles = StyleSheet.create({
   container: {
     flex: 10,
-    borderWidth: 1,
-    margin: 20,
   },
 })
