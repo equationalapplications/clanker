@@ -30,11 +30,7 @@ export default function SignIn({ navigation }) {
   })
 
   useEffect(() => {
-    if (
-      googleResponse &&
-      googleResponse.type === "success" &&
-      googleResponse.authentication
-    ) {
+    if (googleResponse && googleResponse.type === "success" && googleResponse.authentication) {
       const idToken = null // googleResponse.authentication.accessToken;
       const accessToken = googleResponse.authentication.accessToken
       const credential = GoogleAuthProvider.credential(idToken, accessToken)
