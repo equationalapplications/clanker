@@ -47,12 +47,12 @@ export default function Characters() {
   }
 
   const onPressSave = () => {
-    // updateDefaultCharacter({
-    //   name,
-    //   appearance,
-    //   traits,
-    //   emotions,
-    // })
+    updateDefaultCharacter(defaultCharacter._id, {
+      name,
+      appearance,
+      traits,
+      emotions,
+    })
   }
 
   const onPressGenerate = async () => {
@@ -74,7 +74,7 @@ export default function Characters() {
   }
 
   const onPressErase = async () => {
-    // updateDefaultCharacter({ context: "" })
+    updateDefaultCharacter(defaultCharacter._id, { context: "" })
   }
 
   return (
