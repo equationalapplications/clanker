@@ -5,13 +5,13 @@
  */
 import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
-import { NavigationContainer } from "@react-navigation/native"
+import { NavigationContainer, useNavigation } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
-import { useAuthUser } from "@react-query-firebase/auth"
 import * as React from "react"
 import { Pressable } from "react-native"
 
-import { auth } from "../config/firebaseConfig"
+//import { auth } from "../config/firebaseConfig"
+import useUser from "../hooks/useUser"
 import Characters from "../screens/Characters"
 import Chat from "../screens/Chat"
 import NotFoundScreen from "../screens/NotFoundScreen"
@@ -45,13 +45,29 @@ export default function Navigation({ theme }) {
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
 function RootNavigator() {
-  const user = useAuthUser(["user", auth.currentUser?.uid ?? ""], auth)
-
+  const navigation = useNavigation()
+  const user = useUser()
+  console.log("nav user", user)
+  /*
+    React.useEffect(() => {
+      if (user) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Root" }],
+        })
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "SignIn" }],
+        })
+      }
+    }, [user, navigation])
+  */
   return (
     <Stack.Navigator>
-      {user.data ? (
+      {user ? (
         <>
-          <Stack.Group navigationKey={user.data ? "user" : "guest"}>
+          <Stack.Group navigationKey={user ? "user" : "guest"}>
             <Stack.Screen
               name="Root"
               component={BottomTabNavigator}
@@ -93,7 +109,7 @@ function RootNavigator() {
         </>
       ) : (
         <>
-          <Stack.Group navigationKey={user.data ? "user" : "guest"}>
+          <Stack.Group navigationKey={user ? "user" : "guest"}>
             <Stack.Screen
               name="SignIn"
               component={SignIn}
