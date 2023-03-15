@@ -22,7 +22,6 @@ export default function useUser(): User | null {
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    // Subscribe to user authentication
     const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
       if (firebaseUser) {
         const uid = firebaseUser.uid
