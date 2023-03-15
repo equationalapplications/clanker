@@ -6,7 +6,7 @@ import { TextInput, Avatar } from "react-native-paper"
 import Button from "../components/Button"
 import { functions } from "../config/firebaseConfig"
 import useDefaultCharacter from "../hooks/useDefaultCharacter"
-import updateDefaultCharacter from "../utilities/updateDefaultCharacter"
+import updateCharacter from "../utilities/updateCharacter"
 
 const getImage: any = httpsCallable(functions, "getImage")
 
@@ -47,7 +47,7 @@ export default function Characters() {
   }
 
   const onPressSave = () => {
-    updateDefaultCharacter(defaultCharacter._id, {
+    updateCharacter(defaultCharacter._id, {
       name,
       appearance,
       traits,
@@ -74,7 +74,7 @@ export default function Characters() {
   }
 
   const onPressErase = async () => {
-    updateDefaultCharacter(defaultCharacter._id, { context: "" })
+    updateCharacter(defaultCharacter._id, { context: "" })
   }
 
   return (
