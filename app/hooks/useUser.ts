@@ -9,13 +9,13 @@ const usersPrivateCollection = Constants.expoConfig.extra.usersPrivateCollection
 
 interface User {
   uid: string
-  name: string | null
-  avatar: string | null
-  email: string | null
-  credits: number | null
+  name: string
+  avatar: string
+  email: string
+  credits: number
   isProfilePublic: boolean | null
   isPremium: boolean | null
-  defaultCharacter: string | null
+  defaultCharacter: string
 }
 
 export default function useUser(): User | null {
