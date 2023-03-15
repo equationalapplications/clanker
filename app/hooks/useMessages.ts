@@ -1,55 +1,48 @@
-import Constants from "expo-constants";
-import {
-    collection,
-    onSnapshot,
-    CollectionReference,
-    Unsubscribe,
-} from "firebase/firestore";
-import { useEffect, useState } from "react";
-import { Message } from "react-native-gifted-chat";
+import Constants from "expo-constants"
+import { collection, onSnapshot, CollectionReference } from "firebase/firestore"
+import { useEffect, useState } from "react"
+import { IMessage } from "react-native-gifted-chat"
 
-import { firestore } from "../config/firebaseConfig";
-import useUser from "./useUser";
+import { firestore } from "../config/firebaseConfig"
+import useUser from "./useUser"
 
-const userChatsCollection = Constants.expoConfig.extra.userChatsCollection;
-const messagesCollection = Constants.expoConfig.extra.messagesCollection;
+interface IMessageWithCreatedAt extends IMessage {
+    createdAt: number;
+}
 
-export default function useMessages(chatId: string) {
-    const user = useUser();
-    let messagesRef: CollectionReference | null = null;
+const userChatsCollection = Constants.expoConfig.extra.userChatsCollection
+const messagesCollection = Constants.expoConfig.extra.messagesCollection
 
-    if (user) {
-        messagesRef = collection(
-            firestore,
-            userChatsCollection,
-            user.uid,
-            messagesCollection,
-            chatId
-        );
-    }
-
-    const [messages, setMessages] = useState<Message[] | null>(null);
-    let unsubscribe: Unsubscribe | null = null;
+export default function useMessages(): IMessage[] | null {
+    const user = useUser()
+    const [messages, setMessages] = useState<IMessage[] | null>(null)
+    let messagesRef: CollectionReference | null = null
 
     useEffect(() => {
-        if (messagesRef) {
-            unsubscribe = onSnapshot(messagesRef, (snapshot) => {
-                const updatedMessages: Message[] = [];
+        if (user) {
+            messagesRef = collection(firestore, userChatsCollection, user.uid, messagesCollection)
+            const unsubscribe = onSnapshot(messagesRef, (querySnapshot) => {
+                const newMessages: IMessageWithCreatedAt[] = [];
 
-                snapshot.forEach((doc) => {
-                    updatedMessages.push({ ...doc.data(), _id: doc.id } as Message);
-                });
+                querySnapshot.forEach((doc) => {
+                    const message = doc.data()
+                    newMessages.push(
+                        message as IMessageWithCreatedAt
+                    );
+                })
 
-                setMessages(updatedMessages);
-            });
+                // Sort messages by createdAt timestamp
+                newMessages.sort((a, b) => b.createdAt - a.createdAt)
+
+                // Remove createdAt property
+                const messagesWithoutCreatedAt = newMessages.map(({ createdAt, ...rest }) => rest)
+
+                setMessages(messagesWithoutCreatedAt)
+            })
+
+            return () => unsubscribe()
         }
+    }, [user])
 
-        return () => {
-            if (unsubscribe) {
-                unsubscribe();
-            }
-        };
-    }, [messagesRef]);
-
-    return messages;
+    return messages
 }
