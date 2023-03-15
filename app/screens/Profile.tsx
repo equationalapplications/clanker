@@ -13,7 +13,6 @@ export default function Profile() {
   const email = user?.email
   const photoURL = user?.avatar ?? "https://www.gravatar.com/avatar?d=mp"
 
-
   const onPressSignOut = () => {
     auth.signOut()
   }

@@ -19,7 +19,6 @@ type AlertsProviderProps = {
   children: ReactNode
 }
 
-
 export default function App() {
   const isLoadingComplete = useCachedResources()
 
