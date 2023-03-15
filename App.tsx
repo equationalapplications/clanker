@@ -4,7 +4,6 @@ import { ReactNode } from "react"
 import { Provider as PaperProvider, DefaultTheme } from "react-native-paper"
 //import { AlertsProvider } from "react-native-paper-alerts"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
-import { QueryClient, QueryClientProvider } from "react-query"
 
 import useCachedResources from "./app/hooks/useCachedResources"
 import Navigation from "./app/navigation"
@@ -20,7 +19,6 @@ type AlertsProviderProps = {
   children: ReactNode
 }
 
-const queryClient = new QueryClient()
 
 export default function App() {
   const isLoadingComplete = useCachedResources()
@@ -30,16 +28,14 @@ export default function App() {
   } else {
     return (
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <QueryClientProvider client={queryClient}>
-          <PaperProvider theme={CustomDefaultTheme} {...(null as any as PaperProviderProps)}>
-            {/*<AlertsProvider {...(null as any as AlertsProviderProps)}>*/}
-            {/*<ErrorBoundary catchErrors="always">*/}
-            <Navigation theme={CustomDefaultTheme} />
-            <StatusBar />
-            {/*</ErrorBoundary>*/}
-            {/*</AlertsProvider>*/}
-          </PaperProvider>
-        </QueryClientProvider>
+        <PaperProvider theme={CustomDefaultTheme} {...(null as any as PaperProviderProps)}>
+          {/*<AlertsProvider {...(null as any as AlertsProviderProps)}>*/}
+          {/*<ErrorBoundary catchErrors="always">*/}
+          <Navigation theme={CustomDefaultTheme} />
+          <StatusBar />
+          {/*</ErrorBoundary>*/}
+          {/*</AlertsProvider>*/}
+        </PaperProvider>
       </SafeAreaProvider>
     )
   }

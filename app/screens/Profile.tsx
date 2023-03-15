@@ -1,7 +1,6 @@
 import { useNavigation } from "@react-navigation/native"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
-//import { useQueryClient } from "react-query"
 
 import Button from "../components/Button"
 import { auth } from "../config/firebaseConfig"
@@ -14,15 +13,9 @@ export default function Profile() {
   const email = user?.email
   const photoURL = user?.avatar ?? "https://www.gravatar.com/avatar?d=mp"
 
-  // const queryClient = useQueryClient()
 
   const onPressSignOut = () => {
-    // queryClient.removeQueries("user")
-    // queryClient.resetQueries("user")
     auth.signOut()
-    //navigation.navigate("SignIn")
-    //queryClient.resetQueries("user")
-    // queryClient.removeQueries("user")
   }
   return (
     <View style={styles.container}>
