@@ -6,10 +6,6 @@ import { IMessage } from "react-native-gifted-chat"
 import { firestore } from "../config/firebaseConfig"
 import useUser from "./useUser"
 
-interface IMessageWithCreatedAt extends IMessage {
-    createdAt: number;
-}
-
 const userChatsCollection = Constants.expoConfig.extra.userChatsCollection
 const messagesCollection = Constants.expoConfig.extra.messagesCollection
 
@@ -22,22 +18,19 @@ export default function useMessages(): IMessage[] | null {
         if (user) {
             messagesRef = collection(firestore, userChatsCollection, user.uid, messagesCollection)
             const unsubscribe = onSnapshot(messagesRef, (querySnapshot) => {
-                const newMessages: IMessageWithCreatedAt[] = [];
+                const newMessages: IMessage[] = [];
 
                 querySnapshot.forEach((doc) => {
                     const message = doc.data()
                     newMessages.push(
-                        message as IMessageWithCreatedAt
+                        message as IMessage
                     );
                 })
 
                 // Sort messages by createdAt timestamp
-                newMessages.sort((a, b) => b.createdAt - a.createdAt)
+                newMessages.sort((a, b) => (b.createdAt as number) - (a.createdAt as number))
 
-                // Remove createdAt property
-                const messagesWithoutCreatedAt = newMessages.map(({ createdAt, ...rest }) => rest)
-
-                setMessages(messagesWithoutCreatedAt)
+                setMessages(newMessages)
             })
 
             return () => unsubscribe()
