@@ -1,5 +1,5 @@
 import { httpsCallable } from "firebase/functions"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useCallback } from "react"
 import { StyleSheet, View } from "react-native"
 import { GiftedChat, User, IMessage, Avatar, Bubble } from "react-native-gifted-chat"
 import { useTheme } from "react-native-paper"
@@ -40,7 +40,7 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
     const { _id, createdAt, text, user } = messages[0]
     const message = {
       _id,
-      createdAt: createdAt as number,
+      createdAt: Date.parse(createdAt),
       text,
       user,
     }
@@ -60,24 +60,24 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
       ]}
     >
       <GiftedChat
-        // showUserAvatar
-        // inverted
+        showUserAvatar
+        inverted
         messages={messages}
         onSend={onSend}
         user={chatUser}
         placeholder="chat with me..."
         renderUsernameOnMessage
-        // placeholderTextColor={colors.onSurfaceDisabled}
-        //  textInputStyle={{
-        //    backgroundColor: colors.surface,
-        //    borderColor: colors.outline,
-        //    borderWidth: 1,
-        //    borderRadius: roundness,
-        //    height: 50,
-        //    padding: 10,
-        //    marginHorizontal: 10,
-        //    marginBottom: 10,
-        //  }}
+        placeholderTextColor={colors.onSurfaceDisabled}
+        textInputStyle={{
+          backgroundColor: colors.surface,
+          borderColor: colors.outline,
+          borderWidth: 1,
+          borderRadius: roundness,
+          height: 50,
+          padding: 10,
+          marginHorizontal: 10,
+          marginBottom: 10,
+        }}
         timeTextStyle={{
           left: { color: colors.onTertiary, fontSize: 12 },
           right: { color: colors.background, fontSize: 12 },
