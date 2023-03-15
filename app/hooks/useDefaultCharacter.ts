@@ -21,18 +21,14 @@ const userCharactersCollection = Constants.expoConfig.extra.userCharactersCollec
 
 export default function useDefaultCharacter() {
     const user = useUser()
-    let defaultCharacterRef: DocumentReference | null = null
-
-    if (user) {
-        defaultCharacterRef = doc(firestore, charactersCollection, user.uid, userCharactersCollection, user.defaultCharacter)
-    }
-
     const [character, setCharacter] = useState<Character | null>(null)
 
     useEffect(() => {
-        let unsubscribeCharacter: Unsubscribe | null = null
-        if (defaultCharacterRef) {
-            unsubscribeCharacter = onSnapshot(defaultCharacterRef, (doc) => {
+        let defaultCharacterRef: DocumentReference | null = null
+
+        if (user) {
+            defaultCharacterRef = doc(firestore, charactersCollection, user.uid, userCharactersCollection, user.defaultCharacter)
+            const unsubscribeCharacter: Unsubscribe = onSnapshot(defaultCharacterRef, (doc) => {
                 if (doc.exists()) {
                     const data = doc.data()
                     setCharacter({
@@ -49,10 +45,11 @@ export default function useDefaultCharacter() {
                     setCharacter(null)
                 }
             })
+            return () => {
+                unsubscribeCharacter()
+            }
         }
-        return () => {
-            if (unsubscribeCharacter) unsubscribeCharacter()
-        }
-    }, [defaultCharacterRef])
+    }, [user])
+
     return character
 }
