@@ -23,7 +23,7 @@ import SignIn from "../screens/SignIn"
 import SubscribeModal from "../screens/SubscribeModal"
 import Terms from "../screens/Terms"
 import LinkingConfiguration from "./LinkingConfiguration"
-import { RootStackParamList, RootTabParamList, RootTabScreenProps } from "./types"
+import { RootStackParamList, RootStackScreenProps, RootTabParamList, RootTabScreenProps } from "./types"
 
 export default function Navigation({ theme }) {
   return (
@@ -58,7 +58,15 @@ function RootNavigator() {
               options={{ headerShown: false, title: "Sign In" }}
             />
             <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
-            <Stack.Screen name="Profile" component={Profile} options={{ title: "Profile" }} />
+            <Stack.Screen name="Profile"
+              component={Profile}
+              options={({ navigation }: RootStackScreenProps<"Profile">) => ({
+                title: "Profile",
+                headerRight: () => (
+                  <CreditCounterIcon navigation={navigation} />
+                ),
+              })}
+            />
             <Stack.Screen
               name="Terms"
               component={Terms}
@@ -110,10 +118,13 @@ function BottomTabNavigator() {
       <BottomTab.Screen
         name="Character"
         component={Characters}
-        options={{
+        options={({ navigation }: RootTabScreenProps<"Character">) => ({
           title: "Character",
           tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
-        }}
+          headerRight: () => (
+            <CreditCounterIcon navigation={navigation} />
+          ),
+        })}
       />
       <BottomTab.Screen
         name="Chat"
@@ -122,32 +133,39 @@ function BottomTabNavigator() {
           title: "Chat",
           tabBarIcon: ({ color }) => <TabBarIcon name="comments" color={color} />,
           headerRight: () => (
-            <Pressable
-              onPress={() => navigation.navigate("Subscribe")}
-              style={({ pressed }) => ({
-                opacity: pressed ? 0.5 : 1,
-              })}
-            >
-              <FontAwesome
-                name="info-circle"
-                size={25}
-                // color={ }
-                style={{ marginRight: 15 }}
-              />
-            </Pressable>
+            <CreditCounterIcon navigation={navigation} />
           ),
         })}
       />
       <BottomTab.Screen
         name="Settings"
         component={Settings}
-        options={{
+        options={({ navigation }: RootTabScreenProps<"Settings">) => ({
           title: "Settings",
           tabBarIcon: ({ color }) => <TabBarIcon name="gear" color={color} />,
-        }}
+          headerRight: () => (
+            <CreditCounterIcon navigation={navigation} />
+          ),
+        })}
       />
     </BottomTab.Navigator>
   )
+}
+
+function CreditCounterIcon({ navigation }) {
+  return <Pressable
+    onPress={() => navigation.navigate("Subscribe")}
+    style={({ pressed }) => ({
+      opacity: pressed ? 0.5 : 1,
+    })}
+  >
+    <FontAwesome
+      name="info-circle"
+      size={25}
+      // color={ }
+      style={{ marginRight: 15 }}
+    />
+  </Pressable>
 }
 
 /**
