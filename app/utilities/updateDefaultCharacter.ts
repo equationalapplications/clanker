@@ -1,11 +1,15 @@
 import Constants from "expo-constants"
-import { doc, updateDoc } from "firebase/firestore"
+import { doc, updateDoc, DocumentReference } from "firebase/firestore"
 
 import { firestore, auth } from "../config/firebaseConfig"
 
-const characterCollection = Constants.expoConfig.extra.characterCollection
+const charactersCollection = Constants.expoConfig.extra.charactersCollection
+const userCharactersCollection = Constants.expoConfig.extra.userCharactersCollection
 
-export default async function updateDefaultCharacter(
+let defaultCharacterRef: DocumentReference | null = null
+
+export default async function updateCharacter(
+  characterId: string,
   data: Partial<{
     name: string
     avatar: string
@@ -16,12 +20,19 @@ export default async function updateDefaultCharacter(
     context: string
   }>,
 ) {
-  /* const uid = auth.currentUser.uid
-   const defaultCharacterRef = doc(firestore, characterCollection, uid)
-   try {
-     await updateDoc(defaultCharacterRef, data)
-     console.log("Default character updated successfully.")
-   } catch (error) {
-     console.error("Error updating default character:", error)
-   }*/
+  if (auth.currentUser) {
+    const uid = auth.currentUser.uid
+    defaultCharacterRef = doc(
+      firestore,
+      charactersCollection,
+      uid,
+      userCharactersCollection,
+      characterId,
+    )
+    try {
+      await updateDoc(defaultCharacterRef, data)
+    } catch (error) {
+      console.error("Error updating default character:", error)
+    }
+  }
 }
