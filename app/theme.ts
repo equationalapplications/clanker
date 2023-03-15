@@ -16,7 +16,7 @@ const CombinedDefaultTheme = {
     ...MD3LightTheme.colors,
     ...LightTheme.colors,
   },
-};
+}
 const CombinedDarkTheme = {
   ...MD3DarkTheme,
   ...DarkTheme,
@@ -24,7 +24,7 @@ const CombinedDarkTheme = {
     ...MD3DarkTheme.colors,
     ...DarkTheme.colors,
   },
-};
+}
 
 export const CustomDefaultTheme = {
   ...CombinedDefaultTheme,
