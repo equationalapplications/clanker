@@ -4,7 +4,6 @@ import {
   useFirestoreDocumentMutation,
   useFirestoreDocumentData,
 } from "@react-query-firebase/firestore"
-import { isLoading } from "expo-font"
 import { doc } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
 import { useState, useEffect } from "react"
