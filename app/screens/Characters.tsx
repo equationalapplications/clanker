@@ -4,6 +4,7 @@ import {
   useFirestoreDocumentMutation,
   useFirestoreDocumentData,
 } from "@react-query-firebase/firestore"
+import { isLoading } from "expo-font"
 import { doc } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
 import { useState, useEffect } from "react"
@@ -111,12 +112,12 @@ export default function Characters() {
         style={{ marginTop: 30, width: "100%" }}
         contentContainerStyle={{ alignItems: "center" }}
       >
-        {imageIsLoading && !avatar ? (
+        {imageIsLoading ? (
           <ActivityIndicator />
         ) : (
           <Avatar.Image size={256} source={{ uri: avatar }} />
         )}
-        <Button mode="outlined" onPress={onPressGenerate}>
+        <Button mode="outlined" onPress={onPressGenerate} disabled={imageIsLoading}>
           Generate New Image
         </Button>
         <TextInput
