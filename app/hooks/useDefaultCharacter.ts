@@ -16,22 +16,23 @@ interface Character {
     context: string
 }
 
-const characterCollection = Constants.expoConfig.extra.characterCollection
+const charactersCollection = Constants.expoConfig.extra.charactersCollection
+const userCharactersCollection = Constants.expoConfig.extra.userCharactersCollection
 
 export default function useDefaultCharacter() {
     const user = useUser()
     let defaultCharacterRef: DocumentReference | null = null
 
     if (user) {
-        defaultCharacterRef = doc(firestore, characterCollection, user.uid)
+        defaultCharacterRef = doc(firestore, charactersCollection, user.uid, userCharactersCollection, user.defaultCharacter)
     }
 
     const [character, setCharacter] = useState<Character | null>(null)
 
     useEffect(() => {
-        let unsubscribeCharacer: Unsubscribe | null = (null)
+        let unsubscribeCharacter: Unsubscribe | null = null
         if (defaultCharacterRef) {
-            unsubscribeCharacer = onSnapshot(defaultCharacterRef, (doc) => {
+            unsubscribeCharacter = onSnapshot(defaultCharacterRef, (doc) => {
                 if (doc.exists()) {
                     const data = doc.data()
                     setCharacter({
@@ -49,7 +50,9 @@ export default function useDefaultCharacter() {
                 }
             })
         }
-        return unsubscribeCharacer ? () => { unsubscribeCharacer() } : null
+        return () => {
+            if (unsubscribeCharacter) unsubscribeCharacter()
+        }
     }, [defaultCharacterRef])
     return character
 }
