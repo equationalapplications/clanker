@@ -1,3 +1,35 @@
+# [5.0.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v4.2.0...v5.0.0) (2023-03-16)
+
+
+### Bug Fixes
+
+* add character to state ([16a0cc7](https://github.com/equationalapplications/yoursbrightlyai/commit/16a0cc704fa4dff9687737985ba03d506bd24aef))
+* correct the collection path ([df5f19d](https://github.com/equationalapplications/yoursbrightlyai/commit/df5f19dddfc9d8ef7cbec75a0708eaecbe98dde1))
+* do not remove createdAt ([d8a8274](https://github.com/equationalapplications/yoursbrightlyai/commit/d8a82745335c33f39dab313fcd240bb5012ca211))
+* imageIsLoading ([1d7a002](https://github.com/equationalapplications/yoursbrightlyai/commit/1d7a002d2250f57211beb672bc47ccf677085ae9))
+* implement updateDoc ([bce657a](https://github.com/equationalapplications/yoursbrightlyai/commit/bce657a38ed6171016d3b12c6a45e9fcf72bfed3))
+* sort and then remove createdAt ([b5fadc0](https://github.com/equationalapplications/yoursbrightlyai/commit/b5fadc0a6fa6f5918ae48c94059ff36b07eefa0a))
+* typo ([cd38a9a](https://github.com/equationalapplications/yoursbrightlyai/commit/cd38a9a8d28a54f44fc6a398a5bb34db8aa2202d))
+* use useUser to get user ([c3b9da9](https://github.com/equationalapplications/yoursbrightlyai/commit/c3b9da90c6907781c120ecc53566c6212a8f721f))
+* user interface remove "| null" for strings ([561442b](https://github.com/equationalapplications/yoursbrightlyai/commit/561442b09b8ae02ff2c6ce39784b4b534dc601e3))
+
+
+### Features
+
+* add firebase collection strings to extra: ([6550d71](https://github.com/equationalapplications/yoursbrightlyai/commit/6550d71e4d3a14b573b58c5c374f0caaeefc45d3))
+* create updateMessages function ([aacd965](https://github.com/equationalapplications/yoursbrightlyai/commit/aacd9655095f8dcf5fba24f8fe8fef5be7e02086))
+* create useDefaultCharacter hook ([d391a65](https://github.com/equationalapplications/yoursbrightlyai/commit/d391a659c4e134c6020109bfce12eea24f498404))
+* create useMessages hook ([f8a6fad](https://github.com/equationalapplications/yoursbrightlyai/commit/f8a6fad02bf29a9158a93619c480e2adcde5d450))
+* create useUser hook ([bc2e7dd](https://github.com/equationalapplications/yoursbrightlyai/commit/bc2e7dd64343cc9aa9daf9411f0bc7bd71eca460))
+* show credits in badge on header ([f180d0e](https://github.com/equationalapplications/yoursbrightlyai/commit/f180d0eded559dbbc20dec1a55c78143584d8acf))
+* show credits on profile ([b553dad](https://github.com/equationalapplications/yoursbrightlyai/commit/b553dad20d95dd77e4d200671b2ad9d72b1a924a))
+* show right header navigation icon ([2de7708](https://github.com/equationalapplications/yoursbrightlyai/commit/2de7708f47d43ca5cb8840cab0f12900e2b674c4))
+
+
+### BREAKING CHANGES
+
+* changes to app.config.ts require rebuild
+
 # [5.0.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v4.2.0...v5.0.0-staging.1) (2023-03-16)
 
 
