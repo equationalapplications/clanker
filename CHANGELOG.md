@@ -1,3 +1,12 @@
+## [5.0.1-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v5.0.0...v5.0.1-staging.1) (2023-03-16)
+
+
+### Bug Fixes
+
+* add navigate to signin ([b75e10a](https://github.com/equationalapplications/yoursbrightlyai/commit/b75e10af4043bd8971611daf0ce91e05046182fe))
+* remove navigation in useEffect for user changes ([9d02507](https://github.com/equationalapplications/yoursbrightlyai/commit/9d025073ebd9572d76ef12b38f5c92318f9d8d8f))
+* remove setUser. replace with return null ([aa28f89](https://github.com/equationalapplications/yoursbrightlyai/commit/aa28f8931024cd05437f97d900cca1692287c8ce))
+
 # [5.0.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v4.2.0...v5.0.0) (2023-03-16)
 
 

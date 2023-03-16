@@ -46,24 +46,9 @@ export default function Navigation({ theme }) {
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
 function RootNavigator() {
-  const navigation = useNavigation()
   const user = useUser()
   console.log("nav user", user)
-  /*
-    React.useEffect(() => {
-      if (user) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "Root" }],
-        })
-      } else {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "SignIn" }],
-        })
-      }
-    }, [user, navigation])
-  */
+
   return (
     <Stack.Navigator>
       {user ? (
