@@ -67,5 +67,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     facebookAuthAppId: process.env.FACEBOOK_AUTH_APP_ID,
     revenueCatPurchasesApiKey: process.env.REVENUECAT_PURCHASES_API_KEY,
     revenueCatPurchasesEntitlementId: "premium",
+    usersPrivateCollection: "users_private",
+    usersPublicCollection: "users_public",
+    charactersCollection: "characters",
+    userCharactersCollection: "user_characters",
+    userChatsCollection: "user_chats",
+    messagesCollection: "messages",
+    publicChatRoomsCollection: "public_chat_rooms",
   },
 })

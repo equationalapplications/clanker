@@ -1,10 +1,9 @@
-import { useAuthSignInWithCredential } from "@react-query-firebase/auth"
 import { ResponseType } from "expo-auth-session"
 import * as Facebook from "expo-auth-session/providers/facebook"
 import * as Google from "expo-auth-session/providers/google"
 import Constants from "expo-constants"
 import * as WebBrowser from "expo-web-browser"
-import { GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth"
+import { GoogleAuthProvider, FacebookAuthProvider, signInWithCredential } from "firebase/auth"
 import { useEffect } from "react"
 import { StyleSheet, View, Text } from "react-native"
 
@@ -17,8 +16,6 @@ import { auth } from "../config/firebaseConfig"
 WebBrowser.maybeCompleteAuthSession()
 
 export default function SignIn({ navigation }) {
-  const mutationAuthSignInWithCredential = useAuthSignInWithCredential(auth)
-
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: Constants.expoConfig?.extra?.googleWebClientId,
     androidClientId: Constants.expoConfig?.extra?.googleAndroidClientId,
@@ -31,10 +28,9 @@ export default function SignIn({ navigation }) {
 
   useEffect(() => {
     if (googleResponse && googleResponse.type === "success" && googleResponse.authentication) {
-      const idToken = null // googleResponse.authentication.accessToken;
       const accessToken = googleResponse.authentication.accessToken
-      const credential = GoogleAuthProvider.credential(idToken, accessToken)
-      mutationAuthSignInWithCredential.mutate(credential)
+      const credential = GoogleAuthProvider.credential(null, accessToken)
+      signInWithCredential(auth, credential)
     }
     if (
       facebookResponse &&
@@ -43,7 +39,7 @@ export default function SignIn({ navigation }) {
     ) {
       const idToken = facebookResponse.authentication.accessToken
       const credential = FacebookAuthProvider.credential(idToken)
-      mutationAuthSignInWithCredential.mutate(credential)
+      signInWithCredential(auth, credential)
     }
   }, [googleResponse, facebookResponse])
 
