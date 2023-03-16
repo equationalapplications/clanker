@@ -24,23 +24,8 @@ interface UserPrivate {
 interface User extends UserPublic, UserPrivate {}
 
 export default function useUser(): User | null {
-  // const [user, setUser] = useState<User | null>(null)
   const [userPublic, setUserPublic] = useState<UserPublic | null>(null)
   const [userPrivate, setUserPrivate] = useState<UserPrivate | null>(null)
-
-  // const isUserLoaded = () => {
-  //   if (user &&
-  //     typeof user.uid === "string" &&
-  //     typeof user.name === "string" &&
-  //     typeof user.credits === "number" &&
-  //     typeof user.isProfilePublic === "boolean" &&
-  //     typeof user.isPremium === "boolean" &&
-  //     typeof user.defaultCharacter === "string"
-  //   ) {
-  //     return true
-  //   }
-  //   return false
-  // }
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
@@ -89,7 +74,7 @@ export default function useUser(): User | null {
           if (unsubscribePrivate) unsubscribePrivate()
         }
       } else {
-        setUser(null)
+        return null
       }
     })
   }, [])
