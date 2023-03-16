@@ -21,7 +21,7 @@ export default function Profile() {
   }
   return (
     <View style={styles.container}>
-      <Avatar.Image size={150} source={{ uri: photoURL }} />
+      <Avatar.Image size={150} source={{ uri: photoURL }} style={{ marginVertical: 10 }} />
       <Text>{displayName}</Text>
       <Text>{email}</Text>
       <Text>Credits: {credits}</Text>
