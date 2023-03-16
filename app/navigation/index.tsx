@@ -119,7 +119,6 @@ function RootNavigator() {
 const BottomTab = createBottomTabNavigator<RootTabParamList>()
 
 function BottomTabNavigator() {
-
   return (
     <BottomTab.Navigator initialRouteName="Character">
       <BottomTab.Screen
