@@ -2,7 +2,6 @@ import {
   DarkTheme as NavigationDarkTheme,
   DefaultTheme as NavigationDefaultTheme,
 } from "@react-navigation/native"
-import merge from "deepmerge"
 import { adaptNavigationTheme, MD3DarkTheme, MD3LightTheme } from "react-native-paper"
 
 const { LightTheme, DarkTheme } = adaptNavigationTheme({
@@ -10,8 +9,22 @@ const { LightTheme, DarkTheme } = adaptNavigationTheme({
   reactNavigationDark: NavigationDarkTheme,
 })
 
-const CombinedDefaultTheme = merge(MD3LightTheme, LightTheme)
-const CombinedDarkTheme = merge(MD3DarkTheme, DarkTheme)
+const CombinedDefaultTheme = {
+  ...MD3LightTheme,
+  ...LightTheme,
+  colors: {
+    ...MD3LightTheme.colors,
+    ...LightTheme.colors,
+  },
+}
+const CombinedDarkTheme = {
+  ...MD3DarkTheme,
+  ...DarkTheme,
+  colors: {
+    ...MD3DarkTheme.colors,
+    ...DarkTheme.colors,
+  },
+}
 
 export const CustomDefaultTheme = {
   ...CombinedDefaultTheme,

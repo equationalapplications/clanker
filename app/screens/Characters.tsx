@@ -1,62 +1,34 @@
-import { useNavigation } from "@react-navigation/native"
-import { useAuthUser } from "@react-query-firebase/auth"
-import {
-  useFirestoreDocumentMutation,
-  useFirestoreDocumentData,
-} from "@react-query-firebase/firestore"
-import { doc } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
 import { useState, useEffect } from "react"
 import { StyleSheet, ScrollView, View, ActivityIndicator } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
 
 import Button from "../components/Button"
-import { firestore, auth, functions } from "../config/firebaseConfig"
+import { functions } from "../config/firebaseConfig"
+import useDefaultCharacter from "../hooks/useDefaultCharacter"
+import updateCharacter from "../utilities/updateCharacter"
 
 const getImage: any = httpsCallable(functions, "getImage")
 
 export default function Characters() {
-  const navigation = useNavigation()
-  const [avatar, setAvatar] = useState("https://www.gravatar.com/avatar?d=mp")
-  const [appearance, setAppearance] = useState("")
-  const [name, setName] = useState("")
-  const [traits, setTraits] = useState("")
-  const [emotions, setEmotions] = useState("")
+  const defaultCharacter = useDefaultCharacter()
+
+  const [avatar, setAvatar] = useState(
+    defaultCharacter?.avatar ?? "https://www.gravatar.com/avatar?d=mp",
+  )
+  const [appearance, setAppearance] = useState(defaultCharacter?.appearance ?? "")
+  const [name, setName] = useState(defaultCharacter?.name ?? "")
+  const [traits, setTraits] = useState(defaultCharacter?.traits ?? "")
+  const [emotions, setEmotions] = useState(defaultCharacter?.emotions ?? "")
   const [imageIsLoading, setImageIsLoading] = useState(false)
 
-  const user = useAuthUser(["user", auth.currentUser?.uid ?? ""], auth)
-  const uid = user?.data?.uid ?? ""
-  const userPrivateRef = doc(firestore, "users_private", uid)
-  const userPrivate = useFirestoreDocumentData(["userPrivate"], userPrivateRef, {
-    subscribe: true,
-  })
-  const defaultCharacterId = userPrivate.data?.defaultCharacter ?? "0"
-  const defaultCharacterRef = doc(
-    firestore,
-    "characters",
-    uid,
-    "user_characters",
-    defaultCharacterId,
-  )
-  const defaultCharacter = useFirestoreDocumentData(
-    ["defaultCharacter", defaultCharacterId],
-    defaultCharacterRef,
-    {
-      subscribe: true,
-    },
-  )
-
-  const defaultCharacterMutation = useFirestoreDocumentMutation(defaultCharacterRef, {
-    merge: true,
-  })
-
   useEffect(() => {
-    setAvatar(defaultCharacter.data?.avatar ?? "https://www.gravatar.com/avatar?d=mp")
-    setName(defaultCharacter.data?.name ?? "")
-    setAppearance(defaultCharacter.data?.appearance ?? "")
-    setTraits(defaultCharacter.data?.traits ?? "")
-    setEmotions(defaultCharacter.data?.emotions ?? "")
-  }, [defaultCharacter.data])
+    setAvatar(defaultCharacter?.avatar ?? "https://www.gravatar.com/avatar?d=mp")
+    setName(defaultCharacter?.name ?? "")
+    setAppearance(defaultCharacter?.appearance ?? "")
+    setTraits(defaultCharacter?.traits ?? "")
+    setEmotions(defaultCharacter?.emotions ?? "")
+  }, [defaultCharacter])
 
   const onChangeTextName = (text: string) => {
     setName(text)
@@ -75,7 +47,7 @@ export default function Characters() {
   }
 
   const onPressSave = () => {
-    defaultCharacterMutation.mutate({
+    updateCharacter(defaultCharacter._id, {
       name,
       appearance,
       traits,
@@ -95,14 +67,14 @@ export default function Characters() {
       "."
     const { data } = await getImage({
       text: promptText,
-      characterId: defaultCharacterId,
+      characterId: defaultCharacter._id,
     })
     console.log("getImage", data.reply)
     setImageIsLoading(false)
   }
 
   const onPressErase = async () => {
-    defaultCharacterMutation.mutate({ context: "" })
+    updateCharacter(defaultCharacter._id, { context: "" })
   }
 
   return (
@@ -111,12 +83,12 @@ export default function Characters() {
         style={{ marginTop: 30, width: "100%" }}
         contentContainerStyle={{ alignItems: "center" }}
       >
-        {imageIsLoading && !avatar ? (
+        {imageIsLoading ? (
           <ActivityIndicator />
         ) : (
           <Avatar.Image size={256} source={{ uri: avatar }} />
         )}
-        <Button mode="outlined" onPress={onPressGenerate}>
+        <Button mode="outlined" onPress={onPressGenerate} disabled={imageIsLoading}>
           Generate New Image
         </Button>
         <TextInput

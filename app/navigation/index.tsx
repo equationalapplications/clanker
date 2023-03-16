@@ -5,13 +5,14 @@
  */
 import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
-import { NavigationContainer } from "@react-navigation/native"
+import { NavigationContainer, useNavigation } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
-import { useAuthUser } from "@react-query-firebase/auth"
 import * as React from "react"
 import { Pressable } from "react-native"
+import { Badge, Text } from "react-native-paper"
 
-import { auth } from "../config/firebaseConfig"
+//import { auth } from "../config/firebaseConfig"
+import useUser from "../hooks/useUser"
 import Characters from "../screens/Characters"
 import Chat from "../screens/Chat"
 import NotFoundScreen from "../screens/NotFoundScreen"
@@ -23,7 +24,12 @@ import SignIn from "../screens/SignIn"
 import SubscribeModal from "../screens/SubscribeModal"
 import Terms from "../screens/Terms"
 import LinkingConfiguration from "./LinkingConfiguration"
-import { RootStackParamList, RootTabParamList, RootTabScreenProps } from "./types"
+import {
+  RootStackParamList,
+  RootStackScreenProps,
+  RootTabParamList,
+  RootTabScreenProps,
+} from "./types"
 
 export default function Navigation({ theme }) {
   return (
@@ -40,13 +46,29 @@ export default function Navigation({ theme }) {
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
 function RootNavigator() {
-  const user = useAuthUser(["user", auth.currentUser?.uid ?? ""], auth)
-
+  const navigation = useNavigation()
+  const user = useUser()
+  console.log("nav user", user)
+  /*
+    React.useEffect(() => {
+      if (user) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Root" }],
+        })
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "SignIn" }],
+        })
+      }
+    }, [user, navigation])
+  */
   return (
     <Stack.Navigator>
-      {user.data ? (
+      {user ? (
         <>
-          <Stack.Group navigationKey={user.data ? "user" : "guest"}>
+          <Stack.Group navigationKey={user ? "user" : "guest"}>
             <Stack.Screen
               name="Root"
               component={BottomTabNavigator}
@@ -58,7 +80,14 @@ function RootNavigator() {
               options={{ headerShown: false, title: "Sign In" }}
             />
             <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
-            <Stack.Screen name="Profile" component={Profile} options={{ title: "Profile" }} />
+            <Stack.Screen
+              name="Profile"
+              component={Profile}
+              options={({ navigation }: RootStackScreenProps<"Profile">) => ({
+                title: "Profile",
+                headerRight: () => <CreditCounterIcon navigation={navigation} />,
+              })}
+            />
             <Stack.Screen
               name="Terms"
               component={Terms}
@@ -81,7 +110,7 @@ function RootNavigator() {
         </>
       ) : (
         <>
-          <Stack.Group navigationKey={user.data ? "user" : "guest"}>
+          <Stack.Group navigationKey={user ? "user" : "guest"}>
             <Stack.Screen
               name="SignIn"
               component={SignIn}
@@ -110,10 +139,11 @@ function BottomTabNavigator() {
       <BottomTab.Screen
         name="Character"
         component={Characters}
-        options={{
+        options={({ navigation }: RootTabScreenProps<"Character">) => ({
           title: "Character",
           tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
-        }}
+          headerRight: () => <CreditCounterIcon navigation={navigation} />,
+        })}
       />
       <BottomTab.Screen
         name="Chat"
@@ -121,32 +151,39 @@ function BottomTabNavigator() {
         options={({ navigation }: RootTabScreenProps<"Chat">) => ({
           title: "Chat",
           tabBarIcon: ({ color }) => <TabBarIcon name="comments" color={color} />,
-          headerRight: () => (
-            <Pressable
-              onPress={() => navigation.navigate("Subscribe")}
-              style={({ pressed }) => ({
-                opacity: pressed ? 0.5 : 1,
-              })}
-            >
-              <FontAwesome
-                name="info-circle"
-                size={25}
-                // color={ }
-                style={{ marginRight: 15 }}
-              />
-            </Pressable>
-          ),
+          headerRight: () => <CreditCounterIcon navigation={navigation} />,
         })}
       />
       <BottomTab.Screen
         name="Settings"
         component={Settings}
-        options={{
+        options={({ navigation }: RootTabScreenProps<"Settings">) => ({
           title: "Settings",
           tabBarIcon: ({ color }) => <TabBarIcon name="gear" color={color} />,
-        }}
+          headerRight: () => <CreditCounterIcon navigation={navigation} />,
+        })}
       />
     </BottomTab.Navigator>
+  )
+}
+
+function CreditCounterIcon({ navigation }) {
+  const user = useUser()
+  const [credits, setCredits] = React.useState(user?.credits)
+  React.useEffect(() => {
+    setCredits(user?.credits)
+  }, [user])
+  return (
+    <Pressable
+      onPress={() => navigation.navigate("Subscribe")}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        opacity: pressed ? 0.5 : 1,
+      })}
+    >
+      <Text>Credits </Text>
+      <Badge>{credits}</Badge>
+    </Pressable>
   )
 }
 
