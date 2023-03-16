@@ -9,6 +9,7 @@ import { NavigationContainer, useNavigation } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import * as React from "react"
 import { Pressable } from "react-native"
+import { Badge, Text } from "react-native-paper"
 
 //import { auth } from "../config/firebaseConfig"
 import useUser from "../hooks/useUser"
@@ -167,19 +168,21 @@ function BottomTabNavigator() {
 }
 
 function CreditCounterIcon({ navigation }) {
+  const user = useUser()
+  const [credits, setCredits] = React.useState(user?.credits)
+  React.useEffect(() => {
+    setCredits(user?.credits)
+  }, [user])
   return (
     <Pressable
       onPress={() => navigation.navigate("Subscribe")}
       style={({ pressed }) => ({
+        flexDirection: "row",
         opacity: pressed ? 0.5 : 1,
       })}
     >
-      <FontAwesome
-        name="info-circle"
-        size={25}
-        // color={ }
-        style={{ marginRight: 15 }}
-      />
+      <Text>Credits </Text>
+      <Badge>{credits}</Badge>
     </Pressable>
   )
 }
