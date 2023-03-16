@@ -10,7 +10,7 @@ import updateCharacter from "../utilities/updateCharacter"
 
 const getImage: any = httpsCallable(functions, "getImage")
 
-export default function Characters() {
+export default function Characters({ navigation }) {
   const defaultCharacter = useDefaultCharacter()
 
   const [avatar, setAvatar] = useState(
@@ -22,13 +22,26 @@ export default function Characters() {
   const [emotions, setEmotions] = useState(defaultCharacter?.emotions ?? "")
   const [imageIsLoading, setImageIsLoading] = useState(false)
 
-  useEffect(() => {
+  const updateState = () => {
     setAvatar(defaultCharacter?.avatar ?? "https://www.gravatar.com/avatar?d=mp")
     setName(defaultCharacter?.name ?? "")
     setAppearance(defaultCharacter?.appearance ?? "")
     setTraits(defaultCharacter?.traits ?? "")
     setEmotions(defaultCharacter?.emotions ?? "")
-  }, [defaultCharacter])
+  }
+
+  useEffect(() => {
+    updateState()
+    const unsubscribe = navigation.addListener("focus", () => {
+      updateState()
+    })
+
+    if (defaultCharacter?.avatar !== avatar && defaultCharacter?.avatar) {
+      setAvatar(defaultCharacter?.avatar ?? "https://www.gravatar.com/avatar?d=mp")
+    }
+
+    return unsubscribe
+  }, [navigation, defaultCharacter?.avatar])
 
   const onChangeTextName = (text: string) => {
     setName(text)
@@ -47,6 +60,7 @@ export default function Characters() {
   }
 
   const onPressSave = () => {
+    console.log(defaultCharacter?._id)
     updateCharacter(defaultCharacter._id, {
       name,
       appearance,
