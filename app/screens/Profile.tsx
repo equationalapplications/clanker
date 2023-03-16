@@ -1,3 +1,4 @@
+import { useNavigation } from "@react-navigation/native"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
 
@@ -6,6 +7,7 @@ import { auth } from "../config/firebaseConfig"
 import useUser from "../hooks/useUser"
 
 export default function Profile() {
+  const navigation = useNavigation()
   const user = useUser()
   const displayName = user?.name
   const email = user?.email
@@ -15,10 +17,11 @@ export default function Profile() {
 
   const onPressSignOut = () => {
     auth.signOut()
+    navigation.navigate("SignIn")
   }
   return (
     <View style={styles.container}>
-      <Avatar.Image size={150} source={{ uri: photoURL }} />
+      <Avatar.Image size={150} source={{ uri: photoURL }} style={{ marginVertical: 10 }} />
       <Text>{displayName}</Text>
       <Text>{email}</Text>
       <Text>Credits: {credits}</Text>
