@@ -42,7 +42,7 @@ Collection: user_chats
                     name: string
                     avatar: string
 
-Collection: pulic_chat_rooms
+Collection: public_chat_rooms
     Document: default_room
         Collection: messages
             Document: _id

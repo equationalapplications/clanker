@@ -1,36 +1,28 @@
-import { useAuthUser } from "@react-query-firebase/auth"
-import {
-  useFirestoreQueryData,
-  useFirestoreCollectionMutation,
-} from "@react-query-firebase/firestore"
-import { useFunctionsQuery } from "@react-query-firebase/functions"
-import { collection, doc, addDoc } from "firebase/firestore"
 import { httpsCallable } from "firebase/functions"
-import { useEffect, useState, useCallback } from "react"
-import { StyleSheet, Button, View } from "react-native"
+import { useEffect, useCallback } from "react"
+import { StyleSheet, View } from "react-native"
 import { GiftedChat, User, IMessage, Avatar, Bubble } from "react-native-gifted-chat"
 import { useTheme } from "react-native-paper"
 import Purchases from "react-native-purchases"
 
-import { firestore, auth, functions } from "../config/firebaseConfig"
+import { functions } from "../config/firebaseConfig"
+import useMessages from "../hooks/useMessages"
+import useUser from "../hooks/useUser"
 import { RootTabScreenProps } from "../navigation/types"
+import updateMessages from "../utilities/updateMessages"
 
 const getReply: any = httpsCallable(functions, "getReply")
 
 export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
-  const [inputText, setInputText] = useState("")
-  const user = useAuthUser(["user", auth.currentUser?.uid ?? ""], auth)
-  const uid = user?.data?.uid ?? ""
-  const messagesRef = collection(firestore, "user_chats", uid, "messages")
-  const messagesMutation = useFirestoreCollectionMutation(messagesRef)
-  const messagesQuery = useFirestoreQueryData(["messages"], messagesRef, {
-    subscribe: true,
-  })
+  const user = useUser()
+  const uid = user?.uid ?? ""
+  const messages = useMessages()
+  const { colors, roundness } = useTheme()
 
   const chatUser: User = {
     _id: uid,
-    name: user.data?.displayName ?? "user",
-    avatar: user.data?.photoURL ?? undefined,
+    name: user?.name ?? "",
+    avatar: user?.avatar ?? "",
   }
 
   useEffect(() => {
@@ -46,25 +38,17 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
 
   const onSend = useCallback(async (messages: IMessage[]) => {
     const { _id, createdAt, text, user } = messages[0]
-    console.log("createdAt", createdAt)
     const message = {
       _id,
       createdAt: Date.parse(createdAt),
       text,
       user,
     }
-
-    messagesMutation.mutate(message)
-
+    updateMessages(message)
     const { data } = await getReply({ message: text })
     const reply = data.reply
     console.log("reply", reply)
   }, [])
-
-  const messages = messagesQuery.data ?? []
-  messages.sort((a, b) => b.createdAt - a.createdAt)
-
-  const { colors, roundness } = useTheme()
 
   return (
     <View
