@@ -31,7 +31,16 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
     if (googleResponse && googleResponse.type === "success" && googleResponse.authentication) {
       const accessToken = googleResponse.authentication.accessToken
       const credential = GoogleAuthProvider.credential(null, accessToken)
-      signInWithCredential(auth, credential)
+      signInWithCredential(auth, credential).catch((error) => {
+        // Handle Errors here.
+        const errorCode = error.code;
+        const errorMessage = error.message;
+        // The email of the user's account used.
+        const email = error.email;
+        // The credential that was used.
+        const credential = GoogleAuthProvider.credentialFromError(error);
+        console.log(errorCode, errorMessage, email, credential)
+      })
       // navigation.navigate("Root")
     }
     if (
@@ -41,7 +50,16 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
     ) {
       const idToken = facebookResponse.authentication.accessToken
       const credential = FacebookAuthProvider.credential(idToken)
-      signInWithCredential(auth, credential)
+      signInWithCredential(auth, credential).catch((error) => {
+        // Handle Errors here.
+        const errorCode = error.code;
+        const errorMessage = error.message;
+        // The email of the user's account used.
+        const email = error.email;
+        // The credential that was used.
+        const credential = GoogleAuthProvider.credentialFromError(error);
+        console.log(errorCode, errorMessage, email, credential)
+      })
       // navigation.navigate("Root")
     }
   }, [googleResponse, facebookResponse])
