@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 
 import { firestore } from "../config/firebaseConfig"
 import useUser from "./useUser"
+import useUserPrivate from "./useUserPrivate"
 
 interface Character {
   _id: string
@@ -21,18 +22,20 @@ const userCharactersCollection = Constants.expoConfig.extra.userCharactersCollec
 
 export default function useDefaultCharacter() {
   const user = useUser()
+  const userPrivate = useUserPrivate()
+
   const [character, setCharacter] = useState<Character | null>(null)
 
   useEffect(() => {
     let defaultCharacterRef: DocumentReference | null = null
 
-    if (user) {
+    if (user && userPrivate?.defaultCharacter) {
       defaultCharacterRef = doc(
         firestore,
         charactersCollection,
         user.uid,
         userCharactersCollection,
-        user.defaultCharacter,
+        userPrivate.defaultCharacter,
       )
       const unsubscribeCharacter: Unsubscribe = onSnapshot(defaultCharacterRef, (doc) => {
         if (doc.exists()) {
@@ -55,7 +58,7 @@ export default function useDefaultCharacter() {
         unsubscribeCharacter()
       }
     }
-  }, [user])
+  }, [user, userPrivate])
 
   return character
 }
