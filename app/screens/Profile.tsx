@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from "react"
 import { useNavigation } from "@react-navigation/native"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
@@ -11,16 +12,16 @@ export default function Profile() {
   const navigation = useNavigation()
   const user = useUser()
   const userPrivate = useUserPrivate()
-  const displayName = user?.displayName
-  const email = user?.email
-  const photoURL = user?.photoURL ?? "https://www.gravatar.com/avatar?d=mp"
-  const credits = userPrivate?.credits
-  console.log(user)
+  const displayName = useMemo(() => user?.displayName, [user])
+  const email = useMemo(() => user?.email, [user])
+  const photoURL = useMemo(() => user?.photoURL ?? "https://www.gravatar.com/avatar?d=mp", [user])
+  const credits = useMemo(() => userPrivate?.credits, [userPrivate])
 
-  const onPressSignOut = () => {
+  const onPressSignOut = useCallback(() => {
     auth.signOut()
     navigation.navigate("SignIn")
-  }
+  }, [navigation])
+
   return (
     <View style={styles.container}>
       <Avatar.Image size={150} source={{ uri: photoURL }} style={{ marginVertical: 10 }} />
@@ -40,10 +41,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
   },
   separator: {
     marginVertical: 30,
