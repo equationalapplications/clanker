@@ -5,14 +5,16 @@ import { Text, Avatar } from "react-native-paper"
 import Button from "../components/Button"
 import { auth } from "../config/firebaseConfig"
 import useUser from "../hooks/useUser"
+import useUserPrivate from "../hooks/useUserPrivate"
 
 export default function Profile() {
   const navigation = useNavigation()
   const user = useUser()
-  const displayName = user?.name
+  const userPrivate = useUserPrivate()
+  const displayName = user?.displayName
   const email = user?.email
-  const photoURL = user?.avatar ?? "https://www.gravatar.com/avatar?d=mp"
-  const credits = user?.credits
+  const photoURL = user?.photoURL ?? "https://www.gravatar.com/avatar?d=mp"
+  const credits = userPrivate?.credits
   console.log(user)
 
   const onPressSignOut = () => {
