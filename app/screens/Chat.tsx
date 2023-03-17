@@ -62,8 +62,8 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
         <Bubble
           {...props}
           wrapperStyle={{
-            left: { backgroundColor: colors.secondary },
-            right: { backgroundColor: colors.primary },
+            left: { backgroundColor: colors.secondary, borderRadius: roundness },
+            right: { backgroundColor: colors.primary, borderRadius: roundness },
           }}
           textStyle={{
             left: { color: colors.onSecondary },
@@ -92,21 +92,6 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
         user={chatUser}
         placeholder="chat with me..."
         renderUsernameOnMessage
-        placeholderTextColor={colors.onSurfaceDisabled}
-        textInputStyle={{
-          backgroundColor: colors.surface,
-          borderColor: colors.outline,
-          borderWidth: 1,
-          borderRadius: roundness,
-          height: 50,
-          padding: 10,
-          marginHorizontal: 10,
-          marginBottom: 10,
-        }}
-        timeTextStyle={{
-          left: { color: colors.onTertiary, fontSize: 12 },
-          right: { color: colors.background, fontSize: 12 },
-        }}
         renderBubble={renderBubble}
       />
     </View>
