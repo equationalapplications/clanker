@@ -51,7 +51,6 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
       updateMessages(message)
       const { data } = await getReply({ message: text })
       const reply = data.reply
-      console.log("reply", reply)
     },
     [getReply],
   )
