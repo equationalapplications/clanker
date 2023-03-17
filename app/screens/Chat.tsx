@@ -21,8 +21,8 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
 
   const chatUser: User = {
     _id: uid,
-    name: user?.name ?? "",
-    avatar: user?.avatar ?? "",
+    name: user?.displayName ?? "",
+    avatar: user?.photoURL ?? "",
   }
 
   useEffect(() => {
