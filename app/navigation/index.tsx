@@ -13,6 +13,7 @@ import { Badge, Text } from "react-native-paper"
 
 //import { auth } from "../config/firebaseConfig"
 import useUser from "../hooks/useUser"
+import useUserPrivate from "../hooks/useUserPrivate"
 import Characters from "../screens/Characters"
 import Chat from "../screens/Chat"
 import NotFoundScreen from "../screens/NotFoundScreen"
@@ -153,11 +154,11 @@ function BottomTabNavigator() {
 }
 
 function CreditCounterIcon({ navigation }) {
-  const user = useUser()
-  const [credits, setCredits] = React.useState(user?.credits)
+  const userPrivate = useUserPrivate()
+  const [credits, setCredits] = React.useState(userPrivate?.credits)
   React.useEffect(() => {
-    setCredits(user?.credits)
-  }, [user])
+    setCredits(userPrivate?.credits)
+  }, [userPrivate])
   return (
     <Pressable
       onPress={() => navigation.navigate("Subscribe")}

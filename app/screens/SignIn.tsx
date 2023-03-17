@@ -12,10 +12,11 @@ import Button from "../components/Button"
 import Logo from "../components/Logo"
 import { MonoText, TitleText } from "../components/StyledText"
 import { auth } from "../config/firebaseConfig"
+import { RootStackScreenProps } from "../navigation/types"
 
 WebBrowser.maybeCompleteAuthSession()
 
-export default function SignIn({ navigation }) {
+export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: Constants.expoConfig?.extra?.googleWebClientId,
     androidClientId: Constants.expoConfig?.extra?.googleAndroidClientId,
@@ -31,6 +32,7 @@ export default function SignIn({ navigation }) {
       const accessToken = googleResponse.authentication.accessToken
       const credential = GoogleAuthProvider.credential(null, accessToken)
       signInWithCredential(auth, credential)
+      // navigation.navigate("Root")
     }
     if (
       facebookResponse &&
@@ -40,6 +42,7 @@ export default function SignIn({ navigation }) {
       const idToken = facebookResponse.authentication.accessToken
       const credential = FacebookAuthProvider.credential(idToken)
       signInWithCredential(auth, credential)
+      // navigation.navigate("Root")
     }
   }, [googleResponse, facebookResponse])
 
