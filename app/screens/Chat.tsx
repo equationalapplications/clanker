@@ -23,7 +23,7 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
     () => ({
       _id: uid,
       name: user?.displayName ?? "",
-      avatar: user?.photoURL ?? "",
+      avatar: user?.photoURL ?? "https://www.gravatar.com/avatar?d=mp",
     }),
     [uid, user],
   )
