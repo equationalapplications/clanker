@@ -1,5 +1,5 @@
-import { useMemo, useCallback } from "react"
 import { useNavigation } from "@react-navigation/native"
+import { useMemo, useCallback } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
 
