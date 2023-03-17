@@ -8,7 +8,7 @@ import { functions } from "../config/firebaseConfig"
 import useDefaultCharacter from "../hooks/useDefaultCharacter"
 import updateCharacter from "../utilities/updateCharacter"
 
-const getImage: any = httpsCallable(functions, "getImage")
+const getImageFn: any = httpsCallable(functions, "getImage")
 
 export default function Characters({ navigation }) {
   const defaultCharacter = useDefaultCharacter()
@@ -22,23 +22,17 @@ export default function Characters({ navigation }) {
   const [emotions, setEmotions] = useState(defaultCharacter?.emotions ?? "")
   const [imageIsLoading, setImageIsLoading] = useState(false)
 
-  const updateState = () => {
-    setAvatar(defaultCharacter?.avatar ?? "https://www.gravatar.com/avatar?d=mp")
-    setName(defaultCharacter?.name ?? "")
-    setAppearance(defaultCharacter?.appearance ?? "")
-    setTraits(defaultCharacter?.traits ?? "")
-    setEmotions(defaultCharacter?.emotions ?? "")
-  }
-
   useEffect(() => {
-    updateState()
-    const unsubscribe = navigation.addListener("focus", () => {
-      updateState()
-    })
-
-    if (defaultCharacter?.avatar !== avatar && defaultCharacter?.avatar) {
+    const updateState = () => {
       setAvatar(defaultCharacter?.avatar ?? "https://www.gravatar.com/avatar?d=mp")
+      setName(defaultCharacter?.name ?? "")
+      setAppearance(defaultCharacter?.appearance ?? "")
+      setTraits(defaultCharacter?.traits ?? "")
+      setEmotions(defaultCharacter?.emotions ?? "")
     }
+    updateState()
+
+    const unsubscribe = navigation.addListener("focus", updateState)
 
     return unsubscribe
   }, [navigation, defaultCharacter])
@@ -60,7 +54,6 @@ export default function Characters({ navigation }) {
   }
 
   const onPressSave = () => {
-    console.log(defaultCharacter?._id)
     updateCharacter(defaultCharacter._id, {
       name,
       appearance,
@@ -79,7 +72,7 @@ export default function Characters({ navigation }) {
       ", and is feeling " +
       emotions +
       "."
-    const { data } = await getImage({
+    const { data } = await getImageFn({
       text: promptText,
       characterId: defaultCharacter._id,
     })
@@ -95,7 +88,7 @@ export default function Characters({ navigation }) {
     <View style={styles.container}>
       <ScrollView
         style={{ marginTop: 30, width: "100%" }}
-        contentContainerStyle={{ alignItems: "center" }}
+        contentContainerStyle={styles.scrollContentContainer}
       >
         {imageIsLoading ? (
           <ActivityIndicator />
@@ -167,5 +160,8 @@ const styles = StyleSheet.create({
   },
   textInput: {
     width: "80%",
+  },
+  scrollContentContainer: {
+    alignItems: "center",
   },
 })
