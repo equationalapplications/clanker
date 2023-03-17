@@ -76,7 +76,6 @@ export default function Characters({ navigation }) {
       text: promptText,
       characterId: defaultCharacter._id,
     })
-    console.log("getImage", data.reply)
     setImageIsLoading(false)
   }
 
