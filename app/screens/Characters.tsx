@@ -41,7 +41,7 @@ export default function Characters({ navigation }) {
     }
 
     return unsubscribe
-  }, [navigation, defaultCharacter?.avatar])
+  }, [navigation, defaultCharacter])
 
   const onChangeTextName = (text: string) => {
     setName(text)
