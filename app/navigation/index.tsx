@@ -48,7 +48,6 @@ const Stack = createNativeStackNavigator<RootStackParamList>()
 
 function RootNavigator() {
   const user = useUser()
-  console.log("nav user", user)
 
   return (
     <Stack.Navigator>

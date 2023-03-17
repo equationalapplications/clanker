@@ -1,6 +1,6 @@
 import Constants from "expo-constants"
 import { collection, onSnapshot, CollectionReference } from "firebase/firestore"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { IMessage } from "react-native-gifted-chat"
 
 import { firestore } from "../config/firebaseConfig"
@@ -35,5 +35,7 @@ export default function useMessages(): IMessage[] | null {
     }
   }, [user])
 
-  return messages
+  const memoizedMessages = useMemo(() => messages, [messages])
+
+  return memoizedMessages
 }
