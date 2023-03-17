@@ -1,3 +1,17 @@
+# [5.1.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v5.0.1...v5.1.0) (2023-03-17)
+
+
+### Bug Fixes
+
+* correct variable names ([0213dce](https://github.com/equationalapplications/yoursbrightlyai/commit/0213dce7d713398d8cba57f3e666fdf3fb039c8c))
+* use defaultCharacter in the final array of useEffect ([0d095fd](https://github.com/equationalapplications/yoursbrightlyai/commit/0d095fd78f768dadfe416c7fea522a3e668d39b5))
+
+
+### Features
+
+* create useUserPublic hook ([61f24b1](https://github.com/equationalapplications/yoursbrightlyai/commit/61f24b1ed8a6eb7fd5330d73fd2e0c7cc062b58a))
+* create useUserPublic hook ([e2eb80a](https://github.com/equationalapplications/yoursbrightlyai/commit/e2eb80ae1612d28975ef089c8e67c269c97d83db))
+
 # [5.1.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v5.0.1...v5.1.0-staging.1) (2023-03-17)
 
 
