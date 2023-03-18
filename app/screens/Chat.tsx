@@ -3,7 +3,6 @@ import { useEffect, useMemo, useCallback } from "react"
 import { StyleSheet, View } from "react-native"
 import { GiftedChat, User, IMessage, Avatar, Bubble } from "react-native-gifted-chat"
 import { useTheme } from "react-native-paper"
-import Purchases from "react-native-purchases"
 
 import { functions } from "../config/firebaseConfig"
 import useMessages from "../hooks/useMessages"
@@ -27,17 +26,6 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
     }),
     [uid, user],
   )
-
-  useEffect(() => {
-    // Configure Purchases
-    // Purchases.setDebugLogsEnabled(true)
-    // Purchases.configure({
-    //   apiKey: Constants.expoConfig?.extra?.revenueCatPurchasesApiKey,
-    //   appUserID: uid,
-    //   observerMode: false,
-    //   useAmazon: false,
-    // })
-  }, [uid])
 
   const onSend = useCallback(
     async (messages: IMessage[]) => {
