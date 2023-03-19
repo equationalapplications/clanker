@@ -1,10 +1,11 @@
 import { useNavigation } from "@react-navigation/native"
-import { useMemo, useCallback } from "react"
+import { useMemo, useCallback, useContext } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
 
 import Button from "../components/Button"
 import { auth } from "../config/firebaseConfig"
+import { PurchasesContext } from "../contexts/PurchasesProvider"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 
@@ -16,6 +17,7 @@ export default function Profile() {
   const email = useMemo(() => user?.email, [user])
   const photoURL = useMemo(() => user?.photoURL ?? "https://www.gravatar.com/avatar?d=mp", [user])
   const credits = useMemo(() => userPrivate?.credits, [userPrivate])
+  const { customerInfo } = useContext(PurchasesContext)
 
   const onPressSignOut = useCallback(() => {
     auth.signOut()
@@ -28,6 +30,11 @@ export default function Profile() {
       <Text>{displayName}</Text>
       <Text>{email}</Text>
       <Text>Credits: {credits}</Text>
+      <Text>
+        {customerInfo
+          ? `Active Subscriber: ${customerInfo.activeSubscriptions.length > 0}`
+          : "Loading Subscription Info..."}
+      </Text>
       <View style={styles.separator} />
       <Button mode="outlined" onPress={onPressSignOut}>
         Sign Out
