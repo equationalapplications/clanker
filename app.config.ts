@@ -65,7 +65,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,
     googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID,
     facebookAuthAppId: process.env.FACEBOOK_AUTH_APP_ID,
-    revenueCatPurchasesApiKey: process.env.REVENUECAT_PURCHASES_API_KEY,
+    revenueCatPurchasesAndroidApiKey: process.env.REVENUECAT_PURCHASES_ANDROID_API_KEY,
+    revenueCatPurchasesIosApiKey: process.env.REVENUECAT_PURCHASES_IOS_API_KEY,
+    revenueCatPurchasesStripeApiKey: process.env.REVENUECAT_PURCHASES_STRIPE_API_KEY,
     revenueCatPurchasesEntitlementId: "premium",
     usersPrivateCollection: "users_private",
     usersPublicCollection: "users_public",
@@ -74,5 +76,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     userChatsCollection: "user_chats",
     messagesCollection: "messages",
     publicChatRoomsCollection: "public_chat_rooms",
+    defaultAvatarUrl: "https://www.gravatar.com/avatar?d=mp"
   },
 })
