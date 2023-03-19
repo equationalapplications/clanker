@@ -1,3 +1,10 @@
+## [5.1.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v5.1.0...v5.1.1) (2023-03-17)
+
+
+### Bug Fixes
+
+* add default url for avatar ([6adf0a0](https://github.com/equationalapplications/yoursbrightlyai/commit/6adf0a0b5917f9a934326e45962ad9644ec23062))
+
 ## [5.1.1-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v5.1.0...v5.1.1-staging.1) (2023-03-17)
 
 
