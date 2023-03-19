@@ -1,3 +1,20 @@
+# [6.0.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v5.1.1...v6.0.0-staging.1) (2023-03-19)
+
+
+### chore
+
+* add new expo extra properties for Constants ([ac90dc3](https://github.com/equationalapplications/yoursbrightlyai/commit/ac90dc38d8532327b902d114c65bf42dccab5578))
+
+
+### Features
+
+* add PurchasesProvider.tsx ([41e0c26](https://github.com/equationalapplications/yoursbrightlyai/commit/41e0c261c551a3ef0762f7e181aa3eabe3595068))
+
+
+### BREAKING CHANGES
+
+* changes to app.config.ts require rebuilding app and incrementing runtime version
+
 ## [5.1.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v5.1.0...v5.1.1) (2023-03-17)
 
 
