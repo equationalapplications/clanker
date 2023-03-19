@@ -76,6 +76,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     userChatsCollection: "user_chats",
     messagesCollection: "messages",
     publicChatRoomsCollection: "public_chat_rooms",
-    defaultAvatarUrl: "https://www.gravatar.com/avatar?d=mp"
+    defaultAvatarUrl: "https://www.gravatar.com/avatar?d=mp",
   },
 })
