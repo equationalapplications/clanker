@@ -32,7 +32,7 @@ export default function Profile() {
       <Text>Credits: {credits}</Text>
       <Text>
         {customerInfo
-          ? `Active Subscriber: ${customerInfo.activeSubscriptions.length > 0}`
+          ? `Active Subscriber: ${customerInfo?.activeSubscriptions?.length > 0}`
           : "Loading Subscription Info..."}
       </Text>
       <View style={styles.separator} />
