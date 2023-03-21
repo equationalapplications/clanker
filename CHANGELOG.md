@@ -1,3 +1,11 @@
+# [6.0.0-staging.2](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.0.0-staging.1...v6.0.0-staging.2) (2023-03-21)
+
+
+### Bug Fixes
+
+* add question mark to customerInfo properties ([3af1d6a](https://github.com/equationalapplications/yoursbrightlyai/commit/3af1d6acde662c0ed3e9ddee544ba953e2d830a2))
+* use fetch to get customerInfo on web ([6ee3488](https://github.com/equationalapplications/yoursbrightlyai/commit/6ee3488176256d52f087e1531e886d58b15c1fa3))
+
 # [6.0.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v5.1.1...v6.0.0-staging.1) (2023-03-19)
 
 
