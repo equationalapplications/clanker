@@ -56,7 +56,7 @@ export default function SubscribeModal() {
     return
   }, [uid])
 
-  st multipleBtnAlert = () =>
+  const multipleBtnAlert = () =>
     alerts.alert(
       'Alert with Multiple Buttons',
       'This is a alert dialog with multiple button and different styles.',
@@ -77,14 +77,14 @@ export default function SubscribeModal() {
 
   const stackedBtnAlert = () =>
     alerts.alert(
-      'Alert with Stacked Buttons',
-      'This is useful for buttons with longer texts.',
+      'Verify Subscription Purchase',
+      'Are you sure you want to purchase a subscription?.',
       [
         {
-          text: 'Yes, I want to sign up',
+          text: 'Yes, I want to purchase a subscription.',
         },
         {
-          text: 'No, remind me later',
+          text: 'No, thank you.',
         },
       ],
       {
@@ -130,7 +130,7 @@ export default function SubscribeModal() {
         fetch_token: "your_receipt_or_fetch_token",
       };
 
-
+      stackedBtnAlert()
 
       //fetch("https://api.revenuecat.com/v1/receipts", {
       //  method: "POST",
