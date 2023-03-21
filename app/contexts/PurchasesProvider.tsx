@@ -1,79 +1,109 @@
 import Constants from "expo-constants"
+import { getIdToken } from "firebase/auth"
 import React, { createContext, useEffect, useState, ReactNode } from "react"
 import { Platform } from "react-native"
 import Purchases, { CustomerInfo } from "react-native-purchases"
 
 import useUser from "../hooks/useUser"
 
-const revenueCatPurchasesAndroidApiKey = Constants.manifest.extra.revenueCatPurchasesAndroidApiKey
-const revenueCatPurchasesIosApiKey = Constants.manifest.extra.revenueCatPurchasesIosApiKey
-const revenueCatPurchasesStripeApiKey = Constants.manifest.extra.revenueCatPurchasesStripeApiKey
-const revenueCatPurchasesEntitlementId = Constants.manifest.extra.revenueCatPurchasesEntitlementId
+const fetch = require("node-fetch")
+
+const purchasesRevenueCatStripeUrl =
+  "https://us-central1-your-brightly-ai.cloudfunctions.net/getCustomerInfoRevenueCatStripe"
+const revenueCatPurchasesAndroidApiKey = Constants.expoConfig.extra.revenueCatPurchasesAndroidApiKey
+const revenueCatPurchasesIosApiKey = Constants.expoConfig.extra.revenueCatPurchasesIosApiKey
+const revenueCatPurchasesStripeApiKey = Constants.expoConfig.extra.revenueCatPurchasesStripeApiKey
+const revenueCatPurchasesEntitlementId = Constants.expoConfig.extra.revenueCatPurchasesEntitlementId
 
 interface PurchasesProviderProps {
-    children: ReactNode
+  children: ReactNode
 }
 
 interface PurchasesContextValue {
-    customerInfo: CustomerInfo | null
+  customerInfo: CustomerInfo | null
 }
 
 const initialContextValue: PurchasesContextValue = {
-    customerInfo: null,
+  customerInfo: null,
 }
 
 export const PurchasesContext = createContext<PurchasesContextValue>(initialContextValue)
 
 export const PurchasesProvider: React.FC<PurchasesProviderProps> = ({ children }) => {
-    const user = useUser()
-    const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null)
+  const user = useUser()
+  const uid = user?.uid
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null)
+  const [idToken, setIdToken] = useState<any | null>(null)
 
-    useEffect(() => {
-        // Purchases.setDebugLogsEnabled(true)
-
-        const configurePurchases = async () => {
-            if (Platform.OS === "ios") {
-                // await Purchases.configure({ apiKey: '<public_apple_api_key>' });
-            } else if (Platform.OS === "android") {
-                // await Purchases.configure({
-                //     apiKey: revenueCatPurchasesAndroidApiKey,
-                //     appUserID: user?.uid,
-                //     observerMode: false,
-                //     useAmazon: false,
-                // })
-
-                // OR: if building for Amazon, be sure to follow the installation instructions then:
-                // await Purchases.configure({ apiKey: '<public_amazon_api_key>', useAmazon: true });
-            } else if (Platform.OS === "web") {
-                //  await Purchases.configure({
-                //      apiKey: revenueCatPurchasesStripeApiKey,
-                //      appUserID: user?.uid,
-                //      observerMode: false,
-                //  })
-            }
-        }
-
-        const getCustomerInfo = async () => {
-            try {
-                //   const customerInfoData = await Purchases.getCustomerInfo()
-                //   setCustomerInfo(customerInfoData)
-            } catch (e) {
-                console.log(e)
-            }
-        }
-
-        if (user?.uid) {
-            configurePurchases().then(() => {
-                getCustomerInfo()
-            })
-        } else {
-            setCustomerInfo(null)
-        }
-    }, [user?.uid])
-
-    const contextValue: PurchasesContextValue = {
-        customerInfo,
+  useEffect(() => {
+    const configurePurchases = async () => {
+      if (Platform.OS === "ios") {
+        Purchases.setDebugLogsEnabled(true)
+        await Purchases.configure({
+          apiKey: revenueCatPurchasesIosApiKey,
+          appUserID: user?.uid,
+        })
+      } else if (Platform.OS === "android") {
+        Purchases.setDebugLogsEnabled(true)
+        await Purchases.configure({
+          apiKey: revenueCatPurchasesAndroidApiKey,
+          appUserID: user?.uid,
+          observerMode: false,
+          useAmazon: false,
+        })
+        // OR: if building for Amazon, be sure to follow the installation instructions then:
+        // await Purchases.configure({ apiKey: '<public_amazon_api_key>', useAmazon: true });
+      } else if (Platform.OS === "web") {
+        // Configure Axios to use the same origin as the web app
+        // axios.defaults.baseURL = window.location.origin;
+        const idTokenUser = await user?.getIdToken()
+        setIdToken(idTokenUser)
+      }
     }
 
-    return <PurchasesContext.Provider value={contextValue}>{children}</PurchasesContext.Provider>
+    const getCustomerInfo = async () => {
+      try {
+        if (Platform.OS === "ios" || Platform.OS === "android") {
+          const customerInfoData = await Purchases.getCustomerInfo()
+          setCustomerInfo(customerInfoData)
+        } else if (Platform.OS === "web") {
+          try {
+            const response = await fetch(purchasesRevenueCatStripeUrl, {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${idToken}`,
+              },
+            })
+            const customerInfoData = await response.json()
+            const activeSubscriptions = customerInfoData?.subscriber?.subscriptions
+            console.log(activeSubscriptions)
+            setCustomerInfo(activeSubscriptions)
+          } catch (e) {
+            console.log(e)
+          }
+        }
+      } catch (e) {
+        console.log(e)
+      }
+    }
+
+    if (user?.uid) {
+      ;(async () => {
+        console.log(user?.uid, idToken)
+        await configurePurchases()
+        if (idToken) {
+          await getCustomerInfo()
+        }
+      })()
+    } else {
+      setCustomerInfo(null)
+    }
+  }, [user?.uid, idToken])
+
+  const contextValue: PurchasesContextValue = {
+    customerInfo,
+  }
+
+  return <PurchasesContext.Provider value={contextValue}>{children}</PurchasesContext.Provider>
 }
