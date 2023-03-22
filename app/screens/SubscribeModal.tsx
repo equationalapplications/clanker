@@ -1,78 +1,19 @@
 import { StatusBar } from "expo-status-bar"
-import React, { createContext, useEffect, useState, ReactNode } from "react"
-import { Platform, StyleSheet, Text, View } from "react-native"
+import React from "react"
+import { StyleSheet, Text, View } from "react-native"
 import { useAlerts } from "react-native-paper-alerts"
-import Purchases, { CustomerInfo, PurchasesOfferings } from "react-native-purchases"
 
 import Button from "../components/Button"
-import {
-  revenueCatBaseUrl,
-  revenueCatPurchasesAndroidApiKey,
-  revenueCatPurchasesIosApiKey,
-  revenueCatPurchasesStripeApiKey,
-  revenueCatPurchasesEntitlementId,
-} from "../config/constants"
+import { usePurchasesOfferings } from "../hooks/usePurchasesOfferings"
 import useUser from "../hooks/useUser"
-
-const fetch = require("node-fetch")
+import { platform } from "../config/constants"
 
 export default function SubscribeModal() {
   const alerts = useAlerts()
   const user = useUser()
-  const uid = user?.uid
-  const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null)
+  const purchasesOfferings = usePurchasesOfferings()
+  console.log("subs", purchasesOfferings)
 
-  useEffect(() => {
-    const getOfferings = async () => {
-      if (uid) {
-        if (Platform.OS === "ios") {
-          try {
-            const offeringsTmp = await Purchases.getOfferings()
-            if (
-              offeringsTmp.current !== null &&
-              offeringsTmp.current.availablePackages.length !== 0
-            ) {
-              console.log(offeringsTmp)
-              setOfferings(offeringsTmp)
-            }
-          } catch (e) {
-            console.log(e)
-          }
-        } else if (Platform.OS === "android") {
-          try {
-            const offeringsTmp = await Purchases.getOfferings()
-            if (
-              offeringsTmp.current !== null &&
-              offeringsTmp.current.availablePackages.length !== 0
-            ) {
-              console.log(offeringsTmp)
-              setOfferings(offeringsTmp)
-            }
-          } catch (e) {
-            console.log("get offerings error:", e)
-          }
-        } else if (Platform.OS === "web") {
-          try {
-            // const idToken = await user?.getIdToken()
-            const response = await fetch(revenueCatBaseUrl + "/subscribers/" + uid + "/offerings", {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${revenueCatPurchasesStripeApiKey}`,
-              },
-            })
-            const offeringsData = await response.json()
-
-            console.log(offeringsData.offerings)
-            setOfferings(offeringsData.offerings)
-          } catch (e) {
-            console.log(e)
-          }
-        }
-      }
-    }
-    getOfferings()
-  }, [uid])
 
   const multipleBtnAlert = () =>
     alerts.alert(
@@ -138,9 +79,9 @@ export default function SubscribeModal() {
     })
 
   const onPressPurchase = () => {
-    if (Platform.OS === "ios") {
-    } else if (Platform.OS === "android") {
-    } else if (Platform.OS === "web") {
+    if (platform === "ios") {
+    } else if (platform === "android") {
+    } else if (platform === "web") {
       const payload = {
         app_user_id: "your_user_id",
         fetch_token: "your_receipt_or_fetch_token",
@@ -166,11 +107,11 @@ export default function SubscribeModal() {
     <View style={styles.container}>
       <Text style={styles.title}>Subscribe</Text>
       <View style={styles.separator} />
-      <Button onPress={onPressPurchase} disabled={!user || !offerings}>
-        {offerings ? offerings[0]?.description : null}
+      <Button onPress={onPressPurchase} disabled={!user}>
+        "hmm"
       </Button>
       {/* Use a light status bar on iOS to account for the black space above the modal */}
-      <StatusBar style={Platform.OS === "ios" ? "light" : "auto"} />
+      <StatusBar style={platform === "ios" ? "light" : "auto"} />
     </View>
   )
 }
