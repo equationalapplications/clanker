@@ -4,16 +4,15 @@ import { StyleSheet, Text, View } from "react-native"
 import { useAlerts } from "react-native-paper-alerts"
 
 import Button from "../components/Button"
+import { platform } from "../config/constants"
 import { usePurchasesOfferings } from "../hooks/usePurchasesOfferings"
 import useUser from "../hooks/useUser"
-import { platform } from "../config/constants"
 
 export default function SubscribeModal() {
   const alerts = useAlerts()
   const user = useUser()
   const purchasesOfferings = usePurchasesOfferings()
   console.log("subs", purchasesOfferings)
-
 
   const multipleBtnAlert = () =>
     alerts.alert(

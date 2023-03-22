@@ -4,19 +4,17 @@ import { StyleSheet, ScrollView, View, ActivityIndicator } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
 
 import Button from "../components/Button"
+import { defaultAvatarUrl } from "../config/constants"
 import { functions } from "../config/firebaseConfig"
 import useDefaultCharacter from "../hooks/useDefaultCharacter"
 import updateCharacter from "../utilities/updateCharacter"
-import { defaultAvatarUrl } from "../config/constants"
 
 const getImageFn: any = httpsCallable(functions, "getImage")
 
 export default function Characters({ navigation }) {
   const defaultCharacter = useDefaultCharacter()
 
-  const [avatar, setAvatar] = useState(
-    defaultCharacter?.avatar ?? defaultAvatarUrl,
-  )
+  const [avatar, setAvatar] = useState(defaultCharacter?.avatar ?? defaultAvatarUrl)
   const [appearance, setAppearance] = useState(defaultCharacter?.appearance ?? "")
   const [name, setName] = useState(defaultCharacter?.name ?? "")
   const [traits, setTraits] = useState(defaultCharacter?.traits ?? "")
