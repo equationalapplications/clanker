@@ -1,26 +1,23 @@
-import Constants from "expo-constants"
 import { StatusBar } from "expo-status-bar"
-import { Platform, StyleSheet, Text, View } from "react-native"
-import { getIdToken } from "firebase/auth"
 import React, { createContext, useEffect, useState, ReactNode } from "react"
+import { Platform, StyleSheet, Text, View } from "react-native"
+import { useAlerts } from "react-native-paper-alerts"
 import Purchases, { CustomerInfo, PurchasesOfferings } from "react-native-purchases"
-import { useAlerts } from 'react-native-paper-alerts';
-import Button from "../components/Button"
 
+import Button from "../components/Button"
+import {
+  revenueCatBaseUrl,
+  revenueCatPurchasesAndroidApiKey,
+  revenueCatPurchasesIosApiKey,
+  revenueCatPurchasesStripeApiKey,
+  revenueCatPurchasesEntitlementId,
+} from "../config/constants"
 import useUser from "../hooks/useUser"
 
 const fetch = require("node-fetch")
 
-const revenueCatBaseUrl =
-  "https://api.revenuecat.com/v1"
-const revenueCatPurchasesAndroidApiKey = Constants.expoConfig.extra.revenueCatPurchasesAndroidApiKey
-const revenueCatPurchasesIosApiKey = Constants.expoConfig.extra.revenueCatPurchasesIosApiKey
-const revenueCatPurchasesStripeApiKey = Constants.expoConfig.extra.revenueCatPurchasesStripeApiKey
-const revenueCatPurchasesEntitlementId = Constants.expoConfig.extra.revenueCatPurchasesEntitlementId
-
-
 export default function SubscribeModal() {
-  const alerts = useAlerts();
+  const alerts = useAlerts()
   const user = useUser()
   const uid = user?.uid
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null)
@@ -29,9 +26,31 @@ export default function SubscribeModal() {
     const getOfferings = async () => {
       if (uid) {
         if (Platform.OS === "ios") {
-
+          try {
+            const offeringsTmp = await Purchases.getOfferings()
+            if (
+              offeringsTmp.current !== null &&
+              offeringsTmp.current.availablePackages.length !== 0
+            ) {
+              console.log(offeringsTmp)
+              setOfferings(offeringsTmp)
+            }
+          } catch (e) {
+            console.log(e)
+          }
         } else if (Platform.OS === "android") {
-
+          try {
+            const offeringsTmp = await Purchases.getOfferings()
+            if (
+              offeringsTmp.current !== null &&
+              offeringsTmp.current.availablePackages.length !== 0
+            ) {
+              console.log(offeringsTmp)
+              setOfferings(offeringsTmp)
+            }
+          } catch (e) {
+            console.log("get offerings error:", e)
+          }
         } else if (Platform.OS === "web") {
           try {
             // const idToken = await user?.getIdToken()
@@ -53,82 +72,79 @@ export default function SubscribeModal() {
       }
     }
     getOfferings()
-    return
   }, [uid])
 
   const multipleBtnAlert = () =>
     alerts.alert(
-      'Alert with Multiple Buttons',
-      'This is a alert dialog with multiple button and different styles.',
+      "Alert with Multiple Buttons",
+      "This is a alert dialog with multiple button and different styles.",
       [
         {
-          text: 'Agree',
+          text: "Agree",
         },
         {
-          text: 'Disagree',
-          style: 'cancel',
+          text: "Disagree",
+          style: "cancel",
         },
         {
-          text: 'Not Sure',
-          style: 'destructive',
+          text: "Not Sure",
+          style: "destructive",
         },
-      ]
-    );
+      ],
+    )
 
   const stackedBtnAlert = () =>
     alerts.alert(
-      'Verify Subscription Purchase',
-      'Are you sure you want to purchase a subscription?.',
+      "Verify Subscription Purchase",
+      "Are you sure you want to purchase a subscription?.",
       [
         {
-          text: 'Yes, I want to purchase a subscription.',
+          text: "Yes, I want to purchase a subscription.",
         },
         {
-          text: 'No, thank you.',
+          text: "No, thank you.",
         },
       ],
       {
         stacked: true,
-      }
-    );
+      },
+    )
 
   const nonUpercaseAlert = () =>
     alerts.alert(
-      'Alert with Multiple Buttons',
-      'This is a alert dialog with multiple button and different styles.',
+      "Alert with Multiple Buttons",
+      "This is a alert dialog with multiple button and different styles.",
       [
         {
-          text: 'Agree',
+          text: "Agree",
         },
         {
-          text: 'Disagree',
-          style: 'cancel',
+          text: "Disagree",
+          style: "cancel",
         },
         {
-          text: 'Not Sure',
-          style: 'destructive',
+          text: "Not Sure",
+          style: "destructive",
         },
       ],
       {
         uppercase: false,
-      }
-    );
+      },
+    )
 
   const simplePrompt = () =>
-    alerts.prompt('Verify Purchase', 'Are you sure you wish to make a purchase?', (message) => {
+    alerts.prompt("Verify Purchase", "Are you sure you wish to make a purchase?", (message) => {
       // toast.show({ message });
-    });
+    })
 
   const onPressPurchase = () => {
     if (Platform.OS === "ios") {
-
     } else if (Platform.OS === "android") {
-
     } else if (Platform.OS === "web") {
       const payload = {
         app_user_id: "your_user_id",
         fetch_token: "your_receipt_or_fetch_token",
-      };
+      }
 
       stackedBtnAlert()
 
