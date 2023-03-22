@@ -1,16 +1,24 @@
-import Constants from "expo-constants"
 import { initializeApp } from "firebase/app"
 import { getAuth, connectAuthEmulator } from "firebase/auth"
 import { initializeFirestore, connectFirestoreEmulator } from "firebase/firestore"
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions"
 
+import {
+  firebaseApiKey,
+  firebaseAuthDomain,
+  firebaseProjectId,
+  firebaseStorageBucket,
+  firebaseMessagingSenderId,
+  firebaseAppId,
+} from "./constants"
+
 const config = {
-  apiKey: Constants.expoConfig?.extra?.firebaseApiKey,
-  authDomain: Constants.expoConfig?.extra?.firebaseAuthDomain,
-  projectId: Constants.expoConfig?.extra?.firebaseProjectId,
-  storageBucket: Constants.expoConfig?.extra?.firebaseStorageBucket,
-  messagingSenderId: Constants.expoConfig?.extra?.firebaseMessagingSenderId,
-  appId: Constants.expoConfig?.extra?.firebaseAppId,
+  apiKey: firebaseApiKey,
+  authDomain: firebaseAuthDomain,
+  projectId: firebaseProjectId,
+  storageBucket: firebaseStorageBucket,
+  messagingSenderId: firebaseMessagingSenderId,
+  appId: firebaseAppId,
 }
 
 // Initialize Firebase

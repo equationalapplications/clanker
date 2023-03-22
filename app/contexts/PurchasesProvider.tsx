@@ -1,19 +1,15 @@
-import Constants from "expo-constants"
-import { getIdToken } from "firebase/auth"
 import React, { createContext, useEffect, useState, ReactNode } from "react"
-import { Platform } from "react-native"
 import Purchases, { CustomerInfo } from "react-native-purchases"
 
+import {
+  platform,
+  revenueCatPurchasesAndroidApiKey,
+  revenueCatPurchasesIosApiKey,
+  purchasesRevenueCatStripeUrl,
+} from "../config/constants"
 import useUser from "../hooks/useUser"
 
 const fetch = require("node-fetch")
-
-const purchasesRevenueCatStripeUrl =
-  "https://us-central1-your-brightly-ai.cloudfunctions.net/getCustomerInfoRevenueCatStripe"
-const revenueCatPurchasesAndroidApiKey = Constants.expoConfig.extra.revenueCatPurchasesAndroidApiKey
-const revenueCatPurchasesIosApiKey = Constants.expoConfig.extra.revenueCatPurchasesIosApiKey
-const revenueCatPurchasesStripeApiKey = Constants.expoConfig.extra.revenueCatPurchasesStripeApiKey
-const revenueCatPurchasesEntitlementId = Constants.expoConfig.extra.revenueCatPurchasesEntitlementId
 
 interface PurchasesProviderProps {
   children: ReactNode
@@ -37,13 +33,14 @@ export const PurchasesProvider: React.FC<PurchasesProviderProps> = ({ children }
 
   useEffect(() => {
     const configurePurchases = async () => {
-      if (Platform.OS === "ios") {
+      if (platform === "ios") {
         Purchases.setDebugLogsEnabled(true)
         await Purchases.configure({
           apiKey: revenueCatPurchasesIosApiKey,
           appUserID: user?.uid,
         })
-      } else if (Platform.OS === "android") {
+      } else if (platform === "android") {
+        console.log("p prov", revenueCatPurchasesAndroidApiKey)
         Purchases.setDebugLogsEnabled(true)
         await Purchases.configure({
           apiKey: revenueCatPurchasesAndroidApiKey,
@@ -53,7 +50,7 @@ export const PurchasesProvider: React.FC<PurchasesProviderProps> = ({ children }
         })
         // OR: if building for Amazon, be sure to follow the installation instructions then:
         // await Purchases.configure({ apiKey: '<public_amazon_api_key>', useAmazon: true });
-      } else if (Platform.OS === "web") {
+      } else if (platform === "web") {
         // Configure Axios to use the same origin as the web app
         // axios.defaults.baseURL = window.location.origin;
         const idTokenUser = await user?.getIdToken()
@@ -63,10 +60,10 @@ export const PurchasesProvider: React.FC<PurchasesProviderProps> = ({ children }
 
     const getCustomerInfo = async () => {
       try {
-        if (Platform.OS === "ios" || Platform.OS === "android") {
+        if (platform === "ios" || platform === "android") {
           const customerInfoData = await Purchases.getCustomerInfo()
           setCustomerInfo(customerInfoData)
-        } else if (Platform.OS === "web") {
+        } else if (platform === "web") {
           try {
             const response = await fetch(purchasesRevenueCatStripeUrl, {
               method: "GET",
@@ -90,7 +87,6 @@ export const PurchasesProvider: React.FC<PurchasesProviderProps> = ({ children }
 
     if (user?.uid) {
       ;(async () => {
-        console.log(user?.uid, idToken)
         await configurePurchases()
         if (idToken) {
           await getCustomerInfo()

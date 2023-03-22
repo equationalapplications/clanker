@@ -1,10 +1,8 @@
-import Constants from "expo-constants"
 import { doc, onSnapshot, Unsubscribe } from "firebase/firestore"
 import { useEffect, useState } from "react"
 
+import { usersPrivateCollection } from "../config/constants"
 import { auth, firestore } from "../config/firebaseConfig"
-
-const usersPrivateCollection = Constants.expoConfig.extra.usersPrivateCollection
 
 interface UserPrivate {
   credits: number
