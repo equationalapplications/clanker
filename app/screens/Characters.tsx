@@ -7,6 +7,7 @@ import Button from "../components/Button"
 import { functions } from "../config/firebaseConfig"
 import useDefaultCharacter from "../hooks/useDefaultCharacter"
 import updateCharacter from "../utilities/updateCharacter"
+import { defaultAvatarUrl } from "../config/constants"
 
 const getImageFn: any = httpsCallable(functions, "getImage")
 
@@ -14,7 +15,7 @@ export default function Characters({ navigation }) {
   const defaultCharacter = useDefaultCharacter()
 
   const [avatar, setAvatar] = useState(
-    defaultCharacter?.avatar ?? "https://www.gravatar.com/avatar?d=mp",
+    defaultCharacter?.avatar ?? defaultAvatarUrl,
   )
   const [appearance, setAppearance] = useState(defaultCharacter?.appearance ?? "")
   const [name, setName] = useState(defaultCharacter?.name ?? "")
@@ -24,7 +25,7 @@ export default function Characters({ navigation }) {
 
   useEffect(() => {
     const updateState = () => {
-      setAvatar(defaultCharacter?.avatar ?? "https://www.gravatar.com/avatar?d=mp")
+      setAvatar(defaultCharacter?.avatar ?? defaultAvatarUrl)
       setName(defaultCharacter?.name ?? "")
       setAppearance(defaultCharacter?.appearance ?? "")
       setTraits(defaultCharacter?.traits ?? "")
