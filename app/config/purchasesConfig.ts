@@ -6,22 +6,27 @@ import {
   revenueCatPurchasesAndroidApiKey,
 } from "./constants"
 
-export const initializePurchases = async (userId: string) => {
-  try {
-    const apiKey =
-      platform === "ios"
-        ? revenueCatPurchasesIosApiKey
-        : platform === "android"
-        ? revenueCatPurchasesAndroidApiKey
-        : null
-
-    if (!apiKey) {
-      throw new Error(`Invalid API key for platform ${platform}`)
-    }
-
-    await Purchases.setDebugLogsEnabled(true)
-    await Purchases.setup(apiKey, userId)
-  } catch (error) {
-    console.log("Error setting up Purchases:", error)
+export const purchasesConfig = async (userId: string) => {
+  if (platform === "ios") {
+    Purchases.setDebugLogsEnabled(true)
+    await Purchases.configure({
+      apiKey: revenueCatPurchasesIosApiKey,
+      appUserID: userId,
+    })
+  } else if (platform === "android") {
+    Purchases.setDebugLogsEnabled(true)
+    await Purchases.configure({
+      apiKey: revenueCatPurchasesAndroidApiKey,
+      appUserID: userId,
+      observerMode: false,
+      useAmazon: false,
+    })
+    // OR: if building for Amazon, be sure to follow the installation instructions then:
+    // await Purchases.configure({ apiKey: '<public_amazon_api_key>', useAmazon: true });
+  } else if (platform === "web") {
+    // Configure Axios to use the same origin as the web app
+    // axios.defaults.baseURL = window.location.origin;
+    //const idTokenUser = await user?.getIdToken()
+    //setIdToken(idTokenUser)
   }
 }

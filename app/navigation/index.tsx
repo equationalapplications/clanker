@@ -5,13 +5,14 @@
  */
 import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
-import { NavigationContainer, useNavigation } from "@react-navigation/native"
+import { NavigationContainer } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
-import * as React from "react"
+import React, { useEffect } from "react"
 import { Pressable } from "react-native"
 import { Badge, Text } from "react-native-paper"
 
 //import { auth } from "../config/firebaseConfig"
+import { purchasesConfig } from "../config/purchasesConfig"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 import Characters from "../screens/Characters"
@@ -31,7 +32,6 @@ import {
   RootTabParamList,
   RootTabScreenProps,
 } from "./types"
-
 export default function Navigation({ theme }) {
   return (
     <NavigationContainer linking={LinkingConfiguration} theme={theme}>
@@ -48,6 +48,12 @@ const Stack = createNativeStackNavigator<RootStackParamList>()
 
 function RootNavigator() {
   const user = useUser()
+
+  useEffect(() => {
+    if (user) {
+      purchasesConfig(user.uid)
+    }
+  }, [user])
 
   return (
     <Stack.Navigator>
