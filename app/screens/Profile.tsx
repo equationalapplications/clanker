@@ -1,11 +1,12 @@
 import { useNavigation } from "@react-navigation/native"
-import { useMemo, useCallback, useContext } from "react"
+import { useMemo, useCallback } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
 
 import Button from "../components/Button"
+import { defaultAvatarUrl } from "../config/constants"
 import { auth } from "../config/firebaseConfig"
-import { PurchasesContext } from "../contexts/PurchasesProvider"
+import useCustomerInfo from "../hooks/useCustomerInfo"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 
@@ -15,9 +16,9 @@ export default function Profile() {
   const userPrivate = useUserPrivate()
   const displayName = useMemo(() => user?.displayName, [user])
   const email = useMemo(() => user?.email, [user])
-  const photoURL = useMemo(() => user?.photoURL ?? "https://www.gravatar.com/avatar?d=mp", [user])
+  const photoURL = useMemo(() => user?.photoURL ?? defaultAvatarUrl, [user])
   const credits = useMemo(() => userPrivate?.credits, [userPrivate])
-  const { customerInfo } = useContext(PurchasesContext)
+  const customerInfo = useCustomerInfo()
 
   const onPressSignOut = useCallback(() => {
     auth.signOut()
