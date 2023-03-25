@@ -2,103 +2,51 @@ import { StatusBar } from "expo-status-bar"
 import React from "react"
 import { StyleSheet, Text, View } from "react-native"
 import { useAlerts } from "react-native-paper-alerts"
+import Purchases from "react-native-purchases"
 
 import Button from "../components/Button"
 import { platform } from "../config/constants"
-import { usePurchasesOfferings } from "../hooks/usePurchasesOfferings"
+import { useOfferings } from "../hooks/useOfferings"
 import useUser from "../hooks/useUser"
+import makePackagePurchase from "../utilities/makePackagePurchase"
 
 export default function SubscribeModal() {
   const alerts = useAlerts()
   const user = useUser()
-  const purchasesOfferings = usePurchasesOfferings()
-  console.log("subs", purchasesOfferings)
-
-  const multipleBtnAlert = () =>
-    alerts.alert(
-      "Alert with Multiple Buttons",
-      "This is a alert dialog with multiple button and different styles.",
-      [
-        {
-          text: "Agree",
-        },
-        {
-          text: "Disagree",
-          style: "cancel",
-        },
-        {
-          text: "Not Sure",
-          style: "destructive",
-        },
-      ],
-    )
+  const offerings = useOfferings()
+  const description = offerings?.[0]?.description
+  const identifier = offerings?.[0]?.identifier
+  const purchasePackage = offerings?.[0]?.package
 
   const stackedBtnAlert = () =>
-    alerts.alert(
-      "Verify Subscription Purchase",
-      "Are you sure you want to purchase a subscription?.",
-      [
+    new Promise<string>((resolve) => {
+      alerts.alert(
+        "Verify Subscription Purchase",
+        "Are you sure you want to purchase a subscription?.",
+        [
+          {
+            text: "Yes, I want to purchase a subscription.",
+            onPress: () => resolve("Yes, I want to purchase a subscription."),
+          },
+          {
+            text: "No, thank you.",
+            onPress: () => resolve("No, thank you."),
+            style: "cancel",
+          },
+        ],
         {
-          text: "Yes, I want to purchase a subscription.",
+          stacked: true,
         },
-        {
-          text: "No, thank you.",
-        },
-      ],
-      {
-        stacked: true,
-      },
-    )
-
-  const nonUpercaseAlert = () =>
-    alerts.alert(
-      "Alert with Multiple Buttons",
-      "This is a alert dialog with multiple button and different styles.",
-      [
-        {
-          text: "Agree",
-        },
-        {
-          text: "Disagree",
-          style: "cancel",
-        },
-        {
-          text: "Not Sure",
-          style: "destructive",
-        },
-      ],
-      {
-        uppercase: false,
-      },
-    )
-
-  const simplePrompt = () =>
-    alerts.prompt("Verify Purchase", "Are you sure you wish to make a purchase?", (message) => {
-      // toast.show({ message });
+      )
     })
 
-  const onPressPurchase = () => {
-    if (platform === "ios") {
-    } else if (platform === "android") {
-    } else if (platform === "web") {
-      const payload = {
-        app_user_id: "your_user_id",
-        fetch_token: "your_receipt_or_fetch_token",
-      }
-
-      stackedBtnAlert()
-
-      //fetch("https://api.revenuecat.com/v1/receipts", {
-      //  method: "POST",
-      //  headers: {
-      //    "Content-Type": "application/json",
-      //    Authorization: "Bearer your_api_key",
-      //  },
-      //  body: JSON.stringify(payload),
-      //})
-      //  .then((response) => response.json())
-      //  .then((data) => console.log(data))
-      //  .catch((error) => console.error(error));
+  const onPressPurchase = async () => {
+    const response = await stackedBtnAlert()
+    if (response === "Yes, I want to purchase a subscription.") {
+      await makePackagePurchase(purchasePackage)
+    } else {
+      // User clicked "No, thank you"
+      console.log("Purchase cancelled")
     }
   }
 
@@ -107,7 +55,8 @@ export default function SubscribeModal() {
       <Text style={styles.title}>Subscribe</Text>
       <View style={styles.separator} />
       <Button onPress={onPressPurchase} disabled={!user}>
-        "hmm"
+        {/* diplay the first available package as this button */}
+        {description}
       </Button>
       {/* Use a light status bar on iOS to account for the black space above the modal */}
       <StatusBar style={platform === "ios" ? "light" : "auto"} />
