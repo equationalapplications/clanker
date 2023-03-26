@@ -1,11 +1,8 @@
-import Constants from "expo-constants"
 import { collection, doc, setDoc, CollectionReference } from "firebase/firestore"
 import { IMessage } from "react-native-gifted-chat"
 
+import { messagesCollection, userChatsCollection } from "../config/constants"
 import { firestore, auth } from "../config/firebaseConfig"
-
-const userChatsCollection = Constants.expoConfig.extra.userChatsCollection
-const messagesCollection = Constants.expoConfig.extra.messagesCollection
 
 let messagesRef: CollectionReference | null = null
 
