@@ -1,7 +1,6 @@
 import { ResponseType } from "expo-auth-session"
 import * as Facebook from "expo-auth-session/providers/facebook"
 import * as Google from "expo-auth-session/providers/google"
-import Constants from "expo-constants"
 import * as WebBrowser from "expo-web-browser"
 import { GoogleAuthProvider, FacebookAuthProvider, signInWithCredential } from "firebase/auth"
 import { useEffect } from "react"
@@ -11,6 +10,7 @@ import ProviderButton from "../components/AuthProviderButton"
 import Button from "../components/Button"
 import Logo from "../components/Logo"
 import { MonoText, TitleText } from "../components/StyledText"
+import { googleWebClientId, googleAndroidClientId, facebookAuthAppId } from "../config/constants"
 import { auth } from "../config/firebaseConfig"
 import { RootStackScreenProps } from "../navigation/types"
 
@@ -18,12 +18,12 @@ WebBrowser.maybeCompleteAuthSession()
 
 export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    webClientId: Constants.expoConfig?.extra?.googleWebClientId,
-    androidClientId: Constants.expoConfig?.extra?.googleAndroidClientId,
+    webClientId: googleWebClientId,
+    androidClientId: googleAndroidClientId,
   })
 
   const [facebookRequest, facebookResponse, facebookPromptAsync] = Facebook.useAuthRequest({
-    clientId: Constants.expoConfig?.extra?.facebookAuthAppId,
+    clientId: facebookAuthAppId,
     responseType: ResponseType.Token,
   })
 
@@ -33,12 +33,12 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
       const credential = GoogleAuthProvider.credential(null, accessToken)
       signInWithCredential(auth, credential).catch((error) => {
         // Handle Errors here.
-        const errorCode = error.code;
-        const errorMessage = error.message;
+        const errorCode = error.code
+        const errorMessage = error.message
         // The email of the user's account used.
-        const email = error.email;
+        const email = error.email
         // The credential that was used.
-        const credential = GoogleAuthProvider.credentialFromError(error);
+        const credential = GoogleAuthProvider.credentialFromError(error)
         console.log(errorCode, errorMessage, email, credential)
       })
       // navigation.navigate("Root")
@@ -52,12 +52,12 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
       const credential = FacebookAuthProvider.credential(idToken)
       signInWithCredential(auth, credential).catch((error) => {
         // Handle Errors here.
-        const errorCode = error.code;
-        const errorMessage = error.message;
+        const errorCode = error.code
+        const errorMessage = error.message
         // The email of the user's account used.
-        const email = error.email;
+        const email = error.email
         // The credential that was used.
-        const credential = GoogleAuthProvider.credentialFromError(error);
+        const credential = GoogleAuthProvider.credentialFromError(error)
         console.log(errorCode, errorMessage, email, credential)
       })
       // navigation.navigate("Root")

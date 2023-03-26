@@ -1,10 +1,8 @@
-import Constants from "expo-constants"
 import { doc, onSnapshot } from "firebase/firestore"
 import { useEffect, useState } from "react"
 
+import { usersPublicCollection } from "../config/constants"
 import { auth, firestore } from "../config/firebaseConfig"
-
-const usersPublicCollection = Constants.expoConfig.extra.usersPublicCollection
 
 interface UserPublic {
   uid: string
