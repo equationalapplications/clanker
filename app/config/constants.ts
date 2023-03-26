@@ -32,5 +32,8 @@ export const revenueCatPurchasesEntitlementId =
 export const purchasesRevenueCatStripeUrl =
   "https://us-central1-your-brightly-ai.cloudfunctions.net/getCustomerInfoRevenueCatStripe"
 export const revenueCatBaseUrl = "https://api.revenuecat.com/v1"
+export const stripeCustomerPortal = "https://billing.stripe.com/p/login/28obLIehA711btKcMM"
 
 export const defaultAvatarUrl = Constants.expoConfig.extra.defaultAvatarUrl
+
+export const appBaseUrl = "https://yours-brightly-ai.equationalapplications.com"
