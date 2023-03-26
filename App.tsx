@@ -2,12 +2,12 @@ import "expo-dev-client"
 import { StatusBar } from "expo-status-bar"
 import { ReactNode } from "react"
 import { Provider as PaperProvider, DefaultTheme } from "react-native-paper"
-//import { AlertsProvider } from "react-native-paper-alerts"
+import { AlertsProvider } from "react-native-paper-alerts"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
 
 import useCachedResources from "./app/hooks/useCachedResources"
 import Navigation from "./app/navigation"
-//import { ErrorBoundary } from "./app/screens/ErrorScreen/ErrorBoundary"
+import { ErrorBoundary } from "./app/screens/ErrorScreen/ErrorBoundary"
 import { CustomDefaultTheme } from "./app/theme"
 
 type PaperProviderProps = {
@@ -28,12 +28,12 @@ export default function App() {
     return (
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <PaperProvider theme={CustomDefaultTheme} {...(null as any as PaperProviderProps)}>
-          {/*<AlertsProvider {...(null as any as AlertsProviderProps)}>*/}
-          {/*<ErrorBoundary catchErrors="always">*/}
-          <Navigation theme={CustomDefaultTheme} />
-          <StatusBar />
-          {/*</ErrorBoundary>*/}
-          {/*</AlertsProvider>*/}
+          <AlertsProvider {...(null as any as AlertsProviderProps)}>
+            <ErrorBoundary catchErrors="always">
+              <Navigation theme={CustomDefaultTheme} />
+              <StatusBar />
+            </ErrorBoundary>
+          </AlertsProvider>
         </PaperProvider>
       </SafeAreaProvider>
     )

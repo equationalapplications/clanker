@@ -41,6 +41,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       Profile: "profile",
       Privacy: "privacy",
       Terms: "terms",
+      PurchaseSuccess: "purchase-success",
       NotFound: "*",
     },
   },

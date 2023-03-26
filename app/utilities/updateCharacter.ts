@@ -1,10 +1,7 @@
-import Constants from "expo-constants"
 import { doc, updateDoc, DocumentReference } from "firebase/firestore"
 
+import { charactersCollection, userCharactersCollection } from "../config/constants"
 import { firestore, auth } from "../config/firebaseConfig"
-
-const charactersCollection = Constants.expoConfig.extra.charactersCollection
-const userCharactersCollection = Constants.expoConfig.extra.userCharactersCollection
 
 let defaultCharacterRef: DocumentReference | null = null
 

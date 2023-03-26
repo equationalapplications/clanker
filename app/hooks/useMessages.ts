@@ -1,13 +1,10 @@
-import Constants from "expo-constants"
 import { collection, onSnapshot, CollectionReference } from "firebase/firestore"
 import { useEffect, useMemo, useState } from "react"
 import { IMessage } from "react-native-gifted-chat"
 
+import { userChatsCollection, messagesCollection } from "../config/constants"
 import { firestore } from "../config/firebaseConfig"
 import useUser from "./useUser"
-
-const userChatsCollection = Constants.expoConfig.extra.userChatsCollection
-const messagesCollection = Constants.expoConfig.extra.messagesCollection
 
 export default function useMessages(): IMessage[] | null {
   const user = useUser()
