@@ -21,6 +21,7 @@ import NotFoundScreen from "../screens/NotFoundScreen"
 import PaywallScreen from "../screens/PaywallScreen"
 import Privacy from "../screens/Privacy"
 import Profile from "../screens/Profile"
+import PurchaseSuccess from "../screens/PurchaseSuccess"
 import Settings from "../screens/Settings"
 import SignIn from "../screens/SignIn"
 import SubscribeModal from "../screens/SubscribeModal"
@@ -76,6 +77,14 @@ function RootNavigator() {
               component={Profile}
               options={({ navigation }: RootStackScreenProps<"Profile">) => ({
                 title: "Profile",
+                headerRight: () => <CreditCounterIcon navigation={navigation} />,
+              })}
+            />
+            <Stack.Screen
+              name="PurchaseSuccess"
+              component={PurchaseSuccess}
+              options={({ navigation }: RootStackScreenProps<"PurchaseSuccess">) => ({
+                title: "PurchaseSuccess",
                 headerRight: () => <CreditCounterIcon navigation={navigation} />,
               })}
             />
@@ -170,6 +179,7 @@ function CreditCounterIcon({ navigation }) {
       style={({ pressed }) => ({
         flexDirection: "row",
         opacity: pressed ? 0.5 : 1,
+        marginRight: 10,
       })}
     >
       <Text>Credits </Text>
