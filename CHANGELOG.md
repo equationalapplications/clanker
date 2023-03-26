@@ -1,3 +1,14 @@
+# [6.0.0-staging.3](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.0.0-staging.2...v6.0.0-staging.3) (2023-03-26)
+
+
+### Features
+
+* add billing button ([4670a18](https://github.com/equationalapplications/yoursbrightlyai/commit/4670a18f64bb956f3c4bb16853c075528ad16618))
+* add PurchaseSuccess screen ([bba77f0](https://github.com/equationalapplications/yoursbrightlyai/commit/bba77f02098bd8bf39b129c996ec594eccc4c8ba))
+* create makePackaePurchase utilty function ([944759f](https://github.com/equationalapplications/yoursbrightlyai/commit/944759fca8a2582c133d585775d452a0085614e6))
+* create useCustomerInfo hook ([d0e787f](https://github.com/equationalapplications/yoursbrightlyai/commit/d0e787f8da26080ae5a65cd2a5f3df01ebd96d7b))
+* create usePurchasesOfferings hook ([48653cb](https://github.com/equationalapplications/yoursbrightlyai/commit/48653cb7c5b0cbcda273d64ca92f9193da013263))
+
 # [6.0.0-staging.2](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.0.0-staging.1...v6.0.0-staging.2) (2023-03-21)
 
 
