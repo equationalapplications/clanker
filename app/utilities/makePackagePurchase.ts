@@ -1,20 +1,33 @@
-import { StatusBar } from "expo-status-bar"
-import React from "react"
-import { StyleSheet, Text, View } from "react-native"
-import { useAlerts } from "react-native-paper-alerts"
+import * as WebBrowser from "expo-web-browser"
+import { User } from "firebase/auth"
+import { httpsCallable } from "firebase/functions"
 import Purchases, { PurchasesPackage } from "react-native-purchases"
 
-import Button from "../components/Button"
 import { platform } from "../config/constants"
-import { useOfferings } from "../hooks/useOfferings"
-import useUser from "../hooks/useUser"
+import { functions } from "../config/firebaseConfig"
 
-export default async function makePackagePurchase(purchasesPackage: PurchasesPackage) {
+const purchasePackageStripe: any = httpsCallable(functions, "purchasePackageStripe")
+
+export default async function makePackagePurchase({
+  purchasePackage,
+  user,
+}: {
+  purchasePackage: PurchasesPackage
+  user: User
+}) {
   try {
     if (platform === "ios" || platform === "android") {
-      const purchase = await Purchases.purchasePackage(purchasesPackage)
+      const purchase = await Purchases.purchasePackage(purchasePackage)
     } else if (platform === "web") {
-      // Handle web subscription purchase
+      const purchasePackageId = purchasePackage?.platform_product_identifier || ""
+      console.log("purchasePackageId: ", purchasePackageId)
+      const checkoutUrlData = await purchasePackageStripe({ purchasePackageId })
+      const checkoutUrl = checkoutUrlData?.data || ""
+
+      console.log("checkoutUrl: ", checkoutUrl)
+      if (checkoutUrl) {
+        await WebBrowser.openBrowserAsync(checkoutUrl)
+      }
     }
   } catch (error) {
     console.log("Error: ", error)
