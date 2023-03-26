@@ -4,13 +4,10 @@ import Purchases, { CustomerInfo } from "react-native-purchases"
 import { platform, purchasesRevenueCatStripeUrl } from "../config/constants"
 import useUser from "../hooks/useUser"
 
-const useCustomerInfo = (): [CustomerInfo, boolean, Error | null] => {
+const useCustomerInfo = (): CustomerInfo | null => {
   const user = useUser()
-  const uid = user?.uid
 
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
     const fetchCustomerInfo = async () => {
@@ -33,14 +30,15 @@ const useCustomerInfo = (): [CustomerInfo, boolean, Error | null] => {
           setCustomerInfo(activeSubscriptions)
         }
       } catch (e) {
-        setError(e)
-        setLoading(false)
+        console.log(e)
       }
     }
-    fetchCustomerInfo()
-  }, [])
+    if (user) {
+      fetchCustomerInfo()
+    }
+  }, [user])
 
-  return [customerInfo, loading, error]
+  return customerInfo
 }
 
 export default useCustomerInfo
