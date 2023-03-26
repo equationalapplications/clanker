@@ -1,7 +1,7 @@
-import Constants from "expo-constants"
 import { doc, onSnapshot, DocumentReference, Unsubscribe } from "firebase/firestore"
 import { useEffect, useState } from "react"
 
+import { charactersCollection, userCharactersCollection } from "../config/constants"
 import { firestore } from "../config/firebaseConfig"
 import useUser from "./useUser"
 import useUserPrivate from "./useUserPrivate"
@@ -16,9 +16,6 @@ interface Character {
   isCharacterPublic: boolean
   context: string
 }
-
-const charactersCollection = Constants.expoConfig.extra.charactersCollection
-const userCharactersCollection = Constants.expoConfig.extra.userCharactersCollection
 
 export default function useDefaultCharacter() {
   const user = useUser()
