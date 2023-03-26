@@ -2,7 +2,6 @@ import { StatusBar } from "expo-status-bar"
 import React from "react"
 import { StyleSheet, Text, View } from "react-native"
 import { useAlerts } from "react-native-paper-alerts"
-import Purchases from "react-native-purchases"
 
 import Button from "../components/Button"
 import { platform } from "../config/constants"
@@ -41,13 +40,14 @@ export default function SubscribeModal() {
     })
 
   const onPressPurchase = async () => {
-    const response = await stackedBtnAlert()
-    if (response === "Yes, I want to purchase a subscription.") {
-      await makePackagePurchase(purchasePackage)
-    } else {
-      // User clicked "No, thank you"
-      console.log("Purchase cancelled")
-    }
+    // const response = await stackedBtnAlert()
+    // if (response === "Yes, I want to purchase a subscription.") {
+    await makePackagePurchase({ purchasePackage, user })
+    //console.log("Purchase successful", purchasePackage?.platform_product_identifier)
+    //  } else {
+    // User clicked "No, thank you"
+    //   console.log("Purchase cancelled")
+    //  }
   }
 
   return (
