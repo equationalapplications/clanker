@@ -1,3 +1,31 @@
+# [6.0.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v5.1.1...v6.0.0) (2023-03-26)
+
+
+### Bug Fixes
+
+* add question mark to customerInfo properties ([3af1d6a](https://github.com/equationalapplications/yoursbrightlyai/commit/3af1d6acde662c0ed3e9ddee544ba953e2d830a2))
+* use fetch to get customerInfo on web ([6ee3488](https://github.com/equationalapplications/yoursbrightlyai/commit/6ee3488176256d52f087e1531e886d58b15c1fa3))
+
+
+### chore
+
+* add new expo extra properties for Constants ([ac90dc3](https://github.com/equationalapplications/yoursbrightlyai/commit/ac90dc38d8532327b902d114c65bf42dccab5578))
+
+
+### Features
+
+* add billing button ([4670a18](https://github.com/equationalapplications/yoursbrightlyai/commit/4670a18f64bb956f3c4bb16853c075528ad16618))
+* add PurchasesProvider.tsx ([41e0c26](https://github.com/equationalapplications/yoursbrightlyai/commit/41e0c261c551a3ef0762f7e181aa3eabe3595068))
+* add PurchaseSuccess screen ([bba77f0](https://github.com/equationalapplications/yoursbrightlyai/commit/bba77f02098bd8bf39b129c996ec594eccc4c8ba))
+* create makePackaePurchase utilty function ([944759f](https://github.com/equationalapplications/yoursbrightlyai/commit/944759fca8a2582c133d585775d452a0085614e6))
+* create useCustomerInfo hook ([d0e787f](https://github.com/equationalapplications/yoursbrightlyai/commit/d0e787f8da26080ae5a65cd2a5f3df01ebd96d7b))
+* create usePurchasesOfferings hook ([48653cb](https://github.com/equationalapplications/yoursbrightlyai/commit/48653cb7c5b0cbcda273d64ca92f9193da013263))
+
+
+### BREAKING CHANGES
+
+* changes to app.config.ts require rebuilding app and incrementing runtime version
+
 # [6.0.0-staging.3](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.0.0-staging.2...v6.0.0-staging.3) (2023-03-26)
 
 
