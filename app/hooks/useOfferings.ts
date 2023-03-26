@@ -52,8 +52,8 @@ export const useOfferings = (): Offering[] | null => {
           ) {
             const offering: Offering = {
               identifier: offerings.current_offering_id,
-              description: offerings.offerings[1].description,
-              package: offerings.offerings[1].packages[0],
+              description: offerings.offerings[0]?.description,
+              package: offerings.offerings[0]?.packages[0],
             }
             setPurchasesOfferings([offering])
           }
