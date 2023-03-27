@@ -1,9 +1,10 @@
 import { httpsCallable } from "firebase/functions"
 import { useState, useEffect } from "react"
-import { StyleSheet, ScrollView, View, ActivityIndicator } from "react-native"
+import { StyleSheet, ScrollView, View } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
 
 import Button from "../components/Button"
+import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
 import { functions } from "../config/firebaseConfig"
 import useDefaultCharacter from "../hooks/useDefaultCharacter"
@@ -89,7 +90,7 @@ export default function Characters({ navigation }) {
         contentContainerStyle={styles.scrollContentContainer}
       >
         {imageIsLoading ? (
-          <ActivityIndicator />
+          <LoadingIndicator />
         ) : (
           <Avatar.Image size={256} source={{ uri: avatar }} />
         )}
