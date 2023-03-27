@@ -1,38 +1,43 @@
 import { collection, onSnapshot, CollectionReference } from "firebase/firestore"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { IMessage } from "react-native-gifted-chat"
 
 import { userChatsCollection, messagesCollection } from "../config/constants"
 import { firestore } from "../config/firebaseConfig"
 import useUser from "./useUser"
 
-export default function useMessages(): IMessage[] | null {
+export default function useMessages(): IMessage[] {
   const user = useUser()
-  const [messages, setMessages] = useState<IMessage[] | null>(null)
-  let messagesRef: CollectionReference | null = null
+  const [messages, setMessages] = useState<IMessage[]>([])
+  const messagesRef = useRef<CollectionReference | null>(null)
 
   useEffect(() => {
     if (user) {
-      messagesRef = collection(firestore, userChatsCollection, user.uid, messagesCollection)
-      const unsubscribe = onSnapshot(messagesRef, (querySnapshot) => {
-        const newMessages: IMessage[] = []
+      messagesRef.current = collection(firestore, userChatsCollection, user.uid, messagesCollection)
+      const unsubscribe = onSnapshot(
+        messagesRef.current,
+        (querySnapshot) => {
+          const newMessages: IMessage[] = []
 
-        querySnapshot.forEach((doc) => {
-          const message = doc.data()
-          newMessages.push(message as IMessage)
-        })
+          querySnapshot.forEach((doc) => {
+            const message = doc.data()
+            newMessages.push(message as IMessage)
+          })
 
-        // Sort messages by createdAt timestamp
-        newMessages.sort((a, b) => (b.createdAt as number) - (a.createdAt as number))
+          // Sort messages by createdAt timestamp
+          newMessages.sort((a, b) => (b.createdAt as number) - (a.createdAt as number))
 
-        setMessages(newMessages)
-      })
+          setMessages(newMessages)
+        },
+        (error) => {
+          console.error("Error fetching messages:", error)
+          setMessages([])
+        },
+      )
 
       return () => unsubscribe()
     }
   }, [user])
 
-  const memoizedMessages = useMemo(() => messages, [messages])
-
-  return memoizedMessages
+  return messages
 }
