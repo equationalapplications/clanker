@@ -1,3 +1,10 @@
+## [6.0.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.0.0...v6.0.1) (2023-03-27)
+
+
+### Bug Fixes
+
+* with the ?. optional properties added ([ed33b57](https://github.com/equationalapplications/yoursbrightlyai/commit/ed33b5735badf1a3025d11727043147c366d18eb))
+
 ## [6.0.1-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.0.0...v6.0.1-staging.1) (2023-03-27)
 
 
