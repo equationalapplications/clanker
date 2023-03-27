@@ -32,6 +32,10 @@ export default function useMessages(): IMessage[] | null {
     }
   }, [user])
 
+  if (!user) {
+    return null
+  }
+
   const memoizedMessages = useMemo(() => messages, [messages])
 
   return memoizedMessages
