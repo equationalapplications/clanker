@@ -1,30 +1,19 @@
 import * as WebBrowser from "expo-web-browser"
-import { User } from "firebase/auth"
 import { httpsCallable } from "firebase/functions"
-import Purchases, { PurchasesPackage } from "react-native-purchases"
+import Purchases from "react-native-purchases"
 
-import { platform } from "../config/constants"
+import { platform, stripeMontlySubscriptionPriceId, AndroidIosMonthlySubscriptionPurchasePackage } from "../config/constants"
 import { functions } from "../config/firebaseConfig"
 
 const purchasePackageStripe: any = httpsCallable(functions, "purchasePackageStripe")
 
-export default async function makePackagePurchase({
-  purchasePackage,
-  user,
-}: {
-  purchasePackage: PurchasesPackage
-  user: User
-}) {
+export default async function makePackagePurchase() {
   try {
     if (platform === "ios" || platform === "android") {
-      const purchase = await Purchases.purchasePackage(purchasePackage)
+      await Purchases.purchasePackage(AndroidIosMonthlySubscriptionPurchasePackage)
     } else if (platform === "web") {
-      const purchasePackageId = purchasePackage?.platform_product_identifier || ""
-      console.log("purchasePackageId: ", purchasePackageId)
-      const checkoutUrlData = await purchasePackageStripe({ purchasePackageId })
+      const checkoutUrlData = await purchasePackageStripe({ stripeMontlySubscriptionPriceId })
       const checkoutUrl = checkoutUrlData?.data || ""
-
-      console.log("checkoutUrl: ", checkoutUrl)
       if (checkoutUrl) {
         await WebBrowser.openBrowserAsync(checkoutUrl)
       }
