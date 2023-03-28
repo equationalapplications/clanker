@@ -1,3 +1,10 @@
+# [6.1.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.0.1...v6.1.0) (2023-03-28)
+
+
+### Features
+
+* create styled LoadingIndicator ([13d0238](https://github.com/equationalapplications/yoursbrightlyai/commit/13d0238f573d098ce4c46d61a93965e620e9fa6f))
+
 # [6.1.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.0.1...v6.1.0-staging.1) (2023-03-28)
 
 
