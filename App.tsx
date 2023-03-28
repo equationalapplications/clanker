@@ -3,7 +3,7 @@ import { StatusBar } from "expo-status-bar"
 import { ReactNode } from "react"
 import ErrorBoundary from "react-native-error-boundary"
 import { Provider as PaperProvider, DefaultTheme } from "react-native-paper"
-import { AlertsProvider } from "react-native-paper-alerts"
+//import { AlertsProvider } from "react-native-paper-alerts"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
 
 import useCachedResources from "./app/hooks/useCachedResources"
@@ -15,24 +15,25 @@ type PaperProviderProps = {
   theme?: typeof DefaultTheme
 }
 
-type AlertsProviderProps = {
-  children: ReactNode
-}
-
 export default function App() {
   const isLoadingComplete = useCachedResources()
+
+  const onError = (error: Error, stackTrace: string) => {
+    console.log("Error: ", error)
+    console.log("Stack trace: ", stackTrace)
+  }
 
   if (!isLoadingComplete) {
     return null
   } else {
     return (
-      <ErrorBoundary>
+      <ErrorBoundary onError={onError}>
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
           <PaperProvider theme={CustomDefaultTheme} {...(null as any as PaperProviderProps)}>
-            <AlertsProvider {...(null as any as AlertsProviderProps)}>
-              <Navigation theme={CustomDefaultTheme} />
-              <StatusBar />
-            </AlertsProvider>
+            {/*<AlertsProvider >*/}
+            <Navigation theme={CustomDefaultTheme} />
+            <StatusBar />
+            {/*</AlertsProvider>*/}
           </PaperProvider>
         </SafeAreaProvider>
       </ErrorBoundary>
