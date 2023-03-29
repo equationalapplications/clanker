@@ -1,3 +1,10 @@
+## [6.1.1-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.1.0...v6.1.1-staging.1) (2023-03-29)
+
+
+### Bug Fixes
+
+* temp disable billing button ([b18cb24](https://github.com/equationalapplications/yoursbrightlyai/commit/b18cb24eb36b33bb8e3adc7a364a0d694330c720))
+
 # [6.1.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.0.1...v6.1.0) (2023-03-28)
 
 
