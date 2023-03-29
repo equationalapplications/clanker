@@ -1,19 +1,21 @@
 import "expo-dev-client"
 import { StatusBar } from "expo-status-bar"
-import { ReactNode } from "react"
+//import { ReactNode } from "react"
 import ErrorBoundary from "react-native-error-boundary"
-import { Provider as PaperProvider, DefaultTheme } from "react-native-paper"
+//import { Provider as PaperProvider, DefaultTheme } from "react-native-paper"
 //import { AlertsProvider } from "react-native-paper-alerts"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
 
 import useCachedResources from "./app/hooks/useCachedResources"
-import Navigation from "./app/navigation"
-import { CustomDefaultTheme } from "./app/theme"
+//import Navigation from "./app/navigation"
+import RootNavigator from "./app/navigation/RootNavigator"
+//import { CustomDefaultTheme } from "./app/theme"
+import ThemeProvider from "./app/providers/ThemeProvider"
 
-type PaperProviderProps = {
-  children: ReactNode
-  theme?: typeof DefaultTheme
-}
+//type PaperProviderProps = {
+//  children: ReactNode
+//  theme?: typeof DefaultTheme
+//}
 
 export default function App() {
   const isLoadingComplete = useCachedResources()
@@ -29,12 +31,15 @@ export default function App() {
     return (
       <ErrorBoundary onError={onError}>
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-          <PaperProvider theme={CustomDefaultTheme} {...(null as any as PaperProviderProps)}>
+          <ThemeProvider>
+            {/*<PaperProvider theme={CustomDefaultTheme} {...(null as any as PaperProviderProps)}>*/}
             {/*<AlertsProvider >*/}
-            <Navigation theme={CustomDefaultTheme} />
+            {/*<Navigation theme={CustomDefaultTheme} />*/}
+            <RootNavigator />
             <StatusBar />
             {/*</AlertsProvider>*/}
-          </PaperProvider>
+            {/*</PaperProvider>*/}
+          </ThemeProvider>
         </SafeAreaProvider>
       </ErrorBoundary>
     )
