@@ -21,9 +21,9 @@ export default function Settings({ navigation }: RootTabScreenProps<"Settings">)
       <Button mode="outlined" onPress={onPressProfile}>
         Profile
       </Button>
-      <Button mode="outlined" onPress={onPressBilling}>
-        Billing
-      </Button>
+      {/*<Button mode="outlined" onPress={onPressBilling}>*/}
+      {/* Billing */}
+      {/* </Button>*/}
     </View>
   )
 }
