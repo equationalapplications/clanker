@@ -1,63 +1,37 @@
 import { StatusBar } from "expo-status-bar"
 import React, { useState } from "react"
 import { StyleSheet, View } from "react-native"
-//import { useAlerts } from "react-native-paper-alerts"
 import { Text } from "react-native-paper"
 
 import Button from "../components/Button"
 import LoadingIndicator from "../components/LoadingIndicator"
+import { TitleText } from "../components/StyledText"
 import { platform } from "../config/constants"
-//import { useOfferings } from "../hooks/useOfferings"
 import useUser from "../hooks/useUser"
+import useUserPrivate from "../hooks/useUserPrivate"
 import makePackagePurchase from "../utilities/makePackagePurchase"
 
 export default function SubscribeModal() {
-  //const alerts = useAlerts()
   const user = useUser()
-  // const offerings = useOfferings()
-  // const description = offerings?.[0]?.description
-  // const identifier = offerings?.[0]?.identifier
-  // const purchasePackage = offerings?.[0]?.package
+  const userPrivate = useUserPrivate()
+  const credits = userPrivate?.credits
 
   const [isLoading, setIsLoading] = useState(false)
-  /*
-    const stackedBtnAlert = () =>
-      new Promise<string>((resolve) => {
-        alerts.alert(
-          "Verify Subscription Purchase",
-          "Are you sure you want to purchase a subscription?.",
-          [
-            {
-              text: "Yes, I want to purchase a subscription.",
-              onPress: () => resolve("Yes, I want to purchase a subscription."),
-            },
-            {
-              text: "No, thank you.",
-              onPress: () => resolve("No, thank you."),
-              style: "cancel",
-            },
-          ],
-          {
-            stacked: true,
-          },
-        )
-      })
-  */
+
   const onPressPurchase = async () => {
-    // const response = await stackedBtnAlert()
-    // if (response === "Yes, I want to purchase a subscription.") {
     setIsLoading(true)
     await makePackagePurchase()
     setIsLoading(false)
-    //console.log("Purchase successful", purchasePackage?.platform_product_identifier)
-    //  } else {
-    // User clicked "No, thank you"
-    //   console.log("Purchase cancelled")
-    //  }
   }
 
   return (
     <View style={styles.container}>
+      {credits <= 0 ? (
+        <>
+          <Text>Please Subscribe for Unlimited Credits</Text>
+          <View style={styles.separator} />
+        </>
+      ) : null}
       <Text style={styles.title}>Unlimited Credits</Text>
       <Text style={styles.title}>$4.99 per month</Text>
       <View style={styles.separator} />
