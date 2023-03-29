@@ -1,16 +1,11 @@
-/**
- * If you are not familiar with React Navigation, refer to the "Fundamentals" guide:
- * https://reactnavigation.org/docs/getting-started
- *
- */
 import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
+import { useNavigation } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import React, { useEffect } from "react"
 import { Pressable } from "react-native"
 import { Badge, Text } from "react-native-paper"
 
-//import { auth } from "../config/firebaseConfig"
 import { purchasesConfig } from "../config/purchasesConfig"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
@@ -40,12 +35,19 @@ const Stack = createNativeStackNavigator<RootStackParamList>()
 
 export default function RootNavigator() {
   const user = useUser()
+  const userPrivate = useUserPrivate()
+  const navigation = useNavigation()
 
   useEffect(() => {
     if (user) {
       purchasesConfig(user.uid)
     }
-  }, [user])
+    if (userPrivate) {
+      if (userPrivate.credits <= 0) {
+        navigation.navigate("Subscribe")
+      }
+    }
+  }, [user, userPrivate])
 
   return (
     <Stack.Navigator>
