@@ -22,7 +22,7 @@ export default function Settings({ navigation }: RootTabScreenProps<"Settings">)
         Profile
       </Button>
       {/*<Button mode="outlined" onPress={onPressBilling}>*/}
-      {/* Billing */}
+      {/* Billing*/}
       {/* </Button>*/}
     </View>
   )
