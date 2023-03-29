@@ -1,8 +1,7 @@
-import * as WebBrowser from "expo-web-browser"
 import { StyleSheet, View } from "react-native"
 
 import Button from "../components/Button"
-import { stripeCustomerPortal, platform } from "../config/constants"
+import SubscriptionBillingInfoButton from "../components/SubscriptionBillingInfoButton"
 import { RootTabScreenProps } from "../navigation/types"
 
 export default function Settings({ navigation }: RootTabScreenProps<"Settings">) {
@@ -10,20 +9,12 @@ export default function Settings({ navigation }: RootTabScreenProps<"Settings">)
     navigation.navigate("Profile")
   }
 
-  const onPressBilling = async () => {
-    if (platform === "web") {
-      await WebBrowser.openBrowserAsync(stripeCustomerPortal)
-    }
-  }
-
   return (
     <View style={styles.container}>
       <Button mode="outlined" onPress={onPressProfile}>
         Profile
       </Button>
-      {/*<Button mode="outlined" onPress={onPressBilling}>*/}
-      {/* Billing*/}
-      {/* </Button>*/}
+      <SubscriptionBillingInfoButton />
     </View>
   )
 }
