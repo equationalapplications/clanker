@@ -18,6 +18,7 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
   const uid = useMemo(() => user?.uid ?? "", [user])
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
+  const isPremium = userPrivate?.isPremium
 
   const messages = useMessages()
   const { colors, roundness } = useTheme()
@@ -32,7 +33,7 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
   )
 
   const onSend = async (messages: IMessage[]) => {
-    if (credits <= 0) {
+    if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
       return
     }

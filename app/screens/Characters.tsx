@@ -17,6 +17,7 @@ export default function Characters({ navigation }) {
   const defaultCharacter = useDefaultCharacter()
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
+  const isPremium = userPrivate?.isPremium
 
   const [avatar, setAvatar] = useState(defaultCharacter?.avatar ?? defaultAvatarUrl)
   const [appearance, setAppearance] = useState(defaultCharacter?.appearance ?? "")
@@ -57,7 +58,7 @@ export default function Characters({ navigation }) {
   }
 
   const onPressSave = () => {
-    if (credits <= 0) {
+    if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
       return
     }
@@ -70,7 +71,7 @@ export default function Characters({ navigation }) {
   }
 
   const onPressGenerate = async () => {
-    if (credits <= 0) {
+    if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
       return
     }
@@ -91,7 +92,7 @@ export default function Characters({ navigation }) {
   }
 
   const onPressErase = async () => {
-    if (credits <= 0) {
+    if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
       return
     }
