@@ -2,7 +2,11 @@ import * as WebBrowser from "expo-web-browser"
 import { httpsCallable } from "firebase/functions"
 import Purchases from "react-native-purchases"
 
-import { platform, stripeMontlySubscriptionPriceId, AndroidIosMonthlySubscriptionPurchasePackage } from "../config/constants"
+import {
+  platform,
+  stripeMontlySubscriptionPriceId,
+  AndroidIosMonthlySubscriptionPurchasePackage,
+} from "../config/constants"
 import { functions } from "../config/firebaseConfig"
 
 const purchasePackageStripe: any = httpsCallable(functions, "purchasePackageStripe")
