@@ -1,3 +1,10 @@
+## [6.1.2-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.1.1...v6.1.2-staging.1) (2023-03-29)
+
+
+### Bug Fixes
+
+* combine colors properly for display on Andoid ([fd5ca75](https://github.com/equationalapplications/yoursbrightlyai/commit/fd5ca75ed19b43930a06127941459e963dde3232))
+
 ## [6.1.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.1.0...v6.1.1) (2023-03-29)
 
 

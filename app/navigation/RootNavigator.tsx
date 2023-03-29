@@ -5,7 +5,6 @@
  */
 import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
-import { NavigationContainer } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import React, { useEffect } from "react"
 import { Pressable } from "react-native"
@@ -26,20 +25,12 @@ import Settings from "../screens/Settings"
 import SignIn from "../screens/SignIn"
 import SubscribeModal from "../screens/SubscribeModal"
 import Terms from "../screens/Terms"
-import LinkingConfiguration from "./LinkingConfiguration"
 import {
   RootStackParamList,
   RootStackScreenProps,
   RootTabParamList,
   RootTabScreenProps,
 } from "./types"
-export default function Navigation({ theme }) {
-  return (
-    <NavigationContainer linking={LinkingConfiguration} theme={theme}>
-      <RootNavigator />
-    </NavigationContainer>
-  )
-}
 
 /**
  * A root stack navigator is often used for displaying modals on top of all other content.
@@ -47,7 +38,7 @@ export default function Navigation({ theme }) {
  */
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
-function RootNavigator() {
+export default function RootNavigator() {
   const user = useUser()
 
   useEffect(() => {
