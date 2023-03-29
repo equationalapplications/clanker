@@ -1,3 +1,11 @@
+## [6.1.3-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.1.2...v6.1.3-staging.1) (2023-03-29)
+
+
+### Bug Fixes
+
+* correct object shape of colorsDark ([4532375](https://github.com/equationalapplications/yoursbrightlyai/commit/45323751de059ff76d83af119e659f57c5323781))
+* use Text from Paper for Styled Text ([3047c15](https://github.com/equationalapplications/yoursbrightlyai/commit/3047c15dd58a7cb59d35500a837b393e913076d3))
+
 ## [6.1.2](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.1.1...v6.1.2) (2023-03-29)
 
 
