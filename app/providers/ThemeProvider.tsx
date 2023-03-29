@@ -40,6 +40,7 @@ const CombinedDarkTheme = {
   },
 }
 
+
 const ThemeProvider = ({ children }) => {
   const deviceTheme = useColorScheme()
 
