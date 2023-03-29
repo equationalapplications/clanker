@@ -158,6 +158,7 @@ function BottomTabNavigator() {
 
 function CreditCounterIcon({ navigation }) {
   const userPrivate = useUserPrivate()
+  const isPremium = userPrivate?.isPremium
   const [credits, setCredits] = React.useState(userPrivate?.credits)
   React.useEffect(() => {
     setCredits(userPrivate?.credits)
@@ -171,8 +172,16 @@ function CreditCounterIcon({ navigation }) {
         marginRight: 10,
       })}
     >
-      <Text>Credits </Text>
-      <Badge>{credits}</Badge>
+      {isPremium ? (
+        <>
+          <Text>👑</Text>
+        </>
+      ) : (
+        <>
+          <Text>Credits </Text>
+          <Badge>{credits}</Badge>
+        </>
+      )}
     </Pressable>
   )
 }
