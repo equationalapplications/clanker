@@ -1,5 +1,5 @@
 import { httpsCallable } from "firebase/functions"
-import { useEffect, useMemo, useCallback } from "react"
+import { useMemo, useCallback } from "react"
 import { StyleSheet, View } from "react-native"
 import { GiftedChat, User, IMessage, Avatar, Bubble } from "react-native-gifted-chat"
 import { useTheme } from "react-native-paper"
@@ -7,6 +7,7 @@ import { useTheme } from "react-native-paper"
 import { functions } from "../config/firebaseConfig"
 import useMessages from "../hooks/useMessages"
 import useUser from "../hooks/useUser"
+import useUserPrivate from "../hooks/useUserPrivate"
 import { RootTabScreenProps } from "../navigation/types"
 import updateMessages from "../utilities/updateMessages"
 
@@ -15,6 +16,9 @@ const getReply: any = httpsCallable(functions, "getReply")
 export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
   const user = useUser()
   const uid = useMemo(() => user?.uid ?? "", [user])
+  const userPrivate = useUserPrivate()
+  const credits = userPrivate?.credits ?? 0
+
   const messages = useMessages()
   const { colors, roundness } = useTheme()
 
@@ -27,21 +31,22 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
     [uid, user],
   )
 
-  const onSend = useCallback(
-    async (messages: IMessage[]) => {
-      const { _id, createdAt, text, user } = messages[0]
-      const message = {
-        _id,
-        createdAt: Date.parse(createdAt),
-        text,
-        user,
-      }
-      updateMessages(message)
-      const { data } = await getReply({ message: text })
-      const reply = data.reply
-    },
-    [getReply],
-  )
+  const onSend = async (messages: IMessage[]) => {
+    if (credits <= 0) {
+      navigation.navigate("Subscribe")
+      return
+    }
+    const { _id, createdAt, text, user } = messages[0]
+    const message = {
+      _id,
+      createdAt: Date.parse(createdAt),
+      text,
+      user,
+    }
+    updateMessages(message)
+    const { data } = await getReply({ message: text })
+    const reply = data.reply
+  }
 
   const renderBubble = useCallback(
     (props) => {
