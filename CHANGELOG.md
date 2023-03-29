@@ -1,3 +1,13 @@
+# [6.2.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.1.3-staging.1...v6.2.0-staging.1) (2023-03-29)
+
+
+### Features
+
+* display credits on subscribe page ([d01d4e5](https://github.com/equationalapplications/yoursbrightlyai/commit/d01d4e524028208f392da7639e2faf574424d808))
+* display credits on subscribe page ([f9ced83](https://github.com/equationalapplications/yoursbrightlyai/commit/f9ced838c2dd6dc4dea363f571f6d55c305e8567))
+* if credits <= 0 navigate to "Subscribe" ([97bf6aa](https://github.com/equationalapplications/yoursbrightlyai/commit/97bf6aacd058f78f23330f799a2f0bd52b486c11))
+* if out of credits navigate to "Subscribe" ([2eba3dd](https://github.com/equationalapplications/yoursbrightlyai/commit/2eba3ddf3c7a61b6a55018c4968061ed7e711206))
+
 ## [6.1.3-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.1.2...v6.1.3-staging.1) (2023-03-29)
 
 
