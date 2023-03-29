@@ -96,7 +96,11 @@ export default function RootNavigator() {
               <Stack.Screen
                 name="Subscribe"
                 component={SubscribeModal}
-                options={{ title: "Subscribe" }}
+                options={({ navigation }: RootStackScreenProps<"Subscribe">) => ({
+                  title: "Subscribe",
+                  tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
+                  headerRight: () => <CreditCounterIcon navigation={navigation} />,
+                })}
               />
             </Stack.Group>
           </Stack.Group>
