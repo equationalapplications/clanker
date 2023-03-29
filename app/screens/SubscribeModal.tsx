@@ -62,7 +62,7 @@ export default function SubscribeModal() {
       <Text style={styles.title}>$4.99 per month</Text>
       <View style={styles.separator} />
       {isLoading && <LoadingIndicator />}
-      <Button onPress={onPressPurchase} disabled={!user} mode={"contained"}>
+      <Button onPress={onPressPurchase} disabled={!user} mode="contained">
         Subscribe Now!
       </Button>
       {/* Use a light status bar on iOS to account for the black space above the modal */}
