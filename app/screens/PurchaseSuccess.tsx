@@ -1,5 +1,5 @@
 import { StyleSheet, View } from "react-native"
-import { Text, Avatar } from "react-native-paper"
+import { Text } from "react-native-paper"
 
 import Button from "../components/Button"
 import useCustomerInfo from "../hooks/useCustomerInfo"
