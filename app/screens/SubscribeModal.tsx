@@ -10,6 +10,7 @@ import { platform } from "../config/constants"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 import makePackagePurchase from "../utilities/makePackagePurchase"
+import setIsPremium from "../utilities/setIsPremium"
 
 export default function SubscribeModal() {
   const user = useUser()
@@ -22,6 +23,7 @@ export default function SubscribeModal() {
   const onPressPurchase = async () => {
     setIsLoading(true)
     await makePackagePurchase()
+    await setIsPremium()
     setIsLoading(false)
   }
 
