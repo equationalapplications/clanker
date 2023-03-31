@@ -1,3 +1,23 @@
+# [6.4.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.3.0...v6.4.0-staging.1) (2023-03-31)
+
+
+### Bug Fixes
+
+* check ( credits <= 0 && !isPremium ) ([31ecc4c](https://github.com/equationalapplications/yoursbrightlyai/commit/31ecc4cb0709da1ef6864dea0d8a024acfcba374))
+* use subscriber info instead of offerings for "web" ([4db1f3f](https://github.com/equationalapplications/yoursbrightlyai/commit/4db1f3ffc74ac6c75bb96a1fcef1360a4977ee97))
+
+
+### Features
+
+* add const scheme ([f93250b](https://github.com/equationalapplications/yoursbrightlyai/commit/f93250b24db8bcb65f48b3fb9dde3c3d83e6e00f))
+* add revenueCatSubscribers to constants ([604f996](https://github.com/equationalapplications/yoursbrightlyai/commit/604f996bc1fb3ee7d13ea4a99226fd4da2f73a6c))
+* create setIsPremium utility function to use firebase function ([1dd0feb](https://github.com/equationalapplications/yoursbrightlyai/commit/1dd0febc896877125cc9bdcb20f211927ebeeeed))
+* create useIsPremium hook ([6e84b97](https://github.com/equationalapplications/yoursbrightlyai/commit/6e84b975f28e3b7ba5b3dcd7f666abe04248c3c2))
+* display path that was not found ([f89dcdc](https://github.com/equationalapplications/yoursbrightlyai/commit/f89dcdcffcc5d5d16ab94a6d8a567ba391199564))
+* make ConfirmationModal layout responsive ([1c3e33d](https://github.com/equationalapplications/yoursbrightlyai/commit/1c3e33de037e7c3f556159bb98ddd21a2e2a1ba8))
+* use setIsPremium for entitlement from RevenueCat ([b919c91](https://github.com/equationalapplications/yoursbrightlyai/commit/b919c91478bda9b365d85996d6c486640d15bf39))
+* warmup browser, use google redirectUri ([57e47ce](https://github.com/equationalapplications/yoursbrightlyai/commit/57e47ce5d5eeb6985f8a89fb886d646236b27529))
+
 # [6.3.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.2.0...v6.3.0) (2023-03-29)
 
 
