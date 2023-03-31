@@ -7,22 +7,17 @@ import CombinedSubscriptionButton from "../components/CombinedSubscriptionButton
 import LoadingIndicator from "../components/LoadingIndicator"
 import { platform } from "../config/constants"
 import { useIsPremium } from "../hooks/useIsPremium"
-import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-import makePackagePurchase from "../utilities/makePackagePurchase"
 
 export default function SubscribeModal() {
-  const user = useUser()
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits
   const isPremium = useIsPremium()
 
   const [isLoading, setIsLoading] = useState(false)
 
-  const onPressSubscribe = async () => {
-    setIsLoading(true)
-    await makePackagePurchase()
-    setIsLoading(false)
+  const onChangeIsLoading = (isLoading) => {
+    setIsLoading(isLoading)
   }
 
   return (
@@ -33,21 +28,20 @@ export default function SubscribeModal() {
           <View style={styles.separator} />
         </>
       ) : null}
-
-      {isLoading && <LoadingIndicator />}
       {isPremium ? (
         <>
           <Text style={styles.title}>Thank You for Subscribing!</Text>
-          <View style={styles.separator} />
         </>
       ) : (
         <>
           <Text style={styles.title}>Unlimited Credits</Text>
           <Text style={styles.title}>$4.99 per month</Text>
-          <View style={styles.separator} />
         </>
       )}
-      <CombinedSubscriptionButton />
+      <View style={styles.separatorSmall} />
+      {isLoading && <LoadingIndicator />}
+      <View style={styles.separatorSmall} />
+      <CombinedSubscriptionButton onChangeIsLoading={onChangeIsLoading} />
       {/* Use a light status bar on iOS to account for the black space above the modal */}
       <StatusBar style={platform === "ios" ? "light" : "auto"} />
     </View>
@@ -66,6 +60,11 @@ const styles = StyleSheet.create({
   },
   separator: {
     marginVertical: 30,
+    height: 1,
+    width: "80%",
+  },
+  separatorSmall: {
+    marginVertical: 10,
     height: 1,
     width: "80%",
   },
