@@ -18,11 +18,9 @@ export type RootStackParamList = {
   Subscribe: undefined
   NotFound: undefined
   SignIn: undefined
-  Paywall: undefined
   Profile: undefined
   Terms: undefined
   Privacy: undefined
-  PurchaseSuccess: undefined
 }
 
 export type RootStackScreenProps<Screen extends keyof RootStackParamList> = NativeStackScreenProps<

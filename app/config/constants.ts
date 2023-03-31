@@ -1,6 +1,12 @@
 import Constants from "expo-constants"
-import { Platform } from "react-native"
+import { Platform, Dimensions } from "react-native"
 import { PurchasesPackage } from "react-native-purchases"
+
+export const scheme = "com.equationalapplications.yoursbrightlyai"
+
+export const { width, height } = Dimensions.get("window")
+export const largeScreenWidth = 600
+export const isLargeScreen = width >= largeScreenWidth
 
 export const platform =
   Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web"
@@ -34,6 +40,7 @@ export const revenueCatPurchasesEntitlementId =
 export const purchasesRevenueCatStripeUrl =
   "https://us-central1-your-brightly-ai.cloudfunctions.net/getCustomerInfoRevenueCatStripe"
 export const revenueCatBaseUrl = "https://api.revenuecat.com/v1"
+export const revenueCatSubscribers = "/subscribers"
 export const stripeCustomerPortal = "https://billing.stripe.com/p/login/28obLIehA711btKcMM"
 export const stripeMontlySubscriptionPriceId = "price_1MVejqDTb0norRA06zwoexic"
 export const AndroidIosMonthlySubscriptionPurchasePackage: PurchasesPackage = {
