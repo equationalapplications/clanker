@@ -4,6 +4,7 @@ import { StyleSheet, ScrollView, View } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
 
 import Button from "../components/Button"
+import ConfirmationModal from "../components/ConfirmationModal"
 import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
 import { functions } from "../config/firebaseConfig"
@@ -15,6 +16,8 @@ import updateCharacter from "../utilities/updateCharacter"
 const getImageFn: any = httpsCallable(functions, "getImage")
 
 export default function Characters({ navigation }) {
+  const [isEraseModalVisible, setIsEraseModalVisible] = useState(false)
+  const [isSaveModalVisible, setIsSaveModalVisible] = useState(false)
   const defaultCharacter = useDefaultCharacter()
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
@@ -25,6 +28,7 @@ export default function Characters({ navigation }) {
   const [traits, setTraits] = useState(defaultCharacter?.traits ?? "")
   const [emotions, setEmotions] = useState(defaultCharacter?.emotions ?? "")
   const [imageIsLoading, setImageIsLoading] = useState(false)
+  const [textIsLoading, setTextIsLoading] = useState(false)
 
   useEffect(() => {
     const updateState = () => {
@@ -57,17 +61,24 @@ export default function Characters({ navigation }) {
     setEmotions(text)
   }
 
-  const onPressSave = () => {
+  const onPressSave = async () => {
     if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
       return
     }
-    updateCharacter(defaultCharacter._id, {
+    setTextIsLoading(true)
+    await updateCharacter(defaultCharacter._id, {
       name,
       appearance,
       traits,
       emotions,
     })
+    setTextIsLoading(false)
+    setIsSaveModalVisible(true)
+  }
+
+  const onConfirmSave = () => {
+    setIsSaveModalVisible(false)
   }
 
   const onPressGenerate = async () => {
@@ -96,7 +107,18 @@ export default function Characters({ navigation }) {
       navigation.navigate("Subscribe")
       return
     }
-    updateCharacter(defaultCharacter._id, { context: "" })
+    setIsEraseModalVisible(true)
+  }
+
+  const onCancelErase = () => {
+    setIsEraseModalVisible(false)
+  }
+
+  const onConfirmErase = async () => {
+    setIsEraseModalVisible(false)
+    setTextIsLoading(true)
+    await updateCharacter(defaultCharacter._id, { context: "" })
+    setTextIsLoading(false)
   }
 
   return (
@@ -113,40 +135,46 @@ export default function Characters({ navigation }) {
         <Button mode="outlined" onPress={onPressGenerate} disabled={imageIsLoading}>
           Generate New Image
         </Button>
-        <TextInput
-          label="Name"
-          value={name}
-          onChangeText={onChangeTextName}
-          style={styles.textInput}
-          maxLength={30}
-        />
-        <TextInput
-          label="Appearance"
-          value={appearance}
-          onChangeText={onChangeTextAppearance}
-          style={styles.textInput}
-          multiline
-          numberOfLines={3}
-          maxLength={144}
-        />
-        <TextInput
-          label="Traits"
-          value={traits}
-          onChangeText={onChangeTextTraits}
-          style={styles.textInput}
-          multiline
-          numberOfLines={3}
-          maxLength={144}
-        />
-        <TextInput
-          label="Emotions"
-          value={emotions}
-          onChangeText={onChangeTextEmotions}
-          style={styles.textInput}
-          multiline
-          numberOfLines={3}
-          maxLength={144}
-        />
+        {textIsLoading ? (
+          <LoadingIndicator />
+        ) : (
+          <>
+            <TextInput
+              label="Name"
+              value={name}
+              onChangeText={onChangeTextName}
+              style={styles.textInput}
+              maxLength={30}
+            />
+            <TextInput
+              label="Appearance"
+              value={appearance}
+              onChangeText={onChangeTextAppearance}
+              style={styles.textInput}
+              multiline
+              numberOfLines={3}
+              maxLength={144}
+            />
+            <TextInput
+              label="Traits"
+              value={traits}
+              onChangeText={onChangeTextTraits}
+              style={styles.textInput}
+              multiline
+              numberOfLines={3}
+              maxLength={144}
+            />
+            <TextInput
+              label="Emotions"
+              value={emotions}
+              onChangeText={onChangeTextEmotions}
+              style={styles.textInput}
+              multiline
+              numberOfLines={3}
+              maxLength={144}
+            />
+          </>
+        )}
         <Button mode="outlined" onPress={onPressSave}>
           Save Changes
         </Button>
@@ -154,6 +182,20 @@ export default function Characters({ navigation }) {
           Erase Memory
         </Button>
       </ScrollView>
+      <ConfirmationModal
+        visible={isEraseModalVisible}
+        title="Delete Character Memory"
+        message="Are you sure you want to delete your character's memory? This cannot be undone."
+        onCancel={onCancelErase}
+        onConfirm={onConfirmErase}
+      />
+      <ConfirmationModal
+        visible={isSaveModalVisible}
+        title="Changes Saved"
+        message="Your changes have been saved."
+        onCancel={null}
+        onConfirm={onConfirmSave}
+      />
     </View>
   )
 }

@@ -3,7 +3,10 @@ import * as Facebook from "expo-auth-session/providers/facebook"
 import * as Google from "expo-auth-session/providers/google"
 import * as WebBrowser from "expo-web-browser"
 import { GoogleAuthProvider, FacebookAuthProvider, signInWithCredential } from "firebase/auth"
-import { useEffect, useRef } from "react"
+import {
+  useEffect,
+  // useRef,
+} from "react"
 import { StyleSheet, View, Text } from "react-native"
 
 import ProviderButton from "../components/AuthProviderButton"
@@ -14,7 +17,7 @@ import {
   googleWebClientId,
   googleAndroidClientId,
   facebookAuthAppId,
-  platform,
+  //platform,
   scheme,
 } from "../config/constants"
 import { auth } from "../config/firebaseConfig"
@@ -23,7 +26,7 @@ import { RootStackScreenProps } from "../navigation/types"
 WebBrowser.maybeCompleteAuthSession()
 
 export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
-  const warmupRef = useRef(false)
+  //const warmupRef = useRef(false)
 
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: googleWebClientId,
@@ -40,14 +43,14 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
 
   useEffect(() => {
     // check if WebBrowser is already warmed up
-    const warmupFn = async () => {
-      await WebBrowser.warmUpAsync()
-      warmupRef.current = true
-    }
-
-    if (!warmupRef.current && platform === "android") {
-      warmupFn()
-    }
+    //const warmupFn = async () => {
+    //  await WebBrowser.warmUpAsync()
+    //  warmupRef.current = true
+    //}
+    //
+    //if (!warmupRef.current && platform === "android") {
+    //  warmupFn()
+    //}
 
     if (googleResponse && googleResponse.type === "success" && googleResponse.authentication) {
       const accessToken = googleResponse.authentication.accessToken
@@ -81,11 +84,11 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
         console.log(errorCode, errorMessage, email, credential)
       })
     }
-    return () => {
-      if (platform === "android") {
-        WebBrowser.coolDownAsync()
-      }
-    }
+    //return () => {
+    //  if (platform === "android") {
+    //    WebBrowser.coolDownAsync()
+    //  }
+    //}
   }, [googleResponse, facebookResponse])
 
   const GoogleLoginOnPress = () => {
