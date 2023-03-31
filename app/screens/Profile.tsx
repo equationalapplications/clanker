@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native"
 import { httpsCallable } from "firebase/functions"
-import { useMemo, useCallback, useState } from "react"
+import { useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
 
@@ -18,20 +18,24 @@ export default function Profile() {
   const navigation = useNavigation()
   const user = useUser()
   const userPrivate = useUserPrivate()
-  const displayName = useMemo(() => user?.displayName, [user])
-  const email = useMemo(() => user?.email, [user])
-  const photoURL = useMemo(() => user?.photoURL ?? defaultAvatarUrl, [user])
-  const credits = useMemo(() => userPrivate?.credits, [userPrivate])
+  const displayName = () => user?.displayName
+  const email = () => user?.email
+  const photoURL = () => user?.photoURL ?? defaultAvatarUrl
+  const credits = () => userPrivate?.credits ?? 0
   const customerInfo = useCustomerInfo()
 
   const [isModalVisible, setIsModalVisible] = useState(false)
 
-  const onPressSignOut = useCallback(() => {
+  const onPressSignOut = () => {
     auth.signOut()
     navigation.navigate("SignIn")
-  }, [navigation])
+  }
 
-  const onPressDeleteAccount = async () => {
+  const onPressDeleteAccount = () => {
+    setIsModalVisible(true)
+  }
+
+  const onConfirmDeleteAccount = async () => {
     await deleteUserFn()
     setIsModalVisible(false)
     await auth.signOut()
@@ -55,7 +59,7 @@ export default function Profile() {
           <Button mode="outlined" onPress={onPressSignOut}>
             Sign Out
           </Button>
-          <Button mode="text" onPress={() => setIsModalVisible(true)}>
+          <Button mode="text" onPress={onPressDeleteAccount}>
             Delete Account
           </Button>
         </>
@@ -65,7 +69,7 @@ export default function Profile() {
         title="Delete Account and Data"
         message="Are you sure you want to delete your account? This action is irreversible and will delete all of your data."
         onCancel={() => setIsModalVisible(false)}
-        onConfirm={onPressDeleteAccount}
+        onConfirm={onConfirmDeleteAccount}
       />
     </View>
   )
