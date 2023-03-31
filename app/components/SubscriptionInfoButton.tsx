@@ -1,13 +1,10 @@
 import * as WebBrowser from "expo-web-browser"
-import { Button } from "react-native-paper"
 import Purchases from "react-native-purchases"
 
+import Button from "../components/Button"
 import { stripeCustomerPortal, platform } from "../config/constants"
-import { useIsPremium } from "../hooks/useIsPremium"
 
-export default function SubscriptionBillingInfoButton() {
-  const isPremium = useIsPremium()
-
+export default function SubscriptionInfoButton() {
   const onPressBilling = async () => {
     try {
       if (platform === "web") {
@@ -24,7 +21,7 @@ export default function SubscriptionBillingInfoButton() {
   }
 
   return (
-    <Button mode="outlined" onPress={onPressBilling} disabled={!isPremium}>
+    <Button mode="outlined" onPress={onPressBilling}>
       Subscription & Billing
     </Button>
   )
