@@ -2,7 +2,11 @@ import { useIsPremium } from "../hooks/useIsPremium"
 import SubscribeButton from "./SubscribeButton"
 import SubscriptionInfoButton from "./SubscriptionInfoButton"
 
-export default function CombinedSubscriptionButton({ onChangeIsLoading }) {
+interface Props {
+  onChangeIsLoading: (isLoading: boolean) => void
+}
+
+export default function CombinedSubscriptionButton({ onChangeIsLoading }: Props) {
   const isPremium = useIsPremium()
   return (
     <>

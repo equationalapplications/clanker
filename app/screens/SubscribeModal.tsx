@@ -16,7 +16,7 @@ export default function SubscribeModal() {
 
   const [isLoading, setIsLoading] = useState(false)
 
-  const onChangeIsLoading = (isLoading) => {
+  const onChangeIsLoading = (isLoading: boolean) => {
     setIsLoading(isLoading)
   }
 
