@@ -27,7 +27,7 @@ export const firebaseAppId = Constants.expoConfig?.extra?.firebaseAppId
 
 export const publicChatRoomsCollection = "public_chat_rooms"
 export const charactersCollection = "characters"
-export const userCharactersCollection = "characters"
+export const userCharactersCollection = "user_characters"
 export const userChatsCollection = "user_chats"
 export const messagesCollection = "messages"
 export const usersPublicCollection = "users_public"
