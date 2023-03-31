@@ -1,3 +1,13 @@
+# [6.3.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.2.0...v6.3.0) (2023-03-29)
+
+
+### Features
+
+* conditionally show SubscriptionBillingInfoButton or Subscribe button ([e38c97d](https://github.com/equationalapplications/yoursbrightlyai/commit/e38c97d1d471099c92478e6faf77598cb587312b))
+* creat SubscriptionBillingInfoButton ([df5740e](https://github.com/equationalapplications/yoursbrightlyai/commit/df5740e1aed9e4328584aa1274d12b6e191e7469))
+* create ConfirmationModal component ([ba664b9](https://github.com/equationalapplications/yoursbrightlyai/commit/ba664b9c1cea31c81b17a0c923052be32a0e5388))
+* if isPremium, show crown instead of credits ([e7fbd9f](https://github.com/equationalapplications/yoursbrightlyai/commit/e7fbd9f849cf1902a9313df795a67f8a19fc976b))
+
 # [6.3.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.2.0...v6.3.0-staging.1) (2023-03-29)
 
 

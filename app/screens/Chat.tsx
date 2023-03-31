@@ -1,10 +1,11 @@
 import { httpsCallable } from "firebase/functions"
 import { useMemo, useCallback } from "react"
 import { StyleSheet, View } from "react-native"
-import { GiftedChat, User, IMessage, Avatar, Bubble } from "react-native-gifted-chat"
+import { GiftedChat, User, IMessage, Bubble } from "react-native-gifted-chat"
 import { useTheme } from "react-native-paper"
 
 import { functions } from "../config/firebaseConfig"
+import { useIsPremium } from "../hooks/useIsPremium"
 import useMessages from "../hooks/useMessages"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
@@ -18,6 +19,7 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
   const uid = useMemo(() => user?.uid ?? "", [user])
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
+  const isPremium = useIsPremium()
 
   const messages = useMessages()
   const { colors, roundness } = useTheme()
@@ -32,7 +34,7 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
   )
 
   const onSend = async (messages: IMessage[]) => {
-    if (credits <= 0) {
+    if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
       return
     }

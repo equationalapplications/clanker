@@ -7,7 +7,6 @@ import { auth, firestore } from "../config/firebaseConfig"
 interface UserPrivate {
   credits: number
   isProfilePublic: boolean | null
-  isPremium: boolean | null
   defaultCharacter: string
 }
 
