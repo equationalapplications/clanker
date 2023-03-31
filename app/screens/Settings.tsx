@@ -1,10 +1,18 @@
+import React, { useState } from "react"
 import { StyleSheet, View } from "react-native"
 
 import Button from "../components/Button"
 import CombinedSubscriptionButton from "../components/CombinedSubscriptionButton"
+import LoadingIndicator from "../components/LoadingIndicator"
 import { RootTabScreenProps } from "../navigation/types"
 
 export default function Settings({ navigation }: RootTabScreenProps<"Settings">) {
+  const [isLoading, setIsLoading] = useState(false)
+
+  const onChangeIsLoading = (isLoading: boolean) => {
+    setIsLoading(isLoading)
+  }
+
   const onPressProfile = () => {
     navigation.navigate("Profile")
   }
@@ -14,7 +22,8 @@ export default function Settings({ navigation }: RootTabScreenProps<"Settings">)
       <Button mode="outlined" onPress={onPressProfile}>
         Profile
       </Button>
-      <CombinedSubscriptionButton />
+      {isLoading && <LoadingIndicator />}
+      <CombinedSubscriptionButton onChangeIsLoading={onChangeIsLoading} />
     </View>
   )
 }
