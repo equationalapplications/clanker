@@ -151,7 +151,6 @@ function CreditCounterIcon({ navigation }) {
   const [credits, setCredits] = React.useState(userPrivate?.credits)
   const isPremium = useIsPremium()
 
-
   React.useEffect(() => {
     setCredits(userPrivate?.credits)
   }, [userPrivate])

@@ -8,9 +8,9 @@ import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
 import { functions } from "../config/firebaseConfig"
 import useDefaultCharacter from "../hooks/useDefaultCharacter"
+import { useIsPremium } from "../hooks/useIsPremium"
 import useUserPrivate from "../hooks/useUserPrivate"
 import updateCharacter from "../utilities/updateCharacter"
-import { useIsPremium } from "../hooks/useIsPremium"
 
 const getImageFn: any = httpsCallable(functions, "getImage")
 
