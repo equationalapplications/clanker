@@ -30,6 +30,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     bundleIdentifier: "com.equationalapplications.yoursbrightlyai",
     supportsTablet: true,
+    config: {
+      usesNonExemptEncryption: false,
+    },
   },
   android: {
     package: "com.equationalapplications.yoursbrightlyai",
