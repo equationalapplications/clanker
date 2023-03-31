@@ -3,6 +3,9 @@ import { Platform, Dimensions } from "react-native"
 import { PurchasesPackage } from "react-native-purchases"
 
 export const scheme = "com.equationalapplications.yoursbrightlyai"
+export const appBaseUrl = "https://yours-brightly-ai.equationalapplications.com"
+
+export const defaultAvatarUrl = "https://www.gravatar.com/avatar?d=mp"
 
 export const { width, height } = Dimensions.get("window")
 export const largeScreenWidth = 600
@@ -22,12 +25,13 @@ export const firebaseStorageBucket = Constants.expoConfig?.extra?.firebaseStorag
 export const firebaseMessagingSenderId = Constants.expoConfig?.extra?.firebaseMessagingSenderId
 export const firebaseAppId = Constants.expoConfig?.extra?.firebaseAppId
 
-export const charactersCollection = Constants.expoConfig?.extra?.charactersCollection
-export const userCharactersCollection = Constants.expoConfig?.extra?.userCharactersCollection
-export const userChatsCollection = Constants.expoConfig?.extra?.userChatsCollection
-export const messagesCollection = Constants.expoConfig?.extra?.messagesCollection
-export const usersPublicCollection = Constants.expoConfig?.extra?.usersPublicCollection
-export const usersPrivateCollection = Constants.expoConfig?.extra?.usersPrivateCollection
+export const publicChatRoomsCollection = "public_chat_rooms"
+export const charactersCollection = "characters"
+export const userCharactersCollection = "user_characters"
+export const userChatsCollection = "user_chats"
+export const messagesCollection = "messages"
+export const usersPublicCollection = "users_public"
+export const usersPrivateCollection = "users_private"
 
 export const revenueCatPurchasesIosApiKey =
   Constants.expoConfig?.extra?.revenueCatPurchasesIosApiKey
@@ -35,8 +39,7 @@ export const revenueCatPurchasesAndroidApiKey =
   Constants.expoConfig?.extra?.revenueCatPurchasesAndroidApiKey
 export const revenueCatPurchasesStripeApiKey =
   Constants.expoConfig?.extra?.revenueCatPurchasesStripeApiKey
-export const revenueCatPurchasesEntitlementId =
-  Constants.expoConfig?.extra?.revenueCatPurchasesEntitlementId
+export const revenueCatPurchasesEntitlementId = "premium"
 export const purchasesRevenueCatStripeUrl =
   "https://us-central1-your-brightly-ai.cloudfunctions.net/getCustomerInfoRevenueCatStripe"
 export const revenueCatBaseUrl = "https://api.revenuecat.com/v1"
@@ -61,10 +64,6 @@ export const AndroidIosMonthlySubscriptionPurchasePackage: PurchasesPackage = {
     title: "Yours Brightly AI Subscription (Yours Brightly AI)",
   },
 }
-
-export const defaultAvatarUrl = Constants.expoConfig?.extra?.defaultAvatarUrl
-
-export const appBaseUrl = "https://yours-brightly-ai.equationalapplications.com"
 
 export const colorsLight = {
   primary: "rgb(131, 84, 0)",

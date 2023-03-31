@@ -29,8 +29,14 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           </Paragraph>
         </Dialog.Content>
         <Dialog.Actions style={[styles.actions, isLargeScreen && styles.actionsWide]}>
-          <Button onPress={onCancel}>Cancel</Button>
-          <Button onPress={onConfirm}>Confirm</Button>
+          {onCancel ? (
+            <>
+              <Button onPress={onCancel}>Cancel</Button>
+              <Button onPress={onConfirm}>Confirm</Button>
+            </>
+          ) : (
+            <Button onPress={onConfirm}>Okay</Button>
+          )}
         </Dialog.Actions>
       </Dialog>
     </Portal>
@@ -46,6 +52,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     justifyContent: "space-around",
+    marginBottom: 80,
   },
   actionsWide: {
     justifyContent: "center",
@@ -54,6 +61,7 @@ const styles = StyleSheet.create({
   },
   title: {
     textAlign: "center",
+    marginTop: 120,
   },
 })
 

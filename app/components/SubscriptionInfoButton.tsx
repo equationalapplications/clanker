@@ -4,17 +4,25 @@ import Purchases from "react-native-purchases"
 import Button from "../components/Button"
 import { stripeCustomerPortal, platform } from "../config/constants"
 
-export default function SubscriptionInfoButton() {
+interface Props {
+  onChangeIsLoading: (isLoading: boolean) => void
+}
+
+export default function SubscriptionInfoButton({ onChangeIsLoading }: Props) {
   const onPressBilling = async () => {
     try {
       if (platform === "web") {
+        onChangeIsLoading(true)
         await WebBrowser.openBrowserAsync(stripeCustomerPortal)
+        onChangeIsLoading(false)
       } else {
+        onChangeIsLoading(true)
         const getCustomerInfo = await Purchases?.getCustomerInfo()
         const managementURL = getCustomerInfo?.managementURL
         if (!managementURL) return
         await WebBrowser.openBrowserAsync(managementURL)
       }
+      onChangeIsLoading(false)
     } catch (e) {
       console.log(e)
     }
