@@ -11,10 +11,8 @@ import useUserPrivate from "../hooks/useUserPrivate"
 import Characters from "../screens/Characters"
 import Chat from "../screens/Chat"
 import NotFoundScreen from "../screens/NotFoundScreen"
-import PaywallScreen from "../screens/PaywallScreen"
 import Privacy from "../screens/Privacy"
 import Profile from "../screens/Profile"
-import PurchaseSuccess from "../screens/PurchaseSuccess"
 import Settings from "../screens/Settings"
 import SignIn from "../screens/SignIn"
 import SubscribeModal from "../screens/SubscribeModal"
@@ -56,20 +54,11 @@ export default function RootNavigator() {
               component={SignIn}
               options={{ headerShown: false, title: "Sign In" }}
             />
-            <Stack.Screen name="Paywall" component={PaywallScreen} options={{ title: "Paywall" }} />
             <Stack.Screen
               name="Profile"
               component={Profile}
               options={({ navigation }: RootStackScreenProps<"Profile">) => ({
                 title: "Profile",
-                headerRight: () => <CreditCounterIcon navigation={navigation} />,
-              })}
-            />
-            <Stack.Screen
-              name="PurchaseSuccess"
-              component={PurchaseSuccess}
-              options={({ navigation }: RootStackScreenProps<"PurchaseSuccess">) => ({
-                title: "PurchaseSuccess",
                 headerRight: () => <CreditCounterIcon navigation={navigation} />,
               })}
             />
