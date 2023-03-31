@@ -7,7 +7,6 @@ import {
   revenueCatPurchasesEntitlementId,
 } from "../config/constants"
 import useUser from "../hooks/useUser"
-import setIsPremium from "../utilities/setIsPremium"
 import { useIsPremium } from "./useIsPremium"
 
 const useCustomerInfo = (): CustomerInfo | null => {
@@ -26,9 +25,6 @@ const useCustomerInfo = (): CustomerInfo | null => {
               revenueCatPurchasesEntitlementId,
             ) ?? false
           setCustomerInfo(customerInfoData)
-          if (revenuecatIsPremium == !isPremium) {
-            setIsPremium()
-          }
         } else if (platform === "web") {
           const idToken = await user?.getIdToken()
           const response = await fetch(purchasesRevenueCatStripeUrl, {
@@ -43,9 +39,6 @@ const useCustomerInfo = (): CustomerInfo | null => {
           const revenuecatIsPremium = activeSubscriptions?.length > 0 ?? false
           console.log(activeSubscriptions)
           setCustomerInfo(activeSubscriptions)
-          if (revenuecatIsPremium == !isPremium) {
-            setIsPremium()
-          }
         }
       } catch (e) {
         console.log(e)
