@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react"
 import Purchases, { CustomerInfo } from "react-native-purchases"
 
-import { platform, purchasesRevenueCatStripeUrl } from "../config/constants"
+import {
+  platform,
+  purchasesRevenueCatStripeUrl,
+  revenueCatPurchasesEntitlementId,
+} from "../config/constants"
 import useUser from "../hooks/useUser"
+import { useIsPremium } from "./useIsPremium"
 
 const useCustomerInfo = (): CustomerInfo | null => {
   const user = useUser()
+  const isPremium = useIsPremium()
 
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>(null)
 
@@ -14,6 +20,10 @@ const useCustomerInfo = (): CustomerInfo | null => {
       try {
         if (platform === "ios" || platform === "android") {
           const customerInfoData = await Purchases.getCustomerInfo()
+          const revenuecatIsPremium =
+            customerInfoData?.entitlements?.active?.hasOwnProperty(
+              revenueCatPurchasesEntitlementId,
+            ) ?? false
           setCustomerInfo(customerInfoData)
         } else if (platform === "web") {
           const idToken = await user?.getIdToken()
@@ -26,6 +36,7 @@ const useCustomerInfo = (): CustomerInfo | null => {
           })
           const customerInfoData = await response.json()
           const activeSubscriptions = customerInfoData?.subscriber?.subscriptions
+          const revenuecatIsPremium = activeSubscriptions?.length > 0 ?? false
           console.log(activeSubscriptions)
           setCustomerInfo(activeSubscriptions)
         }
