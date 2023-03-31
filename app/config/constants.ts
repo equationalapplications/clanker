@@ -2,6 +2,8 @@ import Constants from "expo-constants"
 import { Platform, Dimensions } from "react-native"
 import { PurchasesPackage } from "react-native-purchases"
 
+export const scheme = "com.equationalapplications.yoursbrightlyai"
+
 export const { width, height } = Dimensions.get("window")
 export const largeScreenWidth = 600
 export const isLargeScreen = width >= largeScreenWidth
