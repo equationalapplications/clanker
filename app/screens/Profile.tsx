@@ -40,7 +40,7 @@ export default function Profile() {
 
   return (
     <View style={styles.container}>
-      {isModalVisible ? null :
+      {isModalVisible ? null : (
         <>
           <Avatar.Image size={150} source={{ uri: photoURL }} style={{ marginVertical: 10 }} />
           <Text>{displayName}</Text>
@@ -59,7 +59,7 @@ export default function Profile() {
             Delete Account
           </Button>
         </>
-      }
+      )}
       <ConfirmationModal
         visible={isModalVisible}
         title="Delete Account and Data"
