@@ -55,7 +55,6 @@ export default function Profile() {
           <Button mode="outlined" onPress={onPressSignOut}>
             Sign Out
           </Button>
-          <View style={styles.separator} />
           <Button mode="text" onPress={() => setIsModalVisible(true)}>
             Delete Account
           </Button>
