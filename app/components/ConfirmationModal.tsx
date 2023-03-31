@@ -1,6 +1,7 @@
 import React from "react"
 import { StyleSheet } from "react-native"
 import { Button, Dialog, Paragraph, Portal } from "react-native-paper"
+import { isLargeScreen } from "../config/constants"
 
 type ConfirmationModalProps = {
   visible: boolean
@@ -20,11 +21,11 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={onCancel}>
-        <Dialog.Title>{title}</Dialog.Title>
+        <Dialog.Title style={styles.title}>{title}</Dialog.Title>
         <Dialog.Content>
-          <Paragraph>{message}</Paragraph>
+          <Paragraph style={[styles.message, isLargeScreen && styles.messageWide]}>{message}</Paragraph>
         </Dialog.Content>
-        <Dialog.Actions style={styles.actions}>
+        <Dialog.Actions style={[styles.actions, isLargeScreen && styles.actionsWide]}>
           <Button onPress={onCancel}>Cancel</Button>
           <Button onPress={onConfirm}>Confirm</Button>
         </Dialog.Actions>
@@ -34,8 +35,22 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 }
 
 const styles = StyleSheet.create({
+  message: {
+    textAlign: "center",
+  },
+  messageWide: {
+    marginHorizontal: 20,
+  },
   actions: {
     justifyContent: "space-around",
+  },
+  actionsWide: {
+    justifyContent: "center",
+    flexDirection: "row",
+    marginVertical: 10,
+  },
+  title: {
+    textAlign: 'center',
   },
 })
 

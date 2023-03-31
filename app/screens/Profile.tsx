@@ -40,23 +40,27 @@ export default function Profile() {
 
   return (
     <View style={styles.container}>
-      <Avatar.Image size={150} source={{ uri: photoURL }} style={{ marginVertical: 10 }} />
-      <Text>{displayName}</Text>
-      <Text>{email}</Text>
-      <Text>Credits: {credits}</Text>
-      <Text>
-        {customerInfo
-          ? `Active Subscriber: ${customerInfo?.activeSubscriptions?.length > 0}`
-          : "Loading Subscription Info..."}
-      </Text>
-      <View style={styles.separator} />
-      <Button mode="outlined" onPress={onPressSignOut}>
-        Sign Out
-      </Button>
-      <View style={styles.separator} />
-      <Button mode="text" onPress={() => setIsModalVisible(true)}>
-        Delete Account
-      </Button>
+      {isModalVisible ? null :
+        <>
+          <Avatar.Image size={150} source={{ uri: photoURL }} style={{ marginVertical: 10 }} />
+          <Text>{displayName}</Text>
+          <Text>{email}</Text>
+          <Text>Credits: {credits}</Text>
+          <Text>
+            {customerInfo
+              ? `Active Subscriber: ${customerInfo?.activeSubscriptions?.length > 0}`
+              : "Loading Subscription Info..."}
+          </Text>
+          <View style={styles.separator} />
+          <Button mode="outlined" onPress={onPressSignOut}>
+            Sign Out
+          </Button>
+          <View style={styles.separator} />
+          <Button mode="text" onPress={() => setIsModalVisible(true)}>
+            Delete Account
+          </Button>
+        </>
+      }
       <ConfirmationModal
         visible={isModalVisible}
         title="Delete Account and Data"

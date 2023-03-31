@@ -1,6 +1,10 @@
 import Constants from "expo-constants"
-import { Platform } from "react-native"
+import { Platform, Dimensions } from "react-native"
 import { PurchasesPackage } from "react-native-purchases"
+
+export const { width, height } = Dimensions.get("window")
+export const largeScreenWidth = 600
+export const isLargeScreen = width >= largeScreenWidth
 
 export const platform =
   Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web"
