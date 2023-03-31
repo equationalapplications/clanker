@@ -11,6 +11,7 @@ import { auth, functions } from "../config/firebaseConfig"
 import useCustomerInfo from "../hooks/useCustomerInfo"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
+import LoadingIndicator from "../components/LoadingIndicator"
 
 const deleteUserFn: any = httpsCallable(functions, "deleteUser")
 
@@ -25,6 +26,7 @@ export default function Profile() {
   const customerInfo = useCustomerInfo()
 
   const [isModalVisible, setIsModalVisible] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const onPressSignOut = () => {
     auth.signOut()
@@ -37,7 +39,10 @@ export default function Profile() {
 
   const onConfirmDeleteAccount = async () => {
     setIsModalVisible(false)
+    setIsDeleting(true)
     await deleteUserFn()
+    setIsDeleting(false)
+    await auth.signOut()
   }
 
   const onCancelDeleteAccount = () => {
@@ -61,6 +66,7 @@ export default function Profile() {
           <Button mode="outlined" onPress={onPressSignOut}>
             Sign Out
           </Button>
+          {isDeleting ? <LoadingIndicator /> : null}
           <Button mode="text" onPress={onPressDeleteAccount}>
             Delete Account
           </Button>
