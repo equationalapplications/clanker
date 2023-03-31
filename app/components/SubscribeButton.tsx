@@ -1,15 +1,15 @@
-import React, { useState } from "react"
-
 import Button from "../components/Button"
 import makePackagePurchase from "../utilities/makePackagePurchase"
 
-export default function SubscribeButton() {
-  const [isLoading, setIsLoading] = useState(false)
+interface Props {
+  onChangeIsLoading: (isLoading: boolean) => void
+}
 
+export default function SubscribeButton({ onChangeIsLoading }: Props) {
   const onPressSubscribe = async () => {
-    setIsLoading(true)
+    onChangeIsLoading(true)
     await makePackagePurchase()
-    setIsLoading(false)
+    onChangeIsLoading(false)
   }
 
   return (
