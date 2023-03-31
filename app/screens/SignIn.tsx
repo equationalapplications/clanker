@@ -1,25 +1,36 @@
-import { ResponseType } from "expo-auth-session"
+import { ResponseType, makeRedirectUri } from "expo-auth-session"
 import * as Facebook from "expo-auth-session/providers/facebook"
 import * as Google from "expo-auth-session/providers/google"
 import * as WebBrowser from "expo-web-browser"
 import { GoogleAuthProvider, FacebookAuthProvider, signInWithCredential } from "firebase/auth"
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { StyleSheet, View, Text } from "react-native"
 
 import ProviderButton from "../components/AuthProviderButton"
 import Button from "../components/Button"
 import Logo from "../components/Logo"
 import { MonoText, TitleText } from "../components/StyledText"
-import { googleWebClientId, googleAndroidClientId, facebookAuthAppId } from "../config/constants"
+import {
+  googleWebClientId,
+  googleAndroidClientId,
+  facebookAuthAppId,
+  platform,
+  scheme,
+} from "../config/constants"
 import { auth } from "../config/firebaseConfig"
 import { RootStackScreenProps } from "../navigation/types"
 
 WebBrowser.maybeCompleteAuthSession()
 
 export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
+  const warmupRef = useRef(false)
+
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: googleWebClientId,
     androidClientId: googleAndroidClientId,
+    redirectUri: makeRedirectUri({
+      scheme,
+    }),
   })
 
   const [facebookRequest, facebookResponse, facebookPromptAsync] = Facebook.useAuthRequest({
@@ -28,6 +39,16 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   })
 
   useEffect(() => {
+    // check if WebBrowser is already warmed up
+    const warmupFn = async () => {
+      await WebBrowser.warmUpAsync()
+      warmupRef.current = true
+    }
+
+    if (!warmupRef.current && platform === "android") {
+      warmupFn()
+    }
+
     if (googleResponse && googleResponse.type === "success" && googleResponse.authentication) {
       const accessToken = googleResponse.authentication.accessToken
       const credential = GoogleAuthProvider.credential(null, accessToken)
@@ -41,7 +62,6 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
         const credential = GoogleAuthProvider.credentialFromError(error)
         console.log(errorCode, errorMessage, email, credential)
       })
-      // navigation.navigate("Root")
     }
     if (
       facebookResponse &&
@@ -60,7 +80,11 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
         const credential = GoogleAuthProvider.credentialFromError(error)
         console.log(errorCode, errorMessage, email, credential)
       })
-      // navigation.navigate("Root")
+    }
+    return () => {
+      if (platform === "android") {
+        WebBrowser.coolDownAsync()
+      }
     }
   }, [googleResponse, facebookResponse])
 
