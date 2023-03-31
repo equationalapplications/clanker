@@ -6,12 +6,12 @@ import { Text, Avatar } from "react-native-paper"
 
 import Button from "../components/Button"
 import ConfirmationModal from "../components/ConfirmationModal"
+import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
 import { auth, functions } from "../config/firebaseConfig"
 import useCustomerInfo from "../hooks/useCustomerInfo"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-import LoadingIndicator from "../components/LoadingIndicator"
 
 const deleteUserFn: any = httpsCallable(functions, "deleteUser")
 
