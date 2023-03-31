@@ -5,12 +5,12 @@ import { GiftedChat, User, IMessage, Bubble } from "react-native-gifted-chat"
 import { useTheme } from "react-native-paper"
 
 import { functions } from "../config/firebaseConfig"
+import { useIsPremium } from "../hooks/useIsPremium"
 import useMessages from "../hooks/useMessages"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 import { RootTabScreenProps } from "../navigation/types"
 import updateMessages from "../utilities/updateMessages"
-import { useIsPremium } from "../hooks/useIsPremium"
 
 const getReply: any = httpsCallable(functions, "getReply")
 
