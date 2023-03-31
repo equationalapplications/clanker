@@ -18,10 +18,10 @@ export default function Profile() {
   const navigation = useNavigation()
   const user = useUser()
   const userPrivate = useUserPrivate()
-  const displayName = () => user?.displayName
-  const email = () => user?.email
-  const photoURL = () => user?.photoURL ?? defaultAvatarUrl
-  const credits = () => userPrivate?.credits ?? 0
+  const displayName = user?.displayName
+  const email = user?.email
+  const photoURL = user?.photoURL ?? defaultAvatarUrl
+  const credits = userPrivate?.credits ?? 0
   const customerInfo = useCustomerInfo()
 
   const [isModalVisible, setIsModalVisible] = useState(false)
@@ -36,10 +36,12 @@ export default function Profile() {
   }
 
   const onConfirmDeleteAccount = async () => {
-    await deleteUserFn()
     setIsModalVisible(false)
-    await auth.signOut()
-    navigation.navigate("SignIn")
+    await deleteUserFn()
+  }
+
+  const onCancelDeleteAccount = () => {
+    setIsModalVisible(false)
   }
 
   return (
@@ -68,7 +70,7 @@ export default function Profile() {
         visible={isModalVisible}
         title="Delete Account and Data"
         message="Are you sure you want to delete your account? This action is irreversible and will delete all of your data."
-        onCancel={() => setIsModalVisible(false)}
+        onCancel={onCancelDeleteAccount}
         onConfirm={onConfirmDeleteAccount}
       />
     </View>
