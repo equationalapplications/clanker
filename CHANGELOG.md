@@ -1,3 +1,30 @@
+# [7.0.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.4.0...v7.0.0-staging.1) (2023-03-31)
+
+
+### Bug Fixes
+
+* correct user_characters ([052d895](https://github.com/equationalapplications/yoursbrightlyai/commit/052d89518b42afd6ce036a4353e52791b16f87fc))
+* isEraseModal intially false ([c139bbb](https://github.com/equationalapplications/yoursbrightlyai/commit/c139bbb1250ecd4f8fadf94a8c866f761b6bd258))
+* show indicator then sign out when deleting user ([3154fbb](https://github.com/equationalapplications/yoursbrightlyai/commit/3154fbbad314ec88309fc08cabfec97f71331d33))
+* use onChangeLoading Props for isLoading ([9347901](https://github.com/equationalapplications/yoursbrightlyai/commit/9347901d2bd27a08f33844ab116f6ae96087ae76))
+
+
+### Build System
+
+* npx expo install expo-secure-store ([dbcd3a1](https://github.com/equationalapplications/yoursbrightlyai/commit/dbcd3a1491edebac9b60f93805a81c3d61e09369))
+
+
+### Features
+
+* create secureStore utility ([bf57fb2](https://github.com/equationalapplications/yoursbrightlyai/commit/bf57fb282df6fec730ce1ffe98376aeb800b9fd1))
+* if onCancel is null, just display "Okay" button ([dc80ed3](https://github.com/equationalapplications/yoursbrightlyai/commit/dc80ed34913c5d65789e4f2a6f2bc6a27891bc34))
+* show confirmation modals ([36a4e71](https://github.com/equationalapplications/yoursbrightlyai/commit/36a4e718038217b086a75a1914a9fd32f9e49e14))
+
+
+### BREAKING CHANGES
+
+* expo secure store will require a rebuild and changes to app.config.ts
+
 # [6.4.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v6.3.0...v6.4.0) (2023-03-31)
 
 
