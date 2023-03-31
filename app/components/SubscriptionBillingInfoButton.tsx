@@ -3,11 +3,10 @@ import { Button } from "react-native-paper"
 import Purchases from "react-native-purchases"
 
 import { stripeCustomerPortal, platform } from "../config/constants"
-import useUserPrivate from "../hooks/useUserPrivate"
+import { useIsPremium } from "../hooks/useIsPremium"
 
 export default function SubscriptionBillingInfoButton() {
-  const userPrivate = useUserPrivate()
-  const isPremium = userPrivate?.isPremium
+  const isPremium = useIsPremium()
 
   const onPressBilling = async () => {
     try {

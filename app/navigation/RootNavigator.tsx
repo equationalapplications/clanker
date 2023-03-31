@@ -6,6 +6,7 @@ import { Pressable } from "react-native"
 import { Badge, Text } from "react-native-paper"
 
 import { purchasesConfig } from "../config/purchasesConfig"
+import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 import Characters from "../screens/Characters"
@@ -147,8 +148,10 @@ function BottomTabNavigator() {
 
 function CreditCounterIcon({ navigation }) {
   const userPrivate = useUserPrivate()
-  const isPremium = userPrivate?.isPremium
   const [credits, setCredits] = React.useState(userPrivate?.credits)
+  const isPremium = useIsPremium()
+
+
   React.useEffect(() => {
     setCredits(userPrivate?.credits)
   }, [userPrivate])

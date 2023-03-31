@@ -10,20 +10,19 @@ import { platform } from "../config/constants"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 import makePackagePurchase from "../utilities/makePackagePurchase"
-import setIsPremium from "../utilities/setIsPremium"
+import { useIsPremium } from "../hooks/useIsPremium"
 
 export default function SubscribeModal() {
   const user = useUser()
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits
-  const isPremium = userPrivate?.isPremium
+  const isPremium = useIsPremium()
 
   const [isLoading, setIsLoading] = useState(false)
 
-  const onPressPurchase = async () => {
+  const onPressSubscribe = async () => {
     setIsLoading(true)
     await makePackagePurchase()
-    await setIsPremium()
     setIsLoading(false)
   }
 
@@ -48,7 +47,7 @@ export default function SubscribeModal() {
           <Text style={styles.title}>Unlimited Credits</Text>
           <Text style={styles.title}>$4.99 per month</Text>
           <View style={styles.separator} />
-          <Button onPress={onPressPurchase} disabled={!user} mode="contained">
+          <Button onPress={onPressSubscribe} disabled={!user} mode="contained">
             Subscribe Now!
           </Button>
         </>

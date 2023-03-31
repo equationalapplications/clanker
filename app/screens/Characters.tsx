@@ -10,6 +10,7 @@ import { functions } from "../config/firebaseConfig"
 import useDefaultCharacter from "../hooks/useDefaultCharacter"
 import useUserPrivate from "../hooks/useUserPrivate"
 import updateCharacter from "../utilities/updateCharacter"
+import { useIsPremium } from "../hooks/useIsPremium"
 
 const getImageFn: any = httpsCallable(functions, "getImage")
 
@@ -17,8 +18,7 @@ export default function Characters({ navigation }) {
   const defaultCharacter = useDefaultCharacter()
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
-  const isPremium = userPrivate?.isPremium
-
+  const isPremium = useIsPremium()
   const [avatar, setAvatar] = useState(defaultCharacter?.avatar ?? defaultAvatarUrl)
   const [appearance, setAppearance] = useState(defaultCharacter?.appearance ?? "")
   const [name, setName] = useState(defaultCharacter?.name ?? "")

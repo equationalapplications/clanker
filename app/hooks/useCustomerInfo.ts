@@ -8,12 +8,11 @@ import {
 } from "../config/constants"
 import useUser from "../hooks/useUser"
 import setIsPremium from "../utilities/setIsPremium"
-import useUserPrivate from "./useUserPrivate"
+import { useIsPremium } from "./useIsPremium"
 
 const useCustomerInfo = (): CustomerInfo | null => {
   const user = useUser()
-  const userPrivate = useUserPrivate()
-  const isPremium = userPrivate?.isPremium
+  const isPremium = useIsPremium()
 
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>(null)
 
