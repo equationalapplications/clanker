@@ -1,14 +1,18 @@
 import { useNavigation } from "@react-navigation/native"
-import { useMemo, useCallback } from "react"
+import { httpsCallable } from "firebase/functions"
+import { useMemo, useCallback, useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
 
 import Button from "../components/Button"
+import ConfirmationModal from "../components/ConfirmationModal"
 import { defaultAvatarUrl } from "../config/constants"
-import { auth } from "../config/firebaseConfig"
+import { auth, functions } from "../config/firebaseConfig"
 import useCustomerInfo from "../hooks/useCustomerInfo"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
+
+const deleteUserFn: any = httpsCallable(functions, "deleteUser")
 
 export default function Profile() {
   const navigation = useNavigation()
@@ -20,26 +24,49 @@ export default function Profile() {
   const credits = useMemo(() => userPrivate?.credits, [userPrivate])
   const customerInfo = useCustomerInfo()
 
+  const [isModalVisible, setIsModalVisible] = useState(false)
+
   const onPressSignOut = useCallback(() => {
     auth.signOut()
     navigation.navigate("SignIn")
   }, [navigation])
 
+  const onPressDeleteAccount = async () => {
+    await deleteUserFn()
+    setIsModalVisible(false)
+    await auth.signOut()
+    navigation.navigate("SignIn")
+  }
+
   return (
     <View style={styles.container}>
-      <Avatar.Image size={150} source={{ uri: photoURL }} style={{ marginVertical: 10 }} />
-      <Text>{displayName}</Text>
-      <Text>{email}</Text>
-      <Text>Credits: {credits}</Text>
-      <Text>
-        {customerInfo
-          ? `Active Subscriber: ${customerInfo?.activeSubscriptions?.length > 0}`
-          : "Loading Subscription Info..."}
-      </Text>
-      <View style={styles.separator} />
-      <Button mode="outlined" onPress={onPressSignOut}>
-        Sign Out
-      </Button>
+      {isModalVisible ? null : (
+        <>
+          <Avatar.Image size={150} source={{ uri: photoURL }} style={{ marginVertical: 10 }} />
+          <Text>{displayName}</Text>
+          <Text>{email}</Text>
+          <Text>Credits: {credits}</Text>
+          <Text>
+            {customerInfo
+              ? `Active Subscriber: ${customerInfo?.activeSubscriptions?.length > 0}`
+              : "Loading Subscription Info..."}
+          </Text>
+          <View style={styles.separator} />
+          <Button mode="outlined" onPress={onPressSignOut}>
+            Sign Out
+          </Button>
+          <Button mode="text" onPress={() => setIsModalVisible(true)}>
+            Delete Account
+          </Button>
+        </>
+      )}
+      <ConfirmationModal
+        visible={isModalVisible}
+        title="Delete Account and Data"
+        message="Are you sure you want to delete your account? This action is irreversible and will delete all of your data."
+        onCancel={() => setIsModalVisible(false)}
+        onConfirm={onPressDeleteAccount}
+      />
     </View>
   )
 }

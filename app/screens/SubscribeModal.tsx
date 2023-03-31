@@ -3,10 +3,10 @@ import React, { useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text } from "react-native-paper"
 
-import Button from "../components/Button"
+import CombinedSubscriptionButton from "../components/CombinedSubscriptionButton"
 import LoadingIndicator from "../components/LoadingIndicator"
-import SubscriptionBillingInfoButton from "../components/SubscriptionBillingInfoButton"
 import { platform } from "../config/constants"
+import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 import makePackagePurchase from "../utilities/makePackagePurchase"
@@ -15,11 +15,11 @@ export default function SubscribeModal() {
   const user = useUser()
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits
-  const isPremium = userPrivate?.isPremium
+  const isPremium = useIsPremium()
 
   const [isLoading, setIsLoading] = useState(false)
 
-  const onPressPurchase = async () => {
+  const onPressSubscribe = async () => {
     setIsLoading(true)
     await makePackagePurchase()
     setIsLoading(false)
@@ -39,18 +39,15 @@ export default function SubscribeModal() {
         <>
           <Text style={styles.title}>Thank You for Subscribing!</Text>
           <View style={styles.separator} />
-          <SubscriptionBillingInfoButton />
         </>
       ) : (
         <>
           <Text style={styles.title}>Unlimited Credits</Text>
           <Text style={styles.title}>$4.99 per month</Text>
           <View style={styles.separator} />
-          <Button onPress={onPressPurchase} disabled={!user} mode="contained">
-            Subscribe Now!
-          </Button>
         </>
       )}
+      <CombinedSubscriptionButton />
       {/* Use a light status bar on iOS to account for the black space above the modal */}
       <StatusBar style={platform === "ios" ? "light" : "auto"} />
     </View>

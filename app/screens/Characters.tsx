@@ -8,6 +8,7 @@ import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
 import { functions } from "../config/firebaseConfig"
 import useDefaultCharacter from "../hooks/useDefaultCharacter"
+import { useIsPremium } from "../hooks/useIsPremium"
 import useUserPrivate from "../hooks/useUserPrivate"
 import updateCharacter from "../utilities/updateCharacter"
 
@@ -17,7 +18,7 @@ export default function Characters({ navigation }) {
   const defaultCharacter = useDefaultCharacter()
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
-
+  const isPremium = useIsPremium()
   const [avatar, setAvatar] = useState(defaultCharacter?.avatar ?? defaultAvatarUrl)
   const [appearance, setAppearance] = useState(defaultCharacter?.appearance ?? "")
   const [name, setName] = useState(defaultCharacter?.name ?? "")
@@ -57,7 +58,7 @@ export default function Characters({ navigation }) {
   }
 
   const onPressSave = () => {
-    if (credits <= 0) {
+    if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
       return
     }
@@ -70,7 +71,7 @@ export default function Characters({ navigation }) {
   }
 
   const onPressGenerate = async () => {
-    if (credits <= 0) {
+    if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
       return
     }
@@ -91,7 +92,7 @@ export default function Characters({ navigation }) {
   }
 
   const onPressErase = async () => {
-    if (credits <= 0) {
+    if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
       return
     }
