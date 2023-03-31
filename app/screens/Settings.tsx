@@ -1,7 +1,7 @@
 import { StyleSheet, View } from "react-native"
 
 import Button from "../components/Button"
-import SubscriptionBillingInfoButton from "../components/SubscriptionBillingInfoButton"
+import CombinedSubscriptionButton from "../components/CombinedSubscriptionButton"
 import { RootTabScreenProps } from "../navigation/types"
 
 export default function Settings({ navigation }: RootTabScreenProps<"Settings">) {
@@ -14,7 +14,7 @@ export default function Settings({ navigation }: RootTabScreenProps<"Settings">)
       <Button mode="outlined" onPress={onPressProfile}>
         Profile
       </Button>
-      <SubscriptionBillingInfoButton />
+      <CombinedSubscriptionButton />
     </View>
   )
 }
