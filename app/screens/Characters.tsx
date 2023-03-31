@@ -16,7 +16,7 @@ import updateCharacter from "../utilities/updateCharacter"
 const getImageFn: any = httpsCallable(functions, "getImage")
 
 export default function Characters({ navigation }) {
-  const [isEraseModalVisible, setIsEraseModalVisible] = useState(true)
+  const [isEraseModalVisible, setIsEraseModalVisible] = useState(false)
   const [isSaveModalVisible, setIsSaveModalVisible] = useState(false)
   const defaultCharacter = useDefaultCharacter()
   const userPrivate = useUserPrivate()
@@ -75,6 +75,10 @@ export default function Characters({ navigation }) {
     })
     setTextIsLoading(false)
     setIsSaveModalVisible(true)
+  }
+
+  const onConfirmSave = () => {
+    setIsSaveModalVisible(false)
   }
 
   const onPressGenerate = async () => {
@@ -190,7 +194,7 @@ export default function Characters({ navigation }) {
         title="Changes Saved"
         message="Your changes have been saved."
         onCancel={null}
-        onConfirm={() => setIsSaveModalVisible(false)}
+        onConfirm={onConfirmSave}
       />
     </View>
   )
