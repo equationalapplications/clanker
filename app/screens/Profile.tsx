@@ -9,9 +9,9 @@ import ConfirmationModal from "../components/ConfirmationModal"
 import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
 import { auth, functions } from "../config/firebaseConfig"
-import useCustomerInfo from "../hooks/useCustomerInfo"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
+import { useIsPremium } from "../hooks/useIsPremium"
 
 const deleteUserFn: any = httpsCallable(functions, "deleteUser")
 
@@ -23,7 +23,7 @@ export default function Profile() {
   const email = user?.email
   const photoURL = user?.photoURL ?? defaultAvatarUrl
   const credits = userPrivate?.credits ?? 0
-  const customerInfo = useCustomerInfo()
+  const isPremium = useIsPremium()
 
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -58,9 +58,9 @@ export default function Profile() {
           <Text>{email}</Text>
           <Text>Credits: {credits}</Text>
           <Text>
-            {customerInfo
-              ? `Active Subscriber: ${customerInfo?.activeSubscriptions?.length > 0}`
-              : "Loading Subscription Info..."}
+            {isPremium
+              ? "You have a subscription for unlimited credit"
+              : "You are using free trial credits."}
           </Text>
           <View style={styles.separator} />
           <Button mode="outlined" onPress={onPressSignOut}>
