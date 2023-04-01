@@ -8,6 +8,7 @@ interface UserPrivate {
   credits: number
   isProfilePublic: boolean | null
   defaultCharacter: string
+  hasAcceptedTermsDate: Date | null
 }
 
 export default function useUserPrivate(): UserPrivate | null {

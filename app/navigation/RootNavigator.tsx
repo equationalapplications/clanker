@@ -1,7 +1,10 @@
 import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
-import { createNativeStackNavigator } from "@react-navigation/native-stack"
-import React, { useEffect } from "react"
+import {
+  createNativeStackNavigator,
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack"
+import React, { useEffect, useRef } from "react"
 import { Pressable } from "react-native"
 import { Badge, Text } from "react-native-paper"
 
@@ -9,6 +12,7 @@ import { purchasesConfig } from "../config/purchasesConfig"
 import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
+import { AcceptTerms } from "../screens/AcceptTerms"
 import Characters from "../screens/Characters"
 import Chat from "../screens/Chat"
 import NotFoundScreen from "../screens/NotFoundScreen"
@@ -29,16 +33,26 @@ import {
  * A root stack navigator is often used for displaying modals on top of all other content.
  * https://reactnavigation.org/docs/modal
  */
+
+type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>
+
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
-export default function RootNavigator() {
+export default function RootNavigator({ navigation }: { navigation: RootNavigationProp }) {
   const user = useUser()
+  const userPrivate = useUserPrivate()
+  const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate
+  const hasConfiguredPurchases = useRef(false)
 
   useEffect(() => {
-    if (user) {
+    if (user && !hasConfiguredPurchases.current) {
       purchasesConfig(user.uid)
+      hasConfiguredPurchases.current = true
     }
-  }, [user])
+    if (user && !hasAcceptedTermsDate) {
+      //navigation.navigate("AcceptTerms")
+    }
+  }, [user, hasAcceptedTermsDate])
 
   return (
     <Stack.Navigator>
@@ -80,6 +94,15 @@ export default function RootNavigator() {
                 component={SubscribeModal}
                 options={({ navigation }: RootStackScreenProps<"Subscribe">) => ({
                   title: "Subscribe",
+                  tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
+                  headerRight: () => <CreditCounterIcon navigation={navigation} />,
+                })}
+              />
+              <Stack.Screen
+                name="AcceptTerms"
+                component={AcceptTerms}
+                options={({ navigation }: RootStackScreenProps<"AcceptTerms">) => ({
+                  title: "AcceptTerms",
                   tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
                   headerRight: () => <CreditCounterIcon navigation={navigation} />,
                 })}
