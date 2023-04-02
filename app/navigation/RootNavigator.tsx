@@ -1,5 +1,6 @@
 import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
+import { useNavigation } from "@react-navigation/native"
 import {
   createNativeStackNavigator,
   NativeStackNavigationProp,
@@ -34,25 +35,25 @@ import {
  * https://reactnavigation.org/docs/modal
  */
 
-type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>
+//type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
-
-export default function RootNavigator({ navigation }: { navigation: RootNavigationProp }) {
+export default function RootNavigator() {
+  //export default function RootNavigator({ navigation }: { navigation: RootNavigationProp }) {
   const user = useUser()
   const userPrivate = useUserPrivate()
   const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate
   const hasConfiguredPurchases = useRef(false)
-
+  const navigation = useNavigation()
   useEffect(() => {
     if (user && !hasConfiguredPurchases.current) {
       purchasesConfig(user.uid)
       hasConfiguredPurchases.current = true
     }
-    if (user && !hasAcceptedTermsDate) {
-      //navigation.navigate("AcceptTerms")
+    if (navigation && user && userPrivate && !hasAcceptedTermsDate) {
+      navigation.navigate("AcceptTerms")
     }
-  }, [user, hasAcceptedTermsDate])
+  }, [user, userPrivate, navigation, hasAcceptedTermsDate])
 
   return (
     <Stack.Navigator>
@@ -103,8 +104,7 @@ export default function RootNavigator({ navigation }: { navigation: RootNavigati
                 component={AcceptTerms}
                 options={({ navigation }: RootStackScreenProps<"AcceptTerms">) => ({
                   title: "AcceptTerms",
-                  tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
-                  headerRight: () => <CreditCounterIcon navigation={navigation} />,
+                  headerShown: false,
                 })}
               />
             </Stack.Group>
