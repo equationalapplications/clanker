@@ -64,7 +64,8 @@
     "react-native-screens": "~3.18.0",
     "react-native-status-bar-height": "^2.6.0",
     "react-native-tab-view": "^3.3.4",
-    "react-native-web": "~0.18.9"
+    "react-native-web": "~0.18.9",
+    "react-query": "^3.39.3"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
