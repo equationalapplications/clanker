@@ -57,7 +57,6 @@ const ThemeProvider = ({ children }) => {
 
   return (
     <PaperProvider theme={theme}>
-      {/*<NavigationContainer linking={LinkingConfiguration} theme={deviceTheme === "dark" ? DarkTheme : LightTheme}>*/}
       <NavigationContainer linking={LinkingConfiguration} theme={theme}>
         {children}
       </NavigationContainer>
