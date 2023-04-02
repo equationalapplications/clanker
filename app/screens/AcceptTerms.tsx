@@ -1,47 +1,54 @@
+import { useNavigation } from "@react-navigation/native"
 import { StatusBar } from "expo-status-bar"
+import { httpsCallable } from "firebase/functions"
 import React, { useState } from "react"
 import { StyleSheet, View } from "react-native"
-import { Text } from "react-native-paper"
+import { Text, Checkbox } from "react-native-paper"
 
-import CombinedSubscriptionButton from "../components/CombinedSubscriptionButton"
-import LoadingIndicator from "../components/LoadingIndicator"
+import Button from "../components/Button"
+import Logo from "../components/Logo"
 import { platform } from "../config/constants"
-import { useIsPremium } from "../hooks/useIsPremium"
-import useUserPrivate from "../hooks/useUserPrivate"
+import { functions } from "../config/firebaseConfig"
+import { RootStackScreenProps } from "../navigation/types"
+
+const acceptTermsFn: any = httpsCallable(functions, "acceptTerms")
 
 export function AcceptTerms() {
-  const userPrivate = useUserPrivate()
-  const credits = userPrivate?.credits
-  const isPremium = useIsPremium()
+  const [checked, setChecked] = useState(false)
+  const navigation = useNavigation()
+  const onPressChecked = () => {
+    setChecked(!checked)
+  }
 
-  const [isLoading, setIsLoading] = useState(false)
+  const onPressAccept = () => {
+    acceptTermsFn()
+    navigation.navigate("Root")
+  }
 
-  const onChangeIsLoading = (isLoading: boolean) => {
-    setIsLoading(isLoading)
+  const onPressTerms = () => {
+    navigation.navigate("Terms")
+  }
+
+  const onPressPrivacy = () => {
+    navigation.navigate("Privacy")
   }
 
   return (
     <View style={styles.container}>
-      {credits <= 0 && !isPremium ? (
-        <>
-          <Text>Please Subscribe for Unlimited Credits</Text>
-          <View style={styles.separator} />
-        </>
-      ) : null}
-      {isPremium ? (
-        <>
-          <Text style={styles.title}>Thank You for Subscribing!</Text>
-        </>
-      ) : (
-        <>
-          <Text style={styles.title}>Unlimited Credits</Text>
-          <Text style={styles.title}>$4.99 per month</Text>
-        </>
-      )}
+      <Logo />
+      <Button onPress={onPressTerms}>Terms of Service</Button>
+      <Button onPress={onPressPrivacy}>Privacy Policy</Button>
+      <View style={styles.row}>
+        <Checkbox status={checked ? "checked" : "unchecked"} onPress={onPressChecked} />
+        <Text style={styles.text}>
+          I am over 18 years of age and I have read and accept the Terms and Conditions and Privacy
+          Policy.
+        </Text>
+      </View>
       <View style={styles.separatorSmall} />
-      {isLoading && <LoadingIndicator />}
-      <View style={styles.separatorSmall} />
-      <CombinedSubscriptionButton onChangeIsLoading={onChangeIsLoading} />
+      <Button mode="contained" disabled={!checked} onPress={onPressAccept}>
+        I accept
+      </Button>
       {/* Use a light status bar on iOS to account for the black space above the modal */}
       <StatusBar style={platform === "ios" ? "light" : "auto"} />
     </View>
@@ -53,10 +60,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    marginHorizontal: 20,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: 20,
     fontWeight: "bold",
+  },
+  text: {
+    fontSize: 16,
+    fontWeight: "normal",
   },
   separator: {
     marginVertical: 30,
