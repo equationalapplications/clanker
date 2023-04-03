@@ -1,3 +1,18 @@
+# [7.1.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.0.0...v7.1.0) (2023-04-03)
+
+
+### Bug Fixes
+
+* add user to useEffect dependency array ([847654c](https://github.com/equationalapplications/yoursbrightlyai/commit/847654c7ddabe816393d91e910b06804dd62fade))
+
+
+### Features
+
+* create AcceptTerms component ([f1c90a9](https://github.com/equationalapplications/yoursbrightlyai/commit/f1c90a9e1e754fffccbbb638f3a56dc37cd87509))
+* create AcceptTerms screen ([86a15a0](https://github.com/equationalapplications/yoursbrightlyai/commit/86a15a049bf4b7e13ce1d5e8c29805b5d501a460))
+* create AcceptTerms Screen ([cefe7cf](https://github.com/equationalapplications/yoursbrightlyai/commit/cefe7cfcf37190d29754e8c64c4507a564f1a8a9))
+* navigate to AcceptTerms if !hasAcceptedTermsDate ([3ee23bd](https://github.com/equationalapplications/yoursbrightlyai/commit/3ee23bd00473809273ec13bf850834eeca562215))
+
 # [7.1.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.0.0...v7.1.0-staging.1) (2023-04-03)
 
 
