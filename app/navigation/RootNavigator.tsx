@@ -29,10 +29,13 @@ import {
  * A root stack navigator is often used for displaying modals on top of all other content.
  * https://reactnavigation.org/docs/modal
  */
+
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
 export default function RootNavigator() {
   const user = useUser()
+  const userPrivate = useUserPrivate()
+  const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate
 
   useEffect(() => {
     if (user) {
@@ -42,9 +45,9 @@ export default function RootNavigator() {
 
   return (
     <Stack.Navigator>
-      {user ? (
+      {user && hasAcceptedTermsDate ? (
         <>
-          <Stack.Group navigationKey={user ? "user" : "guest"}>
+          <Stack.Group navigationKey={user && hasAcceptedTermsDate ? "user" : "guest"}>
             <Stack.Screen
               name="Root"
               component={BottomTabNavigator}
@@ -89,7 +92,7 @@ export default function RootNavigator() {
         </>
       ) : (
         <>
-          <Stack.Group navigationKey={user ? "user" : "guest"}>
+          <Stack.Group navigationKey={user && hasAcceptedTermsDate ? "user" : "guest"}>
             <Stack.Screen
               name="SignIn"
               component={SignIn}

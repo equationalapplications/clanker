@@ -9,8 +9,10 @@ import {
 } from "react"
 import { StyleSheet, View, Text } from "react-native"
 
+import { AcceptTerms } from "../components/AcceptTerms"
 import ProviderButton from "../components/AuthProviderButton"
 import Button from "../components/Button"
+import LoadingIndicator from "../components/LoadingIndicator"
 import Logo from "../components/Logo"
 import { MonoText, TitleText } from "../components/StyledText"
 import {
@@ -21,12 +23,17 @@ import {
   scheme,
 } from "../config/constants"
 import { auth } from "../config/firebaseConfig"
+import useUser from "../hooks/useUser"
+import useUserPrivate from "../hooks/useUserPrivate"
 import { RootStackScreenProps } from "../navigation/types"
 
 WebBrowser.maybeCompleteAuthSession()
 
 export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   //const warmupRef = useRef(false)
+  const user = useUser()
+  const userPrivate = useUserPrivate()
+  const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate
 
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: googleWebClientId,
@@ -109,24 +116,34 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
 
   return (
     <View style={styles.container}>
-      <TitleText>Yours Brightly AI</TitleText>
-      <View style={styles.separator} />
-      <MonoText>Create Your Own Simulated Friend</MonoText>
-      <Logo />
-      <ProviderButton disabled={!googleRequest} onPress={GoogleLoginOnPress} type="google">
-        Google
-      </ProviderButton>
-      <ProviderButton disabled={!facebookRequest} onPress={FacebookLoginOnPress} type="facebook">
-        Facebook
-      </ProviderButton>
-      <Text>
-        <Button mode="text" onPress={onPressTerms}>
-          Terms and Conditions
-        </Button>
-        <Button mode="text" onPress={onPressPrivacy}>
-          Privacy Policy
-        </Button>
-      </Text>
+      {user && !hasAcceptedTermsDate ? <AcceptTerms /> : null}
+      {user && hasAcceptedTermsDate ? <LoadingIndicator /> : null}
+      {!user ? (
+        <>
+          <TitleText>Yours Brightly AI</TitleText>
+          <View style={styles.separator} />
+          <MonoText>Create Your Own Simulated Friend</MonoText>
+          <Logo />
+          <ProviderButton disabled={!googleRequest} onPress={GoogleLoginOnPress} type="google">
+            Google
+          </ProviderButton>
+          <ProviderButton
+            disabled={!facebookRequest}
+            onPress={FacebookLoginOnPress}
+            type="facebook"
+          >
+            Facebook
+          </ProviderButton>
+          <Text>
+            <Button mode="text" onPress={onPressTerms}>
+              Terms and Conditions
+            </Button>
+            <Button mode="text" onPress={onPressPrivacy}>
+              Privacy Policy
+            </Button>
+          </Text>
+        </>
+      ) : null}
     </View>
   )
 }
