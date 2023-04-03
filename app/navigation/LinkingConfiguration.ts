@@ -41,7 +41,6 @@ const linking: LinkingOptions<RootStackParamList> = {
       Privacy: "privacy",
       Terms: "terms",
       NotFound: "*",
-      AcceptTerms: "accept-terms",
     },
   },
 }
