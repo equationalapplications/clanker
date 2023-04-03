@@ -1,10 +1,6 @@
 import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
-import { useNavigation } from "@react-navigation/native"
-import {
-  createNativeStackNavigator,
-  NativeStackNavigationProp,
-} from "@react-navigation/native-stack"
+import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import React, { useEffect, useRef } from "react"
 import { Pressable } from "react-native"
 import { Badge, Text } from "react-native-paper"
@@ -13,7 +9,6 @@ import { purchasesConfig } from "../config/purchasesConfig"
 import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-import { AcceptTerms } from "../screens/AcceptTerms"
 import Characters from "../screens/Characters"
 import Chat from "../screens/Chat"
 import NotFoundScreen from "../screens/NotFoundScreen"
@@ -35,31 +30,26 @@ import {
  * https://reactnavigation.org/docs/modal
  */
 
-//type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>
-
 const Stack = createNativeStackNavigator<RootStackParamList>()
+
 export default function RootNavigator() {
-  //export default function RootNavigator({ navigation }: { navigation: RootNavigationProp }) {
   const user = useUser()
   const userPrivate = useUserPrivate()
   const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate
   const hasConfiguredPurchases = useRef(false)
-  const navigation = useNavigation()
+
   useEffect(() => {
     if (user && !hasConfiguredPurchases.current) {
       purchasesConfig(user.uid)
       hasConfiguredPurchases.current = true
     }
-    if (navigation && user && userPrivate && !hasAcceptedTermsDate) {
-      navigation.navigate("AcceptTerms")
-    }
-  }, [user, userPrivate, navigation, hasAcceptedTermsDate])
+  }, [user])
 
   return (
     <Stack.Navigator>
-      {user ? (
+      {user && hasAcceptedTermsDate ? (
         <>
-          <Stack.Group navigationKey={user ? "user" : "guest"}>
+          <Stack.Group navigationKey={user && hasAcceptedTermsDate ? "user" : "guest"}>
             <Stack.Screen
               name="Root"
               component={BottomTabNavigator}
@@ -99,20 +89,12 @@ export default function RootNavigator() {
                   headerRight: () => <CreditCounterIcon navigation={navigation} />,
                 })}
               />
-              <Stack.Screen
-                name="AcceptTerms"
-                component={AcceptTerms}
-                options={({ navigation }: RootStackScreenProps<"AcceptTerms">) => ({
-                  title: "AcceptTerms",
-                  headerShown: false,
-                })}
-              />
             </Stack.Group>
           </Stack.Group>
         </>
       ) : (
         <>
-          <Stack.Group navigationKey={user ? "user" : "guest"}>
+          <Stack.Group navigationKey={user && hasAcceptedTermsDate ? "user" : "guest"}>
             <Stack.Screen
               name="SignIn"
               component={SignIn}
