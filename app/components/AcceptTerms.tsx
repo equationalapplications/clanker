@@ -21,7 +21,6 @@ export function AcceptTerms() {
 
   const onPressAccept = () => {
     acceptTermsFn()
-    navigation.navigate("Root")
   }
 
   const onPressTerms = () => {
