@@ -1,7 +1,7 @@
 import { FontAwesome } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
-import React, { useEffect, useRef } from "react"
+import React, { useEffect } from "react"
 import { Pressable } from "react-native"
 import { Badge, Text } from "react-native-paper"
 
@@ -36,12 +36,10 @@ export default function RootNavigator() {
   const user = useUser()
   const userPrivate = useUserPrivate()
   const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate
-  const hasConfiguredPurchases = useRef(false)
 
   useEffect(() => {
-    if (user && !hasConfiguredPurchases.current) {
+    if (user) {
       purchasesConfig(user.uid)
-      hasConfiguredPurchases.current = true
     }
   }, [user])
 

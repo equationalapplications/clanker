@@ -13,10 +13,9 @@ interface UserPrivate {
 
 export default function useUserPrivate(): UserPrivate | null {
   const [userPrivate, setUserPrivate] = useState<UserPrivate | null>(null)
+  const user = auth.currentUser
 
   useEffect(() => {
-    const user = auth.currentUser
-
     if (user) {
       const userPrivateRef = doc(firestore, `${usersPrivateCollection}/${user.uid}`)
       const unsubscribePrivate = onSnapshot(userPrivateRef, (doc) => {
@@ -25,12 +24,11 @@ export default function useUserPrivate(): UserPrivate | null {
           setUserPrivate(data)
         }
       })
-
       return () => unsubscribePrivate()
     } else {
       setUserPrivate(null)
     }
-  }, [])
+  }, [user])
 
   return userPrivate
 }
