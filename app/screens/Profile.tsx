@@ -9,9 +9,9 @@ import ConfirmationModal from "../components/ConfirmationModal"
 import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
 import { auth, functions } from "../config/firebaseConfig"
+import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-import { useIsPremium } from "../hooks/useIsPremium"
 
 const deleteUserFn: any = httpsCallable(functions, "deleteUser")
 
