@@ -1,5 +1,5 @@
-import { doc, onSnapshot } from "firebase/firestore"
-import { useEffect, useState } from "react"
+import { doc } from "firebase/firestore"
+import { useQuery } from "react-query"
 
 import { usersPublicCollection } from "../config/constants"
 import { auth, firestore } from "../config/firebaseConfig"
@@ -12,25 +12,26 @@ interface UserPublic {
 }
 
 export default function useUserPublic(): UserPublic | null {
-  const [userPublic, setUserPublic] = useState<UserPublic | null>(null)
+  const { data: userPublic } = useQuery<UserPublic>(
+    "userPublic",
+    async () => {
+      const user = auth.currentUser
 
-  useEffect(() => {
-    const user = auth.currentUser
-
-    if (user) {
-      const userPublicRef = doc(firestore, `${usersPublicCollection}/${user.uid}`)
-      const unsubscribePublic = onSnapshot(userPublicRef, (doc) => {
-        if (doc.exists()) {
-          const data = doc.data() as UserPublic
-          setUserPublic(data)
+      if (user) {
+        const userPublicRef = doc(firestore, `${usersPublicCollection}/${user.uid}`)
+        const docSnap = await userPublicRef.get()
+        if (docSnap.exists()) {
+          const data = docSnap.data() as UserPublic
+          return data
         }
-      })
-
-      return () => unsubscribePublic()
-    } else {
-      setUserPublic(null)
-    }
-  }, [])
+      }
+      return null
+    },
+    {
+      enabled: !!auth.currentUser,
+      refetchOnWindowFocus: false,
+    },
+  )
 
   return userPublic
 }
