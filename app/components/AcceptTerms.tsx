@@ -1,26 +1,25 @@
 import { useNavigation } from "@react-navigation/native"
 import { StatusBar } from "expo-status-bar"
-import { httpsCallable } from "firebase/functions"
 import React, { useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text, Checkbox } from "react-native-paper"
 
 import { platform } from "../config/constants"
-import { functions } from "../config/firebaseConfig"
+import { useAcceptTerms } from "../hooks/useAcceptTerms"
 import Button from "./Button"
 import Logo from "./Logo"
-
-const acceptTermsFn: any = httpsCallable(functions, "acceptTerms")
 
 export function AcceptTerms() {
   const [checked, setChecked] = useState(false)
   const navigation = useNavigation()
+  const acceptTermsMutation = useAcceptTerms()
+
   const onPressChecked = () => {
     setChecked(!checked)
   }
 
   const onPressAccept = () => {
-    acceptTermsFn()
+    acceptTermsMutation.mutate()
   }
 
   const onPressTerms = () => {
