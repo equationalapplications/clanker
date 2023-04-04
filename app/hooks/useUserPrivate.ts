@@ -1,4 +1,4 @@
-import { doc } from "firebase/firestore"
+import { doc, getDoc } from "firebase/firestore"
 import { useQuery } from "react-query"
 
 import { usersPrivateCollection } from "../config/constants"
@@ -19,7 +19,7 @@ export default function useUserPrivate(): UserPrivate | null {
     "userPrivate",
     async () => {
       if (userPrivateRef) {
-        const doc = await userPrivateRef.get()
+        const doc = await getDoc(userPrivateRef)
         if (doc.exists()) {
           return doc.data() as UserPrivate
         }
@@ -29,6 +29,7 @@ export default function useUserPrivate(): UserPrivate | null {
     {
       enabled: !!user,
       refetchOnWindowFocus: false,
+      useErrorBoundary: true,
     },
   )
 
