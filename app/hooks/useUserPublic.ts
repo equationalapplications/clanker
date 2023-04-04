@@ -1,4 +1,4 @@
-import { doc } from "firebase/firestore"
+import { doc, getDoc } from "firebase/firestore"
 import { useQuery } from "react-query"
 
 import { usersPublicCollection } from "../config/constants"
@@ -19,7 +19,8 @@ export default function useUserPublic(): UserPublic | null {
 
       if (user) {
         const userPublicRef = doc(firestore, `${usersPublicCollection}/${user.uid}`)
-        const docSnap = await userPublicRef.get()
+        const docSnap = await getDoc(userPublicRef)
+
         if (docSnap.exists()) {
           const data = docSnap.data() as UserPublic
           return data
@@ -30,6 +31,7 @@ export default function useUserPublic(): UserPublic | null {
     {
       enabled: !!auth.currentUser,
       refetchOnWindowFocus: false,
+      useErrorBoundary: true,
     },
   )
 
