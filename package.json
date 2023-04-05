@@ -120,19 +120,5 @@
     "hooks": {
       "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
     }
-  },
-  "overrides": {
-    "@react-query-firebase/auth": {
-      "react": "18.1.0",
-      "react-dom": "18.1.0"
-    },
-    "@react-query-firebase/firestore": {
-      "react": "18.1.0",
-      "react-dom": "18.1.0"
-    },
-    "@react-query-firebase/functions": {
-      "react": "18.1.0",
-      "react-dom": "18.1.0"
-    }
   }
 }
