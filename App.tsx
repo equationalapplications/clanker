@@ -2,13 +2,12 @@ import "expo-dev-client"
 import { StatusBar } from "expo-status-bar"
 import ErrorBoundary from "react-native-error-boundary"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
-import { QueryClientProvider, QueryClient } from "react-query"
+import { QueryClientProvider } from "react-query"
 
+import { queryClient } from "./app/config/queryClient"
 import useCachedResources from "./app/hooks/useCachedResources"
 import RootNavigator from "./app/navigation/RootNavigator"
 import ThemeProvider from "./app/providers/ThemeProvider"
-
-const queryClient = new QueryClient()
 
 export default function App() {
   const isLoadingComplete = useCachedResources()
