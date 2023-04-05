@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react"
-import Purchases from "react-native-purchases"
+import { User } from "firebase/auth"
+import { useEffect } from "react"
+import Purchases, { CustomerInfo } from "react-native-purchases"
+import { useQuery } from "react-query"
 
 import {
   platform,
@@ -7,48 +9,61 @@ import {
   revenueCatBaseUrl,
   revenueCatSubscribers,
 } from "../config/constants"
+import { Subscriber } from "../config/purchasesConfig"
 import useUser from "./useUser"
+
+interface PurchasesOfferingsData {
+  subscriber: Subscriber
+}
+
+const fetchPremiumStatus = async (user: User): Promise<boolean | null> => {
+  if (!user) {
+    return null
+  }
+
+  if (platform === "ios" || platform === "android") {
+    const customerInfo: CustomerInfo = await Purchases.getCustomerInfo()
+    const entitlements = customerInfo?.entitlements
+
+    return entitlements && Object.keys(entitlements?.active).length > 0
+  } else if (platform === "web") {
+    const response = await fetch(revenueCatBaseUrl + revenueCatSubscribers + "/" + user.uid, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${revenueCatPurchasesStripeApiKey}`,
+      },
+    })
+    const purchasesOfferingsData: PurchasesOfferingsData = await response.json()
+    const subscriber = purchasesOfferingsData?.subscriber
+    const entitlements = subscriber?.entitlements ?? {}
+
+    return entitlements && Object.keys(entitlements).length > 0
+  }
+
+  return null
+}
 
 export const useIsPremium = (): boolean | null => {
   const user = useUser()
-  const [isPremium, setIsPremium] = useState<boolean | null>(null)
+
+  const { data: isPremium, refetch } = useQuery<boolean | null>(
+    "isPremium",
+    () => fetchPremiumStatus(user),
+    {
+      enabled: !!user,
+      refetchOnWindowFocus: false,
+      retry: false,
+      staleTime: Infinity,
+      useErrorBoundary: true,
+    },
+  )
 
   useEffect(() => {
-    const fetchPurchasesOfferings = async () => {
-      try {
-        if (platform === "ios" || platform === "android") {
-          const customerInfo = await Purchases.getCustomerInfo()
-          const entitlements = customerInfo?.entitlements
-          if (entitlements && Object.keys(entitlements?.active).length > 0) {
-            setIsPremium(true)
-          } else {
-            setIsPremium(false)
-          }
-        } else if (platform === "web") {
-          const response = await fetch(revenueCatBaseUrl + revenueCatSubscribers + "/" + user.uid, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${revenueCatPurchasesStripeApiKey}`,
-            },
-          })
-          const purchasesOfferingsData = await response.json()
-          const subscriber = purchasesOfferingsData?.subscriber
-          const entitlements = subscriber?.entitlements ?? {}
-          if (entitlements && Object.keys(entitlements).length > 0) {
-            setIsPremium(true)
-          } else {
-            setIsPremium(false)
-          }
-        }
-      } catch (e) {
-        console.log(e, e.message)
-      }
-    }
     if (user) {
-      fetchPurchasesOfferings()
+      refetch()
     }
-  }, [user])
+  }, [user, refetch])
 
   return isPremium
 }
