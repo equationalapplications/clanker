@@ -35,5 +35,5 @@ export default function useUserPublic(): UserPublic | null {
     },
   )
 
-  return userPublic
+  return userPublic ?? null
 }
