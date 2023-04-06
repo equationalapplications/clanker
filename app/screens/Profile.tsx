@@ -38,12 +38,12 @@ export default function Profile() {
   }
 
   const onConfirmDeleteAccount = async () => {
-    queryClient.clear()
     setIsModalVisible(false)
     setIsDeleting(true)
     await deleteUserFn()
+    queryClient.clear()
     setIsDeleting(false)
-    await auth.signOut()
+
   }
 
   const onCancelDeleteAccount = () => {
