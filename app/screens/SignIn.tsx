@@ -116,8 +116,8 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
 
   return (
     <View style={styles.container}>
-      {user && !hasAcceptedTermsDate ? <AcceptTerms /> : null}
-      {user && hasAcceptedTermsDate ? <LoadingIndicator /> : null}
+      {user && userPrivate && !hasAcceptedTermsDate ? <AcceptTerms /> : null}
+      {(user && hasAcceptedTermsDate) || (user && !userPrivate) ? <LoadingIndicator /> : null}
       {!user ? (
         <>
           <TitleText>Yours Brightly AI</TitleText>
