@@ -1,13 +1,18 @@
 import { useNavigation } from "@react-navigation/native"
 import { StatusBar } from "expo-status-bar"
+import { httpsCallable } from "firebase/functions"
 import React, { useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text, Checkbox } from "react-native-paper"
 
 import { platform } from "../config/constants"
+import { auth, functions } from "../config/firebaseConfig"
+import { queryClient } from "../config/queryClient"
 import { useAcceptTerms } from "../hooks/useAcceptTerms"
 import Button from "./Button"
 import Logo from "./Logo"
+
+const deleteUserFn: any = httpsCallable(functions, "deleteUser")
 
 export function AcceptTerms() {
   const [checked, setChecked] = useState(false)
@@ -20,6 +25,12 @@ export function AcceptTerms() {
 
   const onPressAccept = () => {
     acceptTermsMutation.mutate()
+  }
+
+  const onPressCancel = async () => {
+    await deleteUserFn()
+    await auth.currentUser?.delete()
+    queryClient.clear()
   }
 
   const onPressTerms = () => {
@@ -45,6 +56,9 @@ export function AcceptTerms() {
       <View style={styles.separatorSmall} />
       <Button mode="contained" disabled={!checked} onPress={onPressAccept}>
         I accept
+      </Button>
+      <Button mode="contained" onPress={onPressCancel}>
+        Cancel
       </Button>
       {/* Use a light status bar on iOS to account for the black space above the modal */}
       <StatusBar style={platform === "ios" ? "light" : "auto"} />

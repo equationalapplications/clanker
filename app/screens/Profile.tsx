@@ -1,4 +1,3 @@
-import { httpsCallable } from "firebase/functions"
 import { useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
@@ -8,12 +7,11 @@ import Button from "../components/Button"
 import ConfirmationModal from "../components/ConfirmationModal"
 import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
-import { auth, functions } from "../config/firebaseConfig"
+import { auth } from "../config/firebaseConfig"
 import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-
-const deleteUserFn: any = httpsCallable(functions, "deleteUser")
+import { deleteUser } from "../utilities/deleteUser"
 
 export default function Profile() {
   const queryClient = useQueryClient()
@@ -40,10 +38,8 @@ export default function Profile() {
   const onConfirmDeleteAccount = async () => {
     setIsModalVisible(false)
     setIsDeleting(true)
-    await deleteUserFn()
-    queryClient.clear()
+    await deleteUser()
     setIsDeleting(false)
-
   }
 
   const onCancelDeleteAccount = () => {
