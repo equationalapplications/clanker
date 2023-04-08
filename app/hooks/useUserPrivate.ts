@@ -1,5 +1,5 @@
-import { doc, getDoc } from "firebase/firestore"
-import { useQuery } from "react-query"
+import { doc, onSnapshot, Unsubscribe } from "firebase/firestore"
+import { useEffect, useState } from "react"
 
 import { usersPrivateCollection } from "../config/constants"
 import { auth, firestore } from "../config/firebaseConfig"
@@ -12,26 +12,23 @@ interface UserPrivate {
 }
 
 export default function useUserPrivate(): UserPrivate | null {
+  const [userPrivate, setUserPrivate] = useState<UserPrivate | null>(null)
   const user = auth.currentUser
-  const userPrivateRef = user ? doc(firestore, `${usersPrivateCollection}/${user.uid}`) : null
 
-  const { data: userPrivate } = useQuery<UserPrivate | null>(
-    "userPrivate",
-    async () => {
-      if (userPrivateRef) {
-        const doc = await getDoc(userPrivateRef)
+  useEffect(() => {
+    if (user) {
+      const userPrivateRef = doc(firestore, `${usersPrivateCollection}/${user.uid}`)
+      const unsubscribePrivate: Unsubscribe = onSnapshot(userPrivateRef, (doc) => {
         if (doc.exists()) {
-          return doc.data() as UserPrivate
+          const data = doc.data() as UserPrivate
+          setUserPrivate(data)
         }
-      }
-      return null
-    },
-    {
-      enabled: !!user,
-      refetchOnWindowFocus: false,
-      useErrorBoundary: true,
-    },
-  )
+      })
+      return () => unsubscribePrivate()
+    } else {
+      setUserPrivate(null)
+    }
+  }, [user])
 
-  return userPrivate
+  return userPrivate ?? null
 }
