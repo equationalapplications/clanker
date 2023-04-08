@@ -18,7 +18,7 @@ export default function useUserPrivate(): UserPrivate | null {
   useEffect(() => {
     if (user) {
       const userPrivateRef = doc(firestore, `${usersPrivateCollection}/${user.uid}`)
-      const unsubscribePrivate = onSnapshot(userPrivateRef, (doc) => {
+      const unsubscribePrivate: Unsubscribe = onSnapshot(userPrivateRef, (doc) => {
         if (doc.exists()) {
           const data = doc.data() as UserPrivate
           setUserPrivate(data)
@@ -30,5 +30,5 @@ export default function useUserPrivate(): UserPrivate | null {
     }
   }, [user])
 
-  return userPrivate
+  return userPrivate ?? null
 }

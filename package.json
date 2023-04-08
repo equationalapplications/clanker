@@ -1,6 +1,6 @@
 {
   "name": "yours-brightly-ai",
-  "version": "7.1.0-staging.1",
+  "version": "7.1.0",
   "scripts": {
     "start": "expo start --dev-client",
     "start:clear": "expo start --dev-client -c",
@@ -119,20 +119,6 @@
   "husky": {
     "hooks": {
       "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
-    }
-  },
-  "overrides": {
-    "@react-query-firebase/auth": {
-      "react": "18.1.0",
-      "react-dom": "18.1.0"
-    },
-    "@react-query-firebase/firestore": {
-      "react": "18.1.0",
-      "react-dom": "18.1.0"
-    },
-    "@react-query-firebase/functions": {
-      "react": "18.1.0",
-      "react-dom": "18.1.0"
     }
   }
 }

@@ -5,6 +5,7 @@ Copyright Equational Applications LLC
 ## Firestore Data
 
 ### Collection: users_public
+`${usersPublicCollection}/${user.uid}`
 ```ts
 interface PublicUserData {
   uid: string; // uid from firebase auth
@@ -15,6 +16,7 @@ interface PublicUserData {
 ```
 
 ### Collection: users_private
+`${usersPivateCollection}/${user.uid}`
 ```ts
 interface UserPrivate {
   credits: number
@@ -25,6 +27,7 @@ interface UserPrivate {
 ```
 
 ### Collection: characters
+`${charactersCollection}/${user.uid}/${userCharactersCollection}/${userPrivate.defaultCharacter}`
 ```ts
 interface Character {
   name: string;
@@ -42,6 +45,7 @@ interface PrivateCharacterData {
 ```
 
 ### Collection: user_chats
+`${userChatsCollection}/${user.uid}/${messagesCollection}`
 ```ts
 interface ChatMessage {
   text: string;

@@ -33,7 +33,7 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   //const warmupRef = useRef(false)
   const user = useUser()
   const userPrivate = useUserPrivate()
-  const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate
+  const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate ?? null
 
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: googleWebClientId,
@@ -58,7 +58,6 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
     //if (!warmupRef.current && platform === "android") {
     //  warmupFn()
     //}
-
     if (googleResponse && googleResponse.type === "success" && googleResponse.authentication) {
       const accessToken = googleResponse.authentication.accessToken
       const credential = GoogleAuthProvider.credential(null, accessToken)
@@ -113,11 +112,11 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   const onPressTerms = () => {
     navigation.navigate("Terms")
   }
-
+  console.log("user", user, userPrivate, hasAcceptedTermsDate)
   return (
     <View style={styles.container}>
-      {user && !hasAcceptedTermsDate ? <AcceptTerms /> : null}
-      {user && hasAcceptedTermsDate ? <LoadingIndicator /> : null}
+      {(user && hasAcceptedTermsDate) || (user && !userPrivate) ? <LoadingIndicator /> : null}
+      {user && userPrivate && !hasAcceptedTermsDate ? <AcceptTerms /> : null}
       {!user ? (
         <>
           <TitleText>Yours Brightly AI</TitleText>
