@@ -58,7 +58,6 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
     //if (!warmupRef.current && platform === "android") {
     //  warmupFn()
     //}
-
     if (googleResponse && googleResponse.type === "success" && googleResponse.authentication) {
       const accessToken = googleResponse.authentication.accessToken
       const credential = GoogleAuthProvider.credential(null, accessToken)
