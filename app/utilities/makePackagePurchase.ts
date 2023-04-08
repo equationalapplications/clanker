@@ -8,7 +8,6 @@ import {
   AndroidIosMonthlySubscriptionPurchasePackage,
 } from "../config/constants"
 import { functions } from "../config/firebaseConfig"
-import { queryClient } from "../config/queryClient"
 
 const purchasePackageStripe: any = httpsCallable(functions, "purchasePackageStripe")
 
@@ -24,7 +23,6 @@ export async function makePackagePurchase() {
       if (checkoutUrl) {
         // Open the checkout URL in a new browser window
         await WebBrowser.openBrowserAsync(checkoutUrl)
-        await queryClient.invalidateQueries("isPremium")
       }
     }
   } catch (error) {
