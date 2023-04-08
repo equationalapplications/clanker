@@ -1,10 +1,10 @@
 import { doc, onSnapshot, DocumentReference, Unsubscribe } from "firebase/firestore"
 import { useEffect, useState } from "react"
 
-import { charactersCollection, userCharactersCollection } from "../config/constants"
-import { firestore } from "../config/firebaseConfig"
 import useUser from "./useUser"
 import useUserPrivate from "./useUserPrivate"
+import { charactersCollection, userCharactersCollection } from "../config/constants"
+import { firestore } from "../config/firebaseConfig"
 
 interface Character {
   _id: string
