@@ -4,12 +4,12 @@ import React, { useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text, Checkbox } from "react-native-paper"
 
-import { platform } from "../config/constants"
-import { useAcceptTerms } from "../hooks/useAcceptTerms"
-import { deleteUser } from "../utilities/deleteUser"
 import Button from "./Button"
 import LoadingIndicator from "./LoadingIndicator"
 import Logo from "./Logo"
+import { platform } from "../config/constants"
+import { useAcceptTerms } from "../hooks/useAcceptTerms"
+import { deleteUser } from "../utilities/deleteUser"
 
 export function AcceptTerms() {
   const [checked, setChecked] = useState(false)
