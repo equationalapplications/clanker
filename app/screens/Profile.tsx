@@ -1,22 +1,20 @@
-import { useNavigation } from "@react-navigation/native"
-import { httpsCallable } from "firebase/functions"
 import { useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text, Avatar } from "react-native-paper"
+import { useQueryClient } from "react-query"
 
 import Button from "../components/Button"
 import ConfirmationModal from "../components/ConfirmationModal"
 import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
-import { auth, functions } from "../config/firebaseConfig"
+import { auth } from "../config/firebaseConfig"
 import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-
-const deleteUserFn: any = httpsCallable(functions, "deleteUser")
+import { deleteUser } from "../utilities/deleteUser"
 
 export default function Profile() {
-  const navigation = useNavigation()
+  const queryClient = useQueryClient()
   const user = useUser()
   const userPrivate = useUserPrivate()
   const displayName = user?.displayName
@@ -29,8 +27,8 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const onPressSignOut = () => {
+    queryClient.clear()
     auth.signOut()
-    navigation.navigate("SignIn")
   }
 
   const onPressDeleteAccount = () => {
@@ -40,9 +38,8 @@ export default function Profile() {
   const onConfirmDeleteAccount = async () => {
     setIsModalVisible(false)
     setIsDeleting(true)
-    await deleteUserFn()
+    await deleteUser()
     setIsDeleting(false)
-    await auth.signOut()
   }
 
   const onCancelDeleteAccount = () => {

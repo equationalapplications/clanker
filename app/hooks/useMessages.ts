@@ -2,9 +2,9 @@ import { collection, onSnapshot, CollectionReference } from "firebase/firestore"
 import { useEffect, useState, useRef } from "react"
 import { IMessage } from "react-native-gifted-chat"
 
+import useUser from "./useUser"
 import { userChatsCollection, messagesCollection } from "../config/constants"
 import { firestore } from "../config/firebaseConfig"
-import useUser from "./useUser"
 
 export default function useMessages(): IMessage[] {
   const user = useUser()
