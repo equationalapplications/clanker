@@ -3,6 +3,7 @@ import { useEffect } from "react"
 import Purchases, { CustomerInfo } from "react-native-purchases"
 import { useQuery } from "react-query"
 
+import useUser from "./useUser"
 import {
   platform,
   revenueCatPurchasesStripeApiKey,
@@ -10,7 +11,6 @@ import {
   revenueCatSubscribers,
 } from "../config/constants"
 import { Subscriber } from "../config/purchasesConfig"
-import useUser from "./useUser"
 
 interface PurchasesOfferingsData {
   subscriber: Subscriber

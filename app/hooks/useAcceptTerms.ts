@@ -1,8 +1,8 @@
 import { httpsCallable } from "firebase/functions"
 import { useMutation, useQueryClient } from "react-query"
 
-import { functions } from "../config/firebaseConfig"
 import useUserPrivate from "./useUserPrivate"
+import { functions } from "../config/firebaseConfig"
 
 const acceptTermsFunction = httpsCallable(functions, "acceptTerms")
 
