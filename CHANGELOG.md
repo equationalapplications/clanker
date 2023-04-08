@@ -1,3 +1,29 @@
+# [7.2.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.1.0...v7.2.0-staging.1) (2023-04-08)
+
+
+### Bug Fixes
+
+* null collesssing ([7bba420](https://github.com/equationalapplications/yoursbrightlyai/commit/7bba420a0d88275ba127f055d6e291fd43d6eb66))
+* onConfirmDeleteAccount order of functions ([6929283](https://github.com/equationalapplications/yoursbrightlyai/commit/69292836e2a9bb412aa3600912d80ea4b68cf0dc))
+* onPressSignOut queryClient.clear() ([3d22079](https://github.com/equationalapplications/yoursbrightlyai/commit/3d220797fc27e44c1962bb27fb8e09dba960f859))
+* remove optimistic update ([128ebcf](https://github.com/equationalapplications/yoursbrightlyai/commit/128ebcf161664b73c0f274b3a137b39b17dad5d8))
+* show loading indicator conditions ([f2ef304](https://github.com/equationalapplications/yoursbrightlyai/commit/f2ef3049cef31f22d335e5f2b74d137fce5c1ee5))
+* use queryClient.clear() ([8963e84](https://github.com/equationalapplications/yoursbrightlyai/commit/8963e84b601abdb842e5d32c5d39f29d8c0d1aed))
+* wrap app in QueryClientProvider ([69dcfe5](https://github.com/equationalapplications/yoursbrightlyai/commit/69dcfe56bca5f0ecef84abea09b78a1396e55b46))
+
+
+### Features
+
+* add type interface for the REST API ([27080f4](https://github.com/equationalapplications/yoursbrightlyai/commit/27080f40c31a1610ecaccee0e0c15b136dcd7881))
+* create reusable deleteUser function ([9a5bea3](https://github.com/equationalapplications/yoursbrightlyai/commit/9a5bea3ef8916a1d07bdf49c666e46d66c310646))
+* create reusable deleteUser function ([5701a63](https://github.com/equationalapplications/yoursbrightlyai/commit/5701a635c708ee1b3ccd7b13e0900bd2ea10eb03))
+* create updateIsPremium to optimistically update isPremium ([4b9a687](https://github.com/equationalapplications/yoursbrightlyai/commit/4b9a687841b96b5733b6e58ae9fbdd04974f16f9))
+* use react-query for fetching data ([6fa94de](https://github.com/equationalapplications/yoursbrightlyai/commit/6fa94de9211d6cec3f20d3e876522bd5652bc77f))
+* use react-query for fetching data ([bca9aab](https://github.com/equationalapplications/yoursbrightlyai/commit/bca9aab32d2e8b526327f37f385a73f51bace6f6))
+* use react-query for fetching data ([d67860a](https://github.com/equationalapplications/yoursbrightlyai/commit/d67860ac524051c61b5370ab88afb1b684ab093d))
+* use react-query for fetching data ([d8b3a98](https://github.com/equationalapplications/yoursbrightlyai/commit/d8b3a9824d714e787ad06d04cd965fb52f7347a3))
+* use react-query for mutating data ([66aac24](https://github.com/equationalapplications/yoursbrightlyai/commit/66aac2410a902debb247ad4a38ce0929ce13ff11))
+
 # [7.1.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.0.0...v7.1.0) (2023-04-03)
 
 
