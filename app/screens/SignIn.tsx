@@ -33,7 +33,7 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   //const warmupRef = useRef(false)
   const user = useUser()
   const userPrivate = useUserPrivate()
-  const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate
+  const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate ?? null
 
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: googleWebClientId,
@@ -113,11 +113,11 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   const onPressTerms = () => {
     navigation.navigate("Terms")
   }
-
+  console.log("user", user, userPrivate, hasAcceptedTermsDate)
   return (
     <View style={styles.container}>
-      {user && userPrivate && !hasAcceptedTermsDate ? <AcceptTerms /> : null}
       {(user && hasAcceptedTermsDate) || (user && !userPrivate) ? <LoadingIndicator /> : null}
+      {user && userPrivate && !hasAcceptedTermsDate ? <AcceptTerms /> : null}
       {!user ? (
         <>
           <TitleText>Yours Brightly AI</TitleText>
