@@ -53,8 +53,8 @@ export const useIsPremium = (): boolean | null => {
     {
       enabled: !!user,
       refetchOnWindowFocus: false,
-      retry: false,
-      staleTime: Infinity,
+      retry: 3,
+      staleTime: 1000 * 60 * 60 * 1, // 1 hour
       useErrorBoundary: true,
     },
   )
