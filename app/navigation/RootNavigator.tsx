@@ -5,6 +5,12 @@ import React, { useEffect } from "react"
 import { Pressable } from "react-native"
 import { Badge, Text } from "react-native-paper"
 
+import {
+  RootStackParamList,
+  RootStackScreenProps,
+  RootTabParamList,
+  RootTabScreenProps,
+} from "./types"
 import { purchasesConfig } from "../config/purchasesConfig"
 import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
@@ -18,12 +24,6 @@ import Settings from "../screens/Settings"
 import SignIn from "../screens/SignIn"
 import SubscribeModal from "../screens/SubscribeModal"
 import Terms from "../screens/Terms"
-import {
-  RootStackParamList,
-  RootStackScreenProps,
-  RootTabParamList,
-  RootTabScreenProps,
-} from "./types"
 
 /**
  * A root stack navigator is often used for displaying modals on top of all other content.
