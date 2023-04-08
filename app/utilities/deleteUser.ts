@@ -8,5 +8,5 @@ const deleteUserFn = httpsCallable(functions, "deleteUser")
 export const deleteUser = async () => {
   await deleteUserFn()
   await auth.currentUser?.delete()
-  // queryClient.clear()
+  queryClient.clear()
 }
