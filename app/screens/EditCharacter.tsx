@@ -1,4 +1,3 @@
-import { httpsCallable } from "firebase/functions"
 import { useState, useEffect } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
@@ -7,15 +6,13 @@ import Button from "../components/Button"
 import ConfirmationModal from "../components/ConfirmationModal"
 import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
-import { functions } from "../config/firebaseConfig"
 import useCharacter from "../hooks/useCharacter"
 import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 import { RootStackScreenProps } from "../navigation/types"
+import { getImage } from "../utilities/getImage"
 import updateCharacter from "../utilities/updateCharacter"
-
-const getImageFn: any = httpsCallable(functions, "getImage")
 
 export function EditCharacter({ navigation, route }: RootStackScreenProps<"EditCharacter">) {
   const user = useUser()
@@ -99,7 +96,7 @@ export function EditCharacter({ navigation, route }: RootStackScreenProps<"EditC
       ", and is feeling " +
       emotions +
       "."
-    const { data } = await getImageFn({
+    await getImage({
       text: promptText,
       characterId: id,
     })
