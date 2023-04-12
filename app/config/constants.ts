@@ -42,8 +42,11 @@ export const revenueCatPurchasesStripeApiKey =
 export const revenueCatPurchasesEntitlementId = "premium"
 export const purchasesRevenueCatStripeUrl =
   "https://us-central1-your-brightly-ai.cloudfunctions.net/getCustomerInfoRevenueCatStripe"
-export const revenueCatBaseUrl = "https://api.revenuecat.com/v1"
-export const revenueCatSubscribers = "/subscribers"
+
+export const revenueCatBaseApi = "https://api.revenuecat.com/v1"
+export const revenueCatReceiptsApi = revenueCatBaseApi + "/receipts"
+export const revenueCatSubscribersApi = revenueCatBaseApi + "/subscribers"
+
 export const stripeCustomerPortal = "https://billing.stripe.com/p/login/28obLIehA711btKcMM"
 export const stripeMontlySubscriptionPriceId = "price_1MVejqDTb0norRA06zwoexic"
 export const AndroidIosMonthlySubscriptionPurchasePackage: PurchasesPackage = {
