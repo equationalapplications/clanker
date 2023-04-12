@@ -1,5 +1,6 @@
+import { RouteProp } from "@react-navigation/native"
 import { StatusBar } from "expo-status-bar"
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { StyleSheet, View } from "react-native"
 import { Text } from "react-native-paper"
 
@@ -7,9 +8,17 @@ import CombinedSubscriptionButton from "../components/CombinedSubscriptionButton
 import LoadingIndicator from "../components/LoadingIndicator"
 import { platform } from "../config/constants"
 import { useIsPremium } from "../hooks/useIsPremium"
+import { usePostStripeReceipt } from "../hooks/usePostStripeReceipt"
 import useUserPrivate from "../hooks/useUserPrivate"
 
-export default function SubscribeModal() {
+type SubscribeModalRouteProp = RouteProp<
+  { params: { success?: string; canceled?: string; session_id?: string } },
+  "params"
+>
+
+export default function SubscribeModal({ route }: { route: SubscribeModalRouteProp }) {
+  const postStripeReceiptMutation = usePostStripeReceipt()
+
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits
   const isPremium = useIsPremium()
@@ -19,6 +28,18 @@ export default function SubscribeModal() {
   const onChangeIsLoading = (isLoading: boolean) => {
     setIsLoading(isLoading)
   }
+
+  const { success, canceled, session_id } = route.params || {}
+
+  useEffect(() => {
+    if (success) {
+      postStripeReceiptMutation.mutate(session_id)
+      console.log("Checkout succeeded")
+    } else if (canceled) {
+      // TODO: handle canceled subscription
+      console.log("Checkout canceled")
+    }
+  }, [success, canceled])
 
   return (
     <View style={styles.container}>
