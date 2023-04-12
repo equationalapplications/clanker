@@ -1,8 +1,9 @@
 import { doc, onSnapshot, Unsubscribe } from "firebase/firestore"
 import { useEffect, useState } from "react"
 
+import useUser from "./useUser"
 import { usersPrivateCollection } from "../config/constants"
-import { auth, firestore } from "../config/firebaseConfig"
+import { firestore } from "../config/firebaseConfig"
 
 interface UserPrivate {
   credits: number
@@ -13,7 +14,7 @@ interface UserPrivate {
 
 export default function useUserPrivate(): UserPrivate | null {
   const [userPrivate, setUserPrivate] = useState<UserPrivate | null>(null)
-  const user = auth.currentUser
+  const user = useUser()
 
   useEffect(() => {
     if (user) {
