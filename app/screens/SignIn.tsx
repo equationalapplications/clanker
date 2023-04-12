@@ -112,7 +112,6 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   const onPressTerms = () => {
     navigation.navigate("Terms")
   }
-  console.log("user", user, userPrivate, hasAcceptedTermsDate)
   return (
     <View style={styles.container}>
       {(user && hasAcceptedTermsDate) || (user && !userPrivate) ? <LoadingIndicator /> : null}
