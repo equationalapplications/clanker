@@ -23,7 +23,7 @@ export default function NotFoundScreen({ navigation, route }: NotFoundScreenProp
       <Text>
         The route {path} {/*with key {key} and params {JSON.stringify(params)}*/} doesn't exist.
       </Text>
-      <Button onPress={() => navigation.replace("Root")}>Go to home screen!</Button>
+      <Button onPress={() => navigation.replace("Tab")}>Go to home screen!</Button>
     </View>
   )
 }
