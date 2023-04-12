@@ -14,12 +14,12 @@ const linking: LinkingOptions<RootStackParamList> = {
   config: {
     screens: {
       SignIn: "signin",
-      Root: {
+      Tab: {
         screens: {
-          Character: {
-            path: "character",
+          Characters: {
+            path: "characters",
             screens: {
-              Characters: "character",
+              Characters: "characters",
             },
           },
           Chat: {
