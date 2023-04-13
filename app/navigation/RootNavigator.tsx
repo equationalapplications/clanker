@@ -10,6 +10,8 @@ import {
   RootStackScreenProps,
   RootTabParamList,
   RootTabScreenProps,
+  CharacterStackParamList,
+  CharacterStackScreenProps,
 } from "./types"
 import { purchasesConfig } from "../config/purchasesConfig"
 import { useIsPremium } from "../hooks/useIsPremium"
@@ -32,6 +34,24 @@ import Terms from "../screens/Terms"
  */
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
+const CharacterStack = createNativeStackNavigator<CharacterStackParamList>()
+
+function CharacterStackNavigator() {
+  return (
+    <CharacterStack.Navigator>
+      <CharacterStack.Screen
+        name="Characters"
+        component={Characters}
+        options={{ headerShown: false, title: "Characters" }}
+      />
+      <CharacterStack.Screen
+        name="EditCharacter"
+        component={EditCharacter}
+        options={{ title: "Edit Character" }}
+      />
+    </CharacterStack.Navigator>
+  )
+}
 
 export default function RootNavigator() {
   const user = useUser()
@@ -64,14 +84,6 @@ export default function RootNavigator() {
               component={Profile}
               options={({ navigation }: RootStackScreenProps<"Profile">) => ({
                 title: "Profile",
-                headerRight: () => <CreditCounterIcon navigation={navigation} />,
-              })}
-            />
-            <Stack.Screen
-              name="EditCharacter"
-              component={EditCharacter}
-              options={({ navigation }: RootStackScreenProps<"EditCharacter">) => ({
-                title: "Edit Character",
                 headerRight: () => <CreditCounterIcon navigation={navigation} />,
               })}
             />
@@ -128,8 +140,8 @@ function BottomTabNavigator() {
     <BottomTab.Navigator initialRouteName="Characters">
       <BottomTab.Screen
         name="Characters"
-        component={Characters}
-        options={({ navigation }: RootTabScreenProps<"Characters">) => ({
+        component={CharacterStackNavigator}
+        options={({ navigation }) => ({
           title: "Characters",
           tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
           headerRight: () => <CreditCounterIcon navigation={navigation} />,
