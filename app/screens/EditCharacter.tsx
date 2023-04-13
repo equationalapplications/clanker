@@ -10,11 +10,12 @@ import useCharacter from "../hooks/useCharacter"
 import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-import { RootStackScreenProps } from "../navigation/types"
+import { CharacterStackScreenProps } from "../navigation/types"
 import { generateImage } from "../utilities/generateImage"
+import { setDefaultCharacter } from "../utilities/setDefaultCharacter"
 import updateCharacter from "../utilities/updateCharacter"
 
-export function EditCharacter({ navigation, route }: RootStackScreenProps<"EditCharacter">) {
+export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"EditCharacter">) {
   const user = useUser()
   const uid = user?.uid
   const { id } = route.params
@@ -23,6 +24,7 @@ export function EditCharacter({ navigation, route }: RootStackScreenProps<"EditC
   const character = useCharacter(uid, id)
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
+  const defaultCharacter = userPrivate?.defaultCharacter
   const isPremium = useIsPremium()
   const [avatar, setAvatar] = useState(character?.avatar ?? defaultAvatarUrl)
   const [appearance, setAppearance] = useState(character?.appearance ?? "")
@@ -66,7 +68,6 @@ export function EditCharacter({ navigation, route }: RootStackScreenProps<"EditC
   const onPressSave = async () => {
     if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
-      return
     }
     setTextIsLoading(true)
     await updateCharacter(character.id, {
@@ -106,7 +107,6 @@ export function EditCharacter({ navigation, route }: RootStackScreenProps<"EditC
   const onPressErase = async () => {
     if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
-      return
     }
     setIsEraseModalVisible(true)
   }
@@ -120,6 +120,16 @@ export function EditCharacter({ navigation, route }: RootStackScreenProps<"EditC
     setTextIsLoading(true)
     await updateCharacter(character.id, { context: "" })
     setTextIsLoading(false)
+  }
+
+  const onPressMakeDefault = async () => {
+    if (credits <= 0 && !isPremium) {
+      navigation.navigate("Subscribe")
+    }
+    setTextIsLoading(true)
+    await setDefaultCharacter({ characterId: id })
+    setTextIsLoading(false)
+    setIsSaveModalVisible(true)
   }
 
   return (
@@ -178,6 +188,9 @@ export function EditCharacter({ navigation, route }: RootStackScreenProps<"EditC
         )}
         <Button mode="outlined" onPress={onPressSave}>
           Save Changes
+        </Button>
+        <Button mode="outlined" onPress={onPressMakeDefault} disabled={defaultCharacter === id}>
+          {defaultCharacter === id ? "Is Default Character" : "Make Default Character"}
         </Button>
         <Button mode="outlined" onPress={onPressErase}>
           Erase Memory
