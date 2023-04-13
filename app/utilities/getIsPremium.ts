@@ -16,13 +16,13 @@ export const getIsPremium = async (): Promise<boolean> => {
   if (!auth.currentUser) {
     return false
   }
-  const uid = auth.currentUser.uid
+  const uid = auth?.currentUser?.uid
 
   if (platform === "ios" || platform === "android") {
     const customerInfo: CustomerInfo = await Purchases.getCustomerInfo()
     const entitlements = customerInfo?.entitlements
 
-    return entitlements && Object.keys(entitlements?.active).length > 0
+    return entitlements && Object.keys(entitlements?.active)?.length > 0
   } else if (platform === "web") {
     let retryCount = 0
     while (retryCount < 3) {
@@ -42,7 +42,7 @@ export const getIsPremium = async (): Promise<boolean> => {
         const purchasesOfferingsData: PurchasesOfferingsData = await response.json()
         const subscriber = purchasesOfferingsData?.subscriber
         const entitlements = subscriber?.entitlements ?? {}
-        return entitlements && Object.keys(entitlements).length > 0
+        return entitlements && Object.keys(entitlements)?.length > 0
       } catch (error) {
         retryCount += 1
         if (retryCount === 3) {
