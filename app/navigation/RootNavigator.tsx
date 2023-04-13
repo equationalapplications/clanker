@@ -47,7 +47,7 @@ function CharacterStackNavigator() {
       <CharacterStack.Screen
         name="EditCharacter"
         component={EditCharacter}
-        options={{ title: "Edit Character" }}
+        options={{ headerShown: false, title: "Edit Character" }}
       />
     </CharacterStack.Navigator>
   )
