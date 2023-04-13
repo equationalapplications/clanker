@@ -1,3 +1,21 @@
+# [7.3.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.2.0...v7.3.0) (2023-04-12)
+
+
+### Bug Fixes
+
+* invalidateQueries("isPremium") after purchase ([e501cda](https://github.com/equationalapplications/yoursbrightlyai/commit/e501cda8107681df8ab68d627952fac011566b34))
+* remove invalidateQueries ([dabad24](https://github.com/equationalapplications/yoursbrightlyai/commit/dabad24f9e252daa694a926d972ce04fc6e94797))
+* retry: 3, staleTime: 1 hour ([c87e76e](https://github.com/equationalapplications/yoursbrightlyai/commit/c87e76e239b7065f67739479df6329869b1ef5b4))
+* update RevenueCat Api naming ([7244ffc](https://github.com/equationalapplications/yoursbrightlyai/commit/7244ffcc6cbc160496b441583530ffda3baa310b))
+
+
+### Features
+
+* create getIsPremium function ([8141acd](https://github.com/equationalapplications/yoursbrightlyai/commit/8141acd19667196f47dd61c048892e179cbfd162))
+* create postStripeReceipt function ([e8c7437](https://github.com/equationalapplications/yoursbrightlyai/commit/e8c74374db1e129386c5db7c1d2ed19422888566))
+* create usePostStripeReceipt hook ([cd740f3](https://github.com/equationalapplications/yoursbrightlyai/commit/cd740f3487c1c41de1fe3762e1ed23d51f2f5112))
+* post web Stripe receipt ([3a1f667](https://github.com/equationalapplications/yoursbrightlyai/commit/3a1f6670beb67d7877dabc33299e94270c345b36))
+
 # [7.3.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.2.0...v7.3.0-staging.1) (2023-04-12)
 
 
