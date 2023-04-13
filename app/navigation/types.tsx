@@ -37,8 +37,8 @@ export type CharacterStackScreenProps<Screen extends keyof CharacterStackParamLi
   NativeStackScreenProps<CharacterStackParamList, Screen>
 
 export type RootTabParamList = {
-  Characters: NavigatorScreenParams<CharacterStackParamList> | undefined
-  Chat: undefined
+  CharactersTab: NavigatorScreenParams<CharacterStackParamList> | undefined
+  Chat: { id?: string; userId?: string }
   Settings: undefined
 }
 

@@ -84,6 +84,10 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
     setIsSaveModalVisible(false)
   }
 
+  const onPressChat = () => {
+    navigation.navigate("Tab", { screen: "Chat", params: { id: character.id, userId: uid } })
+  }
+
   const onPressGenerate = async () => {
     if (credits <= 0 && !isPremium) {
       navigation.navigate("Subscribe")
@@ -145,6 +149,9 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
         )}
         <Button mode="outlined" onPress={onPressGenerate} disabled={imageIsLoading}>
           Generate New Image
+        </Button>
+        <Button mode="contained" onPress={onPressChat}>
+          Chat Now
         </Button>
         {textIsLoading ? (
           <LoadingIndicator />
