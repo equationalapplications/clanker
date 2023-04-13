@@ -44,7 +44,11 @@ interface PrivateCharacterData {
 }
 ```
 
-### Collection: user_chats
+### Collection: (multiCharacter) user_chats
+`${userChatsCollection}/${user.uid}/${usersPublicCollection}/${userOfCharacterId}/${charactersCollection}/${characterId}/${messagesCollection}`
+use messages interface like below
+
+### Collection: (defaultCharacter) user_chats
 `${userChatsCollection}/${user.uid}/${messagesCollection}`
 ```ts
 interface ChatMessage {
@@ -85,6 +89,7 @@ interface PrivateChatData {
 ```
 
 ### Collection: public_chat_rooms
+  `${publicChatRoomsCollection}/${publicChatRoomId}/${messagesCollection}`
 ```ts
 interface PublicChatRoomMessage {
   text: string;
@@ -95,6 +100,8 @@ interface PublicChatRoomMessage {
     avatar: string;
   };
 }
+
+Collection: pulic_chat_rooms Document: default_room Collection: messages Document: _id _id: string | number text: string createdAt: Date | number user: _id: _id // of user or character name: string avatar: string
 
 interface PublicChatRoomData {
   default_room: {
