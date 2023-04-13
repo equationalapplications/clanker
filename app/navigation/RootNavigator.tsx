@@ -10,6 +10,8 @@ import {
   RootStackScreenProps,
   RootTabParamList,
   RootTabScreenProps,
+  CharacterStackParamList,
+  CharacterStackScreenProps,
 } from "./types"
 import { purchasesConfig } from "../config/purchasesConfig"
 import { useIsPremium } from "../hooks/useIsPremium"
@@ -17,6 +19,7 @@ import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 import Characters from "../screens/Characters"
 import Chat from "../screens/Chat"
+import { EditCharacter } from "../screens/EditCharacter"
 import NotFoundScreen from "../screens/NotFoundScreen"
 import Privacy from "../screens/Privacy"
 import Profile from "../screens/Profile"
@@ -31,6 +34,24 @@ import Terms from "../screens/Terms"
  */
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
+const CharacterStack = createNativeStackNavigator<CharacterStackParamList>()
+
+function CharacterStackNavigator() {
+  return (
+    <CharacterStack.Navigator>
+      <CharacterStack.Screen
+        name="Characters"
+        component={Characters}
+        options={{ headerShown: false, title: "Characters" }}
+      />
+      <CharacterStack.Screen
+        name="EditCharacter"
+        component={EditCharacter}
+        options={{ title: "Edit Character" }}
+      />
+    </CharacterStack.Navigator>
+  )
+}
 
 export default function RootNavigator() {
   const user = useUser()
@@ -49,7 +70,7 @@ export default function RootNavigator() {
         <>
           <Stack.Group navigationKey={user && hasAcceptedTermsDate ? "user" : "guest"}>
             <Stack.Screen
-              name="Root"
+              name="Tab"
               component={BottomTabNavigator}
               options={{ headerShown: false }}
             />
@@ -98,7 +119,6 @@ export default function RootNavigator() {
               component={SignIn}
               options={{ headerShown: false, title: "Sign In" }}
             />
-            <Stack.Screen name="Root" component={SignIn} options={{ title: "Privacy" }} />
             <Stack.Screen name="Privacy" component={Privacy} options={{ title: "Privacy" }} />
             <Stack.Screen name="Terms" component={Terms} options={{ title: "Terms" }} />
             <Stack.Screen name="NotFound" component={NotFoundScreen} options={{ title: "Oops!" }} />
@@ -117,12 +137,12 @@ const BottomTab = createBottomTabNavigator<RootTabParamList>()
 
 function BottomTabNavigator() {
   return (
-    <BottomTab.Navigator initialRouteName="Character">
+    <BottomTab.Navigator initialRouteName="Characters">
       <BottomTab.Screen
-        name="Character"
-        component={Characters}
-        options={({ navigation }: RootTabScreenProps<"Character">) => ({
-          title: "Character",
+        name="Characters"
+        component={CharacterStackNavigator}
+        options={({ navigation }) => ({
+          title: "Characters",
           tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
           headerRight: () => <CreditCounterIcon navigation={navigation} />,
         })}

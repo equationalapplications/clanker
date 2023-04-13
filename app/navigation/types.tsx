@@ -14,8 +14,8 @@ declare global {
 }
 
 export type RootStackParamList = {
-  Root: NavigatorScreenParams<RootTabParamList> | undefined
-  Subscribe: undefined
+  Tab: NavigatorScreenParams<RootTabParamList> | undefined
+  Subscribe: { success?: string; canceled?: string; session_id?: string }
   NotFound: undefined
   SignIn: undefined
   Profile: undefined
@@ -28,8 +28,16 @@ export type RootStackScreenProps<Screen extends keyof RootStackParamList> = Nati
   Screen
 >
 
+export type CharacterStackParamList = {
+  Characters: undefined
+  EditCharacter: { id: string }
+}
+
+export type CharacterStackScreenProps<Screen extends keyof CharacterStackParamList> =
+  NativeStackScreenProps<CharacterStackParamList, Screen>
+
 export type RootTabParamList = {
-  Character: undefined
+  Characters: NavigatorScreenParams<CharacterStackParamList> | undefined
   Chat: undefined
   Settings: undefined
 }

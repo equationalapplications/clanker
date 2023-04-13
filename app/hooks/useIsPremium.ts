@@ -17,7 +17,7 @@ export const useIsPremium = (): boolean => {
   })
 
   useEffect(() => {
-    if (user) {
+    if (user && refetch) {
       refetch()
     }
   }, [user, refetch])

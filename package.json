@@ -1,6 +1,6 @@
 {
   "name": "yours-brightly-ai",
-  "version": "7.3.0",
+  "version": "7.4.0-staging.1",
   "scripts": {
     "start": "expo start --dev-client",
     "start:clear": "expo start --dev-client -c",
