@@ -11,7 +11,7 @@ import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 import { RootStackScreenProps } from "../navigation/types"
-import { getImage } from "../utilities/getImage"
+import { generateImage } from "../utilities/generateImage"
 import updateCharacter from "../utilities/updateCharacter"
 
 export function EditCharacter({ navigation, route }: RootStackScreenProps<"EditCharacter">) {
@@ -96,7 +96,7 @@ export function EditCharacter({ navigation, route }: RootStackScreenProps<"EditC
       ", and is feeling " +
       emotions +
       "."
-    await getImage({
+    await generateImage({
       text: promptText,
       characterId: id,
     })
