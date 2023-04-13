@@ -21,13 +21,20 @@ export type RootStackParamList = {
   Profile: undefined
   Terms: undefined
   Privacy: undefined
-  EditCharacter: { id: string }
 }
 
 export type RootStackScreenProps<Screen extends keyof RootStackParamList> = NativeStackScreenProps<
   RootStackParamList,
   Screen
 >
+
+export type CharacterStackParamList = {
+  Characters: undefined
+  EditCharacter: { id: string }
+}
+
+export type CharacterStackScreenProps<Screen extends keyof CharacterStackParamList> =
+  NativeStackScreenProps<CharacterStackParamList, Screen>
 
 export type RootTabParamList = {
   Characters: undefined

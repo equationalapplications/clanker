@@ -20,6 +20,7 @@ const linking: LinkingOptions<RootStackParamList> = {
             path: "characters",
             screens: {
               Characters: "characters",
+              EditCharacter: "edit",
             },
           },
           Chat: {
