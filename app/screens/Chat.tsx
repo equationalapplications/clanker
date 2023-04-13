@@ -1,27 +1,36 @@
 import { httpsCallable } from "firebase/functions"
-import { useMemo, useCallback } from "react"
+import { useMemo, useCallback, useState, useEffect } from "react"
 import { StyleSheet, View } from "react-native"
 import { GiftedChat, User, IMessage, Bubble } from "react-native-gifted-chat"
 import { useTheme } from "react-native-paper"
 
 import { functions } from "../config/firebaseConfig"
+import { useChatMessages } from "../hooks/useChatMessages"
 import { useIsPremium } from "../hooks/useIsPremium"
 import useMessages from "../hooks/useMessages"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
 import { RootTabScreenProps } from "../navigation/types"
+import { generateReply } from "../utilities/generateReply"
+import { postNewMessage } from "../utilities/postNewMessage"
 import updateMessages from "../utilities/updateMessages"
 
 const getReply: any = httpsCallable(functions, "getReply")
 
-export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
+export default function Chat({ navigation, route }: RootTabScreenProps<"Chat">) {
+  const { id, userId } = route.params
   const user = useUser()
   const uid = useMemo(() => user?.uid ?? "", [user])
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
   const isPremium = useIsPremium()
+  const [characterId, setCharacterId] = useState(id)
 
-  const messages = useMessages()
+  const messagesDefault = useMessages()
+  const chatMessages = useChatMessages({ id, userId })
+
+  const messages = id && userId ? chatMessages : messagesDefault
+
   const { colors, roundness } = useTheme()
 
   const chatUser = useMemo<User>(
@@ -32,6 +41,14 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
     }),
     [uid, user],
   )
+
+  useEffect(() => {
+    if (id && userId) {
+      setCharacterId(id)
+    } else {
+      setCharacterId(userPrivate?.defaultCharacter)
+    }
+  }, [id, userId])
 
   const onSend = async (messages: IMessage[]) => {
     if (credits <= 0 && !isPremium) {
@@ -45,9 +62,17 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
       text,
       user,
     }
-    updateMessages(message)
-    const { data } = await getReply({ message: text })
-    const reply = data.reply
+    if (id && userId) {
+      // case of mulit-character messaging
+      postNewMessage({ id, userId, message })
+      const text = message.text
+      await generateReply({ id, userId, text })
+    } else {
+      // case of defaultCharacter messaging
+      updateMessages(message)
+      const { data } = await getReply({ message: text })
+      const reply = data.reply
+    }
   }
 
   const renderBubble = useCallback(
@@ -71,6 +96,7 @@ export default function Chat({ navigation }: RootTabScreenProps<"Chat">) {
 
   return (
     <View
+      key={characterId}
       style={[
         styles.container,
         {
