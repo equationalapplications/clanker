@@ -16,8 +16,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       SignIn: "signin",
       Tab: {
         screens: {
-          Characters: {
-            path: "characters",
+          CharactersTab: {
             screens: {
               Characters: "characters",
               EditCharacter: "edit",
