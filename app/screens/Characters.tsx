@@ -5,17 +5,30 @@ import { TextInput, Avatar, FAB } from "react-native-paper"
 import Button from "../components/Button"
 import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
+import { useCharacterList } from "../hooks/useCharacterList"
 import useUserPrivate from "../hooks/useUserPrivate"
 import { RootTabScreenProps } from "../navigation/types"
 import { createNewCharacter } from "../utilities/createNewCharacter"
 
+interface CharacterButtonProps {
+  id: string
+  name: string
+}
+
 export default function Characters({ navigation }: RootTabScreenProps<"Characters">) {
+  const characterList = useCharacterList()
   const userPrivate = useUserPrivate()
   const [loading, setLoading] = useState(false)
 
-  const onPressEditCharacter = () => {
-    navigation.navigate("EditCharacter", { id: userPrivate.defaultCharacter })
+  const onPressEditCharacter = ({ id }: { id: string }) => {
+    navigation.navigate("EditCharacter", { id })
   }
+
+  const CharacterButton = ({ id, name }: CharacterButtonProps) => (
+    <Button onPress={() => onPressEditCharacter({ id })} mode="contained">
+      {name}
+    </Button>
+  )
 
   const onPressAddCharacter = async () => {
     setLoading(true)
@@ -30,7 +43,13 @@ export default function Characters({ navigation }: RootTabScreenProps<"Character
         style={{ marginTop: 30, width: "100%" }}
         contentContainerStyle={styles.scrollContentContainer}
       >
-        <Button onPress={onPressEditCharacter}>Edit Character</Button>
+        {characterList.map((character) => (
+          <CharacterButton
+            key={character.id}
+            id={character.id}
+            name={character.name || "Unnamed Character"}
+          />
+        ))}
         <LoadingIndicator disabled={!loading} />
       </ScrollView>
       <FAB icon="plus" onPress={onPressAddCharacter} />
