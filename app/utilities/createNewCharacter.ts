@@ -5,6 +5,7 @@ import { functions } from "../config/firebaseConfig"
 const createNewCharacterFn: any = httpsCallable(functions, "createNewCharacter")
 
 export const createNewCharacter = async () => {
-  const id = await createNewCharacterFn()
-  return id
+  const { data } = await createNewCharacterFn()
+  console.log("character", data)
+  return data
 }
