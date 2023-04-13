@@ -6,6 +6,5 @@ const createNewCharacterFn: any = httpsCallable(functions, "createNewCharacter")
 
 export const createNewCharacter = async () => {
   const { data } = await createNewCharacterFn()
-  console.log("character", data)
   return data
 }
