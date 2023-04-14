@@ -49,14 +49,6 @@ export default function RootNavigator() {
               options={{ headerShown: false, title: "Sign In" }}
             />
             <Stack.Screen
-              name="Profile"
-              component={Profile}
-              options={({ navigation }: RootStackScreenProps<"Profile">) => ({
-                title: "Profile",
-                headerRight: () => <CreditCounterIcon navigation={navigation} />,
-              })}
-            />
-            <Stack.Screen
               name="Terms"
               component={Terms}
               options={{ title: "Terms and Conditions" }}

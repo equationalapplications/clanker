@@ -2,11 +2,11 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import React from "react"
 
 import { CharacterStackNavigator } from "./CharacterStackNavigator"
+import { SettingsStackNavigator } from "./SettingsStackNavigator"
 import { RootTabParamList, RootTabScreenProps } from "./types"
 import { CreditCounterIcon } from "../components/CreditCounterIcon"
 import { TabBarIcon } from "../components/TabBarIcon"
 import Chat from "../screens/Chat"
-import Settings from "../screens/Settings"
 
 /**
  * A bottom tab navigator displays tab buttons on the bottom of the display to switch screens.
@@ -36,9 +36,9 @@ export function BottomTabNavigator() {
         })}
       />
       <BottomTab.Screen
-        name="Settings"
-        component={Settings}
-        options={({ navigation }: RootTabScreenProps<"Settings">) => ({
+        name="SettingsStack"
+        component={SettingsStackNavigator}
+        options={({ navigation }: RootTabScreenProps<"SettingsStack">) => ({
           title: "Settings",
           tabBarIcon: ({ color }) => <TabBarIcon name="gear" color={color} />,
           headerRight: () => <CreditCounterIcon navigation={navigation} />,
