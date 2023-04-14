@@ -1,29 +1,16 @@
-import { FontAwesome } from "@expo/vector-icons"
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import React, { useEffect } from "react"
-import { Pressable } from "react-native"
-import { Badge, Text } from "react-native-paper"
 
-import {
-  RootStackParamList,
-  RootStackScreenProps,
-  RootTabParamList,
-  RootTabScreenProps,
-  CharacterStackParamList,
-  CharacterStackScreenProps,
-} from "./types"
+import { BottomTabNavigator } from "./BottomTabNavigator"
+import { RootStackParamList, RootStackScreenProps } from "./types"
+import { CreditCounterIcon } from "../components/CreditCounterIcon"
+import { TabBarIcon } from "../components/TabBarIcon"
 import { purchasesConfig } from "../config/purchasesConfig"
-import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-import Characters from "../screens/Characters"
-import Chat from "../screens/Chat"
-import { EditCharacter } from "../screens/EditCharacter"
 import NotFoundScreen from "../screens/NotFoundScreen"
 import Privacy from "../screens/Privacy"
 import Profile from "../screens/Profile"
-import Settings from "../screens/Settings"
 import SignIn from "../screens/SignIn"
 import SubscribeModal from "../screens/SubscribeModal"
 import Terms from "../screens/Terms"
@@ -34,24 +21,6 @@ import Terms from "../screens/Terms"
  */
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
-const CharacterStack = createNativeStackNavigator<CharacterStackParamList>()
-
-function CharacterStackNavigator() {
-  return (
-    <CharacterStack.Navigator>
-      <CharacterStack.Screen
-        name="Characters"
-        component={Characters}
-        options={{ headerShown: false, title: "Characters" }}
-      />
-      <CharacterStack.Screen
-        name="EditCharacter"
-        component={EditCharacter}
-        options={{ headerShown: false, title: "Edit Character" }}
-      />
-    </CharacterStack.Navigator>
-  )
-}
 
 export default function RootNavigator() {
   const user = useUser()
@@ -127,85 +96,4 @@ export default function RootNavigator() {
       )}
     </Stack.Navigator>
   )
-}
-
-/**
- * A bottom tab navigator displays tab buttons on the bottom of the display to switch screens.
- * https://reactnavigation.org/docs/bottom-tab-navigator
- */
-const BottomTab = createBottomTabNavigator<RootTabParamList>()
-
-function BottomTabNavigator() {
-  return (
-    <BottomTab.Navigator initialRouteName="Characters">
-      <BottomTab.Screen
-        name="Characters"
-        component={CharacterStackNavigator}
-        options={({ navigation }) => ({
-          title: "Characters",
-          tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
-          headerRight: () => <CreditCounterIcon navigation={navigation} />,
-        })}
-      />
-      <BottomTab.Screen
-        name="Chat"
-        component={Chat}
-        options={({ navigation }: RootTabScreenProps<"Chat">) => ({
-          title: "Chat",
-          tabBarIcon: ({ color }) => <TabBarIcon name="comments" color={color} />,
-          headerRight: () => <CreditCounterIcon navigation={navigation} />,
-        })}
-      />
-      <BottomTab.Screen
-        name="Settings"
-        component={Settings}
-        options={({ navigation }: RootTabScreenProps<"Settings">) => ({
-          title: "Settings",
-          tabBarIcon: ({ color }) => <TabBarIcon name="gear" color={color} />,
-          headerRight: () => <CreditCounterIcon navigation={navigation} />,
-        })}
-      />
-    </BottomTab.Navigator>
-  )
-}
-
-function CreditCounterIcon({ navigation }) {
-  const userPrivate = useUserPrivate()
-  const [credits, setCredits] = React.useState(userPrivate?.credits)
-  const isPremium = useIsPremium()
-
-  React.useEffect(() => {
-    setCredits(userPrivate?.credits)
-  }, [userPrivate])
-  return (
-    <Pressable
-      onPress={() => navigation.navigate("Subscribe")}
-      style={({ pressed }) => ({
-        flexDirection: "row",
-        opacity: pressed ? 0.5 : 1,
-        marginRight: 10,
-      })}
-    >
-      {isPremium ? (
-        <>
-          <Text>👑</Text>
-        </>
-      ) : (
-        <>
-          <Text>Credits </Text>
-          <Badge>{credits}</Badge>
-        </>
-      )}
-    </Pressable>
-  )
-}
-
-/**
- * You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
- */
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>["name"]
-  color: string
-}) {
-  return <FontAwesome size={30} {...props} />
 }
