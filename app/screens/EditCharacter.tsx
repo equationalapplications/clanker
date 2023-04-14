@@ -85,7 +85,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
   }
 
   const onPressChat = () => {
-    navigation.navigate("Tab", { screen: "Chat", params: { id: character.id, userId: uid } })
+    navigation.navigate("Home", { screen: "Chat", params: { id: character.id, userId: uid } })
   }
 
   const onPressGenerate = async () => {

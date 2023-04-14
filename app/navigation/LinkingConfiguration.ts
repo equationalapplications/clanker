@@ -14,9 +14,9 @@ const linking: LinkingOptions<RootStackParamList> = {
   config: {
     screens: {
       SignIn: "signin",
-      Tab: {
+      Home: {
         screens: {
-          CharactersTab: {
+          CharacterStack: {
             screens: {
               Characters: "characters",
               EditCharacter: "edit",
