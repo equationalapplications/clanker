@@ -18,7 +18,6 @@ export type RootStackParamList = {
   Subscribe: { success?: string; canceled?: string; session_id?: string }
   NotFound: undefined
   SignIn: undefined
-  Profile: undefined
   Terms: undefined
   Privacy: undefined
 }
@@ -36,10 +35,18 @@ export type CharacterStackParamList = {
 export type CharacterStackScreenProps<Screen extends keyof CharacterStackParamList> =
   NativeStackScreenProps<CharacterStackParamList, Screen>
 
+export type SettingsStackParamList = {
+  Settings: undefined
+  Profile: undefined
+}
+
+export type SettingsStackScreenProps<Screen extends keyof SettingsStackParamList> =
+  NativeStackScreenProps<SettingsStackParamList, Screen>
+
 export type RootTabParamList = {
   CharacterStack: NavigatorScreenParams<CharacterStackParamList> | undefined
   Chat: { id?: string; userId?: string }
-  Settings: undefined
+  SettingsStack: NavigatorScreenParams<SettingsStackParamList> | undefined
 }
 
 export type RootTabScreenProps<Screen extends keyof RootTabParamList> = CompositeScreenProps<
