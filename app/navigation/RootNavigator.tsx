@@ -39,7 +39,7 @@ export default function RootNavigator() {
         <>
           <Stack.Group navigationKey={user && hasAcceptedTermsDate ? "user" : "guest"}>
             <Stack.Screen
-              name="Tab"
+              name="Home"
               component={BottomTabNavigator}
               options={{ headerShown: false }}
             />

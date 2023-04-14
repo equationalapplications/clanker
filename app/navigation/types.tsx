@@ -14,7 +14,7 @@ declare global {
 }
 
 export type RootStackParamList = {
-  Tab: NavigatorScreenParams<RootTabParamList> | undefined
+  Home: NavigatorScreenParams<RootTabParamList> | undefined
   Subscribe: { success?: string; canceled?: string; session_id?: string }
   NotFound: undefined
   SignIn: undefined
@@ -37,7 +37,7 @@ export type CharacterStackScreenProps<Screen extends keyof CharacterStackParamLi
   NativeStackScreenProps<CharacterStackParamList, Screen>
 
 export type RootTabParamList = {
-  CharactersTab: NavigatorScreenParams<CharacterStackParamList> | undefined
+  CharacterStack: NavigatorScreenParams<CharacterStackParamList> | undefined
   Chat: { id?: string; userId?: string }
   Settings: undefined
 }
