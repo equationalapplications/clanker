@@ -14,7 +14,7 @@ export default function Settings({ navigation }: RootTabScreenProps<"Settings">)
   }
 
   const onPressProfile = () => {
-    navigation.navigate("Profile")
+    navigation.navigate("SettingsStack", { screen: "Profile" })
   }
 
   return (
