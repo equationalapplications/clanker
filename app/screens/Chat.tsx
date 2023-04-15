@@ -14,6 +14,7 @@ import { BottomTabScreenProps } from "../navigation/types"
 import { generateReply } from "../utilities/generateReply"
 import { postNewMessage } from "../utilities/postNewMessage"
 import updateMessages from "../utilities/updateMessages"
+import { defaultAvatarUrl } from "../config/constants"
 
 const getReply: any = httpsCallable(functions, "getReply")
 
@@ -25,7 +26,6 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
   const isPremium = useIsPremium()
-  const [characterId, setCharacterId] = useState(id)
 
   const messagesDefault = useMessages()
   const chatMessages = useChatMessages({ id, userId })
@@ -38,18 +38,10 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
     () => ({
       _id: uid,
       name: user?.displayName ?? "",
-      avatar: user?.photoURL ?? "https://www.gravatar.com/avatar?d=mp",
+      avatar: user?.photoURL ?? defaultAvatarUrl,
     }),
     [uid, user],
   )
-
-  useEffect(() => {
-    if (id && userId) {
-      setCharacterId(id)
-    } else {
-      setCharacterId(userPrivate?.defaultCharacter)
-    }
-  }, [id, userId])
 
   const onSend = async (messages: IMessage[]) => {
     if (credits <= 0 && !isPremium) {
@@ -97,7 +89,6 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
 
   return (
     <View
-      key={characterId}
       style={[
         styles.container,
         {
