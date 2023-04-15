@@ -18,7 +18,8 @@ import updateMessages from "../utilities/updateMessages"
 const getReply: any = httpsCallable(functions, "getReply")
 
 export default function Chat({ navigation, route }: RootTabScreenProps<"Chat">) {
-  const { id, userId } = route.params
+  const id = route.params?.id ?? null
+  const userId = route.params?.userId ?? null
   const user = useUser()
   const uid = useMemo(() => user?.uid ?? "", [user])
   const userPrivate = useUserPrivate()
