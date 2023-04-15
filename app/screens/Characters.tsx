@@ -7,7 +7,7 @@ import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
 import { useCharacterList } from "../hooks/useCharacterList"
 import useUserPrivate from "../hooks/useUserPrivate"
-import { RootTabScreenProps } from "../navigation/types"
+import { BottomTabScreenProps } from "../navigation/types"
 import { createNewCharacter } from "../utilities/createNewCharacter"
 
 interface CharacterButtonProps {
@@ -15,7 +15,7 @@ interface CharacterButtonProps {
   name: string
 }
 
-export default function Characters({ navigation }: RootTabScreenProps<"Characters">) {
+export default function Characters({ navigation }: BottomTabScreenProps<"Characters">) {
   const characterList = useCharacterList()
   const userPrivate = useUserPrivate()
   const [loading, setLoading] = useState(false)
