@@ -10,14 +10,14 @@ import { useIsPremium } from "../hooks/useIsPremium"
 import useMessages from "../hooks/useMessages"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-import { RootTabScreenProps } from "../navigation/types"
+import { BottomTabScreenProps } from "../navigation/types"
 import { generateReply } from "../utilities/generateReply"
 import { postNewMessage } from "../utilities/postNewMessage"
 import updateMessages from "../utilities/updateMessages"
 
 const getReply: any = httpsCallable(functions, "getReply")
 
-export default function Chat({ navigation, route }: RootTabScreenProps<"Chat">) {
+export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">) {
   const id = route.params?.id ?? null
   const userId = route.params?.userId ?? null
   const user = useUser()
