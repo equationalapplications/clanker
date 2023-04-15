@@ -28,16 +28,15 @@ const linking: LinkingOptions<RootStackParamList> = {
               Chat: "chat",
             },
           },
-          Settings: {
-            path: "settings",
+          SettingsStack: {
             screens: {
               Settings: "settings",
+              Profile: "profile",
             },
           },
         },
       },
       Subscribe: "subscribe",
-      Profile: "profile",
       Privacy: "privacy",
       Terms: "terms",
       NotFound: "*",
