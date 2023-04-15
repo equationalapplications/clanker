@@ -2,6 +2,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import React from "react"
 
 import { CharacterStackParamList } from "./types"
+import { CreditCounterIcon } from "../components/CreditCounterIcon"
+import { TabBarIcon } from "../components/TabBarIcon"
 import Characters from "../screens/Characters"
 import { EditCharacter } from "../screens/EditCharacter"
 
@@ -13,12 +15,20 @@ export function CharacterStackNavigator() {
       <CharacterStack.Screen
         name="Characters"
         component={Characters}
-        options={{ headerShown: false, title: "Characters" }}
+        options={({ navigation }) => ({
+          title: "Characters",
+          tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
+          headerRight: () => <CreditCounterIcon navigation={navigation} />,
+        })}
       />
       <CharacterStack.Screen
         name="EditCharacter"
         component={EditCharacter}
-        options={{ headerShown: false, title: "Edit Character" }}
+        options={({ navigation }) => ({
+          title: "Edit Character",
+          tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
+          headerRight: () => <CreditCounterIcon navigation={navigation} />,
+        })}
       />
     </CharacterStack.Navigator>
   )
