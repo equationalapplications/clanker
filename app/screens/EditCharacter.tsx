@@ -67,7 +67,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
 
   const onPressSave = async () => {
     if (credits <= 0 && !isPremium) {
-      navigation.navigate("Subscribe")
+      navigation.getParent().navigate("Subscribe")
     }
     setTextIsLoading(true)
     await updateCharacter(character.id, {
@@ -85,12 +85,14 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
   }
 
   const onPressChat = () => {
-    navigation.navigate("Home", { screen: "Chat", params: { id: character.id, userId: uid } })
+    navigation
+      .getParent()
+      .navigate("Home", { screen: "Chat", params: { id: character.id, userId: uid } })
   }
 
   const onPressGenerate = async () => {
     if (credits <= 0 && !isPremium) {
-      navigation.navigate("Subscribe")
+      navigation.getParent().navigate("Subscribe")
     }
     setImageIsLoading(true)
     const promptText =
@@ -110,7 +112,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
 
   const onPressErase = async () => {
     if (credits <= 0 && !isPremium) {
-      navigation.navigate("Subscribe")
+      navigation.getParent().navigate("Subscribe")
     }
     setIsEraseModalVisible(true)
   }
@@ -128,7 +130,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
 
   const onPressMakeDefault = async () => {
     if (credits <= 0 && !isPremium) {
-      navigation.navigate("Subscribe")
+      navigation.getParent().navigate("Subscribe")
     }
     setTextIsLoading(true)
     await setDefaultCharacter({ characterId: id })
