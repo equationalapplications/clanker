@@ -31,9 +31,14 @@ export type RootStackScreenProps<Screen extends keyof RootStackParamList> = Nati
 
 // Bottom Tab
 
+export type ChatScreenOptions = {
+  id?: string
+  userId?: string
+}
+
 export type BottomTabParamList = {
   CharacterStack: NavigatorScreenParams<CharacterStackParamList> | undefined
-  Chat: { id?: string; userId?: string }
+  Chat: ChatScreenOptions
   SettingsStack: NavigatorScreenParams<SettingsStackParamList> | undefined
 }
 
@@ -44,9 +49,13 @@ export type BottomTabScreenProps<Screen extends keyof BottomTabParamList> = Comp
 
 // Character Stack
 
+export type CharacterScreenOptions = {
+  id?: string
+}
+
 export type CharacterStackParamList = {
   Characters: undefined
-  EditCharacter: { id: string }
+  EditCharacter: CharacterScreenOptions
 }
 
 export type CharacterStackScreenProps<Screen extends keyof CharacterStackParamList> =
