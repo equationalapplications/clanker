@@ -1,36 +1,35 @@
-import { httpsCallable } from "firebase/functions"
-import { useMemo, useCallback, useState, useEffect } from "react"
+import { useMemo, useCallback } from "react"
 import { StyleSheet, View } from "react-native"
 import { GiftedChat, User, IMessage, Bubble } from "react-native-gifted-chat"
 import { useTheme } from "react-native-paper"
 
 import { defaultAvatarUrl } from "../config/constants"
-import { functions } from "../config/firebaseConfig"
+import { useCharacterList } from "../hooks/useCharacterList"
 import { useChatMessages } from "../hooks/useChatMessages"
 import { useIsPremium } from "../hooks/useIsPremium"
-import useMessages from "../hooks/useMessages"
-import useUser from "../hooks/useUser"
-import useUserPrivate from "../hooks/useUserPrivate"
+import { useUser } from "../hooks/useUser"
+import { useUserPrivate } from "../hooks/useUserPrivate"
 import { BottomTabScreenProps } from "../navigation/types"
 import { generateReply } from "../utilities/generateReply"
 import { postNewMessage } from "../utilities/postNewMessage"
-import updateMessages from "../utilities/updateMessages"
-
-const getReply: any = httpsCallable(functions, "getReply")
 
 export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">) {
-  const id = route.params?.id ?? null
-  const userId = route.params?.userId ?? null
   const user = useUser()
   const uid = useMemo(() => user?.uid ?? "", [user])
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
   const isPremium = useIsPremium()
+  const characterList = useCharacterList()
 
-  const messagesDefault = useMessages()
-  const chatMessages = useChatMessages({ id, userId })
+  let id = route.params?.id ?? null
+  let userId = route.params?.userId ?? null
 
-  const messages = id && userId ? chatMessages : messagesDefault
+  if (id === null || userId === null) {
+    id = characterList[0].id
+    userId = uid
+  }
+
+  const messages = useChatMessages({ id, userId })
 
   const { colors, roundness } = useTheme()
 
@@ -55,17 +54,8 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
       text,
       user,
     }
-    if (id && userId) {
-      // case of mulit-character messaging
-      postNewMessage({ id, userId, message })
-      const text = message.text
-      await generateReply({ id, userId, text })
-    } else {
-      // case of defaultCharacter messaging
-      updateMessages(message)
-      const { data } = await getReply({ message: text })
-      const reply = data.reply
-    }
+    postNewMessage({ id, userId, message })
+    await generateReply({ id, userId, text })
   }
 
   const renderBubble = useCallback(
