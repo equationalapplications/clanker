@@ -9,7 +9,7 @@ import LoadingIndicator from "../components/LoadingIndicator"
 import { platform } from "../config/constants"
 import { useIsPremium } from "../hooks/useIsPremium"
 import { usePostStripeReceipt } from "../hooks/usePostStripeReceipt"
-import useUserPrivate from "../hooks/useUserPrivate"
+import { useUserPrivate } from "../hooks/useUserPrivate"
 
 type SubscribeModalRouteProp = RouteProp<
   { params: { success?: string; canceled?: string; session_id?: string } },
