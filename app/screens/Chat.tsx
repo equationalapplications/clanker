@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native"
 import { GiftedChat, User, IMessage, Bubble } from "react-native-gifted-chat"
 import { useTheme } from "react-native-paper"
 
+import { defaultAvatarUrl } from "../config/constants"
 import { functions } from "../config/firebaseConfig"
 import { useChatMessages } from "../hooks/useChatMessages"
 import { useIsPremium } from "../hooks/useIsPremium"
@@ -14,7 +15,6 @@ import { BottomTabScreenProps } from "../navigation/types"
 import { generateReply } from "../utilities/generateReply"
 import { postNewMessage } from "../utilities/postNewMessage"
 import updateMessages from "../utilities/updateMessages"
-import { defaultAvatarUrl } from "../config/constants"
 
 const getReply: any = httpsCallable(functions, "getReply")
 
