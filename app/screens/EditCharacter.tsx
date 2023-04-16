@@ -1,3 +1,4 @@
+import { NativeStackNavigationProp } from "@react-navigation/native-stack"
 import { useState, useEffect } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
@@ -10,10 +11,12 @@ import useCharacter from "../hooks/useCharacter"
 import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-import { CharacterStackScreenProps } from "../navigation/types"
+import { CharacterStackScreenProps, RootStackParamList } from "../navigation/types"
 import { generateImage } from "../utilities/generateImage"
 import { setDefaultCharacter } from "../utilities/setDefaultCharacter"
 import updateCharacter from "../utilities/updateCharacter"
+
+type RootStackNavigationProp = NativeStackNavigationProp<RootStackParamList>
 
 export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"EditCharacter">) {
   const user = useUser()
@@ -85,9 +88,8 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
   }
 
   const onPressChat = () => {
-    navigation
-      .getParent()
-      .navigate("Home", { screen: "Chat", params: { id: character.id, userId: uid } })
+    const parentNavigation = navigation.getParent<RootStackNavigationProp>()
+    parentNavigation.push("Home", { screen: "Chat", params: { id: character.id, userId: uid } })
   }
 
   const onPressGenerate = async () => {
