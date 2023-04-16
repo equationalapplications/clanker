@@ -130,7 +130,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
     setTextIsLoading(false)
   }
 
-  const onPressMakeDefault = async () => {
+  /*const onPressMakeDefault = async () => {
     if (credits <= 0 && !isPremium) {
       navigation.getParent().navigate("Subscribe")
     }
@@ -138,7 +138,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
     await setDefaultCharacter({ characterId: id })
     setTextIsLoading(false)
     setIsSaveModalVisible(true)
-  }
+  }*/
 
   return (
     <View style={styles.container}>
@@ -200,9 +200,9 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
         <Button mode="outlined" onPress={onPressSave}>
           Save Changes
         </Button>
-        <Button mode="outlined" onPress={onPressMakeDefault} disabled={defaultCharacter === id}>
+        {/*<Button mode="outlined" onPress={onPressMakeDefault} disabled={defaultCharacter === id}>
           {defaultCharacter === id ? "Is Default Character" : "Make Default Character"}
-        </Button>
+        </Button>*/}
         <Button mode="outlined" onPress={onPressErase}>
           Erase Memory
         </Button>
