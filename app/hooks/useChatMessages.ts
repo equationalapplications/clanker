@@ -2,7 +2,7 @@ import { collection, onSnapshot, CollectionReference } from "firebase/firestore"
 import { useEffect, useState, useRef } from "react"
 import { IMessage } from "react-native-gifted-chat"
 
-import useUser from "./useUser"
+import { useUser } from "./useUser"
 import {
   userChatsCollection,
   messagesCollection,

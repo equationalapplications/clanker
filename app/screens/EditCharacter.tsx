@@ -9,11 +9,10 @@ import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
 import useCharacter from "../hooks/useCharacter"
 import { useIsPremium } from "../hooks/useIsPremium"
-import useUser from "../hooks/useUser"
-import useUserPrivate from "../hooks/useUserPrivate"
+import { useUser } from "../hooks/useUser"
+import { useUserPrivate } from "../hooks/useUserPrivate"
 import { CharacterStackScreenProps, RootStackParamList } from "../navigation/types"
 import { generateImage } from "../utilities/generateImage"
-import { setDefaultCharacter } from "../utilities/setDefaultCharacter"
 import updateCharacter from "../utilities/updateCharacter"
 
 type RootStackNavigationProp = NativeStackNavigationProp<RootStackParamList>
@@ -27,7 +26,6 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
   const character = useCharacter(uid, id)
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
-  const defaultCharacter = userPrivate?.defaultCharacter
   const isPremium = useIsPremium()
   const [avatar, setAvatar] = useState(character?.avatar ?? defaultAvatarUrl)
   const [appearance, setAppearance] = useState(character?.appearance ?? "")
@@ -129,16 +127,6 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
     await updateCharacter(character.id, { context: "" })
     setTextIsLoading(false)
   }
-
-  /*const onPressMakeDefault = async () => {
-    if (credits <= 0 && !isPremium) {
-      navigation.getParent().navigate("Subscribe")
-    }
-    setTextIsLoading(true)
-    await setDefaultCharacter({ characterId: id })
-    setTextIsLoading(false)
-    setIsSaveModalVisible(true)
-  }*/
 
   return (
     <View style={styles.container}>
