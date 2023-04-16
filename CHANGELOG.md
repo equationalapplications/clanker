@@ -1,3 +1,18 @@
+# [7.5.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.4.0...v7.5.0) (2023-04-16)
+
+
+### Bug Fixes
+
+* id and userId null default ([c614def](https://github.com/equationalapplications/yoursbrightlyai/commit/c614def4c2e80e03ef469cb0219b3691d47ad3ec))
+* navigate with navigation.getParent() ([9594457](https://github.com/equationalapplications/yoursbrightlyai/commit/9594457d0034619e0b5b978b8769d3a577faa584))
+
+
+### Features
+
+* create multi-character chat ([36a4f6c](https://github.com/equationalapplications/yoursbrightlyai/commit/36a4f6c16020c5bcff391500bd0766d2b3318e6b))
+* don't show 2nd header ([bbfc113](https://github.com/equationalapplications/yoursbrightlyai/commit/bbfc1130c0d3eb6cc6a96d4a8240a27ab77c90f3))
+* remove 'make default' button ([99a425e](https://github.com/equationalapplications/yoursbrightlyai/commit/99a425ed1e4956f169df3ca77cd89e1a5443dbd2))
+
 # [7.5.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.4.0...v7.5.0-staging.1) (2023-04-16)
 
 
