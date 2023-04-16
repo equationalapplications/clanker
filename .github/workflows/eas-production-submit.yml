@@ -1,4 +1,4 @@
-name: Production Build and Submit
+name: Production EAS Build and Submit
 
 on:
   # Allows you to run this workflow manually from the Actions tab

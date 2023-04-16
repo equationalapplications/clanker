@@ -1,11 +1,11 @@
-name: Staging Build Dev Client
+name: Staging EAS Build Dev Client
 
 on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  submit:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: 🏗 Setup repo
