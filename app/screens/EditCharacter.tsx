@@ -1,3 +1,4 @@
+import { NativeStackNavigationProp } from "@react-navigation/native-stack"
 import { useState, useEffect } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
 import { TextInput, Avatar } from "react-native-paper"
@@ -10,10 +11,12 @@ import useCharacter from "../hooks/useCharacter"
 import { useIsPremium } from "../hooks/useIsPremium"
 import useUser from "../hooks/useUser"
 import useUserPrivate from "../hooks/useUserPrivate"
-import { CharacterStackScreenProps } from "../navigation/types"
+import { CharacterStackScreenProps, RootStackParamList } from "../navigation/types"
 import { generateImage } from "../utilities/generateImage"
 import { setDefaultCharacter } from "../utilities/setDefaultCharacter"
 import updateCharacter from "../utilities/updateCharacter"
+
+type RootStackNavigationProp = NativeStackNavigationProp<RootStackParamList>
 
 export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"EditCharacter">) {
   const user = useUser()
@@ -67,7 +70,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
 
   const onPressSave = async () => {
     if (credits <= 0 && !isPremium) {
-      navigation.navigate("Subscribe")
+      navigation.getParent().navigate("Subscribe")
     }
     setTextIsLoading(true)
     await updateCharacter(character.id, {
@@ -84,9 +87,14 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
     setIsSaveModalVisible(false)
   }
 
+  const onPressChat = () => {
+    const parentNavigation = navigation.getParent<RootStackNavigationProp>()
+    parentNavigation.push("Home", { screen: "Chat", params: { id: character.id, userId: uid } })
+  }
+
   const onPressGenerate = async () => {
     if (credits <= 0 && !isPremium) {
-      navigation.navigate("Subscribe")
+      navigation.getParent().navigate("Subscribe")
     }
     setImageIsLoading(true)
     const promptText =
@@ -106,7 +114,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
 
   const onPressErase = async () => {
     if (credits <= 0 && !isPremium) {
-      navigation.navigate("Subscribe")
+      navigation.getParent().navigate("Subscribe")
     }
     setIsEraseModalVisible(true)
   }
@@ -122,15 +130,15 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
     setTextIsLoading(false)
   }
 
-  const onPressMakeDefault = async () => {
+  /*const onPressMakeDefault = async () => {
     if (credits <= 0 && !isPremium) {
-      navigation.navigate("Subscribe")
+      navigation.getParent().navigate("Subscribe")
     }
     setTextIsLoading(true)
     await setDefaultCharacter({ characterId: id })
     setTextIsLoading(false)
     setIsSaveModalVisible(true)
-  }
+  }*/
 
   return (
     <View style={styles.container}>
@@ -145,6 +153,9 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
         )}
         <Button mode="outlined" onPress={onPressGenerate} disabled={imageIsLoading}>
           Generate New Image
+        </Button>
+        <Button mode="contained" onPress={onPressChat}>
+          Chat Now
         </Button>
         {textIsLoading ? (
           <LoadingIndicator />
@@ -189,9 +200,9 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
         <Button mode="outlined" onPress={onPressSave}>
           Save Changes
         </Button>
-        <Button mode="outlined" onPress={onPressMakeDefault} disabled={defaultCharacter === id}>
+        {/*<Button mode="outlined" onPress={onPressMakeDefault} disabled={defaultCharacter === id}>
           {defaultCharacter === id ? "Is Default Character" : "Make Default Character"}
-        </Button>
+        </Button>*/}
         <Button mode="outlined" onPress={onPressErase}>
           Erase Memory
         </Button>

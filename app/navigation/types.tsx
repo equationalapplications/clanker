@@ -3,7 +3,7 @@
  * https://reactnavigation.org/docs/typescript/
  */
 
-import { BottomTabScreenProps } from "@react-navigation/bottom-tabs"
+import { BottomTabScreenProps as NavigationBottomTabScreenProps } from "@react-navigation/bottom-tabs"
 import { CompositeScreenProps, NavigatorScreenParams } from "@react-navigation/native"
 import { NativeStackScreenProps } from "@react-navigation/native-stack"
 
@@ -13,12 +13,13 @@ declare global {
   }
 }
 
+// Root Stack
+
 export type RootStackParamList = {
-  Tab: NavigatorScreenParams<RootTabParamList> | undefined
+  Home: NavigatorScreenParams<BottomTabParamList> | undefined
   Subscribe: { success?: string; canceled?: string; session_id?: string }
   NotFound: undefined
   SignIn: undefined
-  Profile: undefined
   Terms: undefined
   Privacy: undefined
 }
@@ -28,21 +29,44 @@ export type RootStackScreenProps<Screen extends keyof RootStackParamList> = Nati
   Screen
 >
 
+// Bottom Tab
+
+export type ChatScreenOptions = {
+  id?: string
+  userId?: string
+}
+
+export type BottomTabParamList = {
+  CharacterStack: NavigatorScreenParams<CharacterStackParamList> | undefined
+  Chat: ChatScreenOptions
+  SettingsStack: NavigatorScreenParams<SettingsStackParamList> | undefined
+}
+
+export type BottomTabScreenProps<Screen extends keyof BottomTabParamList> = CompositeScreenProps<
+  NavigationBottomTabScreenProps<BottomTabParamList, Screen>,
+  NativeStackScreenProps<RootStackParamList>
+>
+
+// Character Stack
+
+export type CharacterScreenOptions = {
+  id?: string
+}
+
 export type CharacterStackParamList = {
   Characters: undefined
-  EditCharacter: { id: string }
+  EditCharacter: CharacterScreenOptions
 }
 
 export type CharacterStackScreenProps<Screen extends keyof CharacterStackParamList> =
   NativeStackScreenProps<CharacterStackParamList, Screen>
 
-export type RootTabParamList = {
-  Characters: NavigatorScreenParams<CharacterStackParamList> | undefined
-  Chat: undefined
+// Settings Stack
+
+export type SettingsStackParamList = {
   Settings: undefined
+  Profile: undefined
 }
 
-export type RootTabScreenProps<Screen extends keyof RootTabParamList> = CompositeScreenProps<
-  BottomTabScreenProps<RootTabParamList, Screen>,
-  NativeStackScreenProps<RootStackParamList>
->
+export type SettingsStackScreenProps<Screen extends keyof SettingsStackParamList> =
+  NativeStackScreenProps<SettingsStackParamList, Screen>

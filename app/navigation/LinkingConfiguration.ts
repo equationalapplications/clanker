@@ -14,10 +14,9 @@ const linking: LinkingOptions<RootStackParamList> = {
   config: {
     screens: {
       SignIn: "signin",
-      Tab: {
+      Home: {
         screens: {
-          Characters: {
-            path: "characters",
+          CharacterStack: {
             screens: {
               Characters: "characters",
               EditCharacter: "edit",
@@ -29,16 +28,15 @@ const linking: LinkingOptions<RootStackParamList> = {
               Chat: "chat",
             },
           },
-          Settings: {
-            path: "settings",
+          SettingsStack: {
             screens: {
               Settings: "settings",
+              Profile: "profile",
             },
           },
         },
       },
       Subscribe: "subscribe",
-      Profile: "profile",
       Privacy: "privacy",
       Terms: "terms",
       NotFound: "*",
