@@ -1,3 +1,28 @@
+# [7.4.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.3.0...v7.4.0) (2023-04-13)
+
+
+### Bug Fixes
+
+* add checks for null ([2eb876a](https://github.com/equationalapplications/yoursbrightlyai/commit/2eb876a72e7ff8a0429e2e7bec0606b1c7ad76ec))
+* check if refetch is null in useEffect ([b3fdd7e](https://github.com/equationalapplications/yoursbrightlyai/commit/b3fdd7e4afed3e4bd12629a70dc2481db2c7a6a4))
+* return data ([bd339de](https://github.com/equationalapplications/yoursbrightlyai/commit/bd339de91d4781f4e7fd7f1deaeb058ed8eb87ef))
+* update RootTabParamList ([1f29cdd](https://github.com/equationalapplications/yoursbrightlyai/commit/1f29cddecdec5cb845cfbfa76671e22d9f8bbb36))
+* use useUser hook to get user ([9a33b3f](https://github.com/equationalapplications/yoursbrightlyai/commit/9a33b3f2e88cbb97beb3c6a0c63ecb109510fa2b))
+
+
+### Features
+
+* add disabled prop ([1f2b67f](https://github.com/equationalapplications/yoursbrightlyai/commit/1f2b67f649f9ba391f00fa9b58012df8a875b15d))
+* add setDefaultCharacter function ([4b37221](https://github.com/equationalapplications/yoursbrightlyai/commit/4b3722137f1ed207056440e1b6d0ffe368a9ed74))
+* create CharacterStackNavigator ([830d8fe](https://github.com/equationalapplications/yoursbrightlyai/commit/830d8fe64037730125e80ed6853a9d4da05e4fa6))
+* create createNewCharacter function ([30a52e8](https://github.com/equationalapplications/yoursbrightlyai/commit/30a52e85e0e53619ce1d9b9378d17294278db8da))
+* create EditCharacter screen ([edcc430](https://github.com/equationalapplications/yoursbrightlyai/commit/edcc43073af318a37639f96817cbef1c0b13a61a))
+* create FAB button to add new character ([eac254d](https://github.com/equationalapplications/yoursbrightlyai/commit/eac254d38e1457a18d7394a07120d9d8de1ef77a))
+* create useCharacter hook ([43a65e9](https://github.com/equationalapplications/yoursbrightlyai/commit/43a65e99e9575e25b47199f529432821a0386a39))
+* create useCharacterlist hook ([7eb4285](https://github.com/equationalapplications/yoursbrightlyai/commit/7eb4285f799f96b47ea8d314bae624c0ac9fe409))
+* display list of buttons for characters ([94fb1ca](https://github.com/equationalapplications/yoursbrightlyai/commit/94fb1ca93e33bdb34a99406dbcc544c17f188f4d))
+* use CustomFallback with ErrorBoundary ([4f48978](https://github.com/equationalapplications/yoursbrightlyai/commit/4f4897895b83f2650fb6ee6da24db3a0167810db))
+
 # [7.4.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.3.0...v7.4.0-staging.1) (2023-04-13)
 
 
