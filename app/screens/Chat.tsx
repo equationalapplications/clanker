@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react"
+import { useCallback } from "react"
 import { StyleSheet, View } from "react-native"
 import { GiftedChat, User, IMessage, Bubble } from "react-native-gifted-chat"
 import { useTheme } from "react-native-paper"
@@ -15,17 +15,16 @@ import { postNewMessage } from "../utilities/postNewMessage"
 
 export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">) {
   const user = useUser()
-  const uid = useMemo(() => user?.uid ?? "", [user])
+  const uid = user?.uid
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
   const isPremium = useIsPremium()
   const characterList = useCharacterList()
+  let id = route.params?.id
+  let userId = route.params?.userId
 
-  let id = route.params?.id ?? null
-  let userId = route.params?.userId ?? null
-
-  if (id === null || userId === null) {
-    id = characterList[0].id
+  if (!id || !userId) {
+    id = characterList[0]?.id
     userId = uid
   }
 
@@ -33,14 +32,11 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
 
   const { colors, roundness } = useTheme()
 
-  const chatUser = useMemo<User>(
-    () => ({
-      _id: uid,
-      name: user?.displayName ?? "",
-      avatar: user?.photoURL ?? defaultAvatarUrl,
-    }),
-    [uid, user],
-  )
+  const chatUser: User = {
+    _id: uid,
+    name: user?.displayName ?? "",
+    avatar: user?.photoURL ?? defaultAvatarUrl,
+  }
 
   const onSend = async (messages: IMessage[]) => {
     if (credits <= 0 && !isPremium) {
@@ -78,14 +74,7 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
   )
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: colors.background,
-        },
-      ]}
-    >
+    <View style={styles.container}>
       <GiftedChat
         showUserAvatar
         inverted
