@@ -56,7 +56,7 @@ export function useChatMessages({ id, userId }: UseChatMessagesArgs): IMessage[]
 
       return () => unsubscribe()
     }
-  }, [user])
+  }, [user, id, userId])
 
   return messages
 }
