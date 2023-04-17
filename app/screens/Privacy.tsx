@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView, Text, View } from "react-native"
+import { StyleSheet, ScrollView, View } from "react-native"
 import { Paragraph } from "react-native-paper"
 
 export default function Privacy() {
