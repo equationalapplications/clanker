@@ -1,11 +1,12 @@
 import { NativeStackNavigationProp } from "@react-navigation/native-stack"
 import { useState, useEffect } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
-import { TextInput, Avatar } from "react-native-paper"
+import { TextInput, Avatar, Switch, Text } from "react-native-paper"
 
 import Button from "../components/Button"
 import ConfirmationModal from "../components/ConfirmationModal"
 import LoadingIndicator from "../components/LoadingIndicator"
+import { ShareCharacterButton } from "../components/ShareCharacterButton"
 import { defaultAvatarUrl } from "../config/constants"
 import useCharacter from "../hooks/useCharacter"
 import { useIsPremium } from "../hooks/useIsPremium"
@@ -23,7 +24,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
   const { id } = route.params
   const [isEraseModalVisible, setIsEraseModalVisible] = useState(false)
   const [isSaveModalVisible, setIsSaveModalVisible] = useState(false)
-  const character = useCharacter(uid, id)
+  const character = useCharacter({ id, userId: uid })
   const userPrivate = useUserPrivate()
   const credits = userPrivate?.credits ?? 0
   const isPremium = useIsPremium()
@@ -34,6 +35,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
   const [emotions, setEmotions] = useState(character?.emotions ?? "")
   const [imageIsLoading, setImageIsLoading] = useState(false)
   const [textIsLoading, setTextIsLoading] = useState(false)
+  const [isSwitchOnPublic, setIsSwitchOnPublic] = useState(character?.isCharacterPublic ?? false)
 
   useEffect(() => {
     const updateState = () => {
@@ -42,6 +44,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
       setAppearance(character?.appearance ?? "")
       setTraits(character?.traits ?? "")
       setEmotions(character?.emotions ?? "")
+      setIsSwitchOnPublic(character?.isCharacterPublic ?? false)
     }
     updateState()
 
@@ -66,12 +69,23 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
     setEmotions(text)
   }
 
+  const onToggleSwitch = async () => {
+    setTextIsLoading(true)
+    await updateCharacter({
+      characterId: character.id,
+      isCharacterPublic: !isSwitchOnPublic,
+    })
+    setIsSwitchOnPublic(!isSwitchOnPublic)
+    setTextIsLoading(false)
+  }
+
   const onPressSave = async () => {
     if (credits <= 0 && !isPremium) {
       navigation.getParent().navigate("Subscribe")
     }
     setTextIsLoading(true)
-    await updateCharacter(character.id, {
+    await updateCharacter({
+      characterId: character.id,
       name,
       appearance,
       traits,
@@ -124,7 +138,7 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
   const onConfirmErase = async () => {
     setIsEraseModalVisible(false)
     setTextIsLoading(true)
-    await updateCharacter(character.id, { context: "" })
+    await updateCharacter({ characterId: character.id, context: "" })
     setTextIsLoading(false)
   }
 
@@ -188,12 +202,16 @@ export function EditCharacter({ navigation, route }: CharacterStackScreenProps<"
         <Button mode="outlined" onPress={onPressSave}>
           Save Changes
         </Button>
-        {/*<Button mode="outlined" onPress={onPressMakeDefault} disabled={defaultCharacter === id}>
-          {defaultCharacter === id ? "Is Default Character" : "Make Default Character"}
-        </Button>*/}
         <Button mode="outlined" onPress={onPressErase}>
           Erase Memory
         </Button>
+        <View style={styles.separator} />
+        <>
+          <Text>{isSwitchOnPublic ? "Public" : "Private"}</Text>
+          <Switch value={isSwitchOnPublic} onValueChange={onToggleSwitch} />
+        </>
+        <View style={styles.separator} />
+        <ShareCharacterButton id={id} userId={uid} disabled={!isSwitchOnPublic} />
       </ScrollView>
       <ConfirmationModal
         visible={isEraseModalVisible}
@@ -224,7 +242,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   separator: {
-    marginVertical: 30,
+    marginVertical: 8,
     height: 1,
     width: "80%",
   },
