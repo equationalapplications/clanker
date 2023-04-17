@@ -8,7 +8,7 @@ import { CustomFallback } from "./app/components/CustomFallback"
 import { queryClient } from "./app/config/queryClient"
 import useCachedResources from "./app/hooks/useCachedResources"
 import RootNavigator from "./app/navigation/RootNavigator"
-import ThemeProvider from "./app/providers/ThemeProvider"
+import { ThemeProviderNavigationContainer } from "./app/providers/ThemeProviderNavigationContainer"
 
 export default function App() {
   const isLoadingComplete = useCachedResources()
@@ -19,12 +19,12 @@ export default function App() {
     return (
       <ErrorBoundary FallbackComponent={CustomFallback}>
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-          <ThemeProvider>
-            <QueryClientProvider client={queryClient}>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProviderNavigationContainer>
               <RootNavigator />
               <StatusBar />
-            </QueryClientProvider>
-          </ThemeProvider>
+            </ThemeProviderNavigationContainer>
+          </QueryClientProvider>
         </SafeAreaProvider>
       </ErrorBoundary>
     )
