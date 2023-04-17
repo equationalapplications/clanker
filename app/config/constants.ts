@@ -4,6 +4,7 @@ import { PurchasesPackage } from "react-native-purchases"
 
 export const scheme = "com.equationalapplications.yoursbrightlyai"
 export const appBaseUrl = "https://yours-brightly-ai.equationalapplications.com"
+export const appChatUrl = appBaseUrl + "/chat"
 
 export const defaultAvatarUrl = "https://www.gravatar.com/avatar?d=mp"
 
