@@ -40,7 +40,7 @@ const CombinedDarkTheme = {
   },
 }
 
-const ThemeProvider = ({ children }) => {
+export const ThemeProviderNavigationContainer = ({ children }) => {
   const deviceTheme = useColorScheme()
 
   const [theme, setTheme] = useState(
@@ -63,5 +63,3 @@ const ThemeProvider = ({ children }) => {
     </PaperProvider>
   )
 }
-
-export default ThemeProvider
