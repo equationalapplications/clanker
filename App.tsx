@@ -8,7 +8,7 @@ import { CustomFallback } from "./app/components/CustomFallback"
 import { queryClient } from "./app/config/queryClient"
 import useCachedResources from "./app/hooks/useCachedResources"
 import RootNavigator from "./app/navigation/RootNavigator"
-import { ThemeProviderNavigationContainer } from "./app/providers/ThemeProviderNavigationContainer"
+import { ThemeProviderNavigationContainer } from "./app/navigation/ThemeProviderNavigationContainer"
 
 export default function App() {
   const isLoadingComplete = useCachedResources()
