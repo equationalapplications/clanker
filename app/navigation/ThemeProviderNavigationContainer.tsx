@@ -14,7 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import { colorsLight, colorsDark, platform } from "../config/constants"
-import LinkingConfiguration from "../navigation/LinkingConfiguration"
+import LinkingConfiguration from "./LinkingConfiguration"
 
 const PERSISTENCE_KEY = 'NAVIGATION_STATE_V1'
 
