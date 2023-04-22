@@ -4,7 +4,7 @@ import {
   DefaultTheme as NavigationDefaultTheme,
 } from "@react-navigation/native"
 import { useEffect, useState } from "react"
-import { useColorScheme, Linking } from "react-native"
+import { useColorScheme } from "react-native"
 import {
   Provider as PaperProvider,
   adaptNavigationTheme,
@@ -12,9 +12,10 @@ import {
   MD3LightTheme,
 } from "react-native-paper"
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Linking from 'expo-linking'
 
 import { colorsLight, colorsDark, platform } from "../config/constants"
-import LinkingConfiguration from "./LinkingConfiguration"
+import { linkingConfig } from "./linkingConfig"
 
 const PERSISTENCE_KEY = 'NAVIGATION_STATE_V1'
 
@@ -94,7 +95,7 @@ export const ThemeProviderNavigationContainer = ({ children }) => {
         onStateChange={(state) =>
           AsyncStorage.setItem(PERSISTENCE_KEY, JSON.stringify(state))
         }
-        linking={LinkingConfiguration}
+        linking={linkingConfig}
         theme={theme}
       >
         {children}
