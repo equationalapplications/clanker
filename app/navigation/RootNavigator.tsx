@@ -45,13 +45,10 @@ export default function RootNavigator() {
 
   useEffect(() => {
     if (deepLink && user && hasAcceptedTermsDate) {
-      console.log("deepLink", deepLink)
       const { path, queryParams } = Linking.parse(deepLink)
       if (path === "chat") {
-        console.log("queryParams", queryParams)
         const { id, userId } = queryParams
         if (id && userId) {
-          console.log("navigate to chat", id, userId)
           // @ts-ignore
           navigation.navigate("Chat", { id, userId })
         }
