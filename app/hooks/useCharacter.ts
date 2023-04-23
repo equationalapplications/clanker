@@ -4,6 +4,11 @@ import { useEffect, useState, useRef } from "react"
 import { charactersCollection, userCharactersCollection } from "../config/constants"
 import { firestore } from "../config/firebaseConfig"
 
+interface UseCharacterArgs {
+  id: string
+  userId: string
+}
+
 interface Character {
   id: string
   name: string
@@ -15,17 +20,17 @@ interface Character {
   context: string
 }
 
-export default function useCharacter(userOfCharacter: string, id: string) {
+export default function useCharacter({ id, userId }: UseCharacterArgs) {
   const [character, setCharacter] = useState<Character | null>(null)
   const characterRef = useRef<DocumentReference>()
   const unsubscribe = useRef<Unsubscribe>()
 
   useEffect(() => {
-    if (userOfCharacter && id) {
+    if (userId && id) {
       characterRef.current = doc(
         firestore,
         charactersCollection,
-        userOfCharacter,
+        userId,
         userCharactersCollection,
         id,
       )
@@ -50,7 +55,7 @@ export default function useCharacter(userOfCharacter: string, id: string) {
     return () => {
       unsubscribe.current?.()
     }
-  }, [id, userOfCharacter])
+  }, [id, userId])
 
   return character
 }

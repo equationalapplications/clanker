@@ -15,9 +15,15 @@ declare global {
 
 // Root Stack
 
+export type SubscribeScreenOptions = {
+  success?: string
+  canceled?: string
+  session_id?: string
+}
+
 export type RootStackParamList = {
   Home: NavigatorScreenParams<BottomTabParamList> | undefined
-  Subscribe: { success?: string; canceled?: string; session_id?: string }
+  Subscribe: SubscribeScreenOptions
   NotFound: undefined
   SignIn: undefined
   Terms: undefined

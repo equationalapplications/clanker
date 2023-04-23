@@ -1,3 +1,25 @@
+# [8.0.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.5.0...v8.0.0-staging.1) (2023-04-23)
+
+
+### Bug Fixes
+
+* add id and userId to useEffect dep array ([7a0feb7](https://github.com/equationalapplications/yoursbrightlyai/commit/7a0feb77e6c2d3fcec77526c3a44f72a3db23340))
+
+
+### Features
+
+* add appChatUrl ([e863080](https://github.com/equationalapplications/yoursbrightlyai/commit/e8630800f8fe1161edb7f4fbcafe19861676322d))
+* add navigation state persistance ([375a95c](https://github.com/equationalapplications/yoursbrightlyai/commit/375a95c0c3fe841c04bafc6497642456107b0472))
+* create ShareCharacterButton ([d589839](https://github.com/equationalapplications/yoursbrightlyai/commit/d58983960dcca23afbfe139af34ea75e6f6876de))
+* install expo-clipboard ([644e216](https://github.com/equationalapplications/yoursbrightlyai/commit/644e216384a87454a6b0187c05219f27fa4345b4))
+* remove defaultCharacter chat ([ffd52cb](https://github.com/equationalapplications/yoursbrightlyai/commit/ffd52cb646481d06dd14f7fe1ca1670a394ccc03))
+* use deepLink to navigate after auth ([7d00d43](https://github.com/equationalapplications/yoursbrightlyai/commit/7d00d43a67aafd09e9593e4a13295f059b44accb))
+
+
+### BREAKING CHANGES
+
+* this library requires a rebuild of dev client
+
 # [7.5.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v7.4.0...v7.5.0) (2023-04-16)
 
 

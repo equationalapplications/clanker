@@ -1,12 +1,11 @@
-name: Staging Test, Release, and Update
-
+name: Staging Test, Release
 on:
   push:
     branches:
       - staging
 
 jobs:
-  update:
+  release:
     runs-on: ubuntu-latest
     steps:
       - name: 🏗 Setup repo
