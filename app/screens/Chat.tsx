@@ -1,9 +1,11 @@
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { GiftedChat, User, IMessage, Bubble } from "react-native-gifted-chat"
-import { useTheme } from "react-native-paper"
+import { useTheme, Avatar } from "react-native-paper"
 
+import { TitleText } from "../components/StyledText"
 import { defaultAvatarUrl } from "../config/constants"
+import useCharacter from "../hooks/useCharacter"
 import { useCharacterList } from "../hooks/useCharacterList"
 import { useChatMessages } from "../hooks/useChatMessages"
 import { useIsPremium } from "../hooks/useIsPremium"
@@ -28,6 +30,8 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
     userId = uid
   }
 
+  const character = useCharacter({ id, userId: uid })
+  const avatar = character?.avatar ?? defaultAvatarUrl
   const messages = useChatMessages({ id, userId })
 
   const { colors, roundness } = useTheme()
@@ -75,6 +79,10 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
 
   return (
     <View style={styles.container}>
+      <View style={styles.avatarView}>
+        <Avatar.Image size={256} source={{ uri: avatar }} />
+        <TitleText style={styles.titleText}>{character?.name}</TitleText>
+      </View>
       <GiftedChat
         showUserAvatar
         inverted
@@ -91,6 +99,14 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
 
 const styles = StyleSheet.create({
   container: {
-    flex: 10,
+    flex: 1,
+  },
+  avatarView: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 30,
+  },
+  titleText: {
+    marginTop: 10,
   },
 })
