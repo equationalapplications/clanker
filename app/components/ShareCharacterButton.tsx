@@ -4,7 +4,7 @@ import { Share } from "react-native"
 import { IconButton, Snackbar, Text } from "react-native-paper"
 
 import { appChatUrl, platform } from "../config/constants"
-import useCharacter from "../hooks/useCharacter"
+import { useCharacter } from "../hooks/useCharacter"
 
 export const ShareCharacterButton = ({ id, userId, disabled }) => {
   const character = useCharacter({ id, userId })
