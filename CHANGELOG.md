@@ -1,3 +1,10 @@
+# [8.2.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.1.0...v8.2.0) (2023-04-23)
+
+
+### Features
+
+* make avatar smaller ([80dfeab](https://github.com/equationalapplications/yoursbrightlyai/commit/80dfeab37546b06ae55a633f466285a4b3e8c60b))
+
 # [8.2.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.1.0...v8.2.0-staging.1) (2023-04-23)
 
 

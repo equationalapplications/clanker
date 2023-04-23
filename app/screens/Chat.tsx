@@ -1,11 +1,11 @@
-import { useCallback, useState } from "react"
+import { useCallback } from "react"
 import { StyleSheet, View } from "react-native"
 import { GiftedChat, User, IMessage, Bubble } from "react-native-gifted-chat"
 import { useTheme, Avatar } from "react-native-paper"
 
 import { TitleText } from "../components/StyledText"
 import { defaultAvatarUrl, height } from "../config/constants"
-import useCharacter from "../hooks/useCharacter"
+import { useCharacter } from "../hooks/useCharacter"
 import { useCharacterList } from "../hooks/useCharacterList"
 import { useChatMessages } from "../hooks/useChatMessages"
 import { useIsPremium } from "../hooks/useIsPremium"
@@ -30,8 +30,11 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
     userId = uid
   }
 
-  const character = useCharacter({ id, userId: uid })
-  const avatar = character?.avatar ?? defaultAvatarUrl
+  const character = useCharacter({ id, userId })
+  const characterAvatar = character?.avatar ?? defaultAvatarUrl
+  const characterName = character?.name ?? ""
+  const isCharacterPublic = character?.isCharacterPublic ?? false
+
   const messages = useChatMessages({ id, userId })
 
   const { colors, roundness } = useTheme()
@@ -79,20 +82,28 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
 
   return (
     <View style={styles.container}>
-      <View style={styles.avatarView}>
-        <Avatar.Image size={height * .1} source={{ uri: avatar }} />
-        <TitleText style={styles.titleText}>{character?.name}</TitleText>
-      </View>
-      <GiftedChat
-        showUserAvatar
-        inverted
-        messages={messages}
-        onSend={onSend}
-        user={chatUser}
-        placeholder="chat with me..."
-        renderUsernameOnMessage
-        renderBubble={renderBubble}
-      />
+      {isCharacterPublic ? (
+        <>
+          <View style={styles.avatarView}>
+            <Avatar.Image size={height * 0.1} source={{ uri: characterAvatar }} />
+            <TitleText style={styles.titleText}>{characterName}</TitleText>
+          </View>
+          <GiftedChat
+            showUserAvatar
+            inverted
+            messages={messages}
+            onSend={onSend}
+            user={chatUser}
+            placeholder="chat with me..."
+            renderUsernameOnMessage
+            renderBubble={renderBubble}
+          />
+        </>
+      ) : (
+        <View style={styles.avatarView}>
+          <TitleText>This character is set to private.</TitleText>
+        </View>
+      )}
     </View>
   )
 }
