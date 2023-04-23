@@ -1,3 +1,10 @@
+# [8.3.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.2.0...v8.3.0-staging.1) (2023-04-23)
+
+
+### Features
+
+* show text if character is private ([35414c3](https://github.com/equationalapplications/yoursbrightlyai/commit/35414c3470997b87e1c3e6b684b17e76dcb63589))
+
 # [8.2.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.1.0...v8.2.0) (2023-04-23)
 
 
