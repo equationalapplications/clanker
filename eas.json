@@ -31,16 +31,10 @@
     "staging": {
       "android": {
         "track": "internal"
-      },
-      "ios": {
-        "track": "internal"
       }
     },
     "production": {
       "android": {
-        "track": "production"
-      },
-      "ios": {
         "track": "production"
       }
     }
