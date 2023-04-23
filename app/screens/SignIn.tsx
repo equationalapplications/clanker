@@ -23,8 +23,8 @@ import {
   scheme,
 } from "../config/constants"
 import { auth } from "../config/firebaseConfig"
-import useUser from "../hooks/useUser"
-import useUserPrivate from "../hooks/useUserPrivate"
+import { useUser } from "../hooks/useUser"
+import { useUserPrivate } from "../hooks/useUserPrivate"
 import { RootStackScreenProps } from "../navigation/types"
 
 WebBrowser.maybeCompleteAuthSession()

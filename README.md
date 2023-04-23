@@ -21,7 +21,6 @@ interface PublicUserData {
 interface UserPrivate {
   credits: number
   isProfilePublic: boolean | null
-  defaultCharacter: string
   hasAcceptedTermsDate: Date | null
 }
 ```

@@ -1,4 +1,4 @@
-name: Production Release and Update EAS
+name: Production Release and EAS Update
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  update:
+  release:
     runs-on: ubuntu-latest
     steps:
       - name: 🏗 Setup repo
