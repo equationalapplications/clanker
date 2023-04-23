@@ -1,3 +1,10 @@
+## [8.3.1-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.3.0...v8.3.1-staging.1) (2023-04-23)
+
+
+### Bug Fixes
+
+* roll back EAS changes ([d92dacf](https://github.com/equationalapplications/yoursbrightlyai/commit/d92dacf0fd8f3d7830ce50fed7a423d0b83982e9))
+
 # [8.3.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.2.0...v8.3.0) (2023-04-23)
 
 
