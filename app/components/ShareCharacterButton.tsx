@@ -1,7 +1,7 @@
 import * as Clipboard from "expo-clipboard"
+import React, { useState } from "react"
 import { Share } from "react-native"
 import { IconButton, Snackbar, Text } from "react-native-paper"
-import React, { useState } from "react"
 
 import { appChatUrl, platform } from "../config/constants"
 import useCharacter from "../hooks/useCharacter"
@@ -10,7 +10,7 @@ export const ShareCharacterButton = ({ id, userId, disabled }) => {
   const character = useCharacter({ id, userId })
   const [visible, setVisible] = useState(false)
 
-  const onDismissSnackBar = () => setVisible(false);
+  const onDismissSnackBar = () => setVisible(false)
 
   const title = character?.name ?? "AI Character"
   const url = appChatUrl + `?id=${character?.id}&userId=${userId}`
@@ -35,9 +35,7 @@ export const ShareCharacterButton = ({ id, userId, disabled }) => {
 
   return (
     <>
-      {!visible
-        ? <Text>Share</Text>
-        : null}
+      {!visible ? <Text>Share</Text> : null}
       <IconButton icon="share" mode="contained" onPress={onPressShare} disabled={disabled} />
       <Snackbar
         visible={visible}

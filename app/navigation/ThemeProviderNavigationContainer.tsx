@@ -1,8 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage"
 import {
   NavigationContainer,
   DarkTheme as NavigationDarkTheme,
   DefaultTheme as NavigationDefaultTheme,
 } from "@react-navigation/native"
+import * as Linking from "expo-linking"
 import { useEffect, useState } from "react"
 import { useColorScheme } from "react-native"
 import {
@@ -11,13 +13,11 @@ import {
   MD3DarkTheme,
   MD3LightTheme,
 } from "react-native-paper"
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import * as Linking from 'expo-linking'
 
-import { colorsLight, colorsDark, platform } from "../config/constants"
 import { linkingConfig } from "./linkingConfig"
+import { colorsLight, colorsDark, platform } from "../config/constants"
 
-const PERSISTENCE_KEY = 'NAVIGATION_STATE_V1'
+const PERSISTENCE_KEY = "NAVIGATION_STATE_V1"
 
 const { LightTheme, DarkTheme } = adaptNavigationTheme({
   reactNavigationLight: NavigationDefaultTheme,
@@ -63,38 +63,36 @@ export const ThemeProviderNavigationContainer = ({ children }) => {
   useEffect(() => {
     const restoreState = async () => {
       try {
-        const initialUrl = await Linking.getInitialURL();
+        const initialUrl = await Linking.getInitialURL()
 
-        if (platform !== 'web' && initialUrl == null) {
+        if (platform !== "web" && initialUrl == null) {
           // Only restore state if there's no deep link and we're not on web
-          const savedStateString = await AsyncStorage.getItem(PERSISTENCE_KEY);
-          const state = savedStateString ? JSON.parse(savedStateString) : undefined;
+          const savedStateString = await AsyncStorage.getItem(PERSISTENCE_KEY)
+          const state = savedStateString ? JSON.parse(savedStateString) : undefined
 
           if (state !== undefined) {
-            setInitialState(state);
+            setInitialState(state)
           }
         }
       } finally {
-        setIsReady(true);
+        setIsReady(true)
       }
-    };
+    }
 
     if (!isReady) {
-      restoreState();
+      restoreState()
     }
   }, [isReady])
 
   if (!isReady) {
-    return null;
+    return null
   }
 
   return (
     <PaperProvider theme={theme}>
       <NavigationContainer
         initialState={initialState}
-        onStateChange={(state) =>
-          AsyncStorage.setItem(PERSISTENCE_KEY, JSON.stringify(state))
-        }
+        onStateChange={(state) => AsyncStorage.setItem(PERSISTENCE_KEY, JSON.stringify(state))}
         linking={linkingConfig}
         theme={theme}
       >
