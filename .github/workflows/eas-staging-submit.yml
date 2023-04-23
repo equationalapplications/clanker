@@ -27,4 +27,4 @@ jobs:
         run: npm ci
         
       - name: EAS Build and Submit
-        run: eas build -p android --profile staging --non-interactive --auto-submit --no-wait
+        run: eas build -p android -p ios --profile staging --non-interactive --auto-submit --no-wait
