@@ -1,13 +1,11 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
-import { TextInput, Avatar, FAB } from "react-native-paper"
+import { FAB } from "react-native-paper"
 
 import Button from "../components/Button"
 import LoadingIndicator from "../components/LoadingIndicator"
-import { defaultAvatarUrl } from "../config/constants"
 import { useCharacterList } from "../hooks/useCharacterList"
-import useUserPrivate from "../hooks/useUserPrivate"
-import { BottomTabScreenProps } from "../navigation/types"
+import { CharacterStackScreenProps } from "../navigation/types"
 import { createNewCharacter } from "../utilities/createNewCharacter"
 
 interface CharacterButtonProps {
@@ -15,9 +13,8 @@ interface CharacterButtonProps {
   name: string
 }
 
-export default function Characters({ navigation }: BottomTabScreenProps<"Characters">) {
+export default function Characters({ navigation }: CharacterStackScreenProps<"Characters">) {
   const characterList = useCharacterList()
-  const userPrivate = useUserPrivate()
   const [loading, setLoading] = useState(false)
 
   const onPressEditCharacter = ({ id }: { id: string }) => {

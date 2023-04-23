@@ -1,13 +1,15 @@
+import { useNavigation } from "@react-navigation/native"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
-import React, { useEffect } from "react"
+import * as Linking from "expo-linking"
+import React, { useEffect, useState } from "react"
 
 import { BottomTabNavigator } from "./BottomTabNavigator"
 import { RootStackParamList, RootStackScreenProps } from "./types"
 import { CreditCounterIcon } from "../components/CreditCounterIcon"
 import { TabBarIcon } from "../components/TabBarIcon"
 import { purchasesConfig } from "../config/purchasesConfig"
-import useUser from "../hooks/useUser"
-import useUserPrivate from "../hooks/useUserPrivate"
+import { useUser } from "../hooks/useUser"
+import { useUserPrivate } from "../hooks/useUserPrivate"
 import NotFoundScreen from "../screens/NotFoundScreen"
 import Privacy from "../screens/Privacy"
 import SignIn from "../screens/SignIn"
@@ -25,12 +27,37 @@ export default function RootNavigator() {
   const user = useUser()
   const userPrivate = useUserPrivate()
   const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate
+  const url = Linking.useURL()
+  const [deepLink, setDeepLink] = useState<string | null>(null)
+  const navigation = useNavigation()
 
   useEffect(() => {
     if (user) {
       purchasesConfig(user.uid)
     }
   }, [user])
+
+  useEffect(() => {
+    if (url && !deepLink) {
+      setDeepLink(url)
+    }
+  }, [url])
+
+  useEffect(() => {
+    if (deepLink && user && hasAcceptedTermsDate) {
+      console.log("deepLink", deepLink)
+      const { path, queryParams } = Linking.parse(deepLink)
+      if (path === "chat") {
+        console.log("queryParams", queryParams)
+        const { id, userId } = queryParams
+        if (id && userId) {
+          console.log("navigate to chat", id, userId)
+          // @ts-ignore
+          navigation.navigate("Chat", { id, userId })
+        }
+      }
+    }
+  }, [deepLink, user, hasAcceptedTermsDate])
 
   return (
     <Stack.Navigator>

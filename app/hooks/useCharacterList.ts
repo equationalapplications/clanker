@@ -1,7 +1,7 @@
 import { onSnapshot, Unsubscribe, collection } from "firebase/firestore"
 import { useEffect, useState } from "react"
 
-import useUser from "./useUser"
+import { useUser } from "./useUser"
 import { charactersCollection, userCharactersCollection } from "../config/constants"
 import { firestore } from "../config/firebaseConfig"
 

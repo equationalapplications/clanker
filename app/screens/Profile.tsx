@@ -9,8 +9,8 @@ import LoadingIndicator from "../components/LoadingIndicator"
 import { defaultAvatarUrl } from "../config/constants"
 import { auth } from "../config/firebaseConfig"
 import { useIsPremium } from "../hooks/useIsPremium"
-import useUser from "../hooks/useUser"
-import useUserPrivate from "../hooks/useUserPrivate"
+import { useUser } from "../hooks/useUser"
+import { useUserPrivate } from "../hooks/useUserPrivate"
 import { deleteUser } from "../utilities/deleteUser"
 
 export default function Profile() {
