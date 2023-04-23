@@ -3,10 +3,7 @@ import * as Facebook from "expo-auth-session/providers/facebook"
 import * as Google from "expo-auth-session/providers/google"
 import * as WebBrowser from "expo-web-browser"
 import { GoogleAuthProvider, FacebookAuthProvider, signInWithCredential } from "firebase/auth"
-import {
-  useEffect,
-  // useRef,
-} from "react"
+import { useEffect } from "react"
 import { StyleSheet, View, Text } from "react-native"
 
 import { AcceptTerms } from "../components/AcceptTerms"
@@ -19,7 +16,6 @@ import {
   googleWebClientId,
   googleAndroidClientId,
   facebookAuthAppId,
-  //platform,
   scheme,
 } from "../config/constants"
 import { auth } from "../config/firebaseConfig"
@@ -30,7 +26,6 @@ import { RootStackScreenProps } from "../navigation/types"
 WebBrowser.maybeCompleteAuthSession()
 
 export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
-  //const warmupRef = useRef(false)
   const user = useUser()
   const userPrivate = useUserPrivate()
   const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate ?? null
@@ -49,15 +44,6 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   })
 
   useEffect(() => {
-    // check if WebBrowser is already warmed up
-    //const warmupFn = async () => {
-    //  await WebBrowser.warmUpAsync()
-    //  warmupRef.current = true
-    //}
-    //
-    //if (!warmupRef.current && platform === "android") {
-    //  warmupFn()
-    //}
     if (googleResponse && googleResponse.type === "success" && googleResponse.authentication) {
       const accessToken = googleResponse.authentication.accessToken
       const credential = GoogleAuthProvider.credential(null, accessToken)
@@ -90,11 +76,6 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
         console.log(errorCode, errorMessage, email, credential)
       })
     }
-    //return () => {
-    //  if (platform === "android") {
-    //    WebBrowser.coolDownAsync()
-    //  }
-    //}
   }, [googleResponse, facebookResponse])
 
   const GoogleLoginOnPress = () => {
