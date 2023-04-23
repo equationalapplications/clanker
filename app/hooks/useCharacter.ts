@@ -20,7 +20,7 @@ interface Character {
   context: string
 }
 
-export default function useCharacter({ id, userId }: UseCharacterArgs) {
+export function useCharacter({ id, userId }: UseCharacterArgs) {
   const [character, setCharacter] = useState<Character | null>(null)
   const characterRef = useRef<DocumentReference>()
   const unsubscribe = useRef<Unsubscribe>()
