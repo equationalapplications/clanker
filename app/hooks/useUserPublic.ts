@@ -11,7 +11,7 @@ interface UserPublic {
   email: string
 }
 
-export default function useUserPublic(): UserPublic | null {
+export function useUserPublic(): UserPublic | null {
   const { data: userPublic } = useQuery<UserPublic>(
     "userPublic",
     async () => {

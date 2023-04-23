@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useQuery } from "react-query"
 
-import useUser from "./useUser"
+import { useUser } from "./useUser"
 import { getIsPremium } from "../utilities/getIsPremium"
 
 export const useIsPremium = (): boolean => {

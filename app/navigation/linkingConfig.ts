@@ -9,7 +9,7 @@ import * as Linking from "expo-linking"
 
 import { RootStackParamList } from "./types"
 
-const linking: LinkingOptions<RootStackParamList> = {
+export const linkingConfig: LinkingOptions<RootStackParamList> = {
   prefixes: [Linking.createURL("/"), "https://yours-brightly-ai.equationalapplications.com"],
   config: {
     screens: {
@@ -43,5 +43,3 @@ const linking: LinkingOptions<RootStackParamList> = {
     },
   },
 }
-
-export default linking

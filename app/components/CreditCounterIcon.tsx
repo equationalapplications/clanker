@@ -3,7 +3,7 @@ import { Pressable } from "react-native"
 import { Badge, Text } from "react-native-paper"
 
 import { useIsPremium } from "../hooks/useIsPremium"
-import useUserPrivate from "../hooks/useUserPrivate"
+import { useUserPrivate } from "../hooks/useUserPrivate"
 
 export function CreditCounterIcon({ navigation }) {
   const userPrivate = useUserPrivate()
