@@ -1,3 +1,10 @@
+# [8.1.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.0.0...v8.1.0) (2023-04-23)
+
+
+### Features
+
+* add Avatar and name to top of chat ([b88478e](https://github.com/equationalapplications/yoursbrightlyai/commit/b88478ef302fe289490dca64c195bfacfda7c057))
+
 # [8.1.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.0.0...v8.1.0-staging.1) (2023-04-23)
 
 
