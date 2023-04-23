@@ -4,7 +4,7 @@ import { GiftedChat, User, IMessage, Bubble } from "react-native-gifted-chat"
 import { useTheme, Avatar } from "react-native-paper"
 
 import { TitleText } from "../components/StyledText"
-import { defaultAvatarUrl } from "../config/constants"
+import { defaultAvatarUrl, height } from "../config/constants"
 import useCharacter from "../hooks/useCharacter"
 import { useCharacterList } from "../hooks/useCharacterList"
 import { useChatMessages } from "../hooks/useChatMessages"
@@ -80,7 +80,7 @@ export default function Chat({ navigation, route }: BottomTabScreenProps<"Chat">
   return (
     <View style={styles.container}>
       <View style={styles.avatarView}>
-        <Avatar.Image size={256} source={{ uri: avatar }} />
+        <Avatar.Image size={height * .1} source={{ uri: avatar }} />
         <TitleText style={styles.titleText}>{character?.name}</TitleText>
       </View>
       <GiftedChat
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   avatarView: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 30,
+    paddingVertical: 20,
   },
   titleText: {
     marginTop: 10,
