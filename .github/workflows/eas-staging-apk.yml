@@ -27,4 +27,4 @@ jobs:
         run: npm ci
         
       - name: EAS Build Dev Client
-        run: eas build -p android --profile preview --non-interactive --no-wait
+        run: eas build --profile preview --non-interactive --no-wait
