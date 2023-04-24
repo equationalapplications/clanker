@@ -1,4 +1,4 @@
-name: Staging EAS Build Dev Client
+name: Staging EAS Build iOS Dev Client
 
 on:
   # Allows you to run this workflow manually from the Actions tab
