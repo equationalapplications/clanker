@@ -1,3 +1,16 @@
+# [9.0.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.3.1...v9.0.0-staging.1) (2023-05-14)
+
+
+### Features
+
+* add constant from env for  googleIosClientId ([b2b8f55](https://github.com/equationalapplications/yoursbrightlyai/commit/b2b8f550720b7a3fd90b03823314c17396776d6e))
+* add constant googleIosClientId ([7df4e7f](https://github.com/equationalapplications/yoursbrightlyai/commit/7df4e7f1072c67f4f85269dc000e5eb9c5d0fda5))
+
+
+### BREAKING CHANGES
+
+* changes to app config ts require rebuild
+
 ## [8.3.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.3.0...v8.3.1) (2023-04-24)
 
 
