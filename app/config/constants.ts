@@ -17,6 +17,7 @@ export const platform =
 
 export const googleWebClientId = Constants.expoConfig?.extra?.googleWebClientId
 export const googleAndroidClientId = Constants.expoConfig?.extra?.googleAndroidClientId
+export const googleIosClientId = Constants.expoConfig?.extra?.googleIosClientId
 export const facebookAuthAppId = Constants.expoConfig?.extra?.facebookAuthAppId
 
 export const firebaseApiKey = Constants.expoConfig?.extra?.firebaseApiKey
