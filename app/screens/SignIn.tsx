@@ -16,6 +16,7 @@ import {
   googleWebClientId,
   googleAndroidClientId,
   facebookAuthAppId,
+  googleIosClientId,
   scheme,
 } from "../config/constants"
 import { auth } from "../config/firebaseConfig"
@@ -33,6 +34,7 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
     webClientId: googleWebClientId,
     androidClientId: googleAndroidClientId,
+    iosClientId: googleIosClientId,
     redirectUri: makeRedirectUri({
       scheme,
     }),
