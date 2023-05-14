@@ -1,3 +1,15 @@
+# [10.0.0-staging.1](https://github.com/equationalapplications/yoursbrightlyai/compare/v9.0.0...v10.0.0-staging.1) (2023-05-14)
+
+
+### Features
+
+* add google services files for android and ios ([fe7775f](https://github.com/equationalapplications/yoursbrightlyai/commit/fe7775fd071e21d9f584c1a87711d5699b97df75))
+
+
+### BREAKING CHANGES
+
+* changes to app.config.ts require rebuild
+
 # [9.0.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v8.3.1...v9.0.0) (2023-05-14)
 
 
