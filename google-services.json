@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "800200662040",
+    "project_id": "your-brightly-ai",
+    "storage_bucket": "your-brightly-ai.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:800200662040:android:45328a3e333b2d6758f76d",
+        "android_client_info": {
+          "package_name": "com.equationalapplications.yoursbrightlyai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "800200662040-qnucu731kqgj0caub27vjtsrmomscp3i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.equationalapplications.yoursbrightlyai",
+            "certificate_hash": "5d1a49a279901d482b0b3a424922ceabd1210575"
+          }
+        },
+        {
+          "client_id": "800200662040-9gsmo9e6nmamkpecnnbcf379tfsvgk2h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3abIsdKcA27tWmLIhICMsMS-p2lwQi0k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "800200662040-9gsmo9e6nmamkpecnnbcf379tfsvgk2h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "800200662040-hde2s65ugdgma3ce4dqs2u46b7umo4tu.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.equationalapplications.yoursbrightlyai"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
