@@ -29,6 +29,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ["**/*"],
   ios: {
     bundleIdentifier: "com.equationalapplications.yoursbrightlyai",
+    googleServicesFile: "./GoogleService-Info.plist",
     supportsTablet: true,
     config: {
       usesNonExemptEncryption: false,
@@ -36,6 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: "com.equationalapplications.yoursbrightlyai",
+    googleServicesFile: "./google-services.json",
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundImage: "./assets/adaptive-icon-background.png",
