@@ -22,21 +22,21 @@ const config = {
 }
 
 // Initialize Firebase
-const firebase = initializeApp(config)
+const app = initializeApp(config)
 
-const auth = getAuth(firebase)
+const auth = getAuth(app)
 
-const firestore = initializeFirestore(firebase, {
+const firestore = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 })
 
-const functions = getFunctions(firebase)
+const functions = getFunctions(app, "us-central1")
 
 if (__DEV__) {
   console.log("dev")
-  // rconnectAuthEmulator(auth, "http://localhost:9099")
+  // connectAuthEmulator(auth, "http://localhost:9099")
   // connectFirestoreEmulator(firestore, "localhost", 8080)
-  // rconnectFunctionsEmulator(functions, "localhost", 5001)
+  // connectFunctionsEmulator(functions, "localhost", 5001)
 }
 
-export { auth, firestore, functions }
+export { app, auth, firestore, functions }

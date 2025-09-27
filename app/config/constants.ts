@@ -27,6 +27,9 @@ export const firebaseStorageBucket = Constants.expoConfig?.extra?.firebaseStorag
 export const firebaseMessagingSenderId = Constants.expoConfig?.extra?.firebaseMessagingSenderId
 export const firebaseAppId = Constants.expoConfig?.extra?.firebaseAppId
 
+export const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl
+export const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey
+
 export const publicChatRoomsCollection = "public_chat_rooms"
 export const charactersCollection = "characters"
 export const userCharactersCollection = "user_characters"

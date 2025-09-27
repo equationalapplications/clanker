@@ -4,9 +4,9 @@ import { StyleSheet, View } from "react-native"
 import Button from "../components/Button"
 import CombinedSubscriptionButton from "../components/CombinedSubscriptionButton"
 import LoadingIndicator from "../components/LoadingIndicator"
-import { BottomTabScreenProps } from "../navigation/types"
+import { SettingsStackScreenProps } from "../navigation/types"
 
-export default function Settings({ navigation }: BottomTabScreenProps<"Settings">) {
+export default function Settings({ navigation }: SettingsStackScreenProps<"Settings">) {
   const [isLoading, setIsLoading] = useState(false)
 
   const onChangeIsLoading = (isLoading: boolean) => {
@@ -14,7 +14,7 @@ export default function Settings({ navigation }: BottomTabScreenProps<"Settings"
   }
 
   const onPressProfile = () => {
-    navigation.navigate("SettingsStack", { screen: "Profile" })
+    navigation.navigate("Profile")
   }
 
   return (
