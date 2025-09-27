@@ -39,13 +39,45 @@ export async function loginToSupabaseAfterFirebase(): Promise<any | null> {
 
   // Log into Supabase with the returned token
   if (supabaseToken) {
-    const authResponse = await supabase.auth.setSession({
-      access_token: supabaseToken,
-      refresh_token: "", // Not used for custom JWT
-    });
-    // Now you are authenticated with Supabase!
-    return authResponse;
+    try {
+      console.log("Setting Supabase session with token");
+
+      // First try to set the session
+      const authResponse = await supabase.auth.setSession({
+        access_token: supabaseToken,
+        refresh_token: supabaseToken, // Use the same token as refresh token for custom JWTs
+      });
+
+      console.log("Supabase setSession response:", {
+        error: authResponse.error,
+        user: !!authResponse.data.user,
+        session: !!authResponse.data.session
+      });
+
+      if (authResponse.error) {
+        throw new Error(`Supabase setSession failed: ${authResponse.error.message}`);
+      }
+
+      // Verify the session was set correctly
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error("Failed to verify Supabase session:", sessionError);
+      } else if (session) {
+        console.log("Supabase session verified successfully:", {
+          user: !!session.user,
+          expires_at: session.expires_at
+        });
+      } else {
+        console.warn("No active Supabase session found after setSession");
+      }
+
+      return authResponse;
+    } catch (sessionError: any) {
+      console.error("Failed to set Supabase session:", sessionError);
+      throw new Error(`Supabase session error: ${sessionError.message}`);
+    }
   } else {
-    return null;
+    throw new Error("No Supabase token available to set session");
   }
 }
