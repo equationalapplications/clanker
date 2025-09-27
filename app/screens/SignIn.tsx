@@ -1,9 +1,4 @@
-import { ResponseType, makeRedirectUri } from "expo-auth-session"
-import * as Facebook from "expo-auth-session/providers/facebook"
-import * as Google from "expo-auth-session/providers/google"
-import * as WebBrowser from "expo-web-browser"
-import { GoogleAuthProvider, FacebookAuthProvider, signInWithCredential } from "firebase/auth"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { StyleSheet, View, Text } from "react-native"
 
 import { AcceptTerms } from "../components/AcceptTerms"
@@ -12,80 +7,37 @@ import Button from "../components/Button"
 import LoadingIndicator from "../components/LoadingIndicator"
 import Logo from "../components/Logo"
 import { MonoText, TitleText } from "../components/StyledText"
-import {
-  googleWebClientId,
-  googleAndroidClientId,
-  facebookAuthAppId,
-  googleIosClientId,
-  scheme,
-} from "../config/constants"
-import { auth } from "../config/firebaseConfig"
 import { useUser } from "../hooks/useUser"
 import { useUserPrivate } from "../hooks/useUserPrivate"
 import { RootStackScreenProps } from "../navigation/types"
-
-WebBrowser.maybeCompleteAuthSession()
+import { initializeGoogleSignIn, signInWithGoogle } from "../services/googleSignInUnified"
 
 export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   const user = useUser()
   const userPrivate = useUserPrivate()
   const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate ?? null
+  const [googleSignInLoading, setGoogleSignInLoading] = useState(false)
 
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    webClientId: googleWebClientId,
-    androidClientId: googleAndroidClientId,
-    iosClientId: googleIosClientId,
-    redirectUri: makeRedirectUri({
-      scheme,
-    }),
-  })
-
-  const [facebookRequest, facebookResponse, facebookPromptAsync] = Facebook.useAuthRequest({
-    clientId: facebookAuthAppId,
-    responseType: ResponseType.Token,
-  })
-
+  // Initialize Google Sign-In when component mounts
   useEffect(() => {
-    if (googleResponse && googleResponse.type === "success" && googleResponse.authentication) {
-      const accessToken = googleResponse.authentication.accessToken
-      const credential = GoogleAuthProvider.credential(null, accessToken)
-      signInWithCredential(auth, credential).catch((error) => {
-        // Handle Errors here.
-        const errorCode = error.code
-        const errorMessage = error.message
-        // The email of the user's account used.
-        const email = error.email
-        // The credential that was used.
-        const credential = GoogleAuthProvider.credentialFromError(error)
-        console.log(errorCode, errorMessage, email, credential)
-      })
-    }
-    if (
-      facebookResponse &&
-      facebookResponse.type === "success" &&
-      facebookResponse.authentication
-    ) {
-      const idToken = facebookResponse.authentication.accessToken
-      const credential = FacebookAuthProvider.credential(idToken)
-      signInWithCredential(auth, credential).catch((error) => {
-        // Handle Errors here.
-        const errorCode = error.code
-        const errorMessage = error.message
-        // The email of the user's account used.
-        const email = error.email
-        // The credential that was used.
-        const credential = GoogleAuthProvider.credentialFromError(error)
-        console.log(errorCode, errorMessage, email, credential)
-      })
-    }
-  }, [googleResponse, facebookResponse])
+    initializeGoogleSignIn().catch(console.error)
+  }, [])
 
-  const GoogleLoginOnPress = () => {
-    googlePromptAsync()
-  }
-
-  const FacebookLoginOnPress = () => {
-    facebookPromptAsync()
+  const GoogleLoginOnPress = async () => {
+    setGoogleSignInLoading(true)
+    try {
+      const result = await signInWithGoogle()
+      if (!result.success && result.error) {
+        console.error("Google Sign-In failed:", result.error)
+        // TODO: Show user-friendly error message
+        alert(`Sign-in failed: ${result.error}`)
+      }
+    } catch (error) {
+      console.error("Google Sign-In error:", error)
+      alert("An unexpected error occurred during sign-in")
+    } finally {
+      setGoogleSignInLoading(false)
+    }
   }
 
   const onPressPrivacy = () => {
@@ -105,15 +57,13 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
           <View style={styles.separator} />
           <MonoText>Create Your Own Simulated Friend</MonoText>
           <Logo />
-          <ProviderButton disabled={!googleRequest} onPress={GoogleLoginOnPress} type="google">
-            Google
-          </ProviderButton>
           <ProviderButton
-            disabled={!facebookRequest}
-            onPress={FacebookLoginOnPress}
-            type="facebook"
+            disabled={googleSignInLoading}
+            loading={googleSignInLoading}
+            onPress={GoogleLoginOnPress}
+            type="google"
           >
-            Facebook
+            Google
           </ProviderButton>
           <Text>
             <Button mode="text" onPress={onPressTerms}>

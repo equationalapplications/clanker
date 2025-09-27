@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import AsyncStorage from "expo-sqlite/kv-store"
 import {
   NavigationContainer,
   DarkTheme as NavigationDarkTheme,
@@ -24,22 +24,19 @@ const { LightTheme, DarkTheme } = adaptNavigationTheme({
   reactNavigationDark: NavigationDarkTheme,
 })
 
-const CombinedDefaultTheme = {
+// Paper (MD3) themes with your custom color tokens
+const PaperLightTheme = {
   ...MD3LightTheme,
-  ...LightTheme,
   colors: {
     ...MD3LightTheme.colors,
-    ...LightTheme.colors,
     ...colorsLight,
   },
 }
 
-const CombinedDarkTheme = {
+const PaperDarkTheme = {
   ...MD3DarkTheme,
-  ...DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
-    ...DarkTheme.colors,
     ...colorsDark,
   },
 }
@@ -48,17 +45,10 @@ export const ThemeProviderNavigationContainer = ({ children }) => {
   const [isReady, setIsReady] = useState(false)
   const [initialState, setInitialState] = useState()
   const deviceTheme = useColorScheme()
-  const [theme, setTheme] = useState(
-    deviceTheme === "dark" ? CombinedDarkTheme : CombinedDefaultTheme,
-  )
 
-  useEffect(() => {
-    if (deviceTheme === "dark") {
-      setTheme(CombinedDarkTheme)
-    } else {
-      setTheme(CombinedDefaultTheme)
-    }
-  }, [deviceTheme])
+  // Derive themes per render to avoid type mismatches between providers
+  const paperTheme = deviceTheme === "dark" ? PaperDarkTheme : PaperLightTheme
+  const navTheme = deviceTheme === "dark" ? DarkTheme : LightTheme
 
   useEffect(() => {
     const restoreState = async () => {
@@ -89,12 +79,12 @@ export const ThemeProviderNavigationContainer = ({ children }) => {
   }
 
   return (
-    <PaperProvider theme={theme}>
+    <PaperProvider theme={paperTheme}>
       <NavigationContainer
         initialState={initialState}
         onStateChange={(state) => AsyncStorage.setItem(PERSISTENCE_KEY, JSON.stringify(state))}
         linking={linkingConfig}
-        theme={theme}
+        theme={navTheme}
       >
         {children}
       </NavigationContainer>

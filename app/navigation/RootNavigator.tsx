@@ -7,7 +7,7 @@ import { BottomTabNavigator } from "./BottomTabNavigator"
 import { RootStackParamList, RootStackScreenProps } from "./types"
 import { CreditCounterIcon } from "../components/CreditCounterIcon"
 import { TabBarIcon } from "../components/TabBarIcon"
-import { purchasesConfig } from "../config/purchasesConfig"
+// import { purchasesConfig } from "../config/purchasesConfig"
 import { useUser } from "../hooks/useUser"
 import { useUserPrivate } from "../hooks/useUserPrivate"
 import NotFoundScreen from "../screens/NotFoundScreen"
@@ -31,11 +31,11 @@ export default function RootNavigator() {
   const [deepLink, setDeepLink] = useState<string | null>(null)
   const navigation = useNavigation()
 
-  useEffect(() => {
-    if (user) {
-      purchasesConfig(user.uid)
-    }
-  }, [user])
+  // useEffect(() => {
+  //   if (user) {
+  //     purchasesConfig(user.uid)
+  //   }
+  // }, [user])
 
   useEffect(() => {
     if (url && !deepLink) {
@@ -43,18 +43,18 @@ export default function RootNavigator() {
     }
   }, [url])
 
-  useEffect(() => {
-    if (deepLink && user && hasAcceptedTermsDate) {
-      const { path, queryParams } = Linking.parse(deepLink)
-      if (path === "chat") {
-        const { id, userId } = queryParams
-        if (id && userId) {
-          // @ts-ignore
-          navigation.navigate("Chat", { id, userId })
-        }
-      }
-    }
-  }, [deepLink, user, hasAcceptedTermsDate])
+  // useEffect(() => {
+  //   if (deepLink && user && hasAcceptedTermsDate) {
+  //     const { path, queryParams } = Linking.parse(deepLink)
+  //     if (path === "chat") {
+  //       const { id, userId } = queryParams
+  //       if (id && userId) {
+  //         // @ts-ignore
+  //         navigation.navigate("Chat", { id, userId })
+  //       }
+  //     }
+  //   }
+  // }, [deepLink, user, hasAcceptedTermsDate])
 
   return (
     <Stack.Navigator>
@@ -86,11 +86,9 @@ export default function RootNavigator() {
               <Stack.Screen
                 name="Subscribe"
                 component={SubscribeModal}
-                options={({ navigation }: RootStackScreenProps<"Subscribe">) => ({
+                options={{
                   title: "Subscribe",
-                  tabBarIcon: ({ color }) => <TabBarIcon name="edit" color={color} />,
-                  headerRight: () => <CreditCounterIcon navigation={navigation} />,
-                })}
+                }}
               />
             </Stack.Group>
           </Stack.Group>
