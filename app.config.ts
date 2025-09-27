@@ -57,6 +57,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: {
     favicon: "./assets/favicon.png",
   },
+  plugins: [
+    "expo-sqlite",
+    [
+      "@react-native-google-signin/google-signin",
+      {
+        webClientId: process.env.GOOGLE_WEB_CLIENT_ID,
+        iosUrlScheme: "com.googleusercontent.apps.790870307455-5bsmcehb8mqdsl6vb3mal1nnq2jkk730",
+      }
+    ]
+  ],
   extra: {
     eas: {
       projectId: "2333eead-a87c-4a6f-adea-b1b433f4740e",
