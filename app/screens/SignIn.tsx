@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react"
 import { StyleSheet, View, Text } from "react-native"
 
-import { AcceptTerms } from "../components/AcceptTerms"
 import ProviderButton from "../components/AuthProviderButton"
 import Button from "../components/Button"
 import LoadingIndicator from "../components/LoadingIndicator"
 import Logo from "../components/Logo"
 import { MonoText, TitleText } from "../components/StyledText"
 import { useAuthentication } from "../hooks/useAuthentication"
-import { useUserPrivate } from "../hooks/useUserPrivate"
 import { RootStackScreenProps } from "../navigation/types"
 import { initializeGoogleSignIn, signInWithGoogle } from "../services/googleSignInUnified"
 
 export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   const { firebaseUser: user, supabaseUser, isLoading, error } = useAuthentication()
-  const userPrivate = useUserPrivate()
-  const hasAcceptedTermsDate = userPrivate?.hasAcceptedTermsDate ?? null
   const [googleSignInLoading, setGoogleSignInLoading] = useState(false)
 
   // Initialize Google Sign-In when component mounts
@@ -25,10 +21,10 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
 
   // Navigate to Dashboard when both Firebase and Supabase authentication is complete
   useEffect(() => {
-    if (user && supabaseUser && hasAcceptedTermsDate) {
+    if (user && supabaseUser) {
       navigation.navigate("Dashboard")
     }
-  }, [user, supabaseUser, hasAcceptedTermsDate, navigation])
+  }, [user, supabaseUser, navigation])
 
   const GoogleLoginOnPress = async () => {
     setGoogleSignInLoading(true)
@@ -56,8 +52,7 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   }
   return (
     <View style={styles.container}>
-      {(user && hasAcceptedTermsDate) || (user && !userPrivate) ? <LoadingIndicator /> : null}
-      {user && userPrivate && !hasAcceptedTermsDate ? <AcceptTerms /> : null}
+      {user && isLoading ? <LoadingIndicator /> : null}
       {!user ? (
         <>
           <TitleText>Yours Brightly AI</TitleText>
