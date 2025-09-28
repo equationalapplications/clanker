@@ -2,6 +2,10 @@
 
 Copyright Equational Applications LLC
 
+## Documentation
+
+- Developer Guide: [docs/](./docs)
+
 ## Firestore Data
 
 ### Collection: users_public
