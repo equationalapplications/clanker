@@ -12,47 +12,34 @@ interface AcceptTermsModalProps {
     appName: string;
     termsVersion: string;
     isUpdate?: boolean; // true if this is a terms update, false for first-time
+    onViewFullTerms?: () => void; // Callback to navigate to full terms page
 }
 
 const TERMS_CONTENT = {
     'yours-brightly': {
         title: 'Terms of Service - Yours Brightly AI',
-        content: `
-# Terms of Service
+        summary: `
+By using Yours Brightly AI, you agree to these key terms:
 
-## 1. Acceptance of Terms
-By using Yours Brightly AI, you agree to these terms and conditions.
+• AI Character Creation: Create and customize AI characters for personal use while following community guidelines
 
-## 2. AI Character Creation
-- You may create and customize AI characters for personal use
-- Characters should not violate community guidelines
-- We reserve the right to moderate inappropriate content
+• Data Usage: Your conversations help improve our AI models. Personal information is handled according to our Privacy Policy
 
-## 3. Data Usage
-- Your conversations are used to improve our AI models
-- Personal information is handled according to our Privacy Policy
-- You may request data deletion at any time
+• Subscription & Billing: Premium features require an active subscription through your app store
 
-## 4. Subscription and Billing
-- Premium features require an active subscription
-- Billing is handled through your app store
-- Cancellation policies follow platform standards
+• Prohibited Uses: No harmful, illegal, or inappropriate content. Respect other users and community guidelines
 
-## 5. Prohibited Uses
-- No harmful, illegal, or inappropriate content
-- No attempts to circumvent usage limits
-- Respect other users and community guidelines
+• Service Availability: We strive for reliable service but cannot guarantee uninterrupted access
 
-## 6. Service Availability
-- We strive for 99.9% uptime but cannot guarantee uninterrupted service
-- Features may be added, modified, or removed with notice
+• Amendments: We may modify these terms at any time. Continued use constitutes acceptance of changes
 
-## 7. Contact Information
-For questions about these terms, contact: support@yoursbrightly.ai
+• Contact: For questions, contact support@yoursbrightly.ai
 
-Last updated: September 28, 2025
-Version: 2.0
-`
+For the complete terms and conditions, please tap "View Full Terms" below.
+
+Last updated: September 28, 2025 • Version: 2.0
+`,
+        fullTermsAvailable: true
     }
 };
 
@@ -62,7 +49,8 @@ export function AcceptTermsModal({
     onDecline,
     appName,
     termsVersion,
-    isUpdate = false
+    isUpdate = false,
+    onViewFullTerms
 }: AcceptTermsModalProps) {
     const [loading, setLoading] = useState(false);
     const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
@@ -150,9 +138,22 @@ export function AcceptTermsModal({
                     scrollEventThrottle={16}
                 >
                     <Text style={{ fontSize: 14, lineHeight: 20 }}>
-                        {termsData.content}
+                        {termsData.summary}
                     </Text>
                 </ScrollView>
+
+                {/* View Full Terms Button */}
+                {termsData.fullTermsAvailable && onViewFullTerms && (
+                    <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                        <Button
+                            onPress={onViewFullTerms}
+                            mode="outlined"
+                            style={{ borderColor: '#0066cc' }}
+                        >
+                            View Full Terms & Conditions
+                        </Button>
+                    </View>
+                )}
 
                 {/* Scroll Indicator */}
                 {!hasScrolledToBottom && (
