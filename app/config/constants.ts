@@ -66,7 +66,7 @@ export const revenueCatSubscribersApi = revenueCatBaseApi + "/subscribers"
 
 export const stripeCustomerPortal = "https://billing.stripe.com/p/login/28obLIehA711btKcMM"
 export const stripeMontlySubscriptionPriceId = "price_1MVejqDTb0norRA06zwoexic"
-export const AndroidIosMonthlySubscriptionPurchasePackage: PurchasesPackage = {
+export const AndroidIosMonthlySubscriptionPurchasePackage: PurchasesPackage = ({
   identifier: "$rc_monthly",
   offeringIdentifier: "premium",
   packageType: "MONTHLY",
@@ -83,7 +83,7 @@ export const AndroidIosMonthlySubscriptionPurchasePackage: PurchasesPackage = {
     subscriptionPeriod: "P1M",
     title: "Yours Brightly AI Subscription (Yours Brightly AI)",
   },
-}
+} as unknown) as PurchasesPackage
 
 export const colorsLight = {
   primary: "rgb(131, 84, 0)",
