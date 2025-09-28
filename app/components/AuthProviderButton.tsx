@@ -26,7 +26,7 @@ function getSocialColor(type: SocialType): string {
   }
 }
 
-function ProviderButton({ style, type, onPress, loading, children, disabled }: Props): JSX.Element {
+function ProviderButton({ style, type, onPress, loading, children, disabled }: Props) {
   return (
     <Button
       style={[styles.button, style]}

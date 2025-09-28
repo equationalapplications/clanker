@@ -8,14 +8,13 @@ import { googleWebClientId, googleAndroidClientId } from "../config/constants"
 export const configureGoogleSignIn = () => {
   GoogleSignin.configure({
     webClientId: googleWebClientId, // Required for both Android and web
-    offlineAccess: true, // If you want to access Google API on behalf of the user FROM YOUR SERVER
-    hostedDomain: "", // specifies a hosted domain restriction
-    forceCodeForRefreshToken: true, // [Android] related to `serverAuthCode`, read the docs link below *.
-    accountName: "", // [Android] specifies an account name on the device that should be used
-    // iosClientId: "", // [iOS] - will be set up later
-    googleServicePlistPath: "", // [iOS] if you renamed your GoogleService-Info.plist you'll need to set this parameter
-    openIdSupport: false, // [iOS] The user will be prompted to select whether the client would like to use full OpenID Connect functionality.
-    profileImageSize: 120, // [iOS] The desired height (and width) of the profile image, if this value is not provided, the image will have its original size
+    offlineAccess: true,
+    hostedDomain: "",
+    forceCodeForRefreshToken: true,
+    accountName: "",
+    // iosClientId: "",
+    googleServicePlistPath: "",
+    profileImageSize: 120,
   })
 }
 
@@ -28,27 +27,27 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
   try {
     // Check if your device supports Google Play
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true })
-    
+
     // Get the users ID token
     const userInfo = await GoogleSignin.signIn()
-    
-    // Get the ID token from the user info
-    const idToken = userInfo.idToken
-    
+
+    // Get the ID token from the user info (coerce to string to satisfy typings)
+    const idToken = (userInfo as any).idToken as string | undefined
+
     if (!idToken) {
       return { success: false, error: "No ID token received from Google" }
     }
 
     // Create a Google credential with the token
     const googleCredential = GoogleAuthProvider.credential(idToken)
-    
+
     // Sign-in the user with the credential
     await signInWithCredential(auth, googleCredential)
-    
+
     return { success: true }
   } catch (error: any) {
     console.error("Google Sign-In Error:", error)
-    
+
     // Handle specific error cases
     if (error.code === "statusCodes.SIGN_IN_CANCELLED") {
       return { success: false, error: "Sign in was cancelled" }
@@ -59,7 +58,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     if (error.code === "statusCodes.PLAY_SERVICES_NOT_AVAILABLE") {
       return { success: false, error: "Play services not available or outdated" }
     }
-    
+
     return { success: false, error: error.message || "Unknown error occurred" }
   }
 }

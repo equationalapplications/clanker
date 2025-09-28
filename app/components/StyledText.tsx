@@ -1,13 +1,14 @@
-import { Text, TextProps } from "react-native-paper"
+import React from 'react'
+import { Text } from "react-native-paper"
 
-export function MonoText(props: TextProps) {
+export const MonoText = (props: any) => {
   return <Text {...props} style={[props.style, { fontFamily: "space-mono" }]} />
 }
 
-export function TitleText(props: TextProps) {
+export const TitleText = (props: any) => {
   return <Text {...props} style={[props.style, { fontSize: 24 }]} />
 }
 
-export function ParagraphText(props: TextProps) {
+export const ParagraphText = (props: any) => {
   return <Text {...props} style={[props.style, { width: "60%" }]} />
 }
