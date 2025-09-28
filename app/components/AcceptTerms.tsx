@@ -1,42 +1,80 @@
-import { useNavigation } from "@react-navigation/native"
 import { StatusBar } from "expo-status-bar"
 import React, { useState } from "react"
-import { StyleSheet, View } from "react-native"
+import { StyleSheet, View, Alert } from "react-native"
 import { Text, Checkbox } from "react-native-paper"
 
 import Button from "./Button"
 import LoadingIndicator from "./LoadingIndicator"
 import Logo from "./Logo"
 import { platform } from "../config/constants"
-import { useAcceptTerms } from "../hooks/useAcceptTerms"
-import { deleteUser } from "../utilities/deleteUser"
+import { grantAppAccess } from "../utilities/appAccess"
 
-export function AcceptTerms() {
+interface AcceptTermsProps {
+  onAccepted?: () => void
+  onCanceled?: () => void
+  termsVersion?: string
+}
+
+export function AcceptTerms({ onAccepted, onCanceled, termsVersion = '1.0' }: AcceptTermsProps) {
   const [checked, setChecked] = useState(false)
   const [loading, setLoading] = useState(false)
-  const navigation = useNavigation()
-  const acceptTermsMutation = useAcceptTerms()
 
   const onPressChecked = () => {
     setChecked(!checked)
   }
 
-  const onPressAccept = () => {
+  const onPressAccept = async () => {
+    if (!checked) {
+      Alert.alert('Please Accept Terms', 'You must accept the terms and conditions to continue.')
+      return
+    }
+
     setLoading(true)
-    acceptTermsMutation.mutate()
+
+    try {
+      console.log('Accepting terms and granting app access...')
+      const result = await grantAppAccess('yours-brightly', termsVersion)
+
+      if (result.success) {
+        console.log('Terms accepted successfully')
+        Alert.alert(
+          'Welcome!',
+          'Terms accepted successfully. You now have access to Yours Brightly AI.',
+          [{ text: 'Continue', onPress: onAccepted }]
+        )
+      } else {
+        throw new Error(result.error || 'Failed to grant access')
+      }
+    } catch (error: any) {
+      console.error('Error accepting terms:', error)
+      Alert.alert(
+        'Error',
+        'Failed to accept terms. Please try again.\n\n' + error.message
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const onPressCancel = async () => {
-    setLoading(true)
-    await deleteUser()
+  const onPressCancel = () => {
+    Alert.alert(
+      'Cancel Registration',
+      'Are you sure you want to cancel? You will need to sign out.',
+      [
+        { text: 'Continue Registration', style: 'cancel' },
+        { text: 'Sign Out', style: 'destructive', onPress: onCanceled }
+      ]
+    )
   }
 
   const onPressTerms = () => {
-    navigation.navigate("Terms")
+    // TODO: Navigate to terms page when implemented
+    Alert.alert('Terms', 'Terms and Conditions page will be implemented soon.')
   }
 
   const onPressPrivacy = () => {
-    navigation.navigate("Privacy")
+    // TODO: Navigate to privacy page when implemented  
+    Alert.alert('Privacy', 'Privacy Policy page will be implemented soon.')
   }
 
   return (

@@ -2,7 +2,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import React from "react"
 
 import { RootStackParamList } from "./types"
-import { useAuthentication } from "../hooks/useAuthentication"
+import { useAuth } from "../hooks/useAuth"
 import Dashboard from "../screens/Dashboard"
 import SignIn from "../screens/SignIn"
 
@@ -14,7 +14,7 @@ import SignIn from "../screens/SignIn"
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
 export default function RootNavigator() {
-  const { firebaseUser, supabaseUser } = useAuthentication()
+  const { firebaseUser, supabaseUser } = useAuth()
 
   return (
     <Stack.Navigator

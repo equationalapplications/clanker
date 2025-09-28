@@ -5,6 +5,7 @@ import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-c
 import { QueryClientProvider } from "@tanstack/react-query"
 
 import { CustomFallback } from "./app/components/CustomFallback"
+import { AuthProvider } from "./app/hooks/useAuth"
 import { queryClient } from "./app/config/queryClient"
 import useCachedResources from "./app/hooks/useCachedResources"
 import RootNavigator from "./app/navigation/RootNavigator"
@@ -23,10 +24,12 @@ export default function App() {
       <ErrorBoundary FallbackComponent={CustomFallback}>
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
           <QueryClientProvider client={queryClient}>
-            <ThemeProviderNavigationContainer>
-              <RootNavigator />
-              <StatusBar />
-            </ThemeProviderNavigationContainer>
+            <AuthProvider>
+              <ThemeProviderNavigationContainer>
+                <RootNavigator />
+                <StatusBar />
+              </ThemeProviderNavigationContainer>
+            </AuthProvider>
           </QueryClientProvider>
         </SafeAreaProvider>
       </ErrorBoundary>

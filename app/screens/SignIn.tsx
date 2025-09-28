@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react"
 import { StyleSheet, View, Text } from "react-native"
 
+import { AcceptTerms } from "../components/AcceptTerms"
 import ProviderButton from "../components/AuthProviderButton"
 import Button from "../components/Button"
 import LoadingIndicator from "../components/LoadingIndicator"
 import Logo from "../components/Logo"
 import { MonoText, TitleText } from "../components/StyledText"
-import { useAuthentication } from "../hooks/useAuthentication"
+import { useAuth } from "../hooks/useAuth"
+import { useAppAccess } from "../hooks/useAppAccess"
 import { RootStackScreenProps } from "../navigation/types"
 import { initializeGoogleSignIn, signInWithGoogle } from "../services/googleSignInUnified"
 
 export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
-  const { firebaseUser: user, supabaseUser, isLoading, error } = useAuthentication()
+  const { firebaseUser: user, supabaseUser, isLoading, error } = useAuth()
+  const { hasAccess, hasAcceptedTerms, isLoading: appAccessLoading } = useAppAccess()
   const [googleSignInLoading, setGoogleSignInLoading] = useState(false)
 
   // Initialize Google Sign-In when component mounts
@@ -19,12 +22,12 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
     initializeGoogleSignIn().catch(console.error)
   }, [])
 
-  // Navigate to Dashboard when both Firebase and Supabase authentication is complete
+  // Navigate to Dashboard when both Firebase and Supabase authentication is complete AND user has app access
   useEffect(() => {
-    if (user && supabaseUser) {
+    if (user && supabaseUser && hasAccess && hasAcceptedTerms) {
       navigation.navigate("Dashboard")
     }
-  }, [user, supabaseUser, navigation])
+  }, [user, supabaseUser, hasAccess, hasAcceptedTerms, navigation])
 
   const GoogleLoginOnPress = async () => {
     setGoogleSignInLoading(true)
@@ -49,6 +52,49 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
 
   const onPressTerms = () => {
     // navigation.navigate("Terms")
+  }
+
+  const handleTermsAccepted = () => {
+    // Terms accepted, user should now have access - the useEffect will handle navigation
+    console.log('Terms accepted, waiting for navigation...')
+  }
+
+  const handleTermsCanceled = async () => {
+    // User canceled terms acceptance, sign them out
+    try {
+      const { auth } = await import('../config/firebaseConfig')
+      const { supabase } = await import('../config/supabaseClient')
+
+      await supabase.auth.signOut()
+      await auth.signOut()
+
+      console.log('User signed out after terms cancellation')
+    } catch (error) {
+      console.error('Error signing out after terms cancellation:', error)
+    }
+  }
+
+  // Show loading if authentication is in progress
+  if (isLoading || appAccessLoading) {
+    return (
+      <View style={styles.container}>
+        <LoadingIndicator />
+        <Text style={styles.loadingText}>
+          {isLoading ? 'Authenticating...' : 'Checking app access...'}
+        </Text>
+      </View>
+    )
+  }
+
+  // Show terms acceptance if user is authenticated but hasn't accepted terms
+  if (user && supabaseUser && !hasAcceptedTerms) {
+    return (
+      <AcceptTerms
+        onAccepted={handleTermsAccepted}
+        onCanceled={handleTermsCanceled}
+        termsVersion="1.0"
+      />
+    )
   }
   return (
     <View style={styles.container}>
@@ -101,6 +147,12 @@ const styles = StyleSheet.create({
     marginVertical: 30,
     height: 1,
     width: "80%",
+  },
+  loadingText: {
+    textAlign: 'center',
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
   errorContainer: {
     backgroundColor: "#ffebee",
