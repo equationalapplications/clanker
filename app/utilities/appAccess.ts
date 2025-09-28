@@ -61,12 +61,22 @@ export async function checkAppAccess(appName: string = 'yours-brightly'): Promis
         const { data: { session } } = await supabase.auth.getSession()
 
         if (!session?.access_token) {
+            console.log('checkAppAccess: No session or access token found')
             return false
         }
 
         // Parse the JWT to check custom claims
         const payload = JSON.parse(atob(session.access_token.split('.')[1]))
         const apps = payload.apps || []
+
+        console.log('checkAppAccess: JWT payload analysis', {
+            appName,
+            apps,
+            hasApps: !!payload.apps,
+            appsType: typeof payload.apps,
+            includes: apps.includes(appName),
+            fullPayload: payload
+        })
 
         return apps.includes(appName)
     } catch (error) {
