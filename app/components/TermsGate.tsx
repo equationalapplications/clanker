@@ -7,9 +7,8 @@ interface TermsGateProps {
     appName?: string;
     onTermsAccepted?: () => void;
     onTermsDeclined?: () => void;
-}
-
-/**
+    onNavigateToTerms?: () => void; // Navigation callback for full terms page
+}/**
  * TermsGate component that wraps your app content and shows the terms modal
  * when terms acceptance is required.
  */
@@ -18,6 +17,7 @@ export function TermsGate({
     appName = 'yours-brightly',
     onTermsAccepted,
     onTermsDeclined,
+    onNavigateToTerms,
 }: TermsGateProps) {
     const [showTermsModal, setShowTermsModal] = useState(false);
     const termsRequired = useTermsAcceptanceRequired();
@@ -64,6 +64,11 @@ export function TermsGate({
         }, 3000); // Show again after 3 seconds
     };
 
+    const handleViewFullTerms = () => {
+        console.log('📋 User wants to view full terms');
+        onNavigateToTerms?.();
+    };
+
     // Determine if this is a terms update scenario
     const isTermsUpdate = userAcceptedVersion && userAcceptedVersion !== currentVersion;
 
@@ -78,6 +83,7 @@ export function TermsGate({
                 appName={appName}
                 termsVersion={currentVersion}
                 isUpdate={isTermsUpdate}
+                onViewFullTerms={handleViewFullTerms}
             />
         </>
     );

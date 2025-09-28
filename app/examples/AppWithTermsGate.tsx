@@ -1,4 +1,4 @@
-// Example of how to integrate TermsGate into your app
+// Example of how to integrate TermsGate into your app with navigation
 
 import React from 'react';
 import { View } from 'react-native';
@@ -20,6 +20,19 @@ export function AppWithTermsGate() {
         // You might want to sign out the user or show a message
     };
 
+    const handleNavigateToTerms = () => {
+        console.log('User wants to view full terms');
+        // Navigate to the Terms screen
+        // If using React Navigation:
+        // navigation.navigate('Terms');
+
+        // If using Expo Router:
+        // router.push('/terms');
+
+        // For now, this is just a placeholder
+        alert('Navigate to Terms screen - implement navigation based on your routing setup');
+    };
+
     if (!user) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -33,14 +46,13 @@ export function AppWithTermsGate() {
             appName="yours-brightly"
             onTermsAccepted={handleTermsAccepted}
             onTermsDeclined={handleTermsDeclined}
+            onNavigateToTerms={handleNavigateToTerms}
         >
             {/* Your main app content goes here */}
             <YourMainAppContent />
         </TermsGate>
     );
-}
-
-function YourMainAppContent() {
+} function YourMainAppContent() {
     return (
         <View style={{ flex: 1, padding: 20 }}>
             <Text variant="headlineMedium">Welcome to Yours Brightly!</Text>
