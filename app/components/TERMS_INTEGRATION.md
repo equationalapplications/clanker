@@ -1,28 +1,74 @@
 # Terms Acceptance Integration Guide
 
-This guide shows how to integrate the terms acceptance system with your existing Terms screen.
+This guide shows how to integrate the terms acceptance system with centralized terms configuration.
 
 ## Components Overview
 
-### 1. AcceptTermsModal
-Shows a summary of terms with:
-- Key points in bullet format
-- Scroll-to-bottom validation
-- "View Full Terms" button that calls `onViewFullTerms`
-- Accept/Decline actions
+### 1. Terms Configuration (`app/config/termsConfig.ts`)
+Centralized configuration for all terms:
+```tsx
+export interface TermsConfig {
+  version: string;     // Version for tracking changes
+  summary: string;     // Short summary for modal
+  terms: string;       // Full terms text  
+  lastUpdated: string; // Date for reference
+}
+```
 
-### 2. TermsGate
+### 2. AcceptTermsModal
+Shows a summary of terms with:
+- Key points from `termsConfig.summary`
+- Version information from `termsConfig.version`
+- "View Full Terms" button for navigation to full terms
+- Accept/Decline actions with database integration
+
+### 3. TermsGate
 Wrapper component that:
+- Uses `CURRENT_TERMS.version` for version checking
 - Automatically shows modal when terms acceptance is needed
 - Handles navigation to full terms page via `onNavigateToTerms`
-- Manages terms acceptance state
+- Manages terms acceptance state and JWT refresh
 
-### 3. Terms Screen (existing)
-Your existing Terms.tsx screen with the complete terms content.
+### 4. Terms Screen
+Your Terms.tsx screen now:
+- Uses `getTermsForApp('yours-brightly')` to get current terms
+- Displays `termsConfig.terms` (full terms text)
+- Automatically stays in sync with configuration
+
+## Updating Terms
+
+### Step 1: Update the configuration
+Edit `app/config/termsConfig.ts`:
+
+```tsx
+export const YOURS_BRIGHTLY_TERMS: TermsConfig = {
+  version: '3.0', // ⭐ Increment this to force re-acceptance
+  lastUpdated: 'October 15, 2025',
+  
+  summary: `
+Updated key points:
+• New AI features and usage guidelines
+• Updated data handling policies
+• Revised subscription terms
+...
+`,
+  
+  terms: `
+Full updated terms text...
+`
+};
+```
+
+### Step 2: That's it!
+- ✅ Modal automatically shows new summary
+- ✅ Version checking forces user re-acceptance  
+- ✅ Terms screen shows updated full terms
+- ✅ JWT refresh includes new permissions
+- ✅ All components stay in sync
 
 ## Integration Steps
 
-### Step 1: Update your main app component
+### Step 1: Wrap your app with TermsGate
 
 ```tsx
 import { TermsGate } from '../components/TermsGate';
@@ -32,7 +78,7 @@ function App() {
   const navigation = useNavigation();
 
   const handleNavigateToTerms = () => {
-    navigation.navigate('Terms'); // Navigate to your existing Terms screen
+    navigation.navigate('Terms'); // Navigate to Terms screen
   };
 
   return (
@@ -63,87 +109,66 @@ import Terms from '../screens/Terms';
 </Stack.Navigator>
 ```
 
-### Step 3: Optional - Add acceptance button to Terms screen
+## User Flow
 
-If you want users to be able to accept terms from the full Terms screen:
+1. **User opens app** → TermsGate checks if `CURRENT_TERMS.version` accepted
+2. **Terms required** → AcceptTermsModal shows `termsConfig.summary`
+3. **User taps "View Full Terms"** → Navigates to Terms screen
+4. **Terms screen** → Shows `termsConfig.terms` (full text)
+5. **Terms accepted** → JWT refreshed with app permissions
+
+## Version Management
+
+### Automatic Re-acceptance
+When you update `CURRENT_TERMS.version`:
+- All users must re-accept before gaining app access
+- `useAcceptTerms` hook detects version mismatch
+- Modal shows automatically with "Updated Terms" messaging
+- JWT claims only granted after acceptance of current version
+
+### Development Workflow
+1. **Draft new terms** in your preferred editor
+2. **Update `termsConfig.ts`** with new version and content
+3. **Test locally** - version mismatch forces modal
+4. **Deploy** - all users see updated terms on next app launch
+
+## Configuration Structure
 
 ```tsx
-// Add to Terms.tsx
-import { useAcceptTerms } from '../hooks/useAcceptTerms';
-import { supabase } from '../config/supabaseClient';
-import Button from '../components/Button';
+// Single source of truth for all terms
+export const YOURS_BRIGHTLY_TERMS: TermsConfig = {
+  version: '2.0',
+  lastUpdated: 'September 28, 2025',
+  summary: `Brief key points for modal...`,
+  terms: `Complete legal terms text...`
+};
 
-export default function Terms() {
-  const { needsAcceptance } = useAcceptTerms();
-  const user = useUser();
+// Current active terms (easy to switch for testing)
+export const CURRENT_TERMS = YOURS_BRIGHTLY_TERMS;
 
-  const handleAcceptFromFullTerms = async () => {
-    if (!user?.uid) return;
-    
-    const { error } = await supabase.rpc('grant_app_access', {
-      p_user_id: user.uid,
-      p_app_name: 'yours-brightly',
-      p_terms_version: '2.0'
-    });
-
-    if (!error) {
-      navigation.goBack(); // Or navigate to main app
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <ScrollView>
-        {/* existing terms content */}
-      </ScrollView>
-      
-      {needsAcceptance && (
-        <Button onPress={handleAcceptFromFullTerms}>
-          Accept Terms & Continue
-        </Button>
-      )}
-    </View>
-  );
+// Helper function for multiple apps (future-proofing)
+export function getTermsForApp(appName: string): TermsConfig | null {
+  switch (appName) {
+    case 'yours-brightly': return YOURS_BRIGHTLY_TERMS;
+    // case 'other-app': return OTHER_APP_TERMS;
+    default: return null;
+  }
 }
 ```
 
-## User Flow
+## Benefits
 
-1. **User opens app** → TermsGate checks if terms acceptance needed
-2. **Terms required** → AcceptTermsModal shows with summary
-3. **User taps "View Full Terms"** → Navigates to Terms screen
-4. **User reads full terms** → Can accept from modal or Terms screen
-5. **Terms accepted** → JWT refreshed with app permissions, user gains access
-
-## Customization
-
-### Change terms summary
-Edit `TERMS_CONTENT` in `AcceptTermsModal.tsx`:
-
-```tsx
-const TERMS_CONTENT = {
-  'yours-brightly': {
-    title: 'Your Custom Title',
-    summary: `Your custom summary with key points...`,
-    fullTermsAvailable: true
-  }
-};
-```
-
-### Add version checking
-Update `CURRENT_TERMS_VERSION` in `useAcceptTerms.ts` to force re-acceptance:
-
-```tsx
-const CURRENT_TERMS_VERSION = '3.0'; // Users must re-accept
-```
-
-### Custom styling
-Both components accept style props and can be customized via the existing style objects.
+- ✅ **Single Source of Truth**: All terms content in one file
+- ✅ **Version Control**: Easy tracking and forced re-acceptance
+- ✅ **Developer Experience**: Simple updates, automatic propagation
+- ✅ **User Experience**: Consistent terms display across app
+- ✅ **Legal Compliance**: Comprehensive tracking and enforcement
+- ✅ **Maintainability**: Centralized configuration, easy updates
 
 ## Notes
 
-- The modal shows a summary, not the full terms text
-- Full terms should be in your existing Terms.tsx screen
-- Terms acceptance is recorded in `user_app_permissions` table
+- The modal shows `summary`, the Terms screen shows `terms`
+- Version changes in `termsConfig.ts` force all users to re-accept
+- Terms acceptance is recorded in `user_app_permissions` table with version
 - JWT is automatically refreshed after acceptance
-- Version changes force all users to re-accept terms
+- All components automatically stay in sync with configuration updates

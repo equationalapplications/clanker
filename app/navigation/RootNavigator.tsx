@@ -5,6 +5,8 @@ import { RootStackParamList } from "./types"
 import { useAuth } from "../hooks/useAuth"
 import Dashboard from "../screens/Dashboard"
 import SignIn from "../screens/SignIn"
+import Terms from "../screens/Terms"
+import Privacy from "../screens/Privacy"
 
 /**
  * A root stack navigator is often used for displaying modals on top of all other content.
@@ -30,6 +32,16 @@ export default function RootNavigator() {
         name="Dashboard"
         component={Dashboard}
         options={{ title: "Dashboard" }}
+      />
+      <Stack.Screen
+        name="Terms"
+        component={Terms}
+        options={{ title: "Terms of Service" }}
+      />
+      <Stack.Screen
+        name="Privacy"
+        component={Privacy}
+        options={{ title: "Privacy Policy" }}
       />
     </Stack.Navigator>
   )

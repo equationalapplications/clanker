@@ -47,11 +47,11 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   }
 
   const onPressPrivacy = () => {
-    //navigation.navigate("Privacy")
+    navigation.navigate("Privacy")
   }
 
   const onPressTerms = () => {
-    // navigation.navigate("Terms")
+    navigation.navigate("Terms")
   }
 
   const handleTermsAccepted = () => {
