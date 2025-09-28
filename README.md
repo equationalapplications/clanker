@@ -6,7 +6,7 @@ Copyright Equational Applications LLC
 
 - Developer Guide: [docs/](./docs)
 
-## Firestore Data
+## Firestore Data - NO LONGER USED - SEE SUPABASE
 
 ### Collection: users_public
 `${usersPublicCollection}/${user.uid}`
