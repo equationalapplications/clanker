@@ -1,13 +1,13 @@
 import React from 'react'
 import { View, StyleSheet, ScrollView, Alert } from 'react-native'
 import { Text, Card, Button, Divider } from 'react-native-paper'
-import { useAuthentication } from '../hooks/useAuthentication'
+import { useAuth } from '../hooks/useAuth'
 import { auth } from '../config/firebaseConfig'
 import { supabase } from '../config/supabaseClient'
 import LoadingIndicator from '../components/LoadingIndicator'
 
 export default function Dashboard() {
-    const { firebaseUser, supabaseUser, isLoading, error } = useAuthentication()
+    const { firebaseUser, supabaseUser, isLoading, error } = useAuth()
 
     const handleSignOut = async () => {
         try {
