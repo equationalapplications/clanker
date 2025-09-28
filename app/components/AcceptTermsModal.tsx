@@ -4,6 +4,7 @@ import { Text } from 'react-native-paper';
 import Button from './Button';
 import { supabase } from '../config/supabaseClient';
 import { useUser } from '../hooks/useUser';
+import { getTermsForApp } from '../config/termsConfig';
 
 interface AcceptTermsModalProps {
     visible: boolean;
@@ -14,34 +15,6 @@ interface AcceptTermsModalProps {
     isUpdate?: boolean; // true if this is a terms update, false for first-time
     onViewFullTerms?: () => void; // Callback to navigate to full terms page
 }
-
-const TERMS_CONTENT = {
-    'yours-brightly': {
-        title: 'Terms of Service - Yours Brightly AI',
-        summary: `
-By using Yours Brightly AI, you agree to these key terms:
-
-• AI Character Creation: Create and customize AI characters for personal use while following community guidelines
-
-• Data Usage: Your conversations help improve our AI models. Personal information is handled according to our Privacy Policy
-
-• Subscription & Billing: Premium features require an active subscription through your app store
-
-• Prohibited Uses: No harmful, illegal, or inappropriate content. Respect other users and community guidelines
-
-• Service Availability: We strive for reliable service but cannot guarantee uninterrupted access
-
-• Amendments: We may modify these terms at any time. Continued use constitutes acceptance of changes
-
-• Contact: For questions, contact support@yoursbrightly.ai
-
-For the complete terms and conditions, please tap "View Full Terms" below.
-
-Last updated: September 28, 2025 • Version: 2.0
-`,
-        fullTermsAvailable: true
-    }
-};
 
 export function AcceptTermsModal({
     visible,
@@ -56,17 +29,20 @@ export function AcceptTermsModal({
     const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
     const user = useUser();
 
-    const termsData = TERMS_CONTENT[appName as keyof typeof TERMS_CONTENT];
+    const termsConfig = getTermsForApp(appName);
+
+    if (!termsConfig) {
+        return null; // No terms configured for this app
+    }
 
     const handleAccept = async () => {
         if (!user?.uid) {
-            Alert.alert('Error', 'User not authenticated');
+            Alert.alert('Error', 'You must be signed in to accept terms');
             return;
         }
 
         setLoading(true);
         try {
-            // Call the grant_app_access function to record terms acceptance
             const { error } = await supabase.rpc('grant_app_access', {
                 p_user_id: user.uid,
                 p_app_name: appName,
@@ -74,16 +50,14 @@ export function AcceptTermsModal({
             });
 
             if (error) {
-                console.error('Failed to record terms acceptance:', error);
+                console.error('Error granting app access:', error);
                 Alert.alert('Error', 'Failed to record terms acceptance. Please try again.');
-                return;
+            } else {
+                onAccept();
             }
-
-            console.log(`✅ Terms accepted for ${appName} v${termsVersion}`);
-            onAccept();
         } catch (error) {
             console.error('Error accepting terms:', error);
-            Alert.alert('Error', 'Something went wrong. Please try again.');
+            Alert.alert('Error', 'An unexpected error occurred. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -91,11 +65,11 @@ export function AcceptTermsModal({
 
     const handleScroll = (event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-        const isAtBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 20;
-        setHasScrolledToBottom(isAtBottom);
+        const isScrolledToBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 10;
+        setHasScrolledToBottom(isScrolledToBottom);
     };
 
-    if (!termsData) {
+    if (!visible) {
         return null;
     }
 
@@ -103,77 +77,72 @@ export function AcceptTermsModal({
         <Modal
             visible={visible}
             animationType="slide"
-            presentationStyle="formSheet"
+            presentationStyle="pageSheet"
             onRequestClose={onDecline}
         >
-            <View style={{ flex: 1, backgroundColor: '#fff', padding: 20 }}>
+            <View style={{ flex: 1, backgroundColor: '#fff' }}>
                 {/* Header */}
-                <View style={{ marginBottom: 20, alignItems: 'center' }}>
-                    <Text style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center' }}>
-                        {isUpdate ? 'Updated Terms of Service' : termsData.title}
+                <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' }}>
+                    <Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center' }}>
+                        {isUpdate ? 'Updated Terms of Service' : 'Terms of Service'}
                     </Text>
-                    <Text style={{ fontSize: 16, color: '#666', marginTop: 8, textAlign: 'center' }}>
-                        Version {termsVersion}
+                    <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginTop: 4 }}>
+                        Version {termsConfig.version} • {termsConfig.lastUpdated}
                     </Text>
-                    {isUpdate && (
+                </View>
+
+                {/* Summary Content */}
+                <ScrollView
+                    style={{ flex: 1, padding: 20 }}
+                    onScroll={handleScroll}
+                    scrollEventThrottle={16}
+                    showsVerticalScrollIndicator={true}
+                >
+                    <Text style={{ fontSize: 16, lineHeight: 24, color: '#333' }}>
+                        {termsConfig.summary}
+                    </Text>
+
+                    {/* View Full Terms Button */}
+                    {onViewFullTerms && (
+                        <View style={{ marginVertical: 20, alignItems: 'center' }}>
+                            <Button
+                                onPress={onViewFullTerms}
+                                mode="outlined"
+                                style={{ minWidth: 200 }}
+                            >
+                                View Full Terms
+                            </Button>
+                        </View>
+                    )}
+
+                    {/* Scroll indicator */}
+                    {!hasScrolledToBottom && (
                         <View style={{
-                            backgroundColor: '#FFF3CD',
-                            padding: 12,
-                            borderRadius: 8,
-                            marginTop: 12,
-                            borderLeftWidth: 4,
-                            borderLeftColor: '#FFB020'
+                            alignItems: 'center',
+                            marginTop: 20,
+                            paddingBottom: 20
                         }}>
-                            <Text style={{ fontSize: 14, color: '#856404' }}>
-                                Our terms have been updated. Please review and accept the new version to continue using the app.
+                            <Text style={{
+                                fontSize: 12,
+                                color: '#666',
+                                fontStyle: 'italic'
+                            }}>
+                                Please scroll to the bottom to continue
                             </Text>
                         </View>
                     )}
-                </View>
 
-                {/* Terms Content */}
-                <ScrollView
-                    style={{ flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 16 }}
-                    onScroll={handleScroll}
-                    scrollEventThrottle={16}
-                >
-                    <Text style={{ fontSize: 14, lineHeight: 20 }}>
-                        {termsData.summary}
-                    </Text>
+                    {/* Spacer to ensure scroll works */}
+                    <View style={{ height: 50 }} />
                 </ScrollView>
 
-                {/* View Full Terms Button */}
-                {termsData.fullTermsAvailable && onViewFullTerms && (
-                    <View style={{ alignItems: 'center', marginVertical: 12 }}>
-                        <Button
-                            onPress={onViewFullTerms}
-                            mode="outlined"
-                            style={{ borderColor: '#0066cc' }}
-                        >
-                            View Full Terms & Conditions
-                        </Button>
-                    </View>
-                )}
-
-                {/* Scroll Indicator */}
-                {!hasScrolledToBottom && (
-                    <View style={{
-                        alignItems: 'center',
-                        marginVertical: 12,
-                        padding: 8,
-                        backgroundColor: '#E3F2FD',
-                        borderRadius: 6
-                    }}>
-                        <Text style={{ fontSize: 12, color: '#1976D2' }}>
-                            Please scroll down to read all terms before accepting
-                        </Text>
-                    </View>
-                )}
-
-                {/* Action Buttons */}
+                {/* Action buttons */}
                 <View style={{
                     flexDirection: 'row',
-                    justifyContent: 'space-between',
+                    padding: 20,
+                    borderTopWidth: 1,
+                    borderTopColor: '#e0e0e0',
+                    backgroundColor: '#f8f9fa',
                     marginTop: 20,
                     gap: 12
                 }}>

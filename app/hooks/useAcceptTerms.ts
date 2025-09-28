@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../config/supabaseClient';
 import { useUser } from './useUser';
+import { CURRENT_TERMS } from '../config/termsConfig';
 
 interface TermsStatus {
   needsAcceptance: boolean;
@@ -11,13 +12,12 @@ interface TermsStatus {
   error?: string;
 }
 
-const CURRENT_TERMS_VERSION = '2.0'; // Update this when terms change
 const APP_NAME = 'yours-brightly';
 
 export function useAcceptTerms(): TermsStatus & { refreshTermsStatus: () => void } {
   const [termsStatus, setTermsStatus] = useState<TermsStatus>({
     needsAcceptance: false,
-    currentVersion: CURRENT_TERMS_VERSION,
+    currentVersion: CURRENT_TERMS.version,
     loading: true,
   });
 
@@ -64,12 +64,12 @@ export function useAcceptTerms(): TermsStatus & { refreshTermsStatus: () => void
         // 1. They haven't accepted any terms (terms_accepted_at is null)
         // 2. Their accepted version is different from current version
         needsAcceptance = !data.terms_accepted_at ||
-          data.terms_version !== CURRENT_TERMS_VERSION;
+          data.terms_version !== CURRENT_TERMS.version;
       }
 
       setTermsStatus({
         needsAcceptance,
-        currentVersion: CURRENT_TERMS_VERSION,
+        currentVersion: CURRENT_TERMS.version,
         userAcceptedVersion,
         lastAcceptedAt,
         loading: false,
@@ -77,11 +77,10 @@ export function useAcceptTerms(): TermsStatus & { refreshTermsStatus: () => void
 
       console.log('📋 Terms status check:', {
         needsAcceptance,
-        currentVersion: CURRENT_TERMS_VERSION,
+        currentVersion: CURRENT_TERMS.version,
         userAcceptedVersion,
         lastAcceptedAt,
       });
-
     } catch (error: any) {
       console.error('Error checking terms status:', error);
       setTermsStatus(prev => ({

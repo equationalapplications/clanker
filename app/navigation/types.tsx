@@ -16,6 +16,8 @@ declare global {
 export type RootStackParamList = {
   Dashboard: undefined
   SignIn: undefined
+  Terms: undefined
+  Privacy: undefined
 }
 
 export type RootStackScreenProps<Screen extends keyof RootStackParamList> = NativeStackScreenProps<
