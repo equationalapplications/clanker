@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { StyleSheet, View, Text } from "react-native"
+import { useRouter } from "expo-router"
 
 import { AcceptTerms } from "../components/AcceptTerms"
 import ProviderButton from "../components/AuthProviderButton"
@@ -9,10 +10,10 @@ import Logo from "../components/Logo"
 import { MonoText, TitleText } from "../components/StyledText"
 import { useAuth } from "../hooks/useAuth"
 import { useAppAccess } from "../hooks/useAppAccess"
-import { RootStackScreenProps } from "../navigation/types"
 import { initializeGoogleSignIn, signInWithGoogle } from "../services/googleSignInUnified"
 
-export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
+export default function SignIn() {
+  const router = useRouter()
   const { firebaseUser: user, supabaseUser, isLoading, error } = useAuth()
   const { hasAccess, hasAcceptedTerms, isLoading: appAccessLoading } = useAppAccess()
   const [googleSignInLoading, setGoogleSignInLoading] = useState(false)
@@ -25,9 +26,9 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   // Navigate to Dashboard when both Firebase and Supabase authentication is complete AND user has app access
   useEffect(() => {
     if (user && supabaseUser && hasAccess && hasAcceptedTerms) {
-      navigation.navigate("Dashboard")
+      router.replace("/dashboard")
     }
-  }, [user, supabaseUser, hasAccess, hasAcceptedTerms, navigation])
+  }, [user, supabaseUser, hasAccess, hasAcceptedTerms, router])
 
   const GoogleLoginOnPress = async () => {
     setGoogleSignInLoading(true)
@@ -47,11 +48,11 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
   }
 
   const onPressPrivacy = () => {
-    navigation.navigate("Privacy")
+    router.push("/privacy")
   }
 
   const onPressTerms = () => {
-    navigation.navigate("Terms")
+    router.push("/terms")
   }
 
   const handleTermsAccepted = () => {
@@ -119,14 +120,10 @@ export default function SignIn({ navigation }: RootStackScreenProps<"SignIn">) {
           >
             Google
           </ProviderButton>
-          <Text>
-            <Button mode="text" onPress={onPressTerms}>
-              Terms and Conditions
-            </Button>
-            <Button mode="text" onPress={onPressPrivacy}>
-              Privacy Policy
-            </Button>
-          </Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Button mode="text" onPress={onPressTerms}>Terms and Conditions</Button>
+            <Button mode="text" onPress={onPressPrivacy}>Privacy Policy</Button>
+          </View>
         </>
       ) : null}
     </View>

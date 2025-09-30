@@ -1,6 +1,6 @@
 import { StyleSheet, ViewStyle } from "react-native"
 import { Button } from "react-native-paper"
-import Icon from "react-native-vector-icons/MaterialCommunityIcons"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 
 type SocialType = "facebook" | "google" | "apple" | "phone"
 
@@ -30,10 +30,10 @@ function ProviderButton({ style, type, onPress, loading, children, disabled }: P
   return (
     <Button
       style={[styles.button, style]}
-      icon={() => <Icon name={type} color="#fff" size={17} />}
+      icon={() => <MaterialCommunityIcons name={type} color="#fff" size={17} />}
       mode="contained"
-      color={getSocialColor(type)}
-      dark
+      buttonColor={getSocialColor(type)}
+      textColor="#fff"
       loading={loading}
       onPress={() => (loading ? null : onPress())}
       disabled={disabled}

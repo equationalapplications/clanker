@@ -56,8 +56,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   web: {
     favicon: "./assets/favicon.png",
+    bundler: "metro",
+  },
+  experiments: {
+    typedRoutes: true,
   },
   plugins: [
+    "expo-router",
     "expo-sqlite",
     [
       "@react-native-google-signin/google-signin",
