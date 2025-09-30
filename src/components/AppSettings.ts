@@ -7,7 +7,7 @@ import { I18nManager, Platform, useColorScheme } from "react-native"
 import { findBestAvailableLanguage, addEventListener } from "react-native-localize"
 import { Theme as PaperTheme } from "react-native-paper/lib/typescript/types"
 
-import { darkTheme, defaultTheme } from "../theme"
+import { darkTheme, defaultTheme } from "../config/theme"
 import { translations } from "../translations"
 
 export type LanguageLocale = {
