@@ -1,4 +1,5 @@
 import "expo-dev-client"
+import React from "react"
 import { StatusBar } from "expo-status-bar"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
 import { useColorScheme } from "react-native"
@@ -22,36 +23,7 @@ export default function RootLayout() {
                 <AuthProvider>
                     <ThemeProvider>
                         <NavigationThemeProvider value={navTheme}>
-                            <Stack>
-                                <Stack.Screen name="index" options={{ headerShown: false }} />
-                                <Stack.Screen
-                                    name="sign-in"
-                                    options={{
-                                        headerShown: false,
-                                        title: "Sign In",
-                                    }}
-                                />
-                                <Stack.Screen
-                                    name="dashboard"
-                                    options={{
-                                        title: "Dashboard",
-                                    }}
-                                />
-                                <Stack.Screen
-                                    name="terms"
-                                    options={{
-                                        title: "Terms of Service",
-                                        presentation: "modal",
-                                    }}
-                                />
-                                <Stack.Screen
-                                    name="privacy"
-                                    options={{
-                                        title: "Privacy Policy",
-                                        presentation: "modal",
-                                    }}
-                                />
-                            </Stack>
+                            <Stack />
                         </NavigationThemeProvider>
                         <StatusBar />
                     </ThemeProvider>
