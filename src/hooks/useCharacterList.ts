@@ -5,6 +5,9 @@ import { useUser } from "./useUser"
 import { charactersCollection, userCharactersCollection } from "../config/constants"
 import { firestore } from "../config/firebaseConfig"
 
+// Also import Supabase hooks for migration
+import { useSupabaseCharacterListLegacy } from "./useSupabaseCharacterList"
+
 interface Character {
   id: string
   name: string
@@ -17,6 +20,14 @@ interface Character {
 }
 
 export function useCharacterList(): Character[] {
+  // Use Supabase version for now
+  const supabaseCharacters = useSupabaseCharacterListLegacy()
+
+  // Return Supabase data if available, otherwise fall back to Firebase
+  if (supabaseCharacters.length > 0) {
+    return supabaseCharacters
+  }
+
   const [characterList, setCharacterList] = useState<Character[]>([])
   const user = useUser()
 

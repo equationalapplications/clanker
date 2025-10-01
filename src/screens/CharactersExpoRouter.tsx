@@ -18,7 +18,7 @@ export default function Characters() {
   const [loading, setLoading] = useState(false)
 
   const onPressEditCharacter = ({ id }: { id: string }) => {
-    router.push(`/(tabs)/characters/edit/${id}`)
+    router.push(`./edit/${id}`)
   }
 
   const CharacterButton = ({ id, name }: CharacterButtonProps) => (
@@ -31,7 +31,7 @@ export default function Characters() {
     setLoading(true)
     const newCharacterId = await createNewCharacter()
     setLoading(false)
-    router.push(`/(tabs)/characters/edit/${newCharacterId}`)
+    router.push(`./edit/${newCharacterId}`)
   }
 
   return (

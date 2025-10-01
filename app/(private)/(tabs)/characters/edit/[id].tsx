@@ -1,0 +1,1 @@
+export { EditCharacter as default } from "../../../../../src/screens/EditCharacterExpoRouter"

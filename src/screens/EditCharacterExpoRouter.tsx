@@ -56,7 +56,9 @@ export function EditCharacter() {
 
   const onPressGenerateImage = async () => {
     if (!isPremium && credits === 0) {
-      router.push("/subscribe")
+      // TODO: Implement subscription flow
+      // router.push("/subscribe")
+      console.log("Premium subscription required for image generation")
       return
     }
 

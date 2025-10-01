@@ -16,7 +16,7 @@ export default function PublicLayout() {
             router.back()
         } else {
             const isAuthed = !!firebaseUser && !!supabaseUser
-            router.replace(isAuthed ? "/dashboard" : "/sign-in")
+            router.replace(isAuthed ? "/(private)" : "/sign-in")
         }
     }
 
@@ -29,7 +29,7 @@ export default function PublicLayout() {
     }
 
     if (!isLoading && authed && !isInfoPage) {
-        return <Redirect href="/dashboard" />
+        return <Redirect href="/(private)" />
     }
 
     return (

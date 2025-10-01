@@ -31,7 +31,7 @@ export const postStripeReceipt = async (sessionId: string) => {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     console.log("postStripeReceipt response", response)
-    queryClient.invalidateQueries("isPremium")
+    queryClient.invalidateQueries({ queryKey: ["isPremium"] })
   } catch (err) {
     console.error("postStripeReceipt error", err)
     throw err
