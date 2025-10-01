@@ -5,7 +5,7 @@ import { app, auth } from "../config/firebaseConfig"
 // Create functions instance and connect to emulator at module level
 const functions = getFunctions(app, "us-central1")
 
-export async function loginToSupabaseAfterFirebase(): Promise<any | null> {
+export async function loginSupabase(): Promise<any | null> {
   // Ensure we have a current user
   const currentUser = auth.currentUser;
   if (!currentUser) {

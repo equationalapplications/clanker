@@ -1,18 +1,19 @@
-// Legacy hook that now uses Supabase
-import { useSupabaseCharacterListLegacy } from "./useSupabaseCharacterList"
+import { useEffect, useState } from 'react'
+import { Character, LegacyCharacter, subscribeToUserCharacters, toLegacyCharacter } from '../services/characterService'
 
-interface Character {
-  id: string
-  name: string
-  avatar: string
-  appearance: string
-  traits: string
-  emotions: string
-  isCharacterPublic: boolean
-  context: string
-}
+/**
+ * Hook to get the current user's characters from Supabase
+ */
+export function useCharacterList(): LegacyCharacter[] {
+  const [characters, setCharacters] = useState<Character[]>([])
 
-export function useCharacterList(): Character[] {
-  // Use Supabase version
-  return useSupabaseCharacterListLegacy()
+  useEffect(() => {
+    const unsubscribe = subscribeToUserCharacters((newCharacters) => {
+      setCharacters(newCharacters)
+    })
+
+    return unsubscribe
+  }, [])
+
+  return characters.map(toLegacyCharacter)
 }

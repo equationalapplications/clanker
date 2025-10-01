@@ -15,7 +15,7 @@ const providerMap: { [key: string]: string } = {
   phone: "phone",
 }
 
-function Provider({ type, active, style }: Props): JSX.Element | null {
+function Provider({ type, active, style }: Props): React.JSX.Element | null {
   const theme = useTheme()
   const icon = providerMap[type]
 
