@@ -21,8 +21,8 @@ class AuthenticationManager {
         console.log('🔐 SINGLETON: Starting Supabase authentication after Firebase login')
 
         try {
-            const { loginToSupabaseAfterFirebase } = await import('../utilities/loginToSupabaseAfterFirebase')
-            const authResponse = await loginToSupabaseAfterFirebase()
+            const { loginSupabase } = await import('../utilities/loginSupabase')
+            const authResponse = await loginSupabase()
 
             if (authResponse?.data?.user) {
                 console.log('✅ SINGLETON: Successfully authenticated with both Firebase and Supabase')

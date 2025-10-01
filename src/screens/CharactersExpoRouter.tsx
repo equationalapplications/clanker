@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
-import { FAB } from "react-native-paper"
+import { FAB, Card, Text, Button as PaperButton } from "react-native-paper"
 import { router } from "expo-router"
 
 import Button from "../components/Button"
@@ -8,7 +8,7 @@ import LoadingIndicator from "../components/LoadingIndicator"
 import { useCharacterList } from "../hooks/useCharacterList"
 import { createNewCharacter } from "../utilities/createNewCharacter"
 
-interface CharacterButtonProps {
+interface CharacterCardProps {
   id: string
   name: string
 }
@@ -21,10 +21,32 @@ export default function Characters() {
     router.push(`./edit/${id}`)
   }
 
-  const CharacterButton = ({ id, name }: CharacterButtonProps) => (
-    <Button onPress={() => onPressEditCharacter({ id })} mode="contained">
-      {name}
-    </Button>
+  const onPressChatCharacter = ({ id }: { id: string }) => {
+    router.push(`./chat/${id}`)
+  }
+
+  const CharacterCard = ({ id, name }: CharacterCardProps) => (
+    <Card style={styles.characterCard}>
+      <Card.Content>
+        <Text variant="titleMedium" style={styles.characterName}>{name}</Text>
+      </Card.Content>
+      <Card.Actions>
+        <PaperButton
+          mode="outlined"
+          onPress={() => onPressEditCharacter({ id })}
+          style={styles.cardButton}
+        >
+          Edit
+        </PaperButton>
+        <PaperButton
+          mode="contained"
+          onPress={() => onPressChatCharacter({ id })}
+          style={styles.cardButton}
+        >
+          Chat
+        </PaperButton>
+      </Card.Actions>
+    </Card>
   )
 
   const onPressAddCharacter = async () => {
@@ -41,7 +63,7 @@ export default function Characters() {
         contentContainerStyle={styles.scrollContentContainer}
       >
         {characterList.map((character) => (
-          <CharacterButton
+          <CharacterCard
             key={character.id}
             id={character.id}
             name={character.name || "Unnamed Character"}
@@ -75,5 +97,16 @@ const styles = StyleSheet.create({
   },
   scrollContentContainer: {
     alignItems: "center",
+  },
+  characterCard: {
+    width: "90%",
+    marginVertical: 8,
+  },
+  characterName: {
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  cardButton: {
+    marginHorizontal: 4,
   },
 })

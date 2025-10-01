@@ -159,6 +159,14 @@ export function EditCharacter() {
           Save Character
         </Button>
         <View style={styles.separator} />
+        <Button
+          onPress={() => router.push(`../chat/${id}`)}
+          mode="contained"
+          buttonColor="#4CAF50"
+        >
+          Chat with {name || "Character"}
+        </Button>
+        <View style={styles.separator} />
         <Button onPress={() => setIsEraseModalVisible(true)} mode="outlined">
           Delete Character Memory
         </Button>

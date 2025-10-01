@@ -1,14 +1,28 @@
-// Legacy hook that now uses Supabase
-import { useSupabaseUserPublic } from "./useSupabaseUserProfile"
+import { useEffect, useState } from 'react'
+import { UserProfile, UserPublic, subscribeToUserProfile } from '../services/userService'
 
-interface UserPublic {
-  uid: string
-  name: string
-  avatar: string
-  email: string
-}
-
+/**
+ * Hook to get user public data from Supabase
+ */
 export function useUserPublic(): UserPublic | null {
-  // Use Supabase version
-  return useSupabaseUserPublic()
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+
+  useEffect(() => {
+    const unsubscribe = subscribeToUserProfile((newProfile) => {
+      setProfile(newProfile)
+    })
+
+    return unsubscribe
+  }, [])
+
+  if (!profile) {
+    return null
+  }
+
+  return {
+    uid: profile.user_id,
+    name: profile.display_name || profile.email || '',
+    avatar: profile.avatar_url || '',
+    email: profile.email || '',
+  }
 }

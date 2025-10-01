@@ -1,13 +1,29 @@
-// Legacy hook that now uses Supabase
-import { IMessage } from "react-native-gifted-chat"
-import { useSupabaseChatMessages } from "./useSupabaseChatMessages"
+import { useEffect, useState } from 'react'
+import { IMessage } from 'react-native-gifted-chat'
+import { subscribeToMessages } from '../services/messageService'
 
 interface UseChatMessagesArgs {
-  id: string
-  userId: string
+  id: string      // character ID
+  userId: string  // recipient user ID
 }
 
+/**
+ * Hook to get chat messages for a specific character conversation from Supabase
+ */
 export function useChatMessages({ id, userId }: UseChatMessagesArgs): IMessage[] {
-  // Use Supabase version
-  return useSupabaseChatMessages({ id, userId })
+  const [messages, setMessages] = useState<IMessage[]>([])
+
+  useEffect(() => {
+    if (id && userId) {
+      const unsubscribe = subscribeToMessages(id, userId, (newMessages) => {
+        setMessages(newMessages)
+      })
+
+      return unsubscribe
+    } else {
+      setMessages([])
+    }
+  }, [id, userId])
+
+  return messages
 }
