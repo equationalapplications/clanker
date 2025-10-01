@@ -17,6 +17,7 @@ import { appNavigationDarkTheme, appNavigationLightTheme } from "../src/config/t
 export default function RootLayout() {
     const scheme = useColorScheme()
     const navTheme = scheme === "dark" ? appNavigationDarkTheme : appNavigationLightTheme
+
     return (
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
             <QueryClientProvider client={queryClient}>

@@ -1,7 +1,6 @@
 import { Tabs } from "expo-router"
 import React from "react"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { useTheme } from "react-native-paper"
+import { useTheme, Icon } from "react-native-paper"
 
 export default function TabsLayout() {
     const theme = useTheme()
@@ -42,7 +41,7 @@ export default function TabsLayout() {
                 options={{
                     title: "Characters",
                     tabBarIcon: ({ color, size }) => (
-                        <MaterialCommunityIcons name="account-group" color={color} size={size} />
+                        <Icon source="account-group" color={color} size={size} />
                     ),
                 }}
             />
@@ -51,7 +50,7 @@ export default function TabsLayout() {
                 options={{
                     title: "Settings",
                     tabBarIcon: ({ color, size }) => (
-                        <MaterialCommunityIcons name="cog" color={color} size={size} />
+                        <Icon source="cog" color={color} size={size} />
                     ),
                 }}
             />
