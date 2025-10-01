@@ -1,11 +1,4 @@
-import { onSnapshot, Unsubscribe, collection } from "firebase/firestore"
-import { useEffect, useState } from "react"
-
-import { useUser } from "./useUser"
-import { charactersCollection, userCharactersCollection } from "../config/constants"
-import { firestore } from "../config/firebaseConfig"
-
-// Also import Supabase hooks for migration
+// Legacy hook that now uses Supabase
 import { useSupabaseCharacterListLegacy } from "./useSupabaseCharacterList"
 
 interface Character {
@@ -20,45 +13,6 @@ interface Character {
 }
 
 export function useCharacterList(): Character[] {
-  // Use Supabase version for now
-  const supabaseCharacters = useSupabaseCharacterListLegacy()
-
-  // Return Supabase data if available, otherwise fall back to Firebase
-  if (supabaseCharacters.length > 0) {
-    return supabaseCharacters
-  }
-
-  const [characterList, setCharacterList] = useState<Character[]>([])
-  const user = useUser()
-
-  useEffect(() => {
-    if (user) {
-      const charactersRef = collection(
-        firestore,
-        `${charactersCollection}/${user.uid}/${userCharactersCollection}`,
-      )
-      const unsubscribe: Unsubscribe = onSnapshot(charactersRef, (snapshot) => {
-        const characters: Character[] = []
-        snapshot.forEach((doc) => {
-          const data = doc.data()
-          characters.push({
-            id: doc.id,
-            name: data?.name ?? "",
-            avatar: data?.avatar ?? "",
-            appearance: data?.appearance ?? "",
-            traits: data?.traits ?? "",
-            emotions: data?.emotions ?? "",
-            isCharacterPublic: data?.isCharacterPublic ?? false,
-            context: data?.context ?? "",
-          })
-        })
-        setCharacterList(characters)
-      })
-      return () => unsubscribe()
-    } else {
-      setCharacterList([])
-    }
-  }, [user])
-
-  return characterList
+  // Use Supabase version
+  return useSupabaseCharacterListLegacy()
 }

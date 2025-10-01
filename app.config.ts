@@ -57,6 +57,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: {
     favicon: "./assets/favicon.png",
     bundler: "metro",
+    buildScript: {
+      baseUrl: "/",
+    },
   },
   experiments: {
     typedRoutes: true,
