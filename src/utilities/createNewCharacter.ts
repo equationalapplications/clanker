@@ -1,10 +1,10 @@
-import { httpsCallable } from "firebase/functions"
+import { createNewCharacter as createNewCharacterSupabase } from '../services/characterService'
 
-import { functions } from "../config/firebaseConfig"
-
-const createNewCharacterFn: any = httpsCallable(functions, "createNewCharacter")
-
+/**
+ * Create a new character using Supabase
+ * This replaces the Firebase Cloud Function approach
+ */
 export const createNewCharacter = async () => {
-  const { data } = await createNewCharacterFn()
-  return data
+  const result = await createNewCharacterSupabase()
+  return result
 }

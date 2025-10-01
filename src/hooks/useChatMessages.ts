@@ -11,12 +11,23 @@ import {
 } from "../config/constants"
 import { firestore } from "../config/firebaseConfig"
 
+// Also import Supabase hooks for migration
+import { useSupabaseChatMessages } from "./useSupabaseChatMessages"
+
 interface UseChatMessagesArgs {
   id: string
   userId: string
 }
 
 export function useChatMessages({ id, userId }: UseChatMessagesArgs): IMessage[] {
+  // Use Supabase version for now
+  const supabaseMessages = useSupabaseChatMessages({ id, userId })
+
+  // Return Supabase data if available, otherwise fall back to Firebase
+  if (supabaseMessages.length > 0) {
+    return supabaseMessages
+  }
+
   const user = useUser()
   const [messages, setMessages] = useState<IMessage[]>([])
   const messagesRef = useRef<CollectionReference | null>(null)

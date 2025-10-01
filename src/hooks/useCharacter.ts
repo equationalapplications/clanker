@@ -4,6 +4,9 @@ import { useEffect, useState, useRef } from "react"
 import { charactersCollection, userCharactersCollection } from "../config/constants"
 import { firestore } from "../config/firebaseConfig"
 
+// Also import Supabase hooks for migration
+import { useSupabaseCharacterLegacy } from "./useSupabaseCharacter"
+
 interface UseCharacterArgs {
   id: string
   userId: string
@@ -21,6 +24,14 @@ interface Character {
 }
 
 export function useCharacter({ id, userId }: UseCharacterArgs) {
+  // Use Supabase version for now
+  const supabaseCharacter = useSupabaseCharacterLegacy({ id, userId })
+
+  // Return Supabase data if available, otherwise fall back to Firebase
+  if (supabaseCharacter) {
+    return supabaseCharacter
+  }
+
   const [character, setCharacter] = useState<Character | null>(null)
   const characterRef = useRef<DocumentReference>()
   const unsubscribe = useRef<Unsubscribe>()

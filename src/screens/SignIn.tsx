@@ -23,7 +23,7 @@ export default function SignIn() {
     initializeGoogleSignIn().catch(console.error)
   }, [])
 
-  // Navigate to Dashboard when both Firebase and Supabase authentication is complete AND user has app access
+  // Navigate to private routes when both Firebase and Supabase authentication is complete AND user has app access
   useEffect(() => {
     console.log('SignIn useEffect - Auth status:', {
       user: !!user,
@@ -33,17 +33,17 @@ export default function SignIn() {
       appAccessLoading
     })
 
-    // Temporary bypass: navigate to dashboard if both auth providers are working
+    // Temporary bypass: navigate to private routes if both auth providers are working
     // TODO: Re-enable app access checks once the permission system is working
     if (user && supabaseUser) {
-      console.log('Both auth providers ready, navigating to dashboard...')
-      // Try navigating to the private root, which should show the tabs
+      console.log('Both auth providers ready, navigating to private routes...')
+      // Navigate to the private root, which redirects to characters
       router.replace("/(private)")
     }
 
     // Original condition (commented out for now):
     // if (user && supabaseUser && hasAccess && hasAcceptedTerms) {
-    //   router.replace("/dashboard")
+    //   router.replace("/(private)")
     // }
   }, [user, supabaseUser, hasAccess, hasAcceptedTerms, router, appAccessLoading])
 

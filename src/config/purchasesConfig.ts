@@ -66,7 +66,7 @@ export const purchasesConfig = async (userId: string) => {
     await Purchases.configure({
       apiKey: revenueCatPurchasesAndroidApiKey,
       appUserID: userId,
-      observerMode: false,
+      // observerMode: false, // deprecated property
       useAmazon: false,
     })
     // OR: if building for Amazon, be sure to follow the installation instructions then:

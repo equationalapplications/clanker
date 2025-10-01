@@ -13,8 +13,8 @@ export default function PrivateLayout() {
         if (!isLoading && !authed) {
             router.replace("/sign-in")
         } else if (!isLoading && authed) {
-            // If user becomes authenticated, redirect to dashboard
-            router.replace("/dashboard")
+            // If user becomes authenticated, redirect to characters
+            router.replace("/(private)")
         }
     }, [isLoading, authed, router])
 

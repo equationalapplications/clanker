@@ -3,7 +3,8 @@
   "compilerOptions": {
     "types": [
       "expo",
-      "expo-router"
+      "expo-router",
+      "jest"
     ],
     "jsx": "react-jsx"
   },

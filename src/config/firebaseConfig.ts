@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app"
 import { getAuth, connectAuthEmulator } from "firebase/auth"
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore"
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions"
 
 import {
@@ -24,13 +25,14 @@ const config = {
 const app = initializeApp(config)
 
 const auth = getAuth(app)
-
+const firestore = getFirestore(app)
 const functions = getFunctions(app, "us-central1")
 
 if (__DEV__) {
   console.log("dev")
   // connectAuthEmulator(auth, "http://localhost:9099")
+  // connectFirestoreEmulator(firestore, "localhost", 8080)
   // connectFunctionsEmulator(functions, "localhost", 5001)
 }
 
-export { app, auth, functions }
+export { app, auth, firestore, functions }

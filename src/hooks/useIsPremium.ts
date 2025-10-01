@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useQuery } from "react-query"
+import { useQuery } from "@tanstack/react-query"
 
 import { useUser } from "./useUser"
 import { getIsPremium } from "../utilities/getIsPremium"
@@ -8,12 +8,13 @@ export const useIsPremium = (): boolean => {
   const user = useUser()
   const [staleTime, setStaleTime] = useState<number>(60) // 1 minute
 
-  const { data: isPremium, refetch } = useQuery<boolean>("isPremium", getIsPremium, {
+  const { data: isPremium, refetch } = useQuery<boolean>({
+    queryKey: ["isPremium"],
+    queryFn: getIsPremium,
     enabled: !!user,
     refetchOnWindowFocus: false,
     retry: 3,
     staleTime,
-    useErrorBoundary: true,
   })
 
   useEffect(() => {
