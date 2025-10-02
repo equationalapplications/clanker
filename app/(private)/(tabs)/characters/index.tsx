@@ -1,1 +1,1 @@
-export { default } from "../../../../src/screens/CharactersExpoRouter"
+export { default } from "../../../../src/screens/Characters"

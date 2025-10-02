@@ -1,1 +1,1 @@
-export { EditCharacter as default } from "../../../../../src/screens/EditCharacterExpoRouter"
+export { EditCharacter as default } from "../../../../../src/screens/EditCharacter"

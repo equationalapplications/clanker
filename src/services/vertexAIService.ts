@@ -6,9 +6,14 @@ const ai = getAI(app, {
     backend: new VertexAIBackend(), // Use Vertex AI backend
 })
 
-// Initialize the generative model
-const model = getGenerativeModel(ai, {
-    model: 'gemini-2.5-flash', // Using Gemini model
+// Initialize the generative model for text
+const textModel = getGenerativeModel(ai, {
+    model: 'gemini-2.5-flash', // Using Gemini model for text
+})
+
+// Initialize the generative model for images
+const imageModel = getGenerativeModel(ai, {
+    model: 'imagen-3.0-generate-001', // Using Imagen model for image generation
 })
 
 export interface ChatContext {
@@ -49,7 +54,7 @@ User: ${userMessage}
 ${context.characterName}:`
 
         // Generate response using Vertex AI
-        const result = await model.generateContent(systemPrompt)
+        const result = await textModel.generateContent(systemPrompt)
         const response = await result.response
         const text = response.text()
 
@@ -89,7 +94,7 @@ Generate a friendly, warm introduction message that:
 
 Introduction:`
 
-        const result = await model.generateContent(prompt)
+        const result = await textModel.generateContent(prompt)
         const response = await result.response
         const text = response.text()
 
@@ -105,4 +110,82 @@ Introduction:`
     }
 }
 
-export { model, ai }
+export interface ImageGenerationOptions {
+    prompt: string
+    width?: number
+    height?: number
+    aspectRatio?: '1:1' | '9:16' | '16:9' | '4:3' | '3:4'
+    stylePreset?: string
+    outputFormat?: 'png' | 'webp' | 'jpeg'
+}
+
+/**
+ * Generate an image using Vertex AI Imagen model
+ * Optimized for small avatar images
+ */
+export const generateImageWithVertexAI = async ({
+    prompt,
+    width = 200,
+    height = 200,
+    aspectRatio = '1:1',
+    stylePreset,
+    outputFormat = 'webp'
+}: ImageGenerationOptions): Promise<string> => {
+    try {
+        console.log('🎨 Generating optimized image with Vertex AI Imagen:', {
+            prompt,
+            width,
+            height,
+            aspectRatio,
+            outputFormat
+        })
+
+        // Optimize prompt for small avatar images
+        const enhancedPrompt = `High-quality character avatar portrait: ${prompt}. Clean, simple background. Focused on face and upper body. Professional digital art style, sharp details, vibrant colors. Optimized for small avatar display.`
+
+        // Create the generation request optimized for small images
+        const generationConfig = {
+            candidateCount: 1,
+            width,
+            height,
+            aspectRatio,
+            outputMimeType: `image/${outputFormat}`,
+            ...(stylePreset && { stylePreset })
+        }
+
+        // Generate image using Vertex AI
+        const result = await imageModel.generateContent({
+            contents: [{
+                role: 'user',
+                parts: [{ text: enhancedPrompt }]
+            }],
+            generationConfig
+        })
+
+        const response = await result.response
+
+        // Extract the image data from the response
+        // Note: The exact response format may vary based on the Imagen model
+        if (response.candidates && response.candidates[0]) {
+            const candidate = response.candidates[0]
+
+            // Check if the response contains image data
+            if (candidate.content && candidate.content.parts) {
+                for (const part of candidate.content.parts) {
+                    if (part.inlineData && part.inlineData.data) {
+                        console.log('✅ Image generated successfully with Vertex AI')
+                        return part.inlineData.data
+                    }
+                }
+            }
+        }
+
+        throw new Error('No image data found in Vertex AI response')
+
+    } catch (error) {
+        console.error('Error generating image with Vertex AI:', error)
+        throw new Error(`Image generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+}
+
+export { textModel, imageModel, ai }

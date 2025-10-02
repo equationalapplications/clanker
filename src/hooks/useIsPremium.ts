@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import { useUser } from "./useUser"
 import { getIsPremium } from "../utilities/getIsPremium"
+import { useAuth } from "./useAuth"
 
 export const useIsPremium = (): boolean => {
-  const user = useUser()
+  const { user } = useAuth()
   const [staleTime, setStaleTime] = useState<number>(60) // 1 minute
 
   const { data: isPremium, refetch } = useQuery<boolean>({

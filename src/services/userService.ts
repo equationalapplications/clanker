@@ -1,4 +1,4 @@
-import { supabase, Database } from '../config/supabaseConfig'
+import { supabaseClient, Database } from '../config/supabaseClient'
 
 // Types for user data
 export type UserProfile = Database['public']['Tables']['yours_brightly']['Row']
@@ -23,13 +23,13 @@ export interface UserPrivate {
  * Get the current user's profile from Supabase
  */
 export const getUserProfile = async (): Promise<UserProfile | null> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         return null
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('yours_brightly')
         .select('*')
         .eq('user_id', user.id)
@@ -47,13 +47,13 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
  * Create or update user profile in Supabase
  */
 export const upsertUserProfile = async (profile: UserProfileUpdate): Promise<UserProfile | null> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         throw new Error('No authenticated user')
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('yours_brightly')
         .upsert({
             ...profile,
@@ -110,13 +110,13 @@ export const getUserPrivate = async (): Promise<UserPrivate | null> => {
  * Accept terms for the app
  */
 export const acceptTerms = async (termsVersion: string = '1.0'): Promise<void> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         throw new Error('No authenticated user')
     }
 
-    const { error } = await supabase.rpc('grant_app_access', {
+    const { error } = await supabaseClient.rpc('grant_app_access', {
         p_user_id: user.id,
         p_app_name: 'yours-brightly',
         p_terms_version: termsVersion,
@@ -132,13 +132,13 @@ export const acceptTerms = async (termsVersion: string = '1.0'): Promise<void> =
  * Check if user has accepted current terms
  */
 export const checkTermsAcceptance = async (currentVersion: string = '1.0'): Promise<boolean> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         return false
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('user_app_permissions')
         .select('terms_accepted_at, terms_version')
         .eq('user_id', user.id)
@@ -156,14 +156,14 @@ export const checkTermsAcceptance = async (currentVersion: string = '1.0'): Prom
  * Delete user account and all associated data
  */
 export const deleteUser = async (): Promise<void> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         throw new Error('No authenticated user')
     }
 
     // Delete user profile (cascading deletes will handle related data)
-    const { error: profileError } = await supabase
+    const { error: profileError } = await supabaseClient
         .from('yours_brightly')
         .delete()
         .eq('user_id', user.id)
@@ -174,7 +174,7 @@ export const deleteUser = async (): Promise<void> => {
     }
 
     // Sign out the user
-    const { error: signOutError } = await supabase.auth.signOut()
+    const { error: signOutError } = await supabaseClient.auth.signOut()
 
     if (signOutError) {
         console.error('Error signing out:', signOutError)
@@ -191,7 +191,7 @@ export const subscribeToUserProfile = (
     let currentUserId: string | null = null
 
     // Set up auth state listener
-    const authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
+    const authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
             currentUserId = session.user.id
 
@@ -205,7 +205,7 @@ export const subscribeToUserProfile = (
     })
 
     // Set up real-time subscription for profile changes
-    const profileSubscription = supabase
+    const profileSubscription = supabaseClient
         .channel('user-profile-changes')
         .on(
             'postgres_changes',

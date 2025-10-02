@@ -5,17 +5,17 @@ import { ActivityIndicator, IconButton } from "react-native-paper"
 import { useAuth } from "../../src/hooks/useAuth"
 
 export default function PublicLayout() {
-    const { firebaseUser, supabaseUser, isLoading } = useAuth()
+    const { user, supabaseUser, isLoading } = useAuth()
     const pathname = usePathname()
     const router = useRouter()
-    const authed = !!firebaseUser && !!supabaseUser
+    const authed = !!user && !!supabaseUser
     const isInfoPage = pathname?.endsWith("/terms") || pathname?.endsWith("/privacy")
 
     const handleClose = () => {
         if (router.canGoBack()) {
             router.back()
         } else {
-            const isAuthed = !!firebaseUser && !!supabaseUser
+            const isAuthed = !!user && !!supabaseUser
             router.replace(isAuthed ? "/(private)" : "/sign-in")
         }
     }
