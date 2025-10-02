@@ -22,7 +22,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
     const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
     const [user, setUser] = useState<User | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
+    const [isLoading, setIsLoading] = useState(true) // Start with loading = true
     const [error, setError] = useState<string | null>(null)
 
     const signOut = async () => {
@@ -44,6 +44,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 setUser(user)
             } else {
                 setUser(null)
+                setIsLoading(false) // No user means we can show the sign-in screen
             }
         })
         return () => unsubscribeAuth()

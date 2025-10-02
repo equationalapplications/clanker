@@ -1,5 +1,4 @@
 import "expo-dev-client"
-import React from "react"
 import { StatusBar } from "expo-status-bar"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
 import { useColorScheme } from "react-native"
@@ -25,22 +24,22 @@ function StackNavigator() {
     const isLoggedIn = !!user
 
     return (
-        <Stack>
+        <Stack initialRouteName="(root)">
             <Stack.Screen name="index" options={{ headerShown: false }} />
+            {/* Protected routes - only available when logged in */}
+            <Stack.Protected guard={isLoggedIn}>
+                <Stack.Screen name="(root)" options={{ headerShown: false }} />
+                <Stack.Screen name="subscribe" options={{ presentation: "modal" }} />
+            </Stack.Protected>
 
             {/* Public routes - only available when NOT logged in */}
             <Stack.Protected guard={!isLoggedIn}>
                 <Stack.Screen name="sign-in" options={{ headerShown: false }} />
             </Stack.Protected>
 
-            {/* Public info pages - always available */}
-            <Stack.Screen name="(public)" options={{ headerShown: false }} />
-
-            {/* Protected routes - only available when logged in */}
-            <Stack.Protected guard={isLoggedIn}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="subscribe" options={{ presentation: "modal" }} />
-            </Stack.Protected>
+            {/* Info pages - always available */}
+            <Stack.Screen name="privacy" options={{ headerShown: false }} />
+            <Stack.Screen name="terms" options={{ headerShown: false }} />
         </Stack>
     )
 }
