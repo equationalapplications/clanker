@@ -1,3 +1,1 @@
-import Characters from "../../../src/screens/Characters"
-
-export default Characters
+export { default } from "../../../src/screens/Characters"

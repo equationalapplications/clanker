@@ -10,9 +10,40 @@ import { ThemeProvider as NavigationThemeProvider } from "@react-navigation/nati
 // import ErrorBoundary from "react-native-error-boundary"
 // import { CustomFallback } from "../src/components/CustomFallback"
 import { ThemeProvider } from "../src/components/ThemeProvider"
-import { AuthProvider } from "../src/hooks/useAuth"
+import { AuthProvider, useAuth } from "../src/hooks/useAuth"
 import { queryClient } from "../src/config/queryClient"
 import { appNavigationDarkTheme, appNavigationLightTheme } from "../src/config/theme"
+
+function StackNavigator() {
+    const { user, isLoading } = useAuth()
+
+    // Don't render navigation while loading
+    if (isLoading) {
+        return null
+    }
+
+    const isLoggedIn = !!user
+
+    return (
+        <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+
+            {/* Public routes - only available when NOT logged in */}
+            <Stack.Protected guard={!isLoggedIn}>
+                <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+            </Stack.Protected>
+
+            {/* Public info pages - always available */}
+            <Stack.Screen name="(public)" options={{ headerShown: false }} />
+
+            {/* Protected routes - only available when logged in */}
+            <Stack.Protected guard={isLoggedIn}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="subscribe" options={{ presentation: "modal" }} />
+            </Stack.Protected>
+        </Stack>
+    )
+}
 
 export default function RootLayout() {
     const scheme = useColorScheme()
@@ -24,7 +55,7 @@ export default function RootLayout() {
                 <AuthProvider>
                     <ThemeProvider>
                         <NavigationThemeProvider value={navTheme}>
-                            <Stack />
+                            <StackNavigator />
                         </NavigationThemeProvider>
                         <StatusBar />
                     </ThemeProvider>

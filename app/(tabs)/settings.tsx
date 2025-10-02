@@ -1,7 +1,7 @@
 import React from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
 import { Text, List, Switch, Button, Divider } from "react-native-paper"
-import { useAuth } from "../../../src/hooks/useAuth"
+import { useAuth } from "../../src/hooks/useAuth"
 // import { useRouter } from "expo-router"
 
 export default function Settings() {

@@ -3,10 +3,10 @@ import React, { useState } from "react"
 import { ScrollView, StyleSheet, View } from "react-native"
 import { Appbar, Card, Text, IconButton } from "react-native-paper"
 
-import CombinedSubscriptionButton from "../../src/components/CombinedSubscriptionButton"
-import LoadingIndicator from "../../src/components/LoadingIndicator"
-import { useIsPremium } from "../../src/hooks/useIsPremium"
-import { useUserPrivate } from "../../src/hooks/useUserPrivate"
+import CombinedSubscriptionButton from "../src/components/CombinedSubscriptionButton"
+import LoadingIndicator from "../src/components/LoadingIndicator"
+import { useIsPremium } from "../src/hooks/useIsPremium"
+import { useUserPrivate } from "../src/hooks/useUserPrivate"
 
 export default function SubscribeScreen() {
     const router = useRouter()
