@@ -5,18 +5,17 @@ import { ActivityIndicator } from "react-native-paper"
 import { useAuth } from "../../src/hooks/useAuth"
 
 export default function PrivateLayout() {
-    const { firebaseUser, supabaseUser, isLoading } = useAuth()
+    const { user, isLoading } = useAuth()
     const router = useRouter()
-    const authed = !!firebaseUser && !!supabaseUser
 
     useEffect(() => {
-        if (!isLoading && !authed) {
+        if (!isLoading && !user) {
             router.replace("/sign-in")
-        } else if (!isLoading && authed) {
+        } else if (!isLoading && user) {
             // If user becomes authenticated, redirect to characters
             router.replace("/(private)")
         }
-    }, [isLoading, authed, router])
+    }, [isLoading, user, router])
 
     if (isLoading) {
         return (
@@ -26,7 +25,7 @@ export default function PrivateLayout() {
         )
     }
 
-    if (!authed) {
+    if (!user) {
         return (
             <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
                 <ActivityIndicator size="large" />

@@ -4,6 +4,7 @@ import { FAB, Card, Text, Button as PaperButton } from "react-native-paper"
 import { router } from "expo-router"
 
 import Button from "../components/Button"
+import CharacterAvatar from "../components/CharacterAvatar"
 import LoadingIndicator from "../components/LoadingIndicator"
 import { useCharacterList } from "../hooks/useCharacterList"
 import { createNewCharacter } from "../utilities/createNewCharacter"
@@ -11,6 +12,7 @@ import { createNewCharacter } from "../utilities/createNewCharacter"
 interface CharacterCardProps {
   id: string
   name: string
+  avatar?: string | null
 }
 
 export default function Characters() {
@@ -25,9 +27,14 @@ export default function Characters() {
     router.push(`./chat/${id}`)
   }
 
-  const CharacterCard = ({ id, name }: CharacterCardProps) => (
+  const CharacterCard = ({ id, name, avatar }: CharacterCardProps) => (
     <Card style={styles.characterCard}>
-      <Card.Content>
+      <Card.Content style={styles.cardContent}>
+        <CharacterAvatar
+          size={60}
+          imageUrl={avatar}
+          characterName={name}
+        />
         <Text variant="titleMedium" style={styles.characterName}>{name}</Text>
       </Card.Content>
       <Card.Actions>
@@ -67,6 +74,7 @@ export default function Characters() {
             key={character.id}
             id={character.id}
             name={character.name || "Unnamed Character"}
+            avatar={character.avatar}
           />
         ))}
         <LoadingIndicator disabled={!loading} />
@@ -102,8 +110,13 @@ const styles = StyleSheet.create({
     width: "90%",
     marginVertical: 8,
   },
+  cardContent: {
+    alignItems: "center",
+    paddingVertical: 16,
+  },
   characterName: {
     textAlign: "center",
+    marginTop: 8,
     marginBottom: 8,
   },
   cardButton: {

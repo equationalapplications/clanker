@@ -14,7 +14,7 @@ import { initializeGoogleSignIn, signInWithGoogle } from "../services/googleSign
 
 export default function SignIn() {
   const router = useRouter()
-  const { firebaseUser: user, supabaseUser, isLoading, error } = useAuth()
+  const { user, supabaseUser, isLoading, error, signOut } = useAuth()
   const { hasAccess, hasAcceptedTerms, isLoading: appAccessLoading } = useAppAccess()
   const [googleSignInLoading, setGoogleSignInLoading] = useState(false)
 
@@ -81,10 +81,9 @@ export default function SignIn() {
     // User canceled terms acceptance, sign them out
     try {
       const { auth } = await import('../config/firebaseConfig')
-      const { supabase } = await import('../config/supabaseClient')
+      const { supabaseClient } = await import('../config/supabaseClient')
 
-      await supabase.auth.signOut()
-      await auth.signOut()
+      await signOut()
 
       console.log('User signed out after terms cancellation')
     } catch (error) {

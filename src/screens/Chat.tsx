@@ -7,14 +7,14 @@ import { useLocalSearchParams, router } from "expo-router"
 import { defaultAvatarUrl, height } from "../config/constants"
 import { useCharacter } from "../hooks/useCharacter"
 import { useAIChat } from "../hooks/useAIChat"
-import { useUser } from "../hooks/useUser"
+import { useAuth } from "../hooks/useAuth"
 import { useUserPrivate } from "../hooks/useUserPrivate"
 import { useIsPremium } from "../hooks/useIsPremium"
 import { sendCharacterIntroduction } from "../services/aiChatService"
 
 export default function Chat() {
     const { id } = useLocalSearchParams<{ id: string }>()
-    const user = useUser()
+    const { user } = useAuth()
     const uid = user?.uid
     const userPrivate = useUserPrivate()
     const credits = userPrivate?.credits ?? 0

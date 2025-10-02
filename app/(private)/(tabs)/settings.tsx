@@ -5,38 +5,21 @@ import { useAuth } from "../../../src/hooks/useAuth"
 // import { useRouter } from "expo-router"
 
 export default function Settings() {
-    const { firebaseUser, supabaseUser } = useAuth()
+    const { user, supabaseUser, signOut } = useAuth()
     // const router = useRouter()
     const [darkMode, setDarkMode] = React.useState(false)
     const [notifications, setNotifications] = React.useState(true)
     const [analytics, setAnalytics] = React.useState(false)
-
-    const handleSignOut = async () => {
-        try {
-            // Sign out from both auth providers
-            const { auth } = await import("../../../src/config/firebaseConfig")
-            const { supabase } = await import("../../../src/config/supabaseClient")
-
-            await Promise.all([
-                auth.signOut(),
-                supabase.auth.signOut()
-            ])
-
-            // Navigation will be handled by the auth guards
-        } catch (error) {
-            console.error("Sign out error:", error)
-        }
-    }
 
     return (
         <ScrollView style={styles.container}>
             <View style={styles.section}>
                 <Text variant="headlineSmall" style={styles.sectionTitle}>Account</Text>
 
-                {firebaseUser && (
+                {user && (
                     <List.Item
                         title="Email"
-                        description={firebaseUser.email || "No email"}
+                        description={user.email || "No email"}
                         left={(props) => <List.Icon {...props} icon="email" />}
                     />
                 )}
@@ -126,7 +109,7 @@ export default function Settings() {
             <View style={styles.section}>
                 <Button
                     mode="outlined"
-                    onPress={handleSignOut}
+                    onPress={signOut}
                     icon="logout"
                     style={styles.signOutButton}
                 >

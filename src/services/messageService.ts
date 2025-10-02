@@ -1,4 +1,4 @@
-import { supabase, Database } from '../config/supabaseConfig'
+import { supabaseClient, Database } from '../config/supabaseClient'
 import { IMessage } from 'react-native-gifted-chat'
 
 // Types for message data
@@ -13,13 +13,13 @@ export const getMessages = async (
     characterId: string,
     recipientUserId: string
 ): Promise<IMessage[]> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         return []
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('messages_gifted_chat')
         .select('*')
         .eq('character_id', characterId)
@@ -53,7 +53,7 @@ export const sendMessage = async (
     recipientUserId: string,
     message: Pick<IMessage, '_id' | 'text' | 'user'> & { [key: string]: any }
 ): Promise<void> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         throw new Error('No authenticated user')
@@ -62,7 +62,7 @@ export const sendMessage = async (
     // Extract IMessage properties
     const { _id, text, user: messageUser, ...additionalData } = message
 
-    const { error } = await supabase.rpc('insert_message', {
+    const { error } = await supabaseClient.rpc('insert_message', {
         p_character_id: characterId,
         p_recipient_user_id: recipientUserId,
         p_message_id: String(_id),
@@ -80,13 +80,13 @@ export const sendMessage = async (
  * Delete a message
  */
 export const deleteMessage = async (messageId: string): Promise<void> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         throw new Error('No authenticated user')
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('messages')
         .delete()
         .eq('message_id', messageId)
@@ -105,13 +105,13 @@ export const updateMessage = async (
     messageId: string,
     updates: { text?: string; message_data?: Record<string, any> }
 ): Promise<void> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         throw new Error('No authenticated user')
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('messages')
         .update(updates)
         .eq('message_id', messageId)
@@ -134,7 +134,7 @@ export const getConversationHistory = async (): Promise<Array<{
     recipientUserId: string
     recipientName: string
 }>> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         return []
@@ -156,7 +156,7 @@ export const subscribeToMessages = (
     let currentUserId: string | null = null
 
     // Set up auth state listener
-    const authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
+    const authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
             currentUserId = session.user.id
 
@@ -170,7 +170,7 @@ export const subscribeToMessages = (
     })
 
     // Set up real-time subscription for new messages
-    const messagesSubscription = supabase
+    const messagesSubscription = supabaseClient
         .channel(`messages-${characterId}-${recipientUserId}`)
         .on(
             'postgres_changes',
@@ -207,13 +207,13 @@ export const subscribeToMessages = (
  * Clean up old messages (user can clean their own messages)
  */
 export const cleanupOldMessages = async (daysOld: number): Promise<number> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         throw new Error('No authenticated user')
     }
 
-    const { data, error } = await supabase.rpc('cleanup_user_messages_older_than_days', {
+    const { data, error } = await supabaseClient.rpc('cleanup_user_messages_older_than_days', {
         days_old: daysOld,
     })
 
@@ -236,7 +236,7 @@ export const getMessageStats = async (): Promise<{
     messagesLast90Days: number
     avgMessagesPerDay: number
 }> => {
-    const { data, error } = await supabase.rpc('get_message_stats')
+    const { data, error } = await supabaseClient.rpc('get_message_stats')
 
     if (error) {
         console.error('Error getting message stats:', error)

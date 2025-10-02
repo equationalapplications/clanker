@@ -1,4 +1,4 @@
-import { supabase, Database } from '../config/supabaseConfig'
+import { supabaseClient, Database } from '../config/supabaseClient'
 
 // Types for character data
 export type Character = Database['public']['Tables']['characters']['Row']
@@ -21,13 +21,13 @@ export interface LegacyCharacter {
  * Get all characters for the current user
  */
 export const getUserCharacters = async (): Promise<Character[]> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         return []
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('characters')
         .select('*')
         .eq('user_id', user.id)
@@ -45,7 +45,7 @@ export const getUserCharacters = async (): Promise<Character[]> => {
  * Get all public characters
  */
 export const getPublicCharacters = async (): Promise<Character[]> => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('characters')
         .select('*')
         .eq('is_public', true)
@@ -63,7 +63,7 @@ export const getPublicCharacters = async (): Promise<Character[]> => {
  * Get a specific character by ID
  */
 export const getCharacter = async (id: string, userId?: string): Promise<Character | null> => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('characters')
         .select('*')
         .eq('id', id)
@@ -81,13 +81,13 @@ export const getCharacter = async (id: string, userId?: string): Promise<Charact
  * Create a new character
  */
 export const createCharacter = async (character: Omit<CharacterInsert, 'user_id'>): Promise<Character | null> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         throw new Error('No authenticated user')
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('characters')
         .insert({
             ...character,
@@ -108,13 +108,13 @@ export const createCharacter = async (character: Omit<CharacterInsert, 'user_id'
  * Update an existing character
  */
 export const updateCharacter = async (id: string, updates: CharacterUpdate): Promise<Character | null> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         throw new Error('No authenticated user')
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('characters')
         .update(updates)
         .eq('id', id)
@@ -134,13 +134,13 @@ export const updateCharacter = async (id: string, updates: CharacterUpdate): Pro
  * Delete a character
  */
 export const deleteCharacter = async (id: string): Promise<void> => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {
         throw new Error('No authenticated user')
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('characters')
         .delete()
         .eq('id', id)
@@ -212,7 +212,7 @@ export const subscribeToUserCharacters = (
     let currentUserId: string | null = null
 
     // Set up auth state listener
-    const authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
+    const authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
             currentUserId = session.user.id
 
@@ -226,7 +226,7 @@ export const subscribeToUserCharacters = (
     })
 
     // Set up real-time subscription for character changes
-    const charactersSubscription = supabase
+    const charactersSubscription = supabaseClient
         .channel('user-characters-changes')
         .on(
             'postgres_changes',
@@ -262,7 +262,7 @@ export const subscribeToCharacter = (
     getCharacter(characterId).then(callback)
 
     // Set up real-time subscription
-    const subscription = supabase
+    const subscription = supabaseClient
         .channel(`character-${characterId}-changes`)
         .on(
             'postgres_changes',

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../config/supabaseClient';
-import { useUser } from './useUser';
+import { supabaseClient } from '../config/supabaseClient';
+import { useAuth } from './useAuth';
 import { CURRENT_TERMS } from '../config/termsConfig';
 
 interface TermsStatus {
@@ -21,7 +21,7 @@ export function useAcceptTerms(): TermsStatus & { refreshTermsStatus: () => void
     loading: true,
   });
 
-  const user = useUser();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!user?.uid) {
@@ -41,7 +41,7 @@ export function useAcceptTerms(): TermsStatus & { refreshTermsStatus: () => void
       setTermsStatus(prev => ({ ...prev, loading: true, error: undefined }));
 
       // Query user's current terms acceptance status
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('user_app_permissions')
         .select('terms_version, terms_accepted_at')
         .eq('user_id', user!.uid)

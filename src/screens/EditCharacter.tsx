@@ -1,22 +1,23 @@
 import { useState, useEffect } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
-import { TextInput, Avatar, Switch, Text } from "react-native-paper"
+import { TextInput, Switch, Text } from "react-native-paper"
 import { useLocalSearchParams, router } from "expo-router"
 
 import Button from "../components/Button"
+import CharacterAvatar from "../components/CharacterAvatar"
 import ConfirmationModal from "../components/ConfirmationModal"
 import LoadingIndicator from "../components/LoadingIndicator"
 import { ShareCharacterButton } from "../components/ShareCharacterButton"
 import { defaultAvatarUrl } from "../config/constants"
 import { useCharacter } from "../hooks/useCharacter"
 import { useIsPremium } from "../hooks/useIsPremium"
-import { useUser } from "../hooks/useUser"
+import { useAuth } from "../hooks/useAuth"
 import { useUserPrivate } from "../hooks/useUserPrivate"
 import { generateImage } from "../utilities/generateImage"
 import updateCharacter from "../utilities/updateCharacter"
 
 export function EditCharacter() {
-  const user = useUser()
+  const { user } = useAuth()
   const uid = user?.uid
   const { id } = useLocalSearchParams<{ id: string }>()
   const [isEraseModalVisible, setIsEraseModalVisible] = useState(false)
@@ -60,13 +61,23 @@ export function EditCharacter() {
       return
     }
 
-    setImageIsLoading(true)
-    const text = `${appearance} ${name} ${traits} ${emotions}`.trim()
-    const imageUrl = await generateImage({ text, characterId: id! })
-    setImageIsLoading(false)
-    if (imageUrl) {
-      setAvatar(imageUrl)
+    if (!uid) {
+      console.error('User ID is required for image generation')
+      return
     }
+
+    setImageIsLoading(true)
+    try {
+      const text = `${appearance} ${name} ${traits} ${emotions}`.trim()
+      const imageUrl = await generateImage({ text, characterId: id!, userId: uid })
+      if (imageUrl) {
+        setAvatar(imageUrl)
+      }
+    } catch (error) {
+      console.error('Error generating image:', error)
+      // Could show an error message to user here
+    }
+    setImageIsLoading(false)
   }
 
   const onPressSave = async () => {
@@ -103,7 +114,12 @@ export function EditCharacter() {
   return (
     <View style={styles.container}>
       <ScrollView style={{ marginTop: 30 }} contentContainerStyle={styles.scrollContentContainer}>
-        <Avatar.Image size={100} source={{ uri: avatar }} />
+        <CharacterAvatar
+          size={100}
+          imageUrl={avatar}
+          characterName={name}
+          showFallback={true}
+        />
         <TextInput
           mode="outlined"
           label="Avatar URL"

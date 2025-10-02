@@ -1,5 +1,5 @@
 import { getFunctions, httpsCallable } from "firebase/functions"
-import { supabase } from "../config/supabaseClient"
+import { supabaseClient } from "../config/supabaseClient"
 import { app, auth } from "../config/firebaseConfig"
 
 // Create functions instance and connect to emulator at module level
@@ -75,7 +75,7 @@ export async function loginSupabase(): Promise<any | null> {
       }
 
       // Set the session using both access and refresh tokens
-      const authResponse = await supabase.auth.setSession({
+      const authResponse = await supabaseClient.auth.setSession({
         access_token: supabaseAccessToken,
         refresh_token: supabaseRefreshToken,
       });
@@ -91,7 +91,7 @@ export async function loginSupabase(): Promise<any | null> {
       }
 
       // Verify the session was set correctly
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
       if (sessionError) {
         console.error("Failed to verify Supabase session:", sessionError);

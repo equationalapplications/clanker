@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabaseClient'
+import { supabaseClient } from '../config/supabaseClient'
 
 /**
  * Grant app access to a user when they accept terms and conditions
@@ -15,14 +15,14 @@ export async function grantAppAccess(
         console.log(`Granting ${appName} access to user`)
 
         // Get current user
-        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
 
         if (userError || !user) {
             throw new Error('No authenticated user found')
         }
 
         // Call the database function to grant access
-        const { data, error } = await supabase.rpc('grant_app_access', {
+        const { data, error } = await supabaseClient.rpc('grant_app_access', {
             p_user_id: user.id,
             p_app_name: appName,
             p_terms_version: termsVersion
@@ -35,7 +35,7 @@ export async function grantAppAccess(
         console.log(`Successfully granted ${appName} access`)
 
         // Refresh the session to get updated JWT claims
-        const { error: refreshError } = await supabase.auth.refreshSession()
+        const { error: refreshError } = await supabaseClient.auth.refreshSession()
 
         if (refreshError) {
             console.warn('Failed to refresh session after granting access:', refreshError)
@@ -58,7 +58,7 @@ export async function grantAppAccess(
  */
 export async function checkAppAccess(appName: string = 'yours-brightly'): Promise<boolean> {
     try {
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { session } } = await supabaseClient.auth.getSession()
 
         if (!session?.access_token) {
             console.log('checkAppAccess: No session or access token found')
@@ -94,7 +94,7 @@ export async function getUserAppPermissions(): Promise<{
     error?: string
 }> {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('user_app_permissions')
             .select('*')
 
@@ -121,7 +121,7 @@ export async function getYoursBrightlyProfile(): Promise<{
     error?: string
 }> {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('yours_brightly')
             .select('*')
             .single()

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { Modal, View, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Text } from 'react-native-paper';
-import Button from './Button';
-import { supabase } from '../config/supabaseClient';
-import { useUser } from '../hooks/useUser';
-import { getTermsForApp } from '../config/termsConfig';
+import React, { useState } from 'react'
+import { Modal, Portal, Text, Button, ActivityIndicator } from 'react-native-paper'
+import { StyleSheet, View, ScrollView, Alert } from 'react-native'
+
+import { supabaseClient } from '../config/supabaseClient'
+import { useAuth } from '../hooks/useAuth'
+import { getTermsForApp } from '../config/termsConfig'
 
 interface AcceptTermsModalProps {
     visible: boolean;
@@ -27,7 +27,7 @@ export function AcceptTermsModal({
 }: AcceptTermsModalProps) {
     const [loading, setLoading] = useState(false);
     const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-    const user = useUser();
+    const { user } = useAuth();
 
     const termsConfig = getTermsForApp(appName);
 
@@ -43,7 +43,7 @@ export function AcceptTermsModal({
 
         setLoading(true);
         try {
-            const { error } = await supabase.rpc('grant_app_access', {
+            const { error } = await supabaseClient.rpc('grant_app_access', {
                 p_user_id: user.uid,
                 p_app_name: appName,
                 p_terms_version: termsVersion
@@ -76,9 +76,7 @@ export function AcceptTermsModal({
     return (
         <Modal
             visible={visible}
-            animationType="slide"
-            presentationStyle="pageSheet"
-            onRequestClose={onDecline}
+            onDismiss={onDecline}
         >
             <View style={{ flex: 1, backgroundColor: '#fff' }}>
                 {/* Header */}
