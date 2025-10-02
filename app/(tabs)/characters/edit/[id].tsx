@@ -1,3 +1,1 @@
-import { EditCharacter } from "../../../../src/screens/EditCharacter"
-
-export default EditCharacter
+export { EditCharacter as default } from "../../../../src/screens/EditCharacter"
