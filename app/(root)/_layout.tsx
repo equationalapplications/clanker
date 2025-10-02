@@ -1,15 +1,8 @@
 import { Tabs } from "expo-router"
-import React from "react"
 import { useTheme, Icon } from "react-native-paper"
 
 export default function TabsLayout() {
     const theme = useTheme()
-
-    console.log('TabsLayout rendering with theme:', {
-        primary: theme.colors.primary,
-        surface: theme.colors.surface,
-        onSurfaceVariant: theme.colors.onSurfaceVariant
-    })
 
     return (
         <Tabs
@@ -28,12 +21,14 @@ export default function TabsLayout() {
                 },
                 headerTintColor: theme.colors.onSurface,
                 tabBarShowLabel: true, // Ensure labels are shown
+                headerShown: false, // Hide the header to prevent route group names from showing
             }}
         >
             <Tabs.Screen
                 name="index"
                 options={{
                     href: null, // Hide from tab bar but keep for routing
+                    headerShown: false,
                 }}
             />
             <Tabs.Screen
@@ -43,6 +38,7 @@ export default function TabsLayout() {
                     tabBarIcon: ({ color, size }) => (
                         <Icon source="account-group" color={color} size={size} />
                     ),
+                    headerShown: false, // Ensure no header for the main characters view
                 }}
             />
             <Tabs.Screen
@@ -52,6 +48,7 @@ export default function TabsLayout() {
                     tabBarIcon: ({ color, size }) => (
                         <Icon source="cog" color={color} size={size} />
                     ),
+                    headerShown: false, // Ensure no header for settings
                 }}
             />
         </Tabs>
