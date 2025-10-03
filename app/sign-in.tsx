@@ -37,8 +37,8 @@ export default function SignIn() {
         // TODO: Re-enable app access checks once the permission system is working
         if (user && supabaseUser) {
             console.log('Both auth providers ready, navigating to private routes...')
-            // Navigate to the private root, which redirects to characters
-            router.replace("/(private)")
+            // Navigate to the characters page directly
+            router.replace("/characters")
         }
 
         // Original condition (commented out for now):

@@ -1,6 +1,7 @@
 import { Redirect } from "expo-router"
 
 export default function TabsIndex() {
-    // Direct redirect to characters to avoid any intermediate navigation states
+    console.log('📱 (root)/index rendering - redirecting to characters')
+    // Direct redirect to characters tab within the root tab group
     return <Redirect href="/characters" />
 }

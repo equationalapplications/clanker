@@ -1,15 +1,26 @@
-import React from "react"
+import React, { useState } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
 import { Text, List, Switch, Button, Divider } from "react-native-paper"
+import { router } from "expo-router"
 import { useAuth } from "../../src/hooks/useAuth"
-// import { useRouter } from "expo-router"
+import CombinedSubscriptionButton from "../../src/components/CombinedSubscriptionButton"
+import LoadingIndicator from "../../src/components/LoadingIndicator"
 
 export default function Settings() {
     const { user, supabaseUser, signOut } = useAuth()
-    // const router = useRouter()
     const [darkMode, setDarkMode] = React.useState(false)
     const [notifications, setNotifications] = React.useState(true)
     const [analytics, setAnalytics] = React.useState(false)
+    const [isLoading, setIsLoading] = useState(false)
+
+    const onChangeIsLoading = (isLoading: boolean) => {
+        setIsLoading(isLoading)
+    }
+
+    const onPressProfile = () => {
+        // Navigate to profile screen when we create it
+        // router.push("/profile")
+    }
 
     return (
         <ScrollView style={styles.container}>
@@ -31,6 +42,22 @@ export default function Settings() {
                         left={(props) => <List.Icon {...props} icon="account" />}
                     />
                 )}
+
+                <List.Item
+                    title="Profile"
+                    description="Manage your profile"
+                    left={(props) => <List.Icon {...props} icon="account-circle" />}
+                    right={(props) => <List.Icon {...props} icon="chevron-right" />}
+                    onPress={onPressProfile}
+                />
+            </View>
+
+            <Divider />
+
+            <View style={styles.section}>
+                <Text variant="headlineSmall" style={styles.sectionTitle}>Subscription</Text>
+                {isLoading && <LoadingIndicator />}
+                <CombinedSubscriptionButton onChangeIsLoading={onChangeIsLoading} />
             </View>
 
             <Divider />
@@ -80,22 +107,19 @@ export default function Settings() {
             <View style={styles.section}>
                 <Text variant="headlineSmall" style={styles.sectionTitle}>About</Text>
 
-                {/* Commented out - these would navigate to the public routes */}
-                {/*
                 <List.Item
                     title="Terms of Service"
                     left={(props) => <List.Icon {...props} icon="file-document" />}
                     right={(props) => <List.Icon {...props} icon="chevron-right" />}
                     onPress={() => router.push("/terms")}
                 />
-                
+
                 <List.Item
                     title="Privacy Policy"
                     left={(props) => <List.Icon {...props} icon="shield-check" />}
                     right={(props) => <List.Icon {...props} icon="chevron-right" />}
                     onPress={() => router.push("/privacy")}
                 />
-                */}
 
                 <List.Item
                     title="App Version"

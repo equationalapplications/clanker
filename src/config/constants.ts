@@ -30,16 +30,6 @@ export const firebaseAppId = Constants.expoConfig?.extra?.firebaseAppId
 export const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || 'https://eksnwbwpmsjbuouftqur.supabase.co'
 export const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrc253YndwbXNqYnVvdWZ0cXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2ODI3NjksImV4cCI6MjA3MjI1ODc2OX0.tomQiadGBwWQBTwT5kkK8_jSXDWAMhnOXRabycMzntY'
 
-// Debug logging for development
-console.log('Constants debug:', {
-  expoConfig: !!Constants.expoConfig,
-  extra: !!Constants.expoConfig?.extra,
-  supabaseUrl: Constants.expoConfig?.extra?.supabaseUrl,
-  supabaseAnonKey: Constants.expoConfig?.extra?.supabaseAnonKey ? 'present' : 'missing',
-  finalSupabaseUrl: supabaseUrl,
-  finalSupabaseAnonKey: supabaseAnonKey ? 'present' : 'missing'
-})
-
 // Revenue Cat & Purchases configuration
 
 export const publicChatRoomsCollection = "public_chat_rooms"

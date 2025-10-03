@@ -60,7 +60,7 @@ export default function Chat() {
 
     const onSend = useCallback(async (newMessages: IMessage[]) => {
         if (!isPremium && credits <= 0) {
-            router.push("../subscribe")
+            router.push("/subscribe")
             return
         }
 

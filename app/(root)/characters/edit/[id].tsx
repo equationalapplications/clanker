@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
-import { TextInput, Switch, Text } from "react-native-paper"
+import { TextInput, Switch, Text, Avatar } from "react-native-paper"
 import { useLocalSearchParams, router } from "expo-router"
 
 import Button from "../../../../src/components/Button"
-import CharacterAvatar from "../../../../src/components/CharacterAvatar"
 import ConfirmationModal from "../../../../src/components/ConfirmationModal"
 import LoadingIndicator from "../../../../src/components/LoadingIndicator"
 import { ShareCharacterButton } from "../../../../src/components/ShareCharacterButton"
@@ -32,69 +31,8 @@ export default function EditCharacter() {
     const [traits, setTraits] = useState(character?.traits ?? "")
     const [emotions, setEmotions] = useState(character?.emotions ?? "")
     const [imageIsLoading, setImageIsLoading] = useState(false)
+    const [textIsLoading, setTextIsLoading] = useState(false)
     const [isSwitchOnPublic, setIsSwitchOnPublic] = useState(character?.isCharacterPublic ?? false)
-
-    const onToggleSwitch = () => setIsSwitchOnPublic(!isSwitchOnPublic)
-
-    const onChangeAvatar = (text: string) => setAvatar(text)
-    const onChangeAppearance = (text: string) => setAppearance(text)
-    const onChangeName = (text: string) => setName(text)
-    const onChangeTraits = (text: string) => setTraits(text)
-    const onChangeEmotions = (text: string) => setEmotions(text)
-
-    const onConfirmSave = () => {
-        setIsSaveModalVisible(false)
-        router.back()
-    }
-
-    const onCancelErase = () => setIsEraseModalVisible(false)
-    const onConfirmErase = async () => {
-        setIsEraseModalVisible(false)
-        if (uid && id) {
-            // Add your erase logic here
-        }
-    }
-
-    const onPressGenerateImage = async () => {
-        if (!isPremium && credits === 0) {
-            router.push("./subscribe")
-            return
-        }
-
-        if (!uid) {
-            console.error('User ID is required for image generation')
-            return
-        }
-
-        setImageIsLoading(true)
-        try {
-            const text = `${appearance} ${name} ${traits} ${emotions}`.trim()
-            const imageUrl = await generateImage({ text, characterId: id!, userId: uid })
-            if (imageUrl) {
-                setAvatar(imageUrl)
-            }
-        } catch (error) {
-            console.error('Error generating image:', error)
-            // Could show an error message to user here
-        }
-        setImageIsLoading(false)
-    }
-
-    const onPressSave = async () => {
-        if (!uid || !id) return
-
-        await updateCharacter({
-            characterId: id,
-            name,
-            appearance,
-            traits,
-            emotions,
-            avatar,
-            isCharacterPublic: isSwitchOnPublic,
-        })
-
-        setIsSaveModalVisible(true)
-    }
 
     useEffect(() => {
         if (character) {
@@ -107,84 +45,174 @@ export default function EditCharacter() {
         }
     }, [character])
 
+    const onChangeTextName = (text: string) => setName(text)
+    const onChangeTextAppearance = (text: string) => setAppearance(text)
+    const onChangeTextTraits = (text: string) => setTraits(text)
+    const onChangeTextEmotions = (text: string) => setEmotions(text)
+
+    const onToggleSwitch = async () => {
+        if (!character?.id) return
+        setTextIsLoading(true)
+        try {
+            await updateCharacter({
+                characterId: character.id,
+                isCharacterPublic: !isSwitchOnPublic,
+            })
+            setIsSwitchOnPublic(!isSwitchOnPublic)
+        } catch (error) {
+            console.error('Error updating character public status:', error)
+        }
+        setTextIsLoading(false)
+    }
+
+    const onPressSave = async () => {
+        if (!character?.id) return
+        if (credits <= 0 && !isPremium) {
+            router.push('/subscribe')
+            return
+        }
+        setTextIsLoading(true)
+        try {
+            await updateCharacter({
+                characterId: character.id,
+                name,
+                appearance,
+                traits,
+                emotions,
+            })
+            setIsSaveModalVisible(true)
+        } catch (error) {
+            console.error('Error saving character:', error)
+        }
+        setTextIsLoading(false)
+    }
+
+    const onConfirmSave = () => {
+        setIsSaveModalVisible(false)
+    }
+
+    const onPressChat = () => {
+        if (character?.id) {
+            router.push(`../chat/${character.id}`)
+        }
+    }
+
+    const onPressGenerate = async () => {
+        if (!character?.id || !uid) return
+        if (credits <= 0 && !isPremium) {
+            router.push('/subscribe')
+            return
+        }
+        setImageIsLoading(true)
+        try {
+            const promptText = `A profile picture of ${appearance}, who is ${traits}, and is feeling ${emotions}.`
+            const imageUrl = await generateImage({
+                text: promptText,
+                characterId: character.id,
+                userId: uid
+            })
+            if (imageUrl) {
+                setAvatar(imageUrl)
+            }
+        } catch (error) {
+            console.error('Error generating image:', error)
+        }
+        setImageIsLoading(false)
+    }
+
+    const onPressErase = () => {
+        if (credits <= 0 && !isPremium) {
+            router.push('/subscribe')
+            return
+        }
+        setIsEraseModalVisible(true)
+    }
+
+    const onCancelErase = () => {
+        setIsEraseModalVisible(false)
+    }
+
+    const onConfirmErase = async () => {
+        if (!character?.id) return
+        setIsEraseModalVisible(false)
+        setTextIsLoading(true)
+        try {
+            await updateCharacter({
+                characterId: character.id,
+                context: ""
+            })
+        } catch (error) {
+            console.error('Error erasing character memory:', error)
+        }
+        setTextIsLoading(false)
+    }
+
     if (!character) {
         return <LoadingIndicator />
     }
 
     return (
         <View style={styles.container}>
-            <ScrollView style={{ marginTop: 30 }} contentContainerStyle={styles.scrollContentContainer}>
-                <CharacterAvatar
-                    size={100}
-                    imageUrl={avatar}
-                    characterName={name}
-                    showFallback={true}
-                />
-                <TextInput
-                    mode="outlined"
-                    label="Avatar URL"
-                    value={avatar}
-                    onChangeText={onChangeAvatar}
-                    style={styles.textInput}
-                />
-                <Button
-                    onPress={onPressGenerateImage}
-                    mode="contained"
-                    loading={imageIsLoading}
-                    disabled={imageIsLoading}
-                >
-                    Generate Avatar
+            <ScrollView
+                style={{ marginTop: 30, width: "100%" }}
+                contentContainerStyle={styles.scrollContentContainer}
+            >
+                {imageIsLoading ? (
+                    <LoadingIndicator />
+                ) : (
+                    <Avatar.Image size={256} source={{ uri: avatar }} />
+                )}
+                <Button mode="outlined" onPress={onPressGenerate} disabled={imageIsLoading}>
+                    Generate New Image
                 </Button>
-                <View style={styles.separator} />
-                <TextInput
-                    mode="outlined"
-                    label="Name"
-                    value={name}
-                    onChangeText={onChangeName}
-                    style={styles.textInput}
-                />
-                <View style={styles.separator} />
-                <TextInput
-                    mode="outlined"
-                    label="Appearance"
-                    value={appearance}
-                    onChangeText={onChangeAppearance}
-                    style={styles.textInput}
-                    multiline
-                />
-                <View style={styles.separator} />
-                <TextInput
-                    mode="outlined"
-                    label="Traits"
-                    value={traits}
-                    onChangeText={onChangeTraits}
-                    style={styles.textInput}
-                    multiline
-                />
-                <View style={styles.separator} />
-                <TextInput
-                    mode="outlined"
-                    label="Emotions"
-                    value={emotions}
-                    onChangeText={onChangeEmotions}
-                    style={styles.textInput}
-                    multiline
-                />
-                <View style={styles.separator} />
-                <Button onPress={onPressSave} mode="contained">
-                    Save Character
+                <Button mode="contained" onPress={onPressChat}>
+                    Chat Now
                 </Button>
-                <View style={styles.separator} />
-                <Button
-                    onPress={() => router.push(`../chat/${id}`)}
-                    mode="contained"
-                    buttonColor="#4CAF50"
-                >
-                    Chat with {name || "Character"}
+                {textIsLoading ? (
+                    <LoadingIndicator />
+                ) : (
+                    <>
+                        <TextInput
+                            label="Name"
+                            value={name}
+                            onChangeText={onChangeTextName}
+                            style={styles.textInput}
+                            maxLength={30}
+                        />
+                        <TextInput
+                            label="Appearance"
+                            value={appearance}
+                            onChangeText={onChangeTextAppearance}
+                            style={styles.textInput}
+                            multiline
+                            numberOfLines={3}
+                            maxLength={144}
+                        />
+                        <TextInput
+                            label="Traits"
+                            value={traits}
+                            onChangeText={onChangeTextTraits}
+                            style={styles.textInput}
+                            multiline
+                            numberOfLines={3}
+                            maxLength={144}
+                        />
+                        <TextInput
+                            label="Emotions"
+                            value={emotions}
+                            onChangeText={onChangeTextEmotions}
+                            style={styles.textInput}
+                            multiline
+                            numberOfLines={3}
+                            maxLength={144}
+                        />
+                    </>
+                )}
+                <Button mode="outlined" onPress={onPressSave}>
+                    Save Changes
                 </Button>
-                <View style={styles.separator} />
-                <Button onPress={() => setIsEraseModalVisible(true)} mode="outlined">
-                    Delete Character Memory
+                <Button mode="outlined" onPress={onPressErase}>
+                    Erase Memory
                 </Button>
                 <View style={styles.separator} />
                 <>
@@ -218,12 +246,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    title: {
-        fontSize: 20,
-        fontWeight: "bold",
-    },
     separator: {
-        marginVertical: 30,
+        marginVertical: 8,
         height: 1,
         width: "80%",
     },

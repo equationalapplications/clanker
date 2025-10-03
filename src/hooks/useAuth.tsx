@@ -20,152 +20,183 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+    const [user, setUser] = useState<User | null>(null) // Firebase user is the SOURCE OF TRUTH
     const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
-    const [user, setUser] = useState<User | null>(null)
-    const [isLoading, setIsLoading] = useState(true) // Start with loading = true
+    const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
     const signOut = async () => {
         try {
-            // Sign out from Firebase first
+            // Sign out from Firebase first (source of truth)
             await auth.signOut()
-
             // Sign out from Supabase
             await supabaseClient.auth.signOut()
+            // Reset auth manager
+            authManager.reset()
         } catch (error) {
             console.error('Error signing out:', error)
             throw error
         }
     }
 
-    useEffect(() => {
-        const unsubscribeAuth = auth.onAuthStateChanged((user) => {
-            if (user) {
-                setUser(user)
-            } else {
-                setUser(null)
-                setIsLoading(false) // No user means we can show the sign-in screen
-            }
-        })
-        return () => unsubscribeAuth()
-    }, [])
+    // Validate that Supabase user email matches Firebase user email
+    const validateEmailMatch = (firebaseUser: User, supabaseUser: SupabaseUser): boolean => {
+        const firebaseEmail = firebaseUser.email?.toLowerCase()
+        const supabaseEmail = supabaseUser.email?.toLowerCase()
 
-    useEffect(() => {
-        let mounted = true
-
-        // Check for existing Supabase session on mount
-        const checkExistingSession = async () => {
-            try {
-                const { data: { session }, error } = await supabaseClient.auth.getSession()
-                if (error) {
-                    console.error('Error checking existing Supabase session:', error)
-                    if (mounted) {
-                        setIsLoading(false)
-                    }
-                } else if (session?.user && mounted) {
-                    console.log('Found existing Supabase session on mount:', session.user.id)
-                    setSupabaseUser(session.user)
-                    setIsLoading(false)
-                } else if (mounted) {
-                    console.log('No existing Supabase session found')
-                    setIsLoading(false)
-                }
-            } catch (err) {
-                console.error('Failed to check existing session:', err)
-                if (mounted) {
-                    setIsLoading(false)
-                }
-            }
+        if (!firebaseEmail || !supabaseEmail) {
+            console.warn('⚠️ Missing email in Firebase or Supabase user')
+            return false
         }
 
-        // Listen for Supabase auth state changes
+        const emailsMatch = firebaseEmail === supabaseEmail
+        console.log(`📧 Email validation: Firebase(${firebaseEmail}) === Supabase(${supabaseEmail}) = ${emailsMatch}`)
+        return emailsMatch
+    }
+
+    // Ensure Supabase is authenticated with correct user
+    const ensureSupabaseAuth = async (firebaseUser: User) => {
+        console.log('🔐 Ensuring Supabase auth for Firebase user:', firebaseUser.email)
+
+        try {
+            const { data: { session }, error } = await supabaseClient.auth.getSession()
+
+            if (error) {
+                console.log('❌ Supabase session error, re-authenticating:', error.message)
+                return await authManager.authenticateSupabase()
+            }
+
+            if (!session?.user) {
+                console.log('🔄 No Supabase session, authenticating...')
+                return await authManager.authenticateSupabase()
+            }
+
+            // Check if emails match
+            if (!validateEmailMatch(firebaseUser, session.user)) {
+                console.log('🚨 Email mismatch detected, signing out and re-authenticating Supabase')
+                await supabaseClient.auth.signOut()
+                return await authManager.authenticateSupabase()
+            }
+
+            // Check if session is expired or close to expiring
+            const now = Math.floor(Date.now() / 1000)
+            const expiresAt = session.expires_at || 0
+            const timeUntilExpiry = expiresAt - now
+
+            if (timeUntilExpiry <= 60) { // If expires in 1 minute or less
+                console.log('⏰ Supabase session expired or expiring soon, re-authenticating')
+                await supabaseClient.auth.signOut()
+                return await authManager.authenticateSupabase()
+            }
+
+            console.log('✅ Supabase session is valid and emails match')
+            setSupabaseUser(session.user)
+            // Don't set loading=false here - let the effect that depends on both users handle it
+            return true
+
+        } catch (err: any) {
+            console.error('❌ Error checking Supabase session:', err)
+            // Re-authenticate on any error
+            return await authManager.authenticateSupabase()
+        }
+    }
+
+    // SINGLE SOURCE OF TRUTH: Firebase auth state drives everything
+    useEffect(() => {
+        let mounted = true
+        let currentFirebaseUser: User | null = null // Track current Firebase user
+
+        const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser) => {
+            console.log('🔥 Firebase auth state changed (SOURCE OF TRUTH):', !!firebaseUser, firebaseUser?.email)
+
+            if (!mounted) return
+
+            currentFirebaseUser = firebaseUser // Update tracked user
+
+            if (firebaseUser) {
+                // Firebase user exists - ensure Supabase matches
+                setUser(firebaseUser)
+                setError(null)
+                // Keep loading=true until Supabase auth is also complete
+
+                try {
+                    console.log('🔐 Firebase user authenticated, ensuring Supabase sync...')
+                    await ensureSupabaseAuth(firebaseUser)
+                    // Don't set loading=false here - let Supabase auth events handle it
+                } catch (error) {
+                    console.error('❌ Failed to sync Supabase with Firebase:', error)
+                    setError(error instanceof Error ? error.message : 'Authentication sync failed')
+                    setIsLoading(false) // Only clear loading on error
+                }
+            } else {
+                // No Firebase user - clear everything
+                console.log('🚪 No Firebase user, signing out of Supabase')
+                setUser(null)
+                setSupabaseUser(null)
+                setError(null)
+                setIsLoading(false)
+
+                // Ensure Supabase is signed out
+                await supabaseClient.auth.signOut()
+                authManager.reset()
+            }
+        })
+
+        // Listen for Supabase auth state changes (but Firebase is still the authority)
         const {
             data: { subscription },
         } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
-            console.log('Supabase auth state changed:', event, {
-                hasSession: !!session,
-                hasUser: !!session?.user,
-                userId: session?.user?.id,
-                expiresAt: session?.expires_at
-            })
+            console.log('🟦 Supabase auth event:', event, !!session?.user)
 
-            if (mounted) {
-                if (event === 'INITIAL_SESSION') {
-                    // Check if we have a valid session
-                    if (session?.user) {
-                        console.log('Initial Supabase session found:', session.user.id)
-                        setSupabaseUser(session.user)
-                        setIsLoading(false) // Clear loading when session is found
-                    } else {
-                        console.log('No initial Supabase session found')
-                        setSupabaseUser(null)
-                        // Don't set loading to false here, as we might need to authenticate
-                    }
-                } else if (event === 'SIGNED_IN') {
-                    console.log('Supabase user signed in:', session?.user?.id)
-                    setSupabaseUser(session?.user ?? null)
-                    setError(null) // Clear any previous errors
-                    setIsLoading(false) // Clear loading when signed in
-                } else if (event === 'SIGNED_OUT') {
-                    console.log('Supabase user signed out')
-                    setSupabaseUser(null)
-                    setIsLoading(false) // Clear loading when signed out
-                } else if (event === 'TOKEN_REFRESHED') {
-                    console.log('Supabase token refreshed for user:', session?.user?.id)
-                    setSupabaseUser(session?.user ?? null)
-                    setIsLoading(false) // Clear loading when token refreshed
+            if (!mounted) return
+
+            // Only update Supabase user state, don't drive the main auth flow
+            if (event === 'SIGNED_IN' && session?.user) {
+                // Validate email match with current Firebase user (use tracked user, not state)
+                if (currentFirebaseUser && validateEmailMatch(currentFirebaseUser, session.user)) {
+                    console.log('✅ Supabase signed in with matching email, updating state')
+                    setSupabaseUser(session.user)
+                    setIsLoading(false)
+                } else if (currentFirebaseUser) {
+                    console.log('🚨 Supabase signed in with different email, signing out Firebase to prevent loop')
+                    setError(`Email mismatch: Firebase(${currentFirebaseUser.email}) !== Supabase(${session.user.email})`)
+                    setIsLoading(false)
+                    // Sign out Firebase to break the loop
+                    await auth.signOut()
+                } else {
+                    console.log('⚠️ Supabase signed in but no Firebase user yet')
+                }
+            } else if (event === 'SIGNED_OUT') {
+                setSupabaseUser(null)
+            } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+                // Validate email match on token refresh (use tracked user, not state)
+                if (currentFirebaseUser && validateEmailMatch(currentFirebaseUser, session.user)) {
+                    setSupabaseUser(session.user)
+                } else if (currentFirebaseUser) {
+                    console.log('🚨 Token refreshed with different email, signing out Firebase to prevent loop')
+                    setError(`Email mismatch on refresh: Firebase(${currentFirebaseUser.email}) !== Supabase(${session.user.email})`)
+                    await auth.signOut()
                 }
             }
         })
 
-        // Check for existing session on mount
-        checkExistingSession()
-
         return () => {
             mounted = false
+            unsubscribeAuth()
             subscription.unsubscribe()
         }
-    }, []) // Run only on mount
+    }, []) // Run only once
 
-    // Separate effect for triggering authentication when Firebase user becomes available
+    // Watch for both users to be ready and clear loading state
     useEffect(() => {
-        const authenticateWithSupabase = async () => {
-            // Check if conditions are met
-            if (!user || supabaseUser) return
+        console.log('🔄 Auth state check - Firebase:', !!user, 'Supabase:', !!supabaseUser, 'Loading:', isLoading)
 
-            const status = authManager.getStatus()
-            if (status.inProgress || status.completed) {
-                console.log('Authentication already handled by singleton, skipping')
-                return
-            }
-
-            setIsLoading(true)
-            setError(null)
-
-            try {
-                await authManager.authenticateSupabase()
-                // The Supabase auth state listener will handle setting supabaseUser
-            } catch (err: any) {
-                console.error('Supabase authentication failed:', err)
-                setError(err.message || 'Failed to authenticate with Supabase')
-            } finally {
-                setIsLoading(false)
-            }
+        // If we have both users and we're still loading, clear the loading state
+        if (user && supabaseUser && isLoading) {
+            console.log('✅ Both auth systems ready, clearing loading state')
+            setIsLoading(false)
         }
-
-        // Trigger authentication when Firebase user is available
-        authenticateWithSupabase()
-    }, [user]) // Only depend on user, not on other state variables
-
-    // Clear Supabase user when Firebase user logs out
-    useEffect(() => {
-        if (!user && supabaseUser) {
-            supabaseClient.auth.signOut()
-            setSupabaseUser(null)
-            setError(null)
-            authManager.reset() // Reset singleton state when user logs out
-        }
-    }, [user, supabaseUser])
+    }, [user, supabaseUser, isLoading])
 
     return (
         <AuthContext.Provider value={{ user, supabaseUser, isLoading, error, signOut }}>

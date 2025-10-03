@@ -81,12 +81,17 @@ export const getCharacter = async (id: string, userId?: string): Promise<Charact
  * Create a new character
  */
 export const createCharacter = async (character: Omit<CharacterInsert, 'user_id'>): Promise<Character | null> => {
+    console.log('🔧 createCharacter starting with data:', character)
+
     const { data: { user } } = await supabaseClient.auth.getUser()
+    console.log('👤 Current user:', user?.id)
 
     if (!user) {
+        console.error('❌ No authenticated user found')
         throw new Error('No authenticated user')
     }
 
+    console.log('💾 Inserting character into Supabase...')
     const { data, error } = await supabaseClient
         .from('characters')
         .insert({
@@ -97,10 +102,11 @@ export const createCharacter = async (character: Omit<CharacterInsert, 'user_id'
         .single()
 
     if (error) {
-        console.error('Error creating character:', error)
+        console.error('❌ Supabase error creating character:', error)
         throw error
     }
 
+    console.log('✅ Character created successfully:', data)
     return data
 }
 
@@ -156,20 +162,32 @@ export const deleteCharacter = async (id: string): Promise<void> => {
  * Create a new character using the legacy Firebase function approach
  */
 export const createNewCharacter = async (): Promise<{ id: string }> => {
-    const character = await createCharacter({
-        name: 'New Character',
-        appearance: 'A mysterious figure with an intriguing presence.',
-        traits: 'Curious, intelligent, and thoughtful.',
-        emotions: 'Calm and collected, with hints of excitement.',
-        context: 'A helpful companion ready for meaningful conversations.',
-        is_public: false,
-    })
+    console.log('🏗️ createNewCharacter (Supabase) starting...')
+    try {
+        console.log('📝 Creating character with default values...')
+        const character = await createCharacter({
+            name: 'New Character',
+            appearance: 'A mysterious figure with an intriguing presence.',
+            traits: 'Curious, intelligent, and thoughtful.',
+            emotions: 'Calm and collected, with hints of excitement.',
+            context: 'A helpful companion ready for meaningful conversations.',
+            is_public: false,
+        })
 
-    if (!character) {
-        throw new Error('Failed to create character')
+        console.log('🔍 Character creation result:', character)
+
+        if (!character) {
+            console.error('❌ Character creation returned null')
+            throw new Error('Failed to create character')
+        }
+
+        const result = { id: character.id }
+        console.log('✨ Returning character ID:', result)
+        return result
+    } catch (error) {
+        console.error('💥 Error in createNewCharacter:', error)
+        throw error
     }
-
-    return { id: character.id }
 }
 
 /**
@@ -209,45 +227,56 @@ export const fromLegacyCharacter = (legacy: LegacyCharacter): Omit<CharacterInse
 export const subscribeToUserCharacters = (
     callback: (characters: Character[]) => void
 ) => {
-    let currentUserId: string | null = null
+    let charactersSubscription: any = null
 
     // Set up auth state listener
     const authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
-            currentUserId = session.user.id
+            const userId = session.user.id
 
             // Get initial characters
             const characters = await getUserCharacters()
             callback(characters)
+
+            // Clean up previous subscription if it exists
+            if (charactersSubscription) {
+                charactersSubscription.unsubscribe()
+            }
+
+            // Set up new real-time subscription for character changes
+            charactersSubscription = supabaseClient
+                .channel(`user-characters-changes-${userId}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'characters',
+                        filter: `user_id=eq.${userId}`,
+                    },
+                    async () => {
+                        // Refetch all characters when any change occurs
+                        const characters = await getUserCharacters()
+                        callback(characters)
+                    }
+                )
+                .subscribe()
         } else {
-            currentUserId = null
+            // Clean up subscription when user logs out
+            if (charactersSubscription) {
+                charactersSubscription.unsubscribe()
+                charactersSubscription = null
+            }
             callback([])
         }
     })
 
-    // Set up real-time subscription for character changes
-    const charactersSubscription = supabaseClient
-        .channel('user-characters-changes')
-        .on(
-            'postgres_changes',
-            {
-                event: '*',
-                schema: 'public',
-                table: 'characters',
-                filter: currentUserId ? `user_id=eq.${currentUserId}` : undefined,
-            },
-            async () => {
-                // Refetch all characters when any change occurs
-                const characters = await getUserCharacters()
-                callback(characters)
-            }
-        )
-        .subscribe()
-
     // Return cleanup function
     return () => {
         authSubscription.data.subscription?.unsubscribe()
-        charactersSubscription.unsubscribe()
+        if (charactersSubscription) {
+            charactersSubscription.unsubscribe()
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 import "expo-dev-client"
 import { StatusBar } from "expo-status-bar"
 import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
-import { useColorScheme } from "react-native"
+import { useColorScheme, View, StyleSheet } from "react-native"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { Stack } from "expo-router"
 import { ThemeProvider as NavigationThemeProvider } from "@react-navigation/native"
@@ -12,19 +12,28 @@ import { ThemeProvider } from "../src/components/ThemeProvider"
 import { AuthProvider, useAuth } from "../src/hooks/useAuth"
 import { queryClient } from "../src/config/queryClient"
 import { appNavigationDarkTheme, appNavigationLightTheme } from "../src/config/theme"
+import LoadingIndicator from "../src/components/LoadingIndicator"
 
 function StackNavigator() {
     const { user, isLoading } = useAuth()
 
-    // Don't render navigation while loading
+    console.log('🔐 StackNavigator render - user:', !!user, 'isLoading:', isLoading, 'timestamp:', Date.now())
+
+    // Show loading indicator instead of blank screen while loading
     if (isLoading) {
-        return null
+        console.log('⏳ Showing loading screen because isLoading =', isLoading)
+        return (
+            <View style={styles.loadingContainer}>
+                <LoadingIndicator disabled={false} />
+            </View>
+        )
     }
 
     const isLoggedIn = !!user
+    console.log('🚦 Auth resolved - isLoggedIn:', isLoggedIn, 'about to render Stack with routes')
 
     return (
-        <Stack initialRouteName="(root)">
+        <Stack>
             <Stack.Screen name="index" options={{ headerShown: false }} />
             {/* Protected routes - only available when logged in */}
             <Stack.Protected guard={isLoggedIn}>
@@ -63,3 +72,11 @@ export default function RootLayout() {
         </SafeAreaProvider>
     )
 }
+
+const styles = StyleSheet.create({
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+})
