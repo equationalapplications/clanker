@@ -1,38 +1,39 @@
 import { useRouter } from "expo-router"
-import React from "react"
 import { Pressable } from "react-native"
 import { Badge, Text } from "react-native-paper"
 
 import { useIsPremium } from "../hooks/useIsPremium"
-import { useUserPrivate } from "../hooks/useUserPrivate"
+import { useUserCredits } from "../hooks/useUserCredits"
 
 export function CreditCounterIcon() {
   const router = useRouter()
-  const userPrivate = useUserPrivate()
-  const [credits, setCredits] = React.useState(userPrivate?.credits)
+  const { data: credits, isLoading } = useUserCredits()
   const isPremium = useIsPremium()
-
-  React.useEffect(() => {
-    setCredits(userPrivate?.credits)
-  }, [userPrivate])
 
   return (
     <Pressable
       onPress={() => router.push("./subscribe")}
       style={({ pressed }) => ({
         flexDirection: "row",
+        alignItems: "center",
         opacity: pressed ? 0.5 : 1,
         marginRight: 10,
       })}
     >
-      {isPremium ? (
+      {credits?.hasUnlimited ? (
         <>
           <Text>👑</Text>
+          <Text style={{ fontSize: 12, marginLeft: 4 }}>∞</Text>
+        </>
+      ) : isPremium ? (
+        <>
+          <Text>👑</Text>
+          <Text style={{ fontSize: 12, marginLeft: 4 }}>{credits?.totalCredits || 0}</Text>
         </>
       ) : (
         <>
           <Text>Credits </Text>
-          <Badge>{credits}</Badge>
+          <Badge>{isLoading ? "..." : (credits?.totalCredits || 0)}</Badge>
         </>
       )}
     </Pressable>
