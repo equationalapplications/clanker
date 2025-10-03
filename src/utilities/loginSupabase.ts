@@ -90,11 +90,12 @@ export async function loginSupabase(): Promise<any | null> {
         throw new Error(`Supabase setSession failed: ${authResponse.error.message}`);
       }
 
-      // Verify the session was set correctly
+      // Verify the session was set correctly and validate email match
       const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
       if (sessionError) {
         console.error("Failed to verify Supabase session:", sessionError);
+        throw new Error(`Session verification failed: ${sessionError.message}`);
       } else if (session) {
         console.log("✅ Supabase session verified successfully:", {
           user: !!session.user,
@@ -102,6 +103,26 @@ export async function loginSupabase(): Promise<any | null> {
           userId: session.user?.id,
           email: session.user?.email
         });
+
+        // CRITICAL: Validate email match between Firebase and Supabase
+        const firebaseEmail = currentUser.email?.toLowerCase();
+        const supabaseEmail = session.user?.email?.toLowerCase();
+
+        if (!firebaseEmail || !supabaseEmail) {
+          throw new Error("Missing email in Firebase or Supabase user");
+        }
+
+        if (firebaseEmail !== supabaseEmail) {
+          console.error("🚨 EMAIL MISMATCH:", {
+            firebase: firebaseEmail,
+            supabase: supabaseEmail
+          });
+          // Sign out of Supabase immediately
+          await supabaseClient.auth.signOut();
+          throw new Error(`Email mismatch: Firebase(${firebaseEmail}) !== Supabase(${supabaseEmail})`);
+        }
+
+        console.log("✅ Email validation passed:", firebaseEmail);
 
         // Log the active session JWT claims for debugging
         if (session.access_token) {
@@ -124,6 +145,11 @@ export async function loginSupabase(): Promise<any | null> {
       }
 
       console.log("🚀 Ready for authenticated Supabase operations");
+      console.log("🎊 LOGIN_SUPABASE_COMPLETE: Returning authResponse:", {
+        hasUser: !!authResponse.data.user,
+        hasSession: !!authResponse.data.session,
+        hasError: !!authResponse.error
+      });
       return authResponse;
     } catch (sessionError: any) {
       console.error("🚨 Failed to set Supabase session:", sessionError);
