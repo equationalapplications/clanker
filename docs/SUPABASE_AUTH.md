@@ -104,69 +104,148 @@ Returns user's current tier for an app ('free', 'monthly_20', 'monthly_50', 'pay
 Returns compact JSONB array of user's active plans for JWT inclusion.
 
 ```sql
--- Returns: [{"app": "yours-brightly", "tier": "monthly_20", "renewal": "2025-10-28", "credits": 0}]
+-- Returns: [{"app": "yours-brightly", "tier": "monthly_20", "status": "active", "terms_accepted": "2025-10-01"}]
+-- Note: Excludes volatile data (credits) and non-critical data (renewal dates, terms_version)
+-- These should be queried in real-time when needed, not cached in JWT
 ```
 
 ---
 
-## 🔥 Firebase Integration
+## 🔥 Firebase Integration & JWT Claims
+
+### Authentication Flow Overview
+
+1. **Firebase Authentication**: User signs in with Firebase (Google, email, etc.)
+2. **exchangeToken Cloud Function**: Creates/finds Supabase user via Admin API
+3. **Supabase Auth Hook**: Automatically adds subscription `plans` to JWT claims
+4. **Client Session**: Establishes Supabase session with subscription-enriched JWT
 
 ### exchangeToken Cloud Function
 
 Located in `functions/src/exchangeToken.ts`, this function:
 
-1. **Validates Firebase Authentication**: Verifies Firebase ID token
-2. **User Management**: Creates/finds Supabase user via Admin API
-3. **Subscription Query**: Fetches user's active subscriptions from `user_app_subscriptions`
-4. **Free Tier Fallback**: Assigns default "free" plan if no subscriptions exist
-5. **JWT Generation**: Creates tokens with subscription data in `plans` claim
+1. **Validates Firebase Authentication**: Verifies Firebase ID token from request context
+2. **User Management**: Finds or creates Supabase user via Admin API
+3. **Session Retrieval**: Returns Supabase session for the user
 
-#### Token Generation (Plans-Only System)
 ```typescript
-// Access Token (1 hour) - Full claims with plans array
-const accessPayload = {
-    sub: supabaseUserId,
-    role: "authenticated",
-    iat: now,
-    exp: now + 3600,  // 1 hour
-    aud: "authenticated",
-    email: userEmail,
-    plans: userPlans,      // [{'app': 'yours-brightly', 'tier': 'free', 'credits': 10}]
-    token_type: "access"
-};
-
-// Refresh Token (24 hours) - Minimal claims
-const refreshPayload = {
-    sub: supabaseUserId,
-    role: "authenticated", 
-    iat: now,
-    exp: now + 86400,     // 24 hours
-    aud: "authenticated",
-    token_type: "refresh"
-};
+// The function validates Firebase auth and returns a Supabase session
+export const exchangeToken = onCall(async (request) => {
+    // Verify Firebase authentication
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+    
+    const email = request.auth.token.email;
+    
+    // Find or create Supabase user
+    let supabaseUserId = await findSupabaseUserByEmail(email);
+    if (!supabaseUserId) {
+        supabaseUserId = await createSupabaseUser(email, request.auth.uid);
+    }
+    
+    // Get Supabase session (JWT claims added by auth hook)
+    const session = await getSupabaseUserSession(supabaseUserId);
+    
+    return { session };
+});
 ```
 
-> Note: For a concise, end-to-end description of the new Firebase → Supabase auth flow (what the client does, what the cloud function does, env vars, and troubleshooting), see [AUTH_FLOW.md](./AUTH_FLOW.md).
+### Custom Access Token Hook
 
-#### Free Tier Default
-```typescript
-// Every user gets at least free tier access
-if (userPlans.length === 0) {
-    userPlans = [{
-        app: "yours-brightly",
-        tier: "free", 
-        renewal: null,  // Free doesn't expire
-        credits: 10     // Free tier credits
-    }];
+Located in the database as `public.custom_access_token_hook`, this Supabase auth hook automatically adds subscription claims to JWTs:
+
+```sql
+CREATE OR REPLACE FUNCTION public.custom_access_token_hook(event JSONB)
+RETURNS JSONB AS $$
+DECLARE
+    claims JSONB;
+    user_plans JSONB;
+BEGIN
+    -- Get user's subscription plans
+    SELECT public.get_user_plans((event->>'user_id')::UUID) INTO user_plans;
+    
+    -- If no plans found, return empty array
+    IF user_plans IS NULL THEN
+        user_plans := '[]'::jsonb;
+    END IF;
+    
+    -- Add plans to JWT claims
+    claims := jsonb_build_object('plans', user_plans);
+    RETURN jsonb_set(event, '{claims}', claims);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+**Note**: The hook is generic and multi-tenant. It does not assign default plans. Applications should handle access control based on the `plans` array in the JWT, which may be empty for users without subscriptions.
+
+#### JWT Claims Structure (Added by Auth Hook)
+
+The auth hook automatically enriches JWTs with the `plans` array containing minimal, access-control focused data:
+
+```json
+{
+    "sub": "user-uuid",
+    "role": "authenticated",
+    "email": "user@example.com",
+    "plans": [
+        {
+            "app": "yours-brightly",
+            "tier": "monthly_20",
+            "status": "active",
+            "terms_accepted": "2025-10-01"
+        }
+    ]
 }
 ```
 
-#### Environment Variables Required
+**JWT Design Principles:**
+- ✅ **Minimal Data**: Only includes data needed for access control decisions
+- ✅ **Low Volatility**: Excludes rapidly changing data like credits
+- ✅ **Access Control Focus**: Tier and status enable RLS policy decisions
+- ✅ **Compliance Tracking**: Terms acceptance date for audit purposes
+- ❌ **No Credits**: Query in real-time to avoid stale data
+- ❌ **No Renewal Dates**: Fetch from database when displaying billing UI
+- ❌ **No Terms Version**: Fetch from database if needed for version checks
+
+#### Users Without Subscriptions
+
+Users without active apps will have an empty `plans` array:
+
+```json
+{
+    "sub": "user-uuid",
+    "role": "authenticated",
+    "email": "user@example.com",
+    "plans": []
+}
+```
+
+Application logic should handle granting free tier access or prompting for subscription as needed.
+
+#### Environment Variables Required (Firebase Functions)
 ```bash
-SUPABASE_JWT_SECRET=your_jwt_secret
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key  
 SUPABASE_URL=your_supabase_url
 ```
+
+#### Enabling the Auth Hook
+
+To enable the custom access token hook in Supabase:
+
+1. **Grant Permissions** (run in Supabase SQL Editor):
+```sql
+GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
+GRANT EXECUTE ON FUNCTION public.custom_access_token_hook TO supabase_auth_admin;
+```
+
+2. **Configure in Dashboard**:
+   - Go to Authentication > Hooks
+   - Enable "Custom Access Token Hook"
+   - Set Schema: `public`
+   - Set Function: `custom_access_token_hook`
+
+> Note: For a concise, end-to-end description of the Firebase → Supabase auth flow, see [AUTH_FLOW.md](./AUTH_FLOW.md).
 
 ---
 
