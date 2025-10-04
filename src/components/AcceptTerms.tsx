@@ -33,13 +33,13 @@ export function AcceptTerms({ onAccepted, onCanceled, termsVersion = '1.0' }: Ac
 
     try {
       console.log('Accepting terms and granting app access...')
-      const result = await grantAppAccess('yours-brightly')
+      const result = await grantAppAccess('yours-brightly', termsVersion)
 
       if (result.success) {
         console.log('Terms accepted successfully')
         Alert.alert(
           'Welcome!',
-          'Terms accepted successfully. You now have access to Yours Brightly AI.',
+          'Terms accepted successfully. You now have access to Yours Brightly AI with 50 free credits.',
           [{ text: 'Continue', onPress: onAccepted }]
         )
       } else {
