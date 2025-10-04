@@ -13,6 +13,7 @@ import { AuthProvider, useAuth } from "../src/hooks/useAuth"
 import { queryClient } from "../src/config/queryClient"
 import { appNavigationDarkTheme, appNavigationLightTheme } from "../src/config/theme"
 import LoadingIndicator from "../src/components/LoadingIndicator"
+import useCachedResources from "../src/hooks/useCachedResources"
 
 function StackNavigator() {
     const { user, isLoading } = useAuth()
@@ -56,6 +57,15 @@ function StackNavigator() {
 export default function RootLayout() {
     const scheme = useColorScheme()
     const navTheme = scheme === "dark" ? appNavigationDarkTheme : appNavigationLightTheme
+    const isLoadingComplete = useCachedResources()
+
+    if (!isLoadingComplete) {
+        return (
+            <View style={styles.loadingContainer}>
+                <LoadingIndicator disabled={false} />
+            </View>
+        )
+    }
 
     return (
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>

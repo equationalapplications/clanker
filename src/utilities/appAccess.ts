@@ -1,18 +1,16 @@
 import { supabaseClient } from '../config/supabaseClient'
 
 /**
- * Grant app access to a user when they accept terms and conditions
+ * Grant app access to a user by creating a free tier subscription
  * This will:
- * 1. Add the user to user_app_permissions table
- * 2. Create a record in the yours_brightly table
- * 3. Trigger JWT refresh with new custom claims
+ * 1. Create a free subscription in user_app_subscriptions table
+ * 2. Trigger JWT refresh with new custom claims (plans array)
  */
 export async function grantAppAccess(
-    appName: string = 'yours-brightly',
-    termsVersion?: string
+    appName: string = 'yours-brightly'
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        console.log(`Granting ${appName} access to user`)
+        console.log(`Granting ${appName} access to user via free subscription`)
 
         // Get current user
         const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
@@ -21,18 +19,28 @@ export async function grantAppAccess(
             throw new Error('No authenticated user found')
         }
 
-        // Call the database function to grant access
-        const { data, error } = await supabaseClient.rpc('grant_app_access', {
-            p_user_id: user.id,
-            p_app_name: appName,
-            p_terms_version: termsVersion
-        })
+        // Create a free subscription entry instead of using legacy permissions
+        const { data, error } = await supabaseClient
+            .from('user_app_subscriptions')
+            .upsert({
+                user_id: user.id,
+                app_name: appName,
+                plan_tier: 'free',
+                plan_status: 'active',
+                credits_remaining: 10, // Free tier gets 10 credits
+                plan_starts_at: new Date().toISOString(),
+                plan_renewal_at: null, // Free tier doesn't expire
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,app_name'
+            })
 
         if (error) {
             throw error
         }
 
-        console.log(`Successfully granted ${appName} access`)
+        console.log(`Successfully granted ${appName} access via free subscription`)
 
         // Refresh the session to get updated JWT claims
         const { error: refreshError } = await supabaseClient.auth.refreshSession()
@@ -54,7 +62,7 @@ export async function grantAppAccess(
 }
 
 /**
- * Check if user has access to a specific app
+ * Check if user has access to a specific app via plans system
  */
 export async function checkAppAccess(appName: string = 'yours-brightly'): Promise<boolean> {
     try {
@@ -65,20 +73,21 @@ export async function checkAppAccess(appName: string = 'yours-brightly'): Promis
             return false
         }
 
-        // Parse the JWT to check custom claims
+        // Parse the JWT to check custom claims (plans only)
         const payload = JSON.parse(atob(session.access_token.split('.')[1]))
-        const apps = payload.apps || []
+        const plans = payload.plans || []
 
         console.log('checkAppAccess: JWT payload analysis', {
             appName,
-            apps,
-            hasApps: !!payload.apps,
-            appsType: typeof payload.apps,
-            includes: apps.includes(appName),
+            plans,
+            hasPlans: !!payload.plans,
+            plansType: typeof payload.plans,
+            plansCount: plans.length,
             fullPayload: payload
         })
 
-        return apps.includes(appName)
+        // Check if user has any plan for this app
+        return plans.some((plan: any) => plan.app === appName)
     } catch (error) {
         console.error('Error checking app access:', error)
         return false
@@ -86,7 +95,7 @@ export async function checkAppAccess(appName: string = 'yours-brightly'): Promis
 }
 
 /**
- * Get user's app permissions from the database
+ * Get user's subscription data from the database
  */
 export async function getUserAppPermissions(): Promise<{
     success: boolean
@@ -95,7 +104,7 @@ export async function getUserAppPermissions(): Promise<{
 }> {
     try {
         const { data, error } = await supabaseClient
-            .from('user_app_permissions')
+            .from('user_app_subscriptions')
             .select('*')
 
         if (error) {
@@ -104,10 +113,10 @@ export async function getUserAppPermissions(): Promise<{
 
         return { success: true, permissions: data }
     } catch (error: any) {
-        console.error('Failed to get user app permissions:', error)
+        console.error('Failed to get user subscriptions:', error)
         return {
             success: false,
-            error: error.message || 'Failed to get permissions'
+            error: error.message || 'Failed to get subscriptions'
         }
     }
 }

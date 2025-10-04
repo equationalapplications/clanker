@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app"
-import { getAuth, connectAuthEmulator } from "firebase/auth"
-import { getFunctions, connectFunctionsEmulator } from "firebase/functions"
+import { getAuth } from "firebase/auth"
+import { getFunctions } from "firebase/functions"
 
 import {
   firebaseApiKey,
@@ -25,11 +25,5 @@ const app = initializeApp(config)
 
 const auth = getAuth(app)
 const functions = getFunctions(app, "us-central1")
-
-if (__DEV__) {
-  console.log("dev")
-  // connectAuthEmulator(auth, "http://localhost:9099")
-  // connectFunctionsEmulator(functions, "localhost", 5001)
-}
 
 export { app, auth, functions }

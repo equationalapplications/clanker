@@ -14,6 +14,8 @@ import { useAuth } from "../../../../src/hooks/useAuth"
 import { useUserPrivate } from "../../../../src/hooks/useUserPrivate"
 import { generateImage } from "../../../../src/utilities/generateImage"
 import updateCharacter from "../../../../src/utilities/updateCharacter"
+import { supabaseClient } from "../../../../src/config/supabaseClient"
+import { grantAppAccess, checkAppAccess } from "../../../../src/utilities/appAccess"
 
 export default function EditCharacter() {
     const { user } = useAuth()
@@ -44,6 +46,41 @@ export default function EditCharacter() {
             setIsSwitchOnPublic(character.isCharacterPublic || false)
         }
     }, [character])
+
+    // Debug: Check JWT claims and app access
+    useEffect(() => {
+        const checkPermissions = async () => {
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession()
+                if (session?.access_token) {
+                    const payload = JSON.parse(atob(session.access_token.split('.')[1]))
+                    const hasAccess = await checkAppAccess('yours-brightly')
+
+                    console.log('🔐 JWT Claims Debug:', {
+                        plans: payload.plans,
+                        user_id: payload.sub,
+                        character_id: id,
+                        current_uid: uid,
+                        hasAppAccess: hasAccess,
+                        plansCount: payload.plans?.length || 0
+                    })
+
+                    // If no access, try to grant it
+                    if (!hasAccess) {
+                        console.log('❌ No app access found, attempting to grant access...')
+                        const grantResult = await grantAppAccess('yours-brightly')
+                        console.log('🔑 Grant access result:', grantResult)
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking JWT:', error)
+            }
+        }
+
+        if (id) {
+            checkPermissions()
+        }
+    }, [id, character])
 
     const onChangeTextName = (text: string) => setName(text)
     const onChangeTextAppearance = (text: string) => setAppearance(text)

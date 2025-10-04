@@ -1,47 +1,52 @@
-# Multi-Tenant Authentication System with Firebase + Supabase
+# Multi-Tenant Subscription System with Firebase + Supabase
 
-This document describes our comprehensive multi-tenant authentication system that combines Firebase Authentication with Supabase for data access control, including terms acceptance enforcement and JWT-based Row Level Security.
+This document describes our comprehensive multi-tenant subscription system that combines Firebase Authentication with Supabase for data access control, including subscription-based feature gating and JWT-based Row Level Security.
 
 ## 🏗️ Architecture Overview
 
-### Hybrid Authentication Flow
+### Hybrid Authentication + Subscription Flow
 1. **Firebase Authentication**: Primary authentication provider (Google Sign-In, Email, etc.)
-2. **Token Exchange**: Firebase Function generates pre-signed Supabase JWTs with custom claims
-3. **Supabase Session**: Client establishes Supabase session with Firebase-generated JWT
-4. **Row Level Security**: Database access controlled by JWT custom claims
+2. **Token Exchange**: Firebase Function generates pre-signed Supabase JWTs with subscription claims
+3. **Supabase Session**: Client establishes Supabase session with subscription-enriched JWT
+4. **Row Level Security**: Database access controlled by JWT subscription claims
 
 ### Core Components
-- **Firebase Functions**: `exchangeToken` function for JWT generation and user management
-- **Supabase Database**: Multi-tenant schema with terms acceptance tracking
-- **JWT Custom Claims**: Apps array for per-app access control
-- **Terms Versioning**: Enforced acceptance of current terms before granting app access
+- **Firebase Functions**: `exchangeToken` function for JWT generation with subscription data
+- **Supabase Database**: Multi-tenant schema with subscription tracking
+- **JWT Custom Claims**: Plans array for per-app subscription control
+- **Subscription Tiers**: free, monthly_20, monthly_50, payg with feature differentiation
 
 ---
 
 ## 🗄️ Database Schema
 
-### Core Tables
+### Subscription Tables
 
-#### `user_app_permissions`
-Tracks which applications users have access to and their terms acceptance status.
+#### `user_app_subscriptions`
+Tracks user subscription status per application with billing details.
 
 ```sql
-CREATE TABLE public.user_app_permissions (
+CREATE TABLE public.user_app_subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     app_name TEXT NOT NULL,
-    granted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    terms_accepted_at TIMESTAMP WITH TIME ZONE,  -- NULL = terms not accepted
-    terms_version TEXT,                          -- Version of terms accepted
+    plan_tier TEXT NOT NULL CHECK (plan_tier IN ('free', 'monthly_20', 'monthly_50', 'payg')),
+    plan_status TEXT NOT NULL DEFAULT 'active' CHECK (plan_status IN ('active', 'cancelled', 'expired')),
+    plan_start_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    plan_renewal_at TIMESTAMP WITH TIME ZONE,
+    credits_remaining INTEGER DEFAULT 0,
+    billing_provider TEXT, -- 'stripe', 'revenuecat', etc.
+    billing_provider_id TEXT, -- External subscription ID
+    billing_metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    UNIQUE(user_id, app_name)  -- One record per user per app
+    UNIQUE(user_id, app_name)  -- One active subscription per user per app
 );
 ```
 
 #### `yours_brightly` (Example App Table)
-App-specific data table protected by RLS policies.
+App-specific data table protected by subscription-based RLS policies.
 
 ```sql
 CREATE TABLE public.yours_brightly (
@@ -59,48 +64,48 @@ CREATE TABLE public.yours_brightly (
 
 ---
 
-## 🔑 Authentication Functions
+## 🔑 Subscription Functions
 
-### Core Functions
+### Helper Functions for RLS
 
-#### `get_user_apps(user_id UUID) RETURNS TEXT[]`
-Returns array of app names user has access to (only apps with accepted terms).
+#### `user_has_app_access(app_name TEXT) RETURNS BOOLEAN`
+Checks if user has any active subscription for the specified app.
 
 ```sql
-CREATE OR REPLACE FUNCTION public.get_user_apps(user_id UUID)
-RETURNS TEXT[] AS $$
+CREATE OR REPLACE FUNCTION public.user_has_app_access(app_name TEXT)
+RETURNS BOOLEAN AS $$
 BEGIN
-    RETURN ARRAY(
-        SELECT app_name 
-        FROM public.user_app_permissions 
-        WHERE user_app_permissions.user_id = get_user_apps.user_id
-        AND terms_accepted_at IS NOT NULL  -- Only apps with accepted terms
+    RETURN EXISTS (
+        SELECT 1 
+        FROM jsonb_array_elements(COALESCE(auth.jwt() -> 'plans', '[]'::jsonb)) AS plan
+        WHERE plan ->> 'app' = app_name
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
-#### `grant_app_access(p_user_id UUID, p_app_name TEXT, p_terms_version TEXT)`
-Records terms acceptance and grants app access.
+#### `user_has_tier_access(app_name TEXT, required_tier TEXT) RETURNS BOOLEAN`
+Checks if user has sufficient subscription tier for feature access.
 
 ```sql
--- Called when user accepts terms
--- Creates user_app_permissions record with terms_accepted_at = NOW()
--- Also creates app-specific user record (e.g., yours_brightly table)
+-- Tier hierarchy: 'free' < 'monthly_20' < 'monthly_50' 
+-- 'payg' tier checked separately for credits
 ```
 
-#### `check_terms_acceptance_required(p_user_id UUID, p_app_name TEXT, p_current_terms_version TEXT)`
-Checks if user needs to accept current terms version.
+#### `user_has_credits(app_name TEXT, required_credits INTEGER) RETURNS BOOLEAN`
+Validates sufficient credits for pay-as-you-go operations.
+
+#### `get_user_plan_tier(app_name TEXT) RETURNS TEXT`
+Returns user's current tier for an app ('free', 'monthly_20', 'monthly_50', 'payg', 'no_access').
+
+### Core Functions
+
+#### `get_user_plans(user_id UUID) RETURNS JSONB`
+Returns compact JSONB array of user's active plans for JWT inclusion.
 
 ```sql
--- Returns TRUE if:
--- 1. No permission record exists
--- 2. terms_accepted_at is NULL
--- 3. terms_version != current version
+-- Returns: [{"app": "yours-brightly", "tier": "monthly_20", "renewal": "2025-10-28", "credits": 0}]
 ```
-
-#### `revoke_app_access(p_user_id UUID, p_app_name TEXT)`
-Removes user access to an app (admin function).
 
 ---
 
@@ -112,13 +117,13 @@ Located in `functions/src/exchangeToken.ts`, this function:
 
 1. **Validates Firebase Authentication**: Verifies Firebase ID token
 2. **User Management**: Creates/finds Supabase user via Admin API
-3. **Permission Query**: Fetches user's app permissions from `user_app_permissions`
-4. **Terms Validation**: Only includes apps where `terms_accepted_at IS NOT NULL`
-5. **Dual Token Generation**: Creates both access and refresh tokens
+3. **Subscription Query**: Fetches user's active subscriptions from `user_app_subscriptions`
+4. **Free Tier Fallback**: Assigns default "free" plan if no subscriptions exist
+5. **JWT Generation**: Creates tokens with subscription data in `plans` claim
 
-#### Token Generation
+#### Token Generation (Plans-Only System)
 ```typescript
-// Access Token (1 hour) - Full claims with apps array
+// Access Token (1 hour) - Full claims with plans array
 const accessPayload = {
     sub: supabaseUserId,
     role: "authenticated",
@@ -126,7 +131,7 @@ const accessPayload = {
     exp: now + 3600,  // 1 hour
     aud: "authenticated",
     email: userEmail,
-    apps: userApps,        // ['yours-brightly'] if terms accepted
+    plans: userPlans,      // [{'app': 'yours-brightly', 'tier': 'free', 'credits': 10}]
     token_type: "access"
 };
 
@@ -141,6 +146,19 @@ const refreshPayload = {
 };
 ```
 
+#### Free Tier Default
+```typescript
+// Every user gets at least free tier access
+if (userPlans.length === 0) {
+    userPlans = [{
+        app: "yours-brightly",
+        tier: "free", 
+        renewal: null,  // Free doesn't expire
+        credits: 10     // Free tier credits
+    }];
+}
+```
+
 #### Environment Variables Required
 ```bash
 SUPABASE_JWT_SECRET=your_jwt_secret
@@ -152,59 +170,81 @@ SUPABASE_URL=your_supabase_url
 
 ## 🔒 Row Level Security (RLS) Policies
 
-### Multi-Tenant Access Control
+### Subscription-Based Access Control
 
-All app-specific tables use RLS policies that check the `apps` array in the JWT:
+All app-specific tables use RLS policies that check the `plans` array in the JWT:
 
+#### Basic App Access Pattern
 ```sql
--- Example: yours_brightly table policies
-CREATE POLICY "Users with yours-brightly access can view their data" 
+-- Example: yours_brightly table policies (any tier)
+CREATE POLICY "Users with yours-brightly plan can view their data" 
 ON public.yours_brightly FOR SELECT USING (
     auth.uid() = user_id 
-    AND EXISTS (
-        SELECT 1 FROM jsonb_array_elements_text(
-            COALESCE(auth.jwt() -> 'apps', '[]')
-        ) AS app 
-        WHERE app = 'yours-brightly'
-    )
+    AND user_has_app_access('yours-brightly')
 );
 ```
 
-### Policy Pattern
-1. **User Ownership**: `auth.uid() = user_id` (user can only access their own data)
-2. **App Permission**: JWT must contain the specific app name in `apps` array
-3. **Applied to All Operations**: SELECT, INSERT, UPDATE, DELETE
+#### Tier-Specific Access Pattern
+```sql
+-- Premium features table (monthly_20 or higher required)
+CREATE POLICY "Premium users can access premium features" 
+ON public.yours_brightly_premium_features FOR ALL USING (
+    auth.uid() = user_id 
+    AND user_has_tier_access('yours-brightly', 'monthly_20')
+);
+```
+
+#### Credit-Based Access Pattern
+```sql
+-- Pay-as-you-go operations (credit validation)
+CREATE POLICY "Users with credits can create payg operations" 
+ON public.yours_brightly_payg_operations FOR INSERT WITH CHECK (
+    auth.uid() = user_id 
+    AND user_has_credits('yours-brightly', credits_consumed)
+);
+```
+
+### Subscription Tier Examples
+
+#### Free Tier (`tier: "free"`)
+- Basic app access
+- Limited features
+- 10 credits included
+
+#### Monthly $20 Tier (`tier: "monthly_20"`)
+- All free features
+- Premium features unlocked
+- Advanced templates, priority support
+
+#### Monthly $50 Tier (`tier: "monthly_50"`)
+- All monthly_20 features  
+- Ultra premium features
+- API access, white-label, unlimited AI
+
+#### Pay-as-You-Go (`tier: "payg"`)
+- Credit-based consumption
+- Access based on remaining credits
+- Flexible usage model
 
 ---
 
 ## 📋 Terms Acceptance System
 
-### Terms Lifecycle
+### Terms Lifecycle (Legacy - Now Handled via Subscriptions)
 
-1. **New User**: No app permissions, JWT contains `apps: []`
-2. **Terms Presented**: Client shows terms modal with current version
-3. **Terms Accepted**: Calls `grant_app_access()` function
-4. **Access Granted**: Next JWT refresh includes app in `apps` array
-5. **Version Update**: When terms version changes, user must re-accept
+1. **New User**: Automatically receives free tier subscription via JWT
+2. **Terms Acceptance**: Handled through subscription creation process
+3. **Access Granted**: JWT includes free tier in `plans` array immediately
+4. **Subscription Upgrades**: Paid subscriptions modify `plans` array data
 
-### Version Management
+### Subscription-Based Access
 
-#### Client-Side Hook (`useAcceptTerms`)
-```typescript
-const CURRENT_TERMS_VERSION = '2.0';  // Update this to force re-acceptance
+Users now receive access through the subscription system rather than explicit terms acceptance:
 
-export function useAcceptTerms() {
-    // Checks if user's accepted version matches current version
-    // Returns needsAcceptance: boolean
-}
-```
-
-#### Terms Modal Integration
-```typescript
-<TermsGate onTermsAccepted={() => console.log('Access granted!')}>
-    <YourAppContent />
-</TermsGate>
-```
+- **Free Tier**: Automatically granted to all authenticated users
+- **Paid Tiers**: Granted through Stripe/billing integration
+- **Access Control**: Based on `plans` array in JWT claims
+- **Feature Gating**: Tier-based access control via RLS policies
 
 ---
 
@@ -238,7 +278,7 @@ await supabase.auth.setSession({
 
 ### JWT Claims Structure
 
-#### Access Token Claims
+#### Access Token Claims (Plans-Only)
 ```json
 {
     "sub": "user-uuid",
@@ -247,7 +287,14 @@ await supabase.auth.setSession({
     "exp": 1234571490,
     "aud": "authenticated",
     "email": "user@example.com",
-    "apps": ["yours-brightly"],      // ⭐ Key for RLS
+    "plans": [                           // ⭐ Key for subscription RLS
+        {
+            "app": "yours-brightly",
+            "tier": "monthly_20",
+            "renewal": "2025-10-28T21:11:47Z",
+            "credits": 0
+        }
+    ],
     "token_type": "access"
 }
 ```
@@ -278,9 +325,9 @@ await supabase.auth.setSession({
        -- app-specific fields
    );
    ```
-3. **Add RLS Policies**: Copy and modify existing policies for new app
-4. **Update Functions**: Modify `grant_app_access()` to handle new app
-5. **Client Integration**: Add terms acceptance for new app
+3. **Add RLS Policies**: Copy and modify existing subscription-based policies for new app
+4. **Update Functions**: Modify subscription functions to handle new app
+5. **Client Integration**: Add subscription tiers for new app
 
 ### Testing Authentication
 
@@ -291,12 +338,13 @@ const session = await supabase.auth.getSession();
 const token = session.data.session?.access_token;
 const payload = JSON.parse(atob(token.split('.')[1]));
 console.log('JWT Claims:', payload);
+console.log('Plans Array:', payload.plans);
 ```
 
 #### Test RLS Policies
 ```sql
 -- Simulate user session
-SELECT auth.jwt() -> 'apps';  -- Should show user's apps array
+SELECT auth.jwt() -> 'plans';  -- Should show user's plans array
 SELECT * FROM yours_brightly; -- Should only show user's data if they have access
 ```
 
@@ -307,20 +355,25 @@ SELECT * FROM yours_brightly; -- Should only show user's data if they have acces
 ### Common Issues
 
 #### User Can't Access Data
-1. **Check JWT Claims**: Verify `apps` array contains required app name
-2. **Check Terms Acceptance**: Ensure `terms_accepted_at` is not null
-3. **Check RLS Policies**: Verify policies are correctly checking JWT claims
+1. **Check JWT Claims**: Verify `plans` array contains required app subscription
+2. **Check Subscription Status**: Ensure subscription is active and not expired
+3. **Check RLS Policies**: Verify policies are correctly checking JWT subscription claims
 
-#### Terms Not Enforced
-1. **Check Function**: Ensure `get_user_apps()` filters by `terms_accepted_at IS NOT NULL`
-2. **Check Migration**: Verify new migration was applied with `supabase db push`
-3. **Check JWT Generation**: Ensure `exchangeToken` uses updated query with terms filter
+#### Subscription Not Working
+1. **Check Function**: Ensure `get_user_plans()` returns correct subscription data
+2. **Check Migration**: Verify subscription schema was applied with `supabase db push`
+3. **Check JWT Generation**: Ensure `exchangeToken` uses updated query with subscription data
+
+#### Free Tier Issues
+1. **Check Default Assignment**: Verify new users receive free tier automatically
+2. **Check Credits**: Ensure free tier users have initial credits assigned
+3. **Check Policies**: Verify RLS policies allow free tier access where appropriate
 
 #### Logging Points
 ```typescript
 // Client-side debugging
 console.log('🔐 JWT Payload:', tokenPayload);
-console.log('📋 Terms Status:', { needsAcceptance, currentVersion });
+console.log('� Subscription Plans:', tokenPayload.plans);
 console.log('✅ Session Active:', !!supabaseSession);
 ```
 
@@ -329,26 +382,36 @@ console.log('✅ Session Active:', !!supabaseSession);
 ## 📊 Monitoring & Analytics
 
 ### Key Metrics to Track
-- **Terms Acceptance Rate**: % of users who accept terms
-- **Version Update Impact**: Users affected by terms version changes  
+- **Subscription Conversion Rate**: % of users who upgrade from free tier
+- **Tier Distribution**: Usage across free, monthly_20, monthly_50, payg tiers
 - **JWT Refresh Success**: Token renewal success rate
 - **RLS Policy Violations**: Failed data access attempts
+- **Credit Usage**: Pay-as-you-go consumption patterns
 
 ### Database Queries for Insights
 ```sql
--- Users by terms acceptance status
+-- Users by subscription tier
 SELECT 
     app_name,
-    COUNT(*) FILTER (WHERE terms_accepted_at IS NOT NULL) as accepted,
-    COUNT(*) FILTER (WHERE terms_accepted_at IS NULL) as pending
-FROM user_app_permissions 
-GROUP BY app_name;
+    plan_tier,
+    COUNT(*) as user_count
+FROM user_app_subscriptions 
+WHERE plan_status = 'active'
+GROUP BY app_name, plan_tier;
 
--- Terms version distribution  
-SELECT terms_version, COUNT(*) 
-FROM user_app_permissions 
-WHERE app_name = 'yours-brightly'
-GROUP BY terms_version;
+-- Subscription revenue distribution  
+SELECT 
+    plan_tier, 
+    COUNT(*) as subscribers,
+    COUNT(*) * CASE 
+        WHEN plan_tier = 'monthly_20' THEN 20
+        WHEN plan_tier = 'monthly_50' THEN 50
+        ELSE 0
+    END as monthly_revenue
+FROM user_app_subscriptions 
+WHERE app_name = 'yours-brightly' 
+    AND plan_status = 'active'
+GROUP BY plan_tier;
 ```
 
 ---
@@ -363,16 +426,18 @@ GROUP BY terms_version;
 
 ### RLS Best Practices  
 - ✅ **Double-Check Ownership**: Always verify `auth.uid() = user_id`
-- ✅ **App Permission Check**: Always verify app access via JWT claims
-- ✅ **Terms Enforcement**: Only grant access with accepted terms
-- ✅ **Policy Testing**: Test policies with different user scenarios
+- ✅ **Subscription Validation**: Always verify subscription access via JWT claims
+- ✅ **Tier-Based Access**: Use helper functions for tier-specific feature gating
+- ✅ **Policy Testing**: Test policies with different subscription scenarios
+- ✅ **Credit Validation**: Verify sufficient credits for pay-as-you-go operations
 
-### Terms Compliance
-- ✅ **Version Tracking**: Full audit trail of terms acceptance
-- ✅ **Forced Re-acceptance**: Users must accept updated terms
-- ✅ **Access Revocation**: Automatic access removal without current terms
-- ✅ **Granular Control**: Per-app terms acceptance tracking
+### Subscription Compliance
+- ✅ **Billing Integration**: Full audit trail of subscription events
+- ✅ **Automatic Provisioning**: Free tier assigned to all users automatically
+- ✅ **Access Revocation**: Automatic access removal when subscriptions expire
+- ✅ **Granular Control**: Per-app, per-tier subscription tracking
+- ✅ **Credit Management**: Real-time credit tracking and validation
 
 ---
 
-This system provides enterprise-grade multi-tenant authentication with comprehensive terms management, ensuring both security and compliance while maintaining excellent user experience.
+This system provides enterprise-grade multi-tenant subscription management with comprehensive billing integration, ensuring both security and compliance while maintaining excellent user experience.

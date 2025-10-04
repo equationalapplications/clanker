@@ -8,12 +8,20 @@ export function useCharacterList(): LegacyCharacter[] {
   const [characters, setCharacters] = useState<Character[]>([])
 
   useEffect(() => {
+    console.log('🎣 useCharacterList - setting up subscription')
     const unsubscribe = subscribeToUserCharacters((newCharacters) => {
+      console.log('🎣 useCharacterList - received characters update:', newCharacters.length, newCharacters)
       setCharacters(newCharacters)
     })
 
-    return unsubscribe
+    return () => {
+      console.log('🎣 useCharacterList - cleaning up subscription')
+      unsubscribe()
+    }
   }, [])
 
-  return characters.map(toLegacyCharacter)
+  const legacyCharacters = characters.map(toLegacyCharacter)
+  console.log('🎣 useCharacterList - returning legacy characters:', legacyCharacters.length, legacyCharacters)
+
+  return legacyCharacters
 }

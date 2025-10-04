@@ -2,20 +2,17 @@ import { useEffect, useState } from "react"
 import { StyleSheet, View, Text } from "react-native"
 import { useRouter } from "expo-router"
 
-import { AcceptTerms } from "../src/components/AcceptTerms"
 import ProviderButton from "../src/components/AuthProviderButton"
 import Button from "../src/components/Button"
 import LoadingIndicator from "../src/components/LoadingIndicator"
 import Logo from "../src/components/Logo"
 import { MonoText, TitleText } from "../src/components/StyledText"
 import { useAuth } from "../src/hooks/useAuth"
-import { useAppAccess } from "../src/hooks/useAppAccess"
 import { initializeGoogleSignIn, signInWithGoogle } from "../src/services/googleSignInUnified"
 
 export default function SignIn() {
     const router = useRouter()
-    const { user, supabaseUser, isLoading, error, signOut } = useAuth()
-    const { hasAccess, hasAcceptedTerms, isLoading: appAccessLoading } = useAppAccess()
+    const { user, isLoading } = useAuth()
     const [googleSignInLoading, setGoogleSignInLoading] = useState(false)
 
     // Initialize Google Sign-In when component mounts
@@ -23,29 +20,11 @@ export default function SignIn() {
         initializeGoogleSignIn().catch(console.error)
     }, [])
 
-    // Navigate to private routes when both Firebase and Supabase authentication is complete AND user has app access
     useEffect(() => {
-        console.log('SignIn useEffect - Auth status:', {
-            user: !!user,
-            supabaseUser: !!supabaseUser,
-            hasAccess,
-            hasAcceptedTerms,
-            appAccessLoading
-        })
-
-        // Temporary bypass: navigate to private routes if both auth providers are working
-        // TODO: Re-enable app access checks once the permission system is working
-        if (user && supabaseUser) {
-            console.log('Both auth providers ready, navigating to private routes...')
-            // Navigate to the characters page directly
+        if (user) {
             router.replace("/characters")
         }
-
-        // Original condition (commented out for now):
-        // if (user && supabaseUser && hasAccess && hasAcceptedTerms) {
-        //   router.replace("/(private)")
-        // }
-    }, [user, supabaseUser, hasAccess, hasAcceptedTerms, router, appAccessLoading])
+    }, [user])
 
     const GoogleLoginOnPress = async () => {
         setGoogleSignInLoading(true)
@@ -72,27 +51,8 @@ export default function SignIn() {
         router.push("/terms")
     }
 
-    const handleTermsAccepted = () => {
-        // Terms accepted, user should now have access - the useEffect will handle navigation
-        console.log('Terms accepted, waiting for navigation...')
-    }
-
-    const handleTermsCanceled = async () => {
-        // User canceled terms acceptance, sign them out
-        try {
-            const { auth } = await import('../src/config/firebaseConfig')
-            const { supabaseClient } = await import('../src/config/supabaseClient')
-
-            await signOut()
-
-            console.log('User signed out after terms cancellation')
-        } catch (error) {
-            console.error('Error signing out after terms cancellation:', error)
-        }
-    }
-
     // Show loading if authentication is in progress
-    if (isLoading || appAccessLoading) {
+    if (isLoading) {
         return (
             <View style={styles.container}>
                 <LoadingIndicator />
@@ -103,16 +63,6 @@ export default function SignIn() {
         )
     }
 
-    // Show terms acceptance if user is authenticated but hasn't accepted terms
-    if (user && supabaseUser && !hasAcceptedTerms) {
-        return (
-            <AcceptTerms
-                onAccepted={handleTermsAccepted}
-                onCanceled={handleTermsCanceled}
-                termsVersion="1.0"
-            />
-        )
-    }
     return (
         <View style={styles.container}>
             {user && isLoading ? <LoadingIndicator /> : null}
@@ -122,12 +72,6 @@ export default function SignIn() {
                     <View style={styles.separator} />
                     <MonoText>Create Your Own Simulated Friend</MonoText>
                     <Logo />
-                    {error && (
-                        <View style={styles.errorContainer}>
-                            <Text style={styles.errorText}>Authentication Error:</Text>
-                            <Text style={styles.errorMessage}>{error}</Text>
-                        </View>
-                    )}
                     <ProviderButton
                         disabled={googleSignInLoading || isLoading}
                         loading={googleSignInLoading || isLoading}

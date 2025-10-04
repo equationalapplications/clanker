@@ -15,13 +15,13 @@ This index links to the project's documentation files in the `docs/` folder.
 
 ## Authentication & Authorization
 
-- **Supabase Authentication & RLS** — [SUPABASE_AUTH.md](./SUPABASE_AUTH.md)
-  - Architecture and SQL examples for the Firebase ↔ Supabase hybrid authentication flow and RLS policies.
+- **Supabase Subscription System & RLS** — [SUPABASE_AUTH.md](./SUPABASE_AUTH.md)
+  - Architecture and SQL examples for the Firebase ↔ Supabase hybrid authentication flow with subscription-based access control and RLS policies.
 
 ## Legal & Compliance
 
-- **Terms Integration** — [TERMS_INTEGRATION.md](./TERMS_INTEGRATION.md)
-  - Guide for centralizing Terms, versioning, modal gating, and integration with Supabase/RBAC.
+- **Subscription Integration** — [TERMS_INTEGRATION.md](./TERMS_INTEGRATION.md)
+  - Guide for subscription-based access control with automatic tier provisioning and feature gating.
 
 - **Privacy Integration** — [PRIVACY_INTEGRATION.md](./PRIVACY_INTEGRATION.md)
   - Simple guide for centralizing the privacy policy (no versioning or forced acceptance).
