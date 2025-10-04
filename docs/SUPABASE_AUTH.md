@@ -146,6 +146,8 @@ const refreshPayload = {
 };
 ```
 
+> Note: For a concise, end-to-end description of the new Firebase → Supabase auth flow (what the client does, what the cloud function does, env vars, and troubleshooting), see [AUTH_FLOW.md](./AUTH_FLOW.md).
+
 #### Free Tier Default
 ```typescript
 // Every user gets at least free tier access
