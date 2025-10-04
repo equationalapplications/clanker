@@ -12,23 +12,15 @@ class AuthenticationManager {
     }
 
     async authenticateSupabase(): Promise<boolean> {
-        if (this.authInProgress) {
-            console.log('🔄 Authentication already in progress, waiting...')
-            // Wait for current auth to complete
-            while (this.authInProgress) {
-                await new Promise(resolve => setTimeout(resolve, 100))
-            }
-            return this.authCompleted
-        }
-
         this.authInProgress = true
         console.log('🔐 SINGLETON: Starting Supabase authentication/re-authentication')
 
         try {
-            const { loginSupabase } = await import('../utilities/loginSupabase')
-            const authResponse = await loginSupabase()
+            const { loginToSupabaseAfterFirebase } = await import('../utilities/loginSupabase')
+            console.log('🔐 SINGLETON: Calling loginToSupabaseAfterFirebase...')
+            const data = await loginToSupabaseAfterFirebase()
 
-            if (authResponse?.data?.user) {
+            if (data?.session) {
                 console.log('✅ SINGLETON: Successfully authenticated with Supabase')
                 this.authCompleted = true
                 return true
@@ -38,7 +30,11 @@ class AuthenticationManager {
             this.authCompleted = false
             return false
         } catch (err: any) {
-            console.error('❌ SINGLETON: Supabase authentication failed:', err)
+            console.error('❌ SINGLETON: Error details:', {
+                message: err?.message,
+                stack: err?.stack,
+                name: err?.name
+            })
             this.authCompleted = false
             throw err
         } finally {

@@ -107,7 +107,7 @@ export const getUserPrivate = async (): Promise<UserPrivate | null> => {
 }
 
 /**
- * Accept terms for the app
+ * Accept terms for the app by creating a free subscription
  */
 export const acceptTerms = async (termsVersion: string = '1.0'): Promise<void> => {
     const { data: { user } } = await supabaseClient.auth.getUser()
@@ -116,11 +116,23 @@ export const acceptTerms = async (termsVersion: string = '1.0'): Promise<void> =
         throw new Error('No authenticated user')
     }
 
-    const { error } = await supabaseClient.rpc('grant_app_access', {
-        p_user_id: user.id,
-        p_app_name: 'yours-brightly',
-        p_terms_version: termsVersion,
-    })
+    // Create a free subscription when user accepts terms
+    const { error } = await supabaseClient
+        .from('user_app_subscriptions')
+        .upsert({
+            user_id: user.id,
+            app_name: 'yours-brightly',
+            plan_tier: 'free',
+            plan_status: 'active',
+            credits_remaining: 10, // Free tier gets 10 credits
+            plan_starts_at: new Date().toISOString(),
+            plan_renewal_at: null, // Free tier doesn't expire
+            terms_version: termsVersion,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }, {
+            onConflict: 'user_id,app_name'
+        })
 
     if (error) {
         console.error('Error accepting terms:', error)
@@ -129,7 +141,7 @@ export const acceptTerms = async (termsVersion: string = '1.0'): Promise<void> =
 }
 
 /**
- * Check if user has accepted current terms
+ * Check if user has accepted current terms via subscription
  */
 export const checkTermsAcceptance = async (currentVersion: string = '1.0'): Promise<boolean> => {
     const { data: { user } } = await supabaseClient.auth.getUser()
@@ -139,17 +151,19 @@ export const checkTermsAcceptance = async (currentVersion: string = '1.0'): Prom
     }
 
     const { data, error } = await supabaseClient
-        .from('user_app_permissions')
-        .select('terms_accepted_at, terms_version')
+        .from('user_app_subscriptions')
+        .select('terms_version, plan_status')
         .eq('user_id', user.id)
         .eq('app_name', 'yours-brightly')
+        .eq('plan_status', 'active')
         .single()
 
     if (error || !data) {
         return false
     }
 
-    return !!(data.terms_accepted_at && data.terms_version === currentVersion)
+    // User has accepted terms if they have an active subscription with terms version
+    return !!(data.terms_version === currentVersion && data.plan_status === 'active')
 }
 
 /**

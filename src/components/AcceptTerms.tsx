@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar"
-import React, { useState } from "react"
+import { useState } from "react"
 import { StyleSheet, View, Alert } from "react-native"
 import { Text, Checkbox } from "react-native-paper"
 
@@ -33,7 +33,7 @@ export function AcceptTerms({ onAccepted, onCanceled, termsVersion = '1.0' }: Ac
 
     try {
       console.log('Accepting terms and granting app access...')
-      const result = await grantAppAccess('yours-brightly', termsVersion)
+      const result = await grantAppAccess('yours-brightly')
 
       if (result.success) {
         console.log('Terms accepted successfully')

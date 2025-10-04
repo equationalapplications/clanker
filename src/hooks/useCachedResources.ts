@@ -1,4 +1,4 @@
-import { FontAwesome } from "@expo/vector-icons"
+import { FontAwesome, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons"
 import * as Font from "expo-font"
 import * as SplashScreen from "expo-splash-screen"
 import { useEffect, useState } from "react"
@@ -15,11 +15,15 @@ export default function useCachedResources() {
         // Load fonts
         await Font.loadAsync({
           ...FontAwesome.font,
+          ...MaterialCommunityIcons.font,
+          ...MaterialIcons.font,
           "space-mono": require("../../assets/fonts/SpaceMono-Regular.ttf"),
         })
+
+        console.log('✅ Fonts loaded successfully')
       } catch (e) {
         // We might want to provide this error information to an error reporting service
-        console.warn(e)
+        console.warn('❌ Error loading fonts:', e)
       } finally {
         setLoadingComplete(true)
         SplashScreen.hideAsync()

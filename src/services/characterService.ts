@@ -229,8 +229,48 @@ export const subscribeToUserCharacters = (
 ) => {
     let charactersSubscription: any = null
 
-    // Set up auth state listener
+    // Check if user is already authenticated and get initial data
+    const checkCurrentUser = async () => {
+        const { data: { user } } = await supabaseClient.auth.getUser()
+        if (user) {
+            console.log('📊 subscribeToUserCharacters - found existing user:', user.id)
+            // Get initial characters
+            const characters = await getUserCharacters()
+            console.log('📊 subscribeToUserCharacters - initial characters:', characters.length)
+            callback(characters)
+
+            // Set up real-time subscription for character changes
+            charactersSubscription = supabaseClient
+                .channel(`user-characters-changes-${user.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'characters',
+                        filter: `user_id=eq.${user.id}`,
+                    },
+                    async () => {
+                        // Refetch all characters when any change occurs
+                        console.log('📊 subscribeToUserCharacters - character change detected')
+                        const characters = await getUserCharacters()
+                        callback(characters)
+                    }
+                )
+                .subscribe()
+        } else {
+            console.log('📊 subscribeToUserCharacters - no user found')
+            callback([])
+        }
+    }
+
+    // Check immediately
+    checkCurrentUser()
+
+    // Set up auth state listener for future changes
     const authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        console.log('📊 subscribeToUserCharacters - auth state change:', event, !!session?.user)
+
         if (session?.user) {
             const userId = session.user.id
 

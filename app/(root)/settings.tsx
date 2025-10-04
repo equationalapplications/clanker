@@ -7,7 +7,7 @@ import CombinedSubscriptionButton from "../../src/components/CombinedSubscriptio
 import LoadingIndicator from "../../src/components/LoadingIndicator"
 
 export default function Settings() {
-    const { user, supabaseUser, signOut } = useAuth()
+    const { user, signOut } = useAuth()
     const [darkMode, setDarkMode] = React.useState(false)
     const [notifications, setNotifications] = React.useState(true)
     const [analytics, setAnalytics] = React.useState(false)
@@ -32,14 +32,6 @@ export default function Settings() {
                         title="Email"
                         description={user.email || "No email"}
                         left={(props) => <List.Icon {...props} icon="email" />}
-                    />
-                )}
-
-                {supabaseUser && (
-                    <List.Item
-                        title="User ID"
-                        description={supabaseUser.id.substring(0, 8) + "..."}
-                        left={(props) => <List.Icon {...props} icon="account" />}
                     />
                 )}
 

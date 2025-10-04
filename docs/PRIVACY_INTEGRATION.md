@@ -12,8 +12,7 @@ This document explains how privacy policy content is centralized and integrated 
   - Full-screen display of the privacy policy. It reads `getPrivacyForApp('yours-brightly')` and renders the text.
   - Does not perform version checks or force re-acceptance.
 
-- `app/components/AcceptTermsModal.tsx` (optional)
-  - If you show a privacy notice inside the modal you can link to the full privacy screen via a "View Privacy Policy" button.
+- Privacy notices can be shown in subscription management flows if needed.
 
 ## Integration Steps
 

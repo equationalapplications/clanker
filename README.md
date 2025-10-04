@@ -6,14 +6,6 @@ Copyright Equational Applications LLC
 
 - Developer Guide: [docs/](./docs)
 
-# Yours Brightly AI  
-
-Copyright Equational Applications LLC
-
-## Documentation
-
-- Developer Guide: [docs/](./docs)
-
 ## Supabase PostgreSQL Data Structure
 
 ### Table: yours_brightly
@@ -141,16 +133,21 @@ interface IMessageCompatible {
 }
 ```
 
-### Table: user_app_permissions
-Tracks user access to different applications and terms acceptance.
+### Table: user_app_subscriptions
+Subscription management for multi-tenant access control.
 ```sql
-CREATE TABLE public.user_app_permissions (
+CREATE TABLE public.user_app_subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     app_name TEXT NOT NULL,
-    granted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    terms_accepted_at TIMESTAMP WITH TIME ZONE,
-    terms_version TEXT,
+    plan_tier TEXT NOT NULL CHECK (plan_tier IN ('free', 'monthly_20', 'monthly_50', 'payg')),
+    plan_status TEXT NOT NULL DEFAULT 'active' CHECK (plan_status IN ('active', 'cancelled', 'expired')),
+    plan_start_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    plan_renewal_at TIMESTAMP WITH TIME ZONE,
+    credits_remaining INTEGER DEFAULT 0,
+    billing_provider TEXT,
+    billing_provider_id TEXT,
+    billing_metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, app_name)
@@ -158,28 +155,34 @@ CREATE TABLE public.user_app_permissions (
 ```
 
 ```ts
-interface UserAppPermission {
+interface UserAppSubscription {
   id: string;
-  user_id: string;
+  user_id: string; // References auth.users(id)
   app_name: string;
-  granted_at: string;
-  terms_accepted_at?: string;
-  terms_version?: string;
+  plan_tier: 'free' | 'monthly_20' | 'monthly_50' | 'payg';
+  plan_status: 'active' | 'cancelled' | 'expired';
+  plan_start_at: string;
+  plan_renewal_at?: string;
+  credits_remaining: number;
+  billing_provider?: string;
+  billing_provider_id?: string;
+  billing_metadata: Record<string, any>;
   created_at: string;
   updated_at: string;
 }
 ```
 
-## Migration from Firestore
+## Migration from Firestore to Subscription-Based System
 
-The application has been migrated from Firebase Firestore to Supabase PostgreSQL for better relational data management, real-time subscriptions, and Row Level Security (RLS) policies.
+The application has been migrated from Firebase Firestore to Supabase PostgreSQL with a modern subscription-based access control system for better relational data management, real-time subscriptions, and Row Level Security (RLS) policies.
 
 ### Key Migration Changes:
 - **Hierarchical collections** → **Relational tables with foreign keys**
 - **Document-based queries** → **SQL queries with joins**
 - **Firestore real-time listeners** → **Supabase real-time subscriptions**
-- **Firebase Auth rules** → **Supabase RLS policies**
+- **Firebase Auth rules** → **Supabase RLS policies with subscription tiers**
 - **Nested subcollections** → **Normalized tables with relationships**
+- **Terms acceptance gates** → **Automatic subscription-based access control**
 
 
 

@@ -1,174 +1,189 @@
-# Terms Acceptance Integration Guide
+# Subscription-Based Access Integration Guide
 
-This guide shows how to integrate the terms acceptance system with centralized terms configuration.
+This guide shows how the subscription system provides automatic access control without requiring explicit terms acceptance modals.
 
 ## Components Overview
 
-### 1. Terms Configuration (`app/config/termsConfig.ts`)
-Centralized configuration for all terms:
+### 1. Subscription Configuration (`app/config/subscriptionConfig.ts`)
+Centralized configuration for all subscription tiers:
 ```tsx
-export interface TermsConfig {
-  version: string;     // Version for tracking changes
-  summary: string;     // Short summary for modal
-  terms: string;       // Full terms text  
-  lastUpdated: string; // Date for reference
+export interface SubscriptionTier {
+  tier: 'free' | 'monthly_20' | 'monthly_50' | 'payg';
+  name: string;
+  price: number;
+  credits: number;
+  features: string[];
 }
 ```
 
-### 2. AcceptTermsModal
-Shows a summary of terms with:
-- Key points from `termsConfig.summary`
-- Version information from `termsConfig.version`
-- "View Full Terms" button for navigation to full terms
-- Accept/Decline actions with database integration
+### 2. Automatic Access (No Modal Required)
+The system now provides:
+- Immediate free tier access for all authenticated users
+- Automatic subscription provisioning via JWT claims
+- Seamless tier-based feature gating
+- No interruption for terms acceptance
 
-### 3. TermsGate
+### 3. SubscriptionGate (Replaces TermsGate)
 Wrapper component that:
-- Uses `CURRENT_TERMS.version` for version checking
-- Automatically shows modal when terms acceptance is needed
-- Handles navigation to full terms page via `onNavigateToTerms`
-- Manages terms acceptance state and JWT refresh
+- Checks user's subscription tier via JWT `plans` array
+- Controls access to premium features based on tier
+- Handles subscription upgrade prompts when needed
+- Manages subscription state via Supabase real-time
 
-### 4. Terms Screen
-Your Terms.tsx screen now:
-- Uses `getTermsForApp('yours-brightly')` to get current terms
-- Displays `termsConfig.terms` (full terms text)
-- Automatically stays in sync with configuration
+### 4. Subscription Management
+Your subscription system now:
+- Uses `get_user_plans()` to get current subscriptions
+- Displays tier-appropriate features and content
+- Handles billing integration via Stripe webhooks
+- Automatically stays in sync with payment status
 
-## Updating Terms
+## Subscription Tiers
 
-### Step 1: Update the configuration
-Edit `app/config/termsConfig.ts`:
-
+### Free Tier (Default)
+All users automatically receive:
 ```tsx
-export const YOURS_BRIGHTLY_TERMS: TermsConfig = {
-  version: '3.0', // ⭐ Increment this to force re-acceptance
-  lastUpdated: 'October 15, 2025',
-  
-  summary: `
-Updated key points:
-• New AI features and usage guidelines
-• Updated data handling policies
-• Revised subscription terms
-...
-`,
-  
-  terms: `
-Full updated terms text...
-`
-};
+{
+  app: "yours-brightly",
+  tier: "free",
+  renewal: null,  // Never expires
+  credits: 10     // Initial credits
+}
 ```
 
-### Step 2: That's it!
-- ✅ Modal automatically shows new summary
-- ✅ Version checking forces user re-acceptance  
-- ✅ Terms screen shows updated full terms
-- ✅ JWT refresh includes new permissions
-- ✅ All components stay in sync with configuration
+### Paid Tiers
+Upgraded via Stripe/billing integration:
+- `monthly_20`: $20/month tier with premium features
+- `monthly_50`: $50/month tier with all features
+- `payg`: Pay-as-you-go credit-based usage
+
+## Migration from Terms System
+
+### Legacy Components (No Longer Used)
+- ❌ AcceptTermsModal
+- ❌ TermsGate  
+- ❌ useAcceptTerms hook
+- ❌ Terms acceptance enforcement
+- ❌ Version checking and re-acceptance
+
+### New Subscription Flow
+- ✅ Automatic free tier access
+- ✅ JWT includes subscription data
+- ✅ RLS policies check subscription tier
+- ✅ Seamless upgrade prompts when needed
 
 ## Integration Steps
 
-### Step 1: Wrap your app with TermsGate
+### Step 1: Wrap premium features with SubscriptionGate
 
 ```tsx
-import { TermsGate } from '../components/TermsGate';
-import { useNavigation } from '@react-navigation/native';
+import { SubscriptionGate } from '../components/SubscriptionGate';
 
-function App() {
-  const navigation = useNavigation();
-
-  const handleNavigateToTerms = () => {
-    navigation.navigate('Terms'); // Navigate to Terms screen
-  };
-
+function PremiumFeature() {
   return (
-    <TermsGate
+    <SubscriptionGate
       appName="yours-brightly"
-      onNavigateToTerms={handleNavigateToTerms}
-      onTermsAccepted={() => console.log('Terms accepted!')}
+      requiredTier="monthly_20"
+      fallback={<UpgradePrompt />}
     >
-      <YourMainAppContent />
-    </TermsGate>
+      <PremiumFeatureContent />
+    </SubscriptionGate>
   );
 }
 ```
 
-### Step 2: Ensure Terms screen is in your navigator
+### Step 2: Check subscription status in components
 
 ```tsx
-// In your navigator setup
-import Terms from '../screens/Terms';
+import { useSubscription } from '../hooks/useSubscription';
 
-<Stack.Navigator>
-  <Stack.Screen 
-    name="Terms" 
-    component={Terms}
-    options={{ title: 'Terms of Service' }}
-  />
-  {/* other screens */}
-</Stack.Navigator>
+function MyComponent() {
+  const { plans, hasAccess, tier } = useSubscription('yours-brightly');
+  
+  return (
+    <View>
+      <Text>Current tier: {tier}</Text>
+      {hasAccess('monthly_20') && <PremiumButton />}
+      {tier === 'payg' && <CreditCounter />}
+    </View>
+  );
+}
 ```
 
 ## User Flow
 
-1. **User opens app** → TermsGate checks if `CURRENT_TERMS.version` accepted
-2. **Terms required** → AcceptTermsModal shows `termsConfig.summary`
-3. **User taps "View Full Terms"** → Navigates to Terms screen
-4. **Terms screen** → Shows `termsConfig.terms` (full text)
-5. **Terms accepted** → JWT refreshed with app permissions
+1. **User opens app** → Automatically receives free tier access via JWT
+2. **Feature access** → RLS policies check subscription tier in real-time
+3. **Premium features** → SubscriptionGate prompts for upgrade if needed
+4. **Billing integration** → Stripe webhooks update subscription status
+5. **Real-time updates** → JWT refreshed automatically with new tier data
 
-## Version Management
+## Subscription Management
 
-### Automatic Re-acceptance
-When you update `CURRENT_TERMS.version`:
-- All users must re-accept before gaining app access
-- `useAcceptTerms` hook detects version mismatch
-- Modal shows automatically with "Updated Terms" messaging
-- JWT claims only granted after acceptance of current version
+### Automatic Provisioning
+When you deploy with the new system:
+- All existing users automatically receive free tier access
+- No interruption to user experience
+- JWT tokens immediately include subscription data
+- RLS policies enforce tier-based access
 
 ### Development Workflow
-1. **Draft new terms** in your preferred editor
-2. **Update `termsConfig.ts`** with new version and content
-3. **Test locally** - version mismatch forces modal
-4. **Deploy** - all users see updated terms on next app launch
+1. **Add new premium feature** in your component
+2. **Wrap with SubscriptionGate** specifying required tier
+3. **Test locally** - free tier users see upgrade prompts
+4. **Deploy** - all users experience seamless tier-based access
 
 ## Configuration Structure
 
 ```tsx
-// Single source of truth for all terms
-export const YOURS_BRIGHTLY_TERMS: TermsConfig = {
-  version: '2.0',
-  lastUpdated: 'September 28, 2025',
-  summary: `Brief key points for modal...`,
-  terms: `Complete legal terms text...`
+// Subscription tier definitions
+export const SUBSCRIPTION_TIERS = {
+  free: {
+    tier: 'free',
+    name: 'Free',
+    price: 0,
+    credits: 10,
+    features: ['Basic AI chat', 'Character creation', 'Limited templates']
+  },
+  monthly_20: {
+    tier: 'monthly_20',
+    name: 'Pro',
+    price: 20,
+    credits: 0, // Unlimited
+    features: ['All free features', 'Premium templates', 'Priority support']
+  },
+  monthly_50: {
+    tier: 'monthly_50', 
+    name: 'Ultra',
+    price: 50,
+    credits: 0, // Unlimited
+    features: ['All Pro features', 'API access', 'White-label', 'Custom AI']
+  }
 };
 
-// Current active terms (easy to switch for testing)
-export const CURRENT_TERMS = YOURS_BRIGHTLY_TERMS;
-
-// Helper function for multiple apps (future-proofing)
-export function getTermsForApp(appName: string): TermsConfig | null {
-  switch (appName) {
-    case 'yours-brightly': return YOURS_BRIGHTLY_TERMS;
-    // case 'other-app': return OTHER_APP_TERMS;
-    default: return null;
-  }
+// JWT plans array structure
+interface PlanClaim {
+  app: string;
+  tier: 'free' | 'monthly_20' | 'monthly_50' | 'payg';
+  renewal: string | null;
+  credits: number;
 }
 ```
 
 ## Benefits
 
-- ✅ **Single Source of Truth**: All terms content in one file
-- ✅ **Version Control**: Easy tracking and forced re-acceptance
-- ✅ **Developer Experience**: Simple updates, automatic propagation
-- ✅ **User Experience**: Consistent terms display across app
-- ✅ **Legal Compliance**: Comprehensive tracking and enforcement
-- ✅ **Maintainability**: Centralized configuration, easy updates
+- ✅ **Immediate Access**: No barriers for new users
+- ✅ **Seamless Upgrades**: Natural progression through tiers
+- ✅ **Real-time Billing**: Instant subscription updates via webhooks
+- ✅ **Developer Experience**: Simple tier-based feature gating
+- ✅ **User Experience**: No interruptions or forced acceptance flows
+- ✅ **Maintainability**: Clean subscription-based architecture
+- ✅ **Scalability**: Easy to add new tiers and features
 
 ## Notes
 
-- The modal shows `summary`, the Terms screen shows `terms`
-- Version changes in `termsConfig.ts` force all users to re-accept
-- Terms acceptance is recorded in `user_app_permissions` table with version
-- JWT is automatically refreshed after acceptance
-- All components automatically stay in sync with configuration updates
+- Free tier is automatically assigned to all authenticated users
+- Subscription changes update JWT claims in real-time via webhooks
+- RLS policies enforce tier-based access at the database level
+- No user action required for basic app access
+- Premium features naturally prompt for upgrades when accessed
+- All subscription management handled through Stripe integration
