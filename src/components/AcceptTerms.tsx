@@ -4,14 +4,14 @@ import { StyleSheet, View, Alert } from "react-native"
 import { Text, Checkbox } from "react-native-paper"
 import { router } from "expo-router"
 
-import Button from "./Button"
-import LoadingIndicator from "./LoadingIndicator"
-import Logo from "./Logo"
-import { platform } from "../config/constants"
-import { supabaseClient } from "../config/supabaseClient"
-import { auth } from "../config/firebaseConfig"
-import { grantAppAccess } from "../utilities/appAccess"
-import { YOURS_BRIGHTLY_TERMS } from "../config/termsConfig"
+import Button from "~/components/Button"
+import LoadingIndicator from "~/components/LoadingIndicator"
+import Logo from "~/components/Logo"
+import { platform } from "~/config/constants"
+import { supabaseClient } from "~/config/supabaseClient"
+import { auth } from "~/config/firebaseConfig"
+import { grantAppAccess } from "~/utilities/appAccess"
+import { YOURS_BRIGHTLY_TERMS } from "~/config/termsConfig"
 
 interface AcceptTermsProps {
   onAccepted?: () => void

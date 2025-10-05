@@ -4,8 +4,8 @@ import React, { useState } from "react"
 import { Share } from "react-native"
 import { IconButton, Snackbar, Text } from "react-native-paper"
 
-import { appChatUrl, platform } from "../config/constants"
-import { useCharacter } from "../hooks/useCharacter"
+import { appChatUrl, platform } from "~/config/constants"
+import { useCharacter } from "~/hooks/useCharacter"
 
 type ShareCharacterButtonProps = {
   id: string

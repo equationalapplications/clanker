@@ -1,7 +1,7 @@
 // Web-specific Google Sign-In implementation
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth"
-import { auth } from "../config/firebaseConfig"
-import { googleWebClientId } from "../config/constants"
+import { auth } from "~/config/firebaseConfig"
+import { googleWebClientId } from "~/config/constants"
 
 declare global {
   interface Window {
@@ -44,11 +44,11 @@ const loadGoogleScript = (): Promise<void> => {
 
 export const configureGoogleSignInWeb = async () => {
   await loadGoogleScript()
-  
+
   if (window.google && window.google.accounts) {
     window.google.accounts.id.initialize({
       client_id: googleWebClientId,
-      callback: () => {}, // Will be set per sign-in attempt
+      callback: () => { }, // Will be set per sign-in attempt
     })
   }
 }
@@ -56,7 +56,7 @@ export const configureGoogleSignInWeb = async () => {
 export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
   try {
     await loadGoogleScript()
-    
+
     if (!window.google || !window.google.accounts) {
       return { success: false, error: "Google Sign-In not available" }
     }
@@ -69,10 +69,10 @@ export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
             if (response.credential) {
               // Create a Google credential with the token
               const googleCredential = GoogleAuthProvider.credential(response.credential)
-              
+
               // Sign-in the user with the credential
               await signInWithCredential(auth, googleCredential)
-              
+
               resolve({ success: true })
             } else {
               resolve({ success: false, error: "No credential received" })

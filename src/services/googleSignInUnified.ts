@@ -1,19 +1,19 @@
 import { Platform } from "react-native"
 
 // Import native implementation
-import { 
-  configureGoogleSignIn, 
+import {
+  configureGoogleSignIn,
   signInWithGoogle as signInWithGoogleNative,
   signOutFromGoogle as signOutFromGoogleNative,
   getCurrentGoogleUser as getCurrentGoogleUserNative,
-  type GoogleSignInResult 
-} from "./googleSignIn"
+  type GoogleSignInResult
+} from "~/services/googleSignIn"
 
 // Import web implementation
-import { 
-  configureGoogleSignInWeb, 
-  signInWithGoogleWeb 
-} from "./googleSignInWeb"
+import {
+  configureGoogleSignInWeb,
+  signInWithGoogleWeb
+} from "~/services/googleSignInWeb"
 
 export type { GoogleSignInResult }
 

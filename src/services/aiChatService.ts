@@ -1,5 +1,5 @@
-import { sendMessage } from './messageService'
-import { generateChatResponse, ChatContext } from './vertexAIService'
+import { sendMessage } from '~/services/messageService'
+import { generateChatResponse, ChatContext } from '~/services/vertexAIService'
 import { IMessage } from 'react-native-gifted-chat'
 
 export interface Character {

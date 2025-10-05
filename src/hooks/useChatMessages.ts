@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { IMessage } from 'react-native-gifted-chat'
-import { subscribeToMessages } from '../services/messageService'
+import { subscribeToMessages } from '~/services/messageService'
 
 interface UseChatMessagesArgs {
   id: string      // character ID

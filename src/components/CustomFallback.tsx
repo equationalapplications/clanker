@@ -1,8 +1,8 @@
 import { View, StyleSheet } from "react-native"
 import { Text, Button } from "react-native-paper"
 
-import { auth } from "../config/firebaseConfig"
-import { queryClient } from "../config/queryClient"
+import { auth } from "~/config/firebaseConfig"
+import { queryClient } from "~/config/queryClient"
 
 export const CustomFallback = (props: { error: Error; resetError: Function }) => {
   const onPressReset = () => {

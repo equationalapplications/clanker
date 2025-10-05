@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabaseClient } from '../config/supabaseClient';
-import { YOURS_BRIGHTLY_TERMS } from '../config/termsConfig';
+import { supabaseClient } from '~/config/supabaseClient';
+import { YOURS_BRIGHTLY_TERMS } from '~/config/termsConfig';
 
 interface SubscriptionStatus {
     needsTermsAcceptance: boolean;

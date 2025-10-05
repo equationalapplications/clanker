@@ -1,5 +1,5 @@
 import { getAI, getGenerativeModel, VertexAIBackend } from 'firebase/ai'
-import { app } from '../config/firebaseConfig'
+import { app } from '~/config/firebaseConfig'
 
 // Initialize AI with Vertex AI backend  
 const ai = getAI(app, {

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import { getIsPremium } from "../utilities/getIsPremium"
-import { useAuth } from "./useAuth"
+import { getIsPremium } from "~/utilities/getIsPremium"
+import { useAuth } from "~/hooks/useAuth"
 
 export const useIsPremium = (): boolean => {
   const { user } = useAuth()

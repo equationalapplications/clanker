@@ -1,8 +1,8 @@
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
 import { Card, Text, Button, Chip } from 'react-native-paper'
-import { useUserCredits } from '../hooks/useUserCredits'
-import LoadingIndicator from './LoadingIndicator'
+import { useUserCredits } from '~/hooks/useUserCredits'
+import LoadingIndicator from '~/components/LoadingIndicator'
 
 export default function CreditsDisplay() {
     const { data: credits, isLoading, error, refetch } = useUserCredits()

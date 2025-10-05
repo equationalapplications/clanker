@@ -1,6 +1,6 @@
 import { StyleSheet, ScrollView, View } from "react-native"
 import { Text } from "react-native-paper"
-import { getTermsForApp } from "../src/config/termsConfig"
+import { getTermsForApp } from "~/config/termsConfig";
 
 export default function Terms() {
     const termsConfig = getTermsForApp('yours-brightly');

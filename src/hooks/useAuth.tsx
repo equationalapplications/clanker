@@ -1,8 +1,8 @@
 import { createContext, useContext, ReactNode, useEffect, useState } from 'react'
 import { User } from 'firebase/auth'
-import { auth } from '../config/firebaseConfig'
-import { authManager } from '../utilities/authManager'
-import { supabaseClient } from '../config/supabaseClient'
+import { auth } from '~/config/firebaseConfig'
+import { authManager } from '~/utilities/authManager'
+import { supabaseClient } from '~/config/supabaseClient'
 
 interface AuthContextType {
     user: User | null
