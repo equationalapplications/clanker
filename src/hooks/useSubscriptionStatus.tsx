@@ -70,10 +70,14 @@ export function SubscriptionStatusProvider({ children }: { children: ReactNode }
 
     // Allow optimistic update - user clicked accept, let them through
     const markTermsAccepted = () => {
-        console.log('Optimistically marking terms as accepted');
+        console.log('[SubscriptionStatusContext] markTermsAccepted called');
+        console.log('[SubscriptionStatusContext] Setting localTermsAccepted = true');
         setLocalTermsAccepted(true);
+        console.log('[SubscriptionStatusContext] Setting needsTermsAcceptance = false');
         setNeedsTermsAcceptance(false);
+        console.log('[SubscriptionStatusContext] Setting isUpdate = false');
         setIsUpdate(false);
+        console.log('[SubscriptionStatusContext] State updates complete');
     };
 
     useEffect(() => {
