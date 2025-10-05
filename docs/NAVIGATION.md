@@ -11,10 +11,10 @@ This document describes the navigation structure of the Yours Brightly AI app, f
 - Protected routes (only accessible when logged in):
   - `(app)` - Main app with drawer/tabs
   - `subscribe` - Subscription modal
+  - `accept-terms` - Terms acceptance modal (requires auth to accept)
 - Public routes (only accessible when logged out):
   - `sign-in` - Sign in screen
 - Always available:
-  - `accept-terms` - Terms acceptance modal
   - `privacy` - Privacy policy
   - `terms` - Terms of service
   - `index` - Root redirect (tries to go to app, guard handles auth)
