@@ -9,8 +9,12 @@ export default function AppLayout() {
     const { needsTermsAcceptance, isUpdate, isLoading } = useSubscriptionStatus();
     const theme = useTheme();
 
+    console.log('[AppLayout] Render - isLoading:', isLoading, 'needsTermsAcceptance:', needsTermsAcceptance, 'isUpdate:', isUpdate);
+
     useEffect(() => {
+        console.log('[AppLayout] useEffect triggered - isLoading:', isLoading, 'needsTermsAcceptance:', needsTermsAcceptance);
         if (!isLoading && needsTermsAcceptance) {
+            console.log('[AppLayout] Redirecting to accept-terms');
             router.replace({
                 pathname: '/accept-terms',
                 params: { isUpdate: isUpdate.toString() }
@@ -19,6 +23,7 @@ export default function AppLayout() {
     }, [isLoading, needsTermsAcceptance, isUpdate]);
 
     if (isLoading) {
+        console.log('[AppLayout] Showing loading indicator');
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" />
@@ -27,9 +32,11 @@ export default function AppLayout() {
     }
 
     if (needsTermsAcceptance) {
+        console.log('[AppLayout] Rendering Redirect to accept-terms');
         return <Redirect href="/accept-terms" />;
     }
 
+    console.log('[AppLayout] Rendering Drawer navigation');
     return (
         <Drawer
             screenOptions={{
