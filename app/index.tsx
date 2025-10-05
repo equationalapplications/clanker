@@ -1,8 +1,14 @@
-import { View } from 'react-native';
+import { Redirect } from 'expo-router';
+import { useAuth } from '~/hooks/useAuth';
 
 export default function Index() {
-    // This is the root index. Stack.Protected in _layout.tsx will handle
-    // redirecting to either the authenticated (app) group or sign-in based on auth state.
-    // We render nothing here as the redirect happens automatically.
-    return <View />;
+    const { user } = useAuth();
+
+    // Explicitly redirect based on auth state
+    // This works with Stack.Protected to ensure proper routing
+    if (user) {
+        return <Redirect href="/(app)/(tabs)/chats" />;
+    }
+
+    return <Redirect href="/sign-in" />;
 }
