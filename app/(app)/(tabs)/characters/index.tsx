@@ -18,7 +18,7 @@ export default function Characters() {
     const [loading, setLoading] = useState(false);
 
     const onPressEditCharacter = ({ id }: { id: string }) => {
-        router.push(`/characters/edit/${id}` as any);
+        router.push(`/characters/${id}`);
     };
 
     const CharacterButton = ({ id, name }: CharacterButtonProps) => (
@@ -31,7 +31,7 @@ export default function Characters() {
         setLoading(true);
         const newCharacterId = await createNewCharacter();
         setLoading(false);
-        router.push(`/characters/edit/${newCharacterId}` as any);
+        router.push(`/characters/${newCharacterId}`);
     };
 
     return (
