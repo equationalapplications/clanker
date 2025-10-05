@@ -2,20 +2,22 @@ import { StatusBar } from "expo-status-bar"
 import { useState } from "react"
 import { StyleSheet, View, Alert } from "react-native"
 import { Text, Checkbox } from "react-native-paper"
+import { router } from "expo-router"
 
 import Button from "./Button"
 import LoadingIndicator from "./LoadingIndicator"
 import Logo from "./Logo"
 import { platform } from "../config/constants"
 import { grantAppAccess } from "../utilities/appAccess"
+import { YOURS_BRIGHTLY_TERMS } from "../config/termsConfig"
 
 interface AcceptTermsProps {
   onAccepted?: () => void
   onCanceled?: () => void
-  termsVersion?: string
+  isUpdate?: boolean
 }
 
-export function AcceptTerms({ onAccepted, onCanceled, termsVersion = '1.0' }: AcceptTermsProps) {
+export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: AcceptTermsProps) {
   const [checked, setChecked] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -33,13 +35,17 @@ export function AcceptTerms({ onAccepted, onCanceled, termsVersion = '1.0' }: Ac
 
     try {
       console.log('Accepting terms and granting app access...')
-      const result = await grantAppAccess('yours-brightly', termsVersion)
+      const result = await grantAppAccess('yours-brightly', YOURS_BRIGHTLY_TERMS.version)
 
       if (result.success) {
         console.log('Terms accepted successfully')
+        const message = isUpdate
+          ? 'Terms updated successfully. You can continue using the app.'
+          : 'Terms accepted successfully. You now have access to Yours Brightly AI with 50 free credits.'
+
         Alert.alert(
-          'Welcome!',
-          'Terms accepted successfully. You now have access to Yours Brightly AI with 50 free credits.',
+          isUpdate ? 'Terms Updated!' : 'Welcome!',
+          message,
           [{ text: 'Continue', onPress: onAccepted }]
         )
       } else {
@@ -57,24 +63,26 @@ export function AcceptTerms({ onAccepted, onCanceled, termsVersion = '1.0' }: Ac
   }
 
   const onPressCancel = () => {
+    const message = isUpdate
+      ? 'If you don\'t accept the updated terms, you won\'t be able to use the app.'
+      : 'Are you sure you want to cancel? You will need to sign out.'
+
     Alert.alert(
-      'Cancel Registration',
-      'Are you sure you want to cancel? You will need to sign out.',
+      isUpdate ? 'Terms Required' : 'Cancel Registration',
+      message,
       [
-        { text: 'Continue Registration', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: onCanceled }
+        { text: isUpdate ? 'Review Again' : 'Continue Registration', style: 'cancel' },
+        { text: isUpdate ? 'Sign Out' : 'Sign Out', style: 'destructive', onPress: onCanceled }
       ]
     )
   }
 
   const onPressTerms = () => {
-    // TODO: Navigate to terms page when implemented
-    Alert.alert('Terms', 'Terms and Conditions page will be implemented soon.')
+    router.push('/terms')
   }
 
   const onPressPrivacy = () => {
-    // TODO: Navigate to privacy page when implemented  
-    Alert.alert('Privacy', 'Privacy Policy page will be implemented soon.')
+    router.push('/privacy')
   }
 
   return (
@@ -84,8 +92,24 @@ export function AcceptTerms({ onAccepted, onCanceled, termsVersion = '1.0' }: Ac
       ) : (
         <>
           <Logo />
-          <Button onPress={onPressTerms}>Terms of Service</Button>
-          <Button onPress={onPressPrivacy}>Privacy Policy</Button>
+
+          <Text style={styles.title}>
+            {isUpdate ? `Terms Updated (v${YOURS_BRIGHTLY_TERMS.version})` : 'Welcome to Yours Brightly AI'}
+          </Text>
+
+          <View style={styles.separator} />
+
+          <Text style={styles.summaryText}>
+            {YOURS_BRIGHTLY_TERMS.summary}
+          </Text>
+
+          <View style={styles.buttonRow}>
+            <Button mode="outlined" onPress={onPressTerms}>View Full Terms</Button>
+            <Button mode="outlined" onPress={onPressPrivacy}>Privacy Policy</Button>
+          </View>
+
+          <View style={styles.separator} />
+
           <View style={styles.row}>
             <Checkbox status={checked ? "checked" : "unchecked"} onPress={onPressChecked} />
             <Text style={styles.text}>
@@ -95,10 +119,10 @@ export function AcceptTerms({ onAccepted, onCanceled, termsVersion = '1.0' }: Ac
           </View>
           <View style={styles.separatorSmall} />
           <Button mode="contained" disabled={!checked} onPress={onPressAccept}>
-            I accept
+            {isUpdate ? 'Accept Updated Terms' : 'I Accept'}
           </Button>
-          <Button mode="contained" onPress={onPressCancel}>
-            Cancel
+          <Button mode="outlined" onPress={onPressCancel}>
+            {isUpdate ? 'Cancel' : 'Sign Out'}
           </Button>
         </>
       )}
@@ -121,16 +145,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginVertical: 10,
+  },
   title: {
     fontSize: 20,
     fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 10,
   },
   text: {
     fontSize: 16,
     fontWeight: "normal",
+    flex: 1,
+    marginLeft: 8,
+  },
+  summaryText: {
+    fontSize: 14,
+    textAlign: "center",
+    marginHorizontal: 20,
+    lineHeight: 20,
   },
   separator: {
-    marginVertical: 30,
+    marginVertical: 20,
     height: 1,
     width: "80%",
   },

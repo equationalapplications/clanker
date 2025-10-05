@@ -47,6 +47,9 @@ function StackNavigator() {
                 <Stack.Screen name="sign-in" options={{ headerShown: false }} />
             </Stack.Protected>
 
+            {/* Modal routes - always available */}
+            <Stack.Screen name="accept-terms" options={{ presentation: "modal", headerShown: false }} />
+
             {/* Info pages - always available */}
             <Stack.Screen name="privacy" options={{ headerShown: false }} />
             <Stack.Screen name="terms" options={{ headerShown: false }} />
