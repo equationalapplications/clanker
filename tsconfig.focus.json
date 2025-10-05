@@ -1,10 +1,8 @@
 {
     "extends": "./tsconfig.json",
     "include": [
-        "app/components/AcceptTermsModal.tsx",
         "app/config/termsConfig.ts",
         "app/config/privacyConfig.ts",
-        "app/hooks/useAcceptTerms.ts",
         "app/navigation/RootNavigator.tsx",
         "app/navigation/types.tsx",
         "app/screens/Privacy.tsx",
