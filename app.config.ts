@@ -73,7 +73,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         webClientId: process.env.GOOGLE_WEB_CLIENT_ID,
         iosUrlScheme: "com.googleusercontent.apps.790870307455-5bsmcehb8mqdsl6vb3mal1nnq2jkk730",
       }
-    ]
+    ],
   ],
   extra: {
     eas: {
