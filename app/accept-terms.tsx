@@ -1,10 +1,35 @@
 import { StyleSheet, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { AcceptTerms } from '~/components/AcceptTerms';
+import { useSubscriptionStatus } from '~/hooks/useSubscriptionStatus';
 
 export default function AcceptTermsScreen() {
+    const params = useLocalSearchParams();
+    const { markTermsAccepted } = useSubscriptionStatus();
+    const isUpdate = params.isUpdate === 'true';
+
+    const handleAccepted = () => {
+        // Optimistically mark terms as accepted in local state
+        // This allows instant navigation without waiting for JWT refresh
+        console.log('Terms accepted, marking locally and navigating...');
+        markTermsAccepted();
+
+        // Navigate back - the app will now see terms as accepted
+        router.replace('/');
+    };
+
+    const handleCanceled = () => {
+        // User canceled/signed out, go back to sign-in
+        router.replace('/sign-in');
+    };
+
     return (
         <View style={styles.container}>
-            <AcceptTerms />
+            <AcceptTerms
+                onAccepted={handleAccepted}
+                onCanceled={handleCanceled}
+                isUpdate={isUpdate}
+            />
         </View>
     );
 }

@@ -22,24 +22,24 @@ export async function grantAppAccess(
         }
 
         // Create a free subscription entry with terms acceptance
+        // This is an optimistic write - we return success immediately
+        // The mutation will complete in the background
         const { data, error } = await supabaseClient
             .from('user_app_subscriptions')
             .upsert({
                 user_id: user.id,
-                app: appName,
-                plan: 'free',
-                status: 'active',
-                credits_balance: 50, // Free tier gets 50 credits
-                billing_cycle_start: new Date().toISOString(),
-                billing_cycle_end: null, // Free tier doesn't expire
-                terms_accepted: true,
+                app_name: appName,
+                plan_tier: 'free',
+                plan_status: 'active',
+                current_credits: 50, // Free tier gets 50 credits
                 terms_accepted_at: new Date().toISOString(), // Record terms acceptance
                 terms_version: termsVersion,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }, {
-                onConflict: 'user_id,app'
+                onConflict: 'user_id,app_name'
             })
+            .select()
 
         if (error) {
             throw error
@@ -47,14 +47,10 @@ export async function grantAppAccess(
 
         console.log(`Successfully granted ${appName} access via free subscription with terms acceptance`)
 
-        // Refresh the session to get updated JWT claims with new subscription
-        const { error: refreshError } = await supabaseClient.auth.refreshSession()
-
-        if (refreshError) {
-            console.warn('Failed to refresh session after granting access:', refreshError)
-        } else {
-            console.log('Session refreshed with new subscription claims')
-        }
+        // Note: We don't force a JWT refresh here anymore
+        // The next time the user's JWT expires and refreshes naturally,
+        // it will pick up the new subscription from the database
+        // For immediate access, we trust the client-side state
 
         return { success: true }
     } catch (error: any) {

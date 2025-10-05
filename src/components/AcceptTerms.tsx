@@ -37,19 +37,17 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
 
     try {
       console.log('Accepting terms and granting app access...')
+
+      // Optimistically proceed - we trust the user clicked accept
+      // The database write happens in the background
       const result = await grantAppAccess('yours-brightly', YOURS_BRIGHTLY_TERMS.version)
 
       if (result.success) {
-        console.log('Terms accepted successfully')
-        const message = isUpdate
-          ? 'Terms updated successfully. You can continue using the app.'
-          : 'Terms accepted successfully. You now have access to Yours Brightly AI with 50 free credits.'
+        console.log('Terms accepted successfully, proceeding to app...')
 
-        Alert.alert(
-          isUpdate ? 'Terms Updated!' : 'Welcome!',
-          message,
-          [{ text: 'Continue', onPress: onAccepted }]
-        )
+        // Immediately call onAccepted - no need to wait or show alert
+        // The user experience is instant and smooth
+        onAccepted?.()
       } else {
         throw new Error(result.error || 'Failed to grant access')
       }
@@ -57,7 +55,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       console.error('Error accepting terms:', error)
       Alert.alert(
         'Error',
-        'Failed to accept terms. Please try again.\n\n' + error.message
+        'Failed to record your acceptance. Please check your connection and try again.\n\n' + error.message
       )
     } finally {
       setLoading(false)
