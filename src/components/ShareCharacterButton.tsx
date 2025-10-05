@@ -7,7 +7,13 @@ import { IconButton, Snackbar, Text } from "react-native-paper"
 import { appChatUrl, platform } from "../config/constants"
 import { useCharacter } from "../hooks/useCharacter"
 
-export const ShareCharacterButton = ({ id, userId, disabled }) => {
+type ShareCharacterButtonProps = {
+  id: string
+  userId: string
+  disabled: boolean
+}
+
+export const ShareCharacterButton = ({ id, userId, disabled }: ShareCharacterButtonProps) => {
   const character = useCharacter({ id, userId })
   const [visible, setVisible] = useState(false)
 

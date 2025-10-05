@@ -1,29 +1,18 @@
-import { useRouter, useLocalSearchParams } from 'expo-router'
-import { AcceptTerms } from '../src/components/AcceptTerms'
-import { authManager } from '../src/utilities/authManager'
+import { StyleSheet, View } from 'react-native';
+import { AcceptTerms } from '~/components/AcceptTerms';
 
-export default function AcceptTermsModal() {
-    const router = useRouter()
-    const { isUpdate } = useLocalSearchParams()
-
-    const handleAccepted = async () => {
-        console.log('✅ Terms accepted, forcing re-authentication...')
-        // Force re-authentication to get the updated JWT with new subscription
-        await authManager.forceReAuthenticate()
-        router.replace('/')
-    }
-
-    const handleCanceled = async () => {
-        console.log('🚫 Terms declined, signing out...')
-        // The AcceptTerms component handles signing out the user
-        router.replace('/sign-in')
-    }
-
+export default function AcceptTermsScreen() {
     return (
-        <AcceptTerms
-            onAccepted={handleAccepted}
-            onCanceled={handleCanceled}
-            isUpdate={isUpdate === 'true'}
-        />
-    )
+        <View style={styles.container}>
+            <AcceptTerms />
+        </View>
+    );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+});
