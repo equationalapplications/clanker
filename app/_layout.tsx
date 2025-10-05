@@ -9,6 +9,7 @@ import { Stack } from 'expo-router';
 
 import { ThemeProvider } from "~/components/ThemeProvider";
 import { AuthProvider, useAuth } from "~/hooks/useAuth";
+import { SubscriptionStatusProvider } from "~/hooks/useSubscriptionStatus";
 import { queryClient } from "~/config/queryClient";
 import { appNavigationDarkTheme, appNavigationLightTheme } from "~/config/theme";
 import LoadingIndicator from "~/components/LoadingIndicator";
@@ -36,15 +37,13 @@ function RootLayoutNav() {
             <Stack.Protected guard={isLoggedIn}>
                 <Stack.Screen name="(app)" options={{ headerShown: false }} />
                 <Stack.Screen name="subscribe" options={{ presentation: "modal" }} />
+                <Stack.Screen name="accept-terms" options={{ presentation: "modal", headerShown: false }} />
             </Stack.Protected>
 
             {/* Public routes - only available when NOT logged in */}
             <Stack.Protected guard={!isLoggedIn}>
                 <Stack.Screen name="sign-in" options={{ headerShown: false }} />
             </Stack.Protected>
-
-            {/* Modal routes - always available */}
-            <Stack.Screen name="accept-terms" options={{ presentation: "modal", headerShown: false }} />
 
             {/* Info pages - always available */}
             <Stack.Screen name="privacy" options={{ headerShown: false }} />
@@ -70,12 +69,14 @@ export default function RootLayout() {
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
             <QueryClientProvider client={queryClient}>
                 <AuthProvider>
-                    <ThemeProvider>
-                        <NavigationThemeProvider value={navTheme}>
-                            <RootLayoutNav />
-                        </NavigationThemeProvider>
-                        <StatusBar />
-                    </ThemeProvider>
+                    <SubscriptionStatusProvider>
+                        <ThemeProvider>
+                            <NavigationThemeProvider value={navTheme}>
+                                <RootLayoutNav />
+                            </NavigationThemeProvider>
+                            <StatusBar />
+                        </ThemeProvider>
+                    </SubscriptionStatusProvider>
                 </AuthProvider>
             </QueryClientProvider>
         </SafeAreaProvider>

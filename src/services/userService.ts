@@ -149,18 +149,18 @@ export const acceptTerms = async (termsVersion: string = '1.0'): Promise<void> =
         .from('user_app_subscriptions')
         .upsert({
             user_id: user.id,
-            app: 'yours-brightly',
-            plan: 'free',
-            status: 'active',
-            credits_balance: 50, // Free tier gets 50 credits
-            terms_accepted: true,
+            app_name: 'yours-brightly',
+            plan_tier: 'free',
+            plan_status: 'active',
+            current_credits: 50, // Free tier gets 50 credits
             terms_accepted_at: new Date().toISOString(),
             terms_version: termsVersion,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         }, {
-            onConflict: 'user_id,app'
+            onConflict: 'user_id,app_name'
         })
+        .select()
 
     if (error) {
         console.error('Error accepting terms:', error)

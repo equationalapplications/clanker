@@ -127,11 +127,10 @@ export interface Database {
                 Row: {
                     id: string
                     user_id: string
-                    app: string
-                    plan: string
-                    status: string
-                    credits_balance: number
-                    terms_accepted: boolean
+                    app_name: string
+                    plan_tier: string
+                    plan_status: string
+                    current_credits: number
                     terms_version: string | null
                     terms_accepted_at: string | null
                     stripe_subscription_id: string | null
@@ -144,11 +143,10 @@ export interface Database {
                 Insert: {
                     id?: string
                     user_id: string
-                    app: string
-                    plan?: string
-                    status?: string
-                    credits_balance?: number
-                    terms_accepted?: boolean
+                    app_name: string
+                    plan_tier?: string
+                    plan_status?: string
+                    current_credits?: number
                     terms_version?: string | null
                     terms_accepted_at?: string | null
                     stripe_subscription_id?: string | null
@@ -161,11 +159,10 @@ export interface Database {
                 Update: {
                     id?: string
                     user_id?: string
-                    app?: string
-                    plan?: string
-                    status?: string
-                    credits_balance?: number
-                    terms_accepted?: boolean
+                    app_name?: string
+                    plan_tier?: string
+                    plan_status?: string
+                    current_credits?: number
                     terms_version?: string | null
                     terms_accepted_at?: string | null
                     stripe_subscription_id?: string | null

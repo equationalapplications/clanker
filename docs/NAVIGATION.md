@@ -26,7 +26,16 @@ This document describes the navigation structure of the Yours Brightly AI app, f
 
 - Uses `useSubscriptionStatus()` to check if user needs to accept terms
 - If terms not accepted, redirects to `/accept-terms` modal
+- **Uses optimistic UI**: When user accepts terms, they proceed immediately without waiting for JWT refresh
+- Database write happens asynchronously in the background
+- Next natural JWT refresh will include the updated subscription claims
 - This ensures terms are only checked for authenticated users inside protected routes
+
+**Why Optimistic?** Terms acceptance is a legal checkbox, not a security boundary. We trust the client-side click and verify server-side when needed (RLS policies, API calls). This provides:
+- ✅ Instant navigation (better UX)
+- ✅ Offline support (sync later)
+- ✅ Industry-standard pattern
+- ✅ Server-side enforcement where it matters
 
 ### 📱 Main App Structure
 
