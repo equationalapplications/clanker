@@ -8,56 +8,46 @@ export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
 export interface Database {
     public: {
         Tables: {
-            yours_brightly: {
+            // User profiles (standard Supabase profiles table)
+            profiles: {
                 Row: {
-                    id: string
                     user_id: string
                     display_name: string | null
-                    email: string | null
                     avatar_url: string | null
-                    is_profile_public: boolean
-                    credits: number
+                    email: string | null
+                    is_profile_public: boolean | null
                     default_character_id: string | null
-                    preferences: Record<string, any>
-                    profile_data: Record<string, any>
                     created_at: string
                     updated_at: string
                 }
                 Insert: {
-                    id?: string
                     user_id: string
                     display_name?: string | null
-                    email?: string | null
                     avatar_url?: string | null
-                    is_profile_public?: boolean
-                    credits?: number
+                    email?: string | null
+                    is_profile_public?: boolean | null
                     default_character_id?: string | null
-                    preferences?: Record<string, any>
-                    profile_data?: Record<string, any>
                     created_at?: string
                     updated_at?: string
                 }
                 Update: {
-                    id?: string
                     user_id?: string
                     display_name?: string | null
-                    email?: string | null
                     avatar_url?: string | null
-                    is_profile_public?: boolean
-                    credits?: number
+                    email?: string | null
+                    is_profile_public?: boolean | null
                     default_character_id?: string | null
-                    preferences?: Record<string, any>
-                    profile_data?: Record<string, any>
                     created_at?: string
                     updated_at?: string
                 }
             }
-            characters: {
+            // Multi-tenant character storage for Yours Brightly AI
+            yours_brightly_characters: {
                 Row: {
                     id: string
                     user_id: string
                     name: string
-                    avatar_url: string | null
+                    avatar: string | null
                     appearance: string | null
                     traits: string | null
                     emotions: string | null
@@ -68,9 +58,9 @@ export interface Database {
                 }
                 Insert: {
                     id?: string
-                    user_id: string
+                    user_id?: string // defaults to auth.uid()
                     name: string
-                    avatar_url?: string | null
+                    avatar?: string | null
                     appearance?: string | null
                     traits?: string | null
                     emotions?: string | null
@@ -83,7 +73,7 @@ export interface Database {
                     id?: string
                     user_id?: string
                     name?: string
-                    avatar_url?: string | null
+                    avatar?: string | null
                     appearance?: string | null
                     traits?: string | null
                     emotions?: string | null
@@ -93,7 +83,8 @@ export interface Database {
                     updated_at?: string
                 }
             }
-            messages: {
+            // Messages for character conversations
+            yours_brightly_messages: {
                 Row: {
                     id: string
                     character_id: string
@@ -103,19 +94,19 @@ export interface Database {
                     text: string
                     created_at: string
                     sender_name: string | null
-                    sender_avatar_url: string | null
+                    sender_avatar: string | null
                     message_data: Record<string, any>
                 }
                 Insert: {
                     id?: string
                     character_id: string
-                    sender_user_id: string
+                    sender_user_id?: string // defaults to auth.uid()
                     recipient_user_id: string
                     message_id: string
                     text: string
                     created_at?: string
                     sender_name?: string | null
-                    sender_avatar_url?: string | null
+                    sender_avatar?: string | null
                     message_data?: Record<string, any>
                 }
                 Update: {
@@ -127,45 +118,68 @@ export interface Database {
                     text?: string
                     created_at?: string
                     sender_name?: string | null
-                    sender_avatar_url?: string | null
+                    sender_avatar?: string | null
                     message_data?: Record<string, any>
                 }
             }
-            user_app_permissions: {
+            // User app subscriptions (multi-tenant subscription management)
+            user_app_subscriptions: {
                 Row: {
                     id: string
                     user_id: string
-                    app_name: string
-                    granted_at: string
-                    terms_accepted_at: string | null
+                    app: string
+                    plan: string
+                    status: string
+                    credits_balance: number
+                    terms_accepted: boolean
                     terms_version: string | null
+                    terms_accepted_at: string | null
+                    stripe_subscription_id: string | null
+                    stripe_customer_id: string | null
+                    billing_cycle_start: string | null
+                    billing_cycle_end: string | null
                     created_at: string
                     updated_at: string
                 }
                 Insert: {
                     id?: string
                     user_id: string
-                    app_name: string
-                    granted_at?: string
-                    terms_accepted_at?: string | null
+                    app: string
+                    plan?: string
+                    status?: string
+                    credits_balance?: number
+                    terms_accepted?: boolean
                     terms_version?: string | null
+                    terms_accepted_at?: string | null
+                    stripe_subscription_id?: string | null
+                    stripe_customer_id?: string | null
+                    billing_cycle_start?: string | null
+                    billing_cycle_end?: string | null
                     created_at?: string
                     updated_at?: string
                 }
                 Update: {
                     id?: string
                     user_id?: string
-                    app_name?: string
-                    granted_at?: string
-                    terms_accepted_at?: string | null
+                    app?: string
+                    plan?: string
+                    status?: string
+                    credits_balance?: number
+                    terms_accepted?: boolean
                     terms_version?: string | null
+                    terms_accepted_at?: string | null
+                    stripe_subscription_id?: string | null
+                    stripe_customer_id?: string | null
+                    billing_cycle_start?: string | null
+                    billing_cycle_end?: string | null
                     created_at?: string
                     updated_at?: string
                 }
             }
         }
         Views: {
-            messages_gifted_chat: {
+            // react-native-gifted-chat compatible view
+            yours_brightly_messages_gifted_chat: {
                 Row: {
                     id: string
                     character_id: string
@@ -184,32 +198,26 @@ export interface Database {
             }
         }
         Functions: {
-            insert_message: {
+            // Check if user has access to an app
+            user_has_app_access: {
                 Args: {
-                    p_character_id: string
-                    p_recipient_user_id: string
-                    p_message_id: string
-                    p_text: string
-                    p_message_data?: Record<string, any>
-                }
-                Returns: string
-            }
-            grant_app_access: {
-                Args: {
-                    p_user_id: string
-                    p_app_name: string
-                    p_terms_version?: string
+                    app_name: string
                 }
                 Returns: boolean
             }
-            get_user_display_info: {
+            // Get character count for a user
+            get_user_character_count: {
                 Args: {
-                    p_user_id: string
+                    p_user_id?: string
                 }
-                Returns: Array<{
-                    display_name: string
-                    avatar_url: string | null
-                }>
+                Returns: number
+            }
+            // Get message count for a character
+            get_character_message_count: {
+                Args: {
+                    p_character_id: string
+                }
+                Returns: number
             }
         }
     }

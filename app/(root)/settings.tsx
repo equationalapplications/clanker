@@ -18,8 +18,7 @@ export default function Settings() {
     }
 
     const onPressProfile = () => {
-        // Navigate to profile screen when we create it
-        // router.push("/profile")
+        router.push("./profile")
     }
 
     return (

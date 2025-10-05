@@ -1,10 +1,11 @@
 import { supabaseClient, Database } from '../config/supabaseClient'
 import { IMessage } from 'react-native-gifted-chat'
+import type { YoursbrightlyMessage } from '../types/yoursbrightly'
 
 // Types for message data
-export type Message = Database['public']['Tables']['messages']['Row']
-export type MessageInsert = Database['public']['Tables']['messages']['Insert']
-export type GiftedChatMessage = Database['public']['Views']['messages_gifted_chat']['Row']
+export type Message = YoursbrightlyMessage
+export type MessageInsert = Database['public']['Tables']['yours_brightly_messages']['Insert']
+export type GiftedChatMessage = Database['public']['Views']['yours_brightly_messages_gifted_chat']['Row']
 
 /**
  * Get messages for a specific character conversation
@@ -20,7 +21,7 @@ export const getMessages = async (
     }
 
     const { data, error } = await supabaseClient
-        .from('messages_gifted_chat')
+        .from('yours_brightly_messages_gifted_chat')
         .select('*')
         .eq('character_id', characterId)
         .or(`and(sender_user_id.eq.${user.id},recipient_user_id.eq.${recipientUserId}),and(sender_user_id.eq.${recipientUserId},recipient_user_id.eq.${user.id})`)
@@ -87,7 +88,7 @@ export const deleteMessage = async (messageId: string): Promise<void> => {
     }
 
     const { error } = await supabaseClient
-        .from('messages')
+        .from('yours_brightly_messages')
         .delete()
         .eq('message_id', messageId)
         .eq('sender_user_id', user.id) // Only allow deleting own messages
@@ -112,7 +113,7 @@ export const updateMessage = async (
     }
 
     const { error } = await supabaseClient
-        .from('messages')
+        .from('yours_brightly_messages')
         .update(updates)
         .eq('message_id', messageId)
         .eq('sender_user_id', user.id) // Only allow updating own messages
@@ -177,7 +178,7 @@ export const subscribeToMessages = (
             {
                 event: '*',
                 schema: 'public',
-                table: 'messages',
+                table: 'yours_brightly_messages',
                 filter: `character_id=eq.${characterId}`,
             },
             async (payload) => {

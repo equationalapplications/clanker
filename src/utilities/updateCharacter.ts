@@ -19,7 +19,7 @@ export default async function updateCharacter({
     // Map legacy field names to Supabase schema
     const supabaseData = {
       name: data.name,
-      avatar_url: data.avatar,
+      avatar: data.avatar,
       appearance: data.appearance,
       traits: data.traits,
       emotions: data.emotions,

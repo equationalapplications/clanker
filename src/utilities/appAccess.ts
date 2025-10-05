@@ -26,18 +26,19 @@ export async function grantAppAccess(
             .from('user_app_subscriptions')
             .upsert({
                 user_id: user.id,
-                app_name: appName,
-                plan_tier: 'free',
-                plan_status: 'active',
-                credits_remaining: 50, // Free tier gets 50 credits
-                plan_start_at: new Date().toISOString(),
-                plan_renewal_at: null, // Free tier doesn't expire
+                app: appName,
+                plan: 'free',
+                status: 'active',
+                credits_balance: 50, // Free tier gets 50 credits
+                billing_cycle_start: new Date().toISOString(),
+                billing_cycle_end: null, // Free tier doesn't expire
+                terms_accepted: true,
                 terms_accepted_at: new Date().toISOString(), // Record terms acceptance
                 terms_version: termsVersion,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }, {
-                onConflict: 'user_id,app_name'
+                onConflict: 'user_id,app'
             })
 
         if (error) {
