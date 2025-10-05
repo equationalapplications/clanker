@@ -26,8 +26,8 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         if (onPress) {
             onPress()
         } else {
-            // Default action: navigate to chat
-            router.push(`/characters/chat/${id}`)
+            // Default action: navigate to character details (which has both chat and edit)
+            router.push(`/characters/details/${id}`)
         }
     }
 
@@ -36,8 +36,8 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         if (onEdit) {
             onEdit()
         } else {
-            // Default action: navigate to edit
-            router.push(`/characters/edit/${id}`)
+            // Default action: navigate to character details
+            router.push(`/characters/details/${id}`)
         }
     }
 

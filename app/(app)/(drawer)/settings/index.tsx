@@ -2,9 +2,9 @@ import React, { useState } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
 import { Text, List, Switch, Button, Divider } from "react-native-paper"
 import { router } from "expo-router"
-import { useAuth } from "../../src/hooks/useAuth"
-import CombinedSubscriptionButton from "../../src/components/CombinedSubscriptionButton"
-import LoadingIndicator from "../../src/components/LoadingIndicator"
+import { useAuth } from "~/hooks/useAuth"
+import CombinedSubscriptionButton from "~/components/CombinedSubscriptionButton"
+import LoadingIndicator from "~/components/LoadingIndicator"
 
 export default function Settings() {
     const { user, signOut } = useAuth()
