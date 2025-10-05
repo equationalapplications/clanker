@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getUserCredits, deductCredits } from '../utilities/getUserCredits'
-import { useAuth } from './useAuth'
+import { getUserCredits, deductCredits } from '~/utilities/getUserCredits'
+import { useAuth } from '~/hooks/useAuth'
 
 export const useUserCredits = () => {
     const { user } = useAuth()

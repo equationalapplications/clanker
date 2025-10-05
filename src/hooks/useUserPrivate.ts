@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { UserPrivate, getUserPrivate } from '../services/userService'
-import { supabaseClient } from '../config/supabaseClient'
+import { UserPrivate, getUserPrivate } from '~/services/userService'
+import { supabaseClient } from '~/config/supabaseClient'
 
 /**
  * Hook to get user private data from Supabase

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { UserProfile, UserPublic, subscribeToUserProfile } from '../services/userService'
+import { UserProfile, UserPublic, subscribeToUserProfile } from '~/services/userService'
 
 /**
  * Hook to get user public data from Supabase

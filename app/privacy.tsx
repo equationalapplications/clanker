@@ -1,6 +1,6 @@
 import { StyleSheet, ScrollView, View } from "react-native"
 import { Text } from "react-native-paper"
-import { getPrivacyForApp } from "../src/config/privacyConfig"
+import { getPrivacyForApp } from "~/config/privacyConfig";
 
 export default function Privacy() {
     const privacyConfig = getPrivacyForApp('yours-brightly');

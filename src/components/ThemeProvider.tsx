@@ -2,7 +2,7 @@ import React from "react"
 import { useColorScheme } from "react-native"
 import { Provider as PaperProvider } from "react-native-paper"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { appDarkTheme, appLightTheme } from "../config/theme"
+import { appDarkTheme, appLightTheme } from "~/config/theme"
 
 interface ThemeProviderProps {
   children: React.ReactNode

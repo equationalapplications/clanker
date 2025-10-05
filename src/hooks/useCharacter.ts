@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Character, LegacyCharacter, subscribeToCharacter, toLegacyCharacter } from '../services/characterService'
+import { Character, LegacyCharacter, subscribeToCharacter, toLegacyCharacter } from '~/services/characterService'
 
 interface UseCharacterArgs {
   id: string

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { generateAndStoreCharacterImage, updateCharacterAvatar } from '../services/imageStorageService'
+import { generateAndStoreCharacterImage, updateCharacterAvatar } from '~/services/imageStorageService'
 
 interface UseImageGenerationProps {
     characterId: string

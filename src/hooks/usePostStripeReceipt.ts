@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query"
 
-import { postStripeReceipt } from "../utilities/postStripeReceipt"
+import { postStripeReceipt } from "~/utilities/postStripeReceipt"
 
 export const usePostStripeReceipt = () => {
   const { mutate, error } = useMutation({

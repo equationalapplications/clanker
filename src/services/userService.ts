@@ -1,4 +1,4 @@
-import { supabaseClient, Database } from '../config/supabaseClient'
+import { supabaseClient, Database } from '~/config/supabaseClient'
 
 // Types for user data
 export type UserProfile = Database['public']['Tables']['profiles']['Row']

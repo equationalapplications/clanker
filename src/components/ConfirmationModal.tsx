@@ -2,7 +2,7 @@ import React from "react"
 import { StyleSheet } from "react-native"
 import { Button, Dialog, Paragraph, Portal } from "react-native-paper"
 
-import { isLargeScreen } from "../config/constants"
+import { isLargeScreen } from "~/config/constants"
 
 type ConfirmationModalProps = {
   visible: boolean

@@ -2,8 +2,8 @@
 // import * as WebBrowser from "expo-web-browser"
 import Purchases from "react-native-purchases"
 
-import Button from "../components/Button"
-import { stripeCustomerPortal, platform } from "../config/constants"
+import Button from "~/components/Button"
+import { stripeCustomerPortal, platform } from "~/config/constants"
 
 interface Props {
   onChangeIsLoading: (isLoading: boolean) => void

@@ -2,13 +2,13 @@ import { useEffect, useState } from "react"
 import { StyleSheet, View, Text } from "react-native"
 import { useRouter } from "expo-router"
 
-import ProviderButton from "../src/components/AuthProviderButton"
-import Button from "../src/components/Button"
-import LoadingIndicator from "../src/components/LoadingIndicator"
-import Logo from "../src/components/Logo"
-import { MonoText, TitleText } from "../src/components/StyledText"
-import { useAuth } from "../src/hooks/useAuth"
-import { initializeGoogleSignIn, signInWithGoogle } from "../src/services/googleSignInUnified"
+import ProviderButton from "~/components/AuthProviderButton"
+import Button from "~/components/Button"
+import LoadingIndicator from "~/components/LoadingIndicator"
+import Logo from "~/components/Logo"
+import { MonoText, TitleText } from "~/components/StyledText"
+import { useAuth } from "~/hooks/useAuth"
+import { initializeGoogleSignIn, signInWithGoogle } from "~/services/googleSignInUnified"
 
 export default function SignIn() {
     const router = useRouter()

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { IMessage } from 'react-native-gifted-chat'
-import { sendMessageWithAIResponse, Character } from '../services/aiChatService'
-import { useChatMessages } from './useChatMessages'
+import { sendMessageWithAIResponse, Character } from '~/services/aiChatService'
+import { useChatMessages } from '~/hooks/useChatMessages'
 
 interface UseAIChatProps {
     characterId: string
