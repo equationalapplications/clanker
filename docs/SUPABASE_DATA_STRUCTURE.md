@@ -166,4 +166,45 @@ interface UserAppSubscription {
 }
 ```
 
+### Table: user_app_subscriptions
+Subscription management for multi-tenant access control.
+```sql
+CREATE TABLE public.user_app_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    app_name TEXT NOT NULL,
+    plan_tier TEXT NOT NULL DEFAULT 'free' CHECK (plan_tier IN ('free', 'monthly_20', 'monthly_50', 'payg')),
+    plan_status TEXT NOT NULL DEFAULT 'active' CHECK (plan_status IN ('active', 'cancelled', 'expired')),
+    current_credits INTEGER DEFAULT 0,
+    terms_accepted_at TIMESTAMP WITH TIME ZONE,
+    terms_version TEXT,
+    stripe_subscription_id TEXT,
+    stripe_customer_id TEXT,
+    billing_cycle_start TIMESTAMP WITH TIME ZONE,
+    billing_cycle_end TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, app_name)
+);
+```
+
+```ts
+interface UserAppSubscription {
+  id: string;
+  user_id: string; // References auth.users(id)
+  app_name: string;
+  plan_tier: 'free' | 'monthly_20' | 'monthly_50' | 'payg';
+  plan_status: 'active' | 'cancelled' | 'expired';
+  current_credits: number;
+  terms_accepted_at: string | null;
+  terms_version: string | null;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  billing_cycle_start: string | null;
+  billing_cycle_end: string | null;
+  created_at: string;
+  updated_at: string;
+}
+```
+
 If you need a specific implementation reference or example queries, search the `docs/` folder or open an issue to request additional examples.
