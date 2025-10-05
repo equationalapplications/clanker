@@ -1,28 +1,46 @@
 import { useEffect, useState } from 'react'
-import { UserProfile, UserPrivate, subscribeToUserProfile } from '../services/userService'
+import { UserPrivate, getUserPrivate } from '../services/userService'
+import { supabaseClient } from '../config/supabaseClient'
 
 /**
  * Hook to get user private data from Supabase
+ * Combines profile data with credits from user_app_subscriptions
  */
 export function useUserPrivate(): UserPrivate | null {
-  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [userPrivate, setUserPrivate] = useState<UserPrivate | null>(null)
 
   useEffect(() => {
-    const unsubscribe = subscribeToUserProfile((newProfile) => {
-      setProfile(newProfile)
+    let mounted = true
+
+    // Fetch initial data
+    const fetchUserPrivate = async () => {
+      const data = await getUserPrivate()
+      if (mounted) {
+        setUserPrivate(data)
+      }
+    }
+
+    fetchUserPrivate()
+
+    // Subscribe to auth changes
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const data = await getUserPrivate()
+        if (mounted) {
+          setUserPrivate(data)
+        }
+      } else {
+        if (mounted) {
+          setUserPrivate(null)
+        }
+      }
     })
 
-    return unsubscribe
+    return () => {
+      mounted = false
+      authListener.subscription.unsubscribe()
+    }
   }, [])
 
-  if (!profile) {
-    return null
-  }
-
-  return {
-    credits: profile.credits,
-    isProfilePublic: profile.is_profile_public,
-    defaultCharacter: profile.default_character_id || '',
-    hasAcceptedTermsDate: null, // Will be handled by app permissions check
-  }
+  return userPrivate
 }

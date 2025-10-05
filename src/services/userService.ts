@@ -1,9 +1,9 @@
 import { supabaseClient, Database } from '../config/supabaseClient'
 
 // Types for user data
-export type UserProfile = Database['public']['Tables']['yours_brightly']['Row']
-export type UserProfileInsert = Database['public']['Tables']['yours_brightly']['Insert']
-export type UserProfileUpdate = Database['public']['Tables']['yours_brightly']['Update']
+export type UserProfile = Database['public']['Tables']['profiles']['Row']
+export type UserProfileInsert = Database['public']['Tables']['profiles']['Insert']
+export type UserProfileUpdate = Database['public']['Tables']['profiles']['Update']
 
 export interface UserPublic {
     uid: string
@@ -20,6 +20,31 @@ export interface UserPrivate {
 }
 
 /**
+ * Get credits from user_app_subscriptions table
+ */
+async function getUserCredits(): Promise<number> {
+    const { data: { user } } = await supabaseClient.auth.getUser()
+
+    if (!user) {
+        return 0
+    }
+
+    const { data, error } = await supabaseClient
+        .from('user_app_subscriptions')
+        .select('credits_balance')
+        .eq('user_id', user.id)
+        .eq('app_name', 'yours-brightly')
+        .single()
+
+    if (error || !data) {
+        console.error('Error fetching credits:', error)
+        return 0
+    }
+
+    return data.credits_balance
+}
+
+/**
  * Get the current user's profile from Supabase
  */
 export const getUserProfile = async (): Promise<UserProfile | null> => {
@@ -30,7 +55,7 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
     }
 
     const { data, error } = await supabaseClient
-        .from('yours_brightly')
+        .from('profiles')
         .select('*')
         .eq('user_id', user.id)
         .single()
@@ -54,7 +79,7 @@ export const upsertUserProfile = async (profile: UserProfileUpdate): Promise<Use
     }
 
     const { data, error } = await supabaseClient
-        .from('yours_brightly')
+        .from('profiles')
         .upsert({
             ...profile,
             user_id: user.id,
@@ -98,8 +123,11 @@ export const getUserPrivate = async (): Promise<UserPrivate | null> => {
         return null
     }
 
+    // Get credits from user_app_subscriptions
+    const credits = await getUserCredits()
+
     return {
-        credits: profile.credits,
+        credits,
         isProfilePublic: profile.is_profile_public,
         defaultCharacter: profile.default_character_id || '',
         hasAcceptedTermsDate: null, // Will be handled by app permissions check
@@ -121,17 +149,17 @@ export const acceptTerms = async (termsVersion: string = '1.0'): Promise<void> =
         .from('user_app_subscriptions')
         .upsert({
             user_id: user.id,
-            app_name: 'yours-brightly',
-            plan_tier: 'free',
-            plan_status: 'active',
-            credits_remaining: 10, // Free tier gets 10 credits
-            plan_starts_at: new Date().toISOString(),
-            plan_renewal_at: null, // Free tier doesn't expire
+            app: 'yours-brightly',
+            plan: 'free',
+            status: 'active',
+            credits_balance: 50, // Free tier gets 50 credits
+            terms_accepted: true,
+            terms_accepted_at: new Date().toISOString(),
             terms_version: termsVersion,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         }, {
-            onConflict: 'user_id,app_name'
+            onConflict: 'user_id,app'
         })
 
     if (error) {
@@ -178,7 +206,7 @@ export const deleteUser = async (): Promise<void> => {
 
     // Delete user profile (cascading deletes will handle related data)
     const { error: profileError } = await supabaseClient
-        .from('yours_brightly')
+        .from('profiles')
         .delete()
         .eq('user_id', user.id)
 
@@ -226,7 +254,7 @@ export const subscribeToUserProfile = (
             {
                 event: '*',
                 schema: 'public',
-                table: 'yours_brightly',
+                table: 'profiles',
                 filter: currentUserId ? `user_id=eq.${currentUserId}` : undefined,
             },
             (payload) => {

@@ -1,9 +1,9 @@
 import { supabaseClient, Database } from '../config/supabaseClient'
 
 // Types for character data
-export type Character = Database['public']['Tables']['characters']['Row']
-export type CharacterInsert = Database['public']['Tables']['characters']['Insert']
-export type CharacterUpdate = Database['public']['Tables']['characters']['Update']
+export type Character = Database['public']['Tables']['yours_brightly_characters']['Row']
+export type CharacterInsert = Database['public']['Tables']['yours_brightly_characters']['Insert']
+export type CharacterUpdate = Database['public']['Tables']['yours_brightly_characters']['Update']
 
 // Legacy character interface for compatibility
 export interface LegacyCharacter {
@@ -28,7 +28,7 @@ export const getUserCharacters = async (): Promise<Character[]> => {
     }
 
     const { data, error } = await supabaseClient
-        .from('characters')
+        .from('yours_brightly_characters')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -46,7 +46,7 @@ export const getUserCharacters = async (): Promise<Character[]> => {
  */
 export const getPublicCharacters = async (): Promise<Character[]> => {
     const { data, error } = await supabaseClient
-        .from('characters')
+        .from('yours_brightly_characters')
         .select('*')
         .eq('is_public', true)
         .order('created_at', { ascending: false })
@@ -64,7 +64,7 @@ export const getPublicCharacters = async (): Promise<Character[]> => {
  */
 export const getCharacter = async (id: string, userId?: string): Promise<Character | null> => {
     const { data, error } = await supabaseClient
-        .from('characters')
+        .from('yours_brightly_characters')
         .select('*')
         .eq('id', id)
         .single()
@@ -93,7 +93,7 @@ export const createCharacter = async (character: Omit<CharacterInsert, 'user_id'
 
     console.log('💾 Inserting character into Supabase...')
     const { data, error } = await supabaseClient
-        .from('characters')
+        .from('yours_brightly_characters')
         .insert({
             ...character,
             user_id: user.id,
@@ -121,7 +121,7 @@ export const updateCharacter = async (id: string, updates: CharacterUpdate): Pro
     }
 
     const { data, error } = await supabaseClient
-        .from('characters')
+        .from('yours_brightly_characters')
         .update(updates)
         .eq('id', id)
         .eq('user_id', user.id) // Ensure user can only update their own characters
@@ -147,7 +147,7 @@ export const deleteCharacter = async (id: string): Promise<void> => {
     }
 
     const { error } = await supabaseClient
-        .from('characters')
+        .from('yours_brightly_characters')
         .delete()
         .eq('id', id)
         .eq('user_id', user.id) // Ensure user can only delete their own characters
@@ -197,7 +197,7 @@ export const toLegacyCharacter = (character: Character): LegacyCharacter => {
     return {
         id: character.id,
         name: character.name,
-        avatar: character.avatar_url || '',
+        avatar: character.avatar || '',
         appearance: character.appearance || '',
         traits: character.traits || '',
         emotions: character.emotions || '',
@@ -212,7 +212,7 @@ export const toLegacyCharacter = (character: Character): LegacyCharacter => {
 export const fromLegacyCharacter = (legacy: LegacyCharacter): Omit<CharacterInsert, 'user_id'> => {
     return {
         name: legacy.name,
-        avatar_url: legacy.avatar || null,
+        avatar: legacy.avatar || null,
         appearance: legacy.appearance || null,
         traits: legacy.traits || null,
         emotions: legacy.emotions || null,
@@ -247,7 +247,7 @@ export const subscribeToUserCharacters = (
                     {
                         event: '*',
                         schema: 'public',
-                        table: 'characters',
+                        table: 'yours_brightly_characters',
                         filter: `user_id=eq.${user.id}`,
                     },
                     async () => {
@@ -291,7 +291,7 @@ export const subscribeToUserCharacters = (
                     {
                         event: '*',
                         schema: 'public',
-                        table: 'characters',
+                        table: 'yours_brightly_characters',
                         filter: `user_id=eq.${userId}`,
                     },
                     async () => {
@@ -338,7 +338,7 @@ export const subscribeToCharacter = (
             {
                 event: '*',
                 schema: 'public',
-                table: 'characters',
+                table: 'yours_brightly_characters',
                 filter: `id=eq.${characterId}`,
             },
             (payload) => {

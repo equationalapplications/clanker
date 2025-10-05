@@ -47,22 +47,20 @@ function checkTermsVersion(plans: any[]): {
 }
 
 /**
- * Handle terms acceptance by showing the modal and throwing a specific error
- * The calling component should catch this error and handle the navigation
+ * Handle terms acceptance by showing the modal
+ * Returns a promise that resolves when the user accepts/declines
  */
-async function handleTermsAcceptance(isUpdate: boolean = false): Promise<boolean> {
-  // Show the terms modal immediately
+async function handleTermsAcceptance(isUpdate: boolean = false): Promise<void> {
+  console.log(`📄 Navigating to terms acceptance (isUpdate: ${isUpdate})`);
+
+  // Navigate to the terms modal
   router.push({
     pathname: '/accept-terms',
     params: { isUpdate: isUpdate.toString() }
   });
 
-  // Throw the appropriate error so the calling code knows what happened
-  const errorMessage = isUpdate
-    ? 'TERMS_UPDATE_REQUIRED'
-    : 'TERMS_ACCEPTANCE_REQUIRED'
-
-  throw new Error(errorMessage)
+  // Don't throw - let the modal handle acceptance/decline
+  // The app will stay on the terms page until user accepts
 }
 
 export async function loginToSupabaseAfterFirebase(): Promise<AuthResponse["data"]> {
@@ -108,40 +106,28 @@ export async function loginToSupabaseAfterFirebase(): Promise<AuthResponse["data
     if (!termsStatus.hasAccess) {
       // No subscription exists - need to accept terms and create free subscription
       console.log('❌ No access to yours-brightly, showing terms acceptance');
-      const accepted = await handleTermsAcceptance(false);
+      await handleTermsAcceptance(false);
 
-      if (!accepted) {
-        console.log('🚫 User declined terms, signing out');
-        await supabaseClient.auth.signOut();
-        await auth.signOut();
-        throw new Error('Terms acceptance required to use this app');
-      }
-
-      // Refresh session to get updated JWT with new subscription
-      const { error: refreshError } = await supabaseClient.auth.refreshSession();
-      if (refreshError) {
-        console.warn('⚠️ Failed to refresh session after terms acceptance:', refreshError);
-      }
+      // Return a partial auth response - user will be stuck on terms page
+      // until they accept, at which point the session will be refreshed
+      return {
+        user: authResponse.data.user,
+        session: null // No valid session until terms accepted
+      };
 
     } else if (!termsStatus.hasAcceptedTerms || termsStatus.needsTermsUpdate) {
       // Has subscription but terms not accepted or outdated
       const isUpdate = termsStatus.needsTermsUpdate;
       console.log(`📄 ${isUpdate ? 'Terms update' : 'Terms acceptance'} required`);
 
-      const accepted = await handleTermsAcceptance(isUpdate);
+      await handleTermsAcceptance(isUpdate);
 
-      if (!accepted) {
-        console.log('🚫 User declined terms, signing out');
-        await supabaseClient.auth.signOut();
-        await auth.signOut();
-        throw new Error('Terms acceptance required to continue using this app');
-      }
-
-      // Refresh session to get updated JWT with new terms version
-      const { error: refreshError } = await supabaseClient.auth.refreshSession();
-      if (refreshError) {
-        console.warn('⚠️ Failed to refresh session after terms update:', refreshError);
-      }
+      // Return a partial auth response - user will be stuck on terms page
+      // until they accept, at which point the session will be refreshed
+      return {
+        user: authResponse.data.user,
+        session: null // No valid session until terms accepted
+      };
     }
 
     console.log('✅ Terms validation complete, user has access');

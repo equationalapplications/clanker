@@ -51,6 +51,14 @@ export default function TabsLayout() {
                     headerShown: false, // Ensure no header for settings
                 }}
             />
+            <Tabs.Screen
+                name="profile"
+                options={{
+                    href: null, // Hide from tab bar, accessible via navigation
+                    title: "Profile",
+                    headerShown: true,
+                }}
+            />
         </Tabs>
     )
 }

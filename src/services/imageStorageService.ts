@@ -104,8 +104,8 @@ export const generateAndStoreCharacterImage = async ({
 export const updateCharacterAvatar = async (characterId: string, imageUrl: string): Promise<void> => {
     try {
         const { error } = await supabaseClient
-            .from('characters')
-            .update({ avatar_url: imageUrl })
+            .from('yours_brightly_characters')
+            .update({ avatar: imageUrl })
             .eq('id', characterId)
 
         if (error) {

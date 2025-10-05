@@ -8,6 +8,8 @@ import Button from "./Button"
 import LoadingIndicator from "./LoadingIndicator"
 import Logo from "./Logo"
 import { platform } from "../config/constants"
+import { supabaseClient } from "../config/supabaseClient"
+import { auth } from "../config/firebaseConfig"
 import { grantAppAccess } from "../utilities/appAccess"
 import { YOURS_BRIGHTLY_TERMS } from "../config/termsConfig"
 
@@ -72,7 +74,16 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       message,
       [
         { text: isUpdate ? 'Review Again' : 'Continue Registration', style: 'cancel' },
-        { text: isUpdate ? 'Sign Out' : 'Sign Out', style: 'destructive', onPress: onCanceled }
+        {
+          text: isUpdate ? 'Sign Out' : 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            // Sign out from both Supabase and Firebase
+            await supabaseClient.auth.signOut()
+            await auth.signOut()
+            onCanceled?.()
+          }
+        }
       ]
     )
   }
