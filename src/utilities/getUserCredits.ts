@@ -4,11 +4,11 @@ import { auth } from "../config/firebaseConfig"
 interface UserCredits {
     totalCredits: number
     hasUnlimited: boolean
-    subscriptions: Array<{
+    subscriptions: {
         tier: string
         credits: number
         isUnlimited: boolean
-    }>
+    }[]
 }
 
 export const getUserCredits = async (): Promise<UserCredits> => {
@@ -42,11 +42,11 @@ export const getUserCredits = async (): Promise<UserCredits> => {
 
         let totalCredits = 0
         let hasUnlimited = false
-        const subscriptionDetails: Array<{
+        const subscriptionDetails: {
             tier: string
             credits: number
             isUnlimited: boolean
-        }> = []
+        }[] = []
 
         for (const sub of subscriptions || []) {
             const credits = sub.credits_remaining || 0

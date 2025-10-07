@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react"
-import { StyleSheet, View, Text } from "react-native"
+import { StyleSheet, View, Text, Alert } from "react-native"
 import { useRouter } from "expo-router"
 
-import ProviderButton from "~/components/AuthProviderButton"
+import ProviderButton from "~/auth/AuthProviderButton"
 import Button from "~/components/Button"
 import LoadingIndicator from "~/components/LoadingIndicator"
 import Logo from "~/components/Logo"
 import { MonoText, TitleText } from "~/components/StyledText"
-import { useAuth } from "~/hooks/useAuth"
+import { useAuth } from "~/auth/useAuth"
 import { initializeGoogleSignIn, signInWithGoogle } from "~/services/googleSignInUnified"
 
 export default function SignIn() {
@@ -33,11 +33,11 @@ export default function SignIn() {
             if (!result.success && result.error) {
                 console.error("Google Sign-In failed:", result.error)
                 // TODO: Show user-friendly error message
-                alert(`Sign-in failed: ${result.error}`)
+                Alert.alert(`Sign-in failed: ${result.error}`)
             }
         } catch (error) {
             console.error("Google Sign-In error:", error)
-            alert("An unexpected error occurred during sign-in")
+            Alert.alert("An unexpected error occurred during sign-in")
         } finally {
             setGoogleSignInLoading(false)
         }

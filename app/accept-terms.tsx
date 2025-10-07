@@ -2,22 +2,11 @@ import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AcceptTerms } from '~/components/AcceptTerms';
 import { useSubscriptionStatus } from '~/hooks/useSubscriptionStatus';
-import { useAuth } from '~/hooks/useAuth';
-import { useEffect } from 'react';
 
 export default function AcceptTermsScreen() {
     const params = useLocalSearchParams();
-    const { user, isLoading: authLoading } = useAuth();
     const { markTermsAccepted } = useSubscriptionStatus();
     const isUpdate = params.isUpdate === 'true';
-
-    // If not authenticated, redirect to sign-in
-    useEffect(() => {
-        if (!authLoading && !user) {
-            console.log('No user on accept-terms, redirecting to sign-in');
-            router.replace('/sign-in');
-        }
-    }, [user, authLoading]);
 
     const handleAccepted = () => {
         console.log('[AcceptTermsScreen] handleAccepted called');

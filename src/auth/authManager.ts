@@ -11,24 +11,24 @@ class AuthenticationManager {
         return AuthenticationManager.instance
     }
 
-    async authenticateSupabase(): Promise<boolean> {
+    async authenticateSupabase() {
         this.authInProgress = true
         console.log('🔐 SINGLETON: Starting Supabase authentication/re-authentication')
 
         try {
-            const { loginToSupabaseAfterFirebase } = await import('../utilities/loginSupabase')
-            console.log('🔐 SINGLETON: Calling loginToSupabaseAfterFirebase...')
-            const data = await loginToSupabaseAfterFirebase()
-
-            if (data?.session) {
+            const { getSupabaseUserSession } = await import('./getSupabaseUserSession')
+            console.log('🔐 SINGLETON: Calling getSupabaseUserSession...')
+            const session = await getSupabaseUserSession()
+            console.log('🔐 SINGLETON: Received Supabase session:', session)
+            if (session) {
                 console.log('✅ SINGLETON: Successfully authenticated with Supabase')
                 this.authCompleted = true
-                return true
+                return session
             }
 
-            console.log('❌ SINGLETON: No user returned from Supabase auth')
+            console.log('❌ SINGLETON: No user session returned from Supabase auth')
             this.authCompleted = false
-            return false
+            throw new Error('No user returned from Supabase auth')
         } catch (err: any) {
             console.error('❌ SINGLETON: Error details:', {
                 message: err?.message,
@@ -43,7 +43,7 @@ class AuthenticationManager {
     }
 
     // Force re-authentication (for email mismatches or expired tokens)
-    async forceReAuthenticate(): Promise<boolean> {
+    async forceReAuthenticate() {
         console.log('🔄 SINGLETON: Forcing re-authentication')
         this.reset()
         return await this.authenticateSupabase()

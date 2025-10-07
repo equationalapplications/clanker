@@ -5,13 +5,13 @@ import { Text, Checkbox } from "react-native-paper"
 import { router } from "expo-router"
 
 import Button from "~/components/Button"
-import LoadingIndicator from "~/components/LoadingIndicator"
 import Logo from "~/components/Logo"
 import { platform } from "~/config/constants"
 import { supabaseClient } from "~/config/supabaseClient"
 import { auth } from "~/config/firebaseConfig"
 import { grantAppAccess } from "~/utilities/appAccess"
 import { YOURS_BRIGHTLY_TERMS } from "~/config/termsConfig"
+//import { authManager } from "~/utilities/authManager"
 
 interface AcceptTermsProps {
   onAccepted?: () => void
@@ -21,7 +21,6 @@ interface AcceptTermsProps {
 
 export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: AcceptTermsProps) {
   const [checked, setChecked] = useState(false)
-  const [loading, setLoading] = useState(false)
 
   const onPressChecked = () => {
     setChecked(!checked)
@@ -32,8 +31,6 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       Alert.alert('Please Accept Terms', 'You must accept the terms and conditions to continue.')
       return
     }
-
-    setLoading(true)
 
     try {
       console.log('Accepting terms and granting app access...')
@@ -48,6 +45,11 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
         // Immediately call onAccepted - no need to wait or show alert
         // The user experience is instant and smooth
         onAccepted?.()
+
+        // get a new supabase session to ensure the JWT has the latest claims
+        await supabaseClient.auth.refreshSession()
+
+
       } else {
         throw new Error(result.error || 'Failed to grant access')
       }
@@ -57,8 +59,6 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
         'Error',
         'Failed to record your acceptance. Please check your connection and try again.\n\n' + error.message
       )
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -96,46 +96,39 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
 
   return (
     <View style={styles.container}>
-      {loading ? (
-        <LoadingIndicator />
-      ) : (
-        <>
-          <Logo />
+      <Logo />
 
-          <Text style={styles.title}>
-            {isUpdate ? `Terms Updated (v${YOURS_BRIGHTLY_TERMS.version})` : 'Welcome to Yours Brightly AI'}
-          </Text>
+      <Text style={styles.title}>
+        {isUpdate ? `Terms Updated (v${YOURS_BRIGHTLY_TERMS.version})` : 'Welcome to Yours Brightly AI'}
+      </Text>
 
-          <View style={styles.separator} />
+      <View style={styles.separator} />
 
-          <Text style={styles.summaryText}>
-            {YOURS_BRIGHTLY_TERMS.summary}
-          </Text>
+      <Text style={styles.summaryText}>
+        {YOURS_BRIGHTLY_TERMS.summary}
+      </Text>
 
-          <View style={styles.buttonRow}>
-            <Button mode="outlined" onPress={onPressTerms}>View Full Terms</Button>
-            <Button mode="outlined" onPress={onPressPrivacy}>Privacy Policy</Button>
-          </View>
+      <View style={styles.buttonRow}>
+        <Button mode="outlined" onPress={onPressTerms}>View Full Terms</Button>
+        <Button mode="outlined" onPress={onPressPrivacy}>Privacy Policy</Button>
+      </View>
 
-          <View style={styles.separator} />
+      <View style={styles.separator} />
 
-          <View style={styles.row}>
-            <Checkbox status={checked ? "checked" : "unchecked"} onPress={onPressChecked} />
-            <Text style={styles.text}>
-              I am over 18 years of age and I have read and accept the Terms and Conditions and
-              Privacy Policy.
-            </Text>
-          </View>
-          <View style={styles.separatorSmall} />
-          <Button mode="contained" disabled={!checked} onPress={onPressAccept}>
-            {isUpdate ? 'Accept Updated Terms' : 'I Accept'}
-          </Button>
-          <Button mode="outlined" onPress={onPressCancel}>
-            {isUpdate ? 'Cancel' : 'Sign Out'}
-          </Button>
-        </>
-      )}
-
+      <View style={styles.row}>
+        <Checkbox status={checked ? "checked" : "unchecked"} onPress={onPressChecked} />
+        <Text style={styles.text}>
+          I am over 18 years of age and I have read and accept the Terms and Conditions and
+          Privacy Policy.
+        </Text>
+      </View>
+      <View style={styles.separatorSmall} />
+      <Button mode="contained" disabled={!checked} onPress={onPressAccept}>
+        {isUpdate ? 'Accept Updated Terms' : 'I Accept'}
+      </Button>
+      <Button mode="outlined" onPress={onPressCancel}>
+        {isUpdate ? 'Cancel' : 'Sign Out'}
+      </Button>
       {/* Use a light status bar on iOS to account for the black space above the modal */}
       <StatusBar style={platform === "ios" ? "light" : "auto"} />
     </View>
