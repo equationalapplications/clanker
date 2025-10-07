@@ -15,8 +15,8 @@
     "prepare": "husky install",
     "commit": "git-cz",
     "format": "prettier --write \"app/**/*.{js,jsx,json,md,ts,tsx}\"",
-    "lint": "eslint . --fix --ext .js,.ts,.tsx && npm run format",
-    "lint:check": "eslint . --ext .js,.ts,.tsx",
+    "lint": "npx expo lint --fix",
+    "lint:check": "npx expo lint",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -77,14 +77,12 @@
     "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/react": "~19.1.10",
-    "@typescript-eslint/eslint-plugin": "^8.45.0",
-    "@typescript-eslint/parser": "^8.45.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "commitizen": "^4.3.1",
     "cz-conventional-changelog": "^3.3.0",
     "eslint": "^9.37.0",
     "eslint-config-expo": "~10.0.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "husky": "^9.1.7",
     "jest": "~29.7.0",
     "jest-expo": "~54.0.12",
@@ -97,12 +95,6 @@
   "expo": {
     "router": {
       "origin": "expo"
-    }
-  },
-  "eslintConfig": {
-    "extends": "universe/native",
-    "env": {
-      "node": true
     }
   },
   "prettier": {

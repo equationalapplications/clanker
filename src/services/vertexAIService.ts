@@ -20,10 +20,10 @@ export interface ChatContext {
     characterName: string
     characterPersonality: string
     characterTraits: string
-    conversationHistory: Array<{
+    conversationHistory: {
         role: 'user' | 'assistant'
         content: string
-    }>
+    }[]
 }
 
 /**

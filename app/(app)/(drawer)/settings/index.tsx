@@ -2,7 +2,7 @@ import React, { useState } from "react"
 import { StyleSheet, ScrollView, View } from "react-native"
 import { Text, List, Switch, Button, Divider } from "react-native-paper"
 import { router } from "expo-router"
-import { useAuth } from "~/hooks/useAuth"
+import { useAuth } from "~/auth/useAuth"
 import CombinedSubscriptionButton from "~/components/CombinedSubscriptionButton"
 import LoadingIndicator from "~/components/LoadingIndicator"
 

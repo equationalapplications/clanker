@@ -127,14 +127,14 @@ export const updateMessage = async (
 /**
  * Get conversation history for a user
  */
-export const getConversationHistory = async (): Promise<Array<{
+export const getConversationHistory = async (): Promise<{
     characterId: string
     characterName: string
     lastMessage: string
     lastMessageTime: Date
     recipientUserId: string
     recipientName: string
-}>> => {
+}[]> => {
     const { data: { user } } = await supabaseClient.auth.getUser()
 
     if (!user) {

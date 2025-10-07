@@ -8,7 +8,7 @@ import { ThemeProvider as NavigationThemeProvider } from "@react-navigation/nati
 import { Stack } from 'expo-router';
 
 import { ThemeProvider } from "~/components/ThemeProvider";
-import { AuthProvider, useAuth } from "~/hooks/useAuth";
+import { AuthProvider, useAuth } from "~/auth/useAuth";
 import { SubscriptionStatusProvider } from "~/hooks/useSubscriptionStatus";
 import { queryClient } from "~/config/queryClient";
 import { appNavigationDarkTheme, appNavigationLightTheme } from "~/config/theme";
@@ -18,19 +18,13 @@ import useCachedResources from "~/hooks/useCachedResources";
 // This component handles the core authentication logic using Stack.Protected
 function RootLayoutNav() {
     const { user, isLoading } = useAuth();
-
-    if (isLoading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <LoadingIndicator disabled={false} />
-            </View>
-        );
-    }
-
     const isLoggedIn = !!user;
 
     return (
         <Stack>
+            {isLoading && <View style={styles.loadingContainer}>
+                <LoadingIndicator disabled={false} />
+            </View>}
             <Stack.Screen name="index" options={{ headerShown: false }} />
 
             {/* Protected routes - only available when logged in */}

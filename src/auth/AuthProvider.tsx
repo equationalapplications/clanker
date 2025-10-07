@@ -1,6 +1,5 @@
 import { StyleSheet, View, ViewStyle } from "react-native"
-import { useTheme } from "react-native-paper"
-import Icon from "react-native-vector-icons/MaterialCommunityIcons"
+import { Icon, useTheme } from "react-native-paper"
 
 interface Props {
   type: string
@@ -15,7 +14,7 @@ const providerMap: { [key: string]: string } = {
   phone: "phone",
 }
 
-function Provider({ type, active, style }: Props): React.JSX.Element | null {
+function Provider({ type, active, style }: Props) {
   const theme = useTheme()
   const icon = providerMap[type]
 
@@ -25,7 +24,7 @@ function Provider({ type, active, style }: Props): React.JSX.Element | null {
 
   return (
     <View style={[style, styles[active ? "active" : "inactive"]]}>
-      <Icon name={icon} size={24} color={active ? theme.colors.primary : theme.colors.onSurface} />
+      <Icon source={icon} size={24} color={active ? theme.colors.primary : theme.colors.onSurface} />
     </View>
   )
 }
