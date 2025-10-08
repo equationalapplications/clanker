@@ -1,10 +1,10 @@
-import { useNavigation } from "@react-navigation/native"
-import Constants from "expo-constants"
-import React from "react"
-import { View, Text, Pressable, Alert } from "react-native"
-import Purchases from "react-native-purchases"
+import { useNavigation } from '@react-navigation/native'
+import Constants from 'expo-constants'
+import React from 'react'
+import { View, Text, Pressable, Alert } from 'react-native'
+import Purchases from 'react-native-purchases'
 
-import styles from "./styles.js"
+import styles from './styles.js'
 
 const ENTITLEMENT_ID = Constants.expoConfig?.extra?.revenueCatPurchasesEntitlementId
 
@@ -21,12 +21,12 @@ const PackageItem = ({ purchasePackage, setIsPurchasing }) => {
     try {
       const { purchaserInfo } = await Purchases.purchasePackage(purchasePackage)
 
-      if (typeof purchaserInfo.entitlements.active[ENTITLEMENT_ID] !== "undefined") {
+      if (typeof purchaserInfo.entitlements.active[ENTITLEMENT_ID] !== 'undefined') {
         navigation.goBack()
       }
     } catch (e) {
       if (!e.userCancelled) {
-        Alert.alert("Error purchasing package", e.message)
+        Alert.alert('Error purchasing package', e.message)
       }
     } finally {
       setIsPurchasing(false)

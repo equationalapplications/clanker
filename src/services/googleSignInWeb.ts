@@ -1,7 +1,7 @@
 // Web-specific Google Sign-In implementation
-import { GoogleAuthProvider, signInWithCredential } from "firebase/auth"
-import { auth } from "~/config/firebaseConfig"
-import { googleWebClientId } from "~/config/constants"
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
+import { auth } from '~/config/firebaseConfig'
+import { googleWebClientId } from '~/config/constants'
 
 declare global {
   interface Window {
@@ -48,7 +48,7 @@ export const configureGoogleSignInWeb = async () => {
   if (window.google && window.google.accounts) {
     window.google.accounts.id.initialize({
       client_id: googleWebClientId,
-      callback: () => { }, // Will be set per sign-in attempt
+      callback: () => {}, // Will be set per sign-in attempt
     })
   }
 }
@@ -58,7 +58,7 @@ export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
     await loadGoogleScript()
 
     if (!window.google || !window.google.accounts) {
-      return { success: false, error: "Google Sign-In not available" }
+      return { success: false, error: 'Google Sign-In not available' }
     }
 
     return new Promise((resolve) => {
@@ -75,11 +75,11 @@ export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
 
               resolve({ success: true })
             } else {
-              resolve({ success: false, error: "No credential received" })
+              resolve({ success: false, error: 'No credential received' })
             }
           } catch (error: any) {
-            console.error("Google Sign-In Error:", error)
-            resolve({ success: false, error: error.message || "Unknown error occurred" })
+            console.error('Google Sign-In Error:', error)
+            resolve({ success: false, error: error.message || 'Unknown error occurred' })
           }
         },
       })
@@ -88,31 +88,33 @@ export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
       window.google.accounts.id.prompt((notification: any) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
           // Fallback to popup if the one-tap is not displayed
-          window.google.accounts.oauth2.initTokenClient({
-            client_id: googleWebClientId,
-            scope: 'email profile',
-            callback: async (response: any) => {
-              try {
-                if (response.access_token) {
-                  // For OAuth2 flow, we need to get the ID token differently
-                  // This is a simplified version - you might need to adjust based on your needs
-                  const credential = GoogleAuthProvider.credential(null, response.access_token)
-                  await signInWithCredential(auth, credential)
-                  resolve({ success: true })
-                } else {
-                  resolve({ success: false, error: "No access token received" })
+          window.google.accounts.oauth2
+            .initTokenClient({
+              client_id: googleWebClientId,
+              scope: 'email profile',
+              callback: async (response: any) => {
+                try {
+                  if (response.access_token) {
+                    // For OAuth2 flow, we need to get the ID token differently
+                    // This is a simplified version - you might need to adjust based on your needs
+                    const credential = GoogleAuthProvider.credential(null, response.access_token)
+                    await signInWithCredential(auth, credential)
+                    resolve({ success: true })
+                  } else {
+                    resolve({ success: false, error: 'No access token received' })
+                  }
+                } catch (error: any) {
+                  console.error('Google OAuth Error:', error)
+                  resolve({ success: false, error: error.message || 'Unknown error occurred' })
                 }
-              } catch (error: any) {
-                console.error("Google OAuth Error:", error)
-                resolve({ success: false, error: error.message || "Unknown error occurred" })
-              }
-            },
-          }).requestAccessToken()
+              },
+            })
+            .requestAccessToken()
         }
       })
     })
   } catch (error: any) {
-    console.error("Google Sign-In Setup Error:", error)
-    return { success: false, error: error.message || "Unknown error occurred" }
+    console.error('Google Sign-In Setup Error:', error)
+    return { success: false, error: error.message || 'Unknown error occurred' }
   }
 }

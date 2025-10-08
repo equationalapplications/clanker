@@ -1,4 +1,4 @@
-import { Platform } from "react-native"
+import { Platform } from 'react-native'
 
 // Import native implementation
 import {
@@ -6,14 +6,11 @@ import {
   signInWithGoogle as signInWithGoogleNative,
   signOutFromGoogle as signOutFromGoogleNative,
   getCurrentGoogleUser as getCurrentGoogleUserNative,
-  type GoogleSignInResult
-} from "~/services/googleSignIn"
+  type GoogleSignInResult,
+} from '~/services/googleSignIn'
 
 // Import web implementation
-import {
-  configureGoogleSignInWeb,
-  signInWithGoogleWeb
-} from "~/services/googleSignInWeb"
+import { configureGoogleSignInWeb, signInWithGoogleWeb } from '~/services/googleSignInWeb'
 
 export type { GoogleSignInResult }
 

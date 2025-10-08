@@ -1,54 +1,103 @@
 import { useCallback, useState } from 'react'
 import { IMessage } from 'react-native-gifted-chat'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { sendMessageWithAIResponse, Character } from '~/services/aiChatService'
 import { useChatMessages } from '~/hooks/useChatMessages'
+import { messageKeys } from '~/hooks/useMessages'
 
 interface UseAIChatProps {
-    characterId: string
-    recipientUserId: string
-    character: Character
+  characterId: string
+  recipientUserId: string
+  character: Character
 }
 
 interface UseAIChatReturn {
-    messages: IMessage[]
-    sendMessage: (message: IMessage) => Promise<void>
-    isGeneratingResponse: boolean
-    error: string | null
+  messages: IMessage[]
+  sendMessage: (message: IMessage) => Promise<void>
+  isGeneratingResponse: boolean
+  error: string | null
 }
 
 /**
  * Hook for AI-powered chat with automatic response generation
+ * Enhanced with React Query for offline support and optimistic updates
  */
-export function useAIChat({ characterId, recipientUserId, character }: UseAIChatProps): UseAIChatReturn {
-    const messages = useChatMessages({ id: characterId, userId: recipientUserId })
-    const [isGeneratingResponse, setIsGeneratingResponse] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+export function useAIChat({
+  characterId,
+  recipientUserId,
+  character,
+}: UseAIChatProps): UseAIChatReturn {
+  const messages = useChatMessages({ id: characterId, userId: recipientUserId })
+  const queryClient = useQueryClient()
+  const [error, setError] = useState<string | null>(null)
 
-    const sendMessage = useCallback(async (message: IMessage) => {
-        try {
-            setError(null)
-            setIsGeneratingResponse(true)
+  // Mutation for sending message with AI response
+  const aiMessageMutation = useMutation({
+    mutationFn: async (message: IMessage) => {
+      return sendMessageWithAIResponse(message, character, recipientUserId, messages)
+    },
 
-            // Send message and generate AI response
-            await sendMessageWithAIResponse(
-                message,
-                character,
-                recipientUserId,
-                messages
-            )
+    // Optimistic update: Add user message immediately
+    onMutate: async (message) => {
+      await queryClient.cancelQueries({
+        queryKey: messageKeys.list(characterId, recipientUserId),
+      })
 
-        } catch (err) {
-            console.error('Error sending message:', err)
-            setError(err instanceof Error ? err.message : 'Failed to send message')
-        } finally {
-            setIsGeneratingResponse(false)
-        }
-    }, [character, recipientUserId, messages])
+      const previousMessages = queryClient.getQueryData<IMessage[]>(
+        messageKeys.list(characterId, recipientUserId),
+      )
 
-    return {
-        messages,
-        sendMessage,
-        isGeneratingResponse,
-        error,
-    }
+      // Add user message optimistically
+      const optimisticUserMessage: IMessage = {
+        ...message,
+        pending: true,
+        createdAt: new Date(),
+      }
+
+      queryClient.setQueryData<IMessage[]>(
+        messageKeys.list(characterId, recipientUserId),
+        (old) => [optimisticUserMessage, ...(old || [])],
+      )
+
+      return { previousMessages }
+    },
+
+    onSuccess: () => {
+      console.log('✅ AI chat message sent successfully')
+      setError(null)
+
+      // Invalidate to fetch both user message and AI response
+      queryClient.invalidateQueries({
+        queryKey: messageKeys.list(characterId, recipientUserId),
+      })
+    },
+
+    onError: (err, message, context) => {
+      console.error('❌ Failed to send AI chat message:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send message'
+      setError(errorMessage)
+
+      // Rollback optimistic update
+      if (context?.previousMessages) {
+        queryClient.setQueryData(
+          messageKeys.list(characterId, recipientUserId),
+          context.previousMessages,
+        )
+      }
+    },
+  })
+
+  const sendMessage = useCallback(
+    async (message: IMessage) => {
+      await aiMessageMutation.mutateAsync(message)
+    },
+    [aiMessageMutation],
+  )
+
+  return {
+    messages,
+    sendMessage,
+    isGeneratingResponse: aiMessageMutation.isPending,
+    error,
+  }
 }

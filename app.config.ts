@@ -1,84 +1,84 @@
-import "dotenv/config"
-import { ExpoConfig, ConfigContext } from "expo/config"
+import 'dotenv/config'
+import { ExpoConfig, ConfigContext } from 'expo/config'
 
-import * as pkg from "./package.json"
+import * as pkg from './package.json'
 
-const breakingChangeVersion = pkg.version.split(".")[0]
+const breakingChangeVersion = pkg.version.split('.')[0]
 
-const runtimeVer = breakingChangeVersion + ".0.0"
+const runtimeVer = breakingChangeVersion + '.0.0'
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  scheme: "com.equationalapplications.yoursbrightlyai",
-  name: "Yours Brightly AI",
-  slug: "yours-brightly-ai",
+  scheme: 'com.equationalapplications.yoursbrightlyai',
+  name: 'Yours Brightly AI',
+  slug: 'yours-brightly-ai',
   version: pkg.version,
-  orientation: "portrait",
-  icon: "./assets/icon.png",
-  userInterfaceStyle: "automatic",
+  orientation: 'portrait',
+  icon: './assets/icon.png',
+  userInterfaceStyle: 'automatic',
   splash: {
-    image: "./assets/splash.png",
-    resizeMode: "contain",
-    backgroundColor: "#ffffff",
+    image: './assets/splash.png',
+    resizeMode: 'contain',
+    backgroundColor: '#ffffff',
   },
   updates: {
-    url: "https://u.expo.dev/2333eead-a87c-4a6f-adea-b1b433f4740e",
+    url: 'https://u.expo.dev/2333eead-a87c-4a6f-adea-b1b433f4740e',
     fallbackToCacheTimeout: 0,
   },
   runtimeVersion: runtimeVer,
-  assetBundlePatterns: ["**/*"],
+  assetBundlePatterns: ['**/*'],
   ios: {
-    bundleIdentifier: "com.equationalapplications.yoursbrightlyai",
-    googleServicesFile: "./GoogleService-Info.plist",
+    bundleIdentifier: 'com.equationalapplications.yoursbrightlyai',
+    googleServicesFile: './GoogleService-Info.plist',
     supportsTablet: true,
     config: {
       usesNonExemptEncryption: false,
     },
   },
   android: {
-    package: "com.equationalapplications.yoursbrightlyai",
-    googleServicesFile: "./google-services.json",
+    package: 'com.equationalapplications.yoursbrightlyai',
+    googleServicesFile: './google-services.json',
     adaptiveIcon: {
-      foregroundImage: "./assets/adaptive-icon.png",
-      backgroundImage: "./assets/adaptive-icon-background.png",
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundImage: './assets/adaptive-icon-background.png',
     },
     intentFilters: [
       {
-        action: "VIEW",
+        action: 'VIEW',
         data: [
           {
-            scheme: "fb1503390336819593",
+            scheme: 'fb1503390336819593',
           },
         ],
-        category: ["BROWSABLE", "DEFAULT"],
+        category: ['BROWSABLE', 'DEFAULT'],
       },
     ],
   },
   web: {
-    favicon: "./assets/favicon.png",
-    bundler: "metro",
+    favicon: './assets/favicon.png',
+    bundler: 'metro',
     buildScript: {
-      baseUrl: "/",
+      baseUrl: '/',
     },
   },
   experiments: {
     typedRoutes: true,
-    reactCompiler: true
+    reactCompiler: true,
   },
   plugins: [
-    "expo-router",
-    "expo-sqlite",
+    'expo-router',
+    'expo-sqlite',
     [
-      "@react-native-google-signin/google-signin",
+      '@react-native-google-signin/google-signin',
       {
         webClientId: process.env.GOOGLE_WEB_CLIENT_ID,
-        iosUrlScheme: "com.googleusercontent.apps.790870307455-5bsmcehb8mqdsl6vb3mal1nnq2jkk730",
-      }
+        iosUrlScheme: 'com.googleusercontent.apps.790870307455-5bsmcehb8mqdsl6vb3mal1nnq2jkk730',
+      },
     ],
   ],
   extra: {
     eas: {
-      projectId: "2333eead-a87c-4a6f-adea-b1b433f4740e",
+      projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e',
     },
     firebaseApiKey: process.env.FIREBASE_API_KEY,
     firebaseAuthDomain: process.env.FIREBASE_AUTH_DOMAIN,

@@ -1,4 +1,4 @@
-import { generateAndStoreCharacterImage } from "../services/imageStorageService"
+import { generateAndStoreCharacterImage } from '../services/imageStorageService'
 
 interface GenerateImageArgs {
   text: string
@@ -22,7 +22,7 @@ export const generateImage = async ({ text, characterId, userId }: GenerateImage
       width: 200,
       height: 200,
       maxFileSizeKB: 140,
-      quality: 85
+      quality: 85,
     })
 
     // Return the public URL for backward compatibility

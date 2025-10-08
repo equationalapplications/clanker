@@ -1,8 +1,8 @@
-import { httpsCallable } from "firebase/functions"
+import { httpsCallable } from 'firebase/functions'
 
-import { functions } from "../config/firebaseConfig"
+import { functions } from '../config/firebaseConfig'
 
-const generateImageFn: any = httpsCallable(functions, "generateReply")
+const generateImageFn: any = httpsCallable(functions, 'generateReply')
 
 interface GenerateReplyArgs {
   text: string

@@ -68,18 +68,18 @@ export default function App() {
 
 ```typescript
 // hooks/useUserCredits.ts
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../services/supabase';
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '../services/supabase'
 
 export interface UserCredits {
-  remaining: number;
-  unlimited: boolean;
-  planTier: string;
-  renewalDate?: string;
+  remaining: number
+  unlimited: boolean
+  planTier: string
+  renewalDate?: string
 }
 
 export const useUserCredits = (userId: string) => {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useQuery({
     queryKey: ['userCredits', userId],
@@ -90,51 +90,51 @@ export const useUserCredits = (userId: string) => {
         .eq('user_id', userId)
         .eq('app_name', 'yours-brightly')
         .eq('plan_status', 'active')
-        .single();
+        .single()
 
       if (error) {
         // Return default free tier if no subscription found
         return {
           remaining: 50,
           unlimited: false,
-          planTier: 'free'
-        };
+          planTier: 'free',
+        }
       }
 
-      const unlimited = data.plan_tier === 'unlimited';
+      const unlimited = data.plan_tier === 'unlimited'
       return {
-        remaining: unlimited ? 999999 : (data.credits_remaining || 0),
+        remaining: unlimited ? 999999 : data.credits_remaining || 0,
         unlimited,
         planTier: data.plan_tier,
-        renewalDate: data.plan_renewal_at
-      };
+        renewalDate: data.plan_renewal_at,
+      }
     },
     refetchInterval: 30000, // Refetch every 30 seconds
     staleTime: 10000, // Consider stale after 10 seconds
-  });
-};
+  })
+}
 
 // Mutation for deducting credits
 export const useDeductCredits = () => {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
       const { data, error } = await supabase.rpc('deduct_user_credits', {
         p_user_id: userId,
         p_app_name: 'yours-brightly',
-        p_credit_amount: amount
-      });
+        p_credit_amount: amount,
+      })
 
-      if (error) throw error;
-      return data;
+      if (error) throw error
+      return data
     },
     onSuccess: (_, { userId }) => {
       // Invalidate credits cache to refetch
-      queryClient.invalidateQueries(['userCredits', userId]);
-    }
-  });
-};
+      queryClient.invalidateQueries(['userCredits', userId])
+    },
+  })
+}
 ```
 
 ### Credit Counter Component
@@ -395,16 +395,16 @@ const styles = StyleSheet.create({
 
 ```typescript
 // hooks/useSubscription.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../services/supabase';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '../services/supabase'
 
 export interface Subscription {
-  id: string;
-  planTier: string;
-  planStatus: 'active' | 'cancelled' | 'expired';
-  creditsRemaining: number;
-  renewalDate?: string;
-  billingProviderId: string;
+  id: string
+  planTier: string
+  planStatus: 'active' | 'cancelled' | 'expired'
+  creditsRemaining: number
+  renewalDate?: string
+  billingProviderId: string
 }
 
 export const useSubscription = (userId: string) => {
@@ -418,9 +418,9 @@ export const useSubscription = (userId: string) => {
         .eq('app_name', 'yours-brightly')
         .in('plan_tier', ['unlimited', 'monthly_1000'])
         .eq('plan_status', 'active')
-        .single();
+        .single()
 
-      if (error) return null;
+      if (error) return null
 
       return {
         id: data.id,
@@ -429,13 +429,13 @@ export const useSubscription = (userId: string) => {
         creditsRemaining: data.credits_remaining || 0,
         renewalDate: data.plan_renewal_at,
         billingProviderId: data.billing_provider_id,
-      };
+      }
     },
-  });
-};
+  })
+}
 
 export const useCancelSubscription = () => {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (subscriptionId: string) => {
@@ -444,20 +444,20 @@ export const useCancelSubscription = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscriptionId }),
-      });
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to cancel subscription');
+        throw new Error('Failed to cancel subscription')
       }
 
-      return response.json();
+      return response.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['subscription']);
-      queryClient.invalidateQueries(['userCredits']);
+      queryClient.invalidateQueries(['subscription'])
+      queryClient.invalidateQueries(['userCredits'])
     },
-  });
-};
+  })
+}
 ```
 
 ### Subscription Plans Component
@@ -498,7 +498,7 @@ export const SubscriptionPlans: React.FC = () => {
       });
 
       const { url } = await response.json();
-      
+
       // Open Stripe Checkout in web browser
       await Linking.openURL(url);
     } catch (error) {
@@ -509,7 +509,7 @@ export const SubscriptionPlans: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Subscription Plans</Text>
-      
+
       {subscription && (
         <View style={styles.currentPlan}>
           <Text style={styles.currentPlanTitle}>Current Plan</Text>
@@ -524,7 +524,7 @@ export const SubscriptionPlans: React.FC = () => {
         <View key={plan.id} style={styles.planCard}>
           <Text style={styles.planName}>{plan.name}</Text>
           <Text style={styles.planPrice}>${plan.price}/month</Text>
-          
+
           <View style={styles.features}>
             {plan.features.map((feature, index) => (
               <Text key={index} style={styles.feature}>• {feature}</Text>
@@ -630,43 +630,43 @@ const styles = StyleSheet.create({
 
 ```typescript
 // hooks/useTransactionHistory.ts
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query'
 
 export interface Transaction {
-  id: string;
-  transactionId: string;
-  transactionType: 'subscription' | 'one_time' | 'refund';
-  amountCents: number;
-  currency: string;
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
-  createdAt: string;
-  providerMetadata: any;
-  internalMetadata: any;
+  id: string
+  transactionId: string
+  transactionType: 'subscription' | 'one_time' | 'refund'
+  amountCents: number
+  currency: string
+  status: 'pending' | 'completed' | 'failed' | 'refunded'
+  createdAt: string
+  providerMetadata: any
+  internalMetadata: any
 }
 
-const TRANSACTION_MANAGER_URL = 'https://transactionmanager-[hash]-uc.a.run.app';
+const TRANSACTION_MANAGER_URL = 'https://transactionmanager-[hash]-uc.a.run.app'
 
 export const useTransactionHistory = (userId: string) => {
   return useInfiniteQuery({
     queryKey: ['transactionHistory', userId],
     queryFn: async ({ pageParam = 0 }) => {
       const response = await fetch(
-        `${TRANSACTION_MANAGER_URL}?action=list&user_id=${userId}&app_name=yours-brightly&limit=20&offset=${pageParam}`
-      );
-      
+        `${TRANSACTION_MANAGER_URL}?action=list&user_id=${userId}&app_name=yours-brightly&limit=20&offset=${pageParam}`,
+      )
+
       if (!response.ok) {
-        throw new Error('Failed to fetch transactions');
+        throw new Error('Failed to fetch transactions')
       }
 
-      const result = await response.json();
+      const result = await response.json()
       return {
         transactions: result.data,
         nextOffset: result.data.length === 20 ? pageParam + 20 : undefined,
-      };
+      }
     },
     getNextPageParam: (lastPage) => lastPage.nextOffset,
-  });
-};
+  })
+}
 ```
 
 ### Transaction History Component
@@ -713,7 +713,7 @@ const TransactionItem: React.FC<{ transaction: Transaction }> = ({ transaction }
         </Text>
         <View style={styles.transactionInfo}>
           <Text style={styles.transactionType}>
-            {transaction.transactionType === 'one_time' ? 'Credit Purchase' : 
+            {transaction.transactionType === 'one_time' ? 'Credit Purchase' :
              transaction.transactionType === 'subscription' ? 'Subscription' : 'Refund'}
           </Text>
           <Text style={styles.transactionDate}>
@@ -729,7 +729,7 @@ const TransactionItem: React.FC<{ transaction: Transaction }> = ({ transaction }
           </Text>
         </View>
       </View>
-      
+
       {transaction.internalMetadata?.credit_amount && (
         <Text style={styles.creditsText}>
           +{transaction.internalMetadata.credit_amount} credits
@@ -758,7 +758,7 @@ export const TransactionHistory: React.FC = () => {
 
   const renderFooter = () => {
     if (!isFetchingNextPage) return null;
-    
+
     return (
       <View style={styles.loadingFooter}>
         <Text>Loading more...</Text>
@@ -769,7 +769,7 @@ export const TransactionHistory: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Transaction History</Text>
-      
+
       <FlatList
         data={transactions}
         renderItem={renderItem}
@@ -862,16 +862,16 @@ const styles = StyleSheet.create({
 
 ```typescript
 // utils/errorHandler.ts
-import { Alert } from 'react-native';
+import { Alert } from 'react-native'
 
 export interface PaymentError {
-  code: string;
-  message: string;
-  type: 'payment' | 'network' | 'validation' | 'server';
+  code: string
+  message: string
+  type: 'payment' | 'network' | 'validation' | 'server'
 }
 
 export const handlePaymentError = (error: any): PaymentError => {
-  console.error('Payment error:', error);
+  console.error('Payment error:', error)
 
   // Stripe errors
   if (error.code) {
@@ -880,26 +880,26 @@ export const handlePaymentError = (error: any): PaymentError => {
         return {
           code: error.code,
           message: 'Your card was declined. Please try a different payment method.',
-          type: 'payment'
-        };
+          type: 'payment',
+        }
       case 'insufficient_funds':
         return {
           code: error.code,
           message: 'Your card has insufficient funds.',
-          type: 'payment'
-        };
+          type: 'payment',
+        }
       case 'expired_card':
         return {
           code: error.code,
           message: 'Your card has expired.',
-          type: 'payment'
-        };
+          type: 'payment',
+        }
       default:
         return {
           code: error.code,
           message: error.message || 'Payment failed. Please try again.',
-          type: 'payment'
-        };
+          type: 'payment',
+        }
     }
   }
 
@@ -908,21 +908,21 @@ export const handlePaymentError = (error: any): PaymentError => {
     return {
       code: 'network_error',
       message: 'Network error. Please check your connection and try again.',
-      type: 'network'
-    };
+      type: 'network',
+    }
   }
 
   // Default error
   return {
     code: 'unknown_error',
     message: 'An unexpected error occurred. Please try again.',
-    type: 'server'
-  };
-};
+    type: 'server',
+  }
+}
 
 export const showPaymentError = (error: PaymentError) => {
-  Alert.alert('Payment Error', error.message, [{ text: 'OK' }]);
-};
+  Alert.alert('Payment Error', error.message, [{ text: 'OK' }])
+}
 ```
 
 ### Error Boundary Component
@@ -1022,7 +1022,7 @@ export const STRIPE_TEST_CARDS = {
   MASTERCARD: '5555555555554444',
   DECLINED: '4000000000000002',
   INSUFFICIENT_FUNDS: '4000000000009995',
-};
+}
 
 export const createTestPaymentMethod = async (cardNumber: string = STRIPE_TEST_CARDS.VISA) => {
   // This is for testing only - implement based on your test setup
@@ -1032,8 +1032,8 @@ export const createTestPaymentMethod = async (cardNumber: string = STRIPE_TEST_C
       brand: 'visa',
       last4: cardNumber.slice(-4),
     },
-  };
-};
+  }
+}
 ```
 
 ### Test Credit Purchase
@@ -1051,7 +1051,7 @@ const createWrapper = () => {
       mutations: { retry: false },
     },
   });
-  
+
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       {children}
@@ -1099,4 +1099,4 @@ describe('Credit Purchase Flow', () => {
 
 This integration guide provides everything needed to implement the payment system in your React Native app. The components are designed to work with Expo Router and integrate seamlessly with your existing authentication system.
 
-*Last updated: October 2, 2025*
+_Last updated: October 2, 2025_

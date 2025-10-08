@@ -2,15 +2,15 @@
 // Update this file when the privacy policy changes and increment the version
 
 export interface PrivacyConfig {
-    version: string;
-    privacy: string;
-    lastUpdated: string;
+  version: string
+  privacy: string
+  lastUpdated: string
 }
 
 export const YOURS_BRIGHTLY_PRIVACY: PrivacyConfig = {
-    version: '1.0',
-    lastUpdated: 'September 28, 2025',
-    privacy: `
+  version: '1.0',
+  lastUpdated: 'September 28, 2025',
+  privacy: `
 Equational Applications LLC ("we", "us", "our") is committed to protecting your privacy.
 This privacy policy explains how we collect, use, and disclose information through our
 Yours Brightly AI app (the "App"). By using the App, you consent to our collection, use,
@@ -63,16 +63,16 @@ State of Michigan without regard to its conflicts of law provisions.
 
 By using the App, you acknowledge that you have read, understood, and agree to be bound by
 this privacy policy. If you do not agree to this privacy policy, do not use the App.
-`
+`,
 }
 
-export const CURRENT_PRIVACY = YOURS_BRIGHTLY_PRIVACY;
+export const CURRENT_PRIVACY = YOURS_BRIGHTLY_PRIVACY
 
 export function getPrivacyForApp(appName: string): PrivacyConfig | null {
-    switch (appName) {
-        case 'yours-brightly':
-            return YOURS_BRIGHTLY_PRIVACY;
-        default:
-            return null;
-    }
+  switch (appName) {
+    case 'yours-brightly':
+      return YOURS_BRIGHTLY_PRIVACY
+    default:
+      return null
+  }
 }

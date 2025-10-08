@@ -2,17 +2,17 @@
 // Update this file when terms change and increment the version
 
 export interface TermsConfig {
-    version: string;
-    summary: string;
-    terms: string;
-    lastUpdated: string;
+  version: string
+  summary: string
+  terms: string
+  lastUpdated: string
 }
 
 export const YOURS_BRIGHTLY_TERMS: TermsConfig = {
-    version: '2.0',
-    lastUpdated: 'September 28, 2025',
+  version: '2.0',
+  lastUpdated: 'September 28, 2025',
 
-    summary: `
+  summary: `
 By using Yours Brightly AI, you agree to these key terms:
 
 • AI Character Creation: Create and customize AI characters for personal use while following community guidelines
@@ -32,7 +32,7 @@ By using Yours Brightly AI, you agree to these key terms:
 For the complete terms and conditions, please tap "View Full Terms" below.
 `,
 
-    terms: `
+  terms: `
 By using the Yours Brightly AI application ("the App") developed by Equational Applications LLC, you agree to be bound by the following terms and conditions:
 
 1. Use of the App
@@ -78,18 +78,18 @@ If any provision of these terms and conditions is held to be invalid or unenforc
 These terms and conditions constitute the entire agreement between you and Equational Applications LLC with respect to the use of the App, and supersede all prior or contemporaneous communications and proposals, whether oral or written, between you and Equational Applications LLC.
 
 By using the App, you acknowledge that you have read, understood, and agree to be bound by these terms and conditions. If you do not agree to these terms and conditions, do not use the App.
-`
-};
+`,
+}
 
 // Export the current terms configuration
-export const CURRENT_TERMS = YOURS_BRIGHTLY_TERMS;
+export const CURRENT_TERMS = YOURS_BRIGHTLY_TERMS
 
 // Helper to get terms for a specific app (future-proofing for multiple apps)
 export function getTermsForApp(appName: string): TermsConfig | null {
-    switch (appName) {
-        case 'yours-brightly':
-            return YOURS_BRIGHTLY_TERMS;
-        default:
-            return null;
-    }
+  switch (appName) {
+    case 'yours-brightly':
+      return YOURS_BRIGHTLY_TERMS
+    default:
+      return null
+  }
 }

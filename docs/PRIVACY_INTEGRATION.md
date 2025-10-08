@@ -29,11 +29,13 @@ export interface PrivacyConfig {
 export const YOURS_BRIGHTLY_PRIVACY: PrivacyConfig = {
   lastUpdated: 'September 28, 2025',
   summary: 'Short blurb about data handling and user privacy.',
-  privacy: `Full privacy policy text...`
+  privacy: `Full privacy policy text...`,
 }
 
 export const CURRENT_PRIVACY = YOURS_BRIGHTLY_PRIVACY
-export function getPrivacyForApp(appName: string) { return YOURS_BRIGHTLY_PRIVACY }
+export function getPrivacyForApp(appName: string) {
+  return YOURS_BRIGHTLY_PRIVACY
+}
 ```
 
 2. Render it in the `Privacy` screen:

@@ -1,5 +1,5 @@
-import { supabaseClient } from "../config/supabaseClient"
-import { auth } from "../config/firebaseConfig"
+import { supabaseClient } from '../config/supabaseClient'
+import { auth } from '../config/firebaseConfig'
 
 export const getIsPremium = async (): Promise<boolean> => {
   if (!auth.currentUser) {

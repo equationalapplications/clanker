@@ -1,5 +1,5 @@
-import { StyleSheet, View, ViewStyle } from "react-native"
-import { Icon, useTheme } from "react-native-paper"
+import { StyleSheet, View, ViewStyle } from 'react-native'
+import { Icon, useTheme } from 'react-native-paper'
 
 interface Props {
   type: string
@@ -8,10 +8,10 @@ interface Props {
 }
 
 const providerMap: { [key: string]: string } = {
-  password: "email-lock",
-  facebook: "facebook",
-  google: "google",
-  phone: "phone",
+  password: 'email-lock',
+  facebook: 'facebook',
+  google: 'google',
+  phone: 'phone',
 }
 
 function Provider({ type, active, style }: Props) {
@@ -23,8 +23,12 @@ function Provider({ type, active, style }: Props) {
   }
 
   return (
-    <View style={[style, styles[active ? "active" : "inactive"]]}>
-      <Icon source={icon} size={24} color={active ? theme.colors.primary : theme.colors.onSurface} />
+    <View style={[style, styles[active ? 'active' : 'inactive']]}>
+      <Icon
+        source={icon}
+        size={24}
+        color={active ? theme.colors.primary : theme.colors.onSurface}
+      />
     </View>
   )
 }

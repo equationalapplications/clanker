@@ -1,13 +1,13 @@
 {
-    "extends": "./tsconfig.json",
-    "include": [
-        "app/config/termsConfig.ts",
-        "app/config/privacyConfig.ts",
-        "app/navigation/RootNavigator.tsx",
-        "app/navigation/types.tsx",
-        "app/screens/Privacy.tsx",
-        "app/screens/SignIn.tsx",
-        "app/screens/Terms.tsx",
-        "app/types/react-native-vector-icons.d.ts"
-    ]
+  "extends": "./tsconfig.json",
+  "include": [
+    "app/config/termsConfig.ts",
+    "app/config/privacyConfig.ts",
+    "app/navigation/RootNavigator.tsx",
+    "app/navigation/types.tsx",
+    "app/screens/Privacy.tsx",
+    "app/screens/SignIn.tsx",
+    "app/screens/Terms.tsx",
+    "app/types/react-native-vector-icons.d.ts"
+  ]
 }

@@ -1,22 +1,22 @@
-import { StyleSheet } from "react-native"
+import { StyleSheet } from 'react-native'
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 8,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     borderBottomWidth: 1,
-    borderBottomColor: "#242424",
+    borderBottomColor: '#242424',
   },
   title: {
-    color: "white",
+    color: 'white',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   terms: {
-    color: "darkgrey",
+    color: 'darkgrey',
   },
 })
 

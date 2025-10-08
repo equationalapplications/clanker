@@ -5,6 +5,7 @@ This document describes the navigation structure of the Yours Brightly AI app, f
 ## Navigation Architecture
 
 ### 🔒 Root Layout (`app/_layout.tsx`)
+
 **This is where ALL authentication logic happens** - the single source of truth for auth state.
 
 - Uses `Stack.Protected` with `guard={isLoggedIn}` to control access
@@ -22,6 +23,7 @@ This document describes the navigation structure of the Yours Brightly AI app, f
 **Important:** The loading state while checking auth is handled in `RootLayoutNav`. The `index.tsx` does NOT duplicate auth checks - it simply redirects to the app, and `Stack.Protected` handles whether that's allowed.
 
 ### 📋 Terms Acceptance Check (`app/(app)/_layout.tsx`)
+
 **This is the ONLY place where terms acceptance is checked** - happens AFTER authentication.
 
 - Uses `useSubscriptionStatus()` to check if user needs to accept terms
@@ -32,6 +34,7 @@ This document describes the navigation structure of the Yours Brightly AI app, f
 - This ensures terms are only checked for authenticated users inside protected routes
 
 **Why Optimistic?** Terms acceptance is a legal checkbox, not a security boundary. We trust the client-side click and verify server-side when needed (RLS policies, API calls). This provides:
+
 - ✅ Instant navigation (better UX)
 - ✅ Offline support (sync later)
 - ✅ Industry-standard pattern
@@ -40,18 +43,24 @@ This document describes the navigation structure of the Yours Brightly AI app, f
 ### 📱 Main App Structure
 
 #### Drawer Navigator (`app/(app)/_layout.tsx`)
+
 Primary navigation for the authenticated app:
+
 - **Home** - Bottom tab navigator (Chats & Characters)
 - **Settings** - App settings
 - **Profile** - User profile
 
 #### Bottom Tab Navigator (`app/(app)/(tabs)/_layout.tsx`)
+
 Main task-based navigation:
+
 - **Chats** - Conversation list and chat interface
 - **Characters** - Character management with nested stack
 
 #### Stack Navigator (`app/(app)/(tabs)/characters/_layout.tsx`)
+
 Nested stack for character-related screens:
+
 - **Characters List** (`index.tsx`) - Browse and create characters
 - **Character Details** (`[id].tsx`) - Unified screen for viewing, editing, and chatting with a character
 
@@ -107,13 +116,16 @@ app/
    - If terms accepted:
      - Renders the Drawer navigator with tabs
 
-**Key Principle:** 
+**Key Principle:**
+
 - Root `index.tsx` provides immediate routing based on auth
 - `Stack.Protected` guards provide defense-in-depth protection
 - Auth check happens FIRST at root, terms check happens SECOND inside protected route
 
 ### Root Index Behavior
+
 The root `index.tsx` uses a hybrid approach for best UX:
+
 - Checks auth state using `useAuth()`
 - Provides immediate redirect based on current auth state
 - Authenticated users → `/(app)/(tabs)/chats`
@@ -122,7 +134,9 @@ The root `index.tsx` uses a hybrid approach for best UX:
 - Prevents blank screen while auth state loads
 
 ### Deep Linking
+
 The app supports deep linking to any screen:
+
 - `/` - Landing page (redirects based on auth)
 - `/sign-in` - Sign in screen
 - `/characters` - Characters list
@@ -130,13 +144,17 @@ The app supports deep linking to any screen:
 - `/chats` - Chats list
 
 ### Dynamic Routes
+
 Character details use Expo Router's dynamic route pattern:
+
 - File: `app/(app)/(tabs)/characters/[id].tsx`
 - URL: `/characters/123`
 - Access param: `const { id } = useLocalSearchParams<{ id: string }>()`
 
 ### Protected Routes
+
 Using `Stack.Protected` to control access:
+
 ```tsx
 <Stack.Protected guard={isLoggedIn}>
   <Stack.Screen name="(app)" options={{ headerShown: false }} />
@@ -144,6 +162,7 @@ Using `Stack.Protected` to control access:
 ```
 
 ### Navigation Methods
+
 ```tsx
 // Navigate to character details
 router.push(`/characters/${characterId}`)
@@ -166,19 +185,25 @@ router.replace('/sign-in')
 ## Troubleshooting
 
 ### Blank Screen on Web
+
 If you see a blank screen at the root URL:
+
 - Ensure `app/index.tsx` has explicit redirect logic
 - Check that `useAuth()` is returning auth state correctly
 - Clear cache with `npx expo start --clear`
 
 ### Reanimated Issues
+
 For drawer/animation issues:
+
 - Ensure `react-native-reanimated/plugin` is in `babel.config.js` (must be last)
 - Web uses CSS animations (native driver warning is expected and harmless)
 - Run `npx expo start --clear` after babel config changes
 
 ### Type Errors
+
 If navigation routes show TypeScript errors:
+
 - Run `npx expo start --clear` to regenerate typed routes
 - Ensure all routes have proper file structure
 - Check that dynamic routes use the `[param]` pattern
@@ -191,6 +216,3 @@ If navigation routes show TypeScript errors:
 - [Dynamic Routes](https://docs.expo.dev/router/advanced/dynamic-routes/)
 - [Drawer Navigator](https://docs.expo.dev/router/advanced/drawer/)
 - [React Native Reanimated](https://docs.expo.dev/versions/latest/sdk/reanimated/)
-
-
-
