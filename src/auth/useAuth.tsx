@@ -45,7 +45,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         const authResponse = await supabaseClient.auth.setSession(session)
                         const currentSession = await supabaseClient.auth.getSession()
 
-                        console.log('✅ Supabase sync complete.', currentSession)
+                        console.log('✅ Supabase sync complete.', authResponse, currentSession)
                         setIsLoading(false)
                     }
                 } catch (error) {
