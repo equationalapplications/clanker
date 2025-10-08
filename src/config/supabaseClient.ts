@@ -1,8 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabaseUrl, supabaseAnonKey } from './constants'
+import { Platform } from 'react-native'
+import Storage from 'expo-sqlite/kv-store';
 
 // Create a single supabase client for interacting with the database
-export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        storage: Platform.OS === 'web' ? localStorage : Storage,
+    },
+})
 
 // Database types based on our PostgreSQL schema
 export interface Database {
