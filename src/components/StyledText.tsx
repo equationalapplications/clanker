@@ -1,8 +1,8 @@
 import React from 'react'
-import { Text } from "react-native-paper"
+import { Text } from 'react-native-paper'
 
 export const MonoText = (props: any) => {
-  return <Text {...props} style={[props.style, { fontFamily: "space-mono" }]} />
+  return <Text {...props} style={[props.style, { fontFamily: 'space-mono' }]} />
 }
 
 export const TitleText = (props: any) => {
@@ -10,5 +10,5 @@ export const TitleText = (props: any) => {
 }
 
 export const ParagraphText = (props: any) => {
-  return <Text {...props} style={[props.style, { width: "60%" }]} />
+  return <Text {...props} style={[props.style, { width: '60%' }]} />
 }

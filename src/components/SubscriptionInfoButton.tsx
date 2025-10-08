@@ -1,9 +1,9 @@
 // TODO: Install expo-web-browser dependency
 // import * as WebBrowser from "expo-web-browser"
-import Purchases from "react-native-purchases"
+import Purchases from 'react-native-purchases'
 
-import Button from "~/components/Button"
-import { stripeCustomerPortal, platform } from "~/config/constants"
+import Button from '~/components/Button'
+import { stripeCustomerPortal, platform } from '~/config/constants'
 
 interface Props {
   onChangeIsLoading: (isLoading: boolean) => void
@@ -12,11 +12,11 @@ interface Props {
 export default function SubscriptionInfoButton({ onChangeIsLoading }: Props) {
   const onPressBilling = async () => {
     try {
-      if (platform === "web") {
+      if (platform === 'web') {
         onChangeIsLoading(true)
         // TODO: Implement web browser opening when expo-web-browser is available
         // await WebBrowser.openBrowserAsync(stripeCustomerPortal)
-        console.log("Would open:", stripeCustomerPortal)
+        console.log('Would open:', stripeCustomerPortal)
         onChangeIsLoading(false)
       } else {
         onChangeIsLoading(true)
@@ -25,7 +25,7 @@ export default function SubscriptionInfoButton({ onChangeIsLoading }: Props) {
         if (!managementURL) return
         // TODO: Implement web browser opening when expo-web-browser is available
         // await WebBrowser.openBrowserAsync(managementURL)
-        console.log("Would open:", managementURL)
+        console.log('Would open:', managementURL)
       }
       onChangeIsLoading(false)
     } catch (e) {

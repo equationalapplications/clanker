@@ -9,6 +9,7 @@
 ## Context
 
 Previously, the terms acceptance flow:
+
 1. User clicked "I Accept"
 2. Wrote to database
 3. **Forced JWT refresh** via re-authentication
@@ -17,6 +18,7 @@ Previously, the terms acceptance flow:
 6. Allowed access
 
 This approach had several issues:
+
 - ❌ Poor UX (blocking delay)
 - ❌ Network dependency (no offline support)
 - ❌ Complex error handling
@@ -26,6 +28,7 @@ This approach had several issues:
 ## Decision
 
 Implement **optimistic UI pattern** (industry standard):
+
 1. User clicks "I Accept"
 2. **Immediately proceed to app** ✅
 3. Database write happens async
@@ -39,6 +42,7 @@ Implement **optimistic UI pattern** (industry standard):
 **Key insight:** Terms acceptance is a **legal checkbox**, not **authentication/authorization**.
 
 If someone bypasses the client-side check:
+
 - They're still legally bound by the terms
 - Server-side RLS policies enforce on actual data access
 - API endpoints validate subscription status
@@ -47,6 +51,7 @@ If someone bypasses the client-side check:
 ### Industry Standard Pattern
 
 This is how major platforms handle terms:
+
 - **Stripe Dashboard** - Instant proceed after accept
 - **Auth0 Console** - No blocking waits
 - **Firebase Console** - Optimistic navigation
@@ -80,12 +85,12 @@ This is how major platforms handle terms:
 
 ```typescript
 // Local state tracks optimistic acceptance
-const [localTermsAccepted, setLocalTermsAccepted] = useState(false);
+const [localTermsAccepted, setLocalTermsAccepted] = useState(false)
 
 // Check local state first, then JWT claims
 if (localTermsAccepted) {
   // User accepted this session, let them through
-  return { needsTermsAcceptance: false };
+  return { needsTermsAcceptance: false }
 }
 
 // Otherwise check JWT claims...
@@ -96,11 +101,11 @@ if (localTermsAccepted) {
 ```typescript
 const onPressAccept = async () => {
   // Write to database (async)
-  await grantAppAccess('yours-brightly', version);
-  
+  await grantAppAccess('yours-brightly', version)
+
   // Immediately proceed (optimistic)
-  onAccepted?.(); // Navigation happens instantly
-};
+  onAccepted?.() // Navigation happens instantly
+}
 ```
 
 ### Database Write (`appAccess.ts`)
@@ -110,12 +115,12 @@ export async function grantAppAccess() {
   // Write subscription to database
   await supabaseClient.from('user_app_subscriptions').upsert({
     terms_accepted_at: new Date().toISOString(),
-    terms_version: version
-  });
-  
+    terms_version: version,
+  })
+
   // No JWT refresh needed!
   // Next natural refresh will pick it up
-  return { success: true };
+  return { success: true }
 }
 ```
 
@@ -124,6 +129,7 @@ export async function grantAppAccess() {
 Security is enforced where it actually matters:
 
 ### RLS Policies (Database Level)
+
 ```sql
 CREATE POLICY "Users must accept current terms"
 ON yours_brightly
@@ -132,14 +138,16 @@ USING (user_has_current_terms('yours-brightly', '1.0'));
 ```
 
 ### API Endpoints (Application Level)
+
 ```typescript
 // Validate on actual operations
 if (!hasAcceptedCurrentTerms(userId, 'yours-brightly')) {
-  return { error: 'Terms acceptance required' };
+  return { error: 'Terms acceptance required' }
 }
 ```
 
 ### JWT Claims (Natural Refresh)
+
 ```typescript
 // Auth hook adds subscription to JWT (happens automatically)
 // No forced refresh needed - happens on next expiry
@@ -148,12 +156,14 @@ if (!hasAcceptedCurrentTerms(userId, 'yours-brightly')) {
 ## Migration Notes
 
 ### Files Changed
+
 1. `src/utilities/appAccess.ts` - Removed JWT refresh logic
 2. `src/hooks/useSubscriptionStatus.ts` - Added local state tracking
 3. `src/components/AcceptTerms.tsx` - Removed blocking alert
 4. `app/accept-terms.tsx` - Instant navigation
 
 ### Backward Compatibility
+
 - ✅ Server-side validation unchanged
 - ✅ RLS policies unchanged
 - ✅ JWT structure unchanged

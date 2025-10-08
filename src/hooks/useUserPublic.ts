@@ -1,28 +1,19 @@
-import { useEffect, useState } from 'react'
-import { UserProfile, UserPublic, subscribeToUserProfile } from '~/services/userService'
+/**
+ * Legacy hook for backward compatibility
+ * @deprecated Use useUserPublicData() from useUser.ts for new code
+ *
+ * This hook is maintained for backward compatibility but delegates to
+ * the new React Query implementation for offline support.
+ */
+
+import { useUserPublicData } from './useUser'
+import type { UserPublic } from '~/services/userService'
 
 /**
  * Hook to get user public data from Supabase
+ * Now uses React Query for caching and offline support
  */
 export function useUserPublic(): UserPublic | null {
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-
-  useEffect(() => {
-    const unsubscribe = subscribeToUserProfile((newProfile) => {
-      setProfile(newProfile)
-    })
-
-    return unsubscribe
-  }, [])
-
-  if (!profile) {
-    return null
-  }
-
-  return {
-    uid: profile.user_id,
-    name: profile.display_name || profile.email || '',
-    avatar: profile.avatar_url || '',
-    email: profile.email || '',
-  }
+  const { userPublic } = useUserPublicData()
+  return userPublic || null
 }

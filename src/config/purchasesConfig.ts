@@ -1,10 +1,10 @@
-import Purchases from "react-native-purchases"
+import Purchases from 'react-native-purchases'
 
 import {
   platform,
   revenueCatPurchasesIosApiKey,
   revenueCatPurchasesAndroidApiKey,
-} from "./constants"
+} from './constants'
 
 export interface Subscriber {
   original_app_user_id: string
@@ -31,9 +31,9 @@ export interface Subscription {
   expires_date: string
   purchase_date: string
   original_purchase_date: string
-  ownership_type: "PURCHASED" | "FAMILY_SHARED"
-  period_type: "normal" | "trial" | "intro"
-  store: "app_store" | "mac_app_store" | "play_store" | "amazon" | "stripe" | "promotional"
+  ownership_type: 'PURCHASED' | 'FAMILY_SHARED'
+  period_type: 'normal' | 'trial' | 'intro'
+  store: 'app_store' | 'mac_app_store' | 'play_store' | 'amazon' | 'stripe' | 'promotional'
   is_sandbox: boolean
   unsubscribe_detected_at: string | null
   billing_issues_detected_at: string | null
@@ -45,7 +45,7 @@ export interface Subscription {
 export interface NonSubscription {
   id: string
   purchase_date: string
-  store: "app_store" | "mac_app_store" | "play_store" | "amazon" | "stripe"
+  store: 'app_store' | 'mac_app_store' | 'play_store' | 'amazon' | 'stripe'
   is_sandbox: boolean
 }
 
@@ -55,13 +55,13 @@ export interface SubscriberAttribute {
 }
 
 export const purchasesConfig = async (userId: string) => {
-  if (platform === "ios") {
+  if (platform === 'ios') {
     Purchases.setDebugLogsEnabled(true)
     await Purchases.configure({
       apiKey: revenueCatPurchasesIosApiKey,
       appUserID: userId,
     })
-  } else if (platform === "android") {
+  } else if (platform === 'android') {
     Purchases.setDebugLogsEnabled(true)
     await Purchases.configure({
       apiKey: revenueCatPurchasesAndroidApiKey,
@@ -71,7 +71,7 @@ export const purchasesConfig = async (userId: string) => {
     })
     // OR: if building for Amazon, be sure to follow the installation instructions then:
     // await Purchases.configure({ apiKey: '<public_amazon_api_key>', useAmazon: true });
-  } else if (platform === "web") {
+  } else if (platform === 'web') {
     // Configure Axios to use the same origin as the web app
     // axios.defaults.baseURL = window.location.origin;
     //const idTokenUser = await user?.getIdToken()

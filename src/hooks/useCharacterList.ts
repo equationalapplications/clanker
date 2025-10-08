@@ -1,27 +1,18 @@
-import { useEffect, useState } from 'react'
-import { Character, LegacyCharacter, subscribeToUserCharacters, toLegacyCharacter } from '~/services/characterService'
+/**
+ * Legacy hook for backward compatibility
+ * @deprecated Use useCharacters() from useCharacters.ts for new code
+ *
+ * This hook is maintained for backward compatibility but delegates to
+ * the new React Query implementation for offline support.
+ */
+
+import { useCharacterList as useCharacterListQuery } from './useCharacters'
+import type { LegacyCharacter } from '~/services/characterService'
 
 /**
  * Hook to get the current user's characters from Supabase
+ * Now uses React Query for caching and offline support
  */
 export function useCharacterList(): LegacyCharacter[] {
-  const [characters, setCharacters] = useState<Character[]>([])
-
-  useEffect(() => {
-    console.log('🎣 useCharacterList - setting up subscription')
-    const unsubscribe = subscribeToUserCharacters((newCharacters) => {
-      console.log('🎣 useCharacterList - received characters update:', newCharacters.length, newCharacters)
-      setCharacters(newCharacters)
-    })
-
-    return () => {
-      console.log('🎣 useCharacterList - cleaning up subscription')
-      unsubscribe()
-    }
-  }, [])
-
-  const legacyCharacters = characters.map(toLegacyCharacter)
-  console.log('🎣 useCharacterList - returning legacy characters:', legacyCharacters.length, legacyCharacters)
-
-  return legacyCharacters
+  return useCharacterListQuery()
 }

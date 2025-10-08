@@ -29,12 +29,12 @@ export default async function updateCharacter({
 
     // Remove undefined values
     const cleanData = Object.fromEntries(
-      Object.entries(supabaseData).filter(([_, value]) => value !== undefined)
+      Object.entries(supabaseData).filter(([_, value]) => value !== undefined),
     )
 
     await updateCharacterSupabase(characterId, cleanData)
   } catch (error) {
-    console.error("Error updating character:", error)
+    console.error('Error updating character:', error)
     throw error
   }
 }

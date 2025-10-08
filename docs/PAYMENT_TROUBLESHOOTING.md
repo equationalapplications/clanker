@@ -21,36 +21,36 @@ Run these SQL queries to quickly assess system health:
 
 ```sql
 -- Check recent transaction activity
-SELECT 
+SELECT
   DATE(created_at) as date,
   COUNT(*) as transactions,
   SUM(amount_cents) as total_amount,
   COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
   COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
-FROM user_transactions 
+FROM user_transactions
 WHERE created_at >= NOW() - INTERVAL '7 days'
 GROUP BY DATE(created_at)
 ORDER BY date DESC;
 
 -- Check webhook processing
-SELECT 
+SELECT
   event_source,
   processing_status,
   COUNT(*) as count,
   MAX(processed_at) as last_processed
-FROM transaction_events 
+FROM transaction_events
 WHERE processed_at >= NOW() - INTERVAL '24 hours'
 GROUP BY event_source, processing_status;
 
 -- Check user credits distribution
-SELECT 
+SELECT
   plan_tier,
   COUNT(*) as users,
   AVG(credits_remaining) as avg_credits,
   MIN(credits_remaining) as min_credits,
   MAX(credits_remaining) as max_credits
-FROM user_app_subscriptions 
-WHERE app_name = 'yours-brightly' 
+FROM user_app_subscriptions
+WHERE app_name = 'yours-brightly'
   AND plan_status = 'active'
 GROUP BY plan_tier;
 ```
@@ -78,34 +78,38 @@ firebase functions:log --only stripeWebhook --lines 100 | grep ERROR
 ### Problem: Credits Not Updating After Purchase
 
 **Symptoms**:
+
 - User completes payment successfully
 - Stripe shows payment as completed
 - User's credit balance unchanged
 
 **Diagnosis**:
+
 ```sql
 -- Check if transaction was created
-SELECT * FROM user_transactions 
+SELECT * FROM user_transactions
 WHERE external_transaction_id = 'pi_stripe_payment_intent_id';
 
 -- Check if webhook event was processed
-SELECT * FROM transaction_events 
+SELECT * FROM transaction_events
 WHERE raw_event_data->>'id' = 'evt_stripe_event_id';
 
 -- Check user's current subscription
-SELECT * FROM user_app_subscriptions 
+SELECT * FROM user_app_subscriptions
 WHERE user_id = 'user-uuid' AND app_name = 'yours-brightly';
 ```
 
 **Solutions**:
 
 1. **Webhook not delivered**:
+
    ```bash
    # Check Stripe webhook logs
    stripe logs tail --filter-account=acct_your_account
    ```
 
 2. **User ID mismatch**:
+
    ```sql
    -- Find user by email instead
    SELECT id FROM auth.users WHERE email = 'user@example.com';
@@ -114,36 +118,39 @@ WHERE user_id = 'user-uuid' AND app_name = 'yours-brightly';
 3. **Manual credit addition**:
    ```sql
    -- Add credits manually (emergency fix)
-   UPDATE user_app_subscriptions 
+   UPDATE user_app_subscriptions
    SET credits_remaining = credits_remaining + 100,
        updated_at = NOW()
-   WHERE user_id = 'user-uuid' 
+   WHERE user_id = 'user-uuid'
      AND app_name = 'yours-brightly';
    ```
 
 ### Problem: Unlimited Plan Not Working
 
 **Symptoms**:
+
 - User has unlimited subscription
 - Still shows limited credits
 - Credit deduction fails
 
 **Diagnosis**:
+
 ```sql
 -- Check plan tier
-SELECT plan_tier, credits_remaining, plan_status 
-FROM user_app_subscriptions 
+SELECT plan_tier, credits_remaining, plan_status
+FROM user_app_subscriptions
 WHERE user_id = 'user-uuid' AND app_name = 'yours-brightly';
 ```
 
 **Solutions**:
 
 1. **Fix plan tier**:
+
    ```sql
-   UPDATE user_app_subscriptions 
+   UPDATE user_app_subscriptions
    SET plan_tier = 'unlimited',
        credits_remaining = 999999
-   WHERE user_id = 'user-uuid' 
+   WHERE user_id = 'user-uuid'
      AND app_name = 'yours-brightly';
    ```
 
@@ -158,11 +165,13 @@ WHERE user_id = 'user-uuid' AND app_name = 'yours-brightly';
 ### Problem: Credits Deducting Incorrectly
 
 **Symptoms**:
+
 - Wrong amount deducted
 - Credits going negative
 - Deduction not happening
 
 **Check deduction function**:
+
 ```sql
 -- Test credit deduction
 SELECT deduct_user_credits('user-uuid', 'yours-brightly', 1);
@@ -172,6 +181,7 @@ SELECT deduct_user_credits('user-uuid', 'yours-brightly', 1);
 ```
 
 **Fix deduction logic**:
+
 ```sql
 -- Recreate function if needed
 CREATE OR REPLACE FUNCTION deduct_user_credits(
@@ -184,31 +194,31 @@ DECLARE
   is_unlimited BOOLEAN;
 BEGIN
   -- Get current credits and check if unlimited
-  SELECT 
-    credits_remaining, 
+  SELECT
+    credits_remaining,
     (plan_tier = 'unlimited') INTO current_credits, is_unlimited
-  FROM user_app_subscriptions 
-  WHERE user_id = p_user_id 
-    AND app_name = p_app_name 
+  FROM user_app_subscriptions
+  WHERE user_id = p_user_id
+    AND app_name = p_app_name
     AND plan_status = 'active';
-  
+
   -- If unlimited plan, don't deduct
   IF is_unlimited THEN
     RETURN TRUE;
   END IF;
-  
+
   -- Check if enough credits
   IF current_credits < p_credit_amount THEN
     RETURN FALSE;
   END IF;
-  
+
   -- Deduct credits
-  UPDATE user_app_subscriptions 
+  UPDATE user_app_subscriptions
   SET credits_remaining = credits_remaining - p_credit_amount,
       updated_at = NOW()
-  WHERE user_id = p_user_id 
+  WHERE user_id = p_user_id
     AND app_name = p_app_name;
-  
+
   RETURN TRUE;
 END;
 $$ LANGUAGE plpgsql;
@@ -219,15 +229,17 @@ $$ LANGUAGE plpgsql;
 ### Problem: Subscription Not Activating
 
 **Symptoms**:
+
 - User completes Stripe checkout
 - No subscription record in database
 - User still on free plan
 
 **Diagnosis**:
+
 ```sql
 -- Check for subscription events
-SELECT * FROM transaction_events 
-WHERE event_type LIKE '%subscription%' 
+SELECT * FROM transaction_events
+WHERE event_type LIKE '%subscription%'
   AND processed_at >= NOW() - INTERVAL '1 hour'
 ORDER BY processed_at DESC;
 
@@ -237,6 +249,7 @@ ORDER BY processed_at DESC;
 **Solutions**:
 
 1. **Manual subscription creation**:
+
    ```sql
    INSERT INTO user_app_subscriptions (
      user_id, app_name, plan_tier, plan_status,
@@ -258,21 +271,24 @@ ORDER BY processed_at DESC;
 ### Problem: Subscription Cancellation Not Working
 
 **Symptoms**:
+
 - User cancels in Stripe
 - Subscription still shows as active
 - Credits still unlimited
 
 **Check cancellation status**:
+
 ```sql
 -- Check subscription status
-SELECT plan_status, billing_metadata 
-FROM user_app_subscriptions 
+SELECT plan_status, billing_metadata
+FROM user_app_subscriptions
 WHERE billing_provider_id = 'sub_stripe_subscription_id';
 ```
 
 **Manual cancellation**:
+
 ```sql
-UPDATE user_app_subscriptions 
+UPDATE user_app_subscriptions
 SET plan_status = 'cancelled',
     updated_at = NOW()
 WHERE billing_provider_id = 'sub_stripe_subscription_id';
@@ -283,21 +299,24 @@ WHERE billing_provider_id = 'sub_stripe_subscription_id';
 ### Problem: Transactions Stuck in Pending
 
 **Symptoms**:
+
 - Transactions created but never completed
 - Status remains "pending"
 
 **Find pending transactions**:
+
 ```sql
 SELECT transaction_id, external_transaction_id, created_at
-FROM user_transactions 
-WHERE status = 'pending' 
+FROM user_transactions
+WHERE status = 'pending'
   AND created_at < NOW() - INTERVAL '1 hour';
 ```
 
 **Update status manually**:
+
 ```sql
 -- Check Stripe payment status first, then update
-UPDATE user_transactions 
+UPDATE user_transactions
 SET status = 'completed', updated_at = NOW()
 WHERE transaction_id = 'txn_transaction_id';
 ```
@@ -305,34 +324,37 @@ WHERE transaction_id = 'txn_transaction_id';
 ### Problem: Duplicate Transactions
 
 **Symptoms**:
+
 - Multiple transaction records for single payment
 - Credits added multiple times
 
 **Find duplicates**:
+
 ```sql
-SELECT external_transaction_id, COUNT(*) 
-FROM user_transactions 
-GROUP BY external_transaction_id 
+SELECT external_transaction_id, COUNT(*)
+FROM user_transactions
+GROUP BY external_transaction_id
 HAVING COUNT(*) > 1;
 ```
 
 **Remove duplicates** (keep latest):
+
 ```sql
 WITH duplicates AS (
-  SELECT id, 
+  SELECT id,
     ROW_NUMBER() OVER (
-      PARTITION BY external_transaction_id 
+      PARTITION BY external_transaction_id
       ORDER BY created_at DESC
     ) as rn
-  FROM user_transactions 
+  FROM user_transactions
   WHERE external_transaction_id IN (
-    SELECT external_transaction_id 
-    FROM user_transactions 
-    GROUP BY external_transaction_id 
+    SELECT external_transaction_id
+    FROM user_transactions
+    GROUP BY external_transaction_id
     HAVING COUNT(*) > 1
   )
 )
-DELETE FROM user_transactions 
+DELETE FROM user_transactions
 WHERE id IN (
   SELECT id FROM duplicates WHERE rn > 1
 );
@@ -343,11 +365,13 @@ WHERE id IN (
 ### Problem: Webhooks Not Being Received
 
 **Symptoms**:
+
 - Stripe events show as delivered
 - No transaction events in database
 - Payments succeed but no credit updates
 
 **Check webhook endpoint**:
+
 ```bash
 # Test endpoint manually
 curl -X POST https://stripewebhook-[hash]-uc.a.run.app \
@@ -356,12 +380,14 @@ curl -X POST https://stripewebhook-[hash]-uc.a.run.app \
 ```
 
 **Check Stripe webhook settings**:
+
 1. Go to Stripe Dashboard → Webhooks
 2. Verify endpoint URL is correct
 3. Check event types are selected
 4. Verify webhook is enabled
 
 **Check webhook secret**:
+
 ```bash
 # In Cloud Functions environment
 echo $STRIPE_WEBHOOK_SECRET
@@ -370,12 +396,14 @@ echo $STRIPE_WEBHOOK_SECRET
 ### Problem: Webhook Signature Verification Failing
 
 **Symptoms**:
+
 - Webhooks received but rejected
 - "Invalid signature" errors in logs
 
 **Solutions**:
 
 1. **Update webhook secret**:
+
    ```bash
    # In functions directory
    firebase functions:config:set stripe.webhook_secret="whsec_new_secret"
@@ -389,20 +417,23 @@ echo $STRIPE_WEBHOOK_SECRET
 ### Problem: Webhook Processing Failures
 
 **Symptoms**:
+
 - Webhooks received successfully
 - Processing fails with errors
 
 **Check processing errors**:
+
 ```sql
-SELECT event_type, error_message, raw_event_data 
-FROM transaction_events 
-WHERE processing_status = 'failed' 
+SELECT event_type, error_message, raw_event_data
+FROM transaction_events
+WHERE processing_status = 'failed'
 ORDER BY processed_at DESC;
 ```
 
 **Common fixes**:
 
 1. **User not found**:
+
    ```sql
    -- Check if user exists in Supabase
    SELECT id FROM auth.users WHERE email = 'user@example.com';
@@ -417,24 +448,30 @@ ORDER BY processed_at DESC;
 ### Problem: Token Exchange Failing
 
 **Symptoms**:
+
 - Users can't authenticate
 - "Failed to exchange token" errors
 
 **Check Firebase token**:
+
 ```javascript
 // In browser console
-firebase.auth().currentUser.getIdToken(true)
-  .then(token => console.log(token))
-  .catch(error => console.error(error));
+firebase
+  .auth()
+  .currentUser.getIdToken(true)
+  .then((token) => console.log(token))
+  .catch((error) => console.error(error))
 ```
 
 **Check Supabase connection**:
+
 ```sql
 -- Test Supabase connection
 SELECT NOW();
 ```
 
 **Check environment variables**:
+
 ```bash
 # In Cloud Functions
 echo $SUPABASE_URL
@@ -445,11 +482,13 @@ echo $SUPABASE_JWT_SECRET
 ### Problem: Supabase User Creation Failing
 
 **Symptoms**:
+
 - Firebase auth works
 - Supabase user not created
 - "Could not find or create Supabase user" error
 
 **Manual user creation**:
+
 ```sql
 -- Create user manually
 INSERT INTO auth.users (
@@ -460,6 +499,7 @@ INSERT INTO auth.users (
 ```
 
 **Check auth policies**:
+
 ```sql
 -- Verify RLS policies allow user creation
 \d+ auth.users
@@ -470,10 +510,12 @@ INSERT INTO auth.users (
 ### Problem: Connection Timeouts
 
 **Symptoms**:
+
 - Intermittent database errors
 - "Connection timeout" messages
 
 **Check connection pool**:
+
 ```sql
 -- Check active connections
 SELECT COUNT(*) FROM pg_stat_activity;
@@ -483,6 +525,7 @@ SHOW max_connections;
 ```
 
 **Solutions**:
+
 1. Reduce connection pool size in application
 2. Upgrade Supabase plan for more connections
 3. Implement connection retry logic
@@ -490,11 +533,13 @@ SHOW max_connections;
 ### Problem: RLS Policy Blocking Operations
 
 **Symptoms**:
+
 - Operations fail silently
 - No error messages
 - Data not updating
 
 **Test RLS policies**:
+
 ```sql
 -- Disable RLS temporarily for testing
 ALTER TABLE user_app_subscriptions DISABLE ROW LEVEL SECURITY;
@@ -505,10 +550,11 @@ ALTER TABLE user_app_subscriptions ENABLE ROW LEVEL SECURITY;
 ```
 
 **Check policy definitions**:
+
 ```sql
 -- View current policies
-SELECT schemaname, tablename, policyname, cmd, qual 
-FROM pg_policies 
+SELECT schemaname, tablename, policyname, cmd, qual
+FROM pg_policies
 WHERE tablename = 'user_app_subscriptions';
 ```
 
@@ -517,10 +563,12 @@ WHERE tablename = 'user_app_subscriptions';
 ### Problem: API Key Issues
 
 **Symptoms**:
+
 - "Invalid API key" errors
 - Authentication failures with Stripe
 
 **Check API keys**:
+
 ```bash
 # Test secret key
 curl https://api.stripe.com/v1/account \
@@ -533,35 +581,39 @@ echo $STRIPE_SECRET_KEY | cut -c1-7  # Should be "sk_live" or "sk_test"
 ### Problem: Webhook Event Processing
 
 **Symptoms**:
+
 - Events received but not processed correctly
 - Wrong event types being handled
 
 **Check event handling**:
+
 ```javascript
 // In stripeWebhook.ts, add debugging
-console.log('Received event:', event.type, event.id);
+console.log('Received event:', event.type, event.id)
 
 // Check event type mapping
 switch (event.type) {
   case 'customer.subscription.created':
   case 'customer.subscription.updated':
     // Handle subscription events
-    break;
+    break
   case 'payment_intent.succeeded':
     // Handle payment events
-    break;
+    break
   default:
-    console.log('Unhandled event type:', event.type);
+    console.log('Unhandled event type:', event.type)
 }
 ```
 
 ### Problem: Test vs Live Mode Confusion
 
 **Symptoms**:
+
 - Test payments not working in production
 - Live payments not working in development
 
 **Check environment consistency**:
+
 ```bash
 # Ensure all keys match environment
 echo "Publishable: $(echo $STRIPE_PUBLISHABLE_KEY | cut -c1-7)"
@@ -577,10 +629,10 @@ If a user's credits are stuck and they can't use the app:
 
 ```sql
 -- Emergency credit addition
-UPDATE user_app_subscriptions 
+UPDATE user_app_subscriptions
 SET credits_remaining = credits_remaining + 100,
     updated_at = NOW()
-WHERE user_id = 'user-uuid' 
+WHERE user_id = 'user-uuid'
   AND app_name = 'yours-brightly';
 
 -- Log the manual intervention
@@ -621,9 +673,9 @@ If the entire payment system seems stuck:
 
 ```sql
 -- Reset stuck transactions (use carefully)
-UPDATE user_transactions 
+UPDATE user_transactions
 SET status = 'failed', updated_at = NOW()
-WHERE status = 'pending' 
+WHERE status = 'pending'
   AND created_at < NOW() - INTERVAL '6 hours';
 
 -- Refresh user tokens
@@ -650,6 +702,6 @@ For payment system emergencies:
 
 ---
 
-*Keep this guide updated as new issues are discovered and resolved.*
+_Keep this guide updated as new issues are discovered and resolved._
 
-*Last updated: October 2, 2025*
+_Last updated: October 2, 2025_

@@ -1,5 +1,5 @@
-import React from "react"
-import { ActivityIndicator } from "react-native-paper"
+import React from 'react'
+import { ActivityIndicator } from 'react-native-paper'
 
 interface Props {
   disabled?: boolean

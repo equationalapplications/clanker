@@ -73,18 +73,18 @@ The Supabase auth hook automatically adds subscription data to JWTs:
 
 ```json
 {
-    "sub": "user-uuid",
-    "role": "authenticated",
-    "email": "user@example.com",
-    "plans": [
-        {
-            "app": "yours-brightly",
-            "tier": "monthly_20",
-            "status": "active",
-            "terms_accepted": "2025-10-01",
-            "terms_version": "1.0"
-        }
-    ]
+  "sub": "user-uuid",
+  "role": "authenticated",
+  "email": "user@example.com",
+  "plans": [
+    {
+      "app": "yours-brightly",
+      "tier": "monthly_20",
+      "status": "active",
+      "terms_accepted": "2025-10-01",
+      "terms_version": "1.0"
+    }
+  ]
 }
 ```
 

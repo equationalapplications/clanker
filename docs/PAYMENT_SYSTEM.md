@@ -30,6 +30,7 @@ The Yours Brightly AI app implements a comprehensive multi-tenant payment system
 ### Credit System
 
 Users can obtain credits through three methods:
+
 1. **Free tier**: 50 credits on first login
 2. **Subscriptions**: Monthly credit allowances or unlimited usage
 3. **One-time purchases**: Direct credit top-ups
@@ -43,17 +44,17 @@ graph TB
     A[Client App] --> B[Firebase Auth]
     B --> C[Exchange Token Function]
     C --> D[Supabase Database]
-    
+
     E[Stripe] --> F[Stripe Webhook]
     F --> G[Transaction Service]
     G --> D
-    
+
     H[Google Play] --> I[Play Webhook]
     I --> G
-    
+
     J[Apple App Store] --> K[Apple Webhook]
     K --> G
-    
+
     L[Transaction Manager API] --> G
     G --> M[Receipt Generator]
     G --> N[Refund Processor]
@@ -64,6 +65,7 @@ graph TB
 #### Core Tables
 
 **`user_app_subscriptions`**
+
 ```sql
 - user_id: UUID (Foreign Key)
 - app_name: TEXT (Multi-tenant identifier)
@@ -75,6 +77,7 @@ graph TB
 ```
 
 **`user_transactions`**
+
 ```sql
 - id: UUID (Primary Key)
 - user_id: UUID (Foreign Key)
@@ -92,6 +95,7 @@ graph TB
 ```
 
 **`user_transaction_refunds`**
+
 ```sql
 - id: UUID (Primary Key)
 - transaction_id: UUID (Foreign Key)
@@ -104,6 +108,7 @@ graph TB
 ```
 
 **`transaction_events`**
+
 ```sql
 - id: UUID (Primary Key)
 - transaction_id: UUID (Foreign Key)
@@ -118,12 +123,12 @@ graph TB
 
 ### Available Plans
 
-| Plan | Price | Credits | Billing | Description |
-|------|-------|---------|---------|-------------|
-| **Free** | $0 | 50 | One-time | Initial credits for new users |
-| **Basic** | $3 | 100 | One-time | Credit top-up package |
-| **Pro** | $20 | 1000 | One-time | Large credit package |
-| **Unlimited** | $50 | ∞ | Monthly | Unlimited AI generations |
+| Plan          | Price | Credits | Billing  | Description                   |
+| ------------- | ----- | ------- | -------- | ----------------------------- |
+| **Free**      | $0    | 50      | One-time | Initial credits for new users |
+| **Basic**     | $3    | 100     | One-time | Credit top-up package         |
+| **Pro**       | $20   | 1000    | One-time | Large credit package          |
+| **Unlimited** | $50   | ∞       | Monthly  | Unlimited AI generations      |
 
 ### Plan Configuration
 
@@ -162,7 +167,7 @@ sequenceDiagram
     participant Webhook
     participant TransactionService
     participant Database
-    
+
     User->>Stripe: Make Payment
     Stripe->>Webhook: Send Event
     Webhook->>TransactionService: Create Transaction
@@ -174,6 +179,7 @@ sequenceDiagram
 ### Event Tracking
 
 All payment events are logged with:
+
 - **Event type** (payment.succeeded, subscription.created, etc.)
 - **Event source** (stripe_webhook, google_api, manual)
 - **Event data** (processed information)
@@ -277,8 +283,8 @@ Error responses:
 
 ```typescript
 // hooks/useUserCredits.ts
-import { useQuery } from '@tanstack/react-query';
-import { getUserCredits } from '../services/creditsService';
+import { useQuery } from '@tanstack/react-query'
+import { getUserCredits } from '../services/creditsService'
 
 export const useUserCredits = (userId: string, appName: string) => {
   return useQuery({
@@ -286,8 +292,8 @@ export const useUserCredits = (userId: string, appName: string) => {
     queryFn: () => getUserCredits(userId, appName),
     refetchInterval: 30000, // Refetch every 30 seconds
     staleTime: 10000, // Consider data stale after 10 seconds
-  });
-};
+  })
+}
 ```
 
 ### Credit Counter Component
@@ -445,23 +451,27 @@ stripe trigger customer.subscription.created
 ### Setting Up Development Environment
 
 1. **Clone the repository**
+
 ```bash
 git clone https://github.com/equationalapplications/yoursbrightlyai.git
 cd yoursbrightlyai
 ```
 
 2. **Install dependencies**
+
 ```bash
 npm install
 ```
 
 3. **Set up environment variables**
+
 ```bash
 cp .env.example .env.local
 # Edit .env.local with your configuration
 ```
 
 4. **Start development server**
+
 ```bash
 npm run dev
 ```
@@ -482,14 +492,14 @@ const testCreditPurchase = async () => {
       metadata: {
         user_id: 'test-user-id',
         credit_amount: '100',
-        app_name: 'yours-brightly'
-      }
-    })
-  });
-  
-  const { client_secret } = await response.json();
+        app_name: 'yours-brightly',
+      },
+    }),
+  })
+
+  const { client_secret } = await response.json()
   // Continue with Stripe confirmation...
-};
+}
 ```
 
 #### Test Subscription
@@ -505,14 +515,14 @@ const testSubscription = async () => {
       customer_id: 'cus_test_customer',
       metadata: {
         user_id: 'test-user-id',
-        app_name: 'yours-brightly'
-      }
-    })
-  });
-  
-  const subscription = await response.json();
+        app_name: 'yours-brightly',
+      },
+    }),
+  })
+
+  const subscription = await response.json()
   // Subscription created...
-};
+}
 ```
 
 ### Database Migrations
@@ -532,6 +542,7 @@ The migration file is located at:
 #### Cloud Function Logs
 
 View logs in Firebase Console:
+
 1. Go to `Functions` section
 2. Click on function name
 3. View `Logs` tab
@@ -542,7 +553,7 @@ Query transaction events:
 
 ```sql
 -- Get recent transaction events
-SELECT 
+SELECT
   te.event_type,
   te.event_source,
   te.processing_status,
@@ -583,6 +594,7 @@ ORDER BY processed_at DESC;
 **Symptoms**: User purchases credits but balance doesn't update
 
 **Solutions**:
+
 - Check webhook delivery in Stripe dashboard
 - Verify transaction events in database
 - Check Cloud Function logs for errors
@@ -593,6 +605,7 @@ ORDER BY processed_at DESC;
 **Symptoms**: Webhook receives 401/403 errors
 
 **Solutions**:
+
 - Verify webhook secret in environment variables
 - Check webhook URL is correct
 - Ensure webhook signing is working
@@ -603,6 +616,7 @@ ORDER BY processed_at DESC;
 **Symptoms**: Payment succeeds but no transaction record
 
 **Solutions**:
+
 - Check if webhook endpoint is reachable
 - Verify event types are subscribed
 - Check transaction service logs
@@ -613,6 +627,7 @@ ORDER BY processed_at DESC;
 **Symptoms**: Multiple transaction records for single payment
 
 **Solutions**:
+
 - Check webhook idempotency
 - Verify transaction_id uniqueness
 - Review webhook retry logic
@@ -623,7 +638,7 @@ ORDER BY processed_at DESC;
 #### Check User Credits
 
 ```sql
-SELECT 
+SELECT
   uas.user_id,
   uas.app_name,
   uas.plan_tier,
@@ -638,7 +653,7 @@ WHERE uas.user_id = 'user-uuid'
 #### Check Transaction History
 
 ```sql
-SELECT 
+SELECT
   ut.transaction_id,
   ut.external_transaction_id,
   ut.transaction_type,
@@ -658,7 +673,7 @@ ORDER BY ut.created_at DESC;
 #### Check Webhook Events
 
 ```sql
-SELECT 
+SELECT
   te.event_type,
   te.event_source,
   te.processing_status,
@@ -690,4 +705,4 @@ For payment system issues:
 
 ---
 
-*Last updated: October 2, 2025*
+_Last updated: October 2, 2025_

@@ -14,7 +14,7 @@
     "release": "semantic-release",
     "prepare": "husky install",
     "commit": "git-cz",
-    "format": "prettier --write \"app/**/*.{js,jsx,json,md,ts,tsx}\"",
+    "format": "prettier --write \"**/*.{js,jsx,json,md,ts,tsx}\"",
     "lint": "npx expo lint --fix",
     "lint:check": "npx expo lint",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -100,8 +100,9 @@
   "prettier": {
     "printWidth": 100,
     "semi": false,
-    "singleQuote": false,
-    "trailingComma": "all"
+    "singleQuote": true,
+    "trailingComma": "all",
+    "tabWidth": 2
   },
   "jest": {
     "preset": "jest-expo",

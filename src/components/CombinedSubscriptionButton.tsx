@@ -1,6 +1,6 @@
-import SubscribeButton from "~/components/SubscribeButton"
-import SubscriptionInfoButton from "~/components/SubscriptionInfoButton"
-import { useIsPremium } from "~/hooks/useIsPremium"
+import SubscribeButton from '~/components/SubscribeButton'
+import SubscriptionInfoButton from '~/components/SubscriptionInfoButton'
+import { useIsPremium } from '~/hooks/useIsPremium'
 
 interface Props {
   onChangeIsLoading: (isLoading: boolean) => void

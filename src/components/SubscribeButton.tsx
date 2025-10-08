@@ -1,5 +1,5 @@
-import Button from "../components/Button"
-import { makePackagePurchase } from "../utilities/makePackagePurchase"
+import Button from '../components/Button'
+import { makePackagePurchase } from '../utilities/makePackagePurchase'
 
 interface Props {
   onChangeIsLoading: (isLoading: boolean) => void

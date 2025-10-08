@@ -1,10 +1,10 @@
-import { IMessage } from "react-native-gifted-chat"
+import { IMessage } from 'react-native-gifted-chat'
 import { sendMessage } from '../services/messageService'
 
 interface PostNewMessageArgs {
   message: IMessage
-  id: string        // character ID
-  userId: string    // recipient user ID
+  id: string // character ID
+  userId: string // recipient user ID
 }
 
 export const postNewMessage = async ({

@@ -1,8 +1,8 @@
-import React from "react"
-import { StyleSheet } from "react-native"
-import { Button, Dialog, Paragraph, Portal } from "react-native-paper"
+import React from 'react'
+import { StyleSheet } from 'react-native'
+import { Button, Dialog, Paragraph, Portal } from 'react-native-paper'
 
-import { isLargeScreen } from "~/config/constants"
+import { isLargeScreen } from '~/config/constants'
 
 type ConfirmationModalProps = {
   visible: boolean
@@ -45,22 +45,22 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
 const styles = StyleSheet.create({
   message: {
-    textAlign: "center",
+    textAlign: 'center',
   },
   messageWide: {
     marginHorizontal: 20,
   },
   actions: {
-    justifyContent: "space-around",
+    justifyContent: 'space-around',
     marginBottom: 80,
   },
   actionsWide: {
-    justifyContent: "center",
-    flexDirection: "row",
+    justifyContent: 'center',
+    flexDirection: 'row',
     marginVertical: 10,
   },
   title: {
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: 120,
   },
 })

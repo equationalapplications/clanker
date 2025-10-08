@@ -1,19 +1,19 @@
-import { Platform } from "react-native"
-import { GoogleSignin } from "@react-native-google-signin/google-signin"
-import { GoogleAuthProvider, signInWithCredential } from "firebase/auth"
-import { auth } from "~/config/firebaseConfig"
-import { googleWebClientId, googleAndroidClientId } from "../config/constants"
+import { Platform } from 'react-native'
+import { GoogleSignin } from '@react-native-google-signin/google-signin'
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
+import { auth } from '~/config/firebaseConfig'
+import { googleWebClientId, googleAndroidClientId } from '../config/constants'
 
 // Configure Google Sign-In
 export const configureGoogleSignIn = () => {
   GoogleSignin.configure({
     webClientId: googleWebClientId, // Required for both Android and web
     offlineAccess: true,
-    hostedDomain: "",
+    hostedDomain: '',
     forceCodeForRefreshToken: true,
-    accountName: "",
+    accountName: '',
     // iosClientId: "",
-    googleServicePlistPath: "",
+    googleServicePlistPath: '',
     profileImageSize: 120,
   })
 }
@@ -35,7 +35,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     const idToken = (userInfo as any).idToken as string | undefined
 
     if (!idToken) {
-      return { success: false, error: "No ID token received from Google" }
+      return { success: false, error: 'No ID token received from Google' }
     }
 
     // Create a Google credential with the token
@@ -46,20 +46,20 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
 
     return { success: true }
   } catch (error: any) {
-    console.error("Google Sign-In Error:", error)
+    console.error('Google Sign-In Error:', error)
 
     // Handle specific error cases
-    if (error.code === "statusCodes.SIGN_IN_CANCELLED") {
-      return { success: false, error: "Sign in was cancelled" }
+    if (error.code === 'statusCodes.SIGN_IN_CANCELLED') {
+      return { success: false, error: 'Sign in was cancelled' }
     }
-    if (error.code === "statusCodes.IN_PROGRESS") {
-      return { success: false, error: "Sign in is already in progress" }
+    if (error.code === 'statusCodes.IN_PROGRESS') {
+      return { success: false, error: 'Sign in is already in progress' }
     }
-    if (error.code === "statusCodes.PLAY_SERVICES_NOT_AVAILABLE") {
-      return { success: false, error: "Play services not available or outdated" }
+    if (error.code === 'statusCodes.PLAY_SERVICES_NOT_AVAILABLE') {
+      return { success: false, error: 'Play services not available or outdated' }
     }
 
-    return { success: false, error: error.message || "Unknown error occurred" }
+    return { success: false, error: error.message || 'Unknown error occurred' }
   }
 }
 
@@ -68,7 +68,7 @@ export const signOutFromGoogle = async (): Promise<void> => {
     await GoogleSignin.revokeAccess()
     await GoogleSignin.signOut()
   } catch (error) {
-    console.error("Google Sign-Out Error:", error)
+    console.error('Google Sign-Out Error:', error)
   }
 }
 
@@ -77,7 +77,7 @@ export const getCurrentGoogleUser = async () => {
     const userInfo = await GoogleSignin.signInSilently()
     return userInfo
   } catch (error) {
-    console.log("No current Google user:", error)
+    console.log('No current Google user:', error)
     return null
   }
 }

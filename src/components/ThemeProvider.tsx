@@ -1,8 +1,8 @@
-import React from "react"
-import { useColorScheme } from "react-native"
-import { Provider as PaperProvider } from "react-native-paper"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { appDarkTheme, appLightTheme } from "~/config/theme"
+import React from 'react'
+import { useColorScheme } from 'react-native'
+import { Provider as PaperProvider } from 'react-native-paper'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { appDarkTheme, appLightTheme } from '~/config/theme'
 
 interface ThemeProviderProps {
   children: React.ReactNode
@@ -10,7 +10,7 @@ interface ThemeProviderProps {
 
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const deviceTheme = useColorScheme()
-  const paperTheme = deviceTheme === "dark" ? appDarkTheme : appLightTheme
+  const paperTheme = deviceTheme === 'dark' ? appDarkTheme : appLightTheme
 
   return (
     <PaperProvider

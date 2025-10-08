@@ -1,9 +1,9 @@
-import { useRouter } from "expo-router"
-import { Pressable } from "react-native"
-import { Badge, Text } from "react-native-paper"
+import { useRouter } from 'expo-router'
+import { Pressable } from 'react-native'
+import { Badge, Text } from 'react-native-paper'
 
-import { useIsPremium } from "../hooks/useIsPremium"
-import { useUserCredits } from "../hooks/useUserCredits"
+import { useIsPremium } from '../hooks/useIsPremium'
+import { useUserCredits } from '../hooks/useUserCredits'
 
 export function CreditCounterIcon() {
   const router = useRouter()
@@ -12,10 +12,10 @@ export function CreditCounterIcon() {
 
   return (
     <Pressable
-      onPress={() => router.push("./subscribe")}
+      onPress={() => router.push('./subscribe')}
       style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
+        flexDirection: 'row',
+        alignItems: 'center',
         opacity: pressed ? 0.5 : 1,
         marginRight: 10,
       })}
@@ -33,7 +33,7 @@ export function CreditCounterIcon() {
       ) : (
         <>
           <Text>Credits </Text>
-          <Badge>{isLoading ? "..." : (credits?.totalCredits || 0)}</Badge>
+          <Badge>{isLoading ? '...' : credits?.totalCredits || 0}</Badge>
         </>
       )}
     </Pressable>

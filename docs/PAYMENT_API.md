@@ -25,6 +25,7 @@ Create a new transaction record.
 **Endpoint**: `POST /?action=create`
 
 **Request Body**:
+
 ```json
 {
   "user_id": "string",
@@ -41,6 +42,7 @@ Create a new transaction record.
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -64,6 +66,7 @@ Create a new transaction record.
 ```
 
 **Example**:
+
 ```bash
 curl -X POST 'https://transactionmanager-[hash]-uc.a.run.app/?action=create' \
   -H 'Content-Type: application/json' \
@@ -90,6 +93,7 @@ Update the status of an existing transaction.
 **Endpoint**: `PATCH /?action=update-status`
 
 **Request Body**:
+
 ```json
 {
   "transaction_id": "string",
@@ -99,6 +103,7 @@ Update the status of an existing transaction.
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -113,9 +118,11 @@ Retrieve a specific transaction by ID.
 **Endpoint**: `GET /?action=get&transaction_id={transaction_id}`
 
 **Query Parameters**:
+
 - `transaction_id` (required): The transaction ID to retrieve
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -147,12 +154,14 @@ Get transaction history for a user.
 **Endpoint**: `GET /?action=list`
 
 **Query Parameters**:
+
 - `user_id` (required): User UUID
 - `app_name` (optional): Filter by app name
 - `limit` (optional): Number of results (default: 50, max: 100)
 - `offset` (optional): Pagination offset (default: 0)
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -173,6 +182,7 @@ Get transaction history for a user.
 ```
 
 **Example**:
+
 ```bash
 curl 'https://transactionmanager-[hash]-uc.a.run.app/?action=list&user_id=123e4567-e89b-12d3-a456-426614174000&app_name=yours-brightly&limit=20&offset=0' \
   -H 'Authorization: Bearer <firebase-token>'
@@ -185,6 +195,7 @@ Submit a refund request for a transaction.
 **Endpoint**: `POST /?action=request-refund`
 
 **Request Body**:
+
 ```json
 {
   "transaction_id": "string",
@@ -197,6 +208,7 @@ Submit a refund request for a transaction.
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -220,6 +232,7 @@ Update the status of a refund (admin only).
 **Endpoint**: `PATCH /?action=update-refund`
 
 **Request Body**:
+
 ```json
 {
   "refund_id": "string",
@@ -231,6 +244,7 @@ Update the status of a refund (admin only).
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -245,6 +259,7 @@ Generate receipt data for a transaction.
 **Endpoint**: `POST /?action=generate-receipt`
 
 **Request Body**:
+
 ```json
 {
   "transaction_id": "string"
@@ -252,6 +267,7 @@ Generate receipt data for a transaction.
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -284,6 +300,7 @@ Get aggregated transaction data with refund information.
 **Endpoint**: `GET /?action=summary&transaction_id={transaction_id}`
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -312,11 +329,13 @@ Retrieve audit trail events for transactions.
 **Endpoint**: `GET /?action=events`
 
 **Query Parameters**:
+
 - `transaction_id` (optional): Filter by transaction ID
 - `event_type` (optional): Filter by event type
 - `limit` (optional): Number of results (default: 100)
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -378,14 +397,14 @@ All API endpoints return errors in this format:
 
 ### Common Error Codes
 
-| HTTP Status | Error Type | Description |
-|-------------|------------|-------------|
-| 400 | Bad Request | Missing or invalid parameters |
-| 401 | Unauthorized | Invalid or missing authentication |
-| 403 | Forbidden | Insufficient permissions |
-| 404 | Not Found | Resource not found |
-| 409 | Conflict | Resource already exists |
-| 500 | Internal Error | Server error |
+| HTTP Status | Error Type     | Description                       |
+| ----------- | -------------- | --------------------------------- |
+| 400         | Bad Request    | Missing or invalid parameters     |
+| 401         | Unauthorized   | Invalid or missing authentication |
+| 403         | Forbidden      | Insufficient permissions          |
+| 404         | Not Found      | Resource not found                |
+| 409         | Conflict       | Resource already exists           |
+| 500         | Internal Error | Server error                      |
 
 ### Example Error Response
 
@@ -420,6 +439,7 @@ Configure Stripe to send webhooks to:
 `https://stripewebhook-[hash]-uc.a.run.app`
 
 Required webhook events:
+
 - `customer.subscription.created`
 - `customer.subscription.updated`
 - `customer.subscription.deleted`
@@ -431,6 +451,7 @@ Required webhook events:
 ### Webhook Security
 
 Webhooks are secured using:
+
 - **Stripe signature verification** with webhook secret
 - **Timestamp validation** to prevent replay attacks
 - **Idempotency** to handle duplicate events
@@ -442,50 +463,53 @@ Webhooks are secured using:
 ```typescript
 // Transaction service helper
 class TransactionService {
-  private baseUrl = 'https://transactionmanager-[hash]-uc.a.run.app';
-  
+  private baseUrl = 'https://transactionmanager-[hash]-uc.a.run.app'
+
   async createTransaction(data: CreateTransactionRequest): Promise<Transaction> {
     const response = await fetch(`${this.baseUrl}/?action=create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${await this.getAuthToken()}`
+        Authorization: `Bearer ${await this.getAuthToken()}`,
       },
-      body: JSON.stringify(data)
-    });
-    
-    const result = await response.json();
-    if (!result.success) throw new Error(result.error);
-    return result.data;
+      body: JSON.stringify(data),
+    })
+
+    const result = await response.json()
+    if (!result.success) throw new Error(result.error)
+    return result.data
   }
-  
-  async getUserTransactions(userId: string, options?: {
-    appName?: string;
-    limit?: number;
-    offset?: number;
-  }): Promise<Transaction[]> {
+
+  async getUserTransactions(
+    userId: string,
+    options?: {
+      appName?: string
+      limit?: number
+      offset?: number
+    },
+  ): Promise<Transaction[]> {
     const params = new URLSearchParams({
       action: 'list',
       user_id: userId,
       ...(options?.appName && { app_name: options.appName }),
       ...(options?.limit && { limit: options.limit.toString() }),
-      ...(options?.offset && { offset: options.offset.toString() })
-    });
-    
+      ...(options?.offset && { offset: options.offset.toString() }),
+    })
+
     const response = await fetch(`${this.baseUrl}/?${params}`, {
       headers: {
-        'Authorization': `Bearer ${await this.getAuthToken()}`
-      }
-    });
-    
-    const result = await response.json();
-    if (!result.success) throw new Error(result.error);
-    return result.data;
+        Authorization: `Bearer ${await this.getAuthToken()}`,
+      },
+    })
+
+    const result = await response.json()
+    if (!result.success) throw new Error(result.error)
+    return result.data
   }
-  
+
   private async getAuthToken(): Promise<string> {
     // Implement Firebase auth token retrieval
-    throw new Error('Implement auth token retrieval');
+    throw new Error('Implement auth token retrieval')
   }
 }
 ```
@@ -493,15 +517,15 @@ class TransactionService {
 ### React Hooks
 
 ```typescript
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query'
 
 // Get user transactions
 export const useUserTransactions = (userId: string) => {
   return useQuery({
     queryKey: ['transactions', userId],
-    queryFn: () => transactionService.getUserTransactions(userId)
-  });
-};
+    queryFn: () => transactionService.getUserTransactions(userId),
+  })
+}
 
 // Create transaction
 export const useCreateTransaction = () => {
@@ -509,11 +533,11 @@ export const useCreateTransaction = () => {
     mutationFn: transactionService.createTransaction,
     onSuccess: () => {
       // Invalidate related queries
-      queryClient.invalidateQueries(['transactions']);
-      queryClient.invalidateQueries(['userCredits']);
-    }
-  });
-};
+      queryClient.invalidateQueries(['transactions'])
+      queryClient.invalidateQueries(['userCredits'])
+    },
+  })
+}
 ```
 
 ### React Native Integration
@@ -521,30 +545,27 @@ export const useCreateTransaction = () => {
 ```typescript
 // Credit purchase flow
 export const useCreditPurchase = () => {
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const createTransaction = useCreateTransaction();
-  
+  const { initPaymentSheet, presentPaymentSheet } = useStripe()
+  const createTransaction = useCreateTransaction()
+
   return useMutation({
-    mutationFn: async ({ creditAmount, priceId }: {
-      creditAmount: number;
-      priceId: string;
-    }) => {
+    mutationFn: async ({ creditAmount, priceId }: { creditAmount: number; priceId: string }) => {
       // 1. Create payment intent
       const paymentIntent = await createPaymentIntent({
         amount: creditAmount * 3, // $0.03 per credit
-        metadata: { credit_amount: creditAmount }
-      });
-      
+        metadata: { credit_amount: creditAmount },
+      })
+
       // 2. Initialize payment sheet
       await initPaymentSheet({
-        paymentIntentClientSecret: paymentIntent.client_secret
-      });
-      
+        paymentIntentClientSecret: paymentIntent.client_secret,
+      })
+
       // 3. Present payment sheet
-      const result = await presentPaymentSheet();
-      
-      if (result.error) throw result.error;
-      
+      const result = await presentPaymentSheet()
+
+      if (result.error) throw result.error
+
       // 4. Create transaction record
       return createTransaction.mutateAsync({
         user_id: userId,
@@ -553,11 +574,11 @@ export const useCreditPurchase = () => {
         transaction_type: 'one_time',
         amount_cents: creditAmount * 3,
         external_transaction_id: paymentIntent.id,
-        internal_metadata: { credit_amount: creditAmount }
-      });
-    }
-  });
-};
+        internal_metadata: { credit_amount: creditAmount },
+      })
+    },
+  })
+}
 ```
 
 ## Testing
@@ -572,12 +593,12 @@ Use Stripe's test mode for development:
 
 ### Test Cards
 
-| Card Number | Description |
-|-------------|-------------|
-| 4242424242424242 | Visa (succeeds) |
-| 4000000000000002 | Visa (declined) |
+| Card Number      | Description               |
+| ---------------- | ------------------------- |
+| 4242424242424242 | Visa (succeeds)           |
+| 4000000000000002 | Visa (declined)           |
 | 4000000000009995 | Visa (insufficient funds) |
-| 4000000000000069 | Visa (expired) |
+| 4000000000000069 | Visa (expired)            |
 
 ### Testing Webhooks
 
@@ -623,4 +644,4 @@ curl 'https://transactionmanager-[hash]-uc.a.run.app/?action=get&transaction_id=
 
 This API reference provides complete documentation for integrating with the Yours Brightly AI payment system. For additional support, refer to the main [Payment System Documentation](./PAYMENT_SYSTEM.md).
 
-*Last updated: October 2, 2025*
+_Last updated: October 2, 2025_

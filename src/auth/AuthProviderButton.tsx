@@ -1,8 +1,8 @@
-import { StyleSheet, ViewStyle } from "react-native"
-import { Button } from "react-native-paper"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { StyleSheet, ViewStyle } from 'react-native'
+import { Button } from 'react-native-paper'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 
-type SocialType = "facebook" | "google" | "apple" | "phone"
+type SocialType = 'facebook' | 'google' | 'apple' | 'phone'
 
 interface Props {
   style?: ViewStyle
@@ -15,14 +15,14 @@ interface Props {
 
 function getSocialColor(type: SocialType): string {
   switch (type) {
-    case "facebook":
-      return "#4267B2"
-    case "google":
-      return "#F96458"
-    case "apple":
-      return "#000000"
-    case "phone":
-      return "#b24292"
+    case 'facebook':
+      return '#4267B2'
+    case 'google':
+      return '#F96458'
+    case 'apple':
+      return '#000000'
+    case 'phone':
+      return '#b24292'
   }
 }
 

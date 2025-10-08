@@ -1,6 +1,6 @@
-import { initializeApp } from "firebase/app"
-import { getAuth } from "firebase/auth"
-import { getFunctions } from "firebase/functions"
+import { initializeApp } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+import { getFunctions } from 'firebase/functions'
 
 import {
   firebaseApiKey,
@@ -9,7 +9,7 @@ import {
   firebaseStorageBucket,
   firebaseMessagingSenderId,
   firebaseAppId,
-} from "./constants"
+} from './constants'
 
 const config = {
   apiKey: firebaseApiKey,
@@ -24,6 +24,6 @@ const config = {
 const app = initializeApp(config)
 
 const auth = getAuth(app)
-const functions = getFunctions(app, "us-central1")
+const functions = getFunctions(app, 'us-central1')
 
 export { app, auth, functions }
