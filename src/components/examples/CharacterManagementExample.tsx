@@ -132,8 +132,9 @@ export function CreateCharacterExample() {
       setName('')
       setAppearance('')
       Alert.alert('Success', 'Character created!')
-    } catch (error) {
+    } catch (err) {
       // Error is automatically rolled back, no manual cleanup needed
+      console.error('Failed to create character:', err)
       Alert.alert('Error', 'Failed to create character')
     }
   }
@@ -188,8 +189,9 @@ export function EditCharacterExample({ characterId }: { characterId: string }) {
 
       // Update appears immediately in UI (optimistic update)
       Alert.alert('Success', 'Character updated!')
-    } catch (error) {
+    } catch (err) {
       // Automatically rolled back on error
+      console.error('Failed to update character:', err)
       Alert.alert('Error', 'Failed to update character')
     }
   }
@@ -240,8 +242,9 @@ export function DeleteCharacterExample({ characterId }: { characterId: string })
             await deleteCharacter.mutateAsync(characterId)
             // Character removed from list immediately (optimistic update)
             Alert.alert('Success', 'Character deleted')
-          } catch (error) {
+          } catch (err) {
             // Automatically rolled back on error
+            console.error('Failed to delete character:', err)
             Alert.alert('Error', 'Failed to delete character')
           }
         },

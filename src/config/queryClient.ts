@@ -1,5 +1,4 @@
 import { QueryClient } from '@tanstack/react-query'
-import { Platform } from 'react-native'
 
 /**
  * Enhanced QueryClient with offline capabilities

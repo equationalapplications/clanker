@@ -20,8 +20,6 @@ import {
   checkTermsAcceptance,
   UserProfile,
   UserProfileUpdate,
-  UserPublic,
-  UserPrivate,
 } from '~/services/userService'
 import { supabaseClient } from '~/config/supabaseClient'
 

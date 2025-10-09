@@ -24,7 +24,7 @@ export default function SignIn() {
     if (user) {
       router.replace('/characters')
     }
-  }, [user])
+  }, [user, router])
 
   const GoogleLoginOnPress = async () => {
     setGoogleSignInLoading(true)
