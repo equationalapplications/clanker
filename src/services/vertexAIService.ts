@@ -34,6 +34,12 @@ export const generateChatResponse = async (
   context: ChatContext,
 ): Promise<string> => {
   try {
+    console.log('🤖 Generating AI response with context:', {
+      characterName: context.characterName,
+      userMessage,
+      historyLength: context.conversationHistory.length,
+    })
+
     // Build the prompt with character context
     const systemPrompt = `You are ${context.characterName}, a virtual friend chatbot with the following personality:
 
@@ -53,10 +59,14 @@ ${context.conversationHistory.map((msg) => `${msg.role}: ${msg.content}`).join('
 User: ${userMessage}
 ${context.characterName}:`
 
+    console.log('📝 Generated prompt, calling Vertex AI...')
+
     // Generate response using Vertex AI
     const result = await textModel.generateContent(systemPrompt)
     const response = await result.response
     const text = response.text()
+
+    console.log('✅ Received AI response:', text?.substring(0, 100))
 
     if (!text) {
       throw new Error('Empty response from AI model')
@@ -64,7 +74,12 @@ ${context.characterName}:`
 
     return text.trim()
   } catch (error) {
-    console.error('Error generating AI response:', error)
+    console.error('❌ Error generating AI response:', error)
+    console.error('Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
 
     // Return a fallback message that stays in character
     return `I'm having trouble thinking of what to say right now. Could you tell me more about what's on your mind?`

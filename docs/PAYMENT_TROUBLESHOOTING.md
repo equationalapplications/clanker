@@ -6,7 +6,9 @@ Quick reference for diagnosing and fixing common payment system issues.
 
 1. [Quick Diagnostics](#quick-diagnostics)
 2. [Credit Issues](#credit-issues)
-3. [Subscription Problems](#subscription-problems)
+3. [Subscription Problems](#subscriINSERT INTO user_app_subscriptions (
+     user_id, app_name, plan_tier, plan_status,
+     credits_remaining, billing_provider_id,lems)
 4. [Transaction Failures](#transaction-failures)
 5. [Webhook Issues](#webhook-issues)
 6. [Authentication Errors](#authentication-errors)
@@ -43,16 +45,12 @@ WHERE processed_at >= NOW() - INTERVAL '24 hours'
 GROUP BY event_source, processing_status;
 
 -- Check user credits distribution
-SELECT
-  plan_tier,
-  COUNT(*) as users,
-  AVG(credits_remaining) as avg_credits,
-  MIN(credits_remaining) as min_credits,
-  MAX(credits_remaining) as max_credits
-FROM user_app_subscriptions
-WHERE app_name = 'yours-brightly'
-  AND plan_status = 'active'
-GROUP BY plan_tier;
+SELECT 
+  plan_tier, 
+  COUNT(*) as user_count,
+  AVG(current_credits) as avg_credits,
+  MIN(current_credits) as min_credits,
+  MAX(current_credits) as max_credits
 ```
 
 ### Log Checking
@@ -119,10 +117,9 @@ WHERE user_id = 'user-uuid' AND app_name = 'yours-brightly';
    ```sql
    -- Add credits manually (emergency fix)
    UPDATE user_app_subscriptions
-   SET credits_remaining = credits_remaining + 100,
+   SET current_credits = current_credits + 100,
        updated_at = NOW()
-   WHERE user_id = 'user-uuid'
-     AND app_name = 'yours-brightly';
+   WHERE user_id = 'USER_UUID_HERE'
    ```
 
 ### Problem: Unlimited Plan Not Working
@@ -137,7 +134,7 @@ WHERE user_id = 'user-uuid' AND app_name = 'yours-brightly';
 
 ```sql
 -- Check plan tier
-SELECT plan_tier, credits_remaining, plan_status
+SELECT plan_tier, current_credits, plan_status
 FROM user_app_subscriptions
 WHERE user_id = 'user-uuid' AND app_name = 'yours-brightly';
 ```
@@ -214,7 +211,7 @@ BEGIN
 
   -- Deduct credits
   UPDATE user_app_subscriptions
-  SET credits_remaining = credits_remaining - p_credit_amount,
+  SET current_credits = current_credits - p_credit_amount,
       updated_at = NOW()
   WHERE user_id = p_user_id
     AND app_name = p_app_name;
@@ -630,7 +627,7 @@ If a user's credits are stuck and they can't use the app:
 ```sql
 -- Emergency credit addition
 UPDATE user_app_subscriptions
-SET credits_remaining = credits_remaining + 100,
+SET current_credits = current_credits + 100,
     updated_at = NOW()
 WHERE user_id = 'user-uuid'
   AND app_name = 'yours-brightly';

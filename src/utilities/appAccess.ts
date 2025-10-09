@@ -27,7 +27,7 @@ export async function grantAppAccess(
     // Create a free subscription entry with terms acceptance
     // This is an optimistic write - we return success immediately
     // The mutation will complete in the background
-    const { data, error } = await supabaseClient
+    const { error } = await supabaseClient
       .from('user_app_subscriptions')
       .upsert(
         {

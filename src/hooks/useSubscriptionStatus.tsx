@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react'
+import React, { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react'
 import { supabaseClient } from '~/config/supabaseClient'
 import { YOURS_BRIGHTLY_TERMS } from '~/config/termsConfig'
 
@@ -23,7 +23,7 @@ export function SubscriptionStatusProvider({
   const [isLoading, setIsLoading] = useState(true)
   const [localTermsAccepted, setLocalTermsAccepted] = useState(false)
 
-  const checkStatus = async () => {
+  const checkStatus = useCallback(async () => {
     setIsLoading(true)
     try {
       // If user already accepted terms optimistically, don't block them
@@ -72,7 +72,7 @@ export function SubscriptionStatusProvider({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [localTermsAccepted])
 
   // Allow optimistic update - user clicked accept, let them through
   const markTermsAccepted = () => {
@@ -98,7 +98,7 @@ export function SubscriptionStatusProvider({
     return () => {
       authListener.subscription.unsubscribe()
     }
-  }, [localTermsAccepted, checkStatus])
+  }, [checkStatus])
 
   return (
     <SubscriptionStatusContext.Provider

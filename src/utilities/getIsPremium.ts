@@ -6,14 +6,25 @@ export const getIsPremium = async (): Promise<boolean> => {
     return false
   }
 
-  const uid = auth.currentUser.uid
-
   try {
+    // Get the Supabase user ID (UUID format) not Firebase UID
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser()
+
+    if (userError || !user) {
+      console.error('Error getting Supabase user in getIsPremium:', userError)
+      return false
+    }
+
+    const supabaseUserId = user.id
+
     // Query Supabase for active subscriptions (excluding credits-only and free tiers)
     const { data: subscriptions, error } = await supabaseClient
       .from('user_app_subscriptions')
       .select('plan_tier, plan_status')
-      .eq('user_id', uid)
+      .eq('user_id', supabaseUserId)
       .eq('app_name', 'yours-brightly')
       .eq('plan_status', 'active')
       .in('plan_tier', ['monthly_1000', 'monthly_unlimited']) // Only paid subscription tiers

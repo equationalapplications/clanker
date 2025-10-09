@@ -13,6 +13,7 @@ interface UserCredits {
 
 export const getUserCredits = async (): Promise<UserCredits> => {
   if (!auth.currentUser) {
+    console.log('📊 getUserCredits: No Firebase user')
     return {
       totalCredits: 0,
       hasUnlimited: false,
@@ -20,16 +21,34 @@ export const getUserCredits = async (): Promise<UserCredits> => {
     }
   }
 
-  const uid = auth.currentUser.uid
-
   try {
+    // Get the Supabase user ID (UUID format) not Firebase UID
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser()
+
+    if (userError || !user) {
+      console.error('❌ getUserCredits: Error getting Supabase user:', userError)
+      return {
+        totalCredits: 0,
+        hasUnlimited: false,
+        subscriptions: [],
+      }
+    }
+
+    const supabaseUserId = user.id
+    console.log('📊 getUserCredits: Querying with Supabase UUID:', supabaseUserId)
+
     // Query all active subscriptions and credit records for the user
     const { data: subscriptions, error } = await supabaseClient
       .from('user_app_subscriptions')
-      .select('plan_tier, credits_remaining, plan_status')
-      .eq('user_id', uid)
+      .select('plan_tier, current_credits, plan_status')
+      .eq('user_id', supabaseUserId)
       .eq('app_name', 'yours-brightly')
       .eq('plan_status', 'active')
+
+    console.log('📊 getUserCredits: Query result:', { subscriptions, error, count: subscriptions?.length || 0 })
 
     if (error) {
       console.error('Error fetching user credits:', error)
@@ -49,7 +68,7 @@ export const getUserCredits = async (): Promise<UserCredits> => {
     }[] = []
 
     for (const sub of subscriptions || []) {
-      const credits = sub.credits_remaining || 0
+      const credits = sub.current_credits || 0
       const isUnlimited = sub.plan_tier === 'monthly_unlimited'
 
       subscriptionDetails.push({
@@ -67,8 +86,10 @@ export const getUserCredits = async (): Promise<UserCredits> => {
 
     // If user has no subscriptions, they get 50 free credits on first login
     if (subscriptions.length === 0) {
+      console.log('🆕 getUserCredits: No subscriptions found, creating initial free credits')
       // Check if we need to create initial free credits
-      await ensureInitialFreeCredits(uid)
+      await ensureInitialFreeCredits(supabaseUserId)
+      console.log('✅ getUserCredits: Returning 50 free credits')
       return {
         totalCredits: 50,
         hasUnlimited: false,
@@ -82,6 +103,7 @@ export const getUserCredits = async (): Promise<UserCredits> => {
       }
     }
 
+    console.log('✅ getUserCredits: Returning credits:', { totalCredits, hasUnlimited, subscriptionCount: subscriptionDetails.length })
     return {
       totalCredits,
       hasUnlimited,
@@ -99,27 +121,35 @@ export const getUserCredits = async (): Promise<UserCredits> => {
 
 async function ensureInitialFreeCredits(uid: string): Promise<void> {
   try {
+    console.log('🎁 ensureInitialFreeCredits: Creating free credits for user:', uid)
+
     // Create initial free credits record for new users
-    const { error } = await supabaseClient.from('user_app_subscriptions').insert({
+    const { data, error } = await supabaseClient.from('user_app_subscriptions').insert({
       user_id: uid,
       app_name: 'yours-brightly',
       plan_tier: 'free',
       plan_status: 'active',
-      credits_remaining: 50,
+      current_credits: 50,
       billing_provider_id: 'initial_free_credits',
       billing_metadata: {
         type: 'initial_free_credits',
         created_at: new Date().toISOString(),
       },
-    })
+    }).select()
 
     if (error) {
-      console.error('Error creating initial free credits:', error)
+      console.error('❌ ensureInitialFreeCredits: Error creating initial free credits:', error)
+      console.error('❌ ensureInitialFreeCredits: Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })
     } else {
-      console.log('Created initial 50 free credits for user:', uid)
+      console.log('✅ ensureInitialFreeCredits: Created initial 50 free credits:', data)
     }
   } catch (error) {
-    console.error('Error ensuring initial free credits:', error)
+    console.error('❌ ensureInitialFreeCredits: Exception:', error)
   }
 }
 
@@ -133,14 +163,25 @@ export const deductCredits = async (amount: number): Promise<boolean> => {
     return false
   }
 
-  const uid = auth.currentUser.uid
-
   try {
+    // Get the Supabase user ID (UUID format) not Firebase UID
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser()
+
+    if (userError || !user) {
+      console.error('Error getting Supabase user:', userError)
+      return false
+    }
+
+    const supabaseUserId = user.id
+
     // First check if user has unlimited plan
     const { data: unlimitedSubs } = await supabaseClient
       .from('user_app_subscriptions')
       .select('plan_tier')
-      .eq('user_id', uid)
+      .eq('user_id', supabaseUserId)
       .eq('app_name', 'yours-brightly')
       .eq('plan_status', 'active')
       .eq('plan_tier', 'monthly_unlimited')
@@ -155,11 +196,11 @@ export const deductCredits = async (amount: number): Promise<boolean> => {
     // Get all active subscriptions with credits
     const { data: subscriptions } = await supabaseClient
       .from('user_app_subscriptions')
-      .select('id, plan_tier, credits_remaining')
-      .eq('user_id', uid)
+      .select('id, plan_tier, current_credits')
+      .eq('user_id', supabaseUserId)
       .eq('app_name', 'yours-brightly')
       .eq('plan_status', 'active')
-      .gt('credits_remaining', 0)
+      .gt('current_credits', 0)
       .order('plan_tier', { ascending: true }) // Prioritize certain tiers if needed
 
     if (!subscriptions || subscriptions.length === 0) {
@@ -172,7 +213,7 @@ export const deductCredits = async (amount: number): Promise<boolean> => {
     for (const sub of subscriptions) {
       if (remainingToDeduct <= 0) break
 
-      const availableCredits = sub.credits_remaining || 0
+      const availableCredits = sub.current_credits || 0
       const toDeduct = Math.min(remainingToDeduct, availableCredits)
       const newCredits = availableCredits - toDeduct
 
@@ -180,7 +221,7 @@ export const deductCredits = async (amount: number): Promise<boolean> => {
       const { error } = await supabaseClient
         .from('user_app_subscriptions')
         .update({
-          credits_remaining: newCredits,
+          current_credits: newCredits,
           updated_at: new Date().toISOString(),
         })
         .eq('id', sub.id)
