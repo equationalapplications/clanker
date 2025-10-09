@@ -14,7 +14,6 @@ export interface GoogleSignInResult {
   error?: string
 }
 
-let isGoogleLoaded = false
 let googleLoadPromise: Promise<void> | null = null
 
 const loadGoogleScript = (): Promise<void> => {
@@ -24,7 +23,6 @@ const loadGoogleScript = (): Promise<void> => {
 
   googleLoadPromise = new Promise((resolve, reject) => {
     if (window.google && window.google.accounts) {
-      isGoogleLoaded = true
       resolve()
       return
     }
@@ -32,7 +30,6 @@ const loadGoogleScript = (): Promise<void> => {
     const script = document.createElement('script')
     script.src = 'https://accounts.google.com/gsi/client'
     script.onload = () => {
-      isGoogleLoaded = true
       resolve()
     }
     script.onerror = reject
@@ -48,7 +45,7 @@ export const configureGoogleSignInWeb = async () => {
   if (window.google && window.google.accounts) {
     window.google.accounts.id.initialize({
       client_id: googleWebClientId,
-      callback: () => {}, // Will be set per sign-in attempt
+      callback: () => { }, // Will be set per sign-in attempt
     })
   }
 }

@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { Avatar } from 'react-native-paper'
-import { MaterialIcons } from '@expo/vector-icons'
 import { defaultAvatarUrl } from '~/config/constants'
 
 interface CharacterAvatarProps {

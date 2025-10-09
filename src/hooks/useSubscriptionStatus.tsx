@@ -98,7 +98,7 @@ export function SubscriptionStatusProvider({
     return () => {
       authListener.subscription.unsubscribe()
     }
-  }, [localTermsAccepted])
+  }, [localTermsAccepted, checkStatus])
 
   return (
     <SubscriptionStatusContext.Provider

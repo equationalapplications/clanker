@@ -1,8 +1,7 @@
-import { Platform } from 'react-native'
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
 import { auth } from '~/config/firebaseConfig'
-import { googleWebClientId, googleAndroidClientId } from '../config/constants'
+import { googleWebClientId } from '../config/constants'
 
 // Configure Google Sign-In
 export const configureGoogleSignIn = () => {

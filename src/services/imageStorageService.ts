@@ -60,7 +60,7 @@ export const generateAndStoreCharacterImage = async ({
     const storagePath = `character-avatars/${userId}/${filename}`
 
     // 5. Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+    const { error: uploadError } = await supabaseClient.storage
       .from('yours-brightly-images')
       .upload(storagePath, compressedBlob, {
         contentType: 'image/webp',
@@ -244,25 +244,6 @@ async function convertAndCompressToWebP(
 }
 
 /**
- * Utility function to convert base64 to Blob (fallback for non-WebP)
- */
-function base64ToBlob(base64: string, mimeType: string): Blob {
-  // Remove data URL prefix if present
-  const base64Data = base64.replace(/^data:image\/[a-z]+;base64,/, '')
-
-  // Convert base64 to binary
-  const byteCharacters = atob(base64Data)
-  const byteNumbers = new Array(byteCharacters.length)
-
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i)
-  }
-
-  const byteArray = new Uint8Array(byteNumbers)
-  return new Blob([byteArray], { type: mimeType })
-}
-
-/**
  * List all images for a character (for management)
  */
 export const listCharacterImages = async (
@@ -270,10 +251,6 @@ export const listCharacterImages = async (
   characterId?: string,
 ): Promise<string[]> => {
   try {
-    const prefix = characterId
-      ? `character-avatars/${userId}/character-${characterId}-`
-      : `character-avatars/${userId}/`
-
     const { data, error } = await supabaseClient.storage
       .from('yours-brightly-images')
       .list(`character-avatars/${userId}`, {
