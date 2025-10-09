@@ -46,9 +46,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('🔐 Firebase user authenticated, ensuring Supabase sync...')
             const session = await authManager.authenticateSupabase()
             const authResponse = await supabaseClient.auth.setSession(session)
-            const currentSession = await supabaseClient.auth.getSession()
 
-            console.log('✅ Supabase sync complete.', authResponse, currentSession)
+            // Debug: Decode and log JWT custom claims
+            if (authResponse.data.session?.access_token) {
+              try {
+                const token = authResponse.data.session.access_token
+                const payload = JSON.parse(atob(token.split('.')[1]))
+                console.log('🔍 JWT Custom Claims Debug:', {
+                  userId: payload.sub,
+                  email: payload.email,
+                  plans: payload.plans,
+                  hasPlans: !!payload.plans,
+                  plansCount: payload.plans?.length || 0,
+                  fullPayload: payload,
+                })
+              } catch (decodeError) {
+                console.error('❌ Error decoding JWT:', decodeError)
+              }
+            }
+
+            console.log('✅ Supabase sync complete.', authResponse)
           }
         } catch (error) {
           console.error('❌ Error during Supabase authentication:', error)

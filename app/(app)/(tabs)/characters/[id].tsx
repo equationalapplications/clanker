@@ -1,9 +1,17 @@
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, router } from 'expo-router'
 import { View, StyleSheet, ScrollView } from 'react-native'
 import { Text, Button, Divider } from 'react-native-paper'
 
 export default function CharacterDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
+
+  const handleEditCharacter = () => {
+    router.push(`/characters/${id}/edit`)
+  }
+
+  const handleStartChat = () => {
+    router.push(`/characters/${id}/chat`)
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -25,7 +33,7 @@ export default function CharacterDetailsScreen() {
           <Text variant="bodyMedium" style={styles.note}>
             TODO: Display character details (name, appearance, personality, etc.)
           </Text>
-          <Button mode="contained" style={styles.button}>
+          <Button mode="contained" style={styles.button} onPress={handleEditCharacter}>
             Edit Character
           </Button>
         </View>
@@ -40,7 +48,7 @@ export default function CharacterDetailsScreen() {
           <Text variant="bodyMedium" style={styles.note}>
             TODO: Implement chat interface here
           </Text>
-          <Button mode="contained" style={styles.button}>
+          <Button mode="contained" style={styles.button} onPress={handleStartChat}>
             Start Chat
           </Button>
         </View>

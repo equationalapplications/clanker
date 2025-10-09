@@ -86,8 +86,8 @@ export const useUserCredits = (userId: string) => {
     queryFn: async (): Promise<UserCredits> => {
       const { data, error } = await supabase
         .from('user_app_subscriptions')
-        .select('plan_tier, credits_remaining, plan_renewal_at, plan_status')
-        .eq('user_id', userId)
+                .select('plan_tier, current_credits, plan_renewal_at, plan_status')
+        .eq('user_id', user.id)
         .eq('app_name', 'yours-brightly')
         .eq('plan_status', 'active')
         .single()

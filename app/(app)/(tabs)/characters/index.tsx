@@ -17,21 +17,21 @@ export default function Characters() {
   const characterList = useCharacterList()
   const [loading, setLoading] = useState(false)
 
-  const onPressEditCharacter = ({ id }: { id: string }) => {
+  const onPressEditCharacter = (id: string) => {
     router.push(`/characters/${id}`)
   }
 
   const CharacterButton = ({ id, name }: CharacterButtonProps) => (
-    <Button onPress={() => onPressEditCharacter({ id })} mode="contained">
+    <Button onPress={() => onPressEditCharacter(id)} mode="contained">
       {name}
     </Button>
   )
 
   const onPressAddCharacter = async () => {
     setLoading(true)
-    const newCharacterId = await createNewCharacter()
+    const result = await createNewCharacter()
     setLoading(false)
-    router.push(`/characters/${newCharacterId}`)
+    router.push(`/characters/${result.id}`)
   }
 
   return (
