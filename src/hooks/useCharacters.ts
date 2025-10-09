@@ -1,15 +1,14 @@
 /**
- * React Query hooks for character management with offline support
+ * React Query hooks for character management with local SQLite storage
  *
  * Features:
+ * - Local-first data storage
  * - Automatic caching and background updates
  * - Optimistic updates for mutations
- * - Real-time subscriptions via query invalidation
- * - Offline mutation queuing
+ * - Offline support (characters always stored locally)
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
 import { useAuth } from '~/auth/useAuth'
 import {
   getUserCharacters,
@@ -23,7 +22,6 @@ import {
   LegacyCharacter,
   toLegacyCharacter,
 } from '~/services/characterService'
-import { supabaseClient } from '~/config/supabaseClient'
 
 /**
  * Query key factory for characters
@@ -43,54 +41,17 @@ export const characterKeys = {
  */
 export function useCharacters() {
   const { user } = useAuth()
-  const queryClient = useQueryClient()
 
   // Main query for characters
   const query = useQuery({
     queryKey: characterKeys.list(user?.uid),
-    queryFn: getUserCharacters,
+    queryFn: () => getUserCharacters(user?.uid || ''),
     enabled: !!user,
     staleTime: 1000 * 60 * 2, // 2 minutes
   })
 
-  // Set up real-time subscription to invalidate cache on changes
-  useEffect(() => {
-    if (!user?.uid) return
-
-    const channel = supabaseClient
-      .channel(`user-characters-${user.uid}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'yours_brightly_characters',
-          filter: `user_id=eq.${user.uid}`,
-        },
-        (payload) => {
-          console.log('📡 Real-time character change:', payload.eventType)
-
-          // Invalidate list query to refetch
-          queryClient.invalidateQueries({ queryKey: characterKeys.list(user.uid) })
-
-          // If specific character updated/deleted, invalidate its detail query
-          if (payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
-            const characterId = (payload.old as any)?.id || (payload.new as any)?.id
-            if (characterId) {
-              queryClient.invalidateQueries({ queryKey: characterKeys.detail(characterId) })
-            }
-          }
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabaseClient.removeChannel(channel)
-    }
-  }, [user?.uid, queryClient])
-
   // Convert to legacy format for compatibility
-  const legacyCharacters: LegacyCharacter[] = query.data?.map(toLegacyCharacter) || []
+  const legacyCharacters: LegacyCharacter[] = (query.data || []).map(toLegacyCharacter)
 
   return {
     ...query,
@@ -103,11 +64,12 @@ export function useCharacters() {
  */
 export function useCharacter(id: string | undefined) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   const query = useQuery({
     queryKey: characterKeys.detail(id || ''),
-    queryFn: () => getCharacter(id || ''),
-    enabled: !!id,
+    queryFn: () => getCharacter(id || '', user?.uid || ''),
+    enabled: !!id && !!user,
     staleTime: 1000 * 60 * 5, // 5 minutes
     // Try to get initial data from the list query cache
     initialData: () => {
@@ -121,37 +83,6 @@ export function useCharacter(id: string | undefined) {
       return undefined
     },
   })
-
-  // Set up real-time subscription for this specific character
-  useEffect(() => {
-    if (!id) return
-
-    const channel = supabaseClient
-      .channel(`character-${id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'yours_brightly_characters',
-          filter: `id=eq.${id}`,
-        },
-        (payload) => {
-          console.log('📡 Real-time character update:', id, payload.eventType)
-
-          if (payload.eventType === 'DELETE') {
-            queryClient.setQueryData(characterKeys.detail(id), null)
-          } else {
-            queryClient.invalidateQueries({ queryKey: characterKeys.detail(id) })
-          }
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabaseClient.removeChannel(channel)
-    }
-  }, [id, queryClient])
 
   const legacyCharacter = query.data ? toLegacyCharacter(query.data) : null
 
@@ -169,7 +100,7 @@ export function useCreateCharacter() {
   const { user } = useAuth()
 
   return useMutation({
-    mutationFn: (character: Omit<CharacterInsert, 'user_id'>) => createCharacter(character),
+    mutationFn: (character: CharacterInsert) => createCharacter(user?.uid || '', character),
 
     // Optimistic update: add character immediately to UI
     onMutate: async (newCharacter) => {
@@ -237,7 +168,7 @@ export function useUpdateCharacter() {
 
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: CharacterUpdate }) =>
-      updateCharacter(id, updates),
+      updateCharacter(id, user?.uid || '', updates),
 
     // Optimistic update: apply changes immediately
     onMutate: async ({ id, updates }) => {
@@ -301,7 +232,7 @@ export function useDeleteCharacter() {
   const { user } = useAuth()
 
   return useMutation({
-    mutationFn: (id: string) => deleteCharacter(id),
+    mutationFn: (id: string) => deleteCharacter(id, user?.uid || ''),
 
     // Optimistic update: remove character immediately
     onMutate: async (id) => {

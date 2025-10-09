@@ -1,4 +1,5 @@
-import { updateCharacter as updateCharacterSupabase } from '../services/characterService'
+import { updateCharacter as updateCharacterLocal } from '../services/characterService'
+import { auth } from '../config/firebaseConfig'
 
 interface UpdateCharacterArgs {
   characterId: string
@@ -16,8 +17,13 @@ export default async function updateCharacter({
   ...data
 }: UpdateCharacterArgs): Promise<void> {
   try {
-    // Map legacy field names to Supabase schema
-    const supabaseData = {
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      throw new Error('No authenticated user')
+    }
+
+    // Map legacy field names to new schema
+    const updateData = {
       name: data.name,
       avatar: data.avatar,
       appearance: data.appearance,
@@ -29,10 +35,10 @@ export default async function updateCharacter({
 
     // Remove undefined values
     const cleanData = Object.fromEntries(
-      Object.entries(supabaseData).filter(([_, value]) => value !== undefined),
+      Object.entries(updateData).filter(([_, value]) => value !== undefined),
     )
 
-    await updateCharacterSupabase(characterId, cleanData)
+    await updateCharacterLocal(characterId, currentUser.uid, cleanData)
   } catch (error) {
     console.error('Error updating character:', error)
     throw error

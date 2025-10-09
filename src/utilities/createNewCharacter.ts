@@ -1,15 +1,21 @@
-import { createNewCharacter as createNewCharacterSupabase } from '../services/characterService'
+import { createNewCharacter as createNewCharacterLocal } from '../services/characterService'
+import { auth } from '../config/firebaseConfig'
 
 /**
- * Create a new character using Supabase
+ * Create a new character using local SQLite storage
  * This replaces the Firebase Cloud Function approach
  */
 export const createNewCharacter = async () => {
   console.log('🏭 createNewCharacter utility called')
   try {
-    console.log('📞 Calling createNewCharacterSupabase...')
-    const result = await createNewCharacterSupabase()
-    console.log('🎉 createNewCharacterSupabase result:', result)
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      throw new Error('No authenticated user')
+    }
+
+    console.log('📞 Calling createNewCharacterLocal...')
+    const result = await createNewCharacterLocal(currentUser.uid)
+    console.log('🎉 createNewCharacterLocal result:', result)
     return result
   } catch (error) {
     console.error('💥 Error in createNewCharacter utility:', error)

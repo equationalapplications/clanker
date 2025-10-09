@@ -1,9 +1,15 @@
-import { supabaseClient, Database } from '../config/supabaseClient'
+/**
+ * Character service - local-first with optional cloud sync
+ * 
+ * Primary storage: Local SQLite database
+ * Cloud sync: Supabase (for "save character" feature - future)
+ */
 
-// Types for character data
-export type Character = Database['public']['Tables']['yours_brightly_characters']['Row']
-export type CharacterInsert = Database['public']['Tables']['yours_brightly_characters']['Insert']
-export type CharacterUpdate = Database['public']['Tables']['yours_brightly_characters']['Update']
+import * as localCharacterService from './localCharacterService'
+import type { Character, CharacterInsert, CharacterUpdate } from './localCharacterService'
+
+// Re-export types
+export type { Character, CharacterInsert, CharacterUpdate }
 
 // Legacy character interface for compatibility
 export interface LegacyCharacter {
@@ -20,185 +26,45 @@ export interface LegacyCharacter {
 /**
  * Get all characters for the current user
  */
-export const getUserCharacters = async (): Promise<Character[]> => {
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
-
-  if (!user) {
-    return []
-  }
-
-  const { data, error } = await supabaseClient
-    .from('yours_brightly_characters')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching user characters:', error)
-    return []
-  }
-
-  return data || []
-}
-
-/**
- * Get all public characters
- */
-export const getPublicCharacters = async (): Promise<Character[]> => {
-  const { data, error } = await supabaseClient
-    .from('yours_brightly_characters')
-    .select('*')
-    .eq('is_public', true)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching public characters:', error)
-    return []
-  }
-
-  return data || []
-}
+export const getUserCharacters = localCharacterService.getUserCharacters
 
 /**
  * Get a specific character by ID
  */
-export const getCharacter = async (id: string, userId?: string): Promise<Character | null> => {
-  const { data, error } = await supabaseClient
-    .from('yours_brightly_characters')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error) {
-    console.error('Error fetching character:', error)
-    return null
-  }
-
-  return data
-}
+export const getCharacter = localCharacterService.getCharacter
 
 /**
  * Create a new character
  */
-export const createCharacter = async (
-  character: Omit<CharacterInsert, 'user_id'>,
-): Promise<Character | null> => {
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
-
-  if (!user) {
-    throw new Error('No authenticated user')
-  }
-
-  const { data, error } = await supabaseClient
-    .from('yours_brightly_characters')
-    .insert({
-      ...character,
-      user_id: user.id,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('❌ Supabase error creating character:', error)
-    throw error
-  }
-
-  return data
-}
+export const createCharacter = localCharacterService.createCharacter
 
 /**
  * Update an existing character
  */
-export const updateCharacter = async (
-  id: string,
-  updates: CharacterUpdate,
-): Promise<Character | null> => {
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
-
-  if (!user) {
-    throw new Error('No authenticated user')
-  }
-
-  const { data, error } = await supabaseClient
-    .from('yours_brightly_characters')
-    .update(updates)
-    .eq('id', id)
-    .eq('user_id', user.id) // Ensure user can only update their own characters
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error updating character:', error)
-    throw error
-  }
-
-  return data
-}
+export const updateCharacter = localCharacterService.updateCharacter
 
 /**
  * Delete a character
  */
-export const deleteCharacter = async (id: string): Promise<void> => {
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
-
-  if (!user) {
-    throw new Error('No authenticated user')
-  }
-
-  const { error } = await supabaseClient
-    .from('yours_brightly_characters')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id) // Ensure user can only delete their own characters
-
-  if (error) {
-    console.error('Error deleting character:', error)
-    throw error
-  }
-}
+export const deleteCharacter = localCharacterService.deleteCharacter
 
 /**
- * Create a new character using the legacy Firebase function approach
+ * Get character count for a user
  */
-export const createNewCharacter = async (): Promise<{ id: string }> => {
-  console.log('🏗️ createNewCharacter (Supabase) starting...')
-  try {
-    console.log('📝 Creating character with default values...')
-    const character = await createCharacter({
-      name: 'New Character',
-      appearance: 'A mysterious figure with an intriguing presence.',
-      traits: 'Curious, intelligent, and thoughtful.',
-      emotions: 'Calm and collected, with hints of excitement.',
-      context: 'A helpful companion ready for meaningful conversations.',
-      is_public: false,
-    })
-
-    console.log('🔍 Character creation result:', character)
-
-    if (!character) {
-      console.error('❌ Character creation returned null')
-      throw new Error('Failed to create character')
-    }
-
-    const result = { id: character.id }
-    console.log('✨ Returning character ID:', result)
-    return result
-  } catch (error) {
-    console.error('💥 Error in createNewCharacter:', error)
-    throw error
-  }
-}
+export const getCharacterCount = localCharacterService.getCharacterCount
 
 /**
- * Convert Supabase character to legacy format for compatibility
+ * Search characters by name
+ */
+export const searchCharacters = localCharacterService.searchCharacters
+
+/**
+ * Create a new character using default values
+ */
+export const createNewCharacter = localCharacterService.createNewCharacter
+
+/**
+ * Convert character to legacy format for compatibility
  */
 export const toLegacyCharacter = (character: Character): LegacyCharacter => {
   return {
@@ -214,9 +80,9 @@ export const toLegacyCharacter = (character: Character): LegacyCharacter => {
 }
 
 /**
- * Convert legacy character to Supabase format
+ * Convert legacy character to current format
  */
-export const fromLegacyCharacter = (legacy: LegacyCharacter): Omit<CharacterInsert, 'user_id'> => {
+export const fromLegacyCharacter = (legacy: LegacyCharacter): CharacterInsert => {
   return {
     name: legacy.name,
     avatar: legacy.avatar || null,
@@ -229,137 +95,75 @@ export const fromLegacyCharacter = (legacy: LegacyCharacter): Omit<CharacterInse
 }
 
 /**
- * Subscribe to user's character changes
+ * FUTURE FEATURE: Save character to cloud
+ * This will sync a local character to Supabase for sharing/backup
  */
-export const subscribeToUserCharacters = (callback: (characters: Character[]) => void) => {
-  let charactersSubscription: any = null
+export const saveCharacterToCloud = async (
+  characterId: string,
+  userId: string,
+): Promise<{ cloudId: string; success: boolean }> => {
+  console.log('🚧 saveCharacterToCloud: Not yet implemented')
+  console.log('📋 This feature will sync local character to Supabase')
+  console.log('📋 Use cases: sharing characters, backup, cross-device sync')
 
-  // Check if user is already authenticated and get initial data
-  const checkCurrentUser = async () => {
-    const {
-      data: { user },
-    } = await supabaseClient.auth.getUser()
-    if (user) {
-      console.log('📊 subscribeToUserCharacters - found existing user:', user.id)
-      // Get initial characters
-      const characters = await getUserCharacters()
-      console.log('📊 subscribeToUserCharacters - initial characters:', characters.length)
-      callback(characters)
+  // TODO: Implement cloud sync
+  // 1. Get local character
+  // 2. Create/update in Supabase using cloudCharacterService
+  // 3. Mark as synced in local DB
+  // 4. Return cloud ID
 
-      // Set up real-time subscription for character changes
-      charactersSubscription = supabaseClient
-        .channel(`user-characters-changes-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'yours_brightly_characters',
-            filter: `user_id=eq.${user.id}`,
-          },
-          async () => {
-            // Refetch all characters when any change occurs
-            console.log('📊 subscribeToUserCharacters - character change detected')
-            const characters = await getUserCharacters()
-            callback(characters)
-          },
-        )
-        .subscribe()
-    } else {
-      console.log('📊 subscribeToUserCharacters - no user found')
-      callback([])
-    }
-  }
-
-  // Check immediately
-  checkCurrentUser()
-
-  // Set up auth state listener for future changes
-  const authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    console.log('📊 subscribeToUserCharacters - auth state change:', event, !!session?.user)
-
-    if (session?.user) {
-      const userId = session.user.id
-
-      // Get initial characters
-      const characters = await getUserCharacters()
-      callback(characters)
-
-      // Clean up previous subscription if it exists
-      if (charactersSubscription) {
-        charactersSubscription.unsubscribe()
-      }
-
-      // Set up new real-time subscription for character changes
-      charactersSubscription = supabaseClient
-        .channel(`user-characters-changes-${userId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'yours_brightly_characters',
-            filter: `user_id=eq.${userId}`,
-          },
-          async () => {
-            // Refetch all characters when any change occurs
-            const characters = await getUserCharacters()
-            callback(characters)
-          },
-        )
-        .subscribe()
-    } else {
-      // Clean up subscription when user logs out
-      if (charactersSubscription) {
-        charactersSubscription.unsubscribe()
-        charactersSubscription = null
-      }
-      callback([])
-    }
-  })
-
-  // Return cleanup function
-  return () => {
-    authSubscription.data.subscription?.unsubscribe()
-    if (charactersSubscription) {
-      charactersSubscription.unsubscribe()
-    }
-  }
+  throw new Error('Cloud sync not yet implemented')
 }
 
 /**
- * Subscribe to a specific character's changes
+ * FUTURE FEATURE: Load character from cloud
+ * This will import a character from Supabase to local storage
  */
-export const subscribeToCharacter = (
+export const loadCharacterFromCloud = async (
+  cloudId: string,
+  userId: string,
+): Promise<Character | null> => {
+  console.log('🚧 loadCharacterFromCloud: Not yet implemented')
+  console.log('📋 This feature will import Supabase character to local storage')
+
+  // TODO: Implement cloud import
+  // 1. Fetch from Supabase using cloudCharacterService
+  // 2. Save to local DB with cloud_id reference
+  // 3. Return local character
+
+  throw new Error('Cloud import not yet implemented')
+}
+
+/**
+ * FUTURE FEATURE: Get public characters from cloud
+ * This will browse characters shared by other users
+ */
+export const getPublicCharacters = async (): Promise<Character[]> => {
+  console.log('🚧 getPublicCharacters: Not yet implemented')
+  console.log('📋 This feature will browse public characters from Supabase')
+
+  // TODO: Implement public character browsing
+  // Use cloudCharacterService.getPublicCharacters()
+
+  return []
+}
+
+/**
+ * FUTURE FEATURE: Sync local character with cloud updates
+ * This will pull updates from Supabase for synced characters
+ */
+export const syncCharacterFromCloud = async (
   characterId: string,
-  callback: (character: Character | null) => void,
-) => {
-  // Get initial character data
-  getCharacter(characterId).then(callback)
+  userId: string,
+): Promise<Character | null> => {
+  console.log('🚧 syncCharacterFromCloud: Not yet implemented')
+  console.log('📋 This feature will pull cloud updates for a synced character')
 
-  // Set up real-time subscription
-  const subscription = supabaseClient
-    .channel(`character-${characterId}-changes`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'yours_brightly_characters',
-        filter: `id=eq.${characterId}`,
-      },
-      (payload) => {
-        if (payload.eventType === 'DELETE') {
-          callback(null)
-        } else {
-          callback(payload.new as Character)
-        }
-      },
-    )
-    .subscribe()
+  // TODO: Implement cloud sync pull
+  // 1. Get local character's cloud_id
+  // 2. Fetch latest from Supabase
+  // 3. Update local DB with changes
+  // 4. Return updated character
 
-  // Return cleanup function
-  return () => {
-    subscription.unsubscribe()
-  }
+  throw new Error('Cloud sync not yet implemented')
 }

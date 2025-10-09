@@ -68,6 +68,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     'expo-router',
     'expo-sqlite',
+    "@react-native-firebase/app",
+    "@react-native-firebase/auth",
+    "@react-native-firebase/crashlytics",
     [
       '@react-native-google-signin/google-signin',
       {
@@ -75,6 +78,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         iosUrlScheme: 'com.googleusercontent.apps.790870307455-5bsmcehb8mqdsl6vb3mal1nnq2jkk730',
       },
     ],
+    [
+      "expo-build-properties",
+      {
+        "ios": {
+          "useFrameworks": "static"
+        }
+      }
+    ]
   ],
   extra: {
     eas: {

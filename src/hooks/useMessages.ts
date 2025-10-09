@@ -1,19 +1,17 @@
 /**
- * React Query hooks for message management with offline support
+ * React Query hooks for message management with local SQLite storage
  *
  * Features:
+ * - Local-first data storage with SQLite
  * - Automatic caching and background updates
  * - Optimistic updates for sending messages
- * - Real-time subscriptions via query invalidation
- * - Offline message queuing
+ * - Offline support (messages always stored locally)
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
 import { IMessage } from 'react-native-gifted-chat'
 import { useAuth } from '~/auth/useAuth'
 import { getMessages, sendMessage, deleteMessage, updateMessage } from '~/services/messageService'
-import { supabaseClient } from '~/config/supabaseClient'
 
 /**
  * Query key factory for messages
@@ -27,54 +25,18 @@ export const messageKeys = {
 
 /**
  * Hook to get chat messages for a character conversation
+ * Uses local SQLite storage - no real-time subscriptions needed
  */
 export function useMessages(characterId: string | undefined, recipientUserId: string | undefined) {
   const { user } = useAuth()
-  const queryClient = useQueryClient()
 
   const query = useQuery({
     queryKey: messageKeys.list(characterId || '', recipientUserId || ''),
-    queryFn: () => getMessages(characterId || '', recipientUserId || ''),
-    enabled: !!characterId && !!recipientUserId && !!user,
+    queryFn: () => getMessages(characterId || '', user?.uid || ''),
+    enabled: !!characterId && !!user,
     staleTime: 1000 * 30, // 30 seconds - messages change frequently
+    refetchInterval: 5000, // Refetch every 5 seconds for AI responses
   })
-
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!characterId || !recipientUserId || !user?.uid) return
-
-    const channel = supabaseClient
-      .channel(`messages-${characterId}-${recipientUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'yours_brightly_messages',
-          filter: `character_id=eq.${characterId}`,
-        },
-        (payload) => {
-          console.log('📡 Real-time message change:', payload.eventType)
-
-          // Check if this message is part of our conversation
-          const message = payload.new as any
-          if (
-            (message?.sender_user_id === user.uid &&
-              message?.recipient_user_id === recipientUserId) ||
-            (message?.sender_user_id === recipientUserId && message?.recipient_user_id === user.uid)
-          ) {
-            queryClient.invalidateQueries({
-              queryKey: messageKeys.list(characterId, recipientUserId),
-            })
-          }
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabaseClient.removeChannel(channel)
-    }
-  }, [characterId, recipientUserId, user?.uid, queryClient])
 
   return {
     ...query,
@@ -91,7 +53,7 @@ export function useSendMessage(characterId: string, recipientUserId: string) {
 
   return useMutation({
     mutationFn: (message: Pick<IMessage, '_id' | 'text' | 'user'> & { [key: string]: any }) =>
-      sendMessage(characterId, recipientUserId, message),
+      sendMessage(characterId, user?.uid || '', message),
 
     // Optimistic update: add message immediately to UI
     onMutate: async (newMessage) => {

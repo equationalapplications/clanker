@@ -1,4 +1,5 @@
 import { sendMessage } from '~/services/messageService'
+import { saveAIMessage } from '~/database/messageDatabase'
 import { generateChatResponse, ChatContext } from '~/services/vertexAIService'
 import { IMessage } from 'react-native-gifted-chat'
 
@@ -17,12 +18,12 @@ export interface Character {
 export const sendMessageWithAIResponse = async (
   userMessage: IMessage,
   character: Character,
-  recipientUserId: string,
+  userId: string,
   conversationHistory: IMessage[] = [],
 ): Promise<void> => {
   try {
-    // 1. Send the user's message to Supabase
-    await sendMessage(character.id, recipientUserId, userMessage)
+    // 1. Send the user's message to local database
+    await sendMessage(character.id, userId, userMessage)
 
     // 2. Prepare context for AI generation
     const chatContext: ChatContext = {
@@ -30,7 +31,7 @@ export const sendMessageWithAIResponse = async (
       characterPersonality: character.context || character.appearance,
       characterTraits: `${character.traits} ${character.emotions}`.trim(),
       conversationHistory: conversationHistory.slice(-10).map((msg) => ({
-        role: msg.user._id === userMessage.user._id ? 'user' : 'assistant',
+        role: msg.user._id === userId ? 'user' : 'assistant',
         content: msg.text,
       })),
     }
@@ -38,37 +39,37 @@ export const sendMessageWithAIResponse = async (
     // 3. Generate AI response
     const aiResponseText = await generateChatResponse(userMessage.text, chatContext)
 
-    // 4. Create AI response message
-    const aiResponseMessage: IMessage = {
-      _id: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      text: aiResponseText,
-      createdAt: new Date(),
+    // 4. Create AI response message ID
+    const aiResponseId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+    // 5. Save AI response to local database
+    await saveAIMessage(character.id, userId, aiResponseText, aiResponseId, {
       user: {
-        _id: recipientUserId, // The character/recipient is responding
+        _id: character.id, // The character is responding
         name: character.name,
         avatar: character.appearance || undefined,
       },
-    }
-
-    // 5. Send AI response to Supabase
-    await sendMessage(character.id, recipientUserId, aiResponseMessage)
+    })
   } catch (error) {
     console.error('Error in sendMessageWithAIResponse:', error)
 
     // Send a fallback error message
-    const errorMessage: IMessage = {
-      _id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      text: "I'm having trouble responding right now. Please try again!",
-      createdAt: new Date(),
-      user: {
-        _id: recipientUserId,
-        name: character.name,
-        avatar: character.appearance || undefined,
-      },
-    }
+    const errorId = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     try {
-      await sendMessage(character.id, recipientUserId, errorMessage)
+      await saveAIMessage(
+        character.id,
+        userId,
+        "I'm having trouble responding right now. Please try again!",
+        errorId,
+        {
+          user: {
+            _id: character.id,
+            name: character.name,
+            avatar: character.appearance || undefined,
+          },
+        },
+      )
     } catch (fallbackError) {
       console.error('Error sending fallback message:', fallbackError)
       throw error // Re-throw original error
@@ -81,7 +82,7 @@ export const sendMessageWithAIResponse = async (
  */
 export const sendCharacterIntroduction = async (
   character: Character,
-  recipientUserId: string,
+  userId: string,
 ): Promise<void> => {
   try {
     const { generateCharacterIntroduction } = await import('./vertexAIService')
@@ -92,33 +93,33 @@ export const sendCharacterIntroduction = async (
       `${character.traits} ${character.emotions}`.trim(),
     )
 
-    const introMessage: IMessage = {
-      _id: `intro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      text: introText,
-      createdAt: new Date(),
+    const introId = `intro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+    await saveAIMessage(character.id, userId, introText, introId, {
       user: {
-        _id: recipientUserId,
+        _id: character.id,
         name: character.name,
         avatar: character.appearance || undefined,
       },
-    }
-
-    await sendMessage(character.id, recipientUserId, introMessage)
+    })
   } catch (error) {
     console.error('Error sending character introduction:', error)
 
     // Send a simple fallback introduction
-    const fallbackMessage: IMessage = {
-      _id: `intro_fallback_${Date.now()}`,
-      text: `Hi! I'm ${character.name}. I'm excited to chat with you!`,
-      createdAt: new Date(),
-      user: {
-        _id: recipientUserId,
-        name: character.name,
-        avatar: character.appearance || undefined,
-      },
-    }
+    const fallbackId = `intro_fallback_${Date.now()}`
 
-    await sendMessage(character.id, recipientUserId, fallbackMessage)
+    await saveAIMessage(
+      character.id,
+      userId,
+      `Hi! I'm ${character.name}. I'm excited to chat with you!`,
+      fallbackId,
+      {
+        user: {
+          _id: character.id,
+          name: character.name,
+          avatar: character.appearance || undefined,
+        },
+      },
+    )
   }
 }
