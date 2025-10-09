@@ -7,7 +7,7 @@ import { messageKeys } from '~/hooks/useMessages'
 
 interface UseAIChatProps {
   characterId: string
-  recipientUserId: string
+  userId: string
   character: Character
 }
 
@@ -22,29 +22,25 @@ interface UseAIChatReturn {
  * Hook for AI-powered chat with automatic response generation
  * Enhanced with React Query for offline support and optimistic updates
  */
-export function useAIChat({
-  characterId,
-  recipientUserId,
-  character,
-}: UseAIChatProps): UseAIChatReturn {
-  const messages = useChatMessages({ id: characterId, userId: recipientUserId })
+export function useAIChat({ characterId, userId, character }: UseAIChatProps): UseAIChatReturn {
+  const messages = useChatMessages({ id: characterId, userId })
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
 
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
     mutationFn: async (message: IMessage) => {
-      return sendMessageWithAIResponse(message, character, recipientUserId, messages)
+      return sendMessageWithAIResponse(message, character, userId, messages)
     },
 
     // Optimistic update: Add user message immediately
     onMutate: async (message) => {
       await queryClient.cancelQueries({
-        queryKey: messageKeys.list(characterId, recipientUserId),
+        queryKey: messageKeys.list(characterId, userId),
       })
 
       const previousMessages = queryClient.getQueryData<IMessage[]>(
-        messageKeys.list(characterId, recipientUserId),
+        messageKeys.list(characterId, userId),
       )
 
       // Add user message optimistically
@@ -55,7 +51,7 @@ export function useAIChat({
       }
 
       queryClient.setQueryData<IMessage[]>(
-        messageKeys.list(characterId, recipientUserId),
+        messageKeys.list(characterId, userId),
         (old) => [optimisticUserMessage, ...(old || [])],
       )
 
@@ -68,7 +64,7 @@ export function useAIChat({
 
       // Invalidate to fetch both user message and AI response
       queryClient.invalidateQueries({
-        queryKey: messageKeys.list(characterId, recipientUserId),
+        queryKey: messageKeys.list(characterId, userId),
       })
     },
 
@@ -79,10 +75,7 @@ export function useAIChat({
 
       // Rollback optimistic update
       if (context?.previousMessages) {
-        queryClient.setQueryData(
-          messageKeys.list(characterId, recipientUserId),
-          context.previousMessages,
-        )
+        queryClient.setQueryData(messageKeys.list(characterId, userId), context.previousMessages)
       }
     },
   })

@@ -1,84 +1,40 @@
-import { supabaseClient, Database } from '../config/supabaseClient'
-import { IMessage } from 'react-native-gifted-chat'
-import type { YoursbrightlyMessage } from '../types/yoursbrightly'
+/**
+ * Local SQLite message service
+ * Replaced Supabase cloud storage with local-first architecture
+ */
 
-// Types for message data
-export type Message = YoursbrightlyMessage
-export type MessageInsert = Database['public']['Tables']['yours_brightly_messages']['Insert']
-export type GiftedChatMessage =
-  Database['public']['Views']['yours_brightly_messages_gifted_chat']['Row']
+import { IMessage } from 'react-native-gifted-chat'
+import * as messageDB from '../database/messageDatabase'
 
 /**
  * Get messages for a specific character conversation
  */
 export const getMessages = async (
   characterId: string,
-  recipientUserId: string,
+  userId: string,
 ): Promise<IMessage[]> => {
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
-
-  if (!user) {
-    return []
-  }
-
-  const { data, error } = await supabaseClient
-    .from('yours_brightly_messages_gifted_chat')
-    .select('*')
-    .eq('character_id', characterId)
-    .or(
-      `and(sender_user_id.eq.${user.id},recipient_user_id.eq.${recipientUserId}),and(sender_user_id.eq.${recipientUserId},recipient_user_id.eq.${user.id})`,
-    )
-    .order('createdAt', { ascending: false })
-
-  if (error) {
+  try {
+    return await messageDB.getMessages(characterId, userId)
+  } catch (error) {
     console.error('Error fetching messages:', error)
     return []
   }
-
-  // Convert to IMessage format
-  return (data || []).map((msg) => ({
-    _id: msg._id,
-    text: msg.text,
-    createdAt: new Date(msg.createdAt),
-    user: {
-      _id: msg.user._id,
-      name: msg.user.name || 'Anonymous',
-      avatar: msg.user.avatar || undefined,
-    },
-    ...msg.message_data, // Spread any additional IMessage properties
-  }))
 }
 
 /**
- * Send a new message
+ * Send a new message (save to local database)
  */
 export const sendMessage = async (
   characterId: string,
-  recipientUserId: string,
+  userId: string,
   message: Pick<IMessage, '_id' | 'text' | 'user'> & { [key: string]: any },
 ): Promise<void> => {
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
+  try {
+    // Extract IMessage properties
+    const { _id, text, user: messageUser, ...additionalData } = message
 
-  if (!user) {
-    throw new Error('No authenticated user')
-  }
-
-  // Extract IMessage properties
-  const { _id, text, user: messageUser, ...additionalData } = message
-
-  const { error } = await supabaseClient.rpc('insert_message', {
-    p_character_id: characterId,
-    p_recipient_user_id: recipientUserId,
-    p_message_id: String(_id),
-    p_text: text,
-    p_message_data: additionalData,
-  })
-
-  if (error) {
+    await messageDB.sendMessage(characterId, userId, text, String(_id), additionalData)
+  } catch (error) {
     console.error('Error sending message:', error)
     throw error
   }
@@ -88,21 +44,9 @@ export const sendMessage = async (
  * Delete a message
  */
 export const deleteMessage = async (messageId: string): Promise<void> => {
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
-
-  if (!user) {
-    throw new Error('No authenticated user')
-  }
-
-  const { error } = await supabaseClient
-    .from('yours_brightly_messages')
-    .delete()
-    .eq('message_id', messageId)
-    .eq('sender_user_id', user.id) // Only allow deleting own messages
-
-  if (error) {
+  try {
+    await messageDB.deleteMessage(messageId)
+  } catch (error) {
     console.error('Error deleting message:', error)
     throw error
   }
@@ -115,160 +59,69 @@ export const updateMessage = async (
   messageId: string,
   updates: { text?: string; message_data?: Record<string, any> },
 ): Promise<void> => {
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
-
-  if (!user) {
-    throw new Error('No authenticated user')
-  }
-
-  const { error } = await supabaseClient
-    .from('yours_brightly_messages')
-    .update(updates)
-    .eq('message_id', messageId)
-    .eq('sender_user_id', user.id) // Only allow updating own messages
-
-  if (error) {
+  try {
+    if (updates.text) {
+      await messageDB.updateMessageText(messageId, updates.text)
+    }
+    // message_data updates would need to be handled differently in SQLite
+    // For now, we only support text updates
+  } catch (error) {
     console.error('Error updating message:', error)
     throw error
   }
 }
 
 /**
- * Get conversation history for a user
+ * Get message count for a character
  */
-export const getConversationHistory = async (): Promise<
-  {
-    characterId: string
-    characterName: string
-    lastMessage: string
-    lastMessageTime: Date
-    recipientUserId: string
-    recipientName: string
-  }[]
-> => {
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
+export const getMessageCount = async (characterId: string, userId: string): Promise<number> => {
+  try {
+    return await messageDB.getMessageCount(characterId, userId)
+  } catch (error) {
+    console.error('Error getting message count:', error)
+    return 0
+  }
+}
 
-  if (!user) {
+/**
+ * Get last message for a character (for preview)
+ */
+export const getLastMessage = async (
+  characterId: string,
+  userId: string,
+): Promise<IMessage | null> => {
+  try {
+    return await messageDB.getLastMessage(characterId, userId)
+  } catch (error) {
+    console.error('Error getting last message:', error)
+    return null
+  }
+}
+
+/**
+ * Search messages by text
+ */
+export const searchMessages = async (
+  characterId: string,
+  userId: string,
+  searchText: string,
+): Promise<IMessage[]> => {
+  try {
+    return await messageDB.searchMessages(characterId, userId, searchText)
+  } catch (error) {
+    console.error('Error searching messages:', error)
     return []
   }
-
-  // This would be a complex query - for now return empty array
-  // In practice, you might want to create a view or function for this
-  return []
 }
 
 /**
- * Subscribe to messages for a specific character conversation
+ * Delete all messages for a character
  */
-export const subscribeToMessages = (
-  characterId: string,
-  recipientUserId: string,
-  callback: (messages: IMessage[]) => void,
-) => {
-  let currentUserId: string | null = null
-
-  // Set up auth state listener
-  const authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    if (session?.user) {
-      currentUserId = session.user.id
-
-      // Get initial messages
-      const messages = await getMessages(characterId, recipientUserId)
-      callback(messages)
-    } else {
-      currentUserId = null
-      callback([])
-    }
-  })
-
-  // Set up real-time subscription for new messages
-  const messagesSubscription = supabaseClient
-    .channel(`messages-${characterId}-${recipientUserId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'yours_brightly_messages',
-        filter: `character_id=eq.${characterId}`,
-      },
-      async (payload) => {
-        // Check if this message is part of our conversation
-        const message = payload.new as Message
-        if (
-          currentUserId &&
-          ((message.sender_user_id === currentUserId &&
-            message.recipient_user_id === recipientUserId) ||
-            (message.sender_user_id === recipientUserId &&
-              message.recipient_user_id === currentUserId))
-        ) {
-          // Refetch all messages to maintain proper order
-          const messages = await getMessages(characterId, recipientUserId)
-          callback(messages)
-        }
-      },
-    )
-    .subscribe()
-
-  // Return cleanup function
-  return () => {
-    authSubscription.data.subscription?.unsubscribe()
-    messagesSubscription.unsubscribe()
-  }
-}
-
-/**
- * Clean up old messages (user can clean their own messages)
- */
-export const cleanupOldMessages = async (daysOld: number): Promise<number> => {
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
-
-  if (!user) {
-    throw new Error('No authenticated user')
-  }
-
-  const { data, error } = await supabaseClient.rpc('cleanup_user_messages_older_than_days', {
-    days_old: daysOld,
-  })
-
-  if (error) {
-    console.error('Error cleaning up messages:', error)
+export const deleteCharacterMessages = async (characterId: string): Promise<void> => {
+  try {
+    await messageDB.deleteCharacterMessages(characterId)
+  } catch (error) {
+    console.error('Error deleting character messages:', error)
     throw error
-  }
-
-  return data || 0
-}
-
-/**
- * Get message statistics for the current user
- */
-export const getMessageStats = async (): Promise<{
-  totalMessages: number
-  oldestMessage: Date | null
-  newestMessage: Date | null
-  messagesLast30Days: number
-  messagesLast90Days: number
-  avgMessagesPerDay: number
-}> => {
-  const { data, error } = await supabaseClient.rpc('get_message_stats')
-
-  if (error) {
-    console.error('Error getting message stats:', error)
-    throw error
-  }
-
-  return {
-    totalMessages: data?.total_messages || 0,
-    oldestMessage: data?.oldest_message ? new Date(data.oldest_message) : null,
-    newestMessage: data?.newest_message ? new Date(data.newest_message) : null,
-    messagesLast30Days: data?.messages_last_30_days || 0,
-    messagesLast90Days: data?.messages_last_90_days || 0,
-    avgMessagesPerDay: parseFloat(data?.avg_messages_per_day || '0'),
   }
 }
