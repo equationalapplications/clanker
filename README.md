@@ -1,4 +1,4 @@
-# Clanker
+# Yours Brightly AI
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![React Native](https://img.shields.io/badge/React%20Native-0.81-blue.svg)](https://reactnative.dev/)
@@ -66,6 +66,11 @@ SUPABASE_ANON_KEY=your_supabase_anon_key
 GOOGLE_WEB_CLIENT_ID=your_google_web_client_id
 GOOGLE_ANDROID_CLIENT_ID=your_google_android_client_id
 GOOGLE_IOS_CLIENT_ID=your_google_ios_client_id
+
+# Optional for development
+REVENUECAT_PURCHASES_ANDROID_API_KEY=your_android_key
+REVENUECAT_PURCHASES_IOS_API_KEY=your_ios_key
+REVENUECAT_PURCHASES_STRIPE_API_KEY=your_stripe_key
 ```
 
 4. **Configure Firebase**
@@ -133,11 +138,6 @@ Concise developer entry — implementation-level documentation lives in the `doc
 
 - [Privacy integration](docs/PRIVACY_INTEGRATION.md) — How privacy policy and user consent are handled.
 - [Terms integration](docs/TERMS_INTEGRATION.md) — Legacy terms flow vs subscription-driven access control.
-
-### Platform Configuration
-
-- **[Firebase Platform Config](docs/FIREBASE_PLATFORM_CONFIG.md)** — Shared Firebase helper API with platform-specific implementations for web and native.
-- **[Firebase Platform Fixes](docs/FIREBASE_PLATFORM_FIXES.md)** — Solutions for React Native Firebase v22 migration, Vertex AI setup, and deprecation warnings.
 
 ## 🏗️ Tech Stack
 
