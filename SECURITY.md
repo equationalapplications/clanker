@@ -11,7 +11,7 @@ We release patches for security vulnerabilities in the following versions:
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in Clanker, please report it by emailing [info@equationalapplications.com](mailto:info@equationalapplications.com).
+If you discover a security vulnerability in Yours Brightly AI, please report it by emailing [info@equationalapplications.com](mailto:info@equationalapplications.com).
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
