@@ -95,7 +95,7 @@
     "semantic-release-react-native": "^1.12.2",
     "typescript": "~5.9.2"
   },
-  "private": true,
+  "license": "MIT",
   "expo": {
     "router": {
       "origin": "expo"
