@@ -139,6 +139,11 @@ Concise developer entry — implementation-level documentation lives in the `doc
 - [Privacy integration](docs/PRIVACY_INTEGRATION.md) — How privacy policy and user consent are handled.
 - [Terms integration](docs/TERMS_INTEGRATION.md) — Legacy terms flow vs subscription-driven access control.
 
+### Open Source & Maintenance
+
+- [Public repository checklist](docs/PUBLIC_REPO_CHECKLIST.md) — Pre-release checklist and post-public tasks.
+- [Git history analysis](docs/GIT_HISTORY_ANALYSIS.md) — Analysis of repository history cleaning for public release.
+
 ## 🏗️ Tech Stack
 
 - **Frontend**: React Native 0.81, Expo SDK 54, TypeScript 5.9

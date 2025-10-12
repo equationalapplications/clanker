@@ -1,3 +1,9 @@
+# Changelog
+
+> **Note**: This repository's Git history was cleaned before public release for security purposes.
+> Commit links in this changelog reference the original private development history and will not resolve.
+> The changelog is preserved to provide historical context about the project's evolution.
+
 # [10.0.0](https://github.com/equationalapplications/yoursbrightlyai/compare/v9.0.0...v10.0.0) (2023-05-14)
 
 ### Features
