@@ -1,176 +1,19 @@
-# Yours Brightly AI  
+# Yours Brightly AI
 
-Copyright Equational Applications LLC
+Concise developer entry — implementation-level documentation lives in the `docs/` folder. Click any link below to open the topic.
 
-## Firestore Data
+Documentation
 
-### Collection: users_public
-`${usersPublicCollection}/${user.uid}`
-```ts
-interface PublicUserData {
-  uid: string; // uid from firebase auth
-  name: string; // from firebase auth
-  avatar: string;
-  email: string; // from firebase auth
-}
-```
-
-### Collection: users_private
-`${usersPivateCollection}/${user.uid}`
-```ts
-interface UserPrivate {
-  credits: number
-  isProfilePublic: boolean | null
-  hasAcceptedTermsDate: Date | null
-}
-```
-
-### Collection: characters
-`${charactersCollection}/${user.uid}/${userCharactersCollection}/${userPrivate.defaultCharacter}`
-```ts
-interface Character {
-  name: string;
-  avatar: string;
-  isCharacterPublic: boolean;
-  context: string;
-  emotions: string;
-}
-
-interface PrivateCharacterData {
-  [uid: string]: {
-    [characterId: string]: Character;
-  };
-}
-```
-
-### Collection: (multiCharacter) user_chats
-`${userChatsCollection}/${user.uid}/${usersPublicCollection}/${userOfCharacterId}/${charactersCollection}/${characterId}/${messagesCollection}`
-use messages interface like below
-
-### Collection: (defaultCharacter) user_chats
-`${userChatsCollection}/${user.uid}/${messagesCollection}`
-```ts
-interface ChatMessage {
-  text: string;
-  createdAt: Date | number;
-  user: {
-    _id: string | number;
-    name: string;
-    avatar: string;
-  };
-  image?: string;
-  video?: string;
-  audio?: string;
-  system?: boolean;
-  sent?: boolean;
-  received?: boolean;
-  pending?: boolean;
-  quickReplies?: {
-    type: "radio" | "checkbox";
-    values: {
-      title: string;
-      value: string;
-      messageId?: any;
-    }[];
-    keepIt?: boolean;
-  };
-}
-
-interface PrivateChatData {
-  [uid: string]: {
-    [roomId: string]: {
-      messages: {
-        [messageId: string]: ChatMessage;
-      };
-    };
-  };
-}
-```
-
-### Collection: public_chat_rooms
-  `${publicChatRoomsCollection}/${publicChatRoomId}/${messagesCollection}`
-```ts
-interface PublicChatRoomMessage {
-  text: string;
-  createdAt: Date | number;
-  user: {
-    _id: string | number;
-    name: string;
-    avatar: string;
-  };
-}
-
-Collection: pulic_chat_rooms Document: default_room Collection: messages Document: _id _id: string | number text: string createdAt: Date | number user: _id: _id // of user or character name: string avatar: string
-
-interface PublicChatRoomData {
-  default_room: {
-    messages: {
-      [messageId: string]: PublicChatRoomMessage;
-    };
-  };
-}
-```
-
-
-
-## Gifted Chat Types  
-```ts
-export type Omit<T, K> = Pick<T, Exclude<keyof T, K>>
-
-export interface LeftRightStyle<T> {
-  left?: StyleProp<T>
-  right?: StyleProp<T>
-}
-
-type renderFunction = (x: any) => JSX.Element
-
-export interface User {
-  _id: string | number
-  name?: string
-  avatar?: string | number | renderFunction
-}
-
-export interface IMessage {
-  _id: string | number
-  text: string
-  createdAt: Date | number
-  user: User
-  image?: string
-  video?: string
-  audio?: string
-  system?: boolean
-  sent?: boolean
-  received?: boolean
-  pending?: boolean
-  quickReplies?: QuickReplies
-}
-
-export interface Reply {
-  title: string
-  value: string
-  messageId?: any
-}
-
-export interface QuickReplies {
-  type: 'radio' | 'checkbox'
-  values: Reply[]
-  keepIt?: boolean
-}
-
-export type IChatMessage = IMessage
-
-export interface MessageVideoProps<TMessage extends IMessage> {
-  currentMessage?: TMessage
-  containerStyle?: StyleProp<ViewStyle>
-  videoStyle?: StyleProp<ViewStyle>
-  videoProps?: object
-  lightboxProps?: LightboxProps
-}
-
-export interface MessageAudioProps<TMessage extends IMessage> {
-  currentMessage?: TMessage
-  containerStyle?: StyleProp<ViewStyle>
-  audioStyle?: StyleProp<ViewStyle>
-  audioProps?: object
-}
-```
+- [Auth flow (concise)](docs/AUTH_FLOW.md) — Step-by-step: Firebase Auth → `exchangeToken` cloud function → Supabase session tokens.
+- [Auth source-of-truth](docs/AUTH_SOURCE_OF_TRUTH.md) — Why Firebase is the canonical identity provider and how Supabase is used downstream.
+- [Characters data model](docs/CHARACTERS.md) — Tables, RLS, types, and common queries for Yours Brightly characters.
+- [Image generation](docs/IMAGE_GENERATION.md) — How image generation is integrated with OpenAI and Supabase storage.
+- [Navigation structure](docs/NAVIGATION.md) — Overview of app navigation, including Drawer, Tab, and Stack navigators.
+- [Payment API reference](docs/PAYMENT_API.md) — Transaction manager, webhook endpoints, and auth requirements.
+- [Payment integration](docs/PAYMENT_INTEGRATION.md) — Client-side integration patterns for payments and subscriptions.
+- [Payment system design](docs/PAYMENT_SYSTEM.md) — Architecture and billing flow for multi-tenant subscriptions.
+- [Payment troubleshooting](docs/PAYMENT_TROUBLESHOOTING.md) — Common webhook and billing errors with fixes.
+- [Privacy integration](docs/PRIVACY_INTEGRATION.md) — How privacy policy and user consent are handled.
+- [Supabase subscription & RLS](docs/SUPABASE_AUTH.md) — Full multi-tenant subscription architecture, JWT claims, and RLS examples.
+- [Supabase data structure](docs/SUPABASE_DATA_STRUCTURE.md) — SQL schemas and TypeScript interfaces for core tables (users, characters, messages, subscriptions).
+- [Terms integration](docs/TERMS_INTEGRATION.md) — Legacy terms flow vs subscription-driven access control.
