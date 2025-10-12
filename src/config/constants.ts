@@ -28,10 +28,9 @@ export const firebaseMessagingSenderId = Constants.expoConfig?.extra?.firebaseMe
 export const firebaseAppId = Constants.expoConfig?.extra?.firebaseAppId
 
 export const supabaseUrl =
-  Constants.expoConfig?.extra?.supabaseUrl || 'https://eksnwbwpmsjbuouftqur.supabase.co'
+  Constants.expoConfig?.extra?.supabaseUrl || ''
 export const supabaseAnonKey =
-  Constants.expoConfig?.extra?.supabaseAnonKey ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrc253YndwbXNqYnVvdWZ0cXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2ODI3NjksImV4cCI6MjA3MjI1ODc2OX0.tomQiadGBwWQBTwT5kkK8_jSXDWAMhnOXRabycMzntY'
+  Constants.expoConfig?.extra?.supabaseAnonKey || ''
 
 // Revenue Cat & Purchases configuration
 
