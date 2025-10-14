@@ -8,38 +8,44 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+
+    # Security: Explicit permissions for semantic-release and EAS
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
     steps:
       - name: 🏗 Setup repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: "0"
 
       - name: 🏗 Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
-          cache: 'npm'
+          node-version: 20
+          cache: "npm"
 
       - name: 🏗 Setup Expo
-        uses: expo/expo-github-action@v7
+        uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-          
-      - name: Install dependencies
+
+      - name: 📦 Install dependencies
         run: npm ci
 
-      - name: Install semantic-release extra plugins
+      - name: 📦 Install semantic-release extra plugins
         run: npm install --save-dev @semantic-release/changelog @semantic-release/git
 
-      - name: Bump Version and Release on Github
+      - name: 📝 Bump Version and Release on Github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
-      - name: Update Production with EAS
+      - name: 🚀 Update Production with EAS
         run: eas update --auto --branch production --non-interactive
-
 #      - name: Deploy to Firebase Hosting
 #        run: npm run predeploy
 #      - uses: FirebaseExtended/action-hosting-deploy@v0
