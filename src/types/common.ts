@@ -1,5 +1,5 @@
 /**
- * TypeScript types for Yours Brightly AI database tables
+ * TypeScript types for Clanker database tables
  * Generated from: 20251004000006_yours_brightly_characters_table.sql
  */
 

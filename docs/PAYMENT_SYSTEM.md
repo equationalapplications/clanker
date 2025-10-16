@@ -1,6 +1,6 @@
 # Payment System Documentation
 
-The Yours Brightly AI app implements a comprehensive multi-tenant payment system supporting subscriptions, one-time purchases, and transaction tracking across multiple payment providers.
+The Clanker app implements a comprehensive multi-tenant payment system supporting subscriptions, one-time purchases, and transaction tracking across multiple payment providers.
 
 ## Table of Contents
 

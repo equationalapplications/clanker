@@ -39,7 +39,7 @@ const loadGoogleScript = (): Promise<void> => {
   return googleLoadPromise
 }
 
-export const configureGoogleSignInWeb = async () => {
+export const initializeGoogleSignIn = async () => {
   await loadGoogleScript()
 
   if (window.google && window.google.accounts) {
@@ -50,7 +50,7 @@ export const configureGoogleSignInWeb = async () => {
   }
 }
 
-export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
+export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
   try {
     await loadGoogleScript()
 
@@ -68,7 +68,7 @@ export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
               const googleCredential = GoogleAuthProvider.credential(response.credential)
 
               // Sign-in the user with the credential
-              await signInWithCredential(auth, googleCredential)
+              await signInWithCredential(auth._instance, googleCredential)
 
               resolve({ success: true })
             } else {
@@ -95,7 +95,7 @@ export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
                     // For OAuth2 flow, we need to get the ID token differently
                     // This is a simplified version - you might need to adjust based on your needs
                     const credential = GoogleAuthProvider.credential(null, response.access_token)
-                    await signInWithCredential(auth, credential)
+                    await signInWithCredential(auth._instance, credential)
                     resolve({ success: true })
                   } else {
                     resolve({ success: false, error: 'No access token received' })
@@ -114,4 +114,14 @@ export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
     console.error('Google Sign-In Setup Error:', error)
     return { success: false, error: error.message || 'Unknown error occurred' }
   }
+}
+
+// Stub for web - sign out is handled by Firebase auth
+export const signOutFromGoogle = async (): Promise<void> => {
+  // No-op on web - Firebase auth handles sign out
+}
+
+// Stub for web - not needed on web platform
+export const getCurrentUser = async () => {
+  return null
 }

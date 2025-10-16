@@ -8,7 +8,7 @@ import LoadingIndicator from '~/components/LoadingIndicator'
 import Logo from '~/components/Logo'
 import { MonoText, TitleText } from '~/components/StyledText'
 import { useAuth } from '~/auth/useAuth'
-import { initializeGoogleSignIn, signInWithGoogle } from '~/services/googleSignInUnified'
+import { initializeGoogleSignIn, signInWithGoogle } from '~/auth/googleSignIn'
 
 export default function SignIn() {
   const router = useRouter()
@@ -17,7 +17,7 @@ export default function SignIn() {
 
   // Initialize Google Sign-In when component mounts
   useEffect(() => {
-    initializeGoogleSignIn().catch(console.error)
+    initializeGoogleSignIn()?.catch(console.error)
   }, [])
 
   useEffect(() => {
@@ -68,9 +68,9 @@ export default function SignIn() {
       {user && isLoading ? <LoadingIndicator /> : null}
       {!user ? (
         <>
-          <TitleText>Yours Brightly AI</TitleText>
+          <TitleText>Clanker</TitleText>
           <View style={styles.separator} />
-          <MonoText>Create Your Own Simulated Friend</MonoText>
+          <MonoText>Create Your Own AI Clanker</MonoText>
           <Logo />
           <ProviderButton
             disabled={googleSignInLoading || isLoading}

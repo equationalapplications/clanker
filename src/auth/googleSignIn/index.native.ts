@@ -1,9 +1,9 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
 import { auth } from '~/config/firebaseConfig'
-import { googleWebClientId } from '../config/constants'
+import { googleWebClientId } from '~/config/constants'
 
 // Configure Google Sign-In
-export const configureGoogleSignIn = () => {
+export const initializeGoogleSignIn = () => {
   GoogleSignin.configure({
     webClientId: googleWebClientId, // Required for both Android and web
     offlineAccess: true,
@@ -77,7 +77,7 @@ export const signOutFromGoogle = async (): Promise<void> => {
   }
 }
 
-export const getCurrentGoogleUser = async () => {
+export const getCurrentUser = async () => {
   try {
     const userInfo = await GoogleSignin.signInSilently()
     return userInfo

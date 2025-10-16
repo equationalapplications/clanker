@@ -1,6 +1,6 @@
 # Payment API Reference
 
-Complete API documentation for the Yours Brightly AI payment system.
+Complete API documentation for the Clanker payment system.
 
 ## Base URLs
 
@@ -642,6 +642,6 @@ curl 'https://transactionmanager-[hash]-uc.a.run.app/?action=get&transaction_id=
 
 ---
 
-This API reference provides complete documentation for integrating with the Yours Brightly AI payment system. For additional support, refer to the main [Payment System Documentation](./PAYMENT_SYSTEM.md).
+This API reference provides complete documentation for integrating with the Clanker payment system. For additional support, refer to the main [Payment System Documentation](./PAYMENT_SYSTEM.md).
 
 _Last updated: October 2, 2025_

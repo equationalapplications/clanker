@@ -9,8 +9,8 @@ const runtimeVer = breakingChangeVersion + '.0.0'
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  scheme: 'com.equationalapplications.yoursbrightlyai',
-  name: 'Yours Brightly AI',
+  scheme: 'com.equationalapplications.clanker',
+  name: 'Clanker',
   slug: 'yours-brightly-ai',
   version: pkg.version,
   orientation: 'portrait',
@@ -28,16 +28,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   runtimeVersion: runtimeVer,
   assetBundlePatterns: ['**/*'],
   ios: {
-    bundleIdentifier: 'com.equationalapplications.yoursbrightlyai',
-    googleServicesFile: './GoogleService-Info.plist',
+    bundleIdentifier: 'com.equationalapplications.clanker',
+    googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST || './GoogleService-Info.plist',
     supportsTablet: true,
     config: {
       usesNonExemptEncryption: false,
     },
   },
   android: {
-    package: 'com.equationalapplications.yoursbrightlyai',
-    googleServicesFile: './google-services.json',
+    package: 'com.equationalapplications.clanker',
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON || './google-services.json',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundImage: './assets/adaptive-icon-background.png',
@@ -71,13 +71,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "@react-native-firebase/app",
     "@react-native-firebase/auth",
     "@react-native-firebase/crashlytics",
-    [
-      '@react-native-google-signin/google-signin',
-      {
-        webClientId: process.env.GOOGLE_WEB_CLIENT_ID,
-        iosUrlScheme: 'com.googleusercontent.apps.790870307455-5bsmcehb8mqdsl6vb3mal1nnq2jkk730',
-      },
-    ],
+    '@react-native-google-signin/google-signin',
     [
       "expo-build-properties",
       {

@@ -1,4 +1,4 @@
-# Copilot Instructions - Yours Brightly AI
+# Copilot Instructions - Clanker
 
 AI chatbot Expo app with multi-tenant Firebase + Supabase architecture. Users create custom characters and chat with them using Vertex AI, with subscription-based access control.
 

@@ -1,21 +1,17 @@
-import { getFunctions, httpsCallable } from 'firebase/functions'
-import { app, auth } from '~/config/firebaseConfig'
+import auth from '@react-native-firebase/auth'
+import functions from '@react-native-firebase/functions'
 import type { Session } from '@supabase/supabase-js'
 
-// Create functions instance and connect to emulator at module level
-const functions = getFunctions(app, 'us-central1')
-
 export async function getSupabaseUserSession() {
-  const currentUser = auth.currentUser
+  const currentUser = auth().currentUser
   if (!currentUser) {
     throw new Error('No Firebase user is currently signed in')
   }
 
   console.log('🔐 Starting Supabase authentication for Firebase user:', currentUser.email)
 
-  const exchangeToken = httpsCallable(functions, 'exchangeToken') as unknown as () => Promise<{
-    data: Session
-  }>
+  // Get callable function from us-central1 region
+  const exchangeToken = functions().httpsCallable('exchangeToken')
   console.log('Callable function reference created')
 
   try {
@@ -25,7 +21,7 @@ export async function getSupabaseUserSession() {
     // The server will identify the app from the request origin header
     const response = await exchangeToken()
     console.log('Firebase function response:', response.data)
-    return response.data
+    return response.data as Session
   } catch (err: any) {
     console.error('Authentication failed:', err)
     throw new Error('Failed to authenticate: ' + (err.message || err))

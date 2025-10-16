@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the migration from Supabase cloud storage to local SQLite storage for characters in the Yours Brightly AI app, while preserving Supabase integration for future "save character" feature.
+This document describes the migration from Supabase cloud storage to local SQLite storage for characters in the Clanker app, while preserving Supabase integration for future "save character" feature.
 
 ## Architecture
 
