@@ -32,7 +32,9 @@ const functionsInstance = getFunctions(app, 'us-central1')
 
 // Normalized API that matches both web and native
 export const auth = {
-    currentUser: authInstance.currentUser,
+    get currentUser() {
+        return authInstance.currentUser
+    },
     onAuthStateChanged: authInstance.onAuthStateChanged.bind(authInstance),
     signOut: authInstance.signOut.bind(authInstance),
     signInWithCredential: (credential: any) => firebaseSignInWithCredential(authInstance, credential),
