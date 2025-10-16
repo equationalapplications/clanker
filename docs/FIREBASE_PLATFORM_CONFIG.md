@@ -123,7 +123,9 @@ const currentUser = auth.currentUser
 
 All files that previously used platform-specific Firebase calls have been simplified:
 - `src/auth/useAuth.tsx`
-- `src/auth/getSupabaseUserSession.{web,native}.ts`
+- `src/auth/getSupabaseUserSession/index.native.ts` - Supabase session exchange for native
+- `src/auth/getSupabaseUserSession/index.web.ts` - Supabase session exchange for web
+- `src/auth/getSupabaseUserSession/index.ts` - TypeScript resolution
 - `src/utilities/getUserCredits.ts`
 - `src/utilities/getIsPremium.ts`
 - `src/utilities/createNewCharacter.ts`
