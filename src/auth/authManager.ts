@@ -1,3 +1,5 @@
+import { getSupabaseUserSession } from './getSupabaseUserSession'
+
 // Singleton authentication manager to prevent multiple auth attempts
 class AuthenticationManager {
   private static instance: AuthenticationManager
@@ -16,7 +18,6 @@ class AuthenticationManager {
     console.log('🔐 SINGLETON: Starting Supabase authentication/re-authentication')
 
     try {
-      const { getSupabaseUserSession } = await import('./getSupabaseUserSession')
       console.log('🔐 SINGLETON: Calling getSupabaseUserSession...')
       const session = await getSupabaseUserSession()
       console.log('🔐 SINGLETON: Received Supabase session:', session)
