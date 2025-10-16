@@ -97,8 +97,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID,
     googleIosClientId: process.env.GOOGLE_IOS_CLIENT_ID,
     facebookAuthAppId: process.env.FACEBOOK_AUTH_APP_ID,
-    revenueCatPurchasesAndroidApiKey: process.env.REVENUECAT_PURCHASES_ANDROID_API_KEY,
-    revenueCatPurchasesIosApiKey: process.env.REVENUECAT_PURCHASES_IOS_API_KEY,
-    revenueCatPurchasesStripeApiKey: process.env.REVENUECAT_PURCHASES_STRIPE_API_KEY,
   },
 })
