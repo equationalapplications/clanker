@@ -1,6 +1,6 @@
 # Payment Integration Guide - React Native
 
-This guide covers integrating the payment system specifically in the Yours Brightly AI React Native application.
+This guide covers integrating the payment system specifically in the Clanker React Native application.
 
 ## Table of Contents
 
@@ -282,7 +282,7 @@ export const CreditPurchaseOptions: React.FC = () => {
       const { error: initError } = await initPaymentSheet({
         paymentIntentClientSecret: client_secret,
         customerId: customer_id,
-        merchantDisplayName: 'Yours Brightly AI',
+        merchantDisplayName: 'Clanker',
         style: 'alwaysDark',
       });
 

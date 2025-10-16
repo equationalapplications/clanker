@@ -73,7 +73,7 @@ export const AndroidIosMonthlySubscriptionPurchasePackage: PurchasesPackage = {
     productCategory: 'SUBSCRIPTION',
     productType: 'AUTO_RENEWABLE_SUBSCRIPTION',
     subscriptionPeriod: 'P1M',
-    title: 'Yours Brightly AI Subscription (Yours Brightly AI)',
+    title: 'Clanker Subscription',
   },
 } as unknown as PurchasesPackage
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the migration from Supabase cloud storage to local SQLite storage for chat messages in the Yours Brightly AI app.
+This document describes the migration from Supabase cloud storage to local SQLite storage for chat messages in the Clanker app.
 
 ## Architecture Change
 

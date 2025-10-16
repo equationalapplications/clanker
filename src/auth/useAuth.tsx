@@ -1,13 +1,15 @@
 import { createContext, useContext, ReactNode, useEffect, useState, useRef } from 'react'
-import { User } from 'firebase/auth'
-import { auth } from '~/config/firebaseConfig'
+import { Alert } from 'react-native'
 import { authManager } from '~/auth/authManager'
 import { supabaseClient } from '~/config/supabaseClient'
 import { queryClient } from '~/config/queryClient'
-import { Alert } from 'react-native'
+import { auth } from '~/config/firebaseConfig'
+
+// Union type for platform-specific user
+type AuthUser = any // Simplified - both Firebase User types are compatible enough
 
 interface AuthContextType {
-  user: User | null
+  user: AuthUser | null
   isLoading?: boolean
   signOut?: () => Promise<void>
 }
@@ -19,7 +21,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null) // Firebase user is the SOURCE OF TRUTH
+  const [user, setUser] = useState<AuthUser | null>(null) // Firebase user is the SOURCE OF TRUTH
 
   // Avoid stale state in onAuthStateChanged
   const userRef = useRef(user)
@@ -29,7 +31,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // SINGLE SOURCE OF TRUTH: Firebase auth state drives everything
   useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser) => {
+    // Platform-specific auth listener
+    const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser: AuthUser | null) => {
       console.log(
         '🔥 Firebase auth state changed (SOURCE OF TRUTH):',
         !!firebaseUser,
@@ -97,7 +100,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await auth.signOut()
       setUser(null)
 
-      console.log('�️ Clearing React Query cache...')
+      console.log('🗑️ Clearing React Query cache...')
       queryClient.clear()
 
       console.log('�🔄 Resetting auth manager...')

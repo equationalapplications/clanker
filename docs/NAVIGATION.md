@@ -1,6 +1,6 @@
 # Navigation
 
-This document describes the navigation structure of the Yours Brightly AI app, following [Expo Router's common navigation patterns](https://docs.expo.dev/router/basics/common-navigation-patterns/).
+This document describes the navigation structure of the Clanker app, following [Expo Router's common navigation patterns](https://docs.expo.dev/router/basics/common-navigation-patterns/).
 
 ## Navigation Architecture
 

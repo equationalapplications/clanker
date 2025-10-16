@@ -56,7 +56,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       Alert.alert(
         'Error',
         'Failed to record your acceptance. Please check your connection and try again.\n\n' +
-          error.message,
+        error.message,
       )
     }
   }
@@ -96,7 +96,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       <Text style={styles.title}>
         {isUpdate
           ? `Terms Updated (v${YOURS_BRIGHTLY_TERMS.version})`
-          : 'Welcome to Yours Brightly AI'}
+          : 'Welcome to Clanker'}
       </Text>
 
       <View style={styles.separator} />

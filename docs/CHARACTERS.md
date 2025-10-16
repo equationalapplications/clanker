@@ -1,6 +1,6 @@
 ## Yours Brightly Characters
 
-This document describes how character data is modeled, secured, and used in the Yours Brightly AI app. It reflects the multi-tenant Postgres structure and JWT-based RLS policies.
+This document describes how character data is modeled, secured, and used in the Clanker app. It reflects the multi-tenant Postgres structure and JWT-based RLS policies.
 
 ### Tables and View
 
