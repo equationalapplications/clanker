@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
-import { StyleSheet, View, Text, Alert } from 'react-native'
+import { StyleSheet, View, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
 
 import ProviderButton from '~/auth/AuthProviderButton'
 import Button from '~/components/Button'
-import LoadingIndicator from '~/components/LoadingIndicator'
 import Logo from '~/components/Logo'
 import { MonoText, TitleText } from '~/components/StyledText'
 import { useAuth } from '~/auth/useAuth'
@@ -12,7 +11,7 @@ import { initializeGoogleSignIn, signInWithGoogle } from '~/auth/googleSignIn'
 
 export default function SignIn() {
   const router = useRouter()
-  const { user, isLoading } = useAuth()
+  const { user } = useAuth()
   const [googleSignInLoading, setGoogleSignInLoading] = useState(false)
 
   // Initialize Google Sign-In when component mounts
@@ -51,21 +50,8 @@ export default function SignIn() {
     router.push('/terms')
   }
 
-  // Show loading if authentication is in progress
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <LoadingIndicator />
-        <Text style={styles.loadingText}>
-          {isLoading ? 'Authenticating...' : 'Checking app access...'}
-        </Text>
-      </View>
-    )
-  }
-
   return (
     <View style={styles.container}>
-      {user && isLoading ? <LoadingIndicator /> : null}
       {!user ? (
         <>
           <TitleText>Clanker</TitleText>
@@ -73,8 +59,8 @@ export default function SignIn() {
           <MonoText>Create Your Own AI Clanker</MonoText>
           <Logo />
           <ProviderButton
-            disabled={googleSignInLoading || isLoading}
-            loading={googleSignInLoading || isLoading}
+            disabled={googleSignInLoading}
+            loading={googleSignInLoading}
             onPress={GoogleLoginOnPress}
             type="google"
           >

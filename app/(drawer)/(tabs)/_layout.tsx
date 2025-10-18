@@ -1,9 +1,8 @@
 import { Tabs } from 'expo-router'
-import React from 'react'
-
 import { TabBarIcon } from '~/components/navigation/TabBarIcon'
 
 export default function TabLayout() {
+
   return (
     <Tabs
       screenOptions={{
@@ -11,7 +10,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="chats"
+        name="/"
         options={{
           title: 'Chats',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
