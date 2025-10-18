@@ -22,13 +22,9 @@ function RootLayoutNav() {
 
   return (
     <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-
       {/* Protected routes - only available when logged in */}
       <Stack.Protected guard={isLoggedIn}>
-        <Stack.Screen name="(app)" options={{ headerShown: false }} />
-        <Stack.Screen name="subscribe" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="accept-terms" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
       </Stack.Protected>
 
       {/* Public routes - only available when NOT logged in */}
@@ -37,8 +33,8 @@ function RootLayoutNav() {
       </Stack.Protected>
 
       {/* Info pages - always available */}
-      <Stack.Screen name="privacy" options={{ headerShown: false }} />
-      <Stack.Screen name="terms" options={{ headerShown: false }} />
+      <Stack.Screen name="privacy" options={{ presentation: 'modal', title: 'Privacy Policy' }} />
+      <Stack.Screen name="terms" options={{ presentation: 'modal', title: 'Terms and Conditions' }} />
     </Stack>
   )
 }

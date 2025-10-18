@@ -10,7 +10,6 @@ type AuthUser = any // Simplified - both Firebase User types are compatible enou
 
 interface AuthContextType {
   user: AuthUser | null
-  isLoading?: boolean
   signOut?: () => Promise<void>
 }
 
