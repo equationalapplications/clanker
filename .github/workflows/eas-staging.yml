@@ -19,6 +19,9 @@ jobs:
       pull-requests: write
 
     steps:
+      # GH_PAT is a fine-grained Personal Access Token with Contents:write permission
+      # Required to bypass branch protection for semantic-release version commits
+      # Falls back to GITHUB_TOKEN if GH_PAT is not configured
       - name: 🏗 Setup repo
         uses: actions/checkout@v4
         with:
