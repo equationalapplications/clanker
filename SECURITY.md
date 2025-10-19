@@ -63,8 +63,7 @@ This application integrates with:
 - **Firebase** (Authentication, Crashlytics)
 - **Supabase** (Database, Storage)
 - **Google Cloud Vertex AI** (AI chat functionality)
-- **RevenueCat** (Subscription management)
-- **Stripe** (Payment processing)
+- **Stripe** (Payment processing and subscription management)
 
 Please ensure you follow security best practices for each service.
 

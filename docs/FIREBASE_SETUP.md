@@ -122,6 +122,6 @@ After setting up Firebase:
 
 1. Set up Supabase (see main README.md)
 2. Configure Google Cloud Vertex AI
-3. Set up RevenueCat for subscriptions (optional for development)
+3. Set up Stripe for subscriptions (optional for development)
 
 For more details, see the main [README.md](../README.md) and [docs/AUTH_FLOW.md](../docs/AUTH_FLOW.md).

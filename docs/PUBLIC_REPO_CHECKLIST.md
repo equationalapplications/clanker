@@ -37,7 +37,7 @@ All the following tasks have been completed:
 - ✅ All API keys, tokens, and credentials are loaded from environment variables
 - ✅ Firebase configuration is properly externalized
 - ✅ Supabase keys are in environment variables
-- ✅ RevenueCat API keys are in environment variables
+- ✅ Stripe API keys are in environment variables
 
 ## 📋 Before Making Repository Public
 
@@ -99,7 +99,7 @@ After making the repository public:
 If applicable, update:
 - Firebase project settings to allow GitHub repository access
 - Supabase project settings
-- RevenueCat webhook URLs if they reference the repository
+- Stripe webhook URLs if they reference the repository
 - Any external documentation or wikis
 
 ## 🆘 Support for New Contributors
@@ -113,7 +113,7 @@ New contributors will need:
 3. **Environment Setup**: Create `.env` from `.env.example`
 4. **Optional Services**: 
    - Google Cloud Platform (for Vertex AI)
-   - RevenueCat account (for testing subscriptions)
+   - Stripe account (for testing subscriptions)
 
 ## 📞 Questions?
 
