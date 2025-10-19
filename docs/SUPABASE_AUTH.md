@@ -38,7 +38,7 @@ CREATE TABLE public.user_app_subscriptions (
     plan_start_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     plan_renewal_at TIMESTAMP WITH TIME ZONE,
     credits_remaining INTEGER DEFAULT 0,
-    billing_provider TEXT, -- 'stripe', 'revenuecat', etc.
+    billing_provider TEXT, -- 'stripe', 'apple_app_store', 'google_play', etc.
     billing_provider_id TEXT, -- External subscription ID
     billing_metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

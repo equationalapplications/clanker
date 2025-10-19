@@ -352,6 +352,41 @@ concurrency:
 
 This cancels in-progress runs when new commits are pushed.
 
+### GitHub Personal Access Token (GH_PAT)
+
+**Required for semantic-release on protected branches.**
+
+The workflows use a `GH_PAT` secret to bypass branch protection rules when semantic-release commits version bumps. Without this, semantic-release would fail because:
+- Protected branches require PRs
+- semantic-release creates commits directly
+
+**Setup:**
+
+1. **Create a fine-grained Personal Access Token:**
+   - Go to GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens
+   - Click "Generate new token"
+   - Name: `semantic-release-bypass`
+   - Repository access: Only select `clanker`
+   - Permissions:
+     - Contents: **Read and write**
+   - Expiration: Set based on your security policy (e.g., 1 year)
+   - Generate token and copy it
+
+2. **Add as repository secret:**
+   - Go to repository Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `GH_PAT`
+   - Secret: Paste the token
+   - Add secret
+
+3. **Verify in GitHub branch protection:**
+   - Go to Settings → Rules → Rulesets
+   - Edit the ruleset for `main` and `staging`
+   - Under "Bypass list", add the token user (your GitHub username)
+   - Save changes
+
+**Fallback:** If `GH_PAT` is not configured, workflows fall back to `GITHUB_TOKEN`, but semantic-release may fail on protected branches.
+
 ## Common Tasks
 
 ### Syncing Branches

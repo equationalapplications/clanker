@@ -17,10 +17,14 @@ jobs:
       pull-requests: write
 
     steps:
+      # GH_PAT is a fine-grained Personal Access Token with Contents:write permission
+      # Required to bypass branch protection for semantic-release version commits
+      # Falls back to GITHUB_TOKEN if GH_PAT is not configured
       - name: 🏗 Setup repo
         uses: actions/checkout@v4
         with:
           fetch-depth: "0"
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
@@ -50,5 +54,9 @@ jobs:
 
       - name: 📝 Bump Version and Release on Github
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          GIT_AUTHOR_NAME: semantic-release-bot
+          GIT_AUTHOR_EMAIL: semantic-release-bot@martynus.net
+          GIT_COMMITTER_NAME: semantic-release-bot
+          GIT_COMMITTER_EMAIL: semantic-release-bot@martynus.net
         run: npx semantic-release
