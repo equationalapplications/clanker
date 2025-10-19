@@ -1,5 +1,4 @@
-# Yours Brightly AI
-
+# Clanker
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![React Native](https://img.shields.io/badge/React%20Native-0.81-blue.svg)](https://reactnative.dev/)
@@ -35,8 +34,8 @@
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/equationalapplications/yoursbrightlyai.git
-cd yoursbrightlyai
+git clone https://github.com/equationalapplications/clanker.git
+cd clanker
 ```
 
 2. **Install dependencies**
@@ -128,7 +127,7 @@ Concise developer entry — implementation-level documentation lives in the `doc
 
 ### Data & Features
 
-- [Characters data model](docs/CHARACTERS.md) — Tables, RLS, types, and common queries for Yours Brightly characters.
+- [Characters data model](docs/CHARACTERS.md) — Tables, RLS, types, and common queries for Clanker characters.
 - [Image generation](docs/IMAGE_GENERATION.md) — How image generation is integrated with OpenAI and Supabase storage.
 - [Supabase subscription & RLS](docs/SUPABASE_AUTH.md) — Full multi-tenant subscription architecture, JWT claims, and RLS examples.
 - [Supabase data structure](docs/SUPABASE_DATA_STRUCTURE.md) — SQL schemas and TypeScript interfaces for core tables (users, characters, messages, subscriptions).
@@ -185,8 +184,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 - **Documentation**: Check the `/docs` folder for detailed guides
-- **Issues**: [GitHub Issues](https://github.com/equationalapplications/yoursbrightlyai/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/equationalapplications/yoursbrightlyai/discussions)
+- **Issues**: [GitHub Issues](https://github.com/equationalapplications/clanker/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/equationalapplications/clanker/discussions)
 - **Email**: [info@equationalapplications.com](mailto:info@equationalapplications.com)
 
 ---
