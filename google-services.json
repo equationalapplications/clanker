@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "790870307455",
+    "project_id": "equationalapplications-com",
+    "storage_bucket": "equationalapplications-com.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:790870307455:android:8c320f809642213066854a",
+        "android_client_info": {
+          "package_name": "com.equationalapplications.clanker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "790870307455-eu19gktdd7m62pq92rjrhks234n8b9h2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.equationalapplications.clanker",
+            "certificate_hash": "d4349c3de8f3a4a34b32d13752e69880770cc226"
+          }
+        },
+        {
+          "client_id": "790870307455-5bsmcehb8mqdsl6vb3mal1nnq2jkk730.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiUOIgJ4bLcoLEzlyi5RefR6Z_sWW_fNY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "790870307455-5bsmcehb8mqdsl6vb3mal1nnq2jkk730.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "790870307455-eec2ci25b9amdrm52d7067jkmocovdbd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.equationalapplications.clanker"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

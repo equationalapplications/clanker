@@ -66,21 +66,22 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     reactCompiler: true,
   },
   plugins: [
-    "expo-secure-store",
+    'expo-secure-store',
     'expo-router',
     'expo-sqlite',
-    "@react-native-firebase/app",
-    "@react-native-firebase/auth",
-    "@react-native-firebase/crashlytics",
+    '@react-native-firebase/app',
+    '@react-native-firebase/auth',
+    '@react-native-firebase/crashlytics',
     '@react-native-google-signin/google-signin',
     [
-      "expo-build-properties",
+      'expo-build-properties',
       {
-        "ios": {
-          "useFrameworks": "static"
-        }
-      }
-    ]
+        ios: {
+          useFrameworks: 'static',
+          forceStaticLinking: ['RNFBApp', 'RNFBAuth', 'RNFBCrashlytics', 'RNFBFunctions'],
+        },
+      },
+    ],
   ],
   extra: {
     eas: {
@@ -92,11 +93,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     firebaseStorageBucket: process.env.FIREBASE_STORAGE_BUCKET,
     firebaseMessagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
     firebaseAppId: process.env.FIREBASE_APP_ID,
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-    googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,
-    googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID,
-    googleIosClientId: process.env.GOOGLE_IOS_CLIENT_ID,
+    supabaseUrl:
+      process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+    supabaseAnonKey:
+      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
+    googleWebClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.GOOGLE_WEB_CLIENT_ID,
+    googleAndroidClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_ANDROID_CLIENT_ID,
+    googleIosClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_IOS_CLIENT_ID,
     facebookAuthAppId: process.env.FACEBOOK_AUTH_APP_ID,
   },
 })

@@ -2,6 +2,26 @@ import Constants from 'expo-constants'
 import { Platform, Dimensions } from 'react-native'
 import { PurchasesPackage } from 'react-native-purchases'
 
+type MaybeString = string | null | undefined
+
+const sanitize = (value: MaybeString) => {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+const extra = (Constants.expoConfig?.extra ?? (Constants as any)?.manifestExtra ?? {}) as Record<
+  string,
+  unknown
+>
+
+const resolveConfigValue = (preferredKey: string, fallbackKey?: string) => {
+  return (
+    sanitize(process.env[preferredKey]) ||
+    (fallbackKey ? sanitize(process.env[fallbackKey]) : undefined)
+  )
+}
+
 export const scheme = 'com.equationalapplications.yoursbrightlyai'
 export const appBaseUrl = 'https://yours-brightly-ai.equationalapplications.com'
 export const appChatUrl = appBaseUrl + '/chat'
@@ -15,10 +35,28 @@ export const isLargeScreen = width >= largeScreenWidth
 export const platform =
   Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web'
 
-export const googleWebClientId = Constants.expoConfig?.extra?.googleWebClientId
-export const googleAndroidClientId = Constants.expoConfig?.extra?.googleAndroidClientId
-export const googleIosClientId = Constants.expoConfig?.extra?.googleIosClientId
-export const facebookAuthAppId = Constants.expoConfig?.extra?.facebookAuthAppId
+const googleWebClientIdFromExtra = sanitize(extra.googleWebClientId as MaybeString)
+const googleAndroidClientIdFromExtra = sanitize(extra.googleAndroidClientId as MaybeString)
+const googleIosClientIdFromExtra = sanitize(extra.googleIosClientId as MaybeString)
+
+const resolvedGoogleWebClientId =
+  resolveConfigValue('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID', 'GOOGLE_WEB_CLIENT_ID') ||
+  googleWebClientIdFromExtra
+
+if (!resolvedGoogleWebClientId) {
+  throw new Error(
+    'Google Sign-In web client ID is not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (or GOOGLE_WEB_CLIENT_ID) before building the app.',
+  )
+}
+
+export const googleWebClientId = resolvedGoogleWebClientId
+export const googleAndroidClientId =
+  resolveConfigValue('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID', 'GOOGLE_ANDROID_CLIENT_ID') ||
+  googleAndroidClientIdFromExtra
+export const googleIosClientId =
+  resolveConfigValue('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID', 'GOOGLE_IOS_CLIENT_ID') ||
+  googleIosClientIdFromExtra
+export const facebookAuthAppId = sanitize(extra.facebookAuthAppId as MaybeString)
 
 export const firebaseApiKey = Constants.expoConfig?.extra?.firebaseApiKey
 export const firebaseAuthDomain = Constants.expoConfig?.extra?.firebaseAuthDomain
@@ -27,10 +65,29 @@ export const firebaseStorageBucket = Constants.expoConfig?.extra?.firebaseStorag
 export const firebaseMessagingSenderId = Constants.expoConfig?.extra?.firebaseMessagingSenderId
 export const firebaseAppId = Constants.expoConfig?.extra?.firebaseAppId
 
-export const supabaseUrl =
-  Constants.expoConfig?.extra?.supabaseUrl || ''
-export const supabaseAnonKey =
-  Constants.expoConfig?.extra?.supabaseAnonKey || ''
+const supabaseUrlFromExtra = sanitize(extra.supabaseUrl as MaybeString)
+const supabaseAnonKeyFromExtra = sanitize(extra.supabaseAnonKey as MaybeString)
+
+const resolvedSupabaseUrl =
+  resolveConfigValue('EXPO_PUBLIC_SUPABASE_URL', 'SUPABASE_URL') || supabaseUrlFromExtra
+const resolvedSupabaseAnonKey =
+  resolveConfigValue('EXPO_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_ANON_KEY') ||
+  supabaseAnonKeyFromExtra
+
+if (!resolvedSupabaseUrl) {
+  throw new Error(
+    'Supabase URL is not configured. Set EXPO_PUBLIC_SUPABASE_URL (or SUPABASE_URL) before building the app.',
+  )
+}
+
+if (!resolvedSupabaseAnonKey) {
+  throw new Error(
+    'Supabase anon key is not configured. Set EXPO_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY) before building the app.',
+  )
+}
+
+export const supabaseUrl = resolvedSupabaseUrl
+export const supabaseAnonKey = resolvedSupabaseAnonKey
 
 // Revenue Cat & Purchases configuration
 

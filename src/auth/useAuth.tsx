@@ -99,14 +99,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('🧹 Signing out from Supabase...')
       await supabaseClient.auth.signOut()
 
-    console.log('🔥 Signing out from Firebase...')
-    await firebaseSignOut()
+      console.log('🔥 Signing out from Firebase...')
+      await firebaseSignOut()
       setUser(null)
 
       console.log('🗑️ Clearing React Query cache...')
       queryClient.clear()
 
-    console.log('🔄 Resetting auth manager...')
+      console.log('🔄 Resetting auth manager...')
       authManager.reset()
 
       console.log('✅ Sign-out process completed')

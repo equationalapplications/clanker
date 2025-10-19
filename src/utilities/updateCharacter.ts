@@ -38,7 +38,7 @@ export default async function updateCharacter({
       Object.entries(updateData).filter(([_, value]) => value !== undefined),
     )
 
-  await updateCharacterLocal(characterId, currentUser.uid, cleanData)
+    await updateCharacterLocal(characterId, currentUser.uid, cleanData)
   } catch (error) {
     console.error('Error updating character:', error)
     throw error

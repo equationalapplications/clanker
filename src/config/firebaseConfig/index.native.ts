@@ -11,7 +11,7 @@ const auth = authModule()
 const getCurrentUser = () => auth.currentUser
 
 const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) =>
-  auth.onAuthStateChanged(callback)
+    auth.onAuthStateChanged(callback)
 
 const signOut = () => auth.signOut()
 
@@ -26,11 +26,11 @@ const purchasePackageStripe = functionsInstance.httpsCallable('purchasePackageSt
 export type FirebaseUser = FirebaseAuthTypes.User
 
 export {
-  firebaseApp,
-  getCurrentUser,
-  onAuthStateChanged,
-  signOut,
-  exchangeToken,
-  generateReplyFn,
-  purchasePackageStripe,
+    firebaseApp,
+    getCurrentUser,
+    onAuthStateChanged,
+    signOut,
+    exchangeToken,
+    generateReplyFn,
+    purchasePackageStripe,
 }
