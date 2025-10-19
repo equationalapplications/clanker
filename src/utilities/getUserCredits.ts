@@ -1,5 +1,5 @@
 import { supabaseClient } from '../config/supabaseClient'
-import { auth } from '../config/firebaseConfig'
+import { getCurrentUser } from '../config/firebaseConfig'
 
 interface UserCredits {
   totalCredits: number
@@ -12,7 +12,7 @@ interface UserCredits {
 }
 
 export const getUserCredits = async (): Promise<UserCredits> => {
-  if (!auth.currentUser) {
+  if (!getCurrentUser()) {
     console.log('📊 getUserCredits: No Firebase user')
     return {
       totalCredits: 0,
@@ -159,7 +159,7 @@ async function ensureInitialFreeCredits(uid: string): Promise<void> {
  * @returns Promise<boolean> - Success status
  */
 export const deductCredits = async (amount: number): Promise<boolean> => {
-  if (!auth.currentUser) {
+  if (!getCurrentUser()) {
     return false
   }
 

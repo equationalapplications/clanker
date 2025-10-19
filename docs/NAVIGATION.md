@@ -1,218 +1,121 @@
 # Navigation
 
-This document describes the navigation structure of the Yours Brightly AI app, following [Expo Router's common navigation patterns](https://docs.expo.dev/router/basics/common-navigation-patterns/).
+This document captures the current navigation structure for Clanker using [Expo Router](https://docs.expo.dev/router/). It reflects the refactored drawer + tabs architecture that ships with the latest app layout.
 
-## Navigation Architecture
+## High-Level Flow
 
-### 🔒 Root Layout (`app/_layout.tsx`)
+1. `app/_layout.tsx` sets up the global providers and wraps navigation with `Stack`.
+2. `Stack.Protected` gates the authenticated drawer (`/(drawer)`) behind the Firebase user from `useAuth()`.
+3. When a signed-in user still needs to accept terms, `app/(drawer)/_layout.tsx` routes them to `/accept-terms` before exposing the drawer content.
+4. The drawer hosts bottom tabs plus profile, settings, and subscription flows.
 
-**This is where ALL authentication logic happens** - the single source of truth for auth state.
+## Root Layout (`app/_layout.tsx`)
 
-- Uses `Stack.Protected` with `guard={isLoggedIn}` to control access
-- Protected routes (only accessible when logged in):
-  - `(app)` - Main app with drawer/tabs
-  - `subscribe` - Subscription modal
-  - `accept-terms` - Terms acceptance modal (requires auth to accept)
-- Public routes (only accessible when logged out):
-  - `sign-in` - Sign in screen
-- Always available:
-  - `privacy` - Privacy policy
-  - `terms` - Terms of service
-  - `index` - Root redirect (tries to go to app, guard handles auth)
+- Renders the React Query, Theme, Auth, and Subscription providers.
+- Uses `Stack` with two `Stack.Protected` wrappers:
+  - `guard={!!user}` exposes the `(drawer)` group when a Firebase user exists.
+  - `guard={!user}` exposes the `sign-in` route for logged-out users.
+- `privacy` and `terms` modals remain globally accessible regardless of auth state.
+- There is no root `index.tsx`; navigation starts from the drawer once the guard passes.
 
-**Important:** The loading state while checking auth is handled in `RootLayoutNav`. The `index.tsx` does NOT duplicate auth checks - it simply redirects to the app, and `Stack.Protected` handles whether that's allowed.
+## Drawer Layout (`app/(drawer)/_layout.tsx`)
 
-### 📋 Terms Acceptance Check (`app/(app)/_layout.tsx`)
+- Hosts the main drawer navigator.
+- Checks `useSubscriptionStatus()` on mount. When `needsTermsAcceptance` is true (and loading finished) it redirects to `/accept-terms` with `router.replace`.
+- Drawer items:
+  - `(tabs)` — entry point to the bottom tab navigator (labeled “Chats”).
+  - `profile` — user profile screen.
+  - `settings` — preferences and configuration screen.
+  - `subscribe` — subscription management modal.
+  - `accept-terms` — hidden from the drawer list but routable for direct access.
 
-**This is the ONLY place where terms acceptance is checked** - happens AFTER authentication.
+## Tabs Layout (`app/(drawer)/(tabs)/_layout.tsx`)
 
-- Uses `useSubscriptionStatus()` to check if user needs to accept terms
-- If terms not accepted, redirects to `/accept-terms` modal
-- **Uses optimistic UI**: When user accepts terms, they proceed immediately without waiting for JWT refresh
-- Database write happens asynchronously in the background
-- Next natural JWT refresh will include the updated subscription claims
-- This ensures terms are only checked for authenticated users inside protected routes
+- Defines a two-tab bottom navigator.
+- `index` — chats overview (list of characters with last message preview and link to `/characters/[id]/chat`).
+- `characters` — entry to the character management stack.
+- Headers are suppressed at the tab level; child stacks control their own headers as needed.
 
-**Why Optimistic?** Terms acceptance is a legal checkbox, not a security boundary. We trust the client-side click and verify server-side when needed (RLS policies, API calls). This provides:
+## Characters Stack (`app/(drawer)/(tabs)/characters`)
 
-- ✅ Instant navigation (better UX)
-- ✅ Offline support (sync later)
-- ✅ Industry-standard pattern
-- ✅ Server-side enforcement where it matters
+```
+characters/
+├── _layout.tsx       # Stack wrapper (header hidden, initial route = index)
+├── index.tsx         # Character list + create flow
+└── [id]/             # Nested group per character
+    ├── chat.tsx      # Conversation UI for the selected character
+    └── edit.tsx      # Character editor
+```
 
-### 📱 Main App Structure
+- The stack exposes both edit and chat screens so deep links such as `/characters/123/chat` work naturally.
+- `createNewCharacter` uses `router.push('/characters/{id}')` after creation to land in the character editor by default.
 
-#### Drawer Navigator (`app/(app)/_layout.tsx`)
-
-Primary navigation for the authenticated app:
-
-- **Home** - Bottom tab navigator (Chats & Characters)
-- **Settings** - App settings
-- **Profile** - User profile
-
-#### Bottom Tab Navigator (`app/(app)/(tabs)/_layout.tsx`)
-
-Main task-based navigation:
-
-- **Chats** - Conversation list and chat interface
-- **Characters** - Character management with nested stack
-
-#### Stack Navigator (`app/(app)/(tabs)/characters/_layout.tsx`)
-
-Nested stack for character-related screens:
-
-- **Characters List** (`index.tsx`) - Browse and create characters
-- **Character Details** (`[id].tsx`) - Unified screen for viewing, editing, and chatting with a character
-
-## File Structure
-
-## File Structure
+## File Structure Snapshot
 
 ```plaintext
 app/
-├── _layout.tsx                    # Root layout with auth protection
-├── index.tsx                      # Landing/redirect page (auth-based)
-├── sign-in.tsx                    # Authentication screen
-├── accept-terms.tsx               # Terms acceptance modal
-├── subscribe.tsx                  # Subscription modal
-├── privacy.tsx                    # Privacy policy
-├── terms.tsx                      # Terms of service
-└── (app)/                         # Protected routes (requires auth)
-    ├── _layout.tsx                # Drawer navigator
-    ├── (drawer)/                  # Drawer screens group
-    │   ├── profile/
-    │   │   └── index.tsx          # Profile screen
-    │   └── settings/
-    │       └── index.tsx          # Settings screen
-    └── (tabs)/                    # Tab navigator group
-        ├── _layout.tsx            # Bottom tab configuration
-        ├── chats.tsx              # Chats tab screen
-        └── characters/            # Characters tab with stack
-            ├── _layout.tsx        # Stack navigator for characters
-            ├── index.tsx          # Characters list screen
-            └── [id].tsx           # Character details (dynamic route)
+├── _layout.tsx              # Root providers + Stack.Protected guards
+├── privacy.tsx              # Modal: Privacy policy
+├── sign-in.tsx              # Public sign-in screen
+├── terms.tsx                # Modal: Terms of service
+└── (drawer)/
+    ├── _layout.tsx          # Drawer navigator + terms redirect
+    ├── accept-terms.tsx     # Modal: Terms acceptance flow
+    ├── profile.tsx          # Drawer screen: Profile
+    ├── settings.tsx         # Drawer screen: Settings
+    ├── subscribe.tsx        # Drawer screen: Subscription/credits
+    └── (tabs)/
+        ├── _layout.tsx      # Bottom tab navigator
+        ├── index.tsx        # Chats tab
+        └── characters/
+            ├── _layout.tsx  # Characters stack
+            ├── index.tsx    # Character list & create FAB
+            └── [id]/
+                ├── chat.tsx # Character chat screen
+                └── edit.tsx # Character edit screen
 ```
 
-## Navigation Patterns
+## Auth & Terms Flow
 
-### Authentication Flow (Step by Step)
+1. **User opens the app** — providers initialise in `RootLayout`.
+2. **Firebase user exists?**
+   - Yes → `(drawer)` routes become available.
+   - No → `sign-in` is the only protected route that renders.
+3. **Inside the drawer layout** we evaluate `useSubscriptionStatus()`:
+   - `needsTermsAcceptance` → redirect to `/accept-terms` (modal lives in `app/(drawer)/accept-terms.tsx`).
+   - otherwise render the drawer + tabs normally.
+4. **Acceptance modal** is optimistic: the UI proceeds immediately while Supabase claims update in the background.
 
-1. **User lands at `/` (index.tsx)**
-   - `index.tsx` checks auth state using `useAuth()`
-   - If `user` exists: redirects to `/(app)/(tabs)/chats`
-   - If no `user`: redirects to `/sign-in`
-   - This provides immediate feedback while `Stack.Protected` provides the guard
+## Deep Linking Reference
 
-2. **Stack.Protected enforces access control in `_layout.tsx`**
-   - Even if someone tries to manually navigate to `(app)` routes
-   - `Stack.Protected` checks `isLoggedIn` state
-   - If `isLoggedIn === false`: Access denied, redirect to first available route
-   - If `isLoggedIn === true`: Access granted, proceed to step 3
+- `/sign-in`
+- `/privacy`
+- `/terms`
+- `/characters` (list)
+- `/characters/<id>/edit`
+- `/characters/<id>/chat`
+- `/subscribe`
+- `/accept-terms`
 
-3. **Inside `(app)/_layout.tsx` (Protected Route)**
-   - NOW checks `useSubscriptionStatus()` for terms acceptance
-   - If terms not accepted:
-     - Redirects to `/accept-terms` modal
-   - If terms accepted:
-     - Renders the Drawer navigator with tabs
-
-**Key Principle:**
-
-- Root `index.tsx` provides immediate routing based on auth
-- `Stack.Protected` guards provide defense-in-depth protection
-- Auth check happens FIRST at root, terms check happens SECOND inside protected route
-
-### Root Index Behavior
-
-The root `index.tsx` uses a hybrid approach for best UX:
-
-- Checks auth state using `useAuth()`
-- Provides immediate redirect based on current auth state
-- Authenticated users → `/(app)/(tabs)/chats`
-- Unauthenticated users → `/sign-in`
-- Works in tandem with `Stack.Protected` guards for defense-in-depth
-- Prevents blank screen while auth state loads
-
-### Deep Linking
-
-The app supports deep linking to any screen:
-
-- `/` - Landing page (redirects based on auth)
-- `/sign-in` - Sign in screen
-- `/characters` - Characters list
-- `/characters/123` - Specific character details
-- `/chats` - Chats list
-
-### Dynamic Routes
-
-Character details use Expo Router's dynamic route pattern:
-
-- File: `app/(app)/(tabs)/characters/[id].tsx`
-- URL: `/characters/123`
-- Access param: `const { id } = useLocalSearchParams<{ id: string }>()`
-
-### Protected Routes
-
-Using `Stack.Protected` to control access:
-
-```tsx
-<Stack.Protected guard={isLoggedIn}>
-  <Stack.Screen name="(app)" options={{ headerShown: false }} />
-</Stack.Protected>
-```
-
-### Navigation Methods
-
-```tsx
-// Navigate to character details
-router.push(`/characters/${characterId}`)
-
-// Go back
-router.back()
-
-// Replace current route
-router.replace('/sign-in')
-```
+Expo Router automatically infers additional routes when nested groups are used.
 
 ## Best Practices
 
-1. **Stack in Tabs**: Characters tab uses a nested stack for multi-screen navigation while keeping tabs visible
-2. **Initial Route**: Stack navigator sets `initialRouteName: 'index'` to ensure proper default routing
-3. **Clean URLs**: Dynamic routes create semantic URLs (`/characters/123` instead of `/characters/details/123`)
-4. **Type Safety**: Expo Router generates TypeScript types for all routes (run `npx expo start --clear` to regenerate)
-5. **Explicit Redirects**: Root index handles auth-based redirects explicitly rather than relying solely on `Stack.Protected`
+- Use `router.replace` for modal redirects (`accept-terms`) so the back stack stays clean.
+- Keep auth logic centralised in `useAuth` and avoid duplicate Firebase checks in screens; rely on the provider state injected at the root.
+- Reserve new `.web.ts` / `.native.ts` files for true platform differences. Navigation files stay platform-agnostic.
+- Regenerate Expo Router types after structural changes with `npx expo start --clear`.
+- When adding new drawer or tab screens, update the drawer options to include icons from `react-native-paper` for consistent theming.
 
-## Troubleshooting
+## Troubleshooting Notes
 
-### Blank Screen on Web
-
-If you see a blank screen at the root URL:
-
-- Ensure `app/index.tsx` has explicit redirect logic
-- Check that `useAuth()` is returning auth state correctly
-- Clear cache with `npx expo start --clear`
-
-### Reanimated Issues
-
-For drawer/animation issues:
-
-- Ensure `react-native-reanimated/plugin` is in `babel.config.js` (must be last)
-- Web uses CSS animations (native driver warning is expected and harmless)
-- Run `npx expo start --clear` after babel config changes
-
-### Type Errors
-
-If navigation routes show TypeScript errors:
-
-- Run `npx expo start --clear` to regenerate typed routes
-- Ensure all routes have proper file structure
-- Check that dynamic routes use the `[param]` pattern
+- **Stuck on accept-terms:** Ensure Supabase JWT claims are refreshing; the optimistic modal depends on the background call to `grantAppAccess`.
+- **Drawer not appearing:** Confirm the Firebase user is available in `useAuth()` and that `Stack.Protected`'s guard resolves to `true`.
+- **Route type errors:** Clear the Expo Router cache so the generated type definitions match the updated file tree.
 
 ## References
 
-- [Expo Router Documentation](https://docs.expo.dev/router/introduction/)
-- [Common Navigation Patterns](https://docs.expo.dev/router/basics/common-navigation-patterns/)
+- [Expo Router Basics](https://docs.expo.dev/router/)
 - [Protected Routes](https://docs.expo.dev/router/advanced/authentication/)
-- [Dynamic Routes](https://docs.expo.dev/router/advanced/dynamic-routes/)
-- [Drawer Navigator](https://docs.expo.dev/router/advanced/drawer/)
-- [React Native Reanimated](https://docs.expo.dev/versions/latest/sdk/reanimated/)
+- [Drawer Navigation](https://docs.expo.dev/router/advanced/drawer/)
+- [Nested Routes & Groups](https://docs.expo.dev/router/advanced/nesting/)

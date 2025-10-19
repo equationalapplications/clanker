@@ -1,6 +1,5 @@
 // TODO: Install expo-web-browser dependency
 // import * as WebBrowser from "expo-web-browser"
-import { httpsCallable } from 'firebase/functions'
 import Purchases from 'react-native-purchases'
 
 import {
@@ -8,9 +7,7 @@ import {
   stripeMontlySubscriptionPriceId,
   AndroidIosMonthlySubscriptionPurchasePackage,
 } from '../config/constants'
-import { functions } from '../config/firebaseConfig'
-
-const purchasePackageStripe: any = httpsCallable(functions, 'purchasePackageStripe')
+import { purchasePackageStripe } from '../config/firebaseConfig'
 
 export async function makePackagePurchase() {
   try {
@@ -20,7 +17,8 @@ export async function makePackagePurchase() {
     } else if (platform === 'web') {
       // Get the checkout URL from Firebase Cloud Functions
       const checkoutUrlData = await purchasePackageStripe({ stripeMontlySubscriptionPriceId })
-      const checkoutUrl = checkoutUrlData?.data || ''
+      const checkoutUrl = (checkoutUrlData as any)?.data || ''
+
       if (checkoutUrl) {
         // TODO: Implement web browser opening when expo-web-browser is available
         // await WebBrowser.openBrowserAsync(checkoutUrl)

@@ -1,6 +1,10 @@
 import { sendMessage } from '~/services/messageService'
 import { saveAIMessage } from '~/database/messageDatabase'
-import { generateChatResponse, ChatContext } from '~/services/vertexAIService'
+import {
+  generateChatResponse,
+  generateCharacterIntroduction,
+  ChatContext,
+} from '~/services/vertexAIService'
 import { IMessage } from 'react-native-gifted-chat'
 
 export interface Character {
@@ -85,8 +89,6 @@ export const sendCharacterIntroduction = async (
   userId: string,
 ): Promise<void> => {
   try {
-    const { generateCharacterIntroduction } = await import('./vertexAIService')
-
     const introText = await generateCharacterIntroduction(
       character.name,
       character.context || character.appearance,

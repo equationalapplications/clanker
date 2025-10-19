@@ -3,15 +3,17 @@ import {
   revenueCatPurchasesStripeApiKey,
   revenueCatReceiptsApi,
 } from '../config/constants'
-import { auth } from '../config/firebaseConfig'
+import { getCurrentUser } from '../config/firebaseConfig'
 import { queryClient } from '../config/queryClient'
 
 export const postStripeReceipt = async (sessionId: string) => {
-  if (platform !== 'web' || !sessionId || !auth.currentUser) {
+  const currentUser = getCurrentUser()
+
+  if (platform !== 'web' || !sessionId || !currentUser) {
     return
   }
 
-  const uid = auth.currentUser.uid
+  const uid = currentUser.uid
 
   try {
     // use post method to send the session ID to the RevenueCat server

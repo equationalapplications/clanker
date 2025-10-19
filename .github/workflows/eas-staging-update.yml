@@ -7,26 +7,31 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+
+    # Security: Restrict permissions to minimum required
+    permissions:
+      contents: read
+
     steps:
       - name: 🏗 Setup repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: "0"
 
       - name: 🏗 Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
-          cache: 'npm'
+          node-version: 20
+          cache: "npm"
 
       - name: 🏗 Setup Expo
-        uses: expo/expo-github-action@v7
+        uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-          
-      - name: Install dependencies
+
+      - name: 📦 Install dependencies
         run: npm ci
 
-      - name: Update Staging with EAS
+      - name: 🚀 Update Staging with EAS
         run: eas update --auto --branch staging --non-interactive

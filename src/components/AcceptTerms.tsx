@@ -8,7 +8,7 @@ import Button from '~/components/Button'
 import Logo from '~/components/Logo'
 import { platform } from '~/config/constants'
 import { supabaseClient } from '~/config/supabaseClient'
-import { auth } from '~/config/firebaseConfig'
+import { signOut } from '~/config/firebaseConfig'
 import { grantAppAccess } from '~/utilities/appAccess'
 import { YOURS_BRIGHTLY_TERMS } from '~/config/termsConfig'
 //import { authManager } from "~/utilities/authManager"
@@ -56,7 +56,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       Alert.alert(
         'Error',
         'Failed to record your acceptance. Please check your connection and try again.\n\n' +
-          error.message,
+        error.message,
       )
     }
   }
@@ -74,7 +74,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
         onPress: async () => {
           // Sign out from both Supabase and Firebase
           await supabaseClient.auth.signOut()
-          await auth.signOut()
+          await signOut()
           onCanceled?.()
         },
       },
@@ -96,7 +96,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       <Text style={styles.title}>
         {isUpdate
           ? `Terms Updated (v${YOURS_BRIGHTLY_TERMS.version})`
-          : 'Welcome to Yours Brightly AI'}
+          : 'Welcome to Clanker'}
       </Text>
 
       <View style={styles.separator} />
