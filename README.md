@@ -1,5 +1,6 @@
 # Yours Brightly AI
 
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![React Native](https://img.shields.io/badge/React%20Native-0.81-blue.svg)](https://reactnative.dev/)
 [![Expo](https://img.shields.io/badge/Expo-54-000020.svg)](https://expo.dev/)
@@ -113,6 +114,11 @@ npm run test:watch     # Run tests in watch mode
 ## 📖 Documentation
 
 Concise developer entry — implementation-level documentation lives in the `docs/` folder. Click any link below to open the topic.
+
+### Getting Started
+
+- **[Git Workflow & Branching](docs/GIT_WORKFLOW.md)** — Branch strategy (dev → staging → main), PR process, commit guidelines, and troubleshooting.
+- **[Expo Updates & Runtime Versioning](docs/EXPO_UPDATES.md)** — How OTA updates work, runtime version strategy, and the relationship between conventional commits and deployment types (OTA vs native builds).
 
 ### Architecture & Auth
 
