@@ -7,6 +7,7 @@ import Button from '~/components/Button'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { useCharacterList } from '~/hooks/useCharacterList'
 import { createNewCharacter } from '~/utilities/createNewCharacter'
+import { useAuth } from '~/auth/useAuth'
 
 interface CharacterButtonProps {
   id: string
@@ -16,6 +17,7 @@ interface CharacterButtonProps {
 export default function Characters() {
   const characterList = useCharacterList()
   const [loading, setLoading] = useState(false)
+  const { user } = useAuth()
 
   const onPressEditCharacter = (id: string) => {
     router.push(`/characters/${id}`)
@@ -28,8 +30,12 @@ export default function Characters() {
   )
 
   const onPressAddCharacter = async () => {
+    if (!user) {
+      return
+    }
+
     setLoading(true)
-    const result = await createNewCharacter()
+    const result = await createNewCharacter(user.uid)
     setLoading(false)
     router.push(`/characters/${result.id}`)
   }

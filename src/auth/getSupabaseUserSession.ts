@@ -1,18 +1,11 @@
-// Web version - uses Firebase Web SDK
-import { httpsCallable } from 'firebase/functions'
-import { auth, functions } from '~/config/firebaseConfig'
+import { getCurrentUser, exchangeToken } from '~/config/firebaseConfig'
 import type { Session } from '@supabase/supabase-js'
 
 export async function getSupabaseUserSession() {
-    const currentUser = auth.currentUser
-    if (!currentUser) {
+    const user = getCurrentUser()
+    if (!user) {
         throw new Error('No Firebase user is currently signed in')
     }
-
-    console.log('🔐 Starting Supabase authentication for Firebase user:', currentUser.email)
-
-    const exchangeToken = httpsCallable(functions._instance, 'exchangeToken')
-    console.log('Callable function reference created')
 
     try {
         console.log('Calling Firebase function with region us-central1')

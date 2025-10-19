@@ -7,7 +7,7 @@ import {
   stripeMontlySubscriptionPriceId,
   AndroidIosMonthlySubscriptionPurchasePackage,
 } from '../config/constants'
-import { functions } from '../config/firebaseConfig'
+import { purchasePackageStripe } from '../config/firebaseConfig'
 
 export async function makePackagePurchase() {
   try {
@@ -16,7 +16,6 @@ export async function makePackagePurchase() {
       await Purchases.purchasePackage(AndroidIosMonthlySubscriptionPurchasePackage)
     } else if (platform === 'web') {
       // Get the checkout URL from Firebase Cloud Functions
-      const purchasePackageStripe = functions.httpsCallable('purchasePackageStripe')
       const checkoutUrlData = await purchasePackageStripe({ stripeMontlySubscriptionPriceId })
       const checkoutUrl = (checkoutUrlData as any)?.data || ''
 

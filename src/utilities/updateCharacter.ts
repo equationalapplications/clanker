@@ -1,5 +1,5 @@
 import { updateCharacter as updateCharacterLocal } from '../services/characterService'
-import { auth } from '../config/firebaseConfig'
+import { getCurrentUser } from '../config/firebaseConfig'
 
 interface UpdateCharacterArgs {
   characterId: string
@@ -17,7 +17,7 @@ export default async function updateCharacter({
   ...data
 }: UpdateCharacterArgs): Promise<void> {
   try {
-    const currentUser = auth.currentUser
+    const currentUser = getCurrentUser()
     if (!currentUser) {
       throw new Error('No authenticated user')
     }
@@ -38,7 +38,7 @@ export default async function updateCharacter({
       Object.entries(updateData).filter(([_, value]) => value !== undefined),
     )
 
-    await updateCharacterLocal(characterId, currentUser.uid, cleanData)
+  await updateCharacterLocal(characterId, currentUser.uid, cleanData)
   } catch (error) {
     console.error('Error updating character:', error)
     throw error

@@ -1,7 +1,13 @@
 // Firebase Web SDK - for web platform
-import { initializeApp } from 'firebase/app'
-import { getAuth, signInWithCredential as firebaseSignInWithCredential } from 'firebase/auth'
-import { getFunctions, httpsCallable } from 'firebase/functions'
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
+import {
+    getAuth,
+    onAuthStateChanged as onAuthStateChangedInternal,
+    signOut as signOutInternal,
+    type User,
+    type Unsubscribe,
+} from 'firebase/auth'
+import { getFunctions, httpsCallable, type Functions } from 'firebase/functions'
 
 import {
     firebaseApiKey,
@@ -21,31 +27,33 @@ const config = {
     appId: firebaseAppId,
 }
 
-// Initialize Firebase
-const app = initializeApp(config)
+const firebaseApp: FirebaseApp = getApps().length ? getApp() : initializeApp(config)
 
-// Initialize Auth (web uses different persistence by default)
-const authInstance = getAuth(app)
+const auth = getAuth(firebaseApp)
 
-// Initialize Functions with us-central1 region
-const functionsInstance = getFunctions(app, 'us-central1')
+const getCurrentUser = () => auth.currentUser
 
-// Normalized API that matches both web and native
-export const auth = {
-    get currentUser() {
-        return authInstance.currentUser
-    },
-    onAuthStateChanged: authInstance.onAuthStateChanged.bind(authInstance),
-    signOut: authInstance.signOut.bind(authInstance),
-    signInWithCredential: (credential: any) => firebaseSignInWithCredential(authInstance, credential),
-    // Expose the full instance for other methods
-    _instance: authInstance,
+const onAuthStateChanged = (callback: (user: User | null) => void): Unsubscribe =>
+    onAuthStateChangedInternal(auth, callback)
+
+const signOut = () => signOutInternal(auth)
+
+const functionsInstance: Functions = getFunctions(firebaseApp, 'us-central1')
+
+const exchangeToken = httpsCallable(functionsInstance, 'exchangeToken')
+
+const generateReplyFn = httpsCallable(functionsInstance, 'generateReply')
+
+const purchasePackageStripe = httpsCallable(functionsInstance, 'purchasePackageStripe')
+
+export type FirebaseUser = User
+
+export {
+    firebaseApp,
+    getCurrentUser,
+    onAuthStateChanged,
+    signOut,
+    exchangeToken,
+    generateReplyFn,
+    purchasePackageStripe,
 }
-
-export const functions = {
-    httpsCallable: (name: string) => httpsCallable(functionsInstance, name),
-    // Expose the full instance for other methods
-    _instance: functionsInstance,
-}
-
-export { app }

@@ -8,7 +8,7 @@ import Button from '~/components/Button'
 import Logo from '~/components/Logo'
 import { platform } from '~/config/constants'
 import { supabaseClient } from '~/config/supabaseClient'
-import { auth } from '~/config/firebaseConfig'
+import { signOut } from '~/config/firebaseConfig'
 import { grantAppAccess } from '~/utilities/appAccess'
 import { YOURS_BRIGHTLY_TERMS } from '~/config/termsConfig'
 //import { authManager } from "~/utilities/authManager"
@@ -74,7 +74,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
         onPress: async () => {
           // Sign out from both Supabase and Firebase
           await supabaseClient.auth.signOut()
-          await auth.signOut()
+          await signOut()
           onCanceled?.()
         },
       },

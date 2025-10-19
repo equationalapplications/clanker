@@ -1,6 +1,6 @@
 // Web-specific Google Sign-In implementation
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
-import { auth } from '~/config/firebaseConfig'
+import { GoogleAuthProvider, getAuth, signInWithCredential } from 'firebase/auth'
+import { firebaseApp } from '~/config/firebaseConfig'
 import { googleWebClientId } from '~/config/constants'
 
 declare global {
@@ -15,6 +15,8 @@ export interface GoogleSignInResult {
 }
 
 let googleLoadPromise: Promise<void> | null = null
+
+const auth = getAuth(firebaseApp)
 
 const loadGoogleScript = (): Promise<void> => {
   if (googleLoadPromise) {
@@ -68,7 +70,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
               const googleCredential = GoogleAuthProvider.credential(response.credential)
 
               // Sign-in the user with the credential
-              await signInWithCredential(auth._instance, googleCredential)
+              await signInWithCredential(auth, googleCredential)
 
               resolve({ success: true })
             } else {
@@ -95,7 +97,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
                     // For OAuth2 flow, we need to get the ID token differently
                     // This is a simplified version - you might need to adjust based on your needs
                     const credential = GoogleAuthProvider.credential(null, response.access_token)
-                    await signInWithCredential(auth._instance, credential)
+                    await signInWithCredential(auth, credential)
                     resolve({ success: true })
                   } else {
                     resolve({ success: false, error: 'No access token received' })
