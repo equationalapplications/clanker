@@ -1,6 +1,6 @@
-# Contributing to Yours Brightly AI
+# Contributing to Clanker
 
-Thank you for your interest in contributing to Yours Brightly AI! This document provides guidelines and instructions for contributing to this project.
+Thank you for your interest in contributing to Clanker! This document provides guidelines and instructions for contributing to this project.
 
 ## Table of Contents
 
@@ -271,4 +271,4 @@ Contributors will be recognized in:
 - GitHub contributors page
 - Release notes (for significant contributions)
 
-Thank you for contributing to Yours Brightly AI! 🎉
+Thank you for contributing to Clanker! 🎉

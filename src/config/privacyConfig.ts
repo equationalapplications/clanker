@@ -13,7 +13,7 @@ export const YOURS_BRIGHTLY_PRIVACY: PrivacyConfig = {
   privacy: `
 Equational Applications LLC ("we", "us", "our") is committed to protecting your privacy.
 This privacy policy explains how we collect, use, and disclose information through our
-Yours Brightly AI app (the "App"). By using the App, you consent to our collection, use,
+Clanker app (the "App"). By using the App, you consent to our collection, use,
 and disclosure of your information in accordance with this privacy policy.
 
 Information We Collect

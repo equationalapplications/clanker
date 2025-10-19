@@ -13,7 +13,7 @@ export const YOURS_BRIGHTLY_TERMS: TermsConfig = {
   lastUpdated: 'September 28, 2025',
 
   summary: `
-By using Yours Brightly AI, you agree to these key terms:
+By using Clanker, you agree to these key terms:
 
 • AI Character Creation: Create and customize AI characters for personal use while following community guidelines
 
@@ -33,7 +33,7 @@ For the complete terms and conditions, please tap "View Full Terms" below.
 `,
 
   terms: `
-By using the Yours Brightly AI application ("the App") developed by Equational Applications LLC, you agree to be bound by the following terms and conditions:
+By using the Clanker application ("the App") developed by Equational Applications LLC, you agree to be bound by the following terms and conditions:
 
 1. Use of the App
 The App is intended for personal, non-commercial use only. You may use the App to chat with a virtual friend chatbot powered by OpenAI API. The App also uses React Native, Firebase Auth, Supabase, and Google Cloud Functions to provide you with a seamless user experience. You may use the App for as long as you comply with these terms and conditions.

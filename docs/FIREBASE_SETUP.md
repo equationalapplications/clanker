@@ -1,6 +1,6 @@
 # Firebase Configuration Setup
 
-This guide explains how to set up Firebase configuration files for Yours Brightly AI.
+This guide explains how to set up Firebase configuration files for Clanker.
 
 ## Overview
 

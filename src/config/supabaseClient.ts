@@ -47,7 +47,7 @@ export interface Database {
           updated_at?: string
         }
       }
-      // Multi-tenant character storage for Yours Brightly AI
+      // Multi-tenant character storage for Clanker
       yours_brightly_characters: {
         Row: {
           id: string

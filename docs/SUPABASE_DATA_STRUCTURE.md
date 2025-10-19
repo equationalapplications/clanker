@@ -4,7 +4,7 @@ This document contains the primary Supabase/Postgres table definitions and TypeS
 
 ### Table: yours_brightly
 
-Main user profile and app-specific data for the Yours Brightly AI application.
+Main user profile and app-specific data for the Clanker application.
 
 ```sql
 CREATE TABLE public.yours_brightly (

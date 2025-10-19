@@ -1,14 +1,14 @@
 import { View, StyleSheet } from 'react-native'
 import { Text, Button } from 'react-native-paper'
 
-import { auth } from '~/config/firebaseConfig'
+import { signOut } from '~/config/firebaseConfig'
 import { queryClient } from '~/config/queryClient'
 
 export const CustomFallback = (props: { error: Error; resetError: Function }) => {
   const onPressReset = () => {
     queryClient.clear()
     props.resetError()
-    auth.signOut()
+    signOut()
   }
   return (
     <View style={styles.container}>

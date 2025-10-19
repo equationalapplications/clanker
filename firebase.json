@@ -1,8 +1,11 @@
 {
   "hosting": {
-    "site": "yours-brightly",
+    "site": "clanker",
     "public": "dist",
-    "ignore": ["firebase.json", "**/.*"],
+    "ignore": [
+      "firebase.json",
+      "**/.*"
+    ],
     "rewrites": [
       {
         "source": "**",
