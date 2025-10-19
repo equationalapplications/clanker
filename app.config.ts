@@ -23,7 +23,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   updates: {
     url: 'https://u.expo.dev/2333eead-a87c-4a6f-adea-b1b433f4740e',
-    fallbackToCacheTimeout: 0,
+    fallbackToCacheTimeout: 5000,
   },
   runtimeVersion: runtimeVer,
   assetBundlePatterns: ['**/*'],
@@ -66,6 +66,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     reactCompiler: true,
   },
   plugins: [
+    "expo-secure-store",
     'expo-router',
     'expo-sqlite',
     "@react-native-firebase/app",

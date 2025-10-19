@@ -10,7 +10,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="/"
+        name="index"
         options={{
           title: 'Chats',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (

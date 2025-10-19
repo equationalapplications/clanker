@@ -18,17 +18,16 @@ import useCachedResources from '~/hooks/useCachedResources'
 // This component handles the core authentication logic using Stack.Protected
 function RootLayoutNav() {
   const { user } = useAuth()
-  const isLoggedIn = !!user
 
   return (
     <Stack>
       {/* Protected routes - only available when logged in */}
-      <Stack.Protected guard={isLoggedIn}>
+      <Stack.Protected guard={!!user}>
         <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
       </Stack.Protected>
 
       {/* Public routes - only available when NOT logged in */}
-      <Stack.Protected guard={!isLoggedIn}>
+      <Stack.Protected guard={!user}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       </Stack.Protected>
 
