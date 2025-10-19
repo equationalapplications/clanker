@@ -20,6 +20,10 @@ This project adheres to a Code of Conduct that all contributors are expected to 
 
 ## Getting Started
 
+For detailed Git workflow, branch strategy, and commit guidelines, see **[Git Workflow & Branching](docs/GIT_WORKFLOW.md)**.
+
+Quick start:
+
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
@@ -88,19 +92,25 @@ Before contributing, please read:
 
 ### Contributing Code
 
+For the complete Git workflow including branch strategy, commit signing, and troubleshooting, see **[Git Workflow & Branching](docs/GIT_WORKFLOW.md)**.
+
+Quick workflow:
+
 1. **Choose or create an issue** to work on
-2. **Create a feature branch**:
+2. **Create a feature branch** from `main`:
    ```bash
+   git checkout main
+   git pull origin main
    git checkout -b feature/your-feature-name
    ```
 3. **Make your changes** following our coding standards
 4. **Test thoroughly** (see Testing section)
-5. **Commit your changes** (see Commit Message Guidelines)
+5. **Commit your changes** using [Conventional Commits](https://www.conventionalcommits.org/) (see Commit Message Guidelines)
 6. **Push to your fork**:
    ```bash
    git push origin feature/your-feature-name
    ```
-7. **Create a Pull Request** on GitHub
+7. **Create a Pull Request** on GitHub targeting the `dev` branch
 
 ## Pull Request Process
 
@@ -170,34 +180,36 @@ Use conventional commit format:
 
 ## Commit Message Guidelines
 
-We use [Conventional Commits](https://www.conventionalcommits.org/):
+We use [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning and changelog generation.
 
+For complete commit guidelines including commit signing, see **[Git Workflow & Branching](docs/GIT_WORKFLOW.md#commit-guidelines)**.
+
+### Quick Reference
+
+**Format:**
 ```
 <type>(<scope>): <subject>
-
-<body>
-
-<footer>
 ```
 
-### Types
-
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, missing semicolons, etc.)
+**Types:**
+- `feat`: New feature (triggers minor version bump)
+- `fix`: Bug fix (triggers patch version bump)
+- `docs`: Documentation only
+- `style`: Code formatting (no functional changes)
 - `refactor`: Code refactoring
 - `perf`: Performance improvements
 - `test`: Adding or updating tests
 - `chore`: Maintenance tasks, dependency updates
+- `ci`: CI/CD configuration changes
 
-### Examples
+**Examples:**
 
 ```
 feat(characters): add character sharing functionality
 
-Implement ability to share characters with other users via unique link.
-Includes privacy controls and permission management.
+fix(auth): resolve token refresh race condition
+
+docs(setup): add Firebase configuration guide
 
 Closes #123
 ```
