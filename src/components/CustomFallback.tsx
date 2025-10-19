@@ -8,7 +8,7 @@ export const CustomFallback = (props: { error: Error; resetError: Function }) =>
   const onPressReset = () => {
     queryClient.clear()
     props.resetError()
-  signOut()
+    signOut()
   }
   return (
     <View style={styles.container}>

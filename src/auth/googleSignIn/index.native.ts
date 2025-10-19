@@ -45,7 +45,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     const googleCredential = firebaseAuth.GoogleAuthProvider.credential(idToken)
 
     // Sign in to Firebase with the Google credential
-  await firebaseAuth().signInWithCredential(googleCredential)
+    await firebaseAuth().signInWithCredential(googleCredential)
 
     console.log('✅ Firebase sign-in successful')
     return { success: true }
