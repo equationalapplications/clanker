@@ -136,7 +136,7 @@ Concise developer entry — implementation-level documentation lives in the `doc
 
 ### Platform Configuration
 
-- **[Firebase Platform Config](docs/FIREBASE_PLATFORM_CONFIG.md)** — Normalized Firebase API for web and native with platform-specific implementations.
+- **[Firebase Platform Config](docs/FIREBASE_PLATFORM_CONFIG.md)** — Shared Firebase helper API with platform-specific implementations for web and native.
 - **[Firebase Platform Fixes](docs/FIREBASE_PLATFORM_FIXES.md)** — Solutions for React Native Firebase v22 migration, Vertex AI setup, and deprecation warnings.
 
 ## 🏗️ Tech Stack

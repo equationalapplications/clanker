@@ -3,10 +3,14 @@ import { Alert } from 'react-native'
 import { authManager } from '~/auth/authManager'
 import { supabaseClient } from '~/config/supabaseClient'
 import { queryClient } from '~/config/queryClient'
-import { auth } from '~/config/firebaseConfig'
+import {
+  getCurrentUser,
+  onAuthStateChanged,
+  signOut as firebaseSignOut,
+} from '~/config/firebaseConfig'
 
 // Union type for platform-specific user
-type AuthUser = any // Simplified - both Firebase User types are compatible enough
+type AuthUser = ReturnType<typeof getCurrentUser>
 
 interface AuthContextType {
   user: AuthUser | null
@@ -20,7 +24,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<AuthUser | null>(null) // Firebase user is the SOURCE OF TRUTH
+  const [user, setUser] = useState<AuthUser | null>(getCurrentUser()) // Firebase user is the SOURCE OF TRUTH
 
   // Avoid stale state in onAuthStateChanged
   const userRef = useRef(user)
@@ -31,7 +35,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // SINGLE SOURCE OF TRUTH: Firebase auth state drives everything
   useEffect(() => {
     // Platform-specific auth listener
-    const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser: AuthUser | null) => {
+    const unsubscribeAuth = onAuthStateChanged(async (firebaseUser: AuthUser | null) => {
       console.log(
         '🔥 Firebase auth state changed (SOURCE OF TRUTH):',
         !!firebaseUser,
@@ -95,14 +99,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('🧹 Signing out from Supabase...')
       await supabaseClient.auth.signOut()
 
-      console.log('🔥 Signing out from Firebase...')
-      await auth.signOut()
+    console.log('🔥 Signing out from Firebase...')
+    await firebaseSignOut()
       setUser(null)
 
       console.log('🗑️ Clearing React Query cache...')
       queryClient.clear()
 
-      console.log('�🔄 Resetting auth manager...')
+    console.log('🔄 Resetting auth manager...')
       authManager.reset()
 
       console.log('✅ Sign-out process completed')

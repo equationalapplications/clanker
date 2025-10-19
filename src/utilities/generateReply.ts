@@ -1,4 +1,4 @@
-import { functions } from '../config/firebaseConfig'
+import { generateReplyFn } from '../config/firebaseConfig'
 
 interface GenerateReplyArgs {
   text: string
@@ -7,7 +7,6 @@ interface GenerateReplyArgs {
 }
 
 export const generateReply = async ({ text, id, userId }: GenerateReplyArgs) => {
-  const generateImageFn = functions.httpsCallable('generateReply')
-  const data = await generateImageFn({ text, id, userId })
+  const data = await generateReplyFn({ text, id, userId })
   return data
 }
