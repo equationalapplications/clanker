@@ -154,12 +154,12 @@ export const generateImageWithVertexAI = async ({
         // Optimize prompt for small avatar images
         const enhancedPrompt = `High-quality character avatar portrait: ${prompt}. Clean, simple background. Focused on face and upper body. Professional digital art style, sharp details, vibrant colors. Optimized for small avatar display.`
 
-        // Create the generation request optimized for small images
-        const generationConfig = {
-            candidateCount: 1,
-            // Note: React Native Firebase Vertex AI may have different config options
-            // Adjust these based on the actual API
-        }
+        // // Create the generation request optimized for small images
+        // const generationConfig = {
+        //     candidateCount: 1,
+        //     // Note: React Native Firebase Vertex AI may have different config options
+        //     // Adjust these based on the actual API
+        // }
 
         // Generate image using Vertex AI
         const result = await imageModel.generateContent(enhancedPrompt)
