@@ -62,5 +62,6 @@ jobs:
           GIT_COMMITTER_EMAIL: semantic-release-bot@martynus.net
         run: npx semantic-release
 
-      - name: 🚀 Update Staging with EAS
-        run: eas update --auto --branch staging --non-interactive
+      # Uncomment to enable automatic EAS updates on staging merges
+      # - name: 🚀 Update Staging with EAS
+      #   run: eas update --auto --branch staging --non-interactive

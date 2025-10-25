@@ -55,8 +55,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
-      - name: 🚀 Update Production with EAS
-        run: eas update --auto --branch production --non-interactive
+      # Uncomment to enable automatic EAS updates on production merges
+      # - name: 🚀 Update Production with EAS
+      #   run: eas update --auto --branch production --non-interactive
 #      - name: Deploy to Firebase Hosting
 #        run: npm run predeploy
 #      - uses: FirebaseExtended/action-hosting-deploy@v0
