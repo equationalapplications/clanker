@@ -3,11 +3,8 @@ import { Alert } from 'react-native'
 import { authManager } from '~/auth/authManager'
 import { supabaseClient } from '~/config/supabaseClient'
 import { queryClient } from '~/config/queryClient'
-import {
-  getCurrentUser,
-  onAuthStateChanged,
-  signOut as firebaseSignOut,
-} from '~/config/firebaseConfig'
+import { getCurrentUser, onAuthStateChanged, signOut as firebaseSignOut } from '~/config/firebaseConfig'
+import { signOutFromGoogle } from '~/auth/googleSignin'
 
 // Union type for platform-specific user
 type AuthUser = ReturnType<typeof getCurrentUser>
@@ -107,6 +104,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       console.log('🔥 Signing out from Firebase...')
       await firebaseSignOut()
+
+      // Also revoke/sign out of Google so next login prompts account selection
+      console.log('🔒 Revoking Google access & signing out...')
+      await signOutFromGoogle()
       setUser(null)
 
       console.log('🗑️ Clearing React Query cache...')

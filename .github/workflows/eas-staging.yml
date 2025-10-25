@@ -25,6 +25,7 @@ jobs:
         with:
           fetch-depth: "0"
           token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
@@ -42,7 +43,7 @@ jobs:
         run: npm ci
 
       - name: 📦 Install semantic-release extra plugins
-        run: npm install --save-dev @semantic-release/changelog @semantic-release/git
+        run: npm install --save-dev @semantic-release/changelog @semantic-release/git @semantic-release/npm
 
       - name: ✨ Format and Lint
         run: |
@@ -60,3 +61,7 @@ jobs:
           GIT_COMMITTER_NAME: semantic-release-bot
           GIT_COMMITTER_EMAIL: semantic-release-bot@martynus.net
         run: npx semantic-release
+
+      # Uncomment to enable automatic EAS updates on staging merges
+      # - name: 🚀 Update Staging with EAS
+      #   run: eas update --auto --branch staging --non-interactive

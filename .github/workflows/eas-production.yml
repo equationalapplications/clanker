@@ -48,15 +48,16 @@ jobs:
         run: npm ci
 
       - name: 📦 Install semantic-release extra plugins
-        run: npm install --save-dev @semantic-release/changelog @semantic-release/git
+        run: npm install --save-dev @semantic-release/changelog @semantic-release/git @semantic-release/npm
 
       - name: 📝 Bump Version and Release on Github
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
-      - name: 🚀 Update Production with EAS
-        run: eas update --auto --branch production --non-interactive
+      # Uncomment to enable automatic EAS updates on production merges
+      # - name: 🚀 Update Production with EAS
+      #   run: eas update --auto --branch production --non-interactive
 #      - name: Deploy to Firebase Hosting
 #        run: npm run predeploy
 #      - uses: FirebaseExtended/action-hosting-deploy@v0

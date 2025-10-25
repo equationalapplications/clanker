@@ -1,7 +1,7 @@
 // React Native Firebase - for iOS and Android platforms
 import authModule, { FirebaseAuthTypes } from '@react-native-firebase/auth'
 import { getApp } from '@react-native-firebase/app'
-import functionsModule from '@react-native-firebase/functions'
+import { firebase as firebaseNamespace } from '@react-native-firebase/functions'
 
 const firebaseApp = getApp()
 
@@ -14,7 +14,8 @@ const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => v
 
 const signOut = () => auth.signOut()
 
-const functionsInstance = functionsModule()
+// Align Functions region with deployed backend (best practice per RNFirebase docs)
+const functionsInstance = firebaseNamespace.app().functions('us-central1')
 
 const exchangeToken = functionsInstance.httpsCallable('exchangeToken')
 
