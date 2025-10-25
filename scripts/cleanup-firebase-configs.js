@@ -7,10 +7,11 @@ const fs = require('fs')
 const path = require('path')
 
 const rootDir = path.join(__dirname, '..')
-const googleServicesJsonPath = path.join(rootDir, 'google-services.json')
-const googleServiceInfoPlist = path.join(rootDir, 'GoogleService-Info.plist')
+const tempDir = path.join(rootDir, 'temp')
+const googleServicesJsonPath = path.join(tempDir, 'google-services.json')
+const googleServiceInfoPlist = path.join(tempDir, 'GoogleService-Info.plist')
 
-console.log('🧹 Cleaning up Firebase configuration files...')
+console.log('🧹 Cleaning up Firebase configuration files in ./temp ...')
 
 // Remove google-services.json
 if (fs.existsSync(googleServicesJsonPath)) {

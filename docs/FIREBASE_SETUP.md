@@ -52,8 +52,8 @@ For local builds (i.e., running `eas build --local ...`), you cannot pull the se
 1.  You download the Firebase config files.
 2.  You convert their contents into `base64` strings.
 3.  You store these strings in a local `.env` file.
-4.  When you run a local build script (like `npm run build:l`), a setup script decodes the base64 string and creates the necessary file in the project root.
-5.  A cleanup script automatically removes the file after the build is complete.
+4.  When you run a local build script (like `npm run build:...`), a setup script decodes the base64 string and creates the necessary files under `./temp/`.
+5.  A cleanup script automatically removes the files after the build is complete.
 
 ### Setup Steps
 
@@ -78,11 +78,20 @@ For local builds (i.e., running `eas build --local ...`), you cannot pull the se
     ```env
     # .env - For local builds only. DO NOT COMMIT THIS FILE.
 
-    GOOGLE_SERVICES_JSON="<paste-your-base64-string-for-google-services.json-here>"
-    GOOGLE_SERVICE_INFO_PLIST="<paste-your-base64-string-for-GoogleService-Info.plist-here>"
+    # IMPORTANT: Use the *_BASE64 names locally to avoid collisions with EAS file env vars
+    GOOGLE_SERVICES_JSON_BASE64="<paste-your-base64-string-for-google-services.json-here>"
+    GOOGLE_SERVICE_INFO_PLIST_BASE64="<paste-your-base64-string-for-GoogleService-Info.plist-here>"
     ```
 
 Your local builds are now configured. The scripts in `package.json` will handle the rest automatically.
+
+### Why the temp directory?
+
+- Our `app.config.ts` first looks for EAS-provided file paths (`GOOGLE_SERVICES_JSON`, `GOOGLE_SERVICE_INFO_PLIST`).
+- If those are not present (local builds), it falls back to `./temp/google-services.json` and `./temp/GoogleService-Info.plist`.
+- The `./temp/` folder is ignored by git and kept out of Metro's module graph to avoid accidental tracking or caching issues during development.
+
+Do not define `GOOGLE_SERVICES_JSON` or `GOOGLE_SERVICE_INFO_PLIST` in your local `.env`. Those names are reserved for EAS file environment variables.
 
 ---
 

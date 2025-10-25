@@ -29,7 +29,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   ios: {
     bundleIdentifier: 'com.equationalapplications.clanker',
-    googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST || './GoogleService-Info.plist',
+    googleServicesFile:
+      process.env.GOOGLE_SERVICE_INFO_PLIST || './temp/GoogleService-Info.plist',
     supportsTablet: true,
     config: {
       usesNonExemptEncryption: false,
@@ -37,7 +38,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: 'com.equationalapplications.clanker',
-    googleServicesFile: process.env.GOOGLE_SERVICES_JSON || './google-services.json',
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON || './temp/google-services.json',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundImage: './assets/adaptive-icon-background.png',

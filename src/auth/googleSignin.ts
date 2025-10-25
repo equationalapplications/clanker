@@ -1,18 +1,31 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
+import { Platform } from 'react-native'
 import firebaseAuth from '@react-native-firebase/auth'
 
 // Configure Google Sign-In
 export const initializeGoogleSignIn = () => {
-  GoogleSignin.configure({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, // Required for both Android and web
+  // Base config works for Android and iOS; Android uses the Web client ID.
+  const baseConfig: Record<string, any> = {
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, // Required for Android & web OAuth
     offlineAccess: true,
     hostedDomain: '',
     forceCodeForRefreshToken: true,
     accountName: '',
-    // iosClientId: "",
     googleServicePlistPath: '',
     profileImageSize: 120,
-  })
+  }
+
+  // On iOS, prefer the iOS client ID if provided
+  if (Platform.OS === 'ios' && process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) {
+    baseConfig.iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
+  }
+
+  // Note: The RN Google Sign-In SDK uses the Web client ID on Android.
+  // If you maintain an Android client ID, it's typically not required here.
+  // Leaving a reference for clarity (not passed to configure to avoid type issues):
+  // const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID
+
+  GoogleSignin.configure(baseConfig as any)
 }
 
 export interface GoogleSignInResult {

@@ -7,16 +7,15 @@ import Button from '~/components/Button'
 import ConfirmationModal from '~/components/ConfirmationModal'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { defaultAvatarUrl } from '~/config/constants'
-import { useAuth } from '~/auth/useAuth'
 import { useUserPublic } from '~/hooks/useUserPublic'
 import { useUserPrivate } from '~/hooks/useUserPrivate'
 import { useIsPremium } from '~/hooks/useIsPremium'
-import { supabaseClient } from '~/config/supabaseClient'
+import { useAuth } from '~/auth/useAuth'
 import { deleteUser } from '~/utilities/deleteUser'
 
 export default function Profile() {
   const { colors } = useTheme()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const userPublic = useUserPublic()
   const userPrivate = useUserPrivate()
   const isPremium = useIsPremium()
@@ -30,7 +29,7 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const onPressSignOut = async () => {
-    await supabaseClient.auth.signOut()
+    await signOut?.()
     router.replace('/sign-in')
   }
 
