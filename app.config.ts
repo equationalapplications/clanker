@@ -7,6 +7,42 @@ const breakingChangeVersion = pkg.version.split('.')[0]
 
 const runtimeVer = breakingChangeVersion + '.0.0'
 
+const fs = require('fs')
+
+const getGoogleServicesJson = () => {
+  // for EAS build from environment variable
+  if (process.env.GOOGLE_SERVICES_JSON) {
+    return process.env.GOOGLE_SERVICES_JSON
+  }
+  // for local build from temp file
+  if (fs.existsSync('./temp/google-services.json')) {
+    return './temp/google-services.json'
+  }
+  // for local development from root
+  if (fs.existsSync('./google-services.json')) {
+    return './google-services.json'
+  }
+  // for local build when no file is present
+  return undefined
+}
+
+const getGoogleServiceInfoPlist = () => {
+  // for EAS build from environment variable
+  if (process.env.GOOGLE_SERVICE_INFO_PLIST) {
+    return process.env.GOOGLE_SERVICE_INFO_PLIST
+  }
+  // for local build from temp file
+  if (fs.existsSync('./temp/GoogleService-Info.plist')) {
+    return './temp/GoogleService-Info.plist'
+  }
+  // for local development from root
+  if (fs.existsSync('./GoogleService-Info.plist')) {
+    return './GoogleService-Info.plist'
+  }
+  // for local build when no file is present
+  return undefined
+}
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   scheme: 'com.equationalapplications.clanker',
@@ -29,8 +65,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   ios: {
     bundleIdentifier: 'com.equationalapplications.clanker',
-    googleServicesFile:
-      process.env.GOOGLE_SERVICE_INFO_PLIST || './temp/GoogleService-Info.plist',
+    googleServicesFile: getGoogleServiceInfoPlist(),
     supportsTablet: true,
     config: {
       usesNonExemptEncryption: false,
@@ -38,7 +73,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: 'com.equationalapplications.clanker',
-    googleServicesFile: process.env.GOOGLE_SERVICES_JSON || './temp/google-services.json',
+    googleServicesFile: getGoogleServicesJson(),
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundImage: './assets/adaptive-icon-background.png',
