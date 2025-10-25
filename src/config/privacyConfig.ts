@@ -7,7 +7,7 @@ export interface PrivacyConfig {
   lastUpdated: string
 }
 
-export const YOURS_BRIGHTLY_PRIVACY: PrivacyConfig = {
+export const PRIVACY: PrivacyConfig = {
   version: '1.0',
   lastUpdated: 'September 28, 2025',
   privacy: `
@@ -64,15 +64,4 @@ State of Michigan without regard to its conflicts of law provisions.
 By using the App, you acknowledge that you have read, understood, and agree to be bound by
 this privacy policy. If you do not agree to this privacy policy, do not use the App.
 `,
-}
-
-export const CURRENT_PRIVACY = YOURS_BRIGHTLY_PRIVACY
-
-export function getPrivacyForApp(appName: string): PrivacyConfig | null {
-  switch (appName) {
-    case 'yours-brightly':
-      return YOURS_BRIGHTLY_PRIVACY
-    default:
-      return null
-  }
 }

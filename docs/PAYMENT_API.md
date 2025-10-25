@@ -73,7 +73,7 @@ curl -X POST 'https://transactionmanager-[hash]-uc.a.run.app/?action=create' \
   -H 'Authorization: Bearer <firebase-token>' \
   -d '{
     "user_id": "123e4567-e89b-12d3-a456-426614174000",
-    "app_name": "yours-brightly",
+    "app_name": "clanker",
     "provider": "stripe",
     "transaction_type": "one_time",
     "amount_cents": 300,
@@ -184,7 +184,7 @@ Get transaction history for a user.
 **Example**:
 
 ```bash
-curl 'https://transactionmanager-[hash]-uc.a.run.app/?action=list&user_id=123e4567-e89b-12d3-a456-426614174000&app_name=yours-brightly&limit=20&offset=0' \
+curl 'https://transactionmanager-[hash]-uc.a.run.app/?action=list&user_id=123e4567-e89b-12d3-a456-426614174000&app_name=clanker&limit=20&offset=0' \
   -H 'Authorization: Bearer <firebase-token>'
 ```
 
@@ -569,7 +569,7 @@ export const useCreditPurchase = () => {
       // 4. Create transaction record
       return createTransaction.mutateAsync({
         user_id: userId,
-        app_name: 'yours-brightly',
+        app_name: 'clanker',
         provider: 'stripe',
         transaction_type: 'one_time',
         amount_cents: creditAmount * 3,
@@ -628,7 +628,7 @@ curl -X POST 'https://transactionmanager-[hash]-uc.a.run.app/?action=create' \
   -H 'Authorization: Bearer <test-token>' \
   -d '{
     "user_id": "test-user-123",
-    "app_name": "yours-brightly",
+    "app_name": "clanker",
     "provider": "stripe",
     "transaction_type": "one_time",
     "amount_cents": 300,

@@ -1,10 +1,10 @@
 // TODO: Install expo-clipboard dependency
 // import * as Clipboard from "expo-clipboard"
 import React, { useState } from 'react'
-import { Share } from 'react-native'
+import { Share, Platform } from 'react-native'
 import { IconButton, Snackbar, Text } from 'react-native-paper'
 
-import { appChatUrl, platform } from '~/config/constants'
+//import { appChatUrl } from '~/config/constants'
 import { useCharacter } from '~/hooks/useCharacter'
 
 type ShareCharacterButtonProps = {
@@ -20,12 +20,12 @@ export const ShareCharacterButton = ({ id, userId, disabled }: ShareCharacterBut
   const onDismissSnackBar = () => setVisible(false)
 
   const title = character?.name ?? 'AI Character'
-  const url = appChatUrl + `?id=${character?.id}&userId=${userId}`
-  const message = url
+  const url = ''//appChatUrl + `?id=${character?.id}&userId=${userId}`
+  const message = ''// url
 
   const onPressShare = async () => {
     try {
-      if (platform === 'web') {
+      if (Platform.OS === 'web') {
         // TODO: Implement clipboard functionality when expo-clipboard is available
         // await Clipboard.setStringAsync(message)
         console.log('Copy to clipboard:', message)

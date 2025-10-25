@@ -88,7 +88,7 @@ export const useUserCredits = (userId: string) => {
         .from('user_app_subscriptions')
                 .select('plan_tier, current_credits, plan_renewal_at, plan_status')
         .eq('user_id', user.id)
-        .eq('app_name', 'yours-brightly')
+        .eq('app_name', 'clanker')
         .eq('plan_status', 'active')
         .single()
 
@@ -122,7 +122,7 @@ export const useDeductCredits = () => {
     mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
       const { data, error } = await supabase.rpc('deduct_user_credits', {
         p_user_id: userId,
-        p_app_name: 'yours-brightly',
+        p_app_name: 'clanker',
         p_credit_amount: amount,
       })
 
@@ -271,7 +271,7 @@ export const CreditPurchaseOptions: React.FC = () => {
           metadata: {
             user_id: user?.id,
             credit_amount: option.credits.toString(),
-            app_name: 'yours-brightly',
+            app_name: 'clanker',
           },
         }),
       });
@@ -415,7 +415,7 @@ export const useSubscription = (userId: string) => {
         .from('user_app_subscriptions')
         .select('*')
         .eq('user_id', userId)
-        .eq('app_name', 'yours-brightly')
+        .eq('app_name', 'clanker')
         .in('plan_tier', ['unlimited', 'monthly_1000'])
         .eq('plan_status', 'active')
         .single()
@@ -651,7 +651,7 @@ export const useTransactionHistory = (userId: string) => {
     queryKey: ['transactionHistory', userId],
     queryFn: async ({ pageParam = 0 }) => {
       const response = await fetch(
-        `${TRANSACTION_MANAGER_URL}?action=list&user_id=${userId}&app_name=yours-brightly&limit=20&offset=${pageParam}`,
+        `${TRANSACTION_MANAGER_URL}?action=list&user_id=${userId}&app_name=clanker&limit=20&offset=${pageParam}`,
       )
 
       if (!response.ok) {

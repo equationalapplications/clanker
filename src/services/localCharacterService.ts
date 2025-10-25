@@ -3,6 +3,7 @@
  * Uses local SQLite storage with optional cloud sync
  */
 
+import { getCurrentUser } from '~/config/firebaseConfig'
 import * as characterDB from '../database/characterDatabase'
 import type { CharacterInsert, CharacterUpdate } from '../database/characterDatabase'
 
@@ -30,7 +31,14 @@ export interface Character {
 /**
  * Get all characters for the current user
  */
-export const getUserCharacters = async (userId: string): Promise<Character[]> => {
+export const getUserCharacters = async (): Promise<Character[]> => {
+    // from firebase
+    const userId = getCurrentUser()?.uid
+    if (!userId) {
+        console.warn('No user logged in - cannot fetch characters')
+        return []
+    }
+
     try {
         return await characterDB.getUserCharacters(userId)
     } catch (error) {
@@ -55,9 +63,13 @@ export const getCharacter = async (id: string, userId: string): Promise<Characte
  * Create a new character
  */
 export const createCharacter = async (
-    userId: string,
     character: CharacterInsert,
 ): Promise<Character | null> => {
+    // from firebase
+    const userId = getCurrentUser()?.uid
+    if (!userId) {
+        throw new Error('User not logged in')
+    }
     try {
         return await characterDB.createCharacter(userId, character)
     } catch (error) {
@@ -122,11 +134,17 @@ export const searchCharacters = async (userId: string, searchText: string): Prom
  * Create a new character using default values
  * (Maintains compatibility with existing createNewCharacter utility)
  */
-export const createNewCharacter = async (userId: string): Promise<{ id: string }> => {
+export const createNewCharacter = async (): Promise<{ id: string }> => {
     console.log('🏗️ createNewCharacter (Local) starting...')
+
+    const userId = getCurrentUser()?.uid
+    if (!userId) {
+        throw new Error('User not logged in')
+    }
+
     try {
         console.log('📝 Creating character with default values...')
-        const character = await createCharacter(userId, {
+        const character = await createCharacter({
             name: 'New Character',
             appearance: 'A mysterious figure with an intriguing presence.',
             traits: 'Curious, intelligent, and thoughtful.',

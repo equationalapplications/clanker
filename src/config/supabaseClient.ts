@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
-import { supabaseUrl, supabaseAnonKey } from './constants'
 import { Platform } from 'react-native'
 import Storage from 'expo-sqlite/kv-store'
+
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
 
 // Create a single supabase client for interacting with the database
 export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -48,7 +50,7 @@ export interface Database {
         }
       }
       // Multi-tenant character storage for Clanker
-      yours_brightly_characters: {
+      clanker_characters: {
         Row: {
           id: string
           user_id: string
@@ -90,7 +92,7 @@ export interface Database {
         }
       }
       // Messages for character conversations
-      yours_brightly_messages: {
+      clanker_messages: {
         Row: {
           id: string
           character_id: string
@@ -182,7 +184,7 @@ export interface Database {
     }
     Views: {
       // react-native-gifted-chat compatible view
-      yours_brightly_messages_gifted_chat: {
+      clanker_messages_gifted_chat: {
         Row: {
           id: string
           character_id: string

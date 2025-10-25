@@ -7,7 +7,7 @@
  */
 
 import { useCharacter as useCharacterQuery } from './useCharacters'
-import type { LegacyCharacter } from '~/services/characterService'
+import type { Character } from '~/services/characterService'
 
 interface UseCharacterArgs {
   id: string
@@ -18,7 +18,7 @@ interface UseCharacterArgs {
  * Hook to get a specific character from Supabase
  * Now uses React Query for caching and offline support
  */
-export function useCharacter({ id, userId }: UseCharacterArgs): LegacyCharacter | null {
+export function useCharacter({ id, userId }: UseCharacterArgs): Character | null {
   const { character } = useCharacterQuery(id)
   return character
 }

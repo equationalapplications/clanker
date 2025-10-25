@@ -8,7 +8,7 @@ export interface TermsConfig {
   lastUpdated: string
 }
 
-export const YOURS_BRIGHTLY_TERMS: TermsConfig = {
+export const TERMS: TermsConfig = {
   version: '2.0',
   lastUpdated: 'September 28, 2025',
 
@@ -27,7 +27,7 @@ By using Clanker, you agree to these key terms:
 
 • Amendments: We may modify these terms at any time. Continued use constitutes acceptance of changes
 
-• Contact: For questions, contact support@yoursbrightly.ai
+• Contact: For questions, contact admin@equationalapplications.com
 
 For the complete terms and conditions, please tap "View Full Terms" below.
 `,
@@ -79,17 +79,4 @@ These terms and conditions constitute the entire agreement between you and Equat
 
 By using the App, you acknowledge that you have read, understood, and agree to be bound by these terms and conditions. If you do not agree to these terms and conditions, do not use the App.
 `,
-}
-
-// Export the current terms configuration
-export const CURRENT_TERMS = YOURS_BRIGHTLY_TERMS
-
-// Helper to get terms for a specific app (future-proofing for multiple apps)
-export function getTermsForApp(appName: string): TermsConfig | null {
-  switch (appName) {
-    case 'yours-brightly':
-      return YOURS_BRIGHTLY_TERMS
-    default:
-      return null
-  }
 }

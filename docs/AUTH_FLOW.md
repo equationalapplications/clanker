@@ -1,13 +1,5 @@
 # Authentication flow (Firebase → Supabase)
 
-This document describes the authentication flow used by YoursBrightly. Firebase Auth is the single source of truth for user identity. Supabase is used for application-level sessions and data access control via subscription-based JWTs.
-
-Files to reference
-
-- Cloud function: `functions/src/exchangeToken.ts` (in `equationalapplications.com/functions/src`) — the callable function that maps Firebase users to Supabase users and returns Supabase sessions.
-- Supabase auth hook: `custom_access_token_hook` (in database) — automatically adds subscription `plans` to JWT claims.
-- Client helper: `src/utilities/loginToSupabaseAfterFirebase.ts` (in `yoursbrightlyai/src/utilities`) — the client-side flow that calls the cloud function and sets the Supabase session.
-
 High level contract
 
 - Inputs:
@@ -78,7 +70,7 @@ The Supabase auth hook automatically adds subscription data to JWTs:
   "email": "user@example.com",
   "plans": [
     {
-      "app": "yours-brightly",
+      "app": "clanker",
       "tier": "monthly_20",
       "status": "active",
       "terms_accepted": "2025-10-01",
@@ -98,13 +90,6 @@ The system includes several helper functions for clean RLS policy implementation
 - `user_has_accepted_terms(app_name)` — checks if user has accepted any terms (regardless of version)
 - `user_has_credits(app_name, required_credits)` — validates credit availability for pay-as-you-go operations
 - `get_user_plan_tier(app_name)` — returns user's current tier or 'no_access'
-
-References
-
-- Cloud function source: `equationalapplications.com/functions/src/exchangeToken.ts`
-- Supabase client helpers: `equationalapplications.com/functions/src/supabaseClient.ts`
-- Client helper source: `yoursbrightlyai/src/utilities/loginToSupabaseAfterFirebase.ts`
-- Auth hook documentation: `yoursbrightlyai/docs/SUPABASE_AUTH.md`
 
 Example client pseudocode
 

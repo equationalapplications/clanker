@@ -6,7 +6,7 @@ import { router } from 'expo-router'
 import Button from '~/components/Button'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { useCharacterList } from '~/hooks/useCharacterList'
-import { createNewCharacter } from '~/utilities/createNewCharacter'
+import { createNewCharacter } from '~/services/localCharacterService'
 
 interface CharacterButtonProps {
   id: string

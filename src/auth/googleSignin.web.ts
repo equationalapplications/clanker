@@ -1,7 +1,6 @@
 // Web-specific Google Sign-In implementation
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
-import { auth } from '~/config/firebaseConfig'
-import { googleWebClientId } from '~/config/constants'
+import { GoogleAuthProvider, getAuth, signInWithCredential } from 'firebase/auth'
+import { firebaseApp } from '~/config/firebaseConfig.web'
 
 declare global {
   interface Window {
@@ -15,6 +14,8 @@ export interface GoogleSignInResult {
 }
 
 let googleLoadPromise: Promise<void> | null = null
+
+const auth = getAuth(firebaseApp)
 
 const loadGoogleScript = (): Promise<void> => {
   if (googleLoadPromise) {
@@ -39,18 +40,18 @@ const loadGoogleScript = (): Promise<void> => {
   return googleLoadPromise
 }
 
-export const configureGoogleSignInWeb = async () => {
+export const initializeGoogleSignIn = async () => {
   await loadGoogleScript()
 
   if (window.google && window.google.accounts) {
     window.google.accounts.id.initialize({
-      client_id: googleWebClientId,
+      client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
       callback: () => { }, // Will be set per sign-in attempt
     })
   }
 }
 
-export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
+export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
   try {
     await loadGoogleScript()
 
@@ -60,7 +61,7 @@ export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
 
     return new Promise((resolve) => {
       window.google.accounts.id.initialize({
-        client_id: googleWebClientId,
+        client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
         callback: async (response: any) => {
           try {
             if (response.credential) {
@@ -87,7 +88,7 @@ export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
           // Fallback to popup if the one-tap is not displayed
           window.google.accounts.oauth2
             .initTokenClient({
-              client_id: googleWebClientId,
+              client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
               scope: 'email profile',
               callback: async (response: any) => {
                 try {
@@ -114,4 +115,14 @@ export const signInWithGoogleWeb = async (): Promise<GoogleSignInResult> => {
     console.error('Google Sign-In Setup Error:', error)
     return { success: false, error: error.message || 'Unknown error occurred' }
   }
+}
+
+// Stub for web - sign out is handled by Firebase auth
+export const signOutFromGoogle = async (): Promise<void> => {
+  // No-op on web - Firebase auth handles sign out
+}
+
+// Stub for web - not needed on web platform
+export const getCurrentUser = async () => {
+  return null
 }

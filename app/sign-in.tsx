@@ -7,17 +7,12 @@ import Button from '~/components/Button'
 import Logo from '~/components/Logo'
 import { MonoText, TitleText } from '~/components/StyledText'
 import { useAuth } from '~/auth/useAuth'
-import { initializeGoogleSignIn, signInWithGoogle } from '~/auth/googleSignIn'
+import { signInWithGoogle } from '~/auth/googleSignin'
 
 export default function SignIn() {
   const router = useRouter()
   const { user } = useAuth()
   const [googleSignInLoading, setGoogleSignInLoading] = useState(false)
-
-  // Initialize Google Sign-In when component mounts
-  useEffect(() => {
-    initializeGoogleSignIn()?.catch(console.error)
-  }, [])
 
   useEffect(() => {
     if (user) {

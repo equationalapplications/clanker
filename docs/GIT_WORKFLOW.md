@@ -1,6 +1,6 @@
 # Git Workflow & Branch Strategy
 
-This document outlines the Git workflow, branching strategy, and best practices for contributing to Yours Brightly AI (Clanker).
+This document outlines the Git workflow, branching strategy, and best practices for contributing to Clanker.
 
 ## Table of Contents
 

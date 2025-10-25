@@ -1,15 +1,15 @@
 // TODO: Install expo-web-browser dependency
 // import * as WebBrowser from "expo-web-browser"
 
+import { Platform } from 'react-native'
 import {
-  platform,
   stripeMontlySubscriptionPriceId,
 } from '../config/constants'
 import { purchasePackageStripe } from '../config/firebaseConfig'
 
 export async function makePackagePurchase() {
   try {
-    if (platform === 'ios' || platform === 'android') {
+    if (Platform.OS === 'ios' || Platform.OS === 'android') {
       // TODO: Implement native in-app purchases for iOS/Android
       console.log('Native in-app purchases not yet implemented')
       // For now, redirect to Stripe checkout on mobile as well
@@ -19,7 +19,7 @@ export async function makePackagePurchase() {
       if (checkoutUrl) {
         console.log('Would open checkout URL:', checkoutUrl)
       }
-    } else if (platform === 'web') {
+    } else if (Platform.OS === 'web') {
       // Get the checkout URL from Firebase Cloud Functions
       const checkoutUrlData = await purchasePackageStripe({ stripeMontlySubscriptionPriceId })
       const checkoutUrl = (checkoutUrlData as any)?.data || ''

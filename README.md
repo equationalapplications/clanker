@@ -1,37 +1,32 @@
 # Clanker
 
-> An AI chatbot Expo app with multi-tenant Firebase + Supabase architecture. Users create custom characters and chat with them using Vertex AI, with subscription-based access control.
+> An AI chatbot Expo app with Firebase + Supabase architecture. Users create custom characters and chat with them using Vertex AI, with subscription-based access control.
 
-## 📖 Documentation
-
-Concise developer entry — implementation-level documentation lives in the `docs/` folder. Click any link below to open the topic.
-
-### Getting Started
+## Getting Started
 
 - **[Git Workflow & Branching](docs/GIT_WORKFLOW.md)** — Branch strategy (dev → staging → main), PR process, commit guidelines, and troubleshooting.
 - **[Expo Updates & Runtime Versioning](docs/EXPO_UPDATES.md)** — How OTA updates work, runtime version strategy, and the relationship between conventional commits and deployment types (OTA vs native builds).
 
-### Architecture & Auth
+## Architecture & Auth
 
 - [Auth flow (concise)](docs/AUTH_FLOW.md) — Step-by-step: Firebase Auth → `exchangeToken` cloud function → Supabase session tokens.
 - [Auth source-of-truth](docs/AUTH_SOURCE_OF_TRUTH.md) — Why Firebase is the canonical identity provider and how Supabase is used downstream.
 - [Navigation structure](docs/NAVIGATION.md) — Overview of app navigation, including Drawer, Tab, and Stack navigators.
 
-### Data & Features
+## Data & Features
 
-- [Characters data model](docs/CHARACTERS.md) — Tables, RLS, types, and common queries for Clanker characters.
 - [Image generation](docs/IMAGE_GENERATION.md) — How image generation is integrated with OpenAI and Supabase storage.
 - [Supabase subscription & RLS](docs/SUPABASE_AUTH.md) — Full multi-tenant subscription architecture, JWT claims, and RLS examples.
 - [Supabase data structure](docs/SUPABASE_DATA_STRUCTURE.md) — SQL schemas and TypeScript interfaces for core tables (users, characters, messages, subscriptions).
 
-### Payments & Subscriptions
+## Payments & Subscriptions
 
 - [Payment API reference](docs/PAYMENT_API.md) — Transaction manager, webhook endpoints, and auth requirements.
 - [Payment integration](docs/PAYMENT_INTEGRATION.md) — Client-side integration patterns for payments and subscriptions.
 - [Payment system design](docs/PAYMENT_SYSTEM.md) — Architecture and billing flow for multi-tenant subscriptions.
 - [Payment troubleshooting](docs/PAYMENT_TROUBLESHOOTING.md) — Common webhook and billing errors with fixes.
 
-### Policies & Compliance
+## Policies & Compliance
 
 - [Privacy integration](docs/PRIVACY_INTEGRATION.md) — How privacy policy and user consent are handled.
 - [Terms integration](docs/TERMS_INTEGRATION.md) — Legacy terms flow vs subscription-driven access control.

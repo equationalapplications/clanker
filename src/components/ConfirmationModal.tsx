@@ -1,8 +1,6 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, useWindowDimensions } from 'react-native'
 import { Button, Dialog, Paragraph, Portal } from 'react-native-paper'
-
-import { isLargeScreen } from '~/config/constants'
 
 type ConfirmationModalProps = {
   visible: boolean
@@ -19,6 +17,9 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const { width } = useWindowDimensions()
+  const isLargeScreen = width > 768
+
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={onCancel}>
