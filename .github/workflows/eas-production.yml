@@ -48,7 +48,7 @@ jobs:
         run: npm ci
 
       - name: 📦 Install semantic-release extra plugins
-        run: npm install --save-dev @semantic-release/changelog @semantic-release/git
+        run: npm install --save-dev @semantic-release/changelog @semantic-release/git @semantic-release/npm
 
       - name: 📝 Bump Version and Release on Github
         env:

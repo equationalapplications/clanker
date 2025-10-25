@@ -15,6 +15,12 @@ module.exports = {
         changelogFile: 'CHANGELOG.md',
       },
     ],
+    [
+      '@semantic-release/npm',
+      {
+        npmPublish: false, // Don't publish to npm registry (this is a mobile app)
+      },
+    ],
     '@semantic-release/github',
     [
       '@semantic-release/git',
