@@ -1,11 +1,10 @@
 import { StyleSheet, ScrollView, View } from 'react-native'
 import { Text } from 'react-native-paper'
-import { getPrivacyForApp } from '~/config/privacyConfig'
+import { PRIVACY } from '~/config/privacyConfig'
 
 export default function Privacy() {
-  const privacyConfig = getPrivacyForApp('yours-brightly')
 
-  if (!privacyConfig) {
+  if (!PRIVACY) {
     return (
       <View style={styles.container}>
         <Text>Privacy policy not available.</Text>
@@ -19,13 +18,13 @@ export default function Privacy() {
       <View style={styles.headerRow}>
         <View />
         <Text style={styles.versionText}>
-          v{privacyConfig.version} • {privacyConfig.lastUpdated}
+          v{PRIVACY.version} • {PRIVACY.lastUpdated}
         </Text>
       </View>
 
       <View style={styles.separator} />
       <ScrollView contentContainerStyle={styles.scrollView}>
-        <Text>{privacyConfig.privacy}</Text>
+        <Text>{PRIVACY.privacy}</Text>
       </ScrollView>
     </View>
   )

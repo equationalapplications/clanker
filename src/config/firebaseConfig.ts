@@ -1,30 +1,36 @@
-import { initializeApp } from 'firebase/app'
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
-import { getFunctions } from 'firebase/functions'
+// React Native Firebase - for iOS and Android platforms
+import authModule, { FirebaseAuthTypes } from '@react-native-firebase/auth'
+import { getApp } from '@react-native-firebase/app'
+import functionsModule from '@react-native-firebase/functions'
 
-import {
-    firebaseApiKey,
-    firebaseAuthDomain,
-    firebaseProjectId,
-    firebaseStorageBucket,
-    firebaseMessagingSenderId,
-    firebaseAppId,
-} from './constants'
+const firebaseApp = getApp()
 
-const config = {
-    apiKey: firebaseApiKey,
-    authDomain: firebaseAuthDomain,
-    projectId: firebaseProjectId,
-    storageBucket: firebaseStorageBucket,
-    messagingSenderId: firebaseMessagingSenderId,
-    appId: firebaseAppId,
+const auth = authModule()
+
+const getCurrentUser = () => auth.currentUser
+
+const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) =>
+    auth.onAuthStateChanged(callback)
+
+const signOut = () => auth.signOut()
+
+const functionsInstance = functionsModule()
+
+const exchangeToken = functionsInstance.httpsCallable('exchangeToken')
+
+const generateReplyFn = functionsInstance.httpsCallable('generateReply')
+
+const purchasePackageStripe = functionsInstance.httpsCallable('purchasePackageStripe')
+
+export type FirebaseUser = FirebaseAuthTypes.User
+
+export {
+    firebaseApp,
+    auth,
+    getCurrentUser,
+    onAuthStateChanged,
+    signOut,
+    exchangeToken,
+    generateReplyFn,
+    purchasePackageStripe,
 }
-
-// Initialize Firebase
-const app = initializeApp(config)
-
-const auth = getAuth(app)
-setPersistence(auth, browserLocalPersistence)
-const functions = getFunctions(app, 'us-central1')
-
-export { app, auth, functions }

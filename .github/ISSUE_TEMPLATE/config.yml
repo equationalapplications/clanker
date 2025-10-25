@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Question or Discussion
-    url: https://github.com/equationalapplications/yoursbrightlyai/discussions
+    url: https://github.com/equationalapplications/clanker/discussions
     about: Ask questions and discuss ideas with the community
   - name: Security Issue
     url: mailto:info@equationalapplications.com

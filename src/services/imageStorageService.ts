@@ -61,7 +61,7 @@ export const generateAndStoreCharacterImage = async ({
 
     // 5. Upload to Supabase Storage
     const { error: uploadError } = await supabaseClient.storage
-      .from('yours-brightly-images')
+      .from('clanker-images')
       .upload(storagePath, compressedBlob, {
         contentType: 'image/webp',
         cacheControl: '3600',
@@ -75,7 +75,7 @@ export const generateAndStoreCharacterImage = async ({
 
     // 6. Get public URL
     const { data: urlData } = supabaseClient.storage
-      .from('yours-brightly-images')
+      .from('clanker-images')
       .getPublicUrl(storagePath)
 
     if (!urlData.publicUrl) {
@@ -108,7 +108,7 @@ export const updateCharacterAvatar = async (
 ): Promise<void> => {
   try {
     const { error } = await supabaseClient
-      .from('yours_brightly_characters')
+      .from('clanker_characters')
       .update({ avatar: imageUrl })
       .eq('id', characterId)
 
@@ -130,7 +130,7 @@ export const updateCharacterAvatar = async (
 export const deleteCharacterImage = async (storagePath: string): Promise<void> => {
   try {
     const { error } = await supabaseClient.storage
-      .from('yours-brightly-images')
+      .from('clanker-images')
       .remove([storagePath])
 
     if (error) {
@@ -154,7 +154,7 @@ export const getSignedImageUrl = async (
 ): Promise<string> => {
   try {
     const { data, error } = await supabaseClient.storage
-      .from('yours-brightly-images')
+      .from('clanker-images')
       .createSignedUrl(storagePath, expiresIn)
 
     if (error) {
@@ -252,7 +252,7 @@ export const listCharacterImages = async (
 ): Promise<string[]> => {
   try {
     const { data, error } = await supabaseClient.storage
-      .from('yours-brightly-images')
+      .from('clanker-images')
       .list(`character-avatars/${userId}`, {
         limit: 100,
         offset: 0,

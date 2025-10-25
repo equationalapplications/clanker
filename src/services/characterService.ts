@@ -11,18 +11,6 @@ import type { Character, CharacterInsert, CharacterUpdate } from './localCharact
 // Re-export types
 export type { Character, CharacterInsert, CharacterUpdate }
 
-// Legacy character interface for compatibility
-export interface LegacyCharacter {
-  id: string
-  name: string
-  avatar: string
-  appearance: string
-  traits: string
-  emotions: string
-  isCharacterPublic: boolean
-  context: string
-}
-
 /**
  * Get all characters for the current user
  */
@@ -62,37 +50,6 @@ export const searchCharacters = localCharacterService.searchCharacters
  * Create a new character using default values
  */
 export const createNewCharacter = localCharacterService.createNewCharacter
-
-/**
- * Convert character to legacy format for compatibility
- */
-export const toLegacyCharacter = (character: Character): LegacyCharacter => {
-  return {
-    id: character.id,
-    name: character.name,
-    avatar: character.avatar || '',
-    appearance: character.appearance || '',
-    traits: character.traits || '',
-    emotions: character.emotions || '',
-    isCharacterPublic: character.is_public,
-    context: character.context || '',
-  }
-}
-
-/**
- * Convert legacy character to current format
- */
-export const fromLegacyCharacter = (legacy: LegacyCharacter): CharacterInsert => {
-  return {
-    name: legacy.name,
-    avatar: legacy.avatar || null,
-    appearance: legacy.appearance || null,
-    traits: legacy.traits || null,
-    emotions: legacy.emotions || null,
-    context: legacy.context || null,
-    is_public: legacy.isCharacterPublic,
-  }
-}
 
 /**
  * FUTURE FEATURE: Save character to cloud

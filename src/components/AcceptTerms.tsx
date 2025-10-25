@@ -1,16 +1,15 @@
 import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
-import { StyleSheet, View, Alert } from 'react-native'
+import { StyleSheet, View, Alert, Platform } from 'react-native'
 import { Text, Checkbox } from 'react-native-paper'
 import { router } from 'expo-router'
 
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
-import { platform } from '~/config/constants'
 import { supabaseClient } from '~/config/supabaseClient'
 import { signOut } from '~/config/firebaseConfig'
 import { grantAppAccess } from '~/utilities/appAccess'
-import { YOURS_BRIGHTLY_TERMS } from '~/config/termsConfig'
+import { TERMS } from '~/config/termsConfig'
 //import { authManager } from "~/utilities/authManager"
 
 interface AcceptTermsProps {
@@ -37,7 +36,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
 
       // Optimistically proceed - we trust the user clicked accept
       // The database write happens in the background
-      const result = await grantAppAccess('yours-brightly', YOURS_BRIGHTLY_TERMS.version)
+      const result = await grantAppAccess('clanker', TERMS.version)
 
       if (result.success) {
         console.log('Terms accepted successfully, proceeding to app...')
@@ -95,13 +94,13 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
 
       <Text style={styles.title}>
         {isUpdate
-          ? `Terms Updated (v${YOURS_BRIGHTLY_TERMS.version})`
+          ? `Terms Updated (v${TERMS.version})`
           : 'Welcome to Clanker'}
       </Text>
 
       <View style={styles.separator} />
 
-      <Text style={styles.summaryText}>{YOURS_BRIGHTLY_TERMS.summary}</Text>
+      <Text style={styles.summaryText}>{TERMS.summary}</Text>
 
       <View style={styles.buttonRow}>
         <Button mode="outlined" onPress={onPressTerms}>
@@ -129,7 +128,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
         {isUpdate ? 'Cancel' : 'Sign Out'}
       </Button>
       {/* Use a light status bar on iOS to account for the black space above the modal */}
-      <StatusBar style={platform === 'ios' ? 'light' : 'auto'} />
+      <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
     </View>
   )
 }

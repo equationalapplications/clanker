@@ -2,7 +2,7 @@
 import 'expo-dev-client'
 import { StatusBar } from 'expo-status-bar'
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context'
-import { useColorScheme, View, StyleSheet } from 'react-native'
+import { useColorScheme, View, StyleSheet, Platform } from 'react-native'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native'
 import { Stack } from 'expo-router'
@@ -14,10 +14,12 @@ import { queryClient } from '~/config/queryClient'
 import { appNavigationDarkTheme, appNavigationLightTheme } from '~/config/theme'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import useCachedResources from '~/hooks/useCachedResources'
+import { useInitializeApp } from '~/hooks/useInitializeApp'
 
 // This component handles the core authentication logic using Stack.Protected
 function RootLayoutNav() {
   const { user } = useAuth()
+  useInitializeApp();
 
   return (
     <Stack>

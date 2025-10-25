@@ -14,7 +14,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
     if (db) return db
 
     try {
-        db = await SQLite.openDatabaseAsync('yours_brightly.db')
+        db = await SQLite.openDatabaseAsync('clanker.db')
         await initializeDatabase(db)
         return db
     } catch (error) {

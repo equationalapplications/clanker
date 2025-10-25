@@ -1,11 +1,10 @@
 import { StyleSheet, ScrollView, View } from 'react-native'
 import { Text } from 'react-native-paper'
-import { getTermsForApp } from '~/config/termsConfig'
+import { TERMS } from '~/config/termsConfig'
 
 export default function Terms() {
-  const termsConfig = getTermsForApp('yours-brightly')
 
-  if (!termsConfig) {
+  if (!TERMS) {
     return (
       <View style={styles.container}>
         <Text>Terms not available.</Text>
@@ -19,13 +18,13 @@ export default function Terms() {
       <View style={styles.headerRow}>
         <View />
         <Text style={styles.versionText}>
-          v{termsConfig.version} • {termsConfig.lastUpdated}
+          v{TERMS.version} • {TERMS.lastUpdated}
         </Text>
       </View>
 
       <View style={styles.separator} />
       <ScrollView contentContainerStyle={styles.scrollView}>
-        <Text>{termsConfig.terms}</Text>
+        <Text>{TERMS.terms}</Text>
       </ScrollView>
     </View>
   )

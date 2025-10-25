@@ -101,7 +101,7 @@ if (localTermsAccepted) {
 ```typescript
 const onPressAccept = async () => {
   // Write to database (async)
-  await grantAppAccess('yours-brightly', version)
+  await grantAppAccess('clanker', version)
 
   // Immediately proceed (optimistic)
   onAccepted?.() // Navigation happens instantly
@@ -132,16 +132,16 @@ Security is enforced where it actually matters:
 
 ```sql
 CREATE POLICY "Users must accept current terms"
-ON yours_brightly
+ON clanker
 FOR ALL
-USING (user_has_current_terms('yours-brightly', '1.0'));
+USING (user_has_current_terms('clanker', '1.0'));
 ```
 
 ### API Endpoints (Application Level)
 
 ```typescript
 // Validate on actual operations
-if (!hasAcceptedCurrentTerms(userId, 'yours-brightly')) {
+if (!hasAcceptedCurrentTerms(userId, 'clanker')) {
   return { error: 'Terms acceptance required' }
 }
 ```

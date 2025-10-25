@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react'
 import { supabaseClient } from '~/config/supabaseClient'
-import { YOURS_BRIGHTLY_TERMS } from '~/config/termsConfig'
+import { TERMS } from '~/config/termsConfig'
 
 interface SubscriptionStatus {
   needsTermsAcceptance: boolean
@@ -41,13 +41,13 @@ export function SubscriptionStatusProvider({
       if (session) {
         const payload = JSON.parse(atob(session.access_token.split('.')[1]))
         const plans = payload.plans || []
-        const appPlan = plans.find((plan: any) => plan.app === 'yours-brightly')
+        const appPlan = plans.find((plan: any) => plan.app === 'clanker')
 
         if (!appPlan || !appPlan.terms_accepted) {
           // No plan or terms not accepted yet
           setNeedsTermsAcceptance(true)
           setIsUpdate(false)
-        } else if (appPlan.terms_version !== YOURS_BRIGHTLY_TERMS.version) {
+        } else if (appPlan.terms_version !== TERMS.version) {
           // Terms version mismatch - need to accept new version
           setNeedsTermsAcceptance(true)
           setIsUpdate(true)

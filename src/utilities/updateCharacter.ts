@@ -1,5 +1,5 @@
 import { updateCharacter as updateCharacterLocal } from '../services/characterService'
-import { getCurrentUser } from '../config/firebaseConfig'
+import { getCurrentUser } from '~/config/firebaseConfig'
 
 interface UpdateCharacterArgs {
   characterId: string

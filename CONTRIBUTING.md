@@ -1,6 +1,6 @@
-# Contributing to Yours Brightly AI
+# Contributing to Clanker
 
-Thank you for your interest in contributing to Yours Brightly AI! This document provides guidelines and instructions for contributing to this project.
+Thank you for your interest in contributing to Clanker! This document provides guidelines and instructions for contributing to this project.
 
 ## Table of Contents
 
@@ -27,12 +27,12 @@ Quick start:
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/yoursbrightlyai.git
-   cd yoursbrightlyai
+   git clone https://github.com/YOUR_USERNAME/clanker.git
+   cd clanker
    ```
 3. **Add upstream remote**:
    ```bash
-   git remote add upstream https://github.com/equationalapplications/yoursbrightlyai.git
+   git remote add upstream https://github.com/equationalapplications/clanker.git
    ```
 
 ## Development Setup
@@ -74,7 +74,7 @@ Before contributing, please read:
 
 ### Reporting Bugs
 
-- Check if the bug has already been reported in [Issues](https://github.com/equationalapplications/yoursbrightlyai/issues)
+- Check if the bug has already been reported in [Issues](https://github.com/equationalapplications/clanker/issues)
 - If not, create a new issue with:
   - Clear title and description
   - Steps to reproduce
@@ -84,7 +84,7 @@ Before contributing, please read:
 
 ### Suggesting Features
 
-- Check existing [Issues](https://github.com/equationalapplications/yoursbrightlyai/issues) for similar suggestions
+- Check existing [Issues](https://github.com/equationalapplications/clanker/issues) for similar suggestions
 - Create a new issue with:
   - Clear description of the feature
   - Use cases and benefits
@@ -273,8 +273,8 @@ When adding new APIs or changing existing ones:
 
 ## Getting Help
 
-- **Questions**: Open a [Discussion](https://github.com/equationalapplications/yoursbrightlyai/discussions)
-- **Bugs**: Open an [Issue](https://github.com/equationalapplications/yoursbrightlyai/issues)
+- **Questions**: Open a [Discussion](https://github.com/equationalapplications/clanker/discussions)
+- **Bugs**: Open an [Issue](https://github.com/equationalapplications/clanker/issues)
 - **Security**: Email [info@equationalapplications.com](mailto:info@equationalapplications.com)
 
 ## Recognition
@@ -283,4 +283,4 @@ Contributors will be recognized in:
 - GitHub contributors page
 - Release notes (for significant contributions)
 
-Thank you for contributing to Yours Brightly AI! 🎉
+Thank you for contributing to Clanker! 🎉
