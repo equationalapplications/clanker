@@ -7,7 +7,7 @@ import { router } from 'expo-router'
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
 import { supabaseClient } from '~/config/supabaseClient'
-import { signOut } from '~/config/firebaseConfig'
+import { useAuth } from '~/auth/useAuth'
 import { grantAppAccess } from '~/utilities/appAccess'
 import { TERMS } from '~/config/termsConfig'
 //import { authManager } from "~/utilities/authManager"
@@ -20,6 +20,7 @@ interface AcceptTermsProps {
 
 export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: AcceptTermsProps) {
   const [checked, setChecked] = useState(false)
+  const { signOut } = useAuth()
 
   const onPressChecked = () => {
     setChecked(!checked)
@@ -71,9 +72,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
         text: isUpdate ? 'Sign Out' : 'Sign Out',
         style: 'destructive',
         onPress: async () => {
-          // Sign out from both Supabase and Firebase
-          await supabaseClient.auth.signOut()
-          await signOut()
+          await signOut?.()
           onCanceled?.()
         },
       },
