@@ -2,7 +2,7 @@
 // import * as WebBrowser from "expo-web-browser"
 
 import Button from '~/components/Button'
-import { stripeCustomerPortal, platform } from '~/config/constants'
+import { stripeCustomerPortal } from '~/config/constants'
 
 interface Props {
   onChangeIsLoading: (isLoading: boolean) => void

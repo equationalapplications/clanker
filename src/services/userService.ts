@@ -35,7 +35,7 @@ async function getUserCredits(): Promise<number> {
     .from('user_app_subscriptions')
     .select('credits_balance')
     .eq('user_id', user.id)
-    .eq('app_name', 'yours-brightly')
+    .eq('app_name', 'clanker')
     .single()
 
   if (error || !data) {
@@ -160,7 +160,7 @@ export const acceptTerms = async (termsVersion: string = '1.0'): Promise<void> =
     .upsert(
       {
         user_id: user.id,
-        app_name: 'yours-brightly',
+        app_name: 'clanker',
         plan_tier: 'free',
         plan_status: 'active',
         current_credits: 50, // Free tier gets 50 credits
@@ -197,7 +197,7 @@ export const checkTermsAcceptance = async (currentVersion: string = '1.0'): Prom
     .from('user_app_subscriptions')
     .select('terms_version, plan_status')
     .eq('user_id', user.id)
-    .eq('app_name', 'yours-brightly')
+    .eq('app_name', 'clanker')
     .eq('plan_status', 'active')
     .single()
 

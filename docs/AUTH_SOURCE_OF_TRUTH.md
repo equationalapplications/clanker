@@ -2,7 +2,7 @@
 
 Summary
 
-Firebase Auth is the canonical identity provider for the Yours Brightly application. Supabase is used downstream for application sessions, Row Level Security, and data storage.
+Firebase Auth is the canonical identity provider for the application. Supabase is used downstream for application sessions, Row Level Security, and data storage.
 
 How it works (concise)
 

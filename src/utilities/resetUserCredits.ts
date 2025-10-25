@@ -15,7 +15,7 @@ export const resetUserCredits = async (userId: string): Promise<boolean> => {
                 updated_at: new Date().toISOString(),
             })
             .eq('user_id', userId)
-            .eq('app_name', 'yours-brightly')
+            .eq('app_name', 'clanker')
             .eq('plan_tier', 'free')
             .eq('plan_status', 'active')
             .select()

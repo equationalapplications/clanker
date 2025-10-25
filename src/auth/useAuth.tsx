@@ -14,6 +14,7 @@ type AuthUser = ReturnType<typeof getCurrentUser>
 
 interface AuthContextType {
   user: AuthUser | null
+  isLoading: boolean
   signOut?: () => Promise<void>
 }
 
@@ -25,6 +26,7 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(getCurrentUser()) // Firebase user is the SOURCE OF TRUTH
+  const [isLoading, setIsLoading] = useState(true)
 
   // Avoid stale state in onAuthStateChanged
   const userRef = useRef(user)
@@ -47,6 +49,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // check if the user is the same as before
           if (userRef.current && firebaseUser.uid === userRef.current.uid) {
             console.log('ℹ️ Firebase user unchanged, skipping re-authentication')
+            setIsLoading(false)
           } else {
             setUser(firebaseUser)
             console.log('🔐 Firebase user authenticated, ensuring Supabase sync...')
@@ -72,10 +75,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
 
             console.log('✅ Supabase sync complete.', authResponse)
+            setIsLoading(false)
           }
         } catch (error) {
           console.error('❌ Error during Supabase authentication:', error)
           setUser(null)
+          setIsLoading(false)
           await supabaseClient.auth.signOut()
           authManager.reset()
           Alert.alert('Authentication failed. Please try again.')
@@ -84,6 +89,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // No Firebase user - clear everything
         console.log('🚪 No Firebase user, signing out of Supabase')
         setUser(null)
+        setIsLoading(false)
         await supabaseClient.auth.signOut()
         authManager.reset()
       }
@@ -116,7 +122,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
-  return <AuthContext.Provider value={{ user, signOut }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, isLoading, signOut }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth(): AuthContextType {

@@ -8,7 +8,7 @@ import { supabaseClient } from '../config/supabaseClient'
  * 3. Trigger JWT refresh with new custom claims (plans array)
  */
 export async function grantAppAccess(
-  appName: string = 'yours-brightly',
+  appName: string = 'clanker',
   termsVersion: string = '1.0',
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -74,7 +74,7 @@ export async function grantAppAccess(
  * Check if user has access to a specific app via JWT plans system
  * Returns true if user has any active subscription for the app
  */
-export async function checkAppAccess(appName: string = 'yours-brightly'): Promise<boolean> {
+export async function checkAppAccess(): Promise<boolean> {
   try {
     const {
       data: { session },
@@ -90,7 +90,7 @@ export async function checkAppAccess(appName: string = 'yours-brightly'): Promis
     const plans = payload.plans || []
 
     console.log('checkAppAccess: JWT payload analysis', {
-      appName,
+      appName: 'clanker',
       plans,
       hasPlans: !!payload.plans,
       plansType: typeof payload.plans,
@@ -98,9 +98,9 @@ export async function checkAppAccess(appName: string = 'yours-brightly'): Promis
     })
 
     // Check if user has any active plan for this app
-    const hasAccess = plans.some((plan: any) => plan.app === appName && plan.status === 'active')
+    const hasAccess = plans.some((plan: any) => plan.app === 'clanker' && plan.status === 'active')
 
-    console.log(`checkAppAccess: User ${hasAccess ? 'has' : 'does not have'} access to ${appName}`)
+    console.log(`checkAppAccess: User ${hasAccess ? 'has' : 'does not have'} access to clanker`)
     return hasAccess
   } catch (error) {
     console.error('Error checking app access:', error)
@@ -112,7 +112,7 @@ export async function checkAppAccess(appName: string = 'yours-brightly'): Promis
  * Check if user has accepted terms for a specific app
  * Returns the terms acceptance status and date
  */
-export async function checkTermsAcceptance(appName: string = 'yours-brightly'): Promise<{
+export async function checkTermsAcceptance(): Promise<{
   hasAccepted: boolean
   acceptedAt?: string
   termsVersion?: string
@@ -132,10 +132,10 @@ export async function checkTermsAcceptance(appName: string = 'yours-brightly'): 
     const plans = payload.plans || []
 
     // Find the plan for this app
-    const appPlan = plans.find((plan: any) => plan.app === appName)
+    const appPlan = plans.find((plan: any) => plan.app === 'clanker')
 
     if (!appPlan) {
-      console.log(`checkTermsAcceptance: No subscription found for ${appName}`)
+      console.log(`checkTermsAcceptance: No subscription found for clanker`)
       return { hasAccepted: false }
     }
 
@@ -143,7 +143,7 @@ export async function checkTermsAcceptance(appName: string = 'yours-brightly'): 
     const hasAccepted = !!appPlan.terms_accepted
 
     console.log(
-      `checkTermsAcceptance: User ${hasAccepted ? 'has' : 'has not'} accepted terms for ${appName}`,
+      `checkTermsAcceptance: User ${hasAccepted ? 'has' : 'has not'} accepted terms for clanker`,
       {
         termsAccepted: appPlan.terms_accepted,
         status: appPlan.status,
@@ -186,16 +186,14 @@ export async function getUserAppSubscriptions(): Promise<{
   }
 }
 
-/**
- * Get user's Yours Brightly profile data
- */
-export async function getYoursBrightlyProfile(): Promise<{
+
+export async function getProfile(): Promise<{
   success: boolean
   profile?: any
   error?: string
 }> {
   try {
-    const { data, error } = await supabaseClient.from('yours_brightly').select('*').single()
+    const { data, error } = await supabaseClient.from('clanker').select('*').single()
 
     if (error) {
       throw error
@@ -203,7 +201,7 @@ export async function getYoursBrightlyProfile(): Promise<{
 
     return { success: true, profile: data }
   } catch (error: any) {
-    console.error('Failed to get Yours Brightly profile:', error)
+    console.error('Failed to getprofile:', error)
     return {
       success: false,
       error: error.message || 'Failed to get profile',

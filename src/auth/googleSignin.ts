@@ -1,12 +1,10 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
-import { auth } from '~/config/firebaseConfig'
-import { googleWebClientId } from '../config/constants'
+import firebaseAuth from '@react-native-firebase/auth'
 
 // Configure Google Sign-In
-export const configureGoogleSignIn = () => {
+export const initializeGoogleSignIn = () => {
   GoogleSignin.configure({
-    webClientId: googleWebClientId, // Required for both Android and web
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, // Required for both Android and web
     offlineAccess: true,
     hostedDomain: '',
     forceCodeForRefreshToken: true,
@@ -28,21 +26,27 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true })
 
     // Get the users ID token
-    const userInfo = await GoogleSignin.signIn()
+    const response = await GoogleSignin.signIn()
 
-    // Get the ID token from the user info (coerce to string to satisfy typings)
-    const idToken = (userInfo as any).idToken as string | undefined
+    console.log('🔍 Google Sign-In response:', JSON.stringify(response, null, 2))
+
+    // Extract ID token from the response - check different possible locations
+    const idToken = response.data?.idToken || (response as any).idToken
 
     if (!idToken) {
+      console.error('❌ No ID token in response:', response)
       return { success: false, error: 'No ID token received from Google' }
     }
 
-    // Create a Google credential with the token
-    const googleCredential = GoogleAuthProvider.credential(idToken)
+    console.log('✅ Got ID token, signing in with Firebase...')
 
-    // Sign-in the user with the credential
-    await signInWithCredential(auth, googleCredential)
+    // Create Google credential using React Native Firebase
+    const googleCredential = firebaseAuth.GoogleAuthProvider.credential(idToken)
 
+    // Sign in to Firebase with the Google credential
+    await firebaseAuth().signInWithCredential(googleCredential)
+
+    console.log('✅ Firebase sign-in successful')
     return { success: true }
   } catch (error: any) {
     console.error('Google Sign-In Error:', error)
@@ -71,7 +75,7 @@ export const signOutFromGoogle = async (): Promise<void> => {
   }
 }
 
-export const getCurrentGoogleUser = async () => {
+export const getCurrentUser = async () => {
   try {
     const userInfo = await GoogleSignin.signInSilently()
     return userInfo

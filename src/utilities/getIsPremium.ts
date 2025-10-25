@@ -25,7 +25,7 @@ export const getIsPremium = async (): Promise<boolean> => {
       .from('user_app_subscriptions')
       .select('plan_tier, plan_status')
       .eq('user_id', supabaseUserId)
-      .eq('app_name', 'yours-brightly')
+      .eq('app_name', 'clanker')
       .eq('plan_status', 'active')
       .in('plan_tier', ['monthly_1000', 'monthly_unlimited']) // Only paid subscription tiers
 

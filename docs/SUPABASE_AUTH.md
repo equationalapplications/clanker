@@ -48,23 +48,6 @@ CREATE TABLE public.user_app_subscriptions (
 );
 ```
 
-#### `yours_brightly` (Example App Table)
-
-App-specific data table protected by subscription-based RLS policies.
-
-```sql
-CREATE TABLE public.yours_brightly (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    display_name TEXT,
-    preferences JSONB DEFAULT '{}',
-    profile_data JSONB DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    UNIQUE(user_id)  -- One record per user
-);
-```
 
 ---
 
@@ -113,7 +96,7 @@ Returns user's current tier for an app ('free', 'monthly_20', 'monthly_50', 'pay
 Returns compact JSONB array of user's active plans for JWT inclusion.
 
 ```sql
--- Returns: [{"app": "yours-brightly", "tier": "monthly_20", "status": "active", "terms_accepted": "2025-10-01"}]
+-- Returns: [{"app": "clanker", "tier": "monthly_20", "status": "active", "terms_accepted": "2025-10-01"}]
 -- Note: Excludes volatile data (credits) and non-critical data (renewal dates, terms_version)
 -- These should be queried in real-time when needed, not cached in JWT
 ```
@@ -199,7 +182,7 @@ The auth hook automatically enriches JWTs with the `plans` array containing mini
   "email": "user@example.com",
   "plans": [
     {
-      "app": "yours-brightly",
+      "app": "clanker",
       "tier": "monthly_20",
       "status": "active",
       "terms_accepted": "2025-10-01"
@@ -267,38 +250,8 @@ GRANT EXECUTE ON FUNCTION public.custom_access_token_hook TO supabase_auth_admin
 
 All app-specific tables use RLS policies that check the `plans` array in the JWT:
 
-#### Basic App Access Pattern
 
-```sql
--- Example: yours_brightly table policies (any tier)
-CREATE POLICY "Users with yours-brightly plan can view their data"
-ON public.yours_brightly FOR SELECT USING (
-    auth.uid() = user_id
-    AND user_has_app_access('yours-brightly')
-);
-```
 
-#### Tier-Specific Access Pattern
-
-```sql
--- Premium features table (monthly_20 or higher required)
-CREATE POLICY "Premium users can access premium features"
-ON public.yours_brightly_premium_features FOR ALL USING (
-    auth.uid() = user_id
-    AND user_has_tier_access('yours-brightly', 'monthly_20')
-);
-```
-
-#### Credit-Based Access Pattern
-
-```sql
--- Pay-as-you-go operations (credit validation)
-CREATE POLICY "Users with credits can create payg operations"
-ON public.yours_brightly_payg_operations FOR INSERT WITH CHECK (
-    auth.uid() = user_id
-    AND user_has_credits('yours-brightly', credits_consumed)
-);
-```
 
 ### Subscription Tier Examples
 
@@ -394,7 +347,7 @@ await supabase.auth.setSession({
   "plans": [
     // ⭐ Key for subscription RLS
     {
-      "app": "yours-brightly",
+      "app": "clanker",
       "tier": "monthly_20",
       "renewal": "2025-10-28T21:11:47Z",
       "credits": 0
@@ -448,13 +401,6 @@ console.log('JWT Claims:', payload)
 console.log('Plans Array:', payload.plans)
 ```
 
-#### Test RLS Policies
-
-```sql
--- Simulate user session
-SELECT auth.jwt() -> 'plans';  -- Should show user's plans array
-SELECT * FROM yours_brightly; -- Should only show user's data if they have access
-```
 
 ---
 
@@ -523,7 +469,7 @@ SELECT
         ELSE 0
     END as monthly_revenue
 FROM user_app_subscriptions
-WHERE app_name = 'yours-brightly'
+WHERE app_name = 'clanker'
     AND plan_status = 'active'
 GROUP BY plan_tier;
 ```

@@ -19,8 +19,6 @@ import {
   Character,
   CharacterInsert,
   CharacterUpdate,
-  LegacyCharacter,
-  toLegacyCharacter,
 } from '~/services/characterService'
 
 /**
@@ -45,17 +43,15 @@ export function useCharacters() {
   // Main query for characters
   const query = useQuery({
     queryKey: characterKeys.list(user?.uid),
-    queryFn: () => getUserCharacters(user?.uid || ''),
+    queryFn: () => getUserCharacters(),
     enabled: !!user,
     staleTime: 1000 * 60 * 2, // 2 minutes
   })
 
-  // Convert to legacy format for compatibility
-  const legacyCharacters: LegacyCharacter[] = (query.data || []).map(toLegacyCharacter)
 
   return {
     ...query,
-    characters: legacyCharacters,
+    characters: query.data,
   }
 }
 
@@ -84,11 +80,9 @@ export function useCharacter(id: string | undefined) {
     },
   })
 
-  const legacyCharacter = query.data ? toLegacyCharacter(query.data) : null
-
   return {
     ...query,
-    character: legacyCharacter,
+    character: query.data || null,
   }
 }
 
@@ -100,7 +94,7 @@ export function useCreateCharacter() {
   const { user } = useAuth()
 
   return useMutation({
-    mutationFn: (character: CharacterInsert) => createCharacter(user?.uid || '', character),
+    mutationFn: (character: CharacterInsert) => createCharacter(character),
 
     // Optimistic update: add character immediately to UI
     onMutate: async (newCharacter) => {
@@ -273,7 +267,7 @@ export function useDeleteCharacter() {
  * Legacy hook for backward compatibility
  * Use useCharacters() for new code
  */
-export function useCharacterList(): LegacyCharacter[] {
+export function useCharacterList(): Character[] {
   const { characters } = useCharacters()
-  return characters
+  return characters || []
 }

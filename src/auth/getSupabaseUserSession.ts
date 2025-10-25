@@ -12,7 +12,7 @@ export async function getSupabaseUserSession() {
 
         // Get the token response from Firebase function
         // Pass appName to identify which app to authenticate for
-        const response = await exchangeToken({ appName: 'yours-brightly' })
+        const response = await exchangeToken({ appName: 'clanker' })
         console.log('Firebase function response:', response.data)
         return response.data as Session
     } catch (err: any) {
