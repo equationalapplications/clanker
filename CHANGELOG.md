@@ -1,3 +1,25 @@
+# [13.0.0](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0) (2025-10-25)
+
+
+* Staging ([#155](https://github.com/equationalapplications/clanker/issues/155)) ([a3801d8](https://github.com/equationalapplications/clanker/commit/a3801d81709af10cf9b6fe4737a1966d185d7a88)), closes [#154](https://github.com/equationalapplications/clanker/issues/154)
+
+
+### BREAKING CHANGES
+
+* Updated expo.
+
+* chore(release): set `package.json` to 13.0.0-staging.1 [skip ci]
+
+# [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+
+### BREAKING CHANGES
+
+* Updated expo.
+
 # [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
 
 
