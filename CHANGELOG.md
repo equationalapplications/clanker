@@ -1,39 +1,47 @@
-# [12.0.0](https://github.com/equationalapplications/clanker/compare/v11.0.0...v12.0.0) (2025-10-19)
+# [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
 
 
-* Dev ([#150](https://github.com/equationalapplications/clanker/issues/150)) ([3e80ec3](https://github.com/equationalapplications/clanker/commit/3e80ec369e51ff9484c14d98a35fafdec3b7e300))
-* Dev ([#151](https://github.com/equationalapplications/clanker/issues/151)) ([11c874c](https://github.com/equationalapplications/clanker/commit/11c874c6a8c5381c937229d7bf88d996b02d2414))
+### Build System
 
-
-### Code Refactoring
-
-* remove RevenueCat and migrate fully to Stripe ([ca41fae](https://github.com/equationalapplications/clanker/commit/ca41fae7eb02c5b77424e011f637f3b7742abed0))
+* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
 
 
 ### BREAKING CHANGES
 
-* Remove RevenueCat integration, all subscriptions now use Stripe directly
+* Updated expo.
 
-* ci: use PAT for semantic-release on staging branch
+# [12.0.0](https://github.com/equationalapplications/clanker/compare/v11.0.0...v12.0.0) (2025-10-19)
 
-- Add GH_PAT token to checkout step to enable bypass of branch protection
-- Configure semantic-release to use GH_PAT for pushing version commits
-- Add git author/committer config for semantic-release bot
-- Matches the production workflow configuration
-* Remove RevenueCat integration, all subscriptions now use Stripe directly
-* Remove RevenueCat integration, all subscriptions now use Stripe directly
+- Dev ([#150](https://github.com/equationalapplications/clanker/issues/150)) ([3e80ec3](https://github.com/equationalapplications/clanker/commit/3e80ec369e51ff9484c14d98a35fafdec3b7e300))
+- Dev ([#151](https://github.com/equationalapplications/clanker/issues/151)) ([11c874c](https://github.com/equationalapplications/clanker/commit/11c874c6a8c5381c937229d7bf88d996b02d2414))
+
+### Code Refactoring
+
+- remove RevenueCat and migrate fully to Stripe ([ca41fae](https://github.com/equationalapplications/clanker/commit/ca41fae7eb02c5b77424e011f637f3b7742abed0))
+
+### BREAKING CHANGES
+
+- Remove RevenueCat integration, all subscriptions now use Stripe directly
+
+- ci: use PAT for semantic-release on staging branch
+
+* Add GH_PAT token to checkout step to enable bypass of branch protection
+* Configure semantic-release to use GH_PAT for pushing version commits
+* Add git author/committer config for semantic-release bot
+* Matches the production workflow configuration
+
+- Remove RevenueCat integration, all subscriptions now use Stripe directly
+- Remove RevenueCat integration, all subscriptions now use Stripe directly
 
 # [11.0.0-staging.2](https://github.com/equationalapplications/clanker/compare/v11.0.0-staging.1...v11.0.0-staging.2) (2025-10-19)
 
-
 ### Code Refactoring
 
-* remove RevenueCat and migrate fully to Stripe ([ca41fae](https://github.com/equationalapplications/clanker/commit/ca41fae7eb02c5b77424e011f637f3b7742abed0))
-
+- remove RevenueCat and migrate fully to Stripe ([ca41fae](https://github.com/equationalapplications/clanker/commit/ca41fae7eb02c5b77424e011f637f3b7742abed0))
 
 ### BREAKING CHANGES
 
-* Remove RevenueCat integration, all subscriptions now use Stripe directly
+- Remove RevenueCat integration, all subscriptions now use Stripe directly
 
 # [11.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v10.0.0...v11.0.0-staging.1) (2025-10-19)
 
