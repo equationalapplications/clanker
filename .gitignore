@@ -47,3 +47,5 @@ expo-env.d.ts
 # @end expo-cli
 credentials.json
 
+# temporary location for reference for equationalapplications.com which includes firebase and supabase backend
+/equationalapplications.com/
