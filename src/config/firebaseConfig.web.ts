@@ -1,5 +1,6 @@
 // Firebase Web SDK - for web platform
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check'
 import {
     getAuth,
     onAuthStateChanged as onAuthStateChangedInternal,
@@ -20,6 +21,21 @@ const config = {
 }
 
 const firebaseApp: FirebaseApp = getApps().length ? getApp() : initializeApp(config)
+
+if (typeof window !== 'undefined') {
+    try {
+        const appCheck = initializeAppCheck(firebaseApp, {
+            provider: new ReCaptchaEnterpriseProvider(
+                process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY || ''
+            ),
+            isTokenAutoRefreshEnabled: true,
+        })
+        console.log('✅ Firebase App Check activated successfully with Enterprise provider');
+    } catch (error) {
+        console.error('❌ Error activating Firebase App Check with Enterprise provider:', error);
+    }
+}
+
 
 const auth = getAuth(firebaseApp)
 
