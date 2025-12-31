@@ -6,9 +6,15 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
 
 // Create a single supabase client for interacting with the database
+// IMPORTANT: autoRefreshToken is disabled because we use custom JWTs from Firebase
+// that are not compatible with Supabase's native refresh mechanism.
+// Token refresh is handled manually via exchangeToken when needed.
 export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: Platform.OS === 'web' ? localStorage : Storage,
+    autoRefreshToken: false, // Disable - our custom JWTs can't use Supabase's refresh endpoint
+    persistSession: true,
+    detectSessionInUrl: false,
   },
 })
 
