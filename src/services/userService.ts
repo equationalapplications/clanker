@@ -33,9 +33,9 @@ async function getUserCredits(): Promise<number> {
 
   const { data, error } = await supabaseClient
     .from('user_app_subscriptions')
-    .select('credits_balance')
+    .select('current_credits')
     .eq('user_id', user.id)
-    .eq('app_name', 'clanker')
+    .eq('app_name', 'yours-brightly')
     .single()
 
   if (error || !data) {
@@ -43,7 +43,7 @@ async function getUserCredits(): Promise<number> {
     return 0
   }
 
-  return data.credits_balance
+  return data.current_credits
 }
 
 /**

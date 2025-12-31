@@ -1,3 +1,4 @@
+// todo: use one-tap https://react-native-google-signin.github.io/docs/one-tap
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
 import { Platform } from 'react-native'
 import firebaseAuth from '@react-native-firebase/auth'
