@@ -1,5 +1,6 @@
 import { supabaseClient } from '../config/supabaseClient'
 import { getCurrentUser } from '../config/firebaseConfig'
+import { APP_NAME } from '../config/constants'
 
 export const getIsPremium = async (): Promise<boolean> => {
   if (!getCurrentUser()) {
@@ -25,7 +26,7 @@ export const getIsPremium = async (): Promise<boolean> => {
       .from('user_app_subscriptions')
       .select('plan_tier, plan_status')
       .eq('user_id', supabaseUserId)
-      .eq('app_name', 'clanker')
+      .eq('app_name', APP_NAME)
       .eq('plan_status', 'active')
       .in('plan_tier', ['monthly_1000', 'monthly_unlimited']) // Only paid subscription tiers
 

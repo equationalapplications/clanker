@@ -1,5 +1,6 @@
 import { supabaseClient } from '../config/supabaseClient'
 import { getCurrentUser } from '../config/firebaseConfig'
+import { APP_NAME } from '../config/constants'
 
 interface UserCredits {
   totalCredits: number
@@ -45,10 +46,14 @@ export const getUserCredits = async (): Promise<UserCredits> => {
       .from('user_app_subscriptions')
       .select('plan_tier, current_credits, plan_status')
       .eq('user_id', supabaseUserId)
-      .eq('app_name', 'clanker')
+      .eq('app_name', APP_NAME)
       .eq('plan_status', 'active')
 
-    console.log('📊 getUserCredits: Query result:', { subscriptions, error, count: subscriptions?.length || 0 })
+    console.log('📊 getUserCredits: Query result:', {
+      subscriptions,
+      error,
+      count: subscriptions?.length || 0,
+    })
 
     if (error) {
       console.error('Error fetching user credits:', error)
@@ -103,7 +108,11 @@ export const getUserCredits = async (): Promise<UserCredits> => {
       }
     }
 
-    console.log('✅ getUserCredits: Returning credits:', { totalCredits, hasUnlimited, subscriptionCount: subscriptionDetails.length })
+    console.log('✅ getUserCredits: Returning credits:', {
+      totalCredits,
+      hasUnlimited,
+      subscriptionCount: subscriptionDetails.length,
+    })
     return {
       totalCredits,
       hasUnlimited,
@@ -124,18 +133,21 @@ async function ensureInitialFreeCredits(uid: string): Promise<void> {
     console.log('🎁 ensureInitialFreeCredits: Creating free credits for user:', uid)
 
     // Create initial free credits record for new users
-    const { data, error } = await supabaseClient.from('user_app_subscriptions').insert({
-      user_id: uid,
-      app_name: 'clanker',
-      plan_tier: 'free',
-      plan_status: 'active',
-      current_credits: 50,
-      billing_provider_id: 'initial_free_credits',
-      billing_metadata: {
-        type: 'initial_free_credits',
-        created_at: new Date().toISOString(),
-      },
-    }).select()
+    const { data, error } = await supabaseClient
+      .from('user_app_subscriptions')
+      .insert({
+        user_id: uid,
+        app_name: APP_NAME,
+        plan_tier: 'free',
+        plan_status: 'active',
+        current_credits: 50,
+        billing_provider_id: 'initial_free_credits',
+        billing_metadata: {
+          type: 'initial_free_credits',
+          created_at: new Date().toISOString(),
+        },
+      })
+      .select()
 
     if (error) {
       console.error('❌ ensureInitialFreeCredits: Error creating initial free credits:', error)
@@ -182,7 +194,7 @@ export const deductCredits = async (amount: number): Promise<boolean> => {
       .from('user_app_subscriptions')
       .select('plan_tier')
       .eq('user_id', supabaseUserId)
-      .eq('app_name', 'clanker')
+      .eq('app_name', APP_NAME)
       .eq('plan_status', 'active')
       .eq('plan_tier', 'monthly_unlimited')
       .limit(1)
@@ -198,7 +210,7 @@ export const deductCredits = async (amount: number): Promise<boolean> => {
       .from('user_app_subscriptions')
       .select('id, plan_tier, current_credits')
       .eq('user_id', supabaseUserId)
-      .eq('app_name', 'clanker')
+      .eq('app_name', APP_NAME)
       .eq('plan_status', 'active')
       .gt('current_credits', 0)
       .order('plan_tier', { ascending: true }) // Prioritize certain tiers if needed

@@ -18,7 +18,7 @@ import { useInitializeApp } from '~/hooks/useInitializeApp'
 
 // This component handles the core authentication logic using Stack.Protected
 function RootLayoutNav() {
-  useInitializeApp();
+  useInitializeApp()
   const { user } = useAuth()
 
   return (
@@ -35,7 +35,10 @@ function RootLayoutNav() {
 
       {/* Info pages - always available */}
       <Stack.Screen name="privacy" options={{ presentation: 'modal', title: 'Privacy Policy' }} />
-      <Stack.Screen name="terms" options={{ presentation: 'modal', title: 'Terms and Conditions' }} />
+      <Stack.Screen
+        name="terms"
+        options={{ presentation: 'modal', title: 'Terms and Conditions' }}
+      />
     </Stack>
   )
 }
