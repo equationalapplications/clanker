@@ -50,7 +50,7 @@ jobs:
 
       - name: 📝 Bump Version and Release on Github
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || github.token }}
         run: npx semantic-release
 
       # Uncomment to enable automatic EAS updates on production merges
