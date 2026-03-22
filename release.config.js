@@ -21,7 +21,7 @@ module.exports = {
         npmPublish: false, // Don't publish to npm registry (this is a mobile app)
       },
     ],
-    '@semantic-release/github',
+    ['@semantic-release/github', { successComment: false, failComment: false }],
     [
       '@semantic-release/git',
       {

@@ -71,96 +71,9 @@ export async function grantAppAccess(
   }
 }
 
-/**
- * Check if user has access to a specific app via JWT plans system
- * Returns true if user has any active subscription for the app
- */
-export async function checkAppAccess(): Promise<boolean> {
-  try {
-    const {
-      data: { session },
-    } = await supabaseClient.auth.getSession()
-
-    if (!session?.access_token) {
-      console.log('checkAppAccess: No session or access token found')
-      return false
-    }
-
-    // Parse the JWT to check custom claims (plans array)
-    const payload = JSON.parse(atob(session.access_token.split('.')[1]))
-    const plans = payload.plans || []
-
-    console.log('checkAppAccess: JWT payload analysis', {
-      appName: APP_NAME,
-      plans,
-      hasPlans: !!payload.plans,
-      plansType: typeof payload.plans,
-      plansCount: plans.length,
-    })
-
-    // Check if user has any active plan for this app
-    const hasAccess = plans.some((plan: any) => plan.app === APP_NAME && plan.status === 'active')
-
-    console.log(`checkAppAccess: User ${hasAccess ? 'has' : 'does not have'} access to ${APP_NAME}`)
-    return hasAccess
-  } catch (error) {
-    console.error('Error checking app access:', error)
-    return false
-  }
-}
-
-/**
- * Check if user has accepted terms for a specific app
- * Returns the terms acceptance status and date
- */
-export async function checkTermsAcceptance(): Promise<{
-  hasAccepted: boolean
-  acceptedAt?: string
-  termsVersion?: string
-}> {
-  try {
-    const {
-      data: { session },
-    } = await supabaseClient.auth.getSession()
-
-    if (!session?.access_token) {
-      console.log('checkTermsAcceptance: No session found')
-      return { hasAccepted: false }
-    }
-
-    // Parse the JWT to check plans array
-    const payload = JSON.parse(atob(session.access_token.split('.')[1]))
-    const plans = payload.plans || []
-
-    // Find the plan for this app
-    const appPlan = plans.find((plan: any) => plan.app === APP_NAME)
-
-    if (!appPlan) {
-      console.log(`checkTermsAcceptance: No subscription found for ${APP_NAME}`)
-      return { hasAccepted: false }
-    }
-
-    // Check if terms have been accepted (terms_accepted field exists and is not null)
-    const hasAccepted = !!appPlan.terms_accepted
-
-    console.log(
-      `checkTermsAcceptance: User ${hasAccepted ? 'has' : 'has not'} accepted terms for clanker`,
-      {
-        termsAccepted: appPlan.terms_accepted,
-        status: appPlan.status,
-      },
-    )
-
-    return {
-      hasAccepted,
-      acceptedAt: appPlan.terms_accepted,
-      termsVersion: appPlan.terms_version, // Note: we don't include terms_version in JWT, would need DB query
-    }
-  } catch (error) {
-    console.error('Error checking terms acceptance:', error)
-    return { hasAccepted: false }
-  }
-}
+// DEPRECATED: checkAppAccess and checkTermsAcceptance (JWT-based) removed.
+// Terms acceptance is now checked via direct DB query in useSubscriptionStatus hook.
+// For DB-based terms checking, see checkTermsAcceptance in ~/services/userService.ts.
 
 /**
  * Get user's subscription data from the database
