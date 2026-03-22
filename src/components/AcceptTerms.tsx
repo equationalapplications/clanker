@@ -1,12 +1,11 @@
 import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
-import { StyleSheet, View, Alert, Platform } from 'react-native'
+import { StyleSheet, View, ScrollView, Alert, Platform } from 'react-native'
 import { Text, Checkbox } from 'react-native-paper'
 import { router } from 'expo-router'
 
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
-import { supabaseClient } from '~/config/supabaseClient'
 import { useAuth } from '~/auth/useAuth'
 import { grantAppAccess } from '~/utilities/appAccess'
 import { APP_NAME } from '~/config/constants'
@@ -42,13 +41,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
 
       if (result.success) {
         console.log('Terms accepted successfully, proceeding to app...')
-
-        // Immediately call onAccepted - no need to wait or show alert
-        // The user experience is instant and smooth
         onAccepted?.()
-
-        // get a new supabase session to ensure the JWT has the latest claims
-        await supabaseClient.auth.refreshSession()
       } else {
         throw new Error(result.error || 'Failed to grant access')
       }
@@ -57,7 +50,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       Alert.alert(
         'Error',
         'Failed to record your acceptance. Please check your connection and try again.\n\n' +
-          error.message,
+        error.message,
       )
     }
   }
@@ -89,7 +82,11 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      style={styles.container}
+      bounces={false}
+    >
       <Logo />
 
       <Text style={styles.title}>
@@ -127,16 +124,20 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       </Button>
       {/* Use a light status bar on iOS to account for the black space above the modal */}
       <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
-    </View>
+    </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 40,
   },
   row: {
     flexDirection: 'row',
