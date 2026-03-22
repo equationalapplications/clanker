@@ -207,6 +207,54 @@ export interface Database {
           message_data: Record<string, any>
         }
       }
+      // User app subscriptions (multi-tenant subscription/credit system)
+      user_app_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          app_name: string
+          plan_tier: string
+          plan_status: string
+          plan_start_at: string | null
+          plan_renewal_at: string | null
+          current_credits: number
+          billing_provider: string | null
+          billing_provider_id: string | null
+          billing_metadata: Record<string, any>
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          app_name: string
+          plan_tier?: string
+          plan_status?: string
+          plan_start_at?: string | null
+          plan_renewal_at?: string | null
+          current_credits?: number
+          billing_provider?: string | null
+          billing_provider_id?: string | null
+          billing_metadata?: Record<string, any>
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          app_name?: string
+          plan_tier?: string
+          plan_status?: string
+          plan_start_at?: string | null
+          plan_renewal_at?: string | null
+          current_credits?: number
+          billing_provider?: string | null
+          billing_provider_id?: string | null
+          billing_metadata?: Record<string, any>
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Functions: {
       // Check if user has access to an app
