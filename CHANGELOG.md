@@ -1,3 +1,104 @@
+# [16.0.0](https://github.com/equationalapplications/clanker/compare/v15.0.0...v16.0.0) (2026-03-22)
+
+
+* Dev ([#167](https://github.com/equationalapplications/clanker/issues/167)) ([bd343c7](https://github.com/equationalapplications/clanker/commit/bd343c78cab9b070cf797e96734b26019b2f921a)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+
+
+### Bug Fixes
+
+* address Copilot PR review feedback ([337415e](https://github.com/equationalapplications/clanker/commit/337415e8f8960a1e1d8a6876710f210859037358))
+* address second round of PR review feedback ([1606929](https://github.com/equationalapplications/clanker/commit/1606929df667979a287e1b511b8ce889d8529705))
+* **auth:** correct credits query to use current_credits and yours-brightly app ([ceac290](https://github.com/equationalapplications/clanker/commit/ceac290fa61efdb3050067660103a336780a88b4))
+* **auth:** disable auto-refresh and use manual token refresh via exchangeToken ([d9131d0](https://github.com/equationalapplications/clanker/commit/d9131d08f7131ef33510a920a555853aee70be7c))
+* **auth:** ensure google sign-in initializes on all platforms ([6729459](https://github.com/equationalapplications/clanker/commit/6729459d2a13ab06c256275f4900c380e9263c85))
+* **auth:** update getSupabaseUserSession to use real Supabase session format ([be3a5e2](https://github.com/equationalapplications/clanker/commit/be3a5e26f67c590da5cba7444bc7cc60c934759e))
+* **auth:** use Firebase signInWithPopup as primary Google auth method ([d6f68de](https://github.com/equationalapplications/clanker/commit/d6f68ded74f349e947101ef6b99cec4487114dad))
+* **ci:** enable semantic-release push permissions and fix token ([341a14a](https://github.com/equationalapplications/clanker/commit/341a14a9a6c17dc29334a820cd970931982bb7fa))
+* **ci:** resolve GitHub Actions checkout authentication error ([24fa7f3](https://github.com/equationalapplications/clanker/commit/24fa7f3c6d015d4954d266a43f3dbd7ddc06f673))
+* **ci:** resolve GitHub Actions checkout authentication error ([#164](https://github.com/equationalapplications/clanker/issues/164)) ([6543a51](https://github.com/equationalapplications/clanker/commit/6543a513ad4f54e1eb8c3ea192510f6cfdd1d5e2))
+* **ci:** use consistent token for checkout and semantic-release ([8201c39](https://github.com/equationalapplications/clanker/commit/8201c39004fd41818af3d2a474f417e8f95f7930)), closes [#165](https://github.com/equationalapplications/clanker/issues/165)
+* **ci:** use GH_PAT to bypass branch protection in workflows ([9c45eef](https://github.com/equationalapplications/clanker/commit/9c45eefab608edfbfa1cf8f84776a716cfb89c36))
+* **ci:** use github.token only, remove GH_PAT dependency ([01e8a55](https://github.com/equationalapplications/clanker/commit/01e8a55a729d2bb4b62ff73a55a44901ca35fe3c))
+* **db:** query profiles table instead of non-existent clanker table ([1fba416](https://github.com/equationalapplications/clanker/commit/1fba416ef9f31771e94be435739d4eaf2f19815e))
+* **firebase:** improve app check initialization with recaptcha key validation ([f4581f7](https://github.com/equationalapplications/clanker/commit/f4581f7897897bac4805b1dd1ebc1fde1f9c71b2))
+* **security:** guard debug token behind __DEV__ and redact token logs ([f1720c9](https://github.com/equationalapplications/clanker/commit/f1720c9bc2b1c64f856a64aa2a272edc5e948184))
+
+
+### Build System
+
+* enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
+* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+* merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
+
+
+### Features
+
+* app Check ([0d592b0](https://github.com/equationalapplications/clanker/commit/0d592b0e3555723e86472e2788cc4928776be27d))
+
+
+### BREAKING CHANGES
+
+* Updated expo.
+* Updated expo.
+
+* chore(release): set `package.json` to 13.0.0-staging.1 [skip ci]
+
+# [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+
+### BREAKING CHANGES
+
+* Updated expo.
+
+* build: eas build fixes
+
+align EAS config with modern environment variables
+
+Updates eas.json and Firebase documentation to
+use EAS Environment Variables for cloud builds, replacing the legacy `secrets.file` method.
+
+-
+Removes `secrets.file` from all build profiles in `eas.json`.
+- Adds the `environment` key to all
+build profiles for clarity.
+- Updates `docs/FIREBASE_SETUP.md` to detail the new, separate
+workflows for cloud builds (using `eas env:create`) and local builds (using base64 strings in
+`.env`).
+
+This aligns the project with the latest Expo recommendations for managing secrets and
+build environments
+
+* build: fix build using google services
+
+* ci: release bumps version on staging and main
+
+* chore(release): set `package.json` to 14.0.0-staging.1 [skip ci]
+
+# [14.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v13.0.0...v14.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+* enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
+* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+* merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
+
+### BREAKING CHANGES
+
+* Firebase configuration now requires environment variables
+* Updated expo.
+* Updated expo.
+
+* ci: disable automatic EAS updates in workflows
+
+Comment out EAS update deployment steps in staging and production workflows.
+Can be re-enabled later when ready for automatic OTA deployments.
+* Firebase configuration now requires environment variables
+* Updated expo.
+* Updated expo.
+
 # [15.0.0-staging.2](https://github.com/equationalapplications/clanker/compare/v15.0.0-staging.1...v15.0.0-staging.2) (2026-03-22)
 
 
