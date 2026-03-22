@@ -18,8 +18,8 @@ import { useInitializeApp } from '~/hooks/useInitializeApp'
 
 // This component handles the core authentication logic using Stack.Protected
 function RootLayoutNav() {
-  const { user } = useAuth()
   useInitializeApp();
+  const { user } = useAuth()
 
   return (
     <Stack>

@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode, useEffect, useState, useRef } from 'react'
+import { createContext, useContext, ReactNode, useEffect, useState, useRef, useCallback } from 'react'
 import { Alert } from 'react-native'
 import { authManager } from '~/auth/authManager'
 import { supabaseClient } from '~/config/supabaseClient'
@@ -13,6 +13,7 @@ interface AuthContextType {
   user: AuthUser | null
   isLoading: boolean
   signOut?: () => Promise<void>
+  refreshSession?: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -24,12 +25,52 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(getCurrentUser()) // Firebase user is the SOURCE OF TRUTH
   const [isLoading, setIsLoading] = useState(true)
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Avoid stale state in onAuthStateChanged
   const userRef = useRef(user)
   useEffect(() => {
     userRef.current = user
   }, [user])
+
+  // Function to refresh the Supabase session via exchangeToken
+  const refreshSession = useCallback(async () => {
+    const firebaseUser = getCurrentUser()
+    if (!firebaseUser) {
+      console.log('🔄 No Firebase user, skipping session refresh')
+      return
+    }
+
+    try {
+      console.log('🔄 Refreshing Supabase session via exchangeToken...')
+      authManager.reset() // Reset to allow re-authentication
+      const session = await authManager.authenticateSupabase()
+      await supabaseClient.auth.setSession(session)
+      console.log('✅ Session refreshed successfully')
+
+      // Schedule next refresh (refresh 5 minutes before expiry)
+      scheduleTokenRefresh(session.expires_in || 3600)
+    } catch (error) {
+      console.error('❌ Failed to refresh session:', error)
+      // On refresh failure, the user will need to re-authenticate
+    }
+  }, [])
+
+  // Schedule automatic token refresh before expiry
+  const scheduleTokenRefresh = useCallback((expiresIn: number) => {
+    // Clear any existing timer
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current)
+    }
+
+    // Refresh 5 minutes before expiry, or immediately if less than 5 minutes left
+    const refreshTime = Math.max((expiresIn - 300) * 1000, 0)
+    console.log(`⏰ Scheduling token refresh in ${Math.round(refreshTime / 1000 / 60)} minutes`)
+
+    refreshTimerRef.current = setTimeout(() => {
+      refreshSession()
+    }, refreshTime)
+  }, [refreshSession])
 
   // SINGLE SOURCE OF TRUTH: Firebase auth state drives everything
   useEffect(() => {
@@ -52,6 +93,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('🔐 Firebase user authenticated, ensuring Supabase sync...')
             const session = await authManager.authenticateSupabase()
             const authResponse = await supabaseClient.auth.setSession(session)
+
+            // Schedule token refresh before expiry
+            const expiresIn = session.expires_in || 3600
+            scheduleTokenRefresh(expiresIn)
 
             // Debug: Decode and log JWT custom claims
             if (authResponse.data.session?.access_token) {
@@ -89,13 +134,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setIsLoading(false)
         await supabaseClient.auth.signOut()
         authManager.reset()
+        // Clear refresh timer
+        if (refreshTimerRef.current) {
+          clearTimeout(refreshTimerRef.current)
+          refreshTimerRef.current = null
+        }
       }
     })
 
     return () => {
       unsubscribeAuth()
+      // Cleanup refresh timer on unmount
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current)
+      }
     }
-  }, []) // Run only once
+  }, [scheduleTokenRefresh]) // Add scheduleTokenRefresh as dependency
 
   const signOut = async () => {
     try {
@@ -123,7 +177,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
-  return <AuthContext.Provider value={{ user, isLoading, signOut }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, isLoading, signOut, refreshSession }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth(): AuthContextType {
