@@ -193,7 +193,7 @@ export async function getProfile(): Promise<{
   error?: string
 }> {
   try {
-    const { data, error } = await supabaseClient.from('clanker').select('*').single()
+    const { data, error } = await supabaseClient.from('profiles').select('*').single()
 
     if (error) {
       throw error
@@ -201,7 +201,7 @@ export async function getProfile(): Promise<{
 
     return { success: true, profile: data }
   } catch (error: any) {
-    console.error('Failed to getprofile:', error)
+    console.error('Failed to get profile:', error)
     return {
       success: false,
       error: error.message || 'Failed to get profile',

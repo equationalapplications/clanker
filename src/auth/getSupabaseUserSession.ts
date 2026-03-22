@@ -20,9 +20,13 @@ export async function getSupabaseUserSession(): Promise<ExchangeTokenResponse> {
     // Get the token response from Firebase function
     // Pass appName to identify which app to authenticate for
     const response = await exchangeToken({ appName: APP_NAME })
-    console.log('Firebase function response:', response.data)
-
     const data = response.data as ExchangeTokenResponse
+    console.log('Firebase function response received', {
+      hasAccessToken: !!data?.access_token,
+      hasRefreshToken: !!data?.refresh_token,
+      expiresIn: data?.expires_in,
+    })
+
     if (!data?.access_token || !data?.refresh_token) {
       throw new Error('Invalid session response: missing access_token or refresh_token')
     }

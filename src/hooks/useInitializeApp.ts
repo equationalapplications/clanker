@@ -13,7 +13,8 @@ export function useInitializeApp() {
   useEffect(() => {
     const initializeAppServices = async () => {
       // --- Firebase App Check Initialization ---
-      const debugToken = process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN
+      // Only read the debug token in dev builds so it cannot leak into production
+      const debugToken = __DEV__ ? process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN : undefined
 
       const checkProvider = Platform.select({
         android: {
