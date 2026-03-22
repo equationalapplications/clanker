@@ -18,11 +18,11 @@ main
 
 ### Branch Purposes
 
-| Branch    | Purpose                 | Protected | Deployment       |
-| --------- | ----------------------- | --------- | ---------------- |
-| `main`    | Production-ready code   | ✅ Yes    | Production (EAS) |
-| `staging` | Pre-release testing     | ✅ Yes    | Staging (EAS)    |
-| `dev`     | Active development      | ⚠️ Partial | Dev client only  |
+| Branch    | Purpose               | Protected  | Deployment       |
+| --------- | --------------------- | ---------- | ---------------- |
+| `main`    | Production-ready code | ✅ Yes     | Production (EAS) |
+| `staging` | Pre-release testing   | ✅ Yes     | Staging (EAS)    |
+| `dev`     | Active development    | ⚠️ Partial | Dev client only  |
 
 ## The "Feature Branch → Squash Merge" Workflow
 
@@ -44,9 +44,9 @@ On your feature branch (e.g., `feat/add-user-profile`), work as you normally do.
 
 ```bash
 # ...write some code...
-git commit -m "WIP: created profile page"
+git commit -m "feat(profile): create basic profile page"
 # ...write more code...
-git commit -m "added avatar component"
+git commit -m "feat(profile): add avatar component"
 ```
 
 ### 3. Creating a Pull Request
@@ -59,7 +59,8 @@ When your feature is complete, you'll create a Pull Request to merge it into `de
 # While on your feature branch (e.g., feat/add-user-profile)
 git pull --rebase origin dev
 ```
-*(If there are any conflicts, Git will pause and let you fix them. This keeps the final PR clean.)*
+
+_(If there are any conflicts, Git will pause and let you fix them. This keeps the final PR clean.)_
 
 Push your branch and create a PR on GitHub from your feature branch into `dev`.
 
@@ -67,8 +68,8 @@ Push your branch and create a PR on GitHub from your feature branch into `dev`.
 
 This is the most important part for a clean history. When merging the PR, select the **"Squash and Merge"** option on GitHub.
 
--   **Edit the commit message** to follow the [Conventional Commits](https://www.conventionalcommits.org/) standard. For example: `feat(profile): add user profile page and avatar`.
--   This takes all your small commits ("WIP", "added component") and combines them into **one single, meaningful commit** on the `dev` branch.
+- **Edit the commit message** to follow the [Conventional Commits](https://www.conventionalcommits.org/) standard. For example: `feat(profile): add user profile page and avatar`.
+- This takes all your small commits ("WIP", "added component") and combines them into **one single, meaningful commit** on the `dev` branch.
 
 This process ensures `dev` has a clean, linear history of meaningful features, which makes promoting code to `staging` and `main` simple and conflict-free.
 
@@ -78,17 +79,17 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) for automate
 
 **Format:** `<type>(<scope>): <subject>`
 
-| Type     | Description            | Version Bump |
-| -------- | ---------------------- | ------------ |
-| `feat`   | New feature            | Minor        |
-| `fix`    | Bug fix                | Patch        |
-| `perf`   | Performance improvement| Patch        |
-| `docs`   | Documentation only     | None         |
-| `style`  | Code style (formatting)| None         |
-| `refactor`| Code refactoring       | None         |
-| `test`   | Adding/updating tests  | None         |
-| `chore`  | Maintenance tasks      | None         |
-| `ci`     | CI/CD changes          | None         |
-| `build`  | Build system changes   | None         |
+| Type       | Description             | Version Bump |
+| ---------- | ----------------------- | ------------ |
+| `feat`     | New feature             | Minor        |
+| `fix`      | Bug fix                 | Patch        |
+| `perf`     | Performance improvement | Patch        |
+| `docs`     | Documentation only      | None         |
+| `style`    | Code style (formatting) | None         |
+| `refactor` | Code refactoring        | None         |
+| `test`     | Adding/updating tests   | None         |
+| `chore`    | Maintenance tasks       | None         |
+| `ci`       | CI/CD changes           | None         |
+| `build`    | Build system changes    | None         |
 
 For a **breaking change**, add `!` after the type (e.g., `feat!: ...`). This will trigger a **major** version bump and requires a new native build. Use it only when changing native code or the Expo SDK.

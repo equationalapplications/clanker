@@ -9,6 +9,7 @@ import Logo from '~/components/Logo'
 import { supabaseClient } from '~/config/supabaseClient'
 import { useAuth } from '~/auth/useAuth'
 import { grantAppAccess } from '~/utilities/appAccess'
+import { APP_NAME } from '~/config/constants'
 import { TERMS } from '~/config/termsConfig'
 //import { authManager } from "~/utilities/authManager"
 
@@ -37,7 +38,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
 
       // Optimistically proceed - we trust the user clicked accept
       // The database write happens in the background
-      const result = await grantAppAccess('clanker', TERMS.version)
+      const result = await grantAppAccess(APP_NAME, TERMS.version)
 
       if (result.success) {
         console.log('Terms accepted successfully, proceeding to app...')
@@ -56,7 +57,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       Alert.alert(
         'Error',
         'Failed to record your acceptance. Please check your connection and try again.\n\n' +
-        error.message,
+          error.message,
       )
     }
   }
@@ -92,9 +93,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       <Logo />
 
       <Text style={styles.title}>
-        {isUpdate
-          ? `Terms Updated (v${TERMS.version})`
-          : 'Welcome to Clanker'}
+        {isUpdate ? `Terms Updated (v${TERMS.version})` : 'Welcome to Clanker'}
       </Text>
 
       <View style={styles.separator} />

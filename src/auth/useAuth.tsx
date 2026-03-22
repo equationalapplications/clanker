@@ -1,9 +1,21 @@
-import { createContext, useContext, ReactNode, useEffect, useState, useRef, useCallback } from 'react'
+import {
+  createContext,
+  useContext,
+  ReactNode,
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+} from 'react'
 import { Alert } from 'react-native'
 import { authManager } from '~/auth/authManager'
 import { supabaseClient } from '~/config/supabaseClient'
 import { queryClient } from '~/config/queryClient'
-import { getCurrentUser, onAuthStateChanged, signOut as firebaseSignOut } from '~/config/firebaseConfig'
+import {
+  getCurrentUser,
+  onAuthStateChanged,
+  signOut as firebaseSignOut,
+} from '~/config/firebaseConfig'
 import { signOutFromGoogle } from '~/auth/googleSignin'
 
 // Union type for platform-specific user
@@ -26,12 +38,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(getCurrentUser()) // Firebase user is the SOURCE OF TRUTH
   const [isLoading, setIsLoading] = useState(true)
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const refreshSessionRef = useRef<(() => Promise<void>) | undefined>(undefined)
 
   // Avoid stale state in onAuthStateChanged
   const userRef = useRef(user)
   useEffect(() => {
     userRef.current = user
   }, [user])
+
+  // Schedule automatic token refresh before expiry
+  const scheduleTokenRefresh = useCallback((expiresIn: number) => {
+    // Clear any existing timer
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current)
+    }
+
+    // Refresh 5 minutes before expiry, or immediately if less than 5 minutes left
+    const refreshTime = Math.max((expiresIn - 300) * 1000, 0)
+    console.log(`⏰ Scheduling token refresh in ${Math.round(refreshTime / 1000 / 60)} minutes`)
+
+    refreshTimerRef.current = setTimeout(() => {
+      void refreshSessionRef.current?.().catch((error) => {
+        console.error('❌ Unhandled error during scheduled session refresh:', error)
+      })
+    }, refreshTime)
+  }, [])
 
   // Function to refresh the Supabase session via exchangeToken
   const refreshSession = useCallback(async () => {
@@ -54,22 +85,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error('❌ Failed to refresh session:', error)
       // On refresh failure, the user will need to re-authenticate
     }
-  }, [])
+  }, [scheduleTokenRefresh])
 
-  // Schedule automatic token refresh before expiry
-  const scheduleTokenRefresh = useCallback((expiresIn: number) => {
-    // Clear any existing timer
-    if (refreshTimerRef.current) {
-      clearTimeout(refreshTimerRef.current)
-    }
-
-    // Refresh 5 minutes before expiry, or immediately if less than 5 minutes left
-    const refreshTime = Math.max((expiresIn - 300) * 1000, 0)
-    console.log(`⏰ Scheduling token refresh in ${Math.round(refreshTime / 1000 / 60)} minutes`)
-
-    refreshTimerRef.current = setTimeout(() => {
-      refreshSession()
-    }, refreshTime)
+  // Keep the ref in sync with the latest refreshSession callback
+  useEffect(() => {
+    refreshSessionRef.current = refreshSession
   }, [refreshSession])
 
   // SINGLE SOURCE OF TRUTH: Firebase auth state drives everything
@@ -177,7 +197,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
-  return <AuthContext.Provider value={{ user, isLoading, signOut, refreshSession }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, isLoading, signOut, refreshSession }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth(): AuthContextType {
