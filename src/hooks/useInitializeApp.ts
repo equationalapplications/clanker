@@ -35,12 +35,13 @@ export function useInitializeApp() {
         if (__DEV__) {
           if (!debugToken) {
             console.warn(
-              '⚠️ EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN is not set. App Check debug mode may not work.',
+              '⚠️ EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN is not set. Skipping App Check activation in debug mode.',
             )
+          } else {
+            appCheck().setTokenAutoRefreshEnabled(true)
+            await appCheck().activate(debugToken, true)
+            console.log('✅ Firebase App Check activated in DEBUG mode (Native).')
           }
-          appCheck().setTokenAutoRefreshEnabled(true)
-          await appCheck().activate(checkProvider.debugToken ?? '', true)
-          console.log('✅ Firebase App Check activated in DEBUG mode (Native).')
         } else {
           await appCheck().activate(checkProvider.provider, true)
           console.log('✅ Firebase App Check activated in PRODUCTION mode (Native).')
@@ -50,7 +51,11 @@ export function useInitializeApp() {
       }
 
       // --- Google Sign-In Initialization ---
-      initializeGoogleSignIn()
+      try {
+        await initializeGoogleSignIn()
+      } catch (error) {
+        console.error('❌ Error initializing Google Sign-In (Native):', error)
+      }
     }
 
     initializeAppServices()

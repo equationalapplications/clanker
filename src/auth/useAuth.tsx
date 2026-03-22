@@ -58,7 +58,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     console.log(`⏰ Scheduling token refresh in ${Math.round(refreshTime / 1000 / 60)} minutes`)
 
     refreshTimerRef.current = setTimeout(() => {
-      refreshSessionRef.current?.()
+      void refreshSessionRef.current?.().catch((error) => {
+        console.error('❌ Unhandled error during scheduled session refresh:', error)
+      })
     }, refreshTime)
   }, [])
 
