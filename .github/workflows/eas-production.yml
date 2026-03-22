@@ -21,14 +21,15 @@ jobs:
       pull-requests: write
 
     steps:
-      # Checkout with built-in github.token (always valid)
-      # persist-credentials: false prevents checkout token from overriding
-      # semantic-release's GITHUB_TOKEN for git push operations
+      # Use GH_PAT for checkout and semantic-release to bypass branch protection
+      # persist-credentials: true ensures the token is used for subsequent git push
+      # Falls back to github.token if GH_PAT is not configured
       - name: 🏗 Setup repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
+          token: ${{ secrets.GH_PAT || github.token }}
+          persist-credentials: true
 
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
@@ -50,7 +51,7 @@ jobs:
 
       - name: 📝 Bump Version and Release on Github
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || github.token }}
         run: npx semantic-release
 
       # Uncomment to enable automatic EAS updates on production merges
