@@ -17,14 +17,15 @@ jobs:
       pull-requests: write
 
     steps:
-      # Use built-in github.token for checkout (reliable authentication)
-      # GH_PAT will be used later by semantic-release to bypass branch protection
+      # Use GH_PAT (if available) for both checkout and semantic-release
+      # This ensures consistent authentication and allows bypassing branch protection
+      # Falls back to github.token if GH_PAT is not configured
       - name: 🏗 Setup repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ github.token }}
-          persist-credentials: false
+          token: ${{ secrets.GH_PAT || github.token }}
+          persist-credentials: true
 
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
@@ -54,7 +55,7 @@ jobs:
 
       - name: 📝 Bump Version and Release on Github
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || github.token }}
           GIT_AUTHOR_NAME: semantic-release-bot
           GIT_AUTHOR_EMAIL: semantic-release-bot@martynus.net
           GIT_COMMITTER_NAME: semantic-release-bot
