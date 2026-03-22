@@ -1,102 +1,31 @@
-# [15.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v14.0.0...v15.0.0-staging.1) (2025-10-25)
+# Changelog
 
+All notable changes to this project will be documented in this file.
 
-### Build System
-
-* enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
-* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
-* merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
-
-
-### BREAKING CHANGES
-
-* Firebase configuration now requires environment variables
-* Updated expo.
-* Updated expo.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [14.0.0](https://github.com/equationalapplications/clanker/compare/v13.0.0...v14.0.0) (2025-10-25)
 
-### chore
-
-- **release:** promote staging to production v14.0.0 ([#158](https://github.com/equationalapplications/clanker/issues/158)) ([52ca686](https://github.com/equationalapplications/clanker/commit/52ca68631ff865b8f475f91000a2f9d819b2b60d)), closes [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157)
-
-### BREAKING CHANGES
-
-- **release:** Updated expo.
-- **release:** Updated expo.
-
-- chore(release): set `package.json` to 13.0.0-staging.1 [skip ci]
-
-# [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
-
 ### Build System
 
-- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+-   Enable local builds with Firebase configs from environment variables ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+-   Align EAS config with modern environment variables for cloud and local builds.
+-   Update GitHub Actions workflows for `semantic-release`.
+
+### Features
+
+-   **Auth:** Align Firebase authentication with latest RNFirebase docs.
+-   **Auth:** Implement unified logout flow (Supabase + Firebase + Google).
 
 ### BREAKING CHANGES
 
-- Updated expo.
+-   **Build:** Local builds now require `GOOGLE_SERVICES_JSON_BASE64` and `GOOGLE_SERVICE_INFO_PLIST_BASE64` to be set in a `.env` file.
+-   **Auth:** The authentication flow has been updated, which may affect existing sessions.
 
-- build: eas build fixes
+# [13.0.0](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0) (2025-10-25)
 
-align EAS config with modern environment variables
-
-Updates eas.json and Firebase documentation to
-use EAS Environment Variables for cloud builds, replacing the legacy `secrets.file` method.
-
-- Removes `secrets.file` from all build profiles in `eas.json`.
-- Adds the `environment` key to all
-  build profiles for clarity.
-- Updates `docs/FIREBASE_SETUP.md` to detail the new, separate
-  workflows for cloud builds (using `eas env:create`) and local builds (using base64 strings in
-  `.env`).
-
-This aligns the project with the latest Expo recommendations for managing secrets and
-build environments
-
-- build: fix build using google services
-
-- ci: release bumps version on staging and main
-
-- chore(release): set `package.json` to 14.0.0-staging.1 [skip ci]
-
-# [14.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v13.0.0...v14.0.0-staging.1) (2025-10-25)
-
-### Build System
-
-- enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
-- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
-- merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
-
-### BREAKING CHANGES
-
-- Firebase configuration now requires environment variables
-- Updated expo.
-- Updated expo.
-
-# [14.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v13.0.0...v14.0.0-staging.1) (2025-10-25)
-
-### Build System
-
-- enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
-- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
-- merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
-
-### BREAKING CHANGES
-
-- Firebase configuration now requires environment variables
-- Updated expo.
-- Updated expo.
-
-# [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
-
-### Build System
-
-- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
-
-### BREAKING CHANGES
-
-- Updated expo.
+*This version was part of a branch restructuring and does not contain new features.*
 
 # [12.0.0](https://github.com/equationalapplications/clanker/compare/v11.0.0...v12.0.0) (2025-10-19)
 
