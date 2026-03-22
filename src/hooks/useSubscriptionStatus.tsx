@@ -24,21 +24,18 @@ interface SubscriptionStatus {
 async function checkTermsInDb(
   userId: string,
 ): Promise<'current' | 'outdated' | 'none'> {
-  try {
-    const { data, error } = await supabaseClient
-      .from('user_app_subscriptions')
-      .select('terms_accepted_at, terms_version, plan_status')
-      .eq('user_id', userId)
-      .eq('app_name', APP_NAME)
-      .eq('plan_status', 'active')
-      .maybeSingle()
+  const { data, error } = await supabaseClient
+    .from('user_app_subscriptions')
+    .select('terms_accepted_at, terms_version, plan_status')
+    .eq('user_id', userId)
+    .eq('app_name', APP_NAME)
+    .eq('plan_status', 'active')
+    .maybeSingle()
 
-    if (error || !data || !data.terms_accepted_at) return 'none'
-    if (data.terms_version === TERMS.version) return 'current'
-    return 'outdated'
-  } catch {
-    return 'none'
-  }
+  if (error) throw error
+  if (!data || !data.terms_accepted_at) return 'none'
+  if (data.terms_version === TERMS.version) return 'current'
+  return 'outdated'
 }
 
 // Create context for shared state across all instances
@@ -91,7 +88,6 @@ export function SubscriptionStatusProvider({
       console.error('Error checking subscription status:', error)
       // Fail open: terms acceptance is not a security boundary, so don't block
       // users on transient failures or offline scenarios. Keep prior state.
-      setIsUpdate(false)
     } finally {
       setIsLoading(false)
     }
