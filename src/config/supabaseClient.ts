@@ -6,9 +6,15 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
 
 // Create a single supabase client for interacting with the database
+// IMPORTANT: autoRefreshToken is disabled because we use custom JWTs from Firebase
+// that are not compatible with Supabase's native refresh mechanism.
+// Token refresh is handled manually via exchangeToken when needed.
 export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: Platform.OS === 'web' ? localStorage : Storage,
+    autoRefreshToken: false, // Disable - our custom JWTs can't use Supabase's refresh endpoint
+    persistSession: true,
+    detectSessionInUrl: false,
   },
 })
 
@@ -199,6 +205,54 @@ export interface Database {
             avatar: string | null
           }
           message_data: Record<string, any>
+        }
+      }
+      // User app subscriptions (multi-tenant subscription/credit system)
+      user_app_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          app_name: string
+          plan_tier: string
+          plan_status: string
+          plan_start_at: string | null
+          plan_renewal_at: string | null
+          current_credits: number
+          billing_provider: string | null
+          billing_provider_id: string | null
+          billing_metadata: Record<string, any>
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          app_name: string
+          plan_tier?: string
+          plan_status?: string
+          plan_start_at?: string | null
+          plan_renewal_at?: string | null
+          current_credits?: number
+          billing_provider?: string | null
+          billing_provider_id?: string | null
+          billing_metadata?: Record<string, any>
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          app_name?: string
+          plan_tier?: string
+          plan_status?: string
+          plan_start_at?: string | null
+          plan_renewal_at?: string | null
+          current_credits?: number
+          billing_provider?: string | null
+          billing_provider_id?: string | null
+          billing_metadata?: Record<string, any>
+          created_at?: string
+          updated_at?: string
         }
       }
     }

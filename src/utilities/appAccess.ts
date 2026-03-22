@@ -1,4 +1,5 @@
 import { supabaseClient } from '../config/supabaseClient'
+import { APP_NAME } from '../config/constants'
 
 /**
  * Grant app access to a user by creating a free tier subscription with terms acceptance
@@ -8,7 +9,7 @@ import { supabaseClient } from '../config/supabaseClient'
  * 3. Trigger JWT refresh with new custom claims (plans array)
  */
 export async function grantAppAccess(
-  appName: string = 'clanker',
+  appName: string = APP_NAME,
   termsVersion: string = '1.0',
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -90,7 +91,7 @@ export async function checkAppAccess(): Promise<boolean> {
     const plans = payload.plans || []
 
     console.log('checkAppAccess: JWT payload analysis', {
-      appName: 'clanker',
+      appName: APP_NAME,
       plans,
       hasPlans: !!payload.plans,
       plansType: typeof payload.plans,
@@ -98,9 +99,9 @@ export async function checkAppAccess(): Promise<boolean> {
     })
 
     // Check if user has any active plan for this app
-    const hasAccess = plans.some((plan: any) => plan.app === 'clanker' && plan.status === 'active')
+    const hasAccess = plans.some((plan: any) => plan.app === APP_NAME && plan.status === 'active')
 
-    console.log(`checkAppAccess: User ${hasAccess ? 'has' : 'does not have'} access to clanker`)
+    console.log(`checkAppAccess: User ${hasAccess ? 'has' : 'does not have'} access to ${APP_NAME}`)
     return hasAccess
   } catch (error) {
     console.error('Error checking app access:', error)
@@ -132,10 +133,10 @@ export async function checkTermsAcceptance(): Promise<{
     const plans = payload.plans || []
 
     // Find the plan for this app
-    const appPlan = plans.find((plan: any) => plan.app === 'clanker')
+    const appPlan = plans.find((plan: any) => plan.app === APP_NAME)
 
     if (!appPlan) {
-      console.log(`checkTermsAcceptance: No subscription found for clanker`)
+      console.log(`checkTermsAcceptance: No subscription found for ${APP_NAME}`)
       return { hasAccepted: false }
     }
 
@@ -186,14 +187,13 @@ export async function getUserAppSubscriptions(): Promise<{
   }
 }
 
-
 export async function getProfile(): Promise<{
   success: boolean
   profile?: any
   error?: string
 }> {
   try {
-    const { data, error } = await supabaseClient.from('clanker').select('*').single()
+    const { data, error } = await supabaseClient.from('profiles').select('*').single()
 
     if (error) {
       throw error
@@ -201,7 +201,7 @@ export async function getProfile(): Promise<{
 
     return { success: true, profile: data }
   } catch (error: any) {
-    console.error('Failed to getprofile:', error)
+    console.error('Failed to get profile:', error)
     return {
       success: false,
       error: error.message || 'Failed to get profile',

@@ -15,6 +15,9 @@ const resolveConfigValue = (preferredKey: string, fallbackKey?: string) => {
   )
 }
 
+// Canonical app identifier used across Supabase queries and Firebase exchangeToken
+export const APP_NAME = 'clanker'
+
 export const defaultAvatarUrl = 'https://www.gravatar.com/avatar?d=mp'
 
 export const supabaseUrl = resolveConfigValue('EXPO_PUBLIC_SUPABASE_URL')

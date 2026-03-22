@@ -21,15 +21,14 @@ jobs:
       pull-requests: write
 
     steps:
-      # GH_PAT is a fine-grained Personal Access Token with Contents:write permission
-      # Required to bypass branch protection for semantic-release version commits
-      # Falls back to GITHUB_TOKEN if GH_PAT is not configured
+      # Use GH_PAT for checkout and semantic-release to bypass branch protection
+      # persist-credentials: true ensures the token is used for subsequent git push
+      # Falls back to github.token if GH_PAT is not configured
       - name: 🏗 Setup repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: "0"
-          # Use PAT with bypass permissions for semantic-release to push version bumps
-          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT || github.token }}
           persist-credentials: true
 
       - name: 🏗 Setup Node
@@ -52,7 +51,7 @@ jobs:
 
       - name: 📝 Bump Version and Release on Github
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || github.token }}
         run: npx semantic-release
 
       # Uncomment to enable automatic EAS updates on production merges

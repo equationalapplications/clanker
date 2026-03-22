@@ -1,5 +1,5 @@
 // Web-specific Google Sign-In implementation
-import { GoogleAuthProvider, getAuth, signInWithCredential } from 'firebase/auth'
+import { GoogleAuthProvider, getAuth, signInWithCredential, signInWithPopup } from 'firebase/auth'
 import { firebaseApp } from '~/config/firebaseConfig.web'
 
 declare global {
@@ -16,6 +16,7 @@ export interface GoogleSignInResult {
 let googleLoadPromise: Promise<void> | null = null
 
 const auth = getAuth(firebaseApp)
+const googleProvider = new GoogleAuthProvider()
 
 const loadGoogleScript = (): Promise<void> => {
   if (googleLoadPromise) {
@@ -51,8 +52,36 @@ export const initializeGoogleSignIn = async () => {
   }
 }
 
+/**
+ * Sign in with Google using Firebase popup as primary method
+ * Falls back to Google One Tap / OAuth2 if popup is blocked
+ */
 export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
   try {
+    // Primary method: Firebase signInWithPopup (most reliable, avoids FedCM issues)
+    try {
+      console.log('🔐 Attempting Google Sign-In via Firebase popup...')
+      await signInWithPopup(auth, googleProvider)
+      console.log('✅ Google Sign-In successful via popup')
+      return { success: true }
+    } catch (popupError: any) {
+      // If popup was blocked or closed, try Google Identity Services
+      console.log('⚠️ Popup sign-in failed, trying Google Identity Services:', popupError.code)
+
+      if (popupError.code === 'auth/popup-closed-by-user') {
+        return { success: false, error: 'Sign-in cancelled' }
+      }
+
+      if (popupError.code === 'auth/popup-blocked') {
+        console.log('🔄 Popup blocked, falling back to Google One Tap...')
+        // Fall through to Google Identity Services below
+      } else {
+        // For other errors, report them
+        return { success: false, error: popupError.message || 'Popup sign-in failed' }
+      }
+    }
+
+    // Fallback: Google Identity Services (One Tap / OAuth2)
     await loadGoogleScript()
 
     if (!window.google || !window.google.accounts) {
@@ -65,12 +94,8 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
         callback: async (response: any) => {
           try {
             if (response.credential) {
-              // Create a Google credential with the token
               const googleCredential = GoogleAuthProvider.credential(response.credential)
-
-              // Sign-in the user with the credential
               await signInWithCredential(auth, googleCredential)
-
               resolve({ success: true })
             } else {
               resolve({ success: false, error: 'No credential received' })
@@ -82,10 +107,9 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
         },
       })
 
-      // Show the sign-in popup
       window.google.accounts.id.prompt((notification: any) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          // Fallback to popup if the one-tap is not displayed
+          // One Tap not available, try OAuth2 token flow
           window.google.accounts.oauth2
             .initTokenClient({
               client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
@@ -93,8 +117,6 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
               callback: async (response: any) => {
                 try {
                   if (response.access_token) {
-                    // For OAuth2 flow, we need to get the ID token differently
-                    // This is a simplified version - you might need to adjust based on your needs
                     const credential = GoogleAuthProvider.credential(null, response.access_token)
                     await signInWithCredential(auth, credential)
                     resolve({ success: true })

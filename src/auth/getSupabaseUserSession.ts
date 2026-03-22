@@ -1,22 +1,39 @@
 import { getCurrentUser, exchangeToken } from '~/config/firebaseConfig'
-import type { Session } from '@supabase/supabase-js'
+import { APP_NAME } from '~/config/constants'
 
-export async function getSupabaseUserSession() {
-    const user = getCurrentUser()
-    if (!user) {
-        throw new Error('No Firebase user is currently signed in')
+interface ExchangeTokenResponse {
+  access_token: string
+  refresh_token: string
+  expires_in: number
+  token_type: string
+}
+
+export async function getSupabaseUserSession(): Promise<ExchangeTokenResponse> {
+  const user = getCurrentUser()
+  if (!user) {
+    throw new Error('No Firebase user is currently signed in')
+  }
+
+  try {
+    console.log('Calling Firebase function with region us-central1')
+
+    // Get the token response from Firebase function
+    // Pass appName to identify which app to authenticate for
+    const response = await exchangeToken({ appName: APP_NAME })
+    const data = response.data as ExchangeTokenResponse
+    console.log('Firebase function response received', {
+      hasAccessToken: !!data?.access_token,
+      hasRefreshToken: !!data?.refresh_token,
+      expiresIn: data?.expires_in,
+    })
+
+    if (!data?.access_token || !data?.refresh_token) {
+      throw new Error('Invalid session response: missing access_token or refresh_token')
     }
 
-    try {
-        console.log('Calling Firebase function with region us-central1')
-
-        // Get the token response from Firebase function
-        // Pass appName to identify which app to authenticate for
-        const response = await exchangeToken({ appName: 'clanker' })
-        console.log('Firebase function response:', response.data)
-        return response.data as Session
-    } catch (err: any) {
-        console.error('Authentication failed:', err)
-        throw new Error('Failed to authenticate: ' + (err.message || err))
-    }
+    return data
+  } catch (err: any) {
+    console.error('Authentication failed:', err)
+    throw new Error('Failed to authenticate: ' + (err.message || err))
+  }
 }

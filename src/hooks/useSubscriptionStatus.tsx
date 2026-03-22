@@ -1,5 +1,13 @@
-import React, { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react'
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  createContext,
+  useContext,
+  ReactNode,
+} from 'react'
 import { supabaseClient } from '~/config/supabaseClient'
+import { APP_NAME } from '~/config/constants'
 import { TERMS } from '~/config/termsConfig'
 
 interface SubscriptionStatus {
@@ -41,7 +49,7 @@ export function SubscriptionStatusProvider({
       if (session) {
         const payload = JSON.parse(atob(session.access_token.split('.')[1]))
         const plans = payload.plans || []
-        const appPlan = plans.find((plan: any) => plan.app === 'clanker')
+        const appPlan = plans.find((plan: any) => plan.app === APP_NAME)
 
         if (!appPlan || !appPlan.terms_accepted) {
           // No plan or terms not accepted yet
