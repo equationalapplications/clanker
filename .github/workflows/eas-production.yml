@@ -21,13 +21,14 @@ jobs:
       pull-requests: write
 
     steps:
-      # Use built-in github.token for checkout (reliable authentication)
-      # GH_PAT will be used later by semantic-release to bypass branch protection
+      # Use GH_PAT (if available) for both checkout and semantic-release
+      # This ensures consistent authentication and allows bypassing branch protection
+      # Falls back to github.token if GH_PAT is not configured
       - name: 🏗 Setup repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ github.token }}
+          token: ${{ secrets.GH_PAT || github.token }}
           persist-credentials: true
 
       - name: 🏗 Setup Node
