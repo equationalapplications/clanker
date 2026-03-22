@@ -17,6 +17,29 @@ interface SubscriptionStatus {
   markTermsAccepted: () => void
 }
 
+/**
+ * Check terms acceptance status directly from the database.
+ * Returns 'current' if accepted current version, 'outdated' if accepted older version, or 'none'.
+ */
+async function checkTermsInDb(
+  userId: string,
+): Promise<'current' | 'outdated' | 'none'> {
+  try {
+    const { data, error } = await supabaseClient
+      .from('user_app_subscriptions')
+      .select('terms_accepted_at, terms_version')
+      .eq('user_id', userId)
+      .eq('app_name', APP_NAME)
+      .maybeSingle()
+
+    if (error || !data || !data.terms_accepted_at) return 'none'
+    if (data.terms_version === TERMS.version) return 'current'
+    return 'outdated'
+  } catch {
+    return 'none'
+  }
+}
+
 // Create context for shared state across all instances
 const SubscriptionStatusContext = createContext<SubscriptionStatus | null>(null)
 
@@ -43,25 +66,20 @@ export function SubscriptionStatusProvider({
       }
 
       const {
-        data: { session },
-      } = await supabaseClient.auth.getSession()
+        data: { user },
+      } = await supabaseClient.auth.getUser()
 
-      if (session) {
-        const payload = JSON.parse(atob(session.access_token.split('.')[1]))
-        const plans = payload.plans || []
-        const appPlan = plans.find((plan: any) => plan.app === APP_NAME)
+      if (user) {
+        const dbResult = await checkTermsInDb(user.id)
 
-        if (!appPlan || !appPlan.terms_accepted) {
-          // No plan or terms not accepted yet
-          setNeedsTermsAcceptance(true)
+        if (dbResult === 'current') {
+          setNeedsTermsAcceptance(false)
           setIsUpdate(false)
-        } else if (appPlan.terms_version !== TERMS.version) {
-          // Terms version mismatch - need to accept new version
+        } else if (dbResult === 'outdated') {
           setNeedsTermsAcceptance(true)
           setIsUpdate(true)
         } else {
-          // All good - has plan and accepted current terms
-          setNeedsTermsAcceptance(false)
+          setNeedsTermsAcceptance(true)
           setIsUpdate(false)
         }
       } else {
@@ -70,7 +88,6 @@ export function SubscriptionStatusProvider({
       }
     } catch (error) {
       console.error('Error checking subscription status:', error)
-      // On error, trust local state if available
       if (localTermsAccepted) {
         setNeedsTermsAcceptance(false)
       } else {
@@ -82,16 +99,11 @@ export function SubscriptionStatusProvider({
     }
   }, [localTermsAccepted])
 
-  // Allow optimistic update - user clicked accept, let them through
+  // Allow optimistic update - user clicked accept, let them through immediately
   const markTermsAccepted = () => {
-    console.log('[SubscriptionStatusContext] markTermsAccepted called')
-    console.log('[SubscriptionStatusContext] Setting localTermsAccepted = true')
     setLocalTermsAccepted(true)
-    console.log('[SubscriptionStatusContext] Setting needsTermsAcceptance = false')
     setNeedsTermsAcceptance(false)
-    console.log('[SubscriptionStatusContext] Setting isUpdate = false')
     setIsUpdate(false)
-    console.log('[SubscriptionStatusContext] State updates complete')
   }
 
   useEffect(() => {
