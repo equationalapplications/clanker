@@ -27,9 +27,10 @@ async function checkTermsInDb(
   try {
     const { data, error } = await supabaseClient
       .from('user_app_subscriptions')
-      .select('terms_accepted_at, terms_version')
+      .select('terms_accepted_at, terms_version, plan_status')
       .eq('user_id', userId)
       .eq('app_name', APP_NAME)
+      .eq('plan_status', 'active')
       .maybeSingle()
 
     if (error || !data || !data.terms_accepted_at) return 'none'
@@ -88,11 +89,8 @@ export function SubscriptionStatusProvider({
       }
     } catch (error) {
       console.error('Error checking subscription status:', error)
-      if (localTermsAccepted) {
-        setNeedsTermsAcceptance(false)
-      } else {
-        setNeedsTermsAcceptance(false)
-      }
+      // Fail open: terms acceptance is not a security boundary, so don't block
+      // users on transient failures or offline scenarios. Keep prior state.
       setIsUpdate(false)
     } finally {
       setIsLoading(false)
