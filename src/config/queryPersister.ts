@@ -40,7 +40,7 @@ export const kvStorePersister: Persister = {
             // CRITICAL FIX: Use the custom replacer when serializing to filter out non-JSON-serializable items
             // (Promises, functions, etc.) that would cause "[object Promise]" errors on restore.
             // The persistedClient is already prepared by PersistQueryClientProvider, but the replacer
-            // ensures any circular references or non-serializable values are removed.
+            // ensures any stray non-serializable values are stripped before writing to storage.
 
             const serialized = JSON.stringify(persistedClient, cacheReplacer)
 
@@ -52,7 +52,7 @@ export const kvStorePersister: Persister = {
                 return
             }
 
-            Storage.setItem(CACHE_KEY, serialized)
+            await Storage.setItem(CACHE_KEY, serialized)
             console.debug(`[QueryCache] Persisted cache`)
         } catch (error) {
             console.warn('[QueryCache] Failed to persist:', error)
@@ -76,13 +76,14 @@ export const kvStorePersister: Persister = {
                     '[QueryCache] Cache corrupted (JSON parse failed). Clearing cache to allow recovery. Error:',
                     parseError instanceof Error ? parseError.message : String(parseError)
                 )
-                Storage.removeItem(CACHE_KEY)
+                await Storage.removeItem(CACHE_KEY)
                 return undefined
             }
 
             // Validate structure - check for required PersistedClient fields
             if (!cacheState || typeof cacheState !== 'object' || !('clientState' in cacheState)) {
                 console.warn('[QueryCache] Cache has invalid structure, discarding')
+                await Storage.removeItem(CACHE_KEY)
                 return undefined
             }
 
@@ -92,7 +93,7 @@ export const kvStorePersister: Persister = {
             console.warn('[QueryCache] Failed to restore:', error)
             // On any error, clear to prevent repeated failures
             try {
-                Storage.removeItem(CACHE_KEY)
+                await Storage.removeItem(CACHE_KEY)
             } catch {
                 // Ignore cleanup errors
             }
@@ -102,7 +103,7 @@ export const kvStorePersister: Persister = {
 
     removeClient: async () => {
         try {
-            Storage.removeItem(CACHE_KEY)
+            await Storage.removeItem(CACHE_KEY)
             console.debug('[QueryCache] Cache cleared')
         } catch (error) {
             console.warn('[QueryCache] Failed to remove cache:', error)

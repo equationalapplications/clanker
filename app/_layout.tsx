@@ -15,6 +15,7 @@ import { queryClient } from '~/config/queryClient'
 import { kvStorePersister } from '~/config/queryPersister'
 import { setupNetworkManager } from '~/config/networkManager'
 import { onlineManager } from '@tanstack/react-query'
+import NetInfo from '@react-native-community/netinfo'
 import { appNavigationDarkTheme, appNavigationLightTheme } from '~/config/theme'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import useCachedResources from '~/hooks/useCachedResources'
@@ -32,10 +33,19 @@ function RootLayoutNav() {
   // and reopened while already online.
   // Gate on !isLoading so that Supabase session (setSession) is ready before sync.
   useEffect(() => {
-    if (user && !isLoading && !prevUserRef.current && onlineManager.isOnline()) {
-      import('~/services/characterSyncService')
-        .then(({ syncAllToCloud }) => syncAllToCloud())
-        .catch((err) => console.warn('Startup sync failed:', err))
+    if (user && !isLoading && !prevUserRef.current) {
+      // Use NetInfo.fetch() for the real initial state — onlineManager defaults to
+      // online until the NetInfo bridge fires, which can cause false-positive syncs.
+      NetInfo.fetch().then((state) => {
+        const isOnline = state.isConnected != null &&
+          state.isConnected &&
+          state.isInternetReachable !== false
+        if (isOnline) {
+          import('~/services/characterSyncService')
+            .then(({ syncAllToCloud }) => syncAllToCloud())
+            .catch((err) => console.warn('Startup sync failed:', err))
+        }
+      })
     }
     prevUserRef.current = user
   }, [user, isLoading])

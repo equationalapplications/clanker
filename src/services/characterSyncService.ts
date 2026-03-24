@@ -29,9 +29,9 @@ export async function getLastSyncTime(): Promise<string | null> {
     return Storage.getItem(LAST_SYNC_KEY)
 }
 
-function setLastSyncTime(): void {
+async function setLastSyncTime(): Promise<void> {
     try {
-        Storage.setItem(LAST_SYNC_KEY, new Date().toISOString())
+        await Storage.setItem(LAST_SYNC_KEY, new Date().toISOString())
     } catch (error) {
         console.warn('Failed to persist last sync time:', error)
     }
@@ -47,7 +47,7 @@ export async function syncAllToCloud(userId?: string): Promise<void> {
 
     try {
         await Promise.all([syncUnsyncedToCloud(uid), syncDeletionsToCloud(uid)])
-        setLastSyncTime()
+        await setLastSyncTime()
     } catch (error) {
         console.warn('Character sync error:', error)
         throw error
@@ -145,6 +145,7 @@ async function syncUnsyncedToCloud(userId: string): Promise<void> {
                     emotions: char.emotions,
                     context: char.context,
                     is_public: char.is_public,
+                    created_at: char.created_at,
                     updated_at: char.updated_at,
                 },
                 { onConflict: 'id' },
