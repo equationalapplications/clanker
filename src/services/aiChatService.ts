@@ -64,7 +64,7 @@ export const sendMessageWithAIResponse = async (
       await saveAIMessage(
         character.id,
         userId,
-        "I'm having trouble responding right now. Please try again!",
+        "I couldn't respond because you appear to be offline. Please try again when you're back online.",
         errorId,
         {
           user: {
@@ -72,6 +72,7 @@ export const sendMessageWithAIResponse = async (
             name: character.name,
             avatar: character.appearance || undefined,
           },
+          error: true,
         },
       )
     } catch (fallbackError) {

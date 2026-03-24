@@ -6,13 +6,13 @@ import { Appbar, Card, Text, IconButton } from 'react-native-paper'
 import CombinedSubscriptionButton from '~/components/CombinedSubscriptionButton'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { useIsPremium } from '~/hooks/useIsPremium'
-import { useUserPrivate } from '~/hooks/useUserPrivate'
+import { useUserPrivateData } from '~/hooks/useUser'
 
 export default function SubscribeScreen() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const isPremium = useIsPremium()
-  const userPrivate = useUserPrivate()
+  const { userPrivate } = useUserPrivateData()
   const credits = userPrivate?.credits || 0
 
   const onChangeIsLoading = (loading: boolean) => {

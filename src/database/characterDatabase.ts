@@ -19,6 +19,7 @@ export interface LocalCharacter {
     updated_at: number
     synced_to_cloud: number // 0 or 1
     cloud_id: string | null // Supabase ID if synced
+    deleted_at: number | null // null = active, timestamp = soft-deleted
 }
 
 export interface CharacterInsert {
@@ -69,7 +70,7 @@ export async function getUserCharacters(userId: string) {
     const db = await getDatabase()
 
     const characters = await db.getAllAsync<LocalCharacter>(
-        'SELECT * FROM characters WHERE user_id = ? ORDER BY created_at DESC',
+        'SELECT * FROM characters WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = 0) ORDER BY created_at DESC',
         [userId],
     )
 
@@ -101,8 +102,8 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
 
     await db.runAsync(
         `INSERT INTO characters 
-     (id, user_id, name, avatar, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, user_id, name, avatar, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             id,
             userId,
@@ -117,6 +118,7 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
             now,
             0, // not synced to cloud initially
             null, // no cloud ID initially
+            null, // not deleted
         ],
     )
 
@@ -190,14 +192,29 @@ export async function updateCharacter(
 }
 
 /**
- * Delete a character
+ * Soft-delete a character (marks deleted_at, clears synced flag so sync removes it from cloud)
  */
 export async function deleteCharacter(characterId: string, userId: string) {
     const db = await getDatabase()
+    const now = Date.now()
 
-    await db.runAsync('DELETE FROM characters WHERE id = ? AND user_id = ?', [characterId, userId])
+    await db.runAsync(
+        'UPDATE characters SET deleted_at = ?, synced_to_cloud = 0 WHERE id = ? AND user_id = ?',
+        [now, characterId, userId],
+    )
+}
 
-    // Also delete all messages for this character
+/**
+ * Hard-delete a character and its messages from local storage.
+ * Only called after cloud sync confirms the deletion was propagated.
+ */
+export async function hardDeleteCharacterLocal(characterId: string, userId: string) {
+    const db = await getDatabase()
+
+    await db.runAsync('DELETE FROM characters WHERE id = ? AND user_id = ?', [
+        characterId,
+        userId,
+    ])
     await db.runAsync('DELETE FROM messages WHERE character_id = ?', [characterId])
 }
 
@@ -234,11 +251,37 @@ export async function getUnsyncedCharacters(userId: string) {
     const db = await getDatabase()
 
     const characters = await db.getAllAsync<LocalCharacter>(
-        'SELECT * FROM characters WHERE user_id = ? AND synced_to_cloud = 0 ORDER BY updated_at DESC',
+        'SELECT * FROM characters WHERE user_id = ? AND synced_to_cloud = 0 AND (deleted_at IS NULL OR deleted_at = 0) ORDER BY updated_at DESC',
         [userId],
     )
 
     return characters.map(toAppFormat)
+}
+
+/**
+ * Get characters that have been soft-deleted and need their deletion synced to cloud
+ */
+export async function getSoftDeletedCharacters(userId: string) {
+    const db = await getDatabase()
+
+    const characters = await db.getAllAsync<LocalCharacter>(
+        'SELECT * FROM characters WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at > 0 AND synced_to_cloud = 0 ORDER BY deleted_at DESC',
+        [userId],
+    )
+
+    return characters.map(toAppFormat)
+}
+
+/**
+ * Get all characters for a user including soft-deleted ones (for sync comparison)
+ */
+export async function getAllCharactersIncludingDeleted(userId: string): Promise<LocalCharacter[]> {
+    const db = await getDatabase()
+
+    return db.getAllAsync<LocalCharacter>(
+        'SELECT * FROM characters WHERE user_id = ?',
+        [userId],
+    )
 }
 
 /**
@@ -267,8 +310,8 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
         for (const char of characters) {
             await db.runAsync(
                 `INSERT OR REPLACE INTO characters 
-         (id, user_id, name, avatar, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, name, avatar, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     char.id,
                     char.user_id,
@@ -283,6 +326,7 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
                     char.updated_at,
                     char.synced_to_cloud,
                     char.cloud_id,
+                    char.deleted_at ?? null,
                 ],
             )
         }

@@ -3,7 +3,7 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform, Dimensions } from 're
 import { GiftedChat, IMessage, User, Bubble } from 'react-native-gifted-chat'
 import { useCallback } from 'react'
 import { useCharacter } from '~/hooks/useCharacters'
-import { useChatMessages } from '~/hooks/useChatMessages'
+import { useChatMessages } from '~/hooks/useMessages'
 import { useAIChat } from '~/hooks/useAIChat'
 import { Text, useTheme, Avatar } from 'react-native-paper'
 import { useAuth } from '~/auth/useAuth'

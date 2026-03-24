@@ -82,7 +82,7 @@ export function useUserProfile() {
 }
 
 /**
- * Hook to get public user data (legacy format)
+ * Hook to get public user data
  */
 export function useUserPublicData() {
   const { user } = useAuth()
@@ -101,7 +101,7 @@ export function useUserPublicData() {
 }
 
 /**
- * Hook to get private user data (legacy format)
+ * Hook to get private user data
  */
 export function useUserPrivateData() {
   const { user } = useAuth()
