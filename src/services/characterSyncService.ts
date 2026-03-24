@@ -10,7 +10,7 @@
  * - Deletions are soft-deleted locally first, then propagated to cloud on next sync
  */
 
-import { Storage } from 'expo-sqlite/kv-store'
+import Storage from 'expo-sqlite/kv-store'
 import { supabaseClient } from '~/config/supabaseClient'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import {
@@ -75,34 +75,45 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
 
     if (!data || data.length === 0) return
 
-    // Build a map of local updated_at timestamps keyed by both id and cloud_id
-    // so we correctly detect already-synced records even when cloud_id differs from id
+    // Build maps from local characters:
+    // - localTimestamps: keyed by both id and cloud_id for timestamp comparison
+    // - cloudIdToLocalId: maps cloud_id → local id so we update existing rows
+    //   instead of inserting duplicates when IDs differ
     const localChars = await getAllCharactersIncludingDeleted(uid)
     const localTimestamps = new Map<string, number>()
+    const cloudIdToLocalId = new Map<string, string>()
     for (const c of localChars) {
         localTimestamps.set(c.id, c.updated_at)
-        if (c.cloud_id && c.cloud_id !== c.id) {
-            localTimestamps.set(c.cloud_id, c.updated_at)
+        if (c.cloud_id) {
+            cloudIdToLocalId.set(c.cloud_id, c.id)
+            if (c.cloud_id !== c.id) {
+                localTimestamps.set(c.cloud_id, c.updated_at)
+            }
         }
     }
 
     const cloudChars: LocalCharacter[] = data
-        .map((cloudChar) => ({
-            id: cloudChar.id,
-            user_id: uid,
-            name: cloudChar.name,
-            avatar: cloudChar.avatar,
-            appearance: cloudChar.appearance,
-            traits: cloudChar.traits,
-            emotions: cloudChar.emotions,
-            context: cloudChar.context,
-            is_public: cloudChar.is_public ? 1 : 0,
-            created_at: new Date(cloudChar.created_at).getTime(),
-            updated_at: new Date(cloudChar.updated_at).getTime(),
-            synced_to_cloud: 1 as number,
-            cloud_id: cloudChar.id,
-            deleted_at: null as number | null,
-        }))
+        .map((cloudChar) => {
+            // Use the existing local id when this cloud record was previously
+            // synced under a different local id, to avoid creating duplicates
+            const localId = cloudIdToLocalId.get(cloudChar.id) ?? cloudChar.id
+            return {
+                id: localId,
+                user_id: uid,
+                name: cloudChar.name,
+                avatar: cloudChar.avatar,
+                appearance: cloudChar.appearance,
+                traits: cloudChar.traits,
+                emotions: cloudChar.emotions,
+                context: cloudChar.context,
+                is_public: cloudChar.is_public ? 1 : 0,
+                created_at: new Date(cloudChar.created_at).getTime(),
+                updated_at: new Date(cloudChar.updated_at).getTime(),
+                synced_to_cloud: 1 as number,
+                cloud_id: cloudChar.id,
+                deleted_at: null as number | null,
+            }
+        })
         .filter((c) => {
             const localTs = localTimestamps.get(c.id)
             // Insert if no local record exists, or if cloud is strictly newer

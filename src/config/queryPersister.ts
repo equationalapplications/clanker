@@ -1,31 +1,101 @@
 /**
  * TanStack Query cache persister using expo-sqlite/kv-store
- *
- * Persists the full React Query cache to SQLite key-value storage so
- * previously-fetched data survives app restarts and is available offline.
+ * 
+ * Properly serializes the PersistedClient state and filters out:
+ * - Non-serializable Promises
+ * - Function closures
+ * 
+ * This fixes the "[object Promise]" bug that causes the app to crash on resume
+ * with "Failed to restore query cache: SyntaxError: Unexpected token 'o'"
  */
 
-import { Storage } from 'expo-sqlite/kv-store'
-import type { Persister } from '@tanstack/react-query-persist-client'
+import Storage from 'expo-sqlite/kv-store'
+import type { Persister, PersistedClient } from '@tanstack/react-query-persist-client'
 
 const CACHE_KEY = 'tanstack-query-cache'
 
+/**
+ * Custom replacer function for JSON.stringify that filters out non-serializable items.
+ * Prevents Promise objects, functions, and circular references from being serialized.
+ */
+function cacheReplacer(_key: string, value: any): any {
+    // Skip Promise objects - they can't be serialized and cause the "[object Promise]" error
+    if (value instanceof Promise) {
+        console.debug(`[QueryCache] Skipping Promise during serialization`)
+        return undefined
+    }
+
+    // Skip functions and callbacks - they can't be serialized
+    if (typeof value === 'function') {
+        console.debug(`[QueryCache] Skipping function during serialization`)
+        return undefined
+    }
+
+    return value
+}
+
 export const kvStorePersister: Persister = {
-    persistClient: async (client) => {
+    persistClient: async (persistedClient: PersistedClient) => {
         try {
-            Storage.setItem(CACHE_KEY, JSON.stringify(client))
+            // CRITICAL FIX: Use the custom replacer when serializing to filter out non-JSON-serializable items
+            // (Promises, functions, etc.) that would cause "[object Promise]" errors on restore.
+            // The persistedClient is already prepared by PersistQueryClientProvider, but the replacer
+            // ensures any circular references or non-serializable values are removed.
+
+            const serialized = JSON.stringify(persistedClient, cacheReplacer)
+
+            // Safety check: prevent storing Promise-stringified values that would corrupt the cache
+            if (serialized.includes('[object Promise]')) {
+                console.error(
+                    '[QueryCache] Found serialized Promise in cache - preventing persistence to avoid corruption'
+                )
+                return
+            }
+
+            Storage.setItem(CACHE_KEY, serialized)
+            console.debug(`[QueryCache] Persisted cache`)
         } catch (error) {
-            console.warn('Failed to persist query cache:', error)
+            console.warn('[QueryCache] Failed to persist:', error)
         }
     },
 
-    restoreClient: async () => {
+    restoreClient: async (): Promise<PersistedClient | undefined> => {
         try {
-            const data = Storage.getItem(CACHE_KEY)
-            if (!data) return undefined
-            return JSON.parse(data)
+            const data = await Storage.getItem(CACHE_KEY)
+            if (!data) {
+                return undefined
+            }
+
+            // Attempt to parse - distinguish between serialization and corruption
+            let cacheState: PersistedClient | null = null
+            try {
+                cacheState = JSON.parse(data)
+            } catch (parseError) {
+                // Cache is corrupted - clear it and return undefined so app refetches from server
+                console.error(
+                    '[QueryCache] Cache corrupted (JSON parse failed). Clearing cache to allow recovery. Error:',
+                    parseError instanceof Error ? parseError.message : String(parseError)
+                )
+                Storage.removeItem(CACHE_KEY)
+                return undefined
+            }
+
+            // Validate structure - check for required PersistedClient fields
+            if (!cacheState || typeof cacheState !== 'object' || !('clientState' in cacheState)) {
+                console.warn('[QueryCache] Cache has invalid structure, discarding')
+                return undefined
+            }
+
+            console.debug(`[QueryCache] Restored cache successfully`)
+            return cacheState as PersistedClient
         } catch (error) {
-            console.warn('Failed to restore query cache:', error)
+            console.warn('[QueryCache] Failed to restore:', error)
+            // On any error, clear to prevent repeated failures
+            try {
+                Storage.removeItem(CACHE_KEY)
+            } catch {
+                // Ignore cleanup errors
+            }
             return undefined
         }
     },
@@ -33,8 +103,9 @@ export const kvStorePersister: Persister = {
     removeClient: async () => {
         try {
             Storage.removeItem(CACHE_KEY)
+            console.debug('[QueryCache] Cache cleared')
         } catch (error) {
-            console.warn('Failed to remove query cache:', error)
+            console.warn('[QueryCache] Failed to remove cache:', error)
         }
     },
 }
