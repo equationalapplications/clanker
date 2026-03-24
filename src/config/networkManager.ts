@@ -21,7 +21,7 @@ export function setupNetworkManager(onReconnect?: () => void): () => void {
         const isOnline =
             state.isConnected != null &&
             state.isConnected &&
-            Boolean(state.isInternetReachable)
+            state.isInternetReachable !== false
 
         onlineManager.setOnline(isOnline)
 

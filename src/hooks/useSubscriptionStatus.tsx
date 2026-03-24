@@ -87,7 +87,9 @@ export function SubscriptionStatusProvider({
     } catch (error) {
       console.error('Error checking subscription status:', error)
       // Fail open: terms acceptance is not a security boundary, so don't block
-      // users on transient failures or offline scenarios. Keep prior state.
+      // users on transient failures or offline scenarios.
+      setNeedsTermsAcceptance(false)
+      setIsUpdate(false)
     } finally {
       setIsLoading(false)
     }

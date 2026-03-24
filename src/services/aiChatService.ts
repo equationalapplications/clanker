@@ -5,6 +5,7 @@ import {
   generateCharacterIntroduction,
   ChatContext,
 } from '~/services/vertexAIService'
+import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
 
 export interface Character {
@@ -61,10 +62,14 @@ export const sendMessageWithAIResponse = async (
     const errorId = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     try {
+      const fallbackText = onlineManager.isOnline()
+        ? "I'm having trouble responding right now. Please try again."
+        : "I couldn't respond because you appear to be offline. Please try again when you're back online."
+
       await saveAIMessage(
         character.id,
         userId,
-        "I couldn't respond because you appear to be offline. Please try again when you're back online.",
+        fallbackText,
         errorId,
         {
           user: {

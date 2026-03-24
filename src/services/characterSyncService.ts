@@ -30,7 +30,11 @@ export async function getLastSyncTime(): Promise<string | null> {
 }
 
 function setLastSyncTime(): void {
-    Storage.setItem(LAST_SYNC_KEY, new Date().toISOString())
+    try {
+        Storage.setItem(LAST_SYNC_KEY, new Date().toISOString())
+    } catch (error) {
+        console.warn('Failed to persist last sync time:', error)
+    }
 }
 
 /**
@@ -71,9 +75,16 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
 
     if (!data || data.length === 0) return
 
-    // Build a map of local updated_at timestamps so we only overwrite with newer cloud data
+    // Build a map of local updated_at timestamps keyed by both id and cloud_id
+    // so we correctly detect already-synced records even when cloud_id differs from id
     const localChars = await getAllCharactersIncludingDeleted(uid)
-    const localTimestamps = new Map(localChars.map((c) => [c.id, c.updated_at]))
+    const localTimestamps = new Map<string, number>()
+    for (const c of localChars) {
+        localTimestamps.set(c.id, c.updated_at)
+        if (c.cloud_id && c.cloud_id !== c.id) {
+            localTimestamps.set(c.cloud_id, c.updated_at)
+        }
+    }
 
     const cloudChars: LocalCharacter[] = data
         .map((cloudChar) => ({

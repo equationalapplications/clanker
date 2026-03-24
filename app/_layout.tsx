@@ -23,21 +23,22 @@ import { useInitializeApp } from '~/hooks/useInitializeApp'
 // This component handles the core authentication logic using Stack.Protected
 function RootLayoutNav() {
   useInitializeApp()
-  const { user } = useAuth()
+  const { user, isLoading } = useAuth()
   const prevUserRef = useRef<typeof user>(null)
 
   // Sync pending local changes to cloud on app startup after auth resolves.
   // The reconnect callback in RootLayout only fires on offline→online transitions,
   // so this covers the case where the user made offline edits, closed the app,
   // and reopened while already online.
+  // Gate on !isLoading so that Supabase session (setSession) is ready before sync.
   useEffect(() => {
-    if (user && !prevUserRef.current && onlineManager.isOnline()) {
+    if (user && !isLoading && !prevUserRef.current && onlineManager.isOnline()) {
       import('~/services/characterSyncService')
         .then(({ syncAllToCloud }) => syncAllToCloud())
         .catch((err) => console.warn('Startup sync failed:', err))
     }
     prevUserRef.current = user
-  }, [user])
+  }, [user, isLoading])
 
   return (
     <Stack>
