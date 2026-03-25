@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { IMessage } from 'react-native-gifted-chat'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { sendMessageWithAIResponse, Character } from '~/services/aiChatService'
-import { useChatMessages , messageKeys } from '~/hooks/useMessages'
+import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 
 interface UseAIChatProps {
   characterId: string
