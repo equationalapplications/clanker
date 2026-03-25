@@ -16,7 +16,7 @@ const CACHE_KEY = 'tanstack-query-cache'
 
 /**
  * Custom replacer function for JSON.stringify that filters out non-serializable items.
- * Prevents Promise objects, functions, and circular references from being serialized.
+ * Prevents Promise objects and functions from being serialized.
  */
 function cacheReplacer(_key: string, value: any): any {
     // Skip Promise objects - they can't be serialized and cause the "[object Promise]" error

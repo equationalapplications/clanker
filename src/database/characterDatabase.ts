@@ -199,8 +199,8 @@ export async function deleteCharacter(characterId: string, userId: string) {
     const now = Date.now()
 
     await db.runAsync(
-        'UPDATE characters SET deleted_at = ?, synced_to_cloud = 0 WHERE id = ? AND user_id = ?',
-        [now, characterId, userId],
+        'UPDATE characters SET deleted_at = ?, updated_at = ?, synced_to_cloud = 0 WHERE id = ? AND user_id = ?',
+        [now, now, characterId, userId],
     )
 }
 

@@ -37,12 +37,11 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
         )
 
         if (!result) {
-            // Fresh install — tables were just created with all columns.
-            // Bootstrap the version row directly; no migrations needed.
-            await database.runAsync(
-                'INSERT INTO schema_version (version, updated_at) VALUES (?, ?)',
-                [SCHEMA_VERSION, Date.now()],
-            )
+            // No recorded schema version. This could be a true fresh install or an
+            // existing DB that predates schema_version / lost its version row.
+            // Treat it as version 0 and run full migrations to ensure all columns
+            // (including newly added ones) are present before marking up to date.
+            await runMigrations(database, 0)
         } else if (result.version < SCHEMA_VERSION) {
             // Existing DB that needs upgrading
             await runMigrations(database, result.version)
