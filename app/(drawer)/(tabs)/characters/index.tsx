@@ -32,7 +32,7 @@ export default function CharactersListScreen() {
                 is_public: false,
             })
         }
-    }, [isLoading, user, characters, createCharacterMutation.isPending])
+    }, [isLoading, user, characters, createCharacterMutation, createCharacterMutation.isPending])
 
     const handleCreateCharacter = () => {
         createCharacterMutation.mutate(

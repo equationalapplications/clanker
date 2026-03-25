@@ -1,5 +1,3 @@
-import Constants from 'expo-constants'
-
 type MaybeString = string | null | undefined
 
 const sanitize = (value: MaybeString) => {

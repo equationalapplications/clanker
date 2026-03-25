@@ -2,7 +2,7 @@
 import 'expo-dev-client'
 import { StatusBar } from 'expo-status-bar'
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context'
-import { useColorScheme, View, StyleSheet, Platform } from 'react-native'
+import { useColorScheme, View, StyleSheet } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native'
