@@ -77,7 +77,6 @@ export const sendMessageWithAIResponse = async (
             name: character.name,
             avatar: character.appearance || undefined,
           },
-          error: true,
         },
       )
     } catch (fallbackError) {

@@ -21,13 +21,13 @@ const CACHE_KEY = 'tanstack-query-cache'
 function cacheReplacer(_key: string, value: any): any {
     // Skip Promise objects - they can't be serialized and cause the "[object Promise]" error
     if (value instanceof Promise) {
-        console.debug(`[QueryCache] Skipping Promise during serialization`)
+        if (__DEV__) console.debug(`[QueryCache] Skipping Promise during serialization`)
         return undefined
     }
 
     // Skip functions and callbacks - they can't be serialized
     if (typeof value === 'function') {
-        console.debug(`[QueryCache] Skipping function during serialization`)
+        if (__DEV__) console.debug(`[QueryCache] Skipping function during serialization`)
         return undefined
     }
 
@@ -53,7 +53,7 @@ export const kvStorePersister: Persister = {
             }
 
             await Storage.setItem(CACHE_KEY, serialized)
-            console.debug(`[QueryCache] Persisted cache`)
+            if (__DEV__) console.debug(`[QueryCache] Persisted cache`)
         } catch (error) {
             console.warn('[QueryCache] Failed to persist:', error)
         }
@@ -87,7 +87,7 @@ export const kvStorePersister: Persister = {
                 return undefined
             }
 
-            console.debug(`[QueryCache] Restored cache successfully`)
+            if (__DEV__) console.debug(`[QueryCache] Restored cache successfully`)
             return cacheState as PersistedClient
         } catch (error) {
             console.warn('[QueryCache] Failed to restore:', error)
