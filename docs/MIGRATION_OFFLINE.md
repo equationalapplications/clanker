@@ -34,10 +34,10 @@ Messages are **never synced to cloud** (privacy by design).
 
 ### App restart while offline
 
-1. `PersistQueryClientProvider` restores the previous cache from kv-store synchronously
-2. All queries that were previously fetched show their cached data immediately
-3. Network-dependent queries (`networkMode: 'online'`) are paused — stale cache is shown
-4. Characters and messages (`networkMode: 'offlineFirst'`) re-read from SQLite immediately
+1. `PersistQueryClientProvider` starts restoring the previous cache from kv-store via the async persister
+2. After hydration completes, queries that were previously fetched can show their cached data without making a network request
+3. Network-dependent queries (`networkMode: 'online'`) are paused during offline usage — stale cache is shown if available
+4. Characters and messages (`networkMode: 'offlineFirst'`) re-read from SQLite as soon as their hooks run, so they become available shortly after mount even if hydration is still in progress
 
 ### Characters
 

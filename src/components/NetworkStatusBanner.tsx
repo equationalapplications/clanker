@@ -20,7 +20,7 @@ export function NetworkStatusBanner() {
 
     return (
         <View style={styles.banner}>
-            <Text style={styles.text}>You're offline</Text>
+            <Text style={styles.text}>You&apos;re offline</Text>
         </View>
     )
 }

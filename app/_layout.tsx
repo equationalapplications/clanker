@@ -2,7 +2,7 @@
 import 'expo-dev-client'
 import { StatusBar } from 'expo-status-bar'
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context'
-import { useColorScheme, View, StyleSheet, Platform } from 'react-native'
+import { useColorScheme, View, StyleSheet } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native'
@@ -35,16 +35,20 @@ function RootLayoutNav() {
     if (user && !isLoading && !prevUserRef.current) {
       // Use NetInfo.fetch() for the real initial state — onlineManager defaults to
       // online until the NetInfo bridge fires, which can cause false-positive syncs.
-      NetInfo.fetch().then((state) => {
-        const isOnline = state.isConnected != null &&
-          state.isConnected &&
-          state.isInternetReachable !== false
-        if (isOnline) {
-          import('~/services/characterSyncService')
-            .then(({ syncAllToCloud }) => syncAllToCloud())
-            .catch((err) => console.warn('Startup sync failed:', err))
-        }
-      })
+      NetInfo.fetch()
+        .then((state) => {
+          const isOnline = state.isConnected != null &&
+            state.isConnected &&
+            state.isInternetReachable !== false
+          if (isOnline) {
+            import('~/services/characterSyncService')
+              .then(({ syncAllToCloud }) => syncAllToCloud())
+              .catch((err) => console.warn('Startup sync failed:', err))
+          }
+        })
+        .catch((err) => {
+          console.warn('Startup NetInfo.fetch failed, skipping initial sync:', err)
+        })
     }
     prevUserRef.current = user
   }, [user, isLoading])

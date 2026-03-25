@@ -215,7 +215,10 @@ export async function hardDeleteCharacterLocal(characterId: string, userId: stri
         characterId,
         userId,
     ])
-    await db.runAsync('DELETE FROM messages WHERE character_id = ?', [characterId])
+    await db.runAsync(
+        'DELETE FROM messages WHERE character_id = ? AND (sender_user_id = ? OR recipient_user_id = ?)',
+        [characterId, userId, userId],
+    )
 }
 
 /**
