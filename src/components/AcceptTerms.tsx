@@ -10,7 +10,6 @@ import { useAuth } from '~/auth/useAuth'
 import { grantAppAccess } from '~/utilities/appAccess'
 import { APP_NAME } from '~/config/constants'
 import { TERMS } from '~/config/termsConfig'
-//import { authManager } from "~/utilities/authManager"
 
 interface AcceptTermsProps {
   onAccepted?: () => void
@@ -50,7 +49,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       Alert.alert(
         'Error',
         'Failed to record your acceptance. Please check your connection and try again.\n\n' +
-          error.message,
+        error.message,
       )
     }
   }

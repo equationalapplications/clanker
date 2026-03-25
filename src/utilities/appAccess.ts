@@ -2,11 +2,10 @@ import { supabaseClient } from '../config/supabaseClient'
 import { APP_NAME } from '../config/constants'
 
 /**
- * Grant app access to a user by creating a free tier subscription with terms acceptance
+ * Grant app access to a user by creating a free tier subscription with terms acceptance.
  * This will:
  * 1. Create a free subscription in user_app_subscriptions table
  * 2. Record terms acceptance date and version
- * 3. Trigger JWT refresh with new custom claims (plans array)
  */
 export async function grantAppAccess(
   appName: string = APP_NAME,
@@ -71,9 +70,8 @@ export async function grantAppAccess(
   }
 }
 
-// DEPRECATED: checkAppAccess and checkTermsAcceptance (JWT-based) removed.
-// Terms acceptance is now checked via direct DB query in useSubscriptionStatus hook.
-// For DB-based terms checking, see checkTermsAcceptance in ~/services/userService.ts.
+// Terms acceptance is checked via direct DB query in the useSubscriptionStatus hook.
+// Use grantAppAccess() above to record acceptance.
 
 /**
  * Get user's subscription data from the database

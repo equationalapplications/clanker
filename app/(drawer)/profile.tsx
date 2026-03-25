@@ -8,16 +8,15 @@ import ConfirmationModal from '~/components/ConfirmationModal'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { defaultAvatarUrl } from '~/config/constants'
 import { useAuth } from '~/auth/useAuth'
-import { useUserPublic } from '~/hooks/useUserPublic'
-import { useUserPrivate } from '~/hooks/useUserPrivate'
+import { useUserPublicData, useUserPrivateData } from '~/hooks/useUser'
 import { useIsPremium } from '~/hooks/useIsPremium'
 import { deleteUser } from '~/utilities/deleteUser'
 
 export default function Profile() {
   const { colors } = useTheme()
   const { user, signOut } = useAuth()
-  const userPublic = useUserPublic()
-  const userPrivate = useUserPrivate()
+  const { userPublic } = useUserPublicData()
+  const { userPrivate } = useUserPrivateData()
   const isPremium = useIsPremium()
 
   const displayName = userPublic?.name || user?.email || 'User'

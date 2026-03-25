@@ -39,6 +39,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true)
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const refreshSessionRef = useRef<(() => Promise<void>) | undefined>(undefined)
+  // Tracks whether Firebase has EVER provided a non-null user in this session.
+  // On web, onAuthStateChanged fires null before restoring the persisted user,
+  // so we must not destroy the Supabase session on that initial null.
+  const hasHadUser = useRef(!!getCurrentUser())
 
   // Avoid stale state in onAuthStateChanged
   const userRef = useRef(user)
@@ -103,6 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       )
 
       if (firebaseUser) {
+        hasHadUser.current = true
         try {
           // check if the user is the same as before
           if (userRef.current && firebaseUser.uid === userRef.current.uid) {
@@ -143,21 +148,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.error('❌ Error during Supabase authentication:', error)
           setUser(null)
           setIsLoading(false)
-          await supabaseClient.auth.signOut()
+          await supabaseClient.auth.signOut({ scope: 'local' })
           authManager.reset()
           Alert.alert('Authentication failed. Please try again.')
         }
       } else {
-        // No Firebase user - clear everything
-        console.log('🚪 No Firebase user, signing out of Supabase')
         setUser(null)
         setIsLoading(false)
-        await supabaseClient.auth.signOut()
-        authManager.reset()
-        // Clear refresh timer
-        if (refreshTimerRef.current) {
-          clearTimeout(refreshTimerRef.current)
-          refreshTimerRef.current = null
+        if (hasHadUser.current) {
+          // Real sign-out: Firebase user was present, then became null
+          console.log('🚪 Firebase user signed out, clearing Supabase session')
+          await supabaseClient.auth.signOut({ scope: 'local' })
+          authManager.reset()
+          // Clear refresh timer
+          if (refreshTimerRef.current) {
+            clearTimeout(refreshTimerRef.current)
+            refreshTimerRef.current = null
+          }
+        } else {
+          // Initial null on web: Firebase hasn't yet restored the persisted user.
+          // Do NOT destroy the Supabase session — it may be valid and will be
+          // confirmed when Firebase fires the next event with the real user.
+          console.log('ℹ️ Firebase initial null (likely web page load), preserving Supabase session')
         }
       }
     })

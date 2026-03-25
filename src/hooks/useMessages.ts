@@ -36,6 +36,7 @@ export function useMessages(characterId: string | undefined, recipientUserId: st
     enabled: !!characterId && !!user,
     staleTime: 1000 * 30, // 30 seconds - messages change frequently
     refetchInterval: 5000, // Refetch every 5 seconds for AI responses
+    networkMode: 'offlineFirst', // Messages are in local SQLite - always available
   })
 
   return {

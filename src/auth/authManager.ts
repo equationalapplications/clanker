@@ -1,67 +1,37 @@
 import { getSupabaseUserSession } from './getSupabaseUserSession'
 
-// Singleton authentication manager to prevent multiple auth attempts
-class AuthenticationManager {
-  private static instance: AuthenticationManager
-  private authInProgress = false
-  private authCompleted = false
+type SupabaseSession = Awaited<ReturnType<typeof getSupabaseUserSession>>
 
-  static getInstance(): AuthenticationManager {
-    if (!AuthenticationManager.instance) {
-      AuthenticationManager.instance = new AuthenticationManager()
+// Promise-deduplication wrapper: if an exchangeToken call is already in flight,
+// subsequent callers receive the same promise instead of starting a second request.
+let authInFlight: Promise<SupabaseSession> | null = null
+
+export const authManager = {
+  async authenticateSupabase(): Promise<SupabaseSession> {
+    if (authInFlight) {
+      console.log('🔐 AUTH: Deduplicating concurrent auth call, reusing in-flight promise')
+      return authInFlight
     }
-    return AuthenticationManager.instance
-  }
 
-  async authenticateSupabase() {
-    this.authInProgress = true
-    console.log('🔐 SINGLETON: Starting Supabase authentication/re-authentication')
-
-    try {
-      console.log('🔐 SINGLETON: Calling getSupabaseUserSession...')
-      const session = await getSupabaseUserSession()
-      console.log('🔐 SINGLETON: Received Supabase session:', session)
-      if (session) {
-        console.log('✅ SINGLETON: Successfully authenticated with Supabase')
-        this.authCompleted = true
+    console.log('🔐 AUTH: Starting Supabase authentication')
+    authInFlight = getSupabaseUserSession()
+      .then((session) => {
+        console.log('✅ AUTH: Successfully authenticated with Supabase')
         return session
-      }
-
-      console.log('❌ SINGLETON: No user session returned from Supabase auth')
-      this.authCompleted = false
-      throw new Error('No user returned from Supabase auth')
-    } catch (err: any) {
-      console.error('❌ SINGLETON: Error details:', {
-        message: err?.message,
-        stack: err?.stack,
-        name: err?.name,
       })
-      this.authCompleted = false
-      throw err
-    } finally {
-      this.authInProgress = false
-    }
-  }
+      .catch((err: any) => {
+        console.error('❌ AUTH: Error details:', { message: err?.message, name: err?.name })
+        throw err
+      })
+      .finally(() => {
+        authInFlight = null
+      })
 
-  // Force re-authentication (for email mismatches or expired tokens)
-  async forceReAuthenticate() {
-    console.log('🔄 SINGLETON: Forcing re-authentication')
-    this.reset()
-    return await this.authenticateSupabase()
-  }
+    return authInFlight
+  },
 
   reset() {
-    this.authInProgress = false
-    this.authCompleted = false
-    console.log('🔄 SINGLETON: Authentication state reset')
-  }
-
-  getStatus() {
-    return {
-      inProgress: this.authInProgress,
-      completed: this.authCompleted,
-    }
-  }
+    authInFlight = null
+    console.log('🔄 AUTH: Authentication state reset')
+  },
 }
-
-export const authManager = AuthenticationManager.getInstance()

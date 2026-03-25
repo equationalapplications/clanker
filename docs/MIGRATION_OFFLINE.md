@@ -1,406 +1,134 @@
-# Migration Guide: Adding Offline Support
+# Offline Support Architecture
 
-This guide helps you migrate existing code to use the new React Query hooks with offline support.
+This document describes the offline-first architecture implemented in the app. All deprecated hooks referenced here have already been removed — this file records the design decisions and how the system works.
 
-## Quick Reference
+## Architecture Overview
 
-| Old Hook             | New Hook               | Location                |
-| -------------------- | ---------------------- | ----------------------- |
-| `useCharacterList()` | `useCharacters()`      | `~/hooks/useCharacters` |
-| `useCharacter()`     | `useCharacter()`       | `~/hooks/useCharacters` |
-| `useChatMessages()`  | `useMessages()`        | `~/hooks/useMessages`   |
-| `useUserPublic()`    | `useUserPublicData()`  | `~/hooks/useUser`       |
-| `useUserPrivate()`   | `useUserPrivateData()` | `~/hooks/useUser`       |
+| Layer | Technology | Role |
+|---|---|---|
+| Local DB | expo-sqlite (SQLite) | Source of truth for characters + messages |
+| Query cache | TanStack Query v5 | In-memory cache with offlineFirst for local queries |
+| Cache persistence | expo-sqlite/kv-store | Survives app restarts — queries served offline immediately |
+| Network detection | @react-native-community/netinfo | Drives `onlineManager`, triggers reconnect sync |
+| Cloud backup | Supabase `clanker_characters` | Backup/restore for characters only |
 
-## Migration Patterns
+Messages are **never synced to cloud** (privacy by design).
 
-### Pattern 1: Character List
+## Key Files
 
-**Before:**
+| File | Purpose |
+|---|---|
+| `src/config/networkManager.ts` | Bridges NetInfo → `onlineManager`; calls optional reconnect callback |
+| `src/config/queryPersister.ts` | `Persister` impl using `expo-sqlite/kv-store`; key `tanstack-query-cache` |
+| `src/config/queryClient.ts` | `gcTime: 24h` (matches persister `maxAge`); queries default `online`, mutations `offlineFirst` |
+| `app/_layout.tsx` | Wraps app in `PersistQueryClientProvider`; sets up network manager + reconnect sync |
+| `src/hooks/useCharacters.ts` | `networkMode: offlineFirst` — reads from SQLite, always works offline |
+| `src/hooks/useMessages.ts` | `networkMode: offlineFirst` — reads from SQLite, always works offline |
+| `src/services/characterService.ts` | Canonical character CRUD; talks to SQLite via `characterDatabase.ts` |
+| `src/services/characterSyncService.ts` | `syncAllToCloud()` / `restoreFromCloud()`; called on reconnect + explicitly |
+| `src/database/schema.ts` | Schema v2: adds `deleted_at INTEGER` to characters table |
+| `src/database/characterDatabase.ts` | Soft-delete (`deleteCharacter` sets `deleted_at`); `hardDeleteCharacterLocal` runs post-sync |
+| `src/components/NetworkStatusBanner.tsx` | Renders an offline indicator bar; subscribes to `onlineManager` |
+
+## How offline works
+
+### App restart while offline
+
+1. `PersistQueryClientProvider` starts restoring the previous cache from kv-store via the async persister
+2. After hydration completes, queries that were previously fetched can show their cached data without making a network request
+3. Network-dependent queries (`networkMode: 'online'`) are paused during offline usage — stale cache is shown if available
+4. Characters and messages (`networkMode: 'offlineFirst'`) re-read from SQLite as soon as their hooks run, so they become available shortly after mount even if hydration is still in progress
+
+### Characters
+
+- `getUserCharacters` reads from SQLite, filtered to exclude soft-deleted rows
+- Creating, updating characters works fully offline — optimistic UI updates immediately
+- Changes are stored in SQLite with `synced_to_cloud = 0`
+- On reconnect → `syncAllToCloud()` is called automatically
+
+### Messages
+
+- All messages live in local SQLite only, forever
+- `networkMode: 'offlineFirst'` means chat history is always available
+- Sending a message while offline: user message saved to SQLite; AI generation attempted immediately — if offline, a placeholder reply is saved and the user can retry when back online
+
+> **Future: Offline AI Queueing** — A future iteration may queue failed AI requests and retry them automatically on reconnect. Currently, AI generation requires network connectivity.
+
+### User profile / credits
+
+- These are Supabase cloud queries (`networkMode: 'online'`)
+- When offline, the persisted cache from the last successful fetch is shown
+- No offline writes supported for profile (only online)
+
+## Character cloud sync
+
+### What gets synced
+
+Only characters, not messages. Sync direction: **local → cloud** (local is source of truth).
+
+### Conflict resolution
+
+**Last-write-wins** by `updated_at`. Since characters are per-user and stored locally, conflicts are rare.
+
+### Sync triggers
+
+1. **App startup**: `RootLayoutNav` triggers `syncAllToCloud()` when auth resolves and the device is online — catches edits made offline in a previous session
+2. **Reconnect**: `setupNetworkManager` in `_layout.tsx` calls `syncAllToCloud()` on offline→online transition during an active session
+3. **Explicit**: Call `syncAllToCloud()` / `restoreFromCloud()` from `characterSyncService.ts` directly
+
+### Deletion flow
+
+1. User deletes a character → `deleteCharacter()` sets `deleted_at = now(), synced_to_cloud = 0`
+2. Character disappears from UI immediately (filtered out of `getUserCharacters`)
+3. On next sync, `syncDeletionsToCloud` deletes from Supabase
+4. After cloud confirms deletion, `hardDeleteCharacterLocal` removes from SQLite (+ messages)
+
+### Restore from cloud (new device)
 
 ```typescript
-import { useCharacterList } from '~/hooks/useCharacterList'
+import { restoreFromCloud } from '~/services/characterSyncService'
 
-function CharactersList() {
-  const characters = useCharacterList()
+// In a settings screen or onboarding flow:
+await restoreFromCloud()
+```
 
-  if (!characters.length) return <Text>No characters</Text>
+All characters from Supabase are imported into local SQLite. Only cloud records with a newer `updated_at` than existing local records are written; local-only or locally-newer characters are preserved.
 
+## NetworkStatusBanner
+
+Add it anywhere in the tree to show an offline indicator:
+
+```tsx
+import { NetworkStatusBanner } from '~/components/NetworkStatusBanner'
+
+function AppShell() {
   return (
     <>
-      {characters.map((char) => (
-        <CharacterCard key={char.id} character={char} />
-      ))}
+      <NetworkStatusBanner />
+      {/* rest of app */}
     </>
   )
 }
 ```
 
-**After (Recommended):**
-
-```typescript
-import { useCharacters } from '~/hooks/useCharacters'
-
-function CharactersList() {
-  const { characters, isLoading, error, refetch } = useCharacters()
-
-  if (isLoading) return <LoadingIndicator />
-  if (error) return <ErrorView error={error} onRetry={refetch} />
-  if (!characters.length) return <EmptyState />
-
-  return (
-    <>
-      {characters.map((char) => (
-        <CharacterCard key={char.id} character={char} />
-      ))}
-    </>
-  )
-}
-```
-
-**Benefits:**
-
-- Loading states for better UX
-- Error handling with retry
-- Automatic caching
-- Offline support
-
-### Pattern 2: Character Detail
-
-**Before:**
-
-```typescript
-import { useCharacter } from '~/hooks/useCharacter'
-
-function CharacterDetail({ id }: { id: string }) {
-  const character = useCharacter({ id })
-
-  if (!character) return <Text>Loading...</Text>
-
-  return <CharacterView character={character} />
-}
-```
-
-**After (Recommended):**
-
-```typescript
-import { useCharacter } from '~/hooks/useCharacters'
-
-function CharacterDetail({ id }: { id: string }) {
-  const { character, isLoading, error } = useCharacter(id)
-
-  if (isLoading) return <LoadingIndicator />
-  if (error) return <ErrorView error={error} />
-  if (!character) return <Text>Character not found</Text>
-
-  return <CharacterView character={character} />
-}
-```
-
-### Pattern 3: Creating Characters
-
-**Before:**
-
-```typescript
-import { createCharacter } from '~/services/characterService'
-
-async function handleCreate() {
-  setLoading(true)
-  try {
-    const newChar = await createCharacter({
-      name: 'New Character',
-      appearance: '...',
-      // ...
-    })
-    // Manually trigger refetch or update state
-    setLoading(false)
-  } catch (error) {
-    setError(error)
-    setLoading(false)
-  }
-}
-```
-
-**After (Recommended):**
-
-```typescript
-import { useCreateCharacter } from '~/hooks/useCharacters'
-
-function CreateCharacterButton() {
-  const createCharacter = useCreateCharacter()
-
-  async function handleCreate() {
-    await createCharacter.mutateAsync({
-      name: 'New Character',
-      appearance: '...',
-      // ...
-    })
-    // No need to manually update - optimistic update + cache invalidation
-  }
-
-  return (
-    <Button
-      onPress={handleCreate}
-      disabled={createCharacter.isPending}
-    >
-      {createCharacter.isPending ? 'Creating...' : 'Create Character'}
-    </Button>
-  )
-}
-```
-
-**Benefits:**
-
-- Optimistic update (appears immediately)
-- Automatic cache update
-- Error rollback
-- Loading state built-in
-
-### Pattern 4: Updating Characters
-
-**Before:**
-
-```typescript
-import { updateCharacter } from '~/services/characterService'
-
-async function handleUpdate(id: string, updates: any) {
-  setLoading(true)
-  try {
-    await updateCharacter(id, updates)
-    // Manually refetch
-    setLoading(false)
-  } catch (error) {
-    setError(error)
-    setLoading(false)
-  }
-}
-```
-
-**After (Recommended):**
-
-```typescript
-import { useUpdateCharacter } from '~/hooks/useCharacters'
-
-function EditCharacterForm({ characterId }: { characterId: string }) {
-  const updateCharacter = useUpdateCharacter()
-
-  async function handleUpdate(updates: any) {
-    await updateCharacter.mutateAsync({ id: characterId, updates })
-    // Cache updated automatically with optimistic update
-  }
-
-  return (
-    <Form onSubmit={handleUpdate} disabled={updateCharacter.isPending} />
-  )
-}
-```
-
-### Pattern 5: Sending Messages
-
-**Before:**
-
-```typescript
-import { sendMessage } from '~/services/messageService'
-
-async function handleSend(message: IMessage) {
-  try {
-    await sendMessage(characterId, recipientUserId, message)
-    // Manually update messages list
-  } catch (error) {
-    console.error(error)
-  }
-}
-```
-
-**After (Recommended):**
-
-```typescript
-import { useSendMessage } from '~/hooks/useMessages'
-
-function ChatScreen({ characterId, recipientUserId }) {
-  const sendMessage = useSendMessage(characterId, recipientUserId)
-
-  async function handleSend(messages: IMessage[]) {
-    const message = messages[0]
-    await sendMessage.mutateAsync(message)
-    // Message appears immediately with pending indicator
-    // When online, syncs to server and removes indicator
-  }
-
-  return (
-    <GiftedChat
-      onSend={handleSend}
-      // ... other props
-    />
-  )
-}
-```
-
-### Pattern 6: User Profile Updates
-
-**Before:**
-
-```typescript
-import { upsertUserProfile } from '~/services/userService'
-
-async function handleSave(updates: any) {
-  setLoading(true)
-  try {
-    await upsertUserProfile(updates)
-    // Manually refetch profile
-  } catch (error) {
-    setError(error)
-  } finally {
-    setLoading(false)
-  }
-}
-```
-
-**After (Recommended):**
-
-```typescript
-import { useUpdateProfile } from '~/hooks/useUser'
-
-function ProfileEditor() {
-  const updateProfile = useUpdateProfile()
-
-  async function handleSave(updates: any) {
-    await updateProfile.mutateAsync(updates)
-    // Profile updated with optimistic update
-    // No need to refetch
-  }
-
-  if (updateProfile.isError) {
-    return <ErrorBanner error={updateProfile.error} />
-  }
-
-  return (
-    <Form
-      onSubmit={handleSave}
-      disabled={updateProfile.isPending}
-    />
-  )
-}
-```
-
-## Common Migration Scenarios
-
-### Scenario 1: Loading States
-
-**Before:**
-
-```typescript
-const [isLoading, setIsLoading] = useState(false)
-const [data, setData] = useState(null)
-
-useEffect(() => {
-  setIsLoading(true)
-  fetchData().then(setData).finally(() => setIsLoading(false))
-}, [])
-
-if (isLoading) return <Loading />
-```
-
-**After:**
-
-```typescript
-const { data, isLoading } = useQuery({ ... })
-
-if (isLoading) return <Loading />
-```
-
-### Scenario 2: Error Handling
-
-**Before:**
-
-```typescript
-const [error, setError] = useState(null)
-
-try {
-  await mutateData()
-} catch (err) {
-  setError(err)
-}
-
-if (error) return <ErrorView error={error} />
-```
-
-**After:**
-
-```typescript
-const mutation = useMutation({ ... })
-
-if (mutation.isError) {
-  return <ErrorView error={mutation.error} onRetry={mutation.reset} />
-}
-```
-
-### Scenario 3: Refetching
-
-**Before:**
-
-```typescript
-const [refreshing, setRefreshing] = useState(false)
-
-async function onRefresh() {
-  setRefreshing(true)
-  await fetchData()
-  setRefreshing(false)
-}
-
-<FlatList
-  data={data}
-  onRefresh={onRefresh}
-  refreshing={refreshing}
-/>
-```
-
-**After:**
-
-```typescript
-const { data, refetch, isRefetching } = useQuery({ ... })
-
-<FlatList
-  data={data}
-  onRefresh={refetch}
-  refreshing={isRefetching}
-/>
-```
-
-## Breaking Changes
-
-### None!
-
-All legacy hooks still work. They internally delegate to new React Query hooks.
-
-**Migration is opt-in:**
-
-- Old code continues working
-- New code can use new hooks
-- Migrate gradually as needed
-
-## Performance Improvements
-
-After migration, you should see:
-
-- **Reduced re-renders**: React Query batches updates
-- **Fewer network requests**: Aggressive caching
-- **Faster navigation**: Data cached from previous screens
-- **Better offline UX**: Serve stale data when offline
-- **Instant mutations**: Optimistic updates
-
-## Testing Your Migration
-
-### Test Checklist
-
-- [ ] **Online mode**: Data loads and updates correctly
-- [ ] **Offline mode**: Cached data visible, mutations queued
-- [ ] **Reconnect**: Queued mutations sent, cache refreshed
-- [ ] **Optimistic updates**: Changes appear immediately
-- [ ] **Error handling**: Errors shown, rollback works
-- [ ] **Real-time sync**: Changes from other devices appear
-- [ ] **Loading states**: Spinners show during first load
-- [ ] **Refetching**: Pull-to-refresh works
+Renders nothing when online. Shows a slim dark bar with "You're offline" when the device loses connectivity.
+
+## Hook reference
+
+| Hook | Source | Network mode | Notes |
+|---|---|---|---|
+| `useCharacters()` | SQLite | offlineFirst | Full CRUD + optimistic updates |
+| `useCharacter(id)` | SQLite | offlineFirst | Seeded from list cache |
+| `useMessages(charId, userId)` | SQLite | offlineFirst | Polls every 5s for AI responses |
+| `useUserPublicData()` | Supabase | online | Persisted cache shown offline |
+| `useUserPrivateData()` | Supabase | online | Real-time credits subscription |
+| `useUserProfile()` | Supabase | online | Real-time profile subscription |
+
+## Validation Checklist
+
+- [ ] Real-time sync: character changes from other devices appear after restore/sync flows
+- [ ] Loading states: first-load spinners still appear where expected
+- [ ] Refetching: pull-to-refresh still works on online-backed screens
 
 ### Debug Tips
 
@@ -410,10 +138,10 @@ After migration, you should see:
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 
 // In app/_layout.tsx
-<QueryClientProvider client={queryClient}>
+<PersistQueryClientProvider client={queryClient} persistOptions={{ persister: kvStorePersister }}>
   {children}
   {__DEV__ && <ReactQueryDevtools initialIsOpen={false} />}
-</QueryClientProvider>
+</PersistQueryClientProvider>
 ```
 
 **Log cache operations:**
@@ -434,17 +162,17 @@ console.log('⏳ Mutation pending:', isPending)
 
 If issues occur, rollback is easy:
 
-1. **Revert queryClient config** to basic version
-2. **Keep legacy hooks** unchanged
-3. **Remove new hook imports** from migrated components
+1. Revert the persisted query client setup in [app/_layout.tsx](app/_layout.tsx)
+2. Revert the network manager bridge in [src/config/networkManager.ts](src/config/networkManager.ts)
+3. Revert schema version 2 and the deleted_at migration only with a deliberate database reset or a forward migration
 
-No database changes needed - everything is client-side.
+This architecture includes a SQLite schema change for characters, so rollback is not purely client-side once version 2 has shipped.
 
 ## Getting Help
 
 If you encounter issues:
 
-1. Check `docs/OFFLINE_SUPPORT.md` for patterns
+1. Check this document and the linked files above for the current implementation
 2. Review React Query [error handling guide](https://tanstack.com/query/latest/docs/react/guides/mutations#mutation-side-effects)
 3. Enable dev tools to inspect cache state
 4. Check console for cache invalidation logs
@@ -458,5 +186,3 @@ After basic migration:
 3. **Implement pagination**: Use `useInfiniteQuery` for long lists
 4. **Add background sync**: Sync data when app is in background
 5. **Optimize stale times**: Tune based on real usage patterns
-
-See `docs/OFFLINE_SUPPORT.md` for advanced patterns.
