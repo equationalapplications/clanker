@@ -1,43 +1,40 @@
-# [16.0.0](https://github.com/equationalapplications/clanker/compare/v15.0.0...v16.0.0) (2026-03-22)
+# [17.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v16.0.0...v17.0.0-staging.1) (2026-03-25)
 
 
-* Dev ([#167](https://github.com/equationalapplications/clanker/issues/167)) ([bd343c7](https://github.com/equationalapplications/clanker/commit/bd343c78cab9b070cf797e96734b26019b2f921a)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+* Dev ([#169](https://github.com/equationalapplications/clanker/issues/169)) ([8f81316](https://github.com/equationalapplications/clanker/commit/8f81316108b45e1feaae3ef72a5015a7f9084a81)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+* feat!: upgrade to Expo SDK 55 with updated dependencies ([67047b5](https://github.com/equationalapplications/clanker/commit/67047b572f618e3997163793f507aa4f63d755e6))
 
 
 ### Bug Fixes
 
-* address Copilot PR review feedback ([337415e](https://github.com/equationalapplications/clanker/commit/337415e8f8960a1e1d8a6876710f210859037358))
-* address second round of PR review feedback ([1606929](https://github.com/equationalapplications/clanker/commit/1606929df667979a287e1b511b8ce889d8529705))
-* **auth:** correct credits query to use current_credits and yours-brightly app ([ceac290](https://github.com/equationalapplications/clanker/commit/ceac290fa61efdb3050067660103a336780a88b4))
-* **auth:** disable auto-refresh and use manual token refresh via exchangeToken ([d9131d0](https://github.com/equationalapplications/clanker/commit/d9131d08f7131ef33510a920a555853aee70be7c))
-* **auth:** ensure google sign-in initializes on all platforms ([6729459](https://github.com/equationalapplications/clanker/commit/6729459d2a13ab06c256275f4900c380e9263c85))
-* **auth:** update getSupabaseUserSession to use real Supabase session format ([be3a5e2](https://github.com/equationalapplications/clanker/commit/be3a5e26f67c590da5cba7444bc7cc60c934759e))
-* **auth:** use Firebase signInWithPopup as primary Google auth method ([d6f68de](https://github.com/equationalapplications/clanker/commit/d6f68ded74f349e947101ef6b99cec4487114dad))
-* **ci:** enable semantic-release push permissions and fix token ([341a14a](https://github.com/equationalapplications/clanker/commit/341a14a9a6c17dc29334a820cd970931982bb7fa))
-* **ci:** resolve GitHub Actions checkout authentication error ([24fa7f3](https://github.com/equationalapplications/clanker/commit/24fa7f3c6d015d4954d266a43f3dbd7ddc06f673))
-* **ci:** resolve GitHub Actions checkout authentication error ([#164](https://github.com/equationalapplications/clanker/issues/164)) ([6543a51](https://github.com/equationalapplications/clanker/commit/6543a513ad4f54e1eb8c3ea192510f6cfdd1d5e2))
-* **ci:** use consistent token for checkout and semantic-release ([8201c39](https://github.com/equationalapplications/clanker/commit/8201c39004fd41818af3d2a474f417e8f95f7930)), closes [#165](https://github.com/equationalapplications/clanker/issues/165)
-* **ci:** use GH_PAT to bypass branch protection in workflows ([9c45eef](https://github.com/equationalapplications/clanker/commit/9c45eefab608edfbfa1cf8f84776a716cfb89c36))
-* **ci:** use github.token only, remove GH_PAT dependency ([01e8a55](https://github.com/equationalapplications/clanker/commit/01e8a55a729d2bb4b62ff73a55a44901ca35fe3c))
-* **db:** query profiles table instead of non-existent clanker table ([1fba416](https://github.com/equationalapplications/clanker/commit/1fba416ef9f31771e94be435739d4eaf2f19815e))
-* **firebase:** improve app check initialization with recaptcha key validation ([f4581f7](https://github.com/equationalapplications/clanker/commit/f4581f7897897bac4805b1dd1ebc1fde1f9c71b2))
-* **security:** guard debug token behind __DEV__ and redact token logs ([f1720c9](https://github.com/equationalapplications/clanker/commit/f1720c9bc2b1c64f856a64aa2a272edc5e948184))
-
-
-### Build System
-
-* enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
-* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
-* merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
+* address second round of PR review comments ([c8240ee](https://github.com/equationalapplications/clanker/commit/c8240ee6f7b07f647f4e371f713701a47f8d26e1))
+* **auth:** address Copilot PR review feedback ([1c3bc29](https://github.com/equationalapplications/clanker/commit/1c3bc297ba482c9f922a415b54f85376d69b41bf))
+* **auth:** eliminate Firebase race condition and simplify auth flow ([1e6bcc0](https://github.com/equationalapplications/clanker/commit/1e6bcc020994cea1f5422dddb296b0c98adf2c00))
+* **auth:** fail open on terms check error to avoid blocking users ([aafb3aa](https://github.com/equationalapplications/clanker/commit/aafb3aa2837a51946777761f39c66ba2758f4385))
+* **character-sync:** use Supabase Auth UUID for cloud operations, not Firebase UID ([6d1d6d3](https://github.com/equationalapplications/clanker/commit/6d1d6d3fd4a7609c1684fb6f6674d4a9565ed4f7))
+* **ci:** disable semantic-release success/fail issue comments ([bc6c140](https://github.com/equationalapplications/clanker/commit/bc6c140264da9d1020be0182e51681b1279b5f11))
+* **db:** address PR review - schema migration, soft-delete, deps ([579a397](https://github.com/equationalapplications/clanker/commit/579a397b9c243eed3005621eaac524fad800a2b4))
+* **offline:** address PR review issues in offline-first architecture ([5d8637e](https://github.com/equationalapplications/clanker/commit/5d8637ed4dd020e61c60c0ff2e86f59435ed0183))
+* **offline:** await Storage calls and fix startup sync connectivity check ([135246e](https://github.com/equationalapplications/clanker/commit/135246e875dbd6391f5b760753e8f9b162876104))
+* **offline:** improve local-first sync behavior ([347e241](https://github.com/equationalapplications/clanker/commit/347e24196bf67ac0d533dee2ac4b6baeb419d3e5))
+* resolve linting errors and warnings ([#172](https://github.com/equationalapplications/clanker/issues/172)) ([1881e99](https://github.com/equationalapplications/clanker/commit/1881e999b766040fbfba62d5e86617b92d156713))
+* **subscription:** bubble up DB errors and preserve full state on transient failures ([b0aa80a](https://github.com/equationalapplications/clanker/commit/b0aa80ab1aa0b2b9123fa17a0783026a0d603eb6))
+* **sync:** use default Storage import and map cloud_id to local id on restore ([0093b05](https://github.com/equationalapplications/clanker/commit/0093b05b6b41c947bc7a6c3ee19dae07119d9b91))
+* **terms:** replace JWT claims with direct DB query for terms acceptance ([35176f1](https://github.com/equationalapplications/clanker/commit/35176f16e6877aff93d17e6df6bbf0906dea3441))
 
 
 ### Features
 
-* app Check ([0d592b0](https://github.com/equationalapplications/clanker/commit/0d592b0e3555723e86472e2788cc4928776be27d))
+* **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
 
 
 ### BREAKING CHANGES
 
+* Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
+and all Expo packages to SDK 55. Updated native module versions for firebase,
+navigation, reanimated, screens, gesture-handler, keyboard-controller, webview,
+and worklets. Added expo-font and expo-image plugins to app.config.ts.
+Requires new native build.
 * Updated expo.
 * Updated expo.
 
@@ -95,36 +92,127 @@ build environments
 
 Comment out EAS update deployment steps in staging and production workflows.
 Can be re-enabled later when ready for automatic OTA deployments.
-* Firebase configuration now requires environment variables
-* Updated expo.
-* Updated expo.
 
-# [15.0.0-staging.2](https://github.com/equationalapplications/clanker/compare/v15.0.0-staging.1...v15.0.0-staging.2) (2026-03-22)
+# [16.0.0](https://github.com/equationalapplications/clanker/compare/v15.0.0...v16.0.0) (2026-03-22)
 
+- Dev ([#167](https://github.com/equationalapplications/clanker/issues/167)) ([bd343c7](https://github.com/equationalapplications/clanker/commit/bd343c78cab9b070cf797e96734b26019b2f921a)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
 
 ### Bug Fixes
 
-* address Copilot PR review feedback ([337415e](https://github.com/equationalapplications/clanker/commit/337415e8f8960a1e1d8a6876710f210859037358))
-* address second round of PR review feedback ([1606929](https://github.com/equationalapplications/clanker/commit/1606929df667979a287e1b511b8ce889d8529705))
-* **auth:** correct credits query to use current_credits and yours-brightly app ([ceac290](https://github.com/equationalapplications/clanker/commit/ceac290fa61efdb3050067660103a336780a88b4))
-* **auth:** disable auto-refresh and use manual token refresh via exchangeToken ([d9131d0](https://github.com/equationalapplications/clanker/commit/d9131d08f7131ef33510a920a555853aee70be7c))
-* **auth:** ensure google sign-in initializes on all platforms ([6729459](https://github.com/equationalapplications/clanker/commit/6729459d2a13ab06c256275f4900c380e9263c85))
-* **auth:** update getSupabaseUserSession to use real Supabase session format ([be3a5e2](https://github.com/equationalapplications/clanker/commit/be3a5e26f67c590da5cba7444bc7cc60c934759e))
-* **auth:** use Firebase signInWithPopup as primary Google auth method ([d6f68de](https://github.com/equationalapplications/clanker/commit/d6f68ded74f349e947101ef6b99cec4487114dad))
-* **ci:** enable semantic-release push permissions and fix token ([341a14a](https://github.com/equationalapplications/clanker/commit/341a14a9a6c17dc29334a820cd970931982bb7fa))
-* **ci:** resolve GitHub Actions checkout authentication error ([24fa7f3](https://github.com/equationalapplications/clanker/commit/24fa7f3c6d015d4954d266a43f3dbd7ddc06f673))
-* **ci:** resolve GitHub Actions checkout authentication error ([#164](https://github.com/equationalapplications/clanker/issues/164)) ([6543a51](https://github.com/equationalapplications/clanker/commit/6543a513ad4f54e1eb8c3ea192510f6cfdd1d5e2))
-* **ci:** use consistent token for checkout and semantic-release ([8201c39](https://github.com/equationalapplications/clanker/commit/8201c39004fd41818af3d2a474f417e8f95f7930)), closes [#165](https://github.com/equationalapplications/clanker/issues/165)
-* **ci:** use GH_PAT to bypass branch protection in workflows ([9c45eef](https://github.com/equationalapplications/clanker/commit/9c45eefab608edfbfa1cf8f84776a716cfb89c36))
-* **ci:** use github.token only, remove GH_PAT dependency ([01e8a55](https://github.com/equationalapplications/clanker/commit/01e8a55a729d2bb4b62ff73a55a44901ca35fe3c))
-* **db:** query profiles table instead of non-existent clanker table ([1fba416](https://github.com/equationalapplications/clanker/commit/1fba416ef9f31771e94be435739d4eaf2f19815e))
-* **firebase:** improve app check initialization with recaptcha key validation ([f4581f7](https://github.com/equationalapplications/clanker/commit/f4581f7897897bac4805b1dd1ebc1fde1f9c71b2))
-* **security:** guard debug token behind __DEV__ and redact token logs ([f1720c9](https://github.com/equationalapplications/clanker/commit/f1720c9bc2b1c64f856a64aa2a272edc5e948184))
+- address Copilot PR review feedback ([337415e](https://github.com/equationalapplications/clanker/commit/337415e8f8960a1e1d8a6876710f210859037358))
+- address second round of PR review feedback ([1606929](https://github.com/equationalapplications/clanker/commit/1606929df667979a287e1b511b8ce889d8529705))
+- **auth:** correct credits query to use current_credits and yours-brightly app ([ceac290](https://github.com/equationalapplications/clanker/commit/ceac290fa61efdb3050067660103a336780a88b4))
+- **auth:** disable auto-refresh and use manual token refresh via exchangeToken ([d9131d0](https://github.com/equationalapplications/clanker/commit/d9131d08f7131ef33510a920a555853aee70be7c))
+- **auth:** ensure google sign-in initializes on all platforms ([6729459](https://github.com/equationalapplications/clanker/commit/6729459d2a13ab06c256275f4900c380e9263c85))
+- **auth:** update getSupabaseUserSession to use real Supabase session format ([be3a5e2](https://github.com/equationalapplications/clanker/commit/be3a5e26f67c590da5cba7444bc7cc60c934759e))
+- **auth:** use Firebase signInWithPopup as primary Google auth method ([d6f68de](https://github.com/equationalapplications/clanker/commit/d6f68ded74f349e947101ef6b99cec4487114dad))
+- **ci:** enable semantic-release push permissions and fix token ([341a14a](https://github.com/equationalapplications/clanker/commit/341a14a9a6c17dc29334a820cd970931982bb7fa))
+- **ci:** resolve GitHub Actions checkout authentication error ([24fa7f3](https://github.com/equationalapplications/clanker/commit/24fa7f3c6d015d4954d266a43f3dbd7ddc06f673))
+- **ci:** resolve GitHub Actions checkout authentication error ([#164](https://github.com/equationalapplications/clanker/issues/164)) ([6543a51](https://github.com/equationalapplications/clanker/commit/6543a513ad4f54e1eb8c3ea192510f6cfdd1d5e2))
+- **ci:** use consistent token for checkout and semantic-release ([8201c39](https://github.com/equationalapplications/clanker/commit/8201c39004fd41818af3d2a474f417e8f95f7930)), closes [#165](https://github.com/equationalapplications/clanker/issues/165)
+- **ci:** use GH_PAT to bypass branch protection in workflows ([9c45eef](https://github.com/equationalapplications/clanker/commit/9c45eefab608edfbfa1cf8f84776a716cfb89c36))
+- **ci:** use github.token only, remove GH_PAT dependency ([01e8a55](https://github.com/equationalapplications/clanker/commit/01e8a55a729d2bb4b62ff73a55a44901ca35fe3c))
+- **db:** query profiles table instead of non-existent clanker table ([1fba416](https://github.com/equationalapplications/clanker/commit/1fba416ef9f31771e94be435739d4eaf2f19815e))
+- **firebase:** improve app check initialization with recaptcha key validation ([f4581f7](https://github.com/equationalapplications/clanker/commit/f4581f7897897bac4805b1dd1ebc1fde1f9c71b2))
+- **security:** guard debug token behind **DEV** and redact token logs ([f1720c9](https://github.com/equationalapplications/clanker/commit/f1720c9bc2b1c64f856a64aa2a272edc5e948184))
 
+### Build System
+
+- enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
+- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+- merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
 
 ### Features
 
-* app Check ([0d592b0](https://github.com/equationalapplications/clanker/commit/0d592b0e3555723e86472e2788cc4928776be27d))
+- app Check ([0d592b0](https://github.com/equationalapplications/clanker/commit/0d592b0e3555723e86472e2788cc4928776be27d))
+
+### BREAKING CHANGES
+
+- Updated expo.
+- Updated expo.
+
+- chore(release): set `package.json` to 13.0.0-staging.1 [skip ci]
+
+# [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+
+### BREAKING CHANGES
+
+- Updated expo.
+
+- build: eas build fixes
+
+align EAS config with modern environment variables
+
+Updates eas.json and Firebase documentation to
+use EAS Environment Variables for cloud builds, replacing the legacy `secrets.file` method.
+
+- Removes `secrets.file` from all build profiles in `eas.json`.
+- Adds the `environment` key to all
+  build profiles for clarity.
+- Updates `docs/FIREBASE_SETUP.md` to detail the new, separate
+  workflows for cloud builds (using `eas env:create`) and local builds (using base64 strings in
+  `.env`).
+
+This aligns the project with the latest Expo recommendations for managing secrets and
+build environments
+
+- build: fix build using google services
+
+- ci: release bumps version on staging and main
+
+- chore(release): set `package.json` to 14.0.0-staging.1 [skip ci]
+
+# [14.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v13.0.0...v14.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+- enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
+- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+- merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
+
+### BREAKING CHANGES
+
+- Firebase configuration now requires environment variables
+- Updated expo.
+- Updated expo.
+
+- ci: disable automatic EAS updates in workflows
+
+Comment out EAS update deployment steps in staging and production workflows.
+Can be re-enabled later when ready for automatic OTA deployments.
+
+- Firebase configuration now requires environment variables
+- Updated expo.
+- Updated expo.
+
+# [15.0.0-staging.2](https://github.com/equationalapplications/clanker/compare/v15.0.0-staging.1...v15.0.0-staging.2) (2026-03-22)
+
+### Bug Fixes
+
+- address Copilot PR review feedback ([337415e](https://github.com/equationalapplications/clanker/commit/337415e8f8960a1e1d8a6876710f210859037358))
+- address second round of PR review feedback ([1606929](https://github.com/equationalapplications/clanker/commit/1606929df667979a287e1b511b8ce889d8529705))
+- **auth:** correct credits query to use current_credits and yours-brightly app ([ceac290](https://github.com/equationalapplications/clanker/commit/ceac290fa61efdb3050067660103a336780a88b4))
+- **auth:** disable auto-refresh and use manual token refresh via exchangeToken ([d9131d0](https://github.com/equationalapplications/clanker/commit/d9131d08f7131ef33510a920a555853aee70be7c))
+- **auth:** ensure google sign-in initializes on all platforms ([6729459](https://github.com/equationalapplications/clanker/commit/6729459d2a13ab06c256275f4900c380e9263c85))
+- **auth:** update getSupabaseUserSession to use real Supabase session format ([be3a5e2](https://github.com/equationalapplications/clanker/commit/be3a5e26f67c590da5cba7444bc7cc60c934759e))
+- **auth:** use Firebase signInWithPopup as primary Google auth method ([d6f68de](https://github.com/equationalapplications/clanker/commit/d6f68ded74f349e947101ef6b99cec4487114dad))
+- **ci:** enable semantic-release push permissions and fix token ([341a14a](https://github.com/equationalapplications/clanker/commit/341a14a9a6c17dc29334a820cd970931982bb7fa))
+- **ci:** resolve GitHub Actions checkout authentication error ([24fa7f3](https://github.com/equationalapplications/clanker/commit/24fa7f3c6d015d4954d266a43f3dbd7ddc06f673))
+- **ci:** resolve GitHub Actions checkout authentication error ([#164](https://github.com/equationalapplications/clanker/issues/164)) ([6543a51](https://github.com/equationalapplications/clanker/commit/6543a513ad4f54e1eb8c3ea192510f6cfdd1d5e2))
+- **ci:** use consistent token for checkout and semantic-release ([8201c39](https://github.com/equationalapplications/clanker/commit/8201c39004fd41818af3d2a474f417e8f95f7930)), closes [#165](https://github.com/equationalapplications/clanker/issues/165)
+- **ci:** use GH_PAT to bypass branch protection in workflows ([9c45eef](https://github.com/equationalapplications/clanker/commit/9c45eefab608edfbfa1cf8f84776a716cfb89c36))
+- **ci:** use github.token only, remove GH_PAT dependency ([01e8a55](https://github.com/equationalapplications/clanker/commit/01e8a55a729d2bb4b62ff73a55a44901ca35fe3c))
+- **db:** query profiles table instead of non-existent clanker table ([1fba416](https://github.com/equationalapplications/clanker/commit/1fba416ef9f31771e94be435739d4eaf2f19815e))
+- **firebase:** improve app check initialization with recaptcha key validation ([f4581f7](https://github.com/equationalapplications/clanker/commit/f4581f7897897bac4805b1dd1ebc1fde1f9c71b2))
+- **security:** guard debug token behind **DEV** and redact token logs ([f1720c9](https://github.com/equationalapplications/clanker/commit/f1720c9bc2b1c64f856a64aa2a272edc5e948184))
+
+### Features
+
+- app Check ([0d592b0](https://github.com/equationalapplications/clanker/commit/0d592b0e3555723e86472e2788cc4928776be27d))
 
 # Changelog
 
