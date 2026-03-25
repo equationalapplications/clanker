@@ -10,7 +10,6 @@ import { useAuth } from '~/auth/useAuth'
 import { grantAppAccess } from '~/utilities/appAccess'
 import { APP_NAME } from '~/config/constants'
 import { TERMS } from '~/config/termsConfig'
-//import { authManager } from "~/utilities/authManager"
 
 interface AcceptTermsProps {
   onAccepted?: () => void

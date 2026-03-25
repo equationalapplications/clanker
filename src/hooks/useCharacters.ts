@@ -46,6 +46,7 @@ export function useCharacters() {
     queryFn: () => getUserCharacters(),
     enabled: !!user,
     staleTime: 1000 * 60 * 2, // 2 minutes
+    networkMode: 'offlineFirst', // Characters are in local SQLite - always available
   })
 
 
@@ -67,6 +68,7 @@ export function useCharacter(id: string | undefined) {
     queryFn: () => getCharacter(id || '', user?.uid || ''),
     enabled: !!id && !!user,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    networkMode: 'offlineFirst', // Characters are in local SQLite - always available
     // Try to get initial data from the list query cache
     initialData: () => {
       const listsCache = queryClient.getQueriesData<Character[]>({

@@ -15,8 +15,8 @@ export const queryClient = new QueryClient({
       // Cache data for 5 minutes (stale after this time but still usable offline)
       staleTime: 1000 * 60 * 5,
 
-      // Keep unused data in cache for 30 minutes for offline access
-      gcTime: 1000 * 60 * 30,
+      // Keep unused data in cache for 24 hours for offline access (matches persister maxAge)
+      gcTime: 1000 * 60 * 60 * 24,
 
       // Retry failed queries with exponential backoff (critical for offline)
       retry: (failureCount, error) => {

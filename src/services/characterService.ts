@@ -1,55 +1,167 @@
 /**
- * Character service - local-first with optional cloud sync
- * 
+ * Character service - local-first with cloud backup
+ *
  * Primary storage: Local SQLite database
- * Cloud sync: Supabase (for "save character" feature - future)
+ * Cloud sync: Supabase (backup/restore via characterSyncService)
  */
 
-import * as localCharacterService from './localCharacterService'
-import type { Character, CharacterInsert, CharacterUpdate } from './localCharacterService'
+import { getCurrentUser } from '~/config/firebaseConfig'
+import * as characterDB from '../database/characterDatabase'
+import type { CharacterInsert, CharacterUpdate } from '../database/characterDatabase'
 
-// Re-export types
-export type { Character, CharacterInsert, CharacterUpdate }
+export type { CharacterInsert, CharacterUpdate }
+
+/**
+ * Character type
+ */
+export interface Character {
+  id: string
+  user_id: string
+  name: string
+  avatar: string | null
+  appearance: string | null
+  traits: string | null
+  emotions: string | null
+  context: string | null
+  is_public: boolean
+  created_at: string
+  updated_at: string
+  synced_to_cloud?: boolean
+  cloud_id?: string | null
+}
 
 /**
  * Get all characters for the current user
  */
-export const getUserCharacters = localCharacterService.getUserCharacters
+export const getUserCharacters = async (): Promise<Character[]> => {
+  const userId = getCurrentUser()?.uid
+  if (!userId) {
+    console.warn('No user logged in - cannot fetch characters')
+    return []
+  }
+  try {
+    return await characterDB.getUserCharacters(userId)
+  } catch (error) {
+    console.error('Error fetching user characters:', error)
+    return []
+  }
+}
 
 /**
  * Get a specific character by ID
  */
-export const getCharacter = localCharacterService.getCharacter
+export const getCharacter = async (id: string, userId: string): Promise<Character | null> => {
+  try {
+    return await characterDB.getCharacter(id, userId)
+  } catch (error) {
+    console.error('Error fetching character:', error)
+    return null
+  }
+}
 
 /**
  * Create a new character
  */
-export const createCharacter = localCharacterService.createCharacter
+export const createCharacter = async (character: CharacterInsert): Promise<Character | null> => {
+  const userId = getCurrentUser()?.uid
+  if (!userId) {
+    throw new Error('User not logged in')
+  }
+  try {
+    return await characterDB.createCharacter(userId, character)
+  } catch (error) {
+    console.error('Error creating character:', error)
+    throw error
+  }
+}
 
 /**
  * Update an existing character
  */
-export const updateCharacter = localCharacterService.updateCharacter
+export const updateCharacter = async (
+  id: string,
+  userId: string,
+  updates: CharacterUpdate,
+): Promise<Character | null> => {
+  try {
+    return await characterDB.updateCharacter(id, userId, updates)
+  } catch (error) {
+    console.error('Error updating character:', error)
+    throw error
+  }
+}
 
 /**
- * Delete a character
+ * Delete a character (soft delete — synced away from cloud on next sync)
  */
-export const deleteCharacter = localCharacterService.deleteCharacter
+export const deleteCharacter = async (id: string, userId: string): Promise<void> => {
+  try {
+    await characterDB.deleteCharacter(id, userId)
+  } catch (error) {
+    console.error('Error deleting character:', error)
+    throw error
+  }
+}
 
 /**
  * Get character count for a user
  */
-export const getCharacterCount = localCharacterService.getCharacterCount
+export const getCharacterCount = async (userId: string): Promise<number> => {
+  try {
+    return await characterDB.getCharacterCount(userId)
+  } catch (error) {
+    console.error('Error getting character count:', error)
+    return 0
+  }
+}
 
 /**
  * Search characters by name
  */
-export const searchCharacters = localCharacterService.searchCharacters
+export const searchCharacters = async (userId: string, searchText: string): Promise<Character[]> => {
+  try {
+    return await characterDB.searchCharacters(userId, searchText)
+  } catch (error) {
+    console.error('Error searching characters:', error)
+    return []
+  }
+}
 
 /**
- * Create a new character using default values
+ * Create a new character with default values
  */
-export const createNewCharacter = localCharacterService.createNewCharacter
+export const createNewCharacter = async (): Promise<{ id: string }> => {
+  console.log('🏗️ createNewCharacter starting...')
+
+  const userId = getCurrentUser()?.uid
+  if (!userId) {
+    throw new Error('User not logged in')
+  }
+
+  try {
+    console.log('📝 Creating character with default values...')
+    const character = await createCharacter({
+      name: 'New Character',
+      appearance: 'A mysterious figure with an intriguing presence.',
+      traits: 'Curious, intelligent, and thoughtful.',
+      emotions: 'Calm and collected, with hints of excitement.',
+      context: 'A helpful companion ready for meaningful conversations.',
+      is_public: false,
+    })
+
+    if (!character) {
+      console.error('❌ Character creation returned null')
+      throw new Error('Failed to create character')
+    }
+
+    const result = { id: character.id }
+    console.log('✨ Returning character ID:', result)
+    return result
+  } catch (error) {
+    console.error('💥 Error in createNewCharacter:', error)
+    throw error
+  }
+}
 
 /**
  * FUTURE FEATURE: Save character to cloud

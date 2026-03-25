@@ -28,7 +28,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
  */
 async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     try {
-        // Create tables
+        // Create tables (uses IF NOT EXISTS — safe on both fresh and existing DBs)
         await database.execAsync(CREATE_TABLES)
 
         // Check current schema version
@@ -36,11 +36,16 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
             'SELECT version FROM schema_version ORDER BY version DESC LIMIT 1',
         )
 
-        const currentVersion = result?.version || 0
-
-        // Run migrations if needed
-        if (currentVersion < SCHEMA_VERSION) {
-            await runMigrations(database, currentVersion)
+        if (!result) {
+            // No recorded schema version. Could be a true fresh install
+            // (CREATE_TABLES already has the latest columns) or a legacy DB
+            // that predates schema_version. Run idempotent migrations from 0
+            // so legacy DBs get patched, while fresh installs are harmless
+            // no-ops thanks to IF NOT EXISTS in each migration.
+            await runMigrations(database, 0)
+        } else if (result.version < SCHEMA_VERSION) {
+            // Existing DB that needs upgrading
+            await runMigrations(database, result.version)
         }
 
         console.log('✅ Database initialized successfully')

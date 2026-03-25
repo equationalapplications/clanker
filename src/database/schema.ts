@@ -3,7 +3,7 @@
  * Supports messages and characters with optional cloud sync
  */
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 /**
  * SQL statements to create tables
@@ -23,7 +23,8 @@ export const CREATE_TABLES = `
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     synced_to_cloud INTEGER DEFAULT 0,
-    cloud_id TEXT
+    cloud_id TEXT,
+    deleted_at INTEGER
   );
 
   -- Indexes for characters
@@ -56,16 +57,11 @@ export const CREATE_TABLES = `
     version INTEGER PRIMARY KEY,
     updated_at INTEGER NOT NULL
   );
-
-  -- Insert initial schema version
-  INSERT OR IGNORE INTO schema_version (version, updated_at) 
-  VALUES (${SCHEMA_VERSION}, ${Date.now()});
 `
 
 /**
  * Migration scripts for future schema updates
  */
 export const MIGRATIONS: Record<number, string> = {
-    // Example: version 2 migration
-    // 2: `ALTER TABLE messages ADD COLUMN some_new_field TEXT;`,
+  2: `ALTER TABLE characters ADD COLUMN IF NOT EXISTS deleted_at INTEGER;`,
 }

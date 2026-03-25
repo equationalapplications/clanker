@@ -16,8 +16,6 @@ import {
   upsertUserProfile,
   getUserPublic,
   getUserPrivate,
-  acceptTerms,
-  checkTermsAcceptance,
   UserProfile,
   UserProfileUpdate,
 } from '~/services/userService'
@@ -31,8 +29,6 @@ export const userKeys = {
   profile: (userId: string | undefined) => [...userKeys.all, 'profile', userId] as const,
   public: (userId: string | undefined) => [...userKeys.all, 'public', userId] as const,
   private: (userId: string | undefined) => [...userKeys.all, 'private', userId] as const,
-  terms: (userId: string | undefined, version: string) =>
-    [...userKeys.all, 'terms', userId, version] as const,
 }
 
 /**
@@ -82,7 +78,7 @@ export function useUserProfile() {
 }
 
 /**
- * Hook to get public user data (legacy format)
+ * Hook to get public user data
  */
 export function useUserPublicData() {
   const { user } = useAuth()
@@ -101,7 +97,7 @@ export function useUserPublicData() {
 }
 
 /**
- * Hook to get private user data (legacy format)
+ * Hook to get private user data
  */
 export function useUserPrivateData() {
   const { user } = useAuth()
@@ -195,53 +191,4 @@ export function useUpdateProfile() {
   })
 }
 
-/**
- * Mutation hook to accept terms with optimistic update
- */
-export function useAcceptTerms() {
-  const queryClient = useQueryClient()
-  const { user } = useAuth()
 
-  return useMutation({
-    mutationFn: (termsVersion: string = '1.0') => acceptTerms(termsVersion),
-
-    // Optimistic update - assume success immediately
-    onMutate: async (termsVersion) => {
-      // Update terms acceptance in cache immediately
-      queryClient.setQueryData(userKeys.terms(user?.uid, termsVersion), true)
-
-      return { termsVersion }
-    },
-
-    onSuccess: (data, termsVersion) => {
-      console.log('✅ Terms accepted successfully')
-
-      // Invalidate related queries to refetch with updated data
-      queryClient.invalidateQueries({ queryKey: userKeys.private(user?.uid) })
-      queryClient.setQueryData(userKeys.terms(user?.uid, termsVersion), true)
-    },
-
-    onError: (error, termsVersion, context) => {
-      console.error('❌ Failed to accept terms:', error)
-
-      // Rollback optimistic update
-      if (context?.termsVersion) {
-        queryClient.setQueryData(userKeys.terms(user?.uid, context.termsVersion), false)
-      }
-    },
-  })
-}
-
-/**
- * Hook to check if user has accepted current terms
- */
-export function useTermsAcceptance(currentVersion: string = '1.0') {
-  const { user } = useAuth()
-
-  return useQuery({
-    queryKey: userKeys.terms(user?.uid, currentVersion),
-    queryFn: () => checkTermsAcceptance(currentVersion),
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  })
-}
