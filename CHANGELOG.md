@@ -1,3 +1,127 @@
+# [17.0.0](https://github.com/equationalapplications/clanker/compare/v16.0.0...v17.0.0) (2026-03-25)
+
+
+* Dev ([#169](https://github.com/equationalapplications/clanker/issues/169)) ([#170](https://github.com/equationalapplications/clanker/issues/170)) ([f4c8415](https://github.com/equationalapplications/clanker/commit/f4c8415b1138ab8d6004fc6e95f4d2d38162dce4)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+* Staging ([#173](https://github.com/equationalapplications/clanker/issues/173)) ([3ee0d37](https://github.com/equationalapplications/clanker/commit/3ee0d37102147d37d0cb3ec34cab17c96640c75e)), closes [#169](https://github.com/equationalapplications/clanker/issues/169) [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+
+
+### BREAKING CHANGES
+
+* Updated expo.
+* Updated expo.
+
+* chore(release): set `package.json` to 13.0.0-staging.1 [skip ci]
+
+# [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+
+### BREAKING CHANGES
+
+* Updated expo.
+
+* build: eas build fixes
+
+align EAS config with modern environment variables
+
+Updates eas.json and Firebase documentation to
+use EAS Environment Variables for cloud builds, replacing the legacy `secrets.file` method.
+
+-
+Removes `secrets.file` from all build profiles in `eas.json`.
+- Adds the `environment` key to all
+build profiles for clarity.
+- Updates `docs/FIREBASE_SETUP.md` to detail the new, separate
+workflows for cloud builds (using `eas env:create`) and local builds (using base64 strings in
+`.env`).
+
+This aligns the project with the latest Expo recommendations for managing secrets and
+build environments
+
+* build: fix build using google services
+
+* ci: release bumps version on staging and main
+
+* chore(release): set `package.json` to 14.0.0-staging.1 [skip ci]
+
+# [14.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v13.0.0...v14.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+* enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
+* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+* merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
+
+### BREAKING CHANGES
+
+* Firebase configuration now requires environment variables
+* Updated expo.
+* Updated expo.
+
+* ci: disable automatic EAS updates in workflows
+
+Comment out EAS update deployment steps in staging and production workflows.
+Can be re-enabled later when ready for automatic OTA deployments.
+* Updated expo.
+* Updated expo.
+
+* chore(release): set `package.json` to 13.0.0-staging.1 [skip ci]
+
+# [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+
+### BREAKING CHANGES
+
+* Updated expo.
+
+* build: eas build fixes
+
+align EAS config with modern environment variables
+
+Updates eas.json and Firebase documentation to
+use EAS Environment Variables for cloud builds, replacing the legacy `secrets.file` method.
+
+-
+Removes `secrets.file` from all build profiles in `eas.json`.
+- Adds the `environment` key to all
+build profiles for clarity.
+- Updates `docs/FIREBASE_SETUP.md` to detail the new, separate
+workflows for cloud builds (using `eas env:create`) and local builds (using base64 strings in
+`.env`).
+
+This aligns the project with the latest Expo recommendations for managing secrets and
+build environments
+
+* build: fix build using google services
+
+* ci: release bumps version on staging and main
+
+* chore(release): set `package.json` to 14.0.0-staging.1 [skip ci]
+
+# [14.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v13.0.0...v14.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+* enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
+* enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+* merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
+
+### BREAKING CHANGES
+
+* Firebase configuration now requires environment variables
+* Updated expo.
+* Updated expo.
+
+* ci: disable automatic EAS updates in workflows
+
+Comment out EAS update deployment steps in staging and production workflows.
+Can be re-enabled later when ready for automatic OTA deployments.
+
 # [17.0.0-staging.2](https://github.com/equationalapplications/clanker/compare/v17.0.0-staging.1...v17.0.0-staging.2) (2026-03-25)
 
 
