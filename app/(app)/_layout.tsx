@@ -1,10 +1,10 @@
 import { Redirect, router, Stack } from 'expo-router'
-import { useSubscriptionStatus } from '~/hooks/useSubscriptionStatus'
+import { useTermsAcceptance } from '~/hooks/useSubscriptionStatus'
 import { ActivityIndicator, View } from 'react-native'
 import { useEffect } from 'react'
 
 export default function AppLayout() {
-  const { needsTermsAcceptance, isUpdate, isLoading } = useSubscriptionStatus()
+  const { needsTermsAcceptance, isUpdate, isLoading } = useTermsAcceptance()
 
   console.log(
     '[AppLayout] Render - isLoading:',

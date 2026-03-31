@@ -10,7 +10,7 @@ import { Stack } from 'expo-router'
 
 import { ThemeProvider } from '~/components/ThemeProvider'
 import { AuthProvider, useAuth } from '~/auth/useAuth'
-import { SubscriptionStatusProvider } from '~/hooks/useSubscriptionStatus'
+import { TermsAcceptanceProvider } from '~/hooks/useSubscriptionStatus'
 import { queryClient } from '~/config/queryClient'
 import { kvStorePersister } from '~/config/queryPersister'
 import { setupNetworkManager } from '~/config/networkManager'
@@ -107,14 +107,14 @@ export default function RootLayout() {
         persistOptions={{ persister: kvStorePersister, maxAge: 1000 * 60 * 60 * 24 }}
       >
         <AuthProvider>
-          <SubscriptionStatusProvider>
+          <TermsAcceptanceProvider>
             <ThemeProvider>
               <NavigationThemeProvider value={navTheme}>
                 <RootLayoutNav />
               </NavigationThemeProvider>
               <StatusBar />
             </ThemeProvider>
-          </SubscriptionStatusProvider>
+          </TermsAcceptanceProvider>
         </AuthProvider>
       </PersistQueryClientProvider>
     </SafeAreaProvider>

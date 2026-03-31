@@ -37,8 +37,10 @@ CREATE TABLE public.user_app_subscriptions (
     plan_status TEXT NOT NULL DEFAULT 'active' CHECK (plan_status IN ('active', 'cancelled', 'expired')),
     plan_start_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     plan_renewal_at TIMESTAMP WITH TIME ZONE,
-    credits_remaining INTEGER DEFAULT 0,
-    billing_provider TEXT, -- 'stripe', 'apple_app_store', 'google_play', etc.
+    current_credits INTEGER NOT NULL DEFAULT 0,
+    terms_accepted_at TIMESTAMP WITH TIME ZONE,
+    terms_version TEXT,
+    plan_quantity INTEGER DEFAULT 1,
     billing_provider_id TEXT, -- External subscription ID
     billing_metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -96,9 +98,10 @@ Returns user's current tier for an app ('free', 'monthly_20', 'monthly_50', 'pay
 Returns compact JSONB array of user's active plans for JWT inclusion.
 
 ```sql
--- Returns: [{"app": "clanker", "tier": "monthly_20", "status": "active", "terms_accepted": "2025-10-01"}]
--- Note: Excludes volatile data (credits) and non-critical data (renewal dates, terms_version)
--- These should be queried in real-time when needed, not cached in JWT
+-- Returns: [{"app": "clanker", "tier": "monthly_20"}]
+-- Only includes active subscriptions — presence in the array implies active status.
+-- Excludes volatile data (credits) and non-critical data (renewal dates, terms acceptance).
+-- These should be queried in real-time when needed, not cached in JWT.
 ```
 
 ---
@@ -183,9 +186,7 @@ The auth hook automatically enriches JWTs with the `plans` array containing mini
   "plans": [
     {
       "app": "clanker",
-      "tier": "monthly_20",
-      "status": "active",
-      "terms_accepted": "2025-10-01"
+      "tier": "monthly_20"
     }
   ]
 }
@@ -194,12 +195,12 @@ The auth hook automatically enriches JWTs with the `plans` array containing mini
 **JWT Design Principles:**
 
 - ✅ **Minimal Data**: Only includes data needed for access control decisions
-- ✅ **Low Volatility**: Excludes rapidly changing data like credits
-- ✅ **Access Control Focus**: Tier and status enable RLS policy decisions
-- ✅ **Compliance Tracking**: Terms acceptance date for audit purposes
+- ✅ **Low Volatility**: Excludes rapidly changing data
+- ✅ **Presence Implies Active**: The hook only emits active subscriptions — being in the array is sufficient for RLS checks
+- ❌ **No Status Field**: Redundant — inactive subscriptions are excluded at the source
 - ❌ **No Credits**: Query in real-time to avoid stale data
 - ❌ **No Renewal Dates**: Fetch from database when displaying billing UI
-- ❌ **No Terms Version**: Fetch from database if needed for version checks
+- ❌ **No Terms Acceptance**: Query in real-time to check current terms status
 
 #### Users Without Subscriptions
 
@@ -345,12 +346,9 @@ await supabase.auth.setSession({
   "aud": "authenticated",
   "email": "user@example.com",
   "plans": [
-    // ⭐ Key for subscription RLS
     {
       "app": "clanker",
-      "tier": "monthly_20",
-      "renewal": "2025-10-28T21:11:47Z",
-      "credits": 0
+      "tier": "monthly_20"
     }
   ],
   "token_type": "access"

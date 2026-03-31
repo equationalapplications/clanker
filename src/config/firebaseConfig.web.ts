@@ -57,6 +57,8 @@ const generateReplyFn = httpsCallable(functionsInstance, 'generateReply')
 
 const purchasePackageStripe = httpsCallable(functionsInstance, 'purchasePackageStripe')
 
+const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
+
 export type FirebaseUser = User
 
 export {
@@ -68,4 +70,5 @@ export {
     exchangeToken,
     generateReplyFn,
     purchasePackageStripe,
+    spendCreditsFn,
 }

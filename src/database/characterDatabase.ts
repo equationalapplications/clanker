@@ -84,7 +84,7 @@ export async function getCharacter(characterId: string, userId: string) {
     const db = await getDatabase()
 
     const character = await db.getFirstAsync<LocalCharacter>(
-        'SELECT * FROM characters WHERE id = ? AND user_id = ?',
+        'SELECT * FROM characters WHERE id = ? AND user_id = ? AND (deleted_at IS NULL OR deleted_at = 0)',
         [characterId, userId],
     )
 
@@ -228,7 +228,7 @@ export async function getCharacterCount(userId: string): Promise<number> {
     const db = await getDatabase()
 
     const result = await db.getFirstAsync<{ count: number }>(
-        'SELECT COUNT(*) as count FROM characters WHERE user_id = ?',
+        'SELECT COUNT(*) as count FROM characters WHERE user_id = ? AND (deleted_at IS NULL OR deleted_at = 0)',
         [userId],
     )
 
@@ -295,7 +295,7 @@ export async function searchCharacters(userId: string, searchText: string) {
 
     const characters = await db.getAllAsync<LocalCharacter>(
         `SELECT * FROM characters 
-     WHERE user_id = ? AND name LIKE ?
+     WHERE user_id = ? AND name LIKE ? AND (deleted_at IS NULL OR deleted_at = 0)
      ORDER BY created_at DESC`,
         [userId, `%${searchText}%`],
     )

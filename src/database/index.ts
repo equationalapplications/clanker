@@ -37,12 +37,27 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
         )
 
         if (!result) {
-            // No recorded schema version. Could be a true fresh install
-            // (CREATE_TABLES already has the latest columns) or a legacy DB
-            // that predates schema_version. Run idempotent migrations from 0
-            // so legacy DBs get patched, while fresh installs are harmless
-            // no-ops thanks to IF NOT EXISTS in each migration.
-            await runMigrations(database, 0)
+            // No recorded schema version. This can mean:
+            // - A true fresh install where CREATE_TABLES already created the latest schema
+            // - A legacy DB that predates schema_version and still needs migrations
+            //
+            // Distinguish between these by checking for a column that was added by
+            // a migration (e.g. characters.deleted_at).
+            const columns = await database.getAllAsync<{ name: string }>(
+                'PRAGMA table_info(characters)',
+            )
+            const hasDeletedAt = columns.some((column) => column.name === 'deleted_at')
+
+            if (hasDeletedAt) {
+                // Fresh DB already at latest schema: just record the current schema version
+                await database.runAsync(
+                    'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
+                    [SCHEMA_VERSION, Date.now()],
+                )
+            } else {
+                // Legacy DB without the latest columns: run migrations from version 0
+                await runMigrations(database, 0)
+            }
         } else if (result.version < SCHEMA_VERSION) {
             // Existing DB that needs upgrading
             await runMigrations(database, result.version)

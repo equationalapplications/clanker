@@ -1,15 +1,19 @@
-import Button from '../components/Button'
-import { makePackagePurchase } from '../utilities/makePackagePurchase'
+import Button from './Button'
+import { makePackagePurchase, type ProductType } from '../utilities/makePackagePurchase'
 
 interface Props {
   onChangeIsLoading: (isLoading: boolean) => void
+  productType?: ProductType
 }
 
-export default function SubscribeButton({ onChangeIsLoading }: Props) {
+export default function SubscribeButton({ onChangeIsLoading, productType = 'monthly_20' }: Props) {
   const onPressSubscribe = async () => {
     onChangeIsLoading(true)
-    await makePackagePurchase()
-    onChangeIsLoading(false)
+    try {
+      await makePackagePurchase(productType)
+    } finally {
+      onChangeIsLoading(false)
+    }
   }
 
   return (

@@ -63,5 +63,5 @@ export const CREATE_TABLES = `
  * Migration scripts for future schema updates
  */
 export const MIGRATIONS: Record<number, string> = {
-  2: `ALTER TABLE characters ADD COLUMN IF NOT EXISTS deleted_at INTEGER;`,
+  2: `ALTER TABLE characters ADD COLUMN deleted_at INTEGER;`,
 }
