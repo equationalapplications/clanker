@@ -9,7 +9,8 @@ export default function CheckoutSuccess() {
 
     useEffect(() => {
         const timer = setTimeout(async () => {
-            await supabaseClient.auth.refreshSession()
+            const { error } = await supabaseClient.auth.refreshSession()
+            if (error) console.warn('⚠️ Session refresh failed after checkout:', error.message)
             router.replace('/(app)')
         }, 3000)
         return () => clearTimeout(timer)
@@ -23,7 +24,11 @@ export default function CheckoutSuccess() {
             <Text variant="bodyLarge" style={styles.subtitle}>
                 Your subscription is now active. Redirecting you back…
             </Text>
-            <Button mode="contained" onPress={async () => { await supabaseClient.auth.refreshSession(); router.replace('/(app)') }} style={styles.button}>
+            <Button mode="contained" onPress={async () => {
+                const { error } = await supabaseClient.auth.refreshSession()
+                if (error) console.warn('⚠️ Session refresh failed after checkout:', error.message)
+                router.replace('/(app)')
+            }} style={styles.button}>
                 Go to app
             </Button>
         </View>
