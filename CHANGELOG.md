@@ -1,3 +1,10 @@
+## [18.0.1](https://github.com/equationalapplications/clanker/compare/v18.0.0...v18.0.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* **ci:** add --platform all to production EAS build command ([aedc661](https://github.com/equationalapplications/clanker/commit/aedc6613795b337ab35be7d16e9e4d590cdfaec9))
+
 # [18.0.0](https://github.com/equationalapplications/clanker/compare/v17.0.0...v18.0.0) (2026-03-31)
 
 
