@@ -2,6 +2,53 @@
 
 Complete API documentation for the Clanker payment system.
 
+---
+
+## `purchasePackageStripe` (Web Checkout Callable)
+
+Creates a Stripe Checkout Session and returns the hosted URL. Web-only — native platforms use RevenueCat.
+
+**Type:** Firebase `onCall` callable  
+**Function name:** `purchasePackageStripe`  
+**Region:** `us-central1`  
+**Auth required:** Firebase Auth (authenticated user only)
+
+### Input
+
+```typescript
+{ priceId: string }
+```
+
+`priceId` must be one of the three configured Stripe price IDs (monthly_20, monthly_50, or credit pack). Unknown price IDs are rejected.
+
+### Output
+
+```typescript
+string  // Stripe Checkout Session URL: https://checkout.stripe.com/...
+```
+
+Open this URL with `Linking.openURL(url)` to redirect the user to the Stripe-hosted checkout page.
+
+### Errors
+
+| Code | Cause |
+|---|---|
+| `unauthenticated` | No valid Firebase Auth token |
+| `invalid-argument` | `priceId` is missing, not a string, or not in the allowed set |
+| `failed-precondition` | Authenticated Firebase user has no email address |
+| `internal` | Stripe API error or unexpected server failure |
+
+### Example (client)
+
+```typescript
+import { purchasePackageStripe } from '~/config/firebaseConfig'
+
+const result = await purchasePackageStripe({ priceId: 'price_xxx' })
+await Linking.openURL((result as any).data)
+```
+
+---
+
 ## Base URLs
 
 - **Transaction Manager**: `https://transactionmanager-[hash]-uc.a.run.app`

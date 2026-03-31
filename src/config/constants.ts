@@ -22,7 +22,40 @@ export const supabaseUrl = resolveConfigValue('EXPO_PUBLIC_SUPABASE_URL')
 export const supabaseAnonKey = resolveConfigValue('EXPO_PUBLIC_SUPABASE_ANON_KEY')
 
 export const stripeCustomerPortal = 'https://billing.stripe.com/p/login/28obLIehA711btKcMM'
+// DEPRECATED: Use stripeMonthly20PriceId or stripeMonthly50PriceId instead. Will be removed once all callsites are migrated.
 export const stripeMontlySubscriptionPriceId = 'price_1MVejqDTb0norRA06zwoexic'
+
+// Stripe price IDs — set the matching EXPO_PUBLIC_* variables in .env (or .env.local).
+// Falls back to placeholder strings so the client loads cleanly when env vars are absent.
+export const stripeMonthly20PriceId =
+  process.env.EXPO_PUBLIC_STRIPE_MONTHLY_20_PRICE_ID || 'price_TODO_monthly_20'
+export const stripeMonthly50PriceId =
+  process.env.EXPO_PUBLIC_STRIPE_MONTHLY_50_PRICE_ID || 'price_TODO_monthly_50'
+export const stripeCreditPackPriceId =
+  process.env.EXPO_PUBLIC_STRIPE_CREDIT_PACK_PRICE_ID || 'price_TODO_credit_pack'
+
+// Subscription tier identifiers (must match DB CHECK constraint)
+export const PLAN_TIERS = {
+  FREE: 'free',
+  MONTHLY_20: 'monthly_20',
+  MONTHLY_50: 'monthly_50',
+  PAYG: 'payg',
+} as const
+
+export type PlanTier = typeof PLAN_TIERS[keyof typeof PLAN_TIERS]
+
+// Subscription tiers where credits are NOT consumed (unlimited usage)
+export const SUBSCRIPTION_TIERS: PlanTier[] = [PLAN_TIERS.MONTHLY_20, PLAN_TIERS.MONTHLY_50]
+
+import { Platform } from 'react-native'
+
+// RevenueCat product identifiers (must match App Store Connect / Google Play Console)
+// iOS uses 'credit_100' (name was taken on re-creation); Android uses 'credit_pack_100'
+export const REVENUECAT_PRODUCTS = {
+  MONTHLY_20: 'monthly_20_subscription',
+  MONTHLY_50: 'monthly_50_subscription',
+  CREDIT_PACK: Platform.OS === 'ios' ? 'credit_100' : 'credit_pack_100',
+}
 
 export const colorsLight = {
   primary: 'rgb(131, 84, 0)',

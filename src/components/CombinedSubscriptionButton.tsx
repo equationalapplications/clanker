@@ -1,16 +1,16 @@
 import SubscribeButton from '~/components/SubscribeButton'
 import SubscriptionInfoButton from '~/components/SubscriptionInfoButton'
-import { useIsPremium } from '~/hooks/useIsPremium'
+import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 
 interface Props {
   onChangeIsLoading: (isLoading: boolean) => void
 }
 
 export default function CombinedSubscriptionButton({ onChangeIsLoading }: Props) {
-  const isPremium = useIsPremium()
+  const { isSubscriber } = useCurrentPlan()
   return (
     <>
-      {isPremium ? (
+      {isSubscriber ? (
         <SubscriptionInfoButton onChangeIsLoading={onChangeIsLoading} />
       ) : (
         <SubscribeButton onChangeIsLoading={onChangeIsLoading} />

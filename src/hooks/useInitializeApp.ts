@@ -3,6 +3,7 @@ import { Platform } from 'react-native'
 import appCheck from '@react-native-firebase/app-check'
 
 import { initializeGoogleSignIn } from '~/auth/googleSignin'
+import { initializeRevenueCat } from '~/config/revenueCatConfig'
 
 /**
  * Hook to initialize app services on mount (native platforms)
@@ -56,6 +57,13 @@ export function useInitializeApp() {
         await initializeGoogleSignIn()
       } catch (error) {
         console.error('❌ Error initializing Google Sign-In (Native):', error)
+      }
+
+      // --- RevenueCat Initialization (native only) ---
+      try {
+        await initializeRevenueCat()
+      } catch (error) {
+        console.error('❌ Error initializing RevenueCat:', error)
       }
     }
 

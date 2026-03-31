@@ -12,7 +12,7 @@ import { supabaseClient } from '~/config/supabaseClient'
 import { APP_NAME } from '~/config/constants'
 import { TERMS } from '~/config/termsConfig'
 
-interface SubscriptionStatus {
+interface TermsAcceptance {
   needsTermsAcceptance: boolean
   isUpdate: boolean
   isLoading: boolean
@@ -72,10 +72,10 @@ function clearTermsCache(userId: string): void {
 }
 
 // Create context for shared state across all instances
-const SubscriptionStatusContext = createContext<SubscriptionStatus | null>(null)
+const TermsAcceptanceContext = createContext<TermsAcceptance | null>(null)
 
 // Provider component
-export function SubscriptionStatusProvider({
+export function TermsAcceptanceProvider({
   children,
 }: {
   children: ReactNode
@@ -174,19 +174,21 @@ export function SubscriptionStatusProvider({
   }, [checkStatus])
 
   return (
-    <SubscriptionStatusContext.Provider
+    <TermsAcceptanceContext.Provider
       value={{ needsTermsAcceptance, isUpdate, isLoading, markTermsAccepted }}
     >
       {children}
-    </SubscriptionStatusContext.Provider>
+    </TermsAcceptanceContext.Provider>
   )
 }
 
-// Hook to use the subscription status
-export function useSubscriptionStatus(): SubscriptionStatus {
-  const context = useContext(SubscriptionStatusContext)
+// Hook to use terms acceptance status
+export function useTermsAcceptance(): TermsAcceptance {
+  const context = useContext(TermsAcceptanceContext)
   if (!context) {
-    throw new Error('useSubscriptionStatus must be used within SubscriptionStatusProvider')
+    throw new Error('useTermsAcceptance must be used within TermsAcceptanceProvider')
   }
   return context
 }
+
+

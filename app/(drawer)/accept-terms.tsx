@@ -1,11 +1,11 @@
 import { StyleSheet, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AcceptTerms } from '~/components/AcceptTerms'
-import { useSubscriptionStatus } from '~/hooks/useSubscriptionStatus'
+import { useTermsAcceptance } from '~/hooks/useSubscriptionStatus'
 
 export default function AcceptTermsScreen() {
   const params = useLocalSearchParams()
-  const { markTermsAccepted } = useSubscriptionStatus()
+  const { markTermsAccepted } = useTermsAcceptance()
   const isUpdate = params.isUpdate === 'true'
 
   const handleAccepted = () => {

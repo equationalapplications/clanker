@@ -19,7 +19,8 @@ export const useDeductCredits = () => {
   const { user } = useAuth()
 
   return useMutation({
-    mutationFn: (amount: number) => deductCredits(amount),
+    mutationFn: ({ amount, description }: { amount: number; description?: string }) =>
+      deductCredits(amount, description),
     onSuccess: () => {
       // Immediately refetch credits after deduction
       queryClient.invalidateQueries({ queryKey: ['userCredits', user?.uid] })
