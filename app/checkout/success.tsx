@@ -2,16 +2,19 @@ import { useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Text, Button } from 'react-native-paper'
 import { useRouter } from 'expo-router'
+import { useAuth } from '~/auth/useAuth'
 
 export default function CheckoutSuccess() {
     const router = useRouter()
+    const { refreshSession } = useAuth()
 
     useEffect(() => {
-        const timer = setTimeout(() => {
+        const timer = setTimeout(async () => {
+            await refreshSession?.()
             router.replace('/(app)')
         }, 3000)
         return () => clearTimeout(timer)
-    }, [router])
+    }, [router, refreshSession])
 
     return (
         <View style={styles.container}>
@@ -21,7 +24,7 @@ export default function CheckoutSuccess() {
             <Text variant="bodyLarge" style={styles.subtitle}>
                 Your subscription is now active. Redirecting you back…
             </Text>
-            <Button mode="contained" onPress={() => router.replace('/(app)')} style={styles.button}>
+            <Button mode="contained" onPress={async () => { await refreshSession?.(); router.replace('/(app)') }} style={styles.button}>
                 Go to app
             </Button>
         </View>

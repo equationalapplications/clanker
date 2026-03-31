@@ -14,9 +14,11 @@ interface JwtPlan {
 }
 
 function decodeJwtPayload(token: string): Record<string, unknown> {
-    const base64 = token.split('.')[1]
-    // atob is available in both web and React Native (Expo polyfills it)
-    const json = atob(base64)
+    const base64Url = token.split('.')[1]
+    // Convert base64url to standard base64 (replace URL-safe chars, add padding)
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+    const json = atob(padded)
     return JSON.parse(json)
 }
 
