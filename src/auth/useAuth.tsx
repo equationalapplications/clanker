@@ -17,6 +17,7 @@ import {
   signOut as firebaseSignOut,
 } from '~/config/firebaseConfig'
 import { signOutFromGoogle } from '~/auth/googleSignin'
+import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
 
 // Union type for platform-specific user
 type AuthUser = ReturnType<typeof getCurrentUser>
@@ -112,6 +113,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // check if the user is the same as before
           if (userRef.current && firebaseUser.uid === userRef.current.uid) {
             console.log('ℹ️ Firebase user unchanged, skipping re-authentication')
+            void loginRevenueCat(firebaseUser.uid)
             setIsLoading(false)
           } else {
             setUser(firebaseUser)
@@ -142,6 +144,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
 
             console.log('✅ Supabase sync complete.', authResponse)
+            void loginRevenueCat(firebaseUser.uid)
             setIsLoading(false)
           }
         } catch (error) {
@@ -185,6 +188,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = async () => {
     try {
+      console.log('🔓 Signing out from RevenueCat...')
+      await logoutRevenueCat()
+
       console.log('🧹 Signing out from Supabase...')
       await supabaseClient.auth.signOut()
 

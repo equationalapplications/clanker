@@ -1,36 +1,55 @@
-// TODO: Install expo-web-browser dependency
-// import * as WebBrowser from "expo-web-browser"
-
-import { Platform } from 'react-native'
+import { Linking, Platform } from 'react-native'
 import {
-  stripeMontlySubscriptionPriceId,
+  stripeMonthly20PriceId,
+  stripeMonthly50PriceId,
+  stripeCreditPackPriceId,
+  REVENUECAT_PRODUCTS,
 } from '../config/constants'
 import { purchasePackageStripe } from '../config/firebaseConfig'
+import { purchaseProduct } from '../config/revenueCatConfig'
 
-export async function makePackagePurchase() {
+export type ProductType = 'monthly_20' | 'monthly_50' | 'payg'
+
+const STRIPE_PRICE_MAP: Record<ProductType, string> = {
+  monthly_20: stripeMonthly20PriceId,
+  monthly_50: stripeMonthly50PriceId,
+  payg: stripeCreditPackPriceId,
+}
+
+const REVENUECAT_PRODUCT_MAP: Record<ProductType, string> = {
+  monthly_20: REVENUECAT_PRODUCTS.MONTHLY_20,
+  monthly_50: REVENUECAT_PRODUCTS.MONTHLY_50,
+  payg: REVENUECAT_PRODUCTS.CREDIT_PACK,
+}
+
+export async function makePackagePurchase(productType: ProductType = 'monthly_20') {
   try {
     if (Platform.OS === 'ios' || Platform.OS === 'android') {
-      // TODO: Implement native in-app purchases for iOS/Android
-      console.log('Native in-app purchases not yet implemented')
-      // For now, redirect to Stripe checkout on mobile as well
-      const checkoutUrlData = await purchasePackageStripe({ stripeMontlySubscriptionPriceId })
-      const checkoutUrl = (checkoutUrlData as any)?.data || ''
-
-      if (checkoutUrl) {
-        console.log('Would open checkout URL:', checkoutUrl)
-      }
+      // Native: use RevenueCat for in-app purchases
+      const productIdentifier = REVENUECAT_PRODUCT_MAP[productType]
+      const customerInfo = await purchaseProduct(productIdentifier)
+      return customerInfo
     } else if (Platform.OS === 'web') {
-      // Get the checkout URL from Firebase Cloud Functions
-      const checkoutUrlData = await purchasePackageStripe({ stripeMontlySubscriptionPriceId })
+      // Web: use Stripe checkout via Firebase Cloud Function
+      const priceId = STRIPE_PRICE_MAP[productType]
+      const checkoutUrlData = await purchasePackageStripe({ priceId })
       const checkoutUrl = (checkoutUrlData as any)?.data || ''
 
       if (checkoutUrl) {
-        // TODO: Implement web browser opening when expo-web-browser is available
-        // await WebBrowser.openBrowserAsync(checkoutUrl)
-        console.log('Would open checkout URL:', checkoutUrl)
+        await Linking.openURL(checkoutUrl)
+      } else {
+        const msg = 'No checkout URL returned from Stripe. Please try again.'
+        console.error(msg)
+        if (typeof window !== 'undefined') {
+          window.alert(msg)
+        }
       }
     }
   } catch (error) {
-    console.log('Error: ', error)
+    console.error('Purchase error:', error)
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.alert('Something went wrong starting checkout. Please try again.')
+    }
+    throw error
   }
 }

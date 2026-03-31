@@ -69,9 +69,9 @@ export default function CreditsDisplay() {
             <View key={index} style={styles.subscriptionItem}>
               <Text variant="bodyMedium" style={styles.subscriptionText}>
                 {sub.tier === 'free' && 'Free Tier'}
-                {sub.tier === 'monthly_1000' && 'Monthly 1000 Credits'}
-                {sub.tier === 'monthly_unlimited' && 'Unlimited Plan'}
-                {sub.tier === 'credits_only' && 'Purchased Credits'}
+                {sub.tier === 'monthly_20' && 'Monthly $20 Plan'}
+                {sub.tier === 'monthly_50' && 'Monthly $50 Premium Plan'}
+                {sub.tier === 'payg' && 'Pay-as-you-go Credits'}
               </Text>
               {!sub.isUnlimited && (
                 <Text variant="bodySmall" style={styles.creditsText}>

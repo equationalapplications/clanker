@@ -1,6 +1,10 @@
 import { supabaseClient } from '../config/supabaseClient'
 import { APP_NAME } from '../config/constants'
+import { getSupabaseUserId } from './getSupabaseUserId'
 
+// TODO: This client-side upsert should be replaced with a call to the server-side
+// initialize_free_tier_subscription() function for consistency. Currently kept because
+// AcceptTerms.tsx depends on it for terms acceptance flow.
 /**
  * Grant app access to a user by creating a free tier subscription with terms acceptance.
  * This will:
@@ -15,12 +19,9 @@ export async function grantAppAccess(
     console.log(`Granting ${appName} access to user via free subscription with terms acceptance`)
 
     // Get current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser()
+    const userId = await getSupabaseUserId()
 
-    if (userError || !user) {
+    if (!userId) {
       throw new Error('No authenticated user found')
     }
 
@@ -31,7 +32,7 @@ export async function grantAppAccess(
       .from('user_app_subscriptions')
       .upsert(
         {
-          user_id: user.id,
+          user_id: userId,
           app_name: appName,
           plan_tier: 'free',
           plan_status: 'active',
@@ -70,33 +71,8 @@ export async function grantAppAccess(
   }
 }
 
-// Terms acceptance is checked via direct DB query in the useSubscriptionStatus hook.
+// Terms acceptance is checked via direct DB query in the useTermsAcceptance hook.
 // Use grantAppAccess() above to record acceptance.
-
-/**
- * Get user's subscription data from the database
- */
-export async function getUserAppSubscriptions(): Promise<{
-  success: boolean
-  subscriptions?: any[]
-  error?: string
-}> {
-  try {
-    const { data, error } = await supabaseClient.from('user_app_subscriptions').select('*')
-
-    if (error) {
-      throw error
-    }
-
-    return { success: true, subscriptions: data }
-  } catch (error: any) {
-    console.error('Failed to get user subscriptions:', error)
-    return {
-      success: false,
-      error: error.message || 'Failed to get subscriptions',
-    }
-  }
-}
 
 export async function getProfile(): Promise<{
   success: boolean

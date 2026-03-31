@@ -2,11 +2,11 @@ import { router } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
 import { useEffect } from 'react'
 import { useTheme, Icon } from 'react-native-paper'
-import { useSubscriptionStatus } from '~/hooks/useSubscriptionStatus'
+import { useTermsAcceptance } from '~/hooks/useSubscriptionStatus'
 
 export default function DrawerLayout() {
   const theme = useTheme()
-  const { needsTermsAcceptance, isUpdate, isLoading } = useSubscriptionStatus()
+  const { needsTermsAcceptance, isUpdate, isLoading } = useTermsAcceptance()
 
   useEffect(() => {
     console.log(
