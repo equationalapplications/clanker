@@ -6,13 +6,14 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
 
 // Create a single supabase client for interacting with the database
-// IMPORTANT: autoRefreshToken is disabled because we use custom JWTs from Firebase
-// that are not compatible with Supabase's native refresh mechanism.
-// Token refresh is handled manually via exchangeToken when needed.
+// autoRefreshToken is disabled to prevent Supabase's automatic background refresh timer.
+// Our sessions use real Supabase refresh tokens (from exchangeToken's magiclink→verify flow),
+// so supabaseClient.auth.refreshSession() works and is called manually after purchases
+// to pick up updated JWT claims (e.g. plans). Scheduled refresh is handled by useAuth.
 export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: Platform.OS === 'web' ? localStorage : Storage,
-    autoRefreshToken: false, // Disable - our custom JWTs can't use Supabase's refresh endpoint
+    autoRefreshToken: false, // Manual refresh only — see useAuth and post-purchase flows
     persistSession: true,
     detectSessionInUrl: false,
   },

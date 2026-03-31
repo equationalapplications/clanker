@@ -11,7 +11,7 @@ export default function CheckoutCancel() {
                 Checkout cancelled
             </Text>
             <Text variant="bodyLarge" style={styles.subtitle}>
-                No charge was made. You can try again whenever you're ready.
+                No charge was made. You can try again whenever {"you're"} ready.
             </Text>
             <Button mode="contained" onPress={() => router.back()} style={styles.button}>
                 Try again
