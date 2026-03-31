@@ -20,7 +20,7 @@ Credits and subscriptions are shared across platforms. If a user purchases credi
 
 ### Credits and Subscriptions
 
-The user may purchase 100 credits for $10 or subscribe monthly for unlimit credits at $20/month.
+The user may purchase 100 credits for $10 or subscribe monthly for unlimited credits at $20/month or $50/month.
 
 Credits  will not expire and they roll over. They are not consumed if the user has a monthly subscription so they can be used when the user cancels the subscription.
 
@@ -111,10 +111,18 @@ const REVENUECAT_PRODUCT_TO_TIER: Record<string, string> = {
   "monthly_20_subscription": "monthly_20",
   "monthly_50_subscription": "monthly_50",
 };
-const REVENUECAT_CREDIT_PACK_ID = "credit_pack_100"; // 100 credits
+const REVENUECAT_CREDIT_PACK_ID = Platform.OS === 'ios' ? "credit_100" : "credit_pack_100"; // 100 credits (iOS id differs due to App Store rename restriction)
 ```
 
 These product IDs must match App Store Connect / Google Play Console exactly.
+
+#### Google Play Console IDs
+
+| Product ID | Type | Base Plan ID / Purchase Option ID |
+|---|---|---|
+| `monthly_20_subscription` | Auto-renewing subscription | `monthly-usd-20` |
+| `monthly_50_subscription` | Auto-renewing subscription | `monthly-usd-50` |
+| `credit_pack_100` (Android) / `credit_100` (iOS) | One-time product | `one-time-usd-pack` |
 
 ---
 
