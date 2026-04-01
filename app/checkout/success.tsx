@@ -11,7 +11,7 @@ export default function CheckoutSuccess() {
         const timer = setTimeout(async () => {
             const { error } = await supabaseClient.auth.refreshSession()
             if (error) console.warn('⚠️ Session refresh failed after checkout:', error.message)
-            router.replace('/(drawer)')
+            router.replace('/')
         }, 3000)
         return () => clearTimeout(timer)
     }, [router])
@@ -27,7 +27,7 @@ export default function CheckoutSuccess() {
             <Button mode="contained" onPress={async () => {
                 const { error } = await supabaseClient.auth.refreshSession()
                 if (error) console.warn('⚠️ Session refresh failed after checkout:', error.message)
-                router.replace('/(drawer)')
+                router.replace('/')
             }} style={styles.button}>
                 Go to app
             </Button>

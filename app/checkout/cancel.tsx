@@ -16,7 +16,7 @@ export default function CheckoutCancel() {
             <Button mode="contained" onPress={() => router.back()} style={styles.button}>
                 Try again
             </Button>
-            <Button mode="text" onPress={() => router.replace('/(drawer)')}>
+            <Button mode="text" onPress={() => router.replace('/')}>
                 Back to app
             </Button>
         </View>
