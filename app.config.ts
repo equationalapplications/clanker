@@ -108,6 +108,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/app',
     '@react-native-firebase/auth',
     '@react-native-firebase/crashlytics',
+    '@react-native-firebase/app-check',
     'expo-font',
     'expo-image',
     [
@@ -121,7 +122,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         ios: {
           useFrameworks: 'static',
-          forceStaticLinking: ['RNFBApp', 'RNFBAuth', 'RNFBCrashlytics', 'RNFBFunctions'],
+          forceStaticLinking: ['RNFBApp', 'RNFBAuth', 'RNFBCrashlytics', 'RNFBFunctions', 'RNFBAppCheck'],
         },
       },
     ],

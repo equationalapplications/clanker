@@ -5,6 +5,27 @@ import Storage from 'expo-sqlite/kv-store'
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
 
+// supabase-js's internal fetchWithAuth always passes a Headers *instance* to fetch,
+// but React Native's native fetch bridge (OkHttp on Android) does not reliably
+// serialise Headers objects — it expects a plain Record<string, string>.
+// Checking `instanceof Headers` is unreliable in Hermes because the Headers constructor
+// captured at module-init time by supabase-js may differ from the global reference here.
+// Duck-type instead: anything with a .forEach() method is treated as a Headers instance.
+function plainHeadersFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const h = init?.headers
+  if (h != null && typeof (h as any).forEach === 'function') {
+    const plain: Record<string, string> = {}
+      ; (h as any).forEach((value: string, key: string) => {
+        plain[key] = value
+      })
+    return fetch(input, { ...init, headers: plain })
+  }
+  return fetch(input, init)
+}
+
 // Create a single supabase client for interacting with the database
 // autoRefreshToken is disabled to prevent Supabase's automatic background refresh timer.
 // Our sessions use real Supabase refresh tokens (from exchangeToken's magiclink→verify flow),
@@ -17,6 +38,7 @@ export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+  global: { fetch: plainHeadersFetch },
 })
 
 // Database types based on our PostgreSQL schema

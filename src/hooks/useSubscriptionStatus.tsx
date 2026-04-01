@@ -95,8 +95,9 @@ export function TermsAcceptanceProvider({
     setIsLoading(true)
     try {
       const {
-        data: { user },
-      } = await supabaseClient.auth.getUser()
+        data: { session },
+      } = await supabaseClient.auth.getSession()
+      const user = session?.user
 
       // Discard if a newer checkStatus() call has already started
       if (seq !== checkSeqRef.current) return
