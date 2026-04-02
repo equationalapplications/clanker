@@ -1,10 +1,10 @@
 import { StyleSheet, ScrollView, View } from 'react-native'
-import { Text, Card, Avatar } from 'react-native-paper'
+import { Text, Card, ActivityIndicator } from 'react-native-paper'
 import { router } from 'expo-router'
 import { useCharacters } from '~/hooks/useCharacters'
+import { useEnsureDefaultCharacter } from '~/hooks/useEnsureDefaultCharacter'
 import LoadingIndicator from '~/components/LoadingIndicator'
-
-const defaultAvatarUrl = 'https://via.placeholder.com/150'
+import CharacterAvatar from '~/components/CharacterAvatar'
 
 interface ChatItemProps {
   id: string
@@ -15,6 +15,7 @@ interface ChatItemProps {
 
 export default function ChatsScreen() {
   const { data: characterList, isLoading } = useCharacters()
+  const { isCreatingDefault } = useEnsureDefaultCharacter()
 
   const onPressChatItem = (id: string) => {
     router.push(`/characters/${id}/chat`)
@@ -23,7 +24,7 @@ export default function ChatsScreen() {
   const ChatItem = ({ id, name, avatar, lastMessage }: ChatItemProps) => (
     <Card style={styles.chatCard} onPress={() => onPressChatItem(id)}>
       <Card.Content style={styles.chatCardContent}>
-        <Avatar.Image size={50} source={{ uri: avatar || defaultAvatarUrl }} />
+        <CharacterAvatar size={50} imageUrl={avatar} characterName={name} />
         <View style={styles.chatTextContainer}>
           <Text variant="titleMedium" style={styles.chatName}>
             {name || 'Unnamed Character'}
@@ -47,12 +48,23 @@ export default function ChatsScreen() {
   if (!characterList || characterList.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text variant="headlineSmall" style={styles.emptyTitle}>
-          No Characters Yet
-        </Text>
-        <Text variant="bodyMedium" style={styles.emptyNote}>
-          Create a character to start chatting!
-        </Text>
+        {isCreatingDefault ? (
+          <>
+            <ActivityIndicator size="large" />
+            <Text variant="bodyLarge" style={styles.emptyNote}>
+              Creating your first character...
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text variant="headlineSmall" style={styles.emptyTitle}>
+              No Characters Yet
+            </Text>
+            <Text variant="bodyMedium" style={styles.emptyNote}>
+              Create a character to start chatting!
+            </Text>
+          </>
+        )}
       </View>
     )
   }

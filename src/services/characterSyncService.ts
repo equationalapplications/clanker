@@ -144,6 +144,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                 user_id: localUserId, // Store Firebase UID locally (matches local SQLite partition key)
                 name: cloudChar.name,
                 avatar: cloudChar.avatar,
+                avatar_data: null, // avatar_data is local-only; cloud restore never populates it
                 appearance: cloudChar.appearance,
                 traits: cloudChar.traits,
                 emotions: cloudChar.emotions,

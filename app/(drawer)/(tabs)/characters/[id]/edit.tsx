@@ -1,9 +1,13 @@
 import { useLocalSearchParams, router } from 'expo-router'
 import { View, StyleSheet, ScrollView } from 'react-native'
-import { Text, TextInput, Button, Divider } from 'react-native-paper'
-import { useState, useEffect } from 'react'
+import { Text, TextInput, Button, Divider, HelperText } from 'react-native-paper'
+import { useState, useEffect, useMemo } from 'react'
 import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
 import { useAuth } from '~/auth/useAuth'
+import CharacterAvatar from '~/components/CharacterAvatar'
+import { useLocalImageGeneration } from '~/hooks/useLocalImageGeneration'
+import { buildImagePrompt } from '~/utils/buildImagePrompt'
+import { useEditDirtyState } from '~/hooks/useEditDirtyState'
 
 export default function EditCharacterScreen() {
     const { id } = useLocalSearchParams<{ id: string }>()
@@ -16,6 +20,24 @@ export default function EditCharacterScreen() {
     const [traits, setTraits] = useState('')
     const [emotions, setEmotions] = useState('')
     const [context, setContext] = useState('')
+    const [avatarUri, setAvatarUri] = useState<string | null>(null)
+
+    // Track loaded values for dirty-state comparison
+    const loadedValues = useMemo(() => {
+        if (!character) return null
+        return {
+            name: character.name || '',
+            appearance: character.appearance || '',
+            traits: character.traits || '',
+            emotions: character.emotions || '',
+            context: character.context || '',
+        }
+    }, [character])
+
+    useEditDirtyState(
+        { name, appearance, traits, emotions, context },
+        loadedValues,
+    )
 
     // Update local state when character data loads
     useEffect(() => {
@@ -25,8 +47,15 @@ export default function EditCharacterScreen() {
             setTraits(character.traits || '')
             setEmotions(character.emotions || '')
             setContext(character.context || '')
+            setAvatarUri(character.avatar ?? null)
         }
     }, [character])
+
+    const { generateImage, isGenerating, error: imageError, clearError } = useLocalImageGeneration({
+        characterId: id || '',
+        userId: user?.uid || '',
+        onImageGenerated: (fileUri) => setAvatarUri(fileUri),
+    })
 
     const handleSave = async () => {
         if (!id || !user?.uid) return
@@ -73,6 +102,34 @@ export default function EditCharacterScreen() {
                 <Text variant="headlineMedium" style={styles.title}>
                     Edit Character
                 </Text>
+
+                <View style={styles.avatarContainer}>
+                    <CharacterAvatar
+                        size={120}
+                        imageUrl={avatarUri}
+                        characterName={name}
+                    />
+                    <Button
+                        mode="outlined"
+                        icon={isGenerating ? undefined : 'image-auto-adjust'}
+                        onPress={() => {
+                            clearError()
+                            generateImage(buildImagePrompt({ name, appearance, traits, emotions }))
+                        }}
+                        disabled={isGenerating}
+                        loading={isGenerating}
+                        style={styles.generateButton}
+                    >
+                        {avatarUri ? 'Regenerate Image' : 'Generate Image'}
+                    </Button>
+                    {imageError ? (
+                        <HelperText type="error" visible>
+                            {imageError}
+                        </HelperText>
+                    ) : null}
+                </View>
+
+                <Divider style={styles.avatarDivider} />
 
                 <TextInput
                     label="Name"
@@ -150,6 +207,17 @@ const styles = StyleSheet.create({
     },
     title: {
         marginBottom: 24,
+    },
+    avatarContainer: {
+        alignItems: 'center',
+        marginBottom: 16,
+        gap: 12,
+    },
+    generateButton: {
+        alignSelf: 'center',
+    },
+    avatarDivider: {
+        marginBottom: 20,
     },
     input: {
         marginBottom: 16,

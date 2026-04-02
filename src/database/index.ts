@@ -46,9 +46,9 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
             const columns = await database.getAllAsync<{ name: string }>(
                 'PRAGMA table_info(characters)',
             )
-            const hasDeletedAt = columns.some((column) => column.name === 'deleted_at')
+            const hasAvatarData = columns.some((column) => column.name === 'avatar_data')
 
-            if (hasDeletedAt) {
+            if (hasAvatarData) {
                 // Fresh DB already at latest schema: just record the current schema version
                 await database.runAsync(
                     'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
