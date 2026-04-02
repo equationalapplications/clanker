@@ -55,6 +55,9 @@ export default function SignIn() {
     if (appleSignInLoading) {
       return
     }
+    if (appleSignInLoading) {
+      return
+    }
     setAppleSignInLoading(true)
     try {
       const result = await signInWithApple()
