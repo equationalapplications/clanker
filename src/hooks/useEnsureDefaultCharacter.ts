@@ -23,13 +23,14 @@ export function useEnsureDefaultCharacter() {
     const { user } = useAuth()
     const { characters, isLoading } = useCharacters()
     const createCharacterMutation = useCreateCharacter()
-    const isMutating = useIsMutating({ mutationKey: createCharacterMutationKey })
+    const isMutating = useIsMutating({ mutationKey: createCharacterMutationKey(user?.uid) })
 
     // Reset the per-user failure flag whenever the user changes.
     const prevUidRef = useRef<string | null | undefined>(undefined)
     useEffect(() => {
         if (prevUidRef.current !== undefined && prevUidRef.current !== user?.uid) {
             creationFailedForUser = null
+            creationInFlight = false
         }
         prevUidRef.current = user?.uid
     }, [user?.uid])
@@ -41,7 +42,7 @@ export function useEnsureDefaultCharacter() {
             characters !== undefined &&
             characters.length === 0 &&
             !creationInFlight &&
-            !createCharacterMutation.isPending &&
+            isMutating === 0 &&
             creationFailedForUser !== user.uid
         ) {
             creationInFlight = true
@@ -66,7 +67,7 @@ export function useEnsureDefaultCharacter() {
                 },
             )
         }
-    }, [isLoading, user, characters, createCharacterMutation, createCharacterMutation.isPending])
+    }, [isLoading, user, characters, createCharacterMutation, isMutating])
 
     return {
         isCreatingDefault: isMutating > 0,
