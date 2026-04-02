@@ -1,3 +1,78 @@
+# [20.0.0](https://github.com/equationalapplications/clanker/compare/v19.0.0...v20.0.0) (2026-04-02)
+
+
+* feat(auth)!: add Apple Sign-In for iOS and web ([3d98eec](https://github.com/equationalapplications/clanker/commit/3d98eeca3f2a5e0b072c2aabc6f13771dc601d19))
+* feat(auth)!: add Apple Sign-In for iOS and web ([#183](https://github.com/equationalapplications/clanker/issues/183)) ([38c06b5](https://github.com/equationalapplications/clanker/commit/38c06b583b918c44321d4bbf727626d729a4ed19))
+
+
+### Bug Fixes
+
+* **android:** resolve Supabase apikey header drop and App Check race condition ([fd01d7f](https://github.com/equationalapplications/clanker/commit/fd01d7f62704cbfe8896ac108479c84d09d2297b))
+* **assets:** add adaptive icon and banner images ([5a92a22](https://github.com/equationalapplications/clanker/commit/5a92a2262e92e8782035c047c96c1a190104a43c))
+* **auth:** address Apple Sign-In code review feedback ([cd771ce](https://github.com/equationalapplications/clanker/commit/cd771ce1a4b530c15a036ae07d4981843da3c1ef))
+* **auth:** address Copilot review comments ([1a2378e](https://github.com/equationalapplications/clanker/commit/1a2378ea37be1bbbe2d82effffff8152e54cad5c))
+* **auth:** remove sensitive JWT payload from debug log ([1de09c8](https://github.com/equationalapplications/clanker/commit/1de09c835deff2a1c868fc9be5276d3c3692c1da))
+* **auth:** surface apple redirect sign-in errors to user ([37ef059](https://github.com/equationalapplications/clanker/commit/37ef0595bb5c03bbba1880c9b277b3db357f248f))
+* **checkout:** escape apostrophe in cancel screen to satisfy react/no-unescaped-entities ([c3d3558](https://github.com/equationalapplications/clanker/commit/c3d35582665d49f470de034dbdf32e5823142761))
+* **checkout:** handle refreshSession errors and improve apostrophe readability ([b7b6aed](https://github.com/equationalapplications/clanker/commit/b7b6aed140128854ec52dafd4c7d38acb1fa4925))
+* **ci:** add --platform all to production EAS build command ([3c8c735](https://github.com/equationalapplications/clanker/commit/3c8c7351ca28a6d2c90b8331468b65e44b6909ef))
+* **payments:** fix JWT base64url decode, hoist Platform import, and refresh session post-purchase ([eb2cf5f](https://github.com/equationalapplications/clanker/commit/eb2cf5fcd3204a01833d27f442019665d7e85d1d))
+* **payments:** use native Supabase refreshSession post-purchase and clarify autoRefreshToken comment ([5b7d86d](https://github.com/equationalapplications/clanker/commit/5b7d86d46fdc5e303e299e22390a6908c82935de))
+* resolve merge conflicts for dev into staging ([4806a50](https://github.com/equationalapplications/clanker/commit/4806a500b17cdd270eb88c75d4efb7a3088709fd))
+* restore CHANGELOG entries to correct chronological order after merge conflict ([98710a0](https://github.com/equationalapplications/clanker/commit/98710a0a27753abffff4eea0b888ff692c50aad0))
+* **routing:** remove duplicate (app) route group and fix stale-tab web errors ([6e72f26](https://github.com/equationalapplications/clanker/commit/6e72f26dd59472da0310553f395f78aa828fbb95))
+* **settings:** show real app version from package.json ([7f23865](https://github.com/equationalapplications/clanker/commit/7f238655f6fdce5f6e774a240c86f29c20fb8eb9))
+
+
+### Features
+
+* **auth:** add react-native-fbsdk-next dependency ([5b37460](https://github.com/equationalapplications/clanker/commit/5b37460aecb1d5018097d47eede78d06a4f6b65d))
+* **deps:** update expo, react, and navigation packages ([a3a26a0](https://github.com/equationalapplications/clanker/commit/a3a26a0537caecd3e4293163a617d28c2df4443a))
+
+
+### BREAKING CHANGES
+
+* adds expo-apple-authentication native module; requires new
+native build and app store submission
+
+* fix(auth): address Apple Sign-In code review feedback
+
+- Fix modulo bias in generateNonce() using rejection sampling
+- Defer expo-apple-authentication require() until after iOS platform check
+  to prevent crashes on Android and web bundling failures
+- Add handleAppleRedirectResult() to complete popup-blocked redirect flows
+- Guard AppleLoginOnPress against concurrent sign-in attempts
+- Call handleAppleRedirectResult on sign-in screen mount
+
+* feat(auth): add react-native-fbsdk-next dependency
+
+Added for future Facebook Sign-In support via OTA update.
+
+* fix(settings): show real app version from package.json
+
+* chore(deps): remove react-native-fbsdk-next
+
+* ci: refactor workflows for clarity
+
+- staging-test.yml: trigger on PR opened, rename job, remove semantic-release
+- production-update.yml: fix Firebase project ID and secret name
+
+* ci: update workflow files
+
+* Potential fix for code scanning alert no. 1: Workflow does not contain permissions
+
+Co-authored-by: Copilot Autofix powered by AI <62310815+github-advanced-security[bot]@users.noreply.github.com>
+Signed-off-by: Kurt VanDusen <info@equationalapplications.com>
+
+* Update app/sign-in.tsx
+
+Co-authored-by: Copilot <175728472+Copilot@users.noreply.github.com>
+Signed-off-by: Kurt VanDusen <info@equationalapplications.com>
+
+* fix(auth): surface apple redirect sign-in errors to user
+* adds expo-apple-authentication native module; requires new
+native build and app store submission
+
 # [19.0.0](https://github.com/equationalapplications/clanker/compare/v18.0.1...v19.0.0) (2026-04-02)
 
 * Dev ([#169](https://github.com/equationalapplications/clanker/issues/169)) ([8f81316](https://github.com/equationalapplications/clanker/commit/8f81316108b45e1feaae3ef72a5015a7f9084a81)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
