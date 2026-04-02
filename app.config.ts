@@ -113,6 +113,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/app-check',
     'expo-font',
     'expo-image',
+    'react-native-fbsdk-next',
     [
       "@react-native-google-signin/google-signin",
       {
