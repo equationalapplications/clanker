@@ -1,5 +1,7 @@
-import { Tabs } from 'expo-router'
+import { Tabs, router, useSegments } from 'expo-router'
+import { Alert } from 'react-native'
 import { TabBarIcon } from '~/components/navigation/TabBarIcon'
+import { editDirtyRef } from '~/hooks/useEditDirtyState'
 
 export default function TabLayout() {
 
@@ -25,6 +27,32 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} />
           ),
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (editDirtyRef.current) {
+              e.preventDefault()
+              Alert.alert(
+                'Unsaved Changes',
+                'You have unsaved changes. Discard them?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Discard',
+                    style: 'destructive',
+                    onPress: () => {
+                      editDirtyRef.current = false
+                      router.navigate('/characters')
+                    },
+                  },
+                ],
+              )
+            } else {
+              // Always reset to the character list regardless of stack depth
+              e.preventDefault()
+              router.navigate('/characters')
+            }
+          },
         }}
       />
     </Tabs>

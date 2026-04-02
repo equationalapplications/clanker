@@ -1,38 +1,14 @@
 import { View, StyleSheet, FlatList } from 'react-native'
 import { Text, Button, ActivityIndicator } from 'react-native-paper'
 import { router } from 'expo-router'
-import { useEffect, useRef } from 'react'
 import { useCharacters, useCreateCharacter } from '~/hooks/useCharacters'
 import { CharacterCard } from '~/components/CharacterCard'
-import { useAuth } from '~/auth/useAuth'
+import { useEnsureDefaultCharacter } from '~/hooks/useEnsureDefaultCharacter'
 
 export default function CharactersListScreen() {
-    const { user } = useAuth()
     const { characters, isLoading } = useCharacters()
     const createCharacterMutation = useCreateCharacter()
-    const hasCreatedDefault = useRef(false)
-
-    // Auto-create a default character if the user has none
-    useEffect(() => {
-        if (
-            !isLoading &&
-            user &&
-            characters !== undefined &&
-            characters.length === 0 &&
-            !hasCreatedDefault.current &&
-            !createCharacterMutation.isPending
-        ) {
-            hasCreatedDefault.current = true
-            createCharacterMutation.mutate({
-                name: 'New Character',
-                appearance: 'A mysterious figure with an intriguing presence.',
-                traits: 'Curious, intelligent, and thoughtful.',
-                emotions: 'Calm and collected, with hints of excitement.',
-                context: 'A helpful companion ready for meaningful conversations.',
-                is_public: false,
-            })
-        }
-    }, [isLoading, user, characters, createCharacterMutation, createCharacterMutation.isPending])
+    const { isCreatingDefault } = useEnsureDefaultCharacter()
 
     const handleCreateCharacter = () => {
         createCharacterMutation.mutate(

@@ -10,6 +10,7 @@ export interface LocalCharacter {
     user_id: string
     name: string
     avatar: string | null
+    avatar_data: string | null // base64 image data (local-only, not synced to cloud)
     appearance: string | null
     traits: string | null
     emotions: string | null
@@ -46,11 +47,16 @@ export interface CharacterUpdate {
  * Convert LocalCharacter to app format
  */
 function toAppFormat(char: LocalCharacter) {
+    // Prefer avatar_data (local base64) for display; fall back to avatar (cloud URL)
+    const displayAvatar = char.avatar_data
+        ? `data:image/webp;base64,${char.avatar_data}`
+        : char.avatar
+
     return {
         id: char.id,
         user_id: char.user_id,
         name: char.name,
-        avatar: char.avatar,
+        avatar: displayAvatar,
         appearance: char.appearance,
         traits: char.traits,
         emotions: char.emotions,
@@ -102,13 +108,14 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
 
     await db.runAsync(
         `INSERT INTO characters 
-     (id, user_id, name, avatar, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, user_id, name, avatar, avatar_data, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             id,
             userId,
             data.name,
             data.avatar || null,
+            null, // avatar_data starts empty
             data.appearance || null,
             data.traits || null,
             data.emotions || null,
@@ -313,13 +320,14 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
         for (const char of characters) {
             await db.runAsync(
                 `INSERT OR REPLACE INTO characters 
-         (id, user_id, name, avatar, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, name, avatar, avatar_data, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     char.id,
                     char.user_id,
                     char.name,
                     char.avatar,
+                    char.avatar_data ?? null,
                     char.appearance,
                     char.traits,
                     char.emotions,

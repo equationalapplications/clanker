@@ -158,8 +158,26 @@ export const generateImageWithVertexAI = async ({
 
     // Optimize prompt for small avatar images
     // Note: Gemini image models don't support explicit width/height/aspectRatio params;
-    // describe desired dimensions in the prompt instead.
-    const enhancedPrompt = `High-quality character avatar portrait: ${prompt}. Square 1:1 aspect ratio. Clean, simple background. Focused on face and upper body. Professional digital art style, sharp details, vibrant colors. Optimized for small avatar display.`
+    // describe desired dimensions in the prompt instead, using the caller-provided options.
+    const sizeDescriptionParts: string[] = []
+    if (width && height) {
+      sizeDescriptionParts.push(`approximately ${width}x${height} pixels`)
+    }
+    if (aspectRatio) {
+      sizeDescriptionParts.push(`${aspectRatio} aspect ratio`)
+    }
+    const sizeDescription =
+      sizeDescriptionParts.length > 0 ? sizeDescriptionParts.join(', ') : 'small avatar size'
+
+    const styleDescription = stylePreset
+      ? `Art style: ${stylePreset}.`
+      : 'Professional digital art style.'
+
+    const formatDescription = outputFormat
+      ? `Optimized for use as a ${outputFormat} avatar image.`
+      : 'Optimized for small avatar display.'
+
+    const enhancedPrompt = `High-quality character avatar portrait: ${prompt}. ${sizeDescription}. Clean, simple background. Focused on face and upper body. ${styleDescription} Sharp details, vibrant colors. ${formatDescription}`
 
     // Generate image using Vertex AI (responseModalities configured at model level)
     const result = await imageModel.generateContent(enhancedPrompt)
