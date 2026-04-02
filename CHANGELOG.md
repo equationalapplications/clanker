@@ -1,3 +1,10 @@
+## [20.0.4](https://github.com/equationalapplications/clanker/compare/v20.0.3...v20.0.4) (2026-04-02)
+
+
+### Bug Fixes
+
+* **vertexai:** update to gemini-2.5 models and migrate to Nano Banana image generation ([#188](https://github.com/equationalapplications/clanker/issues/188)) ([c69b367](https://github.com/equationalapplications/clanker/commit/c69b36782855f26aab2088ae568642a0392abd05)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
+
 ## [20.0.3](https://github.com/equationalapplications/clanker/compare/v20.0.2...v20.0.3) (2026-04-02)
 
 
