@@ -1,6 +1,8 @@
+import { DrawerActions } from '@react-navigation/native'
 import { router } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
 import { useEffect } from 'react'
+import { Pressable } from 'react-native'
 import { useTheme, Icon } from 'react-native-paper'
 import { useTermsAcceptance } from '~/hooks/useSubscriptionStatus'
 
@@ -26,13 +28,23 @@ export default function DrawerLayout() {
 
   return (
     <Drawer
-      screenOptions={{
+      screenOptions={({ navigation }) => ({
         headerStyle: { backgroundColor: theme.colors.surface },
         headerTintColor: theme.colors.onSurface,
         drawerStyle: { backgroundColor: theme.colors.surface },
         drawerActiveTintColor: theme.colors.primary,
         drawerInactiveTintColor: theme.colors.onSurfaceVariant,
-      }}
+        headerLeft: ({ tintColor }) => (
+          <Pressable
+            onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
+            style={{ marginLeft: 16 }}
+            accessibilityRole="button"
+            accessibilityLabel="Open navigation drawer"
+          >
+            <Icon source="menu" color={tintColor} size={24} />
+          </Pressable>
+        ),
+      })}
     >
       <Drawer.Screen
         name="(tabs)"
