@@ -1,6 +1,7 @@
 // Native version - uses React Native Firebase Vertex AI module
 import { getApp } from '@react-native-firebase/app'
 import { getVertexAI, getGenerativeModel } from '@react-native-firebase/vertexai'
+import { appCheckReady } from '~/config/firebaseConfig'
 
 // Initialize Vertex AI
 const app = getApp()
@@ -61,6 +62,9 @@ ${context.characterName}:`
 
         console.log('📝 Generated prompt, calling Vertex AI...')
 
+        // Ensure App Check is initialized before making Vertex AI requests
+        await appCheckReady
+
         // Generate response using Vertex AI
         const result = await textModel.generateContent(systemPrompt)
         const text = result.response.text()
@@ -106,6 +110,8 @@ Generate a friendly, warm introduction message that:
 - Keep it brief and welcoming (1-2 sentences)
 
 Introduction:`
+
+        await appCheckReady
 
         const result = await textModel.generateContent(prompt)
         const text = result.response.text()
@@ -162,6 +168,7 @@ export const generateImageWithVertexAI = async ({
         // }
 
         // Generate image using Vertex AI
+        await appCheckReady
         const result = await imageModel.generateContent(enhancedPrompt)
 
         // Extract the image data from the response
