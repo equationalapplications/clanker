@@ -5,6 +5,7 @@ import React, {
     useCallback,
     ReactNode,
 } from 'react'
+import { Appearance } from 'react-native'
 import Storage from 'expo-sqlite/kv-store'
 import { setCrashlyticsEnabled } from '~/services/crashlyticsService'
 
@@ -46,7 +47,7 @@ interface SettingsProviderProps {
 export function SettingsProvider({ children }: SettingsProviderProps) {
     const [settings, setSettings] = useState<Settings>(() => ({
         analytics: readBoolSync('analytics', false),
-        darkMode: readBoolSync('darkMode', true),
+        darkMode: readBoolSync('darkMode', Appearance.getColorScheme() === 'dark'),
         notifications: readBoolSync('notifications', true),
     }))
 
