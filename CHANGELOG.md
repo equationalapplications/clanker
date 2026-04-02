@@ -1,3 +1,14 @@
+# [21.0.0](https://github.com/equationalapplications/clanker/compare/v20.0.4...v21.0.0) (2026-04-02)
+
+
+* feat(characters)!: replace expo-file-system with SQLite image storage, fix tab nav, unify default character creation ([#189](https://github.com/equationalapplications/clanker/issues/189)) ([b0d7e43](https://github.com/equationalapplications/clanker/commit/b0d7e43ca2f52fa385f8dc3d75dc3075565308c6)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
+
+
+### BREAKING CHANGES
+
+* native module change (@react-native-firebase/ai replaces
+@react-native-firebase/vertexai), requires new native build
+
 ## [20.0.4](https://github.com/equationalapplications/clanker/compare/v20.0.3...v20.0.4) (2026-04-02)
 
 
