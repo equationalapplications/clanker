@@ -1,25 +1,33 @@
-// React Native Firebase - for iOS and Android platforms
-import authModule, { FirebaseAuthTypes } from '@react-native-firebase/auth'
+// React Native Firebase – modular API (aligned with Firebase Web SDK)
+import { FirebaseAuthTypes } from '@react-native-firebase/auth'
+import {
+    getAuth,
+    onAuthStateChanged as onAuthStateChangedMod,
+    signOut as signOutMod,
+} from '@react-native-firebase/auth'
 import { getApp } from '@react-native-firebase/app'
-import { firebase as firebaseNamespace } from '@react-native-firebase/functions'
-import appCheck from '@react-native-firebase/app-check'
+import { getFunctions, httpsCallable } from '@react-native-firebase/functions'
+import { initializeAppCheck } from '@react-native-firebase/app-check'
 import { reportError } from '~/utilities/reportError'
 
 const firebaseApp = getApp()
 
 async function initAppCheck() {
-    const provider = appCheck().newReactNativeFirebaseAppCheckProvider()
-    await provider.configure({
-        android: {
-            provider: __DEV__ ? 'debug' : 'playIntegrity',
-            debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
+    await initializeAppCheck(firebaseApp, {
+        provider: {
+            providerOptions: {
+                android: {
+                    provider: __DEV__ ? 'debug' : 'playIntegrity',
+                    debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
+                },
+                apple: {
+                    provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
+                    debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
+                },
+            },
         },
-        apple: {
-            provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
-            debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
-        },
+        isTokenAutoRefreshEnabled: true,
     })
-    await appCheck().initializeAppCheck({ provider, isTokenAutoRefreshEnabled: true })
 }
 
 // Exported so callers (e.g. getSupabaseUserSession) can await App Check readiness
@@ -29,25 +37,25 @@ export const appCheckReady = initAppCheck().catch((err: unknown) => {
     throw err
 })
 
-const auth = authModule()
+const auth = getAuth(firebaseApp)
 
 const getCurrentUser = () => auth.currentUser
 
 const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) =>
-    auth.onAuthStateChanged(callback)
+    onAuthStateChangedMod(auth, callback)
 
-const signOut = () => auth.signOut()
+const signOut = () => signOutMod(auth)
 
 // Align Functions region with deployed backend (best practice per RNFirebase docs)
-const functionsInstance = firebaseNamespace.app().functions('us-central1')
+const functionsInstance = getFunctions(firebaseApp, 'us-central1')
 
-const exchangeToken = functionsInstance.httpsCallable('exchangeToken')
+const exchangeToken = httpsCallable(functionsInstance, 'exchangeToken')
 
-const generateReplyFn = functionsInstance.httpsCallable('generateReply')
+const generateReplyFn = httpsCallable(functionsInstance, 'generateReply')
 
-const purchasePackageStripe = functionsInstance.httpsCallable('purchasePackageStripe')
+const purchasePackageStripe = httpsCallable(functionsInstance, 'purchasePackageStripe')
 
-const spendCreditsFn = functionsInstance.httpsCallable('spendCredits')
+const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
 
 export type FirebaseUser = FirebaseAuthTypes.User
 

@@ -1,4 +1,10 @@
-import crashlytics from '@react-native-firebase/crashlytics'
+import {
+    getCrashlytics,
+    setCrashlyticsCollectionEnabled as setCrashlyticsCollectionEnabledMod,
+    setUserId as setUserIdMod,
+    setAttribute as setAttributeMod,
+    recordError as recordErrorMod,
+} from '@react-native-firebase/crashlytics'
 import Storage from 'expo-sqlite/kv-store'
 
 const ANALYTICS_KEY = 'setting:analytics'
@@ -11,7 +17,7 @@ export async function initializeCrashlytics(): Promise<void> {
     try {
         const raw = Storage.getItemSync(ANALYTICS_KEY)
         const enabled = raw === '1'
-        await crashlytics().setCrashlyticsCollectionEnabled(enabled)
+        await setCrashlyticsCollectionEnabledMod(getCrashlytics(), enabled)
         console.log(`✅ Crashlytics initialized (enabled: ${enabled})`)
     } catch (error) {
         console.error('❌ Error initializing Crashlytics:', error)
@@ -24,7 +30,7 @@ export async function initializeCrashlytics(): Promise<void> {
  */
 export async function setCrashlyticsEnabled(enabled: boolean): Promise<void> {
     try {
-        await crashlytics().setCrashlyticsCollectionEnabled(enabled)
+        await setCrashlyticsCollectionEnabledMod(getCrashlytics(), enabled)
     } catch (error) {
         console.error('❌ Error toggling Crashlytics:', error)
     }
@@ -35,7 +41,7 @@ export async function setCrashlyticsEnabled(enabled: boolean): Promise<void> {
  */
 export async function setCrashlyticsUserId(userId: string | null): Promise<void> {
     try {
-        await crashlytics().setUserId(userId ?? '')
+        await setUserIdMod(getCrashlytics(), userId ?? '')
     } catch (error) {
         console.error('❌ Error setting Crashlytics user ID:', error)
     }
@@ -46,10 +52,11 @@ export async function setCrashlyticsUserId(userId: string | null): Promise<void>
  */
 export async function logCrashlyticsError(error: Error, context?: string): Promise<void> {
     try {
+        const instance = getCrashlytics()
         if (context) {
-            await crashlytics().setAttribute('context', context)
+            await setAttributeMod(instance, 'context', context)
         }
-        await crashlytics().recordError(error)
+        recordErrorMod(instance, error)
     } catch (err) {
         console.error('❌ Error recording Crashlytics error:', err)
     }
