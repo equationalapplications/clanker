@@ -17,6 +17,7 @@ import {
   signOut as firebaseSignOut,
 } from '~/config/firebaseConfig'
 import { signOutFromGoogle } from '~/auth/googleSignin'
+import { signOutFromApple } from '~/auth/appleSignin'
 import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
 
 // Union type for platform-specific user
@@ -197,6 +198,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Also revoke/sign out of Google so next login prompts account selection
       console.log('🔒 Revoking Google access & signing out...')
       await signOutFromGoogle()
+      await signOutFromApple()
       setUser(null)
 
       console.log('🗑️ Clearing React Query cache...')

@@ -5,6 +5,7 @@ import { router } from 'expo-router'
 import { useAuth } from '~/auth/useAuth'
 import CombinedSubscriptionButton from '~/components/CombinedSubscriptionButton'
 import LoadingIndicator from '~/components/LoadingIndicator'
+import { version } from '../../package.json'
 
 export default function Settings() {
   const { user, signOut } = useAuth()
@@ -107,7 +108,7 @@ export default function Settings() {
 
         <List.Item
           title="App Version"
-          description="10.0.0"
+          description={version}
           left={(props) => <List.Icon {...props} icon="information" />}
         />
       </View>
