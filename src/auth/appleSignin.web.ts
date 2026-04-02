@@ -1,5 +1,5 @@
 // Web-specific Apple Sign-In implementation
-import { OAuthProvider, getAuth, signInWithPopup, signInWithRedirect } from 'firebase/auth'
+import { OAuthProvider, getAuth, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth'
 import { firebaseApp } from '~/config/firebaseConfig.web'
 
 export interface AppleSignInResult {
@@ -44,4 +44,17 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
 // No-op on web — Firebase auth handles sign-out
 export const signOutFromApple = async (): Promise<void> => {
     // no-op
+}
+
+// Finalizes a pending Apple redirect sign-in. Call on sign-in screen mount
+// so that auth/popup-blocked redirect flows reliably complete and errors surface.
+export const handleAppleRedirectResult = async (): Promise<void> => {
+    try {
+        const result = await getRedirectResult(auth)
+        if (result) {
+            console.log('✅ Apple Sign-In redirect completed successfully')
+        }
+    } catch (error: any) {
+        console.error('Apple redirect sign-in failed:', error)
+    }
 }

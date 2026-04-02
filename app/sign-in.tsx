@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { StyleSheet, View, Alert, Platform } from 'react-native'
 import { useRouter } from 'expo-router'
-import * as AppleAuthentication from 'expo-apple-authentication'
 
 import ProviderButton from '~/auth/AuthProviderButton'
 import Button from '~/components/Button'
@@ -9,7 +8,11 @@ import Logo from '~/components/Logo'
 import { MonoText, TitleText } from '~/components/StyledText'
 import { useAuth } from '~/auth/useAuth'
 import { signInWithGoogle } from '~/auth/googleSignin'
-import { signInWithApple } from '~/auth/appleSignin'
+import { signInWithApple, handleAppleRedirectResult } from '~/auth/appleSignin'
+
+// expo-apple-authentication is iOS-only; defer require to avoid breaking
+// web bundling or crashing Android where the native module is unavailable.
+const AppleAuthentication = Platform.OS === 'ios' ? require('expo-apple-authentication') : null
 
 export default function SignIn() {
   const router = useRouter()
@@ -22,6 +25,10 @@ export default function SignIn() {
       router.replace('/characters')
     }
   }, [user, router])
+
+  useEffect(() => {
+    handleAppleRedirectResult()
+  }, [])
 
   const GoogleLoginOnPress = async () => {
     setGoogleSignInLoading(true)
@@ -45,6 +52,9 @@ export default function SignIn() {
   }
 
   const AppleLoginOnPress = async () => {
+    if (appleSignInLoading) {
+      return
+    }
     setAppleSignInLoading(true)
     try {
       const result = await signInWithApple()

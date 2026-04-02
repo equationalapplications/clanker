@@ -1,4 +1,3 @@
-import * as AppleAuthentication from 'expo-apple-authentication'
 import { Platform } from 'react-native'
 import firebaseAuth from '@react-native-firebase/auth'
 
@@ -13,6 +12,10 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
     if (Platform.OS !== 'ios') {
         return { success: false, error: 'Apple Sign-In is only available on iOS' }
     }
+
+    // Defer import until after platform check to avoid crashing on Android
+    // where the expo-apple-authentication native module is unavailable
+    const AppleAuthentication = require('expo-apple-authentication')
 
     try {
         const isAvailable = await AppleAuthentication.isAvailableAsync()
@@ -59,5 +62,10 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
 // the user's stored data is the recommended approach. Firebase sign-out is
 // handled separately by the auth context.
 export const signOutFromApple = async (): Promise<void> => {
+    // no-op
+}
+
+// no-op on native — redirect result handling is web-only
+export const handleAppleRedirectResult = async (): Promise<void> => {
     // no-op
 }
