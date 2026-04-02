@@ -1,10 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import { useIsMutating } from '@tanstack/react-query'
 import { useAuth } from '~/auth/useAuth'
-import { useCharacters, useCreateCharacter } from '~/hooks/useCharacters'
+import { useCharacters, useCreateCharacter, createCharacterMutationKey } from '~/hooks/useCharacters'
 
 /**
- * Module-level guards to prevent multiple screens from racing to create
- * the default character simultaneously, and to stop retrying after a failure.
+ * Module-level mutex to prevent multiple screens from racing to create
+ * the default character simultaneously. Used only as a last-resort guard,
+ * not as UI state — reactive pending state comes from useIsMutating.
  */
 let creationInFlight = false
 let creationFailedForUser: string | null = null
@@ -15,11 +17,22 @@ let creationFailedForUser: string | null = null
  *
  * Safe to call from multiple screens — a module-level flag prevents
  * duplicate creation even when React Query hasn't settled yet.
+ * isCreatingDefault is reactive across all mounted screens via useIsMutating.
  */
 export function useEnsureDefaultCharacter() {
     const { user } = useAuth()
     const { characters, isLoading } = useCharacters()
     const createCharacterMutation = useCreateCharacter()
+    const isMutating = useIsMutating({ mutationKey: createCharacterMutationKey })
+
+    // Reset the per-user failure flag whenever the user changes.
+    const prevUidRef = useRef<string | null | undefined>(undefined)
+    useEffect(() => {
+        if (prevUidRef.current !== undefined && prevUidRef.current !== user?.uid) {
+            creationFailedForUser = null
+        }
+        prevUidRef.current = user?.uid
+    }, [user?.uid])
 
     useEffect(() => {
         if (
@@ -46,6 +59,8 @@ export function useEnsureDefaultCharacter() {
                         creationInFlight = false
                         if (error) {
                             creationFailedForUser = user.uid
+                        } else {
+                            creationFailedForUser = null
                         }
                     },
                 },
@@ -54,6 +69,6 @@ export function useEnsureDefaultCharacter() {
     }, [isLoading, user, characters, createCharacterMutation, createCharacterMutation.isPending])
 
     return {
-        isCreatingDefault: createCharacterMutation.isPending || creationInFlight,
+        isCreatingDefault: isMutating > 0,
     }
 }

@@ -101,40 +101,13 @@ export function useUserPublicData() {
  */
 export function useUserPrivateData() {
   const { user } = useAuth()
-  const queryClient = useQueryClient()
 
   const query = useQuery({
     queryKey: userKeys.private(user?.uid),
     queryFn: getUserPrivate,
     enabled: !!user,
-    staleTime: 1000 * 30, // 30 seconds - credits change frequently
+    staleTime: 1000 * 60 * 5, // 5 minutes
   })
-
-  // Set up real-time subscription for credits changes
-  useEffect(() => {
-    if (!user?.uid) return
-
-    const channel = supabaseClient
-      .channel(`user-credits-${user.uid}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_app_subscriptions',
-          filter: `user_id=eq.${user.uid}`,
-        },
-        (payload) => {
-          console.log('📡 Real-time credits change')
-          queryClient.invalidateQueries({ queryKey: userKeys.private(user.uid) })
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabaseClient.removeChannel(channel)
-    }
-  }, [user?.uid, queryClient])
 
   return {
     ...query,
