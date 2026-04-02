@@ -1,3 +1,29 @@
+# [22.0.0](https://github.com/equationalapplications/clanker/compare/v21.0.0...v22.0.0) (2026-04-02)
+
+
+### Bug Fixes
+
+* **deps:** update expo to 55.0.10 ([#190](https://github.com/equationalapplications/clanker/issues/190)) ([cda5e3f](https://github.com/equationalapplications/clanker/commit/cda5e3fd2c478f3d18ed15fb9f5644706adf8937)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
+
+
+### BREAKING CHANGES
+
+* **deps:** native module change (@react-native-firebase/ai replaces
+@react-native-firebase/vertexai), requires new native build
+
+* chore: stop tracking plan.md, add to gitignore
+
+* fix: address Copilot review comments on avatar generation and character management
+
+- Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
+- Remove unused userId parameter from useLocalImageGeneration hook
+- Add React Query cache invalidation after local image generation to keep lists/details in sync
+- Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
+- Update stale schema migration comment to reference avatar_data instead of deleted_at
+- Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
+
+* fix(deps): update expo to 55.0.10
+
 # [21.0.0](https://github.com/equationalapplications/clanker/compare/v20.0.4...v21.0.0) (2026-04-02)
 
 
