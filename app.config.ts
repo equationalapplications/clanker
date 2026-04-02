@@ -67,6 +67,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: 'com.equationalapplications.clanker',
     googleServicesFile: getGoogleServiceInfoPlist(),
     supportsTablet: true,
+    usesAppleSignIn: true,
     config: {
       usesNonExemptEncryption: false,
     },
@@ -105,6 +106,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-secure-store',
     'expo-router',
     'expo-sqlite',
+    'expo-apple-authentication',
     '@react-native-firebase/app',
     '@react-native-firebase/auth',
     '@react-native-firebase/crashlytics',

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { StyleSheet, View, Alert } from 'react-native'
+import { StyleSheet, View, Alert, Platform } from 'react-native'
 import { useRouter } from 'expo-router'
+import * as AppleAuthentication from 'expo-apple-authentication'
 
 import ProviderButton from '~/auth/AuthProviderButton'
 import Button from '~/components/Button'
@@ -8,11 +9,13 @@ import Logo from '~/components/Logo'
 import { MonoText, TitleText } from '~/components/StyledText'
 import { useAuth } from '~/auth/useAuth'
 import { signInWithGoogle } from '~/auth/googleSignin'
+import { signInWithApple } from '~/auth/appleSignin'
 
 export default function SignIn() {
   const router = useRouter()
   const { user } = useAuth()
   const [googleSignInLoading, setGoogleSignInLoading] = useState(false)
+  const [appleSignInLoading, setAppleSignInLoading] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -41,6 +44,22 @@ export default function SignIn() {
     router.push('/privacy')
   }
 
+  const AppleLoginOnPress = async () => {
+    setAppleSignInLoading(true)
+    try {
+      const result = await signInWithApple()
+      if (!result.success && result.error) {
+        console.error('Apple Sign-In failed:', result.error)
+        Alert.alert(`Sign-in failed: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Apple Sign-In error:', error)
+      Alert.alert('An unexpected error occurred during sign-in')
+    } finally {
+      setAppleSignInLoading(false)
+    }
+  }
+
   const onPressTerms = () => {
     router.push('/terms')
   }
@@ -61,6 +80,25 @@ export default function SignIn() {
           >
             Google
           </ProviderButton>
+          {Platform.OS === 'ios' && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={5}
+              style={styles.appleButton}
+              onPress={AppleLoginOnPress}
+            />
+          )}
+          {Platform.OS === 'web' && (
+            <ProviderButton
+              disabled={appleSignInLoading}
+              loading={appleSignInLoading}
+              onPress={AppleLoginOnPress}
+              type="apple"
+            >
+              Apple
+            </ProviderButton>
+          )}
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <Button mode="text" onPress={onPressTerms}>
               Terms and Conditions
@@ -89,6 +127,11 @@ const styles = StyleSheet.create({
     marginVertical: 30,
     height: 1,
     width: '80%',
+  },
+  appleButton: {
+    width: 300,
+    height: 44,
+    marginVertical: 5,
   },
   loadingText: {
     textAlign: 'center',
