@@ -42,7 +42,7 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
             // - A legacy DB that predates schema_version and still needs migrations
             //
             // Distinguish between these by checking for a column that was added by
-            // a migration (e.g. characters.deleted_at).
+            // a migration (e.g. characters.avatar_data, added in schema v3).
             const columns = await database.getAllAsync<{ name: string }>(
                 'PRAGMA table_info(characters)',
             )
