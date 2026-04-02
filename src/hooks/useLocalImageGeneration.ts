@@ -1,12 +1,13 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { generateImageWithVertexAI } from '~/services/vertexAIService'
 import {
     saveCharacterImageLocally,
 } from '~/services/localImageStorageService'
+import { characterKeys } from '~/hooks/useCharacters'
 
 interface UseLocalImageGenerationProps {
     characterId: string
-    userId: string
     onImageGenerated?: (dataUri: string) => void
 }
 
@@ -24,9 +25,9 @@ interface UseLocalImageGenerationReturn {
  */
 export function useLocalImageGeneration({
     characterId,
-    userId,
     onImageGenerated,
 }: UseLocalImageGenerationProps): UseLocalImageGenerationReturn {
+    const queryClient = useQueryClient()
     const [isGenerating, setIsGenerating] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -56,6 +57,9 @@ export function useLocalImageGeneration({
             const dataUri = await saveCharacterImageLocally(characterId, base64Data)
 
             console.log('✅ Local image generation complete:', characterId)
+
+            // 3. Invalidate React Query caches so lists/details reflect the new avatar
+            await queryClient.invalidateQueries({ queryKey: characterKeys.all })
 
             onImageGenerated?.(dataUri)
             return dataUri

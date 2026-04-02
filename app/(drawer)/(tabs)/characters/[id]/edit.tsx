@@ -53,7 +53,6 @@ export default function EditCharacterScreen() {
 
     const { generateImage, isGenerating, error: imageError, clearError } = useLocalImageGeneration({
         characterId: id || '',
-        userId: user?.uid || '',
         onImageGenerated: (fileUri) => setAvatarUri(fileUri),
     })
 

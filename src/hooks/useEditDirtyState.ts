@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect } from 'react'
 
 /**
  * Module-level ref that the tab layout reads to decide whether to

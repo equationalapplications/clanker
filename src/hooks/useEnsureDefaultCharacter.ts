@@ -3,10 +3,11 @@ import { useAuth } from '~/auth/useAuth'
 import { useCharacters, useCreateCharacter } from '~/hooks/useCharacters'
 
 /**
- * Module-level guard to prevent multiple screens from racing to create
- * the default character simultaneously.
+ * Module-level guards to prevent multiple screens from racing to create
+ * the default character simultaneously, and to stop retrying after a failure.
  */
 let creationInFlight = false
+let creationFailedForUser: string | null = null
 
 /**
  * Ensures the user always has at least one character.
@@ -27,7 +28,8 @@ export function useEnsureDefaultCharacter() {
             characters !== undefined &&
             characters.length === 0 &&
             !creationInFlight &&
-            !createCharacterMutation.isPending
+            !createCharacterMutation.isPending &&
+            creationFailedForUser !== user.uid
         ) {
             creationInFlight = true
             createCharacterMutation.mutate(
@@ -40,8 +42,11 @@ export function useEnsureDefaultCharacter() {
                     is_public: false,
                 },
                 {
-                    onSettled: () => {
+                    onSettled: (_data, error) => {
                         creationInFlight = false
+                        if (error) {
+                            creationFailedForUser = user.uid
+                        }
                     },
                 },
             )

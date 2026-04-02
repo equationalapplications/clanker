@@ -54,10 +54,18 @@ export default function CharactersListScreen() {
 
             {!characters || characters.length === 0 ? (
                 <View style={styles.centered}>
-                    <Text variant="bodyLarge" style={styles.emptyText}>
-                        Creating your first character...
-                    </Text>
-                    <ActivityIndicator size="small" style={styles.emptySpinner} />
+                    {isCreatingDefault ? (
+                        <>
+                            <Text variant="bodyLarge" style={styles.emptyText}>
+                                Creating your first character...
+                            </Text>
+                            <ActivityIndicator size="small" style={styles.emptySpinner} />
+                        </>
+                    ) : (
+                        <Text variant="bodyLarge" style={styles.emptyText}>
+                            No characters yet. Tap "New" to create one!
+                        </Text>
+                    )}
                 </View>
             ) : (
                 <FlatList

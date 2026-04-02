@@ -1,4 +1,4 @@
-import { Tabs, router, useSegments } from 'expo-router'
+import { Tabs, router } from 'expo-router'
 import { Alert } from 'react-native'
 import { TabBarIcon } from '~/components/navigation/TabBarIcon'
 import { editDirtyRef } from '~/hooks/useEditDirtyState'
