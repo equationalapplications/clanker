@@ -25,6 +25,8 @@ import {
  * Query key factory for characters
  * Centralizes key management to avoid typos and ensure consistency
  */
+export const createCharacterMutationKey = ['createCharacter'] as const
+
 export const characterKeys = {
   all: ['characters'] as const,
   lists: () => [...characterKeys.all, 'list'] as const,
@@ -96,6 +98,7 @@ export function useCreateCharacter() {
   const { user } = useAuth()
 
   return useMutation({
+    mutationKey: createCharacterMutationKey,
     mutationFn: (character: CharacterInsert) => createCharacter(character),
 
     // Optimistic update: add character immediately to UI
