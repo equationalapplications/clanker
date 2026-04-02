@@ -1,20 +1,23 @@
-// Native version - uses React Native Firebase Vertex AI module
+// Native version - uses React Native Firebase AI module
 import { getApp } from '@react-native-firebase/app'
-import { getVertexAI, getGenerativeModel } from '@react-native-firebase/vertexai'
+import { getAI, getGenerativeModel, VertexAIBackend, ResponseModality } from '@react-native-firebase/ai'
 import { appCheckReady } from '~/config/firebaseConfig'
 
-// Initialize Vertex AI
+// Initialize AI with Vertex AI backend
 const app = getApp()
-const vertexAI = getVertexAI(app)
+const ai = getAI(app, { backend: new VertexAIBackend() })
 
 // Initialize the generative model for text
-const textModel = getGenerativeModel(vertexAI, {
-    model: 'gemini-2.0-flash', // Using Gemini model for text
+const textModel = getGenerativeModel(ai, {
+    model: 'gemini-2.5-flash', // Using Gemini model for text
 })
 
 // Initialize the generative model for images
-const imageModel = getGenerativeModel(vertexAI, {
-    model: 'imagen-3.0-generate-001', // Using Imagen model for image generation
+const imageModel = getGenerativeModel(ai, {
+    model: 'gemini-2.5-flash-image', // Nano Banana - replaces deprecated Imagen models
+    generationConfig: {
+        responseModalities: [ResponseModality.TEXT, ResponseModality.IMAGE],
+    },
 })
 
 export interface ChatContext {
@@ -171,15 +174,18 @@ export const generateImageWithVertexAI = async ({
         await appCheckReady
         const result = await imageModel.generateContent(enhancedPrompt)
 
-        // Extract the image data from the response
-        const imageData = result.response.text() // This may need adjustment based on actual API
-
-        if (!imageData) {
-            throw new Error('No image data found in Vertex AI response')
+        // Extract the image data from the response (Gemini image models return inlineData parts)
+        const candidate = result.response.candidates?.[0]
+        if (candidate?.content?.parts) {
+            for (const part of candidate.content.parts) {
+                if (part.inlineData?.data) {
+                    console.log('✅ Image generated successfully with Vertex AI')
+                    return part.inlineData.data
+                }
+            }
         }
 
-        console.log('✅ Image generated successfully with Vertex AI')
-        return imageData
+        throw new Error('No image data found in Vertex AI response')
     } catch (error) {
         console.error('Error generating image with Vertex AI:', error)
         throw new Error(
@@ -188,4 +194,4 @@ export const generateImageWithVertexAI = async ({
     }
 }
 
-export { textModel, imageModel, vertexAI as ai }
+export { textModel, imageModel, ai }

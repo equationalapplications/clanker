@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { StyleSheet, ScrollView, View } from 'react-native'
 import { Text, List, Switch, Button, Divider } from 'react-native-paper'
 import { router } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '~/auth/useAuth'
 import { useSettings } from '~/contexts/SettingsContext'
 import CombinedSubscriptionButton from '~/components/CombinedSubscriptionButton'
@@ -14,6 +15,7 @@ export default function Settings() {
   const { user, signOut } = useAuth()
   const { settings, updateSetting } = useSettings()
   const [isLoading, setIsLoading] = useState(false)
+  const { bottom } = useSafeAreaInsets()
 
   const onChangeIsLoading = (isLoading: boolean) => {
     setIsLoading(isLoading)
@@ -24,7 +26,7 @@ export default function Settings() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: bottom + 16 }}>
       <View style={styles.section}>
         <Text variant="headlineSmall" style={styles.sectionTitle}>
           Account

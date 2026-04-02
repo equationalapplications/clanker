@@ -1,4 +1,4 @@
-import { getAI, getGenerativeModel, VertexAIBackend } from 'firebase/ai'
+import { getAI, getGenerativeModel, VertexAIBackend, ResponseModality } from 'firebase/ai'
 import { firebaseApp } from '~/config/firebaseConfig'
 
 // Initialize AI with Vertex AI backend
@@ -13,7 +13,10 @@ const textModel = getGenerativeModel(ai, {
 
 // Initialize the generative model for images
 const imageModel = getGenerativeModel(ai, {
-  model: 'imagen-3.0-generate-001', // Using Imagen model for image generation
+  model: 'gemini-2.5-flash-image', // Nano Banana - replaces deprecated Imagen models
+  generationConfig: {
+    responseModalities: [ResponseModality.TEXT, ResponseModality.IMAGE],
+  },
 })
 
 export interface ChatContext {
@@ -154,43 +157,21 @@ export const generateImageWithVertexAI = async ({
     })
 
     // Optimize prompt for small avatar images
-    const enhancedPrompt = `High-quality character avatar portrait: ${prompt}. Clean, simple background. Focused on face and upper body. Professional digital art style, sharp details, vibrant colors. Optimized for small avatar display.`
+    // Note: Gemini image models don't support explicit width/height/aspectRatio params;
+    // describe desired dimensions in the prompt instead.
+    const enhancedPrompt = `High-quality character avatar portrait: ${prompt}. Square 1:1 aspect ratio. Clean, simple background. Focused on face and upper body. Professional digital art style, sharp details, vibrant colors. Optimized for small avatar display.`
 
-    // Create the generation request optimized for small images
-    const generationConfig = {
-      candidateCount: 1,
-      width,
-      height,
-      aspectRatio,
-      outputMimeType: `image/${outputFormat}`,
-      ...(stylePreset && { stylePreset }),
-    }
-
-    // Generate image using Vertex AI
-    const result = await imageModel.generateContent({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: enhancedPrompt }],
-        },
-      ],
-      generationConfig,
-    })
-
+    // Generate image using Vertex AI (responseModalities configured at model level)
+    const result = await imageModel.generateContent(enhancedPrompt)
     const response = await result.response
 
-    // Extract the image data from the response
-    // Note: The exact response format may vary based on the Imagen model
-    if (response.candidates && response.candidates[0]) {
-      const candidate = response.candidates[0]
-
-      // Check if the response contains image data
-      if (candidate.content && candidate.content.parts) {
-        for (const part of candidate.content.parts) {
-          if (part.inlineData && part.inlineData.data) {
-            console.log('✅ Image generated successfully with Vertex AI')
-            return part.inlineData.data
-          }
+    // Extract the image data from the response (Gemini image models return inlineData parts)
+    const candidate = response.candidates?.[0]
+    if (candidate?.content?.parts) {
+      for (const part of candidate.content.parts) {
+        if (part.inlineData?.data) {
+          console.log('✅ Image generated successfully with Vertex AI')
+          return part.inlineData.data
         }
       }
     }
