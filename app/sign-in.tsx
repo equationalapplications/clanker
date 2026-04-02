@@ -27,7 +27,12 @@ export default function SignIn() {
   }, [user, router])
 
   useEffect(() => {
-    handleAppleRedirectResult()
+    handleAppleRedirectResult().then((result) => {
+      if (!result.success && result.error) {
+        console.error('Apple Sign-In redirect failed:', result.error)
+        Alert.alert('Sign-in failed', result.error)
+      }
+    })
   }, [])
 
   const GoogleLoginOnPress = async () => {

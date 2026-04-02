@@ -48,13 +48,15 @@ export const signOutFromApple = async (): Promise<void> => {
 
 // Finalizes a pending Apple redirect sign-in. Call on sign-in screen mount
 // so that auth/popup-blocked redirect flows reliably complete and errors surface.
-export const handleAppleRedirectResult = async (): Promise<void> => {
+export const handleAppleRedirectResult = async (): Promise<AppleSignInResult> => {
     try {
         const result = await getRedirectResult(auth)
         if (result) {
             console.log('✅ Apple Sign-In redirect completed successfully')
         }
+        return { success: true }
     } catch (error: any) {
         console.error('Apple redirect sign-in failed:', error)
+        return { success: false, error: error.message || 'Apple Sign-In redirect failed' }
     }
 }
