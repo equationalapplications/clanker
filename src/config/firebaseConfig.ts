@@ -25,6 +25,7 @@ async function initAppCheck() {
 // before invoking callable functions that enforce App Check.
 export const appCheckReady = initAppCheck().catch((err) => {
     console.error('❌ App Check initialization failed:', err)
+    throw err
 })
 
 const auth = authModule()
