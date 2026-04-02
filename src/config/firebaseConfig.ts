@@ -3,6 +3,7 @@ import authModule, { FirebaseAuthTypes } from '@react-native-firebase/auth'
 import { getApp } from '@react-native-firebase/app'
 import { firebase as firebaseNamespace } from '@react-native-firebase/functions'
 import appCheck from '@react-native-firebase/app-check'
+import { reportError } from '~/utilities/reportError'
 
 const firebaseApp = getApp()
 
@@ -23,8 +24,8 @@ async function initAppCheck() {
 
 // Exported so callers (e.g. getSupabaseUserSession) can await App Check readiness
 // before invoking callable functions that enforce App Check.
-export const appCheckReady = initAppCheck().catch((err) => {
-    console.error('❌ App Check initialization failed:', err)
+export const appCheckReady = initAppCheck().catch((err: unknown) => {
+    reportError(err, 'App Check initialization')
     throw err
 })
 

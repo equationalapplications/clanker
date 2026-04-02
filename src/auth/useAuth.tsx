@@ -19,6 +19,8 @@ import {
 import { signOutFromGoogle } from '~/auth/googleSignin'
 import { signOutFromApple } from '~/auth/appleSignin'
 import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
+import { setCrashlyticsUserId } from '~/services/crashlyticsService'
+import { reportError } from '~/utilities/reportError'
 
 // Union type for platform-specific user
 type AuthUser = ReturnType<typeof getCurrentUser>
@@ -115,6 +117,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (userRef.current && firebaseUser.uid === userRef.current.uid) {
             console.log('ℹ️ Firebase user unchanged, skipping re-authentication')
             void loginRevenueCat(firebaseUser.uid)
+            void setCrashlyticsUserId(firebaseUser.uid)
             setIsLoading(false)
           } else {
             setUser(firebaseUser)
@@ -143,10 +146,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             console.log('✅ Supabase sync complete.', authResponse)
             void loginRevenueCat(firebaseUser.uid)
+            void setCrashlyticsUserId(firebaseUser.uid)
             setIsLoading(false)
           }
         } catch (error) {
-          console.error('❌ Error during Supabase authentication:', error)
+          reportError(error, 'Supabase authentication')
           setUser(null)
           setIsLoading(false)
           await supabaseClient.auth.signOut({ scope: 'local' })
@@ -156,6 +160,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else {
         setUser(null)
         setIsLoading(false)
+        void setCrashlyticsUserId(null)
         if (hasHadUser.current) {
           // Real sign-out: Firebase user was present, then became null
           console.log('🚪 Firebase user signed out, clearing Supabase session')

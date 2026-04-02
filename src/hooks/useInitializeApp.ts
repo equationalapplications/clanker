@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 
 import { initializeGoogleSignIn } from '~/auth/googleSignin'
 import { initializeRevenueCat } from '~/config/revenueCatConfig'
+import { initializeCrashlytics } from '~/services/crashlyticsService'
+import { reportError } from '~/utilities/reportError'
 
 /**
  * Hook to initialize app services on mount (native platforms)
@@ -14,18 +16,25 @@ import { initializeRevenueCat } from '~/config/revenueCatConfig'
 export function useInitializeApp() {
   useEffect(() => {
     const initializeAppServices = async () => {
+      // --- Crashlytics Initialization ---
+      try {
+        await initializeCrashlytics()
+      } catch (error) {
+        reportError(error, 'initializeCrashlytics')
+      }
+
       // --- Google Sign-In Initialization ---
       try {
         await initializeGoogleSignIn()
       } catch (error) {
-        console.error('❌ Error initializing Google Sign-In (Native):', error)
+        reportError(error, 'initializeGoogleSignIn')
       }
 
       // --- RevenueCat Initialization (native only) ---
       try {
         await initializeRevenueCat()
       } catch (error) {
-        console.error('❌ Error initializing RevenueCat:', error)
+        reportError(error, 'initializeRevenueCat')
       }
     }
 

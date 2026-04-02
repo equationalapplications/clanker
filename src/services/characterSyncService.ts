@@ -13,6 +13,7 @@
 import Storage from 'expo-sqlite/kv-store'
 import { supabaseClient } from '~/config/supabaseClient'
 import { getCurrentUser } from '~/config/firebaseConfig'
+import { reportError } from '~/utilities/reportError'
 import {
     getUnsyncedCharacters,
     getSoftDeletedCharacters,
@@ -85,7 +86,7 @@ export async function syncAllToCloud(userId?: string): Promise<void> {
         ])
         await setLastSyncTime()
     } catch (error) {
-        console.warn('Character sync error:', error)
+        reportError(error, 'characterSync')
         throw error
     }
 }
@@ -110,7 +111,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
         .order('updated_at', { ascending: false })
 
     if (error) {
-        console.error('Failed to restore characters from cloud:', error)
+        reportError(error, 'restoreFromCloud')
         throw error
     }
 

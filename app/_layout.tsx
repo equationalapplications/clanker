@@ -12,6 +12,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller'
 
 import { ThemeProvider } from '~/components/ThemeProvider'
 import { AuthProvider, useAuth } from '~/auth/useAuth'
+import { SettingsProvider } from '~/contexts/SettingsContext'
 import { TermsAcceptanceProvider } from '~/hooks/useSubscriptionStatus'
 import { queryClient } from '~/config/queryClient'
 import { kvStorePersister } from '~/config/queryPersister'
@@ -111,16 +112,18 @@ export default function RootLayout() {
         persistOptions={{ persister: kvStorePersister, maxAge: 1000 * 60 * 60 * 24 }}
       >
         <AuthProvider>
-          <TermsAcceptanceProvider>
-            <ThemeProvider>
-              <NavigationThemeProvider value={navTheme}>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-                <StatusBar />
-              </NavigationThemeProvider>
-            </ThemeProvider>
-          </TermsAcceptanceProvider>
+          <SettingsProvider>
+            <TermsAcceptanceProvider>
+              <ThemeProvider>
+                <NavigationThemeProvider value={navTheme}>
+                  <KeyboardProvider>
+                    <RootLayoutNav />
+                  </KeyboardProvider>
+                  <StatusBar />
+                </NavigationThemeProvider>
+              </ThemeProvider>
+            </TermsAcceptanceProvider>
+          </SettingsProvider>
         </AuthProvider>
       </PersistQueryClientProvider>
     </SafeAreaProvider>
