@@ -1,7 +1,7 @@
 // todo: use one-tap https://react-native-google-signin.github.io/docs/one-tap
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
 import { Platform } from 'react-native'
-import firebaseAuth from '@react-native-firebase/auth'
+import { getAuth, signInWithCredential, GoogleAuthProvider } from '@react-native-firebase/auth'
 
 // Configure Google Sign-In
 export const initializeGoogleSignIn = () => {
@@ -55,10 +55,10 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     console.log('✅ Got ID token, signing in with Firebase...')
 
     // Create Google credential using React Native Firebase
-    const googleCredential = firebaseAuth.GoogleAuthProvider.credential(idToken)
+    const googleCredential = GoogleAuthProvider.credential(idToken)
 
     // Sign in to Firebase with the Google credential
-    await firebaseAuth().signInWithCredential(googleCredential)
+    await signInWithCredential(getAuth(), googleCredential)
 
     console.log('✅ Firebase sign-in successful')
     return { success: true }

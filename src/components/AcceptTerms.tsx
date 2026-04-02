@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
 import { StyleSheet, View, Alert, Platform } from 'react-native'
-import { Text, Checkbox } from 'react-native-paper'
+import { Text, Checkbox, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 
@@ -21,6 +21,7 @@ interface AcceptTermsProps {
 export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: AcceptTermsProps) {
   const [checked, setChecked] = useState(false)
   const { signOut } = useAuth()
+  const { colors } = useTheme()
 
   const onPressChecked = () => {
     setChecked(!checked)
@@ -110,7 +111,12 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       <View style={styles.separator} />
 
       <View style={styles.row}>
-        <Checkbox status={checked ? 'checked' : 'unchecked'} onPress={onPressChecked} />
+        <Checkbox
+          status={checked ? 'checked' : 'unchecked'}
+          onPress={onPressChecked}
+          color={colors.primary}
+          uncheckedColor={colors.onSurfaceVariant}
+        />
         <Text style={styles.text}>
           I am over 18 years of age and I have read and accept the Terms and Conditions and Privacy
           Policy.

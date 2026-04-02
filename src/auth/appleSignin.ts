@@ -1,5 +1,5 @@
 import { Platform } from 'react-native'
-import firebaseAuth from '@react-native-firebase/auth'
+import { getAuth, signInWithCredential, AppleAuthProvider } from '@react-native-firebase/auth'
 
 import { generateNonce, sha256 } from './nonce'
 
@@ -40,10 +40,8 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
             return { success: false, error: 'No identity token received from Apple' }
         }
 
-        // AppleAuthProvider.credential is not exposed in the TS types but exists at runtime.
-        // It sets providerId: 'apple.com' (required), token: identityToken, secret: rawNonce.
-        const appleCredential = (firebaseAuth.AppleAuthProvider as any).credential(identityToken, rawNonce)
-        await firebaseAuth().signInWithCredential(appleCredential)
+        const appleCredential = AppleAuthProvider.credential(identityToken, rawNonce)
+        await signInWithCredential(getAuth(), appleCredential)
 
         console.log('✅ Apple Sign-In successful')
         return { success: true }

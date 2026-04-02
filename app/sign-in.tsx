@@ -99,7 +99,7 @@ export default function SignIn() {
             <AppleAuthentication.AppleAuthenticationButton
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={5}
+              cornerRadius={20}
               style={styles.appleButton}
               onPress={AppleLoginOnPress}
             />

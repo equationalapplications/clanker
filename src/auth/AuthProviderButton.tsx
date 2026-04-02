@@ -30,6 +30,7 @@ function ProviderButton({ style, type, onPress, loading, children, disabled }: P
   return (
     <Button
       style={[styles.button, style]}
+      contentStyle={styles.buttonContent}
       icon={() => <MaterialCommunityIcons name={type} color="#fff" size={17} />}
       mode="contained"
       buttonColor={getSocialColor(type)}
@@ -49,5 +50,8 @@ const styles = StyleSheet.create({
   button: {
     marginVertical: 5,
     width: 300,
+  },
+  buttonContent: {
+    height: 44,
   },
 })
