@@ -153,15 +153,4 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
   },
-  errorContainer: {
-    padding: 16,
-    margin: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  errorText: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  errorMessage: {},
 })
