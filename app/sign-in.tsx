@@ -60,15 +60,12 @@ export default function SignIn() {
     if (appleSignInLoading) {
       return
     }
-    if (appleSignInLoading) {
-      return
-    }
     setAppleSignInLoading(true)
     try {
       const result = await signInWithApple()
       if (!result.success && result.error) {
         console.error('Apple Sign-In failed:', result.error)
-        Alert.alert(`Sign-in failed: ${result.error}`)
+        Alert.alert('Sign-in failed', result.error)
       }
     } catch (error) {
       console.error('Apple Sign-In error:', error)
