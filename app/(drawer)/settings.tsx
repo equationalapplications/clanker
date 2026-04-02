@@ -5,7 +5,9 @@ import { router } from 'expo-router'
 import { useAuth } from '~/auth/useAuth'
 import CombinedSubscriptionButton from '~/components/CombinedSubscriptionButton'
 import LoadingIndicator from '~/components/LoadingIndicator'
-import { version } from '../../package.json'
+import pkg from '../../package.json'
+
+const version = pkg.version
 
 export default function Settings() {
   const { user, signOut } = useAuth()

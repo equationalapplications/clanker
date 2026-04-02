@@ -1,0 +1,28 @@
+name: Enforce Branch Policy
+
+on:
+    pull_request:
+        branches:
+            - main
+            - staging
+
+jobs:
+    check-merge-source:
+        permissions: none
+        runs-on: ubuntu-latest
+        steps:
+            - name: Enforce staging → main only
+              if: github.base_ref == 'main' && github.head_ref != 'staging'
+              run: |
+                  echo "❌ PRs into 'main' are only allowed from 'staging'."
+                  echo "   This PR is from '${{ github.head_ref }}' — not allowed."
+                  exit 1
+
+            - name: Enforce no main → staging
+              if: github.base_ref == 'staging' && github.head_ref == 'main'
+              run: |
+                  echo "❌ PRs from 'main' into 'staging' are not allowed."
+                  exit 1
+
+            - name: Policy check passed
+              run: echo "✅ Branch policy check passed."
