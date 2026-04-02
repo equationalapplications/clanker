@@ -1,3 +1,10 @@
+## [20.0.2](https://github.com/equationalapplications/clanker/compare/v20.0.1...v20.0.2) (2026-04-02)
+
+
+### Bug Fixes
+
+* **auth:** ensure Google and Apple signin buttons have same height ([5b74c61](https://github.com/equationalapplications/clanker/commit/5b74c611bf0edd0d9b637bf1a2cdea7c58e4af3c))
+
 ## [20.0.1](https://github.com/equationalapplications/clanker/compare/v20.0.0...v20.0.1) (2026-04-02)
 
 
