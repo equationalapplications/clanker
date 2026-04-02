@@ -8,6 +8,8 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native'
 import { Stack } from 'expo-router'
 
+import { KeyboardProvider } from 'react-native-keyboard-controller'
+
 import { ThemeProvider } from '~/components/ThemeProvider'
 import { AuthProvider, useAuth } from '~/auth/useAuth'
 import { TermsAcceptanceProvider } from '~/hooks/useSubscriptionStatus'
@@ -112,9 +114,11 @@ export default function RootLayout() {
           <TermsAcceptanceProvider>
             <ThemeProvider>
               <NavigationThemeProvider value={navTheme}>
-                <RootLayoutNav />
+                <KeyboardProvider>
+                  <RootLayoutNav />
+                </KeyboardProvider>
+                <StatusBar />
               </NavigationThemeProvider>
-              <StatusBar />
             </ThemeProvider>
           </TermsAcceptanceProvider>
         </AuthProvider>
