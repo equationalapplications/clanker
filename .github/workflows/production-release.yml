@@ -1,4 +1,4 @@
-name: Production Release and EAS Update
+name: Production Release
 
 on:
   push:
@@ -53,15 +53,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT || github.token }}
         run: npx semantic-release
-
-      # Uncomment to enable automatic EAS updates on production merges
-      # - name: 🚀 Update Production with EAS
-      #   run: eas update --auto --branch production --non-interactive
-#      - name: Deploy to Firebase Hosting
-#        run: npm run predeploy
-#      - uses: FirebaseExtended/action-hosting-deploy@v0
-#        with:
-#          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-#          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_YOUR_BRIGHTLY_AI }}'
-#          projectId: your-brightly-ai
-#          channelId: live
