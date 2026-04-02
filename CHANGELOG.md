@@ -1,16 +1,42 @@
-## [18.0.1](https://github.com/equationalapplications/clanker/compare/v18.0.0...v18.0.1) (2026-03-31)
+# [19.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v18.0.1...v19.0.0-staging.1) (2026-04-02)
+
+
+* Dev ([#169](https://github.com/equationalapplications/clanker/issues/169)) ([8f81316](https://github.com/equationalapplications/clanker/commit/8f81316108b45e1feaae3ef72a5015a7f9084a81)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+* feat!: upgrade to Expo SDK 55 with updated dependencies ([67047b5](https://github.com/equationalapplications/clanker/commit/67047b572f618e3997163793f507aa4f63d755e6))
 
 
 ### Bug Fixes
 
-* **ci:** add --platform all to production EAS build command ([aedc661](https://github.com/equationalapplications/clanker/commit/aedc6613795b337ab35be7d16e9e4d590cdfaec9))
+* add missing error handling and userId scoping ([1d9352f](https://github.com/equationalapplications/clanker/commit/1d9352fb705b61684acaa66311c53d89222f5511))
+* address second round of PR review comments ([c8240ee](https://github.com/equationalapplications/clanker/commit/c8240ee6f7b07f647f4e371f713701a47f8d26e1))
+* **auth:** address Copilot PR review feedback ([1c3bc29](https://github.com/equationalapplications/clanker/commit/1c3bc297ba482c9f922a415b54f85376d69b41bf))
+* **auth:** eliminate Firebase race condition and simplify auth flow ([1e6bcc0](https://github.com/equationalapplications/clanker/commit/1e6bcc020994cea1f5422dddb296b0c98adf2c00))
+* **auth:** fail open on terms check error to avoid blocking users ([aafb3aa](https://github.com/equationalapplications/clanker/commit/aafb3aa2837a51946777761f39c66ba2758f4385))
+* **character-sync:** use Supabase Auth UUID for cloud operations, not Firebase UID ([6d1d6d3](https://github.com/equationalapplications/clanker/commit/6d1d6d3fd4a7609c1684fb6f6674d4a9565ed4f7))
+* **ci:** disable semantic-release success/fail issue comments ([bc6c140](https://github.com/equationalapplications/clanker/commit/bc6c140264da9d1020be0182e51681b1279b5f11))
+* **database:** correct soft-delete filtering and migration handling ([0a44410](https://github.com/equationalapplications/clanker/commit/0a44410b0105f395dc83f523d0f971ccf8ce4edd))
+* **db:** address PR review - schema migration, soft-delete, deps ([579a397](https://github.com/equationalapplications/clanker/commit/579a397b9c243eed3005621eaac524fad800a2b4))
+* **offline:** address PR review issues in offline-first architecture ([5d8637e](https://github.com/equationalapplications/clanker/commit/5d8637ed4dd020e61c60c0ff2e86f59435ed0183))
+* **offline:** await Storage calls and fix startup sync connectivity check ([135246e](https://github.com/equationalapplications/clanker/commit/135246e875dbd6391f5b760753e8f9b162876104))
+* **offline:** improve local-first sync behavior ([347e241](https://github.com/equationalapplications/clanker/commit/347e24196bf67ac0d533dee2ac4b6baeb419d3e5))
+* **payments:** fix JWT base64url decode, hoist Platform import, and refresh session post-purchase ([#175](https://github.com/equationalapplications/clanker/issues/175)) ([8715e45](https://github.com/equationalapplications/clanker/commit/8715e45a7a73a4f5b0c5fd037e5d87f8642d94bb))
+* **payments:** post-review fixes for cross-platform subscription flow ([#176](https://github.com/equationalapplications/clanker/issues/176)) ([69bdeb0](https://github.com/equationalapplications/clanker/commit/69bdeb048faeb7a775fa90dce286f3e8ff822d05))
+* **payments:** use platform-specific product ID for credit pack and update pricing docs ([30ef71c](https://github.com/equationalapplications/clanker/commit/30ef71c55f66f837a722ad365732159cb497c135))
+* resolve linting errors and warnings ([3c49022](https://github.com/equationalapplications/clanker/commit/3c49022cce27eef832698602d1360b21ebd0df2d))
+* resolve linting errors and warnings ([#172](https://github.com/equationalapplications/clanker/issues/172)) ([1881e99](https://github.com/equationalapplications/clanker/commit/1881e999b766040fbfba62d5e86617b92d156713))
+* resolve merge conflicts - accept staging over main ([63de453](https://github.com/equationalapplications/clanker/commit/63de4537b5fb0bb0c63343f17848b77771ebe9cd))
+* resolve merge conflicts for dev into staging ([e6a9dce](https://github.com/equationalapplications/clanker/commit/e6a9dce2fc90a30c7ad15e08f7e79d21ed481894))
+* resolve merge conflicts for staging into main ([e3af772](https://github.com/equationalapplications/clanker/commit/e3af77249ba44904eea96234b5a45bce23cafd2b))
+* **subscription:** bubble up DB errors and preserve full state on transient failures ([b0aa80a](https://github.com/equationalapplications/clanker/commit/b0aa80ab1aa0b2b9123fa17a0783026a0d603eb6))
+* **sync:** use default Storage import and map cloud_id to local id on restore ([0093b05](https://github.com/equationalapplications/clanker/commit/0093b05b6b41c947bc7a6c3ee19dae07119d9b91))
+* **terms:** replace JWT claims with direct DB query for terms acceptance ([35176f1](https://github.com/equationalapplications/clanker/commit/35176f16e6877aff93d17e6df6bbf0906dea3441))
 
-# [18.0.0](https://github.com/equationalapplications/clanker/compare/v17.0.0...v18.0.0) (2026-03-31)
 
+### Features
 
-### Release
-
-* staging → main (v18.0.0-staging.1) ([#177](https://github.com/equationalapplications/clanker/issues/177)) ([93249e8](https://github.com/equationalapplications/clanker/commit/93249e884faf139d1dc2609fcbc7645952288940)), closes [#169](https://github.com/equationalapplications/clanker/issues/169) [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+* **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
+* **payments:** integrate Stripe and RevenueCat for cross-platform subscriptions ([771265f](https://github.com/equationalapplications/clanker/commit/771265f8baa82a2eacc30dfc05e1ca579101cf28))
+* promote dev to staging ([#179](https://github.com/equationalapplications/clanker/issues/179)) ([26b0419](https://github.com/equationalapplications/clanker/commit/26b04194468a9e13e45d000e08b83cd8406ed7b4)), closes [#177](https://github.com/equationalapplications/clanker/issues/177) [#169](https://github.com/equationalapplications/clanker/issues/169) [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
 
 
 ### BREAKING CHANGES
@@ -72,48 +98,6 @@ build environments
 
 Comment out EAS update deployment steps in staging and production workflows.
 Can be re-enabled later when ready for automatic OTA deployments.
-
-# [18.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v17.0.0...v18.0.0-staging.1) (2026-03-31)
-
-
-* Dev ([#169](https://github.com/equationalapplications/clanker/issues/169)) ([8f81316](https://github.com/equationalapplications/clanker/commit/8f81316108b45e1feaae3ef72a5015a7f9084a81)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
-* feat!: upgrade to Expo SDK 55 with updated dependencies ([67047b5](https://github.com/equationalapplications/clanker/commit/67047b572f618e3997163793f507aa4f63d755e6))
-
-
-### Bug Fixes
-
-* add missing error handling and userId scoping ([1d9352f](https://github.com/equationalapplications/clanker/commit/1d9352fb705b61684acaa66311c53d89222f5511))
-* address second round of PR review comments ([c8240ee](https://github.com/equationalapplications/clanker/commit/c8240ee6f7b07f647f4e371f713701a47f8d26e1))
-* **auth:** address Copilot PR review feedback ([1c3bc29](https://github.com/equationalapplications/clanker/commit/1c3bc297ba482c9f922a415b54f85376d69b41bf))
-* **auth:** eliminate Firebase race condition and simplify auth flow ([1e6bcc0](https://github.com/equationalapplications/clanker/commit/1e6bcc020994cea1f5422dddb296b0c98adf2c00))
-* **auth:** fail open on terms check error to avoid blocking users ([aafb3aa](https://github.com/equationalapplications/clanker/commit/aafb3aa2837a51946777761f39c66ba2758f4385))
-* **character-sync:** use Supabase Auth UUID for cloud operations, not Firebase UID ([6d1d6d3](https://github.com/equationalapplications/clanker/commit/6d1d6d3fd4a7609c1684fb6f6674d4a9565ed4f7))
-* **ci:** disable semantic-release success/fail issue comments ([bc6c140](https://github.com/equationalapplications/clanker/commit/bc6c140264da9d1020be0182e51681b1279b5f11))
-* **database:** correct soft-delete filtering and migration handling ([0a44410](https://github.com/equationalapplications/clanker/commit/0a44410b0105f395dc83f523d0f971ccf8ce4edd))
-* **db:** address PR review - schema migration, soft-delete, deps ([579a397](https://github.com/equationalapplications/clanker/commit/579a397b9c243eed3005621eaac524fad800a2b4))
-* **offline:** address PR review issues in offline-first architecture ([5d8637e](https://github.com/equationalapplications/clanker/commit/5d8637ed4dd020e61c60c0ff2e86f59435ed0183))
-* **offline:** await Storage calls and fix startup sync connectivity check ([135246e](https://github.com/equationalapplications/clanker/commit/135246e875dbd6391f5b760753e8f9b162876104))
-* **offline:** improve local-first sync behavior ([347e241](https://github.com/equationalapplications/clanker/commit/347e24196bf67ac0d533dee2ac4b6baeb419d3e5))
-* **payments:** fix JWT base64url decode, hoist Platform import, and refresh session post-purchase ([#175](https://github.com/equationalapplications/clanker/issues/175)) ([8715e45](https://github.com/equationalapplications/clanker/commit/8715e45a7a73a4f5b0c5fd037e5d87f8642d94bb))
-* **payments:** post-review fixes for cross-platform subscription flow ([#176](https://github.com/equationalapplications/clanker/issues/176)) ([69bdeb0](https://github.com/equationalapplications/clanker/commit/69bdeb048faeb7a775fa90dce286f3e8ff822d05))
-* **payments:** use platform-specific product ID for credit pack and update pricing docs ([30ef71c](https://github.com/equationalapplications/clanker/commit/30ef71c55f66f837a722ad365732159cb497c135))
-* resolve linting errors and warnings ([3c49022](https://github.com/equationalapplications/clanker/commit/3c49022cce27eef832698602d1360b21ebd0df2d))
-* resolve linting errors and warnings ([#172](https://github.com/equationalapplications/clanker/issues/172)) ([1881e99](https://github.com/equationalapplications/clanker/commit/1881e999b766040fbfba62d5e86617b92d156713))
-* resolve merge conflicts - accept staging over main ([63de453](https://github.com/equationalapplications/clanker/commit/63de4537b5fb0bb0c63343f17848b77771ebe9cd))
-* resolve merge conflicts for dev into staging ([e6a9dce](https://github.com/equationalapplications/clanker/commit/e6a9dce2fc90a30c7ad15e08f7e79d21ed481894))
-* **subscription:** bubble up DB errors and preserve full state on transient failures ([b0aa80a](https://github.com/equationalapplications/clanker/commit/b0aa80ab1aa0b2b9123fa17a0783026a0d603eb6))
-* **sync:** use default Storage import and map cloud_id to local id on restore ([0093b05](https://github.com/equationalapplications/clanker/commit/0093b05b6b41c947bc7a6c3ee19dae07119d9b91))
-* **terms:** replace JWT claims with direct DB query for terms acceptance ([35176f1](https://github.com/equationalapplications/clanker/commit/35176f16e6877aff93d17e6df6bbf0906dea3441))
-
-
-### Features
-
-* **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
-* **payments:** integrate Stripe and RevenueCat for cross-platform subscriptions ([771265f](https://github.com/equationalapplications/clanker/commit/771265f8baa82a2eacc30dfc05e1ca579101cf28))
-
-
-### BREAKING CHANGES
-
 * Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
 and all Expo packages to SDK 55. Updated native module versions for firebase,
 navigation, reanimated, screens, gesture-handler, keyboard-controller, webview,
@@ -173,6 +157,176 @@ build environments
 * Updated expo.
 
 * ci: disable automatic EAS updates in workflows
+
+Comment out EAS update deployment steps in staging and production workflows.
+Can be re-enabled later when ready for automatic OTA deployments.
+
+## [18.0.1](https://github.com/equationalapplications/clanker/compare/v18.0.0...v18.0.1) (2026-03-31)
+
+### Bug Fixes
+
+- **ci:** add --platform all to production EAS build command ([aedc661](https://github.com/equationalapplications/clanker/commit/aedc6613795b337ab35be7d16e9e4d590cdfaec9))
+
+# [18.0.0](https://github.com/equationalapplications/clanker/compare/v17.0.0...v18.0.0) (2026-03-31)
+
+### Release
+
+- staging → main (v18.0.0-staging.1) ([#177](https://github.com/equationalapplications/clanker/issues/177)) ([93249e8](https://github.com/equationalapplications/clanker/commit/93249e884faf139d1dc2609fcbc7645952288940)), closes [#169](https://github.com/equationalapplications/clanker/issues/169) [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+
+### BREAKING CHANGES
+
+- Updated expo.
+- Updated expo.
+
+- chore(release): set `package.json` to 13.0.0-staging.1 [skip ci]
+
+# [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+
+### BREAKING CHANGES
+
+- Updated expo.
+
+- build: eas build fixes
+
+align EAS config with modern environment variables
+
+Updates eas.json and Firebase documentation to
+use EAS Environment Variables for cloud builds, replacing the legacy `secrets.file` method.
+
+- Removes `secrets.file` from all build profiles in `eas.json`.
+- Adds the `environment` key to all
+  build profiles for clarity.
+- Updates `docs/FIREBASE_SETUP.md` to detail the new, separate
+  workflows for cloud builds (using `eas env:create`) and local builds (using base64 strings in
+  `.env`).
+
+This aligns the project with the latest Expo recommendations for managing secrets and
+build environments
+
+- build: fix build using google services
+
+- ci: release bumps version on staging and main
+
+- chore(release): set `package.json` to 14.0.0-staging.1 [skip ci]
+
+# [14.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v13.0.0...v14.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+- enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
+- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+- merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
+
+### BREAKING CHANGES
+
+- Firebase configuration now requires environment variables
+- Updated expo.
+- Updated expo.
+
+- ci: disable automatic EAS updates in workflows
+
+Comment out EAS update deployment steps in staging and production workflows.
+Can be re-enabled later when ready for automatic OTA deployments.
+
+# [18.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v17.0.0...v18.0.0-staging.1) (2026-03-31)
+
+- Dev ([#169](https://github.com/equationalapplications/clanker/issues/169)) ([8f81316](https://github.com/equationalapplications/clanker/commit/8f81316108b45e1feaae3ef72a5015a7f9084a81)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+- feat!: upgrade to Expo SDK 55 with updated dependencies ([67047b5](https://github.com/equationalapplications/clanker/commit/67047b572f618e3997163793f507aa4f63d755e6))
+
+### Bug Fixes
+
+- add missing error handling and userId scoping ([1d9352f](https://github.com/equationalapplications/clanker/commit/1d9352fb705b61684acaa66311c53d89222f5511))
+- address second round of PR review comments ([c8240ee](https://github.com/equationalapplications/clanker/commit/c8240ee6f7b07f647f4e371f713701a47f8d26e1))
+- **auth:** address Copilot PR review feedback ([1c3bc29](https://github.com/equationalapplications/clanker/commit/1c3bc297ba482c9f922a415b54f85376d69b41bf))
+- **auth:** eliminate Firebase race condition and simplify auth flow ([1e6bcc0](https://github.com/equationalapplications/clanker/commit/1e6bcc020994cea1f5422dddb296b0c98adf2c00))
+- **auth:** fail open on terms check error to avoid blocking users ([aafb3aa](https://github.com/equationalapplications/clanker/commit/aafb3aa2837a51946777761f39c66ba2758f4385))
+- **character-sync:** use Supabase Auth UUID for cloud operations, not Firebase UID ([6d1d6d3](https://github.com/equationalapplications/clanker/commit/6d1d6d3fd4a7609c1684fb6f6674d4a9565ed4f7))
+- **ci:** disable semantic-release success/fail issue comments ([bc6c140](https://github.com/equationalapplications/clanker/commit/bc6c140264da9d1020be0182e51681b1279b5f11))
+- **database:** correct soft-delete filtering and migration handling ([0a44410](https://github.com/equationalapplications/clanker/commit/0a44410b0105f395dc83f523d0f971ccf8ce4edd))
+- **db:** address PR review - schema migration, soft-delete, deps ([579a397](https://github.com/equationalapplications/clanker/commit/579a397b9c243eed3005621eaac524fad800a2b4))
+- **offline:** address PR review issues in offline-first architecture ([5d8637e](https://github.com/equationalapplications/clanker/commit/5d8637ed4dd020e61c60c0ff2e86f59435ed0183))
+- **offline:** await Storage calls and fix startup sync connectivity check ([135246e](https://github.com/equationalapplications/clanker/commit/135246e875dbd6391f5b760753e8f9b162876104))
+- **offline:** improve local-first sync behavior ([347e241](https://github.com/equationalapplications/clanker/commit/347e24196bf67ac0d533dee2ac4b6baeb419d3e5))
+- **payments:** fix JWT base64url decode, hoist Platform import, and refresh session post-purchase ([#175](https://github.com/equationalapplications/clanker/issues/175)) ([8715e45](https://github.com/equationalapplications/clanker/commit/8715e45a7a73a4f5b0c5fd037e5d87f8642d94bb))
+- **payments:** post-review fixes for cross-platform subscription flow ([#176](https://github.com/equationalapplications/clanker/issues/176)) ([69bdeb0](https://github.com/equationalapplications/clanker/commit/69bdeb048faeb7a775fa90dce286f3e8ff822d05))
+- **payments:** use platform-specific product ID for credit pack and update pricing docs ([30ef71c](https://github.com/equationalapplications/clanker/commit/30ef71c55f66f837a722ad365732159cb497c135))
+- resolve linting errors and warnings ([3c49022](https://github.com/equationalapplications/clanker/commit/3c49022cce27eef832698602d1360b21ebd0df2d))
+- resolve linting errors and warnings ([#172](https://github.com/equationalapplications/clanker/issues/172)) ([1881e99](https://github.com/equationalapplications/clanker/commit/1881e999b766040fbfba62d5e86617b92d156713))
+- resolve merge conflicts - accept staging over main ([63de453](https://github.com/equationalapplications/clanker/commit/63de4537b5fb0bb0c63343f17848b77771ebe9cd))
+- resolve merge conflicts for dev into staging ([e6a9dce](https://github.com/equationalapplications/clanker/commit/e6a9dce2fc90a30c7ad15e08f7e79d21ed481894))
+- **subscription:** bubble up DB errors and preserve full state on transient failures ([b0aa80a](https://github.com/equationalapplications/clanker/commit/b0aa80ab1aa0b2b9123fa17a0783026a0d603eb6))
+- **sync:** use default Storage import and map cloud_id to local id on restore ([0093b05](https://github.com/equationalapplications/clanker/commit/0093b05b6b41c947bc7a6c3ee19dae07119d9b91))
+- **terms:** replace JWT claims with direct DB query for terms acceptance ([35176f1](https://github.com/equationalapplications/clanker/commit/35176f16e6877aff93d17e6df6bbf0906dea3441))
+
+### Features
+
+- **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
+- **payments:** integrate Stripe and RevenueCat for cross-platform subscriptions ([771265f](https://github.com/equationalapplications/clanker/commit/771265f8baa82a2eacc30dfc05e1ca579101cf28))
+
+### BREAKING CHANGES
+
+- Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
+  and all Expo packages to SDK 55. Updated native module versions for firebase,
+  navigation, reanimated, screens, gesture-handler, keyboard-controller, webview,
+  and worklets. Added expo-font and expo-image plugins to app.config.ts.
+  Requires new native build.
+- Updated expo.
+- Updated expo.
+
+- chore(release): set `package.json` to 13.0.0-staging.1 [skip ci]
+
+# [13.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v12.0.0...v13.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+
+### BREAKING CHANGES
+
+- Updated expo.
+
+- build: eas build fixes
+
+align EAS config with modern environment variables
+
+Updates eas.json and Firebase documentation to
+use EAS Environment Variables for cloud builds, replacing the legacy `secrets.file` method.
+
+- Removes `secrets.file` from all build profiles in `eas.json`.
+- Adds the `environment` key to all
+  build profiles for clarity.
+- Updates `docs/FIREBASE_SETUP.md` to detail the new, separate
+  workflows for cloud builds (using `eas env:create`) and local builds (using base64 strings in
+  `.env`).
+
+This aligns the project with the latest Expo recommendations for managing secrets and
+build environments
+
+- build: fix build using google services
+
+- ci: release bumps version on staging and main
+
+- chore(release): set `package.json` to 14.0.0-staging.1 [skip ci]
+
+# [14.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v13.0.0...v14.0.0-staging.1) (2025-10-25)
+
+### Build System
+
+- enable local builds ([143e059](https://github.com/equationalapplications/clanker/commit/143e0592b67c41509cebf290f0775ba7715e2394))
+- enable local builds ([#154](https://github.com/equationalapplications/clanker/issues/154)) ([3f96559](https://github.com/equationalapplications/clanker/commit/3f965591eb4f256a9c242680aa89868fe08236e4))
+- merge dev into staging ([12cd4ad](https://github.com/equationalapplications/clanker/commit/12cd4ad92a7323433eb5463832f6806612bab07a))
+
+### BREAKING CHANGES
+
+- Firebase configuration now requires environment variables
+- Updated expo.
+- Updated expo.
+
+- ci: disable automatic EAS updates in workflows
 
 Comment out EAS update deployment steps in staging and production workflows.
 Can be re-enabled later when ready for automatic OTA deployments.
