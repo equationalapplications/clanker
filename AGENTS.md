@@ -9,7 +9,7 @@
 
 # 🔀 GIT WORKFLOW & VERSIONING
 
-**Branch Strategy**: Three-tier promotion flow: `dev` → `staging` → `main`. All changes go through PRs (no direct commits to protected branches).
+**Branch Strategy**: Two-branch promotion flow: `staging` → `main`. Feature branches merge into `staging` via PR. All changes go through PRs (no direct commits to protected branches).
 
 **Commit Format**: Use [Conventional Commits](https://www.conventionalcommits.org/) - commits drive semantic-release which auto-versions the app.
 
