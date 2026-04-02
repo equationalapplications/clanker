@@ -1,8 +1,9 @@
 import { StyleSheet, ScrollView, View } from 'react-native'
-import { Text } from 'react-native-paper'
+import { Text, useTheme } from 'react-native-paper'
 import { TERMS } from '~/config/termsConfig'
 
 export default function Terms() {
+  const { colors } = useTheme()
 
   if (!TERMS) {
     return (
@@ -17,7 +18,7 @@ export default function Terms() {
       {/* Header with top-right small version/lastUpdated */}
       <View style={styles.headerRow}>
         <View />
-        <Text style={styles.versionText}>
+        <Text style={[styles.versionText, { color: colors.onSurfaceVariant }]}>
           v{TERMS.version} • {TERMS.lastUpdated}
         </Text>
       </View>
@@ -57,7 +58,6 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: '#666',
     textAlign: 'right',
   },
 })

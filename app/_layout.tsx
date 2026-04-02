@@ -2,10 +2,9 @@
 import 'expo-dev-client'
 import { StatusBar } from 'expo-status-bar'
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context'
-import { useColorScheme, View, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
-import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native'
 import { Stack } from 'expo-router'
 
 import { KeyboardProvider } from 'react-native-keyboard-controller'
@@ -18,7 +17,6 @@ import { queryClient } from '~/config/queryClient'
 import { kvStorePersister } from '~/config/queryPersister'
 import { setupNetworkManager } from '~/config/networkManager'
 import NetInfo from '@react-native-community/netinfo'
-import { appNavigationDarkTheme, appNavigationLightTheme } from '~/config/theme'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import useCachedResources from '~/hooks/useCachedResources'
 import { useInitializeApp } from '~/hooks/useInitializeApp'
@@ -81,8 +79,6 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const scheme = useColorScheme()
-  const navTheme = scheme === 'dark' ? appNavigationDarkTheme : appNavigationLightTheme
   const isLoadingComplete = useCachedResources()
 
   // Set up network detection and bridge to React Query's onlineManager.
@@ -115,12 +111,10 @@ export default function RootLayout() {
           <SettingsProvider>
             <TermsAcceptanceProvider>
               <ThemeProvider>
-                <NavigationThemeProvider value={navTheme}>
-                  <KeyboardProvider>
-                    <RootLayoutNav />
-                  </KeyboardProvider>
-                  <StatusBar />
-                </NavigationThemeProvider>
+                <KeyboardProvider>
+                  <RootLayoutNav />
+                </KeyboardProvider>
+                <StatusBar />
               </ThemeProvider>
             </TermsAcceptanceProvider>
           </SettingsProvider>

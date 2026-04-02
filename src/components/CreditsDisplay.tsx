@@ -1,11 +1,12 @@
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
-import { Card, Text, Button, Chip } from 'react-native-paper'
+import { Card, Text, Button, Chip, useTheme } from 'react-native-paper'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
 
 export default function CreditsDisplay() {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
+  const { colors } = useTheme()
 
   if (isLoading) {
     return <LoadingIndicator />
@@ -13,7 +14,7 @@ export default function CreditsDisplay() {
 
   if (error) {
     return (
-      <Card style={styles.errorCard}>
+      <Card style={[styles.errorCard, { backgroundColor: colors.errorContainer }]}>
         <Card.Content>
           <Text variant="bodyMedium">Error loading credits</Text>
           <Button onPress={() => refetch()} mode="outlined" style={styles.retryButton}>
@@ -43,21 +44,21 @@ export default function CreditsDisplay() {
 
         {credits?.hasUnlimited ? (
           <View style={styles.unlimitedContainer}>
-            <Chip icon="infinity" mode="flat" style={styles.unlimitedChip}>
+            <Chip icon="infinity" mode="flat" style={[styles.unlimitedChip, { backgroundColor: colors.tertiaryContainer }]}>
               Unlimited Credits
             </Chip>
             <Text variant="bodyMedium" style={styles.description}>
               You have unlimited credits with your subscription!
             </Text>
             {credits.totalCredits > 0 && (
-              <Text variant="bodySmall" style={styles.savedCredits}>
+              <Text variant="bodySmall" style={[styles.savedCredits, { color: colors.onSurfaceVariant }]}>
                 Plus {credits.totalCredits} saved credits for later
               </Text>
             )}
           </View>
         ) : (
           <View style={styles.creditsContainer}>
-            <Text variant="displaySmall" style={styles.creditsCount}>
+            <Text variant="displaySmall" style={[styles.creditsCount, { color: colors.primary }]}>
               {credits?.totalCredits || 0}
             </Text>
             <Text variant="bodyMedium">Credits Available</Text>
@@ -74,7 +75,7 @@ export default function CreditsDisplay() {
                 {sub.tier === 'payg' && 'Pay-as-you-go Credits'}
               </Text>
               {!sub.isUnlimited && (
-                <Text variant="bodySmall" style={styles.creditsText}>
+                <Text variant="bodySmall" style={[styles.creditsText, { color: colors.onSurfaceVariant }]}>
                   {sub.credits} credits
                 </Text>
               )}
@@ -92,14 +93,14 @@ export default function CreditsDisplay() {
           </Button>
         </View>
 
-        <View style={styles.pricingInfo}>
-          <Text variant="bodySmall" style={styles.pricingText}>
+        <View style={[styles.pricingInfo, { borderTopColor: colors.outlineVariant }]}>
+          <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
             • 1000 credits/month: $20
           </Text>
-          <Text variant="bodySmall" style={styles.pricingText}>
+          <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
             • Unlimited credits: $50
           </Text>
-          <Text variant="bodySmall" style={styles.pricingText}>
+          <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
             • One-time: 100 credits for $3
           </Text>
         </View>
@@ -114,7 +115,6 @@ const styles = StyleSheet.create({
   },
   errorCard: {
     margin: 16,
-    backgroundColor: '#ffebee',
   },
   title: {
     marginBottom: 16,
@@ -125,7 +125,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   unlimitedChip: {
-    backgroundColor: '#e8f5e8',
     marginBottom: 8,
   },
   description: {
@@ -134,7 +133,6 @@ const styles = StyleSheet.create({
   },
   savedCredits: {
     textAlign: 'center',
-    color: '#666',
   },
   creditsContainer: {
     alignItems: 'center',
@@ -142,7 +140,6 @@ const styles = StyleSheet.create({
   },
   creditsCount: {
     fontWeight: 'bold',
-    color: '#2196F3',
   },
   subscriptionDetails: {
     marginBottom: 16,
@@ -155,9 +152,7 @@ const styles = StyleSheet.create({
   subscriptionText: {
     flex: 1,
   },
-  creditsText: {
-    color: '#666',
-  },
+  creditsText: {},
   actionsContainer: {
     gap: 8,
     marginBottom: 16,
@@ -167,11 +162,9 @@ const styles = StyleSheet.create({
   },
   pricingInfo: {
     borderTopWidth: 1,
-    borderTopColor: '#eee',
     paddingTop: 12,
   },
   pricingText: {
-    color: '#666',
     marginVertical: 2,
   },
   retryButton: {

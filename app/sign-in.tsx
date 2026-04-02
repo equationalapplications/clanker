@@ -152,22 +152,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
   },
   errorContainer: {
-    backgroundColor: '#ffebee',
     padding: 16,
     margin: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ef5350',
   },
   errorText: {
     fontWeight: 'bold',
-    color: '#c62828',
     marginBottom: 4,
   },
-  errorMessage: {
-    color: '#d32f2f',
-  },
+  errorMessage: {},
 })

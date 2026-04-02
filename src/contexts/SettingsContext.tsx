@@ -46,7 +46,7 @@ interface SettingsProviderProps {
 export function SettingsProvider({ children }: SettingsProviderProps) {
     const [settings, setSettings] = useState<Settings>(() => ({
         analytics: readBoolSync('analytics', false),
-        darkMode: readBoolSync('darkMode', false),
+        darkMode: readBoolSync('darkMode', true),
         notifications: readBoolSync('notifications', true),
     }))
 
