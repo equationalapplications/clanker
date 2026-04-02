@@ -1,157 +1,75 @@
 # Merge Strategy: Promoting Code Through Branches
 
-This document explains how to merge changes between the three main branches (`dev` → `staging` → `main`) without running into conflicts—especially the recurring `CHANGELOG.md` conflict.
+This document explains how to promote changes from `staging` → `main` cleanly.
 
 ## Overview
 
-Our branch promotion flow is:
-
 ```
-dev  →  staging  →  main
+feature-branch → staging → main
 ```
 
-Each promotion step is a Pull Request on GitHub. The critical rule is: **always use "Squash and Merge"** when promoting between these branches. This keeps the history linear and avoids merge-commit conflicts that block future PRs.
+Each promotion step is a Pull Request on GitHub. **Always use "Squash and Merge"** to keep the history linear.
 
-## Why Merge Commits Cause Problems
+## How Conflicts Are Prevented
 
-When you use a regular "Create a merge commit" on GitHub, the resulting merge commit has **two parents**. This creates a non-linear history that conflicts with our branch protection rules:
+`semantic-release` runs on both `staging` and `main`, but they behave differently:
 
-- `staging` and `main` both enforce **linear history** (no merge commits).
-- `semantic-release` auto-generates `CHANGELOG.md` and bumps `package.json` on each branch independently. A regular merge creates conflicting versions of these files.
-- Once a merge commit exists, **every future PR** between those branches will show the same conflict.
+- **Staging:** Creates a GitHub pre-release tag only. Does **not** commit `CHANGELOG.md`, `package.json`, or `package-lock.json` back to the branch.
+- **Main:** Full release — bumps version, generates CHANGELOG, and commits the files back.
 
-## The Solution: Squash and Merge
+Because staging never mutates files, the only source of version/CHANGELOG commits is `main`. This means promoting `staging → main` will never conflict on auto-generated files.
 
-"Squash and Merge" takes all the commits from the source branch and combines them into **one new commit** on the target branch. This commit has only one parent, so the history stays linear and conflicts are avoided.
-
-## Step-by-Step: Promoting dev → staging
+## Step-by-Step: Promoting staging → main
 
 ### Via GitHub UI (Recommended)
 
-1. Go to the repository on GitHub.
-2. Click **Pull Requests** → **New Pull Request**.
-3. Set **base:** `staging` and **compare:** `dev`.
-4. Click **Create Pull Request**.
-5. Title the PR with a conventional commit message:
-   ```
-   chore(release): promote dev to staging
-   ```
-6. Once checks pass, click the **dropdown arrow** next to the merge button.
-7. Select **"Squash and merge"**.
-8. Edit the commit message if needed — keep it as a conventional commit.
-9. Click **Confirm squash and merge**.
+1. Go to **Pull Requests** → **New Pull Request**.
+2. Set **base:** `main` and **compare:** `staging`.
+3. Title the PR: `chore(release): promote staging to production`
+4. Select **"Squash and merge"**.
+5. CI on `main` runs semantic-release, bumps the version, and creates a GitHub release.
 
 ### Via GitHub CLI
 
 ```bash
-# Create the PR
-gh pr create --base staging --head dev \
-  --title "chore(release): promote dev to staging" \
-  --body "Promote latest dev changes to staging for pre-release testing."
+gh pr create --base main --head staging \
+  --title "chore(release): promote staging to production" \
+  --body "Promote staging to production."
 
-# Merge with squash (after PR is approved)
-gh pr merge --squash --subject "chore(release): promote dev to staging"
+gh pr merge --squash --subject "chore(release): promote staging to production"
 ```
 
-## Step-by-Step: Promoting staging → main
+## Hotfixes
 
-The process is identical, just change the branches:
+If a critical fix needs to go directly to production:
 
-1. Create a PR from `staging` → `main`.
-2. Title: `chore(release): promote staging to production vX.Y.Z`
-3. Use **"Squash and merge"**.
-
-## Resolving an Existing CHANGELOG Conflict
-
-If you already have a PR that shows "Can't automatically merge" due to a `CHANGELOG.md` conflict, here's how to fix it locally:
-
-### Option A: Resolve Locally and Push (Admin Only)
-
-```bash
-# Make sure you're on the target branch (e.g., staging)
-git checkout staging
-git pull origin staging
-
-# Merge dev using the "ours" strategy for conflicting files
-# This keeps staging's version of CHANGELOG.md (semantic-release regenerates it)
-git merge -X ours origin/dev -m "chore(release): merge dev into staging"
-
-# If branch protection requires linear history, squash instead:
-git merge --squash origin/dev
-git commit -m "chore(release): promote dev to staging"
-
-# Push
-git push origin staging
-```
-
-### Option B: Rebase dev onto staging
-
-```bash
-# Create a temporary branch from dev
-git checkout dev
-git pull origin dev
-git checkout -b temp/promote-to-staging
-
-# Rebase onto staging (resolve conflicts if any)
-git rebase origin/staging
-
-# During rebase, if CHANGELOG.md conflicts:
-#   Accept the staging version, then continue:
-git checkout --theirs CHANGELOG.md
-git add CHANGELOG.md
-git rebase --continue
-
-# Push and create PR from temp branch → staging
-git push origin temp/promote-to-staging
-# Create PR on GitHub, then squash and merge
-```
-
-### Option C: Reset CHANGELOG Before Merging
-
-If the only conflict is `CHANGELOG.md`, you can reset it before creating the PR:
-
-```bash
-git checkout dev
-git checkout origin/staging -- CHANGELOG.md
-git commit -m "chore: sync changelog with staging"
-git push origin dev
-# Now create PR from dev → staging — no conflict
-```
-
-> **Note:** `semantic-release` regenerates CHANGELOG.md on every release, so the content of this file during a merge doesn't matter much. The important thing is getting the code changes through cleanly.
+1. Branch from `main`: `git checkout -b hotfix/critical-bug main`
+2. Fix and PR into `main` (squash merge).
+3. Cherry-pick the fix back to `staging`: `git cherry-pick <sha>`
 
 ## Branch Protection Rules
-
-Our branches have these protections that affect the merge strategy:
 
 | Branch    | Requires PR | Linear History | Signed Commits |
 | --------- | ----------- | -------------- | -------------- |
 | `main`    | ✅          | ✅             | ✅             |
 | `staging` | ✅          | ✅             | ✅             |
-| `dev`     | ⚠️ Partial  | ❌             | ❌             |
-
-**Linear history** = no merge commits allowed. This is why "Squash and merge" is required for `staging` and `main`.
 
 ## Quick Reference
 
-| Action                      | Method               | Commit Message Example                                    |
-| --------------------------- | -------------------- | --------------------------------------------------------- |
-| Feature → dev               | Squash and Merge     | `feat(profile): add user profile page`                    |
-| Bug fix → dev               | Squash and Merge     | `fix(auth): resolve token refresh loop`                   |
-| dev → staging               | Squash and Merge     | `chore(release): promote dev to staging`                  |
-| staging → main              | Squash and Merge     | `chore(release): promote staging to production vX.Y.Z`    |
+| Action               | Method           | Commit Message Example                             |
+| -------------------- | ---------------- | -------------------------------------------------- |
+| Feature → staging    | Squash and Merge | `feat(profile): add user profile page`             |
+| Bug fix → staging    | Squash and Merge | `fix(auth): resolve token refresh loop`            |
+| staging → main       | Squash and Merge | `chore(release): promote staging to production`    |
+| Hotfix → main        | Squash and Merge | `fix(auth): patch critical auth regression`        |
 
 ## Common Pitfalls
 
-1. **Don't use "Create a merge commit"** for any PR targeting `staging` or `main`. It will succeed if you have admin bypass, but it creates problems for future merges.
-
-2. **Don't worry about CHANGELOG.md content during promotion merges.** `semantic-release` will regenerate it on the next release. Accept whichever version resolves the conflict.
-
-3. **Don't merge `main` back into `dev` or `staging`.** Changes flow in one direction only: `dev` → `staging` → `main`. If you need a hotfix on main, cherry-pick it back to dev.
-
-4. **Always pull the latest before promoting.** Stale local branches lead to unexpected conflicts.
+1. **Don't use "Create a merge commit"** for any PR targeting `staging` or `main`.
+2. **Don't merge `main` back into `staging`.** Changes flow one direction: `staging` → `main`. Use cherry-pick for hotfixes.
+3. **Always pull the latest before promoting.** Stale local branches lead to unexpected conflicts.
 
 ## Related Documentation
 
-- [Git Workflow & Branching](GIT_WORKFLOW.md) — Feature branch workflow, commit guidelines, and conventional commits.
-- [Expo Updates & Runtime Versioning](EXPO_UPDATES.md) — How version bumps from commits drive OTA vs native builds.
+- [Git Workflow & Branching](GIT_WORKFLOW.md) — Feature branch workflow and commit guidelines.
+- [Expo Updates & Runtime Versioning](EXPO_UPDATES.md) — How version bumps drive OTA vs native builds.
