@@ -1,3 +1,12 @@
+## [20.0.1](https://github.com/equationalapplications/clanker/compare/v20.0.0...v20.0.1) (2026-04-02)
+
+
+### Bug Fixes
+
+* **auth:** round apple signin button corners to match google button ([f50e2c5](https://github.com/equationalapplications/clanker/commit/f50e2c5d1ffe8f28a1476574c955753e5db8eceb))
+* **chat:** resolve keyboard covering input on android and ios ([547cd35](https://github.com/equationalapplications/clanker/commit/547cd353364abac1dfc4271476218f176edce286))
+* **ui:** make checkbox visible on accept terms page ([25a2862](https://github.com/equationalapplications/clanker/commit/25a28620b1c0b344d3332c5a638790bd27aec053))
+
 # [20.0.0](https://github.com/equationalapplications/clanker/compare/v19.0.0...v20.0.0) (2026-04-02)
 
 
