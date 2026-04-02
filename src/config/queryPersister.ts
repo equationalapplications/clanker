@@ -53,7 +53,6 @@ export const kvStorePersister: Persister = {
             }
 
             await Storage.setItem(CACHE_KEY, serialized)
-            if (__DEV__) console.debug(`[QueryCache] Persisted cache`)
         } catch (error) {
             console.warn('[QueryCache] Failed to persist:', error)
         }

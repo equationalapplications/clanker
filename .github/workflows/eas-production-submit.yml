@@ -32,4 +32,4 @@ jobs:
         run: npm ci
 
       - name: 🚀 EAS Build and Submit to Stores
-        run: eas build --profile production --non-interactive --auto-submit --no-wait
+        run: eas build --profile production --platform all --non-interactive --auto-submit --no-wait

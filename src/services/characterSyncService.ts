@@ -33,24 +33,24 @@ const LAST_SYNC_KEY = 'character-last-sync'
  */
 async function getCloudUserId(): Promise<string | null> {
     const {
-        data: { user },
+        data: { session },
         error,
-    } = await supabaseClient.auth.getUser()
+    } = await supabaseClient.auth.getSession()
 
     if (error) {
-        // Real auth error (network failure, expired/corrupt token, etc.) —
+        // Real auth error (storage failure, corrupt session, etc.) —
         // surface it so callers' .catch() handlers can log / retry.
         throw new Error(`Failed to resolve Supabase user: ${error.message}`)
     }
 
-    if (!user) {
+    if (!session?.user) {
         // No active Supabase session yet (e.g. exchangeToken hasn't run).
         // This is expected during early startup; warn rather than throw.
         console.warn('getCloudUserId: No Supabase session active — skipping cloud operation')
         return null
     }
 
-    return user.id
+    return session.user.id
 }
 
 export async function getLastSyncTime(): Promise<string | null> {

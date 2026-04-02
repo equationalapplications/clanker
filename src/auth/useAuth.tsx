@@ -133,10 +133,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 console.log('🔍 JWT Custom Claims Debug:', {
                   userId: payload.sub,
                   email: payload.email,
-                  plans: payload.plans,
-                  hasPlans: !!payload.plans,
-                  plansCount: payload.plans?.length || 0,
-                  fullPayload: payload,
+                  plans: payload.plans ?? '⚠️ missing — hook not enabled',
                 })
               } catch (decodeError) {
                 console.error('❌ Error decoding JWT:', decodeError)

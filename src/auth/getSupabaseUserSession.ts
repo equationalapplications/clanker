@@ -1,4 +1,4 @@
-import { getCurrentUser, exchangeToken } from '~/config/firebaseConfig'
+import { getCurrentUser, exchangeToken, appCheckReady } from '~/config/firebaseConfig'
 import { APP_NAME } from '~/config/constants'
 
 interface ExchangeTokenResponse {
@@ -15,6 +15,10 @@ export async function getSupabaseUserSession(): Promise<ExchangeTokenResponse> {
   }
 
   try {
+    // Ensure App Check is initialized before calling callable functions
+    // that enforce App Check (exchangeToken has enforceAppCheck: true).
+    await appCheckReady
+
     console.log('Calling Firebase function with region us-central1')
 
     // Get the token response from Firebase function

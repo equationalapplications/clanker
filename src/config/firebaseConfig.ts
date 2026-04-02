@@ -2,8 +2,31 @@
 import authModule, { FirebaseAuthTypes } from '@react-native-firebase/auth'
 import { getApp } from '@react-native-firebase/app'
 import { firebase as firebaseNamespace } from '@react-native-firebase/functions'
+import appCheck from '@react-native-firebase/app-check'
 
 const firebaseApp = getApp()
+
+async function initAppCheck() {
+    const provider = appCheck().newReactNativeFirebaseAppCheckProvider()
+    await provider.configure({
+        android: {
+            provider: __DEV__ ? 'debug' : 'playIntegrity',
+            debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
+        },
+        apple: {
+            provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
+            debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
+        },
+    })
+    await appCheck().initializeAppCheck({ provider, isTokenAutoRefreshEnabled: true })
+}
+
+// Exported so callers (e.g. getSupabaseUserSession) can await App Check readiness
+// before invoking callable functions that enforce App Check.
+export const appCheckReady = initAppCheck().catch((err) => {
+    console.error('❌ App Check initialization failed:', err)
+    throw err
+})
 
 const auth = authModule()
 

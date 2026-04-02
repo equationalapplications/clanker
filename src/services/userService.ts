@@ -25,9 +25,10 @@ export interface UserPrivate {
  */
 async function getUserCredits(): Promise<number> {
   const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
+    data: { session },
+  } = await supabaseClient.auth.getSession()
 
+  const user = session?.user
   if (!user) {
     return 0
   }
@@ -52,9 +53,10 @@ async function getUserCredits(): Promise<number> {
  */
 export const getUserProfile = async (): Promise<UserProfile | null> => {
   const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
+    data: { session },
+  } = await supabaseClient.auth.getSession()
 
+  const user = session?.user
   if (!user) {
     return null
   }
@@ -80,9 +82,10 @@ export const upsertUserProfile = async (
   profile: UserProfileUpdate,
 ): Promise<UserProfile | null> => {
   const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
+    data: { session },
+  } = await supabaseClient.auth.getSession()
 
+  const user = session?.user
   if (!user) {
     throw new Error('No authenticated user')
   }
@@ -148,9 +151,10 @@ export const getUserPrivate = async (): Promise<UserPrivate | null> => {
  */
 export const deleteUser = async (): Promise<void> => {
   const {
-    data: { user },
-  } = await supabaseClient.auth.getUser()
+    data: { session },
+  } = await supabaseClient.auth.getSession()
 
+  const user = session?.user
   if (!user) {
     throw new Error('No authenticated user')
   }

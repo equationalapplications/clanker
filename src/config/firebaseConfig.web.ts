@@ -61,6 +61,10 @@ const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
 
 export type FirebaseUser = User
 
+// Web App Check is synchronous — export a resolved promise for interface compatibility
+// with the native firebaseConfig.ts which exports an async appCheckReady.
+export const appCheckReady: Promise<void> = Promise.resolve()
+
 export {
     auth,
     firebaseApp,
