@@ -9,6 +9,7 @@ import {
     type Unsubscribe,
 } from 'firebase/auth'
 import { getFunctions, httpsCallable, type Functions } from 'firebase/functions'
+import { reportError } from '~/utilities/reportError'
 
 const config = {
     apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -32,7 +33,7 @@ if (typeof window !== 'undefined') {
             })
             console.log('✅ Firebase App Check activated successfully with Enterprise provider');
         } catch (error) {
-            console.error('❌ Error activating Firebase App Check with Enterprise provider:', error);
+            reportError(error, 'App Check initialization (web)')
         }
     } else {
         console.warn('⚠️ EXPO_PUBLIC_RECAPTCHA_SITE_KEY not set — Firebase App Check disabled');

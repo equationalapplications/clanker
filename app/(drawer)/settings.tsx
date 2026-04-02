@@ -3,6 +3,7 @@ import { StyleSheet, ScrollView, View } from 'react-native'
 import { Text, List, Switch, Button, Divider } from 'react-native-paper'
 import { router } from 'expo-router'
 import { useAuth } from '~/auth/useAuth'
+import { useSettings } from '~/contexts/SettingsContext'
 import CombinedSubscriptionButton from '~/components/CombinedSubscriptionButton'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import pkg from '../../package.json'
@@ -11,9 +12,7 @@ const version = pkg.version
 
 export default function Settings() {
   const { user, signOut } = useAuth()
-  const [darkMode, setDarkMode] = React.useState(false)
-  const [notifications, setNotifications] = React.useState(true)
-  const [analytics, setAnalytics] = React.useState(false)
+  const { settings, updateSetting } = useSettings()
   const [isLoading, setIsLoading] = useState(false)
 
   const onChangeIsLoading = (isLoading: boolean) => {
@@ -69,21 +68,21 @@ export default function Settings() {
           title="Dark Mode"
           description="Use dark theme"
           left={(props) => <List.Icon {...props} icon="theme-light-dark" />}
-          right={() => <Switch value={darkMode} onValueChange={setDarkMode} />}
+          right={() => <Switch value={settings.darkMode} onValueChange={(v) => updateSetting('darkMode', v)} />}
         />
 
         <List.Item
           title="Notifications"
           description="Receive push notifications"
           left={(props) => <List.Icon {...props} icon="bell" />}
-          right={() => <Switch value={notifications} onValueChange={setNotifications} />}
+          right={() => <Switch value={settings.notifications} onValueChange={(v) => updateSetting('notifications', v)} />}
         />
 
         <List.Item
           title="Analytics"
           description="Help improve the app"
           left={(props) => <List.Icon {...props} icon="chart-line" />}
-          right={() => <Switch value={analytics} onValueChange={setAnalytics} />}
+          right={() => <Switch value={settings.analytics} onValueChange={(v) => updateSetting('analytics', v)} />}
         />
       </View>
 

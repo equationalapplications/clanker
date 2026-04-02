@@ -1,7 +1,9 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { View, StyleSheet, KeyboardAvoidingView, Platform, Dimensions } from 'react-native'
+import { View, StyleSheet, Dimensions } from 'react-native'
 import { GiftedChat, IMessage, User, Bubble } from 'react-native-gifted-chat'
 import { useCallback } from 'react'
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
+import { useKeyboardHandler } from 'react-native-keyboard-controller'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useChatMessages } from '~/hooks/useMessages'
 import { useAIChat } from '~/hooks/useAIChat'
@@ -11,6 +13,20 @@ import { useUserCredits } from '~/hooks/useUserCredits'
 
 const { height } = Dimensions.get('window')
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
+
+const useKeyboardAnimation = () => {
+    const kbHeight = useSharedValue(0)
+    useKeyboardHandler(
+        {
+            onMove: (event) => {
+                'worklet'
+                kbHeight.value = Math.max(event.height, 0)
+            },
+        },
+        [],
+    )
+    return { kbHeight }
+}
 
 export default function ChatScreen() {
     const { id } = useLocalSearchParams<{ id: string }>()
@@ -22,6 +38,8 @@ export default function ChatScreen() {
     const credits = creditsData?.totalCredits || 0
     const hasUnlimited = creditsData?.hasUnlimited || false
     const { colors, roundness } = useTheme()
+    const { kbHeight } = useKeyboardAnimation()
+    const fakeView = useAnimatedStyle(() => ({ height: Math.abs(kbHeight.value) }), [])
 
     const { sendMessage } = useAIChat({
         characterId: id || '',
@@ -105,11 +123,7 @@ export default function ChatScreen() {
             </View>
 
             {/* Chat Interface */}
-            <KeyboardAvoidingView
-                style={styles.chatContainer}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={100}
-            >
+            <View style={styles.chatContainer}>
                 <GiftedChat
                     showUserAvatar
                     inverted
@@ -121,7 +135,8 @@ export default function ChatScreen() {
                     renderBubble={renderBubble}
                     alwaysShowSend
                 />
-            </KeyboardAvoidingView>
+            </View>
+            <Animated.View style={fakeView} />
         </View>
     )
 }

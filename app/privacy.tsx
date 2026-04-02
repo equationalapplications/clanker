@@ -1,8 +1,9 @@
 import { StyleSheet, ScrollView, View } from 'react-native'
-import { Text } from 'react-native-paper'
+import { Text, useTheme } from 'react-native-paper'
 import { PRIVACY } from '~/config/privacyConfig'
 
 export default function Privacy() {
+  const { colors } = useTheme()
 
   if (!PRIVACY) {
     return (
@@ -17,7 +18,7 @@ export default function Privacy() {
       {/* Header with top-right small version/lastUpdated */}
       <View style={styles.headerRow}>
         <View />
-        <Text style={styles.versionText}>
+        <Text style={[styles.versionText, { color: colors.onSurfaceVariant }]}>
           v{PRIVACY.version} • {PRIVACY.lastUpdated}
         </Text>
       </View>
@@ -57,7 +58,6 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: '#666',
     textAlign: 'right',
   },
 })

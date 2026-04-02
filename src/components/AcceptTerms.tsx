@@ -1,8 +1,9 @@
 import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
-import { StyleSheet, View, ScrollView, Alert, Platform } from 'react-native'
+import { StyleSheet, View, Alert, Platform } from 'react-native'
 import { Text, Checkbox } from 'react-native-paper'
 import { router } from 'expo-router'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
@@ -81,10 +82,11 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
   }
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       contentContainerStyle={styles.scrollContent}
       style={styles.container}
       bounces={false}
+      bottomOffset={20}
     >
       <Logo />
 
@@ -123,7 +125,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       </Button>
       {/* Use a light status bar on iOS to account for the black space above the modal */}
       <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   )
 }
 

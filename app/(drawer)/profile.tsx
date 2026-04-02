@@ -78,7 +78,7 @@ export default function Profile() {
             </Text>
           </View>
 
-          <View style={styles.separator} />
+          <View style={[styles.separator, { backgroundColor: colors.outlineVariant }]} />
 
           <View style={styles.buttonContainer}>
             <Button mode="outlined" onPress={onPressSignOut} style={styles.button}>
@@ -142,7 +142,6 @@ const styles = StyleSheet.create({
     marginVertical: 30,
     height: 1,
     width: '80%',
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
   },
   buttonContainer: {
     width: '100%',
