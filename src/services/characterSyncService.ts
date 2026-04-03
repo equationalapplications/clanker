@@ -10,7 +10,7 @@
  * - Deletions are soft-deleted locally first, then propagated to cloud on next sync
  */
 
-import Storage from 'expo-sqlite/kv-store'
+import { Storage } from '~/utilities/kvStorage'
 import { supabaseClient } from '~/config/supabaseClient'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'

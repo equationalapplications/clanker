@@ -9,7 +9,7 @@
  * with "Failed to restore query cache: SyntaxError: Unexpected token 'o'"
  */
 
-import Storage from 'expo-sqlite/kv-store'
+import { Storage } from '~/utilities/kvStorage'
 import type { Persister, PersistedClient } from '@tanstack/react-query-persist-client'
 
 const CACHE_KEY = 'tanstack-query-cache'

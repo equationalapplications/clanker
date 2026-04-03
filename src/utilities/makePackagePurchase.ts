@@ -41,18 +41,11 @@ export async function makePackagePurchase(productType: ProductType = 'monthly_20
       if (checkoutUrl) {
         await Linking.openURL(checkoutUrl)
       } else {
-        const msg = 'No checkout URL returned from Stripe. Please try again.'
-        console.error(msg)
-        if (typeof window !== 'undefined') {
-          window.alert(msg)
-        }
+        throw new Error('No checkout URL returned from Stripe. Please try again.')
       }
     }
   } catch (error) {
     console.error('Purchase error:', error)
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.alert('Something went wrong starting checkout. Please try again.')
-    }
     throw error
   }
 }
