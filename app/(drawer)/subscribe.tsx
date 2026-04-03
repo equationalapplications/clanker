@@ -1,26 +1,39 @@
 import { useRouter } from 'expo-router'
 import React, { useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
-import { Appbar, Card, Text, IconButton } from 'react-native-paper'
+import { ScrollView, StyleSheet, View, Platform } from 'react-native'
+import { Appbar, Card, Text, IconButton, Button } from 'react-native-paper'
 
-import CombinedSubscriptionButton from '~/components/CombinedSubscriptionButton'
-import LoadingIndicator from '~/components/LoadingIndicator'
+import CreditsDisplay from '~/components/CreditsDisplay'
 import { useIsPremium } from '~/hooks/useIsPremium'
 import { useUserPrivateData } from '~/hooks/useUser'
+import { makePackagePurchase } from '~/utilities/makePackagePurchase'
+import { restorePurchases } from '~/config/revenueCatConfig'
+import { supabaseClient } from '~/config/supabaseClient'
 
 export default function SubscribeScreen() {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
   const isPremium = useIsPremium()
   const { userPrivate } = useUserPrivateData()
   const credits = userPrivate?.credits || 0
+  const [isLoading, setIsLoading] = useState(false)
 
-  const onChangeIsLoading = (loading: boolean) => {
-    setIsLoading(loading)
+  const handlePurchase = async (productType: 'monthly_20' | 'payg') => {
+    setIsLoading(true)
+    try {
+      await makePackagePurchase(productType)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  if (isLoading) {
-    return <LoadingIndicator />
+  const handleRestore = async () => {
+    setIsLoading(true)
+    try {
+      await restorePurchases()
+      await supabaseClient.auth.refreshSession()
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -91,9 +104,40 @@ export default function SubscribeScreen() {
           </Card>
         )}
 
-        <View style={styles.buttonContainer}>
-          <CombinedSubscriptionButton onChangeIsLoading={onChangeIsLoading} />
-        </View>
+        {Platform.OS === 'web' ? (
+          <CreditsDisplay />
+        ) : (
+          <View style={styles.buttonContainer}>
+            {!isPremium && (
+              <Button
+                mode="contained"
+                onPress={() => handlePurchase('monthly_20')}
+                disabled={isLoading}
+                loading={isLoading}
+                style={styles.actionButton}
+              >
+                Unlimited Subscription - $20/Month
+              </Button>
+            )}
+            <Button
+              mode="outlined"
+              onPress={() => handlePurchase('payg')}
+              disabled={isLoading}
+              loading={isLoading}
+              style={styles.actionButton}
+            >
+              Buy 100 Credits - $10
+            </Button>
+            <Button
+              mode="text"
+              onPress={handleRestore}
+              disabled={isLoading}
+              style={styles.restoreButton}
+            >
+              Restore Purchases
+            </Button>
+          </View>
+        )}
       </ScrollView>
     </View>
   )
@@ -146,6 +190,10 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: 24,
-    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {},
+  restoreButton: {
+    marginTop: 4,
   },
 })

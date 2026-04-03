@@ -4,9 +4,12 @@ import { Card, Text, Button, Chip, useTheme } from 'react-native-paper'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
 
+import { makePackagePurchase } from '~/utilities/makePackagePurchase'
+
 export default function CreditsDisplay() {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
   const { colors } = useTheme()
+  const [isSubscribing, setIsSubscribing] = React.useState(false)
 
   if (isLoading) {
     return <LoadingIndicator />
@@ -25,14 +28,26 @@ export default function CreditsDisplay() {
     )
   }
 
-  const handleBuyCredits = () => {
-    // TODO: Implement Stripe payment for credits
-    console.log('Buy credits clicked')
+  const handleBuyCredits = async () => {
+    setIsSubscribing(true)
+    try {
+      await makePackagePurchase('payg')
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsSubscribing(false)
+    }
   }
 
-  const handleSubscribe = () => {
-    // TODO: Implement Stripe subscription
-    console.log('Subscribe clicked')
+  const handleSubscribe = async () => {
+    setIsSubscribing(true)
+    try {
+      await makePackagePurchase('monthly_20')
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsSubscribing(false)
+    }
   }
 
   return (
@@ -84,24 +99,33 @@ export default function CreditsDisplay() {
         </View>
 
         <View style={styles.actionsContainer}>
-          <Button mode="outlined" onPress={handleBuyCredits} style={styles.actionButton}>
-            Buy 100 Credits ($3)
+          <Button
+            mode="contained"
+            onPress={handleSubscribe}
+            style={styles.actionButton}
+            disabled={isSubscribing}
+            loading={isSubscribing}
+          >
+            Unlimited Subscription - $20/Month
           </Button>
 
-          <Button mode="contained" onPress={handleSubscribe} style={styles.actionButton}>
-            Subscribe
+          <Button
+            mode="outlined"
+            onPress={handleBuyCredits}
+            style={styles.actionButton}
+            disabled={isSubscribing}
+            loading={isSubscribing}
+          >
+            Buy 100 Credits - $10
           </Button>
         </View>
 
         <View style={[styles.pricingInfo, { borderTopColor: colors.outlineVariant }]}>
           <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
-            • 1000 credits/month: $20
+            • Unlimited Subscription: $20/month
           </Text>
           <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
-            • Unlimited credits: $50
-          </Text>
-          <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
-            • One-time: 100 credits for $3
+            • One-time: 100 credits for $10
           </Text>
         </View>
       </Card.Content>
