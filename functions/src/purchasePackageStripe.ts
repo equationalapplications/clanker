@@ -114,6 +114,19 @@ const handler = async (request: CallableRequest) => {
         client_reference_id: request.auth.uid,
     });
 
+    if (!session.url) {
+        logger.error("Stripe Checkout Session missing URL", {
+            sessionId: session.id,
+            email,
+            priceId,
+            mode,
+        });
+        throw new HttpsError(
+            "internal",
+            "Stripe Checkout Session did not include a checkout URL."
+        );
+    }
+
     logger.info("Stripe Checkout Session created", {
         sessionId: session.id,
         email,
