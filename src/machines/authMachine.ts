@@ -45,7 +45,7 @@ export const authMachine = createMachine({
     },
     on: {
         USER_FOUND: {
-            target: 'exchangingToken',
+            target: '.exchangingToken',
             actions: assign({ user: ({ event }) => event.user }),
         },
         NO_USER_FOUND: {
