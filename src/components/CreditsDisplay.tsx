@@ -3,13 +3,13 @@ import { View, StyleSheet } from 'react-native'
 import { Card, Text, Button, Chip, useTheme } from 'react-native-paper'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
-
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
+import { supabaseClient } from '~/config/supabaseClient'
 
 export default function CreditsDisplay() {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
   const { colors } = useTheme()
-  const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | null>(null)
+  const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
 
   if (isLoading) {
     return <LoadingIndicator />
@@ -50,6 +50,17 @@ export default function CreditsDisplay() {
     }
   }
 
+  const handleRestore = async () => {
+    setIsPurchasing('restore')
+    try {
+      await supabaseClient.auth.refreshSession()
+    } catch (e) {
+      console.error('Restore failed:', e)
+    } finally {
+      setIsPurchasing(null)
+    }
+  }
+
   return (
     <Card style={styles.card}>
       <Card.Content>
@@ -80,24 +91,6 @@ export default function CreditsDisplay() {
           </View>
         )}
 
-        <View style={styles.subscriptionDetails}>
-          {credits?.subscriptions.map((sub, index) => (
-            <View key={index} style={styles.subscriptionItem}>
-              <Text variant="bodyMedium" style={styles.subscriptionText}>
-                {sub.tier === 'free' && 'Free Tier'}
-                {sub.tier === 'monthly_20' && 'Monthly $20 Plan'}
-                {sub.tier === 'monthly_50' && 'Monthly $50 Premium Plan'}
-                {sub.tier === 'payg' && 'Pay-as-you-go Credits'}
-              </Text>
-              {!sub.isUnlimited && (
-                <Text variant="bodySmall" style={[styles.creditsText, { color: colors.onSurfaceVariant }]}>
-                  {sub.credits} credits
-                </Text>
-              )}
-            </View>
-          ))}
-        </View>
-
         <View style={styles.actionsContainer}>
           {!credits?.hasUnlimited && (
             <Button
@@ -123,6 +116,16 @@ export default function CreditsDisplay() {
         </View>
 
         <View style={[styles.pricingInfo, { borderTopColor: colors.outlineVariant }]}>
+          {credits?.subscriptions.map((sub, index) => (
+            <Text key={index} variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
+              {'• '}
+              {sub.tier === 'free' && 'Free Tier'}
+              {sub.tier === 'monthly_20' && 'Monthly $20 Plan'}
+              {sub.tier === 'monthly_50' && 'Monthly $50 Premium Plan'}
+              {sub.tier === 'payg' && 'Pay-as-you-go Credits'}
+              {!sub.isUnlimited && ` — ${sub.credits} credits`}
+            </Text>
+          ))}
           <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
             • Unlimited Subscription: $20/month
           </Text>
@@ -130,6 +133,19 @@ export default function CreditsDisplay() {
             • One-time: 100 credits for $10
           </Text>
         </View>
+
+        <Button
+          mode="text"
+          onPress={handleRestore}
+          disabled={isPurchasing !== null}
+          loading={isPurchasing === 'restore'}
+          style={styles.restoreButton}
+        >
+          Sync Subscription &amp; Credits
+        </Button>
+        <Text variant="bodySmall" style={[styles.syncHelperText, { color: colors.onSurfaceVariant }]}>
+          Use this if your subscription or credits aren&apos;t showing correctly.
+        </Text>
       </Card.Content>
     </Card>
   )
@@ -167,18 +183,6 @@ const styles = StyleSheet.create({
   creditsCount: {
     fontWeight: 'bold',
   },
-  subscriptionDetails: {
-    marginBottom: 16,
-  },
-  subscriptionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  subscriptionText: {
-    flex: 1,
-  },
-  creditsText: {},
   actionsContainer: {
     gap: 8,
     marginBottom: 16,
@@ -189,9 +193,19 @@ const styles = StyleSheet.create({
   pricingInfo: {
     borderTopWidth: 1,
     paddingTop: 12,
+    marginBottom: 8,
   },
   pricingText: {
     marginVertical: 2,
+  },
+  restoreButton: {
+    marginTop: 8,
+  },
+  syncHelperText: {
+    textAlign: 'center',
+    marginTop: 2,
+    marginBottom: 8,
+    paddingHorizontal: 16,
   },
   retryButton: {
     marginTop: 8,
