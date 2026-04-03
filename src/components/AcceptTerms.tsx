@@ -7,8 +7,6 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
-import { grantAppAccess } from '~/utilities/appAccess'
-import { APP_NAME } from '~/config/constants'
 import { TERMS } from '~/config/termsConfig'
 
 interface AcceptTermsProps {
@@ -25,33 +23,12 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
     setChecked(!checked)
   }
 
-  const onPressAccept = async () => {
+  const onPressAccept = () => {
     if (!checked) {
       Alert.alert('Please Accept Terms', 'You must accept the terms and conditions to continue.')
       return
     }
-
-    try {
-      console.log('Accepting terms and granting app access...')
-
-      // Optimistically proceed - we trust the user clicked accept
-      // The database write happens in the background
-      const result = await grantAppAccess(APP_NAME, TERMS.version)
-
-      if (result.success) {
-        console.log('Terms accepted successfully, proceeding to app...')
-        onAccepted?.()
-      } else {
-        throw new Error(result.error || 'Failed to grant access')
-      }
-    } catch (error: any) {
-      console.error('Error accepting terms:', error)
-      Alert.alert(
-        'Error',
-        'Failed to record your acceptance. Please check your connection and try again.\n\n' +
-        error.message,
-      )
-    }
+    onAccepted?.()
   }
 
   const onPressCancel = () => {

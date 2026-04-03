@@ -7,6 +7,6 @@ module.exports = defineConfig([
   expoConfig,
   reactCompiler.configs.recommended,
   {
-    ignores: ['dist/*', 'web-build/*', 'build-*.ipa'],
+    ignores: ['dist/*', 'web-build/*', 'build-*.ipa', 'functions/*'],
   },
 ])

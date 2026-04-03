@@ -90,11 +90,21 @@ export const kvStorePersister: Persister = {
             return cacheState as PersistedClient
         } catch (error) {
             console.warn('[QueryCache] Failed to restore:', error)
-            // On any error, clear to prevent repeated failures
-            try {
-                await Storage.removeItem(CACHE_KEY)
-            } catch {
-                // Ignore cleanup errors
+            // For transient storage-access errors (e.g. OPFS file locked by another tab),
+            // leave the cache intact so the next load can still restore it.
+            const msg = error instanceof Error ? error.message : String(error)
+            const isAccessError =
+                msg.includes('NoModificationAllowedError') ||
+                msg.includes('createSyncAccessHandle') ||
+                msg.includes('Access Handles cannot be created')
+            if (!isAccessError) {
+                // For all other errors (e.g. storage full, unknown corruption), clear to
+                // prevent repeated failures.
+                try {
+                    await Storage.removeItem(CACHE_KEY)
+                } catch {
+                    // Ignore cleanup errors
+                }
             }
             return undefined
         }

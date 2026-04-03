@@ -53,9 +53,16 @@ export const authMachine = createMachine(
                 target: '.exchangingToken',
                 actions: assign({ user: ({ event }) => event.user }),
             },
-            NO_USER_FOUND: {
-                target: '.signedOut',
-            },
+            NO_USER_FOUND: [
+                {
+                    target: '.signedOut',
+                    guard: 'hadActiveSession',
+                    actions: 'clearSessionData',
+                },
+                {
+                    target: '.signedOut',
+                },
+            ],
         },
         states: {
             initializing: {},
@@ -187,7 +194,20 @@ export const authMachine = createMachine(
         },
     },
     {
-        actions: {},
+        actions: {
+            clearSessionData: () => {
+                Promise.all([
+                    supabase.auth.signOut({ scope: 'local' }),
+                    setCrashlyticsUserId(null),
+                    logoutRevenueCat(),
+                ]).catch((err) => console.error('clearSessionData failed:', err))
+                queryClient.clear()
+            },
+        },
+        guards: {
+            hadActiveSession: ({ context }) =>
+                context.user !== null || context.supabaseSession !== null,
+        },
         actors: {
             listenToAuthState: fromCallback(({ sendBack }) => {
                 const unsubscribe = onAuthStateChanged((user) => {
@@ -243,7 +263,6 @@ export const authMachine = createMachine(
                 queryClient.clear()
             }),
         },
-        guards: {},
         delays: {
             TOKEN_EXPIRY_DELAY: ({ context }) => {
                 const session = context.supabaseSession
