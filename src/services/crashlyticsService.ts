@@ -5,7 +5,7 @@ import {
     setAttribute as setAttributeMod,
     recordError as recordErrorMod,
 } from '@react-native-firebase/crashlytics'
-import Storage from 'expo-sqlite/kv-store'
+import { Storage } from '~/utilities/kvStorage'
 
 const ANALYTICS_KEY = 'setting:analytics'
 

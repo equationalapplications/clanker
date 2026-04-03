@@ -1,4 +1,4 @@
-import Storage from 'expo-sqlite/kv-store'
+import { Storage } from '~/utilities/kvStorage'
 import { logCrashlyticsError } from '~/services/crashlyticsService'
 
 const ANALYTICS_KEY = 'setting:analytics'

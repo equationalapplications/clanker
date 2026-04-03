@@ -6,7 +6,7 @@ import React, {
     ReactNode,
 } from 'react'
 import { Appearance } from 'react-native'
-import Storage from 'expo-sqlite/kv-store'
+import { Storage } from '~/utilities/kvStorage'
 import { setCrashlyticsEnabled } from '~/services/crashlyticsService'
 
 // Storage key helpers
