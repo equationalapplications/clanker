@@ -114,7 +114,7 @@ export function AcceptTerms({
         </Text>
       </View>
       <View style={styles.separatorSmall} />
-            <Button
+      <Button
         mode="contained"
         disabled={!checked || accepting}
         loading={accepting}

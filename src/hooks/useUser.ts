@@ -36,8 +36,8 @@ export const userKeys = {
  * Hook to get user profile with React Query
  */
 export function useUserProfile() {
-  const authService = useAuthMachine();
-  const user = useSelector(authService, (state) => state.context.user);
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
   const queryClient = useQueryClient()
 
   const query = useQuery({
@@ -83,8 +83,8 @@ export function useUserProfile() {
  * Hook to get public user data
  */
 export function useUserPublicData() {
-  const authService = useAuthMachine();
-  const user = useSelector(authService, (state) => state.context.user);
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
 
   const query = useQuery({
     queryKey: userKeys.public(user?.uid),
@@ -103,8 +103,8 @@ export function useUserPublicData() {
  * Hook to get private user data
  */
 export function useUserPrivateData() {
-  const authService = useAuthMachine();
-  const user = useSelector(authService, (state) => state.context.user);
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
 
   const query = useQuery({
     queryKey: userKeys.private(user?.uid),
@@ -124,8 +124,8 @@ export function useUserPrivateData() {
  */
 export function useUpdateProfile() {
   const queryClient = useQueryClient()
-  const authService = useAuthMachine();
-  const user = useSelector(authService, (state) => state.context.user);
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
 
   return useMutation({
     mutationFn: (updates: UserProfileUpdate) => upsertUserProfile(updates),
@@ -168,5 +168,3 @@ export function useUpdateProfile() {
     },
   })
 }
-
-

@@ -29,8 +29,8 @@ export const messageKeys = {
  * Uses local SQLite storage - no real-time subscriptions needed
  */
 export function useMessages(characterId: string | undefined, recipientUserId: string | undefined) {
-  const authService = useAuthMachine();
-  const user = useSelector(authService, (state) => state.context.user);
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
 
   const query = useQuery({
     queryKey: messageKeys.list(characterId || '', recipientUserId || ''),
@@ -52,8 +52,8 @@ export function useMessages(characterId: string | undefined, recipientUserId: st
  */
 export function useSendMessage(characterId: string, recipientUserId: string) {
   const queryClient = useQueryClient()
-  const authService = useAuthMachine();
-  const user = useSelector(authService, (state) => state.context.user);
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
 
   return useMutation({
     mutationFn: (message: Pick<IMessage, '_id' | 'text' | 'user'> & { [key: string]: any }) =>

@@ -14,8 +14,8 @@ import { deleteUser } from '~/utilities/deleteUser'
 
 export default function Profile() {
   const { colors } = useTheme()
-  const authService = useAuthMachine();
-  const user = useSelector(authService, (state) => state.context.user);
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
   const { userPublic } = useUserPublicData()
   const { userPrivate } = useUserPrivateData()
   const isPremium = useIsPremium()
@@ -29,7 +29,7 @@ export default function Profile() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const onPressSignOut = () => {
-    authService.send({ type: 'SIGN_OUT' });
+    authService.send({ type: 'SIGN_OUT' })
   }
 
   const onPressDeleteAccount = () => {
@@ -41,7 +41,7 @@ export default function Profile() {
     setIsDeleting(true)
     try {
       await deleteUser()
-      authService.send({ type: 'SIGN_OUT' });
+      authService.send({ type: 'SIGN_OUT' })
     } catch (error) {
       console.error('Error deleting account:', error)
     } finally {

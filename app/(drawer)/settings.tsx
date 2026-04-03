@@ -13,10 +13,10 @@ import pkg from '../../package.json'
 const version = pkg.version
 
 export default function Settings() {
-  const authService = useAuthMachine();
+  const authService = useAuthMachine()
   const { user } = useSelector(authService, (state) => ({
     user: state.context.user,
-  }));
+  }))
   const { settings, updateSetting } = useSettings()
   const [isLoading, setIsLoading] = useState(false)
   const { bottom } = useSafeAreaInsets()
@@ -78,21 +78,33 @@ export default function Settings() {
           title="Dark Mode"
           description="Use dark theme"
           left={(props) => <List.Icon {...props} icon="theme-light-dark" />}
-          right={() => <Switch value={settings.darkMode} onValueChange={(v) => updateSetting('darkMode', v)} />}
+          right={() => (
+            <Switch value={settings.darkMode} onValueChange={(v) => updateSetting('darkMode', v)} />
+          )}
         />
 
         <List.Item
           title="Notifications"
           description="Receive push notifications"
           left={(props) => <List.Icon {...props} icon="bell" />}
-          right={() => <Switch value={settings.notifications} onValueChange={(v) => updateSetting('notifications', v)} />}
+          right={() => (
+            <Switch
+              value={settings.notifications}
+              onValueChange={(v) => updateSetting('notifications', v)}
+            />
+          )}
         />
 
         <List.Item
           title="Analytics"
           description="Help improve the app"
           left={(props) => <List.Icon {...props} icon="chart-line" />}
-          right={() => <Switch value={settings.analytics} onValueChange={(v) => updateSetting('analytics', v)} />}
+          right={() => (
+            <Switch
+              value={settings.analytics}
+              onValueChange={(v) => updateSetting('analytics', v)}
+            />
+          )}
         />
       </View>
 

@@ -100,16 +100,6 @@ export default function SignIn() {
               Apple
             </ProviderButton>
           )}
-          {Platform.OS === 'web' && (
-            <ProviderButton
-              disabled={isLoading}
-              loading={isLoading}
-              onPress={AppleLoginOnPress}
-              type="apple"
-            >
-              Apple
-            </ProviderButton>
-          )}
           <View style={styles.footer}>
             <Button mode="text" onPress={onPressTerms}>
               Terms and Conditions

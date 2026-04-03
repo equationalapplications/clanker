@@ -3,7 +3,9 @@ import { supabaseClient } from '~/config/supabaseClient'
 import { APP_NAME } from '~/config/constants'
 import { TERMS } from '~/config/termsConfig'
 
-const checkTermsAcceptance = async (userId: string): Promise<boolean> => {
+const checkTermsAcceptance = async (
+  userId: string,
+): Promise<{ accepted: boolean; isUpdate: boolean }> => {
   const { data, error } = await supabaseClient
     .from('user_app_subscriptions')
     .select('terms_accepted_at, terms_version')
@@ -12,8 +14,9 @@ const checkTermsAcceptance = async (userId: string): Promise<boolean> => {
     .maybeSingle()
 
   if (error) throw error
-  if (!data) return false
-  return !!data.terms_accepted_at && data.terms_version === TERMS.version
+  if (!data || !data.terms_accepted_at) return { accepted: false, isUpdate: false }
+  if (data.terms_version !== TERMS.version) return { accepted: false, isUpdate: true }
+  return { accepted: true, isUpdate: false }
 }
 
 const recordTermsAcceptance = async (userId: string): Promise<void> => {
@@ -80,10 +83,11 @@ export const termsMachine = createMachine(
           onDone: [
             {
               target: 'accepted',
-              guard: ({ event }) => event.output === true,
+              guard: ({ event }) => event.output.accepted === true,
             },
             {
               target: 'acceptanceRequired',
+              actions: assign({ isUpdate: ({ event }) => event.output.isUpdate }),
             },
           ],
           onError: {
@@ -96,9 +100,6 @@ export const termsMachine = createMachine(
         on: {
           ACCEPT_TERMS: {
             target: 'accepting',
-            actions: assign({
-              isUpdate: ({ event }) => event.isUpdate ?? false,
-            }),
           },
         },
       },

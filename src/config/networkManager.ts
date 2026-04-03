@@ -15,20 +15,18 @@ import NetInfo from '@react-native-community/netinfo'
  * @returns unsubscribe function (call on cleanup)
  */
 export function setupNetworkManager(onReconnect?: () => void): () => void {
-    let prevOnline = true
+  let prevOnline = true
 
-    return NetInfo.addEventListener((state) => {
-        const isOnline =
-            state.isConnected != null &&
-            state.isConnected &&
-            state.isInternetReachable !== false
+  return NetInfo.addEventListener((state) => {
+    const isOnline =
+      state.isConnected != null && state.isConnected && state.isInternetReachable !== false
 
-        onlineManager.setOnline(isOnline)
+    onlineManager.setOnline(isOnline)
 
-        if (isOnline && !prevOnline && onReconnect) {
-            onReconnect()
-        }
+    if (isOnline && !prevOnline && onReconnect) {
+      onReconnect()
+    }
 
-        prevOnline = isOnline
-    })
+    prevOnline = isOnline
+  })
 }

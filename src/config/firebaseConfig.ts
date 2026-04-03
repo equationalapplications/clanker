@@ -1,9 +1,9 @@
 // React Native Firebase – modular API (aligned with Firebase Web SDK)
 import {
-    FirebaseAuthTypes,
-    getAuth,
-    onAuthStateChanged as onAuthStateChangedMod,
-    signOut as signOutMod,
+  FirebaseAuthTypes,
+  getAuth,
+  onAuthStateChanged as onAuthStateChangedMod,
+  signOut as signOutMod,
 } from '@react-native-firebase/auth'
 import { getApp } from '@react-native-firebase/app'
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions'
@@ -13,28 +13,28 @@ import { reportError } from '~/utilities/reportError'
 const firebaseApp = getApp()
 
 async function initAppCheck() {
-    await initializeAppCheck(firebaseApp, {
-        provider: {
-            providerOptions: {
-                android: {
-                    provider: __DEV__ ? 'debug' : 'playIntegrity',
-                    debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
-                },
-                apple: {
-                    provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
-                    debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
-                },
-            },
+  await initializeAppCheck(firebaseApp, {
+    provider: {
+      providerOptions: {
+        android: {
+          provider: __DEV__ ? 'debug' : 'playIntegrity',
+          debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
         },
-        isTokenAutoRefreshEnabled: true,
-    })
+        apple: {
+          provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
+          debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
+        },
+      },
+    },
+    isTokenAutoRefreshEnabled: true,
+  })
 }
 
 // Exported so callers (e.g. getSupabaseUserSession) can await App Check readiness
 // before invoking callable functions that enforce App Check.
 export const appCheckReady = initAppCheck().catch((err: unknown) => {
-    reportError(err, 'App Check initialization')
-    throw err
+  reportError(err, 'App Check initialization')
+  throw err
 })
 
 const auth = getAuth(firebaseApp)
@@ -42,7 +42,7 @@ const auth = getAuth(firebaseApp)
 const getCurrentUser = () => auth.currentUser
 
 const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) =>
-    onAuthStateChangedMod(auth, callback)
+  onAuthStateChangedMod(auth, callback)
 
 const signOut = () => signOutMod(auth)
 
@@ -60,13 +60,13 @@ const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
 export type FirebaseUser = FirebaseAuthTypes.User
 
 export {
-    firebaseApp,
-    auth,
-    getCurrentUser,
-    onAuthStateChanged,
-    signOut,
-    exchangeToken,
-    generateReplyFn,
-    purchasePackageStripe,
-    spendCreditsFn,
+  firebaseApp,
+  auth,
+  getCurrentUser,
+  onAuthStateChanged,
+  signOut,
+  exchangeToken,
+  generateReplyFn,
+  purchasePackageStripe,
+  spendCreditsFn,
 }

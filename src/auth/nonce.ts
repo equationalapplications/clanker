@@ -5,26 +5,26 @@ import * as Crypto from 'expo-crypto'
  * Uses rejection sampling to avoid modulo bias.
  */
 export const generateNonce = (length = 32): string => {
-    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-    const charsetLength = charset.length
-    const maxUnbiased = Math.floor(256 / charsetLength) * charsetLength
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  const charsetLength = charset.length
+  const maxUnbiased = Math.floor(256 / charsetLength) * charsetLength
 
-    let result = ''
+  let result = ''
 
-    while (result.length < length) {
-        const remaining = length - result.length
-        const randomValues = Crypto.getRandomValues(new Uint8Array(remaining * 2))
+  while (result.length < length) {
+    const remaining = length - result.length
+    const randomValues = Crypto.getRandomValues(new Uint8Array(remaining * 2))
 
-        for (let i = 0; i < randomValues.length && result.length < length; i++) {
-            const v = randomValues[i]
-            if (v >= maxUnbiased) {
-                continue
-            }
-            result += charset[v % charsetLength]
-        }
+    for (let i = 0; i < randomValues.length && result.length < length; i++) {
+      const v = randomValues[i]
+      if (v >= maxUnbiased) {
+        continue
+      }
+      result += charset[v % charsetLength]
     }
+  }
 
-    return result
+  return result
 }
 
 /**
@@ -32,5 +32,5 @@ export const generateNonce = (length = 32): string => {
  * Used to hash the nonce before passing to Apple Sign-In.
  */
 export const sha256 = async (input: string): Promise<string> => {
-    return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, input)
+  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, input)
 }

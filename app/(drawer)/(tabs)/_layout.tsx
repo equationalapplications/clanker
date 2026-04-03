@@ -31,21 +31,17 @@ export default function TabLayout() {
           tabPress: (e) => {
             if (editDirtyRef.current) {
               e.preventDefault()
-              Alert.alert(
-                'Unsaved Changes',
-                'You have unsaved changes. Discard them?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Discard',
-                    style: 'destructive',
-                    onPress: () => {
-                      setEditDirty(false)
-                      router.navigate('/characters')
-                    },
+              Alert.alert('Unsaved Changes', 'You have unsaved changes. Discard them?', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Discard',
+                  style: 'destructive',
+                  onPress: () => {
+                    setEditDirty(false)
+                    router.navigate('/characters')
                   },
-                ],
-              )
+                },
+              ])
             }
           },
         }}
