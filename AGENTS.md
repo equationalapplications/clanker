@@ -12,7 +12,7 @@
 ```bash
 feat(scope): add new feature        # Minor bump (1.0.0 → 1.1.0) - OTA update
 fix(scope): resolve bug             # Patch bump (1.0.0 → 1.0.1) - OTA update
-'BREAKING CHANGE:': breaking change       # Major bump (1.0.0 → 2.0.0) - NATIVE BUILD REQUIRED
+feat(scope)!: introduce breaking API change  # Major bump (1.0.0 → 2.0.0) - NATIVE BUILD REQUIRED
 ```
 
 **Commit Message Line Length Limits** (enforced by commitlint):
