@@ -247,10 +247,11 @@ export function useMostRecentMessage() {
   const user = useSelector(authService, (state) => state.context.user)
 
   return useQuery({
-    queryKey: [...messageKeys.all, 'mostRecent'],
+    queryKey: [...messageKeys.all, 'mostRecent', user?.uid],
     queryFn: () => getMostRecentMessage(user?.uid || ''),
-    enabled: !!user,
-    staleTime: 1000 * 30,
+    enabled: !!user?.uid,
+    staleTime: 0,
+    refetchOnMount: 'always',
     networkMode: 'offlineFirst',
   })
 }

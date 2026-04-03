@@ -314,21 +314,19 @@ export async function batchInsertMessages(messages: LocalMessage[]): Promise<voi
  * Get the most recent message across all conversations for a user
  */
 export async function getMostRecentMessage(
-  userId: string,
+    userId: string,
 ): Promise<(IMessage & { character_id: string }) | null> {
     const db = await getDatabase()
 
     const message = await db.getFirstAsync<LocalMessage>(
-        `SELECT * FROM messages 
-     WHERE sender_user_id = ? OR recipient_user_id = ?
-     ORDER BY created_at DESC 
-     LIMIT 1`,
+        `SELECT * FROM messages
+         WHERE sender_user_id = ? OR recipient_user_id = ?
+         ORDER BY created_at DESC
+         LIMIT 1`,
         [userId, userId],
     )
 
     if (!message) return null
 
-    // The `toGiftedChatMessage` function needs the current user's ID to determine
-    // if the message was sent by them. We can pass it here.
     return toGiftedChatMessage(message, userId)
 }

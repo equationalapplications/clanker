@@ -27,7 +27,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
     if (onPress) {
       onPress()
     } else {
-      router.push(`/characters/${id}/chat`)
+      router.push(`/chat/${id}`)
     }
   }
 
