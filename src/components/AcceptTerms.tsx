@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { StyleSheet, View, Alert, Platform } from 'react-native'
 import { Text, Checkbox, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
@@ -13,11 +13,28 @@ interface AcceptTermsProps {
   onAccepted?: () => void
   onCanceled?: () => void
   isUpdate?: boolean
+  accepting?: boolean
+  error?: string | null
 }
 
-export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: AcceptTermsProps) {
+export function AcceptTerms({
+  onAccepted,
+  onCanceled,
+  isUpdate = false,
+  accepting = false,
+  error = null,
+}: AcceptTermsProps) {
   const [checked, setChecked] = useState(false)
   const { colors } = useTheme()
+
+  useEffect(() => {
+    if (error) {
+      Alert.alert(
+        'Error',
+        `Failed to record your acceptance. Please check your connection and try again.\n\n${error}`,
+      )
+    }
+  }, [error])
 
   const onPressChecked = () => {
     setChecked(!checked)
@@ -97,7 +114,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
         </Text>
       </View>
       <View style={styles.separatorSmall} />
-      <Button mode="contained" disabled={!checked} onPress={onPressAccept}>
+      <Button mode="contained" disabled={!checked || accepting} loading={accepting} onPress={onPressAccept}>
         {isUpdate ? 'Accept Updated Terms' : 'I Accept'}
       </Button>
       <Button mode="outlined" onPress={onPressCancel}>

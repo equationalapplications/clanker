@@ -66,7 +66,7 @@ export const termsMachine = createMachine(
         },
         {
           target: '.idle',
-          actions: assign({ supabaseUserId: null }),
+          actions: assign({ supabaseUserId: null, isUpdate: false, error: null }),
         },
       ],
     },

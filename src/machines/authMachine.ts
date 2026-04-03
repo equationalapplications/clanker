@@ -25,11 +25,6 @@ export type AuthMachineEvents =
     | { type: 'NO_USER_FOUND' }
     | { type: 'SIGN_IN'; provider: 'google' | 'apple' }
     | { type: 'SIGN_OUT' }
-    | { type: 'TOKEN_EXCHANGE_SUCCESS'; session: any }
-    | { type: 'TOKEN_EXCHANGE_FAILURE'; error: Error }
-    | { type: 'REFRESH_TOKEN' }
-    | { type: 'SIGN_IN_SUCCESS'; user: User }
-    | { type: 'SIGN_IN_FAILURE'; error: Error }
 
 export const authMachine = createMachine(
     {

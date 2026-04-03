@@ -41,10 +41,7 @@ export default function TabLayout() {
                     style: 'destructive',
                     onPress: () => {
                       setEditDirty(false)
-                      if (e.target) {
-                        const routeName = e.target.split('-')[0] as Parameters<typeof router.navigate>[0]
-                        router.navigate(routeName)
-                      }
+                      router.navigate('/characters')
                     },
                   },
                 ],

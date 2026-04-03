@@ -11,7 +11,11 @@ export default function AcceptTermsScreen() {
   const authService = useAuthMachine();
   const isUpdate = params.isUpdate === 'true'
 
-  const accepted = useSelector(termsService, (state) => state.matches('accepted'));
+  const { accepted, accepting, error } = useSelector(termsService, (state) => ({
+    accepted: state.matches('accepted'),
+    accepting: state.matches('accepting'),
+    error: state.context.error,
+  }));
 
   useEffect(() => {
     if (accepted) {
@@ -29,7 +33,13 @@ export default function AcceptTermsScreen() {
 
   return (
     <View style={styles.container}>
-      <AcceptTerms onAccepted={handleAccepted} onCanceled={handleCanceled} isUpdate={isUpdate} />
+      <AcceptTerms
+        onAccepted={handleAccepted}
+        onCanceled={handleCanceled}
+        isUpdate={isUpdate}
+        accepting={accepting}
+        error={error?.message}
+      />
     </View>
   )
 }

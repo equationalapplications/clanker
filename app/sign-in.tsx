@@ -90,6 +90,16 @@ export default function SignIn() {
               onPress={AppleLoginOnPress}
             />
           )}
+          {Platform.OS === 'web' && (
+            <ProviderButton
+              disabled={isLoading}
+              loading={isLoading}
+              onPress={AppleLoginOnPress}
+              type="apple"
+            >
+              Apple
+            </ProviderButton>
+          )}
           <View style={styles.footer}>
             <Button onPress={onPressTerms}>
               <MonoText>Terms & Conditions</MonoText>
