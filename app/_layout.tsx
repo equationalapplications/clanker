@@ -138,8 +138,8 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider>
-      <SettingsProvider>
+    <SettingsProvider>
+      <ThemeProvider>
         <GlobalStateProvider>
           <PersistQueryClientProvider
             client={queryClient}
@@ -156,8 +156,8 @@ export default function RootLayout() {
             </SafeAreaProvider>
           </PersistQueryClientProvider>
         </GlobalStateProvider>
-      </SettingsProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </SettingsProvider>
   )
 }
 
