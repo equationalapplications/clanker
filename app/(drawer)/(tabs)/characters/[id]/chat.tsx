@@ -3,11 +3,12 @@ import { View, StyleSheet, Dimensions, Platform } from 'react-native'
 import { GiftedChat, IMessage, User, Bubble } from 'react-native-gifted-chat'
 import { useCallback } from 'react'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
+import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useChatMessages } from '~/hooks/useMessages'
 import { useAIChat } from '~/hooks/useAIChat'
 import { Text, useTheme, Avatar } from 'react-native-paper'
-import { useAuth } from '~/auth/useAuth'
+import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserCredits } from '~/hooks/useUserCredits'
 
 const { height } = Dimensions.get('window')
@@ -15,7 +16,10 @@ const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
 export default function ChatScreen() {
     const { id } = useLocalSearchParams<{ id: string }>()
-    const { user } = useAuth()
+    const authService = useAuthMachine();
+    const { user } = useSelector(authService, (state) => ({
+        user: state.context.user,
+    }));
     const currentUserId = user?.uid
     const { data: character, isLoading: characterLoading } = useCharacter(id || '')
     const messages = useChatMessages({ id: id || '', userId: currentUserId || '' })

@@ -1,9 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSelector } from '@xstate/react'
 import { getUserCredits, deductCredits } from '~/utilities/getUserCredits'
-import { useAuth } from '~/auth/useAuth'
+import { useAuthMachine } from '~/hooks/useMachines'
 
 export const useUserCredits = () => {
-  const { user } = useAuth()
+  const authService = useAuthMachine();
+  const { user } = useSelector(authService, (state) => ({
+    user: state.context.user,
+  }));
 
   return useQuery({
     queryKey: ['userCredits', user?.uid],
@@ -16,7 +20,10 @@ export const useUserCredits = () => {
 
 export const useDeductCredits = () => {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const authService = useAuthMachine();
+  const { user } = useSelector(authService, (state) => ({
+    user: state.context.user,
+  }));
 
   return useMutation({
     mutationFn: ({ amount, description }: { amount: number; description?: string }) =>

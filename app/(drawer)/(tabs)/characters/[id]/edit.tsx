@@ -2,8 +2,9 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { View, StyleSheet, ScrollView } from 'react-native'
 import { Text, TextInput, Button, Divider, HelperText } from 'react-native-paper'
 import { useState, useEffect, useMemo } from 'react'
+import { useSelector } from '@xstate/react'
 import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
-import { useAuth } from '~/auth/useAuth'
+import { useAuthMachine } from '~/hooks/useMachines'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { useLocalImageGeneration } from '~/hooks/useLocalImageGeneration'
 import { buildImagePrompt } from '~/utils/buildImagePrompt'
@@ -11,7 +12,10 @@ import { useEditDirtyState } from '~/hooks/useEditDirtyState'
 
 export default function EditCharacterScreen() {
     const { id } = useLocalSearchParams<{ id: string }>()
-    const { user } = useAuth()
+    const authService = useAuthMachine();
+    const { user } = useSelector(authService, (state) => ({
+        user: state.context.user,
+    }));
     const { data: character, isLoading } = useCharacter(id || '')
     const updateCharacterMutation = useUpdateCharacter()
 

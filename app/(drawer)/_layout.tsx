@@ -4,27 +4,26 @@ import { Drawer } from 'expo-router/drawer'
 import { useEffect } from 'react'
 import { Pressable } from 'react-native'
 import { useTheme, Icon } from 'react-native-paper'
-import { useTermsAcceptance } from '~/hooks/useSubscriptionStatus'
+import { useSelector } from '@xstate/react'
+import { useTermsMachine } from '~/hooks/useMachines'
 
 export default function DrawerLayout() {
   const theme = useTheme()
-  const { needsTermsAcceptance, isUpdate, isLoading } = useTermsAcceptance()
+  const termsService = useTermsMachine();
+  const { needsTermsAcceptance, isUpdate } = useSelector(termsService, (state) => ({
+    needsTermsAcceptance: state.matches('acceptanceRequired'),
+    isUpdate: state.context.isUpdate,
+  }));
 
   useEffect(() => {
-    console.log(
-      '[AppLayout] useEffect triggered - isLoading:',
-      isLoading,
-      'needsTermsAcceptance:',
-      needsTermsAcceptance,
-    )
-    if (!isLoading && needsTermsAcceptance) {
+    if (needsTermsAcceptance) {
       console.log('[AppLayout] Redirecting to accept-terms')
       router.replace({
         pathname: '/accept-terms',
         params: { isUpdate: isUpdate.toString() },
       })
     }
-  }, [isLoading, needsTermsAcceptance, isUpdate])
+  }, [needsTermsAcceptance, isUpdate])
 
   return (
     <Drawer

@@ -47,6 +47,7 @@
     "@supabase/supabase-js": "^2.100.0",
     "@tanstack/react-query": "^5.95.2",
     "@tanstack/react-query-persist-client": "^5.95.2",
+    "@xstate/react": "^6.1.0",
     "dotenv": "^17.3.1",
     "expo": "^55.0.10",
     "expo-apple-authentication": "~55.0.9",
@@ -82,7 +83,8 @@
     "react-native-screens": "~4.23.0",
     "react-native-web": "^0.21.2",
     "react-native-webview": "13.16.0",
-    "react-native-worklets": "0.7.2"
+    "react-native-worklets": "0.7.2",
+    "xstate": "^5.30.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

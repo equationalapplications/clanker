@@ -3,7 +3,8 @@ import { StyleSheet, ScrollView, View } from 'react-native'
 import { Text, List, Switch, Button, Divider } from 'react-native-paper'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useAuth } from '~/auth/useAuth'
+import { useSelector } from '@xstate/react'
+import { useAuthMachine } from '~/hooks/useMachines'
 import { useSettings } from '~/contexts/SettingsContext'
 import CombinedSubscriptionButton from '~/components/CombinedSubscriptionButton'
 import LoadingIndicator from '~/components/LoadingIndicator'
@@ -12,10 +13,17 @@ import pkg from '../../package.json'
 const version = pkg.version
 
 export default function Settings() {
-  const { user, signOut } = useAuth()
+  const authService = useAuthMachine();
+  const { user } = useSelector(authService, (state) => ({
+    user: state.context.user,
+  }));
   const { settings, updateSetting } = useSettings()
   const [isLoading, setIsLoading] = useState(false)
   const { bottom } = useSafeAreaInsets()
+
+  const signOut = () => {
+    authService.send({ type: 'SIGN_OUT' })
+  }
 
   const onChangeIsLoading = (isLoading: boolean) => {
     setIsLoading(isLoading)

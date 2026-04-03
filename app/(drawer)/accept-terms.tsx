@@ -1,29 +1,21 @@
 import { StyleSheet, View } from 'react-native'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { AcceptTerms } from '~/components/AcceptTerms'
-import { useTermsAcceptance } from '~/hooks/useSubscriptionStatus'
+import { useTermsMachine } from '~/hooks/useMachines'
+import { useAuthMachine } from '~/hooks/useMachines'
 
 export default function AcceptTermsScreen() {
   const params = useLocalSearchParams()
-  const { markTermsAccepted } = useTermsAcceptance()
+  const termsService = useTermsMachine();
+  const authService = useAuthMachine();
   const isUpdate = params.isUpdate === 'true'
 
   const handleAccepted = () => {
-    console.log('[AcceptTermsScreen] handleAccepted called')
-
-    // Optimistically mark terms as accepted in local state
-    // This allows instant navigation without waiting for JWT refresh
-    console.log('[AcceptTermsScreen] Marking terms as accepted in Context')
-    markTermsAccepted()
-
-    console.log('[AcceptTermsScreen] Navigating to root /')
-    // Navigate back - the app will now see terms as accepted
-    router.replace('/')
+    termsService.send({ type: 'ACCEPT_TERMS', isUpdate });
   }
 
   const handleCanceled = () => {
-    // User canceled/signed out, go back to sign-in
-    router.replace('/sign-in')
+    authService.send({ type: 'SIGN_OUT' });
   }
 
   return (

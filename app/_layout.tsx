@@ -9,10 +9,9 @@ import { Stack } from 'expo-router'
 
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 
+import { useSelector, useActorRef } from '@xstate/react'
 import { ThemeProvider } from '~/components/ThemeProvider'
-import { AuthProvider, useAuth } from '~/auth/useAuth'
 import { SettingsProvider } from '~/contexts/SettingsContext'
-import { TermsAcceptanceProvider } from '~/hooks/useSubscriptionStatus'
 import { queryClient } from '~/config/queryClient'
 import { kvStorePersister } from '~/config/queryPersister'
 import { setupNetworkManager } from '~/config/networkManager'
@@ -20,11 +19,37 @@ import NetInfo from '@react-native-community/netinfo'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import useCachedResources from '~/hooks/useCachedResources'
 import { useInitializeApp } from '~/hooks/useInitializeApp'
+import { authMachine } from '~/machines/authMachine'
+import { termsMachine } from '~/machines/termsMachine'
+import { GlobalStateContext, useAuthMachine } from '~/hooks/useMachines'
+
+function GlobalStateProvider({ children }: { children: React.ReactNode }) {
+  const authService = useActorRef(authMachine);
+  const termsService = useActorRef(termsMachine);
+
+  useEffect(() => {
+    const subscription = authService.subscribe((state: any) => {
+      termsService.send({ type: 'AUTH_STATE_CHANGED', authState: state });
+    });
+
+    return subscription.unsubscribe;
+  }, [authService, termsService]);
+
+  return (
+    <GlobalStateContext.Provider value={{ authService, termsService }}>
+      {children}
+    </GlobalStateContext.Provider>
+  );
+}
 
 // This component handles the core authentication logic using Stack.Protected
 function RootLayoutNav() {
   useInitializeApp()
-  const { user, isLoading } = useAuth()
+  const authService = useAuthMachine();
+  const { user, isLoading } = useSelector(authService, (state) => ({
+    user: state.context.user,
+    isLoading: state.matches('initializing') || state.matches('exchangingToken'),
+  }));
   const prevUserRef = useRef<typeof user>(null)
 
   // Sync pending local changes to cloud on app startup after auth resolves.
@@ -53,6 +78,14 @@ function RootLayoutNav() {
     }
     prevUserRef.current = user
   }, [user, isLoading])
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <LoadingIndicator disabled={false} />
+      </View>
+    );
+  }
 
   return (
     <Stack>
@@ -102,25 +135,23 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{ persister: kvStorePersister, maxAge: 1000 * 60 * 60 * 24 }}
-      >
-        <AuthProvider>
-          <SettingsProvider>
-            <TermsAcceptanceProvider>
-              <ThemeProvider>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-                <StatusBar />
-              </ThemeProvider>
-            </TermsAcceptanceProvider>
-          </SettingsProvider>
-        </AuthProvider>
-      </PersistQueryClientProvider>
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SettingsProvider>
+        <GlobalStateProvider>
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{ persister: kvStorePersister }}
+          >
+            <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+              <KeyboardProvider>
+                <StatusBar style="auto" />
+                <RootLayoutNav />
+              </KeyboardProvider>
+            </SafeAreaProvider>
+          </PersistQueryClientProvider>
+        </GlobalStateProvider>
+      </SettingsProvider>
+    </ThemeProvider>
   )
 }
 

@@ -10,7 +10,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { useAuth } from '~/auth/useAuth'
+import { useSelector } from '@xstate/react'
+import { useAuthMachine } from '~/hooks/useMachines'
 import {
   getUserProfile,
   upsertUserProfile,
@@ -35,7 +36,10 @@ export const userKeys = {
  * Hook to get user profile with React Query
  */
 export function useUserProfile() {
-  const { user } = useAuth()
+  const authService = useAuthMachine();
+  const { user } = useSelector(authService, (state) => ({
+    user: state.context.user,
+  }));
   const queryClient = useQueryClient()
 
   const query = useQuery({
@@ -81,7 +85,10 @@ export function useUserProfile() {
  * Hook to get public user data
  */
 export function useUserPublicData() {
-  const { user } = useAuth()
+  const authService = useAuthMachine();
+  const { user } = useSelector(authService, (state) => ({
+    user: state.context.user,
+  }));
 
   const query = useQuery({
     queryKey: userKeys.public(user?.uid),
@@ -100,7 +107,10 @@ export function useUserPublicData() {
  * Hook to get private user data
  */
 export function useUserPrivateData() {
-  const { user } = useAuth()
+  const authService = useAuthMachine();
+  const { user } = useSelector(authService, (state) => ({
+    user: state.context.user,
+  }));
 
   const query = useQuery({
     queryKey: userKeys.private(user?.uid),
@@ -120,7 +130,10 @@ export function useUserPrivateData() {
  */
 export function useUpdateProfile() {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const authService = useAuthMachine();
+  const { user } = useSelector(authService, (state) => ({
+    user: state.context.user,
+  }));
 
   return useMutation({
     mutationFn: (updates: UserProfileUpdate) => upsertUserProfile(updates),

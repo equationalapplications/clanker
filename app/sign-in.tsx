@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { StyleSheet, View, Alert, Platform } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useSelector } from '@xstate/react'
 
 import ProviderButton from '~/auth/AuthProviderButton'
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
 import { MonoText, TitleText } from '~/components/StyledText'
-import { useAuth } from '~/auth/useAuth'
-import { signInWithGoogle } from '~/auth/googleSignin'
-import { signInWithApple, handleAppleRedirectResult } from '~/auth/appleSignin'
+import { useAuthMachine } from '~/hooks/useMachines'
+import { handleAppleRedirectResult } from '~/auth/appleSignin'
 
 // expo-apple-authentication is iOS-only; defer require to avoid breaking
 // web bundling or crashing Android where the native module is unavailable.
@@ -17,15 +17,24 @@ const AppleAuthentication = Platform.OS === 'ios' ? require('expo-apple-authenti
 
 export default function SignIn() {
   const router = useRouter()
-  const { user } = useAuth()
-  const [googleSignInLoading, setGoogleSignInLoading] = useState(false)
-  const [appleSignInLoading, setAppleSignInLoading] = useState(false)
+  const authService = useAuthMachine();
+  const { user, isLoading, error } = useSelector(authService, (state) => ({
+    user: state.context.user,
+    isLoading: state.matches('signingIn'),
+    error: state.context.error,
+  }));
 
   useEffect(() => {
     if (user) {
-      router.replace('/characters')
+      router.replace('/(drawer)/(tabs)/characters')
     }
   }, [user, router])
+
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Sign-in failed', error.message);
+    }
+  }, [error]);
 
   useEffect(() => {
     handleAppleRedirectResult().then((result) => {
@@ -36,44 +45,16 @@ export default function SignIn() {
     })
   }, [])
 
-  const GoogleLoginOnPress = async () => {
-    setGoogleSignInLoading(true)
-    try {
-      const result = await signInWithGoogle()
-      if (!result.success && result.error) {
-        console.error('Google Sign-In failed:', result.error)
-        // TODO: Show user-friendly error message
-        Alert.alert(`Sign-in failed: ${result.error}`)
-      }
-    } catch (error) {
-      console.error('Google Sign-In error:', error)
-      Alert.alert('An unexpected error occurred during sign-in')
-    } finally {
-      setGoogleSignInLoading(false)
-    }
+  const GoogleLoginOnPress = () => {
+    authService.send({ type: 'SIGN_IN', provider: 'google' });
   }
 
   const onPressPrivacy = () => {
     router.push('/privacy')
   }
 
-  const AppleLoginOnPress = async () => {
-    if (appleSignInLoading) {
-      return
-    }
-    setAppleSignInLoading(true)
-    try {
-      const result = await signInWithApple()
-      if (!result.success && result.error) {
-        console.error('Apple Sign-In failed:', result.error)
-        Alert.alert('Sign-in failed', result.error)
-      }
-    } catch (error) {
-      console.error('Apple Sign-In error:', error)
-      Alert.alert('An unexpected error occurred during sign-in')
-    } finally {
-      setAppleSignInLoading(false)
-    }
+  const AppleLoginOnPress = () => {
+    authService.send({ type: 'SIGN_IN', provider: 'apple' });
   }
 
   const onPressTerms = () => {
@@ -89,8 +70,8 @@ export default function SignIn() {
           <MonoText>Create Your Own AI Clanker</MonoText>
           <Logo />
           <ProviderButton
-            disabled={googleSignInLoading}
-            loading={googleSignInLoading}
+            disabled={isLoading}
+            loading={isLoading}
             onPress={GoogleLoginOnPress}
             type="google"
           >
@@ -100,27 +81,17 @@ export default function SignIn() {
             <AppleAuthentication.AppleAuthenticationButton
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={20}
+              cornerRadius={5}
               style={styles.appleButton}
               onPress={AppleLoginOnPress}
             />
           )}
-          {Platform.OS === 'web' && (
-            <ProviderButton
-              disabled={appleSignInLoading}
-              loading={appleSignInLoading}
-              onPress={AppleLoginOnPress}
-              type="apple"
-            >
-              Apple
-            </ProviderButton>
-          )}
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Button mode="text" onPress={onPressTerms}>
-              Terms and Conditions
+          <View style={styles.footer}>
+            <Button onPress={onPressTerms}>
+              <MonoText>Terms & Conditions</MonoText>
             </Button>
-            <Button mode="text" onPress={onPressPrivacy}>
-              Privacy Policy
+            <Button onPress={onPressPrivacy}>
+              <MonoText>Privacy Policy</MonoText>
             </Button>
           </View>
         </>
@@ -134,24 +105,24 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    padding: 20,
   },
   separator: {
     marginVertical: 30,
     height: 1,
     width: '80%',
+    backgroundColor: '#eee',
   },
   appleButton: {
-    width: 300,
+    width: 192,
     height: 44,
-    marginVertical: 5,
+    marginTop: 10,
   },
-  loadingText: {
-    textAlign: 'center',
-    marginTop: 16,
-    fontSize: 16,
+  footer: {
+    position: 'absolute',
+    bottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
   },
 })

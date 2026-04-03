@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useIsMutating } from '@tanstack/react-query'
-import { useAuth } from '~/auth/useAuth'
+import { useSelector } from '@xstate/react'
+import { useAuthMachine } from '~/hooks/useMachines'
 import { useCharacters, useCreateCharacter, createCharacterMutationKey } from '~/hooks/useCharacters'
 
 /**
@@ -20,7 +21,10 @@ let creationFailedForUser: string | null = null
  * isCreatingDefault is reactive across all mounted screens via useIsMutating.
  */
 export function useEnsureDefaultCharacter() {
-    const { user } = useAuth()
+    const authService = useAuthMachine();
+    const { user } = useSelector(authService, (state) => ({
+        user: state.context.user,
+    }));
     const { characters, isLoading } = useCharacters()
     const createCharacterMutation = useCreateCharacter()
     const isMutating = useIsMutating({ mutationKey: createCharacterMutationKey(user?.uid) })

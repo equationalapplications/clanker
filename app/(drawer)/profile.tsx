@@ -2,19 +2,23 @@ import { useState } from 'react'
 import { StyleSheet, View, ScrollView } from 'react-native'
 import { Text, Avatar, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
+import { useSelector } from '@xstate/react'
 
 import Button from '~/components/Button'
 import ConfirmationModal from '~/components/ConfirmationModal'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { defaultAvatarUrl } from '~/config/constants'
-import { useAuth } from '~/auth/useAuth'
+import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserPublicData, useUserPrivateData } from '~/hooks/useUser'
 import { useIsPremium } from '~/hooks/useIsPremium'
 import { deleteUser } from '~/utilities/deleteUser'
 
 export default function Profile() {
   const { colors } = useTheme()
-  const { user, signOut } = useAuth()
+  const authService = useAuthMachine();
+  const { user } = useSelector(authService, (state) => ({
+    user: state.context.user,
+  }));
   const { userPublic } = useUserPublicData()
   const { userPrivate } = useUserPrivateData()
   const isPremium = useIsPremium()
@@ -27,13 +31,8 @@ export default function Profile() {
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const onPressSignOut = async () => {
-    if (!signOut) {
-      return
-    }
-
-    await signOut()
-    router.replace('/sign-in')
+  const onPressSignOut = () => {
+    authService.send({ type: 'SIGN_OUT' });
   }
 
   const onPressDeleteAccount = () => {
@@ -45,7 +44,7 @@ export default function Profile() {
     setIsDeleting(true)
     try {
       await deleteUser()
-      router.replace('/sign-in')
+      authService.send({ type: 'SIGN_OUT' });
     } catch (error) {
       console.error('Error deleting account:', error)
     } finally {
