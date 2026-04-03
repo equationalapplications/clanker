@@ -12,6 +12,7 @@
 
 - [Auth flow (concise)](docs/AUTH_FLOW.md) — Step-by-step: Firebase Auth → `exchangeToken` cloud function → Supabase session tokens.
 - [Auth source-of-truth](docs/AUTH_SOURCE_OF_TRUTH.md) — Why Firebase is the canonical identity provider and how Supabase is used downstream.
+- [Firebase Cloud Functions](docs/FIREBASE_FUNCTIONS.md) — How backend functions (`exchangeToken`, `purchasePackageStripe`) are managed and deployed.
 - [Navigation structure](docs/NAVIGATION.md) — Overview of app navigation, including Drawer, Tab, and Stack navigators.
 
 ## Data & Features
