@@ -103,6 +103,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     reactCompiler: true,
   },
   plugins: [
+    [
+      'expo-build-properties',
+      {
+        ios: {
+          useFrameworks: 'static',
+          buildReactNativeFromSource: true,
+        },
+      },
+    ],
     'expo-secure-store',
     'expo-router',
     'expo-sqlite',
@@ -118,15 +127,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         "iosUrlScheme": "com.googleusercontent.apps.790870307455-eec2ci25b9amdrm52d7067jkmocovdbd"
       }
-    ],
-    [
-      'expo-build-properties',
-      {
-        ios: {
-          useFrameworks: 'static',
-          forceStaticLinking: ['RNFBApp', 'RNFBAuth', 'RNFBCrashlytics', 'RNFBFunctions', 'RNFBAppCheck'],
-        },
-      },
     ],
   ],
   extra: {

@@ -31,13 +31,19 @@
       "distribution": "store",
       "autoIncrement": true,
       "channel": "staging",
-      "environment": "production"
+      "environment": "production",
+      "ios": {
+        "image": "latest"
+      }
     },
     "production": {
       "distribution": "store",
       "autoIncrement": true,
       "channel": "production",
-      "environment": "production"
+      "environment": "production",
+      "ios": {
+        "image": "latest"
+      }
     }
   },
   "submit": {
