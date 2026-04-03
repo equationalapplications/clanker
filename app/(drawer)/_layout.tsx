@@ -7,9 +7,23 @@ import { useSelector } from '@xstate/react'
 import { useTermsMachine } from '~/hooks/useMachines'
 import React from 'react'
 
+function DrawerToggleButton({ tintColor }: { tintColor?: string }) {
+  const navigation = useNavigation()
+  return (
+    <Pressable
+      onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
+      style={{ marginLeft: 6, padding: 10 }}
+      hitSlop={4}
+      accessibilityRole="button"
+      accessibilityLabel="Toggle navigation drawer"
+    >
+      <Icon source="menu" color={tintColor} size={24} />
+    </Pressable>
+  )
+}
+
 const AppLayout = () => {
   const theme = useTheme()
-  const navigation = useNavigation()
   const termsService = useTermsMachine()
   const { needsTermsAcceptance, isUpdate } = useSelector(termsService, (state) => ({
     needsTermsAcceptance: state.matches('acceptanceRequired'),
@@ -33,24 +47,14 @@ const AppLayout = () => {
         drawerStyle: { backgroundColor: theme.colors.surface },
         drawerActiveTintColor: theme.colors.primary,
         drawerInactiveTintColor: theme.colors.onSurfaceVariant,
-        headerLeft: ({ tintColor }) => (
-          <Pressable
-            onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
-            style={{ marginLeft: 6, padding: 10 }}
-            hitSlop={4}
-            accessibilityRole="button"
-            accessibilityLabel="Toggle navigation drawer"
-          >
-            <Icon source="menu" color={tintColor} size={24} />
-          </Pressable>
-        ),
+        headerLeft: ({ tintColor }) => <DrawerToggleButton tintColor={tintColor} />,
       }}
     >
       <Drawer.Screen
         name="(tabs)"
         options={{
-          drawerLabel: 'Chats',
-          title: 'Chats',
+          drawerLabel: 'Chat',
+          title: 'Chat',
           drawerIcon: ({ color, size }) => <Icon source="chat" color={color} size={size} />,
         }}
       />

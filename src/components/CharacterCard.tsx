@@ -2,6 +2,7 @@ import React from 'react'
 import { StyleSheet, View, TouchableOpacity } from 'react-native'
 import { Card, Text, Icon, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
+import CharacterAvatar from '~/components/CharacterAvatar'
 
 interface CharacterCardProps {
   id: string
@@ -26,8 +27,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
     if (onPress) {
       onPress()
     } else {
-      // Default action: navigate to character details (which has both chat and edit)
-      router.push(`/characters/${id}`)
+      router.push(`/chat/${id}`)
     }
   }
 
@@ -36,8 +36,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
     if (onEdit) {
       onEdit()
     } else {
-      // Default action: navigate to character details
-      router.push(`/characters/${id}`)
+      router.push(`/characters/${id}/edit`)
     }
   }
 
@@ -47,11 +46,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         <Card.Content style={styles.content}>
           <View style={styles.header}>
             <View style={styles.avatarContainer}>
-              {avatar ? (
-                <Icon source="account-circle" size={48} />
-              ) : (
-                <Icon source="account-circle-outline" size={48} />
-              )}
+              <CharacterAvatar size={48} imageUrl={avatar} characterName={name} />
             </View>
             <View style={styles.info}>
               <Text variant="titleMedium" style={styles.name}>
