@@ -30,6 +30,8 @@ function toGiftedChatMessage(
   const isUserMessage = msg.sender_user_id === currentUserId
 
   return {
+    // Spread extra data first so canonical fields always take precedence
+    ...(msg.message_data ? JSON.parse(msg.message_data) : {}),
     _id: msg.id,
     text: msg.text,
     createdAt: new Date(msg.created_at),
@@ -41,8 +43,6 @@ function toGiftedChatMessage(
     pending: msg.pending === 1,
     sent: msg.sent === 1,
     received: !isUserMessage && msg.sent === 1,
-    // Restore any additional data from message_data
-    ...(msg.message_data ? JSON.parse(msg.message_data) : {}),
   }
 }
 
