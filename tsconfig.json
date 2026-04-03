@@ -24,5 +24,8 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "app"
+  ],
+  "exclude": [
+    "functions"
   ]
 }

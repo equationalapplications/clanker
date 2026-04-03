@@ -23,5 +23,21 @@
         "destination": "/index.html"
       }
     ]
-  }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "clanker",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "cd \"$RESOURCE_DIR\" && npx eslint src",
+        "cd \"$RESOURCE_DIR\" && npx rimraf lib && npx tsc"
+      ]
+    }
+  ]
 }

@@ -15,6 +15,7 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
 
     // Defer import until after platform check to avoid crashing on Android
     // where the expo-apple-authentication native module is unavailable
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const AppleAuthentication = require('expo-apple-authentication')
 
     try {

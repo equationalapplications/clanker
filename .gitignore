@@ -30,6 +30,7 @@ ios/
 .env.local
 .env.production
 .firebase
+functions/lib
 firebase-functions/firebase-debug.log
 firebase-functions/firestore-debug.log
 firebase-functions/ui-debug.log

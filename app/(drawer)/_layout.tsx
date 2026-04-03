@@ -37,9 +37,10 @@ export default function DrawerLayout() {
         headerLeft: ({ tintColor }) => (
           <Pressable
             onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
-            style={{ marginLeft: 16 }}
+            style={{ marginLeft: 6, padding: 10 }}
+            hitSlop={4}
             accessibilityRole="button"
-            accessibilityLabel="Open navigation drawer"
+            accessibilityLabel="Toggle navigation drawer"
           >
             <Icon source="menu" color={tintColor} size={24} />
           </Pressable>

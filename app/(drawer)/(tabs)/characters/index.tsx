@@ -63,7 +63,7 @@ export default function CharactersListScreen() {
                         </>
                     ) : (
                         <Text variant="bodyLarge" style={styles.emptyText}>
-                            No characters yet. Tap "New" to create one!
+                            No characters yet. Tap &quot;New&quot; to create one!
                         </Text>
                     )}
                 </View>

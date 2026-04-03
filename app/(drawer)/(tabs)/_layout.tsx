@@ -1,7 +1,7 @@
 import { Tabs, router } from 'expo-router'
 import { Alert } from 'react-native'
 import { TabBarIcon } from '~/components/navigation/TabBarIcon'
-import { editDirtyRef } from '~/hooks/useEditDirtyState'
+import { editDirtyRef, setEditDirty } from '~/hooks/useEditDirtyState'
 
 export default function TabLayout() {
 
@@ -41,7 +41,7 @@ export default function TabLayout() {
                     text: 'Discard',
                     style: 'destructive',
                     onPress: () => {
-                      editDirtyRef.current = false
+                      setEditDirty(false)
                       router.navigate('/characters')
                     },
                   },
