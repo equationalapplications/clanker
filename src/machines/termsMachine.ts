@@ -1,4 +1,4 @@
-import { createMachine, assign, fromPromise , ActorRefFrom } from 'xstate';
+import { createMachine, assign, fromPromise, ActorRefFrom } from 'xstate';
 import { supabaseClient } from '~/config/supabaseClient';
 import { APP_NAME } from '~/config/constants';
 import { TERMS } from '~/config/termsConfig';
@@ -9,9 +9,11 @@ const checkTermsAcceptance = async (userId: string): Promise<boolean> => {
         .select('terms_accepted_at, terms_version')
         .eq('user_id', userId)
         .eq('app_name', APP_NAME)
-        .single();
+        .eq('plan_status', 'active')
+        .maybeSingle();
 
-    if (error || !data) return false;
+    if (error) throw error;
+    if (!data) return false;
     return !!data.terms_accepted_at && data.terms_version === TERMS.version;
 };
 
@@ -22,12 +24,8 @@ const recordTermsAcceptance = async (userId: string): Promise<void> => {
             {
                 user_id: userId,
                 app_name: APP_NAME,
-                plan_tier: 'free',
-                plan_status: 'active',
-                current_credits: 50,
                 terms_accepted_at: new Date().toISOString(),
                 terms_version: TERMS.version,
-                created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             },
             { onConflict: 'user_id,app_name' },

@@ -20,7 +20,10 @@ export default function SignIn() {
   const authService = useAuthMachine();
   const { user, isLoading, error } = useSelector(authService, (state) => ({
     user: state.context.user,
-    isLoading: state.matches('signingIn'),
+    isLoading:
+      state.matches('initializing') ||
+      state.matches('signingIn') ||
+      state.matches('exchangingToken'),
     error: state.context.error,
   }));
 

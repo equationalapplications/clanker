@@ -140,7 +140,10 @@ export default function RootLayout() {
         <GlobalStateProvider>
           <PersistQueryClientProvider
             client={queryClient}
-            persistOptions={{ persister: kvStorePersister }}
+            persistOptions={{
+              persister: kvStorePersister,
+              maxAge: 1000 * 60 * 60 * 24,
+            }}
           >
             <SafeAreaProvider initialMetrics={initialWindowMetrics}>
               <KeyboardProvider>

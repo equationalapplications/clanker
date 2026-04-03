@@ -4,7 +4,9 @@ import fs from 'fs'
 
 import * as pkg from './package.json'
 
-const runtimeVer = pkg.version.split('.')[0]
+const breakingChangeVersion = pkg.version.split('.')[0]
+
+const runtimeVer = breakingChangeVersion + '.0.0'
 
 const getGoogleServicesJson = () => {
   // for EAS build from environment variable

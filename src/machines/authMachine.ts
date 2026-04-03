@@ -78,12 +78,52 @@ export const authMachine = createMachine({
                 src: 'exchangeFirebaseToken',
                 input: ({ context }) => ({ user: context.user }),
                 onDone: {
-                    target: 'signedIn',
-                    actions: assign({ supabaseSession: ({ event }) => event.output }),
+                    target: 'establishingSupabaseSession',
                 },
                 onError: {
                     target: 'signedOut',
                     actions: assign({ error: ({ event }) => (event.error as Error) }),
+                },
+            },
+        },
+        establishingSupabaseSession: {
+            invoke: {
+                id: 'establishSupabaseSession',
+                src: fromPromise(async ({ input }) => {
+                    const authResponse = await supabase.auth.setSession({
+                        access_token: input.access_token,
+                        refresh_token: input.refresh_token,
+                    });
+
+                    if (authResponse.error) {
+                        throw authResponse.error;
+                    }
+
+                    return authResponse.data.session;
+                }),
+                input: ({ context, event }) => {
+                    // This input is for the onDone event of exchangeFirebaseToken
+                    const exchangeResponse = (event as any).output as {
+                        access_token: string;
+                        refresh_token: string;
+                    };
+
+                    return {
+                        access_token: exchangeResponse.access_token,
+                        refresh_token: exchangeResponse.refresh_token,
+                    };
+                },
+                onDone: {
+                    target: 'signedIn',
+                    actions: assign({
+                        supabaseSession: ({ event }) => event.output,
+                        user: ({ event }) => ({ ...event.output.user }),
+                        error: null,
+                    }),
+                },
+                onError: {
+                    target: 'signedOut',
+                    actions: assign({ error: ({ event }) => event.error as Error }),
                 },
             },
         },
@@ -121,6 +161,12 @@ export const authMachine = createMachine({
             },
         },
         signingOut: {
+            on: {
+                // While signing out, we want to ignore auth state changes
+                // until the sign out process is complete.
+                USER_FOUND: undefined,
+                NO_USER_FOUND: undefined,
+            },
             invoke: {
                 id: 'signOut',
                 src: 'signOut',

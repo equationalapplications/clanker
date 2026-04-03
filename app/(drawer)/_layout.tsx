@@ -1,33 +1,41 @@
-import { DrawerActions } from '@react-navigation/native'
+import { DrawerActions, useNavigation } from '@react-navigation/native'
 import { router } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
-import { useEffect } from 'react'
-import { Pressable } from 'react-native'
 import { useTheme, Icon } from 'react-native-paper'
+import { Pressable } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useTermsMachine } from '~/hooks/useMachines'
+import React from 'react'
+import { StateFrom } from 'xstate'
+import { termsMachine } from '~/machines/termsMachine'
 
-export default function DrawerLayout() {
+const AppLayout = () => {
   const theme = useTheme()
-  const termsService = useTermsMachine();
-  const { needsTermsAcceptance, isUpdate } = useSelector(termsService, (state) => ({
-    needsTermsAcceptance: state.matches('acceptanceRequired'),
-    isUpdate: state.context.isUpdate,
-  }));
+  const navigation = useNavigation()
+  const termsService = useTermsMachine()
+  useSelector(
+    termsService,
+    (state) => ({
+      needsTermsAcceptance: state.matches('acceptanceRequired'),
+      isUpdate: state.context.isUpdate,
+    }),
+  )
 
-  useEffect(() => {
-    if (needsTermsAcceptance) {
-      console.log('[AppLayout] Redirecting to accept-terms')
-      router.replace({
-        pathname: '/accept-terms',
-        params: { isUpdate: isUpdate.toString() },
-      })
-    }
-  }, [needsTermsAcceptance, isUpdate])
+  React.useEffect(() => {
+    const sub = termsService.subscribe((state: StateFrom<typeof termsMachine>) => {
+      if (state.matches('acceptanceRequired')) {
+        router.push({
+          pathname: '/terms',
+          params: { isUpdate: state.context.isUpdate.toString() },
+        })
+      }
+    })
+    return sub.unsubscribe
+  }, [termsService])
 
   return (
     <Drawer
-      screenOptions={({ navigation }) => ({
+      screenOptions={{
         headerStyle: { backgroundColor: theme.colors.surface },
         headerTintColor: theme.colors.onSurface,
         drawerStyle: { backgroundColor: theme.colors.surface },
@@ -44,7 +52,7 @@ export default function DrawerLayout() {
             <Icon source="menu" color={tintColor} size={24} />
           </Pressable>
         ),
-      })}
+      }}
     >
       <Drawer.Screen
         name="(tabs)"
@@ -89,3 +97,5 @@ export default function DrawerLayout() {
     </Drawer>
   )
 }
+
+export default AppLayout
