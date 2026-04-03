@@ -43,9 +43,7 @@ export const createCharacterMutationKey = (uid: string | undefined) =>
  */
 export function useCharacters() {
   const authService = useAuthMachine();
-  const { user } = useSelector(authService, (state) => ({
-    user: state.context.user,
-  }));
+  const user = useSelector(authService, (state) => state.context.user);
 
   // Main query for characters
   const query = useQuery({
@@ -69,9 +67,7 @@ export function useCharacters() {
 export function useCharacter(id: string | undefined) {
   const queryClient = useQueryClient()
   const authService = useAuthMachine();
-  const { user } = useSelector(authService, (state) => ({
-    user: state.context.user,
-  }));
+  const user = useSelector(authService, (state) => state.context.user);
 
   const query = useQuery({
     queryKey: characterKeys.detail(id || ''),
@@ -104,9 +100,7 @@ export function useCharacter(id: string | undefined) {
 export function useCreateCharacter() {
   const queryClient = useQueryClient()
   const authService = useAuthMachine();
-  const { user } = useSelector(authService, (state) => ({
-    user: state.context.user,
-  }));
+  const user = useSelector(authService, (state) => state.context.user);
 
   return useMutation({
     mutationKey: createCharacterMutationKey(user?.uid),
@@ -175,9 +169,7 @@ export function useCreateCharacter() {
 export function useUpdateCharacter() {
   const queryClient = useQueryClient()
   const authService = useAuthMachine();
-  const { user } = useSelector(authService, (state) => ({
-    user: state.context.user,
-  }));
+  const user = useSelector(authService, (state) => state.context.user);
 
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: CharacterUpdate }) =>
@@ -243,9 +235,7 @@ export function useUpdateCharacter() {
 export function useDeleteCharacter() {
   const queryClient = useQueryClient()
   const authService = useAuthMachine();
-  const { user } = useSelector(authService, (state) => ({
-    user: state.context.user,
-  }));
+  const user = useSelector(authService, (state) => state.context.user);
 
   return useMutation({
     mutationFn: (id: string) => deleteCharacter(id, user?.uid || ''),

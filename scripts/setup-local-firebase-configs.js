@@ -15,7 +15,7 @@ const path = require('path')
 // Load environment variables from .env
 require('dotenv').config()
 
-const rootDir = path.join(__dirname, '..')
+const rootDir = path.join(process.cwd(), '.')
 const tempDir = path.join(rootDir, 'temp')
 
 // Check if running in EAS cloud build environment
@@ -32,6 +32,7 @@ if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true })
 }
 
+/* global Buffer */
 // Decode and write google-services.json (Android)
 if (process.env.GOOGLE_SERVICES_JSON_BASE64) {
     try {

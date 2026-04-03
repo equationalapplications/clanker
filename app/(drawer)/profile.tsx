@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { StyleSheet, View, ScrollView } from 'react-native'
 import { Text, Avatar, useTheme } from 'react-native-paper'
-import { router } from 'expo-router'
 import { useSelector } from '@xstate/react'
 
 import Button from '~/components/Button'
@@ -16,9 +15,7 @@ import { deleteUser } from '~/utilities/deleteUser'
 export default function Profile() {
   const { colors } = useTheme()
   const authService = useAuthMachine();
-  const { user } = useSelector(authService, (state) => ({
-    user: state.context.user,
-  }));
+  const user = useSelector(authService, (state) => state.context.user);
   const { userPublic } = useUserPublicData()
   const { userPrivate } = useUserPrivateData()
   const isPremium = useIsPremium()

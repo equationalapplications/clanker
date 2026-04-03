@@ -1,30 +1,14 @@
 import { createMachine, assign, fromPromise, fromCallback } from 'xstate';
 import { FirebaseUser as User, onAuthStateChanged, signOut as firebaseSignOut } from '~/config/firebaseConfig';
 import { supabaseClient as supabase } from '~/config/supabaseClient';
+import { Platform } from 'react-native';
 
-import { signInWithGoogle, GoogleSignInResult } from '~/auth/googleSignin';
-import { signInWithApple, AppleSignInResult } from '~/auth/appleSignin';
-
-// Placeholder for a function to get Supabase session
-const getSupabaseUserSession = async (token: string) => {
-    const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'firebase',
-        token,
-    });
-    if (error) throw error;
-    return data.session;
-};
-
-// Placeholder for RevenueCat login
-const loginRevenueCat = async (userId: string) => {
-    console.log(`RevenueCat: Logging in ${userId}`);
-    return;
-};
-
-// Placeholder for Crashlytics user ID
-const setCrashlyticsUserId = (userId: string | null) => {
-    console.log(`Crashlytics: Setting user ID to ${userId}`);
-};
+import { signInWithGoogle, GoogleSignInResult, signOutFromGoogle } from '~/auth/googleSignin';
+import { signInWithApple, AppleSignInResult, signOutFromApple } from '~/auth/appleSignin';
+import { getSupabaseUserSession } from '~/auth/getSupabaseUserSession';
+import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig';
+import { setCrashlyticsUserId } from '~/services/crashlyticsService';
+import { queryClient } from '~/config/queryClient';
 
 export interface AuthMachineContext {
     user: User | null;
@@ -55,25 +39,21 @@ export const authMachine = createMachine({
         supabaseSession: null,
         error: null,
     } as AuthMachineContext,
-    states: {
-        initializing: {
-            invoke: {
-                id: 'listenToAuthState',
-                src: 'listenToAuthState',
-                onDone: {
-                    target: 'signedOut',
-                },
-            },
-            on: {
-                USER_FOUND: {
-                    target: 'exchangingToken',
-                    actions: assign({ user: ({ event }) => event.user }),
-                },
-                NO_USER_FOUND: {
-                    target: 'signedOut',
-                },
-            },
+    invoke: {
+        id: 'listenToAuthState',
+        src: 'listenToAuthState',
+    },
+    on: {
+        USER_FOUND: {
+            target: 'exchangingToken',
+            actions: assign({ user: ({ event }) => event.user }),
         },
+        NO_USER_FOUND: {
+            target: 'signedOut',
+        },
+    },
+    states: {
+        initializing: {},
         signedOut: {
             entry: assign({ user: null, supabaseSession: null, error: null }),
             on: {
@@ -85,20 +65,18 @@ export const authMachine = createMachine({
                 id: 'signInProvider',
                 src: 'signInProvider',
                 input: ({ event }) => ({ provider: (event as any).provider }),
-                onDone: {
-                    target: 'exchangingToken',
-                    actions: assign({ user: ({ event }) => (event.output as any) as User | null }),
-                },
                 onError: {
                     target: 'signedOut',
                     actions: assign({ error: ({ event }) => (event.error as Error) }),
                 },
             },
+            // USER_FOUND from the top-level listener will drive the transition to exchangingToken
         },
         exchangingToken: {
             invoke: {
                 id: 'exchangeFirebaseToken',
                 src: 'exchangeFirebaseToken',
+                input: ({ context }) => ({ user: context.user }),
                 onDone: {
                     target: 'signedIn',
                     actions: assign({ supabaseSession: ({ event }) => event.output }),
@@ -129,6 +107,7 @@ export const authMachine = createMachine({
                     invoke: {
                         id: 'refreshSupabaseToken',
                         src: 'refreshSupabaseToken',
+                        input: ({ context }) => ({ user: context.user }),
                         onDone: {
                             target: 'idle',
                             actions: assign({ supabaseSession: ({ event }) => event.output }),
@@ -189,20 +168,28 @@ export const authMachine = createMachine({
         exchangeFirebaseToken: fromPromise(async ({ input }) => {
             const { user } = input as { user: User | null };
             if (!user) throw new Error('No user to exchange token for');
-            const token = await user.getIdToken();
-            return getSupabaseUserSession(token);
+            return getSupabaseUserSession();
         }),
         refreshSupabaseToken: fromPromise(async ({ input }) => {
             const { user } = input as { user: User | null };
             if (!user) throw new Error('No user to refresh token for');
-            const token = await user.getIdToken(true); // Force refresh
-            return getSupabaseUserSession(token);
+            // Force-refresh the Firebase token before calling exchangeToken
+            await user.getIdToken(true);
+            return getSupabaseUserSession();
         }),
         signOut: fromPromise(async () => {
             await firebaseSignOut();
             await supabase.auth.signOut();
-            setCrashlyticsUserId(null);
-            // any other cleanup
+            await setCrashlyticsUserId(null);
+            await logoutRevenueCat();
+            if (Platform.OS === 'ios') {
+                await signOutFromApple();
+            } else if (Platform.OS === 'android') {
+                await signOutFromGoogle();
+            } else {
+                await signOutFromGoogle();
+            }
+            queryClient.clear();
         }),
     },
     guards: {},

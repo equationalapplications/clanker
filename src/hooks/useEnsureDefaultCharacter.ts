@@ -22,9 +22,7 @@ let creationFailedForUser: string | null = null
  */
 export function useEnsureDefaultCharacter() {
     const authService = useAuthMachine();
-    const { user } = useSelector(authService, (state) => ({
-        user: state.context.user,
-    }));
+    const user = useSelector(authService, (state) => state.context.user);
     const { characters, isLoading } = useCharacters()
     const createCharacterMutation = useCreateCharacter()
     const isMutating = useIsMutating({ mutationKey: createCharacterMutationKey(user?.uid) })

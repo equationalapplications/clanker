@@ -4,7 +4,6 @@ import { TabBarIcon } from '~/components/navigation/TabBarIcon'
 import { editDirtyRef, setEditDirty } from '~/hooks/useEditDirtyState'
 
 export default function TabLayout() {
-
   return (
     <Tabs
       screenOptions={{
@@ -42,15 +41,14 @@ export default function TabLayout() {
                     style: 'destructive',
                     onPress: () => {
                       setEditDirty(false)
-                      router.navigate('/characters')
+                      if (e.target) {
+                        const routeName = e.target.split('-')[0] as Parameters<typeof router.navigate>[0]
+                        router.navigate(routeName)
+                      }
                     },
                   },
                 ],
               )
-            } else {
-              // Always reset to the character list regardless of stack depth
-              e.preventDefault()
-              router.navigate('/characters')
             }
           },
         }}

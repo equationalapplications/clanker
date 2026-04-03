@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import { ActorRefFrom } from 'xstate';
-import { authMachine } from '../machines/authMachine';
-import { termsMachine } from '../machines/termsMachine';
+import { authMachine } from '~/machines/authMachine';
+import { termsMachine } from '~/machines/termsMachine';
 
 export const GlobalStateContext = createContext<{
     authService: ActorRefFrom<typeof authMachine>;

@@ -7,7 +7,6 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
-import { useAuthMachine } from '~/hooks/useMachines'
 import { grantAppAccess } from '~/utilities/appAccess'
 import { APP_NAME } from '~/config/constants'
 import { TERMS } from '~/config/termsConfig'
@@ -20,7 +19,6 @@ interface AcceptTermsProps {
 
 export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: AcceptTermsProps) {
   const [checked, setChecked] = useState(false)
-  const authService = useAuthMachine();
   const { colors } = useTheme()
 
   const onPressChecked = () => {
@@ -67,7 +65,6 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
         text: isUpdate ? 'Sign Out' : 'Sign Out',
         style: 'destructive',
         onPress: () => {
-          authService.send({ type: 'SIGN_OUT' });
           onCanceled?.()
         },
       },

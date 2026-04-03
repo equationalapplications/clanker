@@ -1,25 +1,42 @@
-import { createMachine, assign, fromPromise } from 'xstate';
-import { ActorRefFrom } from 'xstate';
-import { authMachine } from './authMachine';
+import { createMachine, assign, fromPromise , ActorRefFrom } from 'xstate';
+import { supabaseClient } from '~/config/supabaseClient';
+import { APP_NAME } from '~/config/constants';
+import { TERMS } from '~/config/termsConfig';
 
-// This is a placeholder for the actual check
-// In reality, this would check a database or a local cache
 const checkTermsAcceptance = async (userId: string): Promise<boolean> => {
-    console.log(`Checking terms for ${userId}`);
-    // Simulate a network request
-    await new Promise(resolve => setTimeout(resolve, 500));
-    // In a real app, you'd have logic to determine this.
-    // For now, let's assume they always need to accept.
-    return false;
+    const { data, error } = await supabaseClient
+        .from('user_app_subscriptions')
+        .select('terms_accepted_at, terms_version')
+        .eq('user_id', userId)
+        .eq('app_name', APP_NAME)
+        .single();
+
+    if (error || !data) return false;
+    return !!data.terms_accepted_at && data.terms_version === TERMS.version;
 };
 
 const recordTermsAcceptance = async (userId: string): Promise<void> => {
-    console.log(`Recording terms acceptance for ${userId}`);
-    await new Promise(resolve => setTimeout(resolve, 500));
-}
+    const { error } = await supabaseClient
+        .from('user_app_subscriptions')
+        .upsert(
+            {
+                user_id: userId,
+                app_name: APP_NAME,
+                plan_tier: 'free',
+                plan_status: 'active',
+                current_credits: 50,
+                terms_accepted_at: new Date().toISOString(),
+                terms_version: TERMS.version,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,app_name' },
+        );
+    if (error) throw error;
+};
 
 export interface TermsMachineContext {
-    userId: string | null;
+    supabaseUserId: string | null;
     isUpdate: boolean;
     error: Error | null;
 }
@@ -37,7 +54,7 @@ export const termsMachine = createMachine({
     },
     initial: 'idle',
     context: {
-        userId: null,
+        supabaseUserId: null,
         isUpdate: false,
         error: null,
     } as TermsMachineContext,
@@ -47,12 +64,13 @@ export const termsMachine = createMachine({
                 target: '.checking',
                 guard: ({ event }) => event.authState.matches('signedIn'),
                 actions: assign({
-                    userId: ({ event }) => event.authState.context.user?.uid,
+                    supabaseUserId: ({ event }) =>
+                        event.authState.context.supabaseSession?.user?.id ?? null,
                 }),
             },
             {
                 target: '.idle',
-                actions: assign({ userId: null }),
+                actions: assign({ supabaseUserId: null }),
             },
         ],
     },
@@ -62,6 +80,7 @@ export const termsMachine = createMachine({
             invoke: {
                 id: 'checkTerms',
                 src: 'checkTermsAcceptance',
+                input: ({ context }) => ({ userId: context.supabaseUserId }),
                 onDone: [
                     {
                         target: 'accepted',
@@ -72,8 +91,8 @@ export const termsMachine = createMachine({
                     },
                 ],
                 onError: {
-                    // Handle error, maybe retry or go to an error state
                     target: 'idle',
+                    actions: assign({ error: ({ event }) => (event.error as Error) }),
                 },
             },
         },
@@ -91,6 +110,7 @@ export const termsMachine = createMachine({
             invoke: {
                 id: 'recordTermsAcceptance',
                 src: 'recordTermsAcceptance',
+                input: ({ context }) => ({ userId: context.supabaseUserId }),
                 onDone: {
                     target: 'accepted',
                 },

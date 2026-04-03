@@ -5,9 +5,7 @@ import { useAuthMachine } from '~/hooks/useMachines'
 
 export const useUserCredits = () => {
   const authService = useAuthMachine();
-  const { user } = useSelector(authService, (state) => ({
-    user: state.context.user,
-  }));
+  const user = useSelector(authService, (state) => state.context.user);
 
   return useQuery({
     queryKey: ['userCredits', user?.uid],
@@ -21,9 +19,7 @@ export const useUserCredits = () => {
 export const useDeductCredits = () => {
   const queryClient = useQueryClient()
   const authService = useAuthMachine();
-  const { user } = useSelector(authService, (state) => ({
-    user: state.context.user,
-  }));
+  const user = useSelector(authService, (state) => state.context.user);
 
   return useMutation({
     mutationFn: ({ amount, description }: { amount: number; description?: string }) =>
