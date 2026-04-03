@@ -76,38 +76,6 @@ export default function SubscribeScreen() {
           </Card.Content>
         </Card>
 
-        {!isPremium && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text variant="headlineSmall" style={styles.featuresTitle}>
-                Premium Features
-              </Text>
-
-              <View style={styles.featuresList}>
-                <View style={styles.feature}>
-                  <IconButton icon="image" size={24} />
-                  <Text variant="bodyMedium">Unlimited character image generation</Text>
-                </View>
-
-                <View style={styles.feature}>
-                  <IconButton icon="message" size={24} />
-                  <Text variant="bodyMedium">Enhanced chat capabilities</Text>
-                </View>
-
-                <View style={styles.feature}>
-                  <IconButton icon="account-group" size={24} />
-                  <Text variant="bodyMedium">Create unlimited characters</Text>
-                </View>
-
-                <View style={styles.feature}>
-                  <IconButton icon="star" size={24} />
-                  <Text variant="bodyMedium">Priority support</Text>
-                </View>
-              </View>
-            </Card.Content>
-          </Card>
-        )}
-
         {Platform.OS === 'web' ? (
           <CreditsDisplay />
         ) : (
@@ -142,6 +110,51 @@ export default function SubscribeScreen() {
             </Button>
           </View>
         )}
+
+        {!isPremium && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text variant="headlineSmall" style={styles.featuresTitle}>
+                Premium Features
+              </Text>
+
+              <View style={styles.featuresList}>
+                <View style={styles.feature}>
+                  <IconButton icon="image" size={24} />
+                  <Text variant="bodyMedium">Unlimited character image generation</Text>
+                </View>
+
+                <View style={styles.feature}>
+                  <IconButton icon="message" size={24} />
+                  <Text variant="bodyMedium">Enhanced chat capabilities</Text>
+                </View>
+
+                <View style={styles.feature}>
+                  <IconButton icon="account-group" size={24} />
+                  <Text variant="bodyMedium">Create unlimited characters</Text>
+                </View>
+
+                <View style={styles.feature}>
+                  <IconButton icon="star" size={24} />
+                  <Text variant="bodyMedium">Priority support</Text>
+                </View>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="headlineSmall" style={styles.featuresTitle}>
+              Plan Comparison
+            </Text>
+            <View style={styles.featuresList}>
+              <Text variant="bodyMedium">• Free Tier — 50 credits</Text>
+              <Text variant="bodyMedium">• Unlimited Subscription: $20/month</Text>
+              <Text variant="bodyMedium">• One-time: 100 credits for $10</Text>
+            </View>
+          </Card.Content>
+        </Card>
       </ScrollView>
     </View>
   )

@@ -115,25 +115,6 @@ export default function CreditsDisplay() {
           </Button>
         </View>
 
-        <View style={[styles.pricingInfo, { borderTopColor: colors.outlineVariant }]}>
-          {credits?.subscriptions.map((sub, index) => (
-            <Text key={index} variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
-              {'• '}
-              {sub.tier === 'free' && 'Free Tier'}
-              {sub.tier === 'monthly_20' && 'Monthly $20 Plan'}
-              {sub.tier === 'monthly_50' && 'Monthly $50 Premium Plan'}
-              {sub.tier === 'payg' && 'Pay-as-you-go Credits'}
-              {!sub.isUnlimited && ` — ${sub.credits} credits`}
-            </Text>
-          ))}
-          <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
-            • Unlimited Subscription: $20/month
-          </Text>
-          <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
-            • One-time: 100 credits for $10
-          </Text>
-        </View>
-
         <Button
           mode="text"
           onPress={handleRestore}
@@ -189,14 +170,6 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     marginVertical: 4,
-  },
-  pricingInfo: {
-    borderTopWidth: 1,
-    paddingTop: 12,
-    marginBottom: 8,
-  },
-  pricingText: {
-    marginVertical: 2,
   },
   restoreButton: {
     marginTop: 8,
