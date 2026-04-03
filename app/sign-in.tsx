@@ -17,27 +17,28 @@ const AppleAuthentication = Platform.OS === 'ios' ? require('expo-apple-authenti
 
 export default function SignIn() {
   const router = useRouter()
-  const authService = useAuthMachine();
-  const { user, isLoading, error } = useSelector(authService, (state) => ({
-    user: state.context.user,
+  const authService = useAuthMachine()
+  const { isSignedIn, isLoading, error } = useSelector(authService, (state) => ({
+    isSignedIn: state.matches('signedIn'),
     isLoading:
       state.matches('initializing') ||
       state.matches('signingIn') ||
-      state.matches('exchangingToken'),
+      state.matches('exchangingToken') ||
+      state.matches('establishingSupabaseSession'),
     error: state.context.error,
-  }));
+  }))
 
   useEffect(() => {
-    if (user) {
+    if (isSignedIn) {
       router.replace('/(drawer)/(tabs)/characters')
     }
-  }, [user, router])
+  }, [isSignedIn, router])
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Sign-in failed', error.message);
+      Alert.alert('Sign-in failed', error.message)
     }
-  }, [error]);
+  }, [error])
 
   useEffect(() => {
     handleAppleRedirectResult().then((result) => {
@@ -49,7 +50,7 @@ export default function SignIn() {
   }, [])
 
   const GoogleLoginOnPress = () => {
-    authService.send({ type: 'SIGN_IN', provider: 'google' });
+    authService.send({ type: 'SIGN_IN', provider: 'google' })
   }
 
   const onPressPrivacy = () => {
@@ -57,7 +58,7 @@ export default function SignIn() {
   }
 
   const AppleLoginOnPress = () => {
-    authService.send({ type: 'SIGN_IN', provider: 'apple' });
+    authService.send({ type: 'SIGN_IN', provider: 'apple' })
   }
 
   const onPressTerms = () => {
@@ -66,7 +67,7 @@ export default function SignIn() {
 
   return (
     <View style={styles.container}>
-      {!user ? (
+      {!isSignedIn ? (
         <>
           <TitleText>Clanker</TitleText>
           <View style={styles.separator} />

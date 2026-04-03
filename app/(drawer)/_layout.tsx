@@ -6,32 +6,24 @@ import { Pressable } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useTermsMachine } from '~/hooks/useMachines'
 import React from 'react'
-import { StateFrom } from 'xstate'
-import { termsMachine } from '~/machines/termsMachine'
 
 const AppLayout = () => {
   const theme = useTheme()
   const navigation = useNavigation()
   const termsService = useTermsMachine()
-  useSelector(
-    termsService,
-    (state) => ({
-      needsTermsAcceptance: state.matches('acceptanceRequired'),
-      isUpdate: state.context.isUpdate,
-    }),
-  )
+  const { needsTermsAcceptance, isUpdate } = useSelector(termsService, (state) => ({
+    needsTermsAcceptance: state.matches('acceptanceRequired'),
+    isUpdate: state.context.isUpdate,
+  }))
 
   React.useEffect(() => {
-    const sub = termsService.subscribe((state: StateFrom<typeof termsMachine>) => {
-      if (state.matches('acceptanceRequired')) {
-        router.push({
-          pathname: '/terms',
-          params: { isUpdate: state.context.isUpdate.toString() },
-        })
-      }
-    })
-    return sub.unsubscribe
-  }, [termsService])
+    if (needsTermsAcceptance) {
+      router.replace({
+        pathname: '/accept-terms',
+        params: { isUpdate: isUpdate.toString() },
+      })
+    }
+  }, [needsTermsAcceptance, isUpdate])
 
   return (
     <Drawer

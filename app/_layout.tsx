@@ -24,32 +24,36 @@ import { termsMachine } from '~/machines/termsMachine'
 import { GlobalStateContext, useAuthMachine } from '~/hooks/useMachines'
 
 function GlobalStateProvider({ children }: { children: React.ReactNode }) {
-  const authService = useActorRef(authMachine);
-  const termsService = useActorRef(termsMachine);
+  const authService = useActorRef(authMachine)
+  const termsService = useActorRef(termsMachine)
 
   useEffect(() => {
     const subscription = authService.subscribe((state: any) => {
-      termsService.send({ type: 'AUTH_STATE_CHANGED', authState: state });
-    });
+      termsService.send({ type: 'AUTH_STATE_CHANGED', authState: state })
+    })
 
-    return subscription.unsubscribe;
-  }, [authService, termsService]);
+    return subscription.unsubscribe
+  }, [authService, termsService])
 
   return (
     <GlobalStateContext.Provider value={{ authService, termsService }}>
       {children}
     </GlobalStateContext.Provider>
-  );
+  )
 }
 
 // This component handles the core authentication logic using Stack.Protected
 function RootLayoutNav() {
   useInitializeApp()
-  const authService = useAuthMachine();
+  const authService = useAuthMachine()
   const { user, isLoading } = useSelector(authService, (state) => ({
     user: state.context.user,
-    isLoading: state.matches('initializing') || state.matches('exchangingToken'),
-  }));
+    isLoading:
+      state.matches('initializing') ||
+      state.matches('signingIn') ||
+      state.matches('exchangingToken') ||
+      state.matches('establishingSupabaseSession'),
+  }))
   const prevUserRef = useRef<typeof user>(null)
 
   // Sync pending local changes to cloud on app startup after auth resolves.
@@ -63,9 +67,8 @@ function RootLayoutNav() {
       // online until the NetInfo bridge fires, which can cause false-positive syncs.
       NetInfo.fetch()
         .then((state) => {
-          const isOnline = state.isConnected != null &&
-            state.isConnected &&
-            state.isInternetReachable !== false
+          const isOnline =
+            state.isConnected != null && state.isConnected && state.isInternetReachable !== false
           if (isOnline) {
             import('~/services/characterSyncService')
               .then(({ syncAllToCloud }) => syncAllToCloud())
@@ -84,7 +87,7 @@ function RootLayoutNav() {
       <View style={styles.loadingContainer}>
         <LoadingIndicator disabled={false} />
       </View>
-    );
+    )
   }
 
   return (
