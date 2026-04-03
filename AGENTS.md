@@ -1,11 +1,7 @@
 # 📖 READ THE README FIRST
 
-**Before starting any development work, always read the `README.md` file.** The README contains an index of all documentation with links to detailed guides in the `/docs` folder. When working on a specific feature or system:
-
 1. Check the README for relevant documentation links
 2. Read the linked documentation file(s) for implementation details
-3. Review related files mentioned in the documentation
-4. Only then proceed with development
 
 # 🔀 GIT WORKFLOW & VERSIONING
 
@@ -16,20 +12,15 @@
 ```bash
 feat(scope): add new feature        # Minor bump (1.0.0 → 1.1.0) - OTA update
 fix(scope): resolve bug             # Patch bump (1.0.0 → 1.0.1) - OTA update
-feat!(scope): breaking change       # Major bump (1.0.0 → 2.0.0) - NATIVE BUILD REQUIRED
+'BREAKING CHANGE:': breaking change       # Major bump (1.0.0 → 2.0.0) - NATIVE BUILD REQUIRED
 ```
 
-**⚠️ CRITICAL - Breaking Changes & Runtime Version:**
+**Commit Message Line Length Limits** (enforced by commitlint):
+- Header (first line): max **100 characters**
+- Body lines: max **100 characters** each
+- Footer lines: max **100 characters** each
 
-- Breaking changes (`feat!` or `BREAKING CHANGE:`) increment major version → updates `runtimeVersion` in `app.config.ts`
-- New runtime version → **requires new native build and app store submission**
-- Non-breaking commits → OTA update (instant deployment)
-- **Only use breaking changes when adding/updating native modules, Expo SDK, or native config**
-
-
-# Documentation Guidelines
-
-When creating or updating documentation:
+# DOCUMENTATION
 
 1. **Create detailed docs in `/docs` folder** - All comprehensive documentation lives in individual markdown files in the `docs/` directory. Use descriptive filenames like `FEATURE_NAME.md` or `SYSTEM_NAME.md` in SCREAMING_SNAKE_CASE.
 
