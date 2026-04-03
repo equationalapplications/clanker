@@ -94,4 +94,10 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) for automate
 | `ci`       | CI/CD changes           | None         |
 | `build`    | Build system changes    | None         |
 
-For a **breaking change**, add `!` after the type (e.g., `feat!: ...`). This will trigger a **major** version bump and requires a new native build. Use it only when changing native code or the Expo SDK.
+
+**⚠️ CRITICAL - Breaking Changes & Runtime Version:**
+
+- Breaking changes (`feat!` or `BREAKING CHANGE:`) increment major version → updates `runtimeVersion` in `app.config.ts`
+- New runtime version → **requires new native build and app store submission**
+- Non-breaking commits → OTA update (instant deployment) - Fine for Javascript-only changes
+- **Only use breaking changes when adding/updating native modules, Expo SDK, or native config**

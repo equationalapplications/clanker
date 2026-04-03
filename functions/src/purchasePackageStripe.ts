@@ -16,16 +16,16 @@ function getStripeClient() {
     return new Stripe(secretKey, { apiVersion: "2026-02-25.clover" });
 }
 
-const ALLOWED_PRICE_IDS = new Set([
-    process.env.STRIPE_MONTHLY_20_PRICE_ID || "price_TODO_monthly_20",
-    process.env.STRIPE_MONTHLY_50_PRICE_ID || "price_TODO_monthly_50",
-    process.env.STRIPE_CREDIT_PACK_PRICE_ID || "price_TODO_credit_pack",
-]);
-
-const SUBSCRIPTION_PRICE_IDS = new Set([
-    process.env.STRIPE_MONTHLY_20_PRICE_ID || "price_TODO_monthly_20",
-    process.env.STRIPE_MONTHLY_50_PRICE_ID || "price_TODO_monthly_50",
-]);
+function getRequiredEnvVar(name: string): string {
+    const value = process.env[name];
+    if (!value) {
+        throw new HttpsError(
+            "failed-precondition",
+            `${name} environment variable is not set`
+        );
+    }
+    return value;
+}
 
 async function getOrCreateStripeCustomer(
     stripe: Stripe,
@@ -44,6 +44,21 @@ async function getOrCreateStripeCustomer(
 }
 
 const handler = async (request: CallableRequest) => {
+    // Validate per-request so missing Stripe env vars only fail this function,
+    // not the entire Functions bundle (which would take down exchangeToken too).
+    const STRIPE_MONTHLY_20_PRICE_ID = getRequiredEnvVar("STRIPE_MONTHLY_20_PRICE_ID");
+    const STRIPE_MONTHLY_50_PRICE_ID = getRequiredEnvVar("STRIPE_MONTHLY_50_PRICE_ID");
+    const STRIPE_CREDIT_PACK_PRICE_ID = getRequiredEnvVar("STRIPE_CREDIT_PACK_PRICE_ID");
+    const ALLOWED_PRICE_IDS = new Set([
+        STRIPE_MONTHLY_20_PRICE_ID,
+        STRIPE_MONTHLY_50_PRICE_ID,
+        STRIPE_CREDIT_PACK_PRICE_ID,
+    ]);
+    const SUBSCRIPTION_PRICE_IDS = new Set([
+        STRIPE_MONTHLY_20_PRICE_ID,
+        STRIPE_MONTHLY_50_PRICE_ID,
+    ]);
+
     if (!request.auth) {
         logger.error("Unauthenticated request to purchasePackageStripe");
         throw new HttpsError("unauthenticated", "Authentication required.");
@@ -105,6 +120,19 @@ const handler = async (request: CallableRequest) => {
         priceId,
         mode,
     });
+
+    if (!session.url) {
+        logger.error("Stripe Checkout Session missing URL", {
+            sessionId: session.id,
+            email,
+            priceId,
+            mode,
+        });
+        throw new HttpsError(
+            "internal",
+            "Stripe Checkout Session did not include a checkout URL."
+        );
+    }
 
     return session.url;
 };
