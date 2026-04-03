@@ -1,90 +1,39 @@
-import { StyleSheet, ScrollView, View } from 'react-native'
-import { Text, Card, ActivityIndicator } from 'react-native-paper'
+import { useEffect, useRef } from 'react'
+import { View, StyleSheet } from 'react-native'
+import { Text, ActivityIndicator } from 'react-native-paper'
 import { router } from 'expo-router'
+import { useMostRecentMessage } from '~/hooks/useMessages'
 import { useCharacters } from '~/hooks/useCharacters'
-import { useEnsureDefaultCharacter } from '~/hooks/useEnsureDefaultCharacter'
-import LoadingIndicator from '~/components/LoadingIndicator'
-import CharacterAvatar from '~/components/CharacterAvatar'
 
-interface ChatItemProps {
-  id: string
-  name: string
-  avatar?: string | null
-  lastMessage?: string
-}
+export default function ChatRedirectScreen() {
+  const { data: mostRecentMessage, isLoading: isLoadingMessage } = useMostRecentMessage()
+  const { data: characters, isLoading: isLoadingCharacters } = useCharacters()
+  const hasRedirected = useRef(false)
 
-export default function ChatsScreen() {
-  const { data: characterList, isLoading } = useCharacters()
-  const { isCreatingDefault } = useEnsureDefaultCharacter()
+  useEffect(() => {
+    if (isLoadingMessage || isLoadingCharacters) {
+      return
+    }
+    if (hasRedirected.current) {
+      return
+    }
 
-  const onPressChatItem = (id: string) => {
-    router.push(`/characters/${id}/chat`)
-  }
-
-  const ChatItem = ({ id, name, avatar, lastMessage }: ChatItemProps) => (
-    <Card style={styles.chatCard} onPress={() => onPressChatItem(id)}>
-      <Card.Content style={styles.chatCardContent}>
-        <CharacterAvatar size={50} imageUrl={avatar} characterName={name} />
-        <View style={styles.chatTextContainer}>
-          <Text variant="titleMedium" style={styles.chatName}>
-            {name || 'Unnamed Character'}
-          </Text>
-          <Text variant="bodySmall" style={styles.lastMessage} numberOfLines={1}>
-            {lastMessage || 'Start a conversation...'}
-          </Text>
-        </View>
-      </Card.Content>
-    </Card>
-  )
-
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <LoadingIndicator disabled={false} />
-      </View>
-    )
-  }
-
-  if (!characterList || characterList.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        {isCreatingDefault ? (
-          <>
-            <ActivityIndicator size="large" />
-            <Text variant="bodyLarge" style={styles.emptyNote}>
-              Creating your first character...
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text variant="headlineSmall" style={styles.emptyTitle}>
-              No Characters Yet
-            </Text>
-            <Text variant="bodyMedium" style={styles.emptyNote}>
-              Create a character to start chatting!
-            </Text>
-          </>
-        )}
-      </View>
-    )
-  }
+    if (mostRecentMessage) {
+      const characterId = (mostRecentMessage as any).character_id
+      if (characterId) {
+        hasRedirected.current = true
+        router.replace(`/characters/${characterId}/chat`)
+      }
+    } else if (characters && characters.length > 0) {
+      hasRedirected.current = true
+      router.replace(`/characters/${characters[0].id}/chat`)
+    }
+  }, [mostRecentMessage, characters, isLoadingMessage, isLoadingCharacters])
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={{ marginTop: 20, width: '100%' }}
-        contentContainerStyle={styles.scrollContentContainer}
-      >
-        {characterList.map((character) => (
-          <ChatItem
-            key={character.id}
-            id={character.id}
-            name={character.name || 'Unnamed Character'}
-            avatar={character.avatar}
-            lastMessage={undefined} // TODO: Add last message from messages table
-          />
-        ))}
-      </ScrollView>
+      <ActivityIndicator size="large" />
+      <Text style={styles.text}>Finding your most recent chat...</Text>
     </View>
   )
 }
@@ -94,41 +43,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     padding: 20,
   },
-  emptyTitle: {
-    marginBottom: 10,
-  },
-  emptyNote: {
-    opacity: 0.7,
+  text: {
+    marginTop: 16,
     textAlign: 'center',
-  },
-  scrollContentContainer: {
-    gap: 10,
-    paddingBottom: 100,
-    paddingHorizontal: 20,
-  },
-  chatCard: {
-    width: '100%',
-  },
-  chatCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-  },
-  chatTextContainer: {
-    flex: 1,
-  },
-  chatName: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  lastMessage: {
-    opacity: 0.7,
   },
 })

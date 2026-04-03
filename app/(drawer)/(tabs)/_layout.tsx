@@ -11,15 +11,6 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Chats',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-            <TabBarIcon name={focused ? 'chatbubble' : 'chatbubble-outline'} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="characters/list"
         options={{
           title: 'Characters',
@@ -44,6 +35,15 @@ export default function TabLayout() {
               ])
             }
           },
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Chat',
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <TabBarIcon name={focused ? 'chatbubble' : 'chatbubble-outline'} color={color} />
+          ),
         }}
       />
     </Tabs>

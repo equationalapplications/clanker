@@ -1,5 +1,5 @@
-import { useLocalSearchParams, router } from 'expo-router'
-import { View, StyleSheet, Dimensions, Platform } from 'react-native'
+import { useLocalSearchParams, router , Stack } from 'expo-router'
+import { View, StyleSheet, Platform } from 'react-native'
 import { GiftedChat, IMessage, User, Bubble } from 'react-native-gifted-chat'
 import { useCallback } from 'react'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
@@ -7,11 +7,10 @@ import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useChatMessages } from '~/hooks/useMessages'
 import { useAIChat } from '~/hooks/useAIChat'
-import { Text, useTheme, Avatar } from 'react-native-paper'
+import { Text, useTheme, Avatar , Button } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserCredits } from '~/hooks/useUserCredits'
 
-const { height } = Dimensions.get('window')
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
 export default function ChatScreen() {
@@ -38,6 +37,10 @@ export default function ChatScreen() {
     _id: currentUserId || '',
     name: user?.displayName || '',
     avatar: user?.photoURL || defaultAvatarUrl,
+  }
+
+  const handleEdit = () => {
+    router.push(`/characters/${id}/edit`)
   }
 
   const handleSend = useCallback(
@@ -100,34 +103,40 @@ export default function ChatScreen() {
   // Privacy will be relevant later when implementing cloud sync and sharing features
 
   return (
-    <View style={styles.container}>
-      {/* Character Avatar Header */}
-      <View style={styles.avatarView}>
-        <Avatar.Image size={height * 0.1} source={{ uri: characterAvatar }} />
-        <Text variant="titleLarge" style={styles.titleText}>
-          {characterName}
-        </Text>
-      </View>
-
-      {/* Chat Interface */}
-      <KeyboardAvoidingView
-        style={styles.chatContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTitle: characterName,
+          headerRight: () => <Button onPress={handleEdit}>Edit</Button>,
+        }}
+      />
+      <View style={styles.container}>
         <GiftedChat
-          showUserAvatar
-          inverted
           messages={messages}
           onSend={handleSend}
           user={chatUser}
-          placeholder="chat with me..."
-          renderUsernameOnMessage
           renderBubble={renderBubble}
-          alwaysShowSend
-          isKeyboardInternallyHandled={false}
+          renderAvatarOnTop
+          messagesContainerStyle={styles.messagesContainer}
+          renderAvatar={(props) => {
+            const avatarUri =
+              props.currentMessage?.user._id === currentUserId
+                ? (chatUser.avatar as string)
+                : (characterAvatar as string)
+            return (
+              <Avatar.Image
+                size={36}
+                source={{
+                  uri: avatarUri,
+                }}
+              />
+            )
+          }}
         />
-      </KeyboardAvoidingView>
-    </View>
+        {Platform.OS === 'android' && <KeyboardAvoidingView behavior="padding" />}
+      </View>
+    </>
   )
 }
 
@@ -149,6 +158,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   chatContainer: {
+    flex: 1,
+  },
+  messagesContainer: {
     flex: 1,
   },
 })

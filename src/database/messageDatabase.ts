@@ -23,23 +23,27 @@ export interface LocalMessage {
 /**
  * Convert LocalMessage to IMessage format for GiftedChat
  */
-function toGiftedChatMessage(msg: LocalMessage, currentUserId: string): IMessage {
-    const isUserMessage = msg.sender_user_id === currentUserId
+function toGiftedChatMessage(
+  msg: LocalMessage,
+  currentUserId: string,
+): IMessage & { character_id: string } {
+  const isUserMessage = msg.sender_user_id === currentUserId
 
-    return {
-        _id: msg.id,
-        text: msg.text,
-        createdAt: new Date(msg.created_at),
-        user: {
-            _id: isUserMessage ? msg.sender_user_id : msg.recipient_user_id || msg.character_id,
-            name: isUserMessage ? 'You' : 'Character',
-        },
-        pending: msg.pending === 1,
-        sent: msg.sent === 1,
-        received: !isUserMessage && msg.sent === 1,
-        // Restore any additional data from message_data
-        ...(msg.message_data ? JSON.parse(msg.message_data) : {}),
-    }
+  return {
+    _id: msg.id,
+    text: msg.text,
+    createdAt: new Date(msg.created_at),
+    user: {
+      _id: isUserMessage ? msg.sender_user_id : msg.recipient_user_id || msg.character_id,
+      name: isUserMessage ? 'You' : 'Character',
+    },
+    character_id: msg.character_id,
+    pending: msg.pending === 1,
+    sent: msg.sent === 1,
+    received: !isUserMessage && msg.sent === 1,
+    // Restore any additional data from message_data
+    ...(msg.message_data ? JSON.parse(msg.message_data) : {}),
+  }
 }
 
 /**
@@ -304,4 +308,27 @@ export async function batchInsertMessages(messages: LocalMessage[]): Promise<voi
             )
         }
     })
+}
+
+/**
+ * Get the most recent message across all conversations for a user
+ */
+export async function getMostRecentMessage(
+  userId: string,
+): Promise<(IMessage & { character_id: string }) | null> {
+    const db = await getDatabase()
+
+    const message = await db.getFirstAsync<LocalMessage>(
+        `SELECT * FROM messages 
+     WHERE sender_user_id = ? OR recipient_user_id = ?
+     ORDER BY created_at DESC 
+     LIMIT 1`,
+        [userId, userId],
+    )
+
+    if (!message) return null
+
+    // The `toGiftedChatMessage` function needs the current user's ID to determine
+    // if the message was sent by them. We can pass it here.
+    return toGiftedChatMessage(message, userId)
 }
