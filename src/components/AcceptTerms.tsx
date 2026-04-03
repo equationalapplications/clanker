@@ -114,7 +114,12 @@ export function AcceptTerms({
         </Text>
       </View>
       <View style={styles.separatorSmall} />
-      <Button mode="contained" disabled={!checked || accepting} loading={accepting} onPress={onPressAccept}>
+            <Button
+        mode="contained"
+        disabled={!checked || accepting}
+        loading={accepting}
+        onPress={onPressAccept}
+      >
         {isUpdate ? 'Accept Updated Terms' : 'I Accept'}
       </Button>
       <Button mode="outlined" onPress={onPressCancel}>
