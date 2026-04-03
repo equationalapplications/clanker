@@ -11,16 +11,13 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
 // Checking `instanceof Headers` is unreliable in Hermes because the Headers constructor
 // captured at module-init time by supabase-js may differ from the global reference here.
 // Duck-type instead: anything with a .forEach() method is treated as a Headers instance.
-function plainHeadersFetch(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-): Promise<Response> {
+function plainHeadersFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const h = init?.headers
   if (h != null && typeof (h as any).forEach === 'function') {
     const plain: Record<string, string> = {}
-      ; (h as any).forEach((value: string, key: string) => {
-        plain[key] = value
-      })
+    ;(h as any).forEach((value: string, key: string) => {
+      plain[key] = value
+    })
     return fetch(input, { ...init, headers: plain })
   }
   return fetch(input, init)

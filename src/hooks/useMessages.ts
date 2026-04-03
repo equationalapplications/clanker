@@ -10,7 +10,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
-import { useAuth } from '~/auth/useAuth'
+import { useSelector } from '@xstate/react'
+import { useAuthMachine } from '~/hooks/useMachines'
 import { getMessages, sendMessage, deleteMessage, updateMessage } from '~/services/messageService'
 
 /**
@@ -28,7 +29,8 @@ export const messageKeys = {
  * Uses local SQLite storage - no real-time subscriptions needed
  */
 export function useMessages(characterId: string | undefined, recipientUserId: string | undefined) {
-  const { user } = useAuth()
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
 
   const query = useQuery({
     queryKey: messageKeys.list(characterId || '', recipientUserId || ''),
@@ -50,7 +52,8 @@ export function useMessages(characterId: string | undefined, recipientUserId: st
  */
 export function useSendMessage(characterId: string, recipientUserId: string) {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
 
   return useMutation({
     mutationFn: (message: Pick<IMessage, '_id' | 'text' | 'user'> & { [key: string]: any }) =>

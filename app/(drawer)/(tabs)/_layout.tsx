@@ -4,7 +4,6 @@ import { TabBarIcon } from '~/components/navigation/TabBarIcon'
 import { editDirtyRef, setEditDirty } from '~/hooks/useEditDirtyState'
 
 export default function TabLayout() {
-
   return (
     <Tabs
       screenOptions={{
@@ -21,7 +20,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="characters"
+        name="characters/list"
         options={{
           title: 'Characters',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
@@ -32,25 +31,17 @@ export default function TabLayout() {
           tabPress: (e) => {
             if (editDirtyRef.current) {
               e.preventDefault()
-              Alert.alert(
-                'Unsaved Changes',
-                'You have unsaved changes. Discard them?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Discard',
-                    style: 'destructive',
-                    onPress: () => {
-                      setEditDirty(false)
-                      router.navigate('/characters')
-                    },
+              Alert.alert('Unsaved Changes', 'You have unsaved changes. Discard them?', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Discard',
+                  style: 'destructive',
+                  onPress: () => {
+                    setEditDirty(false)
+                    router.navigate('/characters')
                   },
-                ],
-              )
-            } else {
-              // Always reset to the character list regardless of stack depth
-              e.preventDefault()
-              router.navigate('/characters')
+                },
+              ])
             }
           },
         }}

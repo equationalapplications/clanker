@@ -44,7 +44,7 @@ export const PLAN_TIERS = {
   PAYG: 'payg',
 } as const
 
-export type PlanTier = typeof PLAN_TIERS[keyof typeof PLAN_TIERS]
+export type PlanTier = (typeof PLAN_TIERS)[keyof typeof PLAN_TIERS]
 
 // Subscription tiers where credits are NOT consumed (unlimited usage)
 export const SUBSCRIPTION_TIERS: PlanTier[] = [PLAN_TIERS.MONTHLY_20, PLAN_TIERS.MONTHLY_50]

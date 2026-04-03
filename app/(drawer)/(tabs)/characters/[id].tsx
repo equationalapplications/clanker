@@ -50,28 +50,36 @@ export default function CharacterDetailsScreen() {
 
         {character.appearance ? (
           <View style={styles.field}>
-            <Text variant="labelLarge" style={styles.label}>Appearance</Text>
+            <Text variant="labelLarge" style={styles.label}>
+              Appearance
+            </Text>
             <Text variant="bodyMedium">{character.appearance}</Text>
           </View>
         ) : null}
 
         {character.traits ? (
           <View style={styles.field}>
-            <Text variant="labelLarge" style={styles.label}>Personality Traits</Text>
+            <Text variant="labelLarge" style={styles.label}>
+              Personality Traits
+            </Text>
             <Text variant="bodyMedium">{character.traits}</Text>
           </View>
         ) : null}
 
         {character.emotions ? (
           <View style={styles.field}>
-            <Text variant="labelLarge" style={styles.label}>Emotions</Text>
+            <Text variant="labelLarge" style={styles.label}>
+              Emotions
+            </Text>
             <Text variant="bodyMedium">{character.emotions}</Text>
           </View>
         ) : null}
 
         {character.context ? (
           <View style={styles.field}>
-            <Text variant="labelLarge" style={styles.label}>Context</Text>
+            <Text variant="labelLarge" style={styles.label}>
+              Context
+            </Text>
             <Text variant="bodyMedium">{character.context}</Text>
           </View>
         ) : null}
@@ -79,7 +87,12 @@ export default function CharacterDetailsScreen() {
         <Divider style={styles.divider} />
 
         <View style={styles.buttonContainer}>
-          <Button mode="contained" style={styles.button} icon="pencil" onPress={handleEditCharacter}>
+          <Button
+            mode="contained"
+            style={styles.button}
+            icon="pencil"
+            onPress={handleEditCharacter}
+          >
             Edit Character
           </Button>
           <Button mode="contained" style={styles.button} icon="chat" onPress={handleStartChat}>

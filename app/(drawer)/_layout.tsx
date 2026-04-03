@@ -1,34 +1,33 @@
-import { DrawerActions } from '@react-navigation/native'
+import { DrawerActions, useNavigation } from '@react-navigation/native'
 import { router } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
-import { useEffect } from 'react'
-import { Pressable } from 'react-native'
 import { useTheme, Icon } from 'react-native-paper'
-import { useTermsAcceptance } from '~/hooks/useSubscriptionStatus'
+import { Pressable } from 'react-native'
+import { useSelector } from '@xstate/react'
+import { useTermsMachine } from '~/hooks/useMachines'
+import React from 'react'
 
-export default function DrawerLayout() {
+const AppLayout = () => {
   const theme = useTheme()
-  const { needsTermsAcceptance, isUpdate, isLoading } = useTermsAcceptance()
+  const navigation = useNavigation()
+  const termsService = useTermsMachine()
+  const { needsTermsAcceptance, isUpdate } = useSelector(termsService, (state) => ({
+    needsTermsAcceptance: state.matches('acceptanceRequired'),
+    isUpdate: state.context.isUpdate,
+  }))
 
-  useEffect(() => {
-    console.log(
-      '[AppLayout] useEffect triggered - isLoading:',
-      isLoading,
-      'needsTermsAcceptance:',
-      needsTermsAcceptance,
-    )
-    if (!isLoading && needsTermsAcceptance) {
-      console.log('[AppLayout] Redirecting to accept-terms')
+  React.useEffect(() => {
+    if (needsTermsAcceptance) {
       router.replace({
         pathname: '/accept-terms',
         params: { isUpdate: isUpdate.toString() },
       })
     }
-  }, [isLoading, needsTermsAcceptance, isUpdate])
+  }, [needsTermsAcceptance, isUpdate])
 
   return (
     <Drawer
-      screenOptions={({ navigation }) => ({
+      screenOptions={{
         headerStyle: { backgroundColor: theme.colors.surface },
         headerTintColor: theme.colors.onSurface,
         drawerStyle: { backgroundColor: theme.colors.surface },
@@ -45,7 +44,7 @@ export default function DrawerLayout() {
             <Icon source="menu" color={tintColor} size={24} />
           </Pressable>
         ),
-      })}
+      }}
     >
       <Drawer.Screen
         name="(tabs)"
@@ -90,3 +89,5 @@ export default function DrawerLayout() {
     </Drawer>
   )
 }
+
+export default AppLayout

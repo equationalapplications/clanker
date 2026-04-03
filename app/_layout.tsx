@@ -9,10 +9,9 @@ import { Stack } from 'expo-router'
 
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 
+import { useSelector, useActorRef } from '@xstate/react'
 import { ThemeProvider } from '~/components/ThemeProvider'
-import { AuthProvider, useAuth } from '~/auth/useAuth'
 import { SettingsProvider } from '~/contexts/SettingsContext'
-import { TermsAcceptanceProvider } from '~/hooks/useSubscriptionStatus'
 import { queryClient } from '~/config/queryClient'
 import { kvStorePersister } from '~/config/queryPersister'
 import { setupNetworkManager } from '~/config/networkManager'
@@ -20,11 +19,59 @@ import NetInfo from '@react-native-community/netinfo'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import useCachedResources from '~/hooks/useCachedResources'
 import { useInitializeApp } from '~/hooks/useInitializeApp'
+import { authMachine } from '~/machines/authMachine'
+import { termsMachine } from '~/machines/termsMachine'
+import { GlobalStateContext, useAuthMachine } from '~/hooks/useMachines'
+
+function GlobalStateProvider({ children }: { children: React.ReactNode }) {
+  const authService = useActorRef(authMachine)
+  const termsService = useActorRef(termsMachine)
+
+  const previousAuthSnapshotRef = useRef<{ isSignedIn: boolean; userId: string | null } | null>(
+    null
+  )
+
+  useEffect(() => {
+    const subscription = authService.subscribe((state: any) => {
+      const userId = state.context.user?.id ?? null
+      const nextAuthSnapshot = {
+        isSignedIn: userId !== null,
+        userId,
+      }
+      const previousAuthSnapshot = previousAuthSnapshotRef.current
+
+      if (
+        !previousAuthSnapshot ||
+        previousAuthSnapshot.isSignedIn !== nextAuthSnapshot.isSignedIn ||
+        previousAuthSnapshot.userId !== nextAuthSnapshot.userId
+      ) {
+        previousAuthSnapshotRef.current = nextAuthSnapshot
+        termsService.send({ type: 'AUTH_STATE_CHANGED', authState: state })
+      }
+    })
+
+    return subscription.unsubscribe
+  }, [authService, termsService])
+
+  return (
+    <GlobalStateContext.Provider value={{ authService, termsService }}>
+      {children}
+    </GlobalStateContext.Provider>
+  )
+}
 
 // This component handles the core authentication logic using Stack.Protected
 function RootLayoutNav() {
   useInitializeApp()
-  const { user, isLoading } = useAuth()
+  const authService = useAuthMachine()
+  const { user, isLoading } = useSelector(authService, (state) => ({
+    user: state.context.user,
+    isLoading:
+      state.matches('initializing') ||
+      state.matches('signingIn') ||
+      state.matches('exchangingToken') ||
+      state.matches('establishingSupabaseSession'),
+  }))
   const prevUserRef = useRef<typeof user>(null)
 
   // Sync pending local changes to cloud on app startup after auth resolves.
@@ -38,9 +85,8 @@ function RootLayoutNav() {
       // online until the NetInfo bridge fires, which can cause false-positive syncs.
       NetInfo.fetch()
         .then((state) => {
-          const isOnline = state.isConnected != null &&
-            state.isConnected &&
-            state.isInternetReachable !== false
+          const isOnline =
+            state.isConnected != null && state.isConnected && state.isInternetReachable !== false
           if (isOnline) {
             import('~/services/characterSyncService')
               .then(({ syncAllToCloud }) => syncAllToCloud())
@@ -53,6 +99,14 @@ function RootLayoutNav() {
     }
     prevUserRef.current = user
   }, [user, isLoading])
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <LoadingIndicator disabled={false} />
+      </View>
+    )
+  }
 
   return (
     <Stack>
@@ -102,25 +156,26 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{ persister: kvStorePersister, maxAge: 1000 * 60 * 60 * 24 }}
-      >
-        <AuthProvider>
-          <SettingsProvider>
-            <TermsAcceptanceProvider>
-              <ThemeProvider>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-                <StatusBar />
-              </ThemeProvider>
-            </TermsAcceptanceProvider>
-          </SettingsProvider>
-        </AuthProvider>
-      </PersistQueryClientProvider>
-    </SafeAreaProvider>
+    <SettingsProvider>
+      <ThemeProvider>
+        <GlobalStateProvider>
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{
+              persister: kvStorePersister,
+              maxAge: 1000 * 60 * 60 * 24,
+            }}
+          >
+            <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+              <KeyboardProvider>
+                <StatusBar style="auto" />
+                <RootLayoutNav />
+              </KeyboardProvider>
+            </SafeAreaProvider>
+          </PersistQueryClientProvider>
+        </GlobalStateProvider>
+      </ThemeProvider>
+    </SettingsProvider>
   )
 }
 

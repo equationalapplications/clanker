@@ -6,7 +6,7 @@
 const fs = require('fs')
 const path = require('path')
 
-const rootDir = path.join(__dirname, '..')
+const rootDir = path.join(process.cwd(), '.')
 const tempDir = path.join(rootDir, 'temp')
 const googleServicesJsonPath = path.join(tempDir, 'google-services.json')
 const googleServiceInfoPlist = path.join(tempDir, 'GoogleService-Info.plist')
