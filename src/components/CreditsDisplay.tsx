@@ -35,7 +35,6 @@ export default function CreditsDisplay() {
       await makePackagePurchase('payg')
       if (Platform.OS !== 'web') {
         await refetch()
-        setIsPurchasing(null)
       }
       // On web: Stripe checkout has been opened in the browser. Keep buttons
       // disabled to prevent multiple parallel checkouts; isPurchasing resets
@@ -43,7 +42,10 @@ export default function CreditsDisplay() {
     } catch (e) {
       console.error(e)
       setErrorMessage('Purchase failed. Please try again.')
-      setIsPurchasing(null)
+    } finally {
+      if (Platform.OS !== 'web') {
+        setIsPurchasing(null)
+      }
     }
   }
 
@@ -53,13 +55,15 @@ export default function CreditsDisplay() {
       await makePackagePurchase('monthly_20')
       if (Platform.OS !== 'web') {
         await refetch()
-        setIsPurchasing(null)
       }
       // On web: same as above — keep buttons disabled until user returns.
     } catch (e) {
       console.error(e)
       setErrorMessage('Purchase failed. Please try again.')
-      setIsPurchasing(null)
+    } finally {
+      if (Platform.OS !== 'web') {
+        setIsPurchasing(null)
+      }
     }
   }
 
