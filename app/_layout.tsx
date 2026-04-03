@@ -27,9 +27,27 @@ function GlobalStateProvider({ children }: { children: React.ReactNode }) {
   const authService = useActorRef(authMachine)
   const termsService = useActorRef(termsMachine)
 
+  const previousAuthSnapshotRef = useRef<{ isSignedIn: boolean; userId: string | null } | null>(
+    null
+  )
+
   useEffect(() => {
     const subscription = authService.subscribe((state: any) => {
-      termsService.send({ type: 'AUTH_STATE_CHANGED', authState: state })
+      const userId = state.context.user?.id ?? null
+      const nextAuthSnapshot = {
+        isSignedIn: userId !== null,
+        userId,
+      }
+      const previousAuthSnapshot = previousAuthSnapshotRef.current
+
+      if (
+        !previousAuthSnapshot ||
+        previousAuthSnapshot.isSignedIn !== nextAuthSnapshot.isSignedIn ||
+        previousAuthSnapshot.userId !== nextAuthSnapshot.userId
+      ) {
+        previousAuthSnapshotRef.current = nextAuthSnapshot
+        termsService.send({ type: 'AUTH_STATE_CHANGED', authState: state })
+      }
     })
 
     return subscription.unsubscribe

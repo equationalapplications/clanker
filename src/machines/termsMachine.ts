@@ -84,6 +84,7 @@ export const termsMachine = createMachine(
             {
               target: 'accepted',
               guard: ({ event }) => event.output.accepted === true,
+              actions: assign({ isUpdate: false, error: null }),
             },
             {
               target: 'acceptanceRequired',
@@ -100,6 +101,7 @@ export const termsMachine = createMachine(
         on: {
           ACCEPT_TERMS: {
             target: 'accepting',
+            actions: assign({ error: null }),
           },
         },
       },
