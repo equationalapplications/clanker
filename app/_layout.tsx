@@ -33,7 +33,7 @@ function GlobalStateProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const subscription = authService.subscribe((state: any) => {
-      const userId = state.context.user?.id ?? null
+      const userId = state.context.user?.uid ?? null
       const nextAuthSnapshot = {
         isSignedIn: userId !== null,
         userId,
