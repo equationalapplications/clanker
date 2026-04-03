@@ -9,7 +9,7 @@ import { makePackagePurchase } from '~/utilities/makePackagePurchase'
 export default function CreditsDisplay() {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
   const { colors } = useTheme()
-  const [isSubscribing, setIsSubscribing] = React.useState(false)
+  const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | null>(null)
 
   if (isLoading) {
     return <LoadingIndicator />
@@ -29,24 +29,24 @@ export default function CreditsDisplay() {
   }
 
   const handleBuyCredits = async () => {
-    setIsSubscribing(true)
+    setIsPurchasing('payg')
     try {
       await makePackagePurchase('payg')
     } catch (e) {
       console.error(e)
     } finally {
-      setIsSubscribing(false)
+      setIsPurchasing(null)
     }
   }
 
   const handleSubscribe = async () => {
-    setIsSubscribing(true)
+    setIsPurchasing('subscribe')
     try {
       await makePackagePurchase('monthly_20')
     } catch (e) {
       console.error(e)
     } finally {
-      setIsSubscribing(false)
+      setIsPurchasing(null)
     }
   }
 
@@ -99,22 +99,24 @@ export default function CreditsDisplay() {
         </View>
 
         <View style={styles.actionsContainer}>
-          <Button
-            mode="contained"
-            onPress={handleSubscribe}
-            style={styles.actionButton}
-            disabled={isSubscribing}
-            loading={isSubscribing}
-          >
-            Unlimited Subscription - $20/Month
-          </Button>
+          {!credits?.hasUnlimited && (
+            <Button
+              mode="contained"
+              onPress={handleSubscribe}
+              style={styles.actionButton}
+              disabled={isPurchasing !== null}
+              loading={isPurchasing === 'subscribe'}
+            >
+              Unlimited Subscription - $20/Month
+            </Button>
+          )}
 
           <Button
             mode="outlined"
             onPress={handleBuyCredits}
             style={styles.actionButton}
-            disabled={isSubscribing}
-            loading={isSubscribing}
+            disabled={isPurchasing !== null}
+            loading={isPurchasing === 'payg'}
           >
             Buy 100 Credits - $10
           </Button>

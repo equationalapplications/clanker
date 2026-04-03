@@ -6,7 +6,7 @@ import { Appbar, Card, Text, IconButton, Button } from 'react-native-paper'
 import CreditsDisplay from '~/components/CreditsDisplay'
 import { useIsPremium } from '~/hooks/useIsPremium'
 import { useUserPrivateData } from '~/hooks/useUser'
-import { makePackagePurchase } from '~/utilities/makePackagePurchase'
+import { makePackagePurchase, type ProductType } from '~/utilities/makePackagePurchase'
 import { restorePurchases } from '~/config/revenueCatConfig'
 import { supabaseClient } from '~/config/supabaseClient'
 
@@ -17,10 +17,12 @@ export default function SubscribeScreen() {
   const credits = userPrivate?.credits || 0
   const [isLoading, setIsLoading] = useState(false)
 
-  const handlePurchase = async (productType: 'monthly_20' | 'payg') => {
+  const handlePurchase = async (productType: Extract<ProductType, 'monthly_20' | 'payg'>) => {
     setIsLoading(true)
     try {
       await makePackagePurchase(productType)
+    } catch (e) {
+      console.error('Purchase failed:', e)
     } finally {
       setIsLoading(false)
     }
@@ -31,6 +33,8 @@ export default function SubscribeScreen() {
     try {
       await restorePurchases()
       await supabaseClient.auth.refreshSession()
+    } catch (e) {
+      console.error('Restore failed:', e)
     } finally {
       setIsLoading(false)
     }
