@@ -16,17 +16,24 @@ export function useEditDirtyState(
 ) {
     useEffect(() => {
         if (!loadedValues) {
-            editDirtyRef.current = false
+            setEditDirty(false)
             return
         }
 
         const isDirty = Object.keys(currentValues).some(
             (key) => (currentValues[key] ?? '') !== (loadedValues[key] ?? ''),
         )
-        editDirtyRef.current = isDirty
+        setEditDirty(isDirty)
 
         return () => {
-            editDirtyRef.current = false
+            setEditDirty(false)
         }
     }, [currentValues, loadedValues])
+}
+
+/**
+ * Sets the dirty state of the edit screen.
+ */
+export function setEditDirty(isDirty: boolean) {
+    editDirtyRef.current = isDirty
 }

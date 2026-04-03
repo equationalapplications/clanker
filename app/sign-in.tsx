@@ -12,6 +12,7 @@ import { signInWithApple, handleAppleRedirectResult } from '~/auth/appleSignin'
 
 // expo-apple-authentication is iOS-only; defer require to avoid breaking
 // web bundling or crashing Android where the native module is unavailable.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const AppleAuthentication = Platform.OS === 'ios' ? require('expo-apple-authentication') : null
 
 export default function SignIn() {

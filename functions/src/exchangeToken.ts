@@ -267,9 +267,10 @@ const handler = async (request: CallableRequest) => {
         );
     }
 
-    // Determine Supabase user id. If the Supabase user does not exist, create
-    // it via the Admin API using the service role key, then map the returned
-    // Supabase user id to the `sub` claim.
+    // Determine the corresponding Supabase user id. If the Supabase user does
+    // not exist, create it via the Admin API using the service role key.
+    // The resolved Supabase user id is retained for logging/traceability,
+    // while the Supabase session itself is requested later using the email.
     const email = decoded.email;
     if (!email) {
         logger.error("No email in Firebase token");

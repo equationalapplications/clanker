@@ -1,6 +1,6 @@
 // React Native Firebase – modular API (aligned with Firebase Web SDK)
-import { FirebaseAuthTypes } from '@react-native-firebase/auth'
 import {
+    FirebaseAuthTypes,
     getAuth,
     onAuthStateChanged as onAuthStateChangedMod,
     signOut as signOutMod,
