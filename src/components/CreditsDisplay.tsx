@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, Platform } from 'react-native'
 import { Card, Text, Button, Chip, Snackbar, useTheme } from 'react-native-paper'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
@@ -33,11 +33,16 @@ export default function CreditsDisplay() {
     setIsPurchasing('payg')
     try {
       await makePackagePurchase('payg')
-      await refetch()
+      if (Platform.OS !== 'web') {
+        await refetch()
+        setIsPurchasing(null)
+      }
+      // On web: Stripe checkout has been opened in the browser. Keep buttons
+      // disabled to prevent multiple parallel checkouts; isPurchasing resets
+      // when the user returns and taps "Sync Subscription & Credits".
     } catch (e) {
       console.error(e)
       setErrorMessage('Purchase failed. Please try again.')
-    } finally {
       setIsPurchasing(null)
     }
   }
@@ -46,11 +51,14 @@ export default function CreditsDisplay() {
     setIsPurchasing('subscribe')
     try {
       await makePackagePurchase('monthly_20')
-      await refetch()
+      if (Platform.OS !== 'web') {
+        await refetch()
+        setIsPurchasing(null)
+      }
+      // On web: same as above — keep buttons disabled until user returns.
     } catch (e) {
       console.error(e)
       setErrorMessage('Purchase failed. Please try again.')
-    } finally {
       setIsPurchasing(null)
     }
   }
