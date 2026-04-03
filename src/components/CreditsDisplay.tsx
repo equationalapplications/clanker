@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
-import { Card, Text, Button, Chip, useTheme } from 'react-native-paper'
+import { Card, Text, Button, Chip, Snackbar, useTheme } from 'react-native-paper'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
@@ -10,6 +10,7 @@ export default function CreditsDisplay() {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
   const { colors } = useTheme()
   const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
   if (isLoading) {
     return <LoadingIndicator />
@@ -32,8 +33,10 @@ export default function CreditsDisplay() {
     setIsPurchasing('payg')
     try {
       await makePackagePurchase('payg')
+      await refetch()
     } catch (e) {
       console.error(e)
+      setErrorMessage('Purchase failed. Please try again.')
     } finally {
       setIsPurchasing(null)
     }
@@ -43,8 +46,10 @@ export default function CreditsDisplay() {
     setIsPurchasing('subscribe')
     try {
       await makePackagePurchase('monthly_20')
+      await refetch()
     } catch (e) {
       console.error(e)
+      setErrorMessage('Purchase failed. Please try again.')
     } finally {
       setIsPurchasing(null)
     }
@@ -54,14 +59,17 @@ export default function CreditsDisplay() {
     setIsPurchasing('restore')
     try {
       await supabaseClient.auth.refreshSession()
+      await refetch()
     } catch (e) {
       console.error('Restore failed:', e)
+      setErrorMessage('Sync failed. Please try again.')
     } finally {
       setIsPurchasing(null)
     }
   }
 
   return (
+    <>
     <Card style={styles.card}>
       <Card.Content>
         <Text variant="headlineSmall" style={styles.title}>
@@ -129,6 +137,15 @@ export default function CreditsDisplay() {
         </Text>
       </Card.Content>
     </Card>
+
+    <Snackbar
+      visible={errorMessage !== null}
+      onDismiss={() => setErrorMessage(null)}
+      duration={4000}
+    >
+      {errorMessage}
+    </Snackbar>
+  </>
   )
 }
 
