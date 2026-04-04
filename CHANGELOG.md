@@ -1,3 +1,118 @@
+# [25.0.0](https://github.com/equationalapplications/clanker/compare/v24.0.0...v25.0.0) (2026-04-04)
+
+
+### Release
+
+* Staging to Main ([#197](https://github.com/equationalapplications/clanker/issues/197)) ([b060832](https://github.com/equationalapplications/clanker/commit/b060832e237d5cb8783c826146a5dc1b4283af99)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB) [#194](https://github.com/equationalapplications/clanker/issues/194) [#193](https://github.com/equationalapplications/clanker/issues/193) [#193](https://github.com/equationalapplications/clanker/issues/193) [#193](https://github.com/equationalapplications/clanker/issues/193) [#195](https://github.com/equationalapplications/clanker/issues/195) [#196](https://github.com/equationalapplications/clanker/issues/196) [#192](https://github.com/equationalapplications/clanker/issues/192)
+
+
+### BREAKING CHANGES
+
+* native module change (@react-native-firebase/ai replaces
+@react-native-firebase/vertexai), requires new native build
+
+* chore: stop tracking plan.md, add to gitignore
+
+* fix: address Copilot review comments on avatar generation and character management
+
+- Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
+- Remove unused userId parameter from useLocalImageGeneration hook
+- Add React Query cache invalidation after local image generation to keep lists/details in sync
+- Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
+- Update stale schema migration comment to reference avatar_data instead of deleted_at
+- Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
+
+* fix(deps): update expo to 55.0.10
+
+* fix(hooks): use useIsMutating for reactive default character creation
+
+- Replace module-level creationInFlight with useIsMutating for reactive UI
+- Clear creationFailedForUser on success and user change
+- Extract createCharacterMutationKey as shared constant
+- Keep module-level flags as mutex, not UI state
+
+Fixes stale UI across tabs and permanent failure locks.
+
+* fix(drawer): add custom hamburger menu button with proper navigation context
+
+- Replace default DrawerToggleButton with custom Pressable using menu icon
+- Use screenOptions function form to get Drawer navigator context
+- Add proper drawer toggle dispatch and accessibility labels
+
+* fix: resolve character creation and drawer navigation issues
+
+- Make createCharacterMutationKey user-scoped to prevent mutation state from
+  leaking across account switches
+- Use useIsMutating for creation guard to prevent duplicate auto-creation
+  when manual create is in progress
+- Reset creationInFlight flag on user change alongside creationFailedForUser
+- Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
+  label for drawer toggle
+
+* fix(ios): resolve build failures with static frameworks and latest image
+
+- Move expo-build-properties plugin to top of plugins array
+- Replace forceStaticLinking with buildReactNativeFromSource for iOS
+- Pin staging and production builds to latest EAS iOS image
+
+* feat(functions): copy firebase functions from account repo
+
+* chore: isolate functions from expo build and type checking
+
+* chore: add firebase functions documentation and update configuration
+* native module change (@react-native-firebase/ai replaces
+@react-native-firebase/vertexai), requires new native build
+
+* chore: stop tracking plan.md, add to gitignore
+
+* fix: address Copilot review comments on avatar generation and character management
+
+- Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
+- Remove unused userId parameter from useLocalImageGeneration hook
+- Add React Query cache invalidation after local image generation to keep lists/details in sync
+- Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
+- Update stale schema migration comment to reference avatar_data instead of deleted_at
+- Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
+
+* fix(deps): update expo to 55.0.10
+
+* fix(hooks): use useIsMutating for reactive default character creation
+
+- Replace module-level creationInFlight with useIsMutating for reactive UI
+- Clear creationFailedForUser on success and user change
+- Extract createCharacterMutationKey as shared constant
+- Keep module-level flags as mutex, not UI state
+
+Fixes stale UI across tabs and permanent failure locks.
+
+* fix(drawer): add custom hamburger menu button with proper navigation context
+
+- Replace default DrawerToggleButton with custom Pressable using menu icon
+- Use screenOptions function form to get Drawer navigator context
+- Add proper drawer toggle dispatch and accessibility labels
+
+* fix: resolve character creation and drawer navigation issues
+
+- Make createCharacterMutationKey user-scoped to prevent mutation state from
+  leaking across account switches
+- Use useIsMutating for creation guard to prevent duplicate auto-creation
+  when manual create is in progress
+- Reset creationInFlight flag on user change alongside creationFailedForUser
+- Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
+  label for drawer toggle
+
+* fix(ios): resolve build failures with static frameworks and latest image
+
+- Move expo-build-properties plugin to top of plugins array
+- Replace forceStaticLinking with buildReactNativeFromSource for iOS
+- Pin staging and production builds to latest EAS iOS image
+
+* feat(functions): copy firebase functions from account repo
+
+* chore: isolate functions from expo build and type checking
+
+* chore: add firebase functions documentation and update configuration
+
 # [24.0.0](https://github.com/equationalapplications/clanker/compare/v23.0.0...v24.0.0) (2026-04-03)
 
 
