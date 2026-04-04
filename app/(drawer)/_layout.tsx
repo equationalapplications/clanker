@@ -1,57 +1,60 @@
-import { DrawerActions } from '@react-navigation/native'
+import { DrawerActions, useNavigation } from '@react-navigation/native'
 import { router } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
-import { useEffect } from 'react'
-import { Pressable } from 'react-native'
 import { useTheme, Icon } from 'react-native-paper'
-import { useTermsAcceptance } from '~/hooks/useSubscriptionStatus'
+import { Pressable } from 'react-native'
+import { useSelector } from '@xstate/react'
+import { useTermsMachine } from '~/hooks/useMachines'
+import React from 'react'
 
-export default function DrawerLayout() {
+function DrawerToggleButton({ tintColor }: { tintColor?: string }) {
+  const navigation = useNavigation()
+  return (
+    <Pressable
+      onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
+      style={{ marginLeft: 6, padding: 10 }}
+      hitSlop={4}
+      accessibilityRole="button"
+      accessibilityLabel="Toggle navigation drawer"
+    >
+      <Icon source="menu" color={tintColor} size={24} />
+    </Pressable>
+  )
+}
+
+const AppLayout = () => {
   const theme = useTheme()
-  const { needsTermsAcceptance, isUpdate, isLoading } = useTermsAcceptance()
+  const termsService = useTermsMachine()
+  const { needsTermsAcceptance, isUpdate } = useSelector(termsService, (state) => ({
+    needsTermsAcceptance: state.matches('acceptanceRequired'),
+    isUpdate: state.context.isUpdate,
+  }))
 
-  useEffect(() => {
-    console.log(
-      '[AppLayout] useEffect triggered - isLoading:',
-      isLoading,
-      'needsTermsAcceptance:',
-      needsTermsAcceptance,
-    )
-    if (!isLoading && needsTermsAcceptance) {
-      console.log('[AppLayout] Redirecting to accept-terms')
+  React.useEffect(() => {
+    if (needsTermsAcceptance) {
       router.replace({
         pathname: '/accept-terms',
         params: { isUpdate: isUpdate.toString() },
       })
     }
-  }, [isLoading, needsTermsAcceptance, isUpdate])
+  }, [needsTermsAcceptance, isUpdate])
 
   return (
     <Drawer
-      screenOptions={({ navigation }) => ({
+      screenOptions={{
         headerStyle: { backgroundColor: theme.colors.surface },
         headerTintColor: theme.colors.onSurface,
         drawerStyle: { backgroundColor: theme.colors.surface },
         drawerActiveTintColor: theme.colors.primary,
         drawerInactiveTintColor: theme.colors.onSurfaceVariant,
-        headerLeft: ({ tintColor }) => (
-          <Pressable
-            onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
-            style={{ marginLeft: 6, padding: 10 }}
-            hitSlop={4}
-            accessibilityRole="button"
-            accessibilityLabel="Toggle navigation drawer"
-          >
-            <Icon source="menu" color={tintColor} size={24} />
-          </Pressable>
-        ),
-      })}
+        headerLeft: ({ tintColor }) => <DrawerToggleButton tintColor={tintColor} />,
+      }}
     >
       <Drawer.Screen
         name="(tabs)"
         options={{
-          drawerLabel: 'Chats',
-          title: 'Chats',
+          drawerLabel: 'Chat',
+          title: 'Chat',
           drawerIcon: ({ color, size }) => <Icon source="chat" color={color} size={size} />,
         }}
       />
@@ -90,3 +93,5 @@ export default function DrawerLayout() {
     </Drawer>
   )
 }
+
+export default AppLayout

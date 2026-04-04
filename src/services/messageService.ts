@@ -125,3 +125,17 @@ export const deleteCharacterMessages = async (characterId: string): Promise<void
     throw error
   }
 }
+
+/**
+ * Get the most recent message across all conversations
+ */
+export const getMostRecentMessage = async (
+  userId: string,
+): Promise<(IMessage & { character_id: string }) | null> => {
+  try {
+    return await messageDB.getMostRecentMessage(userId)
+  } catch (error) {
+    console.error('Error getting most recent message:', error)
+    return null
+  }
+}

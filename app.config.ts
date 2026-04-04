@@ -1,13 +1,12 @@
 import 'dotenv/config'
 import { ExpoConfig, ConfigContext } from 'expo/config'
+import fs from 'fs'
 
 import * as pkg from './package.json'
 
 const breakingChangeVersion = pkg.version.split('.')[0]
 
 const runtimeVer = breakingChangeVersion + '.0.0'
-
-const fs = require('fs')
 
 const getGoogleServicesJson = () => {
   // for EAS build from environment variable

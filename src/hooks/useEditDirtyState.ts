@@ -11,29 +11,29 @@ export const editDirtyRef = { current: false }
  * Compares current form values against the values loaded from the database.
  */
 export function useEditDirtyState(
-    currentValues: Record<string, string>,
-    loadedValues: Record<string, string> | null,
+  currentValues: Record<string, string>,
+  loadedValues: Record<string, string> | null,
 ) {
-    useEffect(() => {
-        if (!loadedValues) {
-            setEditDirty(false)
-            return
-        }
+  useEffect(() => {
+    if (!loadedValues) {
+      setEditDirty(false)
+      return
+    }
 
-        const isDirty = Object.keys(currentValues).some(
-            (key) => (currentValues[key] ?? '') !== (loadedValues[key] ?? ''),
-        )
-        setEditDirty(isDirty)
+    const isDirty = Object.keys(currentValues).some(
+      (key) => (currentValues[key] ?? '') !== (loadedValues[key] ?? ''),
+    )
+    setEditDirty(isDirty)
 
-        return () => {
-            setEditDirty(false)
-        }
-    }, [currentValues, loadedValues])
+    return () => {
+      setEditDirty(false)
+    }
+  }, [currentValues, loadedValues])
 }
 
 /**
  * Sets the dirty state of the edit screen.
  */
 export function setEditDirty(isDirty: boolean) {
-    editDirtyRef.current = isDirty
+  editDirtyRef.current = isDirty
 }

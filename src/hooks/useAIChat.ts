@@ -49,10 +49,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         createdAt: new Date(),
       }
 
-      queryClient.setQueryData<IMessage[]>(
-        messageKeys.list(characterId, userId),
-        (old) => [optimisticUserMessage, ...(old || [])],
-      )
+      queryClient.setQueryData<IMessage[]>(messageKeys.list(characterId, userId), (old) => [
+        optimisticUserMessage,
+        ...(old || []),
+      ])
 
       return { previousMessages }
     },

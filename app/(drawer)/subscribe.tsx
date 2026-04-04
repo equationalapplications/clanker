@@ -1,26 +1,56 @@
 import { useRouter } from 'expo-router'
 import React, { useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
-import { Appbar, Card, Text, IconButton } from 'react-native-paper'
+import { ScrollView, StyleSheet, View, Platform } from 'react-native'
+import { Appbar, Card, Text, IconButton, Button, Snackbar } from 'react-native-paper'
+import { useQueryClient } from '@tanstack/react-query'
+import { useSelector } from '@xstate/react'
 
-import CombinedSubscriptionButton from '~/components/CombinedSubscriptionButton'
-import LoadingIndicator from '~/components/LoadingIndicator'
+import CreditsDisplay from '~/components/CreditsDisplay'
 import { useIsPremium } from '~/hooks/useIsPremium'
-import { useUserPrivateData } from '~/hooks/useUser'
+import { useUserPrivateData, userKeys } from '~/hooks/useUser'
+import { useAuthMachine } from '~/hooks/useMachines'
+import { makePackagePurchase, type ProductType } from '~/utilities/makePackagePurchase'
+import { restorePurchases } from '~/config/revenueCatConfig'
+import { supabaseClient } from '~/config/supabaseClient'
 
 export default function SubscribeScreen() {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
+  const queryClient = useQueryClient()
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
   const isPremium = useIsPremium()
   const { userPrivate } = useUserPrivateData()
   const credits = userPrivate?.credits || 0
+  const [inFlightAction, setInFlightAction] = useState<'monthly_20' | 'payg' | 'restore' | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const onChangeIsLoading = (loading: boolean) => {
-    setIsLoading(loading)
+  const handlePurchase = async (productType: Extract<ProductType, 'monthly_20' | 'payg'>) => {
+    setInFlightAction(productType)
+    try {
+      await makePackagePurchase(productType)
+      // Invalidate to ensure all components pick up fresh data
+      await queryClient.invalidateQueries({ queryKey: userKeys.private(user?.uid) })
+    } catch (e) {
+      console.error('Purchase failed:', e)
+      setErrorMessage('Purchase failed. Please try again.')
+    } finally {
+      setInFlightAction(null)
+    }
   }
 
-  if (isLoading) {
-    return <LoadingIndicator />
+  const handleRestore = async () => {
+    setInFlightAction('restore')
+    try {
+      await restorePurchases()
+      await supabaseClient.auth.refreshSession()
+      // Invalidate to ensure all components pick up fresh data
+      await queryClient.invalidateQueries({ queryKey: userKeys.private(user?.uid) })
+    } catch (e) {
+      console.error('Restore failed:', e)
+      setErrorMessage('Restore failed. Please try again.')
+    } finally {
+      setInFlightAction(null)
+    }
   }
 
   return (
@@ -45,7 +75,7 @@ export default function SubscribeScreen() {
                     You have unlimited access to all features!
                   </Text>
                 </View>
-              ) : (
+              ) : Platform.OS !== 'web' ? (
                 <View style={styles.creditsStatus}>
                   <Text variant="bodyLarge" style={styles.statusText}>
                     Current Credits: {credits}
@@ -54,10 +84,46 @@ export default function SubscribeScreen() {
                     Credits are used for generating character images and other premium features.
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
           </Card.Content>
         </Card>
+
+        {Platform.OS === 'web' ? (
+          <CreditsDisplay />
+        ) : (
+          <View style={styles.buttonContainer}>
+            {!isPremium && (
+              <Button
+                mode="contained"
+                onPress={() => handlePurchase('monthly_20')}
+                disabled={inFlightAction !== null}
+                loading={inFlightAction === 'monthly_20'}
+                style={styles.actionButton}
+              >
+                Unlimited Subscription - $20/Month
+              </Button>
+            )}
+            <Button
+              mode="outlined"
+              onPress={() => handlePurchase('payg')}
+              disabled={inFlightAction !== null}
+              loading={inFlightAction === 'payg'}
+              style={styles.actionButton}
+            >
+              Buy 100 Credits - $10
+            </Button>
+            <Button
+              mode="text"
+              onPress={handleRestore}
+              disabled={inFlightAction !== null}
+              loading={inFlightAction === 'restore'}
+              style={styles.restoreButton}
+            >
+              Restore Purchases
+            </Button>
+          </View>
+        )}
 
         {!isPremium && (
           <Card style={styles.card}>
@@ -91,10 +157,27 @@ export default function SubscribeScreen() {
           </Card>
         )}
 
-        <View style={styles.buttonContainer}>
-          <CombinedSubscriptionButton onChangeIsLoading={onChangeIsLoading} />
-        </View>
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="headlineSmall" style={styles.featuresTitle}>
+              Plan Comparison
+            </Text>
+            <View style={styles.featuresList}>
+              <Text variant="bodyMedium">• Free Tier — 50 credits</Text>
+              <Text variant="bodyMedium">• Unlimited Subscription: $20/month</Text>
+              <Text variant="bodyMedium">• One-time: 100 credits for $10</Text>
+            </View>
+          </Card.Content>
+        </Card>
       </ScrollView>
+
+      <Snackbar
+        visible={errorMessage !== null}
+        onDismiss={() => setErrorMessage(null)}
+        duration={4000}
+      >
+        {errorMessage}
+      </Snackbar>
     </View>
   )
 }
@@ -146,6 +229,10 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: 24,
-    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {},
+  restoreButton: {
+    marginTop: 4,
   },
 })

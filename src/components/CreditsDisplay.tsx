@@ -1,12 +1,16 @@
 import React from 'react'
-import { View, StyleSheet } from 'react-native'
-import { Card, Text, Button, Chip, useTheme } from 'react-native-paper'
+import { View, StyleSheet, Platform } from 'react-native'
+import { Card, Text, Button, Chip, Snackbar, useTheme } from 'react-native-paper'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
+import { makePackagePurchase } from '~/utilities/makePackagePurchase'
+import { supabaseClient } from '~/config/supabaseClient'
 
 export default function CreditsDisplay() {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
   const { colors } = useTheme()
+  const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
   if (isLoading) {
     return <LoadingIndicator />
@@ -25,17 +29,59 @@ export default function CreditsDisplay() {
     )
   }
 
-  const handleBuyCredits = () => {
-    // TODO: Implement Stripe payment for credits
-    console.log('Buy credits clicked')
+  const handleBuyCredits = async () => {
+    setIsPurchasing('payg')
+    try {
+      await makePackagePurchase('payg')
+      if (Platform.OS !== 'web') {
+        await refetch()
+      }
+      // On web: Stripe checkout has been opened in the browser. Keep buttons
+      // disabled to prevent multiple parallel checkouts; isPurchasing resets
+      // when the user returns and taps "Sync Subscription & Credits".
+    } catch (e) {
+      console.error(e)
+      setErrorMessage('Purchase failed. Please try again.')
+    } finally {
+      if (Platform.OS !== 'web') {
+        setIsPurchasing(null)
+      }
+    }
   }
 
-  const handleSubscribe = () => {
-    // TODO: Implement Stripe subscription
-    console.log('Subscribe clicked')
+  const handleSubscribe = async () => {
+    setIsPurchasing('subscribe')
+    try {
+      await makePackagePurchase('monthly_20')
+      if (Platform.OS !== 'web') {
+        await refetch()
+      }
+      // On web: same as above — keep buttons disabled until user returns.
+    } catch (e) {
+      console.error(e)
+      setErrorMessage('Purchase failed. Please try again.')
+    } finally {
+      if (Platform.OS !== 'web') {
+        setIsPurchasing(null)
+      }
+    }
+  }
+
+  const handleRestore = async () => {
+    setIsPurchasing('restore')
+    try {
+      await supabaseClient.auth.refreshSession()
+      await refetch()
+    } catch (e) {
+      console.error('Restore failed:', e)
+      setErrorMessage('Sync failed. Please try again.')
+    } finally {
+      setIsPurchasing(null)
+    }
   }
 
   return (
+    <>
     <Card style={styles.card}>
       <Card.Content>
         <Text variant="headlineSmall" style={styles.title}>
@@ -65,47 +111,53 @@ export default function CreditsDisplay() {
           </View>
         )}
 
-        <View style={styles.subscriptionDetails}>
-          {credits?.subscriptions.map((sub, index) => (
-            <View key={index} style={styles.subscriptionItem}>
-              <Text variant="bodyMedium" style={styles.subscriptionText}>
-                {sub.tier === 'free' && 'Free Tier'}
-                {sub.tier === 'monthly_20' && 'Monthly $20 Plan'}
-                {sub.tier === 'monthly_50' && 'Monthly $50 Premium Plan'}
-                {sub.tier === 'payg' && 'Pay-as-you-go Credits'}
-              </Text>
-              {!sub.isUnlimited && (
-                <Text variant="bodySmall" style={[styles.creditsText, { color: colors.onSurfaceVariant }]}>
-                  {sub.credits} credits
-                </Text>
-              )}
-            </View>
-          ))}
-        </View>
-
         <View style={styles.actionsContainer}>
-          <Button mode="outlined" onPress={handleBuyCredits} style={styles.actionButton}>
-            Buy 100 Credits ($3)
-          </Button>
+          {!credits?.hasUnlimited && (
+            <Button
+              mode="contained"
+              onPress={handleSubscribe}
+              style={styles.actionButton}
+              disabled={isPurchasing !== null}
+              loading={isPurchasing === 'subscribe'}
+            >
+              Unlimited Subscription - $20/Month
+            </Button>
+          )}
 
-          <Button mode="contained" onPress={handleSubscribe} style={styles.actionButton}>
-            Subscribe
+          <Button
+            mode="outlined"
+            onPress={handleBuyCredits}
+            style={styles.actionButton}
+            disabled={isPurchasing !== null}
+            loading={isPurchasing === 'payg'}
+          >
+            Buy 100 Credits - $10
           </Button>
         </View>
 
-        <View style={[styles.pricingInfo, { borderTopColor: colors.outlineVariant }]}>
-          <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
-            • 1000 credits/month: $20
-          </Text>
-          <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
-            • Unlimited credits: $50
-          </Text>
-          <Text variant="bodySmall" style={[styles.pricingText, { color: colors.onSurfaceVariant }]}>
-            • One-time: 100 credits for $3
-          </Text>
-        </View>
+        <Button
+          mode="text"
+          onPress={handleRestore}
+          disabled={isPurchasing !== null}
+          loading={isPurchasing === 'restore'}
+          style={styles.restoreButton}
+        >
+          Sync Subscription &amp; Credits
+        </Button>
+        <Text variant="bodySmall" style={[styles.syncHelperText, { color: colors.onSurfaceVariant }]}>
+          Use this if your subscription or credits aren&apos;t showing correctly.
+        </Text>
       </Card.Content>
     </Card>
+
+    <Snackbar
+      visible={errorMessage !== null}
+      onDismiss={() => setErrorMessage(null)}
+      duration={4000}
+    >
+      {errorMessage}
+    </Snackbar>
+  </>
   )
 }
 
@@ -141,18 +193,6 @@ const styles = StyleSheet.create({
   creditsCount: {
     fontWeight: 'bold',
   },
-  subscriptionDetails: {
-    marginBottom: 16,
-  },
-  subscriptionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  subscriptionText: {
-    flex: 1,
-  },
-  creditsText: {},
   actionsContainer: {
     gap: 8,
     marginBottom: 16,
@@ -160,12 +200,14 @@ const styles = StyleSheet.create({
   actionButton: {
     marginVertical: 4,
   },
-  pricingInfo: {
-    borderTopWidth: 1,
-    paddingTop: 12,
+  restoreButton: {
+    marginTop: 8,
   },
-  pricingText: {
-    marginVertical: 2,
+  syncHelperText: {
+    textAlign: 'center',
+    marginTop: 2,
+    marginBottom: 8,
+    paddingHorizontal: 16,
   },
   retryButton: {
     marginTop: 8,

@@ -10,8 +10,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
-import { useAuth } from '~/auth/useAuth'
-import { getMessages, sendMessage, deleteMessage, updateMessage } from '~/services/messageService'
+import { useSelector } from '@xstate/react'
+import { useAuthMachine } from '~/hooks/useMachines'
+import { getMessages, sendMessage, deleteMessage, updateMessage, getMostRecentMessage } from '~/services/messageService'
 
 /**
  * Query key factory for messages
@@ -28,7 +29,8 @@ export const messageKeys = {
  * Uses local SQLite storage - no real-time subscriptions needed
  */
 export function useMessages(characterId: string | undefined, recipientUserId: string | undefined) {
-  const { user } = useAuth()
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
 
   const query = useQuery({
     queryKey: messageKeys.list(characterId || '', recipientUserId || ''),
@@ -50,7 +52,8 @@ export function useMessages(characterId: string | undefined, recipientUserId: st
  */
 export function useSendMessage(characterId: string, recipientUserId: string) {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
 
   return useMutation({
     mutationFn: (message: Pick<IMessage, '_id' | 'text' | 'user'> & { [key: string]: any }) =>
@@ -233,6 +236,23 @@ export function useUpdateMessage(characterId: string, recipientUserId: string) {
         )
       }
     },
+  })
+}
+
+/**
+ * Hook to get the most recent message across all conversations
+ */
+export function useMostRecentMessage() {
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
+
+  return useQuery({
+    queryKey: [...messageKeys.all, 'mostRecent', user?.uid],
+    queryFn: () => getMostRecentMessage(user?.uid || ''),
+    enabled: !!user?.uid,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    networkMode: 'offlineFirst',
   })
 }
 

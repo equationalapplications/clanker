@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { StyleSheet, View, Alert, Platform } from 'react-native'
 import { Text, Checkbox, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
@@ -7,53 +7,45 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
-import { useAuth } from '~/auth/useAuth'
-import { grantAppAccess } from '~/utilities/appAccess'
-import { APP_NAME } from '~/config/constants'
 import { TERMS } from '~/config/termsConfig'
 
 interface AcceptTermsProps {
   onAccepted?: () => void
   onCanceled?: () => void
   isUpdate?: boolean
+  accepting?: boolean
+  error?: string | null
 }
 
-export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: AcceptTermsProps) {
+export function AcceptTerms({
+  onAccepted,
+  onCanceled,
+  isUpdate = false,
+  accepting = false,
+  error = null,
+}: AcceptTermsProps) {
   const [checked, setChecked] = useState(false)
-  const { signOut } = useAuth()
   const { colors } = useTheme()
+
+  useEffect(() => {
+    if (error) {
+      Alert.alert(
+        'Error',
+        `Failed to record your acceptance. Please check your connection and try again.\n\n${error}`,
+      )
+    }
+  }, [error])
 
   const onPressChecked = () => {
     setChecked(!checked)
   }
 
-  const onPressAccept = async () => {
+  const onPressAccept = () => {
     if (!checked) {
       Alert.alert('Please Accept Terms', 'You must accept the terms and conditions to continue.')
       return
     }
-
-    try {
-      console.log('Accepting terms and granting app access...')
-
-      // Optimistically proceed - we trust the user clicked accept
-      // The database write happens in the background
-      const result = await grantAppAccess(APP_NAME, TERMS.version)
-
-      if (result.success) {
-        console.log('Terms accepted successfully, proceeding to app...')
-        onAccepted?.()
-      } else {
-        throw new Error(result.error || 'Failed to grant access')
-      }
-    } catch (error: any) {
-      console.error('Error accepting terms:', error)
-      Alert.alert(
-        'Error',
-        'Failed to record your acceptance. Please check your connection and try again.\n\n' +
-        error.message,
-      )
-    }
+    onAccepted?.()
   }
 
   const onPressCancel = () => {
@@ -66,8 +58,7 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
       {
         text: isUpdate ? 'Sign Out' : 'Sign Out',
         style: 'destructive',
-        onPress: async () => {
-          await signOut?.()
+        onPress: () => {
           onCanceled?.()
         },
       },
@@ -123,7 +114,12 @@ export function AcceptTerms({ onAccepted, onCanceled, isUpdate = false }: Accept
         </Text>
       </View>
       <View style={styles.separatorSmall} />
-      <Button mode="contained" disabled={!checked} onPress={onPressAccept}>
+      <Button
+        mode="contained"
+        disabled={!checked || accepting}
+        loading={accepting}
+        onPress={onPressAccept}
+      >
         {isUpdate ? 'Accept Updated Terms' : 'I Accept'}
       </Button>
       <Button mode="outlined" onPress={onPressCancel}>

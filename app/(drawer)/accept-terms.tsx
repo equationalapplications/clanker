@@ -1,34 +1,45 @@
+import { useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, router } from 'expo-router'
+import { useSelector } from '@xstate/react'
 import { AcceptTerms } from '~/components/AcceptTerms'
-import { useTermsAcceptance } from '~/hooks/useSubscriptionStatus'
+import { useTermsMachine, useAuthMachine } from '~/hooks/useMachines'
 
 export default function AcceptTermsScreen() {
   const params = useLocalSearchParams()
-  const { markTermsAccepted } = useTermsAcceptance()
+  const termsService = useTermsMachine()
+  const authService = useAuthMachine()
   const isUpdate = params.isUpdate === 'true'
 
+  const { accepted, accepting, error } = useSelector(termsService, (state) => ({
+    accepted: state.matches('accepted'),
+    accepting: state.matches('accepting'),
+    error: state.context.error,
+  }))
+
+  useEffect(() => {
+    if (accepted) {
+      router.replace('/')
+    }
+  }, [accepted])
+
   const handleAccepted = () => {
-    console.log('[AcceptTermsScreen] handleAccepted called')
-
-    // Optimistically mark terms as accepted in local state
-    // This allows instant navigation without waiting for JWT refresh
-    console.log('[AcceptTermsScreen] Marking terms as accepted in Context')
-    markTermsAccepted()
-
-    console.log('[AcceptTermsScreen] Navigating to root /')
-    // Navigate back - the app will now see terms as accepted
-    router.replace('/')
+    termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
   }
 
   const handleCanceled = () => {
-    // User canceled/signed out, go back to sign-in
-    router.replace('/sign-in')
+    authService.send({ type: 'SIGN_OUT' })
   }
 
   return (
     <View style={styles.container}>
-      <AcceptTerms onAccepted={handleAccepted} onCanceled={handleCanceled} isUpdate={isUpdate} />
+      <AcceptTerms
+        onAccepted={handleAccepted}
+        onCanceled={handleCanceled}
+        isUpdate={isUpdate}
+        accepting={accepting}
+        error={error?.message}
+      />
     </View>
   )
 }
