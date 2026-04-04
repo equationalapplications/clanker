@@ -38,10 +38,14 @@ async function getUserCredits(): Promise<number> {
     .select('current_credits')
     .eq('user_id', user.id)
     .eq('app_name', APP_NAME)
-    .single()
+    .maybeSingle()
 
-  if (error || !data) {
+  if (error) {
     console.error('Error fetching credits:', error)
+    return 0
+  }
+
+  if (!data) {
     return 0
   }
 
@@ -65,11 +69,24 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
     .from('profiles')
     .select('*')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error fetching user profile:', error)
     return null
+  }
+
+  // Lazy-create profile if trigger didn't fire (safety net)
+  if (!data) {
+    try {
+      return await upsertUserProfile({
+        user_id: user.id,
+        email: user.email ?? null,
+      })
+    } catch (upsertError) {
+      console.error('Error creating missing profile:', upsertError)
+      return null
+    }
   }
 
   return data

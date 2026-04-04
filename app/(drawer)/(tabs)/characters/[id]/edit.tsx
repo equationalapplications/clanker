@@ -16,8 +16,8 @@ export default function EditCharacterScreen() {
   const { user } = useSelector(authService, (state) => ({
     user: state.context.user,
   }))
-  const { data: character, isLoading } = useCharacter(id || '')
-  const updateCharacterMutation = useUpdateCharacter()
+  const { character, isLoading } = useCharacter(id)
+  const { update } = useUpdateCharacter()
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -62,19 +62,16 @@ export default function EditCharacterScreen() {
     onImageGenerated: (fileUri) => setAvatarUri(fileUri),
   })
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!id || !user?.uid) return
 
     try {
-      await updateCharacterMutation.mutateAsync({
-        id,
-        updates: {
-          name,
-          appearance,
-          traits,
-          emotions,
-          context,
-        },
+      update(id, {
+        name,
+        appearance,
+        traits,
+        emotions,
+        context,
       })
       router.back()
     } catch (error) {

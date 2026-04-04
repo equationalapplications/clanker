@@ -20,8 +20,8 @@ export default function Profile() {
   const { userPrivate } = useUserPrivateData()
   const isPremium = useIsPremium()
 
-  const displayName = userPublic?.name || user?.email || 'User'
-  const email = userPublic?.email || user?.email || ''
+  const displayName = userPublic?.name || user?.displayName || user?.email || 'User'
+  const email = user?.email || userPublic?.email || ''
   const photoURL = userPublic?.avatar || defaultAvatarUrl
   const credits = userPrivate?.credits ?? 0
 

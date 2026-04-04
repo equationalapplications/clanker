@@ -1,14 +1,16 @@
 import { View, StyleSheet } from 'react-native'
 import { Text, ActivityIndicator } from 'react-native-paper'
+import { useSelector } from '@xstate/react'
 import { useCharacters } from '~/hooks/useCharacters'
-import { useEnsureDefaultCharacter } from '~/hooks/useEnsureDefaultCharacter'
 import { useMostRecentMessage } from '~/hooks/useMessages'
 import ChatView from '~/components/ChatView'
+import { useCharacterMachine } from '~/hooks/useMachines'
 
 export default function ChatTabScreen() {
   const { data: mostRecentMessage, isLoading: isLoadingMessage } = useMostRecentMessage()
-  const { data: characters, isLoading: isLoadingCharacters } = useCharacters()
-  const { isCreatingDefault } = useEnsureDefaultCharacter()
+  const { characters, isLoading: isLoadingCharacters } = useCharacters()
+  const characterService = useCharacterMachine()
+  const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
 
   const isLoading = isLoadingMessage || isLoadingCharacters
 

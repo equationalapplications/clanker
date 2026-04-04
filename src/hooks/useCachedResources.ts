@@ -1,4 +1,4 @@
-import { FontAwesome, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons'
+import { FontAwesome, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons'
 import * as Font from 'expo-font'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect, useState } from 'react'
@@ -15,6 +15,7 @@ export default function useCachedResources() {
         // Load fonts
         await Font.loadAsync({
           ...FontAwesome.font,
+          ...Ionicons.font,
           ...MaterialCommunityIcons.font,
           ...MaterialIcons.font,
           'space-mono': require('../../assets/fonts/SpaceMono-Regular.ttf'),

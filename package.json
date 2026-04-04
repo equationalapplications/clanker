@@ -27,7 +27,9 @@
     "test:watch": "jest --watch",
     "adb": "adb reverse tcp:8081 tcp:8081",
     "predeploy": "npx expo export --platform web --clear",
-    "deploy-hosting": "npm run predeploy && firebase deploy --only hosting"
+    "deploy-hosting": "npm run predeploy && firebase deploy --only hosting",
+    "ota": "npx eas-cli update --branch $(git rev-parse --abbrev-ref HEAD) --message \"OTA update\" --environment production",
+    "update": "npm run deploy-hosting && npm run ota"
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.7",
