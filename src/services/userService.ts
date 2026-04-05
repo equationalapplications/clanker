@@ -53,6 +53,38 @@ async function getUserCredits(): Promise<number> {
 }
 
 /**
+ * Sync Firebase Auth user's photoURL to Supabase profile avatar_url
+ * This is useful when user signs in with Google or Apple providers
+ */
+export const syncFirebasePhotoToProfile = async (
+  firebasePhotoURL: string | null | undefined,
+): Promise<void> => {
+  if (!firebasePhotoURL) {
+    return
+  }
+
+  try {
+    const {
+      data: { session },
+    } = await supabaseClient.auth.getSession()
+
+    const user = session?.user
+    if (!user) {
+      return
+    }
+
+    // Update the profile with the Firebase photo URL
+    await upsertUserProfile({
+      avatar_url: firebasePhotoURL,
+    })
+
+    console.log('✅ Synced Firebase photo to profile')
+  } catch (error) {
+    console.error('Error syncing Firebase photo to profile:', error)
+  }
+}
+
+/**
  * Get the current user's profile from Supabase
  */
 export const getUserProfile = async (): Promise<UserProfile | null> => {

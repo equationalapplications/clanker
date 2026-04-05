@@ -12,6 +12,7 @@ import { signInWithApple, AppleSignInResult, signOutFromApple } from '~/auth/app
 import { getSupabaseUserSession } from '~/auth/getSupabaseUserSession'
 import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
 import { setCrashlyticsUserId } from '~/services/crashlyticsService'
+import { syncFirebasePhotoToProfile } from '~/services/userService'
 import { queryClient } from '~/config/queryClient'
 
 export interface AuthMachineContext {
@@ -138,6 +139,7 @@ export const authMachine = createMachine(
         entry: [
           ({ context }) => loginRevenueCat(context.user!.uid),
           ({ context }) => setCrashlyticsUserId(context.user!.uid),
+          ({ context }) => syncFirebasePhotoToProfile(context.user?.photoURL),
         ],
         on: {
           SIGN_OUT: 'signingOut',

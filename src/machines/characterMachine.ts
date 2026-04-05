@@ -36,7 +36,7 @@ const createDefaultCharacterActor = fromPromise(async ({ input }: { input: { use
     throw new Error('Cannot create default character: no userId')
   }
   const newCharacter = await createCharacterDb(input.userId, {
-    name: 'Default Character',
+    name: 'Clanker',
     is_public: false,
   })
   if (!newCharacter) {
