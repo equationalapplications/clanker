@@ -1,3 +1,10 @@
+# [25.1.0](https://github.com/equationalapplications/clanker/compare/v25.0.0...v25.1.0) (2026-04-05)
+
+
+### Features
+
+* character state machine, database improvements, and UI enhancements ([#199](https://github.com/equationalapplications/clanker/issues/199)) ([d80e149](https://github.com/equationalapplications/clanker/commit/d80e1495fd9b285d6706b091c01584560b31cc7e))
+
 # [25.0.0](https://github.com/equationalapplications/clanker/compare/v24.0.0...v25.0.0) (2026-04-04)
 
 
