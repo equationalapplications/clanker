@@ -40,4 +40,4 @@
 
 # 📝 Pull Request Template
 
-  When creating a pull request, **always use the PR template** located at `.github/pull_request_template.md`. The template includes:
+  When creating a pull request, **always use the PR template** located at `.github/pull_request_template.md`.

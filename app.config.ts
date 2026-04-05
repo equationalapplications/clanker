@@ -1,6 +1,8 @@
 import 'dotenv/config'
 import { ExpoConfig, ConfigContext } from 'expo/config'
 import fs from 'fs'
+import os from 'os'
+import path from 'path'
 
 import * as pkg from './package.json'
 
@@ -11,14 +13,12 @@ const runtimeVer = breakingChangeVersion + '.0.0'
 const getGoogleServicesJson = () => {
   // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
   if (process.env.GOOGLE_SERVICES_JSON_BASE64) {
-    if (!fs.existsSync('./temp')) {
-      fs.mkdirSync('./temp', { recursive: true })
-    }
+    const tmpPath = path.join(os.tmpdir(), 'clanker-google-services.json')
     fs.writeFileSync(
-      './temp/google-services.json',
+      tmpPath,
       Buffer.from(process.env.GOOGLE_SERVICES_JSON_BASE64, 'base64').toString('utf8')
     )
-    return './temp/google-services.json'
+    return tmpPath
   }
   // for EAS build from environment variable
   if (process.env.GOOGLE_SERVICES_JSON) {
@@ -39,14 +39,12 @@ const getGoogleServicesJson = () => {
 const getGoogleServiceInfoPlist = () => {
   // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
   if (process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64) {
-    if (!fs.existsSync('./temp')) {
-      fs.mkdirSync('./temp', { recursive: true })
-    }
+    const tmpPath = path.join(os.tmpdir(), 'clanker-GoogleService-Info.plist')
     fs.writeFileSync(
-      './temp/GoogleService-Info.plist',
+      tmpPath,
       Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64, 'base64').toString('utf8')
     )
-    return './temp/GoogleService-Info.plist'
+    return tmpPath
   }
   // for EAS build from environment variable
   if (process.env.GOOGLE_SERVICE_INFO_PLIST) {
