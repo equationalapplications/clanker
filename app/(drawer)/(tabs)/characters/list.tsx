@@ -44,8 +44,8 @@ export default function CharactersListScreen() {
           mode="contained"
           icon="plus"
           onPress={handleCreateCharacter}
-          loading={isPending}
-          disabled={isPending}
+          loading={isPending || isCreatingDefault}
+          disabled={isPending || isCreatingDefault}
         >
           New
         </Button>

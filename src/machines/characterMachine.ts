@@ -148,6 +148,7 @@ export const characterMachine = createMachine(
       },
       creating: {
         entry: assign({
+          error: null,
           optimisticSnapshot: ({ context }) => context.characters,
           characters: ({ context, event }) => {
             if (event.type !== 'CREATE') return context.characters
@@ -197,6 +198,7 @@ export const characterMachine = createMachine(
       },
       updating: {
         entry: assign({
+          error: null,
           optimisticSnapshot: ({ context }) => context.characters,
           characters: ({ context, event }) => {
             if (event.type !== 'UPDATE') return context.characters
@@ -233,6 +235,7 @@ export const characterMachine = createMachine(
       },
       deleting: {
         entry: assign({
+          error: null,
           optimisticSnapshot: ({ context }) => context.characters,
           characters: ({ context, event }) => {
             if (event.type !== 'DELETE') return context.characters
