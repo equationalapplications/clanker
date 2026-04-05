@@ -17,7 +17,7 @@ export default function EditCharacterScreen() {
     user: state.context.user,
   }))
   const { character, isLoading } = useCharacter(id)
-  const { update } = useUpdateCharacter()
+  const { update, isPending: isUpdating } = useUpdateCharacter()
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -25,6 +25,7 @@ export default function EditCharacterScreen() {
   const [emotions, setEmotions] = useState('')
   const [context, setContext] = useState('')
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -52,6 +53,20 @@ export default function EditCharacterScreen() {
     }
   }, [character])
 
+  // Effect to handle navigation after saving
+  useEffect(() => {
+    if (isSaving && !isUpdating) {
+      setIsSaving(false) // Reset saving trigger
+      // Assuming success if no error is flagged in the machine.
+      // A more robust solution might check for a specific success event or error context.
+      if (router.canGoBack()) {
+        router.back()
+      } else {
+        router.replace('/characters/list')
+      }
+    }
+  }, [isUpdating, isSaving])
+
   const {
     generateImage,
     isGenerating,
@@ -64,23 +79,14 @@ export default function EditCharacterScreen() {
 
   const handleSave = () => {
     if (!id || !user?.uid) return
-
-    try {
-      update(id, {
-        name,
-        appearance,
-        traits,
-        emotions,
-        context,
-      })
-      if (router.canGoBack()) {
-        router.back()
-      } else {
-        router.replace('/characters/list')
-      }
-    } catch (error) {
-      console.error('Failed to save character:', error)
-    }
+    setIsSaving(true)
+    update(id, {
+      name,
+      appearance,
+      traits,
+      emotions,
+      context,
+    })
   }
 
   if (isLoading) {

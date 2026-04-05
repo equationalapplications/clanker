@@ -144,9 +144,10 @@ export const characterMachine = createMachine(
           optimisticSnapshot: ({ context }) => context.characters,
           characters: ({ context, event }) => {
             if (event.type !== 'CREATE') return context.characters
+            if (!context.userId) return context.characters // Should be guarded by UI, but as a safeguard.
             const optimisticCharacter: Character = {
               id: `temp-${Date.now()}`,
-              user_id: context.userId!,
+              user_id: context.userId,
               name: event.data.name,
               is_public: event.data.is_public ?? false,
               created_at: new Date().toISOString(),
