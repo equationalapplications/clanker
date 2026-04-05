@@ -28,6 +28,12 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
  */
 async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
     try {
+        // On web (wa-sqlite + AccessHandlePoolVFS), the VFS cannot create the
+        // SQLite rollback journal file alongside the database, causing all writes
+        // to fail with SQLITE_CANTOPEN. Setting journal_mode=MEMORY stores the
+        // rollback journal in RAM instead of a file, which works in all environments.
+        await database.execAsync('PRAGMA journal_mode=MEMORY;')
+
         // Create tables (uses IF NOT EXISTS — safe on both fresh and existing DBs)
         await database.execAsync(CREATE_TABLES)
 
