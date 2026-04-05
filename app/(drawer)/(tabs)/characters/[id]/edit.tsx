@@ -1,7 +1,7 @@
 import { useLocalSearchParams, router } from 'expo-router'
 import { View, StyleSheet, ScrollView } from 'react-native'
 import { Text, TextInput, Button, Divider, HelperText } from 'react-native-paper'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
@@ -17,7 +17,11 @@ export default function EditCharacterScreen() {
     user: state.context.user,
   }))
   const { character, isLoading } = useCharacter(id)
-  const { update, isPending: isUpdating } = useUpdateCharacter()
+  const {
+    update,
+    isPending: isUpdating,
+    error: updateError,
+  } = useUpdateCharacter()
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -26,6 +30,7 @@ export default function EditCharacterScreen() {
   const [context, setContext] = useState('')
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const prevIsUpdatingRef = useRef(false)
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -55,17 +60,21 @@ export default function EditCharacterScreen() {
 
   // Effect to handle navigation after saving
   useEffect(() => {
-    if (isSaving && !isUpdating) {
+    if (isSaving && !isUpdating && prevIsUpdatingRef.current) {
+      // Update just completed
       setIsSaving(false) // Reset saving trigger
-      // Assuming success if no error is flagged in the machine.
-      // A more robust solution might check for a specific success event or error context.
-      if (router.canGoBack()) {
-        router.back()
-      } else {
-        router.replace('/characters/list')
+      if (!updateError) {
+        // Success: navigate away only if there's no error
+        if (router.canGoBack()) {
+          router.back()
+        } else {
+          router.replace('/characters/list')
+        }
       }
+      // If there's an error, we stay on the page, and an error message can be displayed.
     }
-  }, [isUpdating, isSaving])
+    prevIsUpdatingRef.current = isUpdating
+  }, [isUpdating, isSaving, updateError])
 
   const {
     generateImage,

@@ -35,13 +35,16 @@ export function useCreateCharacter() {
 
 export function useUpdateCharacter() {
   const characterService = useCharacterMachine()
-  const isPending = useSelector(characterService, (s) => s.matches('updating'))
+  const { isPending, error } = useSelector(characterService, (s) => ({
+    isPending: s.matches('updating'),
+    error: s.context.error,
+  }))
 
   const update = (id: string, updates: CharacterUpdate) => {
     characterService.send({ type: 'UPDATE', id, updates })
   }
 
-  return { update, isPending }
+  return { update, isPending, error }
 }
 
 export function useDeleteCharacter() {

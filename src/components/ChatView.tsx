@@ -112,7 +112,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
                 accessibilityLabel={`Edit ${characterName}`}
                 accessibilityHint="Opens the character editor"
               >
-                <CharacterAvatar size={120} imageUrl={character.avatar} characterName={characterName} />
+                <CharacterAvatar size={40} imageUrl={character.avatar} characterName={characterName} />
               </TouchableOpacity>
               <Text variant="titleMedium" numberOfLines={1}>
                 {characterName}

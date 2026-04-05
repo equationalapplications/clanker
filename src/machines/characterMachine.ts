@@ -73,7 +73,16 @@ export const characterMachine = createMachine(
           optimisticSnapshot: null,
         }),
       },
-      LOAD: '.loading',
+      LOAD: [
+        {
+          guard: ({ context }) =>
+            context.optimisticSnapshot !== null ||
+            context.pendingCharacterId !== null,
+        },
+        {
+          target: '.loading',
+        },
+      ],
       CHARACTERS_SYNCED: {
         actions: assign({
           characters: ({ event }) => event.characters,
