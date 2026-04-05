@@ -73,12 +73,20 @@ export const syncFirebasePhotoToProfile = async (
       return
     }
 
-    // Update the profile with the Firebase photo URL
+    // Only sync when the profile has no existing avatar to avoid overwriting user customizations
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('avatar_url')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (profile?.avatar_url) {
+      return
+    }
+
     await upsertUserProfile({
       avatar_url: firebasePhotoURL,
     })
-
-    console.log('✅ Synced Firebase photo to profile')
   } catch (error) {
     console.error('Error syncing Firebase photo to profile:', error)
   }

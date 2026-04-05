@@ -215,6 +215,12 @@ export default function EditCharacterScreen() {
             Save Changes
           </Button>
         </View>
+
+        {updateError ? (
+          <HelperText type="error" visible>
+            {updateError instanceof Error ? updateError.message : 'Failed to save character. Please try again.'}
+          </HelperText>
+        ) : null}
       </View>
     </ScrollView>
   )

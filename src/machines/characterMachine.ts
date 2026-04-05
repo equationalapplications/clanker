@@ -75,9 +75,7 @@ export const characterMachine = createMachine(
       },
       LOAD: [
         {
-          guard: ({ context }) =>
-            context.optimisticSnapshot !== null ||
-            context.pendingCharacterId !== null,
+          guard: ({ context }) => context.optimisticSnapshot !== null,
         },
         {
           target: '.loading',
@@ -138,6 +136,7 @@ export const characterMachine = createMachine(
             target: 'idle',
             actions: assign({
               characters: ({ context, event }) => [event.output, ...context.characters],
+              error: null,
             }),
           },
           onError: {
@@ -184,6 +183,7 @@ export const characterMachine = createMachine(
                 context.characters.map((c) => (c.id.startsWith('temp-') ? event.output : c)),
               pendingCharacterId: ({ event }) => event.output.id,
               optimisticSnapshot: null,
+              error: null,
             }),
           },
           onError: {
@@ -219,6 +219,7 @@ export const characterMachine = createMachine(
               characters: ({ context, event }) =>
                 context.characters.map((c) => (c.id === event.output.id ? event.output : c)),
               optimisticSnapshot: null,
+              error: null,
             }),
           },
           onError: {
@@ -250,6 +251,7 @@ export const characterMachine = createMachine(
             target: 'idle',
             actions: assign({
               optimisticSnapshot: null,
+              error: null,
             }),
           },
           onError: {
