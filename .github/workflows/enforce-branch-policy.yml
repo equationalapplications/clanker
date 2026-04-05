@@ -8,7 +8,7 @@ on:
 
 jobs:
     check-merge-source:
-        permissions: none
+        permissions: {}
         runs-on: ubuntu-latest
         steps:
             - name: Enforce staging → main only

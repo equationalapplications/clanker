@@ -27,7 +27,9 @@
     "test:watch": "jest --watch",
     "adb": "adb reverse tcp:8081 tcp:8081",
     "predeploy": "npx expo export --platform web --clear",
-    "deploy-hosting": "npm run predeploy && firebase deploy --only hosting"
+    "deploy-hosting": "npm run predeploy && firebase deploy --only hosting",
+    "ota": "node -e \"const { execSync, spawnSync } = require('child_process'); const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(); const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx'; const result = spawnSync(cmd, ['eas-cli', 'update', '--branch', branch, '--message', 'OTA update', '--environment', 'production'], { stdio: 'inherit' }); process.exit(result.status ?? 1);\"",
+    "update": "npm run deploy-hosting && npm run ota"
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.7",

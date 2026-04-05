@@ -58,7 +58,14 @@ export async function purchaseProduct(productIdentifier: string): Promise<Custom
     }
 
     if (!packageToPurchase) {
-      console.error(`Product "${productIdentifier}" not found in RevenueCat offerings.`)
+      const allProductIds = Object.values(offerings.all).flatMap((o) =>
+        o.availablePackages.map((p) => p.product.identifier),
+      )
+      console.error(
+        `Product "${productIdentifier}" not found in RevenueCat offerings.`,
+        `Available offerings: ${JSON.stringify(Object.keys(offerings.all))}`,
+        `Available products: ${JSON.stringify(allProductIds)}`,
+      )
       return null
     }
 

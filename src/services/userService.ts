@@ -38,14 +38,73 @@ async function getUserCredits(): Promise<number> {
     .select('current_credits')
     .eq('user_id', user.id)
     .eq('app_name', APP_NAME)
-    .single()
+    .maybeSingle()
 
-  if (error || !data) {
+  if (error) {
     console.error('Error fetching credits:', error)
     return 0
   }
 
+  if (!data) {
+    return 0
+  }
+
   return data.current_credits
+}
+
+/**
+ * Sync Firebase Auth user's photoURL to Supabase profile avatar_url
+ * This is useful when user signs in with Google or Apple providers
+ */
+export const syncFirebasePhotoToProfile = async (
+  firebasePhotoURL: string | null | undefined,
+): Promise<void> => {
+  if (!firebasePhotoURL) {
+    return
+  }
+
+  try {
+    const {
+      data: { session },
+    } = await supabaseClient.auth.getSession()
+
+    const user = session?.user
+    if (!user) {
+      return
+    }
+
+    // Only sync when the profile has no existing avatar to avoid overwriting user customizations
+    const { data: profile, error } = await supabaseClient
+      .from('profiles')
+      .select('avatar_url')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    // If the query fails, log the error and abort to avoid accidental overwrites
+    if (error) {
+      console.error('Error checking for existing avatar:', error)
+      return
+    }
+
+    // If no profile exists, create one with the avatar and email
+    if (!profile) {
+      await upsertUserProfile({
+        user_id: user.id,
+        email: user.email ?? null,
+        avatar_url: firebasePhotoURL,
+      })
+      return
+    }
+
+    // If profile exists but has no avatar, update it
+    if (!profile.avatar_url) {
+      await upsertUserProfile({
+        avatar_url: firebasePhotoURL,
+      })
+    }
+  } catch (error) {
+    console.error('Error syncing Firebase photo to profile:', error)
+  }
 }
 
 /**
@@ -65,11 +124,24 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
     .from('profiles')
     .select('*')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error fetching user profile:', error)
     return null
+  }
+
+  // Lazy-create profile if trigger didn't fire (safety net)
+  if (!data) {
+    try {
+      return await upsertUserProfile({
+        user_id: user.id,
+        email: user.email ?? null,
+      })
+    } catch (upsertError) {
+      console.error('Error creating missing profile:', upsertError)
+      return null
+    }
   }
 
   return data
