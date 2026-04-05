@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-staging-ios-dev-client:
     runs-on: ubuntu-latest
 
     # Security: Restrict permissions to minimum required

@@ -11,12 +11,14 @@ concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 jobs:
-    release:
+    publish-ota-update:
         runs-on: ubuntu-latest
 
         steps:
             - name: 🏗 Setup repo
               uses: actions/checkout@v4
+              with:
+                  ref: main
 
             - name: 🏗 Setup Node
               uses: actions/setup-node@v4
@@ -34,4 +36,4 @@ jobs:
               run: npm ci
 
             - name: 🚀 Update Production with EAS
-              run: eas update --auto --branch production --non-interactive
+              run: npm run ota
