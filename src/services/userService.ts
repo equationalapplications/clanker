@@ -74,11 +74,17 @@ export const syncFirebasePhotoToProfile = async (
     }
 
     // Only sync when the profile has no existing avatar to avoid overwriting user customizations
-    const { data: profile } = await supabaseClient
+    const { data: profile, error } = await supabaseClient
       .from('profiles')
       .select('avatar_url')
       .eq('user_id', user.id)
       .maybeSingle()
+
+    // If the query fails, log the error and abort to avoid accidental overwrites
+    if (error) {
+      console.error('Error checking for existing avatar:', error)
+      return
+    }
 
     if (profile?.avatar_url) {
       return
