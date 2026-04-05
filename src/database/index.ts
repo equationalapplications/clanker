@@ -2,6 +2,7 @@
  * SQLite database connection and initialization
  */
 
+import { Platform } from 'react-native'
 import * as SQLite from 'expo-sqlite'
 import { CREATE_TABLES, SCHEMA_VERSION, MIGRATIONS } from './schema'
 
@@ -31,8 +32,13 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
         // On web (wa-sqlite + AccessHandlePoolVFS), the VFS cannot create the
         // SQLite rollback journal file alongside the database, causing all writes
         // to fail with SQLITE_CANTOPEN. Setting journal_mode=MEMORY stores the
-        // rollback journal in RAM instead of a file, which works in all environments.
-        await database.execAsync('PRAGMA journal_mode=MEMORY;')
+        // rollback journal in RAM instead of a file. On native we keep WAL mode
+        // for better durability (crash-safe rollback journal on disk).
+        if (Platform.OS === 'web') {
+            await database.execAsync('PRAGMA journal_mode=MEMORY;')
+        } else {
+            await database.execAsync('PRAGMA journal_mode=WAL;')
+        }
 
         // Create tables (uses IF NOT EXISTS — safe on both fresh and existing DBs)
         await database.execAsync(CREATE_TABLES)

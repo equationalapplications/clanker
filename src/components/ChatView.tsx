@@ -106,7 +106,12 @@ export default function ChatView({ characterId }: ChatViewProps) {
           headerShown: true,
           headerTitle: () => (
             <View style={styles.headerTitle}>
-              <TouchableOpacity onPress={handleEdit}>
+              <TouchableOpacity
+                onPress={handleEdit}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${characterName}`}
+                accessibilityHint="Opens the character editor"
+              >
                 <CharacterAvatar size={120} imageUrl={character.avatar} characterName={characterName} />
               </TouchableOpacity>
               <Text variant="titleMedium" numberOfLines={1}>

@@ -30,7 +30,8 @@ interface CharacterContext {
   optimisticSnapshot: Character[] | null // for rollback
 }
 
-const createDefaultCharacterActor = fromPromise(async ({ input }: { input: { userId: string } }) => {
+const createDefaultCharacterActor = fromPromise(
+  async ({ input }: { input: { userId: string | null } }) => {
   console.log('--- machine --- create default character actor', input.userId)
   if (!input.userId) {
     throw new Error('Cannot create default character: no userId')
@@ -43,7 +44,8 @@ const createDefaultCharacterActor = fromPromise(async ({ input }: { input: { use
     throw new Error('Failed to create default character')
   }
   return newCharacter
-})
+  },
+)
 
 export const characterMachine = createMachine(
   {
@@ -68,8 +70,10 @@ export const characterMachine = createMachine(
           characters: [],
           error: null,
           pendingCharacterId: null,
+          optimisticSnapshot: null,
         }),
       },
+      LOAD: '.loading',
       CHARACTERS_SYNCED: {
         actions: assign({
           characters: ({ event }) => event.characters,
@@ -84,7 +88,6 @@ export const characterMachine = createMachine(
     states: {
       idle: {
         on: {
-          LOAD: 'loading',
           CREATE: 'creating',
           UPDATE: 'updating',
           DELETE: 'deleting',
@@ -148,11 +151,11 @@ export const characterMachine = createMachine(
               is_public: event.data.is_public ?? false,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
-              avatar: null,
-              appearance: null,
-              traits: null,
-              emotions: null,
-              context: null,
+              avatar: event.data.avatar ?? null,
+              appearance: event.data.appearance ?? null,
+              traits: event.data.traits ?? null,
+              emotions: event.data.emotions ?? null,
+              context: event.data.context ?? null,
             }
             return [optimisticCharacter, ...context.characters]
           },
