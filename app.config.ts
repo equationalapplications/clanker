@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { ExpoConfig, ConfigContext } from 'expo/config'
 import fs from 'fs'
+import path from 'path'
 
 import * as pkg from './package.json'
 
@@ -9,6 +10,23 @@ const breakingChangeVersion = pkg.version.split('.')[0]
 const runtimeVer = breakingChangeVersion + '.0.0'
 
 const getGoogleServicesJson = () => {
+  // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
+  if (process.env.GOOGLE_SERVICES_JSON_BASE64) {
+    try {
+      fs.mkdirSync('./temp', { recursive: true })
+      const tmpPath = path.join('./temp', 'google-services.json')
+      fs.writeFileSync(
+        tmpPath,
+        Buffer.from(process.env.GOOGLE_SERVICES_JSON_BASE64, 'base64'),
+        { mode: 0o600 }
+      )
+      return tmpPath
+    } catch (err) {
+      throw new Error(
+        `Failed to write GOOGLE_SERVICES_JSON_BASE64 to ./temp/google-services.json: ${err}`
+      )
+    }
+  }
   // for EAS build from environment variable
   if (process.env.GOOGLE_SERVICES_JSON) {
     return process.env.GOOGLE_SERVICES_JSON
@@ -26,6 +44,23 @@ const getGoogleServicesJson = () => {
 }
 
 const getGoogleServiceInfoPlist = () => {
+  // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
+  if (process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64) {
+    try {
+      fs.mkdirSync('./temp', { recursive: true })
+      const tmpPath = path.join('./temp', 'GoogleService-Info.plist')
+      fs.writeFileSync(
+        tmpPath,
+        Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64, 'base64'),
+        { mode: 0o600 }
+      )
+      return tmpPath
+    } catch (err) {
+      throw new Error(
+        `Failed to write GOOGLE_SERVICE_INFO_PLIST_BASE64 to ./temp/GoogleService-Info.plist: ${err}`
+      )
+    }
+  }
   // for EAS build from environment variable
   if (process.env.GOOGLE_SERVICE_INFO_PLIST) {
     return process.env.GOOGLE_SERVICE_INFO_PLIST
