@@ -211,28 +211,29 @@ export default function EditCharacterScreen() {
 
         <View style={styles.buttonContainer}>
           <Button
+            mode="text"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/characters/list'))}
+            style={styles.button}
+          >
+            Cancel
+          </Button>
+          <Button
             mode="contained"
             onPress={handleSave}
             disabled={isSaving || isUpdating}
             loading={isSaving || isUpdating}
+            style={styles.button}
           >
             Save Changes
           </Button>
-          {didAttemptSave && updateError ? (
-            <HelperText type="error" visible>
-              {updateError instanceof Error
-                ? updateError.message
-                : 'Failed to save character. Please try again.'}
-            </HelperText>
-          ) : null}
-          <Button
-            mode="text"
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/characters/list'))}
-            style={styles.cancelButton}
-          >
-            Cancel
-          </Button>
         </View>
+        {didAttemptSave && updateError ? (
+          <HelperText type="error" visible style={styles.errorText}>
+            {updateError instanceof Error
+              ? updateError.message
+              : 'Failed to save character. Please try again.'}
+          </HelperText>
+        ) : null}
       </View>
     </ScrollView>
   )
@@ -275,5 +276,9 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
+  },
+  errorText: {
+    marginTop: 8,
+    textAlign: 'center',
   },
 })

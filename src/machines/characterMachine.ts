@@ -28,6 +28,7 @@ interface CharacterContext {
   error: Error | null
   pendingCharacterId: string | null
   optimisticSnapshot: Character[] | null // for rollback
+  pendingTempId: string | null
 }
 
 const DEFAULT_CHARACTER_INSERT: CharacterInsert = {
@@ -66,6 +67,7 @@ export const characterMachine = createMachine(
       error: null,
       pendingCharacterId: null,
       optimisticSnapshot: null,
+      pendingTempId: null,
     } as CharacterContext,
     on: {
       USER_CHANGED: {
@@ -156,11 +158,17 @@ export const characterMachine = createMachine(
         entry: assign({
           error: null,
           optimisticSnapshot: ({ context }) => context.characters,
-          characters: ({ context, event }) => {
+          pendingTempId: () => `temp-${Date.now()}`,
+          characters: ({ context, event, self }) => {
             if (event.type !== 'CREATE') return context.characters
             if (!context.userId) return context.characters // Should be guarded by UI, but as a safeguard.
+
+            // Get the pendingTempId that was just set in this same assignment
+            const tempId = self.getSnapshot().context.pendingTempId
+            if (!tempId) return context.characters // Should not happen
+
             const optimisticCharacter: Character = {
-              id: `temp-${Date.now()}`,
+              id: tempId,
               user_id: context.userId,
               name: event.data.name,
               is_public: event.data.is_public ?? false,
@@ -186,10 +194,13 @@ export const characterMachine = createMachine(
             target: 'idle',
             actions: assign({
               characters: ({ context, event }) =>
-                context.characters.map((c) => (c.id.startsWith('temp-') ? event.output : c)),
+                context.characters.map((c) =>
+                  c.id === context.pendingTempId ? event.output : c,
+                ),
               pendingCharacterId: ({ event }) => event.output.id,
               optimisticSnapshot: null,
               error: null,
+              pendingTempId: null,
             }),
           },
           onError: {
