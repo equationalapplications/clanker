@@ -60,44 +60,6 @@ Fixes stale UI across tabs and permanent failure locks.
 * chore: isolate functions from expo build and type checking
 
 * chore: add firebase functions documentation and update configuration
-* native module change (@react-native-firebase/ai replaces
-@react-native-firebase/vertexai), requires new native build
-
-* chore: stop tracking plan.md, add to gitignore
-
-* fix: address Copilot review comments on avatar generation and character management
-
-- Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
-- Remove unused userId parameter from useLocalImageGeneration hook
-- Add React Query cache invalidation after local image generation to keep lists/details in sync
-- Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
-- Update stale schema migration comment to reference avatar_data instead of deleted_at
-- Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
-
-* fix(deps): update expo to 55.0.10
-
-* fix(hooks): use useIsMutating for reactive default character creation
-
-- Replace module-level creationInFlight with useIsMutating for reactive UI
-- Clear creationFailedForUser on success and user change
-- Extract createCharacterMutationKey as shared constant
-- Keep module-level flags as mutex, not UI state
-
-Fixes stale UI across tabs and permanent failure locks.
-
-* fix(drawer): add custom hamburger menu button with proper navigation context
-
-- Replace default DrawerToggleButton with custom Pressable using menu icon
-- Use screenOptions function form to get Drawer navigator context
-- Add proper drawer toggle dispatch and accessibility labels
-
-* fix: resolve character creation and drawer navigation issues
-
-- Make createCharacterMutationKey user-scoped to prevent mutation state from
-  leaking across account switches
-- Use useIsMutating for creation guard to prevent duplicate auto-creation
-  when manual create is in progress
-- Reset creationInFlight flag on user change alongside creationFailedForUser
 - Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
   label for drawer toggle
 
