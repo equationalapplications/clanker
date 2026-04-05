@@ -4,13 +4,15 @@ We use a two-branch model with a one-way flow of changes. All new work is done o
 
 ```
 feature-branch
-  ↓ PR (Squash and Merge)
+  ↓ PR (Merge Commit)
 staging          ← integration & pre-release testing
-  ↓ PR (Squash and Merge)
+  ↓ PR (Merge Commit)
 main             ← production
 ```
 
-## The "Feature Branch → Squash Merge" Workflow
+> **Why merge commits only?** Squash merging concatenates all commit messages from the source branch into the merge commit body. When staging is synced from main, the semantic-release `chore(release): ... [skip ci]` commit gets included in that body, causing GitHub Actions to skip the `production-release` workflow entirely.
+
+## The "Feature Branch → Merge" Workflow
 
 ### Starting New Work
 
@@ -24,7 +26,7 @@ git checkout -b feat/add-user-profile  # Or fix/login-bug, etc.
 
 ### Doing the Work
 
-On your feature branch, work as you normally do. Create as many commits as you want — they will be squashed later.
+On your feature branch, work as you normally do. Since commits are not squashed, each commit that reaches staging (and eventually main) will be analyzed by `semantic-release`. Use [Conventional Commits](https://www.conventionalcommits.org/) from the start.
 
 ```bash
 git commit -m "feat(profile): create basic profile page"
@@ -48,10 +50,12 @@ Push your branch and create a PR on GitHub from your feature branch into `stagin
 When staging is ready for release:
 
 1. Create a PR from `staging` → `main`.
-2. Use **"Squash and Merge"**.
+2. Use **"Create a merge commit"**.
 3. CI on `main` runs `semantic-release`, which bumps `package.json`, generates `CHANGELOG.md`, and creates a GitHub release.
 
 > **Note:** `semantic-release` on staging only creates a GitHub pre-release tag — it does **not** commit files back to the branch. This prevents merge conflicts when promoting to main.
+
+> **⚠️ Never use Squash and Merge** for staging → main (or any PR). Squashing concatenates all commit messages into the merge commit body. If a `chore(release): ... [skip ci]` commit from a previous semantic-release run was synced back into staging, it will appear in the squashed body and cause GitHub Actions to skip the `production-release` workflow.
 
 ## Commit Guidelines
 
