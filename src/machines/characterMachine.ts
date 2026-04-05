@@ -78,6 +78,7 @@ export const characterMachine = createMachine(
           error: null,
           pendingCharacterId: null,
           optimisticSnapshot: null,
+          pendingTempId: null,
         }),
       },
       LOAD: [
@@ -155,33 +156,43 @@ export const characterMachine = createMachine(
         },
       },
       creating: {
-        entry: assign({
-          error: null,
-          optimisticSnapshot: ({ context }) => context.characters,
-          pendingTempId: () => `temp-${Date.now()}`,
-          characters: ({ context, event, self }) => {
-            if (event.type !== 'CREATE') return context.characters
-            if (!context.userId) return context.characters // Should be guarded by UI, but as a safeguard.
-
-            // Get the pendingTempId that was just set in this same assignment
-            const tempId = self.getSnapshot().context.pendingTempId
-            if (!tempId) return context.characters // Should not happen
-
-            const optimisticCharacter: Character = {
-              id: tempId,
-              user_id: context.userId,
-              name: event.data.name,
-              is_public: event.data.is_public ?? false,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              avatar: event.data.avatar ?? null,
-              appearance: event.data.appearance ?? null,
-              traits: event.data.traits ?? null,
-              emotions: event.data.emotions ?? null,
-              context: event.data.context ?? null,
+        entry: assign(({ context, event }) => {
+          if (event.type !== 'CREATE') {
+            return {
+              error: null,
+              optimisticSnapshot: context.characters,
             }
-            return [optimisticCharacter, ...context.characters]
-          },
+          }
+
+          if (!context.userId) {
+            return {
+              error: null,
+              optimisticSnapshot: context.characters,
+            }
+          }
+
+          const tempId = `temp-${Date.now()}`
+          const now = new Date().toISOString()
+          const optimisticCharacter: Character = {
+            id: tempId,
+            user_id: context.userId,
+            name: event.data.name,
+            is_public: event.data.is_public ?? false,
+            created_at: now,
+            updated_at: now,
+            avatar: event.data.avatar ?? null,
+            appearance: event.data.appearance ?? null,
+            traits: event.data.traits ?? null,
+            emotions: event.data.emotions ?? null,
+            context: event.data.context ?? null,
+          }
+
+          return {
+            error: null,
+            optimisticSnapshot: context.characters,
+            pendingTempId: tempId,
+            characters: [optimisticCharacter, ...context.characters],
+          }
         }),
         invoke: {
           id: 'createCharacter',
