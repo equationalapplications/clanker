@@ -136,6 +136,7 @@ export const characterMachine = createMachine(
         ],
       },
       creatingDefault: {
+        on: { LOAD: {} },
         invoke: {
           id: 'createDefaultCharacter',
           src: createDefaultCharacterActor,
