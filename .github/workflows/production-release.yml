@@ -27,6 +27,7 @@ jobs:
       - name: 🏗 Setup repo
         uses: actions/checkout@v6
         with:
+          ref: main
           fetch-depth: 0
           token: ${{ secrets.GH_PAT || github.token }}
           persist-credentials: true
