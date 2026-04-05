@@ -1,13 +1,15 @@
 import { createMachine, assign, fromPromise } from 'xstate'
 import {
-  getUserCharacters,
-  createCharacter as createCharacterInDb,
-  updateCharacter as updateCharacterInDb,
-  deleteCharacter as deleteCharacterInDb,
   Character,
   CharacterInsert,
   CharacterUpdate,
 } from '~/services/characterService'
+import {
+  getUserCharacters,
+  createCharacter as createCharacterDb,
+  updateCharacter as updateCharacterDb,
+  deleteCharacter as deleteCharacterDb,
+} from '~/database/characterDatabase'
 
 // Events
 type CharacterEvent =
@@ -29,8 +31,11 @@ interface CharacterContext {
 }
 
 const createDefaultCharacterActor = fromPromise(async ({ input }: { input: { userId: string } }) => {
-  console.log('--- machine --- create default character actor')
-  const newCharacter = await createCharacterInDb({
+  console.log('--- machine --- create default character actor', input.userId)
+  if (!input.userId) {
+    throw new Error('Cannot create default character: no userId')
+  }
+  const newCharacter = await createCharacterDb(input.userId, {
     name: 'Default Character',
     is_public: false,
   })
@@ -251,12 +256,12 @@ export const characterMachine = createMachine(
     actors: {
       loadCharactersActor: fromPromise(async ({ input }: { input: { userId: string | null } }) => {
         if (!input.userId) return []
-        return getUserCharacters()
+        return getUserCharacters(input.userId)
       }),
       createCharacterActor: fromPromise(
         async ({ input }: { input: { userId: string | null; data: CharacterInsert } }) => {
           if (!input.userId) throw new Error('User not logged in')
-          const newCharacter = await createCharacterInDb(input.data)
+          const newCharacter = await createCharacterDb(input.userId, input.data)
           if (!newCharacter) throw new Error('Failed to create character')
           return newCharacter
         },
@@ -268,7 +273,7 @@ export const characterMachine = createMachine(
           input: { userId: string | null; id: string; updates: CharacterUpdate }
         }) => {
           if (!input.userId) throw new Error('User not logged in')
-          const updatedCharacter = await updateCharacterInDb(input.id, input.userId, input.updates)
+          const updatedCharacter = await updateCharacterDb(input.id, input.userId, input.updates)
           if (!updatedCharacter) throw new Error('Failed to update character')
           return updatedCharacter
         },
@@ -276,7 +281,7 @@ export const characterMachine = createMachine(
       deleteCharacterActor: fromPromise(
         async ({ input }: { input: { userId: string | null; id: string } }) => {
           if (!input.userId) throw new Error('User not logged in')
-          await deleteCharacterInDb(input.id, input.userId)
+          await deleteCharacterDb(input.id, input.userId)
         },
       ),
     },
