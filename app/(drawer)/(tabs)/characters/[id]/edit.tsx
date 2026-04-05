@@ -274,9 +274,6 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
   },
-  cancelButton: {
-    flex: 1,
-  },
   errorText: {
     marginTop: 8,
     textAlign: 'center',

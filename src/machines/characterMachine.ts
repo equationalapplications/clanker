@@ -89,11 +89,6 @@ export const characterMachine = createMachine(
           target: '.loading',
         },
       ],
-      CHARACTERS_SYNCED: {
-        actions: assign({
-          characters: ({ event }) => event.characters,
-        }),
-      },
       CLEAR_PENDING_NAV: {
         actions: assign({
           pendingCharacterId: null,
@@ -106,6 +101,11 @@ export const characterMachine = createMachine(
           CREATE: 'creating',
           UPDATE: 'updating',
           DELETE: 'deleting',
+          CHARACTERS_SYNCED: {
+            actions: assign({
+              characters: ({ event }) => event.characters,
+            }),
+          },
         },
       },
       loading: {
