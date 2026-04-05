@@ -1,3 +1,19 @@
+# [25.2.0](https://github.com/equationalapplications/clanker/compare/v25.1.0...v25.2.0) (2026-04-05)
+
+
+### Bug Fixes
+
+* **ci:** improve OTA update delivery and workflow clarity ([#200](https://github.com/equationalapplications/clanker/issues/200)) ([59720d4](https://github.com/equationalapplications/clanker/commit/59720d43b4bdb57398bd16b9863435ad72268283)), closes [#199](https://github.com/equationalapplications/clanker/issues/199)
+* **ci:** rename job to check-merge-source for branch protection ([bd3ffaa](https://github.com/equationalapplications/clanker/commit/bd3ffaa89a1dad60a9cd489982b12672b402117a))
+* **credits:** address Copilot PR review on credits sync and docs ([e481ae9](https://github.com/equationalapplications/clanker/commit/e481ae9f00446c443fe20ef4c223f45dcd991018))
+* **ota:** read branch arg from argv[2] and unblock web sync button ([935b90a](https://github.com/equationalapplications/clanker/commit/935b90adef2e3e5708cb4073dada3d756c059f9d))
+
+
+### Features
+
+* character state machine, database improvements, and UI enhancements ([dcda057](https://github.com/equationalapplications/clanker/commit/dcda057ceb74c469cfa32796dfcb3aafc0f8b99d))
+* character state machine, database improvements, and UI enhancements ([#201](https://github.com/equationalapplications/clanker/issues/201)) ([b72e186](https://github.com/equationalapplications/clanker/commit/b72e186804f3f9227f60b3e9d16534f1f115ea45)), closes [#200](https://github.com/equationalapplications/clanker/issues/200) [#199](https://github.com/equationalapplications/clanker/issues/199)
+
 # [25.1.0](https://github.com/equationalapplications/clanker/compare/v25.0.0...v25.1.0) (2026-04-05)
 
 
