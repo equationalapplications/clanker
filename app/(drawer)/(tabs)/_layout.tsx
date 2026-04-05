@@ -33,6 +33,9 @@ export default function TabLayout() {
                   },
                 },
               ])
+            } else {
+              e.preventDefault()
+              router.navigate('/characters/list')
             }
           },
         }}

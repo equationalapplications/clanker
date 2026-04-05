@@ -42,6 +42,9 @@ export default function CreditsDisplay() {
     } catch (e) {
       console.error(e)
       setErrorMessage('Purchase failed. Please try again.')
+      if (Platform.OS === 'web') {
+        setIsPurchasing(null)
+      }
     } finally {
       if (Platform.OS !== 'web') {
         setIsPurchasing(null)
@@ -60,6 +63,9 @@ export default function CreditsDisplay() {
     } catch (e) {
       console.error(e)
       setErrorMessage('Purchase failed. Please try again.')
+      if (Platform.OS === 'web') {
+        setIsPurchasing(null)
+      }
     } finally {
       if (Platform.OS !== 'web') {
         setIsPurchasing(null)
