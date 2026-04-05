@@ -141,7 +141,7 @@ export const createNewCharacter = async (): Promise<{ id: string }> => {
   try {
     console.log('📝 Creating character with default values...')
     const character = await createCharacter({
-      name: 'New Character',
+      name: 'Clanker',
       appearance: 'A mysterious figure with an intriguing presence.',
       traits: 'Curious, intelligent, and thoughtful.',
       emotions: 'Calm and collected, with hints of excitement.',

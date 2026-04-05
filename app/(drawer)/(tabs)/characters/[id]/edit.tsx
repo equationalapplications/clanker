@@ -1,7 +1,7 @@
 import { useLocalSearchParams, router } from 'expo-router'
 import { View, StyleSheet, ScrollView } from 'react-native'
 import { Text, TextInput, Button, Divider, HelperText } from 'react-native-paper'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
@@ -16,8 +16,12 @@ export default function EditCharacterScreen() {
   const { user } = useSelector(authService, (state) => ({
     user: state.context.user,
   }))
-  const { data: character, isLoading } = useCharacter(id || '')
-  const updateCharacterMutation = useUpdateCharacter()
+  const { character, isLoading } = useCharacter(id)
+  const {
+    update,
+    isPending: isUpdating,
+    error: updateError,
+  } = useUpdateCharacter()
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -25,6 +29,9 @@ export default function EditCharacterScreen() {
   const [emotions, setEmotions] = useState('')
   const [context, setContext] = useState('')
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [didAttemptSave, setDidAttemptSave] = useState(false)
+  const prevIsUpdatingRef = useRef(false)
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -52,6 +59,24 @@ export default function EditCharacterScreen() {
     }
   }, [character])
 
+  // Effect to handle navigation after saving
+  useEffect(() => {
+    if (isSaving && !isUpdating && prevIsUpdatingRef.current) {
+      // Update just completed
+      setIsSaving(false) // Reset saving trigger
+      if (!updateError) {
+        // Success: navigate away only if there's no error
+        if (router.canGoBack()) {
+          router.back()
+        } else {
+          router.replace('/characters/list')
+        }
+      }
+      // If there's an error, we stay on the page, and an error message can be displayed.
+    }
+    prevIsUpdatingRef.current = isUpdating
+  }, [isUpdating, isSaving, updateError])
+
   const {
     generateImage,
     isGenerating,
@@ -62,24 +87,17 @@ export default function EditCharacterScreen() {
     onImageGenerated: (fileUri) => setAvatarUri(fileUri),
   })
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!id || !user?.uid) return
-
-    try {
-      await updateCharacterMutation.mutateAsync({
-        id,
-        updates: {
-          name,
-          appearance,
-          traits,
-          emotions,
-          context,
-        },
-      })
-      router.back()
-    } catch (error) {
-      console.error('Failed to save character:', error)
-    }
+    setDidAttemptSave(true)
+    setIsSaving(true)
+    update(id, {
+      name,
+      appearance,
+      traits,
+      emotions,
+      context,
+    })
   }
 
   if (isLoading) {
@@ -94,7 +112,12 @@ export default function EditCharacterScreen() {
     return (
       <View style={styles.container}>
         <Text>Character not found</Text>
-        <Button mode="contained" onPress={() => router.back()}>
+        <Button
+          mode="contained"
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace('/characters/list')
+          }
+        >
           Go Back
         </Button>
       </View>
@@ -187,13 +210,30 @@ export default function EditCharacterScreen() {
         <Divider style={styles.divider} />
 
         <View style={styles.buttonContainer}>
-          <Button mode="outlined" onPress={() => router.back()} style={styles.button}>
+          <Button
+            mode="text"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/characters/list'))}
+            style={styles.button}
+          >
             Cancel
           </Button>
-          <Button mode="contained" onPress={handleSave} style={styles.button}>
+          <Button
+            mode="contained"
+            onPress={handleSave}
+            disabled={isSaving || isUpdating}
+            loading={isSaving || isUpdating}
+            style={styles.button}
+          >
             Save Changes
           </Button>
         </View>
+        {didAttemptSave && updateError ? (
+          <HelperText type="error" visible style={styles.errorText}>
+            {updateError instanceof Error
+              ? updateError.message
+              : 'Failed to save character. Please try again.'}
+          </HelperText>
+        ) : null}
       </View>
     </ScrollView>
   )
@@ -233,5 +273,9 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
+  },
+  errorText: {
+    marginTop: 8,
+    textAlign: 'center',
   },
 })

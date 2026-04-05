@@ -21,15 +21,34 @@ import useCachedResources from '~/hooks/useCachedResources'
 import { useInitializeApp } from '~/hooks/useInitializeApp'
 import { authMachine } from '~/machines/authMachine'
 import { termsMachine } from '~/machines/termsMachine'
-import { GlobalStateContext, useAuthMachine } from '~/hooks/useMachines'
+import { characterMachine } from '~/machines/characterMachine'
+import {
+  GlobalStateContext,
+  useAuthMachine,
+  useCharacterMachine,
+} from '~/hooks/useMachines'
 
 function GlobalStateProvider({ children }: { children: React.ReactNode }) {
   const authService = useActorRef(authMachine)
   const termsService = useActorRef(termsMachine)
+  const characterService = useActorRef(characterMachine)
 
   const previousAuthSnapshotRef = useRef<{ isSignedIn: boolean; userId: string | null } | null>(
     null
   )
+
+  // authMachine → characterMachine: forward user changes (deduplicated)
+  const previousCharacterUserIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const subscription = authService.subscribe((state) => {
+      const userId = state.context.user?.uid ?? null
+      if (userId !== previousCharacterUserIdRef.current) {
+        previousCharacterUserIdRef.current = userId
+        characterService.send({ type: 'USER_CHANGED', userId })
+      }
+    })
+    return subscription.unsubscribe
+  }, [authService, characterService])
 
   useEffect(() => {
     const subscription = authService.subscribe((state: any) => {
@@ -54,7 +73,7 @@ function GlobalStateProvider({ children }: { children: React.ReactNode }) {
   }, [authService, termsService])
 
   return (
-    <GlobalStateContext.Provider value={{ authService, termsService }}>
+    <GlobalStateContext.Provider value={{ authService, termsService, characterService }}>
       {children}
     </GlobalStateContext.Provider>
   )
@@ -64,6 +83,7 @@ function GlobalStateProvider({ children }: { children: React.ReactNode }) {
 function RootLayoutNav() {
   useInitializeApp()
   const authService = useAuthMachine()
+  const characterService = useCharacterMachine()
   const { user, isLoading } = useSelector(authService, (state) => ({
     user: state.context.user,
     isLoading:
@@ -74,8 +94,20 @@ function RootLayoutNav() {
   }))
   const prevUserRef = useRef<typeof user>(null)
 
+  // Set up network detection and bridge to React Query's onlineManager.
+  // Also trigger a background character sync whenever the device comes back online.
+  useEffect(() => {
+    const unsubscribe = setupNetworkManager(() => {
+      import('~/services/characterSyncService')
+        .then(({ syncAllToCloud }) => syncAllToCloud())
+        .then(() => characterService.send({ type: 'LOAD' }))
+        .catch((err) => console.warn('Background sync failed:', err))
+    })
+    return unsubscribe
+  }, [characterService])
+
   // Sync pending local changes to cloud on app startup after auth resolves.
-  // The reconnect callback in RootLayout only fires on offline→online transitions,
+  // The reconnect callback fires on offline→online transitions,
   // so this covers the case where the user made offline edits, closed the app,
   // and reopened while already online.
   // Gate on !isLoading so that Supabase session (setSession) is ready before sync.
@@ -90,6 +122,7 @@ function RootLayoutNav() {
           if (isOnline) {
             import('~/services/characterSyncService')
               .then(({ syncAllToCloud }) => syncAllToCloud())
+              .then(() => characterService.send({ type: 'LOAD' }))
               .catch((err) => console.warn('Startup sync failed:', err))
           }
         })
@@ -98,7 +131,7 @@ function RootLayoutNav() {
         })
     }
     prevUserRef.current = user
-  }, [user, isLoading])
+  }, [user, isLoading, characterService])
 
   if (isLoading) {
     return (
@@ -134,18 +167,6 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const isLoadingComplete = useCachedResources()
-
-  // Set up network detection and bridge to React Query's onlineManager.
-  // Also trigger a background character sync whenever the device comes back online.
-  useEffect(() => {
-    const unsubscribe = setupNetworkManager(() => {
-      // Lazy-import to avoid circular deps at module load time
-      import('~/services/characterSyncService')
-        .then(({ syncAllToCloud }) => syncAllToCloud())
-        .catch((err) => console.warn('Background sync failed:', err))
-    })
-    return unsubscribe
-  }, [])
 
   if (!isLoadingComplete) {
     return (

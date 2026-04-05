@@ -1,5 +1,5 @@
 import { router, Stack } from 'expo-router'
-import { View, StyleSheet, Platform } from 'react-native'
+import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
 import { GiftedChat, IMessage, User, Bubble } from 'react-native-gifted-chat'
 import { useCallback } from 'react'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
@@ -7,9 +7,10 @@ import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useChatMessages } from '~/hooks/useMessages'
 import { useAIChat } from '~/hooks/useAIChat'
-import { Text, useTheme, Avatar, Button } from 'react-native-paper'
+import { Text, useTheme, Avatar } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserCredits } from '~/hooks/useUserCredits'
+import CharacterAvatar from '~/components/CharacterAvatar'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
@@ -103,8 +104,21 @@ export default function ChatView({ characterId }: ChatViewProps) {
       <Stack.Screen
         options={{
           headerShown: true,
-          headerTitle: characterName,
-          headerRight: () => <Button onPress={handleEdit}>Edit</Button>,
+          headerTitle: () => (
+            <View style={styles.headerTitle}>
+              <TouchableOpacity
+                onPress={handleEdit}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${characterName}`}
+                accessibilityHint="Opens the character editor"
+              >
+                <CharacterAvatar size={40} imageUrl={character.avatar} characterName={characterName} />
+              </TouchableOpacity>
+              <Text variant="titleMedium" numberOfLines={1}>
+                {characterName}
+              </Text>
+            </View>
+          ),
         }}
       />
       <View style={styles.container}>
@@ -140,5 +154,10 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
+  },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 })

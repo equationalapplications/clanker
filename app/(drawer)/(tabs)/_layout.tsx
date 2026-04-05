@@ -11,7 +11,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="characters/list"
+        name="characters"
         options={{
           title: 'Characters',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
@@ -29,7 +29,7 @@ export default function TabLayout() {
                   style: 'destructive',
                   onPress: () => {
                     setEditDirty(false)
-                    router.navigate('/characters')
+                    router.navigate('/characters/list')
                   },
                 },
               ])

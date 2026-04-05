@@ -2,11 +2,13 @@ import { createContext, useContext } from 'react'
 import { ActorRefFrom } from 'xstate'
 import { authMachine } from '~/machines/authMachine'
 import { termsMachine } from '~/machines/termsMachine'
+import { characterMachine } from '~/machines/characterMachine'
 
 export const GlobalStateContext = createContext<
   | {
       authService: ActorRefFrom<typeof authMachine>
       termsService: ActorRefFrom<typeof termsMachine>
+      characterService: ActorRefFrom<typeof characterMachine>
     }
   | undefined
 >(undefined)
@@ -25,4 +27,12 @@ export const useTermsMachine = () => {
     throw new Error('useTermsMachine must be used within a GlobalStateProvider')
   }
   return context.termsService
+}
+
+export const useCharacterMachine = () => {
+  const context = useContext(GlobalStateContext)
+  if (context === undefined) {
+    throw new Error('useCharacterMachine must be used within a GlobalStateProvider')
+  }
+  return context.characterService
 }

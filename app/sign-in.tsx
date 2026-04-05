@@ -30,7 +30,7 @@ export default function SignIn() {
 
   useEffect(() => {
     if (isSignedIn) {
-      router.replace('/(drawer)/(tabs)/characters')
+      router.replace('/characters/list')
     }
   }, [isSignedIn, router])
 
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 110,
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',

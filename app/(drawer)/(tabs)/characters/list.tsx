@@ -1,29 +1,28 @@
 import { View, StyleSheet, FlatList } from 'react-native'
 import { Text, Button, ActivityIndicator } from 'react-native-paper'
 import { router } from 'expo-router'
+import { useEffect } from 'react'
+import { useSelector } from '@xstate/react'
 import { useCharacters, useCreateCharacter } from '~/hooks/useCharacters'
 import { CharacterCard } from '~/components/CharacterCard'
-import { useEnsureDefaultCharacter } from '~/hooks/useEnsureDefaultCharacter'
+import { useCharacterMachine } from '~/hooks/useMachines'
 
 export default function CharactersListScreen() {
   const { characters, isLoading } = useCharacters()
-  const createCharacterMutation = useCreateCharacter()
-  const { isCreatingDefault } = useEnsureDefaultCharacter()
+  const { create, isPending, pendingCharacterId } = useCreateCharacter()
+  const characterService = useCharacterMachine()
+  const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
+
+  // Navigate to edit page when creation completes
+  useEffect(() => {
+    if (pendingCharacterId) {
+      router.push(`/characters/${pendingCharacterId}/edit`)
+      characterService.send({ type: 'CLEAR_PENDING_NAV' })
+    }
+  }, [pendingCharacterId, characterService])
 
   const handleCreateCharacter = () => {
-    createCharacterMutation.mutate(
-      {
-        name: 'New Character',
-        is_public: false,
-      },
-      {
-        onSuccess: (data) => {
-          if (data) {
-            router.push(`/characters/${data.id}/edit`)
-          }
-        },
-      },
-    )
+    create({ name: 'New Character', is_public: false })
   }
 
   if (isLoading) {
@@ -45,8 +44,8 @@ export default function CharactersListScreen() {
           mode="contained"
           icon="plus"
           onPress={handleCreateCharacter}
-          loading={createCharacterMutation.isPending}
-          disabled={createCharacterMutation.isPending}
+          loading={isPending || isCreatingDefault}
+          disabled={isPending || isCreatingDefault}
         >
           New
         </Button>

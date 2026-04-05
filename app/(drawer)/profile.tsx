@@ -20,9 +20,10 @@ export default function Profile() {
   const { userPrivate } = useUserPrivateData()
   const isPremium = useIsPremium()
 
-  const displayName = userPublic?.name || user?.email || 'User'
-  const email = userPublic?.email || user?.email || ''
-  const photoURL = userPublic?.avatar || defaultAvatarUrl
+  const displayName = userPublic?.name || user?.displayName || user?.email || 'User'
+  const email = user?.email || userPublic?.email || ''
+  // Try Supabase profile first, fall back to Firebase photoURL, then to default
+  const photoURL = userPublic?.avatar || user?.photoURL || defaultAvatarUrl
   const credits = userPrivate?.credits ?? 0
 
   const [isModalVisible, setIsModalVisible] = useState(false)
@@ -57,7 +58,7 @@ export default function Profile() {
     <ScrollView contentContainerStyle={styles.container}>
       {!isModalVisible && (
         <>
-          <Avatar.Image size={150} source={{ uri: photoURL }} style={styles.avatar} />
+          <Avatar.Image size={120} source={{ uri: photoURL }} style={styles.avatar} />
           <Text variant="headlineSmall" style={styles.name}>
             {displayName}
           </Text>
