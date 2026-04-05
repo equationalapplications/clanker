@@ -86,13 +86,22 @@ export const syncFirebasePhotoToProfile = async (
       return
     }
 
-    if (profile?.avatar_url) {
+    // If no profile exists, create one with the avatar and email
+    if (!profile) {
+      await upsertUserProfile({
+        user_id: user.id,
+        email: user.email ?? null,
+        avatar_url: firebasePhotoURL,
+      })
       return
     }
 
-    await upsertUserProfile({
-      avatar_url: firebasePhotoURL,
-    })
+    // If profile exists but has no avatar, update it
+    if (!profile.avatar_url) {
+      await upsertUserProfile({
+        avatar_url: firebasePhotoURL,
+      })
+    }
   } catch (error) {
     console.error('Error syncing Firebase photo to profile:', error)
   }

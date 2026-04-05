@@ -30,6 +30,7 @@ export default function EditCharacterScreen() {
   const [context, setContext] = useState('')
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [didAttemptSave, setDidAttemptSave] = useState(false)
   const prevIsUpdatingRef = useRef(false)
 
   // Track loaded values for dirty-state comparison
@@ -88,6 +89,7 @@ export default function EditCharacterScreen() {
 
   const handleSave = () => {
     if (!id || !user?.uid) return
+    setDidAttemptSave(true)
     setIsSaving(true)
     update(id, {
       name,
@@ -209,30 +211,28 @@ export default function EditCharacterScreen() {
 
         <View style={styles.buttonContainer}>
           <Button
-            mode="outlined"
-            onPress={() =>
-              router.canGoBack() ? router.back() : router.replace('/characters/list')
-            }
-            style={styles.button}
-          >
-            Cancel
-          </Button>
-          <Button
             mode="contained"
             onPress={handleSave}
             disabled={isSaving || isUpdating}
             loading={isSaving || isUpdating}
-            style={styles.button}
           >
             Save Changes
           </Button>
+          {didAttemptSave && updateError ? (
+            <HelperText type="error" visible>
+              {updateError instanceof Error
+                ? updateError.message
+                : 'Failed to save character. Please try again.'}
+            </HelperText>
+          ) : null}
+          <Button
+            mode="text"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/characters/list'))}
+            style={styles.cancelButton}
+          >
+            Cancel
+          </Button>
         </View>
-
-        {updateError ? (
-          <HelperText type="error" visible>
-            {updateError instanceof Error ? updateError.message : 'Failed to save character. Please try again.'}
-          </HelperText>
-        ) : null}
       </View>
     </ScrollView>
   )
@@ -271,6 +271,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   button: {
+    flex: 1,
+  },
+  cancelButton: {
     flex: 1,
   },
 })

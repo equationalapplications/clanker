@@ -30,19 +30,25 @@ interface CharacterContext {
   optimisticSnapshot: Character[] | null // for rollback
 }
 
+const DEFAULT_CHARACTER_INSERT: CharacterInsert = {
+  name: 'Clanker',
+  is_public: false,
+  appearance: 'A sturdy mechanical companion with a practical, well-worn chassis.',
+  traits: 'Loyal, curious, resourceful, and a little sarcastic.',
+  emotions: 'Calm, attentive, and eager to help.',
+  context: 'A newly created companion character ready to chat and develop its personality.',
+}
+
 const createDefaultCharacterActor = fromPromise(
   async ({ input }: { input: { userId: string | null } }) => {
-  if (!input.userId) {
-    throw new Error('Cannot create default character: no userId')
-  }
-  const newCharacter = await createCharacterDb(input.userId, {
-    name: 'Clanker',
-    is_public: false,
-  })
-  if (!newCharacter) {
-    throw new Error('Failed to create default character')
-  }
-  return newCharacter
+    if (!input.userId) {
+      throw new Error('Cannot create default character: no userId')
+    }
+    const newCharacter = await createCharacterDb(input.userId, DEFAULT_CHARACTER_INSERT)
+    if (!newCharacter) {
+      throw new Error('Failed to create default character')
+    }
+    return newCharacter
   },
 )
 

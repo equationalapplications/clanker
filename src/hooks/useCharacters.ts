@@ -37,7 +37,7 @@ export function useUpdateCharacter() {
   const characterService = useCharacterMachine()
   const { isPending, error } = useSelector(characterService, (s) => ({
     isPending: s.matches('updating'),
-    error: s.context.error,
+    error: s.context.error && s.matches('updating') ? s.context.error : null,
   }))
 
   const update = (id: string, updates: CharacterUpdate) => {
