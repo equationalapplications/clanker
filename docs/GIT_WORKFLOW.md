@@ -1,6 +1,6 @@
 # Git Workflow
 
-We use a two-branch model with a one-way flow of changes. All new work is done on temporary **feature branches** and merged into `staging`.
+We use a two-branch model. All new work is done on temporary **feature branches** and merged into `staging`.
 
 ```
 feature-branch

@@ -144,7 +144,7 @@ export default function CreditsDisplay() {
         <Button
           mode="text"
           onPress={handleRestore}
-          disabled={isPurchasing === 'restore'}
+          disabled={Platform.OS === 'web' ? isPurchasing === 'restore' : isPurchasing !== null}
           loading={isPurchasing === 'restore'}
           style={styles.restoreButton}
         >
