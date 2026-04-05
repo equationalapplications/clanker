@@ -9,6 +9,17 @@ const breakingChangeVersion = pkg.version.split('.')[0]
 const runtimeVer = breakingChangeVersion + '.0.0'
 
 const getGoogleServicesJson = () => {
+  // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
+  if (process.env.GOOGLE_SERVICES_JSON_BASE64) {
+    if (!fs.existsSync('./temp')) {
+      fs.mkdirSync('./temp', { recursive: true })
+    }
+    fs.writeFileSync(
+      './temp/google-services.json',
+      Buffer.from(process.env.GOOGLE_SERVICES_JSON_BASE64, 'base64').toString('utf8')
+    )
+    return './temp/google-services.json'
+  }
   // for EAS build from environment variable
   if (process.env.GOOGLE_SERVICES_JSON) {
     return process.env.GOOGLE_SERVICES_JSON
@@ -26,6 +37,17 @@ const getGoogleServicesJson = () => {
 }
 
 const getGoogleServiceInfoPlist = () => {
+  // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
+  if (process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64) {
+    if (!fs.existsSync('./temp')) {
+      fs.mkdirSync('./temp', { recursive: true })
+    }
+    fs.writeFileSync(
+      './temp/GoogleService-Info.plist',
+      Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64, 'base64').toString('utf8')
+    )
+    return './temp/GoogleService-Info.plist'
+  }
   // for EAS build from environment variable
   if (process.env.GOOGLE_SERVICE_INFO_PLIST) {
     return process.env.GOOGLE_SERVICE_INFO_PLIST
