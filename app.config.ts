@@ -9,12 +9,15 @@ const breakingChangeVersion = pkg.version.split('.')[0]
 
 const runtimeVer = breakingChangeVersion + '.0.0'
 
+const formatError = (err: unknown): string =>
+  err instanceof Error ? err.message : String(err)
+
 const getGoogleServicesJson = () => {
   // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
   if (process.env.GOOGLE_SERVICES_JSON_BASE64) {
     try {
       fs.mkdirSync('./temp', { recursive: true })
-      const tmpPath = path.join('./temp', 'google-services.json')
+      const tmpPath = path.join('./temp', `google-services.${process.pid}.json`)
       fs.writeFileSync(
         tmpPath,
         Buffer.from(process.env.GOOGLE_SERVICES_JSON_BASE64, 'base64'),
@@ -23,7 +26,7 @@ const getGoogleServicesJson = () => {
       return tmpPath
     } catch (err) {
       throw new Error(
-        `Failed to write GOOGLE_SERVICES_JSON_BASE64 to ./temp/google-services.json: ${err}`
+        `Failed to write GOOGLE_SERVICES_JSON_BASE64 to temp: ${formatError(err)}`
       )
     }
   }
@@ -48,7 +51,7 @@ const getGoogleServiceInfoPlist = () => {
   if (process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64) {
     try {
       fs.mkdirSync('./temp', { recursive: true })
-      const tmpPath = path.join('./temp', 'GoogleService-Info.plist')
+      const tmpPath = path.join('./temp', `GoogleService-Info.${process.pid}.plist`)
       fs.writeFileSync(
         tmpPath,
         Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64, 'base64'),
@@ -57,7 +60,7 @@ const getGoogleServiceInfoPlist = () => {
       return tmpPath
     } catch (err) {
       throw new Error(
-        `Failed to write GOOGLE_SERVICE_INFO_PLIST_BASE64 to ./temp/GoogleService-Info.plist: ${err}`
+        `Failed to write GOOGLE_SERVICE_INFO_PLIST_BASE64 to temp: ${formatError(err)}`
       )
     }
   }

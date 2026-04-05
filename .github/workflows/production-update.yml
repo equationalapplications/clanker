@@ -23,17 +23,16 @@ jobs:
             - name: 🏗 Setup Node
               uses: actions/setup-node@v6
               with:
-                  node-version: 20
+                  node-version: 22
                   cache: "npm"
-
-            - name: 🏗 Setup Expo
-              uses: expo/expo-github-action@v8
-              with:
-                  eas-version: latest
-                  token: ${{ secrets.EXPO_TOKEN }}
 
             - name: 📦 Install dependencies
               run: npm ci
 
+            - name: 🏗 Install EAS CLI
+              run: npm install -g eas-cli
+
             - name: 🚀 Update Production with EAS
               run: npm run ota
+              env:
+                  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

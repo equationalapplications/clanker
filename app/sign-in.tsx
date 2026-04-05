@@ -85,7 +85,7 @@ export default function SignIn() {
             <AppleAuthentication.AppleAuthenticationButton
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={5}
+              cornerRadius={40}
               style={styles.appleButton}
               onPress={AppleLoginOnPress}
             />
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
   },
   appleButton: {
-    width: 192,
+    width: 300,
     height: 44,
     marginTop: 10,
   },
