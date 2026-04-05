@@ -73,7 +73,11 @@ export default function EditCharacterScreen() {
         emotions,
         context,
       })
-      router.back()
+      if (router.canGoBack()) {
+        router.back()
+      } else {
+        router.replace('/characters/list')
+      }
     } catch (error) {
       console.error('Failed to save character:', error)
     }
@@ -91,7 +95,12 @@ export default function EditCharacterScreen() {
     return (
       <View style={styles.container}>
         <Text>Character not found</Text>
-        <Button mode="contained" onPress={() => router.back()}>
+        <Button
+          mode="contained"
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace('/characters/list')
+          }
+        >
           Go Back
         </Button>
       </View>

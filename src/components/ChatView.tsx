@@ -10,6 +10,7 @@ import { useAIChat } from '~/hooks/useAIChat'
 import { Text, useTheme, Avatar, Button } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserCredits } from '~/hooks/useUserCredits'
+import CharacterAvatar from '~/components/CharacterAvatar'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
@@ -103,7 +104,14 @@ export default function ChatView({ characterId }: ChatViewProps) {
       <Stack.Screen
         options={{
           headerShown: true,
-          headerTitle: characterName,
+          headerTitle: () => (
+            <View style={styles.headerTitle}>
+              <CharacterAvatar size={32} imageUrl={character.avatar} characterName={characterName} />
+              <Text variant="titleMedium" numberOfLines={1}>
+                {characterName}
+              </Text>
+            </View>
+          ),
           headerRight: () => <Button onPress={handleEdit}>Edit</Button>,
         }}
       />
@@ -140,5 +148,10 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
+  },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 })
