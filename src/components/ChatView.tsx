@@ -80,10 +80,18 @@ export default function ChatView({ characterId }: ChatViewProps) {
     [colors, roundness],
   )
 
-  if (characterLoading || !character) {
+  if (characterLoading) {
     return (
       <View style={styles.loadingContainer}>
         <Text>Loading character...</Text>
+      </View>
+    )
+  }
+
+  if (!character) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Character not found.</Text>
       </View>
     )
   }
