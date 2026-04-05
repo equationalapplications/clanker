@@ -13,10 +13,11 @@ const runtimeVer = breakingChangeVersion + '.0.0'
 const getGoogleServicesJson = () => {
   // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
   if (process.env.GOOGLE_SERVICES_JSON_BASE64) {
-    const tmpPath = path.join(os.tmpdir(), 'clanker-google-services.json')
+    const tmpPath = path.join(os.tmpdir(), `clanker-google-services-${process.pid}.json`)
     fs.writeFileSync(
       tmpPath,
-      Buffer.from(process.env.GOOGLE_SERVICES_JSON_BASE64, 'base64').toString('utf8')
+      Buffer.from(process.env.GOOGLE_SERVICES_JSON_BASE64, 'base64'),
+      { mode: 0o600 }
     )
     return tmpPath
   }
@@ -39,10 +40,11 @@ const getGoogleServicesJson = () => {
 const getGoogleServiceInfoPlist = () => {
   // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
   if (process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64) {
-    const tmpPath = path.join(os.tmpdir(), 'clanker-GoogleService-Info.plist')
+    const tmpPath = path.join(os.tmpdir(), `clanker-GoogleService-Info-${process.pid}.plist`)
     fs.writeFileSync(
       tmpPath,
-      Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64, 'base64').toString('utf8')
+      Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64, 'base64'),
+      { mode: 0o600 }
     )
     return tmpPath
   }
