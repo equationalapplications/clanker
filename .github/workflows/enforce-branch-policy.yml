@@ -7,7 +7,7 @@ on:
             - staging
 
 jobs:
-    validate-branch-policy:
+    check-merge-source:
         permissions: {}
         runs-on: ubuntu-latest
         steps:
