@@ -208,10 +208,22 @@ export default function EditCharacterScreen() {
         <Divider style={styles.divider} />
 
         <View style={styles.buttonContainer}>
-          <Button mode="outlined" onPress={() => router.back()} style={styles.button}>
+          <Button
+            mode="outlined"
+            onPress={() =>
+              router.canGoBack() ? router.back() : router.replace('/characters/list')
+            }
+            style={styles.button}
+          >
             Cancel
           </Button>
-          <Button mode="contained" onPress={handleSave} style={styles.button}>
+          <Button
+            mode="contained"
+            onPress={handleSave}
+            disabled={isSaving || isUpdating}
+            loading={isSaving || isUpdating}
+            style={styles.button}
+          >
             Save Changes
           </Button>
         </View>

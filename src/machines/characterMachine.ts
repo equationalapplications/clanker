@@ -32,7 +32,6 @@ interface CharacterContext {
 
 const createDefaultCharacterActor = fromPromise(
   async ({ input }: { input: { userId: string | null } }) => {
-  console.log('--- machine --- create default character actor', input.userId)
   if (!input.userId) {
     throw new Error('Cannot create default character: no userId')
   }
