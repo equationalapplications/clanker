@@ -220,6 +220,7 @@ export const characterMachine = createMachine(
               error: ({ event }) => event.error as Error | null,
               characters: ({ context }) => context.optimisticSnapshot ?? [],
               optimisticSnapshot: null,
+              pendingTempId: null,
             }),
           },
         },
