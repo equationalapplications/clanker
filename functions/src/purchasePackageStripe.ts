@@ -1,10 +1,10 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import Stripe from "stripe";
 
 // Initialize the Admin SDK if not already initialized
-if (!admin.apps.length) {
+if (!admin.apps?.length) {
     admin.initializeApp();
 }
 

@@ -1,7 +1,7 @@
 export {
     exchangeToken,
-} from "./exchangeToken";
+} from "./exchangeToken.js";
 
 export {
     purchasePackageStripe,
-} from "./purchasePackageStripe";
+} from "./purchasePackageStripe.js";
