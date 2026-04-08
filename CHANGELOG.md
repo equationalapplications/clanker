@@ -1,3 +1,39 @@
+# [25.3.0](https://github.com/equationalapplications/clanker/compare/v25.2.1...v25.3.0) (2026-04-08)
+
+
+### Bug Fixes
+
+* address PR review feedback on validation and error handling ([fd75e03](https://github.com/equationalapplications/clanker/commit/fd75e030cd8a0e832283966ffd6496a3bf492ef1))
+* apply copilot PR review security and correctness fixes ([7dc2e9b](https://github.com/equationalapplications/clanker/commit/7dc2e9b99058ad350142ae15350eb649d32dba83))
+* **auth:** unify Apple sign-in button styling across iOS and web ([7fa37bc](https://github.com/equationalapplications/clanker/commit/7fa37bca1ff146a04ae91633c26a05b459b876f9))
+* **build:** improve expo temp path errors and trim unused eas installs ([6a6eea3](https://github.com/equationalapplications/clanker/commit/6a6eea3fe0fbba5540f6421c17ab989d122f53f8))
+* **functions:** add explicit invoker: "public" to webhooks and callables ([5349be1](https://github.com/equationalapplications/clanker/commit/5349be17f4d9c558275093e64b9034375731d9cf))
+* **functions:** address PR review feedback ([e0a021e](https://github.com/equationalapplications/clanker/commit/e0a021eb51b98590f39d45d7551d7bd75dd6b8ff))
+* **functions:** avoid double-logging Supabase errors in findSupabaseUserByEmail ([39731b1](https://github.com/equationalapplications/clanker/commit/39731b1ccef2b38ba86586432475db773d87f3a3))
+* **functions:** bind secrets to cloud run functions for secure access ([7ce7d12](https://github.com/equationalapplications/clanker/commit/7ce7d12abced3b6afd19ffed5435e998105efd2c))
+* **functions:** configure typescript for gen 2 cloud run with node 22 esm ([9baa28b](https://github.com/equationalapplications/clanker/commit/9baa28bfd39e1ec90f8e49686c01293f99c3239a))
+* **functions:** declare missing secrets and enable webhook retries ([520bc60](https://github.com/equationalapplications/clanker/commit/520bc60bbb743df64ae1141a97d901f1302a31f3))
+* **functions:** distinguish user-not-found from transient errors in RevenueCat webhook ([0ddc236](https://github.com/equationalapplications/clanker/commit/0ddc236e9a4aaeda7b405e79ef10b27da2773090))
+* **functions:** harden auth checks, Stripe client init, and ESM lint rules ([1a944c9](https://github.com/equationalapplications/clanker/commit/1a944c9edf0aa9236749ad86c1a8d1cd6d36a0ba))
+* **functions:** harden webhook handling and cleanup ([dc48e4c](https://github.com/equationalapplications/clanker/commit/dc48e4c9ae513a8438af1aa2e7a885af26178040))
+* **functions:** implement fail-fast Stripe price ID validation ([0d23efa](https://github.com/equationalapplications/clanker/commit/0d23efa7e253eabfec37304c4a7e944325e8d2dd))
+* **functions:** improve webhook error handling and security ([758481a](https://github.com/equationalapplications/clanker/commit/758481acab7028ee8f6feb65aa87f9c29c0ca03a))
+* **functions:** secure webhook parsing and add focused unit tests ([1da13c0](https://github.com/equationalapplications/clanker/commit/1da13c00656db6182d43199d8f8dc98a22455c59))
+* **functions:** support iOS and Android credit-pack product IDs in RevenueCat webhook ([9894327](https://github.com/equationalapplications/clanker/commit/9894327ab79696e53e64c3841ba537e3b18f1c3f))
+* **functions:** type stripe webhook rawBody request ([c02afe3](https://github.com/equationalapplications/clanker/commit/c02afe3bcef79e3c69062e2bf9ecd1a6d914d462))
+* **functions:** use constant-time comparison for RevenueCat auth header ([6e7f8a9](https://github.com/equationalapplications/clanker/commit/6e7f8a935590fc306f3cfe63f5243f0577e9fef7))
+* **functions:** use unquoted glob in test script for proper discovery ([0a9ed1d](https://github.com/equationalapplications/clanker/commit/0a9ed1d78c78d5d54cd5519ebbb94cfe289aefd5))
+* **functions:** validate post-floor amounts, safely extract Stripe IDs, prevent error leakage ([39f2b19](https://github.com/equationalapplications/clanker/commit/39f2b19c0e8da508729b049529c0f4a9c82a63f6))
+* **functions:** validate spend amount and stripe signature header ([fadad40](https://github.com/equationalapplications/clanker/commit/fadad40e61fff68c92d320b22b6037f69f5303e6))
+* normalize code style and imports in functions ([2e63dee](https://github.com/equationalapplications/clanker/commit/2e63dee5164659c465163717a837eaa559e422d1))
+* **stripe-webhook:** use typed invoice helpers and improve error semantics ([e5d1ee0](https://github.com/equationalapplications/clanker/commit/e5d1ee0c516b4dc7d1e7c01c86c3f3dc042f42eb))
+
+
+### Features
+
+* **firebase-functions:** move non-sensitive config to params/env instead of secrets ([5137007](https://github.com/equationalapplications/clanker/commit/5137007e58eb89fbe0d2c242ce19c7280ace8498))
+* **functions:** add shared supabase admin helpers ([516488a](https://github.com/equationalapplications/clanker/commit/516488a709b70a8a9d49f80c5c0e712a1eb19b35))
+
 ## [25.2.1](https://github.com/equationalapplications/clanker/compare/v25.2.0...v25.2.1) (2026-04-05)
 
 
