@@ -5,9 +5,7 @@ export function canSubmitAdminConfirmation(input: {
   reason: string
   loading: boolean
 }) {
-  const keywordMatched =
-    !input.confirmKeyword ||
-    input.typedKeyword.trim().toUpperCase() === input.confirmKeyword.trim().toUpperCase()
+  const keywordMatched = !input.confirmKeyword || input.typedKeyword === input.confirmKeyword
 
   const reasonValid = !input.requireReason || input.reason.trim().length > 0
 

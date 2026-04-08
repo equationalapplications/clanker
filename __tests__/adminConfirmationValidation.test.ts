@@ -24,6 +24,30 @@ describe('canSubmitAdminConfirmation', () => {
     ).toBe(false)
   })
 
+  it('blocks submit when keyword case differs', () => {
+    expect(
+      canSubmitAdminConfirmation({
+        confirmKeyword: 'DELETE',
+        typedKeyword: 'delete',
+        requireReason: true,
+        reason: 'security incident cleanup',
+        loading: false,
+      }),
+    ).toBe(false)
+  })
+
+  it('blocks submit when keyword has extra whitespace', () => {
+    expect(
+      canSubmitAdminConfirmation({
+        confirmKeyword: 'DELETE',
+        typedKeyword: 'DELETE ',
+        requireReason: true,
+        reason: 'security incident cleanup',
+        loading: false,
+      }),
+    ).toBe(false)
+  })
+
   it('blocks submit while loading', () => {
     expect(
       canSubmitAdminConfirmation({

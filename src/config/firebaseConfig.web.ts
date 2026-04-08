@@ -28,7 +28,7 @@ const appCheckReady: Promise<void> = (() => {
     return Promise.resolve()
   }
 
-  const recaptchaSiteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY
+  const recaptchaSiteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY?.trim()
   if (!recaptchaSiteKey) {
     console.warn('⚠️ EXPO_PUBLIC_RECAPTCHA_SITE_KEY not set — Firebase App Check disabled')
     return Promise.resolve()
