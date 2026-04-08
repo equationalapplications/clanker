@@ -59,6 +59,13 @@ const purchasePackageStripe = httpsCallable(functionsInstance, 'purchasePackageS
 
 const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
 
+const adminListUsersFn = httpsCallable(functionsInstance, 'adminListUsers')
+const adminSetUserCreditsFn = httpsCallable(functionsInstance, 'adminSetUserCredits')
+const adminSetUserSubscriptionFn = httpsCallable(functionsInstance, 'adminSetUserSubscription')
+const adminClearTermsAcceptanceFn = httpsCallable(functionsInstance, 'adminClearTermsAcceptance')
+const adminResetUserStateFn = httpsCallable(functionsInstance, 'adminResetUserState')
+const adminDeleteUserFn = httpsCallable(functionsInstance, 'adminDeleteUser')
+
 export type FirebaseUser = User
 
 // Web App Check is synchronous — export a resolved promise for interface compatibility
@@ -75,4 +82,10 @@ export {
   generateReplyFn,
   purchasePackageStripe,
   spendCreditsFn,
+  adminListUsersFn,
+  adminSetUserCreditsFn,
+  adminSetUserSubscriptionFn,
+  adminClearTermsAcceptanceFn,
+  adminResetUserStateFn,
+  adminDeleteUserFn,
 }

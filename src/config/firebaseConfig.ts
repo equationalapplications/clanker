@@ -57,6 +57,13 @@ const purchasePackageStripe = httpsCallable(functionsInstance, 'purchasePackageS
 
 const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
 
+const adminListUsersFn = httpsCallable(functionsInstance, 'adminListUsers')
+const adminSetUserCreditsFn = httpsCallable(functionsInstance, 'adminSetUserCredits')
+const adminSetUserSubscriptionFn = httpsCallable(functionsInstance, 'adminSetUserSubscription')
+const adminClearTermsAcceptanceFn = httpsCallable(functionsInstance, 'adminClearTermsAcceptance')
+const adminResetUserStateFn = httpsCallable(functionsInstance, 'adminResetUserState')
+const adminDeleteUserFn = httpsCallable(functionsInstance, 'adminDeleteUser')
+
 export type FirebaseUser = FirebaseAuthTypes.User
 
 export {
@@ -69,4 +76,10 @@ export {
   generateReplyFn,
   purchasePackageStripe,
   spendCreditsFn,
+  adminListUsersFn,
+  adminSetUserCreditsFn,
+  adminSetUserSubscriptionFn,
+  adminClearTermsAcceptanceFn,
+  adminResetUserStateFn,
+  adminDeleteUserFn,
 }

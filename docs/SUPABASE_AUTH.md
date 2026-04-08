@@ -260,7 +260,7 @@ All app-specific tables use RLS policies that check the `plans` array in the JWT
 
 - Basic app access
 - Limited features
-- 10 credits included
+- 50 credits included
 
 #### Monthly $20 Tier (`tier: "monthly_20"`)
 

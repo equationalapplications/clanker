@@ -146,6 +146,7 @@ function RootLayoutNav() {
       {/* Protected routes - only available when logged in */}
       <Stack.Protected guard={!!user}>
         <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
       </Stack.Protected>
 
       {/* Public routes - only available when NOT logged in */}
