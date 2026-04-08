@@ -1,3 +1,30 @@
+# [25.4.0](https://github.com/equationalapplications/clanker/compare/v25.3.1...v25.4.0) (2026-04-08)
+
+
+### Bug Fixes
+
+* **admin-dashboard:** clarify invalid filter behavior and validate renewal date format ([1a664cc](https://github.com/equationalapplications/clanker/commit/1a664cc82f80fd1d5e332399d592fc0abdc3b5f5))
+* **admin-dashboard:** correct renewalDate semantics and hook type contract ([6c56f25](https://github.com/equationalapplications/clanker/commit/6c56f257092ce2d0a3f7ee06270cb46920f2980d))
+* **admin:** address Copilot code review issues ([7d28c69](https://github.com/equationalapplications/clanker/commit/7d28c69bc484c0468dcf33afe7547d6465bdaf67))
+* **admin:** address Copilot PR review feedback ([dff3543](https://github.com/equationalapplications/clanker/commit/dff354328e9e1b8b9a21b606deb8a71337986801))
+* **admin:** address data integrity and UX issues in admin dashboard ([79ba1f9](https://github.com/equationalapplications/clanker/commit/79ba1f985eb2734f2f799bbb0bab47b07b251dc9))
+* **admin:** align subscription statuses with canonical backend values ([5f69e68](https://github.com/equationalapplications/clanker/commit/5f69e68b442706feec28b0c636f6a055eebaf6e8))
+* **admin:** distinguish renewal-date omit vs clear, validate clear-terms precondition ([3197731](https://github.com/equationalapplications/clanker/commit/3197731a8d2013dda4b86d183f2cd55e13e85bb8))
+* **admin:** harden input validation, query safety, and type coverage ([3c4105b](https://github.com/equationalapplications/clanker/commit/3c4105b3f8cb3bfc357c7c8bc0752e0744e0a79d))
+* **admin:** only include renewalDate in payload when admin provides input ([f0a1647](https://github.com/equationalapplications/clanker/commit/f0a1647457cbc48ec9ff3daf3bf7947420232e48))
+* **admin:** strict ISO date validation, remove redundant access query, normalize plan tier filter ([5a7ed5b](https://github.com/equationalapplications/clanker/commit/5a7ed5bf4d54e87354b2805ec7925a17589e172f))
+* **admin:** sync confirmation modal, validate credits bounds, resilient deletion, cache allowlists ([b88be82](https://github.com/equationalapplications/clanker/commit/b88be827d931f3367c5b1b64dd893d002437d91b))
+* **admin:** tighten confirmation validation and add admin claim management ([adcef8d](https://github.com/equationalapplications/clanker/commit/adcef8dd7091ee7ef205f4aa2d9512330351558d))
+* **app-check:** resolve promise instead of rejecting when recaptcha site key missing ([ac67b17](https://github.com/equationalapplications/clanker/commit/ac67b176c84c2d60e0e4dcac831c134b3464720b))
+* **functions:** use dynamic import in adminFunctions test to ensure env vars set first ([73c6be3](https://github.com/equationalapplications/clanker/commit/73c6be39154c14509b3bdc9dd9c4a6371a428c37))
+
+
+### Features
+
+* **admin:** add server-side search, debounce, and pagination UX ([13a959e](https://github.com/equationalapplications/clanker/commit/13a959e9a74d4b4a99bb58a86482bac8dfd01798))
+* **admin:** implement admin dashboard with pagination and server-side search ([25806e3](https://github.com/equationalapplications/clanker/commit/25806e3ca03b399c403f1f2dcc7d44ddea797286))
+* **admin:** implement web-only admin dashboard with user management callables ([d1023e8](https://github.com/equationalapplications/clanker/commit/d1023e83cfac29167a778c6b314c13bb2acd09e4))
+
 ## [25.3.1](https://github.com/equationalapplications/clanker/compare/v25.3.0...v25.3.1) (2026-04-08)
 
 
