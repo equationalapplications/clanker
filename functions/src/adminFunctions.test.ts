@@ -419,6 +419,30 @@ test("adminSetUserSubscriptionHandler rejects invalid renewalDate", async () => 
   );
 });
 
+test("adminSetUserSubscriptionHandler rejects non-ISO renewalDate formats", async () => {
+  await assert.rejects(
+    async () =>
+      adminSetUserSubscriptionHandler({
+        auth: {
+          uid: "firebase-admin-1",
+          token: {
+            uid: "firebase-admin-1",
+            email: "admin@example.com",
+          },
+        },
+        data: {
+          userId: "supabase-user-1",
+          planTier: "free",
+          planStatus: "active",
+          renewalDate: "2026-05-01 00:00:00",
+          reason: "cleanup",
+          requestId: "req-subscription-non-iso-1",
+        },
+      } as never),
+    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
+  );
+});
+
 test("adminSetUserSubscriptionHandler stores renewalDate in plan_renewal_at", async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{url: string; method: string; body: string | null}> = [];

@@ -50,12 +50,22 @@ function parseRenewalDate(value: unknown): string | null {
     return null;
   }
 
-  const parsed = Date.parse(trimmed);
-  if (!Number.isFinite(parsed)) {
+  const isoUtcPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+  if (!isoUtcPattern.test(trimmed)) {
     throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
   }
 
-  return new Date(parsed).toISOString();
+  const parsedDate = new Date(trimmed);
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
+  }
+
+  const normalized = parsedDate.toISOString();
+  if (trimmed !== normalized && trimmed !== normalized.replace(".000Z", "Z")) {
+    throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
+  }
+
+  return normalized;
 }
 
 interface AdminListUsersData {

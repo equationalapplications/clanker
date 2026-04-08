@@ -4,7 +4,6 @@ import { useSelector } from '@xstate/react'
 import { Button, Card, Text, TextInput } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import {
-  useAdminAccess,
   useAdminUsers,
   useClearAdminTerms,
   useDeleteAdminUser,
@@ -32,7 +31,13 @@ type PendingAction =
   | { type: 'deleteUser'; userId: string }
 
 const ADMIN_ENABLED = process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED === 'true'
+const PLAN_TIER_FILTER_OPTIONS: AdminPlanTier[] = ['free', 'monthly_20', 'monthly_50', 'payg']
 const PLAN_STATUS_FILTER_OPTIONS: AdminPlanStatus[] = ['active', 'cancelled', 'expired']
+
+const normalizePlanTierFilter = (value: string) => {
+  const trimmed = value.trim().toLowerCase()
+  return PLAN_TIER_FILTER_OPTIONS.includes(trimmed as AdminPlanTier) ? trimmed : ''
+}
 
 const normalizePlanStatusFilter = (value: string) => {
   const trimmed = value.trim().toLowerCase()
@@ -67,18 +72,19 @@ export default function AdminDashboardScreen() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const debouncedSearch = useDebouncedValue(search, 300)
+  const normalizedPlanTierFilter = useMemo(() => normalizePlanTierFilter(planTierFilter), [planTierFilter])
   const planStatusFilter = useMemo(() => normalizePlanStatusFilter(planStatusInput), [planStatusInput])
+  const adminQueryEnabled = Platform.OS === 'web' && !!user && ADMIN_ENABLED
 
-  const accessQuery = useAdminAccess(Platform.OS === 'web' && !!user && ADMIN_ENABLED, user?.uid)
   const usersQuery = useAdminUsers(
     {
       page,
       pageSize,
       search: debouncedSearch,
-      planTier: planTierFilter || undefined,
+      planTier: normalizedPlanTierFilter || undefined,
       planStatus: planStatusFilter || undefined,
     },
-    accessQuery.isSuccess,
+    adminQueryEnabled,
   )
 
   const setCreditsMutation = useSetAdminUserCredits()
@@ -172,7 +178,7 @@ export default function AdminDashboardScreen() {
     )
   }
 
-  if (accessQuery.isPending) {
+  if (adminQueryEnabled && usersQuery.isPending) {
     return (
       <View style={styles.centered}>
         <Text>Checking admin access...</Text>
@@ -180,8 +186,8 @@ export default function AdminDashboardScreen() {
     )
   }
 
-  if (accessQuery.error) {
-    const unauthorized = isUnauthorizedAccessError(accessQuery.error)
+  if (adminQueryEnabled && usersQuery.error) {
+    const unauthorized = isUnauthorizedAccessError(usersQuery.error)
 
     return (
       <View style={styles.centered}>
@@ -189,10 +195,10 @@ export default function AdminDashboardScreen() {
         <Text>
           {unauthorized
             ? 'Admin access is required for this page.'
-            : accessErrorMessage(accessQuery.error)}
+            : accessErrorMessage(usersQuery.error)}
         </Text>
         {!unauthorized ? (
-          <Button mode="outlined" onPress={() => accessQuery.refetch()}>
+          <Button mode="outlined" onPress={() => usersQuery.refetch()}>
             Retry access check
           </Button>
         ) : null}
@@ -231,6 +237,9 @@ export default function AdminDashboardScreen() {
               }}
               placeholder="free, monthly_20, monthly_50, payg"
             />
+            {planTierFilter.trim().length > 0 && !normalizedPlanTierFilter ? (
+              <Text style={styles.filtersHint}>Plan tier must be one of: free, monthly_20, monthly_50, payg.</Text>
+            ) : null}
             <TextInput
               mode="outlined"
               label="Plan status filter"

@@ -4,10 +4,36 @@
 
 Operational procedures for high-impact admin actions, especially reset and delete.
 
+## Granting / Revoking the Admin Custom Claim
+
+Admin dashboard access requires an `admin: true` custom claim on the user's Firebase Auth account.
+Use the `scripts/set-admin-claim.ts` script to manage this from the repo root.
+
+**Prerequisites**
+
+- `GOOGLE_APPLICATION_CREDENTIALS` env var pointing to a service account key with the **Firebase Auth Admin** role, OR
+- Default application credentials (`gcloud auth application-default login`).
+
+**Grant admin access**
+
+```bash
+cd functions && NODE_PATH=./node_modules npx tsx ../scripts/set-admin-claim.ts user@example.com
+```
+
+**Revoke admin access**
+
+```bash
+cd functions && NODE_PATH=./node_modules npx tsx ../scripts/set-admin-claim.ts user@example.com --revoke
+```
+
+After setting the claim, the user must **sign out and sign back in** (or wait up to 1 hour) for the new claim to appear in their ID token.
+
+---
+
 ## Access Preconditions
 
 1. Confirm admin has authenticated with Firebase on web.
-2. Confirm admin user is authorized (custom claim or allowlist).
+2. Confirm admin user is authorized (custom claim — see above).
 3. Confirm `EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED=true` for the web environment.
 
 ## Pre-Action Checklist

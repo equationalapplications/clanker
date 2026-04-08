@@ -1,7 +1,6 @@
 import { act, create } from 'react-test-renderer'
 
 const mockUseAdminUsers = jest.fn()
-const mockUseAdminAccess = jest.fn()
 
 jest.mock('@xstate/react', () => ({
   useSelector: () => ({ uid: 'firebase-user-1' }),
@@ -48,7 +47,6 @@ jest.mock('react-native-paper', () => {
 })
 
 jest.mock('~/hooks/useAdminDashboard', () => ({
-  useAdminAccess: (...args: unknown[]) => mockUseAdminAccess(...args),
   useAdminUsers: (...args: unknown[]) => mockUseAdminUsers(...args),
   useSetAdminUserCredits: () => ({ isPending: false, mutateAsync: jest.fn() }),
   useSetAdminUserSubscription: () => ({ isPending: false, mutateAsync: jest.fn() }),
@@ -61,12 +59,6 @@ describe('AdminDashboardScreen search debounce', () => {
   beforeEach(() => {
     process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED = 'true'
     jest.useFakeTimers()
-
-    mockUseAdminAccess.mockReturnValue({
-      isPending: false,
-      isSuccess: true,
-      error: null,
-    })
 
     mockUseAdminUsers.mockReturnValue({
       data: {

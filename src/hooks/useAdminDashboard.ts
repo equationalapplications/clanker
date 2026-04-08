@@ -29,16 +29,6 @@ export function useAdminUsers(input: AdminUsersQueryInput, enabled: boolean) {
   })
 }
 
-export function useAdminAccess(enabled: boolean, actorKey?: string | null) {
-  return useQuery({
-    queryKey: ['adminAccess', actorKey ?? 'anonymous'],
-    queryFn: () => listAdminUsers({ page: 1, pageSize: 1 }),
-    enabled,
-    retry: false,
-    staleTime: 60_000,
-  })
-}
-
 export function useSetAdminUserCredits() {
   const queryClient = useQueryClient()
 
