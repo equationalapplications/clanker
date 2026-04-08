@@ -26,7 +26,7 @@ interface RevenueCatEvent {
 export const revenueCatWebhook = onRequest(
   {
     region: "us-central1",
-    secrets: ["REVENUECAT_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY"]
+    secrets: ["REVENUECAT_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_URL"]
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -137,8 +137,8 @@ export const revenueCatWebhook = onRequest(
       res.status(200).json({received: true});
     } catch (err) {
       logger.error("Error processing RevenueCat webhook", {err, type, app_user_id});
-      // Return 200 to prevent RevenueCat from retrying non-recoverable errors
-      res.status(200).json({received: true, error: "Processing error logged"});
+      // Return non-2xx for unexpected processing errors so RevenueCat can retry.
+      res.status(500).json({received: false, error: "Internal processing error"});
     }
   }
 );

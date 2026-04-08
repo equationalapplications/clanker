@@ -35,7 +35,15 @@ function getStripeClient(): Stripe {
 export const stripeWebhook = onRequest(
   {
     region: "us-central1",
-    secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY"]
+    secrets: [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "STRIPE_MONTHLY_20_PRICE_ID",
+      "STRIPE_MONTHLY_50_PRICE_ID",
+      "STRIPE_CREDIT_PACK_PRICE_ID",
+      "SUPABASE_URL",
+    ]
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -102,8 +110,8 @@ export const stripeWebhook = onRequest(
       res.status(200).json({received: true});
     } catch (err) {
       logger.error("Error processing Stripe webhook", {err, eventType: event.type});
-      // Return 200 to prevent Stripe from retrying non-recoverable errors
-      res.status(200).json({received: true, error: "Processing error logged"});
+      // Return a non-2xx status for unexpected processing failures so Stripe retries.
+      res.status(500).json({received: false, error: "Processing error logged"});
     }
   }
 );
@@ -296,9 +304,11 @@ async function handleChargeRefunded(
 
   let creditPackQty = 0;
   let isSubscriptionRefund = false;
+  type ChargeWithInvoice = {invoice?: string | {id: string}};
+  const invoiceRef = (charge as unknown as ChargeWithInvoice).invoice;
 
-  if (charge.invoice) {
-    const invoiceId = typeof charge.invoice === "string" ? charge.invoice : charge.invoice.id;
+  if (invoiceRef) {
+    const invoiceId = typeof invoiceRef === "string" ? invoiceRef : invoiceRef.id;
     const invoice = await stripe.invoices.retrieve(invoiceId);
     const subDetails = (invoice as unknown as {subscription_details?: {subscription?: string}});
     isSubscriptionRefund = !!subDetails.subscription_details?.subscription;
@@ -339,7 +349,7 @@ async function handleChargeRefunded(
     logger.warn("charge.refunded: unable to classify refund", {
       email: customerEmail,
       chargeId: charge.id,
-      invoice: typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id,
+      invoice: typeof invoiceRef === "string" ? invoiceRef : invoiceRef?.id,
     });
   }
 }
