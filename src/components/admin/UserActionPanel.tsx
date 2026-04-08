@@ -4,7 +4,7 @@ import { Button, Card, Menu, Text, TextInput } from 'react-native-paper'
 import type { AdminPlanStatus, AdminPlanTier, AdminUserRow } from '~/types/admin'
 
 const PLAN_TIERS: AdminPlanTier[] = ['free', 'monthly_20', 'monthly_50', 'payg']
-const PLAN_STATUSES: AdminPlanStatus[] = ['active', 'canceled', 'past_due', 'paused', 'trialing']
+const PLAN_STATUSES: AdminPlanStatus[] = ['active', 'cancelled', 'expired']
 
 interface UserActionPanelProps {
   user: AdminUserRow | null

@@ -11,7 +11,7 @@ if (!admin.apps.length) {
 const APP_NAME = "clanker";
 const DEFAULT_RESET_CREDITS = 50;
 const ALLOWED_PLAN_TIERS = new Set(["free", "monthly_20", "monthly_50", "payg"]);
-const ALLOWED_PLAN_STATUS = new Set(["active", "canceled", "past_due", "paused", "trialing"]);
+const ALLOWED_PLAN_STATUS = new Set(["active", "cancelled", "expired"]);
 
 function normalizePlanTier(value: unknown): string {
   if (typeof value === "string" && ALLOWED_PLAN_TIERS.has(value)) {
@@ -300,9 +300,14 @@ async function getSupabaseAuthUser(userId: string): Promise<Record<string, unkno
   const response = await supabaseRequest(`/auth/v1/admin/users/${encodeURIComponent(userId)}`);
 
   if (!response.ok) {
+    if (response.status === 404) {
+      logger.info("Supabase auth user not found", {userId});
+      return null;
+    }
+
     const errorText = await response.text();
     logger.error("Failed to fetch Supabase auth user", {userId, errorText});
-    return null;
+    throw new HttpsError("internal", "Failed to fetch Supabase auth user.");
   }
 
   return parseJsonSafe<Record<string, unknown>>(response);
@@ -414,13 +419,17 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     totalCount,
   });
 
+  const hasMore = typeof totalCount === "number" && Number.isFinite(totalCount)
+    ? page * pageSize < totalCount
+    : hydratedUsers.length === pageSize;
+
   return {
     success: true,
     users: filtered,
     page,
     pageSize,
     totalCount,
-    hasMore: hydratedUsers.length === pageSize,
+    hasMore,
   };
 };
 
@@ -484,7 +493,7 @@ const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
   await upsertSubscription(userId, {
     plan_tier: planTier,
     plan_status: planStatus,
-    billing_cycle_end: renewalDate,
+    plan_renewal_at: renewalDate,
   });
 
   auditLog(

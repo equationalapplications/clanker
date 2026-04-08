@@ -32,6 +32,12 @@ type PendingAction =
   | { type: 'deleteUser'; userId: string }
 
 const ADMIN_ENABLED = process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED === 'true'
+const PLAN_STATUS_FILTER_OPTIONS: AdminPlanStatus[] = ['active', 'cancelled', 'expired']
+
+const normalizePlanStatusFilter = (value: string) => {
+  const trimmed = value.trim().toLowerCase()
+  return PLAN_STATUS_FILTER_OPTIONS.includes(trimmed as AdminPlanStatus) ? trimmed : ''
+}
 
 const isUnauthorizedAccessError = (error: unknown) => {
   if (!error || typeof error !== 'object') {
@@ -57,10 +63,11 @@ export default function AdminDashboardScreen() {
   const [pageSize, setPageSize] = useState(25)
   const [search, setSearch] = useState('')
   const [planTierFilter, setPlanTierFilter] = useState('')
-  const [planStatusFilter, setPlanStatusFilter] = useState('')
+  const [planStatusInput, setPlanStatusInput] = useState('')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const debouncedSearch = useDebouncedValue(search, 300)
+  const planStatusFilter = useMemo(() => normalizePlanStatusFilter(planStatusInput), [planStatusInput])
 
   const accessQuery = useAdminAccess(Platform.OS === 'web' && !!user && ADMIN_ENABLED, user?.uid)
   const usersQuery = useAdminUsers(
@@ -227,13 +234,16 @@ export default function AdminDashboardScreen() {
             <TextInput
               mode="outlined"
               label="Plan status filter"
-              value={planStatusFilter}
+              value={planStatusInput}
               onChangeText={(value) => {
-                setPlanStatusFilter(value)
+                setPlanStatusInput(value)
                 setPage(1)
               }}
-              placeholder="active, canceled, past_due, paused, trialing"
+              placeholder="active, cancelled, expired"
             />
+            {planStatusInput.trim().length > 0 && !planStatusFilter ? (
+              <Text style={styles.filtersHint}>Plan status must be one of: active, cancelled, expired.</Text>
+            ) : null}
           </View>
           <View style={styles.toolbar}>
             <Button mode="outlined" onPress={() => usersQuery.refetch()} disabled={usersQuery.isFetching}>

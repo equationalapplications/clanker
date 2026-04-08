@@ -61,7 +61,7 @@ Input:
 
 - `userId` (required)
 - `planTier` (`free`, `monthly_20`, `monthly_50`, `payg`)
-- `planStatus` (`active`, `canceled`, `past_due`, `paused`, `trialing`)
+- `planStatus` (`active`, `cancelled`, `expired`)
 - `renewalDate` (optional ISO string)
 - `reason` (required)
 - `requestId` (required)

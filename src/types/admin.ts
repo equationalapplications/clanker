@@ -1,6 +1,6 @@
 export type AdminPlanTier = 'free' | 'monthly_20' | 'monthly_50' | 'payg'
 
-export type AdminPlanStatus = 'active' | 'canceled' | 'past_due' | 'paused' | 'trialing'
+export type AdminPlanStatus = 'active' | 'cancelled' | 'expired'
 
 export interface AdminUserRow {
   userId: string

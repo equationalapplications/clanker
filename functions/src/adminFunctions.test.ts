@@ -167,8 +167,60 @@ test("adminListUsersHandler forwards trimmed search to Supabase filter and retur
 
     assert.equal(capturedFilter, "search-hit");
     assert.equal(result.totalCount, 77);
+    assert.equal(result.hasMore, true);
     assert.equal(result.users.length, 1);
     assert.equal(result.users[0]?.email, "search-hit@example.com");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("adminListUsersHandler computes hasMore from totalCount when available", async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+
+    if (url.pathname === "/auth/v1/admin/users") {
+      return new Response(
+        JSON.stringify({
+          users: [
+            {
+              id: "supabase-user-4",
+              email: "exact-page@example.com",
+              created_at: "2026-04-04T00:00:00.000Z",
+            },
+          ],
+          totalCount: 25,
+        }),
+        {status: 200}
+      );
+    }
+
+    if (url.pathname === "/rest/v1/user_app_subscriptions") {
+      return new Response(JSON.stringify([]), {status: 200});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url.toString()}`);
+  }) as typeof fetch;
+
+  try {
+    const result = await adminListUsersHandler({
+      auth: {
+        uid: "firebase-admin-1",
+        token: {
+          uid: "firebase-admin-1",
+          email: "admin@example.com",
+        },
+      },
+      data: {
+        page: 1,
+        pageSize: 25,
+      },
+    } as never);
+
+    assert.equal(result.totalCount, 25);
+    assert.equal(result.hasMore, false);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -343,6 +395,53 @@ test("adminSetUserSubscriptionHandler rejects invalid renewalDate", async () => 
       } as never),
     (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
   );
+});
+
+test("adminSetUserSubscriptionHandler stores renewalDate in plan_renewal_at", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{url: string; method: string; body: string | null}> = [];
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const method = String(init?.method ?? "GET");
+    const body = typeof init?.body === "string" ? init.body : null;
+    calls.push({url, method, body});
+
+    if (url.includes("/rest/v1/user_app_subscriptions?on_conflict") && method === "POST") {
+      return new Response(JSON.stringify({ok: true}), {status: 201});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    const result = await adminSetUserSubscriptionHandler({
+      auth: {
+        uid: "firebase-admin-1",
+        token: {
+          uid: "firebase-admin-1",
+          email: "admin@example.com",
+        },
+      },
+      data: {
+        userId: "supabase-user-1",
+        planTier: "monthly_20",
+        planStatus: "cancelled",
+        renewalDate: "2026-05-01T00:00:00.000Z",
+        reason: "manual correction",
+        requestId: "req-subscription-2",
+      },
+    } as never);
+
+    assert.equal(result.success, true);
+    assert.equal(result.applied.planStatus, "cancelled");
+    assert.equal(calls.length, 1);
+    const upsertPayload = JSON.parse(calls[0]?.body ?? "{}");
+    assert.equal(upsertPayload.plan_renewal_at, "2026-05-01T00:00:00.000Z");
+    assert.equal(upsertPayload.billing_cycle_end, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("adminResetUserStateHandler deletes app data then resets subscription", async () => {
@@ -541,22 +640,6 @@ test("adminDeleteUserHandler returns internal when Firebase deletion fails", asy
       );
     }
 
-    if (url.includes("/rest/v1/clanker_messages") && method === "DELETE") {
-      return new Response(null, {status: 204});
-    }
-
-    if (url.includes("/rest/v1/clanker_characters") && method === "DELETE") {
-      return new Response(null, {status: 204});
-    }
-
-    if (url.includes("/rest/v1/user_app_subscriptions") && method === "DELETE") {
-      return new Response(null, {status: 204});
-    }
-
-    if (url.endsWith("/auth/v1/admin/users/supabase-user-1") && method === "DELETE") {
-      return new Response(null, {status: 204});
-    }
-
     throw new Error(`Unexpected fetch call in test: ${url}`);
   }) as typeof fetch;
 
@@ -586,7 +669,59 @@ test("adminDeleteUserHandler returns internal when Firebase deletion fails", asy
       (err: unknown) => err instanceof HttpsError && err.code === "internal"
     );
 
-    assert.equal(calls.length, 5);
+    assert.equal(calls.length, 1);
+  } finally {
+    admin.auth = originalAuth;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("adminDeleteUserHandler fails when Supabase auth fetch is non-404", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalAuth = admin.auth;
+  const calls: Array<{url: string; method: string}> = [];
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const method = String(init?.method ?? "GET");
+    calls.push({url, method});
+
+    if (url.endsWith("/auth/v1/admin/users/supabase-user-5") && method === "GET") {
+      return new Response(JSON.stringify({message: "upstream temporary error"}), {status: 503});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url}`);
+  }) as typeof fetch;
+
+  let attemptedFirebaseDelete = false;
+  (admin as unknown as {auth: typeof admin.auth}).auth = (() => ({
+    deleteUser: async () => {
+      attemptedFirebaseDelete = true;
+    },
+  })) as unknown as typeof admin.auth;
+
+  try {
+    await assert.rejects(
+      async () =>
+        adminDeleteUserHandler({
+          auth: {
+            uid: "firebase-admin-1",
+            token: {
+              uid: "firebase-admin-1",
+              email: "admin@example.com",
+            },
+          },
+          data: {
+            userId: "supabase-user-5",
+            reason: "gdpr",
+            requestId: "req-delete-5",
+          },
+        } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "internal"
+    );
+
+    assert.equal(calls.length, 1);
+    assert.equal(attemptedFirebaseDelete, false);
   } finally {
     admin.auth = originalAuth;
     globalThis.fetch = originalFetch;
