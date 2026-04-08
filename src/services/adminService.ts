@@ -95,8 +95,9 @@ async function callAdmin<Req, Res>(fn: Callable<Req, Res>, payload: Req): Promis
   ensureAppCheckConfigured()
   try {
     await appCheckReady
-  } catch {
-    throw new Error('App Check initialization failed for admin actions.')
+  } catch (error) {
+    const cause = error instanceof Error ? error : new Error(String(error))
+    throw new Error('App Check initialization failed for admin actions.', { cause })
   }
   const response = await fn(payload)
   return response.data

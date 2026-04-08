@@ -196,7 +196,7 @@ export default function AdminDashboardScreen() {
     )
   }
 
-  if (adminQueryEnabled && usersQuery.error) {
+  if (adminQueryEnabled && usersQuery.isError && !usersQuery.data) {
     const unauthorized = isUnauthorizedAccessError(usersQuery.error)
 
     return (

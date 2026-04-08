@@ -23,6 +23,15 @@ const config = {
 
 const firebaseApp: FirebaseApp = getApps().length ? getApp() : initializeApp(config)
 
+const isAppCheckAlreadyInitializedError = (error: unknown) => {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const code = 'code' in error ? String((error as { code?: unknown }).code ?? '') : ''
+  return code.includes('already-initialized')
+}
+
 const appCheckReady: Promise<void> = (() => {
   if (typeof window === 'undefined') {
     return Promise.resolve()
@@ -42,6 +51,10 @@ const appCheckReady: Promise<void> = (() => {
     console.log('✅ Firebase App Check activated successfully with Enterprise provider')
     return Promise.resolve()
   } catch (error) {
+    if (isAppCheckAlreadyInitializedError(error)) {
+      return Promise.resolve()
+    }
+
     reportError(error, 'App Check initialization (web)')
     return Promise.reject(error)
   }
