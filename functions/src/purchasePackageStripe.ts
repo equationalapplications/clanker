@@ -109,19 +109,7 @@ const handler = async (request: CallableRequest) => {
         request.auth.uid
     );
 
-    const stripePrice = await stripe.prices.retrieve(priceId);
-    const expectedSubscriptionMode = SUBSCRIPTION_PRICE_IDS.has(priceId);
-    const actualSubscriptionMode = Boolean(stripePrice.recurring);
-
-    if (expectedSubscriptionMode !== actualSubscriptionMode) {
-        logger.warn("Configured Stripe mode does not match Stripe price type; using Stripe price type", {
-            priceId,
-            expectedMode: expectedSubscriptionMode ? "subscription" : "payment",
-            actualMode: actualSubscriptionMode ? "subscription" : "payment",
-        });
-    }
-
-    const mode: "subscription" | "payment" = actualSubscriptionMode
+    const mode: "subscription" | "payment" = SUBSCRIPTION_PRICE_IDS.has(priceId)
         ? "subscription"
         : "payment";
 
