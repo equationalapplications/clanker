@@ -10,10 +10,21 @@ if (!admin.apps?.length) {
 }
 
 function getStripeClient() {
-    const secretKey = process.env.STRIPE_SECRET_KEY;
+    const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
     if (!secretKey) {
-        throw new Error("STRIPE_SECRET_KEY environment variable is not set");
+        throw new HttpsError(
+            "failed-precondition",
+            "STRIPE_SECRET_KEY configuration value is not set"
+        );
     }
+
+    if (/[^\u0020-\u007E]/.test(secretKey)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "STRIPE_SECRET_KEY contains invalid characters"
+        );
+    }
+
     return new Stripe(secretKey);
 }
 
@@ -56,6 +67,8 @@ const handler = async (request: CallableRequest) => {
     const STRIPE_MONTHLY_20_PRICE_ID = getRequiredValue("STRIPE_MONTHLY_20_PRICE_ID", monthly20);
     const STRIPE_MONTHLY_50_PRICE_ID = getRequiredValue("STRIPE_MONTHLY_50_PRICE_ID", monthly50);
     const STRIPE_CREDIT_PACK_PRICE_ID = getRequiredValue("STRIPE_CREDIT_PACK_PRICE_ID", creditPack);
+    const STRIPE_SUCCESS_URL = getRequiredValue("STRIPE_SUCCESS_URL", successUrl);
+    const STRIPE_CANCEL_URL = getRequiredValue("STRIPE_CANCEL_URL", cancelUrl);
     const ALLOWED_PRICE_IDS = new Set([
         STRIPE_MONTHLY_20_PRICE_ID,
         STRIPE_MONTHLY_50_PRICE_ID,
@@ -79,6 +92,8 @@ const handler = async (request: CallableRequest) => {
         throw new HttpsError("invalid-argument", `Unknown priceId: ${priceId}`);
     }
 
+    const stripe = getStripeClient();
+
     const firebaseUser = await admin.auth().getUser(request.auth.uid);
     const email = firebaseUser.email;
     if (!email) {
@@ -88,7 +103,6 @@ const handler = async (request: CallableRequest) => {
         );
     }
 
-    const stripe = getStripeClient();
     const stripeCustomerId = await getOrCreateStripeCustomer(
         stripe,
         email,
@@ -103,12 +117,8 @@ const handler = async (request: CallableRequest) => {
         customer: stripeCustomerId,
         mode,
         line_items: [{ price: priceId, quantity: 1 }],
-        success_url:
-            successUrl ||
-            "https://clanker-ai.com/checkout/success",
-        cancel_url:
-            cancelUrl ||
-            "https://clanker-ai.com/checkout/cancel",
+        success_url: STRIPE_SUCCESS_URL,
+        cancel_url: STRIPE_CANCEL_URL,
         metadata: {
             firebase_uid: request.auth.uid,
             email,

@@ -88,10 +88,15 @@ export function getCreditPackQuantityFromInvoice(
 }
 
 function getStripeClient(): Stripe {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
   if (!secretKey) {
     throw new Error("STRIPE_SECRET_KEY environment variable is not set");
   }
+
+  if (/[^\u0020-\u007E]/.test(secretKey)) {
+    throw new Error("STRIPE_SECRET_KEY contains invalid characters");
+  }
+
   return new Stripe(secretKey);
 }
 

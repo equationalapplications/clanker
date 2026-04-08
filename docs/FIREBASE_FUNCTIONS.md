@@ -48,6 +48,9 @@ By setting `"codebase": "clanker"`, the Firebase CLI knows to only manage functi
     3. Finds or creates a Stripe Customer record for the user's email.
     4. Creates and returns a Stripe Checkout session URL.
 - **Security**: This function is protected by App Check to ensure requests come from a valid `clanker` client application.
+- **Config Guards**:
+  - Fails fast with `failed-precondition` when any required Stripe config is missing (`STRIPE_MONTHLY_20_PRICE_ID`, `STRIPE_MONTHLY_50_PRICE_ID`, `STRIPE_CREDIT_PACK_PRICE_ID`, `STRIPE_SUCCESS_URL`, `STRIPE_CANCEL_URL`).
+  - Validates `STRIPE_SECRET_KEY` format before calling Stripe and rejects non-printable characters (prevents invalid Authorization header errors caused by malformed secret values).
 
 ## Environment Configuration
 
@@ -86,6 +89,8 @@ Current Clanker production checkout URL params:
 
 - `STRIPE_SUCCESS_URL=https://clanker-ai.com/checkout/success`
 - `STRIPE_CANCEL_URL=https://clanker-ai.com/checkout/cancel`
+
+Note: checkout URL values are required. The function does not fall back to hard-coded production URLs when they are missing.
 
 ## Runbook: New Environment Onboarding
 
@@ -138,6 +143,22 @@ Use this checklist when setting up Firebase Functions for a new environment.
   - Stripe checkout callable returns a valid URL
   - Stripe/RevenueCat webhook deliveries return 2xx
   - `functions:log` shows no startup config errors
+
+## Runbook: Rotate Stripe Secret
+
+Use this when rotating `STRIPE_SECRET_KEY`.
+
+1. Set the new secret version:
+   - `printf '%s' '<new-sk-live-or-sk-test-value>' | firebase functions:secrets:set STRIPE_SECRET_KEY --project equationalapplications-com`
+2. Verify versions:
+   - `firebase functions:secrets:get STRIPE_SECRET_KEY --project equationalapplications-com`
+3. Redeploy Stripe-dependent functions so they pick up the new secret version:
+   - `firebase deploy --only functions:clanker:purchasePackageStripe,functions:clanker:stripeWebhook --project equationalapplications-com`
+4. (Optional) Disable old versions after validation:
+   - `firebase functions:secrets:destroy STRIPE_SECRET_KEY@<old-version> --project equationalapplications-com`
+
+Important:
+- In this repo, targeted deploy filters must include the codebase prefix (`functions:clanker:<name>`), otherwise Firebase can report "No function matches given --only filters".
 
 ## Deployment
 

@@ -63,6 +63,78 @@ test("stripeWebhookHandler validates signature header", async () => {
   assert.equal(res.body, "Missing or invalid Stripe signature header");
 });
 
+test("stripeWebhookHandler returns 500 when STRIPE_WEBHOOK_SECRET is missing", async () => {
+  const originalWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  delete process.env.STRIPE_WEBHOOK_SECRET;
+
+  const res = createResponseRecorder();
+  try {
+    await stripeWebhookHandler(
+      {
+        method: "POST",
+        headers: {
+          "stripe-signature": "t=1,v1=sig",
+        },
+        rawBody: Buffer.from("{}", "utf8"),
+      } as never,
+      res as never
+    );
+
+    assert.equal(res.statusCode, 500);
+    assert.equal(res.body, "Webhook secret not configured");
+  } finally {
+    process.env.STRIPE_WEBHOOK_SECRET = originalWebhookSecret;
+  }
+});
+
+test("stripeWebhookHandler returns 500 when STRIPE_SECRET_KEY is missing", async () => {
+  const originalSecretKey = process.env.STRIPE_SECRET_KEY;
+  delete process.env.STRIPE_SECRET_KEY;
+
+  const res = createResponseRecorder();
+  try {
+    await stripeWebhookHandler(
+      {
+        method: "POST",
+        headers: {
+          "stripe-signature": "t=1,v1=sig",
+        },
+        rawBody: Buffer.from("{}", "utf8"),
+      } as never,
+      res as never
+    );
+
+    assert.equal(res.statusCode, 500);
+    assert.equal(res.body, "Stripe configuration error");
+  } finally {
+    process.env.STRIPE_SECRET_KEY = originalSecretKey;
+  }
+});
+
+test("stripeWebhookHandler returns 500 when STRIPE_SECRET_KEY contains invalid characters", async () => {
+  const originalSecretKey = process.env.STRIPE_SECRET_KEY;
+  process.env.STRIPE_SECRET_KEY = "sk_test_123\ninvalid";
+
+  const res = createResponseRecorder();
+  try {
+    await stripeWebhookHandler(
+      {
+        method: "POST",
+        headers: {
+          "stripe-signature": "t=1,v1=sig",
+        },
+        rawBody: Buffer.from("{}", "utf8"),
+      } as never,
+      res as never
+    );
+
+    assert.equal(res.statusCode, 500);
+    assert.equal(res.body, "Stripe configuration error");
+  } finally {
+    process.env.STRIPE_SECRET_KEY = originalSecretKey;
+  }
+});
+
 test("mapStripeSubscriptionStatus maps active-like statuses to active", () => {
   const statuses: Stripe.Subscription.Status[] = [
     "active",
