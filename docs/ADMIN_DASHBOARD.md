@@ -44,8 +44,18 @@ Submit remains disabled until all validation requirements are satisfied.
 - Firebase callable wrappers are in `src/services/adminService.ts`
 - Shared admin data contracts are in `src/types/admin.ts`
 
+## Search And Filter Semantics
+
+- Email/name search is server-side: the dashboard passes `search` to `adminListUsers`, which forwards it to Supabase Auth Admin users listing.
+- Search input is debounced on the client (`300ms`) to avoid excessive function calls while typing.
+- Plan filters (`planTier`, `planStatus`) remain page-scoped client-side filters because they come from `user_app_subscriptions` hydration, not native Supabase Auth user fields.
+- Query transitions use React Query `keepPreviousData` so page/filter changes do not flash an empty loading state.
+- Pagination supports page size selection (`25`, `50`, `100`) and resets to page 1 when search/filters/page-size change.
+
 ## Operational Notes
 
 - App Check is awaited before admin callable execution.
-- Client sends generated `requestId` for all mutation calls.
+- Client sends generated `requestId` for all mutation calls for audit correlation.
 - UI shows success/failure feedback after each action.
+
+Current user directory search and plan filters are applied to the currently fetched page of users.

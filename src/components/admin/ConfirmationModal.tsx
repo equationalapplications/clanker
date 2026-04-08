@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper'
 import { canSubmitAdminConfirmation } from '~/components/admin/confirmationValidation'
@@ -28,6 +28,11 @@ export function AdminConfirmationModal({
 }: AdminConfirmationModalProps) {
   const [typedKeyword, setTypedKeyword] = useState('')
   const [reason, setReason] = useState('')
+
+  useEffect(() => {
+    setTypedKeyword('')
+    setReason('')
+  }, [visible, confirmKeyword])
 
   const keywordMatched = useMemo(() => {
     if (!confirmKeyword) {

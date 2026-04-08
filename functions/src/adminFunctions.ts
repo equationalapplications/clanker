@@ -13,6 +13,50 @@ const DEFAULT_RESET_CREDITS = 50;
 const ALLOWED_PLAN_TIERS = new Set(["free", "monthly_20", "monthly_50", "payg"]);
 const ALLOWED_PLAN_STATUS = new Set(["active", "canceled", "past_due", "paused", "trialing"]);
 
+function normalizePlanTier(value: unknown): string {
+  if (typeof value === "string" && ALLOWED_PLAN_TIERS.has(value)) {
+    return value;
+  }
+  return "free";
+}
+
+function normalizePlanStatus(value: unknown): string {
+  if (typeof value === "string" && ALLOWED_PLAN_STATUS.has(value)) {
+    return value;
+  }
+  return "active";
+}
+
+function normalizeCurrentCredits(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+  return Math.floor(parsed);
+}
+
+function parseRenewalDate(value: unknown): string | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new HttpsError("invalid-argument", "renewalDate must be a string or null.");
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const parsed = Date.parse(trimmed);
+  if (!Number.isFinite(parsed)) {
+    throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
+  }
+
+  return new Date(parsed).toISOString();
+}
+
 interface AdminListUsersData {
   page?: number;
   pageSize?: number;
@@ -128,11 +172,47 @@ async function getSubscriptionRow(userId: string): Promise<Record<string, unknow
   );
 
   if (!response.ok) {
-    return null;
+    const errorText = await response.text();
+    logger.error("Failed to fetch user subscription", {userId, errorText});
+    throw new HttpsError("internal", "Failed to fetch subscription.");
   }
 
   const rows = await parseJsonSafe<Array<Record<string, unknown>>>(response);
   return rows && rows.length > 0 ? rows[0] : null;
+}
+
+async function getSubscriptionRowsByUserIds(
+  userIds: string[]
+): Promise<Map<string, Record<string, unknown>>> {
+  const uniqueUserIds = Array.from(new Set(userIds.filter((userId) => userId.length > 0)));
+  if (uniqueUserIds.length === 0) {
+    return new Map<string, Record<string, unknown>>();
+  }
+
+  const userIdFilter = `in.(${uniqueUserIds.map((userId) => `"${userId.replace(/"/g, "")}"`).join(",")})`;
+  const params = new URLSearchParams({
+    app_name: `eq.${APP_NAME}`,
+    user_id: userIdFilter,
+    select: "user_id,plan_tier,plan_status,current_credits,terms_accepted_at,terms_version",
+  });
+
+  const response = await supabaseRequest(`/rest/v1/user_app_subscriptions?${params.toString()}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error("Failed to batch fetch user subscriptions", {errorText, userCount: uniqueUserIds.length});
+    throw new HttpsError("internal", "Failed to fetch user subscriptions.");
+  }
+
+  const rows = await parseJsonSafe<Array<Record<string, unknown>>>(response);
+  const byUserId = new Map<string, Record<string, unknown>>();
+  for (const row of rows ?? []) {
+    const rowUserId = typeof row.user_id === "string" ? row.user_id : "";
+    if (rowUserId) {
+      byUserId.set(rowUserId, row);
+    }
+  }
+
+  return byUserId;
 }
 
 async function upsertSubscription(
@@ -221,10 +301,23 @@ async function getSupabaseAuthUser(userId: string): Promise<Record<string, unkno
   return parseJsonSafe<Record<string, unknown>>(response);
 }
 
-async function getSupabaseAuthUsers(page: number, pageSize: number): Promise<Array<Record<string, unknown>>> {
-  const response = await supabaseRequest(
-    `/auth/v1/admin/users?page=${page}&per_page=${pageSize}`
-  );
+async function getSupabaseAuthUsers(
+  page: number,
+  pageSize: number,
+  filter?: string
+): Promise<{users: Array<Record<string, unknown>>; totalCount?: number}> {
+  const params = new URLSearchParams({
+    page: String(page),
+    per_page: String(pageSize),
+  });
+
+  // Supabase GoTrue Admin API supports an undocumented "filter" query param.
+  // Confirmed in GoTrue source: FindUsersInAudience applies email/full_name matching server-side.
+  if (typeof filter === "string" && filter.trim().length > 0) {
+    params.set("filter", filter.trim());
+  }
+
+  const response = await supabaseRequest(`/auth/v1/admin/users?${params.toString()}`);
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -232,8 +325,22 @@ async function getSupabaseAuthUsers(page: number, pageSize: number): Promise<Arr
     throw new HttpsError("internal", "Failed to list users.");
   }
 
-  const payload = await parseJsonSafe<{users?: Array<Record<string, unknown>>}>(response);
-  return payload?.users ?? [];
+  const payload = await parseJsonSafe<{
+    users?: Array<Record<string, unknown>>;
+    count?: number;
+    total?: number;
+    totalCount?: number;
+  }>(response);
+
+  const responseCountCandidates = [payload?.count, payload?.total, payload?.totalCount];
+  const totalCount = responseCountCandidates.find((value) =>
+    typeof value === "number" && Number.isFinite(value)
+  );
+
+  return {
+    users: payload?.users ?? [],
+    totalCount,
+  };
 }
 
 const adminListUsersHandler = async (request: CallableRequest) => {
@@ -244,45 +351,39 @@ const adminListUsersHandler = async (request: CallableRequest) => {
   const pageSize = Number.isFinite(data.pageSize)
     ? Math.min(100, Math.max(1, Math.floor(data.pageSize ?? 25)))
     : 25;
-  const search = typeof data.search === "string" ? data.search.trim().toLowerCase() : "";
+  const search = typeof data.search === "string" ? data.search.trim() : "";
 
-  const users = await getSupabaseAuthUsers(page, pageSize);
+  const {users, totalCount} = await getSupabaseAuthUsers(page, pageSize, search);
+  const userIds = users
+    .map((user) => (typeof user.id === "string" ? user.id : ""))
+    .filter((userId) => userId.length > 0);
+  const subscriptionsByUserId = await getSubscriptionRowsByUserIds(userIds);
 
-  const hydratedUsers = await Promise.all(
-    users.map(async (user) => {
-      const userId = typeof user.id === "string" ? user.id : "";
-      const subscription = userId ? await getSubscriptionRow(userId) : null;
-      const email =
-        typeof user.email === "string"
-          ? user.email
-          : typeof user.phone === "string"
-            ? user.phone
-            : "unknown";
+  const hydratedUsers = users.map((user) => {
+    const userId = typeof user.id === "string" ? user.id : "";
+    const subscription = userId ? subscriptionsByUserId.get(userId) : null;
+    const email =
+      typeof user.email === "string"
+        ? user.email
+        : typeof user.phone === "string"
+          ? user.phone
+          : "unknown";
 
-      return {
-        userId,
-        email,
-        createdAt: user.created_at ?? null,
-        planTier: (subscription?.plan_tier as string | null) ?? "free",
-        planStatus: (subscription?.plan_status as string | null) ?? "active",
-        currentCredits: Number(subscription?.current_credits ?? 0),
-        termsAcceptedAt: (subscription?.terms_accepted_at as string | null) ?? null,
-        termsVersion: (subscription?.terms_version as string | null) ?? null,
-      };
-    })
-  );
+    return {
+      userId,
+      email,
+      createdAt: user.created_at ?? null,
+      planTier: normalizePlanTier(subscription?.plan_tier),
+      planStatus: normalizePlanStatus(subscription?.plan_status),
+      currentCredits: normalizeCurrentCredits(subscription?.current_credits),
+      termsAcceptedAt: (subscription?.terms_accepted_at as string | null) ?? null,
+      termsVersion: (subscription?.terms_version as string | null) ?? null,
+    };
+  });
 
   const filtered = hydratedUsers.filter((row) => {
     if (!row.userId) {
       return false;
-    }
-
-    if (search.length > 0) {
-      const matchSearch =
-        row.email.toLowerCase().includes(search) || row.userId.toLowerCase().includes(search);
-      if (!matchSearch) {
-        return false;
-      }
     }
 
     if (data.planTier && row.planTier !== data.planTier) {
@@ -301,7 +402,9 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     actorEmail: adminContext.actorEmail,
     page,
     pageSize,
+    search,
     resultCount: filtered.length,
+    totalCount,
   });
 
   return {
@@ -309,6 +412,7 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     users: filtered,
     page,
     pageSize,
+    totalCount,
     hasMore: hydratedUsers.length === pageSize,
   };
 };
@@ -327,8 +431,8 @@ const adminSetUserCreditsHandler = async (request: CallableRequest) => {
 
   const credits = Math.floor(data.credits);
   const existingSubscription = await getSubscriptionRow(userId);
-  const planTier = (existingSubscription?.plan_tier as string | null) ?? "free";
-  const planStatus = (existingSubscription?.plan_status as string | null) ?? "active";
+  const planTier = normalizePlanTier(existingSubscription?.plan_tier);
+  const planStatus = normalizePlanStatus(existingSubscription?.plan_status);
 
   await upsertSubscription(userId, {
     plan_tier: planTier,
@@ -368,10 +472,7 @@ const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
     throw new HttpsError("invalid-argument", "Invalid plan status.");
   }
 
-  const renewalDate =
-    typeof data.renewalDate === "string" && data.renewalDate.trim().length > 0
-      ? data.renewalDate
-      : null;
+  const renewalDate = parseRenewalDate(data.renewalDate);
 
   await upsertSubscription(userId, {
     plan_tier: planTier,
@@ -529,7 +630,7 @@ const sharedCallableOptions = {
   region: "us-central1" as const,
   enforceAppCheck: true,
   invoker: "public" as const,
-  secrets: ["SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_URL"],
+  secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
 };
 
 export const adminListUsers = onCall(sharedCallableOptions, (request) => adminListUsersHandler(request));

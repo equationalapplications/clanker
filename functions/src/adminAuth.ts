@@ -22,13 +22,14 @@ export function requireAdmin(request: CallableRequest): AdminContext {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
 
-  const token = request.auth.token as DecodedIdToken;
   const actorUid = request.auth.uid;
-  const actorEmail = typeof token.email === "string" ? token.email.toLowerCase() : null;
+  const token = request.auth.token as DecodedIdToken | undefined;
 
   if (!token || token.uid !== actorUid) {
     throw new HttpsError("unauthenticated", "Invalid Firebase authentication token.");
   }
+
+  const actorEmail = typeof token.email === "string" ? token.email.toLowerCase() : null;
 
   const claimIsAdmin = token.admin === true;
   const emailAllowList = parseAllowList("ADMIN_ALLOWLIST_EMAILS");

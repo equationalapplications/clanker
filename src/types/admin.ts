@@ -18,6 +18,7 @@ export interface AdminListUsersResponse {
   users: AdminUserRow[]
   page: number
   pageSize: number
+  totalCount?: number
   hasMore: boolean
 }
 

@@ -62,5 +62,5 @@ Operational procedures for high-impact admin actions, especially reset and delet
 ## Failure Handling
 
 1. If a mutation fails, capture error text and request id.
-2. Retry only after confirming idempotency intent and impact.
+2. Retry only after confirming operation impact and that reapplying the mutation is safe.
 3. Escalate persistent failures to backend owner and include function logs.
