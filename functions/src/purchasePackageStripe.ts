@@ -2,6 +2,7 @@ import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import Stripe from "stripe";
+import { getStripePriceIds } from "./runtimeConfig.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
@@ -16,12 +17,11 @@ function getStripeClient() {
     return new Stripe(secretKey, { apiVersion: "2026-02-25.clover" });
 }
 
-function getRequiredEnvVar(name: string): string {
-    const value = process.env[name];
+function getRequiredValue(name: string, value?: string): string {
     if (!value) {
         throw new HttpsError(
             "failed-precondition",
-            `${name} environment variable is not set`
+            `${name} configuration value is not set`
         );
     }
     return value;
@@ -46,9 +46,10 @@ async function getOrCreateStripeCustomer(
 const handler = async (request: CallableRequest) => {
     // Validate per-request so missing Stripe env vars only fail this function,
     // not the entire Functions bundle (which would take down exchangeToken too).
-    const STRIPE_MONTHLY_20_PRICE_ID = getRequiredEnvVar("STRIPE_MONTHLY_20_PRICE_ID");
-    const STRIPE_MONTHLY_50_PRICE_ID = getRequiredEnvVar("STRIPE_MONTHLY_50_PRICE_ID");
-    const STRIPE_CREDIT_PACK_PRICE_ID = getRequiredEnvVar("STRIPE_CREDIT_PACK_PRICE_ID");
+    const { monthly20, monthly50, creditPack } = getStripePriceIds();
+    const STRIPE_MONTHLY_20_PRICE_ID = getRequiredValue("STRIPE_MONTHLY_20_PRICE_ID", monthly20);
+    const STRIPE_MONTHLY_50_PRICE_ID = getRequiredValue("STRIPE_MONTHLY_50_PRICE_ID", monthly50);
+    const STRIPE_CREDIT_PACK_PRICE_ID = getRequiredValue("STRIPE_CREDIT_PACK_PRICE_ID", creditPack);
     const ALLOWED_PRICE_IDS = new Set([
         STRIPE_MONTHLY_20_PRICE_ID,
         STRIPE_MONTHLY_50_PRICE_ID,

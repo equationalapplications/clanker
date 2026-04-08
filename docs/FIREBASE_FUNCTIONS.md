@@ -53,6 +53,82 @@ By setting `"codebase": "clanker"`, the Firebase CLI knows to only manage functi
 
 The functions require several environment variables to connect to Supabase and Stripe. These are documented in `functions/.env.example`. For local development, you can create a `.env` file in the `functions` directory. For production, these are configured securely in the Google Cloud environment.
 
+### Secrets vs params policy
+
+`clanker` now keeps only true secrets in Firebase Secret Manager and uses Firebase params/env config for non-sensitive values.
+
+- Keep in Secret Manager:
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `STRIPE_SECRET_KEY`
+  - `STRIPE_WEBHOOK_SECRET`
+  - `REVENUECAT_WEBHOOK_SECRET`
+- Use params/env config (non-sensitive):
+  - `SUPABASE_URL`
+  - `STRIPE_MONTHLY_20_PRICE_ID`
+  - `STRIPE_MONTHLY_50_PRICE_ID`
+  - `STRIPE_CREDIT_PACK_PRICE_ID`
+  - `STRIPE_SUCCESS_URL`
+  - `STRIPE_CANCEL_URL`
+
+Set non-sensitive values via env config for local/dev and let deploy prompt for param values in production:
+
+```bash
+# local functions development
+cp functions/.env.example functions/.env
+```
+
+For deployment, `defineString(...)` params are resolved by Firebase CLI during deploy. If missing, the CLI prompts for values and persists them for the project.
+
+## Runbook: New Environment Onboarding
+
+Use this checklist when setting up Firebase Functions for a new environment.
+
+### Local development
+
+- [ ] Copy `functions/.env.example` to `functions/.env`.
+- [ ] Fill non-sensitive values in `functions/.env`:
+  - `SUPABASE_URL`
+  - `STRIPE_MONTHLY_20_PRICE_ID`
+  - `STRIPE_MONTHLY_50_PRICE_ID`
+  - `STRIPE_CREDIT_PACK_PRICE_ID`
+  - `STRIPE_SUCCESS_URL`
+  - `STRIPE_CANCEL_URL`
+- [ ] Ensure sensitive values exist in Firebase Secret Manager for the target project:
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `STRIPE_SECRET_KEY`
+  - `STRIPE_WEBHOOK_SECRET`
+  - `REVENUECAT_WEBHOOK_SECRET`
+- [ ] Validate locally from `functions/`:
+  - `npm run lint`
+  - `npm run build`
+
+### Staging
+
+- [ ] Confirm active project: `firebase use <staging-project-id-or-alias>`.
+- [ ] Verify secrets are present in staging:
+  - `firebase functions:secrets:get SUPABASE_SERVICE_ROLE_KEY`
+  - `firebase functions:secrets:get STRIPE_SECRET_KEY`
+  - `firebase functions:secrets:get STRIPE_WEBHOOK_SECRET`
+  - `firebase functions:secrets:get REVENUECAT_WEBHOOK_SECRET`
+- [ ] Deploy from `functions/`: `npm run deploy`.
+- [ ] If prompted, enter missing non-sensitive param values once (CLI persists them for the staging project).
+- [ ] Smoke test:
+  - callable: `exchangeToken`, `spendCredits`, `purchasePackageStripe`
+  - webhooks: `stripeWebhook`, `revenueCatWebhook`
+
+### Production
+
+- [ ] Confirm active project: `firebase use <prod-project-id-or-alias>`.
+- [ ] Re-check production secrets (same commands as staging).
+- [ ] Deploy from `functions/`: `npm run deploy`.
+- [ ] If prompted, enter missing non-sensitive param values once for production.
+- [ ] Verify deploy output shows all functions updated successfully.
+- [ ] Run post-deploy validation:
+  - auth flow (`exchangeToken`) works end-to-end
+  - Stripe checkout callable returns a valid URL
+  - Stripe/RevenueCat webhook deliveries return 2xx
+  - `functions:log` shows no startup config errors
+
 ## Deployment
 
 To deploy the functions, navigate to the `functions` directory and use the `deploy` script:

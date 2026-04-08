@@ -2,6 +2,7 @@ import {onRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import Stripe from "stripe";
+import {getStripePriceIds} from "./runtimeConfig.js";
 import {
   findSupabaseUserByEmail, callSupabaseRpc, upsertUserSubscription, findSupabaseUserByFirebaseUid,
 } from "./supabaseAdmin.js";
@@ -11,18 +12,25 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-// Product identifier → DB tier mapping.
-// Populated from Firebase Functions secrets at runtime; falls back to
-// placeholder strings so the module loads cleanly in test/emulator environments.
-const STRIPE_PRICE_TO_TIER: Record<string, string> = {
-  [process.env.STRIPE_MONTHLY_20_PRICE_ID || "price_TODO_monthly_20"]: "monthly_20",
-  [process.env.STRIPE_MONTHLY_50_PRICE_ID || "price_TODO_monthly_50"]: "monthly_50",
-};
-
-const STRIPE_CREDIT_PACK_PRICE_ID =
-  process.env.STRIPE_CREDIT_PACK_PRICE_ID || "price_TODO_credit_pack";
 const CREDIT_PACK_AMOUNT = 100;
 const APP_NAME = "clanker";
+
+function getTierByPriceId(priceId: string): string | undefined {
+  const {monthly20, monthly50} = getStripePriceIds();
+  const monthly20PriceId = monthly20 || "price_TODO_monthly_20";
+  const monthly50PriceId = monthly50 || "price_TODO_monthly_50";
+
+  if (priceId === monthly20PriceId) return "monthly_20";
+  if (priceId === monthly50PriceId) return "monthly_50";
+  return undefined;
+}
+
+function isCreditPackPriceId(priceId?: string): boolean {
+  if (!priceId) return false;
+  const {creditPack} = getStripePriceIds();
+  const expectedPriceId = creditPack || "price_TODO_credit_pack";
+  return priceId === expectedPriceId;
+}
 
 function getStripeClient(): Stripe {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -39,10 +47,6 @@ export const stripeWebhook = onRequest(
       "STRIPE_SECRET_KEY",
       "STRIPE_WEBHOOK_SECRET",
       "SUPABASE_SERVICE_ROLE_KEY",
-      "STRIPE_MONTHLY_20_PRICE_ID",
-      "STRIPE_MONTHLY_50_PRICE_ID",
-      "STRIPE_CREDIT_PACK_PRICE_ID",
-      "SUPABASE_URL",
     ]
   },
   async (req, res) => {
@@ -160,9 +164,9 @@ async function handleCheckoutCompleted(
     const priceId = item.price?.id;
     if (!priceId) continue;
 
-    if (STRIPE_PRICE_TO_TIER[priceId]) {
+    const tier = getTierByPriceId(priceId);
+    if (tier) {
       // Subscription product → upsert subscription row
-      const tier = STRIPE_PRICE_TO_TIER[priceId];
       await upsertUserSubscription(supabaseUser.id, APP_NAME, tier, "active", {
         stripe_subscription_id: session.subscription as string ?? null,
         stripe_customer_id: session.customer as string ?? null,
@@ -171,7 +175,7 @@ async function handleCheckoutCompleted(
         email: customerEmail,
         tier,
       });
-    } else if (priceId === STRIPE_CREDIT_PACK_PRICE_ID) {
+    } else if (isCreditPackPriceId(priceId)) {
       // Credit pack → add credits
       const qty = item.quantity ?? 1;
       await callSupabaseRpc("add_user_credits", {
@@ -198,7 +202,7 @@ async function handleSubscriptionUpdated(
   const priceId = sub.items.data[0]?.price?.id;
   if (!priceId) return;
 
-  const tier = STRIPE_PRICE_TO_TIER[priceId];
+  const tier = getTierByPriceId(priceId);
   if (!tier) {
     logger.info("customer.subscription.updated: unknown price, skipping", {priceId});
     return;
@@ -244,7 +248,8 @@ async function handleSubscriptionDeleted(
   if (!supabaseUser) return;
 
   const priceId = sub.items.data[0]?.price?.id;
-  const tier = (priceId && STRIPE_PRICE_TO_TIER[priceId]) ? STRIPE_PRICE_TO_TIER[priceId] : "free";
+  const resolvedTier = priceId ? getTierByPriceId(priceId) : undefined;
+  const tier = resolvedTier ?? "free";
 
   await upsertUserSubscription(supabaseUser.id, APP_NAME, tier, "cancelled", {
     stripe_subscription_id: sub.id,
@@ -272,7 +277,7 @@ async function handleInvoicePaymentSucceeded(
     const lineItem = item as unknown as LineItemShape;
     const priceRef = lineItem.pricing?.price_details?.price;
     const priceId = typeof priceRef === "string" ? priceRef : priceRef?.id;
-    if (priceId === STRIPE_CREDIT_PACK_PRICE_ID) {
+    if (isCreditPackPriceId(priceId)) {
       const qty = item.quantity ?? 1;
       await callSupabaseRpc("add_user_credits", {
         p_user_id: supabaseUser.id,
@@ -318,14 +323,14 @@ async function handleChargeRefunded(
       const lineItem = item as unknown as LineItemShape;
       const priceRef = lineItem.pricing?.price_details?.price;
       const priceId = typeof priceRef === "string" ? priceRef : priceRef?.id;
-      if (priceId === STRIPE_CREDIT_PACK_PRICE_ID) {
+      if (isCreditPackPriceId(priceId)) {
         creditPackQty += item.quantity ?? 1;
       }
     }
   }
 
   // Backward-compatible fallback for older charges that may have metadata set directly.
-  if (creditPackQty === 0 && charge.metadata?.price_id === STRIPE_CREDIT_PACK_PRICE_ID) {
+  if (creditPackQty === 0 && isCreditPackPriceId(charge.metadata?.price_id)) {
     creditPackQty = Number(charge.metadata?.quantity ?? 1);
   }
 

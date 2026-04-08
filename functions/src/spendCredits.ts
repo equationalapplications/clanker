@@ -90,7 +90,7 @@ const handler = async (request: CallableRequest) => {
 export const spendCredits = onCall(
   {
     region: "us-central1",
-    secrets: ["SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_URL"]
+    secrets: ["SUPABASE_SERVICE_ROLE_KEY"]
   },
   (request) => {
     return handler(request);

@@ -26,7 +26,7 @@ interface RevenueCatEvent {
 export const revenueCatWebhook = onRequest(
   {
     region: "us-central1",
-    secrets: ["REVENUECAT_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_URL"]
+    secrets: ["REVENUECAT_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY"]
   },
   async (req, res) => {
     if (req.method !== "POST") {

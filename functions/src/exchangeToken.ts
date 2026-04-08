@@ -2,6 +2,7 @@ import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type { DecodedIdToken } from "firebase-admin/auth";
+import { getSupabaseUrl } from "./runtimeConfig.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
@@ -9,7 +10,6 @@ if (!admin.apps?.length) {
 }
 
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SUPABASE_URL = process.env.SUPABASE_URL;
 
 
 type UnknownRecord = Record<string, unknown>;
@@ -21,12 +21,13 @@ type UnknownRecord = Record<string, unknown>;
 async function findSupabaseUserByEmail(
     email: string
 ): Promise<{ id: string } | null> {
-    if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) {
+    const supabaseUrl = getSupabaseUrl();
+    if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
         logger.warn("Missing Supabase service role key or URL for user lookup");
         return null;
     }
 
-    const base = SUPABASE_URL.replace(/\/+$/, "");
+    const base = supabaseUrl.replace(/\/+$/, "");
     const url = `${base}/rest/v1/rpc/get_user_id_by_email`;
 
     try {
@@ -71,12 +72,13 @@ async function createSupabaseUser(
     email: string,
     firebaseUid: string
 ): Promise<{ id: string } | null> {
-    if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) {
+    const supabaseUrl = getSupabaseUrl();
+    if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
         logger.warn("Missing Supabase service role key or URL for user creation");
         return null;
     }
 
-    const url = `${SUPABASE_URL.replace(/\/+$/, "")}/auth/v1/admin/users`;
+    const url = `${supabaseUrl.replace(/\/+$/, "")}/auth/v1/admin/users`;
 
     try {
         const res = await fetch(url, {
@@ -132,14 +134,15 @@ async function getSupabaseUserSession(
     expires_in: number;
     token_type: string;
 }> {
-    if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) {
+    const supabaseUrl = getSupabaseUrl();
+    if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
         throw new HttpsError(
             "failed-precondition",
             "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
         );
     }
 
-    const base = SUPABASE_URL.replace(/\/+$/, "");
+    const base = supabaseUrl.replace(/\/+$/, "");
 
     // Step 1: Generate a magic link token via Admin API (no email sent)
     const linkRes = await fetch(`${base}/auth/v1/admin/generate_link`, {
@@ -320,7 +323,7 @@ const handler = async (request: CallableRequest) => {
 export const exchangeToken = onCall(
     {
         region: "us-central1",
-        secrets: ["SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_URL"]
+        secrets: ["SUPABASE_SERVICE_ROLE_KEY"]
     },
     (request) => {
         return handler(request);

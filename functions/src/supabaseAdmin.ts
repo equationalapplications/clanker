@@ -1,8 +1,8 @@
 import {HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import {getSupabaseUrl} from "./runtimeConfig.js";
 
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SUPABASE_URL = process.env.SUPABASE_URL;
 
 /**
  * Find a Supabase user by email via the get_user_id_by_email RPC function.
@@ -11,12 +11,13 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 export async function findSupabaseUserByEmail(
   email: string
 ): Promise<{id: string} | null> {
-  if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) {
+  const supabaseUrl = getSupabaseUrl();
+  if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
     logger.warn("Missing Supabase service role key or URL for user lookup");
     return null;
   }
 
-  const base = SUPABASE_URL.replace(/\/+$/, "");
+  const base = supabaseUrl.replace(/\/+$/, "");
   const url = `${base}/rest/v1/rpc/get_user_id_by_email`;
 
   try {
@@ -58,14 +59,15 @@ export async function callSupabaseRpc(
   fnName: string,
   params: Record<string, unknown>
 ): Promise<unknown> {
-  if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) {
+  const supabaseUrl = getSupabaseUrl();
+  if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
     throw new HttpsError(
       "failed-precondition",
       "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
     );
   }
 
-  const base = SUPABASE_URL.replace(/\/+$/, "");
+  const base = supabaseUrl.replace(/\/+$/, "");
   const url = `${base}/rest/v1/rpc/${fnName}`;
 
   const res = await fetch(url, {
@@ -104,12 +106,13 @@ export async function callSupabaseRpc(
 export async function findSupabaseUserByFirebaseUid(
   firebaseUid: string
 ): Promise<{id: string} | null> {
-  if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) {
+  const supabaseUrl = getSupabaseUrl();
+  if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
     logger.warn("Missing Supabase service role key or URL for firebase UID lookup");
     return null;
   }
 
-  const base = SUPABASE_URL.replace(/\/+$/, "");
+  const base = supabaseUrl.replace(/\/+$/, "");
   const url = `${base}/rest/v1/rpc/get_user_id_by_firebase_uid`;
 
   try {
@@ -154,14 +157,15 @@ export async function upsertUserSubscription(
   planStatus: string,
   extraFields: Record<string, unknown> = {}
 ): Promise<void> {
-  if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) {
+  const supabaseUrl = getSupabaseUrl();
+  if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
     throw new HttpsError(
       "failed-precondition",
       "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
     );
   }
 
-  const base = SUPABASE_URL.replace(/\/+$/, "");
+  const base = supabaseUrl.replace(/\/+$/, "");
   const url = `${base}/rest/v1/user_app_subscriptions?on_conflict=user_id,app_name`;
 
   const body = {
