@@ -26,6 +26,13 @@ npm run test
 - `lint` runs ESLint for Functions sources and tests.
 - `test` compiles TypeScript into `functions/lib` and executes Node's built-in test runner.
 
+## Runtime Config Reference
+
+Checkout-related function flows depend on these non-sensitive params being set in your target environment:
+
+- `STRIPE_SUCCESS_URL=https://clanker-ai.com/checkout/success`
+- `STRIPE_CANCEL_URL=https://clanker-ai.com/checkout/cancel`
+
 ## Test Design Notes
 
 - Tests call exported internal handlers directly (`*Handler`) so they can assert behavior without emulator setup.

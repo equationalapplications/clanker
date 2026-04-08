@@ -82,6 +82,11 @@ cp functions/.env.example functions/.env
 
 For deployment, `defineString(...)` params are resolved by Firebase CLI during deploy. If missing, the CLI prompts for values and persists them for the project.
 
+Current Clanker production checkout URL params:
+
+- `STRIPE_SUCCESS_URL=https://clanker-ai.com/checkout/success`
+- `STRIPE_CANCEL_URL=https://clanker-ai.com/checkout/cancel`
+
 ## Runbook: New Environment Onboarding
 
 Use this checklist when setting up Firebase Functions for a new environment.
@@ -125,6 +130,8 @@ Use this checklist when setting up Firebase Functions for a new environment.
 - [ ] Re-check production secrets (same commands as staging).
 - [ ] Deploy from `functions/`: `npm run deploy`.
 - [ ] If prompted, enter missing non-sensitive param values once for production.
+  - `STRIPE_SUCCESS_URL`: `https://clanker-ai.com/checkout/success`
+  - `STRIPE_CANCEL_URL`: `https://clanker-ai.com/checkout/cancel`
 - [ ] Verify deploy output shows all functions updated successfully.
 - [ ] Run post-deploy validation:
   - auth flow (`exchangeToken`) works end-to-end

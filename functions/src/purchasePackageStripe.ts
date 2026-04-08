@@ -105,10 +105,10 @@ const handler = async (request: CallableRequest) => {
         line_items: [{ price: priceId, quantity: 1 }],
         success_url:
             successUrl ||
-            "https://yoursbrightly.ai/checkout/success",
+            "https://clanker-ai.com/checkout/success",
         cancel_url:
             cancelUrl ||
-            "https://yoursbrightly.ai/checkout/cancel",
+            "https://clanker-ai.com/checkout/cancel",
         metadata: {
             firebase_uid: request.auth.uid,
             email,
