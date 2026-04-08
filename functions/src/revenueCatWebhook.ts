@@ -30,9 +30,13 @@ interface RevenueCatEvent {
   };
 }
 
-function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
-  const payload = body as Partial<RevenueCatEvent> | null | undefined;
-  const event = payload?.event as Partial<RevenueCatEvent["event"]> | undefined;
+export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
+  const payload = typeof body === "object" && body !== null ?
+    body as {event?: unknown} :
+    null;
+  const event = typeof payload?.event === "object" && payload.event !== null ?
+    payload.event as Record<string, unknown> :
+    null;
   const type = typeof event?.type === "string" ? event.type.trim() : "";
   const appUserId = typeof event?.app_user_id === "string" ? event.app_user_id.trim() : "";
   const productId = typeof event?.product_id === "string" ? event.product_id.trim() : "";
@@ -49,21 +53,35 @@ function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
     throw new Error("Missing or invalid event.product_id");
   }
 
+  const expirationAtMs = event.expiration_at_ms;
   if (
-    event.expiration_at_ms !== undefined &&
-    (typeof event.expiration_at_ms !== "number" || !Number.isFinite(event.expiration_at_ms))
+    expirationAtMs !== undefined &&
+    (typeof expirationAtMs !== "number" || !Number.isFinite(expirationAtMs))
   ) {
     throw new Error("Invalid event.expiration_at_ms");
   }
 
+  const originalTransactionId = event.original_transaction_id;
+  if (
+    originalTransactionId !== undefined &&
+    typeof originalTransactionId !== "string"
+  ) {
+    throw new Error("Invalid event.original_transaction_id");
+  }
+
+  const normalizedOriginalTransactionId =
+    typeof originalTransactionId === "string" ? originalTransactionId.trim() : undefined;
+
   return {
     event: {
-      ...event,
       type,
       app_user_id: appUserId,
       product_id: productId,
+      ...(expirationAtMs !== undefined ? {expiration_at_ms: expirationAtMs} : {}),
+      ...(normalizedOriginalTransactionId && normalizedOriginalTransactionId.length > 0 ?
+        {original_transaction_id: normalizedOriginalTransactionId} : {}),
     },
-  } as RevenueCatEvent;
+  };
 }
 
 export const revenueCatWebhookHandler = async (req: Request, res: Response) => {

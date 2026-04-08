@@ -3,7 +3,7 @@ import test from "node:test";
 
 process.env.REVENUECAT_WEBHOOK_SECRET = "rc-secret";
 
-import {revenueCatWebhookHandler} from "./revenueCatWebhook.js";
+import {parseRevenueCatEvent, revenueCatWebhookHandler} from "./revenueCatWebhook.js";
 
 type ResponseRecorder = {
   statusCode: number;
@@ -72,4 +72,88 @@ test("revenueCatWebhookHandler validates payload shape", async () => {
 
   assert.equal(res.statusCode, 400);
   assert.equal(res.body, "Invalid payload");
+});
+
+test("parseRevenueCatEvent accepts minimal valid payload", () => {
+  const parsed = parseRevenueCatEvent({
+    event: {
+      type: "INITIAL_PURCHASE",
+      app_user_id: "uid_123",
+      product_id: "monthly_20_subscription",
+    },
+  });
+
+  assert.deepEqual(parsed, {
+    event: {
+      type: "INITIAL_PURCHASE",
+      app_user_id: "uid_123",
+      product_id: "monthly_20_subscription",
+    },
+  });
+});
+
+test("parseRevenueCatEvent rejects invalid required fields", () => {
+  assert.throws(
+    () => parseRevenueCatEvent({event: {app_user_id: "uid_123", product_id: "prod_1"}}),
+    /Missing event\.type/
+  );
+
+  assert.throws(
+    () => parseRevenueCatEvent({event: {type: "INITIAL_PURCHASE", app_user_id: "", product_id: "prod_1"}}),
+    /Missing or invalid event\.app_user_id/
+  );
+
+  assert.throws(
+    () => parseRevenueCatEvent({event: {type: "INITIAL_PURCHASE", app_user_id: "uid_123", product_id: ""}}),
+    /Missing or invalid event\.product_id/
+  );
+});
+
+test("parseRevenueCatEvent rejects invalid optional fields", () => {
+  assert.throws(
+    () => parseRevenueCatEvent({
+      event: {
+        type: "INITIAL_PURCHASE",
+        app_user_id: "uid_123",
+        product_id: "prod_1",
+        expiration_at_ms: Number.NaN,
+      },
+    }),
+    /Invalid event\.expiration_at_ms/
+  );
+
+  assert.throws(
+    () => parseRevenueCatEvent({
+      event: {
+        type: "INITIAL_PURCHASE",
+        app_user_id: "uid_123",
+        product_id: "prod_1",
+        original_transaction_id: 123,
+      },
+    }),
+    /Invalid event\.original_transaction_id/
+  );
+});
+
+test("parseRevenueCatEvent only returns allowed fields", () => {
+  const parsed = parseRevenueCatEvent({
+    event: {
+      type: " INITIAL_PURCHASE ",
+      app_user_id: " uid_123 ",
+      product_id: " monthly_20_subscription ",
+      expiration_at_ms: 1_717_780_800_000,
+      original_transaction_id: " tx_123 ",
+      unexpected: "should-not-be-copied",
+    },
+  });
+
+  assert.deepEqual(parsed, {
+    event: {
+      type: "INITIAL_PURCHASE",
+      app_user_id: "uid_123",
+      product_id: "monthly_20_subscription",
+      expiration_at_ms: 1_717_780_800_000,
+      original_transaction_id: "tx_123",
+    },
+  });
 });

@@ -73,7 +73,7 @@ function getStripeClient(): Stripe {
   return new Stripe(secretKey);
 }
 
-function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status):
+export function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status):
 "active" | "cancelled" | "expired" {
   switch (status) {
   case "active":

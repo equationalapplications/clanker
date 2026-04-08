@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import Stripe from "stripe";
 
 process.env.STRIPE_SECRET_KEY = "sk_test_123";
 process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_123";
 
-import {stripeWebhookHandler} from "./stripeWebhook.js";
+import {mapStripeSubscriptionStatus, stripeWebhookHandler} from "./stripeWebhook.js";
 
 type ResponseRecorder = {
   statusCode: number;
@@ -55,4 +56,27 @@ test("stripeWebhookHandler validates signature header", async () => {
 
   assert.equal(res.statusCode, 400);
   assert.equal(res.body, "Missing or invalid Stripe signature header");
+});
+
+test("mapStripeSubscriptionStatus maps active-like statuses to active", () => {
+  const statuses: Stripe.Subscription.Status[] = [
+    "active",
+    "trialing",
+    "past_due",
+    "unpaid",
+    "incomplete",
+  ];
+
+  for (const status of statuses) {
+    assert.equal(mapStripeSubscriptionStatus(status), "active");
+  }
+});
+
+test("mapStripeSubscriptionStatus maps canceled to cancelled", () => {
+  assert.equal(mapStripeSubscriptionStatus("canceled"), "cancelled");
+});
+
+test("mapStripeSubscriptionStatus maps expired-like statuses to expired", () => {
+  assert.equal(mapStripeSubscriptionStatus("incomplete_expired"), "expired");
+  assert.equal(mapStripeSubscriptionStatus("paused"), "expired");
 });
