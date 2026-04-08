@@ -20,6 +20,10 @@ function parseAllowList(envName: string, normalizeCase = false): Set<string> {
   );
 }
 
+// Env allowlists are read once per function instance; changing values requires a redeploy.
+const ADMIN_ALLOWLIST_EMAILS = parseAllowList("ADMIN_ALLOWLIST_EMAILS", true);
+const ADMIN_ALLOWLIST_UIDS = parseAllowList("ADMIN_ALLOWLIST_UIDS");
+
 export function requireAdmin(request: CallableRequest): AdminContext {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required.");
@@ -35,10 +39,8 @@ export function requireAdmin(request: CallableRequest): AdminContext {
   const actorEmail = typeof token.email === "string" ? token.email.toLowerCase() : null;
 
   const claimIsAdmin = token.admin === true;
-  const emailAllowList = parseAllowList("ADMIN_ALLOWLIST_EMAILS", true);
-  const uidAllowList = parseAllowList("ADMIN_ALLOWLIST_UIDS");
-  const emailAllowed = actorEmail ? emailAllowList.has(actorEmail) : false;
-  const uidAllowed = uidAllowList.has(actorUid);
+  const emailAllowed = actorEmail ? ADMIN_ALLOWLIST_EMAILS.has(actorEmail) : false;
+  const uidAllowed = ADMIN_ALLOWLIST_UIDS.has(actorUid);
 
   if (!claimIsAdmin && !emailAllowed && !uidAllowed) {
     throw new HttpsError("permission-denied", "Admin access required.");

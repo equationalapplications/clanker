@@ -10,6 +10,7 @@ if (!admin.apps.length) {
 
 const APP_NAME = "clanker";
 const DEFAULT_RESET_CREDITS = 50;
+const MAX_SAFE_DB_CREDITS = 2_147_483_647;
 const ALLOWED_PLAN_TIERS = new Set(["free", "monthly_20", "monthly_50", "payg"]);
 const ALLOWED_PLAN_STATUS = new Set(["active", "cancelled", "expired"]);
 
@@ -244,26 +245,49 @@ async function upsertSubscription(
 }
 
 async function deleteAppDataByUser(userId: string): Promise<void> {
-  const deleteMessages = await supabaseRequest(
-    `/rest/v1/clanker_messages?or=(sender_user_id.eq.${encodeURIComponent(userId)},recipient_user_id.eq.${encodeURIComponent(userId)})`,
-    {method: "DELETE"}
-  );
+  const [deleteMessages, deleteCharacters] = await Promise.allSettled([
+    supabaseRequest(
+      `/rest/v1/clanker_messages?or=(sender_user_id.eq.${encodeURIComponent(userId)},recipient_user_id.eq.${encodeURIComponent(userId)})`,
+      {method: "DELETE"}
+    ),
+    supabaseRequest(
+      `/rest/v1/clanker_characters?user_id=eq.${encodeURIComponent(userId)}`,
+      {method: "DELETE"}
+    ),
+  ]);
 
-  if (!deleteMessages.ok) {
-    const errorText = await deleteMessages.text();
+  const failedOperations: string[] = [];
+
+  if (deleteMessages.status === "rejected") {
+    failedOperations.push("messages");
+    logger.error("Failed to delete user messages", {
+      userId,
+      error: deleteMessages.reason instanceof Error ?
+        deleteMessages.reason.message :
+        String(deleteMessages.reason),
+    });
+  } else if (!deleteMessages.value.ok) {
+    failedOperations.push("messages");
+    const errorText = await deleteMessages.value.text();
     logger.error("Failed to delete user messages", {userId, errorText});
-    throw new HttpsError("internal", "Failed to delete user messages.");
   }
 
-  const deleteCharacters = await supabaseRequest(
-    `/rest/v1/clanker_characters?user_id=eq.${encodeURIComponent(userId)}`,
-    {method: "DELETE"}
-  );
-
-  if (!deleteCharacters.ok) {
-    const errorText = await deleteCharacters.text();
+  if (deleteCharacters.status === "rejected") {
+    failedOperations.push("characters");
+    logger.error("Failed to delete user characters", {
+      userId,
+      error: deleteCharacters.reason instanceof Error ?
+        deleteCharacters.reason.message :
+        String(deleteCharacters.reason),
+    });
+  } else if (!deleteCharacters.value.ok) {
+    failedOperations.push("characters");
+    const errorText = await deleteCharacters.value.text();
     logger.error("Failed to delete user characters", {userId, errorText});
-    throw new HttpsError("internal", "Failed to delete user characters.");
+  }
+
+  if (failedOperations.length > 0) {
+    throw new HttpsError("internal", "Failed to delete all user app data.");
   }
 }
 
@@ -443,6 +467,13 @@ const adminSetUserCreditsHandler = async (request: CallableRequest) => {
 
   if (!Number.isFinite(data.credits) || data.credits < 0) {
     throw new HttpsError("invalid-argument", "credits must be a number >= 0.");
+  }
+
+  if (data.credits > MAX_SAFE_DB_CREDITS) {
+    throw new HttpsError(
+      "invalid-argument",
+      `credits must be <= ${MAX_SAFE_DB_CREDITS}.`
+    );
   }
 
   const credits = Math.floor(data.credits);

@@ -296,6 +296,28 @@ test("adminSetUserCreditsHandler validates reason", async () => {
   );
 });
 
+test("adminSetUserCreditsHandler rejects credits above DB integer limit", async () => {
+  await assert.rejects(
+    async () =>
+      adminSetUserCreditsHandler({
+        auth: {
+          uid: "firebase-admin-1",
+          token: {
+            uid: "firebase-admin-1",
+            email: "admin@example.com",
+          },
+        },
+        data: {
+          userId: "supabase-user-1",
+          credits: 2147483648,
+          reason: "invalid test",
+          requestId: "req-credits-too-large",
+        },
+      } as never),
+    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
+  );
+});
+
 test("adminClearTermsAcceptanceHandler updates terms fields", async () => {
   const originalFetch = globalThis.fetch;
   let payload: Record<string, unknown> | null = null;
@@ -503,7 +525,7 @@ test("adminResetUserStateHandler deletes app data then resets subscription", asy
   }
 });
 
-test("adminResetUserStateHandler stops on app-data deletion failure", async () => {
+test("adminResetUserStateHandler attempts all app-data deletions before failing", async () => {
   const originalFetch = globalThis.fetch;
   const calls: string[] = [];
 
@@ -514,6 +536,10 @@ test("adminResetUserStateHandler stops on app-data deletion failure", async () =
 
     if (url.includes("/rest/v1/clanker_messages") && method === "DELETE") {
       return new Response(JSON.stringify({message: "delete failed"}), {status: 500});
+    }
+
+    if (url.includes("/rest/v1/clanker_characters") && method === "DELETE") {
+      return new Response(null, {status: 204});
     }
 
     throw new Error(`Unexpected fetch call in test: ${url}`);
@@ -539,8 +565,9 @@ test("adminResetUserStateHandler stops on app-data deletion failure", async () =
       (err: unknown) => err instanceof HttpsError && err.code === "internal"
     );
 
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 2);
     assert.ok(calls[0]?.includes("/rest/v1/clanker_messages"));
+    assert.ok(calls[1]?.includes("/rest/v1/clanker_characters"));
   } finally {
     globalThis.fetch = originalFetch;
   }

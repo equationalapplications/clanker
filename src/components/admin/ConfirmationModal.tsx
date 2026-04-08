@@ -35,10 +35,13 @@ export function AdminConfirmationModal({
   }, [visible, confirmKeyword, title, summary])
 
   const keywordMatched = useMemo(() => {
-    if (!confirmKeyword) {
-      return true
-    }
-    return typedKeyword.trim().toUpperCase() === confirmKeyword.toUpperCase()
+    return canSubmitAdminConfirmation({
+      confirmKeyword,
+      typedKeyword,
+      requireReason: false,
+      reason: '',
+      loading: false,
+    })
   }, [confirmKeyword, typedKeyword])
 
   const canSubmit = canSubmitAdminConfirmation({
