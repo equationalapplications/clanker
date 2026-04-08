@@ -13,19 +13,30 @@ const DEFAULT_RESET_CREDITS = 50;
 const MAX_SAFE_DB_CREDITS = 2_147_483_647;
 const ALLOWED_PLAN_TIERS = new Set(["free", "monthly_20", "monthly_50", "payg"]);
 const ALLOWED_PLAN_STATUS = new Set(["active", "cancelled", "expired"]);
+const UNKNOWN_PLAN_VALUE = "unknown";
 
 function normalizePlanTier(value: unknown): string {
   if (typeof value === "string" && ALLOWED_PLAN_TIERS.has(value)) {
     return value;
   }
-  return "free";
+  return UNKNOWN_PLAN_VALUE;
 }
 
 function normalizePlanStatus(value: unknown): string {
   if (typeof value === "string" && ALLOWED_PLAN_STATUS.has(value)) {
     return value;
   }
-  return "active";
+  return UNKNOWN_PLAN_VALUE;
+}
+
+function normalizeWritablePlanTier(value: unknown): string {
+  const normalized = normalizePlanTier(value);
+  return normalized === UNKNOWN_PLAN_VALUE ? "free" : normalized;
+}
+
+function normalizeWritablePlanStatus(value: unknown): string {
+  const normalized = normalizePlanStatus(value);
+  return normalized === UNKNOWN_PLAN_VALUE ? "active" : normalized;
 }
 
 function normalizeCurrentCredits(value: unknown): number {
@@ -440,6 +451,8 @@ const adminListUsersHandler = async (request: CallableRequest) => {
   const hydratedUsers = users.map((user) => {
     const userId = typeof user.id === "string" ? user.id : "";
     const subscription = userId ? subscriptionsByUserId.get(userId) : null;
+    const planTier = normalizePlanTier(subscription?.plan_tier);
+    const planStatus = normalizePlanStatus(subscription?.plan_status);
     const email =
       typeof user.email === "string"
         ? user.email
@@ -447,12 +460,26 @@ const adminListUsersHandler = async (request: CallableRequest) => {
           ? user.phone
           : "unknown";
 
+    if (subscription && planTier === UNKNOWN_PLAN_VALUE) {
+      logger.warn("Unexpected plan_tier value in subscription row", {
+        userId,
+        rawPlanTier: subscription.plan_tier,
+      });
+    }
+
+    if (subscription && planStatus === UNKNOWN_PLAN_VALUE) {
+      logger.warn("Unexpected plan_status value in subscription row", {
+        userId,
+        rawPlanStatus: subscription.plan_status,
+      });
+    }
+
     return {
       userId,
       email,
       createdAt: user.created_at ?? null,
-      planTier: normalizePlanTier(subscription?.plan_tier),
-      planStatus: normalizePlanStatus(subscription?.plan_status),
+      planTier,
+      planStatus,
       currentCredits: normalizeCurrentCredits(subscription?.current_credits),
       termsAcceptedAt: (subscription?.terms_accepted_at as string | null) ?? null,
       termsVersion: (subscription?.terms_version as string | null) ?? null,
@@ -520,8 +547,24 @@ const adminSetUserCreditsHandler = async (request: CallableRequest) => {
 
   const credits = Math.floor(data.credits);
   const existingSubscription = await getSubscriptionRow(userId);
-  const planTier = normalizePlanTier(existingSubscription?.plan_tier);
-  const planStatus = normalizePlanStatus(existingSubscription?.plan_status);
+  const planTier = normalizeWritablePlanTier(existingSubscription?.plan_tier);
+  const planStatus = normalizeWritablePlanStatus(existingSubscription?.plan_status);
+
+  if (existingSubscription && planTier === "free" && existingSubscription.plan_tier !== "free") {
+    logger.warn("Coercing unexpected plan_tier while updating credits", {
+      userId,
+      rawPlanTier: existingSubscription.plan_tier,
+      coercedPlanTier: planTier,
+    });
+  }
+
+  if (existingSubscription && planStatus === "active" && existingSubscription.plan_status !== "active") {
+    logger.warn("Coercing unexpected plan_status while updating credits", {
+      userId,
+      rawPlanStatus: existingSubscription.plan_status,
+      coercedPlanStatus: planStatus,
+    });
+  }
 
   await upsertSubscription(userId, {
     plan_tier: planTier,
@@ -617,8 +660,24 @@ const adminClearTermsAcceptanceHandler = async (request: CallableRequest) => {
     );
   }
 
-  const planTier = normalizePlanTier(existingSubscription.plan_tier);
-  const planStatus = normalizePlanStatus(existingSubscription.plan_status);
+  const planTier = normalizeWritablePlanTier(existingSubscription.plan_tier);
+  const planStatus = normalizeWritablePlanStatus(existingSubscription.plan_status);
+
+  if (planTier === "free" && existingSubscription.plan_tier !== "free") {
+    logger.warn("Coercing unexpected plan_tier while clearing terms", {
+      userId,
+      rawPlanTier: existingSubscription.plan_tier,
+      coercedPlanTier: planTier,
+    });
+  }
+
+  if (planStatus === "active" && existingSubscription.plan_status !== "active") {
+    logger.warn("Coercing unexpected plan_status while clearing terms", {
+      userId,
+      rawPlanStatus: existingSubscription.plan_status,
+      coercedPlanStatus: planStatus,
+    });
+  }
 
   await upsertSubscription(userId, {
     plan_tier: planTier,

@@ -24,7 +24,7 @@ type PendingAction =
       userId: string
       planTier: AdminPlanTier
       planStatus: AdminPlanStatus
-      renewalDate?: string
+      renewalDate?: string | null
     }
   | { type: 'clearTerms'; userId: string }
   | { type: 'resetUser'; userId: string }

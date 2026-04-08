@@ -7,6 +7,12 @@ import { normalizeRenewalDateInput } from '~/components/admin/renewalDateValidat
 const PLAN_TIERS: AdminPlanTier[] = ['free', 'monthly_20', 'monthly_50', 'payg']
 const PLAN_STATUSES: AdminPlanStatus[] = ['active', 'cancelled', 'expired']
 
+const asWritablePlanTier = (value: AdminUserRow['planTier']): AdminPlanTier =>
+  PLAN_TIERS.includes(value as AdminPlanTier) ? (value as AdminPlanTier) : 'free'
+
+const asWritablePlanStatus = (value: AdminUserRow['planStatus']): AdminPlanStatus =>
+  PLAN_STATUSES.includes(value as AdminPlanStatus) ? (value as AdminPlanStatus) : 'active'
+
 interface UserActionPanelProps {
   user: AdminUserRow | null
   onSetCredits: (payload: { userId: string; credits: number }) => void
@@ -14,7 +20,7 @@ interface UserActionPanelProps {
     userId: string
     planTier: AdminPlanTier
     planStatus: AdminPlanStatus
-    renewalDate?: string
+    renewalDate?: string | null
   }) => void
   onClearTerms: (payload: { userId: string }) => void
   onResetUserState: (payload: { userId: string }) => void
@@ -43,8 +49,8 @@ export function UserActionPanel({
       return
     }
     setCreditsText(String(user.currentCredits))
-    setPlanTier(user.planTier)
-    setPlanStatus(user.planStatus)
+    setPlanTier(asWritablePlanTier(user.planTier))
+    setPlanStatus(asWritablePlanStatus(user.planStatus))
     setRenewalDate('')
   }, [user])
 
@@ -154,7 +160,7 @@ export function UserActionPanel({
                 userId: user.userId,
                 planTier,
                 planStatus,
-                renewalDate: normalizedRenewalDate ?? undefined,
+                renewalDate: normalizedRenewalDate,
               })
             }
             disabled={isBusy || !renewalDateIsValid}

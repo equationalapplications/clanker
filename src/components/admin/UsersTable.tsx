@@ -34,7 +34,7 @@ export function UsersTable({ users, selectedUserId, onSelectUser }: UsersTablePr
               onPress={() => onSelectUser(user.userId)}
             >
               <DataTable.Cell>{user.email}</DataTable.Cell>
-              <DataTable.Cell>{user.userId.slice(0, 12)}...</DataTable.Cell>
+              <DataTable.Cell textStyle={styles.userIdText}>{user.userId}</DataTable.Cell>
               <DataTable.Cell numeric>{user.currentCredits}</DataTable.Cell>
               <DataTable.Cell>{user.planTier}</DataTable.Cell>
               <DataTable.Cell>{user.planStatus}</DataTable.Cell>
@@ -55,5 +55,9 @@ const styles = StyleSheet.create({
   },
   selectedRow: {
     backgroundColor: 'rgba(255, 196, 120, 0.22)',
+  },
+  userIdText: {
+    fontFamily: 'monospace',
+    flexShrink: 1,
   },
 })
