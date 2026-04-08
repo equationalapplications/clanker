@@ -100,7 +100,8 @@ export const spendCredits = onCall(
   {
     region: "us-central1",
     enforceAppCheck: true,
-    secrets: ["SUPABASE_SERVICE_ROLE_KEY"]
+    secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
+    invoker: "public"
   },
   (request) => {
     return handler(request);

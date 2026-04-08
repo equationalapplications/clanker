@@ -225,6 +225,7 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
 export const revenueCatWebhook = onRequest(
   {
     region: "us-central1",
+    invoker: "public",
     secrets: ["REVENUECAT_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY"]
   },
   revenueCatWebhookHandler

@@ -289,6 +289,7 @@ export const exchangeToken = onCall(
         region: "us-central1",
         secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
         enforceAppCheck: true,
+        invoker: "public",
     },
     (request) => {
         return handler(request);

@@ -183,6 +183,7 @@ export const stripeWebhookHandler = async (req: StripeWebhookRequest, res: Respo
 export const stripeWebhook = onRequest(
   {
     region: "us-central1",
+    invoker: "public",
     secrets: [
       "STRIPE_SECRET_KEY",
       "STRIPE_WEBHOOK_SECRET",
