@@ -35,7 +35,7 @@ interface SetAdminUserSubscriptionRequest {
   userId: string
   planTier: AdminPlanTier
   planStatus: AdminPlanStatus
-  renewalDate: string | null
+  renewalDate?: string | null
   reason: string
   requestId: string
 }
@@ -139,14 +139,16 @@ export async function setAdminUserSubscription(input: {
   userId: string
   planTier: AdminPlanTier
   planStatus: AdminPlanStatus
-  renewalDate?: string
+  renewalDate?: string | null
   reason: string
 }): Promise<AdminMutationResponse> {
   return callAdmin(adminSetUserSubscriptionCallable, {
     userId: input.userId,
     planTier: input.planTier,
     planStatus: input.planStatus,
-    renewalDate: input.renewalDate ?? null,
+    ...(Object.prototype.hasOwnProperty.call(input, 'renewalDate')
+      ? { renewalDate: input.renewalDate ?? null }
+      : {}),
     reason: ensureReason(input.reason),
     requestId: makeRequestId(),
   })

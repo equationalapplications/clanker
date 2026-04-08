@@ -322,9 +322,30 @@ test("adminClearTermsAcceptanceHandler updates terms fields", async () => {
   const originalFetch = globalThis.fetch;
   let payload: Record<string, unknown> | null = null;
 
-  globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
-    payload = JSON.parse(String(init?.body ?? "{}"));
-    return new Response(JSON.stringify([payload]), {status: 201});
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const method = String(init?.method ?? "GET");
+
+    if (url.includes("/rest/v1/user_app_subscriptions?") && method === "GET") {
+      return new Response(
+        JSON.stringify([
+          {
+            user_id: "supabase-user-1",
+            app_name: "clanker",
+            plan_tier: "monthly_20",
+            plan_status: "active",
+          },
+        ]),
+        {status: 200}
+      );
+    }
+
+    if (url.includes("/rest/v1/user_app_subscriptions?on_conflict") && method === "POST") {
+      payload = JSON.parse(String(init?.body ?? "{}"));
+      return new Response(JSON.stringify([payload]), {status: 201});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url}`);
   }) as typeof fetch;
 
   try {
@@ -348,6 +369,46 @@ test("adminClearTermsAcceptanceHandler updates terms fields", async () => {
     const capturedPayload = payload as Record<string, unknown>;
     assert.equal(capturedPayload.terms_accepted_at, null);
     assert.equal(capturedPayload.terms_version, null);
+    assert.equal(capturedPayload.plan_tier, "monthly_20");
+    assert.equal(capturedPayload.plan_status, "active");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("adminClearTermsAcceptanceHandler returns failed-precondition when subscription is missing", async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const method = String(init?.method ?? "GET");
+
+    if (url.includes("/rest/v1/user_app_subscriptions?") && method === "GET") {
+      return new Response(JSON.stringify([]), {status: 200});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      async () =>
+        adminClearTermsAcceptanceHandler({
+          auth: {
+            uid: "firebase-admin-1",
+            token: {
+              uid: "firebase-admin-1",
+              email: "admin@example.com",
+            },
+          },
+          data: {
+            userId: "supabase-user-1",
+            requestId: "req-terms-missing-subscription",
+            reason: "cleanup",
+          },
+        } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -490,6 +551,95 @@ test("adminSetUserSubscriptionHandler stores renewalDate in plan_renewal_at", as
   }
 });
 
+test("adminSetUserSubscriptionHandler does not mutate plan_renewal_at when renewalDate is omitted", async () => {
+  const originalFetch = globalThis.fetch;
+  let upsertPayload: Record<string, unknown> | null = null;
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const method = String(init?.method ?? "GET");
+
+    if (url.includes("/rest/v1/user_app_subscriptions?on_conflict") && method === "POST") {
+      upsertPayload = JSON.parse(String(init?.body ?? "{}"));
+      return new Response(JSON.stringify({ok: true}), {status: 201});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    const result = await adminSetUserSubscriptionHandler({
+      auth: {
+        uid: "firebase-admin-1",
+        token: {
+          uid: "firebase-admin-1",
+          email: "admin@example.com",
+        },
+      },
+      data: {
+        userId: "supabase-user-1",
+        planTier: "monthly_20",
+        planStatus: "active",
+        reason: "manual correction",
+        requestId: "req-subscription-no-renewal-1",
+      },
+    } as never);
+
+    assert.equal(result.success, true);
+    assert.equal(Object.prototype.hasOwnProperty.call(result.applied, "renewalDate"), false);
+    assert.ok(upsertPayload);
+    const captured = upsertPayload as Record<string, unknown>;
+    assert.equal(Object.prototype.hasOwnProperty.call(captured, "plan_renewal_at"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("adminSetUserSubscriptionHandler clears plan_renewal_at when renewalDate is explicitly null", async () => {
+  const originalFetch = globalThis.fetch;
+  let upsertPayload: Record<string, unknown> | null = null;
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const method = String(init?.method ?? "GET");
+
+    if (url.includes("/rest/v1/user_app_subscriptions?on_conflict") && method === "POST") {
+      upsertPayload = JSON.parse(String(init?.body ?? "{}"));
+      return new Response(JSON.stringify({ok: true}), {status: 201});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    const result = await adminSetUserSubscriptionHandler({
+      auth: {
+        uid: "firebase-admin-1",
+        token: {
+          uid: "firebase-admin-1",
+          email: "admin@example.com",
+        },
+      },
+      data: {
+        userId: "supabase-user-1",
+        planTier: "monthly_20",
+        planStatus: "active",
+        renewalDate: null,
+        reason: "manual correction",
+        requestId: "req-subscription-clear-renewal-1",
+      },
+    } as never);
+
+    assert.equal(result.success, true);
+    assert.equal(result.applied.renewalDate, null);
+    assert.ok(upsertPayload);
+    const captured = upsertPayload as Record<string, unknown>;
+    assert.equal(captured.plan_renewal_at, null);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("adminResetUserStateHandler deletes app data then resets subscription", async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{url: string; method: string; body: string | null}> = [];
@@ -542,8 +692,11 @@ test("adminResetUserStateHandler deletes app data then resets subscription", asy
     assert.equal(upsertPayload.plan_tier, "free");
     assert.equal(upsertPayload.plan_status, "active");
     assert.equal(upsertPayload.current_credits, 50);
+    assert.equal(upsertPayload.plan_renewal_at, null);
     assert.equal(upsertPayload.terms_accepted_at, null);
     assert.equal(upsertPayload.terms_version, null);
+    assert.equal(upsertPayload.billing_provider_id, null);
+    assert.deepEqual(upsertPayload.billing_metadata, {});
   } finally {
     globalThis.fetch = originalFetch;
   }

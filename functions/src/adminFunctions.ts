@@ -561,13 +561,16 @@ const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
     throw new HttpsError("invalid-argument", "Invalid plan status.");
   }
 
-  const renewalDate = parseRenewalDate(data.renewalDate);
-
-  await upsertSubscription(userId, {
+  const updates: Record<string, unknown> = {
     plan_tier: planTier,
     plan_status: planStatus,
-    plan_renewal_at: renewalDate,
-  });
+  };
+
+  if (Object.prototype.hasOwnProperty.call(data, "renewalDate")) {
+    updates.plan_renewal_at = parseRenewalDate(data.renewalDate);
+  }
+
+  await upsertSubscription(userId, updates);
 
   auditLog(
     adminContext.actorUid,
@@ -578,7 +581,7 @@ const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
     {
       planTier,
       planStatus,
-      renewalDate,
+      renewalDate: updates.plan_renewal_at,
       reason,
     }
   );
@@ -588,7 +591,13 @@ const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
     action: "adminSetUserSubscription",
     targetUserId: userId,
     requestId,
-    applied: {planTier, planStatus, renewalDate},
+    applied: {
+      planTier,
+      planStatus,
+      ...(Object.prototype.hasOwnProperty.call(updates, "plan_renewal_at") ?
+        {renewalDate: updates.plan_renewal_at} :
+        {}),
+    },
   };
 };
 
@@ -600,7 +609,20 @@ const adminClearTermsAcceptanceHandler = async (request: CallableRequest) => {
   const reason = assertReason(data.reason);
   const requestId = assertRequestId(data.requestId);
 
+  const existingSubscription = await getSubscriptionRow(userId);
+  if (!existingSubscription) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Cannot clear terms acceptance because no subscription exists for this user."
+    );
+  }
+
+  const planTier = normalizePlanTier(existingSubscription.plan_tier);
+  const planStatus = normalizePlanStatus(existingSubscription.plan_status);
+
   await upsertSubscription(userId, {
+    plan_tier: planTier,
+    plan_status: planStatus,
     terms_accepted_at: null,
     terms_version: null,
   });
@@ -635,9 +657,12 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
   await upsertSubscription(userId, {
     plan_tier: "free",
     plan_status: "active",
+    plan_renewal_at: null,
     current_credits: DEFAULT_RESET_CREDITS,
     terms_accepted_at: null,
     terms_version: null,
+    billing_provider_id: null,
+    billing_metadata: {},
   });
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "reset_user_state", requestId, {
