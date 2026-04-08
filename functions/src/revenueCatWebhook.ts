@@ -15,9 +15,17 @@ const REVENUECAT_PRODUCT_TO_TIER: Record<string, string> = {
   "monthly_50_subscription": "monthly_50",
 };
 
-const REVENUECAT_CREDIT_PACK_ID = "credit_pack_100";
+// Support iOS (credit_100) and Android (credit_pack_100) credit-pack product IDs
+const REVENUECAT_CREDIT_PACK_IDS = new Set([
+  "credit_pack_100",
+  "credit_100",
+]);
 const CREDIT_PACK_AMOUNT = 100;
 const APP_NAME = "clanker";
+
+function isRevenueCatCreditPackProduct(productId: string): boolean {
+  return REVENUECAT_CREDIT_PACK_IDS.has(productId);
+}
 
 // Shape of RevenueCat webhook event payload (abbreviated)
 interface RevenueCatEvent {
@@ -148,7 +156,7 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
             tier,
             type,
           });
-        } else if (product_id === REVENUECAT_CREDIT_PACK_ID) {
+        } else if (isRevenueCatCreditPackProduct(product_id)) {
           await callSupabaseRpc("add_user_credits", {
             p_user_id: supabaseUserId,
             p_app_name: APP_NAME,
@@ -161,7 +169,7 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
         break;
       }
       case "NON_RENEWING_PURCHASE": {
-        if (product_id === REVENUECAT_CREDIT_PACK_ID) {
+        if (isRevenueCatCreditPackProduct(product_id)) {
           await callSupabaseRpc("add_user_credits", {
             p_user_id: supabaseUserId,
             p_app_name: APP_NAME,
