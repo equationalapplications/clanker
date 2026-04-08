@@ -94,12 +94,19 @@ export const stripeWebhook = onRequest(
 
     const stripe = getStripeClient();
     const sig = req.headers["stripe-signature"];
+    if (typeof sig !== "string" || sig.trim().length === 0) {
+      logger.warn("Missing or invalid stripe-signature header", {
+        headerType: Array.isArray(sig) ? "array" : typeof sig,
+      });
+      res.status(400).send("Missing or invalid Stripe signature header");
+      return;
+    }
 
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(
         req.rawBody,
-        sig as string,
+        sig,
         webhookSecret
       );
     } catch (err) {

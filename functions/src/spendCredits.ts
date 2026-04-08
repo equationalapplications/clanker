@@ -38,7 +38,7 @@ const handler = async (request: CallableRequest) => {
   // Validate input
   const data = request.data as SpendCreditsData;
 
-  if (!data || typeof data.amount !== "number" || data.amount <= 0) {
+  if (!data || typeof data.amount !== "number" || !Number.isFinite(data.amount) || data.amount <= 0) {
     throw new HttpsError(
       "invalid-argument",
       "amount must be a positive number."
