@@ -69,3 +69,28 @@ This script is defined in `functions/package.json` and is configured to deploy t
   "deploy": "firebase deploy --only functions -P equationalapplications-com"
 }
 ```
+
+## Post-Deployment: The `allUsersIngress` Tag
+
+Due to a strict Google Cloud Organization policy ("Domain Restricted Sharing"), Cloud Run services (which power Firebase Gen 2 functions) are blocked from being publicly accessible by default. However, Firebase `onCall` functions and webhooks *must* be accessible by `allUsers` at the infrastructure layer so that the SDKs and external services can reach them.
+
+To resolve this, an organization policy exception is configured using a custom tag: `1035311523842/allUsersIngress/True`. 
+
+When you deploy a **new** Firebase function, the Firebase CLI will log a warning that it failed to set the invoker permissions, and the deployed function will be inaccessible (returning `403 Forbidden` errors). You must manually attach this tag to the underlying Cloud Run service and grant the invoker role.
+
+Run the following commands using the `gcloud` CLI, replacing `your_function_name` with the exact Cloud Run service name in lowercase (e.g., `exchangetoken`, `stripewebhook`):
+
+```bash
+# 1. Attach the tag to bypass the organization policy
+gcloud resource-manager tags bindings create \
+  --tag-value="1035311523842/allUsersIngress/True" \
+  --parent="//run.googleapis.com/projects/790870307455/locations/us-central1/services/your_function_name" \
+  --location=us-central1
+
+# 2. Wait a few seconds, then grant public invocation access
+gcloud run services add-iam-policy-binding your_function_name \
+  --region=us-central1 \
+  --member="allUsers" \
+  --role="roles/run.invoker"
+```
+*(Note: You may need to wait 10-15 seconds between attaching the tag and granting the IAM role for the policy exception to propagate).*
