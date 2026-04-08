@@ -1,5 +1,6 @@
 import {onRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import type {Request, Response} from "express";
 import {findSupabaseUserByEmail, callSupabaseRpc, upsertUserSubscription} from "./supabaseAdmin.js";
 
 // RevenueCat product identifier → DB tier mapping
@@ -23,12 +24,7 @@ interface RevenueCatEvent {
   };
 }
 
-export const revenueCatWebhook = onRequest(
-  {
-    region: "us-central1",
-    secrets: ["REVENUECAT_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY"]
-  },
-  async (req, res) => {
+export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
       return;
@@ -140,7 +136,14 @@ export const revenueCatWebhook = onRequest(
       // Return non-2xx for unexpected processing errors so RevenueCat can retry.
       res.status(500).json({received: false, error: "Internal processing error"});
     }
-  }
+};
+
+export const revenueCatWebhook = onRequest(
+  {
+    region: "us-central1",
+    secrets: ["REVENUECAT_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY"]
+  },
+  revenueCatWebhookHandler
 );
 
 /**

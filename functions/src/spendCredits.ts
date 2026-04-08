@@ -93,6 +93,8 @@ const handler = async (request: CallableRequest) => {
   return {success: true, result};
 };
 
+export const spendCreditsHandler = handler;
+
 export const spendCredits = onCall(
   {
     region: "us-central1",

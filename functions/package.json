@@ -3,7 +3,9 @@
     "scripts": {
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
+        "typecheck": "tsc --noEmit",
         "build": "rm -rf lib && tsc",
+        "test": "npm run build && node --test \"lib/**/*.test.js\"",
         "build:watch": "tsc --watch",
         "serve": "npm run build && firebase emulators:start --only functions",
         "shell": "npm run build && firebase functions:shell",
@@ -22,6 +24,7 @@
         "stripe": "^22.0.0"
     },
     "devDependencies": {
+        "@types/node": "^22.18.11",
         "@eslint/js": "^9.17.0",
         "eslint": "^9.34.0",
         "eslint-plugin-import": "^2.32.0",

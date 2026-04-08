@@ -3,6 +3,9 @@
         "module": "NodeNext",
         "esModuleInterop": true,
         "moduleResolution": "nodenext",
+        "types": [
+            "node"
+        ],
         "noImplicitReturns": true,
         "noUnusedLocals": true,
         "outDir": "lib",
