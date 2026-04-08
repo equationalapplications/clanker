@@ -1,3 +1,12 @@
+## [25.3.1](https://github.com/equationalapplications/clanker/compare/v25.3.0...v25.3.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* **functions:** remove Stripe price lookup on checkout path ([2fb5ca5](https://github.com/equationalapplications/clanker/commit/2fb5ca5fae3604eaaa4a9b8fb5579f0b34701ca3))
+* **stripe-webhook:** normalize and validate STRIPE_SECRET_KEY before client creation ([6530163](https://github.com/equationalapplications/clanker/commit/65301630b47f71c7897cd932e7bd9bd37b4fc787))
+* **stripe:** fail fast on missing checkout URLs and invalid secret keys ([12f3c58](https://github.com/equationalapplications/clanker/commit/12f3c585f93d235ee54aff5276d007f8d53fa919))
+
 # [25.3.0](https://github.com/equationalapplications/clanker/compare/v25.2.1...v25.3.0) (2026-04-08)
 
 

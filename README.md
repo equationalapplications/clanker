@@ -15,6 +15,9 @@
 - [Firebase Cloud Functions](docs/FIREBASE_FUNCTIONS.md) — How backend functions (`exchangeToken`, `purchasePackageStripe`) are managed and deployed.
 - [Firebase Functions testing](docs/FIREBASE_FUNCTIONS_TESTING.md) — Test strategy and local commands for callable and webhook function coverage in `functions/`.
 - [Navigation structure](docs/NAVIGATION.md) — Overview of app navigation, including Drawer, Tab, and Stack navigators.
+- [Admin dashboard](docs/ADMIN_DASHBOARD.md) — Web-only admin UX architecture, route guards, and mandatory confirmation behavior for privileged actions.
+- [Admin functions](docs/ADMIN_FUNCTIONS.md) — Callable contracts, authorization model, validation rules, and audit logging schema.
+- [Admin runbook](docs/ADMIN_RUNBOOK.md) — Operational procedures and safety checklists for reset/delete workflows.
 
 ## Data & Features
 
