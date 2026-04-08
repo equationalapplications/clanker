@@ -80,6 +80,10 @@ export default function AdminDashboardScreen() {
   const debouncedSearch = useDebouncedValue(search, 300)
   const normalizedPlanTierFilter = useMemo(() => normalizePlanTierFilter(planTierFilter), [planTierFilter])
   const planStatusFilter = useMemo(() => normalizePlanStatusFilter(planStatusInput), [planStatusInput])
+  const hasPlanTierInput = planTierFilter.trim().length > 0
+  const hasPlanStatusInput = planStatusInput.trim().length > 0
+  const isPlanTierFilterInvalid = hasPlanTierInput && !normalizedPlanTierFilter
+  const isPlanStatusFilterInvalid = hasPlanStatusInput && !planStatusFilter
   const adminQueryEnabled = Platform.OS === 'web' && !!user && ADMIN_ENABLED
 
   const usersQuery = useAdminUsers(
@@ -237,27 +241,33 @@ export default function AdminDashboardScreen() {
               mode="outlined"
               label="Plan tier filter"
               value={planTierFilter}
+              error={isPlanTierFilterInvalid}
               onChangeText={(value) => {
                 setPlanTierFilter(value)
                 setPage(1)
               }}
               placeholder="free, monthly_20, monthly_50, payg"
             />
-            {planTierFilter.trim().length > 0 && !normalizedPlanTierFilter ? (
-              <Text style={styles.filtersHint}>Plan tier must be one of: free, monthly_20, monthly_50, payg.</Text>
+            {isPlanTierFilterInvalid ? (
+              <Text style={styles.filtersHint}>
+                Plan tier must be one of: free, monthly_20, monthly_50, payg. Current input is ignored until valid.
+              </Text>
             ) : null}
             <TextInput
               mode="outlined"
               label="Plan status filter"
               value={planStatusInput}
+              error={isPlanStatusFilterInvalid}
               onChangeText={(value) => {
                 setPlanStatusInput(value)
                 setPage(1)
               }}
               placeholder="active, cancelled, expired"
             />
-            {planStatusInput.trim().length > 0 && !planStatusFilter ? (
-              <Text style={styles.filtersHint}>Plan status must be one of: active, cancelled, expired.</Text>
+            {isPlanStatusFilterInvalid ? (
+              <Text style={styles.filtersHint}>
+                Plan status must be one of: active, cancelled, expired. Current input is ignored until valid.
+              </Text>
             ) : null}
           </View>
           <View style={styles.toolbar}>

@@ -7,14 +7,14 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.SUPABASE_URL = "https://supabase.example.co";
 process.env.ADMIN_ALLOWLIST_EMAILS = "admin@example.com";
 
-import {
+const {
   adminListUsersHandler,
   adminSetUserCreditsHandler,
   adminSetUserSubscriptionHandler,
   adminClearTermsAcceptanceHandler,
   adminResetUserStateHandler,
   adminDeleteUserHandler,
-} from "./adminFunctions.js";
+} = await import("./adminFunctions.js");
 
 test("adminListUsersHandler rejects non-admin callers", async () => {
   await assert.rejects(

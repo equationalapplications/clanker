@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Button, Card, Menu, Text, TextInput } from 'react-native-paper'
 import type { AdminPlanStatus, AdminPlanTier, AdminUserRow } from '~/types/admin'
+import { normalizeRenewalDateInput } from '~/components/admin/renewalDateValidation'
 
 const PLAN_TIERS: AdminPlanTier[] = ['free', 'monthly_20', 'monthly_50', 'payg']
 const PLAN_STATUSES: AdminPlanStatus[] = ['active', 'cancelled', 'expired']
@@ -60,6 +61,9 @@ export function UserActionPanel({
   const trimmedCreditsText = creditsText.trim()
   const credits = Number.parseInt(trimmedCreditsText, 10)
   const creditsIsValid = /^\d+$/.test(trimmedCreditsText)
+  const hasRenewalDateInput = renewalDate.trim().length > 0
+  const normalizedRenewalDate = normalizeRenewalDateInput(renewalDate)
+  const renewalDateIsValid = !hasRenewalDateInput || !!normalizedRenewalDate
 
   return (
     <Card style={styles.card}>
@@ -132,10 +136,17 @@ export function UserActionPanel({
           </View>
           <TextInput
             mode="outlined"
-            label="Renewal date (ISO, optional)"
+            label="Renewal date (UTC ISO, optional)"
             value={renewalDate}
             onChangeText={setRenewalDate}
+            placeholder="YYYY-MM-DDTHH:mm:ssZ or YYYY-MM-DDTHH:mm:ss.SSSZ"
+            error={!renewalDateIsValid}
           />
+          {!renewalDateIsValid ? (
+            <Text style={styles.errorText}>
+              Use UTC ISO format ending in Z, for example 2026-05-01T00:00:00Z or 2026-05-01T00:00:00.000Z.
+            </Text>
+          ) : null}
           <Button
             mode="contained"
             onPress={() =>
@@ -143,10 +154,10 @@ export function UserActionPanel({
                 userId: user.userId,
                 planTier,
                 planStatus,
-                renewalDate: renewalDate.trim() || undefined,
+                renewalDate: normalizedRenewalDate ?? undefined,
               })
             }
-            disabled={isBusy}
+            disabled={isBusy || !renewalDateIsValid}
           >
             Set Subscription
           </Button>
@@ -194,5 +205,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',
+  },
+  errorText: {
+    color: '#9d2f2f',
+    fontSize: 12,
   },
 })
