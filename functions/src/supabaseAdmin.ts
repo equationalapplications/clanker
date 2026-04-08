@@ -59,10 +59,10 @@ export async function findSupabaseUserByEmail(
     }
     return null;
   } catch (error) {
-    logger.error("Error finding Supabase user", {error, email});
     if (error instanceof HttpsError) {
       throw error;
     }
+    logger.error("Error finding Supabase user", {error, email});
     throw new HttpsError("internal", "Failed to look up user by email.");
   }
 }
