@@ -160,7 +160,7 @@ export function UserActionPanel({
                 userId: user.userId,
                 planTier,
                 planStatus,
-                renewalDate: normalizedRenewalDate,
+                ...(hasRenewalDateInput ? { renewalDate: normalizedRenewalDate } : {}),
               })
             }
             disabled={isBusy || !renewalDateIsValid}
