@@ -44,6 +44,7 @@ export function UserActionPanel({
     setCreditsText(String(user.currentCredits))
     setPlanTier(user.planTier)
     setPlanStatus(user.planStatus)
+    setRenewalDate('')
   }, [user])
 
   if (!user) {
@@ -56,7 +57,9 @@ export function UserActionPanel({
     )
   }
 
-  const credits = Number.parseInt(creditsText, 10)
+  const trimmedCreditsText = creditsText.trim()
+  const credits = Number.parseInt(trimmedCreditsText, 10)
+  const creditsIsValid = /^\d+$/.test(trimmedCreditsText)
 
   return (
     <Card style={styles.card}>
@@ -76,8 +79,8 @@ export function UserActionPanel({
           />
           <Button
             mode="contained"
-            onPress={() => onSetCredits({ userId: user.userId, credits: Number.isNaN(credits) ? -1 : credits })}
-            disabled={isBusy}
+            onPress={() => onSetCredits({ userId: user.userId, credits })}
+            disabled={isBusy || !creditsIsValid}
           >
             Set Credits
           </Button>

@@ -1,4 +1,4 @@
-const { act, create } = require('react-test-renderer')
+import { act, create } from 'react-test-renderer'
 
 const mockUseAdminUsers = jest.fn()
 const mockUseAdminAccess = jest.fn()

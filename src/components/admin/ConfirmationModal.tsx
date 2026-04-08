@@ -32,7 +32,7 @@ export function AdminConfirmationModal({
   useEffect(() => {
     setTypedKeyword('')
     setReason('')
-  }, [visible, confirmKeyword])
+  }, [visible, confirmKeyword, title, summary])
 
   const keywordMatched = useMemo(() => {
     if (!confirmKeyword) {

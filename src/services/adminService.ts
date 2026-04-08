@@ -46,9 +46,26 @@ const ensureEnabled = () => {
   }
 }
 
+const ensureAppCheckConfigured = () => {
+  const isWeb = typeof window !== 'undefined' && typeof document !== 'undefined'
+  if (!isWeb) {
+    return
+  }
+
+  const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY?.trim()
+  if (!siteKey) {
+    throw new Error('App Check is not configured for admin actions. Set EXPO_PUBLIC_RECAPTCHA_SITE_KEY.')
+  }
+}
+
 async function callAdmin<T>(fn: (payload: unknown) => Promise<{ data: T }>, payload: unknown): Promise<T> {
   ensureEnabled()
-  await appCheckReady
+  ensureAppCheckConfigured()
+  try {
+    await appCheckReady
+  } catch {
+    throw new Error('App Check initialization failed for admin actions.')
+  }
   const response = await fn(payload)
   return response.data
 }

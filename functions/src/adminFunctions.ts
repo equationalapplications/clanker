@@ -128,7 +128,10 @@ async function parseJsonSafe<T>(response: Response): Promise<T | null> {
 
 function assertRequestId(requestId: unknown): string {
   if (typeof requestId !== "string" || requestId.trim().length < 8) {
-    throw new HttpsError("invalid-argument", "requestId must be a non-empty string.");
+    throw new HttpsError(
+      "invalid-argument",
+      "requestId must be a non-empty string with at least 8 characters."
+    );
   }
   return requestId.trim();
 }
@@ -283,6 +286,10 @@ async function deleteSupabaseAuthUser(userId: string): Promise<void> {
   });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      logger.info("Supabase auth user already deleted", {userId});
+      return;
+    }
     const errorText = await response.text();
     logger.error("Failed to delete Supabase auth user", {userId, errorText});
     throw new HttpsError("internal", "Failed to delete Supabase auth user.");
@@ -586,22 +593,30 @@ const adminDeleteUserHandler = async (request: CallableRequest) => {
       : null;
   const firebaseUid = typeof metadataFirebaseUid === "string" ? metadataFirebaseUid : null;
 
-  await deleteAppDataByUser(userId);
-  await deleteSubscriptionRows(userId);
-  await deleteSupabaseAuthUser(userId);
-
   if (firebaseUid) {
     try {
       await admin.auth().deleteUser(firebaseUid);
     } catch (error) {
-      logger.error("Failed to delete Firebase auth user", {
-        userId,
-        firebaseUid,
-        error,
-      });
-      throw new HttpsError("internal", "Failed to delete Firebase auth user.");
+      const code =
+        typeof error === "object" && error && "code" in error
+          ? String((error as {code?: unknown}).code)
+          : "";
+      if (code === "auth/user-not-found") {
+        logger.info("Firebase auth user already deleted", {userId, firebaseUid});
+      } else {
+        logger.error("Failed to delete Firebase auth user", {
+          userId,
+          firebaseUid,
+          error,
+        });
+        throw new HttpsError("internal", "Failed to delete Firebase auth user.");
+      }
     }
   }
+
+  await deleteAppDataByUser(userId);
+  await deleteSubscriptionRows(userId);
+  await deleteSupabaseAuthUser(userId);
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "delete_user", requestId, {
     reason,

@@ -7,12 +7,15 @@ interface AdminContext {
   token: DecodedIdToken;
 }
 
-function parseAllowList(envName: string): Set<string> {
+function parseAllowList(envName: string, normalizeCase = false): Set<string> {
   const raw = process.env[envName] ?? "";
   return new Set(
     raw
       .split(",")
-      .map((entry) => entry.trim().toLowerCase())
+      .map((entry) => {
+        const trimmed = entry.trim();
+        return normalizeCase ? trimmed.toLowerCase() : trimmed;
+      })
       .filter((entry) => entry.length > 0)
   );
 }
@@ -32,10 +35,10 @@ export function requireAdmin(request: CallableRequest): AdminContext {
   const actorEmail = typeof token.email === "string" ? token.email.toLowerCase() : null;
 
   const claimIsAdmin = token.admin === true;
-  const emailAllowList = parseAllowList("ADMIN_ALLOWLIST_EMAILS");
+  const emailAllowList = parseAllowList("ADMIN_ALLOWLIST_EMAILS", true);
   const uidAllowList = parseAllowList("ADMIN_ALLOWLIST_UIDS");
   const emailAllowed = actorEmail ? emailAllowList.has(actorEmail) : false;
-  const uidAllowed = uidAllowList.has(actorUid.toLowerCase());
+  const uidAllowed = uidAllowList.has(actorUid);
 
   if (!claimIsAdmin && !emailAllowed && !uidAllowed) {
     throw new HttpsError("permission-denied", "Admin access required.");
