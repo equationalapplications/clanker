@@ -44,6 +44,11 @@ async function getOrCreateStripeCustomer(
 }
 
 const handler = async (request: CallableRequest) => {
+    if (!request.auth) {
+        logger.error("Unauthenticated request to purchasePackageStripe");
+        throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+
     // Validate per-request so missing Stripe env vars only fail this function,
     // not the entire Functions bundle (which would take down exchangeToken too).
     const { monthly20, monthly50, creditPack } = getStripePriceIds();
@@ -60,11 +65,6 @@ const handler = async (request: CallableRequest) => {
         STRIPE_MONTHLY_20_PRICE_ID,
         STRIPE_MONTHLY_50_PRICE_ID,
     ]);
-
-    if (!request.auth) {
-        logger.error("Unauthenticated request to purchasePackageStripe");
-        throw new HttpsError("unauthenticated", "Authentication required.");
-    }
 
     const data = request.data;
     if (!data?.priceId || typeof data.priceId !== "string") {

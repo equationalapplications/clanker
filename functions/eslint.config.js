@@ -13,16 +13,14 @@ export default tseslint.config(
         languageOptions: {
             globals: {
                 process: 'readonly',
-                __dirname: 'readonly',
                 fetch: 'readonly',
-                exports: 'readonly',
             },
         },
         rules: {
             'no-console': 'warn',
             'no-unused-vars': 'off',
-            '@typescript-eslint/no-var-requires': 'off',
-            '@typescript-eslint/no-require-imports': 'off',
+            '@typescript-eslint/no-var-requires': 'error',
+            '@typescript-eslint/no-require-imports': 'error',
             '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
         },
     },

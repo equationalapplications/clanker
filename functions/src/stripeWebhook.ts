@@ -106,13 +106,21 @@ export const stripeWebhookHandler = async (req: StripeWebhookRequest, res: Respo
     return;
   }
 
-  const stripe = getStripeClient();
   const sig = req.headers["stripe-signature"];
   if (typeof sig !== "string" || sig.trim().length === 0) {
     logger.warn("Missing or invalid stripe-signature header", {
       headerType: Array.isArray(sig) ? "array" : typeof sig,
     });
     res.status(400).send("Missing or invalid Stripe signature header");
+    return;
+  }
+
+  let stripe: Stripe;
+  try {
+    stripe = getStripeClient();
+  } catch (err) {
+    logger.error("STRIPE_SECRET_KEY is not configured", {err});
+    res.status(500).send("Stripe configuration error");
     return;
   }
 
