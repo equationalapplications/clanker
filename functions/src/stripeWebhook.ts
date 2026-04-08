@@ -94,82 +94,82 @@ function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status):
 }
 
 export const stripeWebhookHandler = async (req: StripeWebhookRequest, res: Response) => {
-    if (req.method !== "POST") {
-      res.status(405).send("Method Not Allowed");
-      return;
+  if (req.method !== "POST") {
+    res.status(405).send("Method Not Allowed");
+    return;
+  }
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    logger.error("STRIPE_WEBHOOK_SECRET is not configured");
+    res.status(500).send("Webhook secret not configured");
+    return;
+  }
+
+  const stripe = getStripeClient();
+  const sig = req.headers["stripe-signature"];
+  if (typeof sig !== "string" || sig.trim().length === 0) {
+    logger.warn("Missing or invalid stripe-signature header", {
+      headerType: Array.isArray(sig) ? "array" : typeof sig,
+    });
+    res.status(400).send("Missing or invalid Stripe signature header");
+    return;
+  }
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.rawBody,
+      sig,
+      webhookSecret
+    );
+  } catch (err) {
+    logger.warn("Stripe signature verification failed", {err});
+    res.status(400).send("Webhook signature verification failed");
+    return;
+  }
+
+  logger.info("Received Stripe event", {type: event.type, id: event.id});
+
+  try {
+    const priceIds = getRequiredStripePriceIds();
+
+    switch (event.type) {
+    case "checkout.session.completed": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      await handleCheckoutCompleted(stripe, session, priceIds);
+      break;
+    }
+    case "customer.subscription.updated": {
+      const sub = event.data.object as Stripe.Subscription;
+      await handleSubscriptionUpdated(sub, stripe, priceIds);
+      break;
+    }
+    case "customer.subscription.deleted": {
+      const sub = event.data.object as Stripe.Subscription;
+      await handleSubscriptionDeleted(sub, stripe, priceIds);
+      break;
+    }
+    case "invoice.payment_succeeded": {
+      const invoice = event.data.object as Stripe.Invoice;
+      await handleInvoicePaymentSucceeded(stripe, invoice, priceIds);
+      break;
+    }
+    case "charge.refunded": {
+      const charge = event.data.object as Stripe.Charge;
+      await handleChargeRefunded(stripe, charge, priceIds);
+      break;
+    }
+    default:
+      logger.info("Unhandled Stripe event type", {type: event.type});
     }
 
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (!webhookSecret) {
-      logger.error("STRIPE_WEBHOOK_SECRET is not configured");
-      res.status(500).send("Webhook secret not configured");
-      return;
-    }
-
-    const stripe = getStripeClient();
-    const sig = req.headers["stripe-signature"];
-    if (typeof sig !== "string" || sig.trim().length === 0) {
-      logger.warn("Missing or invalid stripe-signature header", {
-        headerType: Array.isArray(sig) ? "array" : typeof sig,
-      });
-      res.status(400).send("Missing or invalid Stripe signature header");
-      return;
-    }
-
-    let event: Stripe.Event;
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.rawBody,
-        sig,
-        webhookSecret
-      );
-    } catch (err) {
-      logger.warn("Stripe signature verification failed", {err});
-      res.status(400).send("Webhook signature verification failed");
-      return;
-    }
-
-    logger.info("Received Stripe event", {type: event.type, id: event.id});
-
-    try {
-      const priceIds = getRequiredStripePriceIds();
-
-      switch (event.type) {
-      case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutCompleted(stripe, session, priceIds);
-        break;
-      }
-      case "customer.subscription.updated": {
-        const sub = event.data.object as Stripe.Subscription;
-        await handleSubscriptionUpdated(sub, stripe, priceIds);
-        break;
-      }
-      case "customer.subscription.deleted": {
-        const sub = event.data.object as Stripe.Subscription;
-        await handleSubscriptionDeleted(sub, stripe, priceIds);
-        break;
-      }
-      case "invoice.payment_succeeded": {
-        const invoice = event.data.object as Stripe.Invoice;
-        await handleInvoicePaymentSucceeded(stripe, invoice, priceIds);
-        break;
-      }
-      case "charge.refunded": {
-        const charge = event.data.object as Stripe.Charge;
-        await handleChargeRefunded(stripe, charge, priceIds);
-        break;
-      }
-      default:
-        logger.info("Unhandled Stripe event type", {type: event.type});
-      }
-
-      res.status(200).json({received: true});
-    } catch (err) {
-      logger.error("Error processing Stripe webhook", {err, eventType: event.type});
-      // Return a non-2xx status for unexpected processing failures so Stripe retries.
-      res.status(500).json({received: false, error: "Processing error logged"});
-    }
+    res.status(200).json({received: true});
+  } catch (err) {
+    logger.error("Error processing Stripe webhook", {err, eventType: event.type});
+    // Return a non-2xx status for unexpected processing failures so Stripe retries.
+    res.status(500).json({received: false, error: "Processing error logged"});
+  }
 };
 
 export const stripeWebhook = onRequest(

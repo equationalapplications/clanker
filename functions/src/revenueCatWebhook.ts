@@ -1,7 +1,13 @@
 import {onRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import admin from "firebase-admin";
 import type {Request, Response} from "express";
 import {findSupabaseUserByEmail, callSupabaseRpc, upsertUserSubscription} from "./supabaseAdmin.js";
+
+// Initialize the Admin SDK if not already initialized
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 // RevenueCat product identifier → DB tier mapping
 const REVENUECAT_PRODUCT_TO_TIER: Record<string, string> = {
@@ -188,13 +194,6 @@ export const revenueCatWebhook = onRequest(
  * find the Supabase user by email.
  */
 async function resolveSupabaseUserId(firebaseUid: string): Promise<string | null> {
-  // Dynamically import firebase-admin to avoid circular init issues
-  const adminModule = await import("firebase-admin");
-  const admin = adminModule.default || adminModule;
-  if (!admin.apps?.length) {
-    admin.initializeApp();
-  }
-
   let email: string | undefined;
   try {
     const firebaseUser = await admin.auth().getUser(firebaseUid);
