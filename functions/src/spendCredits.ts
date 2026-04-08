@@ -63,9 +63,10 @@ const handler = async (request: CallableRequest) => {
     );
   }
   const description = data.description.trim();
-  const referenceId = data.referenceId && typeof data.referenceId === "string"
+  const trimmedReferenceId = data.referenceId && typeof data.referenceId === "string"
     ? data.referenceId.trim()
-    : null;
+    : "";
+  const referenceId = trimmedReferenceId.length > 0 ? trimmedReferenceId : null;
 
   // Look up Supabase user by email
   const supabaseUser = await findSupabaseUserByEmail(email);

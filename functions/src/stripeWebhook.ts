@@ -70,7 +70,7 @@ function getStripeClient(): Stripe {
   if (!secretKey) {
     throw new Error("STRIPE_SECRET_KEY environment variable is not set");
   }
-  return new Stripe(secretKey, {apiVersion: "2026-02-25.clover"});
+  return new Stripe(secretKey);
 }
 
 function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status):

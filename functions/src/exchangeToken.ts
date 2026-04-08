@@ -251,7 +251,14 @@ const handler = async (request: CallableRequest) => {
             logger.info("Supabase user not found, attempted creation", { email });
         }
     } catch (err) {
-        logger.error("Supabase admin API check/create user failed:", err);
+        logger.error("Supabase admin API check/create user failed", {err, email});
+        if (err instanceof HttpsError) {
+            throw err;
+        }
+        throw new HttpsError(
+            "internal",
+            "Failed to find or create corresponding Supabase user."
+        );
     }
 
     if (!supabaseUserId) {
@@ -280,7 +287,8 @@ export const exchangeTokenHandler = handler;
 export const exchangeToken = onCall(
     {
         region: "us-central1",
-        secrets: ["SUPABASE_SERVICE_ROLE_KEY"]
+        secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
+        enforceAppCheck: true,
     },
     (request) => {
         return handler(request);

@@ -28,7 +28,7 @@
     "adb": "adb reverse tcp:8081 tcp:8081",
     "predeploy": "npx expo export --platform web --clear",
     "deploy-hosting": "npm run predeploy && firebase deploy --only hosting",
-    "ota": "node -e \"const { spawnSync } = require('child_process'); const easBranch = process.argv[2] || 'production'; const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx'; const result = spawnSync(cmd, ['eas-cli', 'update', '--auto', '--non-interactive', '--branch', easBranch, '--message', 'OTA update', '--environment', 'production'], { stdio: 'inherit' }); process.exit(result.status ?? 1);\" --",
+    "ota": "node -e \"const { spawnSync } = require('child_process'); const easBranch = process.argv[2] || 'production'; const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx'; const result = spawnSync(cmd, ['--yes', 'eas-cli', 'update', '--auto', '--non-interactive', '--branch', easBranch, '--message', 'OTA update', '--environment', 'production'], { stdio: 'inherit' }); process.exit(result.status ?? 1);\" --",
     "update": "npm run deploy-hosting && npm run ota"
   },
   "dependencies": {

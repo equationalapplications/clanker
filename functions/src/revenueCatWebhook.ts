@@ -42,7 +42,7 @@ function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
 
   if (
     event.expiration_at_ms !== undefined &&
-    (typeof event.expiration_at_ms !== "number" || Number.isNaN(event.expiration_at_ms))
+    (typeof event.expiration_at_ms !== "number" || !Number.isFinite(event.expiration_at_ms))
   ) {
     throw new Error("Invalid event.expiration_at_ms");
   }
@@ -101,8 +101,10 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
       case "PRODUCT_CHANGE": {
         if (REVENUECAT_PRODUCT_TO_TIER[product_id]) {
           const tier = REVENUECAT_PRODUCT_TO_TIER[product_id];
-          const renewalAt = expiration_at_ms ?
-            new Date(expiration_at_ms).toISOString() : null;
+          const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
+            new Date(expiration_at_ms) : null;
+          const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ?
+            expirationDate.toISOString() : null;
           await upsertUserSubscription(supabaseUserId, APP_NAME, tier, "active", {
             billing_provider_id: original_transaction_id ?? null,
             plan_renewal_at: renewalAt,
