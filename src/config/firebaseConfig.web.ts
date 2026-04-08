@@ -23,22 +23,42 @@ const config = {
 
 const firebaseApp: FirebaseApp = getApps().length ? getApp() : initializeApp(config)
 
-if (typeof window !== 'undefined') {
-  const recaptchaSiteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY
-  if (recaptchaSiteKey) {
-    try {
-      initializeAppCheck(firebaseApp, {
-        provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
-        isTokenAutoRefreshEnabled: true,
-      })
-      console.log('✅ Firebase App Check activated successfully with Enterprise provider')
-    } catch (error) {
-      reportError(error, 'App Check initialization (web)')
-    }
-  } else {
-    console.warn('⚠️ EXPO_PUBLIC_RECAPTCHA_SITE_KEY not set — Firebase App Check disabled')
+const isAppCheckAlreadyInitializedError = (error: unknown) => {
+  if (!error || typeof error !== 'object') {
+    return false
   }
+
+  const code = 'code' in error ? String((error as { code?: unknown }).code ?? '') : ''
+  return code.includes('already-initialized')
 }
+
+const appCheckReady: Promise<void> = (() => {
+  if (typeof window === 'undefined') {
+    return Promise.resolve()
+  }
+
+  const recaptchaSiteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY?.trim()
+  if (!recaptchaSiteKey) {
+    console.warn('⚠️ EXPO_PUBLIC_RECAPTCHA_SITE_KEY not set — Firebase App Check disabled')
+    return Promise.resolve()
+  }
+
+  try {
+    initializeAppCheck(firebaseApp, {
+      provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    })
+    console.log('✅ Firebase App Check activated successfully with Enterprise provider')
+    return Promise.resolve()
+  } catch (error) {
+    if (isAppCheckAlreadyInitializedError(error)) {
+      return Promise.resolve()
+    }
+
+    reportError(error, 'App Check initialization (web)')
+    return Promise.reject(error)
+  }
+})()
 
 const auth = getAuth(firebaseApp)
 
@@ -59,11 +79,15 @@ const purchasePackageStripe = httpsCallable(functionsInstance, 'purchasePackageS
 
 const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
 
-export type FirebaseUser = User
+const adminListUsersFn = httpsCallable(functionsInstance, 'adminListUsers')
+const adminSetUserCreditsFn = httpsCallable(functionsInstance, 'adminSetUserCredits')
+const adminSetUserSubscriptionFn = httpsCallable(functionsInstance, 'adminSetUserSubscription')
+const adminClearTermsAcceptanceFn = httpsCallable(functionsInstance, 'adminClearTermsAcceptance')
+const adminResetUserStateFn = httpsCallable(functionsInstance, 'adminResetUserState')
+const adminDeleteUserFn = httpsCallable(functionsInstance, 'adminDeleteUser')
 
-// Web App Check is synchronous — export a resolved promise for interface compatibility
-// with the native firebaseConfig.ts which exports an async appCheckReady.
-export const appCheckReady: Promise<void> = Promise.resolve()
+export type FirebaseUser = User
+export { appCheckReady }
 
 export {
   auth,
@@ -75,4 +99,10 @@ export {
   generateReplyFn,
   purchasePackageStripe,
   spendCreditsFn,
+  adminListUsersFn,
+  adminSetUserCreditsFn,
+  adminSetUserSubscriptionFn,
+  adminClearTermsAcceptanceFn,
+  adminResetUserStateFn,
+  adminDeleteUserFn,
 }
