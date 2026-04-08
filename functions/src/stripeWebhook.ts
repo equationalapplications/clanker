@@ -2,6 +2,7 @@ import {onRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import Stripe from "stripe";
+import type {Request, Response} from "express";
 import {getStripePriceIds} from "./runtimeConfig.js";
 import {
   findSupabaseUserByEmail, callSupabaseRpc, upsertUserSubscription, findSupabaseUserByFirebaseUid,
@@ -21,6 +22,8 @@ type StripePriceIds = {
   monthly50: string;
   creditPack: string;
 };
+
+type StripeWebhookRequest = Request & {rawBody: Buffer};
 
 function getStripeId(value: StripeExpandableId): string | null {
   if (!value) return null;
@@ -70,16 +73,7 @@ function getStripeClient(): Stripe {
   return new Stripe(secretKey, {apiVersion: "2026-02-25.clover"});
 }
 
-export const stripeWebhook = onRequest(
-  {
-    region: "us-central1",
-    secrets: [
-      "STRIPE_SECRET_KEY",
-      "STRIPE_WEBHOOK_SECRET",
-      "SUPABASE_SERVICE_ROLE_KEY",
-    ]
-  },
-  async (req, res) => {
+export const stripeWebhookHandler = async (req: StripeWebhookRequest, res: Response) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
       return;
@@ -156,7 +150,18 @@ export const stripeWebhook = onRequest(
       // Return a non-2xx status for unexpected processing failures so Stripe retries.
       res.status(500).json({received: false, error: "Processing error logged"});
     }
-  }
+};
+
+export const stripeWebhook = onRequest(
+  {
+    region: "us-central1",
+    secrets: [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "SUPABASE_SERVICE_ROLE_KEY",
+    ]
+  },
+  stripeWebhookHandler
 );
 
 async function handleCheckoutCompleted(
@@ -240,7 +245,11 @@ async function handleSubscriptionUpdated(
   stripe: Stripe,
   priceIds: StripePriceIds
 ): Promise<void> {
-  const customerId = sub.customer as string;
+  const customerId = getStripeId(sub.customer as StripeExpandableId);
+  if (!customerId) {
+    logger.warn("customer.subscription.updated: missing customer id", {subId: sub.id});
+    return;
+  }
   // Get price ID from the first subscription item
   const priceId = sub.items.data[0]?.price?.id;
   if (!priceId) return;
@@ -281,7 +290,11 @@ async function handleSubscriptionDeleted(
   stripe: Stripe,
   priceIds: StripePriceIds
 ): Promise<void> {
-  const customerId = sub.customer as string;
+  const customerId = getStripeId(sub.customer as StripeExpandableId);
+  if (!customerId) {
+    logger.warn("customer.subscription.deleted: missing customer id", {subId: sub.id});
+    return;
+  }
   const customer = await stripe.customers.retrieve(customerId);
   if (customer.deleted || !customer.email) {
     logger.warn("customer.subscription.deleted: no customer email", {subId: sub.id});

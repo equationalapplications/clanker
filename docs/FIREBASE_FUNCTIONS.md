@@ -70,6 +70,9 @@ The functions require several environment variables to connect to Supabase and S
   - `STRIPE_SUCCESS_URL`
   - `STRIPE_CANCEL_URL`
 
+These values are read through `functions/src/runtimeConfig.ts` (via `defineString(...)` params with
+environment-variable fallback).
+
 Set non-sensitive values via env config for local/dev and let deploy prompt for param values in production:
 
 ```bash

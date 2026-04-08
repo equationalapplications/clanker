@@ -4,6 +4,8 @@ const SUPABASE_URL_PARAM = defineString("SUPABASE_URL");
 const STRIPE_MONTHLY_20_PRICE_ID_PARAM = defineString("STRIPE_MONTHLY_20_PRICE_ID");
 const STRIPE_MONTHLY_50_PRICE_ID_PARAM = defineString("STRIPE_MONTHLY_50_PRICE_ID");
 const STRIPE_CREDIT_PACK_PRICE_ID_PARAM = defineString("STRIPE_CREDIT_PACK_PRICE_ID");
+const STRIPE_SUCCESS_URL_PARAM = defineString("STRIPE_SUCCESS_URL");
+const STRIPE_CANCEL_URL_PARAM = defineString("STRIPE_CANCEL_URL");
 
 function readParamOrEnv(
   param: {value: () => string},
@@ -39,5 +41,15 @@ export function getStripePriceIds(): {
     monthly20: readParamOrEnv(STRIPE_MONTHLY_20_PRICE_ID_PARAM, "STRIPE_MONTHLY_20_PRICE_ID"),
     monthly50: readParamOrEnv(STRIPE_MONTHLY_50_PRICE_ID_PARAM, "STRIPE_MONTHLY_50_PRICE_ID"),
     creditPack: readParamOrEnv(STRIPE_CREDIT_PACK_PRICE_ID_PARAM, "STRIPE_CREDIT_PACK_PRICE_ID"),
+  };
+}
+
+export function getStripeCheckoutUrls(): {
+  successUrl?: string;
+  cancelUrl?: string;
+} {
+  return {
+    successUrl: readParamOrEnv(STRIPE_SUCCESS_URL_PARAM, "STRIPE_SUCCESS_URL"),
+    cancelUrl: readParamOrEnv(STRIPE_CANCEL_URL_PARAM, "STRIPE_CANCEL_URL"),
   };
 }

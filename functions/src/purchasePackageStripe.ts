@@ -2,7 +2,7 @@ import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import Stripe from "stripe";
-import { getStripePriceIds } from "./runtimeConfig.js";
+import { getStripePriceIds, getStripeCheckoutUrls } from "./runtimeConfig.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
@@ -47,6 +47,7 @@ const handler = async (request: CallableRequest) => {
     // Validate per-request so missing Stripe env vars only fail this function,
     // not the entire Functions bundle (which would take down exchangeToken too).
     const { monthly20, monthly50, creditPack } = getStripePriceIds();
+    const { successUrl, cancelUrl } = getStripeCheckoutUrls();
     const STRIPE_MONTHLY_20_PRICE_ID = getRequiredValue("STRIPE_MONTHLY_20_PRICE_ID", monthly20);
     const STRIPE_MONTHLY_50_PRICE_ID = getRequiredValue("STRIPE_MONTHLY_50_PRICE_ID", monthly50);
     const STRIPE_CREDIT_PACK_PRICE_ID = getRequiredValue("STRIPE_CREDIT_PACK_PRICE_ID", creditPack);
@@ -103,10 +104,10 @@ const handler = async (request: CallableRequest) => {
         mode,
         line_items: [{ price: priceId, quantity: 1 }],
         success_url:
-            process.env.STRIPE_SUCCESS_URL ||
+            successUrl ||
             "https://yoursbrightly.ai/checkout/success",
         cancel_url:
-            process.env.STRIPE_CANCEL_URL ||
+            cancelUrl ||
             "https://yoursbrightly.ai/checkout/cancel",
         metadata: {
             firebase_uid: request.auth.uid,
@@ -137,6 +138,8 @@ const handler = async (request: CallableRequest) => {
 
     return session.url;
 };
+
+export const purchasePackageStripeHandler = handler;
 
 export const purchasePackageStripe = onCall(
     {

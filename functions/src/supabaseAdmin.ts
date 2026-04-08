@@ -2,7 +2,9 @@ import {HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import {getSupabaseUrl} from "./runtimeConfig.js";
 
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+function getSupabaseServiceRoleKey(): string | undefined {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
 
 /**
  * Find a Supabase user by email via the get_user_id_by_email RPC function.
@@ -12,7 +14,8 @@ export async function findSupabaseUserByEmail(
   email: string
 ): Promise<{id: string} | null> {
   const supabaseUrl = getSupabaseUrl();
-  if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
+  const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+  if (!supabaseServiceRoleKey || !supabaseUrl) {
     logger.warn("Missing Supabase service role key or URL for user lookup");
     return null;
   }
@@ -24,8 +27,8 @@ export async function findSupabaseUserByEmail(
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+        "apikey": supabaseServiceRoleKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({lookup_email: email.toLowerCase()}),
@@ -60,7 +63,8 @@ export async function callSupabaseRpc(
   params: Record<string, unknown>
 ): Promise<unknown> {
   const supabaseUrl = getSupabaseUrl();
-  if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
+  const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+  if (!supabaseServiceRoleKey || !supabaseUrl) {
     throw new HttpsError(
       "failed-precondition",
       "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
@@ -73,8 +77,8 @@ export async function callSupabaseRpc(
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "apikey": SUPABASE_SERVICE_ROLE_KEY,
+      "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+      "apikey": supabaseServiceRoleKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(params),
@@ -107,7 +111,8 @@ export async function findSupabaseUserByFirebaseUid(
   firebaseUid: string
 ): Promise<{id: string} | null> {
   const supabaseUrl = getSupabaseUrl();
-  if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
+  const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+  if (!supabaseServiceRoleKey || !supabaseUrl) {
     logger.warn("Missing Supabase service role key or URL for firebase UID lookup");
     return null;
   }
@@ -119,8 +124,8 @@ export async function findSupabaseUserByFirebaseUid(
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+        "apikey": supabaseServiceRoleKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({lookup_firebase_uid: firebaseUid}),
@@ -158,7 +163,8 @@ export async function upsertUserSubscription(
   extraFields: Record<string, unknown> = {}
 ): Promise<void> {
   const supabaseUrl = getSupabaseUrl();
-  if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
+  const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+  if (!supabaseServiceRoleKey || !supabaseUrl) {
     throw new HttpsError(
       "failed-precondition",
       "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
@@ -180,8 +186,8 @@ export async function upsertUserSubscription(
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      "apikey": SUPABASE_SERVICE_ROLE_KEY,
+      "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+      "apikey": supabaseServiceRoleKey,
       "Content-Type": "application/json",
       // Upsert on (user_id, app_name) conflict — merge all provided columns
       "Prefer": "resolution=merge-duplicates",

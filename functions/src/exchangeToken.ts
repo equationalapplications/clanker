@@ -3,66 +3,19 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { getSupabaseUrl } from "./runtimeConfig.js";
+import { findSupabaseUserByEmail } from "./supabaseAdmin.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
     admin.initializeApp();
 }
 
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+function getSupabaseServiceRoleKey(): string | undefined {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
 
 
 type UnknownRecord = Record<string, unknown>;
-
-/**
- * Find a Supabase user by email via the get_user_id_by_email RPC function.
- * Returns { id } if found, otherwise null.
- */
-async function findSupabaseUserByEmail(
-    email: string
-): Promise<{ id: string } | null> {
-    const supabaseUrl = getSupabaseUrl();
-    if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
-        logger.warn("Missing Supabase service role key or URL for user lookup");
-        return null;
-    }
-
-    const base = supabaseUrl.replace(/\/+$/, "");
-    const url = `${base}/rest/v1/rpc/get_user_id_by_email`;
-
-    try {
-        const res = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-                "apikey": SUPABASE_SERVICE_ROLE_KEY,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ lookup_email: email.toLowerCase() }),
-        });
-
-        if (!res.ok) {
-            logger.error("Failed to look up Supabase user by email", {
-                status: res.status,
-                statusText: res.statusText,
-                email,
-            });
-            return null;
-        }
-
-        const body: unknown = await res.json();
-        logger.info("Supabase user lookup response", { body });
-
-        // RPC returns the UUID directly as a string (or null if no match)
-        if (typeof body === "string" && body.length > 0) {
-            return { id: body };
-        }
-        return null;
-    } catch (error) {
-        logger.error("Error finding Supabase user", { error, email });
-        return null;
-    }
-}
 
 /**
  * Create a Supabase user via the Admin API using the service role key.
@@ -73,7 +26,8 @@ async function createSupabaseUser(
     firebaseUid: string
 ): Promise<{ id: string } | null> {
     const supabaseUrl = getSupabaseUrl();
-    if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
+    const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+    if (!supabaseServiceRoleKey || !supabaseUrl) {
         logger.warn("Missing Supabase service role key or URL for user creation");
         return null;
     }
@@ -84,8 +38,8 @@ async function createSupabaseUser(
         const res = await fetch(url, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-                "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+                "apikey": supabaseServiceRoleKey,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -135,7 +89,8 @@ async function getSupabaseUserSession(
     token_type: string;
 }> {
     const supabaseUrl = getSupabaseUrl();
-    if (!SUPABASE_SERVICE_ROLE_KEY || !supabaseUrl) {
+    const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+    if (!supabaseServiceRoleKey || !supabaseUrl) {
         throw new HttpsError(
             "failed-precondition",
             "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
@@ -148,8 +103,8 @@ async function getSupabaseUserSession(
     const linkRes = await fetch(`${base}/auth/v1/admin/generate_link`, {
         method: "POST",
         headers: {
-            "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            "apikey": SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+            "apikey": supabaseServiceRoleKey,
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -186,7 +141,7 @@ async function getSupabaseUserSession(
     const verifyRes = await fetch(`${base}/auth/v1/verify`, {
         method: "POST",
         headers: {
-            "apikey": SUPABASE_SERVICE_ROLE_KEY,
+            "apikey": supabaseServiceRoleKey,
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -318,6 +273,8 @@ const handler = async (request: CallableRequest) => {
 
     return session;
 };
+
+export const exchangeTokenHandler = handler;
 
 // 2nd Gen callable function
 export const exchangeToken = onCall(
