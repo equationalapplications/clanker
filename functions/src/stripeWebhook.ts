@@ -23,6 +23,8 @@ type StripePriceIds = {
   creditPack: string;
 };
 
+type StripeWebhookRequest = Request & {rawBody: Buffer};
+
 function getStripeId(value: StripeExpandableId): string | null {
   if (!value) return null;
   if (typeof value === "string") return value;
@@ -71,7 +73,7 @@ function getStripeClient(): Stripe {
   return new Stripe(secretKey, {apiVersion: "2026-02-25.clover"});
 }
 
-export const stripeWebhookHandler = async (req: Request, res: Response) => {
+export const stripeWebhookHandler = async (req: StripeWebhookRequest, res: Response) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
       return;
