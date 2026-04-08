@@ -36,7 +36,7 @@
       ],
       "predeploy": [
         "cd \"$RESOURCE_DIR\" && npx eslint .",
-        "cd \"$RESOURCE_DIR\" && rm -rf lib && npx tsc"
+        "cd \"$RESOURCE_DIR\" && node -e \"require('node:fs').rmSync('lib', { recursive: true, force: true })\" && npx tsc"
       ]
     }
   ]

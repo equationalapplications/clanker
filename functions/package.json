@@ -3,7 +3,7 @@
     "scripts": {
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
-        "build": "node -e \"fs.rmSync('lib', {recursive: true, force: true})\" && tsc",
+        "build": "node -e \"require('node:fs').rmSync('lib', {recursive: true, force: true})\" && tsc",
         "build:watch": "tsc --watch",
         "serve": "npm run build && firebase emulators:start --only functions",
         "shell": "npm run build && firebase functions:shell",

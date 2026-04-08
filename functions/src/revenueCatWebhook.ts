@@ -153,6 +153,9 @@ async function resolveSupabaseUserId(firebaseUid: string): Promise<string | null
   // Dynamically import firebase-admin to avoid circular init issues
   const adminModule = await import("firebase-admin");
   const admin = adminModule.default || adminModule;
+  if (!admin.apps?.length) {
+    admin.initializeApp();
+  }
 
   let email: string | undefined;
   try {

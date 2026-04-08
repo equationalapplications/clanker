@@ -294,19 +294,52 @@ async function handleChargeRefunded(
   const supabaseUser = await findSupabaseUserByEmail(customerEmail);
   if (!supabaseUser) return;
 
-  // If the charge is associated with a credit pack purchase, deduct the credits
-  if (charge.metadata?.price_id === STRIPE_CREDIT_PACK_PRICE_ID) {
+  let creditPackQty = 0;
+  let isSubscriptionRefund = false;
+
+  if (charge.invoice) {
+    const invoiceId = typeof charge.invoice === "string" ? charge.invoice : charge.invoice.id;
+    const invoice = await stripe.invoices.retrieve(invoiceId);
+    const subDetails = (invoice as unknown as {subscription_details?: {subscription?: string}});
+    isSubscriptionRefund = !!subDetails.subscription_details?.subscription;
+
+    for (const item of invoice.lines.data) {
+      type LineItemShape = {pricing?: {price_details?: {price?: string | {id: string}}}};
+      const lineItem = item as unknown as LineItemShape;
+      const priceRef = lineItem.pricing?.price_details?.price;
+      const priceId = typeof priceRef === "string" ? priceRef : priceRef?.id;
+      if (priceId === STRIPE_CREDIT_PACK_PRICE_ID) {
+        creditPackQty += item.quantity ?? 1;
+      }
+    }
+  }
+
+  // Backward-compatible fallback for older charges that may have metadata set directly.
+  if (creditPackQty === 0 && charge.metadata?.price_id === STRIPE_CREDIT_PACK_PRICE_ID) {
+    creditPackQty = Number(charge.metadata?.quantity ?? 1);
+  }
+
+  if (creditPackQty > 0) {
     await callSupabaseRpc("update_user_credits", {
       p_user_id: supabaseUser.id,
       p_app_name: APP_NAME,
-      p_credit_change: -CREDIT_PACK_AMOUNT,
+      p_credit_change: -(CREDIT_PACK_AMOUNT * creditPackQty),
       p_description: "stripe_refund",
       p_reference_id: charge.id,
     });
-    logger.info("charge.refunded: credits deducted", {email: customerEmail});
-  } else {
+    logger.info("charge.refunded: credits deducted", {
+      email: customerEmail,
+      credits: CREDIT_PACK_AMOUNT * creditPackQty,
+    });
+  } else if (isSubscriptionRefund) {
     // For subscription refunds, cancel the subscription
     await upsertUserSubscription(supabaseUser.id, APP_NAME, "free", "cancelled", {});
     logger.info("charge.refunded: subscription cancelled", {email: customerEmail});
+  } else {
+    logger.warn("charge.refunded: unable to classify refund", {
+      email: customerEmail,
+      chargeId: charge.id,
+      invoice: typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id,
+    });
   }
 }

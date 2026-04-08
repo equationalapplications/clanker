@@ -80,12 +80,17 @@ export async function callSupabaseRpc(
 
   if (!res.ok) {
     const errorText = await res.text();
+    const correlationId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     logger.error(`Supabase RPC ${fnName} failed`, {
+      correlationId,
       status: res.status,
       statusText: res.statusText,
       error: errorText,
     });
-    throw new HttpsError("internal", `Supabase RPC ${fnName} failed: ${errorText}`);
+    throw new HttpsError(
+      "internal",
+      `Supabase RPC failed. Reference: ${correlationId}`
+    );
   }
 
   return res.json();
