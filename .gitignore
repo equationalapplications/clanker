@@ -29,6 +29,9 @@ ios/
 .env
 .env.local
 .env.production
+functions/.env
+functions/.env.*
+!functions/.env.example
 .firebase
 functions/lib
 firebase-functions/firebase-debug.log

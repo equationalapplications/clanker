@@ -1,3 +1,13 @@
+## [25.2.1](https://github.com/equationalapplications/clanker/compare/v25.2.0...v25.2.1) (2026-04-05)
+
+
+### Bug Fixes
+
+* **build:** address Copilot PR review security feedback ([b2a0b6d](https://github.com/equationalapplications/clanker/commit/b2a0b6d49cde81884a3eee485e662abc4122aac5))
+* **build:** extract firebase config files dynamically to temp dir ([9e6a181](https://github.com/equationalapplications/clanker/commit/9e6a18156fe9e19625ee00dccbaefbbb1e00b480))
+* **config:** address second round of Copilot PR review feedback ([2ec0392](https://github.com/equationalapplications/clanker/commit/2ec0392b4d47526881ca7c11713927aa3ae67fda))
+* **config:** harden base64 credential file writes ([29859ba](https://github.com/equationalapplications/clanker/commit/29859baa4f5d16d294d7143a1de577ea0f8dc7cf))
+
 # [25.2.0](https://github.com/equationalapplications/clanker/compare/v25.1.0...v25.2.0) (2026-04-05)
 
 

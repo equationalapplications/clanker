@@ -1,67 +1,21 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import type { DecodedIdToken } from "firebase-admin/auth";
+import { getSupabaseUrl } from "./runtimeConfig.js";
+import { findSupabaseUserByEmail } from "./supabaseAdmin.js";
 
 // Initialize the Admin SDK if not already initialized
-if (!admin.apps.length) {
+if (!admin.apps?.length) {
     admin.initializeApp();
 }
 
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SUPABASE_URL = process.env.SUPABASE_URL;
+function getSupabaseServiceRoleKey(): string | undefined {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
 
 
 type UnknownRecord = Record<string, unknown>;
-
-/**
- * Find a Supabase user by email via the get_user_id_by_email RPC function.
- * Returns { id } if found, otherwise null.
- */
-async function findSupabaseUserByEmail(
-    email: string
-): Promise<{ id: string } | null> {
-    if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) {
-        logger.warn("Missing Supabase service role key or URL for user lookup");
-        return null;
-    }
-
-    const base = SUPABASE_URL.replace(/\/+$/, "");
-    const url = `${base}/rest/v1/rpc/get_user_id_by_email`;
-
-    try {
-        const res = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-                "apikey": SUPABASE_SERVICE_ROLE_KEY,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ lookup_email: email.toLowerCase() }),
-        });
-
-        if (!res.ok) {
-            logger.error("Failed to look up Supabase user by email", {
-                status: res.status,
-                statusText: res.statusText,
-                email,
-            });
-            return null;
-        }
-
-        const body: unknown = await res.json();
-        logger.info("Supabase user lookup response", { body });
-
-        // RPC returns the UUID directly as a string (or null if no match)
-        if (typeof body === "string" && body.length > 0) {
-            return { id: body };
-        }
-        return null;
-    } catch (error) {
-        logger.error("Error finding Supabase user", { error, email });
-        return null;
-    }
-}
 
 /**
  * Create a Supabase user via the Admin API using the service role key.
@@ -71,19 +25,24 @@ async function createSupabaseUser(
     email: string,
     firebaseUid: string
 ): Promise<{ id: string } | null> {
-    if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) {
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+    if (!supabaseServiceRoleKey || !supabaseUrl) {
         logger.warn("Missing Supabase service role key or URL for user creation");
-        return null;
+        throw new HttpsError(
+            "failed-precondition",
+            "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
+        );
     }
 
-    const url = `${SUPABASE_URL.replace(/\/+$/, "")}/auth/v1/admin/users`;
+    const url = `${supabaseUrl.replace(/\/+$/, "")}/auth/v1/admin/users`;
 
     try {
         const res = await fetch(url, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-                "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+                "apikey": supabaseServiceRoleKey,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -132,21 +91,23 @@ async function getSupabaseUserSession(
     expires_in: number;
     token_type: string;
 }> {
-    if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) {
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+    if (!supabaseServiceRoleKey || !supabaseUrl) {
         throw new HttpsError(
             "failed-precondition",
             "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
         );
     }
 
-    const base = SUPABASE_URL.replace(/\/+$/, "");
+    const base = supabaseUrl.replace(/\/+$/, "");
 
     // Step 1: Generate a magic link token via Admin API (no email sent)
     const linkRes = await fetch(`${base}/auth/v1/admin/generate_link`, {
         method: "POST",
         headers: {
-            "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            "apikey": SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+            "apikey": supabaseServiceRoleKey,
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -183,7 +144,7 @@ async function getSupabaseUserSession(
     const verifyRes = await fetch(`${base}/auth/v1/verify`, {
         method: "POST",
         headers: {
-            "apikey": SUPABASE_SERVICE_ROLE_KEY,
+            "apikey": supabaseServiceRoleKey,
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -293,7 +254,14 @@ const handler = async (request: CallableRequest) => {
             logger.info("Supabase user not found, attempted creation", { email });
         }
     } catch (err) {
-        logger.error("Supabase admin API check/create user failed:", err);
+        logger.error("Supabase admin API check/create user failed", {err, email});
+        if (err instanceof HttpsError) {
+            throw err;
+        }
+        throw new HttpsError(
+            "internal",
+            "Failed to find or create corresponding Supabase user."
+        );
     }
 
     if (!supabaseUserId) {
@@ -316,10 +284,15 @@ const handler = async (request: CallableRequest) => {
     return session;
 };
 
+export const exchangeTokenHandler = handler;
+
 // 2nd Gen callable function
 export const exchangeToken = onCall(
     {
         region: "us-central1",
+        secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
+        enforceAppCheck: true,
+        invoker: "public",
     },
     (request) => {
         return handler(request);

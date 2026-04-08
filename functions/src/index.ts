@@ -1,7 +1,19 @@
 export {
-    exchangeToken,
-} from "./exchangeToken";
+  exchangeToken,
+} from "./exchangeToken.js";
 
 export {
-    purchasePackageStripe,
-} from "./purchasePackageStripe";
+  spendCredits,
+} from "./spendCredits.js";
+
+export {
+  stripeWebhook,
+} from "./stripeWebhook.js";
+
+export {
+  revenueCatWebhook,
+} from "./revenueCatWebhook.js";
+
+export {
+  purchasePackageStripe,
+} from "./purchasePackageStripe.js";

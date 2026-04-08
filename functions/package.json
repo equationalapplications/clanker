@@ -3,7 +3,9 @@
     "scripts": {
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
-        "build": "rimraf lib && tsc",
+        "typecheck": "tsc --noEmit",
+        "build": "rm -rf lib && tsc",
+        "test": "npm run build && node --test lib",
         "build:watch": "tsc --watch",
         "serve": "npm run build && firebase emulators:start --only functions",
         "shell": "npm run build && firebase functions:shell",
@@ -17,17 +19,17 @@
     "main": "lib/index.js",
     "type": "module",
     "dependencies": {
-        "firebase-admin": "^12.6.0",
-        "firebase-functions": "^6.0.1",
-        "stripe": "^20.4.1"
+        "firebase-admin": "^13.7.0",
+        "firebase-functions": "^7.2.3",
+        "stripe": "^22.0.0"
     },
     "devDependencies": {
+        "@types/node": "^22.18.11",
         "@eslint/js": "^9.17.0",
         "eslint": "^9.34.0",
-        "eslint-plugin-import": "^2.25.4",
-        "firebase-functions-test": "^3.1.0",
-        "rimraf": "^6.0.1",
-        "typescript": "^5.7.3",
+        "eslint-plugin-import": "^2.32.0",
+        "firebase-functions-test": "^3.4.1",
+        "typescript": "^6.0.2",
         "typescript-eslint": "^8.58.0"
     },
     "private": true
