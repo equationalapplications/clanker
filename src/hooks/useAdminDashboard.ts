@@ -49,7 +49,7 @@ export function useSetAdminUserSubscription() {
       userId: string
       planTier: AdminPlanTier
       planStatus: AdminPlanStatus
-      renewalDate?: string
+      renewalDate?: string | null
       reason: string
     }) => setAdminUserSubscription(input),
     onSuccess: () => {

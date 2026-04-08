@@ -146,8 +146,8 @@ export async function setAdminUserSubscription(input: {
     userId: input.userId,
     planTier: input.planTier,
     planStatus: input.planStatus,
-    ...(Object.prototype.hasOwnProperty.call(input, 'renewalDate')
-      ? { renewalDate: input.renewalDate ?? null }
+    ...(input.renewalDate !== undefined
+      ? { renewalDate: input.renewalDate }
       : {}),
     reason: ensureReason(input.reason),
     requestId: makeRequestId(),
