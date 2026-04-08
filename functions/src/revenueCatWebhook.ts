@@ -1,6 +1,7 @@
 import {onRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
+import {timingSafeEqual} from "crypto";
 import type {Request, Response} from "express";
 import {findSupabaseUserByEmail, callSupabaseRpc, upsertUserSubscription} from "./supabaseAdmin.js";
 
@@ -107,7 +108,23 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
     }
 
     const authHeader = req.headers["authorization"];
-    if (!authHeader || authHeader !== `Bearer ${webhookSecret}`) {
+    const expectedAuth = `Bearer ${webhookSecret}`;
+    
+    // Use constant-time comparison to prevent timing attacks
+    let isValid = false;
+    if (typeof authHeader === "string" && authHeader.length === expectedAuth.length) {
+      try {
+        isValid = timingSafeEqual(
+          Buffer.from(authHeader),
+          Buffer.from(expectedAuth)
+        );
+      } catch {
+        // timingSafeEqual throws if buffers are different lengths; treat as invalid
+        isValid = false;
+      }
+    }
+    
+    if (!isValid) {
       logger.warn("RevenueCat webhook: invalid Authorization header");
       res.status(401).send("Unauthorized");
       return;
