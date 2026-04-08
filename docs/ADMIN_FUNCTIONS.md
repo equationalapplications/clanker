@@ -27,6 +27,13 @@ Input:
 - `planTier` (optional string)
 - `planStatus` (optional string)
 
+Validation:
+
+- `page` and `pageSize` must be finite numbers when provided.
+- `planTier`, when provided, must be one of: `free`, `monthly_20`, `monthly_50`, `payg`.
+- `planStatus`, when provided, must be one of: `active`, `cancelled`, `expired`.
+- Invalid filter values return `invalid-argument` rather than silently filtering out all rows.
+
 Output:
 
 - `success`

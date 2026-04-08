@@ -413,6 +413,23 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     ? 25
     : Math.min(100, Math.max(1, Math.floor(rawPageSize)));
   const search = typeof data.search === "string" ? data.search.trim() : "";
+  const planTierFilter = data.planTier === undefined ? undefined :
+    typeof data.planTier === "string" ? data.planTier.trim() : "";
+  if (planTierFilter !== undefined && !ALLOWED_PLAN_TIERS.has(planTierFilter)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "planTier must be one of: free, monthly_20, monthly_50, payg"
+    );
+  }
+
+  const planStatusFilter = data.planStatus === undefined ? undefined :
+    typeof data.planStatus === "string" ? data.planStatus.trim() : "";
+  if (planStatusFilter !== undefined && !ALLOWED_PLAN_STATUS.has(planStatusFilter)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "planStatus must be one of: active, cancelled, expired"
+    );
+  }
 
   const {users, totalCount} = await getSupabaseAuthUsers(page, pageSize, search);
   const userIds = users
@@ -447,11 +464,11 @@ const adminListUsersHandler = async (request: CallableRequest) => {
       return false;
     }
 
-    if (data.planTier && row.planTier !== data.planTier) {
+    if (planTierFilter && row.planTier !== planTierFilter) {
       return false;
     }
 
-    if (data.planStatus && row.planStatus !== data.planStatus) {
+    if (planStatusFilter && row.planStatus !== planStatusFilter) {
       return false;
     }
 
