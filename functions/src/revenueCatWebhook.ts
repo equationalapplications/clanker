@@ -27,16 +27,19 @@ interface RevenueCatEvent {
 function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
   const payload = body as Partial<RevenueCatEvent> | null | undefined;
   const event = payload?.event as Partial<RevenueCatEvent["event"]> | undefined;
+  const type = typeof event?.type === "string" ? event.type.trim() : "";
+  const appUserId = typeof event?.app_user_id === "string" ? event.app_user_id.trim() : "";
+  const productId = typeof event?.product_id === "string" ? event.product_id.trim() : "";
 
-  if (!event || typeof event.type !== "string" || event.type.length === 0) {
+  if (!event || type.length === 0) {
     throw new Error("Missing event.type");
   }
 
-  if (typeof event.app_user_id !== "string" || event.app_user_id.length === 0) {
+  if (appUserId.length === 0) {
     throw new Error("Missing or invalid event.app_user_id");
   }
 
-  if (typeof event.product_id !== "string" || event.product_id.length === 0) {
+  if (productId.length === 0) {
     throw new Error("Missing or invalid event.product_id");
   }
 
@@ -47,7 +50,14 @@ function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
     throw new Error("Invalid event.expiration_at_ms");
   }
 
-  return payload as RevenueCatEvent;
+  return {
+    event: {
+      ...event,
+      type,
+      app_user_id: appUserId,
+      product_id: productId,
+    },
+  } as RevenueCatEvent;
 }
 
 export const revenueCatWebhookHandler = async (req: Request, res: Response) => {

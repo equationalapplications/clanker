@@ -146,12 +146,19 @@ export async function findSupabaseUserByFirebaseUid(
     });
 
     if (!res.ok) {
+      const errorText = await res.text();
+      const correlationId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       logger.error("Failed to look up Supabase user by firebase UID", {
+        correlationId,
         status: res.status,
         statusText: res.statusText,
+        error: errorText,
         firebaseUid,
       });
-      return null;
+      throw new HttpsError(
+        "internal",
+        `Failed to look up user by Firebase UID. Reference: ${correlationId}`
+      );
     }
 
     const body: unknown = await res.json();
@@ -162,7 +169,10 @@ export async function findSupabaseUserByFirebaseUid(
     return null;
   } catch (error) {
     logger.error("Error finding Supabase user by firebase UID", {error, firebaseUid});
-    return null;
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", "Failed to look up user by Firebase UID.");
   }
 }
 

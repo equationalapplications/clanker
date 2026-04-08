@@ -198,19 +198,23 @@ async function handleCheckoutCompleted(
 
   // Fallback: resolve via Firebase UID set in client_reference_id
   if (!supabaseUser && session.client_reference_id) {
+    let firebaseEmail: string | undefined;
     try {
       const firebaseUser = await admin.auth().getUser(session.client_reference_id);
-      if (firebaseUser.email) {
-        supabaseUser = await findSupabaseUserByEmail(firebaseUser.email);
-      }
-      if (!supabaseUser) {
-        supabaseUser = await findSupabaseUserByFirebaseUid(session.client_reference_id);
-      }
+      firebaseEmail = firebaseUser.email;
     } catch (err) {
-      logger.warn("checkout.session.completed: Firebase UID fallback lookup failed", {
+      logger.warn("checkout.session.completed: Firebase UID lookup failed", {
         clientReferenceId: session.client_reference_id,
         err,
       });
+    }
+
+    if (firebaseEmail) {
+      supabaseUser = await findSupabaseUserByEmail(firebaseEmail);
+    }
+
+    if (!supabaseUser) {
+      supabaseUser = await findSupabaseUserByFirebaseUid(session.client_reference_id);
     }
   }
 
