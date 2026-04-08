@@ -111,6 +111,30 @@ test("stripeWebhookHandler returns 500 when STRIPE_SECRET_KEY is missing", async
   }
 });
 
+test("stripeWebhookHandler returns 500 when STRIPE_SECRET_KEY contains invalid characters", async () => {
+  const originalSecretKey = process.env.STRIPE_SECRET_KEY;
+  process.env.STRIPE_SECRET_KEY = "sk_test_123\ninvalid";
+
+  const res = createResponseRecorder();
+  try {
+    await stripeWebhookHandler(
+      {
+        method: "POST",
+        headers: {
+          "stripe-signature": "t=1,v1=sig",
+        },
+        rawBody: Buffer.from("{}", "utf8"),
+      } as never,
+      res as never
+    );
+
+    assert.equal(res.statusCode, 500);
+    assert.equal(res.body, "Stripe configuration error");
+  } finally {
+    process.env.STRIPE_SECRET_KEY = originalSecretKey;
+  }
+});
+
 test("mapStripeSubscriptionStatus maps active-like statuses to active", () => {
   const statuses: Stripe.Subscription.Status[] = [
     "active",
