@@ -16,6 +16,11 @@ const CREDIT_PACK_AMOUNT = 100;
 const APP_NAME = "clanker";
 
 type StripeExpandableId = string | {id?: string} | null | undefined;
+type StripePriceIds = {
+  monthly20: string;
+  monthly50: string;
+  creditPack: string;
+};
 
 function getStripeId(value: StripeExpandableId): string | null {
   if (!value) return null;
@@ -24,21 +29,37 @@ function getStripeId(value: StripeExpandableId): string | null {
   return null;
 }
 
-function getTierByPriceId(priceId: string): string | undefined {
-  const {monthly20, monthly50} = getStripePriceIds();
-  const monthly20PriceId = monthly20 || "price_TODO_monthly_20";
-  const monthly50PriceId = monthly50 || "price_TODO_monthly_50";
+function getRequiredStripePriceIds(): StripePriceIds {
+  const {monthly20, monthly50, creditPack} = getStripePriceIds();
+  const missing: string[] = [];
 
-  if (priceId === monthly20PriceId) return "monthly_20";
-  if (priceId === monthly50PriceId) return "monthly_50";
+  if (!monthly20) missing.push("STRIPE_MONTHLY_20_PRICE_ID");
+  if (!monthly50) missing.push("STRIPE_MONTHLY_50_PRICE_ID");
+  if (!creditPack) missing.push("STRIPE_CREDIT_PACK_PRICE_ID");
+
+  if (missing.length > 0) {
+    logger.error("Missing Stripe price ID configuration", {missing});
+    throw new Error(`Missing required Stripe price IDs: ${missing.join(", ")}`);
+  }
+
+  return {
+    monthly20: monthly20 as string,
+    monthly50: monthly50 as string,
+    creditPack: creditPack as string,
+  };
+}
+
+function getTierByPriceId(priceId: string, priceIds: StripePriceIds): string | undefined {
+  const {monthly20, monthly50} = priceIds;
+  if (priceId === monthly20) return "monthly_20";
+  if (priceId === monthly50) return "monthly_50";
   return undefined;
 }
 
-function isCreditPackPriceId(priceId?: string): boolean {
+function isCreditPackPriceId(priceId: string | undefined, priceIds: StripePriceIds): boolean {
   if (!priceId) return false;
-  const {creditPack} = getStripePriceIds();
-  const expectedPriceId = creditPack || "price_TODO_credit_pack";
-  return priceId === expectedPriceId;
+  const {creditPack} = priceIds;
+  return priceId === creditPack;
 }
 
 function getStripeClient(): Stripe {
@@ -90,30 +111,32 @@ export const stripeWebhook = onRequest(
     logger.info("Received Stripe event", {type: event.type, id: event.id});
 
     try {
+      const priceIds = getRequiredStripePriceIds();
+
       switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutCompleted(stripe, session);
+        await handleCheckoutCompleted(stripe, session, priceIds);
         break;
       }
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
-        await handleSubscriptionUpdated(sub, stripe);
+        await handleSubscriptionUpdated(sub, stripe, priceIds);
         break;
       }
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
-        await handleSubscriptionDeleted(sub, stripe);
+        await handleSubscriptionDeleted(sub, stripe, priceIds);
         break;
       }
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        await handleInvoicePaymentSucceeded(stripe, invoice);
+        await handleInvoicePaymentSucceeded(stripe, invoice, priceIds);
         break;
       }
       case "charge.refunded": {
         const charge = event.data.object as Stripe.Charge;
-        await handleChargeRefunded(stripe, charge);
+        await handleChargeRefunded(stripe, charge, priceIds);
         break;
       }
       default:
@@ -131,7 +154,8 @@ export const stripeWebhook = onRequest(
 
 async function handleCheckoutCompleted(
   stripe: Stripe,
-  session: Stripe.Checkout.Session
+  session: Stripe.Checkout.Session,
+  priceIds: StripePriceIds
 ): Promise<void> {
   const customerEmail = session.customer_details?.email ?? session.customer_email;
 
@@ -173,7 +197,7 @@ async function handleCheckoutCompleted(
     const priceId = item.price?.id;
     if (!priceId) continue;
 
-    const tier = getTierByPriceId(priceId);
+    const tier = getTierByPriceId(priceId, priceIds);
     if (tier) {
       // Subscription product → upsert subscription row
       const subscriptionId = getStripeId(session.subscription as StripeExpandableId);
@@ -186,7 +210,7 @@ async function handleCheckoutCompleted(
         email: customerEmail,
         tier,
       });
-    } else if (isCreditPackPriceId(priceId)) {
+    } else if (isCreditPackPriceId(priceId, priceIds)) {
       // Credit pack → add credits
       const qty = item.quantity ?? 1;
       await callSupabaseRpc("add_user_credits", {
@@ -206,14 +230,15 @@ async function handleCheckoutCompleted(
 
 async function handleSubscriptionUpdated(
   sub: Stripe.Subscription,
-  stripe: Stripe
+  stripe: Stripe,
+  priceIds: StripePriceIds
 ): Promise<void> {
   const customerId = sub.customer as string;
   // Get price ID from the first subscription item
   const priceId = sub.items.data[0]?.price?.id;
   if (!priceId) return;
 
-  const tier = getTierByPriceId(priceId);
+  const tier = getTierByPriceId(priceId, priceIds);
   if (!tier) {
     logger.info("customer.subscription.updated: unknown price, skipping", {priceId});
     return;
@@ -246,7 +271,8 @@ async function handleSubscriptionUpdated(
 
 async function handleSubscriptionDeleted(
   sub: Stripe.Subscription,
-  stripe: Stripe
+  stripe: Stripe,
+  priceIds: StripePriceIds
 ): Promise<void> {
   const customerId = sub.customer as string;
   const customer = await stripe.customers.retrieve(customerId);
@@ -259,7 +285,7 @@ async function handleSubscriptionDeleted(
   if (!supabaseUser) return;
 
   const priceId = sub.items.data[0]?.price?.id;
-  const resolvedTier = priceId ? getTierByPriceId(priceId) : undefined;
+  const resolvedTier = priceId ? getTierByPriceId(priceId, priceIds) : undefined;
   const tier = resolvedTier ?? "free";
 
   await upsertUserSubscription(supabaseUser.id, APP_NAME, tier, "cancelled", {
@@ -273,7 +299,8 @@ async function handleSubscriptionDeleted(
 
 async function handleInvoicePaymentSucceeded(
   stripe: Stripe,
-  invoice: Stripe.Invoice
+  invoice: Stripe.Invoice,
+  priceIds: StripePriceIds
 ): Promise<void> {
   // Only handle non-subscription invoices (one-time PAYG credit pack purchases)
   const subDetails = (invoice as unknown as {subscription_details?: {subscription?: string}});
@@ -288,7 +315,7 @@ async function handleInvoicePaymentSucceeded(
     const lineItem = item as unknown as LineItemShape;
     const priceRef = lineItem.pricing?.price_details?.price;
     const priceId = typeof priceRef === "string" ? priceRef : priceRef?.id;
-    if (isCreditPackPriceId(priceId)) {
+    if (isCreditPackPriceId(priceId, priceIds)) {
       const qty = item.quantity ?? 1;
       await callSupabaseRpc("add_user_credits", {
         p_user_id: supabaseUser.id,
@@ -307,7 +334,8 @@ async function handleInvoicePaymentSucceeded(
 
 async function handleChargeRefunded(
   stripe: Stripe,
-  charge: Stripe.Charge
+  charge: Stripe.Charge,
+  priceIds: StripePriceIds
 ): Promise<void> {
   const customerEmail = charge.billing_details?.email;
   if (!customerEmail) {
@@ -334,14 +362,14 @@ async function handleChargeRefunded(
       const lineItem = item as unknown as LineItemShape;
       const priceRef = lineItem.pricing?.price_details?.price;
       const priceId = typeof priceRef === "string" ? priceRef : priceRef?.id;
-      if (isCreditPackPriceId(priceId)) {
+      if (isCreditPackPriceId(priceId, priceIds)) {
         creditPackQty += item.quantity ?? 1;
       }
     }
   }
 
   // Backward-compatible fallback for older charges that may have metadata set directly.
-  if (creditPackQty === 0 && isCreditPackPriceId(charge.metadata?.price_id)) {
+  if (creditPackQty === 0 && isCreditPackPriceId(charge.metadata?.price_id, priceIds)) {
     creditPackQty = Number(charge.metadata?.quantity ?? 1);
   }
 

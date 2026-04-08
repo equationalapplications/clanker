@@ -9,7 +9,19 @@ function readParamOrEnv(
   param: {value: () => string},
   envName: string
 ): string | undefined {
-  const raw = param.value() || process.env[envName];
+  // Prioritize environment variable to avoid throwing when param is not set
+  const envValue = process.env[envName]?.trim();
+  if (envValue) {
+    return envValue;
+  }
+
+  // Fallback to Firebase param, with error handling for missing values
+  let raw: string | undefined;
+  try {
+    raw = param.value();
+  } catch {
+    raw = undefined;
+  }
   const value = raw?.trim();
   return value ? value : undefined;
 }
