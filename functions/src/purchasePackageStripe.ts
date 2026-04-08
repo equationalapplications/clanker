@@ -1,10 +1,11 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import Stripe from "stripe";
+import { getStripePriceIds, getStripeCheckoutUrls } from "./runtimeConfig.js";
 
 // Initialize the Admin SDK if not already initialized
-if (!admin.apps.length) {
+if (!admin.apps?.length) {
     admin.initializeApp();
 }
 
@@ -13,15 +14,14 @@ function getStripeClient() {
     if (!secretKey) {
         throw new Error("STRIPE_SECRET_KEY environment variable is not set");
     }
-    return new Stripe(secretKey, { apiVersion: "2026-02-25.clover" });
+    return new Stripe(secretKey);
 }
 
-function getRequiredEnvVar(name: string): string {
-    const value = process.env[name];
+function getRequiredValue(name: string, value?: string): string {
     if (!value) {
         throw new HttpsError(
             "failed-precondition",
-            `${name} environment variable is not set`
+            `${name} configuration value is not set`
         );
     }
     return value;
@@ -44,11 +44,18 @@ async function getOrCreateStripeCustomer(
 }
 
 const handler = async (request: CallableRequest) => {
+    if (!request.auth) {
+        logger.error("Unauthenticated request to purchasePackageStripe");
+        throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+
     // Validate per-request so missing Stripe env vars only fail this function,
     // not the entire Functions bundle (which would take down exchangeToken too).
-    const STRIPE_MONTHLY_20_PRICE_ID = getRequiredEnvVar("STRIPE_MONTHLY_20_PRICE_ID");
-    const STRIPE_MONTHLY_50_PRICE_ID = getRequiredEnvVar("STRIPE_MONTHLY_50_PRICE_ID");
-    const STRIPE_CREDIT_PACK_PRICE_ID = getRequiredEnvVar("STRIPE_CREDIT_PACK_PRICE_ID");
+    const { monthly20, monthly50, creditPack } = getStripePriceIds();
+    const { successUrl, cancelUrl } = getStripeCheckoutUrls();
+    const STRIPE_MONTHLY_20_PRICE_ID = getRequiredValue("STRIPE_MONTHLY_20_PRICE_ID", monthly20);
+    const STRIPE_MONTHLY_50_PRICE_ID = getRequiredValue("STRIPE_MONTHLY_50_PRICE_ID", monthly50);
+    const STRIPE_CREDIT_PACK_PRICE_ID = getRequiredValue("STRIPE_CREDIT_PACK_PRICE_ID", creditPack);
     const ALLOWED_PRICE_IDS = new Set([
         STRIPE_MONTHLY_20_PRICE_ID,
         STRIPE_MONTHLY_50_PRICE_ID,
@@ -58,11 +65,6 @@ const handler = async (request: CallableRequest) => {
         STRIPE_MONTHLY_20_PRICE_ID,
         STRIPE_MONTHLY_50_PRICE_ID,
     ]);
-
-    if (!request.auth) {
-        logger.error("Unauthenticated request to purchasePackageStripe");
-        throw new HttpsError("unauthenticated", "Authentication required.");
-    }
 
     const data = request.data;
     if (!data?.priceId || typeof data.priceId !== "string") {
@@ -102,11 +104,11 @@ const handler = async (request: CallableRequest) => {
         mode,
         line_items: [{ price: priceId, quantity: 1 }],
         success_url:
-            process.env.STRIPE_SUCCESS_URL ||
-            "https://yoursbrightly.ai/checkout/success",
+            successUrl ||
+            "https://clanker-ai.com/checkout/success",
         cancel_url:
-            process.env.STRIPE_CANCEL_URL ||
-            "https://yoursbrightly.ai/checkout/cancel",
+            cancelUrl ||
+            "https://clanker-ai.com/checkout/cancel",
         metadata: {
             firebase_uid: request.auth.uid,
             email,
@@ -136,6 +138,8 @@ const handler = async (request: CallableRequest) => {
 
     return session.url;
 };
+
+export const purchasePackageStripeHandler = handler;
 
 export const purchasePackageStripe = onCall(
     {

@@ -35,8 +35,8 @@
         "*.local"
       ],
       "predeploy": [
-        "cd \"$RESOURCE_DIR\" && npx eslint src",
-        "cd \"$RESOURCE_DIR\" && npx rimraf lib && npx tsc"
+        "cd \"$RESOURCE_DIR\" && npx eslint .",
+        "cd \"$RESOURCE_DIR\" && rm -rf lib && npx tsc"
       ]
     }
   ]
