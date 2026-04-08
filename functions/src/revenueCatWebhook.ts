@@ -217,8 +217,15 @@ async function resolveSupabaseUserId(firebaseUid: string): Promise<string | null
     const firebaseUser = await admin.auth().getUser(firebaseUid);
     email = firebaseUser.email;
   } catch (err) {
-    logger.error("resolveSupabaseUserId: Firebase user not found", {firebaseUid, err});
-    return null;
+    const code = typeof err === "object" && err !== null && "code" in err ?
+      String((err as {code?: unknown}).code) :
+      undefined;
+    if (code === "auth/user-not-found") {
+      logger.warn("resolveSupabaseUserId: Firebase user not found", {firebaseUid});
+      return null;
+    }
+    logger.error("resolveSupabaseUserId: Firebase lookup failed", {firebaseUid, err});
+    throw err;
   }
 
   if (!email) {
