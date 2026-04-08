@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   clearAdminTerms,
   deleteAdminUser,
@@ -25,6 +25,7 @@ export function useAdminUsers(input: AdminUsersQueryInput, enabled: boolean) {
     queryFn: () => listAdminUsers(input),
     enabled,
     staleTime: 10_000,
+    placeholderData: keepPreviousData,
   })
 }
 

@@ -12,6 +12,7 @@ import {
   useSetAdminUserCredits,
   useSetAdminUserSubscription,
 } from '~/hooks/useAdminDashboard'
+import { useDebouncedValue } from '~/hooks/useDebouncedValue'
 import type { AdminPlanStatus, AdminPlanTier, AdminUserRow } from '~/types/admin'
 import { UsersTable } from '~/components/admin/UsersTable'
 import { UserActionPanel } from '~/components/admin/UserActionPanel'
@@ -37,19 +38,20 @@ export default function AdminDashboardScreen() {
   const user = useSelector(authService, (state) => state.context.user)
 
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(25)
+  const [pageSize, setPageSize] = useState(25)
   const [search, setSearch] = useState('')
   const [planTierFilter, setPlanTierFilter] = useState('')
   const [planStatusFilter, setPlanStatusFilter] = useState('')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const debouncedSearch = useDebouncedValue(search, 300)
 
   const accessQuery = useAdminAccess(Platform.OS === 'web' && !!user && ADMIN_ENABLED)
   const usersQuery = useAdminUsers(
     {
       page,
       pageSize,
-      search,
+      search: debouncedSearch,
       planTier: planTierFilter || undefined,
       planStatus: planStatusFilter || undefined,
     },
@@ -73,6 +75,10 @@ export default function AdminDashboardScreen() {
     clearTermsMutation.isPending ||
     resetUserMutation.isPending ||
     deleteUserMutation.isPending
+
+  const totalCount = usersQuery.data?.totalCount
+  const totalPages =
+    typeof totalCount === 'number' && totalCount >= 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : null
 
   const showMessage = (title: string, message: string) => {
     Alert.alert(title, message)
@@ -173,20 +179,32 @@ export default function AdminDashboardScreen() {
               mode="outlined"
               label="Search email or user id"
               value={search}
-              onChangeText={setSearch}
+              onChangeText={(value) => {
+                setSearch(value)
+                setPage(1)
+              }}
             />
+            <Text style={styles.filtersHint}>
+              Email/name search runs server-side across all users; plan filters apply to the current page.
+            </Text>
             <TextInput
               mode="outlined"
               label="Plan tier filter"
               value={planTierFilter}
-              onChangeText={setPlanTierFilter}
+              onChangeText={(value) => {
+                setPlanTierFilter(value)
+                setPage(1)
+              }}
               placeholder="free, monthly_20, monthly_50, payg"
             />
             <TextInput
               mode="outlined"
               label="Plan status filter"
               value={planStatusFilter}
-              onChangeText={setPlanStatusFilter}
+              onChangeText={(value) => {
+                setPlanStatusFilter(value)
+                setPage(1)
+              }}
               placeholder="active, canceled, past_due, paused, trialing"
             />
           </View>
@@ -194,13 +212,30 @@ export default function AdminDashboardScreen() {
             <Button mode="outlined" onPress={() => usersQuery.refetch()} disabled={usersQuery.isFetching}>
               Refresh
             </Button>
+            <Text>Rows per page</Text>
+            {[25, 50, 100].map((size) => (
+              <Button
+                key={size}
+                mode={pageSize === size ? 'contained' : 'outlined'}
+                onPress={() => {
+                  setPageSize(size)
+                  setPage(1)
+                }}
+                disabled={usersQuery.isFetching && pageSize === size}
+              >
+                {size}
+              </Button>
+            ))}
             <Button mode="contained" onPress={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page === 1 || usersQuery.isFetching}>
               Previous
             </Button>
-            <Text>Page {page}</Text>
+            <Text>{totalPages ? `Page ${page} of ${totalPages}` : `Page ${page}`}</Text>
             <Button mode="contained" onPress={() => setPage((prev) => prev + 1)} disabled={usersQuery.isFetching || !usersQuery.data?.hasMore}>
               Next
             </Button>
+            {usersQuery.isFetching && !usersQuery.isLoading ? (
+              <Text style={styles.fetchingHint}>Refreshing...</Text>
+            ) : null}
           </View>
         </Card.Content>
       </Card>
@@ -286,12 +321,19 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 10,
   },
+  filtersHint: {
+    opacity: 0.7,
+    fontSize: 12,
+  },
   toolbar: {
     marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 10,
+  },
+  fetchingHint: {
+    opacity: 0.7,
   },
   contentGrid: {
     flexDirection: 'row',

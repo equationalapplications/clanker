@@ -33,7 +33,14 @@ Output:
 - `users[]` (user id/email/created/subscription/terms fields)
 - `page`
 - `pageSize`
+- `totalCount` (optional, if provided by upstream Supabase Auth response)
 - `hasMore`
+
+Search behavior:
+
+- `search` is forwarded server-side to Supabase Auth Admin API via `filter` (`/auth/v1/admin/users?...&filter=TERM`).
+- This `filter` parameter is currently undocumented in the JS SDK but is supported by GoTrue Admin API implementation.
+- `planTier` and `planStatus` remain client-side page-scoped filtering after subscription hydration.
 
 ### `adminSetUserCredits`
 
@@ -112,11 +119,17 @@ Each mutating function emits structured `admin_audit_event` logs using `logger.i
 - payload summary
 - timestamp
 
+`requestId` is currently used for correlation and audit tracing. The current implementation does not
+enforce server-side idempotency for repeated request ids.
+
 ## Secrets And Config
 
 Admin callables require:
 
 - `SUPABASE_SERVICE_ROLE_KEY`
+
+Admin callables also require non-secret configuration:
+
 - `SUPABASE_URL`
 
 Optional bootstrap authorization config:

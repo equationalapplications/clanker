@@ -102,6 +102,109 @@ test("adminListUsersHandler returns hydrated user rows", async () => {
   }
 });
 
+test("adminListUsersHandler forwards trimmed search to Supabase filter and returns totalCount", async () => {
+  const originalFetch = globalThis.fetch;
+  let capturedFilter: string | null = null;
+
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+
+    if (url.pathname === "/auth/v1/admin/users") {
+      capturedFilter = url.searchParams.get("filter");
+      return new Response(
+        JSON.stringify({
+          users: [
+            {
+              id: "supabase-user-2",
+              email: "search-hit@example.com",
+              created_at: "2026-04-03T00:00:00.000Z",
+            },
+          ],
+          totalCount: 77,
+        }),
+        {status: 200}
+      );
+    }
+
+    if (url.pathname === "/rest/v1/user_app_subscriptions") {
+      return new Response(JSON.stringify([]), {status: 200});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url.toString()}`);
+  }) as typeof fetch;
+
+  try {
+    const result = await adminListUsersHandler({
+      auth: {
+        uid: "firebase-admin-1",
+        token: {
+          uid: "firebase-admin-1",
+          email: "admin@example.com",
+        },
+      },
+      data: {
+        search: "  search-hit  ",
+      },
+    } as never);
+
+    assert.equal(capturedFilter, "search-hit");
+    assert.equal(result.totalCount, 77);
+    assert.equal(result.users.length, 1);
+    assert.equal(result.users[0]?.email, "search-hit@example.com");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("adminListUsersHandler does not apply client-side search filtering", async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+
+    if (url.pathname === "/auth/v1/admin/users") {
+      return new Response(
+        JSON.stringify({
+          users: [
+            {
+              id: "supabase-user-3",
+              email: "kept-by-server-filter@example.com",
+              created_at: "2026-04-04T00:00:00.000Z",
+            },
+          ],
+        }),
+        {status: 200}
+      );
+    }
+
+    if (url.pathname === "/rest/v1/user_app_subscriptions") {
+      return new Response(JSON.stringify([]), {status: 200});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url.toString()}`);
+  }) as typeof fetch;
+
+  try {
+    const result = await adminListUsersHandler({
+      auth: {
+        uid: "firebase-admin-1",
+        token: {
+          uid: "firebase-admin-1",
+          email: "admin@example.com",
+        },
+      },
+      data: {
+        search: "not-in-returned-email-or-id",
+      },
+    } as never);
+
+    assert.equal(result.users.length, 1);
+    assert.equal(result.users[0]?.userId, "supabase-user-3");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("adminSetUserCreditsHandler validates reason", async () => {
   await assert.rejects(
     async () =>
