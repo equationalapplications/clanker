@@ -24,6 +24,32 @@ interface RevenueCatEvent {
   };
 }
 
+function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
+  const payload = body as Partial<RevenueCatEvent> | null | undefined;
+  const event = payload?.event as Partial<RevenueCatEvent["event"]> | undefined;
+
+  if (!event || typeof event.type !== "string" || event.type.length === 0) {
+    throw new Error("Missing event.type");
+  }
+
+  if (typeof event.app_user_id !== "string" || event.app_user_id.length === 0) {
+    throw new Error("Missing or invalid event.app_user_id");
+  }
+
+  if (typeof event.product_id !== "string" || event.product_id.length === 0) {
+    throw new Error("Missing or invalid event.product_id");
+  }
+
+  if (
+    event.expiration_at_ms !== undefined &&
+    (typeof event.expiration_at_ms !== "number" || Number.isNaN(event.expiration_at_ms))
+  ) {
+    throw new Error("Invalid event.expiration_at_ms");
+  }
+
+  return payload as RevenueCatEvent;
+}
+
 export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
@@ -47,10 +73,7 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
 
     let payload: RevenueCatEvent;
     try {
-      payload = req.body as RevenueCatEvent;
-      if (!payload?.event?.type) {
-        throw new Error("Missing event.type");
-      }
+      payload = parseRevenueCatEvent(req.body);
     } catch (err) {
       logger.warn("RevenueCat webhook: failed to parse body", {err});
       res.status(400).send("Invalid payload");

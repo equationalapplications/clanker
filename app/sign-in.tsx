@@ -74,6 +74,7 @@ export default function SignIn() {
           <MonoText>Create Your Own AI Clanker</MonoText>
           <Logo />
           <ProviderButton
+            style={styles.providerButton}
             disabled={isLoading}
             loading={isLoading}
             onPress={GoogleLoginOnPress}
@@ -92,6 +93,7 @@ export default function SignIn() {
           )}
           {Platform.OS === 'web' && (
             <ProviderButton
+              style={styles.providerButton}
               disabled={isLoading}
               loading={isLoading}
               onPress={AppleLoginOnPress}
@@ -128,9 +130,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
   },
   appleButton: {
-    width: 300,
+    width: '100%',
+    maxWidth: 300,
     height: 44,
     marginTop: 10,
+  },
+  providerButton: {
+    width: '100%',
+    maxWidth: 300,
   },
   footer: {
     position: 'absolute',

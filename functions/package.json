@@ -5,7 +5,7 @@
         "lint:fix": "eslint . --fix",
         "typecheck": "tsc --noEmit",
         "build": "rm -rf lib && tsc",
-        "test": "npm run build && node --test \"lib/**/*.test.js\"",
+        "test": "npm run build && node --test lib",
         "build:watch": "tsc --watch",
         "serve": "npm run build && firebase emulators:start --only functions",
         "shell": "npm run build && firebase functions:shell",

@@ -73,6 +73,26 @@ function getStripeClient(): Stripe {
   return new Stripe(secretKey, {apiVersion: "2026-02-25.clover"});
 }
 
+function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status):
+"active" | "cancelled" | "expired" {
+  switch (status) {
+  case "active":
+  case "trialing":
+  case "past_due":
+  case "unpaid":
+  case "incomplete":
+    return "active";
+  case "canceled":
+    return "cancelled";
+  case "incomplete_expired":
+  case "paused":
+    return "expired";
+  default:
+    logger.warn("customer.subscription.updated: unknown Stripe status", {status});
+    return "active";
+  }
+}
+
 export const stripeWebhookHandler = async (req: StripeWebhookRequest, res: Response) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
@@ -270,8 +290,7 @@ async function handleSubscriptionUpdated(
   const supabaseUser = await findSupabaseUserByEmail(customer.email);
   if (!supabaseUser) return;
 
-  const planStatus = sub.status === "active" ? "active" :
-    sub.status === "canceled" ? "cancelled" : "expired";
+  const planStatus = mapStripeSubscriptionStatus(sub.status);
 
   await upsertUserSubscription(supabaseUser.id, APP_NAME, tier, planStatus, {
     stripe_subscription_id: sub.id,

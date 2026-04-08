@@ -16,8 +16,10 @@ export async function findSupabaseUserByEmail(
   const supabaseUrl = getSupabaseUrl();
   const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
   if (!supabaseServiceRoleKey || !supabaseUrl) {
-    logger.warn("Missing Supabase service role key or URL for user lookup");
-    return null;
+    throw new HttpsError(
+      "failed-precondition",
+      "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
+    );
   }
 
   const base = supabaseUrl.replace(/\/+$/, "");
@@ -113,8 +115,10 @@ export async function findSupabaseUserByFirebaseUid(
   const supabaseUrl = getSupabaseUrl();
   const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
   if (!supabaseServiceRoleKey || !supabaseUrl) {
-    logger.warn("Missing Supabase service role key or URL for firebase UID lookup");
-    return null;
+    throw new HttpsError(
+      "failed-precondition",
+      "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
+    );
   }
 
   const base = supabaseUrl.replace(/\/+$/, "");
