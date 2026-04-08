@@ -14,6 +14,38 @@ import type {
   AdminPlanTier,
 } from '~/types/admin'
 
+type Callable<Req, Res> = (payload: Req) => Promise<{ data: Res }>
+
+interface ListAdminUsersRequest {
+  page: number
+  pageSize: number
+  search?: string
+  planTier?: AdminPlanTier
+  planStatus?: AdminPlanStatus
+}
+
+interface SetAdminUserCreditsRequest {
+  userId: string
+  credits: number
+  reason: string
+  requestId: string
+}
+
+interface SetAdminUserSubscriptionRequest {
+  userId: string
+  planTier: AdminPlanTier
+  planStatus: AdminPlanStatus
+  renewalDate: string | null
+  reason: string
+  requestId: string
+}
+
+interface AdminMutationRequest {
+  userId: string
+  reason: string
+  requestId: string
+}
+
 const ensureReason = (reason: string) => {
   const trimmed = reason.trim()
   if (!trimmed) {
@@ -58,7 +90,7 @@ const ensureAppCheckConfigured = () => {
   }
 }
 
-async function callAdmin<T>(fn: (payload: unknown) => Promise<{ data: T }>, payload: unknown): Promise<T> {
+async function callAdmin<Req, Res>(fn: Callable<Req, Res>, payload: Req): Promise<Res> {
   ensureEnabled()
   ensureAppCheckConfigured()
   try {
@@ -70,14 +102,23 @@ async function callAdmin<T>(fn: (payload: unknown) => Promise<{ data: T }>, payl
   return response.data
 }
 
+const adminListUsersCallable = adminListUsersFn as Callable<ListAdminUsersRequest, AdminListUsersResponse>
+const adminSetUserCreditsCallable = adminSetUserCreditsFn as Callable<SetAdminUserCreditsRequest, AdminMutationResponse>
+const adminSetUserSubscriptionCallable =
+  adminSetUserSubscriptionFn as Callable<SetAdminUserSubscriptionRequest, AdminMutationResponse>
+const adminClearTermsAcceptanceCallable =
+  adminClearTermsAcceptanceFn as Callable<AdminMutationRequest, AdminMutationResponse>
+const adminResetUserStateCallable = adminResetUserStateFn as Callable<AdminMutationRequest, AdminMutationResponse>
+const adminDeleteUserCallable = adminDeleteUserFn as Callable<AdminMutationRequest, AdminMutationResponse>
+
 export async function listAdminUsers(params: {
   page: number
   pageSize: number
   search?: string
-  planTier?: string
-  planStatus?: string
+  planTier?: AdminPlanTier
+  planStatus?: AdminPlanStatus
 }): Promise<AdminListUsersResponse> {
-  return callAdmin<AdminListUsersResponse>(adminListUsersFn as never, params)
+  return callAdmin(adminListUsersCallable, params)
 }
 
 export async function setAdminUserCredits(input: {
@@ -85,7 +126,7 @@ export async function setAdminUserCredits(input: {
   credits: number
   reason: string
 }): Promise<AdminMutationResponse> {
-  return callAdmin<AdminMutationResponse>(adminSetUserCreditsFn as never, {
+  return callAdmin(adminSetUserCreditsCallable, {
     userId: input.userId,
     credits: input.credits,
     reason: ensureReason(input.reason),
@@ -100,7 +141,7 @@ export async function setAdminUserSubscription(input: {
   renewalDate?: string
   reason: string
 }): Promise<AdminMutationResponse> {
-  return callAdmin<AdminMutationResponse>(adminSetUserSubscriptionFn as never, {
+  return callAdmin(adminSetUserSubscriptionCallable, {
     userId: input.userId,
     planTier: input.planTier,
     planStatus: input.planStatus,
@@ -114,7 +155,7 @@ export async function clearAdminTerms(input: {
   userId: string
   reason: string
 }): Promise<AdminMutationResponse> {
-  return callAdmin<AdminMutationResponse>(adminClearTermsAcceptanceFn as never, {
+  return callAdmin(adminClearTermsAcceptanceCallable, {
     userId: input.userId,
     reason: ensureReason(input.reason),
     requestId: makeRequestId(),
@@ -125,7 +166,7 @@ export async function resetAdminUserState(input: {
   userId: string
   reason: string
 }): Promise<AdminMutationResponse> {
-  return callAdmin<AdminMutationResponse>(adminResetUserStateFn as never, {
+  return callAdmin(adminResetUserStateCallable, {
     userId: input.userId,
     reason: ensureReason(input.reason),
     requestId: makeRequestId(),
@@ -136,7 +177,7 @@ export async function deleteAdminUser(input: {
   userId: string
   reason: string
 }): Promise<AdminMutationResponse> {
-  return callAdmin<AdminMutationResponse>(adminDeleteUserFn as never, {
+  return callAdmin(adminDeleteUserCallable, {
     userId: input.userId,
     reason: ensureReason(input.reason),
     requestId: makeRequestId(),

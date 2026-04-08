@@ -203,7 +203,9 @@ async function getSubscriptionRowsByUserIds(
     return new Map<string, Record<string, unknown>>();
   }
 
-  const userIdFilter = `in.(${uniqueUserIds.map((userId) => `"${userId.replace(/"/g, "")}"`).join(",")})`;
+  const userIdFilter = `in.(${uniqueUserIds
+    .map((userId) => `"${userId.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`)
+    .join(",")})`;
   const params = new URLSearchParams({
     app_name: `eq.${APP_NAME}`,
     user_id: userIdFilter,
@@ -303,7 +305,7 @@ async function deleteAppDataByUser(userId: string): Promise<void> {
 
 async function deleteSubscriptionRows(userId: string): Promise<void> {
   const deleteResponse = await supabaseRequest(
-    `/rest/v1/user_app_subscriptions?user_id=eq.${encodeURIComponent(userId)}`,
+    `/rest/v1/user_app_subscriptions?user_id=eq.${encodeURIComponent(userId)}&app_name=eq.${encodeURIComponent(APP_NAME)}`,
     {method: "DELETE"}
   );
 
@@ -393,10 +395,23 @@ const adminListUsersHandler = async (request: CallableRequest) => {
   const adminContext = requireAdmin(request);
   const data = (request.data ?? {}) as AdminListUsersData;
 
-  const page = Number.isFinite(data.page) ? Math.max(1, Math.floor(data.page ?? 1)) : 1;
-  const pageSize = Number.isFinite(data.pageSize)
-    ? Math.min(100, Math.max(1, Math.floor(data.pageSize ?? 25)))
-    : 25;
+  const rawPage = data.page;
+  if (rawPage !== undefined && (typeof rawPage !== "number" || !Number.isFinite(rawPage))) {
+    throw new HttpsError("invalid-argument", "page must be a finite number when provided");
+  }
+
+  const rawPageSize = data.pageSize;
+  if (
+    rawPageSize !== undefined &&
+    (typeof rawPageSize !== "number" || !Number.isFinite(rawPageSize))
+  ) {
+    throw new HttpsError("invalid-argument", "pageSize must be a finite number when provided");
+  }
+
+  const page = rawPage === undefined ? 1 : Math.max(1, Math.floor(rawPage));
+  const pageSize = rawPageSize === undefined
+    ? 25
+    : Math.min(100, Math.max(1, Math.floor(rawPageSize)));
   const search = typeof data.search === "string" ? data.search.trim() : "";
 
   const {users, totalCount} = await getSupabaseAuthUsers(page, pageSize, search);

@@ -34,14 +34,20 @@ const ADMIN_ENABLED = process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED === 'true'
 const PLAN_TIER_FILTER_OPTIONS: AdminPlanTier[] = ['free', 'monthly_20', 'monthly_50', 'payg']
 const PLAN_STATUS_FILTER_OPTIONS: AdminPlanStatus[] = ['active', 'cancelled', 'expired']
 
-const normalizePlanTierFilter = (value: string) => {
+const isAdminPlanTier = (value: string): value is AdminPlanTier =>
+  PLAN_TIER_FILTER_OPTIONS.includes(value as AdminPlanTier)
+
+const isAdminPlanStatus = (value: string): value is AdminPlanStatus =>
+  PLAN_STATUS_FILTER_OPTIONS.includes(value as AdminPlanStatus)
+
+const normalizePlanTierFilter = (value: string): AdminPlanTier | '' => {
   const trimmed = value.trim().toLowerCase()
-  return PLAN_TIER_FILTER_OPTIONS.includes(trimmed as AdminPlanTier) ? trimmed : ''
+  return isAdminPlanTier(trimmed) ? trimmed : ''
 }
 
-const normalizePlanStatusFilter = (value: string) => {
+const normalizePlanStatusFilter = (value: string): AdminPlanStatus | '' => {
   const trimmed = value.trim().toLowerCase()
-  return PLAN_STATUS_FILTER_OPTIONS.includes(trimmed as AdminPlanStatus) ? trimmed : ''
+  return isAdminPlanStatus(trimmed) ? trimmed : ''
 }
 
 const isUnauthorizedAccessError = (error: unknown) => {

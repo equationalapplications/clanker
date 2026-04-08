@@ -23,22 +23,30 @@ const config = {
 
 const firebaseApp: FirebaseApp = getApps().length ? getApp() : initializeApp(config)
 
-if (typeof window !== 'undefined') {
-  const recaptchaSiteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY
-  if (recaptchaSiteKey) {
-    try {
-      initializeAppCheck(firebaseApp, {
-        provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
-        isTokenAutoRefreshEnabled: true,
-      })
-      console.log('✅ Firebase App Check activated successfully with Enterprise provider')
-    } catch (error) {
-      reportError(error, 'App Check initialization (web)')
-    }
-  } else {
-    console.warn('⚠️ EXPO_PUBLIC_RECAPTCHA_SITE_KEY not set — Firebase App Check disabled')
+const appCheckReady: Promise<void> = (() => {
+  if (typeof window === 'undefined') {
+    return Promise.resolve()
   }
-}
+
+  const recaptchaSiteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY
+  if (!recaptchaSiteKey) {
+    const error = new Error('EXPO_PUBLIC_RECAPTCHA_SITE_KEY not set; Firebase App Check is disabled')
+    console.warn('⚠️ EXPO_PUBLIC_RECAPTCHA_SITE_KEY not set — Firebase App Check disabled')
+    return Promise.reject(error)
+  }
+
+  try {
+    initializeAppCheck(firebaseApp, {
+      provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    })
+    console.log('✅ Firebase App Check activated successfully with Enterprise provider')
+    return Promise.resolve()
+  } catch (error) {
+    reportError(error, 'App Check initialization (web)')
+    return Promise.reject(error)
+  }
+})()
 
 const auth = getAuth(firebaseApp)
 
@@ -67,10 +75,7 @@ const adminResetUserStateFn = httpsCallable(functionsInstance, 'adminResetUserSt
 const adminDeleteUserFn = httpsCallable(functionsInstance, 'adminDeleteUser')
 
 export type FirebaseUser = User
-
-// Web App Check is synchronous — export a resolved promise for interface compatibility
-// with the native firebaseConfig.ts which exports an async appCheckReady.
-export const appCheckReady: Promise<void> = Promise.resolve()
+export { appCheckReady }
 
 export {
   auth,

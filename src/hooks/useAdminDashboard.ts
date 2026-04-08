@@ -13,8 +13,8 @@ interface AdminUsersQueryInput {
   page: number
   pageSize: number
   search: string
-  planTier?: string
-  planStatus?: string
+  planTier?: AdminPlanTier
+  planStatus?: AdminPlanStatus
 }
 
 const adminUsersKey = (input: AdminUsersQueryInput) => ['adminUsers', input] as const
