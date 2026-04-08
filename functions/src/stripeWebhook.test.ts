@@ -5,7 +5,12 @@ import Stripe from "stripe";
 process.env.STRIPE_SECRET_KEY = "sk_test_123";
 process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_123";
 
-import {mapStripeSubscriptionStatus, stripeWebhookHandler} from "./stripeWebhook.js";
+import {
+  getCreditPackQuantityFromInvoice,
+  getInvoiceLineItemPriceId,
+  mapStripeSubscriptionStatus,
+  stripeWebhookHandler,
+} from "./stripeWebhook.js";
 
 type ResponseRecorder = {
   statusCode: number;
@@ -79,4 +84,69 @@ test("mapStripeSubscriptionStatus maps canceled to cancelled", () => {
 test("mapStripeSubscriptionStatus maps expired-like statuses to expired", () => {
   assert.equal(mapStripeSubscriptionStatus("incomplete_expired"), "expired");
   assert.equal(mapStripeSubscriptionStatus("paused"), "expired");
+});
+
+test("getInvoiceLineItemPriceId prefers price id and falls back to legacy plan id", () => {
+  const priceItem = {
+    pricing: {
+      price_details: {
+        price: {id: "price_credit_pack"},
+      },
+      type: "price_details",
+      unit_amount_decimal: null,
+    },
+  } as unknown as Stripe.InvoiceLineItem;
+  const planOnlyItem = {
+    pricing: {
+      price_details: {
+        price: "price_credit_pack_legacy",
+      },
+      type: "price_details",
+      unit_amount_decimal: null,
+    },
+  } as unknown as Stripe.InvoiceLineItem;
+
+  assert.equal(getInvoiceLineItemPriceId(priceItem), "price_credit_pack");
+  assert.equal(getInvoiceLineItemPriceId(planOnlyItem), "price_credit_pack_legacy");
+});
+
+test("getCreditPackQuantityFromInvoice counts only configured credit-pack lines", () => {
+  const invoice = {
+    lines: {
+      data: [
+        {
+          quantity: 2,
+          pricing: {
+            price_details: {price: "price_credit_pack"},
+            type: "price_details",
+            unit_amount_decimal: null,
+          },
+        },
+        {
+          quantity: null,
+          pricing: {
+            price_details: {price: {id: "price_credit_pack"}},
+            type: "price_details",
+            unit_amount_decimal: null,
+          },
+        },
+        {
+          quantity: 5,
+          pricing: {
+            price_details: {price: "price_other"},
+            type: "price_details",
+            unit_amount_decimal: null,
+          },
+        },
+      ] as unknown as Stripe.InvoiceLineItem[],
+    },
+  } as unknown as Stripe.Invoice;
+
+  const quantity = getCreditPackQuantityFromInvoice(invoice, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  });
+
+  assert.equal(quantity, 3);
 });

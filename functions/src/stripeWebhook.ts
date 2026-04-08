@@ -65,6 +65,28 @@ function isCreditPackPriceId(priceId: string | undefined, priceIds: StripePriceI
   return priceId === creditPack;
 }
 
+export function getInvoiceLineItemPriceId(item: Stripe.InvoiceLineItem): string | undefined {
+  const priceRef = item.pricing?.price_details?.price;
+  if (typeof priceRef === "string") {
+    return priceRef;
+  }
+  return priceRef?.id;
+}
+
+export function getCreditPackQuantityFromInvoice(
+  invoice: Stripe.Invoice,
+  priceIds: StripePriceIds
+): number {
+  let quantity = 0;
+  for (const item of invoice.lines.data) {
+    const priceId = getInvoiceLineItemPriceId(item);
+    if (isCreditPackPriceId(priceId, priceIds)) {
+      quantity += item.quantity ?? 1;
+    }
+  }
+  return quantity;
+}
+
 function getStripeClient(): Stripe {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
@@ -355,18 +377,15 @@ async function handleInvoicePaymentSucceeded(
   priceIds: StripePriceIds
 ): Promise<void> {
   // Only handle non-subscription invoices (one-time PAYG credit pack purchases)
-  const subDetails = (invoice as unknown as {subscription_details?: {subscription?: string}});
-  if (subDetails.subscription_details?.subscription || !invoice.customer_email) return;
+  const subscriptionId = invoice.parent?.subscription_details?.subscription;
+  if (subscriptionId || !invoice.customer_email) return;
 
   const supabaseUser = await findSupabaseUserByEmail(invoice.customer_email);
   if (!supabaseUser) return;
 
-  // Check if any line item is a credit pack by inspecting pricing
+  // Check if any line item is a credit pack.
   for (const item of invoice.lines.data) {
-    type LineItemShape = {pricing?: {price_details?: {price?: string | {id: string}}}};
-    const lineItem = item as unknown as LineItemShape;
-    const priceRef = lineItem.pricing?.price_details?.price;
-    const priceId = typeof priceRef === "string" ? priceRef : priceRef?.id;
+    const priceId = getInvoiceLineItemPriceId(item);
     if (isCreditPackPriceId(priceId, priceIds)) {
       const qty = item.quantity ?? 1;
       await callSupabaseRpc("add_user_credits", {
@@ -406,18 +425,8 @@ async function handleChargeRefunded(
   if (invoiceRef) {
     const invoiceId = typeof invoiceRef === "string" ? invoiceRef : invoiceRef.id;
     const invoice = await stripe.invoices.retrieve(invoiceId);
-    const subDetails = (invoice as unknown as {subscription_details?: {subscription?: string}});
-    isSubscriptionRefund = !!subDetails.subscription_details?.subscription;
-
-    for (const item of invoice.lines.data) {
-      type LineItemShape = {pricing?: {price_details?: {price?: string | {id: string}}}};
-      const lineItem = item as unknown as LineItemShape;
-      const priceRef = lineItem.pricing?.price_details?.price;
-      const priceId = typeof priceRef === "string" ? priceRef : priceRef?.id;
-      if (isCreditPackPriceId(priceId, priceIds)) {
-        creditPackQty += item.quantity ?? 1;
-      }
-    }
+    isSubscriptionRefund = !!invoice.parent?.subscription_details?.subscription;
+    creditPackQty = getCreditPackQuantityFromInvoice(invoice, priceIds);
   }
 
   // Backward-compatible fallback for older charges that may have metadata set directly.

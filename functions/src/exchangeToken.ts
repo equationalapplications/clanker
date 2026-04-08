@@ -29,7 +29,10 @@ async function createSupabaseUser(
     const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
     if (!supabaseServiceRoleKey || !supabaseUrl) {
         logger.warn("Missing Supabase service role key or URL for user creation");
-        return null;
+        throw new HttpsError(
+            "failed-precondition",
+            "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
+        );
     }
 
     const url = `${supabaseUrl.replace(/\/+$/, "")}/auth/v1/admin/users`;
