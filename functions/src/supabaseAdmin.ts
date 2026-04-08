@@ -191,11 +191,17 @@ export async function upsertUserSubscription(
 
   if (!res.ok) {
     const errorText = await res.text();
+    const errorReference =
+      `supabase-upsert-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     logger.error("Failed to upsert user subscription", {
+      errorReference,
       status: res.status,
       statusText: res.statusText,
       error: errorText,
     });
-    throw new HttpsError("internal", `Failed to upsert subscription: ${errorText}`);
+    throw new HttpsError(
+      "internal",
+      `Failed to upsert subscription. Reference: ${errorReference}`
+    );
   }
 }

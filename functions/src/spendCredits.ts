@@ -56,6 +56,12 @@ const handler = async (request: CallableRequest) => {
   }
 
   const amount = Math.floor(data.amount);
+  if (amount <= 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "amount must be at least 1 after rounding down."
+    );
+  }
   const description = data.description.trim();
   const referenceId = data.referenceId && typeof data.referenceId === "string"
     ? data.referenceId.trim()

@@ -15,6 +15,15 @@ if (!admin.apps.length) {
 const CREDIT_PACK_AMOUNT = 100;
 const APP_NAME = "clanker";
 
+type StripeExpandableId = string | {id?: string} | null | undefined;
+
+function getStripeId(value: StripeExpandableId): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && typeof value.id === "string") return value.id;
+  return null;
+}
+
 function getTierByPriceId(priceId: string): string | undefined {
   const {monthly20, monthly50} = getStripePriceIds();
   const monthly20PriceId = monthly20 || "price_TODO_monthly_20";
@@ -167,9 +176,11 @@ async function handleCheckoutCompleted(
     const tier = getTierByPriceId(priceId);
     if (tier) {
       // Subscription product → upsert subscription row
+      const subscriptionId = getStripeId(session.subscription as StripeExpandableId);
+      const customerId = getStripeId(session.customer as StripeExpandableId);
       await upsertUserSubscription(supabaseUser.id, APP_NAME, tier, "active", {
-        stripe_subscription_id: session.subscription as string ?? null,
-        stripe_customer_id: session.customer as string ?? null,
+        stripe_subscription_id: subscriptionId,
+        stripe_customer_id: customerId,
       });
       logger.info("checkout.session.completed: subscription upserted", {
         email: customerEmail,
