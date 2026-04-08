@@ -320,6 +320,7 @@ const handler = async (request: CallableRequest) => {
 export const exchangeToken = onCall(
     {
         region: "us-central1",
+        secrets: ["SUPABASE_SERVICE_ROLE_KEY"]
     },
     (request) => {
         return handler(request);
