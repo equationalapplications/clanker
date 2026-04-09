@@ -20,7 +20,7 @@ Why: squash merges concatenate source commit messages into the squash body. If t
 - **Staging:** Creates a GitHub pre-release tag only. Does **not** commit `CHANGELOG.md`, `package.json`, or `package-lock.json` back to the branch.
 - **Main:** Full release — bumps version, generates CHANGELOG, and commits the files back.
 
-Because staging never mutates files, the only source of version/CHANGELOG commits is `main`. This means promoting `staging → main` will never conflict on auto-generated files.
+Because semantic-release never writes release artifacts on `staging`, promoting `staging → main` won't conflict on auto-generated files. However, `staging` *does* receive those artifacts later when you sync `main` back into `staging` (see [Syncing main Back to staging](#syncing-main-back-to-staging)). This sync is what keeps both branches in agreement about the current version.
 
 ## Step-by-Step: Promoting staging → main
 
@@ -44,9 +44,39 @@ gh pr merge --merge --subject "chore(release): promote staging to production"
 
 ## Syncing main Back to staging
 
-After a production release on `main`, open a PR from `main` → `staging` and merge with
-**"Create a merge commit"**. This keeps `staging` up-to-date with release commits without risking
-workflow skips caused by squash merge commit bodies.
+After every production release on `main`, you **must** sync those changes back into `staging`.
+
+### Why This Step Matters
+
+When semantic-release runs on `main`, it commits updated versions of `CHANGELOG.md`, `package.json`, and `package-lock.json`. Those commits only exist on `main`. If you skip this sync:
+
+1. **Feature branches diverge.** The next feature branch off `staging` will have stale version files. When that work eventually reaches `main`, you'll hit unnecessary merge conflicts on those files.
+2. **Hotfixes go missing.** Any hotfix merged directly into `main` won't appear in `staging`, so future feature work may reintroduce the bug or conflict with the fix.
+
+Syncing keeps `staging` and `main` in agreement so that every new feature branch starts from a clean, up-to-date baseline.
+
+### How to Sync
+
+Open a PR from `main` → `staging` and merge with **"Create a merge commit"**.
+
+#### Via GitHub UI
+
+1. Go to **Pull Requests** → **New Pull Request**.
+2. Set **base:** `staging` and **compare:** `main`.
+3. Title the PR: `chore: sync main into staging`
+4. Select **"Create a merge commit"**.
+
+#### Via GitHub CLI
+
+```bash
+gh pr create --base staging --head main \
+  --title "chore: sync main into staging" \
+  --body "Sync release artifacts and hotfixes from main."
+
+gh pr merge --merge --subject "chore: sync main into staging"
+```
+
+> **Tip:** Do this immediately after each production release, before starting new feature work. It only takes a minute and prevents painful conflicts later.
 
 ## Hotfixes
 
@@ -54,7 +84,7 @@ If a critical fix needs to go directly to production:
 
 1. Branch from `main`: `git checkout -b hotfix/critical-bug main`
 2. Fix and PR into `main` (merge commit).
-3. Cherry-pick the fix back to `staging`: `git cherry-pick <sha>`
+3. Sync `main` back into `staging` using the process above — this carries the hotfix and any release artifacts into `staging` in one step.
 
 ## Branch Protection Rules
 
@@ -70,13 +100,15 @@ If a critical fix needs to go directly to production:
 | Feature → staging    | Merge Commit     | `feat(profile): add user profile page`             |
 | Bug fix → staging    | Merge Commit     | `fix(auth): resolve token refresh loop`            |
 | staging → main       | Merge Commit     | `chore(release): promote staging to production`    |
+| main → staging       | Merge Commit     | `chore: sync main into staging`                    |
 | Hotfix → main        | Merge Commit     | `fix(auth): patch critical auth regression`        |
 
 ## Common Pitfalls
 
 1. **Don't use "Squash and merge"** for PRs targeting `staging` or `main`.
-2. **Don't skip syncing `main` back into `staging`** after production releases.
-3. **Always pull the latest before promoting.** Stale local branches lead to unexpected conflicts.
+2. **Don't skip syncing `main` back into `staging`** after production releases. This is the most common source of avoidable merge conflicts.
+3. **Don't branch features from `main`** — always branch from `staging`. Feature branches from `main` will be missing any unreleased work already merged into `staging`.
+4. **Always pull the latest before promoting.** Stale local branches lead to unexpected conflicts.
 
 ## Related Documentation
 
