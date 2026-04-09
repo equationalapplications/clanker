@@ -30,7 +30,7 @@ const extractAppleDisplayName = (profile: any): string | null => {
     return fullName
   }
 
-  const flatName = String(profile?.name || '').trim()
+  const flatName = typeof profile?.name === 'string' ? profile.name.trim() : ''
   return flatName || null
 }
 
