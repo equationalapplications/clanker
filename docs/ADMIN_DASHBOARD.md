@@ -9,7 +9,6 @@ It is implemented as an Expo Router route at `app/admin/index.tsx` and intention
 
 - Route: `/admin`
 - Platform gate: `Platform.OS === 'web'`
-- Feature flag: `EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED=true`
 - Auth gate: requires signed-in Firebase user
 - Authorization gate: dashboard performs a server-validated admin access check through `adminListUsers`
 

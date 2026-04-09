@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { useSelector } from '@xstate/react'
-import { Button, Card, Text, TextInput } from 'react-native-paper'
+import { Button, Card, Text, TextInput, useTheme } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import {
   useAdminUsers,
@@ -30,7 +30,6 @@ type PendingAction =
   | { type: 'resetUser'; userId: string }
   | { type: 'deleteUser'; userId: string }
 
-const ADMIN_ENABLED = process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED === 'true'
 const PLAN_TIER_FILTER_OPTIONS: AdminPlanTier[] = ['free', 'monthly_20', 'monthly_50', 'payg']
 const PLAN_STATUS_FILTER_OPTIONS: AdminPlanStatus[] = ['active', 'cancelled', 'expired']
 
@@ -67,6 +66,7 @@ const accessErrorMessage = (error: unknown) => {
 }
 
 export default function AdminDashboardScreen() {
+  const theme = useTheme()
   const authService = useAuthMachine()
   const user = useSelector(authService, (state) => state.context.user)
 
@@ -84,7 +84,8 @@ export default function AdminDashboardScreen() {
   const hasPlanStatusInput = planStatusInput.trim().length > 0
   const isPlanTierFilterInvalid = hasPlanTierInput && !normalizedPlanTierFilter
   const isPlanStatusFilterInvalid = hasPlanStatusInput && !planStatusFilter
-  const adminQueryEnabled = Platform.OS === 'web' && !!user && ADMIN_ENABLED
+  const isWeb = Platform.OS === 'web'
+  const adminQueryEnabled = isWeb && !!user
 
   const usersQuery = useAdminUsers(
     {
@@ -118,6 +119,30 @@ export default function AdminDashboardScreen() {
   const totalCount = usersQuery.data?.totalCount
   const totalPages =
     typeof totalCount === 'number' && totalCount >= 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : null
+
+  const palette = useMemo(
+    () => ({
+      pageBackground: theme.colors.background,
+      cardBackground: theme.colors.surface,
+      subduedText: theme.colors.onSurfaceVariant,
+    }),
+    [theme.colors.background, theme.colors.surface, theme.colors.onSurfaceVariant],
+  )
+
+  if (!isWeb) {
+    return (
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={{ padding: 16 }}>
+          <Card>
+            <Card.Content>
+              <Text variant="titleMedium">Admin dashboard unavailable</Text>
+              <Text variant="bodyMedium">This screen is only available on web.</Text>
+            </Card.Content>
+          </Card>
+        </View>
+      </ScrollView>
+    )
+  }
 
   const showMessage = (title: string, message: string) => {
     Alert.alert(title, message)
@@ -180,14 +205,6 @@ export default function AdminDashboardScreen() {
     }
   }
 
-  if (!ADMIN_ENABLED) {
-    return (
-      <View style={styles.centered}>
-        <Text variant="headlineSmall">Admin dashboard is disabled.</Text>
-      </View>
-    )
-  }
-
   if (adminQueryEnabled && usersQuery.isPending) {
     return (
       <View style={styles.centered}>
@@ -217,11 +234,11 @@ export default function AdminDashboardScreen() {
   }
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.pageContent}>
+    <ScrollView style={[styles.page, { backgroundColor: palette.pageBackground }]} contentContainerStyle={styles.pageContent}>
       <Text variant="headlineMedium">Admin Dashboard</Text>
-      <Text style={styles.subtitle}>Web-only controls for privileged user management.</Text>
+      <Text style={[styles.subtitle, { color: palette.subduedText }]}>Web-only controls for privileged user management.</Text>
 
-      <Card style={styles.filtersCard}>
+      <Card style={[styles.filtersCard, { backgroundColor: palette.cardBackground }]}>
         <Card.Content>
           <Text variant="titleMedium">User Directory Filters</Text>
           <View style={styles.filtersGrid}>
@@ -234,7 +251,7 @@ export default function AdminDashboardScreen() {
                 setPage(1)
               }}
             />
-            <Text style={styles.filtersHint}>
+            <Text style={[styles.filtersHint, { color: palette.subduedText }]}>
               Email/name search runs server-side across all users; plan filters apply to the current page.
             </Text>
             <TextInput
@@ -249,7 +266,7 @@ export default function AdminDashboardScreen() {
               placeholder="free, monthly_20, monthly_50, payg"
             />
             {isPlanTierFilterInvalid ? (
-              <Text style={styles.filtersHint}>
+              <Text style={[styles.filtersHint, { color: palette.subduedText }]}>
                 Plan tier must be one of: free, monthly_20, monthly_50, payg. Current input is ignored until valid.
               </Text>
             ) : null}
@@ -265,7 +282,7 @@ export default function AdminDashboardScreen() {
               placeholder="active, cancelled, expired"
             />
             {isPlanStatusFilterInvalid ? (
-              <Text style={styles.filtersHint}>
+              <Text style={[styles.filtersHint, { color: palette.subduedText }]}>
                 Plan status must be one of: active, cancelled, expired. Current input is ignored until valid.
               </Text>
             ) : null}
@@ -296,7 +313,7 @@ export default function AdminDashboardScreen() {
               Next
             </Button>
             {usersQuery.isFetching && !usersQuery.isLoading ? (
-              <Text style={styles.fetchingHint}>Refreshing...</Text>
+              <Text style={[styles.fetchingHint, { color: palette.subduedText }]}>Refreshing...</Text>
             ) : null}
           </View>
         </Card.Content>
@@ -365,7 +382,6 @@ export default function AdminDashboardScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: '#f5eee5',
   },
   pageContent: {
     padding: 20,
@@ -377,7 +393,6 @@ const styles = StyleSheet.create({
   },
   filtersCard: {
     borderRadius: 16,
-    backgroundColor: '#fff8ef',
   },
   filtersGrid: {
     gap: 10,

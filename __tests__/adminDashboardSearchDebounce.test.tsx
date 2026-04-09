@@ -1,4 +1,5 @@
 import { act, create } from 'react-test-renderer'
+import { Platform } from 'react-native'
 
 const mockUseAdminUsers = jest.fn()
 
@@ -37,12 +38,23 @@ jest.mock('react-native-paper', () => {
 
   const Text = ({ children, ...props }: any) => <RNText {...props}>{children}</RNText>
   const TextInput = (props: any) => <RNTextInput {...props} />
+  const useTheme = () => ({
+    colors: {
+      background: '#ffffff',
+      surface: '#f5f5f5',
+      onBackground: '#111111',
+      onSurfaceVariant: '#6b7280',
+      primary: '#2563eb',
+      outline: '#d1d5db',
+    },
+  })
 
   return {
     Button,
     Card,
     Text,
     TextInput,
+    useTheme,
   }
 })
 
@@ -57,7 +69,6 @@ jest.mock('~/hooks/useAdminDashboard', () => ({
 
 describe('AdminDashboardScreen search debounce', () => {
   beforeEach(() => {
-    process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED = 'true'
     jest.useFakeTimers()
 
     mockUseAdminUsers.mockReturnValue({
@@ -75,10 +86,12 @@ describe('AdminDashboardScreen search debounce', () => {
   afterEach(() => {
     jest.runOnlyPendingTimers()
     jest.useRealTimers()
+    jest.restoreAllMocks()
     jest.clearAllMocks()
   })
 
   it('uses debounced search value when querying users', () => {
+    jest.replaceProperty(Platform, 'OS', 'web')
     const AdminDashboardScreen = require('../app/admin/index').default
     let tree: ReturnType<typeof create>
 

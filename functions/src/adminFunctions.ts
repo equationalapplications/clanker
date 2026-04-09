@@ -267,49 +267,105 @@ async function upsertSubscription(
   }
 }
 
+function isMissingTableError(response: Response, errorText: string): boolean {
+  if (response.status !== 404) {
+    return false;
+  }
+
+  return errorText.includes("\"code\":\"PGRST205\"") ||
+    errorText.includes("Could not find the table");
+}
+
+async function deleteFromCanonicalTable(
+  tableName: string,
+  query: string
+): Promise<void> {
+  const expectedPath = `/rest/v1/${tableName}`;
+  const matchesExpectedTable = query === expectedPath ||
+    query.startsWith(`${expectedPath}?`);
+
+  if (!matchesExpectedTable) {
+    logger.error("Mismatched canonical table delete query", {
+      tableName,
+      query,
+      expectedPath,
+    });
+    throw new HttpsError(
+      "internal",
+      `Invalid delete query for canonical table ${tableName}.`
+    );
+  }
+
+  const response = await supabaseRequest(query, {method: "DELETE"});
+  if (response.ok) {
+    return;
+  }
+
+  const errorText = await response.text();
+  if (isMissingTableError(response, errorText)) {
+    logger.error("Canonical table missing for admin delete operation", {
+      tableName,
+      errorText,
+    });
+    throw new HttpsError(
+      "failed-precondition",
+      `Database schema mismatch: expected canonical table ${tableName}.`
+    );
+  }
+
+  logger.error("Failed canonical table delete request", {
+    tableName,
+    status: response.status,
+    errorText,
+  });
+
+  throw new HttpsError("internal", `Failed to delete rows from ${tableName}.`);
+}
+
 async function deleteAppDataByUser(userId: string): Promise<void> {
   const [deleteMessages, deleteCharacters] = await Promise.allSettled([
-    supabaseRequest(
-      `/rest/v1/clanker_messages?or=(sender_user_id.eq.${encodeURIComponent(userId)},recipient_user_id.eq.${encodeURIComponent(userId)})`,
-      {method: "DELETE"}
+    deleteFromCanonicalTable(
+      "yours_brightly_messages",
+      `/rest/v1/yours_brightly_messages?or=(sender_user_id.eq.${encodeURIComponent(userId)},recipient_user_id.eq.${encodeURIComponent(userId)})`
     ),
-    supabaseRequest(
-      `/rest/v1/clanker_characters?user_id=eq.${encodeURIComponent(userId)}`,
-      {method: "DELETE"}
+    deleteFromCanonicalTable(
+      "yours_brightly_characters",
+      `/rest/v1/yours_brightly_characters?user_id=eq.${encodeURIComponent(userId)}`
     ),
   ]);
 
   const failedOperations: string[] = [];
+  const operationErrors: unknown[] = [];
 
   if (deleteMessages.status === "rejected") {
     failedOperations.push("messages");
-    logger.error("Failed to delete user messages", {
+    operationErrors.push(deleteMessages.reason);
+    logger.error("Delete operation failed for user messages", {
       userId,
-      error: deleteMessages.reason instanceof Error ?
+      error: deleteMessages.reason,
+      errorMessage: deleteMessages.reason instanceof Error ?
         deleteMessages.reason.message :
         String(deleteMessages.reason),
     });
-  } else if (!deleteMessages.value.ok) {
-    failedOperations.push("messages");
-    const errorText = await deleteMessages.value.text();
-    logger.error("Failed to delete user messages", {userId, errorText});
   }
 
   if (deleteCharacters.status === "rejected") {
     failedOperations.push("characters");
-    logger.error("Failed to delete user characters", {
+    operationErrors.push(deleteCharacters.reason);
+    logger.error("Delete operation failed for user characters", {
       userId,
-      error: deleteCharacters.reason instanceof Error ?
+      error: deleteCharacters.reason,
+      errorMessage: deleteCharacters.reason instanceof Error ?
         deleteCharacters.reason.message :
         String(deleteCharacters.reason),
     });
-  } else if (!deleteCharacters.value.ok) {
-    failedOperations.push("characters");
-    const errorText = await deleteCharacters.value.text();
-    logger.error("Failed to delete user characters", {userId, errorText});
   }
 
   if (failedOperations.length > 0) {
+    const propagatedError = operationErrors.find((error) => error instanceof HttpsError);
+    if (propagatedError instanceof HttpsError) {
+      throw propagatedError;
+    }
     throw new HttpsError("internal", "Failed to delete all user app data.");
   }
 }
@@ -424,22 +480,42 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     ? 25
     : Math.min(100, Math.max(1, Math.floor(rawPageSize)));
   const search = typeof data.search === "string" ? data.search.trim() : "";
-  const planTierFilter = data.planTier === undefined ? undefined :
-    typeof data.planTier === "string" ? data.planTier.trim() : "";
-  if (planTierFilter !== undefined && !ALLOWED_PLAN_TIERS.has(planTierFilter)) {
-    throw new HttpsError(
-      "invalid-argument",
-      "planTier must be one of: free, monthly_20, monthly_50, payg"
-    );
+  const hasPlanTierFilter = data.planTier !== undefined;
+  if (hasPlanTierFilter && typeof data.planTier !== "string") {
+    logger.warn("Ignoring non-string planTier filter for adminListUsers", {
+      actorUid: adminContext.actorUid,
+      rawPlanTierType: typeof data.planTier,
+    });
   }
 
-  const planStatusFilter = data.planStatus === undefined ? undefined :
-    typeof data.planStatus === "string" ? data.planStatus.trim() : "";
-  if (planStatusFilter !== undefined && !ALLOWED_PLAN_STATUS.has(planStatusFilter)) {
-    throw new HttpsError(
-      "invalid-argument",
-      "planStatus must be one of: active, cancelled, expired"
-    );
+  const rawPlanTierFilter = typeof data.planTier === "string" ? data.planTier.trim().toLowerCase() : undefined;
+  const planTierFilter = rawPlanTierFilter && ALLOWED_PLAN_TIERS.has(rawPlanTierFilter) ?
+    rawPlanTierFilter :
+    undefined;
+  if (rawPlanTierFilter && !planTierFilter) {
+    logger.warn("Ignoring invalid planTier filter for adminListUsers", {
+      actorUid: adminContext.actorUid,
+      rawPlanTierFilter,
+    });
+  }
+
+  const hasPlanStatusFilter = data.planStatus !== undefined;
+  if (hasPlanStatusFilter && typeof data.planStatus !== "string") {
+    logger.warn("Ignoring non-string planStatus filter for adminListUsers", {
+      actorUid: adminContext.actorUid,
+      rawPlanStatusType: typeof data.planStatus,
+    });
+  }
+
+  const rawPlanStatusFilter = typeof data.planStatus === "string" ? data.planStatus.trim().toLowerCase() : undefined;
+  const planStatusFilter = rawPlanStatusFilter && ALLOWED_PLAN_STATUS.has(rawPlanStatusFilter) ?
+    rawPlanStatusFilter :
+    undefined;
+  if (rawPlanStatusFilter && !planStatusFilter) {
+    logger.warn("Ignoring invalid planStatus filter for adminListUsers", {
+      actorUid: adminContext.actorUid,
+      rawPlanStatusFilter,
+    });
   }
 
   const {users, totalCount} = await getSupabaseAuthUsers(page, pageSize, search);
