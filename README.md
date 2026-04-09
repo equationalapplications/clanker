@@ -5,7 +5,7 @@
 ## Getting Started
 
 - **[Git Workflow & Branching](docs/GIT_WORKFLOW.md)** — Branch strategy (staging → main), PR process, commit guidelines, and conventional commits.
-- **[Merge Strategy](docs/MERGE_STRATEGY.md)** — How to promote code from staging → main using squash merges.
+- **[Merge Strategy](docs/MERGE_STRATEGY.md)** — How to promote code from staging → main (and sync main → staging) using merge commits.
 - **[Expo Updates & Runtime Versioning](docs/EXPO_UPDATES.md)** — How OTA updates work, runtime version strategy, and the relationship between conventional commits and deployment types (OTA vs native builds).
 
 ## Architecture & Auth
