@@ -20,7 +20,7 @@ export default function Profile() {
   const { userPrivate } = useUserPrivateData()
   const isPremium = useIsPremium()
 
-  const displayName = userPublic?.name || user?.displayName || user?.email || 'User'
+  const displayName = userPublic?.name || user?.displayName || ''
   const email = user?.email || userPublic?.email || ''
   // Try Supabase profile first, fall back to Firebase photoURL, then to default
   const photoURL = userPublic?.avatar || user?.photoURL || defaultAvatarUrl
@@ -59,12 +59,16 @@ export default function Profile() {
       {!isModalVisible && (
         <>
           <Avatar.Image size={120} source={{ uri: photoURL }} style={styles.avatar} />
-          <Text variant="headlineSmall" style={styles.name}>
-            {displayName}
-          </Text>
-          <Text variant="bodyMedium" style={styles.email}>
-            {email}
-          </Text>
+          {displayName ? (
+            <Text variant="headlineSmall" style={styles.name}>
+              {displayName}
+            </Text>
+          ) : null}
+          {email ? (
+            <Text variant="bodyMedium" style={styles.email}>
+              {email}
+            </Text>
+          ) : null}
 
           <View style={styles.creditsContainer}>
             <Text variant="titleMedium">Credits: {credits}</Text>

@@ -10,10 +10,9 @@ import { MonoText, TitleText } from '~/components/StyledText'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { handleAppleRedirectResult } from '~/auth/appleSignin'
 
-// expo-apple-authentication is iOS-only; defer require to avoid breaking
-// web bundling or crashing Android where the native module is unavailable.
+// Defer native Apple auth require to avoid loading it in web bundles.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const AppleAuthentication = Platform.OS === 'ios' ? require('expo-apple-authentication') : null
+const AppleAuthentication = Platform.OS === 'web' ? null : require('expo-apple-authentication')
 
 export default function SignIn() {
   const router = useRouter()
@@ -85,7 +84,7 @@ export default function SignIn() {
             >
               Google
             </ProviderButton>
-            {Platform.OS === 'ios' && (
+            {(Platform.OS === 'ios' || Platform.OS === 'android') && AppleAuthentication && (
               <AppleAuthentication.AppleAuthenticationButton
                 buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
                 buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
