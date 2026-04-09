@@ -9,12 +9,12 @@ export interface AppleSignInResult {
 }
 
 export const signInWithApple = async (): Promise<AppleSignInResult> => {
-  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
-    return { success: false, error: 'Apple Sign-In is only available on iOS and Android' }
+  if (Platform.OS !== 'ios') {
+    return { success: false, error: 'Apple Sign-In is only available on iOS' }
   }
 
-  // Defer import until after platform check to avoid crashing on Android
-  // where the expo-apple-authentication native module is unavailable
+  // Defer import until after platform check to avoid loading the native module
+  // on unsupported platforms.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const AppleAuthentication = require('expo-apple-authentication')
 
