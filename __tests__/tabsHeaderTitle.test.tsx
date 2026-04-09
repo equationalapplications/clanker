@@ -1,5 +1,6 @@
 import React from 'react'
 import renderer from 'react-test-renderer'
+import { Alert } from 'react-native'
 
 const mockSetOptions = jest.fn()
 
@@ -20,12 +21,6 @@ jest.mock('expo-router', () => {
   }
 })
 
-jest.mock('react-native', () => ({
-  Alert: {
-    alert: jest.fn(),
-  },
-}))
-
 jest.mock('~/components/navigation/TabBarIcon', () => ({
   TabBarIcon: () => null,
 }))
@@ -38,6 +33,7 @@ jest.mock('~/hooks/useEditDirtyState', () => ({
 describe('tabs layout header title', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.spyOn(Alert, 'alert').mockImplementation(jest.fn())
   })
 
   it('sets the parent header title to Chat', () => {
