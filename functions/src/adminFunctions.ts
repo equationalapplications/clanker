@@ -324,7 +324,7 @@ async function deleteAppDataByUser(userId: string): Promise<void> {
   if (deleteMessages.status === "rejected") {
     failedOperations.push("messages");
     operationErrors.push(deleteMessages.reason);
-    logger.error("Failed to delete user messages", {
+    logger.debug("Delete operation failed for user messages", {
       userId,
       error: deleteMessages.reason instanceof Error ?
         deleteMessages.reason.message :
@@ -335,7 +335,7 @@ async function deleteAppDataByUser(userId: string): Promise<void> {
   if (deleteCharacters.status === "rejected") {
     failedOperations.push("characters");
     operationErrors.push(deleteCharacters.reason);
-    logger.error("Failed to delete user characters", {
+    logger.debug("Delete operation failed for user characters", {
       userId,
       error: deleteCharacters.reason instanceof Error ?
         deleteCharacters.reason.message :
