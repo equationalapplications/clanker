@@ -10,7 +10,7 @@ import {
   updateCharacter as updateCharacterDb,
   deleteCharacter as deleteCharacterDb,
 } from '~/database/characterDatabase'
-import { loadDefaultCharacterAvatar } from '~/utilities/loadDefaultAvatar'
+import { loadDefaultAvatarBase64 } from '~/services/defaultAvatarService'
 
 // Events
 type CharacterEvent =
@@ -48,7 +48,7 @@ const createDefaultCharacterActor = fromPromise(
     }
     
     // Load the default avatar image as base64
-    const avatarData = await loadDefaultCharacterAvatar()
+    const avatarData = await loadDefaultAvatarBase64()
     
     const characterWithAvatar: CharacterInsert = {
       ...DEFAULT_CHARACTER_INSERT,

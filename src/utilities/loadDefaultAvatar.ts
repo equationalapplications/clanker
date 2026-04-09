@@ -3,7 +3,7 @@ import { Asset } from 'expo-asset'
 
 /**
  * Load the default character avatar as a base64-encoded string
- * This image is bundled with the app in assets/adaptive-icon-200x200.png
+ * This image is bundled with the app in assets/adaptive-icon-200x200.webp
  */
 export async function loadDefaultCharacterAvatar(): Promise<string> {
   try {

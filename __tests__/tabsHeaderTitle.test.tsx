@@ -36,6 +36,10 @@ describe('tabs layout header title', () => {
     jest.spyOn(Alert, 'alert').mockImplementation(jest.fn())
   })
 
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
   it('sets the parent header title to Chat', () => {
     const TabLayout = require('../app/(drawer)/(tabs)/_layout').default
 

@@ -8,7 +8,7 @@
 import { getCurrentUser } from '~/config/firebaseConfig'
 import * as characterDB from '../database/characterDatabase'
 import type { CharacterInsert, CharacterUpdate } from '../database/characterDatabase'
-import { loadDefaultCharacterAvatar } from '~/utilities/loadDefaultAvatar'
+import { loadDefaultAvatarBase64 } from './defaultAvatarService'
 
 export type { CharacterInsert, CharacterUpdate }
 
@@ -143,7 +143,7 @@ export const createNewCharacter = async (): Promise<{ id: string }> => {
     console.log('📝 Creating character with default values...')
     
     // Load the default avatar image as base64
-    const avatarData = await loadDefaultCharacterAvatar()
+    const avatarData = await loadDefaultAvatarBase64()
     
     const character = await createCharacter({
       name: 'Clanker',
