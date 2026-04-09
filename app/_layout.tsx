@@ -33,7 +33,9 @@ function GlobalStateProvider({ children }: { children: React.ReactNode }) {
   const termsService = useActorRef(termsMachine)
   const characterService = useActorRef(characterMachine)
 
-  const previousAuthSnapshotRef = useRef<{ isSignedIn: boolean; userId: string | null } | null>(
+  const previousAuthSnapshotRef = useRef<
+    { isSignedInState: boolean; firebaseUserId: string | null; supabaseUserId: string | null } | null
+  >(
     null
   )
 
@@ -52,17 +54,20 @@ function GlobalStateProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const subscription = authService.subscribe((state: any) => {
-      const userId = state.context.user?.uid ?? null
+      const firebaseUserId = state.context.user?.uid ?? null
+      const supabaseUserId = state.context.supabaseSession?.user?.id ?? null
       const nextAuthSnapshot = {
-        isSignedIn: userId !== null,
-        userId,
+        isSignedInState: state.matches('signedIn'),
+        firebaseUserId,
+        supabaseUserId,
       }
       const previousAuthSnapshot = previousAuthSnapshotRef.current
 
       if (
         !previousAuthSnapshot ||
-        previousAuthSnapshot.isSignedIn !== nextAuthSnapshot.isSignedIn ||
-        previousAuthSnapshot.userId !== nextAuthSnapshot.userId
+        previousAuthSnapshot.isSignedInState !== nextAuthSnapshot.isSignedInState ||
+        previousAuthSnapshot.firebaseUserId !== nextAuthSnapshot.firebaseUserId ||
+        previousAuthSnapshot.supabaseUserId !== nextAuthSnapshot.supabaseUserId
       ) {
         previousAuthSnapshotRef.current = nextAuthSnapshot
         termsService.send({ type: 'AUTH_STATE_CHANGED', authState: state })

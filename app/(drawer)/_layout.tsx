@@ -5,6 +5,7 @@ import { useTheme, Icon } from 'react-native-paper'
 import { Pressable } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useTermsMachine } from '~/hooks/useMachines'
+import LoadingIndicator from '~/components/LoadingIndicator'
 import React from 'react'
 
 function DrawerToggleButton({ tintColor }: { tintColor?: string }) {
@@ -25,19 +26,32 @@ function DrawerToggleButton({ tintColor }: { tintColor?: string }) {
 const AppLayout = () => {
   const theme = useTheme()
   const termsService = useTermsMachine()
-  const { needsTermsAcceptance, isUpdate } = useSelector(termsService, (state) => ({
-    needsTermsAcceptance: state.matches('acceptanceRequired'),
-    isUpdate: state.context.isUpdate,
-  }))
+  const { termsAccepted, termsBlocking, termsLoading, isUpdate } = useSelector(
+    termsService,
+    (state) => ({
+      termsAccepted: state.matches('accepted'),
+      termsBlocking: state.matches('acceptanceRequired'),
+      termsLoading: state.matches('idle') || state.matches('checking'),
+      isUpdate: state.context.isUpdate,
+    }),
+  )
 
   React.useEffect(() => {
-    if (needsTermsAcceptance) {
+    if (termsBlocking) {
       router.replace({
         pathname: '/accept-terms',
         params: { isUpdate: isUpdate.toString() },
       })
     }
-  }, [needsTermsAcceptance, isUpdate])
+  }, [termsBlocking, isUpdate])
+
+  if (termsLoading) {
+    return <LoadingIndicator disabled={false} />
+  }
+
+  if (!termsAccepted) {
+    return null
+  }
 
   return (
     <Drawer

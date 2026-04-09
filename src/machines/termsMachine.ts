@@ -92,7 +92,7 @@ export const termsMachine = createMachine(
             },
           ],
           onError: {
-            target: 'idle',
+            target: 'acceptanceRequired',
             actions: assign({ error: ({ event }) => event.error as Error }),
           },
         },

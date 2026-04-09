@@ -1,53 +1,5 @@
 # Optimistic Terms Acceptance Pattern
 
-## Decision Record
-
-**Date:** October 5, 2025  
-**Status:** Implemented  
-**Decision:** Use optimistic UI for terms acceptance instead of blocking JWT refresh
-
-## Context
-
-Previously, the terms acceptance flow:
-
-1. User clicked "I Accept"
-2. Wrote to database
-3. **Forced JWT refresh** via re-authentication
-4. **Waited for server roundtrip**
-5. Checked JWT claims
-6. Allowed access
-
-This approach had several issues:
-
-- ❌ Poor UX (blocking delay)
-- ❌ Network dependency (no offline support)
-- ❌ Complex error handling
-- ❌ Not industry standard
-- ❌ Over-engineered (terms != security boundary)
-
-## Decision
-
-Implement **optimistic UI pattern** (industry standard):
-
-1. User clicks "I Accept"
-2. **Immediately proceed to app** ✅
-3. Database write happens async
-4. Next natural JWT refresh picks up changes
-5. Server validates on API calls (where it matters)
-
-## Rationale
-
-### Terms Acceptance Is Not a Security Boundary
-
-**Key insight:** Terms acceptance is a **legal checkbox**, not **authentication/authorization**.
-
-If someone bypasses the client-side check:
-
-- They're still legally bound by the terms
-- Server-side RLS policies enforce on actual data access
-- API endpoints validate subscription status
-- Security is enforced where it matters
-
 ### Industry Standard Pattern
 
 This is how major platforms handle terms:
@@ -153,24 +105,6 @@ if (!hasAcceptedCurrentTerms(userId, 'clanker')) {
 // No forced refresh needed - happens on next expiry
 ```
 
-## Migration Notes
-
-### Files Changed
-
-1. `src/utilities/appAccess.ts` - Removed JWT refresh logic
-2. `src/hooks/useSubscriptionStatus.ts` - Added local state tracking
-3. `src/components/AcceptTerms.tsx` - Removed blocking alert
-4. `app/accept-terms.tsx` - Instant navigation
-
-### Backward Compatibility
-
-- ✅ Server-side validation unchanged
-- ✅ RLS policies unchanged
-- ✅ JWT structure unchanged
-- ✅ Database schema unchanged
-
-Only client-side flow changed - **fully backward compatible**.
-
 ## Testing Considerations
 
 ### Test Scenarios
@@ -213,12 +147,6 @@ Only client-side flow changed - **fully backward compatible**.
 3. **RLS policy denials** (users without terms)
 4. **Failed API calls due to terms** (should be rare)
 
-### Alerts
-
-- High failure rate on terms acceptance writes
-- Spike in RLS denials for terms
-- Users stuck in acceptance loop
-
 ## Future Enhancements
 
 ### Potential Improvements
@@ -244,6 +172,3 @@ Only client-side flow changed - **fully backward compatible**.
 - [TERMS_ACCEPTANCE_SYSTEM.md](../../equationalapplications.com/docs/TERMS_ACCEPTANCE_SYSTEM.md) - Architectural overview
 - [Optimistic UI Pattern](https://www.patterns.dev/posts/optimistic-ui) - Design pattern explanation
 
-## Questions?
-
-Contact: Your friendly neighborhood AI architect 🤖
