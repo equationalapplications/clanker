@@ -72,12 +72,6 @@ const makeRequestId = () => {
   throw new Error('Secure random generator unavailable for request IDs.')
 }
 
-const ensureEnabled = () => {
-  if (process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED !== 'true') {
-    throw new Error('Admin dashboard is disabled by configuration.')
-  }
-}
-
 const ensureAppCheckConfigured = () => {
   const isWeb = typeof window !== 'undefined' && typeof document !== 'undefined'
   if (!isWeb) {
@@ -91,7 +85,6 @@ const ensureAppCheckConfigured = () => {
 }
 
 async function callAdmin<Req, Res>(fn: Callable<Req, Res>, payload: Req): Promise<Res> {
-  ensureEnabled()
   ensureAppCheckConfigured()
   try {
     await appCheckReady

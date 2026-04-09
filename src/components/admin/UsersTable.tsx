@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native'
-import { DataTable, Text } from 'react-native-paper'
+import { DataTable, Text, useTheme } from 'react-native-paper'
 import type { AdminUserRow } from '~/types/admin'
 
 interface UsersTableProps {
@@ -9,36 +9,43 @@ interface UsersTableProps {
 }
 
 export function UsersTable({ users, selectedUserId, onSelectUser }: UsersTableProps) {
+  const theme = useTheme()
+
   if (users.length === 0) {
-    return <Text>No users matched the current filters.</Text>
+    return <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No users matched the current filters.</Text>
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       <DataTable>
         <DataTable.Header>
-          <DataTable.Title>Email</DataTable.Title>
-          <DataTable.Title>User ID</DataTable.Title>
-          <DataTable.Title numeric>Credits</DataTable.Title>
-          <DataTable.Title>Tier</DataTable.Title>
-          <DataTable.Title>Status</DataTable.Title>
-          <DataTable.Title>Terms</DataTable.Title>
+          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>Email</DataTable.Title>
+          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>User ID</DataTable.Title>
+          <DataTable.Title numeric textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>Credits</DataTable.Title>
+          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>Tier</DataTable.Title>
+          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>Status</DataTable.Title>
+          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>Terms</DataTable.Title>
         </DataTable.Header>
 
         {users.map((user) => {
           const selected = user.userId === selectedUserId
+          const cellTextColor = selected ? theme.colors.onSecondaryContainer : theme.colors.onSurface
           return (
             <DataTable.Row
               key={user.userId}
-              style={selected ? styles.selectedRow : undefined}
+              style={[
+                styles.row,
+                { borderBottomColor: theme.colors.outlineVariant },
+                selected ? { backgroundColor: theme.colors.secondaryContainer } : undefined,
+              ]}
               onPress={() => onSelectUser(user.userId)}
             >
-              <DataTable.Cell>{user.email}</DataTable.Cell>
-              <DataTable.Cell textStyle={styles.userIdText}>{user.userId}</DataTable.Cell>
-              <DataTable.Cell numeric>{user.currentCredits}</DataTable.Cell>
-              <DataTable.Cell>{user.planTier}</DataTable.Cell>
-              <DataTable.Cell>{user.planStatus}</DataTable.Cell>
-              <DataTable.Cell>{user.termsAcceptedAt ? 'Accepted' : 'Not accepted'}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.email}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.userIdText, { color: cellTextColor }]}>{user.userId}</DataTable.Cell>
+              <DataTable.Cell numeric textStyle={[styles.cellText, { color: cellTextColor }]}>{user.currentCredits}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.planTier}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.planStatus}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.termsAcceptedAt ? 'Accepted' : 'Not accepted'}</DataTable.Cell>
             </DataTable.Row>
           )
         })}
@@ -49,15 +56,22 @@ export function UsersTable({ users, selectedUserId, onSelectUser }: UsersTablePr
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 8,
   },
-  selectedRow: {
-    backgroundColor: 'rgba(255, 196, 120, 0.22)',
+  row: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerText: {
+    fontWeight: '700',
+  },
+  cellText: {
+    fontWeight: '500',
   },
   userIdText: {
     fontFamily: 'monospace',
+    fontWeight: '500',
     flexShrink: 1,
   },
+  emptyText: {},
 })

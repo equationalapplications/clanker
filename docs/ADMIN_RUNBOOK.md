@@ -4,10 +4,20 @@
 
 Operational procedures for high-impact admin actions, especially reset and delete.
 
+## Admin Authorization Model
+
+Admin callable access is authorized by `requireAdmin(request)` in `functions/src/adminAuth.ts`.
+Access is granted if **any** of the following are true:
+
+- Firebase custom claim `admin: true`
+- Caller email is present in `ADMIN_ALLOWLIST_EMAILS`
+- Caller uid is present in `ADMIN_ALLOWLIST_UIDS`
+
+The preferred long-term path is the custom claim. Allowlists are useful for controlled bootstrap/emergency access.
+
 ## Granting / Revoking the Admin Custom Claim
 
-Admin dashboard access requires an `admin: true` custom claim on the user's Firebase Auth account.
-Use the `scripts/set-admin-claim.js` script to manage this from the repo root.
+Use the `scripts/set-admin-claim.js` script to manage the custom claim from the repo root.
 
 **Prerequisites**
 
@@ -33,8 +43,7 @@ After setting the claim, the user must **sign out and sign back in** (or wait up
 ## Access Preconditions
 
 1. Confirm admin has authenticated with Firebase on web.
-2. Confirm admin user is authorized (custom claim — see above).
-3. Confirm `EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED=true` for the web environment.
+2. Confirm admin user is authorized via claim and/or allowlist (see authorization model above).
 
 ## Pre-Action Checklist
 
