@@ -1,7 +1,7 @@
 import React from 'react'
 import { StyleSheet, ScrollView, View } from 'react-native'
 import { Text, List, Switch, Button, Divider } from 'react-native-paper'
-import { router } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
@@ -122,6 +122,14 @@ export default function Settings() {
           left={(props) => <List.Icon {...props} icon="shield-check" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
           onPress={() => router.push('/privacy')}
+        />
+
+        <List.Item
+          title="Support"
+          description="Contact support and view FAQs"
+          left={(props) => <List.Icon {...props} icon="lifebuoy" />}
+          right={(props) => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => router.push('/support' as Href)}
         />
 
         <List.Item

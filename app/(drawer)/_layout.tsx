@@ -1,5 +1,6 @@
 import { DrawerActions, useNavigation } from '@react-navigation/native'
-import { router, usePathname } from 'expo-router'
+import { DrawerContentScrollView, DrawerItem, DrawerItemList } from '@react-navigation/drawer'
+import { router, usePathname, type Href } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
 import { useTheme, Icon } from 'react-native-paper'
 import { Pressable } from 'react-native'
@@ -7,6 +8,18 @@ import { useSelector } from '@xstate/react'
 import { useTermsMachine } from '~/hooks/useMachines'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import React from 'react'
+
+const DRAWER_ROUTE_CONFIG: Record<string, { label: string; icon: string }> = {
+  '(tabs)': { label: 'Chat', icon: 'chat' },
+  profile: { label: 'Profile', icon: 'account-circle' },
+  settings: { label: 'Settings', icon: 'cog' },
+  subscribe: { label: 'Subscribe', icon: 'crown' },
+}
+
+const HIDDEN_DRAWER_SCREEN_OPTIONS = {
+  headerShown: false,
+  drawerItemStyle: { display: 'none' as const },
+}
 
 function DrawerToggleButton({ tintColor }: { tintColor?: string }) {
   const navigation = useNavigation()
@@ -52,49 +65,51 @@ const AppLayout = () => {
 
   return (
     <Drawer
+      drawerContent={(props) => (
+        <DrawerContentScrollView {...props}>
+          <DrawerItemList {...props} />
+          {termsAccepted ? (
+            <DrawerItem
+              label="Support"
+              icon={({ color, size }) => <Icon source="lifebuoy" color={color} size={size} />}
+              onPress={() => router.push('/support' as Href)}
+            />
+          ) : null}
+        </DrawerContentScrollView>
+      )}
       screenOptions={({ route }) => ({
+        ...(() => {
+          const routeConfig = DRAWER_ROUTE_CONFIG[route.name]
+          if (!routeConfig) {
+            return {}
+          }
+
+          return {
+            drawerLabel: routeConfig.label,
+            title: routeConfig.label,
+            headerTitle: routeConfig.label,
+            drawerIcon: ({ color, size }: { color: string; size: number }) => (
+              <Icon source={routeConfig.icon} color={color} size={size} />
+            ),
+          }
+        })(),
         headerStyle: { backgroundColor: theme.colors.surface },
         headerTintColor: theme.colors.onSurface,
         drawerStyle: { backgroundColor: theme.colors.surface },
         drawerActiveTintColor: theme.colors.primary,
         drawerInactiveTintColor: theme.colors.onSurfaceVariant,
         headerLeft: ({ tintColor }) => <DrawerToggleButton tintColor={tintColor} />,
-        drawerLabel: route.name === '(tabs)' ? 'Chat' : undefined,
-        title: route.name === '(tabs)' ? 'Chat' : undefined,
-        headerTitle: route.name === '(tabs)' ? 'Chat' : undefined,
       })}
     >
-      {termsAccepted ? (
-        <>
-          <Drawer.Screen
-            name="(tabs)"
-            options={{
-              drawerLabel: 'Chat',
-              title: 'Chat',
-              headerTitle: 'Chat',
-              drawerIcon: ({ color, size }) => <Icon source="chat" color={color} size={size} />,
-            }}
-          />
-          <Drawer.Screen
-            name="profile"
-            options={{
-              drawerLabel: 'Profile',
-              title: 'Profile',
-              drawerIcon: ({ color, size }) => (
-                <Icon source="account-circle" color={color} size={size} />
-              ),
-            }}
-          />
-          <Drawer.Screen
-            name="settings"
-            options={{
-              drawerLabel: 'Settings',
-              title: 'Settings',
-              drawerIcon: ({ color, size }) => <Icon source="cog" color={color} size={size} />,
-            }}
-          />
-        </>
-      ) : null}
+      <Drawer.Screen name="(tabs)" options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS} />
+      <Drawer.Screen
+        name="profile"
+        options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+      />
+      <Drawer.Screen
+        name="settings"
+        options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+      />
       <Drawer.Screen
         name="accept-terms"
         options={{
@@ -102,18 +117,10 @@ const AppLayout = () => {
           drawerItemStyle: { display: 'none' },
         }}
       />
-      {termsAccepted ? (
-        <Drawer.Screen
-          name="subscribe"
-          options={{
-            drawerLabel: 'Subscribe',
-            title: 'Subscribe',
-            drawerIcon: ({ color, size }) => (
-              <Icon source="account-plus" color={color} size={size} />
-            ),
-          }}
-        />
-      ) : null}
+      <Drawer.Screen
+        name="subscribe"
+        options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+      />
     </Drawer>
   )
 }

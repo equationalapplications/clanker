@@ -16,6 +16,7 @@ This document captures the current navigation structure for Clanker using [Expo 
   - `guard={!!user}` exposes the `(drawer)` group when a Firebase user exists.
   - `guard={!user}` exposes the `sign-in` route for logged-out users.
 - `privacy` and `terms` modals remain globally accessible regardless of auth state.
+- `support` remains globally accessible regardless of auth state.
 - There is no root `index.tsx`; navigation starts from the drawer once the guard passes.
 
 ## Drawer Layout (`app/(drawer)/_layout.tsx`)
@@ -57,6 +58,7 @@ app/
 ├── _layout.tsx              # Root providers + Stack.Protected guards
 ├── privacy.tsx              # Modal: Privacy policy
 ├── sign-in.tsx              # Public sign-in screen
+├── support.tsx              # Public support page
 ├── terms.tsx                # Modal: Terms of service
 └── (drawer)/
     ├── _layout.tsx          # Drawer navigator + terms redirect
@@ -90,6 +92,7 @@ app/
 
 - `/sign-in`
 - `/privacy`
+- `/support`
 - `/terms`
 - `/characters` (list)
 - `/characters/<id>/edit`
