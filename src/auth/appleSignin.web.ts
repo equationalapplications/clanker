@@ -5,6 +5,7 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  updateProfile,
 } from 'firebase/auth'
 import { firebaseApp } from '~/config/firebaseConfig.web'
 
@@ -18,10 +19,41 @@ const appleProvider = new OAuthProvider('apple.com')
 appleProvider.addScope('email')
 appleProvider.addScope('name')
 
+const extractAppleDisplayName = (profile: any): string | null => {
+  const firstName =
+    profile?.name?.firstName || profile?.given_name || profile?.first_name || profile?.firstName || ''
+  const lastName =
+    profile?.name?.lastName || profile?.family_name || profile?.last_name || profile?.lastName || ''
+
+  const fullName = `${String(firstName).trim()} ${String(lastName).trim()}`.trim()
+  if (fullName) {
+    return fullName
+  }
+
+  const flatName = String(profile?.name || '').trim()
+  return flatName || null
+}
+
+const persistAppleNameToFirebaseUser = async (result: any): Promise<void> => {
+  const currentName = result?.user?.displayName?.trim()
+  if (currentName) {
+    return
+  }
+
+  const profile = result?.additionalUserInfo?.profile
+  const appleDisplayName = extractAppleDisplayName(profile)
+  if (!appleDisplayName) {
+    return
+  }
+
+  await updateProfile(result.user, { displayName: appleDisplayName })
+}
+
 export const signInWithApple = async (): Promise<AppleSignInResult> => {
   try {
     console.log('🔐 Attempting Apple Sign-In via Firebase popup...')
-    await signInWithPopup(auth, appleProvider)
+    const result = await signInWithPopup(auth, appleProvider)
+    await persistAppleNameToFirebaseUser(result)
     console.log('✅ Apple Sign-In successful via popup')
     return { success: true }
   } catch (popupError: any) {
@@ -58,6 +90,7 @@ export const handleAppleRedirectResult = async (): Promise<AppleSignInResult> =>
   try {
     const result = await getRedirectResult(auth)
     if (result) {
+      await persistAppleNameToFirebaseUser(result)
       console.log('✅ Apple Sign-In redirect completed successfully')
     }
     return { success: true }
