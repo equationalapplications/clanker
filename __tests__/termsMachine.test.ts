@@ -86,6 +86,37 @@ describe('termsMachine', () => {
     actor.stop()
   })
 
+  it('clears prior check error when a later successful check still needs acceptance', async () => {
+    mockMaybeSingle
+      .mockResolvedValueOnce({
+        data: null,
+        error: new Error('network failed'),
+      })
+      .mockResolvedValueOnce({
+        data: { terms_accepted_at: '2026-01-01T00:00:00.000Z', terms_version: '0.0.1' },
+        error: null,
+      })
+
+    const actor = createActor(termsMachine)
+    actor.start()
+
+    actor.send({ type: 'AUTH_STATE_CHANGED', authState: signedInAuthState() } as any)
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.error?.message).toContain('network failed')
+
+    actor.send({ type: 'AUTH_STATE_CHANGED', authState: signedInAuthState() } as any)
+    await waitFor(
+      actor,
+      (state) =>
+        state.matches('acceptanceRequired') &&
+        state.context.isUpdate === true &&
+        state.context.error === null,
+      WAIT_OPTS,
+    )
+
+    actor.stop()
+  })
+
   it('accepts terms successfully from acceptanceRequired', async () => {
     mockMaybeSingle.mockResolvedValue({
       data: null,
