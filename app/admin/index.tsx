@@ -49,17 +49,6 @@ const normalizePlanStatusFilter = (value: string): AdminPlanStatus | '' => {
   return isAdminPlanStatus(trimmed) ? trimmed : ''
 }
 
-const isFeatureEnabled = (value: string | undefined) => {
-  if (!value) {
-    return true
-  }
-
-  const normalized = value.trim().toLowerCase()
-  return !['0', 'false', 'off', 'no'].includes(normalized)
-}
-
-const ADMIN_DASHBOARD_ENABLED = isFeatureEnabled(process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED)
-
 const isUnauthorizedAccessError = (error: unknown) => {
   if (!error || typeof error !== 'object') {
     return false
@@ -96,7 +85,7 @@ export default function AdminDashboardScreen() {
   const isPlanTierFilterInvalid = hasPlanTierInput && !normalizedPlanTierFilter
   const isPlanStatusFilterInvalid = hasPlanStatusInput && !planStatusFilter
   const isWeb = Platform.OS === 'web'
-  const adminQueryEnabled = isWeb && !!user && ADMIN_DASHBOARD_ENABLED
+  const adminQueryEnabled = isWeb && !!user
 
   const usersQuery = useAdminUsers(
     {
@@ -148,23 +137,6 @@ export default function AdminDashboardScreen() {
             <Card.Content>
               <Text variant="titleMedium">Admin dashboard unavailable</Text>
               <Text variant="bodyMedium">This screen is only available on web.</Text>
-            </Card.Content>
-          </Card>
-        </View>
-      </ScrollView>
-    )
-  }
-
-  if (!ADMIN_DASHBOARD_ENABLED) {
-    return (
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View style={{ padding: 16 }}>
-          <Card>
-            <Card.Content>
-              <Text variant="titleMedium">Admin dashboard disabled</Text>
-              <Text variant="bodyMedium">
-                This dashboard is disabled by EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED.
-              </Text>
             </Card.Content>
           </Card>
         </View>
