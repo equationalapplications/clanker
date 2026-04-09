@@ -4,7 +4,7 @@ import * as characterDatabase from '../src/database/characterDatabase'
 
 jest.mock('../src/database/characterDatabase')
 jest.mock('../src/services/defaultAvatarService', () => ({
-  loadDefaultAvatarBase64: jest.fn().mockResolvedValue('data:image/webp;base64,default-avatar'),
+  loadDefaultAvatarBase64: jest.fn().mockResolvedValue('default-avatar'),
 }))
 
 const mockDb = jest.mocked(characterDatabase)
