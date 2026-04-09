@@ -34,7 +34,6 @@ After setting the claim, the user must **sign out and sign back in** (or wait up
 
 1. Confirm admin has authenticated with Firebase on web.
 2. Confirm admin user is authorized (custom claim — see above).
-3. Confirm `EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED=true` for the web environment.
 
 ## Pre-Action Checklist
 

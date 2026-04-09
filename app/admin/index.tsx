@@ -30,7 +30,6 @@ type PendingAction =
   | { type: 'resetUser'; userId: string }
   | { type: 'deleteUser'; userId: string }
 
-const ADMIN_ENABLED = process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED === 'true'
 const PLAN_TIER_FILTER_OPTIONS: AdminPlanTier[] = ['free', 'monthly_20', 'monthly_50', 'payg']
 const PLAN_STATUS_FILTER_OPTIONS: AdminPlanStatus[] = ['active', 'cancelled', 'expired']
 
@@ -84,7 +83,7 @@ export default function AdminDashboardScreen() {
   const hasPlanStatusInput = planStatusInput.trim().length > 0
   const isPlanTierFilterInvalid = hasPlanTierInput && !normalizedPlanTierFilter
   const isPlanStatusFilterInvalid = hasPlanStatusInput && !planStatusFilter
-  const adminQueryEnabled = Platform.OS === 'web' && !!user && ADMIN_ENABLED
+  const adminQueryEnabled = Platform.OS === 'web' && !!user
 
   const usersQuery = useAdminUsers(
     {
@@ -178,14 +177,6 @@ export default function AdminDashboardScreen() {
     } finally {
       setPendingAction(null)
     }
-  }
-
-  if (!ADMIN_ENABLED) {
-    return (
-      <View style={styles.centered}>
-        <Text variant="headlineSmall">Admin dashboard is disabled.</Text>
-      </View>
-    )
   }
 
   if (adminQueryEnabled && usersQuery.isPending) {

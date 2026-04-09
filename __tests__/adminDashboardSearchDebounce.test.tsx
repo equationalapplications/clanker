@@ -57,7 +57,6 @@ jest.mock('~/hooks/useAdminDashboard', () => ({
 
 describe('AdminDashboardScreen search debounce', () => {
   beforeEach(() => {
-    process.env.EXPO_PUBLIC_ADMIN_DASHBOARD_ENABLED = 'true'
     jest.useFakeTimers()
 
     mockUseAdminUsers.mockReturnValue({
