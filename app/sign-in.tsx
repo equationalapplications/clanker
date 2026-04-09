@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { StyleSheet, View, Alert, Platform } from 'react-native'
+import { StyleSheet, View, Alert, Platform, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSelector } from '@xstate/react'
 
@@ -17,6 +17,8 @@ const AppleAuthentication = Platform.OS === 'ios' ? require('expo-apple-authenti
 
 export default function SignIn() {
   const router = useRouter()
+  const { width } = useWindowDimensions()
+  const isNarrowScreen = width < 380
   const authService = useAuthMachine()
   const { isSignedIn, isLoading, error } = useSelector(authService, (state) => ({
     isSignedIn: state.matches('signedIn'),
@@ -73,36 +75,38 @@ export default function SignIn() {
           <View style={styles.separator} />
           <MonoText>Create Your Own AI Clanker</MonoText>
           <Logo />
-          <ProviderButton
-            style={styles.providerButton}
-            disabled={isLoading}
-            loading={isLoading}
-            onPress={GoogleLoginOnPress}
-            type="google"
-          >
-            Google
-          </ProviderButton>
-          {Platform.OS === 'ios' && (
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={40}
-              style={styles.appleButton}
-              onPress={AppleLoginOnPress}
-            />
-          )}
-          {Platform.OS === 'web' && (
+          <View style={styles.authButtons}>
             <ProviderButton
               style={styles.providerButton}
               disabled={isLoading}
               loading={isLoading}
-              onPress={AppleLoginOnPress}
-              type="apple"
+              onPress={GoogleLoginOnPress}
+              type="google"
             >
-              Apple
+              Google
             </ProviderButton>
-          )}
-          <View style={styles.footer}>
+            {Platform.OS === 'ios' && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={40}
+                style={styles.appleButton}
+                onPress={AppleLoginOnPress}
+              />
+            )}
+            {Platform.OS === 'web' && (
+              <ProviderButton
+                style={styles.providerButton}
+                disabled={isLoading}
+                loading={isLoading}
+                onPress={AppleLoginOnPress}
+                type="apple"
+              >
+                Apple
+              </ProviderButton>
+            )}
+          </View>
+          <View style={[styles.footer, isNarrowScreen && styles.footerNarrow]}>
             <Button mode="text" onPress={onPressTerms}>
               Terms and Conditions
             </Button>
@@ -129,21 +133,27 @@ const styles = StyleSheet.create({
     width: '80%',
     backgroundColor: '#eee',
   },
-  appleButton: {
+  authButtons: {
     width: '100%',
     maxWidth: 300,
+    marginTop: 10,
+  },
+  appleButton: {
+    width: '100%',
     height: 44,
     marginTop: 10,
   },
   providerButton: {
     width: '100%',
-    maxWidth: 300,
   },
   footer: {
-    position: 'absolute',
-    bottom: 110,
+    marginTop: 24,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
+    alignItems: 'center',
     width: '100%',
+  },
+  footerNarrow: {
+    flexDirection: 'column',
   },
 })
