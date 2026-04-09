@@ -1,7 +1,7 @@
-import { supabaseClient } from '~/config/supabaseClient'
+import { getSupabaseSession } from '~/utilities/getSupabaseSession'
 
 export async function getSupabaseUserId(): Promise<string | null> {
-    const { data: { session }, error } = await supabaseClient.auth.getSession()
-    if (error || !session?.user) return null
+    const session = await getSupabaseSession()
+    if (!session?.user) return null
     return session.user.id
 }

@@ -12,6 +12,15 @@ import { useUserPublicData, useUserPrivateData } from '~/hooks/useUser'
 import { useIsPremium } from '~/hooks/useIsPremium'
 import { deleteUser } from '~/utilities/deleteUser'
 
+const asTrimmedString = (value: unknown): string => {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+const asSafeUri = (value: unknown, fallback: string): string => {
+  const uri = asTrimmedString(value)
+  return uri.length > 0 ? uri : fallback
+}
+
 export default function Profile() {
   const { colors } = useTheme()
   const authService = useAuthMachine()
@@ -20,10 +29,11 @@ export default function Profile() {
   const { userPrivate } = useUserPrivateData()
   const isPremium = useIsPremium()
 
-  const displayName = userPublic?.name || user?.displayName || ''
-  const email = user?.email || userPublic?.email || ''
+  const displayName =
+    asTrimmedString(userPublic?.name) || asTrimmedString(user?.displayName) || ''
+  const email = asTrimmedString(user?.email) || asTrimmedString(userPublic?.email) || ''
   // Try Supabase profile first, fall back to Firebase photoURL, then to default
-  const photoURL = userPublic?.avatar || user?.photoURL || defaultAvatarUrl
+  const photoURL = asSafeUri(userPublic?.avatar, asSafeUri(user?.photoURL, defaultAvatarUrl))
   const credits = userPrivate?.credits ?? 0
 
   const [isModalVisible, setIsModalVisible] = useState(false)
