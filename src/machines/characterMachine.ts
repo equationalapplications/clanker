@@ -52,7 +52,7 @@ const createDefaultCharacterActor = fromPromise(
     
     const characterWithAvatar: CharacterInsert = {
       ...DEFAULT_CHARACTER_INSERT,
-      avatar_data: avatarData || undefined,
+      avatar_data: avatarData,
     }
     
     const newCharacter = await createCharacterDb(input.userId, characterWithAvatar)
