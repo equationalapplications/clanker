@@ -268,8 +268,8 @@ async function upsertSubscription(
 }
 
 function isMissingTableError(response: Response, errorText: string): boolean {
-  if (response.status === 404) {
-    return true;
+  if (response.status !== 404) {
+    return false;
   }
 
   return errorText.includes("\"code\":\"PGRST205\"") ||
