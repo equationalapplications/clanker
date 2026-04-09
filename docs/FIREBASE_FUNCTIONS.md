@@ -214,6 +214,15 @@ All callable and webhook Cloud Run services must have the tag. Current list:
 ### Commands
 
 Replace `FUNCTION_NAME` with the lowercase Cloud Run service name (e.g. `adminlistusers`).
+The commands below are production-specific for `equationalapplications-com`; if you are running in a different project/region, replace project number and region first.
+
+Use these discovery commands before running tag or IAM updates in non-production environments:
+
+```bash
+gcloud config get-value project
+gcloud projects describe "$(gcloud config get-value project)" --format='value(projectNumber)'
+gcloud run services list --platform=managed --format='table(metadata.name,metadata.labels.location)'
+```
 
 ```bash
 # 1. Attach the tag to bypass the organization policy

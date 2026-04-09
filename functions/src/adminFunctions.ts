@@ -297,6 +297,13 @@ async function deleteFromCanonicalTable(
     );
   }
 
+  logger.error("Failed canonical table delete request", {
+    tableName,
+    query,
+    status: response.status,
+    errorText,
+  });
+
   throw new HttpsError("internal", `Failed to delete rows from ${tableName}.`);
 }
 
@@ -313,9 +320,11 @@ async function deleteAppDataByUser(userId: string): Promise<void> {
   ]);
 
   const failedOperations: string[] = [];
+  const operationErrors: unknown[] = [];
 
   if (deleteMessages.status === "rejected") {
     failedOperations.push("messages");
+    operationErrors.push(deleteMessages.reason);
     logger.error("Failed to delete user messages", {
       userId,
       error: deleteMessages.reason instanceof Error ?
@@ -326,6 +335,7 @@ async function deleteAppDataByUser(userId: string): Promise<void> {
 
   if (deleteCharacters.status === "rejected") {
     failedOperations.push("characters");
+    operationErrors.push(deleteCharacters.reason);
     logger.error("Failed to delete user characters", {
       userId,
       error: deleteCharacters.reason instanceof Error ?
@@ -335,6 +345,10 @@ async function deleteAppDataByUser(userId: string): Promise<void> {
   }
 
   if (failedOperations.length > 0) {
+    const propagatedError = operationErrors.find((error) => error instanceof HttpsError);
+    if (propagatedError instanceof HttpsError) {
+      throw propagatedError;
+    }
     throw new HttpsError("internal", "Failed to delete all user app data.");
   }
 }

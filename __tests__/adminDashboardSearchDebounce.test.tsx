@@ -37,12 +37,23 @@ jest.mock('react-native-paper', () => {
 
   const Text = ({ children, ...props }: any) => <RNText {...props}>{children}</RNText>
   const TextInput = (props: any) => <RNTextInput {...props} />
+  const useTheme = () => ({
+    colors: {
+      background: '#ffffff',
+      surface: '#f5f5f5',
+      onBackground: '#111111',
+      onSurfaceVariant: '#6b7280',
+      primary: '#2563eb',
+      outline: '#d1d5db',
+    },
+  })
 
   return {
     Button,
     Card,
     Text,
     TextInput,
+    useTheme,
   }
 })
 
