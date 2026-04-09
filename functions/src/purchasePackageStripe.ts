@@ -3,6 +3,7 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import Stripe from "stripe";
 import { getStripePriceIds, getStripeCheckoutUrls } from "./runtimeConfig.js";
+import { validateAndNormalizeStripeSecretKey } from "./stripeConfig.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
@@ -10,20 +11,10 @@ if (!admin.apps?.length) {
 }
 
 function getStripeClient() {
-    const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
-    if (!secretKey) {
-        throw new HttpsError(
-            "failed-precondition",
-            "STRIPE_SECRET_KEY configuration value is not set"
-        );
-    }
-
-    if (/[^\u0020-\u007E]/.test(secretKey)) {
-        throw new HttpsError(
-            "failed-precondition",
-            "STRIPE_SECRET_KEY contains invalid characters"
-        );
-    }
+    const secretKey = validateAndNormalizeStripeSecretKey(
+        process.env.STRIPE_SECRET_KEY,
+        (message) => new HttpsError("failed-precondition", message)
+    );
 
     return new Stripe(secretKey);
 }

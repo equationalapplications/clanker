@@ -272,8 +272,30 @@ function isMissingTableError(response: Response, errorText: string): boolean {
     return false;
   }
 
-  return errorText.includes("\"code\":\"PGRST205\"") ||
-    errorText.includes("Could not find the table");
+  try {
+    const parsedError: unknown = JSON.parse(errorText);
+    if (parsedError && typeof parsedError === "object") {
+      const postgrestError = parsedError as {
+        code?: unknown;
+        message?: unknown;
+      };
+
+      if (postgrestError.code === "PGRST205") {
+        return true;
+      }
+
+      if (
+        typeof postgrestError.message === "string" &&
+        postgrestError.message.includes("Could not find the table")
+      ) {
+        return true;
+      }
+    }
+  } catch {
+    // Fall back to plain-text matching when the response body is not JSON.
+  }
+
+  return errorText.includes("Could not find the table");
 }
 
 async function deleteFromCanonicalTable(

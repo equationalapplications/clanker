@@ -88,11 +88,14 @@ export const termsMachine = createMachine(
             },
             {
               target: 'acceptanceRequired',
-              actions: assign({ isUpdate: ({ event }) => event.output.isUpdate }),
+              actions: assign({
+                isUpdate: ({ event }) => event.output.isUpdate,
+                error: null,
+              }),
             },
           ],
           onError: {
-            target: 'idle',
+            target: 'acceptanceRequired',
             actions: assign({ error: ({ event }) => event.error as Error }),
           },
         },
