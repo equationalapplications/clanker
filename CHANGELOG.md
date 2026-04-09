@@ -1,3 +1,24 @@
+# [25.6.0](https://github.com/equationalapplications/clanker/compare/v25.5.1...v25.6.0) (2026-04-09)
+
+
+### Bug Fixes
+
+* **avatar:** correct service docs and test mock contract ([830420c](https://github.com/equationalapplications/clanker/commit/830420c46af249d14886b0654afc8c06cffc3808))
+* **avatar:** lazy load and assign directly without fallback ([cc491b0](https://github.com/equationalapplications/clanker/commit/cc491b0fa081f86dfd9e225d6fd81639fcd67175))
+* **characters:** embed default avatar as base64 to remove expo dependencies ([bf9d2f6](https://github.com/equationalapplications/clanker/commit/bf9d2f664d815f2cb754ddf53de46407e6b138e8))
+* **characters:** normalize default avatar data and trim whitespace ([7bd2f59](https://github.com/equationalapplications/clanker/commit/7bd2f59ad1146a274689b2235e6cdabb4bdb20e2))
+* **characters:** resolve avatar loader review feedback and test isolation ([0db82a1](https://github.com/equationalapplications/clanker/commit/0db82a17536f85548b05b8b67f4a66e79624191d))
+* **navigation:** prevent route-group name from leaking to drawer header ([45557f9](https://github.com/equationalapplications/clanker/commit/45557f9a4f1cdc9db0cc50bbd26b19d8fae9c582))
+* **navigation:** prevent route-group name from leaking to drawer header ([124fd92](https://github.com/equationalapplications/clanker/commit/124fd92855f7da483e7b7dbd366c0766f8d16bb2))
+* rename *.instructions.md to semantic-release.instructions.md ([5deb7ad](https://github.com/equationalapplications/clanker/commit/5deb7ada96b6f0fc519ee46b38785d17dbad79a4))
+* **sign-in:** improve spacing between auth buttons and legal links ([d39f4a0](https://github.com/equationalapplications/clanker/commit/d39f4a0d8b6ba7337e57c4ea3790f50649d7f7ad))
+* **sign-in:** improve spacing between auth buttons and legal links ([12b536a](https://github.com/equationalapplications/clanker/commit/12b536a1a2d2b981ee4c952b451806245888ce2a))
+
+
+### Features
+
+* **characters:** add default avatar to newly created characters ([e2183c2](https://github.com/equationalapplications/clanker/commit/e2183c27f3e44cfa95701f3b134eff6b93e976b6))
+
 ## [25.5.1](https://github.com/equationalapplications/clanker/compare/v25.5.0...v25.5.1) (2026-04-09)
 
 
