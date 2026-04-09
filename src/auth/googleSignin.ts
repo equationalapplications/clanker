@@ -58,7 +58,17 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     const googleCredential = GoogleAuthProvider.credential(idToken)
 
     // Sign in to Firebase with the Google credential
-    await signInWithCredential(getAuth(), googleCredential)
+    const userCredential = await signInWithCredential(getAuth(), googleCredential)
+
+    const givenName = response.data?.user?.givenName?.trim() || ''
+    const familyName = response.data?.user?.familyName?.trim() || ''
+    const googleDisplayName =
+      response.data?.user?.name?.trim() || `${givenName} ${familyName}`.trim()
+
+    // Ensure display name is available for profile rendering and Supabase profile sync.
+    if (googleDisplayName && !userCredential.user.displayName) {
+      await userCredential.user.updateProfile({ displayName: googleDisplayName })
+    }
 
     console.log('✅ Firebase sign-in successful')
     return { success: true }

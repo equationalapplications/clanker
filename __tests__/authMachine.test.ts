@@ -14,7 +14,7 @@ const mockSignOutFromApple = jest.fn()
 const mockLoginRevenueCat = jest.fn()
 const mockLogoutRevenueCat = jest.fn()
 const mockSetCrashlyticsUserId = jest.fn()
-const mockSyncFirebasePhotoToProfile = jest.fn()
+const mockSyncFirebaseIdentityToProfile = jest.fn()
 const mockQueryClientClear = jest.fn()
 
 jest.mock('../src/config/firebaseConfig', () => ({
@@ -55,7 +55,7 @@ jest.mock('../src/services/crashlyticsService', () => ({
 }))
 
 jest.mock('../src/services/userService', () => ({
-  syncFirebasePhotoToProfile: mockSyncFirebasePhotoToProfile,
+  syncFirebaseIdentityToProfile: mockSyncFirebaseIdentityToProfile,
 }))
 
 jest.mock('../src/config/queryClient', () => ({
@@ -71,6 +71,8 @@ const WAIT_OPTS = { timeout: 2000 }
 function makeUser(uid = 'firebase-user-1') {
   return {
     uid,
+    displayName: 'Test User',
+    email: 'test@example.com',
     photoURL: 'https://example.com/avatar.png',
     getIdToken: jest.fn().mockResolvedValue('firebase-token'),
   }
@@ -101,7 +103,11 @@ describe('authMachine', () => {
     expect(actor.getSnapshot().context.supabaseSession).toEqual(session)
     expect(actor.getSnapshot().context.error).toBeNull()
     expect(mockLoginRevenueCat).toHaveBeenCalledWith('firebase-123')
-    expect(mockSyncFirebasePhotoToProfile).toHaveBeenCalledWith('https://example.com/avatar.png')
+    expect(mockSyncFirebaseIdentityToProfile).toHaveBeenCalledWith(
+      'Test User',
+      'test@example.com',
+      'https://example.com/avatar.png',
+    )
     actor.stop()
   })
 

@@ -13,8 +13,8 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
     return { success: false, error: 'Apple Sign-In is only available on iOS' }
   }
 
-  // Defer import until after platform check to avoid crashing on Android
-  // where the expo-apple-authentication native module is unavailable
+  // Defer import until after platform check to avoid loading the native module
+  // on unsupported platforms.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const AppleAuthentication = require('expo-apple-authentication')
 
@@ -35,14 +35,24 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
       nonce: hashedNonce,
     })
 
-    const { identityToken } = credential
+    const { identityToken, fullName } = credential
 
     if (!identityToken) {
       return { success: false, error: 'No identity token received from Apple' }
     }
 
     const appleCredential = AppleAuthProvider.credential(identityToken, rawNonce)
-    await signInWithCredential(getAuth(), appleCredential)
+    const userCredential = await signInWithCredential(getAuth(), appleCredential)
+
+    const givenName = fullName?.givenName?.trim() || ''
+    const familyName = fullName?.familyName?.trim() || ''
+    const appleDisplayName = `${givenName} ${familyName}`.trim()
+
+    // Apple only shares full name on first authorization. Persist it to Firebase profile
+    // so it is available for downstream profile sync and subsequent logins.
+    if (appleDisplayName && !userCredential.user.displayName) {
+      await userCredential.user.updateProfile({ displayName: appleDisplayName })
+    }
 
     console.log('✅ Apple Sign-In successful')
     return { success: true }

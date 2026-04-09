@@ -53,13 +53,18 @@ async function getUserCredits(): Promise<number> {
 }
 
 /**
- * Sync Firebase Auth user's photoURL to Supabase profile avatar_url
- * This is useful when user signs in with Google or Apple providers
+ * Sync Firebase Auth identity fields to Supabase profile.
+ * Only fills missing values to avoid overwriting user customizations.
  */
-export const syncFirebasePhotoToProfile = async (
+export const syncFirebaseIdentityToProfile = async (
+  firebaseDisplayName: string | null | undefined,
+  firebaseEmail: string | null | undefined,
   firebasePhotoURL: string | null | undefined,
 ): Promise<void> => {
-  if (!firebasePhotoURL) {
+  const normalizedDisplayName = firebaseDisplayName?.trim() || null
+  const normalizedEmail = firebaseEmail?.trim() || null
+
+  if (!normalizedDisplayName && !normalizedEmail && !firebasePhotoURL) {
     return
   }
 
@@ -73,37 +78,47 @@ export const syncFirebasePhotoToProfile = async (
       return
     }
 
-    // Only sync when the profile has no existing avatar to avoid overwriting user customizations
+    // Read current profile values so we only fill missing fields.
     const { data: profile, error } = await supabaseClient
       .from('profiles')
-      .select('avatar_url')
+      .select('display_name,email,avatar_url')
       .eq('user_id', user.id)
       .maybeSingle()
 
-    // If the query fails, log the error and abort to avoid accidental overwrites
+    // If the query fails, log the error and abort to avoid accidental overwrites.
     if (error) {
-      console.error('Error checking for existing avatar:', error)
+      console.error('Error checking for existing profile fields:', error)
       return
     }
 
-    // If no profile exists, create one with the avatar and email
+    // If no profile exists, create one with Firebase identity defaults.
     if (!profile) {
       await upsertUserProfile({
         user_id: user.id,
-        email: user.email ?? null,
-        avatar_url: firebasePhotoURL,
+        display_name: normalizedDisplayName,
+        email: normalizedEmail ?? user.email ?? null,
+        avatar_url: firebasePhotoURL ?? null,
       })
       return
     }
 
-    // If profile exists but has no avatar, update it
-    if (!profile.avatar_url) {
-      await upsertUserProfile({
-        avatar_url: firebasePhotoURL,
-      })
+    const profileUpdates: UserProfileUpdate = {}
+
+    if (!profile.display_name && normalizedDisplayName) {
+      profileUpdates.display_name = normalizedDisplayName
+    }
+    if (!profile.email && (normalizedEmail || user.email)) {
+      profileUpdates.email = normalizedEmail ?? user.email ?? null
+    }
+    if (!profile.avatar_url && firebasePhotoURL) {
+      profileUpdates.avatar_url = firebasePhotoURL
+    }
+
+    if (Object.keys(profileUpdates).length > 0) {
+      await upsertUserProfile(profileUpdates)
     }
   } catch (error) {
-    console.error('Error syncing Firebase photo to profile:', error)
+    console.error('Error syncing Firebase identity to profile:', error)
   }
 }
 
@@ -191,7 +206,7 @@ export const getUserPublic = async (): Promise<UserPublic | null> => {
 
   return {
     uid: profile.user_id,
-    name: profile.display_name || profile.email || '',
+    name: profile.display_name || '',
     avatar: profile.avatar_url || '',
     email: profile.email || '',
   }

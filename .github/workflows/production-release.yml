@@ -11,7 +11,65 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  validate-release-source:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      allow_release: ${{ steps.validate.outputs.allow_release }}
+    steps:
+      - name: Validate push source for production release
+        id: validate
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GH_PAT || github.token }}
+          script: |
+            // Manual dispatch is an explicit operator action, so allow it.
+            if (context.eventName === 'workflow_dispatch') {
+              core.info('Manual workflow_dispatch detected; allowing release.');
+              core.setOutput('allow_release', 'true');
+              return;
+            }
+
+            // This workflow should only auto-run for push events on main.
+            if (context.eventName !== 'push' || context.ref !== 'refs/heads/main') {
+              core.setFailed(`Unexpected event/ref: ${context.eventName} ${context.ref}`);
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sha = context.sha;
+
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner,
+              repo,
+              commit_sha: sha,
+            });
+
+            const validPr = prs.data.find((pr) =>
+              pr.base?.ref === 'main' &&
+              pr.merged_at &&
+              (
+                pr.head?.ref === 'staging' ||
+                pr.head?.ref?.startsWith('hotfix/')
+              )
+            );
+
+            if (!validPr) {
+              core.setFailed(
+                `Blocking production release: commit ${sha} is not from a merged staging -> main or hotfix/* -> main PR.`
+              );
+              return;
+            }
+
+            core.info(`Validated PR #${validPr.number} (${validPr.head.ref} -> ${validPr.base.ref}).`);
+            core.setOutput('allow_release', 'true');
+
   create-github-release:
+    needs: validate-release-source
+    if: needs.validate-release-source.outputs.allow_release == 'true'
     runs-on: ubuntu-latest
 
     # Security: Explicit permissions for semantic-release and EAS

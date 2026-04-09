@@ -35,6 +35,15 @@ jest.mock('@react-navigation/native', () => ({
   }),
 }))
 
+jest.mock('@react-navigation/drawer', () => {
+  const React = require('react')
+  return {
+    DrawerContentScrollView: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    DrawerItemList: () => null,
+    DrawerItem: () => null,
+  }
+})
+
 jest.mock('react-native-paper', () => ({
   useTheme: () => ({
     colors: {
@@ -137,7 +146,7 @@ describe('drawer terms gate', () => {
     expect(mockReplace).not.toHaveBeenCalled()
   })
 
-  it('still renders accept-terms route when terms are not accepted', () => {
+  it('hides gated screens when terms are not accepted', () => {
     setTermsSnapshot({ accepted: false, blocking: false, loading: false, isUpdate: false })
 
     const AppLayout = require('../app/(drawer)/_layout').default
@@ -147,11 +156,16 @@ describe('drawer terms gate', () => {
       tree = renderer.create(<AppLayout />)
     })
 
+    // All screens are still rendered (Expo Router requires Screen children)
+    // but gated ones receive hidden options
     const text = JSON.stringify(tree.toJSON())
     expect(text).toContain('accept-terms')
-    expect(text).not.toContain('(tabs)')
-    expect(text).not.toContain('profile')
-    expect(text).not.toContain('settings')
-    expect(text).not.toContain('subscribe')
+    expect(text).toContain('(tabs)')
+    expect(text).toContain('profile')
+    expect(text).toContain('settings')
+    expect(text).toContain('subscribe')
+
+    // Verify screenOptions apply hidden styles to gated routes
+    expect(mockDrawerScreenOptions).toHaveBeenCalled()
   })
 })
