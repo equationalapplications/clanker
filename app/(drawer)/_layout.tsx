@@ -52,14 +52,17 @@ const AppLayout = () => {
 
   return (
     <Drawer
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerStyle: { backgroundColor: theme.colors.surface },
         headerTintColor: theme.colors.onSurface,
         drawerStyle: { backgroundColor: theme.colors.surface },
         drawerActiveTintColor: theme.colors.primary,
         drawerInactiveTintColor: theme.colors.onSurfaceVariant,
         headerLeft: ({ tintColor }) => <DrawerToggleButton tintColor={tintColor} />,
-      }}
+        drawerLabel: route.name === '(tabs)' ? 'Chat' : undefined,
+        title: route.name === '(tabs)' ? 'Chat' : undefined,
+        headerTitle: route.name === '(tabs)' ? 'Chat' : undefined,
+      })}
     >
       {termsAccepted ? (
         <>
@@ -68,6 +71,7 @@ const AppLayout = () => {
             options={{
               drawerLabel: 'Chat',
               title: 'Chat',
+              headerTitle: 'Chat',
               drawerIcon: ({ color, size }) => <Icon source="chat" color={color} size={size} />,
             }}
           />

@@ -26,6 +26,7 @@ export interface LocalCharacter {
 export interface CharacterInsert {
     name: string
     avatar?: string | null
+    avatar_data?: string | null
     appearance?: string | null
     traits?: string | null
     emotions?: string | null
@@ -115,7 +116,7 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
             userId,
             data.name,
             data.avatar || null,
-            null, // avatar_data starts empty
+            data.avatar_data || null,
             data.appearance || null,
             data.traits || null,
             data.emotions || null,
