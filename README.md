@@ -36,6 +36,7 @@
 
 - [Privacy integration](docs/PRIVACY_INTEGRATION.md) — How privacy policy and user consent are handled.
 - [Terms integration](docs/TERMS_INTEGRATION.md) — Legacy terms flow vs subscription-driven access control.
+- [Support page](docs/SUPPORT_PAGE.md) — Public support route and FAQ content used for App Store support URL compliance.
 
 ## 🏗️ Tech Stack
 
