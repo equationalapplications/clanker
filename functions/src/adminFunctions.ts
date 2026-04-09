@@ -478,8 +478,15 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     ? 25
     : Math.min(100, Math.max(1, Math.floor(rawPageSize)));
   const search = typeof data.search === "string" ? data.search.trim() : "";
-  const rawPlanTierFilter = data.planTier === undefined ? undefined :
-    typeof data.planTier === "string" ? data.planTier.trim().toLowerCase() : "";
+  const hasPlanTierFilter = data.planTier !== undefined;
+  if (hasPlanTierFilter && typeof data.planTier !== "string") {
+    logger.warn("Ignoring non-string planTier filter for adminListUsers", {
+      actorUid: adminContext.actorUid,
+      rawPlanTierType: typeof data.planTier,
+    });
+  }
+
+  const rawPlanTierFilter = typeof data.planTier === "string" ? data.planTier.trim().toLowerCase() : undefined;
   const planTierFilter = rawPlanTierFilter && ALLOWED_PLAN_TIERS.has(rawPlanTierFilter) ?
     rawPlanTierFilter :
     undefined;
@@ -490,8 +497,15 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     });
   }
 
-  const rawPlanStatusFilter = data.planStatus === undefined ? undefined :
-    typeof data.planStatus === "string" ? data.planStatus.trim().toLowerCase() : "";
+  const hasPlanStatusFilter = data.planStatus !== undefined;
+  if (hasPlanStatusFilter && typeof data.planStatus !== "string") {
+    logger.warn("Ignoring non-string planStatus filter for adminListUsers", {
+      actorUid: adminContext.actorUid,
+      rawPlanStatusType: typeof data.planStatus,
+    });
+  }
+
+  const rawPlanStatusFilter = typeof data.planStatus === "string" ? data.planStatus.trim().toLowerCase() : undefined;
   const planStatusFilter = rawPlanStatusFilter && ALLOWED_PLAN_STATUS.has(rawPlanStatusFilter) ?
     rawPlanStatusFilter :
     undefined;
