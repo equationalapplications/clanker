@@ -141,10 +141,10 @@ export const createNewCharacter = async (): Promise<{ id: string }> => {
 
   try {
     console.log('📝 Creating character with default values...')
-    
+
     // Load the default avatar image as base64
     const avatarData = await loadDefaultAvatarBase64()
-    
+
     const character = await createCharacter({
       name: 'Clanker',
       appearance: 'A mysterious figure with an intriguing presence.',
