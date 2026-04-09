@@ -1,3 +1,10 @@
+# [25.7.0](https://github.com/equationalapplications/clanker/compare/v25.6.1...v25.7.0) (2026-04-09)
+
+
+### Features
+
+* **support:** add public support page for App Store compliance ([fb57ef1](https://github.com/equationalapplications/clanker/commit/fb57ef1e4414b9d37cb5b561dbb5a901e2b6e441))
+
 ## [25.6.1](https://github.com/equationalapplications/clanker/compare/v25.6.0...v25.6.1) (2026-04-09)
 
 
