@@ -185,25 +185,87 @@ To resolve this, an organization policy exception is configured using a custom t
 
 When you deploy a **new** Firebase function, the Firebase CLI will log a warning that it failed to set the invoker permissions, and the deployed function will be inaccessible (returning `403 Forbidden` errors). You must manually attach this tag to the underlying Cloud Run service and grant the invoker role.
 
-Run the following commands using the `gcloud` CLI. Before running them, replace:
+### Reference values
 
-- `your_function_name` with the exact Cloud Run service name in lowercase (for example, `exchangetoken` or `stripewebhook`)
-- `YOUR_PROJECT_NUMBER` with the Google Cloud project number that owns the Cloud Run service
-- `YOUR_REGION` with the region where the function was deployed (for example, `us-central1`)
+| Value | Description |
+|---|---|
+| **Project ID** | `equationalapplications-com` |
+| **Project Number** | `790870307455` |
+| **Region** | `us-central1` |
+| **Org ID** | `1035311523842` |
+| **Tag** | `1035311523842/allUsersIngress/True` |
 
-If you are working in an environment other than the shared `equationalapplications-com` project, do not reuse the hard-coded project/region values from another environment; make sure the full `--parent` resource path and the `--location` / `--region` flags all point to the same service.
+### Tagged services
+
+All callable and webhook Cloud Run services must have the tag. Current list:
+
+- `exchangetoken`
+- `purchasepackagestripe`
+- `spendcredits`
+- `stripewebhook`
+- `revenuecatwebhook`
+- `adminlistusers`
+- `adminsetusercredits`
+- `adminsetusersubscription`
+- `admincleartermsacceptance`
+- `adminresetuserstate`
+- `admindeleteuser`
+
+### Commands
+
+Replace `FUNCTION_NAME` with the lowercase Cloud Run service name (e.g. `adminlistusers`).
 
 ```bash
 # 1. Attach the tag to bypass the organization policy
 gcloud resource-manager tags bindings create \
   --tag-value="1035311523842/allUsersIngress/True" \
-  --parent="//run.googleapis.com/projects/YOUR_PROJECT_NUMBER/locations/YOUR_REGION/services/your_function_name" \
-  --location=YOUR_REGION
+  --parent="//run.googleapis.com/projects/790870307455/locations/us-central1/services/FUNCTION_NAME" \
+  --location=us-central1
 
-# 2. Wait a few seconds, then grant public invocation access
-gcloud run services add-iam-policy-binding your_function_name \
-  --region=YOUR_REGION \
+# 2. Wait ~15 seconds, then grant public invocation access
+gcloud run services add-iam-policy-binding FUNCTION_NAME \
+  --region=us-central1 \
   --member="allUsers" \
   --role="roles/run.invoker"
 ```
-*(Note: You may need to wait 10-15 seconds between attaching the tag and granting the IAM role for the policy exception to propagate).*
+
+To tag and grant access to **all services at once**:
+
+```bash
+for fn in exchangetoken purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+  adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
+  adminresetuserstate admindeleteuser; do
+  echo "=== $fn ==="
+  gcloud resource-manager tags bindings create \
+    --tag-value="1035311523842/allUsersIngress/True" \
+    --parent="//run.googleapis.com/projects/790870307455/locations/us-central1/services/$fn" \
+    --location=us-central1
+done
+
+# Wait ~15 seconds for tag propagation, then:
+
+for fn in exchangetoken purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+  adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
+  adminresetuserstate admindeleteuser; do
+  echo "=== $fn ==="
+  gcloud run services add-iam-policy-binding "$fn" \
+    --region=us-central1 \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+done
+```
+
+To **verify** which services have the tag:
+
+```bash
+for fn in exchangetoken purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+  adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
+  adminresetuserstate admindeleteuser; do
+  echo "=== $fn ==="
+  gcloud resource-manager tags bindings list \
+    --parent="//run.googleapis.com/projects/790870307455/locations/us-central1/services/$fn" \
+    --location=us-central1 2>&1
+done
+```
+
+*(Note: You may need to wait 10-15 seconds between attaching the tag and granting the IAM role for the policy exception to propagate. Services that already have the tag will return an ALREADY_EXISTS error — this is safe to ignore.)*
