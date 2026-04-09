@@ -142,8 +142,15 @@ export const createNewCharacter = async (): Promise<{ id: string }> => {
   try {
     console.log('📝 Creating character with default values...')
 
-    // Load the default avatar image as base64
-    const avatarData = await loadDefaultAvatarBase64()
+    let avatarData: string | undefined
+
+    // Best-effort avatar load: character creation should still succeed without it.
+    try {
+      avatarData = (await loadDefaultAvatarBase64()) || undefined
+    } catch (error) {
+      console.warn('⚠️ Failed to load default avatar; creating character without avatar_data', error)
+      avatarData = undefined
+    }
 
     const character = await createCharacter({
       name: 'Clanker',
@@ -152,7 +159,7 @@ export const createNewCharacter = async (): Promise<{ id: string }> => {
       emotions: 'Calm and collected, with hints of excitement.',
       context: 'A helpful companion ready for meaningful conversations.',
       is_public: false,
-      avatar_data: avatarData || undefined,
+      avatar_data: avatarData,
     })
 
     if (!character) {
