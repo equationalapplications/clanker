@@ -1,9 +1,17 @@
-import { Tabs, router } from 'expo-router'
+import { Tabs, router, useNavigation } from 'expo-router'
+import React from 'react'
 import { Alert } from 'react-native'
 import { TabBarIcon } from '~/components/navigation/TabBarIcon'
 import { editDirtyRef, setEditDirty } from '~/hooks/useEditDirtyState'
 
 export default function TabLayout() {
+  const parentNavigation = useNavigation()
+
+  // Override the drawer header title so the route-group name "(tabs)" never leaks through
+  React.useLayoutEffect(() => {
+    parentNavigation.setOptions({ headerTitle: 'Chat' })
+  }, [parentNavigation])
+
   return (
     <Tabs
       screenOptions={{

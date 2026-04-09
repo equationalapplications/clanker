@@ -3,6 +3,7 @@ import renderer from 'react-test-renderer'
 
 const mockReplace = jest.fn()
 const mockUsePathname = jest.fn()
+const mockDrawerScreenOptions = jest.fn()
 
 jest.mock('expo-router', () => ({
   router: {
@@ -14,7 +15,12 @@ jest.mock('expo-router', () => ({
 jest.mock('expo-router/drawer', () => {
   const React = require('react')
 
-  const Drawer = ({ children }: { children: React.ReactNode }) => <>{children}</>
+  const Drawer = ({ children, screenOptions }: { children: React.ReactNode; screenOptions?: any }) => {
+    if (screenOptions) {
+      mockDrawerScreenOptions(screenOptions)
+    }
+    return <>{children}</>
+  }
   Drawer.Screen = ({ name }: { name: string }) => <>{name}</>
 
   return { Drawer }
@@ -81,6 +87,25 @@ describe('drawer terms gate', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockUsePathname.mockReturnValue('/chat')
+  })
+
+  it('maps (tabs) route to Chat labels in drawer screenOptions', () => {
+    setTermsSnapshot({ accepted: true, blocking: false, loading: false, isUpdate: false })
+
+    const AppLayout = require('../app/(drawer)/_layout').default
+
+    renderer.act(() => {
+      renderer.create(<AppLayout />)
+    })
+
+    expect(mockDrawerScreenOptions).toHaveBeenCalledTimes(1)
+
+    const screenOptions = mockDrawerScreenOptions.mock.calls[0][0]
+    const tabsOptions = screenOptions({ route: { name: '(tabs)' } })
+
+    expect(tabsOptions.drawerLabel).toBe('Chat')
+    expect(tabsOptions.title).toBe('Chat')
+    expect(tabsOptions.headerTitle).toBe('Chat')
   })
 
   it('redirects to accept-terms when terms are blocking on another route', () => {
