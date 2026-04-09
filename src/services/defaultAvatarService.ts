@@ -1,0 +1,10 @@
+import { loadDefaultCharacterAvatar } from '~/utilities/loadDefaultAvatar'
+
+/**
+ * Thin indirection around the default avatar loader so machine/service logic can
+ * mock this dependency without importing the embedded base64 avatar loader
+ * directly.
+ */
+export const loadDefaultAvatarBase64 = async (): Promise<string> => {
+  return loadDefaultCharacterAvatar()
+}
