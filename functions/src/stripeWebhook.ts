@@ -4,6 +4,7 @@ import admin from "firebase-admin";
 import Stripe from "stripe";
 import type {Request, Response} from "express";
 import {getStripePriceIds} from "./runtimeConfig.js";
+import {validateAndNormalizeStripeSecretKey} from "./stripeConfig.js";
 import {
   findSupabaseUserByEmail, callSupabaseRpc, upsertUserSubscription, findSupabaseUserByFirebaseUid,
 } from "./supabaseAdmin.js";
@@ -88,14 +89,7 @@ export function getCreditPackQuantityFromInvoice(
 }
 
 function getStripeClient(): Stripe {
-  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!secretKey) {
-    throw new Error("STRIPE_SECRET_KEY environment variable is not set");
-  }
-
-  if (/[^\u0020-\u007E]/.test(secretKey)) {
-    throw new Error("STRIPE_SECRET_KEY contains invalid characters");
-  }
+  const secretKey = validateAndNormalizeStripeSecretKey(process.env.STRIPE_SECRET_KEY);
 
   return new Stripe(secretKey);
 }

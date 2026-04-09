@@ -1,3 +1,25 @@
+# [25.5.0](https://github.com/equationalapplications/clanker/compare/v25.4.0...v25.5.0) (2026-04-09)
+
+
+### Bug Fixes
+
+* **admin:** add explicit non-web platform gate for dashboard ([d5bccbc](https://github.com/equationalapplications/clanker/commit/d5bccbc46baff2fa88b9ac1ebdf2e5a11c1906c6))
+* **admin:** address review comments on error handling, test mocks, and docs ([36913fa](https://github.com/equationalapplications/clanker/commit/36913fa14906be3921ff327538f44178c59ed9b3))
+* **admin:** remove admin dashboard feature flag ([f0cd3ce](https://github.com/equationalapplications/clanker/commit/f0cd3ce73b88c54cdd1c47a02506ce426819b2ea))
+* **admin:** remove feature flag gate - dashboard is always enabled ([8d8d68d](https://github.com/equationalapplications/clanker/commit/8d8d68dfae5906e65c13ff39fdfd1849bdb27b97))
+* **admin:** restore dashboard feature flag and reduce duplicate delete errors ([a3f8041](https://github.com/equationalapplications/clanker/commit/a3f80414e47560b6802b98774e526030611d0da4))
+* **admin:** restore delete error severity and selected-row contrast ([ab4be5b](https://github.com/equationalapplications/clanker/commit/ab4be5bd0cf7747b52d09c004da920bad4190af7))
+* **admin:** tighten Supabase missing-table error detection ([d37194c](https://github.com/equationalapplications/clanker/commit/d37194cf4aae40edd030f53cc1d237856cfb2e87))
+* **admin:** validate tableName matches query path in deleteFromCanonicalTable ([b25c37e](https://github.com/equationalapplications/clanker/commit/b25c37ea04f29cc1f9315e11ef14338607a4a602))
+* **functions:** warn on non-string admin user filters ([f53284c](https://github.com/equationalapplications/clanker/commit/f53284cb2e81b522cc6c5f6f9ac9dc4f391b677b))
+* reduce sensitive data exposure in canonical table delete logs ([7b4b6fe](https://github.com/equationalapplications/clanker/commit/7b4b6fea1d3c8a27a03179a5f86a0c630f741f65))
+* update admin function tests to use correct table names (yours_brightly_*) ([7cd8263](https://github.com/equationalapplications/clanker/commit/7cd8263e739f4b2e93c2b29187850e19c8f9177a))
+
+
+### Features
+
+* **admin:** dark mode, contrast improvements, delete fix, update docs ([e4d9c73](https://github.com/equationalapplications/clanker/commit/e4d9c73e9eeea586f887b183dc6223be82905e54))
+
 # [25.4.0](https://github.com/equationalapplications/clanker/compare/v25.3.1...v25.4.0) (2026-04-08)
 
 
