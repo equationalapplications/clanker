@@ -47,9 +47,16 @@ const createDefaultCharacterActor = fromPromise(
       throw new Error('Cannot create default character: no userId')
     }
 
-    // Load the default avatar image as base64
-    const avatarData = await loadDefaultAvatarBase64()
-    const normalizedAvatarData = avatarData || undefined
+    let normalizedAvatarData: string | undefined
+
+    // Best-effort avatar load: do not block onboarding if this fails.
+    try {
+      const avatarData = await loadDefaultAvatarBase64()
+      normalizedAvatarData = avatarData || undefined
+    } catch (error) {
+      console.warn('Failed to load default avatar; creating default character without avatar_data', error)
+      normalizedAvatarData = undefined
+    }
 
     const characterWithAvatar: CharacterInsert = {
       ...DEFAULT_CHARACTER_INSERT,
