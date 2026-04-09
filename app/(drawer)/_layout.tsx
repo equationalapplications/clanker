@@ -1,5 +1,5 @@
 import { DrawerActions, useNavigation } from '@react-navigation/native'
-import { router } from 'expo-router'
+import { router, usePathname } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
 import { useTheme, Icon } from 'react-native-paper'
 import { Pressable } from 'react-native'
@@ -25,6 +25,7 @@ function DrawerToggleButton({ tintColor }: { tintColor?: string }) {
 
 const AppLayout = () => {
   const theme = useTheme()
+  const pathname = usePathname()
   const termsService = useTermsMachine()
   const { termsAccepted, termsBlocking, termsLoading, isUpdate } = useSelector(
     termsService,
@@ -37,20 +38,16 @@ const AppLayout = () => {
   )
 
   React.useEffect(() => {
-    if (termsBlocking) {
+    if (termsBlocking && pathname !== '/accept-terms') {
       router.replace({
         pathname: '/accept-terms',
         params: { isUpdate: isUpdate.toString() },
       })
     }
-  }, [termsBlocking, isUpdate])
+  }, [termsBlocking, isUpdate, pathname])
 
   if (termsLoading) {
     return <LoadingIndicator disabled={false} />
-  }
-
-  if (!termsAccepted) {
-    return null
   }
 
   return (
@@ -64,46 +61,55 @@ const AppLayout = () => {
         headerLeft: ({ tintColor }) => <DrawerToggleButton tintColor={tintColor} />,
       }}
     >
-      <Drawer.Screen
-        name="(tabs)"
-        options={{
-          drawerLabel: 'Chat',
-          title: 'Chat',
-          drawerIcon: ({ color, size }) => <Icon source="chat" color={color} size={size} />,
-        }}
-      />
-      <Drawer.Screen
-        name="profile"
-        options={{
-          drawerLabel: 'Profile',
-          title: 'Profile',
-          drawerIcon: ({ color, size }) => (
-            <Icon source="account-circle" color={color} size={size} />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="settings"
-        options={{
-          drawerLabel: 'Settings',
-          title: 'Settings',
-          drawerIcon: ({ color, size }) => <Icon source="cog" color={color} size={size} />,
-        }}
-      />
+      {termsAccepted ? (
+        <>
+          <Drawer.Screen
+            name="(tabs)"
+            options={{
+              drawerLabel: 'Chat',
+              title: 'Chat',
+              drawerIcon: ({ color, size }) => <Icon source="chat" color={color} size={size} />,
+            }}
+          />
+          <Drawer.Screen
+            name="profile"
+            options={{
+              drawerLabel: 'Profile',
+              title: 'Profile',
+              drawerIcon: ({ color, size }) => (
+                <Icon source="account-circle" color={color} size={size} />
+              ),
+            }}
+          />
+          <Drawer.Screen
+            name="settings"
+            options={{
+              drawerLabel: 'Settings',
+              title: 'Settings',
+              drawerIcon: ({ color, size }) => <Icon source="cog" color={color} size={size} />,
+            }}
+          />
+        </>
+      ) : null}
       <Drawer.Screen
         name="accept-terms"
         options={{
+          headerShown: false,
           drawerItemStyle: { display: 'none' },
         }}
       />
-      <Drawer.Screen
-        name="subscribe"
-        options={{
-          drawerLabel: 'Subscribe',
-          title: 'Subscribe',
-          drawerIcon: ({ color, size }) => <Icon source="account-plus" color={color} size={size} />,
-        }}
-      />
+      {termsAccepted ? (
+        <Drawer.Screen
+          name="subscribe"
+          options={{
+            drawerLabel: 'Subscribe',
+            title: 'Subscribe',
+            drawerIcon: ({ color, size }) => (
+              <Icon source="account-plus" color={color} size={size} />
+            ),
+          }}
+        />
+      ) : null}
     </Drawer>
   )
 }
