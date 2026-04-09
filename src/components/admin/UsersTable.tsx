@@ -29,6 +29,7 @@ export function UsersTable({ users, selectedUserId, onSelectUser }: UsersTablePr
 
         {users.map((user) => {
           const selected = user.userId === selectedUserId
+          const cellTextColor = selected ? theme.colors.onSecondaryContainer : theme.colors.onSurface
           return (
             <DataTable.Row
               key={user.userId}
@@ -39,12 +40,12 @@ export function UsersTable({ users, selectedUserId, onSelectUser }: UsersTablePr
               ]}
               onPress={() => onSelectUser(user.userId)}
             >
-              <DataTable.Cell textStyle={[styles.cellText, { color: theme.colors.onSurface }]}>{user.email}</DataTable.Cell>
-              <DataTable.Cell textStyle={[styles.userIdText, { color: theme.colors.onSurface }]}>{user.userId}</DataTable.Cell>
-              <DataTable.Cell numeric textStyle={[styles.cellText, { color: theme.colors.onSurface }]}>{user.currentCredits}</DataTable.Cell>
-              <DataTable.Cell textStyle={[styles.cellText, { color: theme.colors.onSurface }]}>{user.planTier}</DataTable.Cell>
-              <DataTable.Cell textStyle={[styles.cellText, { color: theme.colors.onSurface }]}>{user.planStatus}</DataTable.Cell>
-              <DataTable.Cell textStyle={[styles.cellText, { color: theme.colors.onSurface }]}>{user.termsAcceptedAt ? 'Accepted' : 'Not accepted'}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.email}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.userIdText, { color: cellTextColor }]}>{user.userId}</DataTable.Cell>
+              <DataTable.Cell numeric textStyle={[styles.cellText, { color: cellTextColor }]}>{user.currentCredits}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.planTier}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.planStatus}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.termsAcceptedAt ? 'Accepted' : 'Not accepted'}</DataTable.Cell>
             </DataTable.Row>
           )
         })}
