@@ -84,7 +84,8 @@ export default function AdminDashboardScreen() {
   const hasPlanStatusInput = planStatusInput.trim().length > 0
   const isPlanTierFilterInvalid = hasPlanTierInput && !normalizedPlanTierFilter
   const isPlanStatusFilterInvalid = hasPlanStatusInput && !planStatusFilter
-  const adminQueryEnabled = Platform.OS === 'web' && !!user
+  const isWeb = Platform.OS === 'web'
+  const adminQueryEnabled = isWeb && !!user
 
   const usersQuery = useAdminUsers(
     {
@@ -127,6 +128,21 @@ export default function AdminDashboardScreen() {
     }),
     [theme.colors.background, theme.colors.surface, theme.colors.onSurfaceVariant],
   )
+
+  if (!isWeb) {
+    return (
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={{ padding: 16 }}>
+          <Card>
+            <Card.Content>
+              <Text variant="titleMedium">Admin dashboard unavailable</Text>
+              <Text variant="bodyMedium">This screen is only available on web.</Text>
+            </Card.Content>
+          </Card>
+        </View>
+      </ScrollView>
+    )
+  }
 
   const showMessage = (title: string, message: string) => {
     Alert.alert(title, message)

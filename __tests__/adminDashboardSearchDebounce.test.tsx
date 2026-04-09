@@ -1,4 +1,5 @@
 import { act, create } from 'react-test-renderer'
+import { Platform } from 'react-native'
 
 const mockUseAdminUsers = jest.fn()
 
@@ -85,10 +86,12 @@ describe('AdminDashboardScreen search debounce', () => {
   afterEach(() => {
     jest.runOnlyPendingTimers()
     jest.useRealTimers()
+    jest.restoreAllMocks()
     jest.clearAllMocks()
   })
 
   it('uses debounced search value when querying users', () => {
+    jest.replaceProperty(Platform, 'OS', 'web')
     const AdminDashboardScreen = require('../app/admin/index').default
     let tree: ReturnType<typeof create>
 
