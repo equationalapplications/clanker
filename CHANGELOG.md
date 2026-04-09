@@ -1,3 +1,13 @@
+## [25.5.1](https://github.com/equationalapplications/clanker/compare/v25.5.0...v25.5.1) (2026-04-09)
+
+
+### Bug Fixes
+
+* **functions:** share Stripe secret key validation ([e9d9c16](https://github.com/equationalapplications/clanker/commit/e9d9c168d86849446f0eeaeac6618b1786acdf8a))
+* **terms:** clear stale error on acceptance check success ([c8703f1](https://github.com/equationalapplications/clanker/commit/c8703f16a790f447c28ab262293378a368f28b1d))
+* **terms:** harden gating and add machine tests ([404473e](https://github.com/equationalapplications/clanker/commit/404473e9699981096557746a2b3151e6fb11dc2f))
+* **terms:** prevent redirect loop and add acceptance gate regressions ([7e7f7e8](https://github.com/equationalapplications/clanker/commit/7e7f7e82d9f77c79f7a4841b90782d52f04b492a))
+
 # [25.5.0](https://github.com/equationalapplications/clanker/compare/v25.4.0...v25.5.0) (2026-04-09)
 
 
