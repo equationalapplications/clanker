@@ -16,13 +16,28 @@ main             ← production
 
 ### Starting New Work
 
-Always start from the `staging` branch. Make sure your local copy is up-to-date.
+You can start new feature branches from either `staging` or `main`.
+
+- Use `staging` when your feature depends on unreleased integration work.
+- Use `main` (shortcut) when you want to start from the latest production release.
+
+Option A - Start from `staging`:
 
 ```bash
 git checkout staging
 git pull origin staging
 git checkout -b feat/add-user-profile  # Or fix/login-bug, etc.
 ```
+
+Option B - Start from `main`:
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b feat/add-user-profile  # Or fix/login-bug, etc.
+```
+
+> **Important:** Even if you branch from `main`, your PR still targets `staging`.
 
 ### Doing the Work
 
@@ -40,8 +55,11 @@ When your feature is complete, create a Pull Request targeting `staging`.
 **Before creating the PR**, rebase onto the latest staging to handle conflicts on your branch:
 
 ```bash
-git pull --rebase origin staging
+git fetch origin
+git rebase origin/staging
 ```
+
+If this rebase produces conflicts, your branch likely needs unreleased changes already in `staging`.
 
 Push your branch and create a PR on GitHub from your feature branch into `staging`.
 

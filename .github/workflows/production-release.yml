@@ -50,13 +50,16 @@ jobs:
 
             const validPr = prs.data.find((pr) =>
               pr.base?.ref === 'main' &&
-              pr.head?.ref === 'staging' &&
-              pr.merged_at
+              pr.merged_at &&
+              (
+                pr.head?.ref === 'staging' ||
+                pr.head?.ref?.startsWith('hotfix/')
+              )
             );
 
             if (!validPr) {
               core.setFailed(
-                `Blocking production release: commit ${sha} is not from a merged staging -> main PR.`
+                `Blocking production release: commit ${sha} is not from a merged staging -> main or hotfix/* -> main PR.`
               );
               return;
             }
