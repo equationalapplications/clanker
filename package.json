@@ -1,6 +1,6 @@
 {
   "name": "clanker",
-  "version": "25.6.0",
+  "version": "25.6.1",
   "main": "expo-router/entry",
   "scripts": {
     "prebuild:setup": "node scripts/setup-local-firebase-configs.js",
