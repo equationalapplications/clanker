@@ -280,6 +280,22 @@ async function deleteFromCanonicalTable(
   tableName: string,
   query: string
 ): Promise<void> {
+  const expectedPath = `/rest/v1/${tableName}`;
+  const matchesExpectedTable = query === expectedPath ||
+    query.startsWith(`${expectedPath}?`);
+
+  if (!matchesExpectedTable) {
+    logger.error("Mismatched canonical table delete query", {
+      tableName,
+      query,
+      expectedPath,
+    });
+    throw new HttpsError(
+      "internal",
+      `Invalid delete query for canonical table ${tableName}.`
+    );
+  }
+
   const response = await supabaseRequest(query, {method: "DELETE"});
   if (response.ok) {
     return;
