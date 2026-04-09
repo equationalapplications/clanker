@@ -10,6 +10,7 @@ import {
   updateCharacter as updateCharacterDb,
   deleteCharacter as deleteCharacterDb,
 } from '~/database/characterDatabase'
+import { loadDefaultCharacterAvatar } from '~/utilities/loadDefaultAvatar'
 
 // Events
 type CharacterEvent =
@@ -45,7 +46,16 @@ const createDefaultCharacterActor = fromPromise(
     if (!input.userId) {
       throw new Error('Cannot create default character: no userId')
     }
-    const newCharacter = await createCharacterDb(input.userId, DEFAULT_CHARACTER_INSERT)
+    
+    // Load the default avatar image as base64
+    const avatarData = await loadDefaultCharacterAvatar()
+    
+    const characterWithAvatar: CharacterInsert = {
+      ...DEFAULT_CHARACTER_INSERT,
+      avatar_data: avatarData || undefined,
+    }
+    
+    const newCharacter = await createCharacterDb(input.userId, characterWithAvatar)
     if (!newCharacter) {
       throw new Error('Failed to create default character')
     }
