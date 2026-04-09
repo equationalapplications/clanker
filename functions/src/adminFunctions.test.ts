@@ -750,6 +750,63 @@ test("adminResetUserStateHandler attempts all app-data deletions before failing"
   }
 });
 
+test("adminResetUserStateHandler surfaces failed-precondition when canonical table is missing", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: string[] = [];
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const method = String(init?.method ?? "GET");
+    calls.push(`${method} ${url}`);
+
+    if (url.includes("/rest/v1/yours_brightly_messages") && method === "DELETE") {
+      return new Response(
+        JSON.stringify({
+          code: "PGRST205",
+          message: "Could not find the table 'public.yours_brightly_messages' in the schema cache",
+        }),
+        {status: 404}
+      );
+    }
+
+    if (url.includes("/rest/v1/yours_brightly_characters") && method === "DELETE") {
+      return new Response(null, {status: 204});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      async () =>
+        adminResetUserStateHandler({
+          auth: {
+            uid: "firebase-admin-1",
+            token: {
+              uid: "firebase-admin-1",
+              email: "admin@example.com",
+            },
+          },
+          data: {
+            userId: "supabase-user-1",
+            reason: "support reset",
+            requestId: "req-reset-schema-mismatch-1",
+          },
+        } as never),
+      (err: unknown) =>
+        err instanceof HttpsError &&
+        err.code === "failed-precondition" &&
+        err.message.includes("expected canonical table yours_brightly_messages")
+    );
+
+    assert.equal(calls.length, 2);
+    assert.ok(calls[0]?.includes("/rest/v1/yours_brightly_messages"));
+    assert.ok(calls[1]?.includes("/rest/v1/yours_brightly_characters"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("adminDeleteUserHandler deletes app data and identities", async () => {
   const originalFetch = globalThis.fetch;
   const originalAuth = admin.auth;

@@ -233,6 +233,7 @@ gcloud resource-manager tags bindings create \
 
 # 2. Wait ~15 seconds, then grant public invocation access
 gcloud run services add-iam-policy-binding FUNCTION_NAME \
+  --project=equationalapplications-com \
   --region=us-central1 \
   --member="allUsers" \
   --role="roles/run.invoker"
@@ -258,6 +259,7 @@ for fn in exchangetoken purchasepackagestripe spendcredits stripewebhook revenue
   adminresetuserstate admindeleteuser; do
   echo "=== $fn ==="
   gcloud run services add-iam-policy-binding "$fn" \
+    --project=equationalapplications-com \
     --region=us-central1 \
     --member="allUsers" \
     --role="roles/run.invoker"

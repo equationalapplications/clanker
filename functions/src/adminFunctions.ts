@@ -299,7 +299,6 @@ async function deleteFromCanonicalTable(
 
   logger.error("Failed canonical table delete request", {
     tableName,
-    query,
     status: response.status,
     errorText,
   });
