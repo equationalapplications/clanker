@@ -650,11 +650,11 @@ test("adminResetUserStateHandler deletes app data then resets subscription", asy
     const body = typeof init?.body === "string" ? init.body : null;
     calls.push({url, method, body});
 
-    if (url.includes("/rest/v1/clanker_messages") && method === "DELETE") {
+    if (url.includes("/rest/v1/yours_brightly_messages") && method === "DELETE") {
       return new Response(null, {status: 204});
     }
 
-    if (url.includes("/rest/v1/clanker_characters") && method === "DELETE") {
+    if (url.includes("/rest/v1/yours_brightly_characters") && method === "DELETE") {
       return new Response(null, {status: 204});
     }
 
@@ -684,8 +684,8 @@ test("adminResetUserStateHandler deletes app data then resets subscription", asy
     assert.equal(result.success, true);
     assert.equal(result.applied.currentCredits, 50);
     assert.equal(calls.length, 3);
-    assert.ok(calls[0]?.url.includes("/rest/v1/clanker_messages"));
-    assert.ok(calls[1]?.url.includes("/rest/v1/clanker_characters"));
+    assert.ok(calls[0]?.url.includes("/rest/v1/yours_brightly_messages"));
+    assert.ok(calls[1]?.url.includes("/rest/v1/yours_brightly_characters"));
     assert.ok(calls[2]?.url.includes("/rest/v1/user_app_subscriptions?on_conflict"));
 
     const upsertPayload = JSON.parse(calls[2]?.body ?? "{}");
@@ -711,11 +711,11 @@ test("adminResetUserStateHandler attempts all app-data deletions before failing"
     const method = String(init?.method ?? "GET");
     calls.push(`${method} ${url}`);
 
-    if (url.includes("/rest/v1/clanker_messages") && method === "DELETE") {
+    if (url.includes("/rest/v1/yours_brightly_messages") && method === "DELETE") {
       return new Response(JSON.stringify({message: "delete failed"}), {status: 500});
     }
 
-    if (url.includes("/rest/v1/clanker_characters") && method === "DELETE") {
+    if (url.includes("/rest/v1/yours_brightly_characters") && method === "DELETE") {
       return new Response(null, {status: 204});
     }
 
@@ -743,8 +743,8 @@ test("adminResetUserStateHandler attempts all app-data deletions before failing"
     );
 
     assert.equal(calls.length, 2);
-    assert.ok(calls[0]?.includes("/rest/v1/clanker_messages"));
-    assert.ok(calls[1]?.includes("/rest/v1/clanker_characters"));
+    assert.ok(calls[0]?.includes("/rest/v1/yours_brightly_messages"));
+    assert.ok(calls[1]?.includes("/rest/v1/yours_brightly_characters"));
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -772,11 +772,11 @@ test("adminDeleteUserHandler deletes app data and identities", async () => {
       );
     }
 
-    if (url.includes("/rest/v1/clanker_messages") && method === "DELETE") {
+    if (url.includes("/rest/v1/yours_brightly_messages") && method === "DELETE") {
       return new Response(null, {status: 204});
     }
 
-    if (url.includes("/rest/v1/clanker_characters") && method === "DELETE") {
+    if (url.includes("/rest/v1/yours_brightly_characters") && method === "DELETE") {
       return new Response(null, {status: 204});
     }
 
