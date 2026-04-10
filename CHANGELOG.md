@@ -1,3 +1,12 @@
+## [25.8.3](https://github.com/equationalapplications/clanker/compare/v25.8.2...v25.8.3) (2026-04-10)
+
+
+### Bug Fixes
+
+* **database:** require both migration indicators before short-circuiting schema init ([3785d74](https://github.com/equationalapplications/clanker/commit/3785d742269098cf8dc7dd7378ca92bdacba586b))
+* **subscribe:** adjust button spacing for consistent gaps ([34dd5c7](https://github.com/equationalapplications/clanker/commit/34dd5c7c29e5f54dac41bdd2dc5c1e2b6532af08))
+* **terms:** improve checkbox visibility in dark mode and update contact email ([bd0a307](https://github.com/equationalapplications/clanker/commit/bd0a307c89e27a8ce6d092bad4ff31d6e0114cf8))
+
 ## [25.8.2](https://github.com/equationalapplications/clanker/compare/v25.8.1...v25.8.2) (2026-04-10)
 
 
