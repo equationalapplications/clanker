@@ -1,3 +1,13 @@
+## [25.8.1](https://github.com/equationalapplications/clanker/compare/v25.8.0...v25.8.1) (2026-04-10)
+
+
+### Bug Fixes
+
+* **functions:** avoid global auth and stdio test stubs ([852a5e1](https://github.com/equationalapplications/clanker/commit/852a5e1e4b4e0df7f7487d8b65752984eaf2edf7))
+* **payments:** derive Stripe mode from price type and add purchase tests ([29f0d9f](https://github.com/equationalapplications/clanker/commit/29f0d9f378c588f7697da556e929464a59c0989c))
+* **profile:** prevent native crashes from concurrent session reads ([e0158af](https://github.com/equationalapplications/clanker/commit/e0158afd8158b576430cf99bd3c31d81b663bf36))
+* **subscribe:** remove duplicate header and add legal links ([330e597](https://github.com/equationalapplications/clanker/commit/330e597b168a7144b077e8ade85a1ff5d20a2bbe))
+
 # [25.8.0](https://github.com/equationalapplications/clanker/compare/v25.7.0...v25.8.0) (2026-04-09)
 
 
