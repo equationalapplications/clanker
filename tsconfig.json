@@ -8,10 +8,9 @@
       "node"
     ],
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
       "~/*": [
-        "src/*"
+        "./src/*"
       ],
       "expo-router/src/*": [
         "./node_modules/expo-router/build/*"

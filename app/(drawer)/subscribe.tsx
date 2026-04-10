@@ -101,7 +101,7 @@ export default function SubscribeScreen() {
                 onPress={() => handlePurchase('monthly_20')}
                 disabled={inFlightAction !== null}
                 loading={inFlightAction === 'monthly_20'}
-                style={[styles.actionButton, { marginBottom: 12 }]}
+                style={styles.actionButton}
               >
                 Unlimited Subscription - $20/Month
               </Button>
