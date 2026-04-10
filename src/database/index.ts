@@ -95,7 +95,7 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         const hasDeletedAt = columns.some((column) => column.name === 'deleted_at')
         const hasAvatarData = columns.some((column) => column.name === 'avatar_data')
 
-        if (hasAvatarData) {
+        if (hasAvatarData && hasDeletedAt) {
             // Fresh DB already at latest schema: just record the current schema version
             await executor.runAsync(
                 'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',

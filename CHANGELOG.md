@@ -1,3 +1,13 @@
+## [25.8.2](https://github.com/equationalapplications/clanker/compare/v25.8.1...v25.8.2) (2026-04-10)
+
+
+### Bug Fixes
+
+* **database:** prevent concurrent initialization race on iOS and harden migrations ([84bd21d](https://github.com/equationalapplications/clanker/commit/84bd21ddf683b8653bda625fcf2aaa0896d66fe2))
+* **database:** remove manual transaction wrapper from init ([3c1a394](https://github.com/equationalapplications/clanker/commit/3c1a394dae9990fe44631c995c01d61d42917542))
+* **navigation:** prevent route names leaking into headers and hide back button on chat ([81116ea](https://github.com/equationalapplications/clanker/commit/81116ea73e370bdaf4cf839b122431f62441f26e))
+* **revenuecat:** add direct product fallback for consumables ([2a456b1](https://github.com/equationalapplications/clanker/commit/2a456b1d27b5f543f16fe1e497b51cd6d9230e7c))
+
 ## [25.8.1](https://github.com/equationalapplications/clanker/compare/v25.8.0...v25.8.1) (2026-04-10)
 
 
