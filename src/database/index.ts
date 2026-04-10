@@ -9,7 +9,10 @@ import { CREATE_TABLES, SCHEMA_VERSION, MIGRATIONS } from './schema'
 let db: SQLite.SQLiteDatabase | null = null
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null
 
-type MigrationExecutor = Pick<SQLite.SQLiteDatabase, 'execAsync' | 'runAsync' | 'getAllAsync'>
+type DatabaseExecutor = Pick<
+    SQLite.SQLiteDatabase,
+    'execAsync' | 'runAsync' | 'getAllAsync' | 'getFirstAsync'
+>
 
 /**
  * Initialize and return the database instance
@@ -17,6 +20,17 @@ type MigrationExecutor = Pick<SQLite.SQLiteDatabase, 'execAsync' | 'runAsync' | 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
     if (dbPromise) {
         return dbPromise
+    }
+
+    if (db && !dbPromise) {
+        try {
+            await db.closeAsync()
+        } catch (error) {
+            console.warn('Failed to close stale database connection:', error)
+        } finally {
+            db = null
+            dbPromise = null
+        }
     }
 
     dbPromise = (async () => {
@@ -52,43 +66,7 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
             await database.execAsync('PRAGMA journal_mode=WAL;')
         }
 
-        // Create tables (uses IF NOT EXISTS — safe on both fresh and existing DBs)
-        await execStatementsSequentially(database, CREATE_TABLES)
-
-        // Check current schema version
-        const result = await database.getFirstAsync<{ version: number }>(
-            'SELECT version FROM schema_version ORDER BY version DESC LIMIT 1',
-        )
-
-        if (!result) {
-            // No recorded schema version. This can mean:
-            // - A true fresh install where CREATE_TABLES already created the latest schema
-            // - A legacy DB that predates schema_version and still needs migrations
-            //
-            // Distinguish between these by checking for a column that was added by
-            // a migration (e.g. characters.avatar_data, added in schema v3).
-            const columns = await database.getAllAsync<{ name: string }>(
-                'PRAGMA table_info(characters)',
-            )
-            const hasDeletedAt = columns.some((column) => column.name === 'deleted_at')
-            const hasAvatarData = columns.some((column) => column.name === 'avatar_data')
-
-            if (hasAvatarData) {
-                // Fresh DB already at latest schema: just record the current schema version
-                await database.runAsync(
-                    'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
-                    [SCHEMA_VERSION, Date.now()],
-                )
-            } else {
-                // Legacy DB without schema_version can be partially migrated.
-                // Infer the nearest version so we only apply missing migrations.
-                const inferredVersion = hasDeletedAt ? 2 : 0
-                await runMigrations(database, inferredVersion)
-            }
-        } else if (result.version < SCHEMA_VERSION) {
-            // Existing DB that needs upgrading
-            await runMigrations(database, result.version)
-        }
+        await applyInitializationPlan(database)
 
         console.log('✅ Database initialized successfully')
     } catch (error) {
@@ -97,26 +75,58 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
     }
 }
 
-/**
- * Run database migrations
- */
-async function runMigrations(
-    database: SQLite.SQLiteDatabase,
-    fromVersion: number,
-): Promise<void> {
-    console.log(`Running migrations from version ${fromVersion} to ${SCHEMA_VERSION}`)
+async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void> {
+    // Create tables (uses IF NOT EXISTS — safe on both fresh and existing DBs)
+    await executor.execAsync(CREATE_TABLES)
 
-    if (Platform.OS === 'web') {
-        await applyMigrations(database, fromVersion)
+    // Check current schema version
+    const result = await executor.getFirstAsync<{ version: number }>(
+        'SELECT version FROM schema_version ORDER BY version DESC LIMIT 1',
+    )
+
+    if (!result) {
+        // No recorded schema version. This can mean:
+        // - A true fresh install where CREATE_TABLES already created the latest schema
+        // - A legacy DB that predates schema_version and still needs migrations
+        //
+        // Distinguish between these by checking for a column that was added by
+        // a migration (e.g. characters.avatar_data, added in schema v3).
+        const columns = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(characters)')
+        const hasDeletedAt = columns.some((column) => column.name === 'deleted_at')
+        const hasAvatarData = columns.some((column) => column.name === 'avatar_data')
+
+        if (hasAvatarData) {
+            // Fresh DB already at latest schema: just record the current schema version
+            await executor.runAsync(
+                'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
+                [SCHEMA_VERSION, Date.now()],
+            )
+            return
+        }
+
+        // Legacy DB without schema_version can be partially migrated.
+        // Infer the nearest version so we only apply missing migrations.
+        const inferredVersion = hasDeletedAt ? 2 : 0
+        await runMigrations(executor, inferredVersion)
         return
     }
 
-    await database.withExclusiveTransactionAsync(async (txn) => {
-        await applyMigrations(txn, fromVersion)
-    })
+    if (result.version < SCHEMA_VERSION) {
+        // Existing DB that needs upgrading
+        await runMigrations(executor, result.version)
+    }
 }
 
-async function applyMigrations(executor: MigrationExecutor, fromVersion: number): Promise<void> {
+/**
+ * Run database migrations
+ */
+async function runMigrations(executor: DatabaseExecutor, fromVersion: number): Promise<void> {
+    console.log(`Running migrations from version ${fromVersion} to ${SCHEMA_VERSION}`)
+
+    await applyMigrations(executor, fromVersion)
+}
+
+async function applyMigrations(executor: DatabaseExecutor, fromVersion: number): Promise<void> {
     for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {
         const migration = MIGRATIONS[version]
         if (migration) {
@@ -137,7 +147,7 @@ async function applyMigrations(executor: MigrationExecutor, fromVersion: number)
             }
 
             console.log(`Applying migration ${version}`)
-            await executor.execAsync(migration)
+            await execStatementsSequentially(executor, migration)
         }
     }
 
@@ -149,7 +159,7 @@ async function applyMigrations(executor: MigrationExecutor, fromVersion: number)
 }
 
 async function hasColumn(
-    database: MigrationExecutor,
+    database: DatabaseExecutor,
     tableName: string,
     columnName: string,
 ): Promise<boolean> {
@@ -158,7 +168,7 @@ async function hasColumn(
 }
 
 async function execStatementsSequentially(
-    database: SQLite.SQLiteDatabase,
+    database: DatabaseExecutor,
     sqlBatch: string,
 ): Promise<void> {
     const statements = sqlBatch
@@ -167,7 +177,12 @@ async function execStatementsSequentially(
         .filter(Boolean)
 
     for (const statement of statements) {
-        await database.execAsync(`${statement};`)
+        try {
+            await database.execAsync(`${statement};`)
+        } catch (error) {
+            console.error(`Failed SQL statement: ${statement};`, error)
+            throw error
+        }
     }
 }
 
