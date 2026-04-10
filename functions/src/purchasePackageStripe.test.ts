@@ -9,7 +9,18 @@ process.env.STRIPE_SUCCESS_URL = "https://staging.clanker-ai.com/checkout/succes
 process.env.STRIPE_CANCEL_URL = "https://staging.clanker-ai.com/checkout/cancel";
 process.env.STRIPE_SECRET_KEY = "sk_test_123";
 
-import {purchasePackageStripeHandler} from "./purchasePackageStripe.js";
+import {
+  purchasePackageStripeHandler,
+  resolveCheckoutModeFromPriceType,
+} from "./purchasePackageStripe.js";
+
+test("resolveCheckoutModeFromPriceType maps recurring prices to subscription mode", () => {
+  assert.equal(resolveCheckoutModeFromPriceType("recurring"), "subscription");
+});
+
+test("resolveCheckoutModeFromPriceType maps one-time prices to payment mode", () => {
+  assert.equal(resolveCheckoutModeFromPriceType("one_time"), "payment");
+});
 
 test("purchasePackageStripeHandler rejects unauthenticated calls", async () => {
   await assert.rejects(

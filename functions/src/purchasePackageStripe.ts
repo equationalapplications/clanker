@@ -29,6 +29,12 @@ function getRequiredValue(name: string, value?: string): string {
     return value;
 }
 
+export function resolveCheckoutModeFromPriceType(
+    priceType: Stripe.Price.Type
+): "subscription" | "payment" {
+    return priceType === "recurring" ? "subscription" : "payment";
+}
+
 async function getOrCreateStripeCustomer(
     stripe: Stripe,
     email: string,
@@ -100,9 +106,20 @@ const handler = async (request: CallableRequest) => {
         request.auth.uid
     );
 
-    const mode: "subscription" | "payment" = SUBSCRIPTION_PRICE_IDS.has(priceId)
+    const price = await stripe.prices.retrieve(priceId);
+    const mode = resolveCheckoutModeFromPriceType(price.type);
+    const expectedMode: "subscription" | "payment" = SUBSCRIPTION_PRICE_IDS.has(priceId)
         ? "subscription"
         : "payment";
+
+    if (mode !== expectedMode) {
+        logger.warn("Stripe price type differs from configured checkout mode", {
+            priceId,
+            priceType: price.type,
+            configuredMode: expectedMode,
+            resolvedMode: mode,
+        });
+    }
 
     const session = await stripe.checkout.sessions.create({
         customer: stripeCustomerId,
