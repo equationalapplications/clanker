@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router'
+import { useNavigation } from '@react-navigation/native'
 import React, { useState } from 'react'
 import { ScrollView, StyleSheet, View, Platform } from 'react-native'
 import { Card, Text, IconButton, Button, Snackbar, List, Divider } from 'react-native-paper'
@@ -15,10 +16,16 @@ import { supabaseClient } from '~/config/supabaseClient'
 
 export default function SubscribeScreen() {
   const router = useRouter()
+  const navigation = useNavigation()
   const queryClient = useQueryClient()
   const authService = useAuthMachine()
   const user = useSelector(authService, (state) => state.context.user)
   const isPremium = useIsPremium()
+
+  // Override the drawer header title so the route-group name "(drawer)" never leaks through
+  React.useLayoutEffect(() => {
+    navigation.setOptions({ headerTitle: 'Subscribe' })
+  }, [navigation])
   const { userPrivate } = useUserPrivateData()
   const credits = userPrivate?.credits || 0
   const [inFlightAction, setInFlightAction] = useState<'monthly_20' | 'payg' | 'restore' | null>(null)

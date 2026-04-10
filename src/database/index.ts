@@ -7,21 +7,47 @@ import * as SQLite from 'expo-sqlite'
 import { CREATE_TABLES, SCHEMA_VERSION, MIGRATIONS } from './schema'
 
 let db: SQLite.SQLiteDatabase | null = null
+let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null
+
+type DatabaseExecutor = Pick<
+    SQLite.SQLiteDatabase,
+    'execAsync' | 'runAsync' | 'getAllAsync' | 'getFirstAsync'
+>
 
 /**
  * Initialize and return the database instance
  */
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-    if (db) return db
-
-    try {
-        db = await SQLite.openDatabaseAsync('clanker.db')
-        await initializeDatabase(db)
-        return db
-    } catch (error) {
-        console.error('Failed to open database:', error)
-        throw error
+    if (dbPromise) {
+        return dbPromise
     }
+
+    if (db && !dbPromise) {
+        try {
+            await db.closeAsync()
+        } catch (error) {
+            console.warn('Failed to close stale database connection:', error)
+        } finally {
+            db = null
+            dbPromise = null
+        }
+    }
+
+    dbPromise = (async () => {
+        try {
+            const database = await SQLite.openDatabaseAsync('clanker.db')
+            await initializeDatabase(database)
+            db = database
+            return database
+        } catch (error) {
+            db = null
+            dbPromise = null
+            console.error('Failed to open database:', error)
+            throw error
+        }
+    })()
+
+    return dbPromise
 }
 
 /**
@@ -40,40 +66,7 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
             await database.execAsync('PRAGMA journal_mode=WAL;')
         }
 
-        // Create tables (uses IF NOT EXISTS — safe on both fresh and existing DBs)
-        await database.execAsync(CREATE_TABLES)
-
-        // Check current schema version
-        const result = await database.getFirstAsync<{ version: number }>(
-            'SELECT version FROM schema_version ORDER BY version DESC LIMIT 1',
-        )
-
-        if (!result) {
-            // No recorded schema version. This can mean:
-            // - A true fresh install where CREATE_TABLES already created the latest schema
-            // - A legacy DB that predates schema_version and still needs migrations
-            //
-            // Distinguish between these by checking for a column that was added by
-            // a migration (e.g. characters.avatar_data, added in schema v3).
-            const columns = await database.getAllAsync<{ name: string }>(
-                'PRAGMA table_info(characters)',
-            )
-            const hasAvatarData = columns.some((column) => column.name === 'avatar_data')
-
-            if (hasAvatarData) {
-                // Fresh DB already at latest schema: just record the current schema version
-                await database.runAsync(
-                    'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
-                    [SCHEMA_VERSION, Date.now()],
-                )
-            } else {
-                // Legacy DB without the latest columns: run migrations from version 0
-                await runMigrations(database, 0)
-            }
-        } else if (result.version < SCHEMA_VERSION) {
-            // Existing DB that needs upgrading
-            await runMigrations(database, result.version)
-        }
+        await applyInitializationPlan(database)
 
         console.log('✅ Database initialized successfully')
     } catch (error) {
@@ -82,39 +75,140 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
     }
 }
 
+async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void> {
+    // Create tables (uses IF NOT EXISTS — safe on both fresh and existing DBs)
+    await executor.execAsync(CREATE_TABLES)
+
+    // Check current schema version
+    const result = await executor.getFirstAsync<{ version: number }>(
+        'SELECT version FROM schema_version ORDER BY version DESC LIMIT 1',
+    )
+
+    if (!result) {
+        // No recorded schema version. This can mean:
+        // - A true fresh install where CREATE_TABLES already created the latest schema
+        // - A legacy DB that predates schema_version and still needs migrations
+        //
+        // Distinguish between these by checking for a column that was added by
+        // a migration (e.g. characters.avatar_data, added in schema v3).
+        const columns = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(characters)')
+        const hasDeletedAt = columns.some((column) => column.name === 'deleted_at')
+        const hasAvatarData = columns.some((column) => column.name === 'avatar_data')
+
+        if (hasAvatarData) {
+            // Fresh DB already at latest schema: just record the current schema version
+            await executor.runAsync(
+                'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
+                [SCHEMA_VERSION, Date.now()],
+            )
+            return
+        }
+
+        // Legacy DB without schema_version can be partially migrated.
+        // Infer the nearest version so we only apply missing migrations.
+        const inferredVersion = hasDeletedAt ? 2 : 0
+        await runMigrations(executor, inferredVersion)
+        return
+    }
+
+    if (result.version < SCHEMA_VERSION) {
+        // Existing DB that needs upgrading
+        await runMigrations(executor, result.version)
+    }
+}
+
 /**
  * Run database migrations
  */
-async function runMigrations(
-    database: SQLite.SQLiteDatabase,
-    fromVersion: number,
-): Promise<void> {
+async function runMigrations(executor: DatabaseExecutor, fromVersion: number): Promise<void> {
     console.log(`Running migrations from version ${fromVersion} to ${SCHEMA_VERSION}`)
 
+    await applyMigrations(executor, fromVersion)
+}
+
+async function applyMigrations(executor: DatabaseExecutor, fromVersion: number): Promise<void> {
     for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {
         const migration = MIGRATIONS[version]
         if (migration) {
+            if (version === 2) {
+                const hasDeletedAt = await hasColumn(executor, 'characters', 'deleted_at')
+                if (hasDeletedAt) {
+                    console.log('Skipping migration 2: characters.deleted_at already exists')
+                    continue
+                }
+            }
+
+            if (version === 3) {
+                const hasAvatarData = await hasColumn(executor, 'characters', 'avatar_data')
+                if (hasAvatarData) {
+                    console.log('Skipping migration 3: characters.avatar_data already exists')
+                    continue
+                }
+            }
+
             console.log(`Applying migration ${version}`)
-            await database.execAsync(migration)
+            await execStatementsSequentially(executor, migration)
         }
     }
 
     // Update schema version
-    await database.runAsync(
+    await executor.runAsync(
         'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
         [SCHEMA_VERSION, Date.now()],
     )
+}
+
+async function hasColumn(
+    database: DatabaseExecutor,
+    tableName: string,
+    columnName: string,
+): Promise<boolean> {
+    const columns = await database.getAllAsync<{ name: string }>(`PRAGMA table_info(${tableName})`)
+    return columns.some((column) => column.name === columnName)
+}
+
+async function execStatementsSequentially(
+    database: DatabaseExecutor,
+    sqlBatch: string,
+): Promise<void> {
+    const statements = sqlBatch
+        .split(';')
+        .map((statement) => statement.trim())
+        .filter(Boolean)
+
+    for (const statement of statements) {
+        try {
+            await database.execAsync(`${statement};`)
+        } catch (error) {
+            console.error(`Failed SQL statement: ${statement};`, error)
+            throw error
+        }
+    }
 }
 
 /**
  * Close database connection
  */
 export async function closeDatabase(): Promise<void> {
-    if (db) {
-        await db.closeAsync()
-        db = null
-        console.log('Database closed')
+    let databaseToClose = db
+
+    if (!databaseToClose && dbPromise) {
+        try {
+            databaseToClose = await dbPromise
+        } catch {
+            db = null
+            dbPromise = null
+            return
+        }
     }
+
+    if (databaseToClose) {
+        await databaseToClose.closeAsync()
+    }
+
+    db = null
+    dbPromise = null
+    console.log('Database closed')
 }
 
 /**
