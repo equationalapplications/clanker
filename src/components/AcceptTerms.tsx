@@ -102,12 +102,23 @@ export function AcceptTerms({
       <View style={styles.separator} />
 
       <View style={styles.row}>
-        <Checkbox
-          status={checked ? 'checked' : 'unchecked'}
-          onPress={onPressChecked}
-          color={colors.primary}
-          uncheckedColor={colors.onSurfaceVariant}
-        />
+        <View
+          style={[
+            styles.checkboxContainer,
+            {
+              borderColor: colors.onBackground,
+              backgroundColor: colors.surfaceVariant,
+            },
+          ]}
+        >
+          <Checkbox
+            status={checked ? 'checked' : 'unchecked'}
+            onPress={onPressChecked}
+            color={colors.primary}
+            uncheckedColor={colors.onBackground}
+            style={styles.checkbox}
+          />
+        </View>
         <Text style={styles.text}>
           I am over 18 years of age and I have read and accept the Terms and Conditions and Privacy
           Policy.
@@ -146,6 +157,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  checkboxContainer: {
+    borderWidth: 2,
+    borderRadius: 8,
+    marginRight: 4,
+  },
+  checkbox: {
+    margin: 0,
   },
   buttonRow: {
     flexDirection: 'row',

@@ -101,7 +101,7 @@ export default function SubscribeScreen() {
                 onPress={() => handlePurchase('monthly_20')}
                 disabled={inFlightAction !== null}
                 loading={inFlightAction === 'monthly_20'}
-                style={styles.actionButton}
+                style={[styles.actionButton, { marginBottom: 12 }]}
               >
                 Unlimited Subscription - $20/Month
               </Button>
@@ -252,12 +252,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   buttonContainer: {
-    marginTop: 24,
-    gap: 8,
+    marginTop: 16,
+    gap: 16,
   },
   actionButton: {},
   restoreButton: {
-    marginTop: 4,
+    marginBottom: 10,
   },
   legalCardContent: {
     paddingHorizontal: 0,
