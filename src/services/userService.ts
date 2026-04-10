@@ -1,5 +1,6 @@
 import { supabaseClient, Database } from '~/config/supabaseClient'
 import { APP_NAME } from '~/config/constants'
+import { getSupabaseSession } from '~/utilities/getSupabaseSession'
 
 // Types for user data
 export type UserProfile = Database['public']['Tables']['profiles']['Row']
@@ -20,14 +21,13 @@ export interface UserPrivate {
   hasAcceptedTermsDate: Date | null
 }
 
+let inFlightUserProfileRead: Promise<UserProfile | null> | null = null
+
 /**
  * Get credits from user_app_subscriptions table
  */
 async function getUserCredits(): Promise<number> {
-  const {
-    data: { session },
-  } = await supabaseClient.auth.getSession()
-
+  const session = await getSupabaseSession()
   const user = session?.user
   if (!user) {
     return 0
@@ -69,10 +69,7 @@ export const syncFirebaseIdentityToProfile = async (
   }
 
   try {
-    const {
-      data: { session },
-    } = await supabaseClient.auth.getSession()
-
+    const session = await getSupabaseSession()
     const user = session?.user
     if (!user) {
       return
@@ -126,40 +123,50 @@ export const syncFirebaseIdentityToProfile = async (
  * Get the current user's profile from Supabase
  */
 export const getUserProfile = async (): Promise<UserProfile | null> => {
-  const {
-    data: { session },
-  } = await supabaseClient.auth.getSession()
-
-  const user = session?.user
-  if (!user) {
-    return null
+  if (inFlightUserProfileRead) {
+    return inFlightUserProfileRead
   }
 
-  const { data, error } = await supabaseClient
-    .from('profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  inFlightUserProfileRead = (async () => {
+    const session = await getSupabaseSession()
 
-  if (error) {
-    console.error('Error fetching user profile:', error)
-    return null
-  }
-
-  // Lazy-create profile if trigger didn't fire (safety net)
-  if (!data) {
-    try {
-      return await upsertUserProfile({
-        user_id: user.id,
-        email: user.email ?? null,
-      })
-    } catch (upsertError) {
-      console.error('Error creating missing profile:', upsertError)
+    const user = session?.user
+    if (!user) {
       return null
     }
-  }
 
-  return data
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (error) {
+      console.error('Error fetching user profile:', error)
+      return null
+    }
+
+    // Lazy-create profile if trigger didn't fire (safety net)
+    if (!data) {
+      try {
+        return await upsertUserProfile({
+          user_id: user.id,
+          email: user.email ?? null,
+        })
+      } catch (upsertError) {
+        console.error('Error creating missing profile:', upsertError)
+        return null
+      }
+    }
+
+    return data
+  })()
+
+  try {
+    return await inFlightUserProfileRead
+  } finally {
+    inFlightUserProfileRead = null
+  }
 }
 
 /**
@@ -168,10 +175,7 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
 export const upsertUserProfile = async (
   profile: UserProfileUpdate,
 ): Promise<UserProfile | null> => {
-  const {
-    data: { session },
-  } = await supabaseClient.auth.getSession()
-
+  const session = await getSupabaseSession()
   const user = session?.user
   if (!user) {
     throw new Error('No authenticated user')
@@ -237,10 +241,7 @@ export const getUserPrivate = async (): Promise<UserPrivate | null> => {
  * Delete user account and all associated data
  */
 export const deleteUser = async (): Promise<void> => {
-  const {
-    data: { session },
-  } = await supabaseClient.auth.getSession()
-
+  const session = await getSupabaseSession()
   const user = session?.user
   if (!user) {
     throw new Error('No authenticated user')

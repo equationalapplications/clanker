@@ -1,3 +1,20 @@
+# [25.8.0](https://github.com/equationalapplications/clanker/compare/v25.7.0...v25.8.0) (2026-04-09)
+
+
+### Bug Fixes
+
+* **auth:** guard Apple name string fallback ([4519cb5](https://github.com/equationalapplications/clanker/commit/4519cb5d6cba63328a6da692e4272836604e70a4))
+* **auth:** hide Apple sign-in on Android ([3948e56](https://github.com/equationalapplications/clanker/commit/3948e56e44d3b7ae867229bf62db8bbf13976c89))
+* **auth:** hide Apple sign-in on Android ([42a754e](https://github.com/equationalapplications/clanker/commit/42a754ebad3fba6ba2ba41b80851811d47970596))
+* **ci:** allow hotfix branches for production release validation ([386c419](https://github.com/equationalapplications/clanker/commit/386c419d84bed9f4ab43ca5a977484bf9a182ab4))
+
+
+### Features
+
+* **auth:** capture provider names and make Apple sign-in cross-platform ([c237c4b](https://github.com/equationalapplications/clanker/commit/c237c4b6e509a63033061672a060997c14708781))
+* **auth:** capture provider names and make Apple sign-in cross-platform ([a0f7453](https://github.com/equationalapplications/clanker/commit/a0f7453ca2690f0bc01e3c3ce407d9f815824f5f))
+* **support:** add public support page for App Store compliance ([47c9c26](https://github.com/equationalapplications/clanker/commit/47c9c2623edfd017ca0341570a6ccf878344e8b3))
+
 # [25.7.0](https://github.com/equationalapplications/clanker/compare/v25.6.1...v25.7.0) (2026-04-09)
 
 

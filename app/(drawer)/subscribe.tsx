@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import React, { useState } from 'react'
 import { ScrollView, StyleSheet, View, Platform } from 'react-native'
-import { Appbar, Card, Text, IconButton, Button, Snackbar } from 'react-native-paper'
+import { Card, Text, IconButton, Button, Snackbar, List, Divider } from 'react-native-paper'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 
@@ -55,11 +55,6 @@ export default function SubscribeScreen() {
 
   return (
     <View style={styles.container}>
-      <Appbar.Header>
-        <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="Subscription" />
-      </Appbar.Header>
-
       <ScrollView contentContainerStyle={styles.content}>
         <Card style={styles.card}>
           <Card.Content>
@@ -169,6 +164,28 @@ export default function SubscribeScreen() {
             </View>
           </Card.Content>
         </Card>
+
+        <Card style={styles.card}>
+          <Card.Content style={styles.legalCardContent}>
+            <Text variant="headlineSmall" style={styles.featuresTitle}>
+              Legal
+            </Text>
+
+            <List.Item
+              title="Terms of Service"
+              left={(props) => <List.Icon {...props} icon="file-document" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => router.push('/terms')}
+            />
+            <Divider />
+            <List.Item
+              title="Privacy Policy"
+              left={(props) => <List.Icon {...props} icon="shield-check" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => router.push('/privacy')}
+            />
+          </Card.Content>
+        </Card>
       </ScrollView>
 
       <Snackbar
@@ -234,5 +251,8 @@ const styles = StyleSheet.create({
   actionButton: {},
   restoreButton: {
     marginTop: 4,
+  },
+  legalCardContent: {
+    paddingHorizontal: 0,
   },
 })
