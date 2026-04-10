@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test, {TestContext} from "node:test";
 import {HttpsError} from "firebase-functions/v2/https";
-import admin from "firebase-admin";
 import Stripe from "stripe";
+import {withAdminAuthStub} from "./testHelpers.js";
 
 process.env.STRIPE_MONTHLY_20_PRICE_ID = "price_monthly_20";
 process.env.STRIPE_MONTHLY_50_PRICE_ID = "price_monthly_50";
@@ -23,8 +23,6 @@ function stubHandlerDeps(
   sessionUrl: string
 ) {
   const stripe = new Stripe("sk_test_123");
-  const adminPrototype = Object.getPrototypeOf(admin);
-  const originalAuthDescriptor = Object.getOwnPropertyDescriptor(adminPrototype, "auth");
   const customersPrototype = Object.getPrototypeOf(stripe.customers);
   const pricesPrototype = Object.getPrototypeOf(stripe.prices);
   const checkoutSessionsPrototype = Object.getPrototypeOf(stripe.checkout.sessions);
@@ -44,7 +42,7 @@ function stubHandlerDeps(
     async () => ({id: sessionId, url: sessionUrl}) as never
   );
 
-  return {adminPrototype, originalAuthDescriptor, createCheckoutSessionMock};
+  return {createCheckoutSessionMock};
 }
 
 test("resolveCheckoutModeFromPriceType maps recurring prices to subscription mode", () => {
@@ -186,48 +184,38 @@ test("purchasePackageStripeHandler fails fast when Stripe secret key is missing"
 });
 
 test("purchasePackageStripeHandler uses subscription mode for recurring Stripe prices", async (t) => {
-  const {adminPrototype, originalAuthDescriptor, createCheckoutSessionMock} = stubHandlerDeps(
+  const {createCheckoutSessionMock} = stubHandlerDeps(
     t,
     "recurring",
     "cs_123",
     "https://checkout.stripe.test/session_123"
   );
 
-  try {
-    Object.defineProperty(adminPrototype, "auth", {
-      configurable: true,
-      value: () => {
-        return {
-          getUser: async () => ({email: "buyer@example.com"}),
-        };
-      },
-    });
+  await withAdminAuthStub(
+    async () => ({email: "buyer@example.com"}),
+    async () => {
+      const result = await purchasePackageStripeHandler({
+        auth: {
+          uid: "firebase-uid-1",
+          token: {uid: "firebase-uid-1"},
+        },
+        data: {
+          priceId: "price_monthly_20",
+        },
+      } as never);
 
-    const result = await purchasePackageStripeHandler({
-      auth: {
-        uid: "firebase-uid-1",
-        token: {uid: "firebase-uid-1"},
-      },
-      data: {
-        priceId: "price_monthly_20",
-      },
-    } as never);
-
-    assert.equal(result, "https://checkout.stripe.test/session_123");
-    assert.equal(createCheckoutSessionMock.mock.calls.length, 1);
-    assert.equal(
-      (createCheckoutSessionMock.mock.calls[0].arguments[0] as {mode: string}).mode,
-      "subscription"
-    );
-  } finally {
-    if (originalAuthDescriptor) {
-      Object.defineProperty(adminPrototype, "auth", originalAuthDescriptor);
+      assert.equal(result, "https://checkout.stripe.test/session_123");
+      assert.equal(createCheckoutSessionMock.mock.calls.length, 1);
+      assert.equal(
+        (createCheckoutSessionMock.mock.calls[0].arguments[0] as {mode: string}).mode,
+        "subscription"
+      );
     }
-  }
+  );
 });
 
 test("purchasePackageStripeHandler warns when Stripe price type mismatches local mode expectation", async (t) => {
-  const {adminPrototype, originalAuthDescriptor, createCheckoutSessionMock} = stubHandlerDeps(
+  const {createCheckoutSessionMock} = stubHandlerDeps(
     t,
     "one_time",
     "cs_456",
@@ -239,14 +227,6 @@ test("purchasePackageStripeHandler warns when Stripe price type mismatches local
   let stderrBuffer = "";
 
   try {
-    Object.defineProperty(adminPrototype, "auth", {
-      configurable: true,
-      value: () => {
-        return {
-          getUser: async () => ({email: "buyer@example.com"}),
-        };
-      },
-    });
     process.stdout.write = ((chunk: string | Uint8Array) => {
       stdoutBuffer += String(chunk);
       return true;
@@ -256,15 +236,20 @@ test("purchasePackageStripeHandler warns when Stripe price type mismatches local
       return true;
     }) as typeof process.stderr.write;
 
-    await purchasePackageStripeHandler({
-      auth: {
-        uid: "firebase-uid-1",
-        token: {uid: "firebase-uid-1"},
-      },
-      data: {
-        priceId: "price_monthly_20",
-      },
-    } as never);
+    await withAdminAuthStub(
+      async () => ({email: "buyer@example.com"}),
+      async () => {
+        await purchasePackageStripeHandler({
+          auth: {
+            uid: "firebase-uid-1",
+            token: {uid: "firebase-uid-1"},
+          },
+          data: {
+            priceId: "price_monthly_20",
+          },
+        } as never);
+      }
+    );
 
     assert.equal(createCheckoutSessionMock.mock.calls.length, 1);
     assert.equal(
@@ -278,8 +263,149 @@ test("purchasePackageStripeHandler warns when Stripe price type mismatches local
   } finally {
     process.stdout.write = originalStdoutWrite;
     process.stderr.write = originalStderrWrite;
-    if (originalAuthDescriptor) {
-      Object.defineProperty(adminPrototype, "auth", originalAuthDescriptor);
-    }
   }
+});
+
+test("purchasePackageStripeHandler creates a customer when none exists", async (t) => {
+  const stripe = new Stripe("sk_test_123");
+  const customersPrototype = Object.getPrototypeOf(stripe.customers);
+  const pricesPrototype = Object.getPrototypeOf(stripe.prices);
+  const checkoutSessionsPrototype = Object.getPrototypeOf(stripe.checkout.sessions);
+
+  const listCustomersMock = t.mock.method(customersPrototype, "list", async () => ({
+    data: [],
+  }) as never);
+  const createCustomerMock = t.mock.method(customersPrototype, "create", async () => ({
+    id: "cus_new_123",
+  }) as never);
+  t.mock.method(pricesPrototype, "retrieve", async () => ({
+    id: "price_monthly_20",
+    type: "recurring",
+  }) as never);
+  const createCheckoutSessionMock = t.mock.method(
+    checkoutSessionsPrototype,
+    "create",
+    async () => ({id: "cs_new_123", url: "https://checkout.stripe.test/new_123"}) as never
+  );
+
+  await withAdminAuthStub(
+    async () => ({email: "newbuyer@example.com"}),
+    async () => {
+      const result = await purchasePackageStripeHandler({
+        auth: {
+          uid: "firebase-uid-2",
+          token: {uid: "firebase-uid-2"},
+        },
+        data: {
+          priceId: "price_monthly_20",
+        },
+      } as never);
+
+      assert.equal(result, "https://checkout.stripe.test/new_123");
+      assert.equal(listCustomersMock.mock.calls.length, 1);
+      assert.equal(createCustomerMock.mock.calls.length, 1);
+      assert.equal(createCheckoutSessionMock.mock.calls.length, 1);
+      assert.equal(
+        (createCheckoutSessionMock.mock.calls[0].arguments[0] as {customer: string}).customer,
+        "cus_new_123"
+      );
+    }
+  );
+});
+
+test("purchasePackageStripeHandler rejects users without an email address", async (t) => {
+  const stripe = new Stripe("sk_test_123");
+  const customersPrototype = Object.getPrototypeOf(stripe.customers);
+
+  const listCustomersMock = t.mock.method(customersPrototype, "list", async () => ({
+    data: [{id: "cus_123"}],
+  }) as never);
+
+  await withAdminAuthStub(
+    async () => ({email: undefined}),
+    async () => {
+      await assert.rejects(
+        async () =>
+          purchasePackageStripeHandler({
+            auth: {
+              uid: "firebase-uid-3",
+              token: {uid: "firebase-uid-3"},
+            },
+            data: {
+              priceId: "price_monthly_20",
+            },
+          } as never),
+        (err: unknown) =>
+          err instanceof HttpsError &&
+          err.code === "failed-precondition" &&
+          err.message.includes("no email address")
+      );
+
+      assert.equal(listCustomersMock.mock.calls.length, 0);
+    }
+  );
+});
+
+test("purchasePackageStripeHandler fails when Stripe checkout session has no URL", async (t) => {
+  stubHandlerDeps(
+    t,
+    "recurring",
+    "cs_no_url",
+    ""
+  );
+
+  await withAdminAuthStub(
+    async () => ({email: "buyer@example.com"}),
+    async () => {
+      await assert.rejects(
+        async () =>
+          purchasePackageStripeHandler({
+            auth: {
+              uid: "firebase-uid-4",
+              token: {uid: "firebase-uid-4"},
+            },
+            data: {
+              priceId: "price_monthly_20",
+            },
+          } as never),
+        (err: unknown) =>
+          err instanceof HttpsError &&
+          err.code === "internal" &&
+          err.message.includes("checkout URL")
+      );
+    }
+  );
+});
+
+test("purchasePackageStripeHandler sends metadata and client_reference_id to checkout session", async (t) => {
+  const {createCheckoutSessionMock} = stubHandlerDeps(
+    t,
+    "recurring",
+    "cs_meta",
+    "https://checkout.stripe.test/meta"
+  );
+
+  await withAdminAuthStub(
+    async () => ({email: "buyer@example.com"}),
+    async () => {
+      await purchasePackageStripeHandler({
+        auth: {
+          uid: "firebase-uid-meta",
+          token: {uid: "firebase-uid-meta"},
+        },
+        data: {
+          priceId: "price_monthly_20",
+        },
+      } as never);
+
+      const payload = createCheckoutSessionMock.mock.calls[0].arguments[0] as {
+        client_reference_id: string;
+        metadata: {firebase_uid: string; email: string};
+      };
+
+      assert.equal(payload.client_reference_id, "firebase-uid-meta");
+      assert.equal(payload.metadata.firebase_uid, "firebase-uid-meta");
+      assert.equal(payload.metadata.email, "buyer@example.com");
+    }
+  );
 });

@@ -134,4 +134,43 @@ describe('makePackagePurchase', () => {
     expect(purchasePackageStripeMock).not.toHaveBeenCalled()
     expect(openURLMock).not.toHaveBeenCalled()
   })
+
+  it('still refreshes session when RevenueCat returns null customer info', async () => {
+    const { makePackagePurchase, purchaseProductMock, refreshSessionMock } = createHarness('ios')
+    purchaseProductMock.mockResolvedValueOnce(null)
+
+    const result = await makePackagePurchase('monthly_20')
+
+    expect(result).toBeNull()
+    expect(purchaseProductMock).toHaveBeenCalledWith('monthly_20_subscription')
+    expect(refreshSessionMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('propagates native session refresh failures after successful purchase', async () => {
+    const { makePackagePurchase, purchaseProductMock, refreshSessionMock } = createHarness('ios')
+    purchaseProductMock.mockResolvedValueOnce({ entitlements: { premium: {} } })
+    refreshSessionMock.mockRejectedValueOnce(new Error('refresh failed'))
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+    try {
+      await expect(makePackagePurchase('monthly_50')).rejects.toThrow('refresh failed')
+      expect(purchaseProductMock).toHaveBeenCalledWith('monthly_50_subscription')
+      expect(refreshSessionMock).toHaveBeenCalledTimes(1)
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
+  })
+
+  it('propagates errors when opening Stripe checkout URL fails', async () => {
+    const { makePackagePurchase, openURLMock, refreshSessionMock } = createHarness('web')
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    openURLMock.mockRejectedValueOnce(new Error('cannot open url'))
+
+    try {
+      await expect(makePackagePurchase('payg')).rejects.toThrow('cannot open url')
+      expect(refreshSessionMock).not.toHaveBeenCalled()
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
+  })
 })
