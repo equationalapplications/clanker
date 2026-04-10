@@ -5,6 +5,14 @@ import Stripe from "stripe";
 import { getStripePriceIds, getStripeCheckoutUrls } from "./runtimeConfig.js";
 import { validateAndNormalizeStripeSecretKey } from "./stripeConfig.js";
 
+type LoggerLike = Pick<typeof logger, "error" | "warn" | "info">;
+const defaultLogger: LoggerLike = logger;
+let activeLogger: LoggerLike = defaultLogger;
+
+export function setPurchasePackageStripeLoggerForTests(next?: LoggerLike): void {
+    activeLogger = next ?? defaultLogger;
+}
+
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
     admin.initializeApp();
@@ -53,7 +61,7 @@ async function getOrCreateStripeCustomer(
 
 const handler = async (request: CallableRequest) => {
     if (!request.auth) {
-        logger.error("Unauthenticated request to purchasePackageStripe");
+        activeLogger.error("Unauthenticated request to purchasePackageStripe");
         throw new HttpsError("unauthenticated", "Authentication required.");
     }
 
@@ -113,7 +121,7 @@ const handler = async (request: CallableRequest) => {
         : "payment";
 
     if (mode !== expectedMode) {
-        logger.warn("Stripe price type differs from configured checkout mode", {
+        activeLogger.warn("Stripe price type differs from configured checkout mode", {
             priceId,
             priceType: price.type,
             configuredMode: expectedMode,
@@ -135,7 +143,7 @@ const handler = async (request: CallableRequest) => {
     });
 
     if (!session.url) {
-        logger.error("Stripe Checkout Session missing URL", {
+        activeLogger.error("Stripe Checkout Session missing URL", {
             sessionId: session.id,
             email,
             priceId,
@@ -147,7 +155,7 @@ const handler = async (request: CallableRequest) => {
         );
     }
 
-    logger.info("Stripe Checkout Session created", {
+    activeLogger.info("Stripe Checkout Session created", {
         sessionId: session.id,
         email,
         priceId,

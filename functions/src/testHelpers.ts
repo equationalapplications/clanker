@@ -13,34 +13,19 @@ export type FetchResponder = (
   calls: FetchCall[]
 ) => Promise<Response>;
 
-function restoreProperty(
-  target: object,
-  key: string,
-  descriptor: PropertyDescriptor | undefined
-): void {
-  if (descriptor) {
-    Object.defineProperty(target, key, descriptor);
-  } else {
-    delete (target as Record<string, unknown>)[key];
-  }
-}
-
 export async function withAdminAuthStub<T>(
   getUser: GetUserStub,
   run: () => Promise<T>
 ): Promise<T> {
-  const adminPrototype = Object.getPrototypeOf(admin);
-  const originalAuthDescriptor = Object.getOwnPropertyDescriptor(adminPrototype, "auth");
+  const adminWithAuth = admin as {auth: typeof admin.auth};
+  const originalAuth = adminWithAuth.auth;
 
-  Object.defineProperty(adminPrototype, "auth", {
-    configurable: true,
-    value: () => ({getUser}),
-  });
+  adminWithAuth.auth = (() => ({getUser})) as typeof admin.auth;
 
   try {
     return await run();
   } finally {
-    restoreProperty(adminPrototype as object, "auth", originalAuthDescriptor);
+    adminWithAuth.auth = originalAuth;
   }
 }
 

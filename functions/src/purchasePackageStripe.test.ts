@@ -14,6 +14,7 @@ process.env.STRIPE_SECRET_KEY = "sk_test_123";
 import {
   purchasePackageStripeHandler,
   resolveCheckoutModeFromPriceType,
+  setPurchasePackageStripeLoggerForTests,
 } from "./purchasePackageStripe.js";
 
 function stubHandlerDeps(
@@ -221,20 +222,16 @@ test("purchasePackageStripeHandler warns when Stripe price type mismatches local
     "cs_456",
     "https://checkout.stripe.test/session_456"
   );
-  const originalStdoutWrite = process.stdout.write;
-  const originalStderrWrite = process.stderr.write;
-  let stdoutBuffer = "";
-  let stderrBuffer = "";
+  const warnCalls: Array<{message: string; payload: Record<string, unknown> | undefined}> = [];
 
   try {
-    process.stdout.write = ((chunk: string | Uint8Array) => {
-      stdoutBuffer += String(chunk);
-      return true;
-    }) as typeof process.stdout.write;
-    process.stderr.write = ((chunk: string | Uint8Array) => {
-      stderrBuffer += String(chunk);
-      return true;
-    }) as typeof process.stderr.write;
+    setPurchasePackageStripeLoggerForTests({
+      error: () => undefined,
+      info: () => undefined,
+      warn: (message: string, payload?: Record<string, unknown>) => {
+        warnCalls.push({message, payload});
+      },
+    });
 
     await withAdminAuthStub(
       async () => ({email: "buyer@example.com"}),
@@ -256,13 +253,16 @@ test("purchasePackageStripeHandler warns when Stripe price type mismatches local
       (createCheckoutSessionMock.mock.calls[0].arguments[0] as {mode: string}).mode,
       "payment"
     );
-    assert.match(
-      `${stdoutBuffer}\n${stderrBuffer}`,
-      /Stripe price type differs from configured checkout mode/
-    );
+    assert.equal(warnCalls.length, 1);
+    assert.equal(warnCalls[0]?.message, "Stripe price type differs from configured checkout mode");
+    assert.deepEqual(warnCalls[0]?.payload, {
+      priceId: "price_monthly_20",
+      priceType: "one_time",
+      configuredMode: "subscription",
+      resolvedMode: "payment",
+    });
   } finally {
-    process.stdout.write = originalStdoutWrite;
-    process.stderr.write = originalStderrWrite;
+    setPurchasePackageStripeLoggerForTests();
   }
 });
 
