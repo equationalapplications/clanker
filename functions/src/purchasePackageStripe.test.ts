@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, {TestContext} from "node:test";
 import {HttpsError} from "firebase-functions/v2/https";
+import admin from "firebase-admin";
+import Stripe from "stripe";
 
 process.env.STRIPE_MONTHLY_20_PRICE_ID = "price_monthly_20";
 process.env.STRIPE_MONTHLY_50_PRICE_ID = "price_monthly_50";
@@ -13,6 +15,37 @@ import {
   purchasePackageStripeHandler,
   resolveCheckoutModeFromPriceType,
 } from "./purchasePackageStripe.js";
+
+function stubHandlerDeps(
+  t: TestContext,
+  priceType: Stripe.Price.Type,
+  sessionId: string,
+  sessionUrl: string
+) {
+  const stripe = new Stripe("sk_test_123");
+  const adminPrototype = Object.getPrototypeOf(admin);
+  const originalAuthDescriptor = Object.getOwnPropertyDescriptor(adminPrototype, "auth");
+  const customersPrototype = Object.getPrototypeOf(stripe.customers);
+  const pricesPrototype = Object.getPrototypeOf(stripe.prices);
+  const checkoutSessionsPrototype = Object.getPrototypeOf(stripe.checkout.sessions);
+
+  // Stripe resource methods are patched at the shared prototype level.
+  // node:test restores these stubs after each test via t.mock.
+  t.mock.method(customersPrototype, "list", async () => ({
+    data: [{id: "cus_123"}],
+  }) as never);
+  t.mock.method(pricesPrototype, "retrieve", async () => ({
+    id: "price_monthly_20",
+    type: priceType,
+  }) as never);
+  const createCheckoutSessionMock = t.mock.method(
+    checkoutSessionsPrototype,
+    "create",
+    async () => ({id: sessionId, url: sessionUrl}) as never
+  );
+
+  return {adminPrototype, originalAuthDescriptor, createCheckoutSessionMock};
+}
 
 test("resolveCheckoutModeFromPriceType maps recurring prices to subscription mode", () => {
   assert.equal(resolveCheckoutModeFromPriceType("recurring"), "subscription");
@@ -149,5 +182,104 @@ test("purchasePackageStripeHandler fails fast when Stripe secret key is missing"
     );
   } finally {
     process.env.STRIPE_SECRET_KEY = originalSecretKey;
+  }
+});
+
+test("purchasePackageStripeHandler uses subscription mode for recurring Stripe prices", async (t) => {
+  const {adminPrototype, originalAuthDescriptor, createCheckoutSessionMock} = stubHandlerDeps(
+    t,
+    "recurring",
+    "cs_123",
+    "https://checkout.stripe.test/session_123"
+  );
+
+  try {
+    Object.defineProperty(adminPrototype, "auth", {
+      configurable: true,
+      value: () => {
+        return {
+          getUser: async () => ({email: "buyer@example.com"}),
+        };
+      },
+    });
+
+    const result = await purchasePackageStripeHandler({
+      auth: {
+        uid: "firebase-uid-1",
+        token: {uid: "firebase-uid-1"},
+      },
+      data: {
+        priceId: "price_monthly_20",
+      },
+    } as never);
+
+    assert.equal(result, "https://checkout.stripe.test/session_123");
+    assert.equal(createCheckoutSessionMock.mock.calls.length, 1);
+    assert.equal(
+      (createCheckoutSessionMock.mock.calls[0].arguments[0] as {mode: string}).mode,
+      "subscription"
+    );
+  } finally {
+    if (originalAuthDescriptor) {
+      Object.defineProperty(adminPrototype, "auth", originalAuthDescriptor);
+    }
+  }
+});
+
+test("purchasePackageStripeHandler warns when Stripe price type mismatches local mode expectation", async (t) => {
+  const {adminPrototype, originalAuthDescriptor, createCheckoutSessionMock} = stubHandlerDeps(
+    t,
+    "one_time",
+    "cs_456",
+    "https://checkout.stripe.test/session_456"
+  );
+  const originalStdoutWrite = process.stdout.write;
+  const originalStderrWrite = process.stderr.write;
+  let stdoutBuffer = "";
+  let stderrBuffer = "";
+
+  try {
+    Object.defineProperty(adminPrototype, "auth", {
+      configurable: true,
+      value: () => {
+        return {
+          getUser: async () => ({email: "buyer@example.com"}),
+        };
+      },
+    });
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      stdoutBuffer += String(chunk);
+      return true;
+    }) as typeof process.stdout.write;
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrBuffer += String(chunk);
+      return true;
+    }) as typeof process.stderr.write;
+
+    await purchasePackageStripeHandler({
+      auth: {
+        uid: "firebase-uid-1",
+        token: {uid: "firebase-uid-1"},
+      },
+      data: {
+        priceId: "price_monthly_20",
+      },
+    } as never);
+
+    assert.equal(createCheckoutSessionMock.mock.calls.length, 1);
+    assert.equal(
+      (createCheckoutSessionMock.mock.calls[0].arguments[0] as {mode: string}).mode,
+      "payment"
+    );
+    assert.match(
+      `${stdoutBuffer}\n${stderrBuffer}`,
+      /Stripe price type differs from configured checkout mode/
+    );
+  } finally {
+    process.stdout.write = originalStdoutWrite;
+    process.stderr.write = originalStderrWrite;
+    if (originalAuthDescriptor) {
+      Object.defineProperty(adminPrototype, "auth", originalAuthDescriptor);
+    }
   }
 });
