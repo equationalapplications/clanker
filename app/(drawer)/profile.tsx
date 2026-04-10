@@ -16,7 +16,7 @@ const asTrimmedString = (value: unknown): string => {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-const asSafeUri = (value: unknown, fallback: string): string => {
+const asNonEmptyUri = (value: unknown, fallback: string): string => {
   const uri = asTrimmedString(value)
   return uri.length > 0 ? uri : fallback
 }
@@ -33,7 +33,10 @@ export default function Profile() {
     asTrimmedString(userPublic?.name) || asTrimmedString(user?.displayName) || ''
   const email = asTrimmedString(user?.email) || asTrimmedString(userPublic?.email) || ''
   // Try Supabase profile first, fall back to Firebase photoURL, then to default
-  const photoURL = asSafeUri(userPublic?.avatar, asSafeUri(user?.photoURL, defaultAvatarUrl))
+  const photoURL = asNonEmptyUri(
+    userPublic?.avatar,
+    asNonEmptyUri(user?.photoURL, defaultAvatarUrl),
+  )
   const credits = userPrivate?.credits ?? 0
 
   const [isModalVisible, setIsModalVisible] = useState(false)

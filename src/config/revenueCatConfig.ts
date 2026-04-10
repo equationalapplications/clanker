@@ -1,5 +1,10 @@
 import { Platform } from 'react-native'
-import Purchases, { type CustomerInfo, type PurchasesPackage } from 'react-native-purchases'
+import Purchases, {
+  PURCHASE_TYPE,
+  type CustomerInfo,
+  type PurchasesPackage,
+  type PurchasesStoreProduct,
+} from 'react-native-purchases'
 
 let isInitialized = false
 
@@ -61,12 +66,34 @@ export async function purchaseProduct(productIdentifier: string): Promise<Custom
       const allProductIds = Object.values(offerings.all).flatMap((o) =>
         o.availablePackages.map((p) => p.product.identifier),
       )
-      console.error(
-        `Product "${productIdentifier}" not found in RevenueCat offerings.`,
-        `Available offerings: ${JSON.stringify(Object.keys(offerings.all))}`,
-        `Available products: ${JSON.stringify(allProductIds)}`,
+
+      // Fallback for products that exist in RevenueCat but are not assigned
+      // to an offering package (common with one-time consumables).
+      const inAppProducts = await Purchases.getProducts(
+        [productIdentifier],
+        PURCHASE_TYPE.INAPP,
       )
-      return null
+      const subsProducts = await Purchases.getProducts([productIdentifier], PURCHASE_TYPE.SUBS)
+
+      const matchedProduct: PurchasesStoreProduct | undefined = [
+        ...inAppProducts,
+        ...subsProducts,
+      ].find((product) => product.identifier === productIdentifier)
+
+      if (!matchedProduct) {
+        console.error(
+          `Product "${productIdentifier}" not found in RevenueCat offerings or products.`,
+          `Available offerings: ${JSON.stringify(Object.keys(offerings.all))}`,
+          `Available offering products: ${JSON.stringify(allProductIds)}`,
+          `Fetched INAPP products: ${JSON.stringify(inAppProducts.map((p) => p.identifier))}`,
+          `Fetched SUBS products: ${JSON.stringify(subsProducts.map((p) => p.identifier))}`,
+        )
+        return null
+      }
+
+      const { customerInfo } = await Purchases.purchaseStoreProduct(matchedProduct)
+      console.log('✅ Purchase successful via direct store product fallback.')
+      return customerInfo
     }
 
     const { customerInfo } = await Purchases.purchasePackage(packageToPurchase)

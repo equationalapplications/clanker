@@ -112,6 +112,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
       <Stack.Screen
         options={{
           headerShown: true,
+          headerBackVisible: false,
           headerTitle: () => (
             <View style={styles.headerTitle}>
               <TouchableOpacity

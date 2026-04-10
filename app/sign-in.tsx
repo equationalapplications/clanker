@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { StyleSheet, View, Alert, Platform, useWindowDimensions } from 'react-native'
+import { StyleSheet, View, Alert, Platform, ScrollView, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSelector } from '@xstate/react'
 
@@ -67,64 +67,78 @@ export default function SignIn() {
   }
 
   return (
-    <View style={styles.container}>
-      {!isSignedIn ? (
-        <>
-          <TitleText>Clanker</TitleText>
-          <View style={styles.separator} />
-          <MonoText>Create Your Own AI Clanker</MonoText>
-          <Logo />
-          <View style={styles.authButtons}>
-            <ProviderButton
-              style={styles.providerButton}
-              disabled={isLoading}
-              loading={isLoading}
-              onPress={GoogleLoginOnPress}
-              type="google"
-            >
-              Google
-            </ProviderButton>
-            {Platform.OS === 'ios' && AppleAuthentication && (
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                cornerRadius={40}
-                style={styles.appleButton}
-                onPress={AppleLoginOnPress}
-              />
-            )}
-            {Platform.OS === 'web' && (
+    <ScrollView
+      style={styles.scrollContainer}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.container}>
+        {!isSignedIn ? (
+          <>
+            <TitleText>Clanker</TitleText>
+            <View style={styles.separator} />
+            <MonoText>Create Your Own AI Clanker</MonoText>
+            <Logo />
+            <View style={styles.authButtons}>
               <ProviderButton
                 style={styles.providerButton}
                 disabled={isLoading}
                 loading={isLoading}
-                onPress={AppleLoginOnPress}
-                type="apple"
+                onPress={GoogleLoginOnPress}
+                type="google"
               >
-                Apple
+                Google
               </ProviderButton>
-            )}
-          </View>
-          <View style={[styles.footer, isNarrowScreen && styles.footerNarrow]}>
-            <Button mode="text" onPress={onPressTerms}>
-              Terms and Conditions
-            </Button>
-            <Button mode="text" onPress={onPressPrivacy}>
-              Privacy Policy
-            </Button>
-          </View>
-        </>
-      ) : null}
-    </View>
+              {Platform.OS === 'ios' && AppleAuthentication && (
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={40}
+                  style={styles.appleButton}
+                  onPress={AppleLoginOnPress}
+                />
+              )}
+              {Platform.OS === 'web' && (
+                <ProviderButton
+                  style={styles.providerButton}
+                  disabled={isLoading}
+                  loading={isLoading}
+                  onPress={AppleLoginOnPress}
+                  type="apple"
+                >
+                  Apple
+                </ProviderButton>
+              )}
+            </View>
+            <View style={[styles.footer, isNarrowScreen && styles.footerNarrow]}>
+              <Button mode="text" onPress={onPressTerms}>
+                Terms and Conditions
+              </Button>
+              <Button mode="text" onPress={onPressPrivacy}>
+                Privacy Policy
+              </Button>
+            </View>
+          </>
+        ) : null}
+      </View>
+    </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scrollContainer: {
     flex: 1,
-    alignItems: 'center',
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
+  },
+  container: {
+    width: '100%',
+    alignItems: 'center',
   },
   separator: {
     marginVertical: 30,

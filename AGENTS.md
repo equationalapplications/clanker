@@ -21,7 +21,7 @@
 
   3. **Keep README concise** - The README should be a high-level overview and index. Detailed implementation details belong in individual doc files, not the README.
 
-# 🔀 Git Workflow & Versioning
+# Git Workflow & Versioning
 
   **Branch Strategy**: Two-branch promotion flow: `staging` → `main`. Feature branches merge into `staging` via PR. All changes go through PRs (no direct commits to protected branches).
 
@@ -38,6 +38,10 @@
   - Body lines: max **100 characters** each
   - Footer lines: max **100 characters** each
 
-# 📝 Pull Request Template
+# Pull Request Template
 
   When creating a pull request, **always use the PR template** located at `.github/pull_request_template.md`.
+
+# Copilot PR Review Guidelines
+
+   In feature branch -> staging PRs, if package.json, package-lock.json, or CHANGELOG.md have changes but match the main branch, they were likely created by semantic-release. Do not flag them.
