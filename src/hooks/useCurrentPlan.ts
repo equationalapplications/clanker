@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabaseClient } from '~/config/supabaseClient'
 import { APP_NAME, SUBSCRIPTION_TIERS, type PlanTier } from '~/config/constants'
+import { getSupabaseSession } from '~/utilities/getSupabaseSession'
 
 interface CurrentPlan {
   tier: PlanTier | null
@@ -42,9 +43,7 @@ export function useCurrentPlan(): CurrentPlan {
     let mounted = true
 
     async function readPlan() {
-      const {
-        data: { session },
-      } = await supabaseClient.auth.getSession()
+      const session = await getSupabaseSession()
       if (!mounted) return
 
       if (session?.access_token) {
