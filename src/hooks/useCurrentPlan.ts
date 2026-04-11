@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
-import { supabaseClient } from '~/config/supabaseClient'
+import { useSelector } from '@xstate/react'
 import { APP_NAME, SUBSCRIPTION_TIERS, type PlanTier } from '~/config/constants'
-import { getSupabaseSession } from '~/utilities/getSupabaseSession'
+import { useAuthMachine } from '~/hooks/useMachines'
 
 interface CurrentPlan {
   tier: PlanTier | null
@@ -35,44 +34,28 @@ function extractTierFromToken(accessToken: string, appName: string): PlanTier | 
   }
 }
 
+/**
+ * Derives the current subscription plan from the authMachine's supabaseSession context.
+ *
+ * This eliminates a duplicate Supabase `onAuthStateChange` listener — the session is
+ * already managed by authMachine and exposed via its context, so we simply select from it.
+ */
 export function useCurrentPlan(): CurrentPlan {
-  const [tier, setTier] = useState<PlanTier | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const authService = useAuthMachine()
 
-  useEffect(() => {
-    let mounted = true
+  const supabaseSession = useSelector(authService, (state) => state.context.supabaseSession)
+  const isLoading = useSelector(
+    authService,
+    (state) =>
+      state.matches('initializing') ||
+      state.matches('signingIn') ||
+      state.matches('exchangingToken') ||
+      state.matches('establishingSupabaseSession'),
+  )
 
-    async function readPlan() {
-      const session = await getSupabaseSession()
-      if (!mounted) return
-
-      if (session?.access_token) {
-        setTier(extractTierFromToken(session.access_token, APP_NAME))
-      } else {
-        setTier(null)
-      }
-      setIsLoading(false)
-    }
-
-    readPlan()
-
-    const {
-      data: { subscription },
-    } = supabaseClient.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return
-      if (session?.access_token) {
-        setTier(extractTierFromToken(session.access_token, APP_NAME))
-      } else {
-        setTier(null)
-      }
-      setIsLoading(false)
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
+  const tier = supabaseSession?.access_token
+    ? extractTierFromToken(supabaseSession.access_token, APP_NAME)
+    : null
 
   const isSubscriber = tier !== null && SUBSCRIPTION_TIERS.includes(tier)
 
