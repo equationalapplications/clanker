@@ -43,19 +43,16 @@ function extractTierFromToken(accessToken: string, appName: string): PlanTier | 
 export function useCurrentPlan(): CurrentPlan {
   const authService = useAuthMachine()
 
-  const supabaseSession = useSelector(authService, (state) => state.context.supabaseSession)
-  const isLoading = useSelector(
-    authService,
-    (state) =>
+  const { accessToken, isLoading } = useSelector(authService, (state) => ({
+    accessToken: state.context.supabaseSession?.access_token ?? null,
+    isLoading:
       state.matches('initializing') ||
       state.matches('signingIn') ||
       state.matches('exchangingToken') ||
       state.matches('establishingSupabaseSession'),
-  )
+  }))
 
-  const tier = supabaseSession?.access_token
-    ? extractTierFromToken(supabaseSession.access_token, APP_NAME)
-    : null
+  const tier = accessToken ? extractTierFromToken(accessToken, APP_NAME) : null
 
   const isSubscriber = tier !== null && SUBSCRIPTION_TIERS.includes(tier)
 

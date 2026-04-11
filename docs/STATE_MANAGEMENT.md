@@ -98,10 +98,19 @@ rather than registering a separate `supabaseClient.auth.onAuthStateChange` liste
 would be a duplicate of the listener already inside `authMachine`).
 
 ```ts
-const supabaseSession = useSelector(authService, (state) => state.context.supabaseSession)
-const tier = supabaseSession?.access_token
-  ? extractTierFromToken(supabaseSession.access_token, APP_NAME)
-  : null
+const accessToken = useSelector(
+  authService,
+  (state) => state.context.supabaseSession?.access_token ?? null,
+)
+const isLoading = useSelector(
+  authService,
+  (state) =>
+    state.matches('initializing') ||
+    state.matches('signingIn') ||
+    state.matches('exchangingToken') ||
+    state.matches('establishingSupabaseSession'),
+)
+const tier = accessToken ? extractTierFromToken(accessToken, APP_NAME) : null
 ```
 
 `isLoading` mirrors the same loading states that `RootLayoutNav` uses so that components
