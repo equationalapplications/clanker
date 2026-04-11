@@ -138,7 +138,7 @@ export default function SubscribeScreen() {
               <View style={styles.purchaseLegalContainer}>
                 <Text variant="bodySmall" style={styles.purchaseLegalText}>
                   By subscribing, you agree to the Terms of Use. Auto-renewable subscriptions are
-                  billed through Apple App Store. Apple Standard EULA applies.
+                  billed through the Apple App Store. The Apple Standard EULA applies.
                 </Text>
                 <View style={styles.purchaseLegalLinksRow}>
                   <Button compact mode="text" onPress={() => router.push('/terms')}>
