@@ -1,3 +1,23 @@
+# [26.1.0](https://github.com/equationalapplications/clanker/compare/v26.0.3...v26.1.0) (2026-04-11)
+
+
+### Bug Fixes
+
+* **accept-terms:** resolve terms/privacy navigation on web ([d8bcb67](https://github.com/equationalapplications/clanker/commit/d8bcb67c0fa61a3e3e0a7ad9848d848dc01a4fe9))
+* **consent:** scope Apple copy to iOS and inline EULA terms ([e11b35e](https://github.com/equationalapplications/clanker/commit/e11b35e43cd2501bc9968eba80fbaf54296ee1af))
+* **copy:** clarify Apple's App Store terms wording in acceptance notice ([50f7e54](https://github.com/equationalapplications/clanker/commit/50f7e5472f94ff20a152654a55a75345abf90303))
+* **lint:** escape apostrophe in JSX text ([3e787d2](https://github.com/equationalapplications/clanker/commit/3e787d247e2b9b400edece4936e30bbea7982462))
+* **nav:** dismiss drawer context before navigating to terms/privacy from accept screen ([ffe3b59](https://github.com/equationalapplications/clanker/commit/ffe3b59c61aa752a6458af53faaa5d1f1050a2e3))
+* remove unused styles and fix terms gate alignment ([1a87c92](https://github.com/equationalapplications/clanker/commit/1a87c92de14352dbdb55ea6b40b20d6a145afa28))
+* **terms:** further shorten iOS legal summary copy ([01567b0](https://github.com/equationalapplications/clanker/commit/01567b0985fc3f50891c64110e13f0b830ffaf55))
+* **terms:** shorten iOS Apple legal summary copy ([18844a1](https://github.com/equationalapplications/clanker/commit/18844a110c4cf3d572011d55928683892272c712))
+
+
+### Features
+
+* **nav:** add icon-back navigation to legal pages with dark mode support ([83f53b6](https://github.com/equationalapplications/clanker/commit/83f53b60a7b1947c75038223b898924d7f2f40af))
+* **subscriptions:** add Apple auto-renewable subscription consent compliance ([ad0d170](https://github.com/equationalapplications/clanker/commit/ad0d1703eb6218c963cad14429d33ab353d650b5))
+
 ## [26.0.3](https://github.com/equationalapplications/clanker/compare/v26.0.2...v26.0.3) (2026-04-11)
 
 
