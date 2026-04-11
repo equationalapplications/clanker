@@ -66,12 +66,10 @@ export function AcceptTerms({
   }
 
   const onPressTerms = () => {
-    router.dismiss()
     router.push('/terms')
   }
 
   const onPressPrivacy = () => {
-    router.dismiss()
     router.push('/privacy')
   }
 
