@@ -26,18 +26,27 @@ import {
   GlobalStateContext,
   useAuthMachine,
   useCharacterMachine,
+  useTermsMachine,
 } from '~/hooks/useMachines'
 
-function GlobalStateProvider({ children }: { children: React.ReactNode }) {
-  const authService = useActorRef(authMachine)
-  const termsService = useActorRef(termsMachine)
-  const characterService = useActorRef(characterMachine)
+/**
+ * Wires cross-machine coordination in one place.
+ *
+ * Every time a new machine is added to GlobalStateContext, the forwarding
+ * rules for that machine live here rather than being spread across the layout.
+ *
+ * Current wiring:
+ *   authMachine → characterMachine : USER_CHANGED  (deduplicated by userId)
+ *   authMachine → termsMachine     : AUTH_STATE_CHANGED (deduplicated by snapshot)
+ */
+function AppOrchestrator({ children }: { children: React.ReactNode }) {
+  const authService = useAuthMachine()
+  const termsService = useTermsMachine()
+  const characterService = useCharacterMachine()
 
   const previousAuthSnapshotRef = useRef<
     { isSignedInState: boolean; firebaseUserId: string | null; supabaseUserId: string | null } | null
-  >(
-    null
-  )
+  >(null)
 
   // authMachine → characterMachine: forward user changes (deduplicated)
   const previousCharacterUserIdRef = useRef<string | null>(null)
@@ -52,8 +61,9 @@ function GlobalStateProvider({ children }: { children: React.ReactNode }) {
     return subscription.unsubscribe
   }, [authService, characterService])
 
+  // authMachine → termsMachine: forward auth state changes (deduplicated)
   useEffect(() => {
-    const subscription = authService.subscribe((state: any) => {
+    const subscription = authService.subscribe((state) => {
       const firebaseUserId = state.context.user?.uid ?? null
       const supabaseUserId = state.context.supabaseSession?.user?.id ?? null
       const nextAuthSnapshot = {
@@ -77,9 +87,23 @@ function GlobalStateProvider({ children }: { children: React.ReactNode }) {
     return subscription.unsubscribe
   }, [authService, termsService])
 
+  return <>{children}</>
+}
+
+/**
+ * Creates the three core xState actors and publishes them via GlobalStateContext.
+ * Coordination between machines is handled by the nested AppOrchestrator.
+ * To add a new machine: spawn it here with useActorRef, add it to the context value,
+ * and wire any cross-machine events in AppOrchestrator.
+ */
+function GlobalStateProvider({ children }: { children: React.ReactNode }) {
+  const authService = useActorRef(authMachine)
+  const termsService = useActorRef(termsMachine)
+  const characterService = useActorRef(characterMachine)
+
   return (
     <GlobalStateContext.Provider value={{ authService, termsService, characterService }}>
-      {children}
+      <AppOrchestrator>{children}</AppOrchestrator>
     </GlobalStateContext.Provider>
   )
 }
