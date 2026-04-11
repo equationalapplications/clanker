@@ -89,8 +89,8 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // - A true fresh install where CREATE_TABLES already created the latest schema
         // - A legacy DB that predates schema_version and still needs migrations
         //
-        // Distinguish between these by checking for a column that was added by
-        // a migration (e.g. characters.avatar_data, added in schema v3).
+        // Distinguish between these by confirming the DB already has the
+        // migration-added columns from the latest schema (v3).
         const columns = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(characters)')
         const hasDeletedAt = columns.some((column) => column.name === 'deleted_at')
         const hasAvatarData = columns.some((column) => column.name === 'avatar_data')

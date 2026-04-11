@@ -165,7 +165,13 @@ function RootLayoutNav() {
         name="terms"
         options={{ presentation: 'modal', title: 'Terms and Conditions' }}
       />
-      <Stack.Screen name="support" options={{ title: 'Support' }} />
+      <Stack.Screen
+        name="support"
+        options={{
+          title: 'Support',
+          headerBackTitle: 'Back',
+        }}
+      />
       <Stack.Screen name="checkout/success" options={{ headerShown: false }} />
       <Stack.Screen name="checkout/cancel" options={{ headerShown: false }} />
     </Stack>
