@@ -21,6 +21,50 @@ function getSupabaseServiceRoleKey(): string | undefined {
 type UnknownRecord = Record<string, unknown>;
 
 /**
+ * Find a Supabase user by email via the Admin API.
+ * Unlike the RPC lookup, the Admin API can return soft-deleted users.
+ */
+async function findSupabaseUserByEmailAdmin(
+    email: string,
+    base: string,
+    supabaseServiceRoleKey: string
+): Promise<{ id: string; deletedAt: string | null } | null> {
+    const headers = {
+        "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+        "apikey": supabaseServiceRoleKey,
+        "Content-Type": "application/json",
+    };
+
+    // The GoTrue admin list endpoint supports undocumented "filter" param
+    // that matches against email and other fields.
+    const params = new URLSearchParams({
+        page: "1",
+        per_page: "50",
+        filter: email.toLowerCase(),
+    });
+
+    const listRes = await fetch(`${base}/auth/v1/admin/users?${params.toString()}`, { headers });
+    if (!listRes.ok) {
+        logger.warn("Admin user list lookup failed", { status: listRes.status, email });
+        return null;
+    }
+
+    const listBody = await listRes.json() as UnknownRecord;
+    const users = Array.isArray(listBody["users"]) ? listBody["users"] as UnknownRecord[] : [];
+
+    // Find exact email match (filter is a substring match)
+    const match = users.find(
+        (u) => typeof u["email"] === "string" && u["email"].toLowerCase() === email.toLowerCase()
+    );
+    if (!match || typeof match["id"] !== "string") {
+        return null;
+    }
+
+    const deletedAt = typeof match["deleted_at"] === "string" ? match["deleted_at"] : null;
+    return { id: match["id"] as string, deletedAt };
+}
+
+/**
  * Create a Supabase user via the Admin API using the service role key.
  * Returns the created user's id or null on failure.
  */
@@ -38,7 +82,8 @@ async function createSupabaseUser(
         );
     }
 
-    const url = `${supabaseUrl.replace(/\/+$/, "")}/auth/v1/admin/users`;
+    const base = supabaseUrl.replace(/\/+$/, "");
+    const url = `${base}/auth/v1/admin/users`;
 
     try {
         const res = await fetch(url, {
@@ -63,6 +108,89 @@ async function createSupabaseUser(
                 error: errorText,
                 email
             });
+
+            // If creation failed because the email already exists (e.g.
+            // soft-deleted user), find the stale auth user, hard-delete it,
+            // and recreate a fresh auth user.
+            if (res.status === 422) {
+                logger.info("Attempting admin API fallback for existing/soft-deleted user", { email });
+                const existing = await findSupabaseUserByEmailAdmin(email, base, supabaseServiceRoleKey);
+                if (!existing) {
+                    return null;
+                }
+
+                if (!existing.deletedAt) {
+                    logger.info("Existing active Supabase user found via admin API; using existing account", {
+                        existingUserId: existing.id,
+                        email,
+                    });
+                    return { id: existing.id };
+                }
+
+                const deleteRes = await fetch(
+                    `${base}/auth/v1/admin/users/${encodeURIComponent(existing.id)}`,
+                    {
+                        method: "DELETE",
+                        headers: {
+                            "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+                            "apikey": supabaseServiceRoleKey,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+
+                if (!deleteRes.ok && deleteRes.status !== 404) {
+                    const deleteError = await deleteRes.text();
+                    logger.error("Failed to delete stale Supabase user during recreate", {
+                        existingUserId: existing.id,
+                        status: deleteRes.status,
+                        error: deleteError,
+                        email,
+                    });
+                    return null;
+                }
+
+                const recreateRes = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+                        "apikey": supabaseServiceRoleKey,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        email,
+                        email_confirm: true,
+                        user_metadata: { firebaseUid },
+                    }),
+                });
+
+                if (!recreateRes.ok) {
+                    const recreateError = await recreateRes.text();
+                    logger.error("Failed to recreate Supabase user after deleting stale user", {
+                        existingUserId: existing.id,
+                        status: recreateRes.status,
+                        error: recreateError,
+                        email,
+                    });
+                    return null;
+                }
+
+                const recreatedBody: unknown = await recreateRes.json();
+                if (recreatedBody && typeof recreatedBody === "object" && "id" in recreatedBody) {
+                    const obj = recreatedBody as UnknownRecord;
+                    const id = obj["id"] as unknown;
+                    if (typeof id === "string") {
+                        logger.info("Recreated Supabase user after stale-user cleanup", {
+                            previousUserId: existing.id,
+                            newUserId: id,
+                            email,
+                        });
+                        return { id };
+                    }
+                }
+                return null;
+            }
+
             return null;
         }
 

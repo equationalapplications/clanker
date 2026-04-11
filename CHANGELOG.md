@@ -1,3 +1,13 @@
+## [26.1.1](https://github.com/equationalapplications/clanker/compare/v26.1.0...v26.1.1) (2026-04-11)
+
+
+### Bug Fixes
+
+* **credits:** make terms acceptance atomic and gate free-tier provisioning ([f585bd1](https://github.com/equationalapplications/clanker/commit/f585bd124f530a0d61118fec04ab739837243d4b))
+* **credits:** separate terms acceptance from credit provisioning ([f11dcc8](https://github.com/equationalapplications/clanker/commit/f11dcc8860698ec9a49ca7ee1f8e2bef3cd5a622))
+* **credits:** simplify exchange token provisioning and fix docs ([b0325a4](https://github.com/equationalapplications/clanker/commit/b0325a4b861f3516effac2c58700bcf4dee6f45b))
+* **subscribe:** refine iOS legal copy grammar ([042a00f](https://github.com/equationalapplications/clanker/commit/042a00f1749c53a2ed473185933ec9e42dc962fe))
+
 # [26.1.0](https://github.com/equationalapplications/clanker/compare/v26.0.3...v26.1.0) (2026-04-11)
 
 

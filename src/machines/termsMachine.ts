@@ -35,7 +35,16 @@ const recordTermsAcceptance = async (userId: string): Promise<void> => {
     .maybeSingle()
 
   if (updateError) throw updateError
-  if (!updatedSubscription) throw new Error('Missing subscription row for terms acceptance')
+  if (!updatedSubscription) {
+    // Log for diagnostics but do NOT throw — optimistic acceptance lets the
+    // user proceed. Server-side RLS/RPC should enforce terms on protected
+    // operations (see AUTH_FLOW.md § RLS Helper Functions).
+    console.warn('Missing subscription row for terms acceptance', {
+      userId,
+      appName: APP_NAME,
+      termsVersion: TERMS.version,
+    })
+  }
 }
 
 export interface TermsMachineContext {
