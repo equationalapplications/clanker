@@ -1,6 +1,8 @@
-import { StyleSheet, ScrollView, View } from 'react-native'
-import { Text, useTheme } from 'react-native-paper'
+import { StyleSheet, ScrollView, View, Linking } from 'react-native'
+import { Text, useTheme, Button } from 'react-native-paper'
 import { TERMS } from '~/config/termsConfig'
+
+const APPLE_EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'
 
 export default function Terms() {
   const { colors } = useTheme()
@@ -24,6 +26,14 @@ export default function Terms() {
       </View>
 
       <View style={styles.separator} />
+      <View style={styles.eulaSection}>
+        <Text style={[styles.eulaText, { color: colors.onSurfaceVariant }]}>
+          For auto-renewable subscriptions purchased on iOS, Apple Standard EULA also applies.
+        </Text>
+        <Button compact mode="text" onPress={() => Linking.openURL(APPLE_EULA_URL)}>
+          View Apple Standard EULA
+        </Button>
+      </View>
       <ScrollView contentContainerStyle={styles.scrollView}>
         <Text>{TERMS.terms}</Text>
       </ScrollView>
@@ -47,6 +57,15 @@ const styles = StyleSheet.create({
     width: '80%',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  eulaSection: {
+    width: '80%',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  eulaText: {
+    fontSize: 12,
+    textAlign: 'center',
   },
   headerRow: {
     width: '100%',
