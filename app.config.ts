@@ -93,6 +93,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     image: './assets/splash.png',
     resizeMode: 'contain',
     backgroundColor: '#ffffff',
+    dark: {
+      image: './assets/splash.png',
+      backgroundColor: '#000000',
+    },
   },
   updates: {
     url: 'https://u.expo.dev/2333eead-a87c-4a6f-adea-b1b433f4740e',

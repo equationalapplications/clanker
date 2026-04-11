@@ -116,7 +116,6 @@ export function AcceptTerms({
             onPress={onPressChecked}
             color={colors.primary}
             uncheckedColor={colors.onBackground}
-            style={styles.checkbox}
           />
         </View>
         <Text style={styles.text}>
@@ -162,9 +161,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 8,
     marginRight: 4,
-  },
-  checkbox: {
-    margin: 0,
   },
   buttonRow: {
     flexDirection: 'row',
