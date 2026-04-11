@@ -63,7 +63,7 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
 
   // authMachine → termsMachine: forward auth state changes (deduplicated)
   useEffect(() => {
-    const subscription = authService.subscribe((state: any) => {
+    const subscription = authService.subscribe((state) => {
       const firebaseUserId = state.context.user?.uid ?? null
       const supabaseUserId = state.context.supabaseSession?.user?.id ?? null
       const nextAuthSnapshot = {
