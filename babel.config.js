@@ -1,7 +1,7 @@
 module.exports = function (api) {
-  api.cache(true)
+  api.cache.using(() => process.env.BABEL_ENV || process.env.NODE_ENV)
 
-  const isTest = process.env.NODE_ENV === 'test'
+  const isTest = api.env('test')
 
   return {
     presets: ['babel-preset-expo'],
