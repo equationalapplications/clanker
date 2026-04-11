@@ -3,7 +3,7 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { getSupabaseUrl } from "./runtimeConfig.js";
-import { findSupabaseUserByEmail } from "./supabaseAdmin.js";
+import { findSupabaseUserByEmail, findSupabaseUserByEmailIncludeDeleted } from "./supabaseAdmin.js";
 
 const APP_NAME = "clanker";
 const INITIAL_FREE_CREDITS = 50;
@@ -19,50 +19,6 @@ function getSupabaseServiceRoleKey(): string | undefined {
 
 
 type UnknownRecord = Record<string, unknown>;
-
-/**
- * Find a Supabase user by email via the Admin API.
- * Unlike the RPC lookup, the Admin API can return soft-deleted users.
- */
-async function findSupabaseUserByEmailAdmin(
-    email: string,
-    base: string,
-    supabaseServiceRoleKey: string
-): Promise<{ id: string; deletedAt: string | null } | null> {
-    const headers = {
-        "Authorization": `Bearer ${supabaseServiceRoleKey}`,
-        "apikey": supabaseServiceRoleKey,
-        "Content-Type": "application/json",
-    };
-
-    // The GoTrue admin list endpoint supports undocumented "filter" param
-    // that matches against email and other fields.
-    const params = new URLSearchParams({
-        page: "1",
-        per_page: "50",
-        filter: email.toLowerCase(),
-    });
-
-    const listRes = await fetch(`${base}/auth/v1/admin/users?${params.toString()}`, { headers });
-    if (!listRes.ok) {
-        logger.warn("Admin user list lookup failed", { status: listRes.status, email });
-        return null;
-    }
-
-    const listBody = await listRes.json() as UnknownRecord;
-    const users = Array.isArray(listBody["users"]) ? listBody["users"] as UnknownRecord[] : [];
-
-    // Find exact email match (filter is a substring match)
-    const match = users.find(
-        (u) => typeof u["email"] === "string" && u["email"].toLowerCase() === email.toLowerCase()
-    );
-    if (!match || typeof match["id"] !== "string") {
-        return null;
-    }
-
-    const deletedAt = typeof match["deleted_at"] === "string" ? match["deleted_at"] : null;
-    return { id: match["id"] as string, deletedAt };
-}
 
 /**
  * Create a Supabase user via the Admin API using the service role key.
@@ -113,14 +69,14 @@ async function createSupabaseUser(
             // soft-deleted user), find the stale auth user, hard-delete it,
             // and recreate a fresh auth user.
             if (res.status === 422) {
-                logger.info("Attempting admin API fallback for existing/soft-deleted user", { email });
-                const existing = await findSupabaseUserByEmailAdmin(email, base, supabaseServiceRoleKey);
+                logger.info("Attempting RPC fallback for existing/soft-deleted user", { email });
+                const existing = await findSupabaseUserByEmailIncludeDeleted(email);
                 if (!existing) {
                     return null;
                 }
 
                 if (!existing.deletedAt) {
-                    logger.info("Existing active Supabase user found via admin API; using existing account", {
+                    logger.info("Existing active Supabase user found; using existing account", {
                         existingUserId: existing.id,
                         email,
                     });
