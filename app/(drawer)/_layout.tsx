@@ -1,11 +1,12 @@
 import { DrawerActions, useNavigation } from '@react-navigation/native'
 import { DrawerContentScrollView, DrawerItem, DrawerItemList } from '@react-navigation/drawer'
-import { router, usePathname, type Href } from 'expo-router'
+import { router, type Href } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
 import { useTheme, Icon } from 'react-native-paper'
-import { Pressable } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { useSelector } from '@xstate/react'
-import { useTermsMachine } from '~/hooks/useMachines'
+import { useAuthMachine, useTermsMachine } from '~/hooks/useMachines'
+import { AcceptTerms } from '~/components/AcceptTerms'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import React from 'react'
 
@@ -38,29 +39,36 @@ function DrawerToggleButton({ tintColor }: { tintColor?: string }) {
 
 const AppLayout = () => {
   const theme = useTheme()
-  const pathname = usePathname()
   const termsService = useTermsMachine()
-  const { termsAccepted, termsBlocking, termsLoading, isUpdate } = useSelector(
+  const authService = useAuthMachine()
+  const { termsAccepted, termsBlocking, termsLoading, isUpdate, accepting, error } = useSelector(
     termsService,
     (state) => ({
       termsAccepted: state.matches('accepted'),
       termsBlocking: state.matches('acceptanceRequired'),
       termsLoading: state.matches('idle') || state.matches('checking'),
       isUpdate: state.context.isUpdate,
+      accepting: state.matches('accepting'),
+      error: state.context.error,
     }),
   )
 
-  React.useEffect(() => {
-    if (termsBlocking && pathname !== '/accept-terms') {
-      router.replace({
-        pathname: '/accept-terms',
-        params: { isUpdate: isUpdate.toString() },
-      })
-    }
-  }, [termsBlocking, isUpdate, pathname])
-
   if (termsLoading) {
     return <LoadingIndicator disabled={false} />
+  }
+
+  if (termsBlocking || accepting) {
+    return (
+      <View style={styles.blockingContainer}>
+        <AcceptTerms
+          onAccepted={() => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })}
+          onCanceled={() => authService.send({ type: 'SIGN_OUT' })}
+          isUpdate={isUpdate}
+          accepting={accepting}
+          error={error?.message}
+        />
+      </View>
+    )
   }
 
   return (
@@ -124,5 +132,13 @@ const AppLayout = () => {
     </Drawer>
   )
 }
+
+const styles = StyleSheet.create({
+  blockingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+})
 
 export default AppLayout
