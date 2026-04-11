@@ -1,3 +1,15 @@
+## [26.1.3](https://github.com/equationalapplications/clanker/compare/v26.1.2...v26.1.3) (2026-04-11)
+
+
+### Bug Fixes
+
+* **tsconfig:** document skipLibCheck requirement for Supabase SDK ([82146a1](https://github.com/equationalapplications/clanker/commit/82146a1ad4cda6f133d10808142daebdf108a233))
+
+
+### Performance Improvements
+
+* memoize Supabase admin client as module-level singleton ([d3f02d5](https://github.com/equationalapplications/clanker/commit/d3f02d5e646897c9fa6a479ee296b8a2497259f7))
+
 ## [26.1.2](https://github.com/equationalapplications/clanker/compare/v26.1.1...v26.1.2) (2026-04-11)
 
 
