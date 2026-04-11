@@ -2,16 +2,29 @@ import { createActor, waitFor } from 'xstate'
 import { TERMS } from '../src/config/termsConfig'
 
 const mockMaybeSingle = jest.fn()
-const mockUpsert = jest.fn()
+const mockUpdate = jest.fn()
+
+const buildEqChain = (terminal: () => unknown) => ({
+  eq: jest.fn(() => ({
+    eq: jest.fn(() => terminal()),
+  })),
+})
+
 const mockFrom = jest.fn(() => ({
-  select: jest.fn(() => ({
+  select: jest.fn(() =>
+    buildEqChain(() => ({
+      maybeSingle: mockMaybeSingle,
+    })),
+  ),
+  update: jest.fn(() => ({
     eq: jest.fn(() => ({
       eq: jest.fn(() => ({
-        maybeSingle: mockMaybeSingle,
+        select: jest.fn(() => ({
+          maybeSingle: mockUpdate,
+        })),
       })),
     })),
   })),
-  upsert: mockUpsert,
 }))
 
 jest.mock('../src/config/supabaseClient', () => ({
@@ -37,7 +50,15 @@ function signedInAuthState(userId = 'supabase-user-1') {
 
 describe('termsMachine', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    mockMaybeSingle.mockReset()
+    mockUpdate.mockReset()
+    mockFrom.mockClear()
+
+    mockMaybeSingle.mockResolvedValue({
+      data: null,
+      error: null,
+    })
+    mockUpdate.mockResolvedValue({ data: { user_id: 'supabase-user-1' }, error: null })
   })
 
   it('goes to accepted when current terms are already accepted', async () => {
@@ -118,11 +139,11 @@ describe('termsMachine', () => {
   })
 
   it('accepts terms successfully from acceptanceRequired', async () => {
-    mockMaybeSingle.mockResolvedValue({
-      data: null,
-      error: null,
-    })
-    mockUpsert.mockResolvedValue({ error: null })
+    mockMaybeSingle
+      .mockResolvedValueOnce({
+        data: { terms_accepted_at: null, terms_version: null },
+        error: null,
+      })
 
     const actor = createActor(termsMachine)
     actor.start()
@@ -132,17 +153,38 @@ describe('termsMachine', () => {
 
     actor.send({ type: 'ACCEPT_TERMS' })
     await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
-    expect(mockUpsert).toHaveBeenCalledTimes(1)
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
     expect(actor.getSnapshot().context.error).toBeNull()
     actor.stop()
   })
 
+  it('updates terms fields only when subscription already exists', async () => {
+    mockMaybeSingle
+      .mockResolvedValueOnce({
+        data: { terms_accepted_at: null, terms_version: null },
+        error: null,
+      })
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({ type: 'AUTH_STATE_CHANGED', authState: signedInAuthState() } as any)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    actor.send({ type: 'ACCEPT_TERMS' })
+    await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
+
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+    actor.stop()
+  })
+
   it('returns to acceptanceRequired and stores error when accept write fails', async () => {
-    mockMaybeSingle.mockResolvedValue({
-      data: null,
-      error: null,
-    })
-    mockUpsert.mockResolvedValue({ error: new Error('write failed') })
+    mockMaybeSingle
+      .mockResolvedValueOnce({
+        data: { terms_accepted_at: null, terms_version: null },
+        error: null,
+      })
+    mockUpdate.mockResolvedValue({ data: null, error: new Error('write failed') })
 
     const actor = createActor(termsMachine)
     actor.start()
@@ -155,4 +197,24 @@ describe('termsMachine', () => {
     expect(actor.getSnapshot().context.error?.message).toContain('write failed')
     actor.stop()
   })
+
+  it('returns to acceptanceRequired when subscription row is missing during accept', async () => {
+    mockMaybeSingle.mockResolvedValueOnce({
+      data: { terms_accepted_at: null, terms_version: null },
+      error: null,
+    })
+    mockUpdate.mockResolvedValue({ data: null, error: null })
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({ type: 'AUTH_STATE_CHANGED', authState: signedInAuthState() } as any)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    actor.send({ type: 'ACCEPT_TERMS' })
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.error?.message).toContain('Missing subscription row')
+    actor.stop()
+  })
+
 })

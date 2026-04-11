@@ -112,7 +112,8 @@ Expo Router automatically infers additional routes when nested groups are used.
 
 ## Troubleshooting Notes
 
-- **Stuck on accept-terms:** Ensure Supabase JWT claims are refreshing; the optimistic modal depends on the background call to `grantAppAccess`.
+- **Stuck on accept-terms:** Ensure the terms write in `termsMachine` is succeeding and that
+  subscription rows exist for `(user_id, app_name)`.
 - **Drawer not appearing:** Confirm the Firebase user is available in `useAuth()` and that `Stack.Protected`'s guard resolves to `true`.
 - **Route type errors:** Clear the Expo Router cache so the generated type definitions match the updated file tree.
 

@@ -5,6 +5,9 @@ import type { DecodedIdToken } from "firebase-admin/auth";
 import { getSupabaseUrl } from "./runtimeConfig.js";
 import { findSupabaseUserByEmail } from "./supabaseAdmin.js";
 
+const APP_NAME = "clanker";
+const INITIAL_FREE_CREDITS = 50;
+
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
     admin.initializeApp();
@@ -188,6 +191,56 @@ async function getSupabaseUserSession(
 }
 
 /**
+ * Ensure the user has a free-tier subscription row for this app.
+ * This is an idempotent insert and will not overwrite existing rows.
+ */
+async function ensureFreeTierSubscription(supabaseUserId: string): Promise<void> {
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+    if (!supabaseServiceRoleKey || !supabaseUrl) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
+        );
+    }
+
+    const base = supabaseUrl.replace(/\/+$/, "");
+    const url = `${base}/rest/v1/user_app_subscriptions?on_conflict=user_id,app_name`;
+
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+            "apikey": supabaseServiceRoleKey,
+            "Content-Type": "application/json",
+            // Ensure this behaves like INSERT ... ON CONFLICT DO NOTHING.
+            "Prefer": "resolution=ignore-duplicates,return=minimal",
+        },
+        body: JSON.stringify({
+            user_id: supabaseUserId,
+            app_name: APP_NAME,
+            plan_tier: "free",
+            plan_status: "active",
+            current_credits: INITIAL_FREE_CREDITS,
+            updated_at: new Date().toISOString(),
+        }),
+    });
+
+    if (!res.ok) {
+        const errorText = await res.text();
+        logger.error("Failed to ensure free-tier subscription", {
+            supabaseUserId,
+            status: res.status,
+            error: errorText,
+        });
+        throw new HttpsError(
+            "internal",
+            "Failed to ensure initial free-tier subscription."
+        );
+    }
+}
+
+/**
  * exchangeToken (2nd Gen callable)
  *
  * Authenticates a Firebase user with Supabase by:
@@ -271,6 +324,8 @@ const handler = async (request: CallableRequest) => {
             "Failed to find or create corresponding Supabase user."
         );
     }
+
+    await ensureFreeTierSubscription(supabaseUserId);
 
     // Generate a real Supabase session via Admin API (triggers auth hooks)
     const session = await getSupabaseUserSession(email);

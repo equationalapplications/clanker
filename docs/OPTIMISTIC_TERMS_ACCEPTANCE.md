@@ -50,8 +50,8 @@ if (localTermsAccepted) {
 
 ```typescript
 const onPressAccept = async () => {
-  // Write to database (async)
-  await grantAppAccess('clanker', version)
+  // Write terms acceptance via termsMachine actor (async)
+  termsService.send({ type: 'ACCEPT_TERMS' })
 
   // Immediately proceed (optimistic)
   onAccepted?.() // Navigation happens instantly
@@ -61,16 +61,26 @@ const onPressAccept = async () => {
 ### Persistence
 
 ```typescript
-export async function grantAppAccess() {
-  // Write subscription to database
-  await supabaseClient.from('user_app_subscriptions').upsert({
-    terms_accepted_at: new Date().toISOString(),
-    terms_version: version,
-  })
+export async function recordTermsAcceptance(userId: string) {
+  const now = new Date().toISOString()
 
-  // No JWT refresh needed!
-  // Next natural refresh will pick it up
-  return { success: true }
+  // Atomically update terms fields and verify the row exists
+  const { data: updatedSubscription, error: updateError } = await supabaseClient
+    .from('user_app_subscriptions')
+    .update({
+      terms_accepted_at: now,
+      terms_version: TERMS.version,
+      updated_at: now,
+    })
+    .eq('user_id', userId)
+    .eq('app_name', APP_NAME)
+    .select('user_id')
+    .maybeSingle()
+
+  if (updateError) throw updateError
+  if (!updatedSubscription) {
+    throw new Error('Missing subscription row for terms acceptance')
+  }
 }
 ```
 
