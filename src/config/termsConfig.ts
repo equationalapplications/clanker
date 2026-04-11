@@ -23,7 +23,8 @@ By using Clanker, you agree to these key terms:
 
 • Subscription & Billing: Premium features require an active subscription through your app store. Billing, renewal, and refunds are handled by your app store provider
 
-• iOS Legal Terms: Auto-renewable subscriptions on iOS are also governed by Apple's Standard EULA
+• iOS Legal Terms: Purchases made through the Apple App Store on iOS are governed by
+  Apple App Store terms and Apple's Standard EULA
   (${APPLE_EULA_URL})
 
 • Prohibited Uses: No harmful, illegal, or inappropriate content. Respect other users and community guidelines
