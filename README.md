@@ -8,6 +8,10 @@
 - **[Merge Strategy](docs/MERGE_STRATEGY.md)** — How to promote code from staging → main (and sync main → staging) using merge commits.
 - **[Expo Updates & Runtime Versioning](docs/EXPO_UPDATES.md)** — How OTA updates work, runtime version strategy, and the relationship between conventional commits and deployment types (OTA vs native builds).
 
+## State Management
+
+- [State management architecture](docs/STATE_MANAGEMENT.md) — Layer overview (xState / TanStack Query / SQLite), when and how to add new xState machines, inter-machine coordination via `AppOrchestrator`, and how `useCurrentPlan` derives plan tier from the auth machine.
+
 ## Architecture & Auth
 
 - [Auth flow (concise)](docs/AUTH_FLOW.md) — Step-by-step: Firebase Auth → `exchangeToken` cloud function → Supabase session tokens.
