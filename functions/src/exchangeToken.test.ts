@@ -112,3 +112,98 @@ test("exchangeTokenHandler throws when subscription bootstrap fails", async () =
     globalThis.fetch = originalFetch;
   }
 });
+
+test("exchangeTokenHandler recreates a soft-deleted Supabase user", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{url: string; method: string; body: string}> = [];
+
+  const responses = [
+    // 1. findSupabaseUserByEmail RPC → null (not found / soft-deleted)
+    new Response(JSON.stringify(null), {status: 200}),
+    // 2. createSupabaseUser POST → 422 (email already exists)
+    new Response(JSON.stringify({msg: "A user with this email address has already been registered"}), {status: 422}),
+    // 3. findSupabaseUserByEmailAdmin GET list → returns soft-deleted user
+    new Response(
+      JSON.stringify({
+        users: [{id: "reactivated-id", email: "person@example.com", deleted_at: "2026-04-11T00:00:00.000Z"}],
+      }),
+      {status: 200}
+    ),
+    // 4. delete stale user → success
+    new Response(null, {status: 200}),
+    // 5. recreate user → success
+    new Response(JSON.stringify({id: "recreated-id"}), {status: 201}),
+    // 6. ensureFreeTierSubscription POST → success
+    new Response(null, {status: 201}),
+    // 7. generate_link → hashed token
+    new Response(JSON.stringify({hashed_token: "hashed-token"}), {status: 200}),
+    // 8. verify → session
+    new Response(
+      JSON.stringify({
+        access_token: "access-token",
+        refresh_token: "refresh-token",
+        expires_in: 3600,
+        token_type: "bearer",
+      }),
+      {status: 200}
+    ),
+  ];
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({
+      url: String(input),
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" ? init.body : "",
+    });
+
+    const next = responses.shift();
+    if (!next) {
+      throw new Error("Unexpected fetch call in soft-delete recreate test");
+    }
+
+    return next;
+  }) as typeof fetch;
+
+  try {
+    const result = await exchangeTokenHandler({
+      auth: {
+        uid: "firebase-uid-1",
+        token: {
+          uid: "firebase-uid-1",
+          email: "person@example.com",
+        },
+      },
+    } as never);
+
+    assert.deepEqual(result, {
+      access_token: "access-token",
+      refresh_token: "refresh-token",
+      expires_in: 3600,
+      token_type: "bearer",
+    });
+
+    assert.equal(calls.length, 8);
+    // RPC lookup
+    assert.match(calls[0]?.url ?? "", /get_user_id_by_email$/);
+    // create user attempt
+    assert.equal(calls[1]?.method, "POST");
+    assert.match(calls[1]?.url ?? "", /admin\/users$/);
+    // admin list fallback
+    assert.equal(calls[2]?.method, "GET");
+    assert.match(calls[2]?.url ?? "", /admin\/users\?/);
+    // stale-user delete
+    assert.equal(calls[3]?.method, "DELETE");
+    assert.match(calls[3]?.url ?? "", /admin\/users\/reactivated-id$/);
+    // recreate user
+    assert.equal(calls[4]?.method, "POST");
+    assert.match(calls[4]?.url ?? "", /admin\/users$/);
+    // subscription bootstrap
+    assert.match(calls[5]?.url ?? "", /user_app_subscriptions/);
+    // generate_link
+    assert.match(calls[6]?.url ?? "", /generate_link$/);
+    // verify
+    assert.match(calls[7]?.url ?? "", /verify$/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

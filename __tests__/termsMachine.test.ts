@@ -198,7 +198,7 @@ describe('termsMachine', () => {
     actor.stop()
   })
 
-  it('returns to acceptanceRequired when subscription row is missing during accept', async () => {
+  it('proceeds to accepted optimistically when subscription row is missing during accept', async () => {
     mockMaybeSingle.mockResolvedValueOnce({
       data: { terms_accepted_at: null, terms_version: null },
       error: null,
@@ -212,8 +212,8 @@ describe('termsMachine', () => {
     await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
 
     actor.send({ type: 'ACCEPT_TERMS' })
-    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
-    expect(actor.getSnapshot().context.error?.message).toContain('Missing subscription row')
+    await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.error).toBeNull()
     actor.stop()
   })
 
