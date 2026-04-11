@@ -1,3 +1,10 @@
+## [26.1.2](https://github.com/equationalapplications/clanker/compare/v26.1.1...v26.1.2) (2026-04-11)
+
+
+### Bug Fixes
+
+* **auth:** handle soft-deleted Supabase users and implement optimistic terms acceptance ([d3d9f1d](https://github.com/equationalapplications/clanker/commit/d3d9f1dc51950efa4f26ab228cd873376293e1f1))
+
 ## [26.1.1](https://github.com/equationalapplications/clanker/compare/v26.1.0...v26.1.1) (2026-04-11)
 
 
