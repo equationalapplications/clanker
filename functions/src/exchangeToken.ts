@@ -2,8 +2,7 @@ import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type { DecodedIdToken } from "firebase-admin/auth";
-import { getSupabaseUrl } from "./runtimeConfig.js";
-import { findSupabaseUserByEmail } from "./supabaseAdmin.js";
+import { getSupabaseAdminClient, findSupabaseUserByEmail, findSupabaseUserByEmailIncludeDeleted } from "./supabaseAdmin.js";
 
 const APP_NAME = "clanker";
 const INITIAL_FREE_CREDITS = 50;
@@ -11,57 +10,6 @@ const INITIAL_FREE_CREDITS = 50;
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
     admin.initializeApp();
-}
-
-function getSupabaseServiceRoleKey(): string | undefined {
-    return process.env.SUPABASE_SERVICE_ROLE_KEY;
-}
-
-
-type UnknownRecord = Record<string, unknown>;
-
-/**
- * Find a Supabase user by email via the Admin API.
- * Unlike the RPC lookup, the Admin API can return soft-deleted users.
- */
-async function findSupabaseUserByEmailAdmin(
-    email: string,
-    base: string,
-    supabaseServiceRoleKey: string
-): Promise<{ id: string; deletedAt: string | null } | null> {
-    const headers = {
-        "Authorization": `Bearer ${supabaseServiceRoleKey}`,
-        "apikey": supabaseServiceRoleKey,
-        "Content-Type": "application/json",
-    };
-
-    // The GoTrue admin list endpoint supports undocumented "filter" param
-    // that matches against email and other fields.
-    const params = new URLSearchParams({
-        page: "1",
-        per_page: "50",
-        filter: email.toLowerCase(),
-    });
-
-    const listRes = await fetch(`${base}/auth/v1/admin/users?${params.toString()}`, { headers });
-    if (!listRes.ok) {
-        logger.warn("Admin user list lookup failed", { status: listRes.status, email });
-        return null;
-    }
-
-    const listBody = await listRes.json() as UnknownRecord;
-    const users = Array.isArray(listBody["users"]) ? listBody["users"] as UnknownRecord[] : [];
-
-    // Find exact email match (filter is a substring match)
-    const match = users.find(
-        (u) => typeof u["email"] === "string" && u["email"].toLowerCase() === email.toLowerCase()
-    );
-    if (!match || typeof match["id"] !== "string") {
-        return null;
-    }
-
-    const deletedAt = typeof match["deleted_at"] === "string" ? match["deleted_at"] : null;
-    return { id: match["id"] as string, deletedAt };
 }
 
 /**
@@ -72,141 +20,89 @@ async function createSupabaseUser(
     email: string,
     firebaseUid: string
 ): Promise<{ id: string } | null> {
-    const supabaseUrl = getSupabaseUrl();
-    const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
-    if (!supabaseServiceRoleKey || !supabaseUrl) {
-        logger.warn("Missing Supabase service role key or URL for user creation");
-        throw new HttpsError(
-            "failed-precondition",
-            "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
-        );
-    }
+    const supabase = getSupabaseAdminClient();
 
-    const base = supabaseUrl.replace(/\/+$/, "");
-    const url = `${base}/auth/v1/admin/users`;
+    const { data, error } = await supabase.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: { firebaseUid },
+    });
 
-    try {
-        const res = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${supabaseServiceRoleKey}`,
-                "apikey": supabaseServiceRoleKey,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                email,
-                email_confirm: true,
-                user_metadata: { firebaseUid },
-            }),
+    if (error) {
+        logger.error("Failed to create Supabase user", {
+            message: error.message,
+            status: error.status,
+            email,
         });
 
-        if (!res.ok) {
-            const errorText = await res.text();
-            logger.error("Failed to create Supabase user", {
-                status: res.status,
-                statusText: res.statusText,
-                error: errorText,
-                email
-            });
-
-            // If creation failed because the email already exists (e.g.
-            // soft-deleted user), find the stale auth user, hard-delete it,
-            // and recreate a fresh auth user.
-            if (res.status === 422) {
-                logger.info("Attempting admin API fallback for existing/soft-deleted user", { email });
-                const existing = await findSupabaseUserByEmailAdmin(email, base, supabaseServiceRoleKey);
-                if (!existing) {
-                    return null;
-                }
-
-                if (!existing.deletedAt) {
-                    logger.info("Existing active Supabase user found via admin API; using existing account", {
-                        existingUserId: existing.id,
-                        email,
-                    });
-                    return { id: existing.id };
-                }
-
-                const deleteRes = await fetch(
-                    `${base}/auth/v1/admin/users/${encodeURIComponent(existing.id)}`,
-                    {
-                        method: "DELETE",
-                        headers: {
-                            "Authorization": `Bearer ${supabaseServiceRoleKey}`,
-                            "apikey": supabaseServiceRoleKey,
-                            "Content-Type": "application/json",
-                        },
-                    }
-                );
-
-                if (!deleteRes.ok && deleteRes.status !== 404) {
-                    const deleteError = await deleteRes.text();
-                    logger.error("Failed to delete stale Supabase user during recreate", {
-                        existingUserId: existing.id,
-                        status: deleteRes.status,
-                        error: deleteError,
-                        email,
-                    });
-                    return null;
-                }
-
-                const recreateRes = await fetch(url, {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${supabaseServiceRoleKey}`,
-                        "apikey": supabaseServiceRoleKey,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        email,
-                        email_confirm: true,
-                        user_metadata: { firebaseUid },
-                    }),
-                });
-
-                if (!recreateRes.ok) {
-                    const recreateError = await recreateRes.text();
-                    logger.error("Failed to recreate Supabase user after deleting stale user", {
-                        existingUserId: existing.id,
-                        status: recreateRes.status,
-                        error: recreateError,
-                        email,
-                    });
-                    return null;
-                }
-
-                const recreatedBody: unknown = await recreateRes.json();
-                if (recreatedBody && typeof recreatedBody === "object" && "id" in recreatedBody) {
-                    const obj = recreatedBody as UnknownRecord;
-                    const id = obj["id"] as unknown;
-                    if (typeof id === "string") {
-                        logger.info("Recreated Supabase user after stale-user cleanup", {
-                            previousUserId: existing.id,
-                            newUserId: id,
-                            email,
-                        });
-                        return { id };
-                    }
-                }
+        // If creation failed because the email already exists (e.g.
+        // soft-deleted user), find the stale auth user, hard-delete it,
+        // and recreate a fresh auth user.
+        if (error.status === 422) {
+            logger.info("Attempting fallback for existing/soft-deleted user", { email });
+            const existing = await findSupabaseUserByEmailIncludeDeleted(email);
+            if (!existing) {
                 return null;
             }
 
-            return null;
+            if (!existing.deletedAt) {
+                logger.info("Existing active Supabase user found; using existing account", {
+                    existingUserId: existing.id,
+                    email,
+                });
+                return { id: existing.id };
+            }
+
+            const { error: deleteError } = await supabase.auth.admin.deleteUser(existing.id);
+            if (deleteError) {
+                // Tolerate 404 (user already deleted, possibly by concurrent request)
+                if (deleteError.status !== 404) {
+                    logger.error("Failed to delete stale Supabase user during recreate", {
+                        existingUserId: existing.id,
+                        message: deleteError.message,
+                        status: deleteError.status,
+                        email,
+                    });
+                    return null;
+                }
+                logger.info("Stale Supabase user already deleted (404), continuing recreate", {
+                    existingUserId: existing.id,
+                    email,
+                });
+            }
+
+            const { data: recreated, error: recreateError } = await supabase.auth.admin.createUser({
+                email,
+                email_confirm: true,
+                user_metadata: { firebaseUid },
+            });
+
+            if (recreateError || !recreated?.user) {
+                logger.error("Failed to recreate Supabase user after deleting stale user", {
+                    existingUserId: existing.id,
+                    message: recreateError?.message,
+                    email,
+                });
+                return null;
+            }
+
+            logger.info("Recreated Supabase user after stale-user cleanup", {
+                previousUserId: existing.id,
+                newUserId: recreated.user.id,
+                email,
+            });
+            return { id: recreated.user.id };
         }
 
-        const body: unknown = await res.json();
-        logger.info("Supabase user created", { body });
-
-        if (body && typeof body === "object" && "id" in body) {
-            const obj = body as UnknownRecord;
-            const id = obj["id"] as unknown;
-            if (typeof id === "string") return { id };
-        }
-        return null;
-    } catch (error) {
-        logger.error("Error creating Supabase user", { error, email });
         return null;
     }
+
+    if (!data?.user) {
+        return null;
+    }
+
+    logger.info("Supabase user created", { userId: data.user.id, email });
+    return { id: data.user.id };
 }
 
 /**
@@ -222,36 +118,17 @@ async function getSupabaseUserSession(
     expires_in: number;
     token_type: string;
 }> {
-    const supabaseUrl = getSupabaseUrl();
-    const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
-    if (!supabaseServiceRoleKey || !supabaseUrl) {
-        throw new HttpsError(
-            "failed-precondition",
-            "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
-        );
-    }
-
-    const base = supabaseUrl.replace(/\/+$/, "");
+    const supabase = getSupabaseAdminClient();
 
     // Step 1: Generate a magic link token via Admin API (no email sent)
-    const linkRes = await fetch(`${base}/auth/v1/admin/generate_link`, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${supabaseServiceRoleKey}`,
-            "apikey": supabaseServiceRoleKey,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            type: "magiclink",
-            email: email.toLowerCase(),
-        }),
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: "magiclink",
+        email: email.toLowerCase(),
     });
 
-    if (!linkRes.ok) {
-        const errorText = await linkRes.text();
+    if (linkError || !linkData?.properties?.hashed_token) {
         logger.error("Failed to generate magic link", {
-            status: linkRes.status,
-            error: errorText,
+            message: linkError?.message,
             email,
         });
         throw new HttpsError(
@@ -260,35 +137,15 @@ async function getSupabaseUserSession(
         );
     }
 
-    const linkBody = await linkRes.json() as Record<string, unknown>;
-    const hashedToken = linkBody["hashed_token"] as string | undefined;
-
-    if (!hashedToken) {
-        logger.error("No hashed_token in generate_link response", { linkBody });
-        throw new HttpsError(
-            "internal",
-            "Failed to extract token from Supabase link."
-        );
-    }
-
     // Step 2: Verify the token to get a real session (triggers auth hooks)
-    const verifyRes = await fetch(`${base}/auth/v1/verify`, {
-        method: "POST",
-        headers: {
-            "apikey": supabaseServiceRoleKey,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            type: "magiclink",
-            token_hash: hashedToken,
-        }),
+    const { data: sessionData, error: verifyError } = await supabase.auth.verifyOtp({
+        type: "magiclink",
+        token_hash: linkData.properties.hashed_token,
     });
 
-    if (!verifyRes.ok) {
-        const errorText = await verifyRes.text();
+    if (verifyError || !sessionData?.session) {
         logger.error("Failed to verify magic link token", {
-            status: verifyRes.status,
-            error: errorText,
+            message: verifyError?.message,
             email,
         });
         throw new HttpsError(
@@ -297,24 +154,13 @@ async function getSupabaseUserSession(
         );
     }
 
-    const session = await verifyRes.json() as Record<string, unknown>;
-
-    if (
-        typeof session["access_token"] !== "string" ||
-        typeof session["refresh_token"] !== "string"
-    ) {
-        logger.error("Invalid session from verify response", { session });
-        throw new HttpsError(
-            "internal",
-            "Failed to get valid Supabase session."
-        );
-    }
+    const session = sessionData.session;
 
     return {
-        access_token: session["access_token"] as string,
-        refresh_token: session["refresh_token"] as string,
-        expires_in: (session["expires_in"] as number) || 3600,
-        token_type: (session["token_type"] as string) || "bearer",
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        expires_in: session.expires_in,
+        token_type: session.token_type,
     };
 }
 
@@ -323,43 +169,27 @@ async function getSupabaseUserSession(
  * This is an idempotent insert and will not overwrite existing rows.
  */
 async function ensureFreeTierSubscription(supabaseUserId: string): Promise<void> {
-    const supabaseUrl = getSupabaseUrl();
-    const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
-    if (!supabaseServiceRoleKey || !supabaseUrl) {
-        throw new HttpsError(
-            "failed-precondition",
-            "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
+    const supabase = getSupabaseAdminClient();
+
+    const { error } = await supabase
+        .from("user_app_subscriptions")
+        .upsert(
+            {
+                user_id: supabaseUserId,
+                app_name: APP_NAME,
+                plan_tier: "free",
+                plan_status: "active",
+                current_credits: INITIAL_FREE_CREDITS,
+                updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id,app_name", ignoreDuplicates: true }
         );
-    }
 
-    const base = supabaseUrl.replace(/\/+$/, "");
-    const url = `${base}/rest/v1/user_app_subscriptions?on_conflict=user_id,app_name`;
-
-    const res = await fetch(url, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${supabaseServiceRoleKey}`,
-            "apikey": supabaseServiceRoleKey,
-            "Content-Type": "application/json",
-            // Ensure this behaves like INSERT ... ON CONFLICT DO NOTHING.
-            "Prefer": "resolution=ignore-duplicates,return=minimal",
-        },
-        body: JSON.stringify({
-            user_id: supabaseUserId,
-            app_name: APP_NAME,
-            plan_tier: "free",
-            plan_status: "active",
-            current_credits: INITIAL_FREE_CREDITS,
-            updated_at: new Date().toISOString(),
-        }),
-    });
-
-    if (!res.ok) {
-        const errorText = await res.text();
+    if (error) {
         logger.error("Failed to ensure free-tier subscription", {
             supabaseUserId,
-            status: res.status,
-            error: errorText,
+            message: error.message,
+            code: error.code,
         });
         throw new HttpsError(
             "internal",

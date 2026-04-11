@@ -1,18 +1,24 @@
 import {HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import {createClient, SupabaseClient} from "@supabase/supabase-js";
 import {getSupabaseUrl} from "./runtimeConfig.js";
 
 function getSupabaseServiceRoleKey(): string | undefined {
   return process.env.SUPABASE_SERVICE_ROLE_KEY;
 }
 
+let supabaseAdminClient: SupabaseClient | undefined;
+
 /**
- * Find a Supabase user by email via the get_user_id_by_email RPC function.
- * Returns { id } if found, otherwise null.
+ * Return a memoized Supabase admin client configured with the service role key.
+ * The singleton is reused across invocations on warm Cloud Function instances.
+ * Throws HttpsError if credentials are missing.
  */
-export async function findSupabaseUserByEmail(
-  email: string
-): Promise<{id: string} | null> {
+export function getSupabaseAdminClient(): SupabaseClient {
+  if (supabaseAdminClient) {
+    return supabaseAdminClient;
+  }
+
   const supabaseUrl = getSupabaseUrl();
   const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
   if (!supabaseServiceRoleKey || !supabaseUrl) {
@@ -22,40 +28,31 @@ export async function findSupabaseUserByEmail(
     );
   }
 
-  const base = supabaseUrl.replace(/\/+$/, "");
-  const url = `${base}/rest/v1/rpc/get_user_id_by_email`;
+  supabaseAdminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {autoRefreshToken: false, persistSession: false},
+  });
+  return supabaseAdminClient;
+}
 
+/**
+ * Find a Supabase user by email via the get_user_id_by_email RPC function.
+ * Returns { id } if found, otherwise null.
+ */
+export async function findSupabaseUserByEmail(
+  email: string
+): Promise<{id: string} | null> {
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${supabaseServiceRoleKey}`,
-        "apikey": supabaseServiceRoleKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({lookup_email: email.toLowerCase()}),
+    const supabase = getSupabaseAdminClient();
+    const {data, error} = await supabase.rpc("get_user_id_by_email", {
+      lookup_email: email.toLowerCase(),
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      const correlationId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      logger.error("Failed to look up Supabase user by email", {
-        correlationId,
-        status: res.status,
-        statusText: res.statusText,
-        error: errorText,
-        email,
-      });
-      throw new HttpsError(
-        "internal",
-        `Failed to look up user by email. Reference: ${correlationId}`
-      );
+    if (error) {
+      throw error;
     }
 
-    const body: unknown = await res.json();
-
-    if (typeof body === "string" && body.length > 0) {
-      return {id: body};
+    if (typeof data === "string" && data.length > 0) {
+      return {id: data};
     }
     return null;
   } catch (error) {
@@ -63,6 +60,42 @@ export async function findSupabaseUserByEmail(
       throw error;
     }
     logger.error("Error finding Supabase user", {error, email});
+    throw new HttpsError("internal", "Failed to look up user by email.");
+  }
+}
+
+/**
+ * Find a Supabase auth user by email, including soft-deleted users.
+ * Uses the get_auth_user_by_email RPC (queries auth.users directly).
+ * Returns { id, deletedAt } if found, otherwise null.
+ */
+export async function findSupabaseUserByEmailIncludeDeleted(
+  email: string
+): Promise<{id: string; deletedAt: string | null} | null> {
+  try {
+    const supabase = getSupabaseAdminClient();
+    const {data, error} = await supabase.rpc("get_auth_user_by_email", {
+      lookup_email: email.toLowerCase(),
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      const record = data as Record<string, unknown>;
+      const id = record["user_id"];
+      if (typeof id === "string" && id.length > 0) {
+        const deletedAt = typeof record["deleted_at"] === "string" ? record["deleted_at"] : null;
+        return {id, deletedAt};
+      }
+    }
+    return null;
+  } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    logger.error("Error finding Supabase auth user (include deleted)", {error, email});
     throw new HttpsError("internal", "Failed to look up user by email.");
   }
 }
@@ -122,56 +155,25 @@ export async function callSupabaseRpc(
 export async function findSupabaseUserByFirebaseUid(
   firebaseUid: string
 ): Promise<{id: string} | null> {
-  const supabaseUrl = getSupabaseUrl();
-  const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
-  if (!supabaseServiceRoleKey || !supabaseUrl) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
-    );
-  }
-
-  const base = supabaseUrl.replace(/\/+$/, "");
-  const url = `${base}/rest/v1/rpc/get_user_id_by_firebase_uid`;
-
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${supabaseServiceRoleKey}`,
-        "apikey": supabaseServiceRoleKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({lookup_firebase_uid: firebaseUid}),
+    const supabase = getSupabaseAdminClient();
+    const {data, error} = await supabase.rpc("get_user_id_by_firebase_uid", {
+      lookup_firebase_uid: firebaseUid,
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      const correlationId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      logger.error("Failed to look up Supabase user by firebase UID", {
-        correlationId,
-        status: res.status,
-        statusText: res.statusText,
-        error: errorText,
-        firebaseUid,
-      });
-      throw new HttpsError(
-        "internal",
-        `Failed to look up user by Firebase UID. Reference: ${correlationId}`
-      );
+    if (error) {
+      throw error;
     }
 
-    const body: unknown = await res.json();
-
-    if (typeof body === "string" && body.length > 0) {
-      return {id: body};
+    if (typeof data === "string" && data.length > 0) {
+      return {id: data};
     }
     return null;
   } catch (error) {
-    logger.error("Error finding Supabase user by firebase UID", {error, firebaseUid});
     if (error instanceof HttpsError) {
       throw error;
     }
+    logger.error("Error finding Supabase user by firebase UID", {error, firebaseUid});
     throw new HttpsError("internal", "Failed to look up user by Firebase UID.");
   }
 }

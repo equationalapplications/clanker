@@ -122,13 +122,8 @@ test("exchangeTokenHandler recreates a soft-deleted Supabase user", async () => 
     new Response(JSON.stringify(null), {status: 200}),
     // 2. createSupabaseUser POST → 422 (email already exists)
     new Response(JSON.stringify({msg: "A user with this email address has already been registered"}), {status: 422}),
-    // 3. findSupabaseUserByEmailAdmin GET list → returns soft-deleted user
-    new Response(
-      JSON.stringify({
-        users: [{id: "reactivated-id", email: "person@example.com", deleted_at: "2026-04-11T00:00:00.000Z"}],
-      }),
-      {status: 200}
-    ),
+    // 3. findSupabaseUserByEmailIncludeDeleted RPC → returns soft-deleted user
+    new Response(JSON.stringify({user_id: "stale-id", deleted_at: "2026-04-11T00:00:00.000Z"}), {status: 200}),
     // 4. delete stale user → success
     new Response(null, {status: 200}),
     // 5. recreate user → success
@@ -183,17 +178,17 @@ test("exchangeTokenHandler recreates a soft-deleted Supabase user", async () => 
     });
 
     assert.equal(calls.length, 8);
-    // RPC lookup
+    // RPC lookup (get_user_id_by_email)
     assert.match(calls[0]?.url ?? "", /get_user_id_by_email$/);
     // create user attempt
     assert.equal(calls[1]?.method, "POST");
     assert.match(calls[1]?.url ?? "", /admin\/users$/);
-    // admin list fallback
-    assert.equal(calls[2]?.method, "GET");
-    assert.match(calls[2]?.url ?? "", /admin\/users\?/);
+    // RPC fallback (get_auth_user_by_email — includes soft-deleted)
+    assert.equal(calls[2]?.method, "POST");
+    assert.match(calls[2]?.url ?? "", /get_auth_user_by_email$/);
     // stale-user delete
     assert.equal(calls[3]?.method, "DELETE");
-    assert.match(calls[3]?.url ?? "", /admin\/users\/reactivated-id$/);
+    assert.match(calls[3]?.url ?? "", /admin\/users\/stale-id$/);
     // recreate user
     assert.equal(calls[4]?.method, "POST");
     assert.match(calls[4]?.url ?? "", /admin\/users$/);
