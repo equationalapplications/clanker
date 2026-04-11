@@ -1,3 +1,10 @@
+## [26.0.1](https://github.com/equationalapplications/clanker/compare/v26.0.0...v26.0.1) (2026-04-11)
+
+
+### Bug Fixes
+
+* **build:** resolve package build error in v26.0.0 ([3f0fa4f](https://github.com/equationalapplications/clanker/commit/3f0fa4fcd882023d934543c07b613e3b8707c973))
+
 # [26.0.0](https://github.com/equationalapplications/clanker/compare/v25.8.3...v26.0.0) (2026-04-11)
 
 
