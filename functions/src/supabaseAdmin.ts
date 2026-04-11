@@ -7,11 +7,18 @@ function getSupabaseServiceRoleKey(): string | undefined {
   return process.env.SUPABASE_SERVICE_ROLE_KEY;
 }
 
+let supabaseAdminClient: SupabaseClient | undefined;
+
 /**
- * Return a Supabase admin client configured with the service role key.
+ * Return a memoized Supabase admin client configured with the service role key.
+ * The singleton is reused across invocations on warm Cloud Function instances.
  * Throws HttpsError if credentials are missing.
  */
 export function getSupabaseAdminClient(): SupabaseClient {
+  if (supabaseAdminClient) {
+    return supabaseAdminClient;
+  }
+
   const supabaseUrl = getSupabaseUrl();
   const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
   if (!supabaseServiceRoleKey || !supabaseUrl) {
@@ -21,9 +28,10 @@ export function getSupabaseAdminClient(): SupabaseClient {
     );
   }
 
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+  supabaseAdminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {autoRefreshToken: false, persistSession: false},
   });
+  return supabaseAdminClient;
 }
 
 /**
