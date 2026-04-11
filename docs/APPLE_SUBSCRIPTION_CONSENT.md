@@ -48,14 +48,9 @@ Implemented in:
 
 ## Apple EULA URL
 
-The app uses:
+The Apple EULA URL is centralized in `src/config/constants.ts` as `APPLE_EULA_URL`.
 
-- https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
-
-If Apple updates this URL, update both:
-
-- `app/(drawer)/subscribe.tsx`
-- `app/terms.tsx`
+If Apple updates this URL, update the single source of truth there rather than editing individual consumer files.
 
 ## Notes for App Review
 
