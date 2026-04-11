@@ -104,7 +104,7 @@ export function AcceptTerms({
       {Platform.OS === 'ios' && (
         <Text style={[styles.iosLegalText, { color: colors.onSurfaceVariant }]}>
           For iOS auto-renewable subscriptions, billing, renewal, cancellation timing, and refunds
-          are managed by Apple under Apple's App Store terms.
+          are managed by Apple under Apple&apos;s App Store terms.
         </Text>
       )}
 
