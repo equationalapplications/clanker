@@ -141,15 +141,27 @@ describe('useCurrentPlan', () => {
 
     expect(mockUseSelector).toHaveBeenCalledTimes(2)
 
-    const [accessTokenCall, isLoadingCall] = mockUseSelector.mock.calls
-    const accessTokenSelector = accessTokenCall[1] as (value: MockState) => unknown
-    const isLoadingSelector = isLoadingCall[1] as (value: MockState) => unknown
     const tokenState = makeState({ accessToken: 'token-value' })
+    const selectors = mockUseSelector.mock.calls.map(
+      (call) => call[1] as (value: MockState) => unknown,
+    )
 
-    expect(accessTokenSelector(state)).toBeNull()
-    expect(accessTokenSelector(tokenState)).toBe('token-value')
-    expect(typeof accessTokenSelector(tokenState)).toBe('string')
-    expect(isLoadingSelector(state)).toBe(true)
-    expect(typeof isLoadingSelector(state)).toBe('boolean')
+    const accessTokenSelector = selectors.find(
+      (selector) =>
+        selector(state) === null && selector(tokenState) === 'token-value',
+    )
+    const isLoadingSelector = selectors.find(
+      (selector) =>
+        selector(state) === true && typeof selector(state) === 'boolean',
+    )
+
+    expect(accessTokenSelector).toBeDefined()
+    expect(isLoadingSelector).toBeDefined()
+
+    expect(accessTokenSelector?.(state)).toBeNull()
+    expect(accessTokenSelector?.(tokenState)).toBe('token-value')
+    expect(typeof accessTokenSelector?.(tokenState)).toBe('string')
+    expect(isLoadingSelector?.(state)).toBe(true)
+    expect(typeof isLoadingSelector?.(state)).toBe('boolean')
   })
 })
