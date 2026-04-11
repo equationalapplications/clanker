@@ -1,9 +1,18 @@
-import { StyleSheet, ScrollView, View } from 'react-native'
-import { Text, useTheme } from 'react-native-paper'
+import { StyleSheet, ScrollView, View, Linking } from 'react-native'
+import { Text, useTheme, Button } from 'react-native-paper'
 import { TERMS } from '~/config/termsConfig'
+import { APPLE_EULA_URL } from '~/config/constants'
 
 export default function Terms() {
   const { colors } = useTheme()
+
+  const handleOpenAppleEula = async () => {
+    try {
+      await Linking.openURL(APPLE_EULA_URL)
+    } catch (e) {
+      console.error('Failed to open Apple EULA URL:', e)
+    }
+  }
 
   if (!TERMS) {
     return (
@@ -26,6 +35,12 @@ export default function Terms() {
       <View style={styles.separator} />
       <ScrollView contentContainerStyle={styles.scrollView}>
         <Text>{TERMS.terms}</Text>
+        <View style={styles.separator} />
+        <View style={styles.appleEulaSection}>
+          <Button mode="outlined" onPress={handleOpenAppleEula} style={styles.eulaButton}>
+            View Apple Standard EULA
+          </Button>
+        </View>
       </ScrollView>
     </View>
   )
@@ -59,5 +74,12 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: 12,
     textAlign: 'right',
+  },
+  appleEulaSection: {
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  eulaButton: {
+    marginTop: 8,
   },
 })

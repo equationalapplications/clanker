@@ -1,15 +1,13 @@
 import React from 'react'
 import renderer from 'react-test-renderer'
 
-const mockReplace = jest.fn()
-const mockUsePathname = jest.fn()
 const mockDrawerScreenOptions = jest.fn()
+let mockLastAcceptTermsProps: Record<string, unknown> | null = null
 
 jest.mock('expo-router', () => ({
   router: {
-    replace: (...args: any[]) => mockReplace(...args),
+    push: jest.fn(),
   },
-  usePathname: () => mockUsePathname(),
 }))
 
 jest.mock('expo-router/drawer', () => {
@@ -57,9 +55,18 @@ jest.mock('react-native-paper', () => ({
 }))
 
 const mockTermsService = { send: jest.fn() }
+const mockAuthService = { send: jest.fn() }
 
 jest.mock('~/hooks/useMachines', () => ({
   useTermsMachine: () => mockTermsService,
+  useAuthMachine: () => mockAuthService,
+}))
+
+jest.mock('~/components/AcceptTerms', () => ({
+  AcceptTerms: (props: Record<string, unknown>) => {
+    mockLastAcceptTermsProps = props
+    return null
+  },
 }))
 
 const mockUseSelector = jest.fn()
@@ -73,6 +80,8 @@ type TermsSnapshot = {
   blocking: boolean
   loading: boolean
   isUpdate: boolean
+  accepting: boolean
+  error: Error | null
 }
 
 function setTermsSnapshot(snapshot: TermsSnapshot) {
@@ -82,10 +91,12 @@ function setTermsSnapshot(snapshot: TermsSnapshot) {
         if (value === 'accepted') return snapshot.accepted
         if (value === 'acceptanceRequired') return snapshot.blocking
         if (value === 'idle' || value === 'checking') return snapshot.loading
+        if (value === 'accepting') return snapshot.accepting
         return false
       },
       context: {
         isUpdate: snapshot.isUpdate,
+        error: snapshot.error,
       },
     }
     return selector(state)
@@ -95,11 +106,18 @@ function setTermsSnapshot(snapshot: TermsSnapshot) {
 describe('drawer terms gate', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUsePathname.mockReturnValue('/chat')
+    mockLastAcceptTermsProps = null
   })
 
   it('maps (tabs) route to Chat labels in drawer screenOptions', () => {
-    setTermsSnapshot({ accepted: true, blocking: false, loading: false, isUpdate: false })
+    setTermsSnapshot({
+      accepted: true,
+      blocking: false,
+      loading: false,
+      isUpdate: false,
+      accepting: false,
+      error: null,
+    })
 
     const AppLayout = require('../app/(drawer)/_layout').default
 
@@ -117,8 +135,15 @@ describe('drawer terms gate', () => {
     expect(tabsOptions.headerTitle).toBe('Chat')
   })
 
-  it('redirects to accept-terms when terms are blocking on another route', () => {
-    setTermsSnapshot({ accepted: false, blocking: true, loading: false, isUpdate: false })
+  it('renders AcceptTerms directly when terms are blocking', () => {
+    setTermsSnapshot({
+      accepted: false,
+      blocking: true,
+      loading: false,
+      isUpdate: true,
+      accepting: false,
+      error: null,
+    })
 
     const AppLayout = require('../app/(drawer)/_layout').default
 
@@ -126,16 +151,24 @@ describe('drawer terms gate', () => {
       renderer.create(<AppLayout />)
     })
 
-    expect(mockReplace).toHaveBeenCalledTimes(1)
-    expect(mockReplace).toHaveBeenCalledWith({
-      pathname: '/accept-terms',
-      params: { isUpdate: 'false' },
+    expect(mockLastAcceptTermsProps).toBeTruthy()
+    expect(mockLastAcceptTermsProps).toMatchObject({
+      isUpdate: true,
+      accepting: false,
+      error: undefined,
     })
+    expect(mockDrawerScreenOptions).not.toHaveBeenCalled()
   })
 
-  it('does not self-redirect when already on accept-terms', () => {
-    mockUsePathname.mockReturnValue('/accept-terms')
-    setTermsSnapshot({ accepted: false, blocking: true, loading: false, isUpdate: true })
+  it('wires accept action to terms machine from blocking UI', () => {
+    setTermsSnapshot({
+      accepted: false,
+      blocking: true,
+      loading: false,
+      isUpdate: true,
+      accepting: false,
+      error: null,
+    })
 
     const AppLayout = require('../app/(drawer)/_layout').default
 
@@ -143,11 +176,25 @@ describe('drawer terms gate', () => {
       renderer.create(<AppLayout />)
     })
 
-    expect(mockReplace).not.toHaveBeenCalled()
+    const onAccepted = mockLastAcceptTermsProps?.onAccepted as (() => void) | undefined
+    expect(onAccepted).toBeDefined()
+
+    renderer.act(() => {
+      onAccepted?.()
+    })
+
+    expect(mockTermsService.send).toHaveBeenCalledWith({ type: 'ACCEPT_TERMS', isUpdate: true })
   })
 
   it('hides gated screens when terms are not accepted', () => {
-    setTermsSnapshot({ accepted: false, blocking: false, loading: false, isUpdate: false })
+    setTermsSnapshot({
+      accepted: false,
+      blocking: false,
+      loading: false,
+      isUpdate: false,
+      accepting: false,
+      error: null,
+    })
 
     const AppLayout = require('../app/(drawer)/_layout').default
 

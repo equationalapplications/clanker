@@ -99,6 +99,13 @@ export function AcceptTerms({
         </Button>
       </View>
 
+      {Platform.OS === 'ios' && (
+        <Text style={[styles.iosLegalText, { color: colors.onSurfaceVariant }]}>
+          For iOS auto-renewable subscriptions, billing, renewal, cancellation timing, and refunds
+          are managed by Apple under Apple&apos;s App Store terms.
+        </Text>
+      )}
+
       <View style={styles.separator} />
 
       <View style={styles.row}>
@@ -184,6 +191,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 20,
     lineHeight: 20,
+  },
+  iosLegalText: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginHorizontal: 20,
+    lineHeight: 18,
   },
   separator: {
     marginVertical: 20,
