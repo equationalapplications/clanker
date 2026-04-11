@@ -13,8 +13,7 @@ import { useAuthMachine } from '~/hooks/useMachines'
 import { makePackagePurchase, type ProductType } from '~/utilities/makePackagePurchase'
 import { restorePurchases } from '~/config/revenueCatConfig'
 import { supabaseClient } from '~/config/supabaseClient'
-
-const APPLE_EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'
+import { APPLE_EULA_URL } from '~/config/constants'
 
 export default function SubscribeScreen() {
   const router = useRouter()
@@ -59,6 +58,15 @@ export default function SubscribeScreen() {
       setErrorMessage('Restore failed. Please try again.')
     } finally {
       setInFlightAction(null)
+    }
+  }
+
+  const handleOpenAppleEula = async () => {
+    try {
+      await Linking.openURL(APPLE_EULA_URL)
+    } catch (e) {
+      console.error('Failed to open Apple EULA URL:', e)
+      setErrorMessage('Unable to open Apple EULA right now. Please try again.')
     }
   }
 
@@ -126,23 +134,25 @@ export default function SubscribeScreen() {
             >
               Restore Purchases
             </Button>
-            <View style={styles.purchaseLegalContainer}>
-              <Text variant="bodySmall" style={styles.purchaseLegalText}>
-                By subscribing, you agree to the Terms of Use. Auto-renewable subscriptions are billed
-                through Apple App Store. Apple Standard EULA applies.
-              </Text>
-              <View style={styles.purchaseLegalLinksRow}>
-                <Button compact mode="text" onPress={() => router.push('/terms')}>
-                  Terms of Use
-                </Button>
-                <Button compact mode="text" onPress={() => router.push('/privacy')}>
-                  Privacy Policy
-                </Button>
-                <Button compact mode="text" onPress={() => Linking.openURL(APPLE_EULA_URL)}>
-                  Apple EULA
-                </Button>
+            {Platform.OS === 'ios' && (
+              <View style={styles.purchaseLegalContainer}>
+                <Text variant="bodySmall" style={styles.purchaseLegalText}>
+                  By subscribing, you agree to the Terms of Use. Auto-renewable subscriptions are
+                  billed through Apple App Store. Apple Standard EULA applies.
+                </Text>
+                <View style={styles.purchaseLegalLinksRow}>
+                  <Button compact mode="text" onPress={() => router.push('/terms')}>
+                    Terms of Use
+                  </Button>
+                  <Button compact mode="text" onPress={() => router.push('/privacy')}>
+                    Privacy Policy
+                  </Button>
+                  <Button compact mode="text" onPress={handleOpenAppleEula}>
+                    Apple EULA
+                  </Button>
+                </View>
               </View>
-            </View>
+            )}
           </View>
         )}
 

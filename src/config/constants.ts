@@ -24,6 +24,7 @@ export const supabaseUrl = resolveConfigValue('EXPO_PUBLIC_SUPABASE_URL')
 export const supabaseAnonKey = resolveConfigValue('EXPO_PUBLIC_SUPABASE_ANON_KEY')
 
 export const stripeCustomerPortal = 'https://billing.stripe.com/p/login/28obLIehA711btKcMM'
+export const APPLE_EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'
 // DEPRECATED: Use stripeMonthly20PriceId or stripeMonthly50PriceId instead. Will be removed once all callsites are migrated.
 export const stripeMontlySubscriptionPriceId = 'price_1MVejqDTb0norRA06zwoexic'
 

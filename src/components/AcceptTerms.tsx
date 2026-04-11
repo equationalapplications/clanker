@@ -99,10 +99,12 @@ export function AcceptTerms({
         </Button>
       </View>
 
-      <Text style={[styles.iosLegalText, { color: colors.onSurfaceVariant }]}>
-        For iOS auto-renewable subscriptions, billing, renewal, cancellation timing, and refunds
-        are managed by Apple under App Store terms.
-      </Text>
+      {Platform.OS === 'ios' && (
+        <Text style={[styles.iosLegalText, { color: colors.onSurfaceVariant }]}>
+          For iOS auto-renewable subscriptions, billing, renewal, cancellation timing, and refunds
+          are managed by Apple under App Store terms.
+        </Text>
+      )}
 
       <View style={styles.separator} />
 
