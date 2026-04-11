@@ -1,3 +1,10 @@
+## [26.0.2](https://github.com/equationalapplications/clanker/compare/v26.0.1...v26.0.2) (2026-04-11)
+
+
+### Bug Fixes
+
+* **hooks:** stabilize useCurrentPlan selectors and add regression tests ([b6f38a9](https://github.com/equationalapplications/clanker/commit/b6f38a91cd14f96d2b5f8ed11343f7e661de4ce5))
+
 ## [26.0.1](https://github.com/equationalapplications/clanker/compare/v26.0.0...v26.0.1) (2026-04-11)
 
 
