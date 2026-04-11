@@ -20,6 +20,7 @@ test("exchangeTokenHandler returns a Supabase session for an authenticated user"
 
   const responses = [
     new Response(JSON.stringify("supabase-user-id"), {status: 200}),
+    new Response(null, {status: 201}),
     new Response(JSON.stringify({hashed_token: "hashed-token"}), {status: 200}),
     new Response(
       JSON.stringify({
@@ -65,10 +66,48 @@ test("exchangeTokenHandler returns a Supabase session for an authenticated user"
       token_type: "bearer",
     });
 
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.match(calls[0]?.url ?? "", /get_user_id_by_email$/);
-    assert.match(calls[1]?.url ?? "", /generate_link$/);
-    assert.match(calls[2]?.url ?? "", /verify$/);
+    assert.match(calls[1]?.url ?? "", /user_app_subscriptions\?on_conflict=user_id,app_name$/);
+    assert.match(calls[2]?.url ?? "", /generate_link$/);
+    assert.match(calls[3]?.url ?? "", /verify$/);
+
+    const bootstrapPayload = JSON.parse(calls[1]?.body ?? "{}");
+    assert.equal(bootstrapPayload.current_credits, 50);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("exchangeTokenHandler throws when subscription bootstrap fails", async () => {
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
+    new Response(JSON.stringify({message: "insert failed"}), {status: 500}),
+  ];
+
+  globalThis.fetch = (async () => {
+    const next = responses.shift();
+    if (!next) {
+      throw new Error("Unexpected fetch call in exchangeToken failure-path test");
+    }
+    return next;
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      async () => exchangeTokenHandler({
+        auth: {
+          uid: "firebase-uid-1",
+          token: {
+            uid: "firebase-uid-1",
+            email: "person@example.com",
+          },
+        },
+      } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "internal"
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

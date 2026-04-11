@@ -20,17 +20,22 @@ const checkTermsAcceptance = async (
 }
 
 const recordTermsAcceptance = async (userId: string): Promise<void> => {
-  const { error } = await supabaseClient.from('user_app_subscriptions').upsert(
-    {
-      user_id: userId,
-      app_name: APP_NAME,
-      terms_accepted_at: new Date().toISOString(),
+  const now = new Date().toISOString()
+
+  const { data: updatedSubscription, error: updateError } = await supabaseClient
+    .from('user_app_subscriptions')
+    .update({
+      terms_accepted_at: now,
       terms_version: TERMS.version,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id,app_name' },
-  )
-  if (error) throw error
+      updated_at: now,
+    })
+    .eq('user_id', userId)
+    .eq('app_name', APP_NAME)
+    .select('user_id')
+    .maybeSingle()
+
+  if (updateError) throw updateError
+  if (!updatedSubscription) throw new Error('Missing subscription row for terms acceptance')
 }
 
 export interface TermsMachineContext {
