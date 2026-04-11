@@ -34,12 +34,17 @@ export async function findSupabaseUserByEmail(
   email: string
 ): Promise<{id: string} | null> {
   try {
-    const body = await callSupabaseRpc("get_user_id_by_email", {
+    const supabase = getSupabaseAdminClient();
+    const {data, error} = await supabase.rpc("get_user_id_by_email", {
       lookup_email: email.toLowerCase(),
     });
 
-    if (typeof body === "string" && body.length > 0) {
-      return {id: body};
+    if (error) {
+      throw error;
+    }
+
+    if (typeof data === "string" && data.length > 0) {
+      return {id: data};
     }
     return null;
   } catch (error) {
