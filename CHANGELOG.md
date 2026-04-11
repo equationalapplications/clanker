@@ -1,3 +1,23 @@
+# [26.0.0](https://github.com/equationalapplications/clanker/compare/v25.8.3...v26.0.0) (2026-04-11)
+
+
+### Bug Fixes
+
+* address PR feedback and resolve TypeScript compatibility ([c473caa](https://github.com/equationalapplications/clanker/commit/c473caaa1288ad1def38238de18dd8e2c533f2ec))
+* **deps:** update react-native-worklets to 0.7.4 to hoist expo-modules-core ([a807ea1](https://github.com/equationalapplications/clanker/commit/a807ea11b3e621c8214322a99f2bfaa1736ae7ec))
+* **nav:** display 'Back' label instead of '(drawer)' on Support screen ([8175135](https://github.com/equationalapplications/clanker/commit/8175135871c22c220ae6f0a41fff07fc52bff53a))
+* **subscribe:** restore monthly button spacing ([32247c7](https://github.com/equationalapplications/clanker/commit/32247c7e32ea617b07ca0588d65b57fcc3f96402))
+
+
+### Features
+
+* **splash:** add dark mode background support ([a7e21a7](https://github.com/equationalapplications/clanker/commit/a7e21a726dbfbb92da784610f21a1efe16319836))
+
+
+### BREAKING CHANGES
+
+* **splash:** Expo package updates require a native app build
+
 ## [25.8.3](https://github.com/equationalapplications/clanker/compare/v25.8.2...v25.8.3) (2026-04-10)
 
 
