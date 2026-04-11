@@ -79,16 +79,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 20,
   },
-  appleEulaTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  appleEulaText: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
   eulaButton: {
     marginTop: 8,
   },
