@@ -65,12 +65,17 @@ export async function findSupabaseUserByEmailIncludeDeleted(
   email: string
 ): Promise<{id: string; deletedAt: string | null} | null> {
   try {
-    const body = await callSupabaseRpc("get_auth_user_by_email", {
+    const supabase = getSupabaseAdminClient();
+    const {data, error} = await supabase.rpc("get_auth_user_by_email", {
       lookup_email: email.toLowerCase(),
     });
 
-    if (body && typeof body === "object" && !Array.isArray(body)) {
-      const record = body as Record<string, unknown>;
+    if (error) {
+      throw error;
+    }
+
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      const record = data as Record<string, unknown>;
       const id = record["user_id"];
       if (typeof id === "string" && id.length > 0) {
         const deletedAt = typeof record["deleted_at"] === "string" ? record["deleted_at"] : null;
@@ -143,12 +148,17 @@ export async function findSupabaseUserByFirebaseUid(
   firebaseUid: string
 ): Promise<{id: string} | null> {
   try {
-    const body = await callSupabaseRpc("get_user_id_by_firebase_uid", {
+    const supabase = getSupabaseAdminClient();
+    const {data, error} = await supabase.rpc("get_user_id_by_firebase_uid", {
       lookup_firebase_uid: firebaseUid,
     });
 
-    if (typeof body === "string" && body.length > 0) {
-      return {id: body};
+    if (error) {
+      throw error;
+    }
+
+    if (typeof data === "string" && data.length > 0) {
+      return {id: data};
     }
     return null;
   } catch (error) {

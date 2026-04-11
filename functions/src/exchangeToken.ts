@@ -55,12 +55,20 @@ async function createSupabaseUser(
 
             const { error: deleteError } = await supabase.auth.admin.deleteUser(existing.id);
             if (deleteError) {
-                logger.error("Failed to delete stale Supabase user during recreate", {
+                // Tolerate 404 (user already deleted, possibly by concurrent request)
+                if (deleteError.status !== 404) {
+                    logger.error("Failed to delete stale Supabase user during recreate", {
+                        existingUserId: existing.id,
+                        message: deleteError.message,
+                        status: deleteError.status,
+                        email,
+                    });
+                    return null;
+                }
+                logger.info("Stale Supabase user already deleted (404), continuing recreate", {
                     existingUserId: existing.id,
-                    message: deleteError.message,
                     email,
                 });
-                return null;
             }
 
             const { data: recreated, error: recreateError } = await supabase.auth.admin.createUser({
