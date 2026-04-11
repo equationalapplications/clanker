@@ -22,20 +22,7 @@ const checkTermsAcceptance = async (
 const recordTermsAcceptance = async (userId: string): Promise<void> => {
   const now = new Date().toISOString()
 
-  const { data: existingSubscription, error: readError } = await supabaseClient
-    .from('user_app_subscriptions')
-    .select('user_id')
-    .eq('user_id', userId)
-    .eq('app_name', APP_NAME)
-    .maybeSingle()
-
-  if (readError) throw readError
-
-  if (!existingSubscription) {
-    throw new Error('Missing subscription row for terms acceptance')
-  }
-
-  const { error: updateError } = await supabaseClient
+  const { data: updatedSubscription, error: updateError } = await supabaseClient
     .from('user_app_subscriptions')
     .update({
       terms_accepted_at: now,
@@ -44,8 +31,11 @@ const recordTermsAcceptance = async (userId: string): Promise<void> => {
     })
     .eq('user_id', userId)
     .eq('app_name', APP_NAME)
+    .select('user_id')
+    .maybeSingle()
 
   if (updateError) throw updateError
+  if (!updatedSubscription) throw new Error('Missing subscription row for terms acceptance')
 }
 
 export interface TermsMachineContext {

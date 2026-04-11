@@ -81,7 +81,7 @@ export async function recordTermsAcceptance(userId: string) {
     .from('user_app_subscriptions')
     .update({
       terms_accepted_at: now,
-      terms_version: version,
+      terms_version: TERMS.version,
       updated_at: now,
     })
     .eq('user_id', userId)

@@ -205,6 +205,34 @@ async function ensureFreeTierSubscription(supabaseUserId: string): Promise<void>
     }
 
     const base = supabaseUrl.replace(/\/+$/, "");
+    const selectUrl = `${base}/rest/v1/user_app_subscriptions?select=user_id&user_id=eq.${encodeURIComponent(supabaseUserId)}&app_name=eq.${encodeURIComponent(APP_NAME)}&limit=1`;
+
+    const existingRes = await fetch(selectUrl, {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${supabaseServiceRoleKey}`,
+            "apikey": supabaseServiceRoleKey,
+        },
+    });
+
+    if (!existingRes.ok) {
+        const errorText = await existingRes.text();
+        logger.error("Failed to check existing subscription", {
+            supabaseUserId,
+            status: existingRes.status,
+            error: errorText,
+        });
+        throw new HttpsError(
+            "internal",
+            "Failed to check initial free-tier subscription."
+        );
+    }
+
+    const existingRows = await existingRes.json() as unknown;
+    if (Array.isArray(existingRows) && existingRows.length > 0) {
+        return;
+    }
+
     const url = `${base}/rest/v1/user_app_subscriptions?on_conflict=user_id,app_name`;
 
     const res = await fetch(url, {

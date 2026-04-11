@@ -16,11 +16,15 @@ const mockFrom = jest.fn(() => ({
       maybeSingle: mockMaybeSingle,
     })),
   ),
-  update: jest.fn(() =>
-    buildEqChain(() =>
-      mockUpdate(),
-    ),
-  ),
+  update: jest.fn(() => ({
+    eq: jest.fn(() => ({
+      eq: jest.fn(() => ({
+        select: jest.fn(() => ({
+          maybeSingle: mockUpdate,
+        })),
+      })),
+    })),
+  })),
 }))
 
 jest.mock('../src/config/supabaseClient', () => ({
@@ -54,7 +58,7 @@ describe('termsMachine', () => {
       data: null,
       error: null,
     })
-    mockUpdate.mockResolvedValue({ error: null })
+    mockUpdate.mockResolvedValue({ data: { user_id: 'supabase-user-1' }, error: null })
   })
 
   it('goes to accepted when current terms are already accepted', async () => {
@@ -140,10 +144,6 @@ describe('termsMachine', () => {
         data: { terms_accepted_at: null, terms_version: null },
         error: null,
       })
-      .mockResolvedValueOnce({
-        data: { user_id: 'supabase-user-1' },
-        error: null,
-      })
 
     const actor = createActor(termsMachine)
     actor.start()
@@ -162,10 +162,6 @@ describe('termsMachine', () => {
     mockMaybeSingle
       .mockResolvedValueOnce({
         data: { terms_accepted_at: null, terms_version: null },
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: { user_id: 'supabase-user-1' },
         error: null,
       })
 
@@ -188,11 +184,7 @@ describe('termsMachine', () => {
         data: { terms_accepted_at: null, terms_version: null },
         error: null,
       })
-      .mockResolvedValueOnce({
-        data: { user_id: 'supabase-user-1' },
-        error: null,
-      })
-    mockUpdate.mockResolvedValue({ error: new Error('write failed') })
+    mockUpdate.mockResolvedValue({ data: null, error: new Error('write failed') })
 
     const actor = createActor(termsMachine)
     actor.start()
@@ -207,15 +199,11 @@ describe('termsMachine', () => {
   })
 
   it('returns to acceptanceRequired when subscription row is missing during accept', async () => {
-    mockMaybeSingle
-      .mockResolvedValueOnce({
-        data: { terms_accepted_at: null, terms_version: null },
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: null,
-        error: null,
-      })
+    mockMaybeSingle.mockResolvedValueOnce({
+      data: { terms_accepted_at: null, terms_version: null },
+      error: null,
+    })
+    mockUpdate.mockResolvedValue({ data: null, error: null })
 
     const actor = createActor(termsMachine)
     actor.start()
