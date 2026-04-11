@@ -1,3 +1,10 @@
+## [26.0.3](https://github.com/equationalapplications/clanker/compare/v26.0.2...v26.0.3) (2026-04-11)
+
+
+### Bug Fixes
+
+* **babel:** fix plugin ordering to prevent hermes bytecode corruption ([7d0b1ff](https://github.com/equationalapplications/clanker/commit/7d0b1ff6dc125d31d9e72ee37d3db6b54810cd6f))
+
 ## [26.0.2](https://github.com/equationalapplications/clanker/compare/v26.0.1...v26.0.2) (2026-04-11)
 
 

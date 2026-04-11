@@ -65,8 +65,10 @@ jest.mock('~/components/LoadingIndicator', () => () => null)
 
 describe('CreditsDisplay purchase flows', () => {
   const mockRefetch = jest.fn()
+  let consoleErrorSpy: jest.SpyInstance
 
   beforeEach(() => {
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
     jest.clearAllMocks()
     jest.replaceProperty(Platform, 'OS', 'web')
 
@@ -80,6 +82,10 @@ describe('CreditsDisplay purchase flows', () => {
 
     mockMakePackagePurchase.mockResolvedValue(undefined)
     mockRefreshSession.mockResolvedValue(undefined)
+  })
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore()
   })
 
   it('keeps purchase buttons disabled after successful web checkout launch', async () => {

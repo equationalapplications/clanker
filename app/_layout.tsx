@@ -2,15 +2,16 @@
 import 'expo-dev-client'
 import { StatusBar } from 'expo-status-bar'
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, Pressable } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
-import { Stack } from 'expo-router'
+import { Stack, router } from 'expo-router'
 
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 
 import { useSelector, useActorRef } from '@xstate/react'
 import { ThemeProvider } from '~/components/ThemeProvider'
+import { Icon, useTheme } from 'react-native-paper'
 import { SettingsProvider } from '~/contexts/SettingsContext'
 import { queryClient } from '~/config/queryClient'
 import { kvStorePersister } from '~/config/queryPersister'
@@ -110,6 +111,7 @@ function GlobalStateProvider({ children }: { children: React.ReactNode }) {
 
 // This component handles the core authentication logic using Stack.Protected
 function RootLayoutNav() {
+  const { colors } = useTheme()
   useInitializeApp()
   const authService = useAuthMachine()
   const characterService = useCharacterMachine()
@@ -184,10 +186,55 @@ function RootLayoutNav() {
       </Stack.Protected>
 
       {/* Info pages - always available */}
-      <Stack.Screen name="privacy" options={{ presentation: 'modal', title: 'Privacy Policy' }} />
+      <Stack.Screen
+        name="privacy"
+        options={({ navigation }) => ({
+          presentation: 'modal',
+          title: 'Privacy Policy',
+          headerBackButtonDisplayMode: 'minimal',
+          headerLeft: () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              hitSlop={8}
+              style={styles.headerBackButton}
+              onPress={() => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack()
+                  return
+                }
+                router.replace('/')
+              }}
+            >
+              <Icon source="arrow-left" size={24} color={colors.onSurface} />
+            </Pressable>
+          ),
+        })}
+      />
       <Stack.Screen
         name="terms"
-        options={{ presentation: 'modal', title: 'Terms and Conditions' }}
+        options={({ navigation }) => ({
+          presentation: 'modal',
+          title: 'Terms and Conditions',
+          headerBackButtonDisplayMode: 'minimal',
+          headerLeft: () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              hitSlop={8}
+              style={styles.headerBackButton}
+              onPress={() => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack()
+                  return
+                }
+                router.replace('/')
+              }}
+            >
+              <Icon source="arrow-left" size={24} color={colors.onSurface} />
+            </Pressable>
+          ),
+        })}
       />
       <Stack.Screen
         name="support"
@@ -242,5 +289,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerBackButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
 })

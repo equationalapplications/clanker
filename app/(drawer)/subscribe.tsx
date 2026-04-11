@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useNavigation } from '@react-navigation/native'
 import React, { useState } from 'react'
-import { ScrollView, StyleSheet, View, Platform } from 'react-native'
+import { ScrollView, StyleSheet, View, Platform, Linking } from 'react-native'
 import { Card, Text, IconButton, Button, Snackbar, List, Divider } from 'react-native-paper'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
@@ -13,6 +13,7 @@ import { useAuthMachine } from '~/hooks/useMachines'
 import { makePackagePurchase, type ProductType } from '~/utilities/makePackagePurchase'
 import { restorePurchases } from '~/config/revenueCatConfig'
 import { supabaseClient } from '~/config/supabaseClient'
+import { APPLE_EULA_URL } from '~/config/constants'
 
 export default function SubscribeScreen() {
   const router = useRouter()
@@ -57,6 +58,15 @@ export default function SubscribeScreen() {
       setErrorMessage('Restore failed. Please try again.')
     } finally {
       setInFlightAction(null)
+    }
+  }
+
+  const handleOpenAppleEula = async () => {
+    try {
+      await Linking.openURL(APPLE_EULA_URL)
+    } catch (e) {
+      console.error('Failed to open Apple EULA URL:', e)
+      setErrorMessage('Unable to open Apple EULA right now. Please try again.')
     }
   }
 
@@ -124,6 +134,25 @@ export default function SubscribeScreen() {
             >
               Restore Purchases
             </Button>
+            {Platform.OS === 'ios' && (
+              <View style={styles.purchaseLegalContainer}>
+                <Text variant="bodySmall" style={styles.purchaseLegalText}>
+                  By subscribing, you agree to the Terms of Use. Auto-renewable subscriptions are
+                  billed through Apple App Store. Apple Standard EULA applies.
+                </Text>
+                <View style={styles.purchaseLegalLinksRow}>
+                  <Button compact mode="text" onPress={() => router.push('/terms')}>
+                    Terms of Use
+                  </Button>
+                  <Button compact mode="text" onPress={() => router.push('/privacy')}>
+                    Privacy Policy
+                  </Button>
+                  <Button compact mode="text" onPress={handleOpenAppleEula}>
+                    Apple EULA
+                  </Button>
+                </View>
+              </View>
+            )}
           </View>
         )}
 
@@ -179,7 +208,7 @@ export default function SubscribeScreen() {
             </Text>
 
             <List.Item
-              title="Terms of Service"
+              title="Terms of Use"
               left={(props) => <List.Icon {...props} icon="file-document" />}
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
               onPress={() => router.push('/terms')}
@@ -258,6 +287,21 @@ const styles = StyleSheet.create({
   actionButton: {},
   restoreButton: {
     marginBottom: 10,
+  },
+  purchaseLegalContainer: {
+    marginTop: 4,
+    alignItems: 'center',
+    gap: 4,
+  },
+  purchaseLegalText: {
+    textAlign: 'center',
+    opacity: 0.75,
+  },
+  purchaseLegalLinksRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   legalCardContent: {
     paddingHorizontal: 0,
