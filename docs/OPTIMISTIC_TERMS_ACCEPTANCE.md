@@ -64,20 +64,8 @@ const onPressAccept = async () => {
 export async function recordTermsAcceptance(userId: string) {
   const now = new Date().toISOString()
 
-  // Read the existing subscription row
-  const { data: existingSubscription, error: readError } = await supabaseClient
-    .from('user_app_subscriptions')
-    .select('user_id')
-    .eq('user_id', userId)
-    .eq('app_name', APP_NAME)
-    .maybeSingle()
-
-  if (!existingSubscription) {
-    throw new Error('Missing subscription row for terms acceptance')
-  }
-
-  // Update only terms fields on the existing row
-  const { error: updateError } = await supabaseClient
+  // Atomically update terms fields and verify the row exists
+  const { data: updatedSubscription, error: updateError } = await supabaseClient
     .from('user_app_subscriptions')
     .update({
       terms_accepted_at: now,
@@ -86,8 +74,13 @@ export async function recordTermsAcceptance(userId: string) {
     })
     .eq('user_id', userId)
     .eq('app_name', APP_NAME)
+    .select('user_id')
+    .maybeSingle()
 
   if (updateError) throw updateError
+  if (!updatedSubscription) {
+    throw new Error('Missing subscription row for terms acceptance')
+  }
 }
 ```
 
