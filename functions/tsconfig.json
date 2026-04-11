@@ -12,7 +12,8 @@
         "rootDir": "src",
         "sourceMap": true,
         "strict": true,
-        "target": "es2022"
+        "target": "es2022",
+        "skipLibCheck": true
     },
     "compileOnSave": true,
     "include": [

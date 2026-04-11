@@ -1,9 +1,29 @@
 import {HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import {createClient, SupabaseClient} from "@supabase/supabase-js";
 import {getSupabaseUrl} from "./runtimeConfig.js";
 
 function getSupabaseServiceRoleKey(): string | undefined {
   return process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
+
+/**
+ * Return a Supabase admin client configured with the service role key.
+ * Throws HttpsError if credentials are missing.
+ */
+export function getSupabaseAdminClient(): SupabaseClient {
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+  if (!supabaseServiceRoleKey || !supabaseUrl) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
+    );
+  }
+
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {autoRefreshToken: false, persistSession: false},
+  });
 }
 
 /**
