@@ -13,6 +13,9 @@
         "sourceMap": true,
         "strict": true,
         "target": "es2022",
+        // TODO: skipLibCheck required due to @supabase/supabase-js type conflicts
+        // with Node built-in types. Remove when resolved upstream.
+        // See: https://github.com/supabase/supabase-js/issues/1167
         "skipLibCheck": true
     },
     "compileOnSave": true,
