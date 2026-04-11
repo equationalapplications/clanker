@@ -98,14 +98,18 @@ rather than registering a separate `supabaseClient.auth.onAuthStateChange` liste
 would be a duplicate of the listener already inside `authMachine`).
 
 ```ts
-const { accessToken, isLoading } = useSelector(authService, (state) => ({
-  accessToken: state.context.supabaseSession?.access_token ?? null,
-  isLoading:
+const accessToken = useSelector(
+  authService,
+  (state) => state.context.supabaseSession?.access_token ?? null,
+)
+const isLoading = useSelector(
+  authService,
+  (state) =>
     state.matches('initializing') ||
     state.matches('signingIn') ||
     state.matches('exchangingToken') ||
     state.matches('establishingSupabaseSession'),
-}))
+)
 const tier = accessToken ? extractTierFromToken(accessToken, APP_NAME) : null
 ```
 
