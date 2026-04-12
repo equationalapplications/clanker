@@ -13,15 +13,19 @@ export type FetchResponder = (
   calls: FetchCall[]
 ) => Promise<Response>;
 
-export async function withAdminAuthStub<T>(
-  getUser: GetUserStub,
+/**
+ * General-purpose helper for stubbing partial admin.auth() implementation.
+ * Safely shadows and restores the admin.auth function for the test scope.
+ */
+export async function withAdminAuthPartialStub<T>(
+  authPartial: Partial<ReturnType<typeof admin.auth>>,
   run: () => Promise<T>
 ): Promise<T> {
   const hadOwnAuth = Object.prototype.hasOwnProperty.call(admin, "auth");
   const ownAuthDescriptor = hadOwnAuth ? Object.getOwnPropertyDescriptor(admin, "auth") : undefined;
 
   Object.defineProperty(admin, "auth", {
-    value: (() => ({getUser})) as typeof admin.auth,
+    value: (() => authPartial) as typeof admin.auth,
     writable: true,
     configurable: true,
   });
@@ -36,6 +40,17 @@ export async function withAdminAuthStub<T>(
       delete (admin as Record<string, unknown>).auth;
     }
   }
+}
+
+/**
+ * Convenience wrapper: stubs admin.auth() with just getUser.
+ * Equivalent to withAdminAuthPartialStub({getUser}, run).
+ */
+export async function withAdminAuthStub<T>(
+  getUser: GetUserStub,
+  run: () => Promise<T>
+): Promise<T> {
+  return withAdminAuthPartialStub({getUser} as Partial<ReturnType<typeof admin.auth>>, run);
 }
 
 export async function withFetchStub<T>(
