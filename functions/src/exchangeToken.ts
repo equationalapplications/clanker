@@ -93,7 +93,7 @@ async function checkAndRecordSessionExchange(email: string): Promise<number | nu
 
 /**
  * Best-effort clear of the rate-limit record so a user is not blocked
- * after a transient generateLink / verifyOtp failure.
+ * after a transient generateLink failure.
  */
 async function clearSessionExchangeRecord(email: string): Promise<void> {
     const rateLimitDocId = getSessionExchangeRateLimitDocId(email);
