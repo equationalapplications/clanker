@@ -1,3 +1,22 @@
+# [26.2.0](https://github.com/equationalapplications/clanker/compare/v26.1.3...v26.2.0) (2026-04-12)
+
+
+### Bug Fixes
+
+* address Copilot PR review comments ([cb10542](https://github.com/equationalapplications/clanker/commit/cb10542e48f98650aabac5a1ee1c4a7ea36fbe79))
+* **auth,exchange:** prevent SIGN_OUT reentrancy and remove rate-limit PII ([f057ec4](https://github.com/equationalapplications/clanker/commit/f057ec4b231fe23fa2d47405f52c64dbd537e867))
+* **auth:** allow sign-out during initial signin ([fb330e9](https://github.com/equationalapplications/clanker/commit/fb330e979f88a46ba54d5f18b91698e245a70223))
+* **exchangeToken:** clear rate-limit on transient failure ([6343bfd](https://github.com/equationalapplications/clanker/commit/6343bfdf5dedd699af8b0df09491e2216d4a9cb1)), closes [#251](https://github.com/equationalapplications/clanker/issues/251)
+* **functions:** finalize exchange-token review updates ([f493f4f](https://github.com/equationalapplications/clanker/commit/f493f4fce4fb4e0077a4b9f5aa4210a068a3a503))
+* **functions:** harden exchangeToken flow ([ae14677](https://github.com/equationalapplications/clanker/commit/ae14677bfc25061d59b41d8c5fa93edd409ea42f))
+* **functions:** harden exchangeToken rate limiting ([cbe7119](https://github.com/equationalapplications/clanker/commit/cbe71196ef2ac414f9503765eecdce550f1857a7))
+* **test:** restore firestore descriptor properly ([4063267](https://github.com/equationalapplications/clanker/commit/40632673039e9d394bc18f49e639cbc2d853a0a0))
+
+
+### Features
+
+* **deletion:** hard-delete accounts, add self-service deletion ([6d3083a](https://github.com/equationalapplications/clanker/commit/6d3083aedcb8f5c2cf32e42a7de810601d013c91))
+
 ## [26.1.3](https://github.com/equationalapplications/clanker/compare/v26.1.2...v26.1.3) (2026-04-11)
 
 
