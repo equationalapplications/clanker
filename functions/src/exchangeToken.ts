@@ -27,13 +27,13 @@ function getSessionExchangeRateLimitDocId(email: string): string {
  * otherwise records the current exchange time and returns null.
  */
 async function checkAndRecordSessionExchange(email: string): Promise<number | null> {
-    const normalizedEmail = getSessionExchangeRateLimitDocId(email);
+    const rateLimitDocId = getSessionExchangeRateLimitDocId(email);
     const now = Date.now();
 
     // Try Firestore-based rate limiting (cross-instance)
     try {
         const db = admin.firestore();
-        const docRef = db.collection(sessionExchangeRateLimitCollection).doc(normalizedEmail);
+        const docRef = db.collection(sessionExchangeRateLimitCollection).doc(rateLimitDocId);
 
         return await db.runTransaction(async (transaction) => {
             const snapshot = await transaction.get(docRef);
@@ -51,6 +51,10 @@ async function checkAndRecordSessionExchange(email: string): Promise<number | nu
                 docRef,
                 {
                     lastAt: now,
+                    // Requires Firestore TTL policy on this collection's
+                    // `expireAt` field; otherwise docs accumulate forever.
+                    // Console → Firestore → TTL → collection:
+                    //   sessionExchangeRateLimits, field: expireAt
                     expireAt: new Date(now + 24 * 60 * 60 * 1000),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 },
@@ -62,16 +66,16 @@ async function checkAndRecordSessionExchange(email: string): Promise<number | nu
     } catch (err) {
         // Firestore unavailable; fall back to in-memory Map
         logger.warn("Firestore rate-limit check failed, falling back to in-memory map", {
-            emailHash: normalizedEmail,
+            emailHash: rateLimitDocId,
             error: err instanceof Error ? err.message : String(err),
         });
 
-        const lastAttemptAt = sessionExchangeLastAtByEmail.get(normalizedEmail) ?? 0;
+        const lastAttemptAt = sessionExchangeLastAtByEmail.get(rateLimitDocId) ?? 0;
         if (now - lastAttemptAt < SESSION_EXCHANGE_WINDOW_MS) {
             return lastAttemptAt;
         }
 
-        sessionExchangeLastAtByEmail.set(normalizedEmail, now);
+        sessionExchangeLastAtByEmail.set(rateLimitDocId, now);
 
         // Keep map bounded for warm instances.
         if (sessionExchangeLastAtByEmail.size > 5000) {
@@ -84,6 +88,21 @@ async function checkAndRecordSessionExchange(email: string): Promise<number | nu
         }
 
         return null;
+    }
+}
+
+/**
+ * Best-effort clear of the rate-limit record so a user is not blocked
+ * after a transient generateLink / verifyOtp failure.
+ */
+async function clearSessionExchangeRecord(email: string): Promise<void> {
+    const rateLimitDocId = getSessionExchangeRateLimitDocId(email);
+    sessionExchangeLastAtByEmail.delete(rateLimitDocId);
+    try {
+        const db = admin.firestore();
+        await db.collection(sessionExchangeRateLimitCollection).doc(rateLimitDocId).delete();
+    } catch {
+        // best-effort: in-memory already cleared
     }
 }
 
@@ -221,48 +240,55 @@ async function getSupabaseUserSession(
     const normalizedEmail = email.trim().toLowerCase();
     const supabase = getFreshSupabaseAdminClient();
 
-    // Step 1: Generate a magic link token via Admin API (no email sent)
-    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-        type: "magiclink",
-        email: normalizedEmail,
-    });
-
-    if (linkError || !linkData?.properties?.hashed_token) {
-        logger.error("Failed to generate magic link", {
-            message: linkError?.message,
-            email,
+    try {
+        // Step 1: Generate a magic link token via Admin API (no email sent)
+        const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+            type: "magiclink",
+            email: normalizedEmail,
         });
-        throw new HttpsError(
-            "internal",
-            "Failed to generate Supabase session link."
-        );
-    }
 
-    // Step 2: Verify the token to get a real session (triggers auth hooks)
-    const { data: sessionData, error: verifyError } = await supabase.auth.verifyOtp({
-        type: "magiclink",
-        token_hash: linkData.properties.hashed_token,
-    });
+        if (linkError || !linkData?.properties?.hashed_token) {
+            logger.error("Failed to generate magic link", {
+                message: linkError?.message,
+                email,
+            });
+            throw new HttpsError(
+                "internal",
+                "Failed to generate Supabase session link."
+            );
+        }
 
-    if (verifyError || !sessionData?.session) {
-        logger.error("Failed to verify magic link token", {
-            message: verifyError?.message,
-            email,
+        // Step 2: Verify the token to get a real session (triggers auth hooks)
+        const { data: sessionData, error: verifyError } = await supabase.auth.verifyOtp({
+            type: "magiclink",
+            token_hash: linkData.properties.hashed_token,
         });
-        throw new HttpsError(
-            "internal",
-            "Failed to verify Supabase session token."
-        );
+
+        if (verifyError || !sessionData?.session) {
+            logger.error("Failed to verify magic link token", {
+                message: verifyError?.message,
+                email,
+            });
+            throw new HttpsError(
+                "internal",
+                "Failed to verify Supabase session token."
+            );
+        }
+
+        const session = sessionData.session;
+
+        return {
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            expires_in: session.expires_in,
+            token_type: session.token_type,
+        };
+    } catch (err) {
+        // Release rate-limit lock so user can retry immediately
+        // after a transient generateLink / verifyOtp failure.
+        await clearSessionExchangeRecord(email);
+        throw err;
     }
-
-    const session = sessionData.session;
-
-    return {
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-        expires_in: session.expires_in,
-        token_type: session.token_type,
-    };
 }
 
 /**
