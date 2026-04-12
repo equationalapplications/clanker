@@ -59,7 +59,10 @@ export const authMachine = createMachine(
           target: '.signedOut',
         },
       ],
-      SIGN_OUT: '#authMachine.signingOut',
+      SIGN_OUT: {
+        target: '#authMachine.signingOut',
+        reenter: false,
+      },
     },
     states: {
       initializing: {},

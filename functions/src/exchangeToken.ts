@@ -11,46 +11,77 @@ import {
 
 const SESSION_EXCHANGE_WINDOW_MS = 30_000;
 const sessionExchangeRateLimitCollection = "sessionExchangeRateLimits";
+const sessionExchangeLastAtByEmail = new Map<string, number>();
 
 function getSessionExchangeRateLimitDocId(email: string): string {
     return email.trim().toLowerCase();
 }
 
 /**
- * Atomically enforces the per-email exchange window across all function instances.
+ * Atomically enforces the per-email exchange window across all function instances via Firestore.
+ * Falls back to in-memory Map if Firestore is unavailable.
  * Returns the last exchange timestamp when the request should be rate-limited,
  * otherwise records the current exchange time and returns null.
  */
 async function checkAndRecordSessionExchange(email: string): Promise<number | null> {
     const normalizedEmail = getSessionExchangeRateLimitDocId(email);
-    const db = admin.firestore();
-    const docRef = db.collection(sessionExchangeRateLimitCollection).doc(normalizedEmail);
     const now = Date.now();
 
-    return db.runTransaction(async (transaction) => {
-        const snapshot = await transaction.get(docRef);
-        const lastAt = snapshot.exists ? snapshot.get("lastAt") : undefined;
-        const lastAtNumber = typeof lastAt === "number" ? lastAt : null;
+    // Try Firestore-based rate limiting (cross-instance)
+    try {
+        const db = admin.firestore();
+        const docRef = db.collection(sessionExchangeRateLimitCollection).doc(normalizedEmail);
 
-        if (
-            lastAtNumber !== null &&
-            now - lastAtNumber < SESSION_EXCHANGE_WINDOW_MS
-        ) {
-            return lastAtNumber;
+        return await db.runTransaction(async (transaction) => {
+            const snapshot = await transaction.get(docRef);
+            const lastAt = snapshot.exists ? snapshot.get("lastAt") : undefined;
+            const lastAtNumber = typeof lastAt === "number" ? lastAt : null;
+
+            if (
+                lastAtNumber !== null &&
+                now - lastAtNumber < SESSION_EXCHANGE_WINDOW_MS
+            ) {
+                return lastAtNumber;
+            }
+
+            transaction.set(
+                docRef,
+                {
+                    lastAt: now,
+                    expireAt: new Date(now + 24 * 60 * 60 * 1000),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                },
+                { merge: true }
+            );
+
+            return null;
+        });
+    } catch (err) {
+        // Firestore unavailable; fall back to in-memory Map
+        logger.warn("Firestore rate-limit check failed, falling back to in-memory map", {
+            email: normalizedEmail,
+            error: err instanceof Error ? err.message : String(err),
+        });
+
+        const lastAttemptAt = sessionExchangeLastAtByEmail.get(normalizedEmail) ?? 0;
+        if (now - lastAttemptAt < SESSION_EXCHANGE_WINDOW_MS) {
+            return lastAttemptAt;
         }
 
-        transaction.set(
-            docRef,
-            {
-                email: normalizedEmail,
-                lastAt: now,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-        );
+        sessionExchangeLastAtByEmail.set(normalizedEmail, now);
+
+        // Keep map bounded for warm instances.
+        if (sessionExchangeLastAtByEmail.size > 5000) {
+            const cutoff = now - (10 * SESSION_EXCHANGE_WINDOW_MS);
+            for (const [key, timestamp] of sessionExchangeLastAtByEmail) {
+                if (timestamp < cutoff) {
+                    sessionExchangeLastAtByEmail.delete(key);
+                }
+            }
+        }
 
         return null;
-    });
+    }
 }
 
 // Initialize the Admin SDK if not already initialized
@@ -180,7 +211,6 @@ async function getSupabaseUserSession(
     }
 
     const normalizedEmail = getSessionExchangeRateLimitDocId(email);
-
     const supabase = getFreshSupabaseAdminClient();
 
     // Step 1: Generate a magic link token via Admin API (no email sent)
@@ -218,6 +248,17 @@ async function getSupabaseUserSession(
     }
 
     const session = sessionData.session;
+
+    // Keep map bounded for warm instances (fallback mode).
+    const now = Date.now();
+    if (sessionExchangeLastAtByEmail.size > 5000) {
+        const cutoff = now - (10 * SESSION_EXCHANGE_WINDOW_MS);
+        for (const [key, timestamp] of sessionExchangeLastAtByEmail) {
+            if (timestamp < cutoff) {
+                sessionExchangeLastAtByEmail.delete(key);
+            }
+        }
+    }
 
     return {
         access_token: session.access_token,
