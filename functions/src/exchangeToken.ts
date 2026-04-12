@@ -240,55 +240,53 @@ async function getSupabaseUserSession(
     const normalizedEmail = email.trim().toLowerCase();
     const supabase = getFreshSupabaseAdminClient();
 
-    try {
-        // Step 1: Generate a magic link token via Admin API (no email sent)
-        const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-            type: "magiclink",
-            email: normalizedEmail,
+    // Step 1: Generate a magic link token via Admin API (no email sent)
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: "magiclink",
+        email: normalizedEmail,
+    });
+
+    if (linkError || !linkData?.properties?.hashed_token) {
+        logger.error("Failed to generate magic link", {
+            message: linkError?.message,
+            email,
         });
-
-        if (linkError || !linkData?.properties?.hashed_token) {
-            logger.error("Failed to generate magic link", {
-                message: linkError?.message,
-                email,
-            });
-            throw new HttpsError(
-                "internal",
-                "Failed to generate Supabase session link."
-            );
-        }
-
-        // Step 2: Verify the token to get a real session (triggers auth hooks)
-        const { data: sessionData, error: verifyError } = await supabase.auth.verifyOtp({
-            type: "magiclink",
-            token_hash: linkData.properties.hashed_token,
-        });
-
-        if (verifyError || !sessionData?.session) {
-            logger.error("Failed to verify magic link token", {
-                message: verifyError?.message,
-                email,
-            });
-            throw new HttpsError(
-                "internal",
-                "Failed to verify Supabase session token."
-            );
-        }
-
-        const session = sessionData.session;
-
-        return {
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            expires_in: session.expires_in,
-            token_type: session.token_type,
-        };
-    } catch (err) {
-        // Release rate-limit lock so user can retry immediately
-        // after a transient generateLink / verifyOtp failure.
+        // Clear rate-limit only if generateLink itself failed (no OTP issued).
+        // This allows immediate retry without blocking the user for 30s.
         await clearSessionExchangeRecord(email);
-        throw err;
+        throw new HttpsError(
+            "internal",
+            "Failed to generate Supabase session link."
+        );
     }
+
+    // Step 2: Verify the token to get a real session (triggers auth hooks).
+    // Don't clear rate-limit if verifyOtp fails—an OTP was already issued and
+    // consumed by the failed attempt, so we keep the window to prevent OTP exhaustion.
+    const { data: sessionData, error: verifyError } = await supabase.auth.verifyOtp({
+        type: "magiclink",
+        token_hash: linkData.properties.hashed_token,
+    });
+
+    if (verifyError || !sessionData?.session) {
+        logger.error("Failed to verify magic link token", {
+            message: verifyError?.message,
+            email,
+        });
+        throw new HttpsError(
+            "internal",
+            "Failed to verify Supabase session token."
+        );
+    }
+
+    const session = sessionData.session;
+
+    return {
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        expires_in: session.expires_in,
+        token_type: session.token_type,
+    };
 }
 
 /**
