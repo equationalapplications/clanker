@@ -17,6 +17,30 @@ const {
   deleteMyAccountHandler,
 } = await import("./adminFunctions.js");
 
+async function withAdminDeleteUserStub<T>(
+  deleteUser: (uid: string) => Promise<void>,
+  run: () => Promise<T>
+): Promise<T> {
+  const hadOwnAuth = Object.prototype.hasOwnProperty.call(admin, "auth");
+  const ownAuthDescriptor = hadOwnAuth ? Object.getOwnPropertyDescriptor(admin, "auth") : undefined;
+
+  Object.defineProperty(admin, "auth", {
+    value: (() => ({deleteUser})) as typeof admin.auth,
+    writable: true,
+    configurable: true,
+  });
+
+  try {
+    return await run();
+  } finally {
+    if (ownAuthDescriptor) {
+      Object.defineProperty(admin, "auth", ownAuthDescriptor);
+    } else {
+      delete (admin as Record<string, unknown>).auth;
+    }
+  }
+}
+
 test("adminListUsersHandler rejects non-admin callers", async () => {
   await assert.rejects(
     async () =>
@@ -810,7 +834,6 @@ test("adminResetUserStateHandler surfaces failed-precondition when canonical tab
 
 test("adminDeleteUserHandler deletes app data and identities", async () => {
   const originalFetch = globalThis.fetch;
-  const originalAuth = admin.auth;
   const calls: Array<{url: string; method: string}> = [];
   let deletedFirebaseUid: string | null = null;
 
@@ -849,41 +872,38 @@ test("adminDeleteUserHandler deletes app data and identities", async () => {
     throw new Error(`Unexpected fetch call in test: ${url}`);
   }) as typeof fetch;
 
-  (admin as unknown as {auth: typeof admin.auth}).auth = (() => ({
-    deleteUser: async (uid: string) => {
-      deletedFirebaseUid = uid;
-    },
-  })) as unknown as typeof admin.auth;
-
   try {
-    const result = await adminDeleteUserHandler({
-      auth: {
-        uid: "firebase-admin-1",
-        token: {
+    const result = await withAdminDeleteUserStub(
+      async (uid: string) => {
+        deletedFirebaseUid = uid;
+      },
+      async () => adminDeleteUserHandler({
+        auth: {
           uid: "firebase-admin-1",
-          email: "admin@example.com",
+          token: {
+            uid: "firebase-admin-1",
+            email: "admin@example.com",
+          },
         },
-      },
-      data: {
-        userId: "supabase-user-2",
-        reason: "gdpr",
-        requestId: "req-delete-2",
-      },
-    } as never);
+        data: {
+          userId: "supabase-user-2",
+          reason: "gdpr",
+          requestId: "req-delete-2",
+        },
+      } as never),
+    );
 
     assert.equal(result.success, true);
     assert.equal(result.applied.deleted, true);
     assert.equal(deletedFirebaseUid, "firebase-user-2");
     assert.equal(calls.length, 5);
   } finally {
-    admin.auth = originalAuth;
     globalThis.fetch = originalFetch;
   }
 });
 
 test("adminDeleteUserHandler returns internal when Firebase deletion fails", async () => {
   const originalFetch = globalThis.fetch;
-  const originalAuth = admin.auth;
   const calls: Array<{url: string; method: string}> = [];
 
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -905,42 +925,39 @@ test("adminDeleteUserHandler returns internal when Firebase deletion fails", asy
     throw new Error(`Unexpected fetch call in test: ${url}`);
   }) as typeof fetch;
 
-  (admin as unknown as {auth: typeof admin.auth}).auth = (() => ({
-    deleteUser: async () => {
-      throw new Error("firebase delete failed");
-    },
-  })) as unknown as typeof admin.auth;
-
   try {
     await assert.rejects(
       async () =>
-        adminDeleteUserHandler({
-          auth: {
-            uid: "firebase-admin-1",
-            token: {
+        withAdminDeleteUserStub(
+          async () => {
+            throw new Error("firebase delete failed");
+          },
+          async () => adminDeleteUserHandler({
+            auth: {
               uid: "firebase-admin-1",
-              email: "admin@example.com",
+              token: {
+                uid: "firebase-admin-1",
+                email: "admin@example.com",
+              },
             },
-          },
-          data: {
-            userId: "supabase-user-1",
-            reason: "gdpr",
-            requestId: "req-delete-1",
-          },
-        } as never),
+            data: {
+              userId: "supabase-user-1",
+              reason: "gdpr",
+              requestId: "req-delete-1",
+            },
+          } as never),
+        ),
       (err: unknown) => err instanceof HttpsError && err.code === "internal"
     );
 
     assert.equal(calls.length, 1);
   } finally {
-    admin.auth = originalAuth;
     globalThis.fetch = originalFetch;
   }
 });
 
 test("adminDeleteUserHandler fails when Supabase auth fetch is non-404", async () => {
   const originalFetch = globalThis.fetch;
-  const originalAuth = admin.auth;
   const calls: Array<{url: string; method: string}> = [];
 
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -956,43 +973,40 @@ test("adminDeleteUserHandler fails when Supabase auth fetch is non-404", async (
   }) as typeof fetch;
 
   let attemptedFirebaseDelete = false;
-  (admin as unknown as {auth: typeof admin.auth}).auth = (() => ({
-    deleteUser: async () => {
-      attemptedFirebaseDelete = true;
-    },
-  })) as unknown as typeof admin.auth;
-
   try {
     await assert.rejects(
       async () =>
-        adminDeleteUserHandler({
-          auth: {
-            uid: "firebase-admin-1",
-            token: {
+        withAdminDeleteUserStub(
+          async () => {
+            attemptedFirebaseDelete = true;
+          },
+          async () => adminDeleteUserHandler({
+            auth: {
               uid: "firebase-admin-1",
-              email: "admin@example.com",
+              token: {
+                uid: "firebase-admin-1",
+                email: "admin@example.com",
+              },
             },
-          },
-          data: {
-            userId: "supabase-user-5",
-            reason: "gdpr",
-            requestId: "req-delete-5",
-          },
-        } as never),
+            data: {
+              userId: "supabase-user-5",
+              reason: "gdpr",
+              requestId: "req-delete-5",
+            },
+          } as never),
+        ),
       (err: unknown) => err instanceof HttpsError && err.code === "internal"
     );
 
     assert.equal(calls.length, 1);
     assert.equal(attemptedFirebaseDelete, false);
   } finally {
-    admin.auth = originalAuth;
     globalThis.fetch = originalFetch;
   }
 });
 
 test("deleteMyAccountHandler deletes Supabase data and Firebase auth for the caller", async () => {
   const originalFetch = globalThis.fetch;
-  const originalAuth = admin.auth;
   const calls: Array<{url: string; method: string}> = [];
   let deletedFirebaseUid: string | null = null;
 
@@ -1024,22 +1038,21 @@ test("deleteMyAccountHandler deletes Supabase data and Firebase auth for the cal
     throw new Error(`Unexpected fetch call in test: ${url}`);
   }) as typeof fetch;
 
-  (admin as unknown as {auth: typeof admin.auth}).auth = (() => ({
-    deleteUser: async (uid: string) => {
-      deletedFirebaseUid = uid;
-    },
-  })) as unknown as typeof admin.auth;
-
   try {
-    const result = await deleteMyAccountHandler({
-      auth: {
-        uid: "firebase-self-1",
-        token: {
-          uid: "firebase-self-1",
-        },
+    const result = await withAdminDeleteUserStub(
+      async (uid: string) => {
+        deletedFirebaseUid = uid;
       },
-      data: {},
-    } as never);
+      async () => deleteMyAccountHandler({
+        auth: {
+          uid: "firebase-self-1",
+          token: {
+            uid: "firebase-self-1",
+          },
+        },
+        data: {},
+      } as never),
+    );
 
     assert.equal(result.success, true);
     assert.equal(result.deleted, true);
@@ -1047,7 +1060,6 @@ test("deleteMyAccountHandler deletes Supabase data and Firebase auth for the cal
     assert.equal(deletedFirebaseUid, "firebase-self-1");
     assert.equal(calls.length, 5);
   } finally {
-    admin.auth = originalAuth;
     globalThis.fetch = originalFetch;
   }
 });
