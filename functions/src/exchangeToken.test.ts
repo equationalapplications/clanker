@@ -303,6 +303,11 @@ function mockAdminFirestore(opts: {
   existingLastAt?: number;
   transactionError?: Error;
 }): () => void {
+  const hadOwnFirestore = Object.prototype.hasOwnProperty.call(admin, "firestore");
+  const ownFirestoreDescriptor = hadOwnFirestore ?
+    Object.getOwnPropertyDescriptor(admin, "firestore") :
+    undefined;
+
   const mockDb = {
     collection: () => ({
       doc: () => ({
@@ -338,8 +343,12 @@ function mockAdminFirestore(opts: {
   });
 
   return () => {
-    // Delete the own property to reveal the original prototype getter
-    delete (admin as Record<string, unknown>).firestore;
+    if (ownFirestoreDescriptor) {
+      Object.defineProperty(admin, "firestore", ownFirestoreDescriptor);
+    } else {
+      // Delete temporary shadow to reveal prototype getter
+      delete (admin as Record<string, unknown>).firestore;
+    }
   };
 }
 
