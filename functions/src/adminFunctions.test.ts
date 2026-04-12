@@ -14,6 +14,7 @@ const {
   adminClearTermsAcceptanceHandler,
   adminResetUserStateHandler,
   adminDeleteUserHandler,
+  deleteMyAccountHandler,
 } = await import("./adminFunctions.js");
 
 test("adminListUsersHandler rejects non-admin callers", async () => {
@@ -987,4 +988,77 @@ test("adminDeleteUserHandler fails when Supabase auth fetch is non-404", async (
     admin.auth = originalAuth;
     globalThis.fetch = originalFetch;
   }
+});
+
+test("deleteMyAccountHandler deletes Supabase data and Firebase auth for the caller", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalAuth = admin.auth;
+  const calls: Array<{url: string; method: string}> = [];
+  let deletedFirebaseUid: string | null = null;
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const method = String(init?.method ?? "GET");
+    calls.push({url, method});
+
+    if (url.endsWith("/rest/v1/rpc/get_user_id_by_firebase_uid") && method === "POST") {
+      return new Response(JSON.stringify("supabase-user-self"), {status: 200});
+    }
+
+    if (url.includes("/rest/v1/yours_brightly_messages") && method === "DELETE") {
+      return new Response(null, {status: 204});
+    }
+
+    if (url.includes("/rest/v1/yours_brightly_characters") && method === "DELETE") {
+      return new Response(null, {status: 204});
+    }
+
+    if (url.includes("/rest/v1/user_app_subscriptions") && method === "DELETE") {
+      return new Response(null, {status: 204});
+    }
+
+    if (url.endsWith("/auth/v1/admin/users/supabase-user-self") && method === "DELETE") {
+      return new Response(null, {status: 204});
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url}`);
+  }) as typeof fetch;
+
+  (admin as unknown as {auth: typeof admin.auth}).auth = (() => ({
+    deleteUser: async (uid: string) => {
+      deletedFirebaseUid = uid;
+    },
+  })) as unknown as typeof admin.auth;
+
+  try {
+    const result = await deleteMyAccountHandler({
+      auth: {
+        uid: "firebase-self-1",
+        token: {
+          uid: "firebase-self-1",
+        },
+      },
+      data: {},
+    } as never);
+
+    assert.equal(result.success, true);
+    assert.equal(result.deleted, true);
+    assert.equal(result.userId, "supabase-user-self");
+    assert.equal(deletedFirebaseUid, "firebase-self-1");
+    assert.equal(calls.length, 5);
+  } finally {
+    admin.auth = originalAuth;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("deleteMyAccountHandler rejects unauthenticated callers", async () => {
+  await assert.rejects(
+    async () =>
+      deleteMyAccountHandler({
+        auth: undefined,
+        data: {},
+      } as never),
+    (err: unknown) => err instanceof HttpsError && err.code === "unauthenticated"
+  );
 });
