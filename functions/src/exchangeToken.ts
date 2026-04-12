@@ -1,11 +1,110 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
+import { createHash } from "crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
-import { getSupabaseAdminClient, findSupabaseUserByEmail, findSupabaseUserByEmailIncludeDeleted } from "./supabaseAdmin.js";
+import {
+  getSupabaseAdminClient,
+  getFreshSupabaseAdminClient,
+  findSupabaseUserByEmail,
+  findSupabaseUserByEmailIncludeDeleted,
+} from "./supabaseAdmin.js";
 
-const APP_NAME = "clanker";
-const INITIAL_FREE_CREDITS = 50;
+const SESSION_EXCHANGE_WINDOW_MS = 30_000;
+const sessionExchangeRateLimitCollection = "sessionExchangeRateLimits";
+const sessionExchangeLastAtByDocId = new Map<string, number>();
+
+function getSessionExchangeRateLimitDocId(email: string): string {
+    // Hash email for PII safety: avoid logging/leaking raw email in doc IDs
+    const normalized = email.trim().toLowerCase();
+    return createHash("sha256").update(normalized).digest("hex");
+}
+
+/**
+ * Atomically enforces the per-email exchange window across all function instances via Firestore.
+ * Falls back to in-memory Map if Firestore is unavailable.
+ * Returns the last exchange timestamp when the request should be rate-limited,
+ * otherwise records the current exchange time and returns null.
+ */
+async function checkAndRecordSessionExchange(email: string): Promise<number | null> {
+    const rateLimitDocId = getSessionExchangeRateLimitDocId(email);
+    const now = Date.now();
+
+    // Try Firestore-based rate limiting (cross-instance)
+    try {
+        const db = admin.firestore();
+        const docRef = db.collection(sessionExchangeRateLimitCollection).doc(rateLimitDocId);
+
+        return await db.runTransaction(async (transaction) => {
+            const snapshot = await transaction.get(docRef);
+            const lastAt = snapshot.exists ? snapshot.get("lastAt") : undefined;
+            const lastAtNumber = typeof lastAt === "number" ? lastAt : null;
+
+            if (
+                lastAtNumber !== null &&
+                now - lastAtNumber < SESSION_EXCHANGE_WINDOW_MS
+            ) {
+                return lastAtNumber;
+            }
+
+            transaction.set(
+                docRef,
+                {
+                    lastAt: now,
+                    // Requires Firestore TTL policy on this collection's
+                    // `expireAt` field; otherwise docs accumulate forever.
+                    // Console → Firestore → TTL → collection:
+                    //   sessionExchangeRateLimits, field: expireAt
+                    expireAt: new Date(now + 24 * 60 * 60 * 1000),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                },
+                { merge: true }
+            );
+
+            return null;
+        });
+    } catch (err) {
+        // Firestore unavailable; fall back to in-memory Map
+        logger.warn("Firestore rate-limit check failed, falling back to in-memory map", {
+            emailHash: rateLimitDocId,
+            error: err instanceof Error ? err.message : String(err),
+        });
+
+        const lastAttemptAt = sessionExchangeLastAtByDocId.get(rateLimitDocId) ?? 0;
+        if (now - lastAttemptAt < SESSION_EXCHANGE_WINDOW_MS) {
+            return lastAttemptAt;
+        }
+
+        sessionExchangeLastAtByDocId.set(rateLimitDocId, now);
+
+        // Keep map bounded for warm instances.
+        if (sessionExchangeLastAtByDocId.size > 5000) {
+            const cutoff = now - (10 * SESSION_EXCHANGE_WINDOW_MS);
+            for (const [key, timestamp] of sessionExchangeLastAtByDocId) {
+                if (timestamp < cutoff) {
+                    sessionExchangeLastAtByDocId.delete(key);
+                }
+            }
+        }
+
+        return null;
+    }
+}
+
+/**
+ * Best-effort clear of the rate-limit record so a user is not blocked
+ * after a transient generateLink failure.
+ */
+async function clearSessionExchangeRecord(email: string): Promise<void> {
+    const rateLimitDocId = getSessionExchangeRateLimitDocId(email);
+    sessionExchangeLastAtByDocId.delete(rateLimitDocId);
+    try {
+        const db = admin.firestore();
+        await db.collection(sessionExchangeRateLimitCollection).doc(rateLimitDocId).delete();
+    } catch {
+        // best-effort: in-memory already cleared
+    }
+}
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
@@ -42,6 +141,10 @@ async function createSupabaseUser(
             logger.info("Attempting fallback for existing/soft-deleted user", { email });
             const existing = await findSupabaseUserByEmailIncludeDeleted(email);
             if (!existing) {
+                logger.error("422 fallback: findSupabaseUserByEmailIncludeDeleted returned null", {
+                    email,
+                    hint: "RPC get_auth_user_by_email found no record — possible data inconsistency",
+                });
                 return null;
             }
 
@@ -104,6 +207,7 @@ async function createSupabaseUser(
     }
 
     if (!data?.user) {
+        logger.error("Supabase createUser returned 200 but no user object", { email });
         return null;
     }
 
@@ -124,12 +228,22 @@ async function getSupabaseUserSession(
     expires_in: number;
     token_type: string;
 }> {
-    const supabase = getSupabaseAdminClient();
+    const lastAttemptAt = await checkAndRecordSessionExchange(email);
+
+    if (lastAttemptAt !== null) {
+        throw new HttpsError(
+            "resource-exhausted",
+            "Token exchange rate-limited. Retry shortly."
+        );
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const supabase = getFreshSupabaseAdminClient();
 
     // Step 1: Generate a magic link token via Admin API (no email sent)
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: "magiclink",
-        email: email.toLowerCase(),
+        email: normalizedEmail,
     });
 
     if (linkError || !linkData?.properties?.hashed_token) {
@@ -137,13 +251,18 @@ async function getSupabaseUserSession(
             message: linkError?.message,
             email,
         });
+        // Clear rate-limit only if generateLink itself failed (no OTP issued).
+        // This allows immediate retry without blocking the user for 30s.
+        await clearSessionExchangeRecord(email);
         throw new HttpsError(
             "internal",
             "Failed to generate Supabase session link."
         );
     }
 
-    // Step 2: Verify the token to get a real session (triggers auth hooks)
+    // Step 2: Verify the token to get a real session (triggers auth hooks).
+    // Don't clear rate-limit if verifyOtp fails—an OTP was already issued and
+    // consumed by the failed attempt, so we keep the window to prevent OTP exhaustion.
     const { data: sessionData, error: verifyError } = await supabase.auth.verifyOtp({
         type: "magiclink",
         token_hash: linkData.properties.hashed_token,
@@ -171,40 +290,6 @@ async function getSupabaseUserSession(
 }
 
 /**
- * Ensure the user has a free-tier subscription row for this app.
- * This is an idempotent insert and will not overwrite existing rows.
- */
-async function ensureFreeTierSubscription(supabaseUserId: string): Promise<void> {
-    const supabase = getSupabaseAdminClient();
-
-    const { error } = await supabase
-        .from("user_app_subscriptions")
-        .upsert(
-            {
-                user_id: supabaseUserId,
-                app_name: APP_NAME,
-                plan_tier: "free",
-                plan_status: "active",
-                current_credits: INITIAL_FREE_CREDITS,
-                updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id,app_name", ignoreDuplicates: true }
-        );
-
-    if (error) {
-        logger.error("Failed to ensure free-tier subscription", {
-            supabaseUserId,
-            message: error.message,
-            code: error.code,
-        });
-        throw new HttpsError(
-            "internal",
-            "Failed to ensure initial free-tier subscription."
-        );
-    }
-}
-
-/**
  * exchangeToken (2nd Gen callable)
  *
  * Authenticates a Firebase user with Supabase by:
@@ -223,25 +308,15 @@ const handler = async (request: CallableRequest) => {
     }
 
     const uid = request.auth.uid;
-    let decoded: DecodedIdToken;
-
-    try {
-        decoded = request.auth.token as DecodedIdToken;
-        if (!decoded || decoded.uid !== uid) {
-            logger.error("Context token missing or UID mismatch", {
-                contextUid: uid,
-                tokenUid: decoded ? decoded.uid : null,
-            });
-            throw new HttpsError(
-                "unauthenticated",
-                "Invalid or missing Firebase authentication token."
-            );
-        }
-    } catch (error) {
-        logger.error("Token extraction/verification failed", { error });
+    const decoded = request.auth.token as DecodedIdToken | undefined;
+    if (!decoded || decoded.uid !== uid) {
+        logger.error("Context token missing or UID mismatch", {
+            contextUid: uid,
+            tokenUid: decoded?.uid ?? null,
+        });
         throw new HttpsError(
             "unauthenticated",
-            "Invalid Firebase authentication token."
+            "Invalid or missing Firebase authentication token."
         );
     }
 
@@ -263,12 +338,21 @@ const handler = async (request: CallableRequest) => {
         const found = await findSupabaseUserByEmail(email);
         if (found) {
             supabaseUserId = found.id;
+            logger.info("Supabase user found for email", {
+                email,
+                supabaseUserId,
+            });
         } else {
             const created = await createSupabaseUser(email, decoded.uid);
             if (created) {
                 supabaseUserId = created.id;
+                logger.info("Supabase user not found; created user", {
+                    email,
+                    supabaseUserId,
+                });
+            } else {
+                logger.error("Supabase user not found; creation failed", { email });
             }
-            logger.info("Supabase user not found, attempted creation", { email });
         }
     } catch (err) {
         logger.error("Supabase admin API check/create user failed", {err, email});
@@ -288,8 +372,6 @@ const handler = async (request: CallableRequest) => {
             "Failed to find or create corresponding Supabase user."
         );
     }
-
-    await ensureFreeTierSubscription(supabaseUserId);
 
     // Generate a real Supabase session via Admin API (triggers auth hooks)
     const session = await getSupabaseUserSession(email);

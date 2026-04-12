@@ -17,15 +17,24 @@ export async function withAdminAuthStub<T>(
   getUser: GetUserStub,
   run: () => Promise<T>
 ): Promise<T> {
-  const adminWithAuth = admin as {auth: typeof admin.auth};
-  const originalAuth = adminWithAuth.auth;
+  const hadOwnAuth = Object.prototype.hasOwnProperty.call(admin, "auth");
+  const ownAuthDescriptor = hadOwnAuth ? Object.getOwnPropertyDescriptor(admin, "auth") : undefined;
 
-  adminWithAuth.auth = (() => ({getUser})) as typeof admin.auth;
+  Object.defineProperty(admin, "auth", {
+    value: (() => ({getUser})) as typeof admin.auth,
+    writable: true,
+    configurable: true,
+  });
 
   try {
     return await run();
   } finally {
-    adminWithAuth.auth = originalAuth;
+    if (ownAuthDescriptor) {
+      Object.defineProperty(admin, "auth", ownAuthDescriptor);
+    } else {
+      // Remove temporary shadow so prototype getter is used again.
+      delete (admin as Record<string, unknown>).auth;
+    }
   }
 }
 
