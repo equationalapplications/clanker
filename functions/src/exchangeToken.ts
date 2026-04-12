@@ -1,12 +1,13 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
+import { createHash } from "crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import {
-    getSupabaseAdminClient,
-    getFreshSupabaseAdminClient,
-    findSupabaseUserByEmail,
-    findSupabaseUserByEmailIncludeDeleted,
+  getSupabaseAdminClient,
+  getFreshSupabaseAdminClient,
+  findSupabaseUserByEmail,
+  findSupabaseUserByEmailIncludeDeleted,
 } from "./supabaseAdmin.js";
 
 const SESSION_EXCHANGE_WINDOW_MS = 30_000;
@@ -14,7 +15,9 @@ const sessionExchangeRateLimitCollection = "sessionExchangeRateLimits";
 const sessionExchangeLastAtByEmail = new Map<string, number>();
 
 function getSessionExchangeRateLimitDocId(email: string): string {
-    return email.trim().toLowerCase();
+    // Hash email for PII safety: avoid logging/leaking raw email in doc IDs
+    const normalized = email.trim().toLowerCase();
+    return createHash("sha256").update(normalized).digest("hex");
 }
 
 /**
@@ -59,7 +62,7 @@ async function checkAndRecordSessionExchange(email: string): Promise<number | nu
     } catch (err) {
         // Firestore unavailable; fall back to in-memory Map
         logger.warn("Firestore rate-limit check failed, falling back to in-memory map", {
-            email: normalizedEmail,
+            emailHash: normalizedEmail,
             error: err instanceof Error ? err.message : String(err),
         });
 
@@ -119,6 +122,10 @@ async function createSupabaseUser(
             logger.info("Attempting fallback for existing/soft-deleted user", { email });
             const existing = await findSupabaseUserByEmailIncludeDeleted(email);
             if (!existing) {
+                logger.error("422 fallback: findSupabaseUserByEmailIncludeDeleted returned null", {
+                    email,
+                    hint: "RPC get_auth_user_by_email found no record — possible data inconsistency",
+                });
                 return null;
             }
 
@@ -181,6 +188,7 @@ async function createSupabaseUser(
     }
 
     if (!data?.user) {
+        logger.error("Supabase createUser returned 200 but no user object", { email });
         return null;
     }
 
@@ -210,7 +218,7 @@ async function getSupabaseUserSession(
         );
     }
 
-    const normalizedEmail = getSessionExchangeRateLimitDocId(email);
+    const normalizedEmail = email.trim().toLowerCase();
     const supabase = getFreshSupabaseAdminClient();
 
     // Step 1: Generate a magic link token via Admin API (no email sent)
@@ -248,17 +256,6 @@ async function getSupabaseUserSession(
     }
 
     const session = sessionData.session;
-
-    // Keep map bounded for warm instances (fallback mode).
-    const now = Date.now();
-    if (sessionExchangeLastAtByEmail.size > 5000) {
-        const cutoff = now - (10 * SESSION_EXCHANGE_WINDOW_MS);
-        for (const [key, timestamp] of sessionExchangeLastAtByEmail) {
-            if (timestamp < cutoff) {
-                sessionExchangeLastAtByEmail.delete(key);
-            }
-        }
-    }
 
     return {
         access_token: session.access_token,

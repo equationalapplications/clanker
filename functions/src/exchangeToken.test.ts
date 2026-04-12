@@ -20,7 +20,6 @@ test("exchangeTokenHandler returns a Supabase session for an authenticated user"
 
   const responses = [
     new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(null, {status: 201}),
     new Response(JSON.stringify({hashed_token: "hashed-token"}), {status: 200}),
     new Response(
       JSON.stringify({
@@ -137,7 +136,7 @@ test("exchangeTokenHandler recreates a soft-deleted Supabase user", async () => 
       token_type: "bearer",
     });
 
-    assert.equal(calls.length, 8);
+    assert.equal(calls.length, 7);
     // RPC lookup (get_user_id_by_email)
     assert.match(calls[0]?.url ?? "", /get_user_id_by_email$/);
     // create user attempt
@@ -152,12 +151,228 @@ test("exchangeTokenHandler recreates a soft-deleted Supabase user", async () => 
     // recreate user
     assert.equal(calls[4]?.method, "POST");
     assert.match(calls[4]?.url ?? "", /admin\/users$/);
-    // subscription bootstrap
-    assert.match(calls[5]?.url ?? "", /user_app_subscriptions/);
     // generate_link
-    assert.match(calls[6]?.url ?? "", /generate_link$/);
+    assert.match(calls[5]?.url ?? "", /generate_link$/);
     // verify
-    assert.match(calls[7]?.url ?? "", /verify$/);
+    assert.match(calls[6]?.url ?? "", /verify$/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("exchangeTokenHandler rejects second exchange within rate-limit window", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{url: string; method: string; body: string}> = [];
+
+  const responses = [
+    new Response(JSON.stringify("user-id-1"), {status: 200}),
+    new Response(JSON.stringify({hashed_token: "token1"}), {status: 200}),
+    new Response(
+      JSON.stringify({
+        access_token: "access-1",
+        refresh_token: "refresh-1",
+        expires_in: 3600,
+        token_type: "bearer",
+      }),
+      {status: 200}
+    ),
+  ];
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({
+      url: String(input),
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" ? init.body : "",
+    });
+
+    const next = responses.shift();
+    if (!next) {
+      throw new Error("Unexpected fetch call in rate-limit test");
+    }
+    return next;
+  }) as typeof fetch;
+
+  try {
+    // First exchange succeeds
+    const result1 = await exchangeTokenHandler({
+      auth: {
+        uid: "firebase-uid-1",
+        token: {
+          uid: "firebase-uid-1",
+          email: "ratelimit@example.com",
+        },
+      },
+    } as never);
+
+    assert.equal(result1.access_token, "access-1");
+
+    // Second exchange within 30s window rejected
+    await assert.rejects(
+      async () => exchangeTokenHandler({
+        auth: {
+          uid: "firebase-uid-1",
+          token: {
+            uid: "firebase-uid-1",
+            email: "ratelimit@example.com",
+          },
+        },
+      } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("exchangeTokenHandler throws when user lookup and creation both fail", async () => {
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    // findSupabaseUserByEmail → null
+    new Response(JSON.stringify(null), {status: 200}),
+    // createSupabaseUser → generic failure
+    new Response(JSON.stringify({message: "internal error"}), {status: 500}),
+  ];
+
+  globalThis.fetch = (async () => {
+    const next = responses.shift();
+    if (!next) throw new Error("Unexpected fetch call");
+    return next;
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      async () => exchangeTokenHandler({
+        auth: {
+          uid: "firebase-uid-1",
+          token: {uid: "firebase-uid-1", email: "noluck@example.com"},
+        },
+      } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "internal"
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("exchangeTokenHandler throws when generate_link fails", async () => {
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    // findSupabaseUserByEmail → found
+    new Response(JSON.stringify("user-id"), {status: 200}),
+    // generateLink → error
+    new Response(JSON.stringify({message: "rate limit exceeded"}), {status: 429}),
+  ];
+
+  globalThis.fetch = (async () => {
+    const next = responses.shift();
+    if (!next) throw new Error("Unexpected fetch call");
+    return next;
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      async () => exchangeTokenHandler({
+        auth: {
+          uid: "firebase-uid-1",
+          token: {uid: "firebase-uid-1", email: "linkfail@example.com"},
+        },
+      } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "internal"
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("exchangeTokenHandler throws when verifyOtp fails", async () => {
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    // findSupabaseUserByEmail → found
+    new Response(JSON.stringify("user-id"), {status: 200}),
+    // generateLink → success
+    new Response(JSON.stringify({hashed_token: "token"}), {status: 200}),
+    // verifyOtp → error
+    new Response(JSON.stringify({message: "otp expired"}), {status: 403}),
+  ];
+
+  globalThis.fetch = (async () => {
+    const next = responses.shift();
+    if (!next) throw new Error("Unexpected fetch call");
+    return next;
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      async () => exchangeTokenHandler({
+        auth: {
+          uid: "firebase-uid-1",
+          token: {uid: "firebase-uid-1", email: "verifyfail@example.com"},
+        },
+      } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "internal"
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("exchangeTokenHandler reuses existing active user on 422 fallback", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{url: string; method: string; body: string}> = [];
+
+  const responses = [
+    // 1. findSupabaseUserByEmail → null
+    new Response(JSON.stringify(null), {status: 200}),
+    // 2. createSupabaseUser → 422
+    new Response(JSON.stringify({msg: "already registered"}), {status: 422}),
+    // 3. findIncludeDeleted → active user (no deleted_at)
+    new Response(JSON.stringify({user_id: "existing-id", deleted_at: null}), {status: 200}),
+    // 4. generate_link
+    new Response(JSON.stringify({hashed_token: "ht"}), {status: 200}),
+    // 5. verify
+    new Response(
+      JSON.stringify({
+        access_token: "at",
+        refresh_token: "rt",
+        expires_in: 3600,
+        token_type: "bearer",
+      }),
+      {status: 200}
+    ),
+  ];
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({
+      url: String(input),
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" ? init.body : "",
+    });
+    const next = responses.shift();
+    if (!next) throw new Error("Unexpected fetch call");
+    return next;
+  }) as typeof fetch;
+
+  try {
+    const result = await exchangeTokenHandler({
+      auth: {
+        uid: "firebase-uid-1",
+        token: {uid: "firebase-uid-1", email: "active422@example.com"},
+      },
+    } as never);
+
+    assert.deepEqual(result, {
+      access_token: "at",
+      refresh_token: "rt",
+      expires_in: 3600,
+      token_type: "bearer",
+    });
+
+    // Should NOT have a DELETE call — user is active, just reuse
+    assert.equal(calls.length, 5);
+    assert.equal(calls.filter(c => c.method === "DELETE").length, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
