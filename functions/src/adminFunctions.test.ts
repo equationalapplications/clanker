@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {HttpsError} from "firebase-functions/v2/https";
-import admin from "firebase-admin";
+import {withAdminAuthPartialStub} from "./testHelpers.js";
 
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.SUPABASE_URL = "https://supabase.example.co";
@@ -16,30 +16,6 @@ const {
   adminDeleteUserHandler,
   deleteMyAccountHandler,
 } = await import("./adminFunctions.js");
-
-async function withAdminDeleteUserStub<T>(
-  deleteUser: (uid: string) => Promise<void>,
-  run: () => Promise<T>
-): Promise<T> {
-  const hadOwnAuth = Object.prototype.hasOwnProperty.call(admin, "auth");
-  const ownAuthDescriptor = hadOwnAuth ? Object.getOwnPropertyDescriptor(admin, "auth") : undefined;
-
-  Object.defineProperty(admin, "auth", {
-    value: (() => ({deleteUser})) as typeof admin.auth,
-    writable: true,
-    configurable: true,
-  });
-
-  try {
-    return await run();
-  } finally {
-    if (ownAuthDescriptor) {
-      Object.defineProperty(admin, "auth", ownAuthDescriptor);
-    } else {
-      delete (admin as Record<string, unknown>).auth;
-    }
-  }
-}
 
 test("adminListUsersHandler rejects non-admin callers", async () => {
   await assert.rejects(
@@ -873,9 +849,11 @@ test("adminDeleteUserHandler deletes app data and identities", async () => {
   }) as typeof fetch;
 
   try {
-    const result = await withAdminDeleteUserStub(
-      async (uid: string) => {
-        deletedFirebaseUid = uid;
+    const result = await withAdminAuthPartialStub(
+      {
+        deleteUser: async (uid: string) => {
+          deletedFirebaseUid = uid;
+        },
       },
       async () => adminDeleteUserHandler({
         auth: {
@@ -928,9 +906,11 @@ test("adminDeleteUserHandler returns internal when Firebase deletion fails", asy
   try {
     await assert.rejects(
       async () =>
-        withAdminDeleteUserStub(
-          async () => {
-            throw new Error("firebase delete failed");
+        withAdminAuthPartialStub(
+          {
+            deleteUser: async () => {
+              throw new Error("firebase delete failed");
+            },
           },
           async () => adminDeleteUserHandler({
             auth: {
@@ -976,9 +956,11 @@ test("adminDeleteUserHandler fails when Supabase auth fetch is non-404", async (
   try {
     await assert.rejects(
       async () =>
-        withAdminDeleteUserStub(
-          async () => {
-            attemptedFirebaseDelete = true;
+        withAdminAuthPartialStub(
+          {
+            deleteUser: async () => {
+              attemptedFirebaseDelete = true;
+            },
           },
           async () => adminDeleteUserHandler({
             auth: {
@@ -1039,9 +1021,11 @@ test("deleteMyAccountHandler deletes Supabase data and Firebase auth for the cal
   }) as typeof fetch;
 
   try {
-    const result = await withAdminDeleteUserStub(
-      async (uid: string) => {
-        deletedFirebaseUid = uid;
+    const result = await withAdminAuthPartialStub(
+      {
+        deleteUser: async (uid: string) => {
+          deletedFirebaseUid = uid;
+        },
       },
       async () => deleteMyAccountHandler({
         auth: {
