@@ -123,11 +123,13 @@ async function createSupabaseUser(
  * Uses generate_link (magiclink) + verify to produce a proper session
  * with access_token, refresh_token, and auth hook enrichment (plans).
  *
- * Rate-limiting not implemented — unnecessary here because:
- * - Caller must pass Firebase Auth + App Check → trusted only
- * - OTP generated & consumed in same request → no exposure window
- * - Supabase admin API is fast, attacker gains nothing from repetition
- * - Natural latency + infrastructure limits provide sufficient throttle
+ * Rate-limiting is not implemented here as an operational cost/abuse tradeoff:
+ * - Caller must pass Firebase Auth and App Check, which limits access to
+ *   authenticated, App Check verified clients but does not make them fully trusted
+ * - OTP is generated and consumed within the same request, reducing exposure
+ *   of the intermediate token
+ * - Natural latency and infrastructure limits provide some throttling, though
+ *   repeated calls can still create load and may warrant rate limits if abuse appears
  */
 async function getSupabaseUserSession(
     email: string
