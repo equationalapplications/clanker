@@ -39,7 +39,7 @@ export function getSupabaseAdminClient(): SupabaseClient {
 }
 
 /**
- * Return non-memoized Supabase admin client.
+ * Return a non-memoized Supabase admin client.
  * Useful for one-off auth flows where fresh client state is preferred.
  */
 export function getFreshSupabaseAdminClient(): SupabaseClient {

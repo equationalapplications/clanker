@@ -10,7 +10,48 @@ import {
 } from "./supabaseAdmin.js";
 
 const SESSION_EXCHANGE_WINDOW_MS = 30_000;
-const sessionExchangeLastAtByEmail = new Map<string, number>();
+const sessionExchangeRateLimitCollection = "sessionExchangeRateLimits";
+
+function getSessionExchangeRateLimitDocId(email: string): string {
+    return email.trim().toLowerCase();
+}
+
+/**
+ * Atomically enforces the per-email exchange window across all function instances.
+ * Returns the last exchange timestamp when the request should be rate-limited,
+ * otherwise records the current exchange time and returns null.
+ */
+async function checkAndRecordSessionExchange(email: string): Promise<number | null> {
+    const normalizedEmail = getSessionExchangeRateLimitDocId(email);
+    const db = admin.firestore();
+    const docRef = db.collection(sessionExchangeRateLimitCollection).doc(normalizedEmail);
+    const now = Date.now();
+
+    return db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(docRef);
+        const lastAt = snapshot.exists ? snapshot.get("lastAt") : undefined;
+        const lastAtNumber = typeof lastAt === "number" ? lastAt : null;
+
+        if (
+            lastAtNumber !== null &&
+            now - lastAtNumber < SESSION_EXCHANGE_WINDOW_MS
+        ) {
+            return lastAtNumber;
+        }
+
+        transaction.set(
+            docRef,
+            {
+                email: normalizedEmail,
+                lastAt: now,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+        );
+
+        return null;
+    });
+}
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
@@ -35,7 +76,7 @@ async function createSupabaseUser(
 
     if (error) {
         logger.error("Failed to create Supabase user", {
-            supabaseError: error.message,
+            message: error.message,
             status: error.status,
             email,
         });
@@ -129,18 +170,16 @@ async function getSupabaseUserSession(
     expires_in: number;
     token_type: string;
 }> {
-    const normalizedEmail = email.toLowerCase();
-    const now = Date.now();
-    const lastAttemptAt = sessionExchangeLastAtByEmail.get(normalizedEmail) ?? 0;
+    const lastAttemptAt = await checkAndRecordSessionExchange(email);
 
-    if (now - lastAttemptAt < SESSION_EXCHANGE_WINDOW_MS) {
+    if (lastAttemptAt !== null) {
         throw new HttpsError(
             "resource-exhausted",
             "Token exchange rate-limited. Retry shortly."
         );
     }
 
-    sessionExchangeLastAtByEmail.set(normalizedEmail, now);
+    const normalizedEmail = getSessionExchangeRateLimitDocId(email);
 
     const supabase = getFreshSupabaseAdminClient();
 
@@ -179,16 +218,6 @@ async function getSupabaseUserSession(
     }
 
     const session = sessionData.session;
-
-    // Keep map bounded for warm instances.
-    if (sessionExchangeLastAtByEmail.size > 5000) {
-        const cutoff = now - (10 * SESSION_EXCHANGE_WINDOW_MS);
-        for (const [key, timestamp] of sessionExchangeLastAtByEmail) {
-            if (timestamp < cutoff) {
-                sessionExchangeLastAtByEmail.delete(key);
-            }
-        }
-    }
 
     return {
         access_token: session.access_token,
