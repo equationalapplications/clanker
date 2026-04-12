@@ -12,7 +12,7 @@ import {
 
 const SESSION_EXCHANGE_WINDOW_MS = 30_000;
 const sessionExchangeRateLimitCollection = "sessionExchangeRateLimits";
-const sessionExchangeLastAtByEmail = new Map<string, number>();
+const sessionExchangeLastAtByDocId = new Map<string, number>();
 
 function getSessionExchangeRateLimitDocId(email: string): string {
     // Hash email for PII safety: avoid logging/leaking raw email in doc IDs
@@ -70,19 +70,19 @@ async function checkAndRecordSessionExchange(email: string): Promise<number | nu
             error: err instanceof Error ? err.message : String(err),
         });
 
-        const lastAttemptAt = sessionExchangeLastAtByEmail.get(rateLimitDocId) ?? 0;
+        const lastAttemptAt = sessionExchangeLastAtByDocId.get(rateLimitDocId) ?? 0;
         if (now - lastAttemptAt < SESSION_EXCHANGE_WINDOW_MS) {
             return lastAttemptAt;
         }
 
-        sessionExchangeLastAtByEmail.set(rateLimitDocId, now);
+        sessionExchangeLastAtByDocId.set(rateLimitDocId, now);
 
         // Keep map bounded for warm instances.
-        if (sessionExchangeLastAtByEmail.size > 5000) {
+        if (sessionExchangeLastAtByDocId.size > 5000) {
             const cutoff = now - (10 * SESSION_EXCHANGE_WINDOW_MS);
-            for (const [key, timestamp] of sessionExchangeLastAtByEmail) {
+            for (const [key, timestamp] of sessionExchangeLastAtByDocId) {
                 if (timestamp < cutoff) {
-                    sessionExchangeLastAtByEmail.delete(key);
+                    sessionExchangeLastAtByDocId.delete(key);
                 }
             }
         }
@@ -93,11 +93,11 @@ async function checkAndRecordSessionExchange(email: string): Promise<number | nu
 
 /**
  * Best-effort clear of the rate-limit record so a user is not blocked
- * after a transient generateLink / verifyOtp failure.
+ * after a transient generateLink failure.
  */
 async function clearSessionExchangeRecord(email: string): Promise<void> {
     const rateLimitDocId = getSessionExchangeRateLimitDocId(email);
-    sessionExchangeLastAtByEmail.delete(rateLimitDocId);
+    sessionExchangeLastAtByDocId.delete(rateLimitDocId);
     try {
         const db = admin.firestore();
         await db.collection(sessionExchangeRateLimitCollection).doc(rateLimitDocId).delete();
