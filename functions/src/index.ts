@@ -25,4 +25,5 @@ export {
   adminClearTermsAcceptance,
   adminResetUserState,
   adminDeleteUser,
+  deleteMyAccount,
 } from "./adminFunctions.js";

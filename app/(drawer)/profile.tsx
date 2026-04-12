@@ -55,6 +55,9 @@ export default function Profile() {
     setIsDeleting(true)
     try {
       await deleteUser()
+      // Server already hard-deleted both Firebase and Supabase auth records.
+      // SIGN_OUT clears local session state (Supabase, RevenueCat, query cache).
+      // The sign-out actor tolerates already-deleted accounts gracefully.
       authService.send({ type: 'SIGN_OUT' })
     } catch (error) {
       console.error('Error deleting account:', error)

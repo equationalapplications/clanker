@@ -85,6 +85,7 @@ const adminSetUserSubscriptionFn = httpsCallable(functionsInstance, 'adminSetUse
 const adminClearTermsAcceptanceFn = httpsCallable(functionsInstance, 'adminClearTermsAcceptance')
 const adminResetUserStateFn = httpsCallable(functionsInstance, 'adminResetUserState')
 const adminDeleteUserFn = httpsCallable(functionsInstance, 'adminDeleteUser')
+const deleteMyAccountFn = httpsCallable(functionsInstance, 'deleteMyAccount')
 
 export type FirebaseUser = User
 export { appCheckReady }
@@ -105,4 +106,5 @@ export {
   adminClearTermsAcceptanceFn,
   adminResetUserStateFn,
   adminDeleteUserFn,
+  deleteMyAccountFn,
 }

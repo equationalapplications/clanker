@@ -3,6 +3,7 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import {getSupabaseUrl} from "./runtimeConfig.js";
 import {requireAdmin} from "./adminAuth.js";
+import {findSupabaseUserByEmail, findSupabaseUserByFirebaseUid} from "./supabaseAdmin.js";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -406,8 +407,12 @@ async function deleteSubscriptionRows(userId: string): Promise<void> {
 }
 
 async function deleteSupabaseAuthUser(userId: string): Promise<void> {
+  // Hard-delete (should_soft_delete: false) to fully remove the auth record
+  // and release the email.  Required for Apple/Google account-deletion
+  // compliance and to allow clean re-registration.
   const response = await supabaseRequest(`/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
     method: "DELETE",
+    body: JSON.stringify({should_soft_delete: false}),
   });
 
   if (!response.ok) {
@@ -436,6 +441,34 @@ async function getSupabaseAuthUser(userId: string): Promise<Record<string, unkno
   }
 
   return parseJsonSafe<Record<string, unknown>>(response);
+}
+
+async function deleteFirebaseAuthUser(firebaseUid: string, logContext: Record<string, unknown>): Promise<void> {
+  try {
+    await admin.auth().deleteUser(firebaseUid);
+  } catch (error) {
+    const code =
+      typeof error === "object" && error && "code" in error
+        ? String((error as {code?: unknown}).code)
+        : "";
+    if (code === "auth/user-not-found") {
+      logger.info("Firebase auth user already deleted", {firebaseUid, ...logContext});
+      return;
+    }
+
+    logger.error("Failed to delete Firebase auth user", {
+      firebaseUid,
+      ...logContext,
+      error,
+    });
+    throw new HttpsError("internal", "Failed to delete Firebase auth user.");
+  }
+}
+
+async function deleteUserDataAndSupabaseIdentity(userId: string): Promise<void> {
+  await deleteAppDataByUser(userId);
+  await deleteSubscriptionRows(userId);
+  await deleteSupabaseAuthUser(userId);
 }
 
 async function getSupabaseAuthUsers(
@@ -858,29 +891,10 @@ const adminDeleteUserHandler = async (request: CallableRequest) => {
   const firebaseUid = typeof metadataFirebaseUid === "string" ? metadataFirebaseUid : null;
 
   if (firebaseUid) {
-    try {
-      await admin.auth().deleteUser(firebaseUid);
-    } catch (error) {
-      const code =
-        typeof error === "object" && error && "code" in error
-          ? String((error as {code?: unknown}).code)
-          : "";
-      if (code === "auth/user-not-found") {
-        logger.info("Firebase auth user already deleted", {userId, firebaseUid});
-      } else {
-        logger.error("Failed to delete Firebase auth user", {
-          userId,
-          firebaseUid,
-          error,
-        });
-        throw new HttpsError("internal", "Failed to delete Firebase auth user.");
-      }
-    }
+    await deleteFirebaseAuthUser(firebaseUid, {userId});
   }
 
-  await deleteAppDataByUser(userId);
-  await deleteSubscriptionRows(userId);
-  await deleteSupabaseAuthUser(userId);
+  await deleteUserDataAndSupabaseIdentity(userId);
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "delete_user", requestId, {
     reason,
@@ -896,6 +910,63 @@ const adminDeleteUserHandler = async (request: CallableRequest) => {
   };
 };
 
+const deleteMyAccountHandler = async (request: CallableRequest) => {
+  const auth = request.auth;
+  if (!auth?.uid) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  const firebaseUid = auth.uid;
+  const token = auth.token as Record<string, unknown> | undefined;
+  const email = typeof token?.email === "string" ? token.email.trim().toLowerCase() : null;
+
+  let supabaseUserId: string | null = null;
+  try {
+    const userByFirebaseUid = await findSupabaseUserByFirebaseUid(firebaseUid);
+    if (userByFirebaseUid) {
+      supabaseUserId = userByFirebaseUid.id;
+    } else if (email) {
+      const userByEmail = await findSupabaseUserByEmail(email);
+      supabaseUserId = userByEmail?.id ?? null;
+    }
+  } catch (error) {
+    logger.error("Failed to resolve Supabase user for self-service deletion", {
+      firebaseUid,
+      email,
+      error,
+    });
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", "Failed to resolve account for deletion.");
+  }
+
+  if (supabaseUserId) {
+    await deleteUserDataAndSupabaseIdentity(supabaseUserId);
+  } else {
+    logger.warn("Self-service delete found no Supabase user; deleting Firebase account only", {
+      firebaseUid,
+      email,
+    });
+  }
+
+  await deleteFirebaseAuthUser(firebaseUid, {userId: supabaseUserId, email});
+
+  logger.info("self_service_delete_account", {
+    firebaseUid,
+    email,
+    userId: supabaseUserId,
+    deleted: true,
+    timestamp: new Date().toISOString(),
+  });
+
+  return {
+    success: true,
+    deleted: true,
+    userId: supabaseUserId,
+  };
+};
+
 export {
   adminListUsersHandler,
   adminSetUserCreditsHandler,
@@ -903,6 +974,7 @@ export {
   adminClearTermsAcceptanceHandler,
   adminResetUserStateHandler,
   adminDeleteUserHandler,
+  deleteMyAccountHandler,
 };
 
 const sharedCallableOptions = {
@@ -932,4 +1004,8 @@ export const adminResetUserState = onCall(sharedCallableOptions, (request) =>
 
 export const adminDeleteUser = onCall(sharedCallableOptions, (request) =>
   adminDeleteUserHandler(request)
+);
+
+export const deleteMyAccount = onCall(sharedCallableOptions, (request) =>
+  deleteMyAccountHandler(request)
 );

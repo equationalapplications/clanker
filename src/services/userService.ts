@@ -1,5 +1,6 @@
 import { supabaseClient, Database } from '~/config/supabaseClient'
 import { APP_NAME } from '~/config/constants'
+import { appCheckReady, deleteMyAccountFn } from '~/config/firebaseConfig'
 import { getSupabaseSession } from '~/utilities/getSupabaseSession'
 
 // Types for user data
@@ -19,6 +20,14 @@ export interface UserPrivate {
   isProfilePublic: boolean | null
   defaultCharacter: string
   hasAcceptedTermsDate: Date | null
+}
+
+type Callable<Req, Res> = (payload: Req) => Promise<{ data: Res }>
+
+interface DeleteMyAccountResponse {
+  success: boolean
+  deleted: boolean
+  userId: string | null
 }
 
 let inFlightUserProfileRead: Promise<UserProfile | null> | null = null
@@ -241,29 +250,14 @@ export const getUserPrivate = async (): Promise<UserPrivate | null> => {
  * Delete user account and all associated data
  */
 export const deleteUser = async (): Promise<void> => {
-  const session = await getSupabaseSession()
-  const user = session?.user
-  if (!user) {
-    throw new Error('No authenticated user')
-  }
+  await appCheckReady
 
-  // Delete user profile (cascading deletes will handle related data)
-  const { error: profileError } = await supabaseClient
-    .from('profiles')
-    .delete()
-    .eq('user_id', user.id)
+  const deleteMyAccountCallable =
+    deleteMyAccountFn as Callable<Record<string, never>, DeleteMyAccountResponse>
+  const response = await deleteMyAccountCallable({})
 
-  if (profileError) {
-    console.error('Error deleting user profile:', profileError)
-    throw profileError
-  }
-
-  // Sign out the user
-  const { error: signOutError } = await supabaseClient.auth.signOut()
-
-  if (signOutError) {
-    console.error('Error signing out:', signOutError)
-    throw signOutError
+  if (!response.data?.success || !response.data.deleted) {
+    throw new Error('Account deletion did not complete successfully')
   }
 }
 

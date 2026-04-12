@@ -53,7 +53,13 @@ async function createSupabaseUser(
                 return { id: existing.id };
             }
 
-            const { error: deleteError } = await supabase.auth.admin.deleteUser(existing.id);
+            // Hard-delete (shouldSoftDelete = false) so the email is fully
+            // released and a fresh user can be created.  A soft-delete only
+            // sets deleted_at and the subsequent createUser would 422 again.
+            const { error: deleteError } = await supabase.auth.admin.deleteUser(
+                existing.id,
+                false,
+            );
             if (deleteError) {
                 // Tolerate 404 (user already deleted, possibly by concurrent request)
                 if (deleteError.status !== 404) {
