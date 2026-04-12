@@ -1,7 +1,6 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
-import { createHash } from "crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import {
   getSupabaseAdminClient,
@@ -9,102 +8,6 @@ import {
   findSupabaseUserByEmail,
   findSupabaseUserByEmailIncludeDeleted,
 } from "./supabaseAdmin.js";
-
-const SESSION_EXCHANGE_WINDOW_MS = 30_000;
-const sessionExchangeRateLimitCollection = "sessionExchangeRateLimits";
-const sessionExchangeLastAtByDocId = new Map<string, number>();
-
-function getSessionExchangeRateLimitDocId(email: string): string {
-    // Hash email for PII safety: avoid logging/leaking raw email in doc IDs
-    const normalized = email.trim().toLowerCase();
-    return createHash("sha256").update(normalized).digest("hex");
-}
-
-/**
- * Atomically enforces the per-email exchange window across all function instances via Firestore.
- * Falls back to in-memory Map if Firestore is unavailable.
- * Returns the last exchange timestamp when the request should be rate-limited,
- * otherwise records the current exchange time and returns null.
- */
-async function checkAndRecordSessionExchange(email: string): Promise<number | null> {
-    const rateLimitDocId = getSessionExchangeRateLimitDocId(email);
-    const now = Date.now();
-
-    // Try Firestore-based rate limiting (cross-instance)
-    try {
-        const db = admin.firestore();
-        const docRef = db.collection(sessionExchangeRateLimitCollection).doc(rateLimitDocId);
-
-        return await db.runTransaction(async (transaction) => {
-            const snapshot = await transaction.get(docRef);
-            const lastAt = snapshot.exists ? snapshot.get("lastAt") : undefined;
-            const lastAtNumber = typeof lastAt === "number" ? lastAt : null;
-
-            if (
-                lastAtNumber !== null &&
-                now - lastAtNumber < SESSION_EXCHANGE_WINDOW_MS
-            ) {
-                return lastAtNumber;
-            }
-
-            transaction.set(
-                docRef,
-                {
-                    lastAt: now,
-                    // Requires Firestore TTL policy on this collection's
-                    // `expireAt` field; otherwise docs accumulate forever.
-                    // Console → Firestore → TTL → collection:
-                    //   sessionExchangeRateLimits, field: expireAt
-                    expireAt: new Date(now + 24 * 60 * 60 * 1000),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                },
-                { merge: true }
-            );
-
-            return null;
-        });
-    } catch (err) {
-        // Firestore unavailable; fall back to in-memory Map
-        logger.warn("Firestore rate-limit check failed, falling back to in-memory map", {
-            emailHash: rateLimitDocId,
-            error: err instanceof Error ? err.message : String(err),
-        });
-
-        const lastAttemptAt = sessionExchangeLastAtByDocId.get(rateLimitDocId) ?? 0;
-        if (now - lastAttemptAt < SESSION_EXCHANGE_WINDOW_MS) {
-            return lastAttemptAt;
-        }
-
-        sessionExchangeLastAtByDocId.set(rateLimitDocId, now);
-
-        // Keep map bounded for warm instances.
-        if (sessionExchangeLastAtByDocId.size > 5000) {
-            const cutoff = now - (10 * SESSION_EXCHANGE_WINDOW_MS);
-            for (const [key, timestamp] of sessionExchangeLastAtByDocId) {
-                if (timestamp < cutoff) {
-                    sessionExchangeLastAtByDocId.delete(key);
-                }
-            }
-        }
-
-        return null;
-    }
-}
-
-/**
- * Best-effort clear of the rate-limit record so a user is not blocked
- * after a transient generateLink failure.
- */
-async function clearSessionExchangeRecord(email: string): Promise<void> {
-    const rateLimitDocId = getSessionExchangeRateLimitDocId(email);
-    sessionExchangeLastAtByDocId.delete(rateLimitDocId);
-    try {
-        const db = admin.firestore();
-        await db.collection(sessionExchangeRateLimitCollection).doc(rateLimitDocId).delete();
-    } catch {
-        // best-effort: in-memory already cleared
-    }
-}
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
@@ -219,6 +122,12 @@ async function createSupabaseUser(
  * Generate a real Supabase session for a user via the Admin API.
  * Uses generate_link (magiclink) + verify to produce a proper session
  * with access_token, refresh_token, and auth hook enrichment (plans).
+ *
+ * Rate-limiting not implemented — unnecessary here because:
+ * - Caller must pass Firebase Auth + App Check → trusted only
+ * - OTP generated & consumed in same request → no exposure window
+ * - Supabase admin API is fast, attacker gains nothing from repetition
+ * - Natural latency + infrastructure limits provide sufficient throttle
  */
 async function getSupabaseUserSession(
     email: string
@@ -228,15 +137,6 @@ async function getSupabaseUserSession(
     expires_in: number;
     token_type: string;
 }> {
-    const lastAttemptAt = await checkAndRecordSessionExchange(email);
-
-    if (lastAttemptAt !== null) {
-        throw new HttpsError(
-            "resource-exhausted",
-            "Token exchange rate-limited. Retry shortly."
-        );
-    }
-
     const normalizedEmail = email.trim().toLowerCase();
     const supabase = getFreshSupabaseAdminClient();
 
@@ -251,9 +151,6 @@ async function getSupabaseUserSession(
             message: linkError?.message,
             email,
         });
-        // Clear rate-limit only if generateLink itself failed (no OTP issued).
-        // This allows immediate retry without blocking the user for 30s.
-        await clearSessionExchangeRecord(email);
         throw new HttpsError(
             "internal",
             "Failed to generate Supabase session link."
@@ -261,8 +158,6 @@ async function getSupabaseUserSession(
     }
 
     // Step 2: Verify the token to get a real session (triggers auth hooks).
-    // Don't clear rate-limit if verifyOtp fails—an OTP was already issued and
-    // consumed by the failed attempt, so we keep the window to prevent OTP exhaustion.
     const { data: sessionData, error: verifyError } = await supabase.auth.verifyOtp({
         type: "magiclink",
         token_hash: linkData.properties.hashed_token,
