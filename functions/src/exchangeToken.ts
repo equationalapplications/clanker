@@ -2,10 +2,15 @@ import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type { DecodedIdToken } from "firebase-admin/auth";
-import { getSupabaseAdminClient, findSupabaseUserByEmail, findSupabaseUserByEmailIncludeDeleted } from "./supabaseAdmin.js";
+import {
+    getSupabaseAdminClient,
+    getFreshSupabaseAdminClient,
+    findSupabaseUserByEmail,
+    findSupabaseUserByEmailIncludeDeleted,
+} from "./supabaseAdmin.js";
 
-const APP_NAME = "clanker";
-const INITIAL_FREE_CREDITS = 50;
+const SESSION_EXCHANGE_WINDOW_MS = 30_000;
+const sessionExchangeLastAtByEmail = new Map<string, number>();
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
@@ -30,7 +35,7 @@ async function createSupabaseUser(
 
     if (error) {
         logger.error("Failed to create Supabase user", {
-            message: error.message,
+            supabaseError: error.message,
             status: error.status,
             email,
         });
@@ -124,12 +129,25 @@ async function getSupabaseUserSession(
     expires_in: number;
     token_type: string;
 }> {
-    const supabase = getSupabaseAdminClient();
+    const normalizedEmail = email.toLowerCase();
+    const now = Date.now();
+    const lastAttemptAt = sessionExchangeLastAtByEmail.get(normalizedEmail) ?? 0;
+
+    if (now - lastAttemptAt < SESSION_EXCHANGE_WINDOW_MS) {
+        throw new HttpsError(
+            "resource-exhausted",
+            "Token exchange rate-limited. Retry shortly."
+        );
+    }
+
+    sessionExchangeLastAtByEmail.set(normalizedEmail, now);
+
+    const supabase = getFreshSupabaseAdminClient();
 
     // Step 1: Generate a magic link token via Admin API (no email sent)
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: "magiclink",
-        email: email.toLowerCase(),
+        email: normalizedEmail,
     });
 
     if (linkError || !linkData?.properties?.hashed_token) {
@@ -162,46 +180,22 @@ async function getSupabaseUserSession(
 
     const session = sessionData.session;
 
+    // Keep map bounded for warm instances.
+    if (sessionExchangeLastAtByEmail.size > 5000) {
+        const cutoff = now - (10 * SESSION_EXCHANGE_WINDOW_MS);
+        for (const [key, timestamp] of sessionExchangeLastAtByEmail) {
+            if (timestamp < cutoff) {
+                sessionExchangeLastAtByEmail.delete(key);
+            }
+        }
+    }
+
     return {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
         expires_in: session.expires_in,
         token_type: session.token_type,
     };
-}
-
-/**
- * Ensure the user has a free-tier subscription row for this app.
- * This is an idempotent insert and will not overwrite existing rows.
- */
-async function ensureFreeTierSubscription(supabaseUserId: string): Promise<void> {
-    const supabase = getSupabaseAdminClient();
-
-    const { error } = await supabase
-        .from("user_app_subscriptions")
-        .upsert(
-            {
-                user_id: supabaseUserId,
-                app_name: APP_NAME,
-                plan_tier: "free",
-                plan_status: "active",
-                current_credits: INITIAL_FREE_CREDITS,
-                updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id,app_name", ignoreDuplicates: true }
-        );
-
-    if (error) {
-        logger.error("Failed to ensure free-tier subscription", {
-            supabaseUserId,
-            message: error.message,
-            code: error.code,
-        });
-        throw new HttpsError(
-            "internal",
-            "Failed to ensure initial free-tier subscription."
-        );
-    }
 }
 
 /**
@@ -223,25 +217,15 @@ const handler = async (request: CallableRequest) => {
     }
 
     const uid = request.auth.uid;
-    let decoded: DecodedIdToken;
-
-    try {
-        decoded = request.auth.token as DecodedIdToken;
-        if (!decoded || decoded.uid !== uid) {
-            logger.error("Context token missing or UID mismatch", {
-                contextUid: uid,
-                tokenUid: decoded ? decoded.uid : null,
-            });
-            throw new HttpsError(
-                "unauthenticated",
-                "Invalid or missing Firebase authentication token."
-            );
-        }
-    } catch (error) {
-        logger.error("Token extraction/verification failed", { error });
+    const decoded = request.auth.token as DecodedIdToken | undefined;
+    if (!decoded || decoded.uid !== uid) {
+        logger.error("Context token missing or UID mismatch", {
+            contextUid: uid,
+            tokenUid: decoded?.uid ?? null,
+        });
         throw new HttpsError(
             "unauthenticated",
-            "Invalid Firebase authentication token."
+            "Invalid or missing Firebase authentication token."
         );
     }
 
@@ -263,12 +247,21 @@ const handler = async (request: CallableRequest) => {
         const found = await findSupabaseUserByEmail(email);
         if (found) {
             supabaseUserId = found.id;
+            logger.info("Supabase user found for email", {
+                email,
+                supabaseUserId,
+            });
         } else {
             const created = await createSupabaseUser(email, decoded.uid);
             if (created) {
                 supabaseUserId = created.id;
+                logger.info("Supabase user not found; created user", {
+                    email,
+                    supabaseUserId,
+                });
+            } else {
+                logger.error("Supabase user not found; creation failed", { email });
             }
-            logger.info("Supabase user not found, attempted creation", { email });
         }
     } catch (err) {
         logger.error("Supabase admin API check/create user failed", {err, email});
@@ -288,8 +281,6 @@ const handler = async (request: CallableRequest) => {
             "Failed to find or create corresponding Supabase user."
         );
     }
-
-    await ensureFreeTierSubscription(supabaseUserId);
 
     // Generate a real Supabase session via Admin API (triggers auth hooks)
     const session = await getSupabaseUserSession(email);

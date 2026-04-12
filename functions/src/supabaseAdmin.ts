@@ -9,6 +9,21 @@ function getSupabaseServiceRoleKey(): string | undefined {
 
 let supabaseAdminClient: SupabaseClient | undefined;
 
+function createSupabaseAdminClient(): SupabaseClient {
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
+  if (!supabaseServiceRoleKey || !supabaseUrl) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
+    );
+  }
+
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {autoRefreshToken: false, persistSession: false},
+  });
+}
+
 /**
  * Return a memoized Supabase admin client configured with the service role key.
  * The singleton is reused across invocations on warm Cloud Function instances.
@@ -19,19 +34,16 @@ export function getSupabaseAdminClient(): SupabaseClient {
     return supabaseAdminClient;
   }
 
-  const supabaseUrl = getSupabaseUrl();
-  const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
-  if (!supabaseServiceRoleKey || !supabaseUrl) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
-    );
-  }
-
-  supabaseAdminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: {autoRefreshToken: false, persistSession: false},
-  });
+  supabaseAdminClient = createSupabaseAdminClient();
   return supabaseAdminClient;
+}
+
+/**
+ * Return non-memoized Supabase admin client.
+ * Useful for one-off auth flows where fresh client state is preferred.
+ */
+export function getFreshSupabaseAdminClient(): SupabaseClient {
+  return createSupabaseAdminClient();
 }
 
 /**
