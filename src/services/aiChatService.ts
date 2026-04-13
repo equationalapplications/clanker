@@ -1,10 +1,6 @@
 import { sendMessage } from '~/services/messageService'
 import { saveAIMessage } from '~/database/messageDatabase'
-import {
-  generateChatResponse,
-  generateCharacterIntroduction,
-  ChatContext,
-} from '~/services/vertexAIService'
+import { generateChatReply } from '~/services/chatReplyService'
 import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
 
@@ -15,6 +11,55 @@ export interface Character {
   traits: string
   emotions: string
   context: string
+}
+
+interface ChatContext {
+  characterName: string
+  characterPersonality: string
+  characterTraits: string
+  conversationHistory: {
+    role: 'user' | 'assistant'
+    content: string
+  }[]
+}
+
+function buildChatPrompt(userMessage: string, context: ChatContext): string {
+  return `You are ${context.characterName}, a virtual friend chatbot with the following personality:
+
+Personality: ${context.characterPersonality}
+Traits: ${context.characterTraits}
+
+Instructions:
+- Respond as ${context.characterName} would, staying true to the personality and traits
+- Keep responses conversational and engaging
+- Respond naturally and authentically to the user's message
+- Don't break character or mention that you're an AI
+- Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
+
+Conversation history:
+${context.conversationHistory.map((msg) => `${msg.role}: ${msg.content}`).join('\n')}
+
+User: ${userMessage}
+${context.characterName}:`
+}
+
+function buildIntroductionPrompt(
+  characterName: string,
+  characterPersonality: string,
+  characterTraits: string,
+): string {
+  return `You are ${characterName}, a virtual friend chatbot. This is your first message to a new user.
+
+Your personality: ${characterPersonality}
+Your traits: ${characterTraits}
+
+Generate a friendly, warm introduction message that:
+- Introduces yourself as ${characterName}
+- Shows your personality
+- Invites the user to start a conversation
+- Keep it brief and welcoming (1-2 sentences)
+
+Introduction:`
 }
 
 /**
@@ -41,11 +86,15 @@ export const sendMessageWithAIResponse = async (
       })),
     }
 
-    // 3. Generate AI response
-    const aiResponseText = await generateChatResponse(userMessage.text, chatContext)
-
-    // 4. Create AI response message ID
+    // 3. Create AI response message ID
     const aiResponseId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+    // 4. Generate AI response through secure cloud function
+    const prompt = buildChatPrompt(userMessage.text, chatContext)
+    const aiResponseText = await generateChatReply({
+      prompt,
+      referenceId: String(userMessage._id),
+    })
 
     // 5. Save AI response to local database
     await saveAIMessage(character.id, userId, aiResponseText, aiResponseId, {
@@ -94,11 +143,16 @@ export const sendCharacterIntroduction = async (
   userId: string,
 ): Promise<void> => {
   try {
-    const introText = await generateCharacterIntroduction(
+    const introPrompt = buildIntroductionPrompt(
       character.name,
       character.context || character.appearance,
       `${character.traits} ${character.emotions}`.trim(),
     )
+
+    const introText = await generateChatReply({
+      prompt: introPrompt,
+      referenceId: `intro-${character.id}`,
+    })
 
     const introId = `intro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 

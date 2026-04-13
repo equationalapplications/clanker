@@ -41,6 +41,21 @@ By setting `"codebase": "clanker"`, the Firebase CLI knows to only manage functi
     3. If the user doesn't exist, it creates a new Supabase user.
     4. Generates and returns a valid Supabase session (access and refresh tokens).
 
+### `generateReply`
+
+- **Purpose**: Generates chat/introduction text replies server-side using Vertex AI with enforced auth and billing.
+- **Process**:
+    1. Verifies callable auth context and token integrity.
+    2. Resolves Supabase user from authenticated Firebase email.
+    3. Reads active subscription rows from `user_app_subscriptions`.
+    4. Authorizes access (unlimited tiers or available credits).
+    5. Calls Vertex AI to generate the reply.
+    6. Spends one credit only for non-unlimited plans, and only after successful generation.
+- **Security**:
+  - Enforces App Check.
+  - Keeps AI invocation server-side to prevent direct client bypass.
+- **Reference**: See [Chat response function deep-dive](./CHAT_RESPONSE_FUNCTION.md).
+
 ### `purchasePackageStripe`
 
 - **Purpose**: Creates a Stripe Checkout session for purchasing subscriptions or one-time packages.
@@ -128,7 +143,7 @@ Use this checklist when setting up Firebase Functions for a new environment.
 - [ ] Deploy from `functions/`: `npm run deploy`.
 - [ ] If prompted, enter missing non-sensitive param values once (CLI persists them for the staging project).
 - [ ] Smoke test:
-  - callable: `exchangeToken`, `spendCredits`, `purchasePackageStripe`
+  - callable: `exchangeToken`, `generateReply`, `spendCredits`, `purchasePackageStripe`
   - webhooks: `stripeWebhook`, `revenueCatWebhook`
 
 ### Production
@@ -202,6 +217,7 @@ When you deploy a **new** Firebase function, the Firebase CLI will log a warning
 All callable and webhook Cloud Run services must have the tag. Current list:
 
 - `exchangetoken`
+- `generatereply`
 - `purchasepackagestripe`
 - `spendcredits`
 - `stripewebhook`
@@ -244,7 +260,7 @@ gcloud run services add-iam-policy-binding FUNCTION_NAME \
 To tag and grant access to **all services at once**:
 
 ```bash
-for fn in exchangetoken purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+for fn in exchangetoken generatereply purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
   adminresetuserstate admindeleteuser; do
   echo "=== $fn ==="
@@ -256,7 +272,7 @@ done
 
 # Wait ~15 seconds for tag propagation, then:
 
-for fn in exchangetoken purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+for fn in exchangetoken generatereply purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
   adminresetuserstate admindeleteuser; do
   echo "=== $fn ==="
@@ -271,7 +287,7 @@ done
 To **verify** which services have the tag:
 
 ```bash
-for fn in exchangetoken purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+for fn in exchangetoken generatereply purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
   adminresetuserstate admindeleteuser; do
   echo "=== $fn ==="
