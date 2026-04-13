@@ -6,7 +6,10 @@ import {
     exchangeFirebaseTokenForSupabaseSession,
     AuthBridgeError,
 } from "@equationalapplications/firebase-auth-supabase-bridge";
+import type {ExchangeOptions, SupabaseSession} from "@equationalapplications/firebase-auth-supabase-bridge";
 import {getSupabaseUrl} from "./runtimeConfig.js";
+
+type ExchangeFn = (options: ExchangeOptions) => Promise<SupabaseSession>;
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
@@ -53,7 +56,10 @@ function toHttpsErrorCode(code: string): HttpsErrorCode {
  * 2. Finding or creating the corresponding Supabase user
  * 3. Generating a real Supabase session (with auth hook enrichment)
  */
-const handler = async (request: CallableRequest) => {
+const handler = async (
+    request: CallableRequest,
+    exchangeFn: ExchangeFn = exchangeFirebaseTokenForSupabaseSession
+) => {
     if (!request.auth) {
         logger.error("Unauthenticated request");
         throw new HttpsError(
@@ -99,7 +105,7 @@ const handler = async (request: CallableRequest) => {
     }
 
     try {
-        const session = await exchangeFirebaseTokenForSupabaseSession({
+        const session = await exchangeFn({
             supabaseUrl,
             supabaseServiceRoleKey,
             firebaseUid: uid,
