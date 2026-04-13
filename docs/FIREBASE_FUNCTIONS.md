@@ -6,6 +6,8 @@ This document outlines the architecture and management of Firebase Cloud Functio
 
 `clanker` utilizes several backend services implemented as Firebase Cloud Functions. These functions are deployed to the shared `equationalapplications-com` Firebase project, which also serves other applications from Equational Applications.
 
+For details on the `exchangeToken` bridge extraction, see [firebase-auth-supabase-bridge](./FIREBASE_AUTH_SUPABASE_BRIDGE.md).
+
 The source code for these functions is located in the `/functions` directory at the root of this repository. This is a copy of the original functions from the private `account` repository, and may be customized for `clanker`'s specific needs over time.
 
 ## Multi-Codebase Deployment
