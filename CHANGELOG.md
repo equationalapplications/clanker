@@ -1,3 +1,10 @@
+## [26.2.2](https://github.com/equationalapplications/clanker/compare/v26.2.1...v26.2.2) (2026-04-13)
+
+
+### Bug Fixes
+
+* **purchases:** skip session refresh when RevenueCat purchase cancelled ([3f8f827](https://github.com/equationalapplications/clanker/commit/3f8f827b1dd07430343b67a7de859f55f3d0e725)), closes [#257](https://github.com/equationalapplications/clanker/issues/257)
+
 ## [26.2.1](https://github.com/equationalapplications/clanker/compare/v26.2.0...v26.2.1) (2026-04-13)
 
 
