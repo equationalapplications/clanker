@@ -29,8 +29,10 @@ export async function makePackagePurchase(productType: ProductType = 'monthly_20
       // Native: use RevenueCat for in-app purchases
       const productIdentifier = REVENUECAT_PRODUCT_MAP[productType]
       const customerInfo = await purchaseProduct(productIdentifier)
-      // Refresh Supabase session so JWT custom claims (plans) reflect the new subscription tier
-      await supabaseClient.auth.refreshSession()
+      // Refresh claims only after successful purchase; no-op on cancellation/error null result.
+      if (customerInfo !== null) {
+        await supabaseClient.auth.refreshSession()
+      }
       return customerInfo
     } else if (Platform.OS === 'web') {
       // Web: use Stripe checkout via Firebase Cloud Function

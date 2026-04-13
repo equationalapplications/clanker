@@ -135,7 +135,7 @@ describe('makePackagePurchase', () => {
     expect(openURLMock).not.toHaveBeenCalled()
   })
 
-  it('still refreshes session when RevenueCat returns null customer info', async () => {
+  it('does not refresh session when RevenueCat returns null customer info', async () => {
     const { makePackagePurchase, purchaseProductMock, refreshSessionMock } = createHarness('ios')
     purchaseProductMock.mockResolvedValueOnce(null)
 
@@ -143,7 +143,7 @@ describe('makePackagePurchase', () => {
 
     expect(result).toBeNull()
     expect(purchaseProductMock).toHaveBeenCalledWith('monthly_20_subscription')
-    expect(refreshSessionMock).toHaveBeenCalledTimes(1)
+    expect(refreshSessionMock).not.toHaveBeenCalled()
   })
 
   it('propagates native session refresh failures after successful purchase', async () => {
