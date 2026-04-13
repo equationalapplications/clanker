@@ -39,14 +39,6 @@ export function getSupabaseAdminClient(): SupabaseClient {
 }
 
 /**
- * Return a non-memoized Supabase admin client.
- * Useful for one-off auth flows where fresh client state is preferred.
- */
-export function getFreshSupabaseAdminClient(): SupabaseClient {
-  return createSupabaseAdminClient();
-}
-
-/**
  * Find a Supabase user by email via the get_user_id_by_email RPC function.
  * Returns { id } if found, otherwise null.
  */
@@ -72,42 +64,6 @@ export async function findSupabaseUserByEmail(
       throw error;
     }
     logger.error("Error finding Supabase user", {error, email});
-    throw new HttpsError("internal", "Failed to look up user by email.");
-  }
-}
-
-/**
- * Find a Supabase auth user by email, including soft-deleted users.
- * Uses the get_auth_user_by_email RPC (queries auth.users directly).
- * Returns { id, deletedAt } if found, otherwise null.
- */
-export async function findSupabaseUserByEmailIncludeDeleted(
-  email: string
-): Promise<{id: string; deletedAt: string | null} | null> {
-  try {
-    const supabase = getSupabaseAdminClient();
-    const {data, error} = await supabase.rpc("get_auth_user_by_email", {
-      lookup_email: email.toLowerCase(),
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    if (data && typeof data === "object" && !Array.isArray(data)) {
-      const record = data as Record<string, unknown>;
-      const id = record["user_id"];
-      if (typeof id === "string" && id.length > 0) {
-        const deletedAt = typeof record["deleted_at"] === "string" ? record["deleted_at"] : null;
-        return {id, deletedAt};
-      }
-    }
-    return null;
-  } catch (error) {
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-    logger.error("Error finding Supabase auth user (include deleted)", {error, email});
     throw new HttpsError("internal", "Failed to look up user by email.");
   }
 }

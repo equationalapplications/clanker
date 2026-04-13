@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {HttpsError} from "firebase-functions/v2/https";
+import {AuthBridgeError} from "@equationalapplications/firebase-auth-supabase-bridge";
 
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.SUPABASE_URL = "https://supabase.example.co";
@@ -226,5 +227,63 @@ test("exchangeTokenHandler reuses existing active user on 422 fallback", async (
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("exchangeTokenHandler throws failed-precondition when SUPABASE_URL is missing", async () => {
+  const savedUrl = process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_URL;
+  try {
+    await assert.rejects(
+      async () => exchangeTokenHandler({
+        auth: {
+          uid: "firebase-uid-1",
+          token: {uid: "firebase-uid-1", email: "config-test@example.com"},
+        },
+      } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+    );
+  } finally {
+    process.env.SUPABASE_URL = savedUrl;
+  }
+});
+
+test("exchangeTokenHandler throws failed-precondition when SUPABASE_SERVICE_ROLE_KEY is missing", async () => {
+  const savedKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  try {
+    await assert.rejects(
+      async () => exchangeTokenHandler({
+        auth: {
+          uid: "firebase-uid-1",
+          token: {uid: "firebase-uid-1", email: "config-test@example.com"},
+        },
+      } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+    );
+  } finally {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = savedKey;
+  }
+});
+
+test("exchangeTokenHandler maps AuthBridgeError code to HttpsError code", async () => {
+  const mockExchangeFn = async () => {
+    throw new AuthBridgeError("unauthenticated", "bridge: token revoked");
+  };
+
+  await assert.rejects(
+    async () => exchangeTokenHandler(
+      {
+        auth: {
+          uid: "firebase-uid-1",
+          token: {uid: "firebase-uid-1", email: "bridge-error@example.com"},
+        },
+      } as never,
+      mockExchangeFn
+    ),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "unauthenticated" &&
+      err.message === "bridge: token revoked"
+  );
 });
 
