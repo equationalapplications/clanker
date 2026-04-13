@@ -1,3 +1,11 @@
+## [26.2.1](https://github.com/equationalapplications/clanker/compare/v26.2.0...v26.2.1) (2026-04-13)
+
+
+### Bug Fixes
+
+* **functions:** secure exchangeToken error handling and config validation ([b56a4e5](https://github.com/equationalapplications/clanker/commit/b56a4e50773c8d66bd95595b7545b99ab046a31d))
+* **functions:** update engines.node to >=22.14 to match bridge dependency requirement ([5b6b144](https://github.com/equationalapplications/clanker/commit/5b6b1443f74d43ca4f557f40988e0211736c04c1))
+
 # [26.2.0](https://github.com/equationalapplications/clanker/compare/v26.1.3...v26.2.0) (2026-04-12)
 
 
