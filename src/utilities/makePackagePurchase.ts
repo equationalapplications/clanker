@@ -28,7 +28,7 @@ export async function makePackagePurchase(productType: ProductType = 'monthly_20
       throw new Error('monthly_50 purchase is disabled until RevenueCat product setup is complete.')
     }
 
-    const activeProductType = productType as ActiveProductType
+    const activeProductType = productType
 
     if (Platform.OS === 'ios' || Platform.OS === 'android') {
       // Native: use RevenueCat for in-app purchases
