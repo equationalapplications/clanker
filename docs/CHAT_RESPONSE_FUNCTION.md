@@ -26,8 +26,8 @@ Input payload:
 
 ```json
 {
-  "prompt": "string (required, non-empty after trim)",
-  "referenceId": "string (optional, idempotency/reference key for credit spend RPC)"
+  "prompt": "string (required, non-empty after trim, max 12000 chars)",
+  "referenceId": "string (optional, max 128 chars, idempotency/reference key for credit spend RPC)"
 }
 ```
 
@@ -54,7 +54,7 @@ Semantics:
 
 ## Authorization And Billing Rules
 
-1. Resolve Supabase user from Firebase token email.
+1. Resolve Supabase user by Firebase UID first, then fallback to token email lookup.
 2. Load active rows from `user_app_subscriptions` for app `clanker`.
 3. Authorize usage:
 - Unlimited tier (`monthly_20`, `monthly_50`) -> allow without credit spend.
@@ -62,9 +62,13 @@ Semantics:
 4. Generate text reply with Vertex AI.
 5. If credit-based usage, spend exactly 1 credit using `spend_user_credits` RPC.
 
+Generation limits:
+- Vertex model config sets `maxOutputTokens = 1024` for cost/latency control.
+
 Important billing behavior:
 - Credit spending occurs after successful model generation.
 - Failed model generation must not decrement credits.
+- Invalid credit RPC payload is treated as internal error (not silently accepted).
 
 ## Error Mapping
 

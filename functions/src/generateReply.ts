@@ -5,6 +5,7 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import {VertexAI} from "@google-cloud/vertexai";
 import {
   callSupabaseRpc,
+  findSupabaseUserByFirebaseUid,
   findSupabaseUserByEmail,
   getSupabaseAdminClient,
 } from "./supabaseAdmin.js";
@@ -13,6 +14,9 @@ const APP_NAME = "clanker";
 const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
+const MAX_PROMPT_LENGTH = 12_000;
+const MAX_REFERENCE_ID_LENGTH = 128;
+const MAX_OUTPUT_TOKENS = 1_024;
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -70,7 +74,12 @@ function getTextGenerator(): GenerateTextFn {
   }
 
   const vertex = new VertexAI({project, location: DEFAULT_REGION});
-  const model = vertex.getGenerativeModel({model: DEFAULT_MODEL});
+  const model = vertex.getGenerativeModel({
+    model: DEFAULT_MODEL,
+    generationConfig: {
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+    },
+  });
 
   textGenerator = async (prompt: string): Promise<string> => {
     const result = await model.generateContent(prompt);
@@ -96,13 +105,28 @@ function getTextGenerator(): GenerateTextFn {
 
 function parseInput(data: unknown): {prompt: string; referenceId: string | null} {
   const payload = data as GenerateReplyData | undefined;
-  const prompt = payload?.prompt?.trim();
+  const promptValue = payload?.prompt;
+  const prompt = typeof promptValue === "string" ? promptValue.trim() : "";
 
   if (!prompt) {
     throw new HttpsError("invalid-argument", "prompt must be a non-empty string.");
   }
 
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    throw new HttpsError(
+      "invalid-argument",
+      `prompt must be at most ${MAX_PROMPT_LENGTH} characters.`
+    );
+  }
+
   const reference = typeof payload?.referenceId === "string" ? payload.referenceId.trim() : "";
+  if (reference.length > MAX_REFERENCE_ID_LENGTH) {
+    throw new HttpsError(
+      "invalid-argument",
+      `referenceId must be at most ${MAX_REFERENCE_ID_LENGTH} characters.`
+    );
+  }
+
   return {
     prompt,
     referenceId: reference.length > 0 ? reference : null,
@@ -189,7 +213,11 @@ async function spendOneCredit(
     return spendResult.remaining_credits;
   }
 
-  return null;
+  logger.error("spend_user_credits returned invalid payload", {
+    supabaseUserId,
+    spendResult,
+  });
+  throw new HttpsError("internal", "Failed to spend user credits.");
 }
 
 async function spendOneCreditIfRequired(
@@ -233,9 +261,19 @@ const handler = async (
 
   const {prompt, referenceId} = parseInput(request.data);
 
-  const supabaseUser = await findSupabaseUserByEmail(email);
+  let supabaseUser = await findSupabaseUserByFirebaseUid(request.auth.uid);
   if (!supabaseUser) {
-    logger.info("No Supabase user found for authenticated Firebase email", {email});
+    logger.info("No Supabase user found for Firebase UID; falling back to email lookup", {
+      firebaseUid: request.auth.uid,
+    });
+    supabaseUser = await findSupabaseUserByEmail(email);
+  }
+
+  if (!supabaseUser) {
+    logger.info("No Supabase user found for authenticated Firebase identity", {
+      email,
+      firebaseUid: request.auth.uid,
+    });
     throw new HttpsError("not-found", "User not found.");
   }
 
