@@ -54,7 +54,8 @@ export const SUBSCRIPTION_TIERS: PlanTier[] = [PLAN_TIERS.MONTHLY_20, PLAN_TIERS
 // iOS uses 'credit_100' (name was taken on re-creation); Android uses 'credit_pack_100'
 export const REVENUECAT_PRODUCTS = {
   MONTHLY_20: 'monthly_20_subscription',
-  MONTHLY_50: 'monthly_50_subscription',
+  // MONTHLY_50 intentionally disabled until product is fully configured in RevenueCat.
+  // MONTHLY_50: 'monthly_50_subscription',
   CREDIT_PACK: Platform.OS === 'ios' ? 'credit_100' : 'credit_pack_100',
 }
 

@@ -18,6 +18,7 @@
 - [Auth source-of-truth](docs/AUTH_SOURCE_OF_TRUTH.md) — Why Firebase is the canonical identity provider and how Supabase is used downstream.
 - [Auth provider name sync](docs/AUTH_PROVIDER_NAME_SYNC.md) — How Apple/Google names are captured and synced to profile display data.
 - [Firebase Cloud Functions](docs/FIREBASE_FUNCTIONS.md) — How backend functions (`exchangeToken`, `purchasePackageStripe`) are managed and deployed.
+- [Chat response function](docs/CHAT_RESPONSE_FUNCTION.md) — Secure callable architecture for server-side text generation, auth checks, and credit billing.
 - [Firebase Functions testing](docs/FIREBASE_FUNCTIONS_TESTING.md) — Test strategy and local commands for callable and webhook function coverage in `functions/`.
 - [Navigation structure](docs/NAVIGATION.md) — Overview of app navigation, including Drawer, Tab, and Stack navigators.
 - [Admin dashboard](docs/ADMIN_DASHBOARD.md) — Web-only admin UX architecture, route guards, and mandatory confirmation behavior for privileged actions.

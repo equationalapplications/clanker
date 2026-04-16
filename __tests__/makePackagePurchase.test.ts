@@ -19,7 +19,6 @@ jest.mock('~/config/constants', () => ({
   stripeCreditPackPriceId: 'price_credit_pack',
   REVENUECAT_PRODUCTS: {
     MONTHLY_20: 'monthly_20_subscription',
-    MONTHLY_50: 'monthly_50_subscription',
     get CREDIT_PACK() {
       return mockPlatformOS === 'ios' ? 'credit_100' : 'credit_pack_100'
     },
@@ -153,9 +152,24 @@ describe('makePackagePurchase', () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 
     try {
-      await expect(makePackagePurchase('monthly_50')).rejects.toThrow('refresh failed')
-      expect(purchaseProductMock).toHaveBeenCalledWith('monthly_50_subscription')
+      await expect(makePackagePurchase('monthly_20')).rejects.toThrow('refresh failed')
+      expect(purchaseProductMock).toHaveBeenCalledWith('monthly_20_subscription')
       expect(refreshSessionMock).toHaveBeenCalledTimes(1)
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
+  })
+
+  it('rejects monthly_50 purchase while product is disabled', async () => {
+    const { makePackagePurchase, purchaseProductMock, refreshSessionMock } = createHarness('ios')
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+    try {
+      await expect(makePackagePurchase('monthly_50')).rejects.toThrow(
+        'monthly_50 purchase is disabled until RevenueCat product setup is complete.',
+      )
+      expect(purchaseProductMock).not.toHaveBeenCalled()
+      expect(refreshSessionMock).not.toHaveBeenCalled()
     } finally {
       consoleErrorSpy.mockRestore()
     }
