@@ -62,6 +62,7 @@
     "expo-haptics": "~55.0.9",
     "expo-image": "~55.0.6",
     "expo-linking": "~55.0.9",
+    "expo-modules-core": "~55.0.22",
     "expo-router": "~55.0.8",
     "expo-secure-store": "~55.0.9",
     "expo-splash-screen": "~55.0.13",
