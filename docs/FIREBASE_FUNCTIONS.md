@@ -46,7 +46,7 @@ By setting `"codebase": "clanker"`, the Firebase CLI knows to only manage functi
 - **Purpose**: Generates chat/introduction text replies server-side using Vertex AI with enforced auth and billing.
 - **Process**:
     1. Verifies callable auth context and token integrity.
-    2. Resolves Supabase user from authenticated Firebase email.
+  2. Resolves Supabase user by authenticated Firebase UID first, then falls back to Firebase email when needed.
     3. Reads active subscription rows from `user_app_subscriptions`.
     4. Authorizes access (unlimited tiers or available credits).
     5. Calls Vertex AI to generate the reply.

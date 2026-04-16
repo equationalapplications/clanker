@@ -23,24 +23,107 @@ interface ChatContext {
   }[]
 }
 
-function buildChatPrompt(userMessage: string, context: ChatContext): string {
-  return `You are ${context.characterName}, a virtual friend chatbot with the following personality:
+const MAX_CHAT_PROMPT_LENGTH = 11_000
+const MAX_CHARACTER_NAME_LENGTH = 100
+const MAX_CHARACTER_PERSONALITY_LENGTH = 1_500
+const MAX_CHARACTER_TRAITS_LENGTH = 1_000
+const MAX_USER_MESSAGE_LENGTH = 3_000
+const MAX_HISTORY_CHARS = 4_500
+const MAX_REFERENCE_ID_LENGTH = 128
+const ELLIPSIS = '...'
 
-Personality: ${context.characterPersonality}
-Traits: ${context.characterTraits}
+function truncateText(value: string, maxLength: number): string {
+  if (maxLength <= 0) {
+    return ''
+  }
+
+  const normalized = value.trim()
+  if (normalized.length <= maxLength) {
+    return normalized
+  }
+
+  if (maxLength <= ELLIPSIS.length) {
+    return ELLIPSIS.slice(0, maxLength)
+  }
+
+  return `${normalized.slice(0, maxLength - ELLIPSIS.length).trimEnd()}${ELLIPSIS}`
+}
+
+function buildConversationHistory(
+  conversationHistory: ChatContext['conversationHistory'],
+  maxLength: number,
+): string {
+  if (maxLength <= 0 || conversationHistory.length === 0) {
+    return ''
+  }
+
+  const selected: string[] = []
+  let usedLength = 0
+
+  for (let index = conversationHistory.length - 1; index >= 0; index -= 1) {
+    const message = conversationHistory[index]
+    if (!message) {
+      continue
+    }
+
+    const prefix = `${message.role}: `
+    const separatorLength = selected.length > 0 ? 1 : 0
+    const remainingLength = maxLength - usedLength - separatorLength
+
+    if (remainingLength <= prefix.length) {
+      break
+    }
+
+    const truncatedContent = truncateText(message.content, remainingLength - prefix.length)
+    const entry = `${prefix}${truncatedContent}`
+    selected.unshift(entry)
+    usedLength += entry.length + separatorLength
+  }
+
+  return selected.join('\n')
+}
+
+function buildReferenceId(value: unknown): string | undefined {
+  if (value == null) {
+    return undefined
+  }
+
+  const referenceId = truncateText(String(value), MAX_REFERENCE_ID_LENGTH)
+  return referenceId.length > 0 ? referenceId : undefined
+}
+
+function buildChatPrompt(userMessage: string, context: ChatContext): string {
+  const characterName = truncateText(context.characterName, MAX_CHARACTER_NAME_LENGTH)
+  const characterPersonality = truncateText(
+    context.characterPersonality,
+    MAX_CHARACTER_PERSONALITY_LENGTH,
+  )
+  const characterTraits = truncateText(context.characterTraits, MAX_CHARACTER_TRAITS_LENGTH)
+  const boundedUserMessage = truncateText(userMessage, MAX_USER_MESSAGE_LENGTH)
+  const boundedConversationHistory = buildConversationHistory(
+    context.conversationHistory,
+    MAX_HISTORY_CHARS,
+  )
+
+  const prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
+
+Personality: ${characterPersonality}
+Traits: ${characterTraits}
 
 Instructions:
-- Respond as ${context.characterName} would, staying true to the personality and traits
+- Respond as ${characterName} would, staying true to the personality and traits
 - Keep responses conversational and engaging
 - Respond naturally and authentically to the user's message
 - Don't break character or mention that you're an AI
 - Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
 
 Conversation history:
-${context.conversationHistory.map((msg) => `${msg.role}: ${msg.content}`).join('\n')}
+${boundedConversationHistory}
 
-User: ${userMessage}
-${context.characterName}:`
+User: ${boundedUserMessage}
+${characterName}:`
+
+  return truncateText(prompt, MAX_CHAT_PROMPT_LENGTH)
 }
 
 function buildIntroductionPrompt(
@@ -48,18 +131,24 @@ function buildIntroductionPrompt(
   characterPersonality: string,
   characterTraits: string,
 ): string {
-  return `You are ${characterName}, a virtual friend chatbot. This is your first message to a new user.
+  const boundedName = truncateText(characterName, MAX_CHARACTER_NAME_LENGTH)
+  const boundedPersonality = truncateText(characterPersonality, MAX_CHARACTER_PERSONALITY_LENGTH)
+  const boundedTraits = truncateText(characterTraits, MAX_CHARACTER_TRAITS_LENGTH)
 
-Your personality: ${characterPersonality}
-Your traits: ${characterTraits}
+  const prompt = `You are ${boundedName}, a virtual friend chatbot. This is your first message to a new user.
+
+Your personality: ${boundedPersonality}
+Your traits: ${boundedTraits}
 
 Generate a friendly, warm introduction message that:
-- Introduces yourself as ${characterName}
+- Introduces yourself as ${boundedName}
 - Shows your personality
 - Invites the user to start a conversation
 - Keep it brief and welcoming (1-2 sentences)
 
 Introduction:`
+
+  return truncateText(prompt, MAX_CHAT_PROMPT_LENGTH)
 }
 
 /**
@@ -93,7 +182,7 @@ export const sendMessageWithAIResponse = async (
     const prompt = buildChatPrompt(userMessage.text, chatContext)
     const aiResponseText = await generateChatReply({
       prompt,
-      referenceId: String(userMessage._id),
+      referenceId: buildReferenceId(userMessage._id),
     })
 
     // 5. Save AI response to local database
@@ -151,7 +240,7 @@ export const sendCharacterIntroduction = async (
 
     const introText = await generateChatReply({
       prompt: introPrompt,
-      referenceId: `intro-${character.id}`,
+      referenceId: buildReferenceId(`intro-${character.id}`),
     })
 
     const introId = `intro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
