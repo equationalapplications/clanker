@@ -74,7 +74,7 @@ Important billing behavior:
 
 Function returns Firebase `HttpsError` codes:
 - `unauthenticated`: missing auth context or token UID mismatch.
-- `invalid-argument`: prompt missing or empty.
+- `invalid-argument`: prompt missing, empty after trim, exceeds 12000 chars, or `referenceId` exceeds 128 chars.
 - `failed-precondition`: missing token email or missing required server config.
 - `not-found`: Supabase user not found for authenticated email.
 - `resource-exhausted`: no unlimited tier and no available credits.
