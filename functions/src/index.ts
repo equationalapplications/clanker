@@ -3,6 +3,10 @@ export {
 } from "./exchangeToken.js";
 
 export {
+  generateReply,
+} from "./generateReply.js";
+
+export {
   spendCredits,
 } from "./spendCredits.js";
 

@@ -6,11 +6,6 @@ const ai = getAI(firebaseApp, {
   backend: new VertexAIBackend(), // Use Vertex AI backend
 })
 
-// Initialize the generative model for text
-const textModel = getGenerativeModel(ai, {
-  model: 'gemini-2.5-flash', // Using Gemini model for text
-})
-
 // Initialize the generative model for images
 const imageModel = getGenerativeModel(ai, {
   model: 'gemini-2.5-flash-image', // Nano Banana - replaces deprecated Imagen models
@@ -18,113 +13,6 @@ const imageModel = getGenerativeModel(ai, {
     responseModalities: [ResponseModality.TEXT, ResponseModality.IMAGE],
   },
 })
-
-export interface ChatContext {
-  characterName: string
-  characterPersonality: string
-  characterTraits: string
-  conversationHistory: {
-    role: 'user' | 'assistant'
-    content: string
-  }[]
-}
-
-/**
- * Generate an AI response for chat using Vertex AI
- */
-export const generateChatResponse = async (
-  userMessage: string,
-  context: ChatContext,
-): Promise<string> => {
-  try {
-    console.log('🤖 Generating AI response with context:', {
-      characterName: context.characterName,
-      userMessage,
-      historyLength: context.conversationHistory.length,
-    })
-
-    // Build the prompt with character context
-    const systemPrompt = `You are ${context.characterName}, a virtual friend chatbot with the following personality:
-
-Personality: ${context.characterPersonality}
-Traits: ${context.characterTraits}
-
-Instructions:
-- Respond as ${context.characterName} would, staying true to the personality and traits
-- Keep responses conversational and engaging
-- Respond naturally and authentically to the user's message
-- Don't break character or mention that you're an AI
-- Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
-
-Conversation history:
-${context.conversationHistory.map((msg) => `${msg.role}: ${msg.content}`).join('\n')}
-
-User: ${userMessage}
-${context.characterName}:`
-
-    console.log('📝 Generated prompt, calling Vertex AI...')
-
-    // Generate response using Vertex AI
-    const result = await textModel.generateContent(systemPrompt)
-    const response = await result.response
-    const text = response.text()
-
-    console.log('✅ Received AI response:', text?.substring(0, 100))
-
-    if (!text) {
-      throw new Error('Empty response from AI model')
-    }
-
-    return text.trim()
-  } catch (error) {
-    console.error('❌ Error generating AI response:', error)
-    console.error('Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    })
-
-    // Return a fallback message that stays in character
-    return `I'm having trouble thinking of what to say right now. Could you tell me more about what's on your mind?`
-  }
-}
-
-/**
- * Generate a character introduction message
- */
-export const generateCharacterIntroduction = async (
-  characterName: string,
-  characterPersonality: string,
-  characterTraits: string,
-): Promise<string> => {
-  try {
-    const prompt = `You are ${characterName}, a virtual friend chatbot. This is your first message to a new user.
-
-Your personality: ${characterPersonality}
-Your traits: ${characterTraits}
-
-Generate a friendly, warm introduction message that:
-- Introduces yourself as ${characterName}
-- Shows your personality
-- Invites the user to start a conversation
-- Keep it brief and welcoming (1-2 sentences)
-
-Introduction:`
-
-    const result = await textModel.generateContent(prompt)
-    const response = await result.response
-    const text = response.text()
-
-    if (!text) {
-      throw new Error('Empty response from AI model')
-    }
-
-    return text.trim()
-  } catch (error) {
-    console.error('Error generating character introduction:', error)
-    return `Hi! I'm ${characterName}. I'm excited to chat with you!`
-  }
-}
 
 export interface ImageGenerationOptions {
   prompt: string
@@ -203,4 +91,4 @@ export const generateImageWithVertexAI = async ({
   }
 }
 
-export { textModel, imageModel, ai }
+export { imageModel, ai }
