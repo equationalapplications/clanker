@@ -1,3 +1,28 @@
+# [27.0.0](https://github.com/equationalapplications/clanker/compare/v26.2.2...v27.0.0) (2026-04-16)
+
+
+### Bug Fixes
+
+* **chat:** bound prompt size and align function docs ([c6a5379](https://github.com/equationalapplications/clanker/commit/c6a5379840a7deb7a7572a95bcc6ba45b09b594f))
+* **config:** remove obsolete purchases ios build flag ([6cf2b2d](https://github.com/equationalapplications/clanker/commit/6cf2b2dbc186bed58f7286a079c9eebc540f494e))
+* **deps:** remove duplicate package entry ([f575c8f](https://github.com/equationalapplications/clanker/commit/f575c8f25c47509b7c3521e17f56b8ca433b3dd9))
+* **functions:** harden generateReply review follow-ups ([4a2ea61](https://github.com/equationalapplications/clanker/commit/4a2ea613bf50aa187ec041e9b6897fc3b55ec447))
+* **functions:** resolve TypeScript errors in generateReply ([5e66a6d](https://github.com/equationalapplications/clanker/commit/5e66a6d6ad474b658a0e4df84b1fd123ba6667f8))
+* **purchases:** disable monthly_50 RevenueCat wiring ([62e71ad](https://github.com/equationalapplications/clanker/commit/62e71addf71fd161cf305b124fb1d042c43d8bc1))
+* **test:** add expo-modules-core for jest-expo in CI ([af847bc](https://github.com/equationalapplications/clanker/commit/af847bc499451e7c4297ce6497776b75725b1bae))
+* **test:** resolve Jest setup issues with expo-sqlite and jest-expo polyfills ([d80d537](https://github.com/equationalapplications/clanker/commit/d80d537011ca7f519bc6828699ea376519ace9e6))
+
+
+### Features
+
+* **chat:** move AI reply generation to secure cloud callable ([733213e](https://github.com/equationalapplications/clanker/commit/733213e28e5e483d921eaf09c0a0cd24f3d48225))
+* **deps:** update dependency versions ([106e4ae](https://github.com/equationalapplications/clanker/commit/106e4aea9dba054bb2744dfa90822d47bcf859df))
+
+
+### BREAKING CHANGES
+
+* **deps:** react-native-purchases major version update from 9 to 10
+
 ## [26.2.2](https://github.com/equationalapplications/clanker/compare/v26.2.1...v26.2.2) (2026-04-13)
 
 
