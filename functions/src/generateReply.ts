@@ -2,7 +2,6 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {VertexAI} from "@google-cloud/vertexai";
 import {
   callSupabaseRpc,
   findSupabaseUserByFirebaseUid,
@@ -52,6 +51,43 @@ interface GenerateReplyOptions {
   generateText?: GenerateTextFn;
 }
 
+interface CandidatePart {
+  text?: string;
+}
+
+interface Candidate {
+  content?: {
+    parts?: CandidatePart[];
+  };
+}
+
+interface GenerateContentResult {
+  response: {
+    candidates?: Candidate[];
+  };
+}
+
+interface GenerativeModelLike {
+  generateContent(prompt: string): Promise<GenerateContentResult>;
+}
+
+interface VertexAILike {
+  getGenerativeModel(config: {
+    model: string;
+    generationConfig: {
+      maxOutputTokens: number;
+    };
+  }): GenerativeModelLike;
+}
+
+interface VertexAIConstructor {
+  new (config: {project: string; location: string}): VertexAILike;
+}
+
+interface VertexAIModule {
+  VertexAI: VertexAIConstructor;
+}
+
 function getProjectId(): string | undefined {
   const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
   const value = fromEnv?.trim();
@@ -59,10 +95,11 @@ function getProjectId(): string | undefined {
 }
 
 let textGenerator: GenerateTextFn | undefined;
+let modelPromise: Promise<GenerativeModelLike> | undefined;
 
-function getTextGenerator(): GenerateTextFn {
-  if (textGenerator) {
-    return textGenerator;
+async function getModel(): Promise<GenerativeModelLike> {
+  if (modelPromise) {
+    return modelPromise;
   }
 
   const project = getProjectId();
@@ -73,22 +110,38 @@ function getTextGenerator(): GenerateTextFn {
     );
   }
 
-  const vertex = new VertexAI({project, location: DEFAULT_REGION});
-  const model = vertex.getGenerativeModel({
-    model: DEFAULT_MODEL,
-    generationConfig: {
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-    },
-  });
+  modelPromise = (async () => {
+    // Avoid hard compile-time dependency resolution so typecheck still runs when
+    // function deps are not installed in the current environment.
+    const moduleName = "@google-cloud/vertexai";
+    const vertexModule = await import(moduleName) as VertexAIModule;
+    const vertex = new vertexModule.VertexAI({project, location: DEFAULT_REGION});
+
+    return vertex.getGenerativeModel({
+      model: DEFAULT_MODEL,
+      generationConfig: {
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+      },
+    });
+  })();
+
+  return modelPromise;
+}
+
+function getTextGenerator(): GenerateTextFn {
+  if (textGenerator) {
+    return textGenerator;
+  }
 
   textGenerator = async (prompt: string): Promise<string> => {
+    const model = await getModel();
     const result = await model.generateContent(prompt);
     const candidates = result.response.candidates ?? [];
 
     for (const candidate of candidates) {
       const parts = candidate.content?.parts ?? [];
       const text = parts
-        .map((part) => (typeof part.text === "string" ? part.text : ""))
+        .map((part: CandidatePart) => (typeof part.text === "string" ? part.text : ""))
         .join("")
         .trim();
 
