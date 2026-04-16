@@ -145,6 +145,21 @@ describe('makePackagePurchase', () => {
     expect(refreshSessionMock).not.toHaveBeenCalled()
   })
 
+  it('propagates native session refresh failures after successful purchase', async () => {
+    const { makePackagePurchase, purchaseProductMock, refreshSessionMock } = createHarness('ios')
+    purchaseProductMock.mockResolvedValueOnce({ entitlements: { premium: {} } })
+    refreshSessionMock.mockRejectedValueOnce(new Error('refresh failed'))
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+    try {
+      await expect(makePackagePurchase('monthly_20')).rejects.toThrow('refresh failed')
+      expect(purchaseProductMock).toHaveBeenCalledWith('monthly_20_subscription')
+      expect(refreshSessionMock).toHaveBeenCalledTimes(1)
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
+  })
+
   it('rejects monthly_50 purchase while product is disabled', async () => {
     const { makePackagePurchase, purchaseProductMock, refreshSessionMock } = createHarness('ios')
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
