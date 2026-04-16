@@ -111,18 +111,45 @@ async function getModel(): Promise<GenerativeModelLike> {
   }
 
   modelPromise = (async () => {
-    // Avoid hard compile-time dependency resolution so typecheck still runs when
-    // function deps are not installed in the current environment.
-    const moduleName = "@google-cloud/vertexai";
-    const vertexModule = await import(moduleName) as VertexAIModule;
-    const vertex = new vertexModule.VertexAI({project, location: DEFAULT_REGION});
+    try {
+      // Avoid hard compile-time dependency resolution so typecheck still runs when
+      // function deps are not installed in the current environment.
+      const moduleName = "@google-cloud/vertexai";
+      const vertexModule = await import(moduleName) as VertexAIModule;
+      const vertex = new vertexModule.VertexAI({project, location: DEFAULT_REGION});
 
-    return vertex.getGenerativeModel({
-      model: DEFAULT_MODEL,
-      generationConfig: {
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
-      },
-    });
+      return vertex.getGenerativeModel({
+        model: DEFAULT_MODEL,
+        generationConfig: {
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+        },
+      });
+    } catch (error: unknown) {
+      modelPromise = undefined;
+
+      const message = error instanceof Error ? error.message : String(error);
+      const missingVertexModule =
+        (error instanceof Error &&
+          ("code" in error && error.code === "MODULE_NOT_FOUND")) ||
+        message.includes("@google-cloud/vertexai");
+
+      if (missingVertexModule) {
+        throw new HttpsError(
+          "failed-precondition",
+          "The @google-cloud/vertexai package is not available. " +
+            "Ensure it is installed and deployed with this function."
+        );
+      }
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        `Failed to initialize Vertex AI model: ${message}`
+      );
+    }
   })();
 
   return modelPromise;
