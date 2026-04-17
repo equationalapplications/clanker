@@ -622,6 +622,7 @@ test("generateReplyHandler accepts numeric spend_user_credits payload", async ()
 
 test("generateReplyHandler accepts boolean spend_user_credits payload", async () => {
   const originalFetch = globalThis.fetch;
+  const calls: Array<{url: string; body: string}> = [];
 
   const responses = [
     new Response(JSON.stringify("supabase-user-id"), {status: 200}),
@@ -632,7 +633,11 @@ test("generateReplyHandler accepts boolean spend_user_credits payload", async ()
     new Response(JSON.stringify(true), {status: 200}),
   ];
 
-  globalThis.fetch = (async () => {
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({
+      url: String(input),
+      body: typeof init?.body === "string" ? init.body : "",
+    });
     const next = responses.shift();
     if (!next) {
       throw new Error("Unexpected fetch call in generateReply test");
@@ -652,6 +657,7 @@ test("generateReplyHandler accepts boolean spend_user_credits payload", async ()
         },
         data: {
           prompt: "hello",
+          referenceId: "message-456",
         },
       } as never,
       {
@@ -661,6 +667,68 @@ test("generateReplyHandler accepts boolean spend_user_credits payload", async ()
 
     assert.equal(result.creditsSpent, 1);
     assert.equal(result.remainingCredits, null);
+
+    assert.equal(calls.length, 3);
+    assert.match(calls[0]?.url ?? "", /get_user_id_by_firebase_uid$/);
+    assert.match(calls[1]?.url ?? "", /user_app_subscriptions/);
+    assert.match(calls[2]?.url ?? "", /spend_user_credits$/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("generateReplyHandler accepts object-shaped spend_user_credits acknowledgements", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{url: string; body: string}> = [];
+
+  const responses = [
+    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
+    new Response(
+      JSON.stringify([{plan_tier: "payg", current_credits: 5}]),
+      {status: 200}
+    ),
+    new Response(JSON.stringify({ok: true}), {status: 200}),
+  ];
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({
+      url: String(input),
+      body: typeof init?.body === "string" ? init.body : "",
+    });
+    const next = responses.shift();
+    if (!next) {
+      throw new Error("Unexpected fetch call in generateReply test");
+    }
+    return next;
+  }) as typeof fetch;
+
+  try {
+    const result = await generateReplyHandler(
+      {
+        auth: {
+          uid: "firebase-uid-1",
+          token: {
+            uid: "firebase-uid-1",
+            email: "person@example.com",
+          },
+        },
+        data: {
+          prompt: "hello",
+          referenceId: "message-789",
+        },
+      } as never,
+      {
+        generateText: async () => "acknowledgement-test",
+      }
+    );
+
+    assert.equal(result.creditsSpent, 1);
+    assert.equal(result.remainingCredits, null);
+
+    assert.equal(calls.length, 3);
+    assert.match(calls[0]?.url ?? "", /get_user_id_by_firebase_uid$/);
+    assert.match(calls[1]?.url ?? "", /user_app_subscriptions/);
+    assert.match(calls[2]?.url ?? "", /spend_user_credits$/);
   } finally {
     globalThis.fetch = originalFetch;
   }

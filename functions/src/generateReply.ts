@@ -372,7 +372,21 @@ async function spendOneCreditIfRequired(
     return null;
   }
 
-  return spendOneCredit(supabaseUserId, referenceId);
+  try {
+    return await spendOneCredit(supabaseUserId, referenceId);
+  } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    logger.error("Failed to spend user credits", {
+      supabaseUserId,
+      referenceId,
+      error,
+    });
+
+    throw new HttpsError("internal", "Failed to spend user credits.");
+  }
 }
 
 const handler = async (
