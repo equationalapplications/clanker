@@ -379,10 +379,27 @@ function getImageGenerator(): GenerateImageFn {
 // For global rate limiting across instances, consider using Firestore/Supabase.
 const throttleBuckets = new Map<string, number[]>();
 
+function sweepThrottleBuckets(now: number): void {
+  for (const [firebaseUid, timestamps] of throttleBuckets.entries()) {
+    const recent = timestamps.filter(
+      (timestamp) => now - timestamp < THROTTLE_WINDOW_MS
+    );
+
+    if (recent.length === 0) {
+      throttleBuckets.delete(firebaseUid);
+      continue;
+    }
+
+    if (recent.length !== timestamps.length) {
+      throttleBuckets.set(firebaseUid, recent);
+    }
+  }
+}
+
 function assertWithinRateLimit(firebaseUid: string): void {
   const now = Date.now();
-  const existing = throttleBuckets.get(firebaseUid) ?? [];
-  const recent = existing.filter((timestamp) => now - timestamp < THROTTLE_WINDOW_MS);
+  sweepThrottleBuckets(now);
+  const recent = throttleBuckets.get(firebaseUid) ?? [];
 
   if (recent.length >= THROTTLE_MAX_REQUESTS) {
     throw new HttpsError(
@@ -392,13 +409,7 @@ function assertWithinRateLimit(firebaseUid: string): void {
   }
 
   recent.push(now);
-  // Clean up: evict the user if their recent bucket is empty after cleanup,
-  // to prevent unbounded memory growth on long-lived instances.
-  if (recent.length === 0) {
-    throttleBuckets.delete(firebaseUid);
-  } else {
-    throttleBuckets.set(firebaseUid, recent);
-  }
+  throttleBuckets.set(firebaseUid, recent);
 }
 
 const handler = async (
