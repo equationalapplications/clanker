@@ -1,5 +1,5 @@
 import { getCurrentUser, spendCreditsFn } from '../config/firebaseConfig'
-import { SUBSCRIPTION_TIERS } from '../config/constants'
+import { PLAN_TIERS, SUBSCRIPTION_TIERS, type PlanTier } from '../config/constants'
 import { getUserState } from '../services/apiClient'
 
 interface UserCredits {
@@ -10,6 +10,12 @@ interface UserCredits {
     credits: number
     isUnlimited: boolean
   }[]
+}
+
+const ALL_PLAN_TIERS = Object.values(PLAN_TIERS)
+
+const isPlanTier = (value: unknown): value is PlanTier => {
+  return typeof value === 'string' && ALL_PLAN_TIERS.includes(value as PlanTier)
 }
 
 export const getUserCredits = async (): Promise<UserCredits> => {
@@ -35,7 +41,7 @@ export const getUserCredits = async (): Promise<UserCredits> => {
     }
 
     const { planTier, currentCredits } = state.subscription
-    const isUnlimited = SUBSCRIPTION_TIERS.includes(planTier as any)
+    const isUnlimited = isPlanTier(planTier) && SUBSCRIPTION_TIERS.includes(planTier)
 
     const totalCredits = isUnlimited ? 0 : currentCredits
 

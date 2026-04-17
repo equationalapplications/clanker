@@ -79,6 +79,10 @@ export const deleteCharacter = onCall(
       throw new HttpsError('invalid-argument', 'Character ID is required.');
     }
 
+    if (!UUID_REGEX.test(characterId)) {
+      throw new HttpsError('invalid-argument', 'characterId must be a valid UUID.');
+    }
+
     const user = await userRepository.findUserByFirebaseUid(request.auth.uid);
     if (!user) {
       throw new HttpsError('not-found', 'User not found.');

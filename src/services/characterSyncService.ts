@@ -140,7 +140,7 @@ async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
                     traits: char.traits,
                     emotions: char.emotions,
                     context: char.context,
-                    isPublic: char.is_public === true,
+                    isPublic: Number(char.is_public) === 1,
                     createdAt: new Date(char.created_at).toISOString(),
                     updatedAt: new Date(char.updated_at).toISOString(),
                 }

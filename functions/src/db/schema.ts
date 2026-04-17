@@ -16,8 +16,8 @@ export const users = pgTable('users', {
 export const subscriptions = pgTable('subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').unique().notNull().references(() => users.id, { onDelete: 'cascade' }),
-  planTier: text('plan_tier', { enum: ['free', 'monthly_20', 'monthly_50', 'payg'] }).notNull().default('free'),
-  planStatus: text('plan_status', { enum: ['active', 'cancelled', 'expired'] }).notNull().default('active'),
+  planTier: text('plan_tier').notNull().default('free'),
+  planStatus: text('plan_status').notNull().default('active'),
   currentCredits: integer('current_credits').notNull().default(0),
   termsVersion: text('terms_version'),
   termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
