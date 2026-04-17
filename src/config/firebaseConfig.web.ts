@@ -88,6 +88,11 @@ const adminClearTermsAcceptanceFn = httpsCallable(functionsInstance, 'adminClear
 const adminResetUserStateFn = httpsCallable(functionsInstance, 'adminResetUserState')
 const adminDeleteUserFn = httpsCallable(functionsInstance, 'adminDeleteUser')
 const deleteMyAccountFn = httpsCallable(functionsInstance, 'deleteMyAccount')
+const updateUserProfileFn = httpsCallable(functionsInstance, 'updateUserProfile')
+const acceptTermsFn = httpsCallable(functionsInstance, 'acceptTerms')
+const syncCharacterFn = httpsCallable(functionsInstance, 'syncCharacter')
+const deleteCharacterFn = httpsCallable(functionsInstance, 'deleteCharacter')
+const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters')
 
 export type FirebaseUser = User
 export { appCheckReady }
@@ -110,4 +115,9 @@ export {
   adminResetUserStateFn,
   adminDeleteUserFn,
   deleteMyAccountFn,
+  updateUserProfileFn,
+  acceptTermsFn,
+  syncCharacterFn,
+  deleteCharacterFn,
+  getUserCharactersFn,
 }

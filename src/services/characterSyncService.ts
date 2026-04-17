@@ -14,6 +14,7 @@ import { Storage } from '~/utilities/kvStorage'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn } from './apiClient'
+import type { CharacterSnapshot } from './apiClient'
 import {
     getUnsyncedCharacters,
     getSoftDeletedCharacters,
@@ -88,7 +89,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
         }
 
         const cloudChars: LocalCharacter[] = data
-            .map((cloudChar: any) => {
+            .map((cloudChar: CharacterSnapshot) => {
                 const localId = cloudIdToLocalId.get(cloudChar.id) ?? cloudChar.id
                 return {
                     id: localId,

@@ -83,8 +83,7 @@ const handler = async (request: CallableRequest) => {
       amount,
       description,
     });
-    // Can optionally return success: false to mimic how some APIs work, but we'll stick to a valid return format.
-    return { success: false, error: "Insufficient credits" };
+    throw new HttpsError("resource-exhausted", "Insufficient credits.");
   }
 
   logger.info("spendCredits succeeded", {

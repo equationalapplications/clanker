@@ -1,11 +1,17 @@
 import { useSelector } from '@xstate/react'
-import { SUBSCRIPTION_TIERS, type PlanTier } from '~/config/constants'
+import { PLAN_TIERS, SUBSCRIPTION_TIERS, type PlanTier } from '~/config/constants'
 import { useAuthMachine } from '~/hooks/useMachines'
 
 interface CurrentPlan {
   tier: PlanTier | null
   isSubscriber: boolean
   isLoading: boolean
+}
+
+const ALL_PLAN_TIERS = Object.values(PLAN_TIERS)
+
+const isPlanTier = (value: unknown): value is PlanTier => {
+  return typeof value === 'string' && ALL_PLAN_TIERS.includes(value as PlanTier)
 }
 
 /**
@@ -29,7 +35,7 @@ export function useCurrentPlan(): CurrentPlan {
       state.matches('bootstrapping'),
   )
 
-  const tier = (subscription?.planTier as PlanTier) ?? null
+  const tier = isPlanTier(subscription?.planTier) ? subscription.planTier : null
 
   const isSubscriber = tier !== null && SUBSCRIPTION_TIERS.includes(tier)
 

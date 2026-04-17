@@ -93,3 +93,32 @@ test("spendCreditsHandler calls credit service with floored amount", async () =>
     assert.equal(spendCalls, 1);
   });
 });
+
+test("spendCreditsHandler throws resource-exhausted when spend fails", async () => {
+  await withServiceMocks(async () => {
+    const uid = "firebase-uid-2";
+    const email = "low-balance@example.com";
+    const user = buildUser(uid, email);
+
+    userRepository.findUserByFirebaseUid = async () => user;
+    creditService.spendCredits = async () => false;
+
+    await assert.rejects(
+      async () =>
+        spendCreditsHandler({
+          auth: {
+            uid,
+            token: {
+              uid,
+              email,
+            },
+          },
+          data: {
+            amount: 1,
+            description: "chat response",
+          },
+        } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
+    );
+  });
+});

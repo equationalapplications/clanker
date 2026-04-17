@@ -1,5 +1,6 @@
 import { appCheckReady, deleteMyAccountFn } from '~/config/firebaseConfig'
 import { getUserState, updateUserProfile } from './apiClient'
+import type { BootstrapResponse } from '~/auth/bootstrapSession'
 
 export interface UserProfile {
   user_id: string
@@ -40,23 +41,30 @@ interface DeleteMyAccountResponse {
   userId: string | null
 }
 
+const mapUserProfileFromState = (state: BootstrapResponse | null): UserProfile | null => {
+  if (!state?.user) return null
+
+  return {
+    user_id: state.user.id,
+    display_name: state.user.displayName,
+    email: state.user.email,
+    avatar_url: state.user.avatarUrl,
+    is_profile_public: state.user.isProfilePublic,
+    default_character_id: state.user.defaultCharacterId,
+    created_at:
+      typeof state.user.createdAt === 'string'
+        ? state.user.createdAt
+        : state.user.createdAt.toISOString(),
+  }
+}
+
 /**
  * Get the current user's profile
  */
 export const getUserProfile = async (): Promise<UserProfile | null> => {
   try {
     const state = await getUserState()
-    if (!state?.user) return null
-
-    return {
-      user_id: state.user.id,
-      display_name: state.user.displayName,
-      email: state.user.email,
-      avatar_url: state.user.avatarUrl,
-      is_profile_public: state.user.isProfilePublic,
-      default_character_id: state.user.defaultCharacterId,
-      created_at: typeof state.user.createdAt === 'string' ? state.user.createdAt : state.user.createdAt.toISOString(),
-    }
+    return mapUserProfileFromState(state)
   } catch (error) {
     console.error('Error fetching user profile:', error)
     return null
@@ -85,7 +93,8 @@ export const upsertUserProfile = async (
       avatar_url: user.avatarUrl,
       is_profile_public: user.isProfilePublic,
       default_character_id: user.defaultCharacterId,
-      created_at: user.createdAt,
+      created_at:
+        typeof user.createdAt === 'string' ? user.createdAt : user.createdAt.toISOString(),
     }
   } catch (error) {
     console.error('Error upserting user profile:', error)
@@ -116,7 +125,7 @@ export const getUserPublic = async (): Promise<UserPublic | null> => {
  */
 export const getUserPrivate = async (): Promise<UserPrivate | null> => {
   const state = await getUserState()
-  const profile = await getUserProfile()
+  const profile = mapUserProfileFromState(state)
 
   if (!profile || !state) {
     return null

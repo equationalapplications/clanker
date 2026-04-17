@@ -18,6 +18,19 @@ type SyncCharacterPayload = {
   updatedAt?: string;
 };
 
+function parseOptionalTimestamp(value: string | undefined, field: 'createdAt' | 'updatedAt'): Date | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    throw new HttpsError('invalid-argument', `${field} must be a valid timestamp when provided.`);
+  }
+
+  return parsed;
+}
+
 export const syncCharacter = onCall(
   {
     region: 'us-central1',
@@ -43,6 +56,9 @@ export const syncCharacter = onCall(
     }
 
     try {
+      const createdAt = parseOptionalTimestamp(character.createdAt, 'createdAt');
+      const updatedAt = parseOptionalTimestamp(character.updatedAt, 'updatedAt');
+
       const upserted = await characterService.upsertCharacter({
         ...(character.id ? { id: character.id } : {}),
         userId: user.id,
@@ -53,8 +69,8 @@ export const syncCharacter = onCall(
         emotions: character.emotions,
         context: character.context,
         isPublic: character.isPublic,
-        createdAt: new Date(character.createdAt || Date.now()),
-        updatedAt: new Date(character.updatedAt || Date.now()),
+        createdAt,
+        updatedAt,
       });
       return upserted;
     } catch (error) {

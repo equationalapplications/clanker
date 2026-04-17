@@ -99,6 +99,13 @@ describe('useCurrentPlan', () => {
     expect(result.isSubscriber).toBe(false)
   })
 
+  it('returns null tier when subscription context has an unknown tier', () => {
+    const result = renderUseCurrentPlan(makeState({ planTier: 'enterprise' }))
+
+    expect(result.tier).toBeNull()
+    expect(result.isSubscriber).toBe(false)
+  })
+
   it('uses two primitive selectors to avoid object identity churn', () => {
     const state = makeState({ activeStates: ['initializing'] })
     renderUseCurrentPlan(state)
