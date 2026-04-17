@@ -1,9 +1,10 @@
 import { eq, sql, and, gte } from 'drizzle-orm';
-import { db } from '../db/cloudSql.js';
+import { getDb } from '../db/cloudSql.js';
 import { subscriptions, creditTransactions } from '../db/schema.js';
 
 export const creditService = {
   async getCredits(userId: string): Promise<number> {
+    const db = await getDb();
     const result = await db
       .select({ currentCredits: subscriptions.currentCredits })
       .from(subscriptions)
@@ -14,6 +15,7 @@ export const creditService = {
   },
 
   async spendCredits(userId: string, amount: number, reason: string, referenceId?: string): Promise<boolean> {
+    const db = await getDb();
     return await db.transaction(async (tx) => {
       // Use UPDATE ... RETURNING to ensure atomic deduction and prevent negative balance
       const result = await tx
@@ -46,29 +48,24 @@ export const creditService = {
   },
 
   async addCredits(userId: string, amount: number, reason: string, referenceId?: string): Promise<number> {
+    const db = await getDb();
     return await db.transaction(async (tx) => {
-      // Check if subscription exists, if not, wait for it or insert default?
-      // Typically subscription should exist by the time we add credits.
-      const existing = await tx.select().from(subscriptions).where(eq(subscriptions.userId, userId)).limit(1);
-
-      let updatedCredits = 0;
-
-      if (existing.length > 0) {
-        const result = await tx
-          .update(subscriptions)
-          .set({ currentCredits: sql`${subscriptions.currentCredits} + ${amount}` })
-          .where(eq(subscriptions.userId, userId))
-          .returning({ currentCredits: subscriptions.currentCredits });
-        
-        updatedCredits = result[0].currentCredits;
-      } else {
-        const result = await tx.insert(subscriptions).values({
+      const result = await tx
+        .insert(subscriptions)
+        .values({
           userId,
           currentCredits: amount,
-        }).returning({ currentCredits: subscriptions.currentCredits });
+        })
+        .onConflictDoUpdate({
+          target: subscriptions.userId,
+          set: {
+            currentCredits: sql`${subscriptions.currentCredits} + ${amount}`,
+            updatedAt: new Date(),
+          },
+        })
+        .returning({ currentCredits: subscriptions.currentCredits });
 
-        updatedCredits = result[0].currentCredits;
-      }
+      const updatedCredits = result[0].currentCredits;
 
       await tx.insert(creditTransactions).values({
         userId,

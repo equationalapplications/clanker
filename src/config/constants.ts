@@ -1,6 +1,6 @@
 import { Platform } from 'react-native'
 
-// Canonical app identifier used across Supabase queries and Firebase exchangeToken
+// Canonical app identifier used for backend bootstrap and app-scoped API calls.
 export const APP_NAME = 'clanker'
 
 export const defaultAvatarUrl = 'https://www.gravatar.com/avatar?d=mp'

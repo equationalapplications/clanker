@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../db/cloudSql.js';
+import { getDb } from '../db/cloudSql.js';
 import { users } from '../db/schema.js';
 
 export interface CreateUserParams {
@@ -11,6 +11,7 @@ export interface CreateUserParams {
 
 export const userRepository = {
   async getOrCreateUserByFirebaseIdentity(params: CreateUserParams) {
+    const db = await getDb();
     const normalizedEmail = params.email.toLowerCase();
 
     const existingByUid = await this.findUserByFirebaseUid(params.firebaseUid);
@@ -53,16 +54,19 @@ export const userRepository = {
   },
 
   async findUserByEmail(email: string) {
+    const db = await getDb();
     const result = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
     return result[0] || null;
   },
 
   async findUserByFirebaseUid(firebaseUid: string) {
+    const db = await getDb();
     const result = await db.select().from(users).where(eq(users.firebaseUid, firebaseUid)).limit(1);
     return result[0] || null;
   },
 
   async updateUser(userId: string, updates: Partial<typeof users.$inferInsert>) {
+    const db = await getDb();
     const [updated] = await db
       .update(users)
       .set({ ...updates, updatedAt: new Date() })

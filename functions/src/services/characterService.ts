@@ -1,9 +1,10 @@
 import { eq, sql } from 'drizzle-orm';
-import { db } from '../db/cloudSql.js';
+import { getDb } from '../db/cloudSql.js';
 import { characters, messages } from '../db/schema.js';
 
 export const characterService = {
   async getUserCharacterCount(userId: string): Promise<number> {
+    const db = await getDb();
     const result = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(characters)
@@ -13,6 +14,7 @@ export const characterService = {
   },
 
   async getCharacterMessageCount(characterId: string): Promise<number> {
+    const db = await getDb();
     const result = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(messages)
@@ -22,6 +24,7 @@ export const characterService = {
   },
 
   async upsertCharacter(character: typeof characters.$inferInsert) {
+    const db = await getDb();
     const [upserted] = await db
       .insert(characters)
       .values(character)
@@ -43,12 +46,14 @@ export const characterService = {
   },
 
   async deleteCharacter(characterId: string, userId: string) {
+    const db = await getDb();
     await db
       .delete(characters)
       .where(sql`${characters.id} = ${characterId} AND ${characters.userId} = ${userId}`);
   },
 
   async getUserCharacters(userId: string) {
+    const db = await getDb();
     return await db
       .select()
       .from(characters)

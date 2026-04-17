@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm';
-import { db } from '../db/cloudSql.js';
+import { getDb } from '../db/cloudSql.js';
 import { subscriptions } from '../db/schema.js';
 
 export interface UpsertSubscriptionParams {
@@ -15,6 +15,7 @@ export interface UpsertSubscriptionParams {
 
 export const subscriptionService = {
   async getSubscription(userId: string) {
+    const db = await getDb();
     const result = await db
       .select()
       .from(subscriptions)
@@ -24,6 +25,7 @@ export const subscriptionService = {
   },
 
   async upsertSubscription(params: UpsertSubscriptionParams) {
+    const db = await getDb();
     const [upserted] = await db
       .insert(subscriptions)
       .values({
@@ -54,6 +56,7 @@ export const subscriptionService = {
   },
 
   async acceptTerms(userId: string, version: string, acceptedAt: Date) {
+    const db = await getDb();
     const existing = await this.getSubscription(userId);
 
     if (existing) {
