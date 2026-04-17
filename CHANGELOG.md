@@ -1,3 +1,19 @@
+# [27.1.0](https://github.com/equationalapplications/clanker/compare/v27.0.0...v27.1.0) (2026-04-17)
+
+
+### Bug Fixes
+
+* **functions:** harden generateReply credit-spend parsing ([902fa67](https://github.com/equationalapplications/clanker/commit/902fa67abbe100b240b4423a892f6ec665de59bd))
+* **generateImage:** evict stale throttle buckets to prevent memory leak ([6160100](https://github.com/equationalapplications/clanker/commit/6160100c4044dd215a15a1dad3d1c22564ef2b47))
+* **generateReply:** restore error handling and enhance test coverage ([a4eca1b](https://github.com/equationalapplications/clanker/commit/a4eca1be33fa2b7b161889d6bbb8aeb14f9acfc9))
+* **image:** address PR 266 review feedback ([d1cf488](https://github.com/equationalapplications/clanker/commit/d1cf4883305167a35478f672bb6ea68ea016ef1f))
+* **images:** persist MIME type and fix throttle memory leak ([47c0c9b](https://github.com/equationalapplications/clanker/commit/47c0c9b13c5c6dccc0fc570dc5e68c0d32ca611b))
+
+
+### Features
+
+* **image:** move image generation to secure callable ([4d4a3eb](https://github.com/equationalapplications/clanker/commit/4d4a3ebcdd425992e386463b8c13da6e4018ac46))
+
 # [27.0.0](https://github.com/equationalapplications/clanker/compare/v26.2.2...v27.0.0) (2026-04-16)
 
 
