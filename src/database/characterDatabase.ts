@@ -5,6 +5,14 @@
 
 import { getDatabase } from './index'
 
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
+const DEFAULT_IMAGE_MIME_TYPE = 'image/webp'
+
+function sanitizeImageMimeType(mimeType: string | null | undefined): string {
+    const normalized = typeof mimeType === 'string' ? mimeType.trim().toLowerCase() : ''
+    return ALLOWED_IMAGE_MIME_TYPES.has(normalized) ? normalized : DEFAULT_IMAGE_MIME_TYPE
+}
+
 export interface LocalCharacter {
     id: string
     user_id: string
@@ -52,7 +60,7 @@ export interface CharacterUpdate {
 function toAppFormat(char: LocalCharacter) {
     // Prefer avatar_data (local base64) for display; fall back to avatar (cloud URL)
     const displayAvatar = char.avatar_data
-        ? `data:${char.avatar_mime_type || 'image/webp'};base64,${char.avatar_data}`
+        ? `data:${sanitizeImageMimeType(char.avatar_mime_type)};base64,${char.avatar_data}`
         : char.avatar
 
     return {

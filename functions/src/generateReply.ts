@@ -8,6 +8,7 @@ import {
   findSupabaseUserByEmail,
   getSupabaseAdminClient,
 } from "./supabaseAdmin.js";
+import {extractRemainingCredits, isAcknowledgedSpend} from "./billing.js";
 
 const APP_NAME = "clanker";
 const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
@@ -288,62 +289,6 @@ async function spendOneCredit(
     p_description: "chat response",
     p_reference_id: referenceId,
   });
-
-  const extractRemainingCredits = (value: unknown): number | null => {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-
-    if (typeof value === "string") {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : null;
-    }
-
-    if (Array.isArray(value)) {
-      return value.length > 0 ? extractRemainingCredits(value[0]) : null;
-    }
-
-    if (!value || typeof value !== "object") {
-      return null;
-    }
-
-    const record = value as {
-      remaining_credits?: unknown;
-      remainingCredits?: unknown;
-    };
-
-    if (record.remaining_credits !== undefined) {
-      return extractRemainingCredits(record.remaining_credits);
-    }
-
-    if (record.remainingCredits !== undefined) {
-      return extractRemainingCredits(record.remainingCredits);
-    }
-
-    return null;
-  };
-
-  const isAcknowledgedSpend = (value: unknown): boolean => {
-    if (value === true) {
-      return true;
-    }
-
-    if (Array.isArray(value)) {
-      return value.some((entry) => isAcknowledgedSpend(entry));
-    }
-
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-
-    const record = value as {
-      success?: unknown;
-      ok?: unknown;
-      spent?: unknown;
-    };
-
-    return record.success === true || record.ok === true || record.spent === true;
-  };
 
   const remainingCredits = extractRemainingCredits(spendResult);
   if (remainingCredits !== null) {

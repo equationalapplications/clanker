@@ -8,6 +8,7 @@ import {
   findSupabaseUserByEmail,
   getSupabaseAdminClient,
 } from "./supabaseAdmin.js";
+import {extractRemainingCredits, isAcknowledgedSpend} from "./billing.js";
 
 const APP_NAME = "clanker";
 const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
@@ -212,62 +213,6 @@ async function spendOneCredit(
     p_reference_id: referenceId,
   });
 
-  const extractRemainingCredits = (value: unknown): number | null => {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-
-    if (typeof value === "string") {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : null;
-    }
-
-    if (Array.isArray(value)) {
-      return value.length > 0 ? extractRemainingCredits(value[0]) : null;
-    }
-
-    if (!value || typeof value !== "object") {
-      return null;
-    }
-
-    const record = value as {
-      remaining_credits?: unknown;
-      remainingCredits?: unknown;
-    };
-
-    if (record.remaining_credits !== undefined) {
-      return extractRemainingCredits(record.remaining_credits);
-    }
-
-    if (record.remainingCredits !== undefined) {
-      return extractRemainingCredits(record.remainingCredits);
-    }
-
-    return null;
-  };
-
-  const isAcknowledgedSpend = (value: unknown): boolean => {
-    if (value === true) {
-      return true;
-    }
-
-    if (Array.isArray(value)) {
-      return value.some((entry) => isAcknowledgedSpend(entry));
-    }
-
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-
-    const record = value as {
-      success?: unknown;
-      ok?: unknown;
-      spent?: unknown;
-    };
-
-    return record.success === true || record.ok === true || record.spent === true;
-  };
-
   const remainingCredits = extractRemainingCredits(spendResult);
   if (remainingCredits !== null) {
     return remainingCredits;
@@ -405,6 +350,40 @@ function getImageGenerator(): GenerateImageFn {
 // Note: This is instance-level memory and does not enforce limits across multiple Cloud Run instances.
 // For global rate limiting across instances, consider using Firestore/Supabase.
 const throttleBuckets = new Map<string, number[]>();
+const THROTTLE_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Periodic cleanup of expired throttle entries to prevent unbounded memory growth
+function startThrottleCleanupTimer(): void {
+  const timer = setInterval(() => {
+    const now = Date.now();
+    let cleaned = 0;
+
+    for (const [firebaseUid, timestamps] of throttleBuckets.entries()) {
+      const recent = timestamps.filter(
+        (timestamp) => now - timestamp < THROTTLE_WINDOW_MS
+      );
+
+      if (recent.length === 0) {
+        throttleBuckets.delete(firebaseUid);
+        cleaned++;
+      } else if (recent.length !== timestamps.length) {
+        throttleBuckets.set(firebaseUid, recent);
+      }
+    }
+
+    if (cleaned > 0) {
+      logger.debug(`Throttle cleanup: removed ${cleaned} expired user buckets`, {
+        bucketsRemaining: throttleBuckets.size,
+      });
+    }
+  }, THROTTLE_CLEANUP_INTERVAL_MS);
+
+  // Don't block process exit for this background timer
+  timer.unref();
+}
+
+// Start cleanup timer on module load
+startThrottleCleanupTimer();
 
 function assertWithinRateLimit(firebaseUid: string): void {
   const now = Date.now();
