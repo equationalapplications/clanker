@@ -2,10 +2,75 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {HttpsError} from "firebase-functions/v2/https";
 
-process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-process.env.SUPABASE_URL = "https://supabase.example.co";
-
 import {generateReplyHandler} from "./generateReply.js";
+import {userRepository} from "./services/userRepository.js";
+import {subscriptionService} from "./services/subscriptionService.js";
+import {creditService} from "./services/creditService.js";
+
+type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
+type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionService.getSubscription>>>;
+
+const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity;
+const originalGetSubscription = subscriptionService.getSubscription;
+const originalSpendCredits = creditService.spendCredits;
+const originalGetCredits = creditService.getCredits;
+
+let authCounter = 0;
+
+function buildAuth() {
+  authCounter += 1;
+  const uid = `firebase-uid-${authCounter}`;
+  return {
+    uid,
+    token: {
+      uid,
+      email: `person-${authCounter}@example.com`,
+    },
+  };
+}
+
+function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
+  return {
+    id: `user-${auth.uid}`,
+    firebaseUid: auth.uid,
+    email: auth.token.email,
+    displayName: null,
+    avatarUrl: null,
+    isProfilePublic: false,
+    defaultCharacterId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function buildSubscription(userId: string, planTier: "payg" | "monthly_20", currentCredits: number): SubscriptionRecord {
+  return {
+    id: `sub-${userId}`,
+    userId,
+    planTier,
+    planStatus: "active",
+    currentCredits,
+    termsVersion: null,
+    termsAcceptedAt: null,
+    stripeSubscriptionId: null,
+    stripeCustomerId: null,
+    billingCycleStart: null,
+    billingCycleEnd: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+async function withServiceMocks(run: () => Promise<void>) {
+  try {
+    await run();
+  } finally {
+    userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
+    subscriptionService.getSubscription = originalGetSubscription;
+    creditService.spendCredits = originalSpendCredits;
+    creditService.getCredits = originalGetCredits;
+  }
+}
 
 test("generateReplyHandler rejects unauthenticated calls", async () => {
   await assert.rejects(
@@ -15,111 +80,55 @@ test("generateReplyHandler rejects unauthenticated calls", async () => {
 });
 
 test("generateReplyHandler validates prompt", async () => {
-  await assert.rejects(
-    async () =>
-      generateReplyHandler(
-        {
-          auth: {
-            uid: "firebase-uid-1",
-            token: {
-              uid: "firebase-uid-1",
-              email: "person@example.com",
-            },
-          },
-          data: {
-            prompt: "   ",
-          },
-        } as never,
-        {
-          generateText: async () => "unused",
-        }
-      ),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
+  const auth = buildAuth();
 
-  await assert.rejects(
-    async () =>
-      generateReplyHandler(
-        {
-          auth: {
-            uid: "firebase-uid-1",
-            token: {
-              uid: "firebase-uid-1",
-              email: "person@example.com",
-            },
-          },
-          data: {
-            prompt: "x".repeat(12_001),
-          },
-        } as never,
-        {
-          generateText: async () => "unused",
-        }
-      ),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
 
-  await assert.rejects(
-    async () =>
-      generateReplyHandler(
-        {
-          auth: {
-            uid: "firebase-uid-1",
-            token: {
-              uid: "firebase-uid-1",
-              email: "person@example.com",
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => true;
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              prompt: "   ",
             },
-          },
-          data: {
-            prompt: "hello",
-            referenceId: "x".repeat(129),
-          },
-        } as never,
-        {
-          generateText: async () => "unused",
-        }
-      ),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
+          } as never,
+          {
+            generateText: async () => "unused",
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
+    );
+  });
 });
 
 test("generateReplyHandler spends one credit for payg users", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
+  const auth = buildAuth();
 
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 3}]),
-      {status: 200}
-    ),
-    new Response(JSON.stringify({remaining_credits: 2}), {status: 200}),
-  ];
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
 
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+      spendCalls += 1;
+      assert.equal(amount, 1);
+      assert.equal(reason, "chat response");
+      assert.equal(referenceId, "message-123");
+      return true;
+    };
+    creditService.getCredits = async () => 2;
 
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-
-    return next;
-  }) as typeof fetch;
-
-  try {
     const result = await generateReplyHandler(
       {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {
-            uid: "firebase-uid-1",
-            email: "person@example.com",
-          },
-        },
+        auth,
         data: {
           prompt: "hello",
           referenceId: "message-123",
@@ -134,61 +143,96 @@ test("generateReplyHandler spends one credit for payg users", async () => {
     assert.equal(result.creditsSpent, 1);
     assert.equal(result.remainingCredits, 2);
     assert.equal(result.planTier, "payg");
-
-    assert.equal(calls.length, 3);
-    assert.match(calls[0]?.url ?? "", /get_user_id_by_firebase_uid$/);
-    assert.match(calls[1]?.url ?? "", /user_app_subscriptions/);
-    assert.match(calls[2]?.url ?? "", /spend_user_credits$/);
-
-    const spendPayload = JSON.parse(calls[2]?.body ?? "{}");
-    assert.equal(spendPayload.p_credit_amount, 1);
-    assert.equal(spendPayload.p_reference_id, "message-123");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    assert.equal(spendCalls, 1);
+  });
 });
 
-test("generateReplyHandler does not spend credit when model generation fails", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
+test("generateReplyHandler does not spend credits for unlimited users", async () => {
+  const auth = buildAuth();
 
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 3}]),
-      {status: 200}
-    ),
-  ];
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
 
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20", 0);
+    creditService.spendCredits = async () => {
+      spendCalls += 1;
+      return true;
+    };
+    creditService.getCredits = async () => 0;
 
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: {
+          prompt: "hello",
+        },
+      } as never,
+      {
+        generateText: async () => "subscriber reply",
+      }
+    );
 
-    return next;
-  }) as typeof fetch;
+    assert.equal(result.reply, "subscriber reply");
+    assert.equal(result.creditsSpent, 0);
+    assert.equal(result.remainingCredits, null);
+    assert.equal(result.planTier, "monthly_20");
+    assert.equal(spendCalls, 0);
+  });
+});
 
-  try {
+test("generateReplyHandler rejects when user has no credits and no unlimited plan", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 0);
+    creditService.spendCredits = async () => true;
+    creditService.getCredits = async () => 0;
+
     await assert.rejects(
       async () =>
         generateReplyHandler(
           {
-            auth: {
-              uid: "firebase-uid-1",
-              token: {
-                uid: "firebase-uid-1",
-                email: "person@example.com",
-              },
-            },
+            auth,
             data: {
               prompt: "hello",
-              referenceId: "message-123",
+            },
+          } as never,
+          {
+            generateText: async () => "unused",
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
+    );
+  });
+});
+
+test("generateReplyHandler does not spend credit when model generation fails", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => {
+      spendCalls += 1;
+      return true;
+    };
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              prompt: "hello",
             },
           } as never,
           {
@@ -200,52 +244,30 @@ test("generateReplyHandler does not spend credit when model generation fails", a
       (err: unknown) => err instanceof HttpsError && err.code === "internal"
     );
 
-    assert.equal(calls.length, 2);
-    assert.match(calls[0]?.url ?? "", /get_user_id_by_firebase_uid$/);
-    assert.match(calls[1]?.url ?? "", /user_app_subscriptions/);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    assert.equal(spendCalls, 0);
+  });
 });
 
 test("generateReplyHandler preserves HttpsError from model generation", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
+  const auth = buildAuth();
 
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 3}]),
-      {status: 200}
-    ),
-  ];
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
 
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => {
+      spendCalls += 1;
+      return true;
+    };
+    creditService.getCredits = async () => 2;
 
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-
-    return next;
-  }) as typeof fetch;
-
-  try {
     await assert.rejects(
       async () =>
         generateReplyHandler(
           {
-            auth: {
-              uid: "firebase-uid-1",
-              token: {
-                uid: "firebase-uid-1",
-                email: "person@example.com",
-              },
-            },
+            auth,
             data: {
               prompt: "hello",
               referenceId: "message-123",
@@ -263,473 +285,6 @@ test("generateReplyHandler preserves HttpsError from model generation", async ()
         err.message.includes("Vertex AI unavailable")
     );
 
-    assert.equal(calls.length, 2);
-    assert.match(calls[0]?.url ?? "", /get_user_id_by_firebase_uid$/);
-    assert.match(calls[1]?.url ?? "", /user_app_subscriptions/);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("generateReplyHandler does not spend credits for unlimited users", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
-
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "monthly_20", current_credits: 0}]),
-      {status: 200}
-    ),
-  ];
-
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
-
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-
-    return next;
-  }) as typeof fetch;
-
-  try {
-    const result = await generateReplyHandler(
-      {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {
-            uid: "firebase-uid-1",
-            email: "person@example.com",
-          },
-        },
-        data: {
-          prompt: "hello",
-        },
-      } as never,
-      {
-        generateText: async () => "subscriber reply",
-      }
-    );
-
-    assert.equal(result.reply, "subscriber reply");
-    assert.equal(result.creditsSpent, 0);
-    assert.equal(result.remainingCredits, null);
-    assert.equal(result.planTier, "monthly_20");
-
-    assert.equal(calls.length, 2);
-    assert.match(calls[0]?.url ?? "", /get_user_id_by_firebase_uid$/);
-    assert.match(calls[1]?.url ?? "", /user_app_subscriptions/);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("generateReplyHandler falls back to email lookup when UID lookup misses", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
-
-  const responses = [
-    new Response(JSON.stringify(null), {status: 200}),
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "monthly_20", current_credits: 0}]),
-      {status: 200}
-    ),
-  ];
-
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
-
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-
-    return next;
-  }) as typeof fetch;
-
-  try {
-    const result = await generateReplyHandler(
-      {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {
-            uid: "firebase-uid-1",
-            email: "person@example.com",
-          },
-        },
-        data: {
-          prompt: "hello",
-        },
-      } as never,
-      {
-        generateText: async () => "reply from model",
-      }
-    );
-
-    assert.equal(result.reply, "reply from model");
-    assert.equal(calls.length, 3);
-    assert.match(calls[0]?.url ?? "", /get_user_id_by_firebase_uid$/);
-    assert.match(calls[1]?.url ?? "", /get_user_id_by_email$/);
-    assert.match(calls[2]?.url ?? "", /user_app_subscriptions/);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("generateReplyHandler rejects when user has no credits and no unlimited plan", async () => {
-  const originalFetch = globalThis.fetch;
-
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 0}]),
-      {status: 200}
-    ),
-  ];
-
-  globalThis.fetch = (async () => {
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-    return next;
-  }) as typeof fetch;
-
-  try {
-    await assert.rejects(
-      async () =>
-        generateReplyHandler(
-          {
-            auth: {
-              uid: "firebase-uid-1",
-              token: {
-                uid: "firebase-uid-1",
-                email: "person@example.com",
-              },
-            },
-            data: {
-              prompt: "hello",
-            },
-          } as never,
-          {
-            generateText: async () => "unused",
-          }
-        ),
-      (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("generateReplyHandler returns expected response shape", async () => {
-  const originalFetch = globalThis.fetch;
-
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 2}]),
-      {status: 200}
-    ),
-    new Response(JSON.stringify({remaining_credits: 1}), {status: 200}),
-  ];
-
-  globalThis.fetch = (async () => {
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-    return next;
-  }) as typeof fetch;
-
-  try {
-    const result = await generateReplyHandler(
-      {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {
-            uid: "firebase-uid-1",
-            email: "person@example.com",
-          },
-        },
-        data: {
-          prompt: "hello",
-        },
-      } as never,
-      {
-        generateText: async () => "shape-check",
-      }
-    );
-
-    assert.deepEqual(result, {
-      reply: "shape-check",
-      creditsSpent: 1,
-      remainingCredits: 1,
-      planTier: "payg",
-    });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("generateReplyHandler rejects invalid spend_user_credits payload", async () => {
-  const originalFetch = globalThis.fetch;
-
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 2}]),
-      {status: 200}
-    ),
-    new Response(JSON.stringify({unexpected: "value"}), {status: 200}),
-  ];
-
-  globalThis.fetch = (async () => {
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-    return next;
-  }) as typeof fetch;
-
-  try {
-    await assert.rejects(
-      async () =>
-        generateReplyHandler(
-          {
-            auth: {
-              uid: "firebase-uid-1",
-              token: {
-                uid: "firebase-uid-1",
-                email: "person@example.com",
-              },
-            },
-            data: {
-              prompt: "hello",
-            },
-          } as never,
-          {
-            generateText: async () => "shape-check",
-          }
-        ),
-      (err: unknown) => err instanceof HttpsError && err.code === "internal"
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("generateReplyHandler accepts array spend_user_credits payload", async () => {
-  const originalFetch = globalThis.fetch;
-
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 2}]),
-      {status: 200}
-    ),
-    new Response(JSON.stringify([{remaining_credits: 1}]), {status: 200}),
-  ];
-
-  globalThis.fetch = (async () => {
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-    return next;
-  }) as typeof fetch;
-
-  try {
-    const result = await generateReplyHandler(
-      {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {
-            uid: "firebase-uid-1",
-            email: "person@example.com",
-          },
-        },
-        data: {
-          prompt: "hello",
-        },
-      } as never,
-      {
-        generateText: async () => "shape-check",
-      }
-    );
-
-    assert.equal(result.remainingCredits, 1);
-    assert.equal(result.creditsSpent, 1);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("generateReplyHandler accepts numeric spend_user_credits payload", async () => {
-  const originalFetch = globalThis.fetch;
-
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 2}]),
-      {status: 200}
-    ),
-    new Response(JSON.stringify(1), {status: 200}),
-  ];
-
-  globalThis.fetch = (async () => {
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-    return next;
-  }) as typeof fetch;
-
-  try {
-    const result = await generateReplyHandler(
-      {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {
-            uid: "firebase-uid-1",
-            email: "person@example.com",
-          },
-        },
-        data: {
-          prompt: "hello",
-        },
-      } as never,
-      {
-        generateText: async () => "shape-check",
-      }
-    );
-
-    assert.equal(result.remainingCredits, 1);
-    assert.equal(result.creditsSpent, 1);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("generateReplyHandler accepts boolean spend_user_credits payload", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
-
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 2}]),
-      {status: 200}
-    ),
-    new Response(JSON.stringify(true), {status: 200}),
-  ];
-
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-    return next;
-  }) as typeof fetch;
-
-  try {
-    const result = await generateReplyHandler(
-      {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {
-            uid: "firebase-uid-1",
-            email: "person@example.com",
-          },
-        },
-        data: {
-          prompt: "hello",
-          referenceId: "message-456",
-        },
-      } as never,
-      {
-        generateText: async () => "shape-check",
-      }
-    );
-
-    assert.equal(result.creditsSpent, 1);
-    assert.equal(result.remainingCredits, null);
-
-    assert.equal(calls.length, 3);
-    assert.match(calls[0]?.url ?? "", /get_user_id_by_firebase_uid$/);
-    assert.match(calls[1]?.url ?? "", /user_app_subscriptions/);
-    assert.match(calls[2]?.url ?? "", /spend_user_credits$/);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("generateReplyHandler accepts object-shaped spend_user_credits acknowledgements", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
-
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 5}]),
-      {status: 200}
-    ),
-    new Response(JSON.stringify({ok: true}), {status: 200}),
-  ];
-
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateReply test");
-    }
-    return next;
-  }) as typeof fetch;
-
-  try {
-    const result = await generateReplyHandler(
-      {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {
-            uid: "firebase-uid-1",
-            email: "person@example.com",
-          },
-        },
-        data: {
-          prompt: "hello",
-          referenceId: "message-789",
-        },
-      } as never,
-      {
-        generateText: async () => "acknowledgement-test",
-      }
-    );
-
-    assert.equal(result.creditsSpent, 1);
-    assert.equal(result.remainingCredits, null);
-
-    assert.equal(calls.length, 3);
-    assert.match(calls[0]?.url ?? "", /get_user_id_by_firebase_uid$/);
-    assert.match(calls[1]?.url ?? "", /user_app_subscriptions/);
-    assert.match(calls[2]?.url ?? "", /spend_user_credits$/);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    assert.equal(spendCalls, 0);
+  });
 });

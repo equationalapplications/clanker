@@ -25,6 +25,7 @@ import {
 } from '../database/characterDatabase'
 
 const LAST_SYNC_KEY = 'character-last-sync'
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export async function getLastSyncTime(): Promise<string | null> {
     return Storage.getItem(LAST_SYNC_KEY)
@@ -127,12 +128,12 @@ async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
     if (unsynced.length === 0) return
 
     for (const char of unsynced) {
-        const cloudId = char.cloud_id || char.id
+        const cloudId = char.cloud_id && UUID_REGEX.test(char.cloud_id) ? char.cloud_id : null
 
         try {
             const result = await syncCharacterFn({
                 character: {
-                    id: cloudId,
+                    ...(cloudId ? { id: cloudId } : {}),
                     name: char.name,
                     avatar: char.avatar,
                     appearance: char.appearance,
@@ -161,7 +162,12 @@ async function syncDeletionsToCloud(localUserId: string): Promise<void> {
     if (deleted.length === 0) return
 
     for (const char of deleted) {
-        const cloudId = char.cloud_id || char.id
+        const cloudId = char.cloud_id && UUID_REGEX.test(char.cloud_id) ? char.cloud_id : null
+
+        if (!cloudId) {
+            await hardDeleteCharacterLocal(char.id, localUserId)
+            continue
+        }
 
         try {
             await deleteCharacterFn({ characterId: cloudId })

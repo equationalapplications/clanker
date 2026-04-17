@@ -3,6 +3,21 @@ import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { characterService } from './services/characterService.js';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type SyncCharacterPayload = {
+  id?: string;
+  name: string;
+  avatar?: string | null;
+  appearance?: string | null;
+  traits?: string | null;
+  emotions?: string | null;
+  context?: string | null;
+  isPublic?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export const syncCharacter = onCall(
   {
     region: 'us-central1',
@@ -13,9 +28,13 @@ export const syncCharacter = onCall(
       throw new HttpsError('unauthenticated', 'Authentication required.');
     }
 
-    const { character } = request.data as { character: any };
-    if (!character || !character.id) {
+    const { character } = request.data as { character: SyncCharacterPayload };
+    if (!character) {
       throw new HttpsError('invalid-argument', 'Valid character data is required.');
+    }
+
+    if (character.id && !UUID_REGEX.test(character.id)) {
+      throw new HttpsError('invalid-argument', 'character.id must be a UUID when provided.');
     }
 
     const user = await userRepository.findUserByFirebaseUid(request.auth.uid);
@@ -25,7 +44,7 @@ export const syncCharacter = onCall(
 
     try {
       const upserted = await characterService.upsertCharacter({
-        id: character.id,
+        ...(character.id ? { id: character.id } : {}),
         userId: user.id,
         name: character.name,
         avatar: character.avatar,

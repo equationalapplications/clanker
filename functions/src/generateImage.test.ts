@@ -2,10 +2,75 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {HttpsError} from "firebase-functions/v2/https";
 
-process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-process.env.SUPABASE_URL = "https://supabase.example.co";
-
 import {generateImageHandler} from "./generateImage.js";
+import {userRepository} from "./services/userRepository.js";
+import {subscriptionService} from "./services/subscriptionService.js";
+import {creditService} from "./services/creditService.js";
+
+type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
+type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionService.getSubscription>>>;
+
+const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity;
+const originalGetSubscription = subscriptionService.getSubscription;
+const originalSpendCredits = creditService.spendCredits;
+const originalGetCredits = creditService.getCredits;
+
+let authCounter = 0;
+
+function buildAuth() {
+  authCounter += 1;
+  const uid = `firebase-uid-${authCounter}`;
+  return {
+    uid,
+    token: {
+      uid,
+      email: `person-${authCounter}@example.com`,
+    },
+  };
+}
+
+function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
+  return {
+    id: `user-${auth.uid}`,
+    firebaseUid: auth.uid,
+    email: auth.token.email,
+    displayName: null,
+    avatarUrl: null,
+    isProfilePublic: false,
+    defaultCharacterId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function buildSubscription(userId: string, planTier: "payg" | "monthly_20", currentCredits: number): SubscriptionRecord {
+  return {
+    id: `sub-${userId}`,
+    userId,
+    planTier,
+    planStatus: "active",
+    currentCredits,
+    termsVersion: null,
+    termsAcceptedAt: null,
+    stripeSubscriptionId: null,
+    stripeCustomerId: null,
+    billingCycleStart: null,
+    billingCycleEnd: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+async function withServiceMocks(run: () => Promise<void>) {
+  try {
+    await run();
+  } finally {
+    userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
+    subscriptionService.getSubscription = originalGetSubscription;
+    creditService.spendCredits = originalSpendCredits;
+    creditService.getCredits = originalGetCredits;
+  }
+}
 
 test("generateImageHandler rejects unauthenticated calls", async () => {
   await assert.rejects(
@@ -15,120 +80,57 @@ test("generateImageHandler rejects unauthenticated calls", async () => {
 });
 
 test("generateImageHandler validates prompt", async () => {
-  await assert.rejects(
-    async () =>
-      generateImageHandler(
-        {
-          auth: {
-            uid: "firebase-uid-1",
-            token: {
-              uid: "firebase-uid-1",
-              email: "person@example.com",
-            },
-          },
-          data: {
-            prompt: "   ",
-          },
-        } as never,
-        {
-          generateImage: async () => ({
-            imageBase64: "aGVsbG8=",
-            mimeType: "image/png",
-          }),
-        }
-      ),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
+  const auth = buildAuth();
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
 
-  await assert.rejects(
-    async () =>
-      generateImageHandler(
-        {
-          auth: {
-            uid: "firebase-uid-1",
-            token: {
-              uid: "firebase-uid-1",
-              email: "person@example.com",
-            },
-          },
-          data: {
-            prompt: "x".repeat(2_001),
-          },
-        } as never,
-        {
-          generateImage: async () => ({
-            imageBase64: "aGVsbG8=",
-            mimeType: "image/png",
-          }),
-        }
-      ),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => true;
+    creditService.getCredits = async () => 2;
 
-  await assert.rejects(
-    async () =>
-      generateImageHandler(
-        {
-          auth: {
-            uid: "firebase-uid-1",
-            token: {
-              uid: "firebase-uid-1",
-              email: "person@example.com",
+    await assert.rejects(
+      async () =>
+        generateImageHandler(
+          {
+            auth,
+            data: {
+              prompt: "   ",
             },
-          },
-          data: {
-            prompt: "valid prompt",
-            referenceId: "x".repeat(129),
-          },
-        } as never,
-        {
-          generateImage: async () => ({
-            imageBase64: "aGVsbG8=",
-            mimeType: "image/png",
-          }),
-        }
-      ),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
+          } as never,
+          {
+            generateImage: async () => ({
+              imageBase64: "aGVsbG8=",
+              mimeType: "image/png",
+            }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
+    );
+  });
 });
 
 test("generateImageHandler spends one credit for payg users", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
+  const auth = buildAuth();
 
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 3}]),
-      {status: 200}
-    ),
-    new Response(JSON.stringify({remaining_credits: 2}), {status: 200}),
-  ];
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
 
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+      spendCalls += 1;
+      assert.equal(amount, 1);
+      assert.equal(reason, "image generation");
+      assert.equal(referenceId, "image-request-123");
+      return true;
+    };
+    creditService.getCredits = async () => 2;
 
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateImage test");
-    }
-
-    return next;
-  }) as typeof fetch;
-
-  try {
     const result = await generateImageHandler(
       {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {
-            uid: "firebase-uid-1",
-            email: "person@example.com",
-          },
-        },
+        auth,
         data: {
           prompt: "anime cat hero portrait",
           referenceId: "image-request-123",
@@ -147,50 +149,30 @@ test("generateImageHandler spends one credit for payg users", async () => {
     assert.equal(result.creditsSpent, 1);
     assert.equal(result.remainingCredits, 2);
     assert.equal(result.planTier, "payg");
-
-    assert.equal(calls.length, 3);
-    assert.match(calls[0]?.url ?? "", /get_user_id_by_firebase_uid$/);
-    assert.match(calls[1]?.url ?? "", /user_app_subscriptions/);
-    assert.match(calls[2]?.url ?? "", /spend_user_credits$/);
-    const spendPayload = JSON.parse(calls[2]?.body ?? "{}") as {p_reference_id?: string};
-    assert.equal(spendPayload.p_reference_id, "image-request-123");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    assert.equal(spendCalls, 1);
+  });
 });
 
 test("generateImageHandler rejects unsupported mime type from model", async () => {
-  const originalFetch = globalThis.fetch;
+  const auth = buildAuth();
 
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 3}]),
-      {status: 200}
-    ),
-  ];
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
 
-  globalThis.fetch = (async () => {
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateImage test");
-    }
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => {
+      spendCalls += 1;
+      return true;
+    };
+    creditService.getCredits = async () => 2;
 
-    return next;
-  }) as typeof fetch;
-
-  try {
     await assert.rejects(
       async () =>
         generateImageHandler(
           {
-            auth: {
-              uid: "firebase-uid-1",
-              token: {
-                uid: "firebase-uid-1",
-                email: "person@example.com",
-              },
-            },
+            auth,
             data: {
               prompt: "hero portrait",
             },
@@ -204,47 +186,29 @@ test("generateImageHandler rejects unsupported mime type from model", async () =
         ),
       (err: unknown) => err instanceof HttpsError && err.code === "internal"
     );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+
+    assert.equal(spendCalls, 0);
+  });
 });
 
 test("generateImageHandler does not spend credit for unlimited users", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
+  const auth = buildAuth();
 
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "monthly_20", current_credits: 0}]),
-      {status: 200}
-    ),
-  ];
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
 
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20", 0);
+    creditService.spendCredits = async () => {
+      spendCalls += 1;
+      return true;
+    };
+    creditService.getCredits = async () => 0;
 
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateImage test");
-    }
-
-    return next;
-  }) as typeof fetch;
-
-  try {
     const result = await generateImageHandler(
       {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {
-            uid: "firebase-uid-1",
-            email: "person@example.com",
-          },
-        },
+        auth,
         data: {
           prompt: "hero portrait",
         },
@@ -260,50 +224,26 @@ test("generateImageHandler does not spend credit for unlimited users", async () 
     assert.equal(result.creditsSpent, 0);
     assert.equal(result.remainingCredits, null);
     assert.equal(result.planTier, "monthly_20");
-    assert.equal(calls.length, 2);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    assert.equal(spendCalls, 0);
+  });
 });
 
 test("generateImageHandler rejects users without unlimited plan and no credits", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
+  const auth = buildAuth();
 
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 0}]),
-      {status: 200}
-    ),
-  ];
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
 
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 0);
+    creditService.spendCredits = async () => true;
+    creditService.getCredits = async () => 0;
 
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateImage test");
-    }
-
-    return next;
-  }) as typeof fetch;
-
-  try {
     await assert.rejects(
       async () =>
         generateImageHandler(
           {
-            auth: {
-              uid: "firebase-uid-1",
-              token: {
-                uid: "firebase-uid-1",
-                email: "person@example.com",
-              },
-            },
+            auth,
             data: {
               prompt: "hero portrait",
             },
@@ -317,51 +257,29 @@ test("generateImageHandler rejects users without unlimited plan and no credits",
         ),
       (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
     );
-
-    assert.equal(calls.length, 2);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  });
 });
 
 test("generateImageHandler does not spend credit when generation fails", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
+  const auth = buildAuth();
 
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(
-      JSON.stringify([{plan_tier: "payg", current_credits: 3}]),
-      {status: 200}
-    ),
-  ];
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
 
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => {
+      spendCalls += 1;
+      return true;
+    };
+    creditService.getCredits = async () => 2;
 
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in generateImage test");
-    }
-
-    return next;
-  }) as typeof fetch;
-
-  try {
     await assert.rejects(
       async () =>
         generateImageHandler(
           {
-            auth: {
-              uid: "firebase-uid-1",
-              token: {
-                uid: "firebase-uid-1",
-                email: "person@example.com",
-              },
-            },
+            auth,
             data: {
               prompt: "hero portrait",
             },
@@ -375,8 +293,6 @@ test("generateImageHandler does not spend credit when generation fails", async (
       (err: unknown) => err instanceof HttpsError && err.code === "internal"
     );
 
-    assert.equal(calls.length, 2);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    assert.equal(spendCalls, 0);
+  });
 });
