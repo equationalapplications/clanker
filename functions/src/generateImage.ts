@@ -374,6 +374,9 @@ function getImageGenerator(): GenerateImageFn {
   return imageGenerator;
 }
 
+// Per-user request throttle for image generation.
+// Note: This is instance-level memory and does not enforce limits across multiple Cloud Run instances.
+// For global rate limiting across instances, consider using Firestore/Supabase.
 const throttleBuckets = new Map<string, number[]>();
 
 function assertWithinRateLimit(firebaseUid: string): void {
@@ -389,7 +392,13 @@ function assertWithinRateLimit(firebaseUid: string): void {
   }
 
   recent.push(now);
-  throttleBuckets.set(firebaseUid, recent);
+  // Clean up: evict the user if their recent bucket is empty after cleanup,
+  // to prevent unbounded memory growth on long-lived instances.
+  if (recent.length === 0) {
+    throttleBuckets.delete(firebaseUid);
+  } else {
+    throttleBuckets.set(firebaseUid, recent);
+  }
 }
 
 const handler = async (

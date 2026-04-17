@@ -42,7 +42,11 @@ export function useImageGeneration({
       console.log('🎨 Generating local image for character:', characterId)
 
       const generated = await generateImageViaCallable(prompt)
-      const dataUri = await saveCharacterImageLocally(characterId, generated.imageBase64)
+      const dataUri = await saveCharacterImageLocally(
+        characterId,
+        generated.imageBase64,
+        generated.mimeType,
+      )
 
       console.log('✅ Local image generation complete:', {
         characterId,
