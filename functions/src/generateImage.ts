@@ -14,9 +14,11 @@ const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const DEFAULT_MODEL = "gemini-2.5-flash-image";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 2_000;
+const MAX_REFERENCE_ID_LENGTH = 128;
 const MAX_BASE64_LENGTH = 8_000_000;
 const THROTTLE_WINDOW_MS = 60_000;
 const THROTTLE_MAX_REQUESTS = 5;
+const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -24,6 +26,7 @@ if (!admin.apps.length) {
 
 interface GenerateImageData {
   prompt: string;
+  referenceId?: string;
 }
 
 interface SubscriptionRow {
@@ -104,7 +107,7 @@ function getProjectId(): string | undefined {
   return value ? value : undefined;
 }
 
-function parseInput(data: unknown): string {
+function parseInput(data: unknown): {prompt: string; referenceId: string | null} {
   const payload = data as GenerateImageData | undefined;
   const promptValue = payload?.prompt;
   const prompt = typeof promptValue === "string" ? promptValue.trim() : "";
@@ -120,7 +123,18 @@ function parseInput(data: unknown): string {
     );
   }
 
-  return prompt;
+  const reference = typeof payload?.referenceId === "string" ? payload.referenceId.trim() : "";
+  if (reference.length > MAX_REFERENCE_ID_LENGTH) {
+    throw new HttpsError(
+      "invalid-argument",
+      `referenceId must be at most ${MAX_REFERENCE_ID_LENGTH} characters.`
+    );
+  }
+
+  return {
+    prompt,
+    referenceId: reference.length > 0 ? reference : null,
+  };
 }
 
 function parseUsage(rows: SubscriptionRow[]): UsageState {
@@ -186,13 +200,16 @@ function assertUsageAuthorized(usage: UsageState): void {
   }
 }
 
-async function spendOneCredit(supabaseUserId: string): Promise<number | null> {
+async function spendOneCredit(
+  supabaseUserId: string,
+  referenceId: string | null
+): Promise<number | null> {
   const spendResult = await callSupabaseRpc("spend_user_credits", {
     p_user_id: supabaseUserId,
     p_app_name: APP_NAME,
     p_credit_amount: 1,
     p_description: "image generation",
-    p_reference_id: null,
+    p_reference_id: referenceId,
   });
 
   const extractRemainingCredits = (value: unknown): number | null => {
@@ -269,13 +286,23 @@ async function spendOneCredit(supabaseUserId: string): Promise<number | null> {
 
 async function spendOneCreditIfRequired(
   supabaseUserId: string,
-  usage: UsageState
+  usage: UsageState,
+  referenceId: string | null
 ): Promise<number | null> {
   if (usage.hasUnlimited) {
     return null;
   }
 
-  return spendOneCredit(supabaseUserId);
+  return spendOneCredit(supabaseUserId, referenceId);
+}
+
+function assertSupportedImageMimeType(mimeType: string): string {
+  const normalized = mimeType.trim().toLowerCase();
+  if (!ALLOWED_IMAGE_MIME_TYPES.has(normalized)) {
+    throw new HttpsError("internal", "Model returned an unsupported image format.");
+  }
+
+  return normalized;
 }
 
 let modelPromise: Promise<GenerativeModelLike> | undefined;
@@ -379,27 +406,16 @@ function getImageGenerator(): GenerateImageFn {
 // For global rate limiting across instances, consider using Firestore/Supabase.
 const throttleBuckets = new Map<string, number[]>();
 
-function sweepThrottleBuckets(now: number): void {
-  for (const [firebaseUid, timestamps] of throttleBuckets.entries()) {
-    const recent = timestamps.filter(
-      (timestamp) => now - timestamp < THROTTLE_WINDOW_MS
-    );
-
-    if (recent.length === 0) {
-      throttleBuckets.delete(firebaseUid);
-      continue;
-    }
-
-    if (recent.length !== timestamps.length) {
-      throttleBuckets.set(firebaseUid, recent);
-    }
-  }
-}
-
 function assertWithinRateLimit(firebaseUid: string): void {
   const now = Date.now();
-  sweepThrottleBuckets(now);
-  const recent = throttleBuckets.get(firebaseUid) ?? [];
+  const timestamps = throttleBuckets.get(firebaseUid) ?? [];
+  const recent = timestamps.filter(
+    (timestamp) => now - timestamp < THROTTLE_WINDOW_MS
+  );
+
+  if (recent.length === 0) {
+    throttleBuckets.delete(firebaseUid);
+  }
 
   if (recent.length >= THROTTLE_MAX_REQUESTS) {
     throw new HttpsError(
@@ -433,7 +449,7 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const prompt = parseInput(request.data);
+  const {prompt, referenceId} = parseInput(request.data);
 
   let supabaseUser = await findSupabaseUserByFirebaseUid(request.auth.uid);
   if (!supabaseUser) {
@@ -484,7 +500,25 @@ const handler = async (
     );
   }
 
-  const remainingCredits = await spendOneCreditIfRequired(supabaseUser.id, usage);
+  const normalizedMimeType = assertSupportedImageMimeType(imageResult.mimeType);
+
+  let remainingCredits: number | null;
+  try {
+    remainingCredits = await spendOneCreditIfRequired(supabaseUser.id, usage, referenceId);
+  } catch (error) {
+    logger.error("spendOneCreditIfRequired failed", {
+      firebaseUid: request.auth.uid,
+      supabaseUserId: supabaseUser.id,
+      error,
+    });
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError("internal", "Failed to spend user credits.");
+  }
+
   const latencyMs = Date.now() - start;
 
   logger.info("generateImage succeeded", {
@@ -499,7 +533,7 @@ const handler = async (
 
   return {
     imageBase64: imageResult.imageBase64,
-    mimeType: imageResult.mimeType,
+    mimeType: normalizedMimeType,
     creditsSpent: usage.hasUnlimited ? 0 : 1,
     remainingCredits,
     planTier: usage.planTier,

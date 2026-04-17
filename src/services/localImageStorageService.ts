@@ -1,5 +1,13 @@
 import { getDatabase } from '~/database/index'
 
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
+const DEFAULT_IMAGE_MIME_TYPE = 'image/webp'
+
+function sanitizeImageMimeType(mimeType: string | null | undefined): string {
+    const normalized = typeof mimeType === 'string' ? mimeType.trim().toLowerCase() : ''
+    return ALLOWED_IMAGE_MIME_TYPES.has(normalized) ? normalized : DEFAULT_IMAGE_MIME_TYPE
+}
+
 /**
  * Save a base64-encoded image to SQLite avatar_data column for a character.
  * Returns a data URI suitable for rendering in Image components.
@@ -10,13 +18,14 @@ export async function saveCharacterImageLocally(
     mimeType: string = 'image/webp',
 ): Promise<string> {
     const db = await getDatabase()
+    const sanitizedMimeType = sanitizeImageMimeType(mimeType)
 
     await db.runAsync(
         'UPDATE characters SET avatar_data = ?, avatar_mime_type = ? WHERE id = ?',
-        [base64Data, mimeType, characterId],
+        [base64Data, sanitizedMimeType, characterId],
     )
 
-    const dataUri = `data:${mimeType};base64,${base64Data}`
+    const dataUri = `data:${sanitizedMimeType};base64,${base64Data}`
     console.log('✅ Character image saved to SQLite avatar_data:', characterId)
     return dataUri
 }
@@ -35,7 +44,7 @@ export async function getLocalCharacterImageUri(
     )
 
     if (row?.avatar_data) {
-        const mimeType = row.avatar_mime_type || 'image/webp'
+        const mimeType = sanitizeImageMimeType(row.avatar_mime_type)
         return `data:${mimeType};base64,${row.avatar_data}`
     }
     return null

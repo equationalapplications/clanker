@@ -109,8 +109,8 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // Infer the nearest version so we only apply missing migrations.
         let inferredVersion = 0
         if (hasDeletedAt) inferredVersion = 2
-        if (hasAvatarData) inferredVersion = 3
-        if (hasAvatarMimeType) inferredVersion = 4
+        if (hasDeletedAt && hasAvatarData) inferredVersion = 3
+        if (hasDeletedAt && hasAvatarData && hasAvatarMimeType) inferredVersion = 4
         await runMigrations(executor, inferredVersion)
         return
     }
