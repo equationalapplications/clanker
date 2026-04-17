@@ -1,7 +1,6 @@
-import { supabaseClient } from '../config/supabaseClient'
 import { getCurrentUser, spendCreditsFn } from '../config/firebaseConfig'
-import { APP_NAME, SUBSCRIPTION_TIERS } from '../config/constants'
-import { getSupabaseUserId } from './getSupabaseUserId'
+import { SUBSCRIPTION_TIERS } from '../config/constants'
+import { getUserState } from '../services/apiClient'
 
 interface UserCredits {
   totalCredits: number
@@ -24,10 +23,10 @@ export const getUserCredits = async (): Promise<UserCredits> => {
   }
 
   try {
-    const supabaseUserId = await getSupabaseUserId()
-
-    if (!supabaseUserId) {
-      console.error('❌ getUserCredits: Error getting Supabase user')
+    const state = await getUserState()
+    
+    if (!state?.subscription) {
+      console.error('❌ getUserCredits: Error getting user state')
       return {
         totalCredits: 0,
         hasUnlimited: false,
@@ -35,84 +34,19 @@ export const getUserCredits = async (): Promise<UserCredits> => {
       }
     }
 
-    console.log('📊 getUserCredits: Querying with Supabase UUID:', supabaseUserId)
+    const { planTier, currentCredits } = state.subscription
+    const isUnlimited = SUBSCRIPTION_TIERS.includes(planTier)
 
-    // Query all active subscriptions and credit records for the user
-    const { data: subscriptions, error } = await supabaseClient
-      .from('user_app_subscriptions')
-      .select('plan_tier, current_credits, plan_status')
-      .eq('user_id', supabaseUserId)
-      .eq('app_name', APP_NAME)
-      .eq('plan_status', 'active')
+    const totalCredits = isUnlimited ? 0 : currentCredits
 
-    console.log('📊 getUserCredits: Query result:', {
-      subscriptions,
-      error,
-      count: subscriptions?.length || 0,
-    })
-
-    if (error) {
-      console.error('Error fetching user credits:', error)
-      return {
-        totalCredits: 0,
-        hasUnlimited: false,
-        subscriptions: [],
-      }
-    }
-
-    let totalCredits = 0
-    let hasUnlimited = false
-    const subscriptionDetails: {
-      tier: string
-      credits: number
-      isUnlimited: boolean
-    }[] = []
-
-    for (const sub of subscriptions || []) {
-      const credits = sub.current_credits || 0
-      const isUnlimited = SUBSCRIPTION_TIERS.includes(sub.plan_tier)
-
-      subscriptionDetails.push({
-        tier: sub.plan_tier,
-        credits,
-        isUnlimited,
-      })
-
-      if (isUnlimited) {
-        hasUnlimited = true
-      } else {
-        totalCredits += credits
-      }
-    }
-
-    // If user has no subscriptions, they get 50 free credits on first login
-    if (subscriptions.length === 0) {
-      console.log('🆕 getUserCredits: No subscriptions found, creating initial free credits')
-      // TODO: Wire up server-side initialize_free_tier_subscription() DB function
-      // Free tier initialization should be handled server-side to avoid client-side writes.
-      console.log('✅ getUserCredits: Returning 50 free credits')
-      return {
-        totalCredits: 50,
-        hasUnlimited: false,
-        subscriptions: [
-          {
-            tier: 'free',
-            credits: 50,
-            isUnlimited: false,
-          },
-        ],
-      }
-    }
-
-    console.log('✅ getUserCredits: Returning credits:', {
-      totalCredits,
-      hasUnlimited,
-      subscriptionCount: subscriptionDetails.length,
-    })
     return {
       totalCredits,
-      hasUnlimited,
-      subscriptions: subscriptionDetails,
+      hasUnlimited: isUnlimited,
+      subscriptions: [{
+        tier: planTier,
+        credits: currentCredits,
+        isUnlimited
+      }],
     }
   } catch (error) {
     console.error('Error checking user credits:', error)

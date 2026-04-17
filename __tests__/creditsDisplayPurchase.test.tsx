@@ -4,7 +4,6 @@ import { Platform } from 'react-native'
 
 const mockUseUserCredits = jest.fn()
 const mockMakePackagePurchase = jest.fn()
-const mockRefreshSession = jest.fn()
 
 jest.mock('react-native-paper', () => {
   const React = require('react')
@@ -53,14 +52,6 @@ jest.mock('~/utilities/makePackagePurchase', () => ({
   makePackagePurchase: (...args: unknown[]) => mockMakePackagePurchase(...args),
 }))
 
-jest.mock('~/config/supabaseClient', () => ({
-  supabaseClient: {
-    auth: {
-      refreshSession: (...args: unknown[]) => mockRefreshSession(...args),
-    },
-  },
-}))
-
 jest.mock('~/components/LoadingIndicator', () => () => null)
 
 describe('CreditsDisplay purchase flows', () => {
@@ -81,7 +72,6 @@ describe('CreditsDisplay purchase flows', () => {
     })
 
     mockMakePackagePurchase.mockResolvedValue(undefined)
-    mockRefreshSession.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -155,7 +145,7 @@ describe('CreditsDisplay purchase flows', () => {
     expect(buyButton.props.disabled).toBe(false)
   })
 
-  it('refreshes session and refetches credits when restore is pressed', async () => {
+  it('refetches credits when restore is pressed', async () => {
     const CreditsDisplay = require('~/components/CreditsDisplay').default
     let tree!: ReturnType<typeof create>
 
@@ -169,7 +159,6 @@ describe('CreditsDisplay purchase flows', () => {
       await restoreButton.props.onPress()
     })
 
-    expect(mockRefreshSession).toHaveBeenCalledTimes(1)
     expect(mockRefetch).toHaveBeenCalledTimes(1)
   })
 })

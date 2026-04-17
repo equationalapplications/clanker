@@ -2,15 +2,10 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {
-  callSupabaseRpc,
-  findSupabaseUserByFirebaseUid,
-  findSupabaseUserByEmail,
-  getSupabaseAdminClient,
-} from "./supabaseAdmin.js";
-import {extractRemainingCredits, isAcknowledgedSpend} from "./billing.js";
+import { userRepository } from "./services/userRepository.js";
+import { subscriptionService } from "./services/subscriptionService.js";
+import { creditService } from "./services/creditService.js";
 
-const APP_NAME = "clanker";
 const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const DEFAULT_MODEL = "gemini-2.5-flash-image";
 const DEFAULT_REGION = "us-central1";
@@ -28,11 +23,6 @@ if (!admin.apps.length) {
 interface GenerateImageData {
   prompt: string;
   referenceId?: string;
-}
-
-interface SubscriptionRow {
-  plan_tier: string;
-  current_credits: number | null;
 }
 
 interface UsageState {
@@ -138,8 +128,9 @@ function parseInput(data: unknown): {prompt: string; referenceId: string | null}
   };
 }
 
-function parseUsage(rows: SubscriptionRow[]): UsageState {
-  if (rows.length === 0) {
+async function fetchUsageState(userId: string): Promise<UsageState> {
+  const sub = await subscriptionService.getSubscription(userId);
+  if (!sub || sub.planStatus !== 'active') {
     return {
       planTier: null,
       hasUnlimited: false,
@@ -147,49 +138,15 @@ function parseUsage(rows: SubscriptionRow[]): UsageState {
     };
   }
 
-  let hasUnlimited = false;
-  let credits = 0;
-  let planTier: string | null = null;
-
-  for (const row of rows) {
-    if (!planTier) {
-      planTier = row.plan_tier;
-    }
-
-    if (UNLIMITED_TIERS.has(row.plan_tier)) {
-      hasUnlimited = true;
-      planTier = row.plan_tier;
-      continue;
-    }
-
-    credits += Math.max(0, row.current_credits ?? 0);
-  }
+  const planTier = sub.planTier;
+  const hasUnlimited = UNLIMITED_TIERS.has(planTier);
+  const creditBalance = hasUnlimited ? 0 : Math.max(0, sub.currentCredits ?? 0);
 
   return {
     planTier,
     hasUnlimited,
-    creditBalance: credits,
+    creditBalance,
   };
-}
-
-async function fetchUsageState(supabaseUserId: string): Promise<UsageState> {
-  const supabase = getSupabaseAdminClient();
-  const {data, error} = await supabase
-    .from("user_app_subscriptions")
-    .select("plan_tier, current_credits")
-    .eq("user_id", supabaseUserId)
-    .eq("app_name", APP_NAME)
-    .eq("plan_status", "active");
-
-  if (error) {
-    logger.error("Failed to load subscription state for generateImage", {
-      supabaseUserId,
-      error,
-    });
-    throw new HttpsError("internal", "Failed to verify subscription access.");
-  }
-
-  return parseUsage((data ?? []) as SubscriptionRow[]);
 }
 
 function assertUsageAuthorized(usage: UsageState): void {
@@ -201,36 +158,8 @@ function assertUsageAuthorized(usage: UsageState): void {
   }
 }
 
-async function spendOneCredit(
-  supabaseUserId: string,
-  referenceId: string | null
-): Promise<number | null> {
-  const spendResult = await callSupabaseRpc("spend_user_credits", {
-    p_user_id: supabaseUserId,
-    p_app_name: APP_NAME,
-    p_credit_amount: 1,
-    p_description: "image generation",
-    p_reference_id: referenceId,
-  });
-
-  const remainingCredits = extractRemainingCredits(spendResult);
-  if (remainingCredits !== null) {
-    return remainingCredits;
-  }
-
-  if (isAcknowledgedSpend(spendResult)) {
-    return null;
-  }
-
-  logger.error("spend_user_credits returned invalid payload for generateImage", {
-    supabaseUserId,
-    spendResult,
-  });
-  throw new HttpsError("internal", "Failed to spend user credits.");
-}
-
 async function spendOneCreditIfRequired(
-  supabaseUserId: string,
+  userId: string,
   usage: UsageState,
   referenceId: string | null
 ): Promise<number | null> {
@@ -238,7 +167,26 @@ async function spendOneCreditIfRequired(
     return null;
   }
 
-  return spendOneCredit(supabaseUserId, referenceId);
+  try {
+    const success = await creditService.spendCredits(userId, 1, "image generation", referenceId ?? undefined);
+    if (!success) {
+      throw new HttpsError("resource-exhausted", "Insufficient credits to complete the operation.");
+    }
+
+    return await creditService.getCredits(userId);
+  } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    logger.error("Failed to spend user credits", {
+      userId,
+      referenceId,
+      error,
+    });
+
+    throw new HttpsError("internal", "Failed to spend user credits.");
+  }
 }
 
 function assertSupportedImageMimeType(mimeType: string): string {
@@ -430,23 +378,14 @@ const handler = async (
 
   const {prompt, referenceId} = parseInput(request.data);
 
-  let supabaseUser = await findSupabaseUserByFirebaseUid(request.auth.uid);
-  if (!supabaseUser) {
-    logger.info("No Supabase user found for Firebase UID; falling back to email lookup", {
-      firebaseUid: request.auth.uid,
-    });
-    supabaseUser = await findSupabaseUserByEmail(email);
-  }
+  const user = await userRepository.getOrCreateUserByFirebaseIdentity({
+    firebaseUid: request.auth.uid,
+    email,
+    displayName: decoded.name || null,
+    avatarUrl: decoded.picture || null,
+  });
 
-  if (!supabaseUser) {
-    logger.info("No Supabase user found for authenticated Firebase identity", {
-      email,
-      firebaseUid: request.auth.uid,
-    });
-    throw new HttpsError("not-found", "User not found.");
-  }
-
-  const usage = await fetchUsageState(supabaseUser.id);
+  const usage = await fetchUsageState(user.id);
   assertUsageAuthorized(usage);
   assertWithinRateLimit(request.auth.uid);
 
@@ -457,7 +396,7 @@ const handler = async (
     imageResult = await generateImage(prompt);
   } catch (error) {
     logger.error("generateImage model call failed", {
-      supabaseUserId: supabaseUser.id,
+      userId: user.id,
       error,
     });
 
@@ -483,11 +422,11 @@ const handler = async (
 
   let remainingCredits: number | null;
   try {
-    remainingCredits = await spendOneCreditIfRequired(supabaseUser.id, usage, referenceId);
+    remainingCredits = await spendOneCreditIfRequired(user.id, usage, referenceId);
   } catch (error) {
     logger.error("spendOneCreditIfRequired failed", {
       firebaseUid: request.auth.uid,
-      supabaseUserId: supabaseUser.id,
+      userId: user.id,
       error,
     });
 
@@ -502,7 +441,7 @@ const handler = async (
 
   logger.info("generateImage succeeded", {
     firebaseUid: request.auth.uid,
-    supabaseUserId: supabaseUser.id,
+    userId: user.id,
     planTier: usage.planTier,
     creditsSpent: usage.hasUnlimited ? 0 : 1,
     remainingCredits,
@@ -526,7 +465,6 @@ export const generateImage = onCall(
     region: DEFAULT_REGION,
     enforceAppCheck: true,
     invoker: "public",
-    secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
   },
   (request) => handler(request)
 );

@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+
+// Mock environment variables before any imports that might trigger DB initialization
+process.env.CLOUD_SQL_CONNECTION_NAME = "project:region:instance";
+process.env.CLOUD_SQL_DB_USER = "test";
+process.env.CLOUD_SQL_DB_PASS = "test";
+process.env.CLOUD_SQL_DB_NAME = "test";
+
 import {HttpsError} from "firebase-functions/v2/https";
-import {AuthBridgeError} from "@equationalapplications/firebase-auth-supabase-bridge";
-
-process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-process.env.SUPABASE_URL = "https://supabase.example.co";
-
 import {exchangeTokenHandler} from "./exchangeToken.js";
 
 test("exchangeTokenHandler rejects unauthenticated requests", async () => {
@@ -15,275 +17,143 @@ test("exchangeTokenHandler rejects unauthenticated requests", async () => {
   );
 });
 
-test("exchangeTokenHandler returns a Supabase session for an authenticated user", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; method: string; body: string}> = [];
+test("exchangeTokenHandler bootstraps a new user with onboarding credits", async () => {
+  const mockUser = {
+    id: "user-123",
+    firebaseUid: "firebase-uid-1",
+    email: "new-user@example.com",
+    displayName: "New User",
+    avatarUrl: "https://example.com/photo.png",
+    createdAt: new Date(),
+  };
 
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(JSON.stringify({hashed_token: "hashed-token"}), {status: 200}),
-    new Response(
-      JSON.stringify({
-        access_token: "access-token",
-        refresh_token: "refresh-token",
-        expires_in: 3600,
-        token_type: "bearer",
-      }),
-      {status: 200}
-    ),
-  ];
+  const mockSubscription = {
+    userId: "user-123",
+    planTier: "free",
+    planStatus: "active",
+    currentCredits: 50,
+    termsVersion: null,
+    termsAcceptedAt: null,
+  };
 
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      method: init?.method ?? "GET",
-      body: typeof init?.body === "string" ? init.body : "",
-    });
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async () => mockUser,
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => null,
+    },
+    subscriptionService: {
+      getSubscription: async () => null, // First call returns null for new user
+      upsertSubscription: async () => mockSubscription,
+      acceptTerms: async () => {},
+    },
+  };
 
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in exchangeToken test");
-    }
-
-    return next;
-  }) as typeof fetch;
-
-  try {
-    const result = await exchangeTokenHandler({
-      auth: {
+  const result = await exchangeTokenHandler({
+    auth: {
+      uid: "firebase-uid-1",
+      token: {
         uid: "firebase-uid-1",
-        token: {
-          uid: "firebase-uid-1",
-          email: "happy-path@example.com",
-        },
+        email: "new-user@example.com",
+        name: "New User",
+        picture: "https://example.com/photo.png",
       },
-    } as never);
+    },
+  } as never, mockDeps as any);
 
-    assert.deepEqual(result, {
-      access_token: "access-token",
-      refresh_token: "refresh-token",
-      expires_in: 3600,
-      token_type: "bearer",
-    });
-
-    assert.equal(calls.length, 3);
-    assert.match(calls[0]?.url ?? "", /get_user_id_by_email$/);
-    assert.match(calls[1]?.url ?? "", /generate_link$/);
-    assert.match(calls[2]?.url ?? "", /verify$/);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assert.deepEqual(result, {
+    user: {
+      id: mockUser.id,
+      firebaseUid: mockUser.firebaseUid,
+      email: mockUser.email,
+      displayName: mockUser.displayName,
+      avatarUrl: mockUser.avatarUrl,
+      createdAt: mockUser.createdAt,
+    },
+    subscription: {
+      planTier: mockSubscription.planTier,
+      planStatus: mockSubscription.planStatus,
+      currentCredits: mockSubscription.currentCredits,
+      termsVersion: mockSubscription.termsVersion,
+      termsAcceptedAt: mockSubscription.termsAcceptedAt,
+    },
+  });
 });
 
-test("exchangeTokenHandler throws when user lookup and creation both fail", async () => {
-  const originalFetch = globalThis.fetch;
+test("exchangeTokenHandler returns existing user and subscription", async () => {
+  const mockUser = {
+    id: "user-123",
+    firebaseUid: "firebase-uid-1",
+    email: "existing@example.com",
+    displayName: "Existing User",
+    avatarUrl: null,
+    createdAt: new Date(),
+  };
 
-  const responses = [
-    // findSupabaseUserByEmail → null
-    new Response(JSON.stringify(null), {status: 200}),
-    // createSupabaseUser → generic failure
-    new Response(JSON.stringify({message: "internal error"}), {status: 500}),
-  ];
+  const mockSubscription = {
+    userId: "user-123",
+    planTier: "monthly_20",
+    planStatus: "active",
+    currentCredits: 150,
+    termsVersion: "v1",
+    termsAcceptedAt: new Date(),
+  };
 
-  globalThis.fetch = (async () => {
-    const next = responses.shift();
-    if (!next) throw new Error("Unexpected fetch call");
-    return next;
-  }) as typeof fetch;
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async () => mockUser,
+    },
+    subscriptionService: {
+      getSubscription: async () => mockSubscription,
+    },
+  };
 
-  try {
-    await assert.rejects(
-      async () => exchangeTokenHandler({
-        auth: {
-          uid: "firebase-uid-1",
-          token: {uid: "firebase-uid-1", email: "lookup-creation-fail@example.com"},
-        },
-      } as never),
-      (err: unknown) => err instanceof HttpsError && err.code === "internal"
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("exchangeTokenHandler throws when generate_link fails", async () => {
-  const originalFetch = globalThis.fetch;
-
-  const responses = [
-    // findSupabaseUserByEmail → found
-    new Response(JSON.stringify("user-id"), {status: 200}),
-    // generateLink → error
-    new Response(JSON.stringify({message: "rate limit exceeded"}), {status: 429}),
-  ];
-
-  globalThis.fetch = (async () => {
-    const next = responses.shift();
-    if (!next) throw new Error("Unexpected fetch call");
-    return next;
-  }) as typeof fetch;
-
-  try {
-    await assert.rejects(
-      async () => exchangeTokenHandler({
-        auth: {
-          uid: "firebase-uid-1",
-          token: {uid: "firebase-uid-1", email: "generate-link-fail@example.com"},
-        },
-      } as never),
-      (err: unknown) => err instanceof HttpsError && err.code === "internal"
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("exchangeTokenHandler throws when verifyOtp fails", async () => {
-  const originalFetch = globalThis.fetch;
-
-  const responses = [
-    // findSupabaseUserByEmail → found
-    new Response(JSON.stringify("user-id"), {status: 200}),
-    // generateLink → success
-    new Response(JSON.stringify({hashed_token: "token"}), {status: 200}),
-    // verifyOtp → error
-    new Response(JSON.stringify({message: "otp expired"}), {status: 403}),
-  ];
-
-  globalThis.fetch = (async () => {
-    const next = responses.shift();
-    if (!next) throw new Error("Unexpected fetch call");
-    return next;
-  }) as typeof fetch;
-
-  try {
-    await assert.rejects(
-      async () => exchangeTokenHandler({
-        auth: {
-          uid: "firebase-uid-1",
-          token: {uid: "firebase-uid-1", email: "verify-otp-fail@example.com"},
-        },
-      } as never),
-      (err: unknown) => err instanceof HttpsError && err.code === "internal"
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("exchangeTokenHandler reuses existing active user on 422 fallback", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; method: string; body: string}> = [];
-
-  const responses = [
-    // 1. findSupabaseUserByEmail → null
-    new Response(JSON.stringify(null), {status: 200}),
-    // 2. createSupabaseUser → 422
-    new Response(JSON.stringify({msg: "already registered"}), {status: 422}),
-    // 3. findIncludeDeleted → active user (no deleted_at)
-    new Response(JSON.stringify({user_id: "existing-id", deleted_at: null}), {status: 200}),
-    // 4. generate_link
-    new Response(JSON.stringify({hashed_token: "ht"}), {status: 200}),
-    // 5. verify
-    new Response(
-      JSON.stringify({
-        access_token: "at",
-        refresh_token: "rt",
-        expires_in: 3600,
-        token_type: "bearer",
-      }),
-      {status: 200}
-    ),
-  ];
-
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      method: init?.method ?? "GET",
-      body: typeof init?.body === "string" ? init.body : "",
-    });
-    const next = responses.shift();
-    if (!next) throw new Error("Unexpected fetch call");
-    return next;
-  }) as typeof fetch;
-
-  try {
-    const result = await exchangeTokenHandler({
-      auth: {
+  const result = await exchangeTokenHandler({
+    auth: {
+      uid: "firebase-uid-1",
+      token: {
         uid: "firebase-uid-1",
-        token: {uid: "firebase-uid-1", email: "active422@example.com"},
+        email: "existing@example.com",
       },
-    } as never);
+    },
+  } as never, mockDeps as any);
 
-    assert.deepEqual(result, {
-      access_token: "at",
-      refresh_token: "rt",
-      expires_in: 3600,
-      token_type: "bearer",
-    });
-
-    // Should NOT have a DELETE call — user is active, just reuse
-    assert.equal(calls.length, 5);
-    assert.equal(calls.filter(c => c.method === "DELETE").length, 0);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assert.deepEqual(result, {
+    user: {
+      id: mockUser.id,
+      firebaseUid: mockUser.firebaseUid,
+      email: mockUser.email,
+      displayName: mockUser.displayName,
+      avatarUrl: mockUser.avatarUrl,
+      createdAt: mockUser.createdAt,
+    },
+    subscription: {
+      planTier: mockSubscription.planTier,
+      planStatus: mockSubscription.planStatus,
+      currentCredits: mockSubscription.currentCredits,
+      termsVersion: mockSubscription.termsVersion,
+      termsAcceptedAt: mockSubscription.termsAcceptedAt,
+    },
+  });
 });
 
-test("exchangeTokenHandler throws failed-precondition when SUPABASE_URL is missing", async () => {
-  const savedUrl = process.env.SUPABASE_URL;
-  delete process.env.SUPABASE_URL;
-  try {
-    await assert.rejects(
-      async () => exchangeTokenHandler({
-        auth: {
-          uid: "firebase-uid-1",
-          token: {uid: "firebase-uid-1", email: "config-test@example.com"},
-        },
-      } as never),
-      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
-    );
-  } finally {
-    process.env.SUPABASE_URL = savedUrl;
-  }
-});
-
-test("exchangeTokenHandler throws failed-precondition when SUPABASE_SERVICE_ROLE_KEY is missing", async () => {
-  const savedKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-  try {
-    await assert.rejects(
-      async () => exchangeTokenHandler({
-        auth: {
-          uid: "firebase-uid-1",
-          token: {uid: "firebase-uid-1", email: "config-test@example.com"},
-        },
-      } as never),
-      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
-    );
-  } finally {
-    process.env.SUPABASE_SERVICE_ROLE_KEY = savedKey;
-  }
-});
-
-test("exchangeTokenHandler maps AuthBridgeError code to HttpsError code", async () => {
-  const mockExchangeFn = async () => {
-    throw new AuthBridgeError("unauthenticated", "bridge: token revoked");
+test("exchangeTokenHandler throws internal error when userRepository fails", async () => {
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async () => {
+        throw new Error("DB error");
+      },
+    },
+    subscriptionService: {},
   };
 
   await assert.rejects(
-    async () => exchangeTokenHandler(
-      {
-        auth: {
-          uid: "firebase-uid-1",
-          token: {uid: "firebase-uid-1", email: "bridge-error@example.com"},
-        },
-      } as never,
-      mockExchangeFn
-    ),
-    (err: unknown) =>
-      err instanceof HttpsError &&
-      err.code === "unauthenticated" &&
-      err.message === "bridge: token revoked"
+    async () => exchangeTokenHandler({
+      auth: {
+        uid: "firebase-uid-1",
+        token: {uid: "firebase-uid-1", email: "fail@example.com"},
+      },
+    } as never, mockDeps as any),
+    (err: unknown) => err instanceof HttpsError && err.code === "internal"
   );
 });
-

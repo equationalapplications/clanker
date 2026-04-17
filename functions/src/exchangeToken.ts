@@ -2,63 +2,26 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {
-    exchangeFirebaseTokenForSupabaseSession,
-    AuthBridgeError,
-} from "@equationalapplications/firebase-auth-supabase-bridge";
-import type {ExchangeOptions, SupabaseSession} from "@equationalapplications/firebase-auth-supabase-bridge";
-import {getSupabaseUrl} from "./runtimeConfig.js";
-
-type ExchangeFn = (options: ExchangeOptions) => Promise<SupabaseSession>;
+import { userRepository } from "./services/userRepository.js";
+import { subscriptionService } from "./services/subscriptionService.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
     admin.initializeApp();
 }
 
-const HTTPS_ERROR_CODES = [
-    "cancelled",
-    "unknown",
-    "invalid-argument",
-    "deadline-exceeded",
-    "not-found",
-    "already-exists",
-    "permission-denied",
-    "resource-exhausted",
-    "failed-precondition",
-    "aborted",
-    "out-of-range",
-    "unimplemented",
-    "internal",
-    "unavailable",
-    "data-loss",
-    "unauthenticated",
-] as const;
-
-type HttpsErrorCode = typeof HTTPS_ERROR_CODES[number];
-
-const HTTPS_ERROR_CODE_SET = new Set<string>(HTTPS_ERROR_CODES);
-
-function getSupabaseServiceRoleKey(): string | undefined {
-    const value = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-    return value ? value : undefined;
-}
-
-function toHttpsErrorCode(code: string): HttpsErrorCode {
-    return HTTPS_ERROR_CODE_SET.has(code) ? code as HttpsErrorCode : "internal";
-}
-
 /**
  * exchangeToken (2nd Gen callable)
  *
- * Authenticates a Firebase user with Supabase by:
- * 1. Verifying Firebase auth context
- * 2. Finding or creating the corresponding Supabase user
- * 3. Generating a real Supabase session (with auth hook enrichment)
+ * Bootstraps a Firebase user in the Clanker Cloud SQL database.
+ * 1. Verifies Firebase auth context
+ * 2. Finds or creates the corresponding user in Cloud SQL
+ * 3. Ensures a default subscription exists (onboarding credits if new)
+ * 4. Returns the user snapshot + subscription data
  */
 const handler = async (
     request: CallableRequest,
-    exchangeFn: ExchangeFn = exchangeFirebaseTokenForSupabaseSession
+    deps = { userRepository, subscriptionService }
 ) => {
     if (!request.auth) {
         logger.error("Unauthenticated request");
@@ -91,39 +54,55 @@ const handler = async (
         );
     }
 
-    const supabaseUrl = getSupabaseUrl();
-    const supabaseServiceRoleKey = getSupabaseServiceRoleKey();
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-        logger.error("Missing Supabase configuration for token exchange", {
-            hasSupabaseUrl: Boolean(supabaseUrl),
-            hasServiceRoleKey: Boolean(supabaseServiceRoleKey),
-        });
-        throw new HttpsError(
-            "failed-precondition",
-            "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
-        );
-    }
-
     try {
-        const session = await exchangeFn({
-            supabaseUrl,
-            supabaseServiceRoleKey,
+        // 1. Get or create user
+        const user = await deps.userRepository.getOrCreateUserByFirebaseIdentity({
             firebaseUid: uid,
             email,
+            displayName: decoded.name || null,
+            avatarUrl: decoded.picture || null,
         });
 
-        logger.info("Token exchange successful", {
-            email,
-            expiresIn: session.expires_in,
-        });
-
-        return session;
-    } catch (err) {
-        if (err instanceof AuthBridgeError) {
-            throw new HttpsError(toHttpsErrorCode(err.code), err.message);
+        // 2. Get or create subscription
+        let subscription = await deps.subscriptionService.getSubscription(user.id);
+        
+        if (!subscription) {
+            logger.info("Creating default subscription for new user", { userId: user.id });
+            subscription = await deps.subscriptionService.upsertSubscription({
+                userId: user.id,
+                planTier: 'free',
+                planStatus: 'active',
+                currentCredits: 50, // Onboarding credits
+            });
         }
+
+        logger.info("Token exchange/bootstrap successful", {
+            email,
+            userId: user.id,
+        });
+
+        return {
+            user: {
+                id: user.id,
+                firebaseUid: user.firebaseUid,
+                email: user.email,
+                displayName: user.displayName,
+                avatarUrl: user.avatarUrl,
+                isProfilePublic: user.isProfilePublic,
+                defaultCharacterId: user.defaultCharacterId,
+                createdAt: user.createdAt,
+            },
+            subscription: {
+                planTier: subscription.planTier,
+                planStatus: subscription.planStatus,
+                currentCredits: subscription.currentCredits,
+                termsVersion: subscription.termsVersion,
+                termsAcceptedAt: subscription.termsAcceptedAt,
+            },
+        };
+    } catch (err: any) {
         logger.error("Token exchange failed", { err, email });
-        throw new HttpsError("internal", "Failed to exchange token.");
+        throw new HttpsError("internal", "Failed to bootstrap user.");
     }
 };
 
@@ -133,7 +112,6 @@ export const exchangeTokenHandler = handler;
 export const exchangeToken = onCall(
     {
         region: "us-central1",
-        secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
         enforceAppCheck: true,
         invoker: "public",
     },

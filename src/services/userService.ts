@@ -1,12 +1,24 @@
-import { supabaseClient, Database } from '~/config/supabaseClient'
 import { APP_NAME } from '~/config/constants'
 import { appCheckReady, deleteMyAccountFn } from '~/config/firebaseConfig'
-import { getSupabaseSession } from '~/utilities/getSupabaseSession'
+import { getUserState, updateUserProfile } from './apiClient'
 
-// Types for user data
-export type UserProfile = Database['public']['Tables']['profiles']['Row']
-export type UserProfileInsert = Database['public']['Tables']['profiles']['Insert']
-export type UserProfileUpdate = Database['public']['Tables']['profiles']['Update']
+export interface UserProfile {
+  user_id: string
+  display_name: string | null
+  email: string | null
+  avatar_url: string | null
+  is_profile_public: boolean
+  default_character_id: string | null
+  created_at: string
+}
+
+export interface UserProfileUpdate {
+  display_name?: string | null
+  email?: string | null
+  avatar_url?: string | null
+  is_profile_public?: boolean
+  default_character_id?: string | null
+}
 
 export interface UserPublic {
   uid: string
@@ -30,181 +42,57 @@ interface DeleteMyAccountResponse {
   userId: string | null
 }
 
-let inFlightUserProfileRead: Promise<UserProfile | null> | null = null
-
 /**
- * Get credits from user_app_subscriptions table
- */
-async function getUserCredits(): Promise<number> {
-  const session = await getSupabaseSession()
-  const user = session?.user
-  if (!user) {
-    return 0
-  }
-
-  const { data, error } = await supabaseClient
-    .from('user_app_subscriptions')
-    .select('current_credits')
-    .eq('user_id', user.id)
-    .eq('app_name', APP_NAME)
-    .maybeSingle()
-
-  if (error) {
-    console.error('Error fetching credits:', error)
-    return 0
-  }
-
-  if (!data) {
-    return 0
-  }
-
-  return data.current_credits
-}
-
-/**
- * Sync Firebase Auth identity fields to Supabase profile.
- * Only fills missing values to avoid overwriting user customizations.
- */
-export const syncFirebaseIdentityToProfile = async (
-  firebaseDisplayName: string | null | undefined,
-  firebaseEmail: string | null | undefined,
-  firebasePhotoURL: string | null | undefined,
-): Promise<void> => {
-  const normalizedDisplayName = firebaseDisplayName?.trim() || null
-  const normalizedEmail = firebaseEmail?.trim() || null
-
-  if (!normalizedDisplayName && !normalizedEmail && !firebasePhotoURL) {
-    return
-  }
-
-  try {
-    const session = await getSupabaseSession()
-    const user = session?.user
-    if (!user) {
-      return
-    }
-
-    // Read current profile values so we only fill missing fields.
-    const { data: profile, error } = await supabaseClient
-      .from('profiles')
-      .select('display_name,email,avatar_url')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    // If the query fails, log the error and abort to avoid accidental overwrites.
-    if (error) {
-      console.error('Error checking for existing profile fields:', error)
-      return
-    }
-
-    // If no profile exists, create one with Firebase identity defaults.
-    if (!profile) {
-      await upsertUserProfile({
-        user_id: user.id,
-        display_name: normalizedDisplayName,
-        email: normalizedEmail ?? user.email ?? null,
-        avatar_url: firebasePhotoURL ?? null,
-      })
-      return
-    }
-
-    const profileUpdates: UserProfileUpdate = {}
-
-    if (!profile.display_name && normalizedDisplayName) {
-      profileUpdates.display_name = normalizedDisplayName
-    }
-    if (!profile.email && (normalizedEmail || user.email)) {
-      profileUpdates.email = normalizedEmail ?? user.email ?? null
-    }
-    if (!profile.avatar_url && firebasePhotoURL) {
-      profileUpdates.avatar_url = firebasePhotoURL
-    }
-
-    if (Object.keys(profileUpdates).length > 0) {
-      await upsertUserProfile(profileUpdates)
-    }
-  } catch (error) {
-    console.error('Error syncing Firebase identity to profile:', error)
-  }
-}
-
-/**
- * Get the current user's profile from Supabase
+ * Get the current user's profile
  */
 export const getUserProfile = async (): Promise<UserProfile | null> => {
-  if (inFlightUserProfileRead) {
-    return inFlightUserProfileRead
-  }
-
-  inFlightUserProfileRead = (async () => {
-    const session = await getSupabaseSession()
-
-    const user = session?.user
-    if (!user) {
-      return null
-    }
-
-    const { data, error } = await supabaseClient
-      .from('profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (error) {
-      console.error('Error fetching user profile:', error)
-      return null
-    }
-
-    // Lazy-create profile if trigger didn't fire (safety net)
-    if (!data) {
-      try {
-        return await upsertUserProfile({
-          user_id: user.id,
-          email: user.email ?? null,
-        })
-      } catch (upsertError) {
-        console.error('Error creating missing profile:', upsertError)
-        return null
-      }
-    }
-
-    return data
-  })()
-
   try {
-    return await inFlightUserProfileRead
-  } finally {
-    inFlightUserProfileRead = null
+    const state = await getUserState()
+    if (!state?.user) return null
+
+    return {
+      user_id: state.user.id,
+      display_name: state.user.displayName,
+      email: state.user.email,
+      avatar_url: state.user.avatarUrl,
+      is_profile_public: state.user.isProfilePublic,
+      default_character_id: state.user.defaultCharacterId,
+      created_at: typeof state.user.createdAt === 'string' ? state.user.createdAt : state.user.createdAt.toISOString(),
+    }
+  } catch (error) {
+    console.error('Error fetching user profile:', error)
+    return null
   }
 }
 
 /**
- * Create or update user profile in Supabase
+ * Create or update user profile
  */
 export const upsertUserProfile = async (
   profile: UserProfileUpdate,
 ): Promise<UserProfile | null> => {
-  const session = await getSupabaseSession()
-  const user = session?.user
-  if (!user) {
-    throw new Error('No authenticated user')
-  }
-
-  const { data, error } = await supabaseClient
-    .from('profiles')
-    .upsert({
-      ...profile,
-      user_id: user.id,
+  try {
+    const result = await updateUserProfile({
+      displayName: profile.display_name,
+      avatarUrl: profile.avatar_url,
+      isProfilePublic: profile.is_profile_public,
+      defaultCharacterId: profile.default_character_id,
     })
-    .select()
-    .single()
-
-  if (error) {
+    
+    const user = result.data
+    return {
+      user_id: user.id,
+      display_name: user.displayName,
+      email: user.email,
+      avatar_url: user.avatarUrl,
+      is_profile_public: user.isProfilePublic,
+      default_character_id: user.defaultCharacterId,
+      created_at: user.createdAt,
+    }
+  } catch (error) {
     console.error('Error upserting user profile:', error)
     throw error
   }
-
-  return data
 }
 
 /**
@@ -229,20 +117,18 @@ export const getUserPublic = async (): Promise<UserPublic | null> => {
  * Get user private data in the legacy format for compatibility
  */
 export const getUserPrivate = async (): Promise<UserPrivate | null> => {
+  const state = await getUserState()
   const profile = await getUserProfile()
 
-  if (!profile) {
+  if (!profile || !state) {
     return null
   }
 
-  // Get credits from user_app_subscriptions
-  const credits = await getUserCredits()
-
   return {
-    credits,
+    credits: state.subscription.currentCredits || 0,
     isProfilePublic: profile.is_profile_public,
     defaultCharacter: profile.default_character_id || '',
-    hasAcceptedTermsDate: null, // Will be handled by app permissions check
+    hasAcceptedTermsDate: state.subscription.termsAcceptedAt ? new Date(state.subscription.termsAcceptedAt) : null,
   }
 }
 
@@ -261,50 +147,3 @@ export const deleteUser = async (): Promise<void> => {
   }
 }
 
-/**
- * Subscribe to user profile changes
- */
-export const subscribeToUserProfile = (callback: (profile: UserProfile | null) => void) => {
-  let currentUserId: string | null = null
-
-  // Set up auth state listener
-  const authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    if (session?.user) {
-      currentUserId = session.user.id
-
-      // Get initial profile data
-      const profile = await getUserProfile()
-      callback(profile)
-    } else {
-      currentUserId = null
-      callback(null)
-    }
-  })
-
-  // Set up real-time subscription for profile changes
-  const profileSubscription = supabaseClient
-    .channel('user-profile-changes')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'profiles',
-        filter: currentUserId ? `user_id=eq.${currentUserId}` : undefined,
-      },
-      (payload) => {
-        if (payload.eventType === 'DELETE') {
-          callback(null)
-        } else {
-          callback(payload.new as UserProfile)
-        }
-      },
-    )
-    .subscribe()
-
-  // Return cleanup function
-  return () => {
-    authSubscription.data.subscription?.unsubscribe()
-    profileSubscription.unsubscribe()
-  }
-}

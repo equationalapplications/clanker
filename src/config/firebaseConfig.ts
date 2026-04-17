@@ -30,7 +30,7 @@ async function initAppCheck() {
   })
 }
 
-// Exported so callers (e.g. getSupabaseUserSession) can await App Check readiness
+// Exported so callers (e.g. bootstrapSession) can await App Check readiness
 // before invoking callable functions that enforce App Check.
 export const appCheckReady = initAppCheck().catch((err: unknown) => {
   reportError(err, 'App Check initialization')

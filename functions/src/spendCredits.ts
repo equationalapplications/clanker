@@ -2,7 +2,8 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {findSupabaseUserByEmail, callSupabaseRpc} from "./supabaseAdmin.js";
+import { userRepository } from "./services/userRepository.js";
+import { creditService } from "./services/creditService.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -68,30 +69,32 @@ const handler = async (request: CallableRequest) => {
     : "";
   const referenceId = trimmedReferenceId.length > 0 ? trimmedReferenceId : null;
 
-  // Look up Supabase user by email
-  const supabaseUser = await findSupabaseUserByEmail(email);
-  if (!supabaseUser) {
-    logger.error("Supabase user not found for email", {email});
+  const user = await userRepository.findUserByFirebaseUid(request.auth.uid);
+  if (!user) {
+    logger.error("User not found for uid", { uid: request.auth.uid });
     throw new HttpsError("not-found", "User not found.");
   }
 
-  // Call the server-side spend_user_credits RPC
-  const result = await callSupabaseRpc("spend_user_credits", {
-    p_user_id: supabaseUser.id,
-    p_app_name: "clanker",
-    p_credit_amount: amount,
-    p_description: description,
-    p_reference_id: referenceId,
-  });
+  const success = await creditService.spendCredits(user.id, amount, description, referenceId ?? undefined);
+
+  if (!success) {
+    logger.warn("spendCredits failed - insufficient credits or user subscription missing", {
+      userId: user.id,
+      amount,
+      description,
+    });
+    // Can optionally return success: false to mimic how some APIs work, but we'll stick to a valid return format.
+    return { success: false, error: "Insufficient credits" };
+  }
 
   logger.info("spendCredits succeeded", {
     email,
-    supabaseUserId: supabaseUser.id,
+    userId: user.id,
     amount,
     description,
   });
 
-  return {success: true, result};
+  return {success: true};
 };
 
 export const spendCreditsHandler = handler;
@@ -100,7 +103,6 @@ export const spendCredits = onCall(
   {
     region: "us-central1",
     enforceAppCheck: true,
-    secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
     invoker: "public"
   },
   (request) => {

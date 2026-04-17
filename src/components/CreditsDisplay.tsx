@@ -4,7 +4,6 @@ import { Card, Text, Button, Chip, Snackbar, useTheme } from 'react-native-paper
 import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
-import { supabaseClient } from '~/config/supabaseClient'
 
 export default function CreditsDisplay() {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
@@ -76,7 +75,6 @@ export default function CreditsDisplay() {
   const handleRestore = async () => {
     setIsPurchasing('restore')
     try {
-      await supabaseClient.auth.refreshSession()
       await refetch()
     } catch (e) {
       console.error('Restore failed:', e)

@@ -1,5 +1,5 @@
 import { useSelector } from '@xstate/react'
-import { APP_NAME, SUBSCRIPTION_TIERS, type PlanTier } from '~/config/constants'
+import { SUBSCRIPTION_TIERS, type PlanTier } from '~/config/constants'
 import { useAuthMachine } from '~/hooks/useMachines'
 
 interface CurrentPlan {
@@ -8,55 +8,28 @@ interface CurrentPlan {
   isLoading: boolean
 }
 
-interface JwtPlan {
-  app: string
-  tier: PlanTier
-}
-
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  const base64Url = token.split('.')[1]
-  // Convert base64url to standard base64 (replace URL-safe chars, add padding)
-  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
-  const json = atob(padded)
-  return JSON.parse(json)
-}
-
-function extractTierFromToken(accessToken: string, appName: string): PlanTier | null {
-  try {
-    const payload = decodeJwtPayload(accessToken)
-    const plans = payload.plans as JwtPlan[] | undefined
-    if (!Array.isArray(plans)) return null
-    const match = plans.find((p) => p.app === appName)
-    return match?.tier ?? null
-  } catch {
-    return null
-  }
-}
-
 /**
- * Derives the current subscription plan from the authMachine's supabaseSession context.
+ * Derives the current subscription plan from the authMachine's subscription context.
  *
- * This eliminates a duplicate Supabase `onAuthStateChange` listener — the session is
- * already managed by authMachine and exposed via its context, so we simply select from it.
+ * This eliminates the need to decode a Supabase JWT — the subscription data is
+ * already managed by authMachine during the bootstrap process.
  */
 export function useCurrentPlan(): CurrentPlan {
   const authService = useAuthMachine()
 
-  const accessToken = useSelector(
+  const subscription = useSelector(
     authService,
-    (state) => state.context.supabaseSession?.access_token ?? null,
+    (state) => state.context.subscription,
   )
   const isLoading = useSelector(
     authService,
     (state) =>
       state.matches('initializing') ||
       state.matches('signingIn') ||
-      state.matches('exchangingToken') ||
-      state.matches('establishingSupabaseSession'),
+      state.matches('bootstrapping'),
   )
 
-  const tier = accessToken ? extractTierFromToken(accessToken, APP_NAME) : null
+  const tier = (subscription?.planTier as PlanTier) ?? null
 
   const isSubscriber = tier !== null && SUBSCRIPTION_TIERS.includes(tier)
 

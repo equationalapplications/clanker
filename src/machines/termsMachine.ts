@@ -1,54 +1,11 @@
 import { createMachine, assign, fromPromise, ActorRefFrom } from 'xstate'
-import { supabaseClient } from '~/config/supabaseClient'
-import { APP_NAME } from '~/config/constants'
 import { TERMS } from '~/config/termsConfig'
-
-const checkTermsAcceptance = async (
-  userId: string,
-): Promise<{ accepted: boolean; isUpdate: boolean }> => {
-  const { data, error } = await supabaseClient
-    .from('user_app_subscriptions')
-    .select('terms_accepted_at, terms_version')
-    .eq('user_id', userId)
-    .eq('app_name', APP_NAME)
-    .maybeSingle()
-
-  if (error) throw error
-  if (!data || !data.terms_accepted_at) return { accepted: false, isUpdate: false }
-  if (data.terms_version !== TERMS.version) return { accepted: false, isUpdate: true }
-  return { accepted: true, isUpdate: false }
-}
-
-const recordTermsAcceptance = async (userId: string): Promise<void> => {
-  const now = new Date().toISOString()
-
-  const { data: updatedSubscription, error: updateError } = await supabaseClient
-    .from('user_app_subscriptions')
-    .update({
-      terms_accepted_at: now,
-      terms_version: TERMS.version,
-      updated_at: now,
-    })
-    .eq('user_id', userId)
-    .eq('app_name', APP_NAME)
-    .select('user_id')
-    .maybeSingle()
-
-  if (updateError) throw updateError
-  if (!updatedSubscription) {
-    // Log for diagnostics but do NOT throw — optimistic acceptance lets the
-    // user proceed. Server-side RLS/RPC should enforce terms on protected
-    // operations (see AUTH_FLOW.md § RLS Helper Functions).
-    console.warn('Missing subscription row for terms acceptance', {
-      userId,
-      appName: APP_NAME,
-      termsVersion: TERMS.version,
-    })
-  }
-}
+import { acceptTermsFn } from '~/services/apiClient'
+import { SubscriptionSnapshot } from '~/auth/bootstrapSession'
 
 export interface TermsMachineContext {
-  supabaseUserId: string | null
+  dbUserId: string | null
+  subscription: SubscriptionSnapshot | null
   isUpdate: boolean
   error: Error | null
 }
@@ -67,7 +24,8 @@ export const termsMachine = createMachine(
     },
     initial: 'idle',
     context: {
-      supabaseUserId: null,
+      dbUserId: null,
+      subscription: null,
       isUpdate: false,
       error: null,
     } as TermsMachineContext,
@@ -77,42 +35,42 @@ export const termsMachine = createMachine(
           target: '.checking',
           guard: ({ event }) => event.authState.matches('signedIn'),
           actions: assign({
-            supabaseUserId: ({ event }) =>
-              event.authState.context.supabaseSession?.user?.id ?? null,
+            dbUserId: ({ event }) =>
+              event.authState.context.dbUser?.id ?? null,
+            subscription: ({ event }) =>
+              event.authState.context.subscription ?? null,
           }),
         },
         {
           target: '.idle',
-          actions: assign({ supabaseUserId: null, isUpdate: false, error: null }),
+          actions: assign({ dbUserId: null, subscription: null, isUpdate: false, error: null }),
         },
       ],
     },
     states: {
       idle: {},
       checking: {
-        invoke: {
-          id: 'checkTerms',
-          src: 'checkTermsAcceptance',
-          input: ({ context }) => ({ userId: context.supabaseUserId }),
-          onDone: [
-            {
-              target: 'accepted',
-              guard: ({ event }) => event.output.accepted === true,
-              actions: assign({ isUpdate: false, error: null }),
+        always: [
+          {
+            target: 'accepted',
+            guard: ({ context }) => {
+              const sub = context.subscription
+              return sub !== null && sub.termsVersion === TERMS.version && sub.termsAcceptedAt !== null
             },
-            {
-              target: 'acceptanceRequired',
-              actions: assign({
-                isUpdate: ({ event }) => event.output.isUpdate,
-                error: null,
-              }),
-            },
-          ],
-          onError: {
-            target: 'acceptanceRequired',
-            actions: assign({ error: ({ event }) => event.error as Error }),
+            actions: assign({ isUpdate: false, error: null }),
           },
-        },
+          {
+            target: 'acceptanceRequired',
+            actions: assign({
+              isUpdate: ({ context }) => {
+                const sub = context.subscription
+                // If they accepted a previous version, it's an update
+                return sub !== null && sub.termsVersion !== null && sub.termsVersion !== TERMS.version
+              },
+              error: null,
+            }),
+          },
+        ],
       },
       acceptanceRequired: {
         on: {
@@ -126,7 +84,6 @@ export const termsMachine = createMachine(
         invoke: {
           id: 'recordTermsAcceptance',
           src: 'recordTermsAcceptance',
-          input: ({ context }) => ({ userId: context.supabaseUserId }),
           onDone: {
             target: 'accepted',
           },
@@ -141,18 +98,16 @@ export const termsMachine = createMachine(
   },
   {
     actors: {
-      checkTermsAcceptance: fromPromise(async ({ input }) => {
-        const { userId } = input as { userId: string | null }
-        if (!userId) throw new Error('User not logged in')
-        return checkTermsAcceptance(userId)
-      }),
-      recordTermsAcceptance: fromPromise(async ({ input }) => {
-        const { userId } = input as { userId: string | null }
-        if (!userId) throw new Error('User not logged in')
-        return recordTermsAcceptance(userId)
+      recordTermsAcceptance: fromPromise(async () => {
+        try {
+          await acceptTermsFn({ termsVersion: TERMS.version })
+        } catch (err: any) {
+          throw new Error('Failed to record terms acceptance: ' + err.message)
+        }
       }),
     },
   },
 )
 
 export type TermsMachineActor = ActorRefFrom<typeof termsMachine>
+
