@@ -18,6 +18,7 @@ No Supabase Storage upload is used for generated avatars.
 ```ts
 type GenerateImageRequest = {
   prompt: string // non-empty, trimmed, max 2000 chars
+  referenceId?: string // optional, max length enforced by backend validation
 }
 ```
 
