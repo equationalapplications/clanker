@@ -1,0 +1,615 @@
+# Replacing Supabase with Dedicated Clanker Cloud SQL
+
+## Goal
+
+Migrate Clanker from Supabase (Auth + Postgres + RPC + RLS-driven client access) to a dedicated Google Cloud SQL Postgres instance accessed only from Firebase Cloud Functions.
+
+Important constraint: Account/Supabase schema is multi-tenant (`app_name` model). New Clanker Cloud SQL schema is single-tenant and dedicated to Clanker only.
+
+Hard requirement: after this migration, the Clanker app, functions, tests, configs, and docs must contain no active Supabase references and no Supabase-dependent code paths.
+
+## Final Architecture
+
+```
+React Native / Web app
+                ↓
+Firebase Auth (identity)
+                ↓
+Firebase Cloud Functions (all DB access)
+                ↓
+Cloud SQL PostgreSQL (Clanker only, single-tenant)
+```
+
+No client-side direct DB access. No Supabase Auth sessions. No Supabase RLS dependency.
+
+## Current Supabase Coupling (What must be replaced)
+
+### Functions layer
+
+- `functions/src/supabaseAdmin.ts`
+  - `findSupabaseUserByEmail`
+  - `findSupabaseUserByFirebaseUid`
+  - `callSupabaseRpc`
+  - `upsertUserSubscription`
+- `functions/src/exchangeToken.ts`
+  - Depends on `@equationalapplications/firebase-auth-supabase-bridge`
+  - Returns Supabase access/refresh session tokens
+- `functions/src/spendCredits.ts`
+  - Uses Supabase RPC `spend_user_credits`
+- `functions/src/revenueCatWebhook.ts`, `functions/src/stripeWebhook.ts`
+       - Use Supabase RPC and REST table upserts
+- `functions/src/generateReply.ts`, `functions/src/generateImage.ts`
+       - Query subscription/credits state and invoke Supabase-backed credit spend behavior
+- `functions/src/billing.ts`
+       - Parses and validates Supabase-backed credit/subscription results
+- `functions/src/runtimeConfig.ts`
+       - Reads Supabase runtime configuration values
+
+### Client layer
+
+- `src/config/supabaseClient.ts`
+  - Central direct DB client
+  - Typed contracts for `profiles`, `clanker_characters`, `clanker_messages`, `user_app_subscriptions`
+- Auth/session machine and utilities rely on Supabase tokens
+  - `src/machines/authMachine.ts`
+  - `src/auth/getSupabaseUserSession.ts`
+  - `src/utilities/getSupabaseSession.ts`
+       - `src/utilities/getSupabaseUserId.ts`
+       - `src/hooks/useCurrentPlan.ts`
+- Business logic directly queries Supabase tables
+  - `src/services/userService.ts`
+  - `src/services/characterSyncService.ts`
+  - `src/machines/termsMachine.ts`
+  - `src/utilities/getUserCredits.ts`
+       - `src/hooks/useUser.ts` (Realtime profile subscription)
+- Additional client modules with Supabase references
+       - `src/utilities/deleteUser.ts` (calls `deleteUserSupabase()` for Supabase auth hard-delete)
+       - `src/services/characterService.ts` (Supabase sync comments/logic)
+       - `src/database/characterDatabase.ts` (`cloud_id` field for Supabase sync tracking)
+       - `src/database/messageDatabase.ts` (Supabase reference in comments)
+       - `src/services/messageService.ts` (Supabase reference in comments)
+- Tests with Supabase coupling
+       - `__tests__/creditsDisplayPurchase.test.tsx` (mocks `supabaseClient`)
+       - `__tests__/useCurrentPlan.test.tsx` (uses `supabaseSession` in fixtures)
+- App routes and screens with Supabase session assumptions
+       - `app/_layout.tsx`
+       - `app/index.tsx`
+       - `app/sign-in.tsx`
+       - `app/checkout/success.tsx`
+       - `app/(drawer)/subscribe.tsx`
+       - `app/(drawer)/profile.tsx`
+
+### Data and RPC behavior to preserve
+
+From migrations and function calls, preserve semantics of:
+
+- User lookup by email / firebase uid
+- Credit ledger ops:
+  - `spend_user_credits`
+  - `add_user_credits`
+  - `update_user_credits`
+  - `get_user_credits`
+- Character/message counting semantics currently expressed via RPC
+       - `get_user_character_count`
+       - `get_character_message_count`
+- Subscription state updates from Stripe/RevenueCat
+- Terms acceptance tracking
+- Profile creation on signup (`handle_new_user` behavior)
+
+## Schema Strategy: Multi-tenant -> Single-tenant
+
+### Why reshape schema
+
+Old model stores many apps in one table (`user_app_subscriptions.app_name`).
+Dedicated Clanker DB removes app discriminator entirely.
+
+### Target schema (Cloud SQL)
+
+Use Drizzle ORM for schema + migrations.
+
+1. `users`
+       - `id uuid pk`
+       - `firebase_uid text unique not null`
+       - `email text unique not null`
+       - `display_name text null`
+       - `avatar_url text null`
+       - `is_profile_public boolean not null default false`
+       - `default_character_id uuid null`
+       - `created_at timestamptz`
+       - `updated_at timestamptz`
+
+2. `subscriptions`
+       - `id uuid pk`
+       - `user_id uuid unique not null references users(id) on delete cascade`
+       - `plan_tier text not null default 'free' check in ('free','monthly_20','monthly_50','payg')`
+       - `plan_status text not null default 'active' check in ('active','cancelled','expired')`
+       - `current_credits integer not null default 0`
+       - `terms_version text null`
+       - `terms_accepted_at timestamptz null`
+       - `stripe_subscription_id text null`
+       - `stripe_customer_id text null`
+       - `billing_cycle_start timestamptz null`
+       - `billing_cycle_end timestamptz null`
+       - `created_at timestamptz`
+       - `updated_at timestamptz`
+
+3. `credit_transactions`
+       - `id uuid pk`
+       - `user_id uuid not null references users(id) on delete cascade`
+       - `delta integer not null`
+       - `reason text not null`
+       - `reference_id text null`
+       - `created_at timestamptz`
+
+4. `characters`
+       - `id uuid pk`
+       - `user_id uuid not null references users(id) on delete cascade`
+       - `name text not null`
+       - `avatar text null`
+       - `appearance text null`
+       - `traits text null`
+       - `emotions text null`
+       - `context text null`
+       - `is_public boolean not null default false`
+       - `created_at timestamptz`
+       - `updated_at timestamptz`
+
+5. `messages`
+       - `id uuid pk`
+       - `character_id uuid not null references characters(id) on delete cascade`
+       - `sender_user_id uuid not null references users(id) on delete cascade`
+       - `message_id text not null`
+       - `text text not null`
+       - `sender_name text null`
+       - `sender_avatar text null`
+       - `message_data jsonb not null default '{}'::jsonb`
+       - `created_at timestamptz`
+
+   Note: `recipient_user_id` removed — always derivable from `character_id → characters.user_id`. Clanker is user↔character chat; the recipient is always the character's owner.
+
+### Indexes and Query Expectations
+
+Frequent lookups and required indexes:
+
+- `users.firebase_uid` unique index (auth/bootstrap hot path)
+- `users.email` unique index (webhook/user resolution by email)
+- `subscriptions.user_id` unique index (single row per user, subscription reads)
+- `characters.user_id` index (list/profile character queries)
+- `messages.character_id` index (chat thread/history reads)
+- `messages.sender_user_id` index (moderation/debug queries by sender)
+- `credit_transactions.user_id` index (credit ledger/audit reads)
+- Optional composite for message timelines: `(character_id, created_at desc)`
+
+Target SLO guardrails for initial migration validation:
+
+- `get user by firebase_uid/email`: p95 < 50ms
+- `get characters by user_id`: p95 < 100ms
+- `get messages by character_id`: p95 < 120ms
+
+### Delete Policy
+
+- Default policy: hard delete with FK cascade (already reflected in schema)
+- No `deleted_at` soft-delete columns in initial migration
+- If compliance/audit requirements change, introduce soft-delete in a separate migration with explicit retention rules
+
+### Subscription Defaults and Onboarding Credits
+
+- New users start with `plan_tier='free'`, `plan_status='active'`, `current_credits=0`
+- Onboarding credit grants are applied by service logic after user bootstrap (not DB default)
+- Grant amount is config-driven and versioned in migration/runbook docs to keep rollout deterministic
+
+### Mapping from Supabase
+
+- `profiles` -> `users`
+- `user_app_subscriptions` (where `app_name='clanker'`) -> `subscriptions`
+- `clanker_characters` -> `characters`
+- `clanker_messages` -> `messages`
+- RPC function logic -> transactional service methods in Functions
+
+## Identity Model (Canonical Key)
+
+- Canonical identity for all app-domain reads/writes is Firebase UID (`firebase_uid`).
+- Existing Supabase UUID values are migration-only source artifacts.
+- Any transitional mapping table is temporary and removed after cutover validation.
+
+## Migration Plan (Phased)
+
+## Phase 0: Foundation and Decisions
+
+### Deliverables
+
+- Confirm ORM: Drizzle ORM (Zero cold-start overhead, native pg driver support)
+- Confirm source of truth user key: `firebase_uid`
+- Confirm rollout mode: Big-bang vs dual-write
+- Produce explicit Supabase touchpoint inventory and removal checklist
+
+### Tasks
+
+1. Add package deps in `functions/package.json`
+       - `@google-cloud/cloud-sql-connector`
+       - `pg`
+       - `drizzle-orm`
+       - dev: `drizzle-kit`, `@types/pg`
+2. Add env/secrets contract
+       - `CLOUD_SQL_CONNECTION_NAME`
+       - `CLOUD_SQL_DB_USER`
+       - `CLOUD_SQL_DB_PASS`
+       - `CLOUD_SQL_DB_NAME`
+3. Add DB design doc under `docs/` before code migration
+4. Add migration inventory doc section listing every Supabase-coupled file/function/hook/test to be removed or refactored
+5. Real-time replacement strategy decision: **polling with SWR-style cache invalidation**
+       - Client polls callable functions on interval (30s default) for profile/subscription/credits state
+       - Mutations (spend credits, change plan) trigger immediate re-fetch via cache invalidation
+       - No server-push required — simplest fit for callable-only architecture
+       - Can upgrade to Firebase Cloud Messaging push-to-refresh later if needed
+6. Add pre-Phase-5 clarification doc under `docs/` (indexes, defaults, delete policy, migration ordering, onboarding credits source)
+
+## Phase 1: Provision Cloud SQL + DB Access Layer
+
+### Deliverables
+
+- Running Cloud SQL instance
+- Functions can connect using Cloud SQL connector and standard `pg` pool
+- Shared Drizzle DB client singleton with safe pooling
+
+### Tasks
+
+1. Create Cloud SQL Postgres instance (private IP preferred)
+2. Create DB + least-privilege service account
+3. Add `functions/src/db/cloudSql.ts`
+       - Cloud SQL Connector init
+       - `pg.Pool` configuration via connector socket factory:
+         - `max: 5` (per Cloud Function instance; Functions scale horizontally)
+         - `idleTimeoutMillis: 30000` (30s idle before releasing)
+         - `connectionTimeoutMillis: 10000` (10s connect timeout)
+       - `drizzle(pool)` DB singleton per warm instance
+4. Add `functions/src/db/schema.ts`
+5. Generate + apply initial SQL migration via `drizzle-kit`
+6. Drizzle config at `functions/drizzle.config.ts`, migrations output to `functions/drizzle/`
+7. Review generated migration for:
+       - missing indexes on hot-path columns
+       - expected defaults for subscription fields
+       - FK cascade behavior and constraints
+
+## Phase 2: Rebuild Supabase RPC semantics in Functions Services
+
+### Deliverables
+
+- No required behavior depends on Supabase RPC endpoints
+- `generateReply` and `generateImage` run without any Supabase table/RPC dependency
+
+### Tasks
+
+1. Create `functions/src/services/userRepository.ts`
+       - `getOrCreateUserByFirebaseIdentity({firebaseUid,email,displayName,avatarUrl})`
+       - `findUserByEmail(email)`
+       - `findUserByFirebaseUid(firebaseUid)`
+2. Create `functions/src/services/subscriptionService.ts`
+       - `upsertSubscription(...)`
+       - `getSubscription(userId)`
+       - `acceptTerms(userId, version, acceptedAt)`
+3. Create `functions/src/services/creditService.ts`
+       - `spendCredits(userId, amount, reason, referenceId)` transactional
+         - Use `UPDATE subscriptions SET current_credits = current_credits - $amount WHERE user_id = $userId AND current_credits >= $amount RETURNING *` to prevent negative balances without explicit row locking
+       - `addCredits(userId, amount, reason, referenceId)` transactional
+       - `getCredits(userId)`
+       - log every mutation in `credit_transactions`
+       - All credit mutations run in `SERIALIZABLE` or `REPEATABLE READ` isolation to prevent race conditions
+4. Add count/read services replacing RPC-style helpers
+       - `getUserCharacterCount(userId)`
+       - `getCharacterMessageCount(characterId)`
+5. Refactor `functions/src/generateReply.ts` and `functions/src/generateImage.ts` to use Cloud SQL services only
+6. Remove runtime dependency on `functions/src/supabaseAdmin.ts`
+
+## Phase 3: Replace exchangeToken flow
+
+### Deliverables
+
+- No Supabase session bridge required
+- Firebase remains only auth token in client
+
+### Tasks
+
+1. Replace `functions/src/exchangeToken.ts` contract
+       - Old: returns Supabase access/refresh tokens
+       - New: returns canonical app user snapshot + plan/credits data
+2. Remove `@equationalapplications/firebase-auth-supabase-bridge` usage
+3. Keep App Check + Firebase auth validation unchanged
+4. Update all callers expecting Supabase session payload
+5. Remove or rename Supabase-branded helpers/callers so no code path still implies session bridging
+
+## Phase 4: Move client from direct DB to callable APIs
+
+### Deliverables
+
+- Client never imports Supabase client
+- All state fetched via Firebase callable functions / HTTPS endpoints
+- No client state machine or hook references Supabase naming/state
+
+### Tasks
+
+1. Introduce API client abstraction
+       - `src/services/apiClient.ts`
+2. Replace each Supabase-dependent module:
+       - `src/services/userService.ts`
+       - `src/services/characterSyncService.ts`
+       - `src/machines/termsMachine.ts`
+       - `src/utilities/getUserCredits.ts`
+       - `src/utilities/getSupabaseUserId.ts`
+       - `src/hooks/useUser.ts`
+       - `src/hooks/useCurrentPlan.ts`
+       - `src/components/CreditsDisplay.tsx` refresh strategy
+3. Update app route/session consumers:
+       - `app/_layout.tsx`
+       - `app/index.tsx`
+       - `app/sign-in.tsx`
+       - `app/checkout/success.tsx`
+       - `app/(drawer)/subscribe.tsx`
+       - `app/(drawer)/profile.tsx`
+4. Remove `src/config/supabaseClient.ts` and Supabase session helpers
+5. Replace Supabase Realtime behavior with selected strategy from Phase 0
+6. Refactor `src/machines/authMachine.ts`
+       - Remove `supabaseSession` state
+       - Keep Firebase session + backend bootstrap state
+7. Rename Supabase-branded client utility/function names where needed to avoid stale semantics
+
+## Phase 5: Data Migration
+
+### Deliverables
+
+- Cloud SQL populated from Supabase for Clanker-only rows
+- Verified row counts and checksums
+- Verified Firebase UID ownership parity for users, subscriptions, characters, and messages
+
+### Tasks
+
+1. Export from Supabase
+       - `profiles`
+       - `user_app_subscriptions` filtered by `app_name = 'clanker'`
+       - `clanker_characters`
+       - `clanker_messages`
+2. Migration load order (must preserve FK dependencies)
+       - `users` first
+       - `subscriptions` second (FK: `subscriptions.user_id -> users.id`)
+       - `characters` third (FK: `characters.user_id -> users.id`)
+       - `messages` fourth (FK: `messages.character_id -> characters.id`, `messages.sender_user_id -> users.id`)
+       - `credit_transactions` last (FK: `credit_transactions.user_id -> users.id`)
+3. Transform data
+       - Build explicit migration-only mapping of old Supabase UUID -> Firebase UID
+       - Normalize all relational ownership to Firebase UID-backed user records
+       - Collapse multi-tenant fields (drop `app_name`)
+       - Preserve or deterministically remap foreign keys for characters/messages with referential integrity checks
+4. Load into Cloud SQL with idempotent importer script
+5. Run validation report
+       - per-table count checks
+       - sampled user credit parity
+       - sampled subscription parity
+       - sampled user/character/message ownership parity by Firebase UID
+
+## Phase 6: Webhook and Billing Cutover
+
+### Deliverables
+
+- Stripe and RevenueCat write to Cloud SQL only
+- All billing/credit mutation entry points run against Cloud SQL only
+
+### Tasks
+
+1. Update `functions/src/stripeWebhook.ts`
+       - replace Supabase user resolution + RPC calls
+2. Update `functions/src/revenueCatWebhook.ts`
+       - same replacement
+3. Update `functions/src/spendCredits.ts` and any billing wrappers to Cloud SQL services only
+4. Keep webhook idempotency constraints
+       - unique event IDs
+       - safe upsert logic
+
+## Phase 7: Decommission Supabase Dependencies
+
+### Deliverables
+
+- Supabase no longer required at runtime
+- Supabase no longer referenced in active code, tests, config, or docs
+- Dead Supabase code paths and helper files removed
+
+### Tasks
+
+1. Remove env vars from runtime and CI:
+       - `SUPABASE_URL`
+       - `SUPABASE_SERVICE_ROLE_KEY`
+       - client anon key/url vars
+2. Remove Supabase npm packages from app + functions
+3. Remove Supabase-specific source files, tests, mocks, and helpers that are no longer used
+4. Rewrite/replace Supabase-authored docs with Cloud SQL/Firebase architecture docs
+5. Add CI guard: fail if active repo content contains `supabase` references outside allowed archive paths
+
+## Rollout Strategy
+
+Recommended: staged cutover with short dual-write window.
+
+1. Deploy read path on Cloud SQL in shadow mode
+2. Enable dual-write for credit/subscription mutations
+3. Compare outputs and invariants
+4. Flip reads to Cloud SQL
+5. Disable Supabase writes
+6. Keep rollback toggle for 1-2 releases
+
+## Rollback Plan
+
+Rollback toggle: use Firebase Remote Config boolean `use_cloud_sql` checked at function entry points. Default `true` after cutover, flip to `false` to revert reads to Supabase.
+
+If severe issue after cutover:
+
+1. Toggle `use_cloud_sql` to `false` in Firebase Remote Config
+2. Continue dual-write to avoid divergence
+3. Reconcile drift from Cloud SQL -> Supabase only if needed
+4. Fix issue, rerun parity checks, retry cutover
+
+## Verification Checklist
+
+For each migration phase and final cutover:
+
+1. Unit tests pass for new services and modified functions
+2. End-to-end auth flow works without Supabase token exchange
+3. Credit spend/add race conditions pass concurrency tests
+4. Webhook replay tests pass idempotency checks
+5. Run project checks:
+
+```bash
+npm run typecheck
+npm run lint
+npm run test
+```
+
+Also run same checks in `functions/` package where applicable.
+
+6. Run static reference checks and require zero matches in active code/docs:
+
+```bash
+rg -n "supabase|SUPABASE|firebase-auth-supabase-bridge" app src functions docs __tests__ __mocks__
+```
+
+Expected: no matches in active paths.
+
+## Risks and Mitigations
+
+1. Connection exhaustion in Cloud SQL
+       - Mitigation: singleton client, max 5 connections per instance, 30s idle timeout, monitor active connections via Cloud SQL Insights
+2. Logic drift from Supabase RPC behavior
+       - Mitigation: golden tests with current RPC fixtures before replacing
+3. Data identity mismatch (Supabase UUID vs Firebase UID)
+       - Mitigation: explicit migration mapping + parity report keyed by Firebase UID before cutover
+4. Client regression due auth-machine changes
+       - Mitigation: migrate in adapter layer first, remove Supabase state last
+
+## Recommended Delivery Order (PR sequence)
+
+1. PR1: Cloud SQL infra + connector + Drizzle schema/migrations
+2. PR2: Repository/services for users/subscriptions/credits/counts + tests
+3. PR3: Replace generateReply/generateImage/spendCredits backend paths
+4. PR4: Replace webhook/billing paths
+5. PR5: Replace exchangeToken contract and auth machine bootstrap
+6. PR6: Data migration tooling + runbook + cutover toggles (moved before client migration so Cloud SQL has data before client reads from it)
+7. PR7: Client data path migration off Supabase + realtime replacement
+8. PR8: Supabase dependency, dead code, and docs cleanup
+
+## Execution Checklist (File-by-File)
+
+Use this as the implementation tracker for each PR. For every file listed below, either refactor, replace, or delete so no Supabase dependency remains.
+
+### PR1: Cloud SQL Foundation (Functions only)
+
+- Create `functions/src/db/cloudSql.ts`
+- Create `functions/src/db/schema.ts`
+- Create Drizzle migration config and initial migration files under `functions/`
+- Modify `functions/package.json` (Cloud SQL + pg + drizzle deps)
+- Modify `functions/tsconfig.json` and lint config only as required for new DB files
+
+### PR2: Repository/Service Layer Replacement (Functions)
+
+- Create `functions/src/services/userRepository.ts`
+- Create `functions/src/services/subscriptionService.ts`
+- Create `functions/src/services/creditService.ts`
+- Create/modify shared types for service return contracts in `functions/src/`
+- Add tests for repositories/services in `functions/src/*.test.ts` (or `functions/test/` if used)
+
+### PR3: Generation/Credit Runtime Path Migration (Functions)
+
+- Modify `functions/src/generateReply.ts` (replace Supabase queries/RPC calls)
+- Modify `functions/src/generateImage.ts` (replace Supabase queries/RPC calls)
+- Modify `functions/src/spendCredits.ts` (Cloud SQL service-only)
+- Modify `functions/src/billing.ts` (remove Supabase-shaped assumptions)
+- Delete `functions/src/supabaseAdmin.ts` once no imports remain
+
+### PR4: Webhook/Billing Cutover (Functions)
+
+- Modify `functions/src/stripeWebhook.ts`
+- Modify `functions/src/revenueCatWebhook.ts`
+- Modify `functions/src/index.ts` export wiring if function signatures/routes change
+- Add/update webhook idempotency tests in `functions/src/*.test.ts`
+
+### PR5: Auth Bootstrap Contract Migration (Functions + Client integration)
+
+- Modify `functions/src/exchangeToken.ts` (new bootstrap payload contract)
+- Remove bridge dependency from `functions/package.json` (`@equationalapplications/firebase-auth-supabase-bridge`)
+- Modify client callers of exchange/bootstrap API in `src/`
+- Update affected tests in both root and `functions/`
+
+### PR6: Data Migration + Validation Tooling (moved before client migration)
+
+- Add migration/export/import tooling under `scripts/` or `functions/scripts/`
+- Add mapping/parity validation artifacts under `docs/` and/or `scripts/`
+- Ensure migration tooling writes/validates Firebase UID ownership parity
+
+### PR7: Client Data Path Migration + Realtime Replacement
+
+- Create `src/services/apiClient.ts`
+- Modify `src/services/userService.ts`
+- Modify `src/services/characterSyncService.ts`
+- Modify `src/machines/termsMachine.ts`
+- Modify `src/utilities/getUserCredits.ts`
+- Modify `src/machines/authMachine.ts` (remove `supabaseSession`)
+- Modify `src/hooks/useUser.ts` (replace Supabase Realtime)
+- Modify `src/hooks/useCurrentPlan.ts`
+- Modify `src/components/CreditsDisplay.tsx`
+- Modify route/session consumers:
+       - `app/_layout.tsx`
+       - `app/index.tsx`
+       - `app/sign-in.tsx`
+       - `app/checkout/success.tsx`
+       - `app/(drawer)/subscribe.tsx`
+       - `app/(drawer)/profile.tsx`
+- Modify `src/utilities/deleteUser.ts` (replace `deleteUserSupabase()` call)
+- Modify `src/services/characterService.ts` (remove Supabase sync references)
+- Modify `src/database/characterDatabase.ts` (remove `cloud_id` Supabase sync field)
+- Modify `src/database/messageDatabase.ts` (remove Supabase references)
+- Modify `src/services/messageService.ts` (remove Supabase references)
+- Update tests with Supabase mocks/fixtures:
+       - `__tests__/creditsDisplayPurchase.test.tsx`
+       - `__tests__/useCurrentPlan.test.tsx`
+- Delete Supabase client/session utilities once replaced:
+       - `src/config/supabaseClient.ts`
+       - `src/auth/getSupabaseUserSession.ts`
+       - `src/utilities/getSupabaseSession.ts`
+       - `src/utilities/getSupabaseUserId.ts`
+
+### PR8: Decommission Supabase + Dead Code + Docs Cleanup
+
+- Modify root `package.json` and `functions/package.json` to remove Supabase packages
+- Remove Supabase env vars from:
+       - `firebase.json`
+       - `.env*` files in active use
+       - CI/deployment config files
+- Delete `supabase/` directory (contains only `.temp/` and `config.toml` — no longer needed)
+- Delete any remaining Supabase-only source/helpers/tests/mocks that are dead after migration
+- Update or replace Supabase docs with Cloud SQL/Firebase equivalents:
+       - `docs/SUPABASE_AUTH.md`
+       - `docs/FIREBASE_AUTH_SUPABASE_BRIDGE.md`
+       - `docs/AUTH_SOURCE_OF_TRUTH.md`
+       - `docs/AUTH_FLOW.md`
+       - Any additional docs containing Supabase runtime instructions
+- Update `README.md` with concise architecture summary + links to new Cloud SQL docs
+
+## Final Removal Gate (Must Pass Before Completion)
+
+Run these commands and require zero matches in active code/config/docs:
+
+```bash
+rg -n "supabase|SUPABASE|firebase-auth-supabase-bridge" app src functions docs __tests__ __mocks__
+rg -n "EXPO_PUBLIC_SUPABASE|SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY" .
+```
+
+Expected:
+
+- No hits in active paths.
+- Any archived historical notes are isolated outside active runtime paths and clearly labeled as historical.
+
+## Definition of Done
+
+1. Production traffic served from Cloud SQL only
+2. No runtime calls to Supabase APIs in app or functions
+3. No multi-tenant `app_name` logic in dedicated Clanker DB
+4. Billing, credits, terms, profiles, and character data behavior match pre-cutover
+5. No active source file, function, hook, test, config, env var, or doc references Supabase
+6. No Supabase UUID dependency remains in domain logic; Firebase UID is the only canonical identity key
+7. Typecheck/lint/tests green for root and functions packages
