@@ -2,10 +2,37 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {HttpsError} from "firebase-functions/v2/https";
 
-process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-process.env.SUPABASE_URL = "https://supabase.example.co";
-
 import {spendCreditsHandler} from "./spendCredits.js";
+import {userRepository} from "./services/userRepository.js";
+import {creditService} from "./services/creditService.js";
+
+type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
+
+const originalFindUser = userRepository.findUserByFirebaseUid;
+const originalSpendCredits = creditService.spendCredits;
+
+function buildUser(uid: string, email: string): UserRecord {
+  return {
+    id: `user-${uid}`,
+    firebaseUid: uid,
+    email,
+    displayName: null,
+    avatarUrl: null,
+    isProfilePublic: false,
+    defaultCharacterId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+async function withServiceMocks(run: () => Promise<void>) {
+  try {
+    await run();
+  } finally {
+    userRepository.findUserByFirebaseUid = originalFindUser;
+    creditService.spendCredits = originalSpendCredits;
+  }
+}
 
 test("spendCreditsHandler validates amount", async () => {
   await assert.rejects(
@@ -27,36 +54,30 @@ test("spendCreditsHandler validates amount", async () => {
   );
 });
 
-test("spendCreditsHandler spends credits through Supabase RPC", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{url: string; body: string}> = [];
+test("spendCreditsHandler calls credit service with floored amount", async () => {
+  await withServiceMocks(async () => {
+    const uid = "firebase-uid-1";
+    const email = "person@example.com";
+    const user = buildUser(uid, email);
 
-  const responses = [
-    new Response(JSON.stringify("supabase-user-id"), {status: 200}),
-    new Response(JSON.stringify({remaining_credits: 97}), {status: 200}),
-  ];
+    let spendCalls = 0;
 
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      url: String(input),
-      body: typeof init?.body === "string" ? init.body : "",
-    });
+    userRepository.findUserByFirebaseUid = async () => user;
+    creditService.spendCredits = async (userId, amount, description, referenceId) => {
+      spendCalls += 1;
+      assert.equal(userId, user.id);
+      assert.equal(amount, 3);
+      assert.equal(description, "chat response");
+      assert.equal(referenceId, "message-123");
+      return true;
+    };
 
-    const next = responses.shift();
-    if (!next) {
-      throw new Error("Unexpected fetch call in spendCredits test");
-    }
-
-    return next;
-  }) as typeof fetch;
-
-  try {
     const result = await spendCreditsHandler({
       auth: {
-        uid: "firebase-uid-1",
+        uid,
         token: {
-          uid: "firebase-uid-1",
-          email: "person@example.com",
+          uid,
+          email,
         },
       },
       data: {
@@ -68,18 +89,7 @@ test("spendCreditsHandler spends credits through Supabase RPC", async () => {
 
     assert.deepEqual(result, {
       success: true,
-      result: {remaining_credits: 97},
     });
-
-    assert.equal(calls.length, 2);
-    assert.match(calls[0]?.url ?? "", /get_user_id_by_email$/);
-    assert.match(calls[1]?.url ?? "", /spend_user_credits$/);
-
-    const payload = JSON.parse(calls[1]?.body ?? "{}");
-    assert.equal(payload.p_credit_amount, 3);
-    assert.equal(payload.p_description, "chat response");
-    assert.equal(payload.p_reference_id, "message-123");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    assert.equal(spendCalls, 1);
+  });
 });

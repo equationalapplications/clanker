@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-// Mock environment variables before any imports that might trigger DB initialization
-process.env.CLOUD_SQL_CONNECTION_NAME = "project:region:instance";
-process.env.CLOUD_SQL_DB_USER = "test";
-process.env.CLOUD_SQL_DB_PASS = "test";
-process.env.CLOUD_SQL_DB_NAME = "test";
+// Force test mode before imports that might initialize Cloud SQL clients.
+process.env.NODE_ENV = "test";
 
 import {HttpsError} from "firebase-functions/v2/https";
 import {exchangeTokenHandler} from "./exchangeToken.js";
+
+type ExchangeTokenDeps = NonNullable<Parameters<typeof exchangeTokenHandler>[1]>;
 
 test("exchangeTokenHandler rejects unauthenticated requests", async () => {
   await assert.rejects(
@@ -24,7 +23,10 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
     email: "new-user@example.com",
     displayName: "New User",
     avatarUrl: "https://example.com/photo.png",
+    isProfilePublic: false,
+    defaultCharacterId: null,
     createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
   const mockSubscription = {
@@ -41,6 +43,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       getOrCreateUserByFirebaseIdentity: async () => mockUser,
       findUserByEmail: async () => null,
       findUserByFirebaseUid: async () => null,
+      updateUser: async () => mockUser,
     },
     subscriptionService: {
       getSubscription: async () => null, // First call returns null for new user
@@ -59,7 +62,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
         picture: "https://example.com/photo.png",
       },
     },
-  } as never, mockDeps as any);
+  } as never, mockDeps as unknown as ExchangeTokenDeps);
 
   assert.deepEqual(result, {
     user: {
@@ -68,6 +71,8 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       email: mockUser.email,
       displayName: mockUser.displayName,
       avatarUrl: mockUser.avatarUrl,
+      isProfilePublic: mockUser.isProfilePublic,
+      defaultCharacterId: mockUser.defaultCharacterId,
       createdAt: mockUser.createdAt,
     },
     subscription: {
@@ -87,7 +92,10 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
     email: "existing@example.com",
     displayName: "Existing User",
     avatarUrl: null,
+    isProfilePublic: false,
+    defaultCharacterId: null,
     createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
   const mockSubscription = {
@@ -102,9 +110,14 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
   const mockDeps = {
     userRepository: {
       getOrCreateUserByFirebaseIdentity: async () => mockUser,
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => mockUser,
+      updateUser: async () => mockUser,
     },
     subscriptionService: {
       getSubscription: async () => mockSubscription,
+      upsertSubscription: async () => mockSubscription,
+      acceptTerms: async () => {},
     },
   };
 
@@ -116,7 +129,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
         email: "existing@example.com",
       },
     },
-  } as never, mockDeps as any);
+  } as never, mockDeps as unknown as ExchangeTokenDeps);
 
   assert.deepEqual(result, {
     user: {
@@ -125,6 +138,8 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       email: mockUser.email,
       displayName: mockUser.displayName,
       avatarUrl: mockUser.avatarUrl,
+      isProfilePublic: mockUser.isProfilePublic,
+      defaultCharacterId: mockUser.defaultCharacterId,
       createdAt: mockUser.createdAt,
     },
     subscription: {
@@ -143,8 +158,15 @@ test("exchangeTokenHandler throws internal error when userRepository fails", asy
       getOrCreateUserByFirebaseIdentity: async () => {
         throw new Error("DB error");
       },
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => null,
+      updateUser: async () => null,
     },
-    subscriptionService: {},
+    subscriptionService: {
+      getSubscription: async () => null,
+      upsertSubscription: async () => null,
+      acceptTerms: async () => {},
+    },
   };
 
   await assert.rejects(
@@ -153,7 +175,7 @@ test("exchangeTokenHandler throws internal error when userRepository fails", asy
         uid: "firebase-uid-1",
         token: {uid: "firebase-uid-1", email: "fail@example.com"},
       },
-    } as never, mockDeps as any),
+    } as never, mockDeps as unknown as ExchangeTokenDeps),
     (err: unknown) => err instanceof HttpsError && err.code === "internal"
   );
 });

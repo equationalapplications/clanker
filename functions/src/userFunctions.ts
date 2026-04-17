@@ -25,7 +25,12 @@ export const updateUserProfile = onCall(
       throw new HttpsError('not-found', 'User not found.');
     }
 
-    const updates: any = {};
+    const updates: Partial<{
+      displayName: string | null;
+      avatarUrl: string | null;
+      isProfilePublic: boolean;
+      defaultCharacterId: string | null;
+    }> = {};
     if (displayName !== undefined) updates.displayName = displayName;
     if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
     if (isProfilePublic !== undefined) updates.isProfilePublic = isProfilePublic;

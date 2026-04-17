@@ -1,8 +1,5 @@
-import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, pgEnum, check, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, check, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-
-export const planTierEnum = pgEnum('plan_tier', ['free', 'monthly_20', 'monthly_50', 'payg']);
-export const planStatusEnum = pgEnum('plan_status', ['active', 'cancelled', 'expired']);
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),

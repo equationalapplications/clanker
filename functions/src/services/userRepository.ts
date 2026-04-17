@@ -13,39 +13,43 @@ export const userRepository = {
   async getOrCreateUserByFirebaseIdentity(params: CreateUserParams) {
     const normalizedEmail = params.email.toLowerCase();
 
-    try {
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          firebaseUid: params.firebaseUid,
-          email: normalizedEmail,
-          displayName: params.displayName,
-          avatarUrl: params.avatarUrl,
-        })
-        .returning();
-      return newUser;
-    } catch (error: any) {
-      // 23505 is PostgreSQL unique_violation error code
-      if (error.code === '23505') {
-        const existingUser = await this.findUserByFirebaseUid(params.firebaseUid);
-        if (existingUser) {
-          return existingUser;
-        }
-
-        // Try by email as fallback during migration/edge cases
-        const userByEmail = await this.findUserByEmail(normalizedEmail);
-        if (userByEmail) {
-          // If we found them by email but not firebaseUid, update the firebaseUid
-          const [updated] = await db
-            .update(users)
-            .set({ firebaseUid: params.firebaseUid, updatedAt: new Date() })
-            .where(eq(users.id, userByEmail.id))
-            .returning();
-          return updated;
-        }
-      }
-      throw error;
+    const existingByUid = await this.findUserByFirebaseUid(params.firebaseUid);
+    if (existingByUid) {
+      return existingByUid;
     }
+
+    const [inserted] = await db
+      .insert(users)
+      .values({
+        firebaseUid: params.firebaseUid,
+        email: normalizedEmail,
+        displayName: params.displayName,
+        avatarUrl: params.avatarUrl,
+      })
+      .onConflictDoNothing()
+      .returning();
+
+    if (inserted) {
+      return inserted;
+    }
+
+    const existingUser = await this.findUserByFirebaseUid(params.firebaseUid);
+    if (existingUser) {
+      return existingUser;
+    }
+
+    // Fallback for migration/edge cases where email exists but UID was not linked yet.
+    const userByEmail = await this.findUserByEmail(normalizedEmail);
+    if (userByEmail) {
+      const [updated] = await db
+        .update(users)
+        .set({ firebaseUid: params.firebaseUid, updatedAt: new Date() })
+        .where(eq(users.id, userByEmail.id))
+        .returning();
+      return updated;
+    }
+
+    throw new Error('Failed to get or create user by Firebase identity.');
   },
 
   async findUserByEmail(email: string) {

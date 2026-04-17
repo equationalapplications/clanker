@@ -100,7 +100,7 @@ const handler = async (
                 termsAcceptedAt: subscription.termsAcceptedAt,
             },
         };
-    } catch (err: any) {
+    } catch (err: unknown) {
         logger.error("Token exchange failed", { err, email });
         throw new HttpsError("internal", "Failed to bootstrap user.");
     }
