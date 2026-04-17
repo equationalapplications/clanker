@@ -4,7 +4,6 @@ import { acceptTermsFn } from '~/services/apiClient'
 import { SubscriptionSnapshot } from '~/auth/bootstrapSession'
 
 export interface TermsMachineContext {
-  dbUserId: string | null
   subscription: SubscriptionSnapshot | null
   isUpdate: boolean
   error: Error | null
@@ -24,7 +23,6 @@ export const termsMachine = createMachine(
     },
     initial: 'idle',
     context: {
-      dbUserId: null,
       subscription: null,
       isUpdate: false,
       error: null,
@@ -35,15 +33,13 @@ export const termsMachine = createMachine(
           target: '.checking',
           guard: ({ event }) => event.authState.matches('signedIn'),
           actions: assign({
-            dbUserId: ({ event }) =>
-              event.authState.context.dbUser?.id ?? null,
             subscription: ({ event }) =>
               event.authState.context.subscription ?? null,
           }),
         },
         {
           target: '.idle',
-          actions: assign({ dbUserId: null, subscription: null, isUpdate: false, error: null }),
+          actions: assign({ subscription: null, isUpdate: false, error: null }),
         },
       ],
     },
@@ -100,7 +96,10 @@ export const termsMachine = createMachine(
     actors: {
       recordTermsAcceptance: fromPromise(async () => {
         try {
-          await acceptTermsFn({ termsVersion: TERMS.version })
+          const response = await acceptTermsFn({ termsVersion: TERMS.version })
+          if (response?.data?.success !== true) {
+            throw new Error('Malformed accept terms response')
+          }
         } catch (err: any) {
           throw new Error('Failed to record terms acceptance: ' + err.message)
         }

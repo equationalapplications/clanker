@@ -36,6 +36,7 @@ export default function SubscribeScreen() {
     setInFlightAction(productType)
     try {
       await makePackagePurchase(productType)
+      authService.send({ type: 'REFRESH_BOOTSTRAP' })
       // Invalidate to ensure all components pick up fresh data
       await queryClient.invalidateQueries({ queryKey: userKeys.private(user?.uid) })
     } catch (e) {
@@ -51,6 +52,7 @@ export default function SubscribeScreen() {
     try {
       await restorePurchases()
       await getUserState()
+      authService.send({ type: 'REFRESH_BOOTSTRAP' })
       // Invalidate to ensure all components pick up fresh data
       await queryClient.invalidateQueries({ queryKey: userKeys.private(user?.uid) })
     } catch (e) {
