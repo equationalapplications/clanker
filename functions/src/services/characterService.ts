@@ -23,14 +23,27 @@ export const characterService = {
     return result[0]?.count ?? 0;
   },
 
-  async upsertCharacter(character: typeof characters.$inferInsert) {
+  async upsertCharacter(character: typeof characters.$inferInsert, userId: string) {
     const db = await getDb();
-    const [upserted] = await db
-      .insert(characters)
-      .values(character)
-      .onConflictDoUpdate({
-        target: characters.id,
-        set: {
+    
+    // If character has an ID, verify ownership before upserting
+    if (character.id) {
+      const existing = await db
+        .select()
+        .from(characters)
+        .where(
+          sql`${characters.id} = ${character.id} AND ${characters.userId} = ${userId}`
+        )
+        .limit(1);
+      
+      if (!existing[0]) {
+        throw new Error('Character not found or does not belong to user');
+      }
+      
+      // Update existing character
+      const [updated] = await db
+        .update(characters)
+        .set({
           name: character.name,
           avatar: character.avatar,
           appearance: character.appearance,
@@ -39,10 +52,20 @@ export const characterService = {
           context: character.context,
           isPublic: character.isPublic,
           updatedAt: character.updatedAt ?? new Date(),
-        },
-      })
+        })
+        .where(
+          sql`${characters.id} = ${character.id} AND ${characters.userId} = ${userId}`
+        )
+        .returning();
+      return updated;
+    }
+    
+    // Insert new character (userId already set in character object)
+    const [inserted] = await db
+      .insert(characters)
+      .values(character)
       .returning();
-    return upserted;
+    return inserted;
   },
 
   async deleteCharacter(characterId: string, userId: string) {

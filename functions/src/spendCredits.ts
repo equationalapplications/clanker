@@ -69,11 +69,10 @@ const handler = async (request: CallableRequest) => {
     : "";
   const referenceId = trimmedReferenceId.length > 0 ? trimmedReferenceId : null;
 
-  const user = await userRepository.findUserByFirebaseUid(request.auth.uid);
-  if (!user) {
-    logger.error("User not found for uid", { uid: request.auth.uid });
-    throw new HttpsError("not-found", "User not found.");
-  }
+  const user = await userRepository.getOrCreateUserByFirebaseIdentity({
+    firebaseUid: request.auth.uid,
+    email: email,
+  });
 
   const success = await creditService.spendCredits(user.id, amount, description, referenceId ?? undefined);
 

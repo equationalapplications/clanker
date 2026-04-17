@@ -69,6 +69,10 @@ export const syncCharacterHandler = async (
     throw new HttpsError('invalid-argument', 'character.id must be a UUID when provided.');
   }
 
+  if (!character.name || typeof character.name !== 'string' || character.name.trim().length === 0) {
+    throw new HttpsError('invalid-argument', 'character.name must be a non-empty string.');
+  }
+
   const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
   if (!user) {
     throw new HttpsError('not-found', 'User not found.');
@@ -90,7 +94,7 @@ export const syncCharacterHandler = async (
       isPublic: character.isPublic,
       createdAt,
       updatedAt,
-    });
+    }, user.id);
     return upserted;
   } catch (error) {
     logger.error('Failed to sync character', { error });

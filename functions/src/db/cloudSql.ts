@@ -53,8 +53,10 @@ function registerShutdownHandlers(): void {
 
 async function createDb(): Promise<DbClient> {
   if (isTestEnv) {
-    pool = new pg.Pool();
-    return drizzle(pool, { schema });
+    throw new Error(
+      'Direct database access not allowed in test environment. ' +
+      'Tests must mock repositories and services instead of connecting to real databases.'
+    );
   }
 
   assertCloudSqlEnv();

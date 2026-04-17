@@ -39,17 +39,6 @@ export const userRepository = {
       return existingUser;
     }
 
-    // Fallback for migration/edge cases where email exists but UID was not linked yet.
-    const userByEmail = await this.findUserByEmail(normalizedEmail);
-    if (userByEmail) {
-      const [updated] = await db
-        .update(users)
-        .set({ firebaseUid: params.firebaseUid, updatedAt: new Date() })
-        .where(eq(users.id, userByEmail.id))
-        .returning();
-      return updated;
-    }
-
     throw new Error('Failed to get or create user by Firebase identity.');
   },
 

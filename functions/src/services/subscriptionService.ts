@@ -44,10 +44,10 @@ export const subscriptionService = {
           planTier: params.planTier,
           planStatus: params.planStatus,
           currentCredits: params.currentCredits ?? sql`${subscriptions.currentCredits}`,
-          stripeSubscriptionId: params.stripeSubscriptionId ?? sql`${subscriptions.stripeSubscriptionId}`,
-          stripeCustomerId: params.stripeCustomerId ?? sql`${subscriptions.stripeCustomerId}`,
-          billingCycleStart: params.billingCycleStart ?? sql`${subscriptions.billingCycleStart}`,
-          billingCycleEnd: params.billingCycleEnd ?? sql`${subscriptions.billingCycleEnd}`,
+          stripeSubscriptionId: params.stripeSubscriptionId !== undefined ? params.stripeSubscriptionId : sql`${subscriptions.stripeSubscriptionId}`,
+          stripeCustomerId: params.stripeCustomerId !== undefined ? params.stripeCustomerId : sql`${subscriptions.stripeCustomerId}`,
+          billingCycleStart: params.billingCycleStart !== undefined ? params.billingCycleStart : sql`${subscriptions.billingCycleStart}`,
+          billingCycleEnd: params.billingCycleEnd !== undefined ? params.billingCycleEnd : sql`${subscriptions.billingCycleEnd}`,
           updatedAt: new Date(),
         }
       })

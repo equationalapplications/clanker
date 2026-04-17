@@ -8,7 +8,7 @@ import {creditService} from "./services/creditService.js";
 
 type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
 
-const originalFindUser = userRepository.findUserByFirebaseUid;
+const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity;
 const originalSpendCredits = creditService.spendCredits;
 
 function buildUser(uid: string, email: string): UserRecord {
@@ -29,7 +29,7 @@ async function withServiceMocks(run: () => Promise<void>) {
   try {
     await run();
   } finally {
-    userRepository.findUserByFirebaseUid = originalFindUser;
+    userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
     creditService.spendCredits = originalSpendCredits;
   }
 }
@@ -62,7 +62,7 @@ test("spendCreditsHandler calls credit service with floored amount", async () =>
 
     let spendCalls = 0;
 
-    userRepository.findUserByFirebaseUid = async () => user;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     creditService.spendCredits = async (userId, amount, description, referenceId) => {
       spendCalls += 1;
       assert.equal(userId, user.id);
@@ -100,7 +100,7 @@ test("spendCreditsHandler throws resource-exhausted when spend fails", async () 
     const email = "low-balance@example.com";
     const user = buildUser(uid, email);
 
-    userRepository.findUserByFirebaseUid = async () => user;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     creditService.spendCredits = async () => false;
 
     await assert.rejects(
