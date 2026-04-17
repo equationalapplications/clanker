@@ -112,7 +112,7 @@ describe('useCurrentPlan', () => {
 
     const subscriptionSelector = selectors.find(
       (selector) =>
-        selector(state) === null && selector(subState)?.planTier === PLAN_TIERS.MONTHLY_20,
+        selector(state) === null && (selector(subState) as any)?.planTier === PLAN_TIERS.MONTHLY_20,
     )
     const isLoadingSelector = selectors.find(
       (selector) =>

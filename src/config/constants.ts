@@ -1,20 +1,5 @@
 import { Platform } from 'react-native'
 
-type MaybeString = string | null | undefined
-
-const sanitize = (value: MaybeString) => {
-  if (typeof value !== 'string') return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-const resolveConfigValue = (preferredKey: string, fallbackKey?: string) => {
-  return (
-    sanitize(process.env[preferredKey]) ||
-    (fallbackKey ? sanitize(process.env[fallbackKey]) : undefined)
-  )
-}
-
 // Canonical app identifier used across Supabase queries and Firebase exchangeToken
 export const APP_NAME = 'clanker'
 

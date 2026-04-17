@@ -35,7 +35,7 @@ export const getUserCredits = async (): Promise<UserCredits> => {
     }
 
     const { planTier, currentCredits } = state.subscription
-    const isUnlimited = SUBSCRIPTION_TIERS.includes(planTier)
+    const isUnlimited = SUBSCRIPTION_TIERS.includes(planTier as any)
 
     const totalCredits = isUnlimited ? 0 : currentCredits
 

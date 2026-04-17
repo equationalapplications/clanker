@@ -1,5 +1,4 @@
-import { httpsCallable } from '@react-native-firebase/functions'
-import { getFunctions } from '@react-native-firebase/functions'
+import { httpsCallable , getFunctions } from '@react-native-firebase/functions'
 import { firebaseApp } from '~/config/firebaseConfig'
 import { bootstrapSession } from '~/auth/bootstrapSession'
 

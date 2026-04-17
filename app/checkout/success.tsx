@@ -2,15 +2,18 @@ import { useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Text, Button } from 'react-native-paper'
 import { useRouter } from 'expo-router'
-import { supabaseClient } from '~/config/supabaseClient'
+import { getUserState } from '~/services/apiClient'
 
 export default function CheckoutSuccess() {
   const router = useRouter()
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      const { error } = await supabaseClient.auth.refreshSession()
-      if (error) console.warn('⚠️ Session refresh failed after checkout:', error.message)
+      try {
+        await getUserState()
+      } catch (error: any) {
+        console.warn('⚠️ User state refresh failed after checkout:', error.message)
+      }
       router.replace('/')
     }, 3000)
     return () => clearTimeout(timer)
@@ -27,8 +30,11 @@ export default function CheckoutSuccess() {
       <Button
         mode="contained"
         onPress={async () => {
-          const { error } = await supabaseClient.auth.refreshSession()
-          if (error) console.warn('⚠️ Session refresh failed after checkout:', error.message)
+          try {
+            await getUserState()
+          } catch (error: any) {
+            console.warn('⚠️ User state refresh failed after checkout:', error.message)
+          }
           router.replace('/')
         }}
         style={styles.button}

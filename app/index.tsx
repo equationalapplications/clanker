@@ -10,8 +10,7 @@ export default function Index() {
     isLoading:
       state.matches('initializing') ||
       state.matches('signingIn') ||
-      state.matches('exchangingToken') ||
-      state.matches('establishingSupabaseSession'),
+      state.matches('bootstrapping'),
   }))
 
   if (isLoading) {

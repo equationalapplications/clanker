@@ -24,8 +24,7 @@ export default function SignIn() {
     isLoading:
       state.matches('initializing') ||
       state.matches('signingIn') ||
-      state.matches('exchangingToken') ||
-      state.matches('establishingSupabaseSession'),
+      state.matches('bootstrapping'),
     error: state.context.error,
   }))
 
