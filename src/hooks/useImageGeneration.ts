@@ -1,14 +1,11 @@
 import { useState } from 'react'
-import {
-  generateAndStoreCharacterImage,
-  updateCharacterAvatar,
-} from '~/services/imageStorageService'
+import { useCharacterMachine } from '~/hooks/useMachines'
+import { generateImageViaCallable } from '~/services/imageGenerationService'
+import { saveCharacterImageLocally } from '~/services/localImageStorageService'
 
 interface UseImageGenerationProps {
   characterId: string
-  userId: string
-  onImageGenerated?: (imageUrl: string) => void
-  onError?: (error: Error) => void
+  onImageGenerated?: (dataUri: string) => void
 }
 
 interface UseImageGenerationReturn {
@@ -19,14 +16,14 @@ interface UseImageGenerationReturn {
 }
 
 /**
- * Hook for generating and storing character images
+ * Hook that generates a character avatar via secure callable function, saves
+ * base64 data into SQLite avatar_data, and returns a data URI for display.
  */
 export function useImageGeneration({
   characterId,
-  userId,
   onImageGenerated,
-  onError,
 }: UseImageGenerationProps): UseImageGenerationReturn {
+  const characterService = useCharacterMachine()
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,87 +39,30 @@ export function useImageGeneration({
     setError(null)
 
     try {
-      console.log('🎨 Starting image generation for character:', characterId)
+      console.log('🎨 Generating local image for character:', characterId)
 
-      // Generate and store the image with optimized settings for small avatars
-      const result = await generateAndStoreCharacterImage({
-        prompt: prompt.trim(),
+      const generated = await generateImageViaCallable(prompt)
+      const dataUri = await saveCharacterImageLocally(characterId, generated.imageBase64)
+
+      console.log('✅ Local image generation complete:', {
         characterId,
-        userId,
-        width: 200,
-        height: 200,
-        maxFileSizeKB: 140,
-        quality: 85,
+        planTier: generated.planTier,
+        creditsSpent: generated.creditsSpent,
       })
 
-      // Update the character's avatar URL in the database
-      await updateCharacterAvatar(characterId, result.publicUrl)
+      characterService.send({ type: 'LOAD' })
 
-      console.log('✅ Image generation and storage complete:', result.publicUrl)
-
-      // Call the callback if provided
-      onImageGenerated?.(result.publicUrl)
-
-      return result.publicUrl
+      onImageGenerated?.(dataUri)
+      return dataUri
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error occurred')
-      console.error('Error generating image:', error)
-
-      setError(error.message)
-      onError?.(error)
-
+      const e = err instanceof Error ? err : new Error('Unknown error occurred')
+      console.error('Error generating local image:', e)
+      setError(e.message)
       return null
     } finally {
       setIsGenerating(false)
     }
   }
 
-  return {
-    generateImage,
-    isGenerating,
-    error,
-    clearError,
-  }
-}
-
-/**
- * Hook for managing character avatars with generation capabilities
- */
-export function useCharacterAvatar(characterId: string, userId: string, initialAvatar?: string) {
-  const [avatar, setAvatar] = useState(initialAvatar || '')
-  const [error, setError] = useState<string | null>(null)
-
-  const imageGeneration = useImageGeneration({
-    characterId,
-    userId,
-    onImageGenerated: (imageUrl) => {
-      setAvatar(imageUrl)
-      setError(null)
-    },
-    onError: (err) => {
-      setError(err.message)
-    },
-  })
-
-  const generateAvatar = async (prompt: string) => {
-    return await imageGeneration.generateImage(prompt)
-  }
-
-  const updateAvatar = (newAvatar: string) => {
-    setAvatar(newAvatar)
-  }
-
-  const clearError = () => {
-    setError(null)
-    imageGeneration.clearError()
-  }
-
-  return {
-    avatar,
-    updateAvatar,
-    generateAvatar,
-    isGenerating: imageGeneration.isGenerating,
-    error: error || imageGeneration.error,
-    clearError,
-  }
+  return { generateImage, isGenerating, error, clearError }
 }

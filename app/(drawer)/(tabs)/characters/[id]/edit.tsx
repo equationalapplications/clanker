@@ -6,7 +6,7 @@ import { useSelector } from '@xstate/react'
 import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import CharacterAvatar from '~/components/CharacterAvatar'
-import { useLocalImageGeneration } from '~/hooks/useLocalImageGeneration'
+import { useImageGeneration } from '~/hooks/useImageGeneration'
 import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
 
@@ -82,7 +82,7 @@ export default function EditCharacterScreen() {
     isGenerating,
     error: imageError,
     clearError,
-  } = useLocalImageGeneration({
+  } = useImageGeneration({
     characterId: id || '',
     onImageGenerated: (fileUri) => setAvatarUri(fileUri),
   })
