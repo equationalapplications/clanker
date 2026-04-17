@@ -54,6 +54,9 @@ By setting `"codebase": "clanker"`, the Firebase CLI knows to only manage functi
 - **Security**:
   - Enforces App Check.
   - Keeps AI invocation server-side to prevent direct client bypass.
+- **IAM requirement**:
+  - The Cloud Run runtime service account for `generatereply` must have project role `roles/aiplatform.user`.
+  - Missing this role causes Vertex AI calls to fail with `PERMISSION_DENIED` on `aiplatform.endpoints.predict` for model resources such as `publishers/google/models/gemini-2.5-flash`.
 - **Reference**: See [Chat response function deep-dive](./CHAT_RESPONSE_FUNCTION.md).
 
 ### `purchasePackageStripe`

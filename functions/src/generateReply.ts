@@ -287,10 +287,73 @@ async function spendOneCredit(
     p_credit_amount: 1,
     p_description: "chat response",
     p_reference_id: referenceId,
-  }) as {remaining_credits?: number};
+  });
 
-  if (typeof spendResult?.remaining_credits === "number") {
-    return spendResult.remaining_credits;
+  const extractRemainingCredits = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    if (Array.isArray(value)) {
+      return value.length > 0 ? extractRemainingCredits(value[0]) : null;
+    }
+
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+
+    const record = value as {
+      remaining_credits?: unknown;
+      remainingCredits?: unknown;
+    };
+
+    if (record.remaining_credits !== undefined) {
+      return extractRemainingCredits(record.remaining_credits);
+    }
+
+    if (record.remainingCredits !== undefined) {
+      return extractRemainingCredits(record.remainingCredits);
+    }
+
+    return null;
+  };
+
+  const isAcknowledgedSpend = (value: unknown): boolean => {
+    if (value === true) {
+      return true;
+    }
+
+    if (Array.isArray(value)) {
+      return value.some((entry) => isAcknowledgedSpend(entry));
+    }
+
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+
+    const record = value as {
+      success?: unknown;
+      ok?: unknown;
+      spent?: unknown;
+    };
+
+    return record.success === true || record.ok === true || record.spent === true;
+  };
+
+  const remainingCredits = extractRemainingCredits(spendResult);
+  if (remainingCredits !== null) {
+    return remainingCredits;
+  }
+
+  if (isAcknowledgedSpend(spendResult)) {
+    // Some DB/RPC variants return only a success acknowledgement (e.g. boolean true).
+    // In this case we keep the operation successful and omit a concrete remaining balance.
+    return null;
   }
 
   logger.error("spend_user_credits returned invalid payload", {
@@ -309,15 +372,7 @@ async function spendOneCreditIfRequired(
     return null;
   }
 
-  try {
-    return await spendOneCredit(supabaseUserId, referenceId);
-  } catch (error) {
-    logger.error("Failed to spend credit after successful chat generation", {
-      supabaseUserId,
-      error,
-    });
-    throw new HttpsError("internal", "Failed to spend user credits.");
-  }
+  return spendOneCredit(supabaseUserId, referenceId);
 }
 
 const handler = async (
@@ -370,6 +425,11 @@ const handler = async (
       supabaseUserId: supabaseUser.id,
       error,
     });
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
     throw new HttpsError("internal", "Failed to generate chat response.");
   }
 
