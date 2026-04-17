@@ -90,12 +90,13 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // - A legacy DB that predates schema_version and still needs migrations
         //
         // Distinguish between these by confirming the DB already has the
-        // migration-added columns from the latest schema (v3).
+        // migration-added columns from the latest schema (v4).
         const columns = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(characters)')
         const hasDeletedAt = columns.some((column) => column.name === 'deleted_at')
         const hasAvatarData = columns.some((column) => column.name === 'avatar_data')
+        const hasAvatarMimeType = columns.some((column) => column.name === 'avatar_mime_type')
 
-        if (hasAvatarData && hasDeletedAt) {
+        if (hasAvatarData && hasDeletedAt && hasAvatarMimeType) {
             // Fresh DB already at latest schema: just record the current schema version
             await executor.runAsync(
                 'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
@@ -106,7 +107,10 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
 
         // Legacy DB without schema_version can be partially migrated.
         // Infer the nearest version so we only apply missing migrations.
-        const inferredVersion = hasDeletedAt ? 2 : 0
+        let inferredVersion = 0
+        if (hasDeletedAt) inferredVersion = 2
+        if (hasDeletedAt && hasAvatarData) inferredVersion = 3
+        if (hasDeletedAt && hasAvatarData && hasAvatarMimeType) inferredVersion = 4
         await runMigrations(executor, inferredVersion)
         return
     }
@@ -142,6 +146,14 @@ async function applyMigrations(executor: DatabaseExecutor, fromVersion: number):
                 const hasAvatarData = await hasColumn(executor, 'characters', 'avatar_data')
                 if (hasAvatarData) {
                     console.log('Skipping migration 3: characters.avatar_data already exists')
+                    continue
+                }
+            }
+
+            if (version === 4) {
+                const hasAvatarMimeType = await hasColumn(executor, 'characters', 'avatar_mime_type')
+                if (hasAvatarMimeType) {
+                    console.log('Skipping migration 4: characters.avatar_mime_type already exists')
                     continue
                 }
             }

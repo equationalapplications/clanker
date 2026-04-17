@@ -1,4 +1,5 @@
 import { getDatabase } from '~/database/index'
+import { sanitizeImageMimeType } from '~/utilities/imageMimeType'
 
 /**
  * Save a base64-encoded image to SQLite avatar_data column for a character.
@@ -7,15 +8,17 @@ import { getDatabase } from '~/database/index'
 export async function saveCharacterImageLocally(
     characterId: string,
     base64Data: string,
+    mimeType: string = 'image/webp',
 ): Promise<string> {
     const db = await getDatabase()
+    const sanitizedMimeType = sanitizeImageMimeType(mimeType)
 
     await db.runAsync(
-        'UPDATE characters SET avatar_data = ? WHERE id = ?',
-        [base64Data, characterId],
+        'UPDATE characters SET avatar_data = ?, avatar_mime_type = ? WHERE id = ?',
+        [base64Data, sanitizedMimeType, characterId],
     )
 
-    const dataUri = `data:image/webp;base64,${base64Data}`
+    const dataUri = `data:${sanitizedMimeType};base64,${base64Data}`
     console.log('✅ Character image saved to SQLite avatar_data:', characterId)
     return dataUri
 }
@@ -28,13 +31,14 @@ export async function getLocalCharacterImageUri(
 ): Promise<string | null> {
     const db = await getDatabase()
 
-    const row = await db.getFirstAsync<{ avatar_data: string | null }>(
-        'SELECT avatar_data FROM characters WHERE id = ?',
+    const row = await db.getFirstAsync<{ avatar_data: string | null; avatar_mime_type: string | null }>(
+        'SELECT avatar_data, avatar_mime_type FROM characters WHERE id = ?',
         [characterId],
     )
 
     if (row?.avatar_data) {
-        return `data:image/webp;base64,${row.avatar_data}`
+        const mimeType = sanitizeImageMimeType(row.avatar_mime_type)
+        return `data:${mimeType};base64,${row.avatar_data}`
     }
     return null
 }

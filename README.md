@@ -19,6 +19,7 @@
 - [Auth provider name sync](docs/AUTH_PROVIDER_NAME_SYNC.md) — How Apple/Google names are captured and synced to profile display data.
 - [Firebase Cloud Functions](docs/FIREBASE_FUNCTIONS.md) — How backend functions (`exchangeToken`, `purchasePackageStripe`) are managed and deployed.
 - [Chat response function](docs/CHAT_RESPONSE_FUNCTION.md) — Secure callable architecture for server-side text generation, auth checks, and credit billing.
+- [Image generation function](docs/IMAGE_GENERATION_FUNCTION.md) — Server-side image generation with auth, billing, and abuse controls.
 - [Firebase Functions testing](docs/FIREBASE_FUNCTIONS_TESTING.md) — Test strategy and local commands for callable and webhook function coverage in `functions/`.
 - [Navigation structure](docs/NAVIGATION.md) — Overview of app navigation, including Drawer, Tab, and Stack navigators.
 - [Admin dashboard](docs/ADMIN_DASHBOARD.md) — Web-only admin UX architecture, route guards, and mandatory confirmation behavior for privileged actions.
@@ -27,7 +28,7 @@
 
 ## Data & Features
 
-- [Image generation](docs/IMAGE_GENERATION.md) — How image generation is integrated with OpenAI and Supabase storage.
+- [Image generation](docs/IMAGE_GENERATION.md) — Callable-based image generation flow with local SQLite avatar storage.
 - [First-login credits](docs/FIRST_LOGIN_CREDITS.md) — How first-login users are provisioned to 50 free credits.
 - [Supabase subscription & RLS](docs/SUPABASE_AUTH.md) — Full multi-tenant subscription architecture, JWT claims, and RLS examples.
 - [Supabase data structure](docs/SUPABASE_DATA_STRUCTURE.md) — SQL schemas and TypeScript interfaces for core tables (users, characters, messages, subscriptions).

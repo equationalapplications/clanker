@@ -4,6 +4,7 @@
  */
 
 import { getDatabase } from './index'
+import { sanitizeImageMimeType } from '~/utilities/imageMimeType'
 
 export interface LocalCharacter {
     id: string
@@ -11,6 +12,7 @@ export interface LocalCharacter {
     name: string
     avatar: string | null
     avatar_data: string | null // base64 image data (local-only, not synced to cloud)
+    avatar_mime_type: string | null // MIME type of avatar_data (defaults to image/webp)
     appearance: string | null
     traits: string | null
     emotions: string | null
@@ -27,6 +29,7 @@ export interface CharacterInsert {
     name: string
     avatar?: string | null
     avatar_data?: string | null
+    avatar_mime_type?: string | null
     appearance?: string | null
     traits?: string | null
     emotions?: string | null
@@ -50,7 +53,7 @@ export interface CharacterUpdate {
 function toAppFormat(char: LocalCharacter) {
     // Prefer avatar_data (local base64) for display; fall back to avatar (cloud URL)
     const displayAvatar = char.avatar_data
-        ? `data:image/webp;base64,${char.avatar_data}`
+        ? `data:${sanitizeImageMimeType(char.avatar_mime_type)};base64,${char.avatar_data}`
         : char.avatar
 
     return {
@@ -109,14 +112,15 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
 
     await db.runAsync(
         `INSERT INTO characters 
-     (id, user_id, name, avatar, avatar_data, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             id,
             userId,
             data.name,
             data.avatar || null,
             data.avatar_data || null,
+            data.avatar_mime_type || 'image/webp',
             data.appearance || null,
             data.traits || null,
             data.emotions || null,
@@ -321,14 +325,15 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
         for (const char of characters) {
             await db.runAsync(
                 `INSERT OR REPLACE INTO characters 
-         (id, user_id, name, avatar, avatar_data, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     char.id,
                     char.user_id,
                     char.name,
                     char.avatar,
                     char.avatar_data ?? null,
+                    char.avatar_mime_type ?? 'image/webp',
                     char.appearance,
                     char.traits,
                     char.emotions,

@@ -7,6 +7,10 @@ export {
 } from "./generateReply.js";
 
 export {
+  generateImage,
+} from "./generateImage.js";
+
+export {
   spendCredits,
 } from "./spendCredits.js";
 
