@@ -145,6 +145,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                 name: cloudChar.name,
                 avatar: cloudChar.avatar,
                 avatar_data: null, // avatar_data is local-only; cloud restore never populates it
+                avatar_mime_type: null, // avatar_mime_type is local-only
                 appearance: cloudChar.appearance,
                 traits: cloudChar.traits,
                 emotions: cloudChar.emotions,

@@ -54,7 +54,29 @@ By setting `"codebase": "clanker"`, the Firebase CLI knows to only manage functi
 - **Security**:
   - Enforces App Check.
   - Keeps AI invocation server-side to prevent direct client bypass.
+- **IAM requirement**:
+  - The Cloud Run runtime service account for `generatereply` must have project role `roles/aiplatform.user`.
+  - Missing this role causes Vertex AI calls to fail with `PERMISSION_DENIED` on `aiplatform.endpoints.predict` for model resources such as `publishers/google/models/gemini-2.5-flash`.
 - **Reference**: See [Chat response function deep-dive](./CHAT_RESPONSE_FUNCTION.md).
+
+### `generateImage`
+
+- **Purpose**: Generates character avatar images server-side with enforced auth, App Check, throttling, and billing.
+- **Process**:
+    1. Verifies callable auth context and token integrity.
+    2. Resolves Supabase user by Firebase UID first, then email fallback.
+    3. Reads active subscription rows and validates access (unlimited tiers or available credits).
+    4. Applies prompt validation + per-user throttling guard.
+    5. Calls Vertex AI image model (`gemini-2.5-flash-image`) and extracts inline base64 image data.
+    6. Spends one credit only for non-unlimited plans and only after successful generation.
+    7. Returns `{ imageBase64, mimeType, creditsSpent, remainingCredits, planTier }`.
+- **Security**:
+  - Enforces App Check.
+  - Keeps image model access server-side (client has no direct GenAI SDK access).
+- **IAM requirement**:
+  - The Cloud Run runtime service account for `generateimage` must have project role `roles/aiplatform.user`.
+
+- **Reference**: See [Image generation function deep-dive](./IMAGE_GENERATION_FUNCTION.md).
 
 ### `purchasePackageStripe`
 
@@ -143,7 +165,7 @@ Use this checklist when setting up Firebase Functions for a new environment.
 - [ ] Deploy from `functions/`: `npm run deploy`.
 - [ ] If prompted, enter missing non-sensitive param values once (CLI persists them for the staging project).
 - [ ] Smoke test:
-  - callable: `exchangeToken`, `generateReply`, `spendCredits`, `purchasePackageStripe`
+  - callable: `exchangeToken`, `generateReply`, `generateImage`, `spendCredits`, `purchasePackageStripe`
   - webhooks: `stripeWebhook`, `revenueCatWebhook`
 
 ### Production
@@ -157,6 +179,7 @@ Use this checklist when setting up Firebase Functions for a new environment.
 - [ ] Verify deploy output shows all functions updated successfully.
 - [ ] Run post-deploy validation:
   - auth flow (`exchangeToken`) works end-to-end
+  - image callable (`generateImage`) returns base64 payload for authorized user
   - Stripe checkout callable returns a valid URL
   - Stripe/RevenueCat webhook deliveries return 2xx
   - `functions:log` shows no startup config errors
@@ -218,6 +241,7 @@ All callable and webhook Cloud Run services must have the tag. Current list:
 
 - `exchangetoken`
 - `generatereply`
+- `generateimage`
 - `purchasepackagestripe`
 - `spendcredits`
 - `stripewebhook`
@@ -260,7 +284,7 @@ gcloud run services add-iam-policy-binding FUNCTION_NAME \
 To tag and grant access to **all services at once**:
 
 ```bash
-for fn in exchangetoken generatereply purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+for fn in exchangetoken generatereply generateimage purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
   adminresetuserstate admindeleteuser; do
   echo "=== $fn ==="
@@ -272,7 +296,7 @@ done
 
 # Wait ~15 seconds for tag propagation, then:
 
-for fn in exchangetoken generatereply purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+for fn in exchangetoken generatereply generateimage purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
   adminresetuserstate admindeleteuser; do
   echo "=== $fn ==="
@@ -287,7 +311,7 @@ done
 To **verify** which services have the tag:
 
 ```bash
-for fn in exchangetoken generatereply purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+for fn in exchangetoken generatereply generateimage purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
   adminresetuserstate admindeleteuser; do
   echo "=== $fn ==="

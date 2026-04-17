@@ -8,6 +8,7 @@ import {
   findSupabaseUserByEmail,
   getSupabaseAdminClient,
 } from "./supabaseAdmin.js";
+import {extractRemainingCredits, isAcknowledgedSpend} from "./billing.js";
 
 const APP_NAME = "clanker";
 const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
@@ -287,10 +288,17 @@ async function spendOneCredit(
     p_credit_amount: 1,
     p_description: "chat response",
     p_reference_id: referenceId,
-  }) as {remaining_credits?: number};
+  });
 
-  if (typeof spendResult?.remaining_credits === "number") {
-    return spendResult.remaining_credits;
+  const remainingCredits = extractRemainingCredits(spendResult);
+  if (remainingCredits !== null) {
+    return remainingCredits;
+  }
+
+  if (isAcknowledgedSpend(spendResult)) {
+    // Some DB/RPC variants return only a success acknowledgement (e.g. boolean true).
+    // In this case we keep the operation successful and omit a concrete remaining balance.
+    return null;
   }
 
   logger.error("spend_user_credits returned invalid payload", {
@@ -312,10 +320,16 @@ async function spendOneCreditIfRequired(
   try {
     return await spendOneCredit(supabaseUserId, referenceId);
   } catch (error) {
-    logger.error("Failed to spend credit after successful chat generation", {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    logger.error("Failed to spend user credits", {
       supabaseUserId,
+      referenceId,
       error,
     });
+
     throw new HttpsError("internal", "Failed to spend user credits.");
   }
 }
@@ -370,6 +384,11 @@ const handler = async (
       supabaseUserId: supabaseUser.id,
       error,
     });
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
     throw new HttpsError("internal", "Failed to generate chat response.");
   }
 

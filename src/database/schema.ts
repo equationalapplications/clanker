@@ -3,7 +3,7 @@
  * Supports messages and characters with optional cloud sync
  */
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 /**
  * SQL statements to create tables
@@ -16,6 +16,7 @@ export const CREATE_TABLES = `
     name TEXT NOT NULL,
     avatar TEXT,
     avatar_data TEXT,
+    avatar_mime_type TEXT DEFAULT 'image/webp',
     appearance TEXT,
     traits TEXT,
     emotions TEXT,
@@ -66,4 +67,5 @@ export const CREATE_TABLES = `
 export const MIGRATIONS: Record<number, string> = {
   2: `ALTER TABLE characters ADD COLUMN deleted_at INTEGER;`,
   3: `ALTER TABLE characters ADD COLUMN avatar_data TEXT;`,
+  4: `ALTER TABLE characters ADD COLUMN avatar_mime_type TEXT DEFAULT 'image/webp';`,
 }
