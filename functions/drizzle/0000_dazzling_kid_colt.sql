@@ -1,5 +1,3 @@
-CREATE TYPE "public"."plan_status" AS ENUM('active', 'cancelled', 'expired');--> statement-breakpoint
-CREATE TYPE "public"."plan_tier" AS ENUM('free', 'monthly_20', 'monthly_50', 'payg');--> statement-breakpoint
 CREATE TABLE "characters" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,

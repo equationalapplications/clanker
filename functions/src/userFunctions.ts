@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { subscriptionService } from './services/subscriptionService.js';
@@ -14,8 +14,26 @@ type UpdateUserProfilePayload = {
   defaultCharacterId?: string | null;
 };
 
+type UserFunctionDeps = {
+  userRepository: Pick<typeof userRepository, 'findUserByFirebaseUid' | 'updateUser'>;
+  subscriptionService: Pick<typeof subscriptionService, 'acceptTerms'>;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseTermsVersion(data: unknown): string {
+  if (!isRecord(data)) {
+    throw new HttpsError('invalid-argument', 'Terms version is required.');
+  }
+
+  const { termsVersion } = data;
+  if (typeof termsVersion !== 'string' || termsVersion.trim().length === 0) {
+    throw new HttpsError('invalid-argument', 'Terms version is required.');
+  }
+
+  return termsVersion.trim();
 }
 
 function normalizeOptionalStringField(
@@ -155,27 +173,29 @@ export const acceptTerms = onCall(
     region: 'us-central1',
     enforceAppCheck: true,
   },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Authentication required.');
-    }
-
-    const { termsVersion } = request.data as { termsVersion: string };
-    if (!termsVersion) {
-      throw new HttpsError('invalid-argument', 'Terms version is required.');
-    }
-
-    const user = await userRepository.findUserByFirebaseUid(request.auth.uid);
-    if (!user) {
-      throw new HttpsError('not-found', 'User not found.');
-    }
-
-    try {
-      await subscriptionService.acceptTerms(user.id, termsVersion, new Date());
-      return { success: true };
-    } catch (error) {
-      logger.error('Failed to accept terms', { error });
-      throw new HttpsError('internal', 'Failed to accept terms.');
-    }
-  }
+  (request) => acceptTermsHandler(request)
 );
+
+export const acceptTermsHandler = async (
+  request: CallableRequest,
+  deps: UserFunctionDeps = { userRepository, subscriptionService }
+) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required.');
+  }
+
+  const termsVersion = parseTermsVersion(request.data);
+
+  const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
+  if (!user) {
+    throw new HttpsError('not-found', 'User not found.');
+  }
+
+  try {
+    await deps.subscriptionService.acceptTerms(user.id, termsVersion, new Date());
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to accept terms', { error });
+    throw new HttpsError('internal', 'Failed to accept terms.');
+  }
+};

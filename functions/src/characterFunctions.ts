@@ -1,4 +1,4 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { characterService } from './services/characterService.js';
@@ -18,6 +18,15 @@ type SyncCharacterPayload = {
   updatedAt?: string;
 };
 
+type CharacterFunctionDeps = {
+  userRepository: Pick<typeof userRepository, 'findUserByFirebaseUid'>;
+  characterService: Pick<typeof characterService, 'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters'>;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function parseOptionalTimestamp(value: string | undefined, field: 'createdAt' | 'updatedAt'): Date | undefined {
   if (value === undefined) {
     return undefined;
@@ -36,83 +45,102 @@ export const syncCharacter = onCall(
     region: 'us-central1',
     enforceAppCheck: true,
   },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Authentication required.');
-    }
-
-    const { character } = request.data as { character: SyncCharacterPayload };
-    if (!character) {
-      throw new HttpsError('invalid-argument', 'Valid character data is required.');
-    }
-
-    if (character.id && !UUID_REGEX.test(character.id)) {
-      throw new HttpsError('invalid-argument', 'character.id must be a UUID when provided.');
-    }
-
-    const user = await userRepository.findUserByFirebaseUid(request.auth.uid);
-    if (!user) {
-      throw new HttpsError('not-found', 'User not found.');
-    }
-
-    try {
-      const createdAt = parseOptionalTimestamp(character.createdAt, 'createdAt');
-      const updatedAt = parseOptionalTimestamp(character.updatedAt, 'updatedAt');
-
-      const upserted = await characterService.upsertCharacter({
-        ...(character.id ? { id: character.id } : {}),
-        userId: user.id,
-        name: character.name,
-        avatar: character.avatar,
-        appearance: character.appearance,
-        traits: character.traits,
-        emotions: character.emotions,
-        context: character.context,
-        isPublic: character.isPublic,
-        createdAt,
-        updatedAt,
-      });
-      return upserted;
-    } catch (error) {
-      logger.error('Failed to sync character', { error });
-      throw new HttpsError('internal', 'Failed to sync character.');
-    }
-  }
+  (request) => syncCharacterHandler(request)
 );
+
+export const syncCharacterHandler = async (
+  request: CallableRequest,
+  deps: CharacterFunctionDeps = { userRepository, characterService }
+) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required.');
+  }
+
+  if (!isRecord(request.data)) {
+    throw new HttpsError('invalid-argument', 'Valid character data is required.');
+  }
+
+  const { character } = request.data as { character?: SyncCharacterPayload };
+  if (!character || typeof character !== 'object' || Array.isArray(character)) {
+    throw new HttpsError('invalid-argument', 'Valid character data is required.');
+  }
+
+  if (character.id && !UUID_REGEX.test(character.id)) {
+    throw new HttpsError('invalid-argument', 'character.id must be a UUID when provided.');
+  }
+
+  const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
+  if (!user) {
+    throw new HttpsError('not-found', 'User not found.');
+  }
+
+  try {
+    const createdAt = parseOptionalTimestamp(character.createdAt, 'createdAt');
+    const updatedAt = parseOptionalTimestamp(character.updatedAt, 'updatedAt');
+
+    const upserted = await deps.characterService.upsertCharacter({
+      ...(character.id ? { id: character.id } : {}),
+      userId: user.id,
+      name: character.name,
+      avatar: character.avatar,
+      appearance: character.appearance,
+      traits: character.traits,
+      emotions: character.emotions,
+      context: character.context,
+      isPublic: character.isPublic,
+      createdAt,
+      updatedAt,
+    });
+    return upserted;
+  } catch (error) {
+    logger.error('Failed to sync character', { error });
+    throw new HttpsError('internal', 'Failed to sync character.');
+  }
+};
 
 export const deleteCharacter = onCall(
   {
     region: 'us-central1',
     enforceAppCheck: true,
   },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Authentication required.');
-    }
-
-    const { characterId } = request.data as { characterId: string };
-    if (!characterId) {
-      throw new HttpsError('invalid-argument', 'Character ID is required.');
-    }
-
-    if (!UUID_REGEX.test(characterId)) {
-      throw new HttpsError('invalid-argument', 'characterId must be a valid UUID.');
-    }
-
-    const user = await userRepository.findUserByFirebaseUid(request.auth.uid);
-    if (!user) {
-      throw new HttpsError('not-found', 'User not found.');
-    }
-
-    try {
-      await characterService.deleteCharacter(characterId, user.id);
-      return { success: true };
-    } catch (error) {
-      logger.error('Failed to delete character', { error });
-      throw new HttpsError('internal', 'Failed to delete character.');
-    }
-  }
+  (request) => deleteCharacterHandler(request)
 );
+
+export const deleteCharacterHandler = async (
+  request: CallableRequest,
+  deps: CharacterFunctionDeps = { userRepository, characterService }
+) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required.');
+  }
+
+  if (!isRecord(request.data)) {
+    throw new HttpsError('invalid-argument', 'Character ID is required.');
+  }
+
+  const { characterId } = request.data as { characterId?: unknown };
+  if (typeof characterId !== 'string' || characterId.trim().length === 0) {
+    throw new HttpsError('invalid-argument', 'Character ID is required.');
+  }
+
+  const normalizedCharacterId = characterId.trim();
+  if (!UUID_REGEX.test(normalizedCharacterId)) {
+    throw new HttpsError('invalid-argument', 'characterId must be a valid UUID.');
+  }
+
+  const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
+  if (!user) {
+    throw new HttpsError('not-found', 'User not found.');
+  }
+
+  try {
+    await deps.characterService.deleteCharacter(normalizedCharacterId, user.id);
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to delete character', { error });
+    throw new HttpsError('internal', 'Failed to delete character.');
+  }
+};
 
 export const getUserCharacters = onCall(
   {
