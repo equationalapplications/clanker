@@ -9,15 +9,27 @@ export interface CreateUserParams {
   avatarUrl?: string | null;
 }
 
+interface UserRepositoryDeps {
+  getDb: typeof getDb;
+}
+
+const defaultDeps: UserRepositoryDeps = {
+  getDb,
+};
+
 export const userRepository = {
-  async getOrCreateUserByFirebaseIdentity(params: CreateUserParams) {
-    const db = await getDb();
+  async getOrCreateUserByFirebaseIdentity(
+    params: CreateUserParams,
+    deps: UserRepositoryDeps = defaultDeps
+  ) {
     const normalizedEmail = params.email.toLowerCase();
 
     const existingByUid = await this.findUserByFirebaseUid(params.firebaseUid);
     if (existingByUid) {
       return existingByUid;
     }
+
+    const db = await deps.getDb();
 
     const [inserted] = await db
       .insert(users)
@@ -41,6 +53,10 @@ export const userRepository = {
 
     const existingByEmail = await this.findUserByEmail(normalizedEmail);
     if (existingByEmail) {
+      if (existingByEmail.firebaseUid !== params.firebaseUid) {
+        throw new Error('Existing user email is linked to a different Firebase UID.');
+      }
+
       return existingByEmail;
     }
 
