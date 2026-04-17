@@ -6,7 +6,9 @@ Migrate Clanker from Supabase (Auth + Postgres + RPC + RLS-driven client access)
 
 Important constraint: Account/Supabase schema is multi-tenant (`app_name` model). New Clanker Cloud SQL schema is single-tenant and dedicated to Clanker only.
 
-Hard requirement: after this migration, the Clanker app, functions, tests, configs, and docs must contain no active Supabase references and no Supabase-dependent code paths.
+Hard requirement (end-state after all phases, especially PR8): the Clanker app, functions, tests, configs, and docs must contain no active Supabase references and no Supabase-dependent code paths.
+
+Note on rollout scope: earlier PRs in this phased plan may still include temporary Supabase-dependent paths until decommissioning is complete in PR8.
 
 ## Final Architecture
 

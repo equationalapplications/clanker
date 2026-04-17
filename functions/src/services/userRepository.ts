@@ -39,6 +39,11 @@ export const userRepository = {
       return existingUser;
     }
 
+    const existingByEmail = await this.findUserByEmail(normalizedEmail);
+    if (existingByEmail) {
+      return existingByEmail;
+    }
+
     throw new Error('Failed to get or create user by Firebase identity.');
   },
 
@@ -61,6 +66,6 @@ export const userRepository = {
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(users.id, userId))
       .returning();
-    return updated;
+    return updated ?? null;
   },
 };

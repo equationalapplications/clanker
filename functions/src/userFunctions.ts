@@ -134,39 +134,50 @@ export const updateUserProfile = onCall(
     region: 'us-central1',
     enforceAppCheck: true,
   },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Authentication required.');
-    }
+  (request) => updateUserProfileHandler(request)
+);
 
-    const { displayName, avatarUrl, isProfilePublic, defaultCharacterId } =
-      validateUpdateUserProfilePayload(request.data);
+export const updateUserProfileHandler = async (
+  request: CallableRequest,
+  deps: UserFunctionDeps = { userRepository, subscriptionService }
+) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required.');
+  }
 
-    const user = await userRepository.findUserByFirebaseUid(request.auth.uid);
-    if (!user) {
+  const { displayName, avatarUrl, isProfilePublic, defaultCharacterId } =
+    validateUpdateUserProfilePayload(request.data);
+
+  const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
+  if (!user) {
+    throw new HttpsError('not-found', 'User not found.');
+  }
+
+  const updates: Partial<{
+    displayName: string | null;
+    avatarUrl: string | null;
+    isProfilePublic: boolean;
+    defaultCharacterId: string | null;
+  }> = {};
+  if (displayName !== undefined) updates.displayName = displayName;
+  if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
+  if (isProfilePublic !== undefined) updates.isProfilePublic = isProfilePublic;
+  if (defaultCharacterId !== undefined) updates.defaultCharacterId = defaultCharacterId;
+
+  try {
+    const updatedUser = await deps.userRepository.updateUser(user.id, updates);
+    if (!updatedUser) {
       throw new HttpsError('not-found', 'User not found.');
     }
-
-    const updates: Partial<{
-      displayName: string | null;
-      avatarUrl: string | null;
-      isProfilePublic: boolean;
-      defaultCharacterId: string | null;
-    }> = {};
-    if (displayName !== undefined) updates.displayName = displayName;
-    if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
-    if (isProfilePublic !== undefined) updates.isProfilePublic = isProfilePublic;
-    if (defaultCharacterId !== undefined) updates.defaultCharacterId = defaultCharacterId;
-
-    try {
-      const updatedUser = await userRepository.updateUser(user.id, updates);
-      return updatedUser;
-    } catch (error) {
-      logger.error('Failed to update user profile', { error });
-      throw new HttpsError('internal', 'Failed to update user profile.');
+    return updatedUser;
+  } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
     }
+    logger.error('Failed to update user profile', { error });
+    throw new HttpsError('internal', 'Failed to update user profile.');
   }
-);
+};
 
 export const acceptTerms = onCall(
   {

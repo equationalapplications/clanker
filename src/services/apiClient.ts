@@ -1,6 +1,7 @@
 import type { BootstrapResponse, UserSnapshot } from '~/auth/bootstrapSession'
 import { bootstrapSession } from '~/auth/bootstrapSession'
 import {
+  appCheckReady,
   acceptTermsFn as acceptTermsCallable,
   deleteCharacterFn as deleteCharacterCallable,
   getUserCharactersFn as getUserCharactersCallable,
@@ -10,6 +11,22 @@ import {
 
 type Callable<Req, Res> = (payload: Req) => Promise<{ data: Res }>
 type OptionalCallable<Req, Res> = (payload?: Req) => Promise<{ data: Res }>
+
+const withAppCheck = <Req, Res>(callable: Callable<Req, Res>): Callable<Req, Res> => {
+  return async (payload: Req) => {
+    await appCheckReady
+    return callable(payload)
+  }
+}
+
+const withAppCheckOptional = <Req, Res>(
+  callable: OptionalCallable<Req, Res>,
+): OptionalCallable<Req, Res> => {
+  return async (payload?: Req) => {
+    await appCheckReady
+    return callable(payload)
+  }
+}
 
 export interface UpdateUserProfileRequest {
   displayName?: string | null
@@ -76,15 +93,20 @@ export const getUserState = async (): Promise<BootstrapResponse> => {
   return await bootstrapSession()
 }
 
-export const updateUserProfile =
-  updateUserProfileCallable as Callable<UpdateUserProfileRequest, UpdateUserProfileResponse>
+export const updateUserProfile = withAppCheck(
+  updateUserProfileCallable as Callable<UpdateUserProfileRequest, UpdateUserProfileResponse>,
+)
 
-export const acceptTermsFn =
-  acceptTermsCallable as Callable<AcceptTermsRequest, AcceptTermsResponse>
+export const acceptTermsFn = withAppCheck(
+  acceptTermsCallable as Callable<AcceptTermsRequest, AcceptTermsResponse>,
+)
 
-export const syncCharacterFn =
-  syncCharacterCallable as Callable<SyncCharacterRequest, CharacterSnapshot>
-export const deleteCharacterFn =
-  deleteCharacterCallable as Callable<DeleteCharacterRequest, DeleteCharacterResponse>
-export const getUserCharactersFn =
-  getUserCharactersCallable as OptionalCallable<void, GetUserCharactersResponse>
+export const syncCharacterFn = withAppCheck(
+  syncCharacterCallable as Callable<SyncCharacterRequest, CharacterSnapshot>,
+)
+export const deleteCharacterFn = withAppCheck(
+  deleteCharacterCallable as Callable<DeleteCharacterRequest, DeleteCharacterResponse>,
+)
+export const getUserCharactersFn = withAppCheckOptional(
+  getUserCharactersCallable as OptionalCallable<void, GetUserCharactersResponse>,
+)
