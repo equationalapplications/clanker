@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { characters, messages } from '../db/schema.js';
 
@@ -26,38 +26,46 @@ export const characterService = {
   async upsertCharacter(character: typeof characters.$inferInsert, userId: string) {
     const db = await getDb();
     
-    // If character has an ID, verify ownership before upserting
+    // If character has an ID, either update owned rows or insert a new row with that ID.
+    // This preserves local->cloud sync for pre-existing local UUIDs while still blocking
+    // attempts to overwrite a character owned by a different user.
     if (character.id) {
       const existing = await db
         .select()
         .from(characters)
-        .where(
-          sql`${characters.id} = ${character.id} AND ${characters.userId} = ${userId}`
-        )
+        .where(eq(characters.id, character.id))
         .limit(1);
       
-      if (!existing[0]) {
-        throw new Error('Character not found or does not belong to user');
+      if (existing[0] && existing[0].userId !== userId) {
+        throw new Error('Character does not belong to user');
       }
       
-      // Update existing character
-      const [updated] = await db
-        .update(characters)
-        .set({
-          name: character.name,
-          avatar: character.avatar,
-          appearance: character.appearance,
-          traits: character.traits,
-          emotions: character.emotions,
-          context: character.context,
-          isPublic: character.isPublic,
-          updatedAt: character.updatedAt ?? new Date(),
+      if (existing[0]) {
+        const [updated] = await db
+          .update(characters)
+          .set({
+            name: character.name,
+            avatar: character.avatar,
+            appearance: character.appearance,
+            traits: character.traits,
+            emotions: character.emotions,
+            context: character.context,
+            isPublic: character.isPublic,
+            updatedAt: character.updatedAt ?? new Date(),
+          })
+          .where(and(eq(characters.id, character.id), eq(characters.userId, userId)))
+          .returning();
+        return updated;
+      }
+
+      const [insertedWithProvidedId] = await db
+        .insert(characters)
+        .values({
+          ...character,
+          userId,
         })
-        .where(
-          sql`${characters.id} = ${character.id} AND ${characters.userId} = ${userId}`
-        )
         .returning();
-      return updated;
+      return insertedWithProvidedId;
     }
     
     // Insert new character (userId already set in character object)

@@ -25,6 +25,7 @@ export type AuthMachineEvents =
   | { type: 'NO_USER_FOUND' }
   | { type: 'SIGN_IN'; provider: 'google' | 'apple' }
   | { type: 'SIGN_OUT' }
+  | { type: 'REFRESH_BOOTSTRAP' }
 
 export const authMachine = createMachine(
   {
@@ -113,6 +114,7 @@ export const authMachine = createMachine(
         ],
         on: {
           SIGN_OUT: 'signingOut',
+          REFRESH_BOOTSTRAP: 'bootstrapping',
         },
       },
       signingOut: {

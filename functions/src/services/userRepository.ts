@@ -24,7 +24,7 @@ export const userRepository = {
   ) {
     const normalizedEmail = params.email.toLowerCase();
 
-    const existingByUid = await this.findUserByFirebaseUid(params.firebaseUid);
+    const existingByUid = await this.findUserByFirebaseUid(params.firebaseUid, deps);
     if (existingByUid) {
       return existingByUid;
     }
@@ -46,12 +46,12 @@ export const userRepository = {
       return inserted;
     }
 
-    const existingUser = await this.findUserByFirebaseUid(params.firebaseUid);
+    const existingUser = await this.findUserByFirebaseUid(params.firebaseUid, deps);
     if (existingUser) {
       return existingUser;
     }
 
-    const existingByEmail = await this.findUserByEmail(normalizedEmail);
+    const existingByEmail = await this.findUserByEmail(normalizedEmail, deps);
     if (existingByEmail) {
       if (existingByEmail.firebaseUid !== params.firebaseUid) {
         throw new Error('Existing user email is linked to a different Firebase UID.');
@@ -63,20 +63,24 @@ export const userRepository = {
     throw new Error('Failed to get or create user by Firebase identity.');
   },
 
-  async findUserByEmail(email: string) {
-    const db = await getDb();
+  async findUserByEmail(email: string, deps: UserRepositoryDeps = defaultDeps) {
+    const db = await deps.getDb();
     const result = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
     return result[0] || null;
   },
 
-  async findUserByFirebaseUid(firebaseUid: string) {
-    const db = await getDb();
+  async findUserByFirebaseUid(firebaseUid: string, deps: UserRepositoryDeps = defaultDeps) {
+    const db = await deps.getDb();
     const result = await db.select().from(users).where(eq(users.firebaseUid, firebaseUid)).limit(1);
     return result[0] || null;
   },
 
-  async updateUser(userId: string, updates: Partial<typeof users.$inferInsert>) {
-    const db = await getDb();
+  async updateUser(
+    userId: string,
+    updates: Partial<typeof users.$inferInsert>,
+    deps: UserRepositoryDeps = defaultDeps
+  ) {
+    const db = await deps.getDb();
     const [updated] = await db
       .update(users)
       .set({ ...updates, updatedAt: new Date() })

@@ -4,6 +4,7 @@ import { Platform } from 'react-native'
 
 const mockUseUserCredits = jest.fn()
 const mockMakePackagePurchase = jest.fn()
+const mockAuthServiceSend = jest.fn()
 
 jest.mock('react-native-paper', () => {
   const React = require('react')
@@ -48,6 +49,10 @@ jest.mock('~/hooks/useUserCredits', () => ({
   useUserCredits: (...args: unknown[]) => mockUseUserCredits(...args),
 }))
 
+jest.mock('~/hooks/useMachines', () => ({
+  useAuthMachine: () => ({ send: mockAuthServiceSend }),
+}))
+
 jest.mock('~/utilities/makePackagePurchase', () => ({
   makePackagePurchase: (...args: unknown[]) => mockMakePackagePurchase(...args),
 }))
@@ -59,7 +64,7 @@ describe('CreditsDisplay purchase flows', () => {
   let consoleErrorSpy: jest.SpyInstance
 
   beforeEach(() => {
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
     jest.clearAllMocks()
     jest.replaceProperty(Platform, 'OS', 'web')
 

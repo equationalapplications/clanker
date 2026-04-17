@@ -88,9 +88,21 @@ export interface GetUserCharactersResponse {
   characters: CharacterSnapshot[]
 }
 
-// Re-use bootstrapSession for user state
+let getUserStateInFlight: Promise<BootstrapResponse> | null = null
+
+// Re-use bootstrapSession for user state with in-flight dedupe.
 export const getUserState = async (): Promise<BootstrapResponse> => {
-  return await bootstrapSession()
+  if (getUserStateInFlight) {
+    return await getUserStateInFlight
+  }
+
+  getUserStateInFlight = bootstrapSession()
+
+  try {
+    return await getUserStateInFlight
+  } finally {
+    getUserStateInFlight = null
+  }
 }
 
 export const updateUserProfile = withAppCheck(

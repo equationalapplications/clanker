@@ -19,9 +19,10 @@ export default function AcceptTermsScreen() {
 
   useEffect(() => {
     if (accepted) {
+      authService.send({ type: 'REFRESH_BOOTSTRAP' })
       router.replace('/')
     }
-  }, [accepted])
+  }, [accepted, authService])
 
   const handleAccepted = () => {
     termsService.send({ type: 'ACCEPT_TERMS', isUpdate })

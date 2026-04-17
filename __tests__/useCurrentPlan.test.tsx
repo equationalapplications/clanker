@@ -106,7 +106,7 @@ describe('useCurrentPlan', () => {
     expect(result.isSubscriber).toBe(false)
   })
 
-  it('uses two primitive selectors to avoid object identity churn', () => {
+  it('uses two selectors to avoid object identity churn in loading checks', () => {
     const state = makeState({ activeStates: ['initializing'] })
     renderUseCurrentPlan(state)
 
