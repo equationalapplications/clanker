@@ -1,4 +1,3 @@
-import { APP_NAME } from '~/config/constants'
 import { appCheckReady, deleteMyAccountFn } from '~/config/firebaseConfig'
 import { getUserState, updateUserProfile } from './apiClient'
 
@@ -14,7 +13,6 @@ export interface UserProfile {
 
 export interface UserProfileUpdate {
   display_name?: string | null
-  email?: string | null
   avatar_url?: string | null
   is_profile_public?: boolean
   default_character_id?: string | null

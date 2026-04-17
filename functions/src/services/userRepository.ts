@@ -11,35 +11,41 @@ export interface CreateUserParams {
 
 export const userRepository = {
   async getOrCreateUserByFirebaseIdentity(params: CreateUserParams) {
-    const existingUser = await this.findUserByFirebaseUid(params.firebaseUid);
-    if (existingUser) {
-      return existingUser;
-    }
+    const normalizedEmail = params.email.toLowerCase();
 
-    // Try by email as fallback during migration/edge cases
-    const userByEmail = await this.findUserByEmail(params.email);
-    if (userByEmail) {
-      // If we found them by email but not firebaseUid, update the firebaseUid
-      const [updated] = await db
-        .update(users)
-        .set({ firebaseUid: params.firebaseUid })
-        .where(eq(users.id, userByEmail.id))
+    try {
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          firebaseUid: params.firebaseUid,
+          email: normalizedEmail,
+          displayName: params.displayName,
+          avatarUrl: params.avatarUrl,
+        })
         .returning();
-      return updated;
+      return newUser;
+    } catch (error: any) {
+      // 23505 is PostgreSQL unique_violation error code
+      if (error.code === '23505') {
+        const existingUser = await this.findUserByFirebaseUid(params.firebaseUid);
+        if (existingUser) {
+          return existingUser;
+        }
+
+        // Try by email as fallback during migration/edge cases
+        const userByEmail = await this.findUserByEmail(normalizedEmail);
+        if (userByEmail) {
+          // If we found them by email but not firebaseUid, update the firebaseUid
+          const [updated] = await db
+            .update(users)
+            .set({ firebaseUid: params.firebaseUid, updatedAt: new Date() })
+            .where(eq(users.id, userByEmail.id))
+            .returning();
+          return updated;
+        }
+      }
+      throw error;
     }
-
-    // Create new user
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        firebaseUid: params.firebaseUid,
-        email: params.email,
-        displayName: params.displayName,
-        avatarUrl: params.avatarUrl,
-      })
-      .returning();
-
-    return newUser;
   },
 
   async findUserByEmail(email: string) {

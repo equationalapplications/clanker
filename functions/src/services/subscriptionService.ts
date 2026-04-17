@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/cloudSql.js';
 import { subscriptions } from '../db/schema.js';
 
@@ -24,27 +24,7 @@ export const subscriptionService = {
   },
 
   async upsertSubscription(params: UpsertSubscriptionParams) {
-    const existing = await this.getSubscription(params.userId);
-
-    if (existing) {
-      const [updated] = await db
-        .update(subscriptions)
-        .set({
-          planTier: params.planTier,
-          planStatus: params.planStatus,
-          currentCredits: params.currentCredits ?? existing.currentCredits,
-          stripeSubscriptionId: params.stripeSubscriptionId !== undefined ? params.stripeSubscriptionId : existing.stripeSubscriptionId,
-          stripeCustomerId: params.stripeCustomerId !== undefined ? params.stripeCustomerId : existing.stripeCustomerId,
-          billingCycleStart: params.billingCycleStart !== undefined ? params.billingCycleStart : existing.billingCycleStart,
-          billingCycleEnd: params.billingCycleEnd !== undefined ? params.billingCycleEnd : existing.billingCycleEnd,
-          updatedAt: new Date(),
-        })
-        .where(eq(subscriptions.userId, params.userId))
-        .returning();
-      return updated;
-    }
-
-    const [newSub] = await db
+    const [upserted] = await db
       .insert(subscriptions)
       .values({
         userId: params.userId,
@@ -56,8 +36,21 @@ export const subscriptionService = {
         billingCycleStart: params.billingCycleStart,
         billingCycleEnd: params.billingCycleEnd,
       })
+      .onConflictDoUpdate({
+        target: subscriptions.userId,
+        set: {
+          planTier: params.planTier,
+          planStatus: params.planStatus,
+          currentCredits: params.currentCredits ?? sql`${subscriptions.currentCredits}`,
+          stripeSubscriptionId: params.stripeSubscriptionId ?? sql`${subscriptions.stripeSubscriptionId}`,
+          stripeCustomerId: params.stripeCustomerId ?? sql`${subscriptions.stripeCustomerId}`,
+          billingCycleStart: params.billingCycleStart ?? sql`${subscriptions.billingCycleStart}`,
+          billingCycleEnd: params.billingCycleEnd ?? sql`${subscriptions.billingCycleEnd}`,
+          updatedAt: new Date(),
+        }
+      })
       .returning();
-    return newSub;
+    return upserted;
   },
 
   async acceptTerms(userId: string, version: string, acceptedAt: Date) {

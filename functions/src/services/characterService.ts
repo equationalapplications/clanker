@@ -35,7 +35,7 @@ export const characterService = {
           emotions: character.emotions,
           context: character.context,
           isPublic: character.isPublic,
-          updatedAt: new Date(),
+          updatedAt: character.updatedAt ?? new Date(),
         },
       })
       .returning();
