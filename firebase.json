@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "clanker",
+    "site": "clanker-prod",
     "public": "dist",
     "ignore": [
       "firebase.json",

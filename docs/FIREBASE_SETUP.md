@@ -9,6 +9,8 @@ The app requires two Firebase configuration files that are **NOT** committed to 
 1.  `google-services.json` (Android)
 2.  `GoogleService-Info.plist` (iOS)
 
+If you are migrating projects, always re-download both files from the target Firebase project (`clanker-prod` for current production) before updating EAS env vars or local base64 values.
+
 The method for providing these files differs depending on your build environment.
 
 ---
