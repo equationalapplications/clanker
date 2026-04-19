@@ -178,17 +178,17 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
       return;
     }
 
-      const authHeader = req.headers["authorization"];
-      const normalizedHeader = typeof authHeader === "string" ? authHeader.trim() : null;
-      const bearerPrefix = "Bearer ";
-      const providedSecret =
-        typeof normalizedHeader === "string" && normalizedHeader.startsWith(bearerPrefix)
-          ? normalizedHeader.slice(bearerPrefix.length)
-          : normalizedHeader;
+    const authHeader = req.headers["authorization"];
+    const normalizedHeader = typeof authHeader === "string" ? authHeader.trim() : null;
+    const bearerPrefix = "Bearer ";
+    const providedSecret =
+      typeof normalizedHeader === "string" && normalizedHeader.startsWith(bearerPrefix)
+        ? normalizedHeader.slice(bearerPrefix.length)
+        : normalizedHeader;
 
-      // Accept both "Authorization: Bearer <secret>" and "Authorization: <secret>".
-      const isValid = constantTimeEquals(providedSecret, webhookSecret);
-    
+    // Accept both "Authorization: Bearer <secret>" and "Authorization: <secret>".
+    const isValid = constantTimeEquals(providedSecret, webhookSecret);
+
     if (!isValid) {
       logger.warn("RevenueCat webhook: invalid Authorization header");
       res.status(401).send("Unauthorized");
