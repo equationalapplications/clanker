@@ -21,6 +21,25 @@ const REVENUECAT_CREDIT_PACK_IDS = new Set([
   "credit_pack_100",
   "credit_100",
 ]);
+
+function constantTimeEquals(provided: string | null, expected: string): boolean {
+  if (typeof provided !== "string") {
+    return false;
+  }
+
+  const providedBuffer = Buffer.from(provided);
+  const expectedBuffer = Buffer.from(expected);
+
+  if (providedBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  try {
+    return timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 const CREDIT_PACK_AMOUNT = 100;
 const APP_NAME = "clanker";
 
@@ -40,12 +59,71 @@ interface RevenueCatEvent {
 }
 
 export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
-  const payload = typeof body === "object" && body !== null ?
-    body as {event?: unknown} :
+  let parsedBody: unknown = body;
+  const parseTextBody = (textBody: string): unknown => {
+    const trimmed = textBody.trim();
+    if (trimmed.length === 0) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      // RevenueCat or proxies may deliver as application/x-www-form-urlencoded.
+      // Only attempt form parse if the text looks like form data (contains = or &).
+      const looksLikeFormData = trimmed.includes("=") || trimmed.includes("&");
+      if (looksLikeFormData) {
+        const params = new URLSearchParams(trimmed);
+        if (params.has("event")) {
+          const eventParam = params.get("event");
+          if (eventParam === null) {
+            throw new Error("Invalid form event payload");
+          }
+          try {
+            const parsedEvent = JSON.parse(eventParam);
+            const apiVersion = params.get("api_version");
+            return {
+              ...(apiVersion ? {api_version: apiVersion} : {}),
+              event: parsedEvent,
+            };
+          } catch {
+            throw new Error("Invalid form event payload");
+          }
+        }
+      }
+
+      throw new Error("Invalid JSON body");
+    }
+  };
+
+  if (typeof body === "string") {
+    parsedBody = parseTextBody(body);
+  } else if (Buffer.isBuffer(body)) {
+    parsedBody = parseTextBody(body.toString("utf8"));
+  } else if (body instanceof Uint8Array) {
+    parsedBody = parseTextBody(Buffer.from(body).toString("utf8"));
+  }
+
+  const payload = typeof parsedBody === "object" && parsedBody !== null ?
+    parsedBody as Record<string, unknown> :
     null;
-  const event = typeof payload?.event === "object" && payload.event !== null ?
-    payload.event as Record<string, unknown> :
-    null;
+  const rawEvent = payload?.event ?? payload;
+  const event = typeof rawEvent === "object" && rawEvent !== null ?
+    rawEvent as Record<string, unknown> :
+    (() => {
+      if (typeof rawEvent !== "string") {
+        return null;
+      }
+
+      try {
+        const parsed = JSON.parse(rawEvent);
+        return typeof parsed === "object" && parsed !== null ?
+          parsed as Record<string, unknown> :
+          null;
+      } catch {
+        return null;
+      }
+    })();
   const type = typeof event?.type === "string" ? event.type.trim() : "";
   const appUserId = typeof event?.app_user_id === "string" ? event.app_user_id.trim() : "";
   const productId = typeof event?.product_id === "string" ? event.product_id.trim() : "";
@@ -65,6 +143,7 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
   const expirationAtMs = event.expiration_at_ms;
   if (
     expirationAtMs !== undefined &&
+    expirationAtMs !== null &&
     (typeof expirationAtMs !== "number" || !Number.isFinite(expirationAtMs))
   ) {
     throw new Error("Invalid event.expiration_at_ms");
@@ -73,6 +152,7 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
   const originalTransactionId = event.original_transaction_id;
   if (
     originalTransactionId !== undefined &&
+    originalTransactionId !== null &&
     typeof originalTransactionId !== "string"
   ) {
     throw new Error("Invalid event.original_transaction_id");
@@ -86,7 +166,8 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
       type,
       app_user_id: appUserId,
       product_id: productId,
-      ...(expirationAtMs !== undefined ? {expiration_at_ms: expirationAtMs} : {}),
+      ...(expirationAtMs !== undefined && expirationAtMs !== null ?
+        {expiration_at_ms: expirationAtMs} : {}),
       ...(normalizedOriginalTransactionId && normalizedOriginalTransactionId.length > 0 ?
         {original_transaction_id: normalizedOriginalTransactionId} : {}),
     },
@@ -108,33 +189,48 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
     }
 
     const authHeader = req.headers["authorization"];
-    const expectedAuth = `Bearer ${webhookSecret}`;
-    
-    // Use constant-time comparison to prevent timing attacks
-    let isValid = false;
-    if (typeof authHeader === "string" && authHeader.length === expectedAuth.length) {
-      try {
-        isValid = timingSafeEqual(
-          Buffer.from(authHeader),
-          Buffer.from(expectedAuth)
-        );
-      } catch {
-        // timingSafeEqual throws if buffers are different lengths; treat as invalid
-        isValid = false;
-      }
-    }
-    
+    const normalizedHeader = typeof authHeader === "string" ? authHeader.trim() : null;
+    const bearerMatch = typeof normalizedHeader === "string" ?
+      normalizedHeader.match(/^Bearer\s+/i) :
+      null;
+    const providedSecret =
+      typeof normalizedHeader === "string" && bearerMatch
+        ? normalizedHeader.slice(bearerMatch[0].length)
+        : normalizedHeader;
+
+    // Accept both "Authorization: Bearer <secret>" and "Authorization: <secret>".
+    const isValid = constantTimeEquals(providedSecret, webhookSecret);
+
     if (!isValid) {
       logger.warn("RevenueCat webhook: invalid Authorization header");
       res.status(401).send("Unauthorized");
       return;
     }
 
+    const reqWithRawBody = req as Request & {rawBody?: Buffer | Uint8Array | string};
+    const bodyForParsing = req.body ?? reqWithRawBody.rawBody;
+
     let payload: RevenueCatEvent;
     try {
-      payload = parseRevenueCatEvent(req.body);
+      payload = parseRevenueCatEvent(bodyForParsing);
     } catch (err) {
-      logger.warn("RevenueCat webhook: failed to parse body", {err});
+      const bodyForDiagnostics = bodyForParsing;
+      const bodyType = bodyForDiagnostics === null ? "null" : typeof bodyForDiagnostics;
+      const bodyConstructor =
+        bodyForDiagnostics !== null && bodyForDiagnostics !== undefined && "constructor" in Object(bodyForDiagnostics) ?
+          (Object(bodyForDiagnostics).constructor?.name ?? "unknown") :
+          "none";
+      const topLevelKeys =
+        bodyForDiagnostics && typeof bodyForDiagnostics === "object" && !Buffer.isBuffer(bodyForDiagnostics) ?
+          Object.keys(bodyForDiagnostics as Record<string, unknown>).slice(0, 20) :
+          [];
+      const errMessage = err instanceof Error ? err.message : String(err);
+      logger.warn("RevenueCat webhook: failed to parse body", {
+        errMessage,
+        bodyType,
+        bodyConstructor,
+        topLevelKeys,
+      });
       res.status(400).send("Invalid payload");
       return;
     }
@@ -143,6 +239,12 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
       payload.event;
 
     logger.info("Received RevenueCat event", {type, app_user_id, product_id});
+
+    // RevenueCat dashboard test events are connectivity checks and do not need user-side effects.
+    if (type === "TEST") {
+      res.status(200).json({received: true});
+      return;
+    }
 
     try {
       // Resolve Supabase user via Firebase UID → email → Supabase user lookup
