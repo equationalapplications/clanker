@@ -4,7 +4,7 @@ This document outlines the architecture and management of Firebase Cloud Functio
 
 ## Overview
 
-`clanker` utilizes several backend services implemented as Firebase Cloud Functions. These functions are deployed to the shared `equationalapplications-com` Firebase project, which also serves other applications from Equational Applications.
+`clanker` utilizes several backend services implemented as Firebase Cloud Functions. These functions are deployed to the dedicated `clanker-prod` Firebase project.
 
 For details on the `exchangeToken` bridge extraction, see [firebase-auth-supabase-bridge](./FIREBASE_AUTH_SUPABASE_BRIDGE.md).
 
@@ -189,13 +189,13 @@ Use this checklist when setting up Firebase Functions for a new environment.
 Use this when rotating `STRIPE_SECRET_KEY`.
 
 1. Set the new secret version:
-   - `printf '%s' '<new-sk-live-or-sk-test-value>' | firebase functions:secrets:set STRIPE_SECRET_KEY --project equationalapplications-com`
+  - `printf '%s' '<new-sk-live-or-sk-test-value>' | firebase functions:secrets:set STRIPE_SECRET_KEY --project clanker-prod`
 2. Verify versions:
-   - `firebase functions:secrets:get STRIPE_SECRET_KEY --project equationalapplications-com`
+  - `firebase functions:secrets:get STRIPE_SECRET_KEY --project clanker-prod`
 3. Redeploy Stripe-dependent functions so they pick up the new secret version:
-   - `firebase deploy --only functions:clanker:purchasePackageStripe,functions:clanker:stripeWebhook --project equationalapplications-com`
+  - `firebase deploy --only functions:clanker:purchasePackageStripe,functions:clanker:stripeWebhook --project clanker-prod`
 4. (Optional) Disable old versions after validation:
-   - `firebase functions:secrets:destroy STRIPE_SECRET_KEY@<old-version> --project equationalapplications-com`
+  - `firebase functions:secrets:destroy STRIPE_SECRET_KEY@<old-version> --project clanker-prod`
 
 Important:
 - In this repo, targeted deploy filters must include the codebase prefix (`functions:clanker:<name>`), otherwise Firebase can report "No function matches given --only filters".
@@ -209,11 +209,11 @@ cd functions
 npm run deploy
 ```
 
-This script is defined in `functions/package.json` and is configured to deploy to the `equationalapplications-com` project.
+This script is defined in `functions/package.json` and is configured to deploy to the `clanker-prod` project.
 
 ```json
 "scripts": {
-  "deploy": "firebase deploy --only functions -P equationalapplications-com"
+  "deploy": "firebase deploy --only functions -P clanker-prod"
 }
 ```
 
@@ -221,7 +221,7 @@ This script is defined in `functions/package.json` and is configured to deploy t
 
 Due to a strict Google Cloud Organization policy ("Domain Restricted Sharing"), Cloud Run services (which power Firebase Gen 2 functions) are blocked from being publicly accessible by default. However, Firebase `onCall` functions and webhooks *must* be accessible by `allUsers` at the infrastructure layer so that the SDKs and external services can reach them.
 
-To resolve this, an organization policy exception is configured using a custom tag: `1035311523842/allUsersIngress/True`. 
+To resolve this, an organization policy exception is configured using custom tag `1035311523842/allUsersIngress/True`.
 
 When you deploy a **new** Firebase function, the Firebase CLI will log a warning that it failed to set the invoker permissions, and the deployed function will be inaccessible (returning `403 Forbidden` errors). You must manually attach this tag to the underlying Cloud Run service and grant the invoker role.
 
@@ -229,8 +229,8 @@ When you deploy a **new** Firebase function, the Firebase CLI will log a warning
 
 | Value | Description |
 |---|---|
-| **Project ID** | `equationalapplications-com` |
-| **Project Number** | `790870307455` |
+| **Project ID** | `clanker-prod` |
+| **Project Number** | `54051268985` |
 | **Region** | `us-central1` |
 | **Org ID** | `1035311523842` |
 | **Tag** | `1035311523842/allUsersIngress/True` |
@@ -252,11 +252,19 @@ All callable and webhook Cloud Run services must have the tag. Current list:
 - `admincleartermsacceptance`
 - `adminresetuserstate`
 - `admindeleteuser`
+- `deletemyaccount`
 
 ### Commands
 
 Replace `FUNCTION_NAME` with the lowercase Cloud Run service name (e.g. `adminlistusers`).
-The commands below are production-specific for `equationalapplications-com`; if you are running in a different project/region, replace project number and region first.
+Set these shell variables first, then run commands as-is:
+
+```bash
+PROJECT_ID="clanker-prod"
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+REGION="us-central1"
+TAG_VALUE="1035311523842/allUsersIngress/True"
+```
 
 Use these discovery commands before running tag or IAM updates in non-production environments:
 
@@ -269,14 +277,14 @@ gcloud run services list --platform=managed --format='table(metadata.name,metada
 ```bash
 # 1. Attach the tag to bypass the organization policy
 gcloud resource-manager tags bindings create \
-  --tag-value="1035311523842/allUsersIngress/True" \
-  --parent="//run.googleapis.com/projects/790870307455/locations/us-central1/services/FUNCTION_NAME" \
-  --location=us-central1
+  --tag-value="$TAG_VALUE" \
+  --parent="//run.googleapis.com/projects/$PROJECT_NUMBER/locations/$REGION/services/FUNCTION_NAME" \
+  --location="$REGION"
 
 # 2. Wait ~15 seconds, then grant public invocation access
 gcloud run services add-iam-policy-binding FUNCTION_NAME \
-  --project=equationalapplications-com \
-  --region=us-central1 \
+  --project="$PROJECT_ID" \
+  --region="$REGION" \
   --member="allUsers" \
   --role="roles/run.invoker"
 ```
@@ -286,23 +294,23 @@ To tag and grant access to **all services at once**:
 ```bash
 for fn in exchangetoken generatereply generateimage purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
-  adminresetuserstate admindeleteuser; do
+  adminresetuserstate admindeleteuser deletemyaccount; do
   echo "=== $fn ==="
   gcloud resource-manager tags bindings create \
-    --tag-value="1035311523842/allUsersIngress/True" \
-    --parent="//run.googleapis.com/projects/790870307455/locations/us-central1/services/$fn" \
-    --location=us-central1
+    --tag-value="$TAG_VALUE" \
+    --parent="//run.googleapis.com/projects/$PROJECT_NUMBER/locations/$REGION/services/$fn" \
+    --location="$REGION"
 done
 
 # Wait ~15 seconds for tag propagation, then:
 
 for fn in exchangetoken generatereply generateimage purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
-  adminresetuserstate admindeleteuser; do
+  adminresetuserstate admindeleteuser deletemyaccount; do
   echo "=== $fn ==="
   gcloud run services add-iam-policy-binding "$fn" \
-    --project=equationalapplications-com \
-    --region=us-central1 \
+    --project="$PROJECT_ID" \
+    --region="$REGION" \
     --member="allUsers" \
     --role="roles/run.invoker"
 done
@@ -313,12 +321,59 @@ To **verify** which services have the tag:
 ```bash
 for fn in exchangetoken generatereply generateimage purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
-  adminresetuserstate admindeleteuser; do
+  adminresetuserstate admindeleteuser deletemyaccount; do
   echo "=== $fn ==="
   gcloud resource-manager tags bindings list \
-    --parent="//run.googleapis.com/projects/790870307455/locations/us-central1/services/$fn" \
-    --location=us-central1 2>&1
+    --parent="//run.googleapis.com/projects/$PROJECT_NUMBER/locations/$REGION/services/$fn" \
+    --location="$REGION" 2>&1
 done
 ```
 
 *(Note: You may need to wait 10-15 seconds between attaching the tag and granting the IAM role for the policy exception to propagate. Services that already have the tag will return an ALREADY_EXISTS error — this is safe to ignore.)*
+
+### Troubleshooting: Tag Present But `allUsers` Still Blocked
+
+If `gcloud run services add-iam-policy-binding ... --member="allUsers" --role="roles/run.invoker"` fails with:
+
+- `FAILED_PRECONDITION: One or more users named in the policy do not belong to a permitted customer`
+
+then the tag is attached, but the effective organization policy exception is not active for this project/resource path.
+
+Use this quick verification flow:
+
+```bash
+PROJECT_ID="clanker-prod"
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+REGION="us-central1"
+
+# 1) Confirm tag exists on service
+gcloud resource-manager tags bindings list \
+  --parent="//run.googleapis.com/projects/$PROJECT_NUMBER/locations/$REGION/services/stripewebhook" \
+  --location="$REGION"
+
+# 2) Inspect effective domain-restriction org policy
+gcloud org-policies describe constraints/iam.allowedPolicyMemberDomains \
+  --effective \
+  --project="$PROJECT_ID" \
+  --format=json
+
+# 3) Retry invoker grant (enforcement test)
+gcloud run services add-iam-policy-binding stripewebhook \
+  --project="$PROJECT_ID" \
+  --region="$REGION" \
+  --member="allUsers" \
+  --role="roles/run.invoker"
+```
+
+Interpretation:
+
+- If step 1 shows `1035311523842/allUsersIngress/True` but step 3 still fails, org policy exception rule is missing/mis-scoped.
+- If step 3 succeeds, verify policy includes `allUsers` under `roles/run.invoker`.
+
+Escalation payload for org admin:
+
+- Project: `clanker-prod` (`54051268985`)
+- Services: `stripewebhook`, `revenuecatwebhook`
+- Tag attached: `1035311523842/allUsersIngress/True`
+- Failing command: `gcloud run services add-iam-policy-binding <service> --member="allUsers" --role="roles/run.invoker"`
+- Required fix: ensure effective `constraints/iam.allowedPolicyMemberDomains` policy includes conditional exception for tagged Cloud Run services.
