@@ -23,12 +23,19 @@ const REVENUECAT_CREDIT_PACK_IDS = new Set([
 ]);
 
 function constantTimeEquals(provided: string | null, expected: string): boolean {
-  if (typeof provided !== "string" || provided.length !== expected.length) {
+  if (typeof provided !== "string") {
+    return false;
+  }
+
+  const providedBuffer = Buffer.from(provided);
+  const expectedBuffer = Buffer.from(expected);
+
+  if (providedBuffer.length !== expectedBuffer.length) {
     return false;
   }
 
   try {
-    return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+    return timingSafeEqual(providedBuffer, expectedBuffer);
   } catch {
     return false;
   }
@@ -195,14 +202,14 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
       return;
     }
 
+    const reqWithRawBody = req as Request & {rawBody?: Buffer | Uint8Array | string};
+    const bodyForParsing = req.body ?? reqWithRawBody.rawBody;
+
     let payload: RevenueCatEvent;
     try {
-      const reqWithRawBody = req as Request & {rawBody?: Buffer | Uint8Array | string};
-      const bodyForParsing = req.body ?? reqWithRawBody.rawBody;
       payload = parseRevenueCatEvent(bodyForParsing);
     } catch (err) {
-      const reqWithRawBody = req as Request & {rawBody?: Buffer | Uint8Array | string};
-      const bodyForDiagnostics = req.body ?? reqWithRawBody.rawBody;
+      const bodyForDiagnostics = bodyForParsing;
       const bodyType = bodyForDiagnostics === null ? "null" : typeof bodyForDiagnostics;
       const bodyConstructor =
         bodyForDiagnostics !== null && bodyForDiagnostics !== undefined && "constructor" in Object(bodyForDiagnostics) ?
