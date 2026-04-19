@@ -552,3 +552,76 @@ test("revenueCatWebhookHandler returns 200 for TEST event without external looku
     }
   );
 });
+
+test("revenueCatWebhookHandler accepts lowercase bearer scheme", async () => {
+  await withAdminAuthAndFetchStubs(
+    async () => {
+      throw {code: "auth/user-not-found"};
+    },
+    async () => {
+      throw new Error("Fetch should not be called when user is unknown");
+    },
+    async () => {
+      const res = createResponseRecorder();
+      await revenueCatWebhookHandler(
+        {
+          method: "POST",
+          headers: {
+            authorization: "bearer rc-secret",
+          },
+          body: {
+            event: {
+              type: "TEST",
+              app_user_id: "uid_test",
+              product_id: "test_product",
+            },
+          },
+        } as never,
+        res as never
+      );
+
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(res.body, {received: true});
+    }
+  );
+});
+
+test("revenueCatWebhookHandler accepts uppercase BEARER scheme", async () => {
+  await withAdminAuthAndFetchStubs(
+    async () => {
+      throw {code: "auth/user-not-found"};
+    },
+    async () => {
+      throw new Error("Fetch should not be called when user is unknown");
+    },
+    async () => {
+      const res = createResponseRecorder();
+      await revenueCatWebhookHandler(
+        {
+          method: "POST",
+          headers: {
+            authorization: "BEARER rc-secret",
+          },
+          body: {
+            event: {
+              type: "TEST",
+              app_user_id: "uid_test",
+              product_id: "test_product",
+            },
+          },
+        } as never,
+        res as never
+      );
+
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(res.body, {received: true});
+    }
+  );
+});
+
+test("parseRevenueCatEvent rejects non-form strings with JSON error not form error", () => {
+  assert.throws(
+    () => parseRevenueCatEvent("foo"),
+    {message: "Invalid JSON body"}
+  );
+});

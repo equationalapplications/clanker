@@ -70,22 +70,25 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
       return JSON.parse(trimmed);
     } catch {
       // RevenueCat or proxies may deliver as application/x-www-form-urlencoded.
-      const params = new URLSearchParams(trimmed);
-      if (params.size > 0) {
-        const eventParam = params.get("event");
-        if (!eventParam) {
-          throw new Error("Missing form event payload");
-        }
-
-        try {
-          const parsedEvent = JSON.parse(eventParam);
-          const apiVersion = params.get("api_version");
-          return {
-            ...(apiVersion ? {api_version: apiVersion} : {}),
-            event: parsedEvent,
-          };
-        } catch {
-          throw new Error("Invalid form event payload");
+      // Only attempt form parse if the text looks like form data (contains = or &).
+      const looksLikeFormData = trimmed.includes("=") || trimmed.includes("&");
+      if (looksLikeFormData) {
+        const params = new URLSearchParams(trimmed);
+        if (params.has("event")) {
+          const eventParam = params.get("event");
+          if (eventParam === null) {
+            throw new Error("Invalid form event payload");
+          }
+          try {
+            const parsedEvent = JSON.parse(eventParam);
+            const apiVersion = params.get("api_version");
+            return {
+              ...(apiVersion ? {api_version: apiVersion} : {}),
+              event: parsedEvent,
+            };
+          } catch {
+            throw new Error("Invalid form event payload");
+          }
         }
       }
 
@@ -187,10 +190,12 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
 
     const authHeader = req.headers["authorization"];
     const normalizedHeader = typeof authHeader === "string" ? authHeader.trim() : null;
-    const bearerPrefix = "Bearer ";
+    const bearerMatch = typeof normalizedHeader === "string" ?
+      normalizedHeader.match(/^Bearer\s+/i) :
+      null;
     const providedSecret =
-      typeof normalizedHeader === "string" && normalizedHeader.startsWith(bearerPrefix)
-        ? normalizedHeader.slice(bearerPrefix.length)
+      typeof normalizedHeader === "string" && bearerMatch
+        ? normalizedHeader.slice(bearerMatch[0].length)
         : normalizedHeader;
 
     // Accept both "Authorization: Bearer <secret>" and "Authorization: <secret>".
