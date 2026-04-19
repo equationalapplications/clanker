@@ -8,11 +8,11 @@ This document outlines the architecture and management of Firebase Cloud Functio
 
 For details on the `exchangeToken` bridge extraction, see [firebase-auth-supabase-bridge](./FIREBASE_AUTH_SUPABASE_BRIDGE.md).
 
-The source code for these functions is located in the `/functions` directory at the root of this repository. This is a copy of the original functions from the private `account` repository, and may be customized for `clanker`'s specific needs over time.
+The source code for these functions is located in the `/functions` directory at the root of this repository.
 
-## Multi-Codebase Deployment
+## Codebase Configuration
 
-To prevent conflicts with functions from other repositories deploying to the same Firebase project, `clanker` uses the `codebase` feature in `firebase.json`.
+`clanker` uses the Firebase `codebase` feature in `firebase.json` so targeted deploy filters remain stable and explicit.
 
 **`firebase.json`:**
 ```json
@@ -28,7 +28,7 @@ To prevent conflicts with functions from other repositories deploying to the sam
 }
 ```
 
-By setting `"codebase": "clanker"`, the Firebase CLI knows to only manage functions associated with this codebase. It will not delete or interfere with functions deployed from the `account` repository or any other app.
+By setting `"codebase": "clanker"`, deploy commands can reliably target this app's functions with `functions:clanker:<name>` filters.
 
 ## Core Functions
 
