@@ -85,9 +85,7 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
         planStatus: subscription?.planStatus ?? null,
         currentCredits: subscription?.currentCredits ?? null,
         termsVersion: subscription?.termsVersion ?? null,
-        termsAcceptedAt: subscription?.termsAcceptedAt
-          ? new Date(subscription.termsAcceptedAt).toISOString()
-          : null,
+        termsAcceptedAt: subscription?.termsAcceptedAt ?? null,
       }
       const previousAuthSnapshot = previousAuthSnapshotRef.current
 
