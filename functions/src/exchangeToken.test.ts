@@ -319,6 +319,82 @@ test("exchangeTokenHandler does not reset credits when default subscription crea
   assert.strictEqual(result.subscription.currentCredits, 200);
 });
 
+test("exchangeTokenHandler maps singular Cloud SQL env var error to failed-precondition", async () => {
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async () => {
+        throw new Error("Missing required Cloud SQL environment variable: CLOUD_SQL_DB_NAME");
+      },
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => null,
+      updateUser: async () => {
+        throw new Error("not used");
+      },
+    },
+    subscriptionService: {
+      getSubscription: async () => null,
+      getOrCreateDefaultSubscription: async () => {
+        throw new Error("not used");
+      },
+      upsertSubscription: async () => {
+        throw new Error("not used");
+      },
+      acceptTerms: async () => {},
+    },
+  };
+
+  await assert.rejects(
+    async () => exchangeTokenHandler({
+      auth: {
+        uid: "firebase-uid-err-1",
+        token: {
+          uid: "firebase-uid-err-1",
+          email: "err1@example.com",
+        },
+      },
+    } as never, mockDeps as unknown as ExchangeTokenDeps),
+    (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+  );
+});
+
+test("exchangeTokenHandler maps plural Cloud SQL env vars error to failed-precondition", async () => {
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async () => {
+        throw new Error("Missing required Cloud SQL environment variables: CLOUD_SQL_DB_NAME, CLOUD_SQL_DB_USER");
+      },
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => null,
+      updateUser: async () => {
+        throw new Error("not used");
+      },
+    },
+    subscriptionService: {
+      getSubscription: async () => null,
+      getOrCreateDefaultSubscription: async () => {
+        throw new Error("not used");
+      },
+      upsertSubscription: async () => {
+        throw new Error("not used");
+      },
+      acceptTerms: async () => {},
+    },
+  };
+
+  await assert.rejects(
+    async () => exchangeTokenHandler({
+      auth: {
+        uid: "firebase-uid-err-2",
+        token: {
+          uid: "firebase-uid-err-2",
+          email: "err2@example.com",
+        },
+      },
+    } as never, mockDeps as unknown as ExchangeTokenDeps),
+    (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+  );
+});
+
 test("exchangeTokenHandler throws internal error when userRepository fails", async () => {
   const mockDeps = {
     userRepository: {

@@ -25,7 +25,7 @@ function isIdentityConflictError(error: unknown): boolean {
 
 function isCloudSqlConfigError(error: unknown): boolean {
     const normalized = toErrorMessage(error).toLowerCase();
-    return normalized.includes("missing required cloud sql environment variable");
+    return /missing required cloud sql environment variables?/.test(normalized);
 }
 
 /**
