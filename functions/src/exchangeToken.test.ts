@@ -74,6 +74,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       isProfilePublic: mockUser.isProfilePublic,
       defaultCharacterId: mockUser.defaultCharacterId,
       createdAt: mockUser.createdAt,
+      updatedAt: mockUser.updatedAt,
     },
     subscription: {
       planTier: mockSubscription.planTier,
@@ -141,6 +142,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       isProfilePublic: mockUser.isProfilePublic,
       defaultCharacterId: mockUser.defaultCharacterId,
       createdAt: mockUser.createdAt,
+      updatedAt: mockUser.updatedAt,
     },
     subscription: {
       planTier: mockSubscription.planTier,

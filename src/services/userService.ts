@@ -10,6 +10,7 @@ export interface UserProfile {
   is_profile_public: boolean
   default_character_id: string | null
   created_at: string
+  updated_at: string
 }
 
 export interface UserProfileUpdate {
@@ -55,6 +56,10 @@ const mapUserProfileFromState = (state: BootstrapResponse | null): UserProfile |
       typeof state.user.createdAt === 'string'
         ? state.user.createdAt
         : state.user.createdAt.toISOString(),
+    updated_at:
+      typeof state.user.updatedAt === 'string'
+        ? state.user.updatedAt
+        : state.user.updatedAt.toISOString(),
   }
 }
 
@@ -95,6 +100,8 @@ export const upsertUserProfile = async (
       default_character_id: user.defaultCharacterId,
       created_at:
         typeof user.createdAt === 'string' ? user.createdAt : user.createdAt.toISOString(),
+      updated_at:
+        typeof user.updatedAt === 'string' ? user.updatedAt : user.updatedAt.toISOString(),
     }
   } catch (error) {
     console.error('Error upserting user profile:', error)

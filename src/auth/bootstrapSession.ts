@@ -9,6 +9,7 @@ export interface UserSnapshot {
   isProfilePublic: boolean
   defaultCharacterId: string | null
   createdAt: Date | string
+  updatedAt: Date | string
 }
 
 export interface SubscriptionSnapshot {
@@ -49,6 +50,15 @@ export async function bootstrapSession(): Promise<BootstrapResponse> {
 
     if (!data?.user || !data?.subscription) {
       throw new Error('Invalid bootstrap response: missing user or subscription data')
+    }
+
+    const createdAtValid =
+      typeof data.user.createdAt === 'string' || data.user.createdAt instanceof Date
+    const updatedAtValid =
+      typeof data.user.updatedAt === 'string' || data.user.updatedAt instanceof Date
+
+    if (!createdAtValid || !updatedAtValid) {
+      throw new Error('Invalid bootstrap response: missing or invalid user timestamps')
     }
 
     return data

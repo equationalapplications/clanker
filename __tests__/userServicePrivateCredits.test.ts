@@ -29,6 +29,7 @@ describe('getUserPrivate', () => {
         isProfilePublic: true,
         defaultCharacterId: null,
         createdAt: '2026-04-20T00:00:00.000Z',
+        updatedAt: '2026-04-20T00:00:00.000Z',
       },
       subscription: {
         planTier: 'monthly_20',
@@ -56,6 +57,7 @@ describe('getUserPrivate', () => {
         isProfilePublic: true,
         defaultCharacterId: null,
         createdAt: '2026-04-20T00:00:00.000Z',
+        updatedAt: '2026-04-20T00:00:00.000Z',
       },
       subscription: {
         planTier: 'monthly_20',

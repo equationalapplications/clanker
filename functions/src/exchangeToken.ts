@@ -92,6 +92,7 @@ const handler = async (
                 isProfilePublic: user.isProfilePublic,
                 defaultCharacterId: user.defaultCharacterId,
                 createdAt: user.createdAt,
+                updatedAt: user.updatedAt,
             },
             subscription: {
                 planTier: subscription.planTier,

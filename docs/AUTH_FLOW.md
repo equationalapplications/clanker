@@ -37,7 +37,8 @@ Bootstrap response shape
     "avatarUrl": null,
     "isProfilePublic": false,
     "defaultCharacterId": null,
-    "createdAt": "2026-04-20T12:00:00.000Z"
+    "createdAt": "2026-04-20T12:00:00.000Z",
+    "updatedAt": "2026-04-20T12:05:00.000Z"
   },
   "subscription": {
     "planTier": "free",
