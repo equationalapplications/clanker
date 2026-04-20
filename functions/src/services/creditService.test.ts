@@ -2,12 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
 
 import { assertIdempotentDeltaMatch } from './creditService.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const creditServiceSourcePath = path.resolve(__dirname, '../../src/services/creditService.ts');
+const creditServiceSourcePath = path.resolve(process.cwd(), 'src/services/creditService.ts');
 
 test('assertIdempotentDeltaMatch allows duplicate request when delta matches', () => {
   assert.doesNotThrow(() => {
