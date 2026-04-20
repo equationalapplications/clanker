@@ -106,11 +106,42 @@ Chat history between users and characters.
 - Driver: `pg` (node-postgres)
 - Connector: `@google-cloud/cloud-sql-connector`
 - ORM: Drizzle ORM
-- Connection Strategy: Private IP via VPC Connector
+- **Current strategy**: Public IP (Cloud SQL Connector authenticates via IAM + TLS)
+- **Future strategy**: Private IP via VPC Connector (see [Private-Only Access](#private-only-access))
 - Pool Settings:
     - `max: 5`
     - `idleTimeoutMillis: 30000`
     - `connectionTimeoutMillis: 10000`
+
+## Private-Only Access (Future)
+
+Currently the instance uses a public IP address. For production security hardening, migrate to private-only access:
+
+### Prerequisites
+
+- **Compute Engine API** — Enable for VPC infrastructure management
+- **Serverless VPC Access API** — Enable for Cloud Functions ↔ VPC connectivity
+- **Service Networking API** — Enable for Private Services Access (VPC peering)
+- **Private IP range allocation** — 10.0.0.0/16 or similar on default VPC
+- **Private Services connection** — Peer allocated range to Google-managed network
+- **VPC connector** — Create Serverless VPC Access connector in `us-central1` (e2-micro, 2–4 instances)
+
+### Changes Required
+
+1. **Cloud SQL instance** — Allocate private IP address + disable public IP (brief restart ~1–2 min)
+2. **Cloud Functions** — Update all function configs to use VPC connector egress
+3. **Code** — Change `IpAddressTypes.PUBLIC` → `IpAddressTypes.PRIVATE` in [functions/src/db/cloudSql.ts](../functions/src/db/cloudSql.ts)
+4. **Deploy** — Redeploy functions after infra and code changes
+
+### Cost Implications
+
+- **VPC Connector** — ~$7–$10/month (e2-micro instances, 2–4 replicas)
+- **Cloud SQL** — No change (public/private IP at no additional cost)
+- **Total monthly increase** — ~$7–$10
+
+### Timing
+
+Schedule for post-launch hardening once application stability is confirmed. Not required for MVP.
 
 ## Instance Sizing Recommendations
 

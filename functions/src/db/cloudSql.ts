@@ -64,7 +64,7 @@ async function createDb(): Promise<DbClient> {
   connector = new Connector();
   const clientOpts = await connector.getOptions({
     instanceConnectionName: getRequiredEnv('CLOUD_SQL_CONNECTION_NAME'),
-    ipType: IpAddressTypes.PRIVATE,
+    ipType: IpAddressTypes.PUBLIC,
   });
 
   pool = new pg.Pool({
