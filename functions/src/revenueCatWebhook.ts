@@ -47,6 +47,7 @@ const CREDIT_PACK_AMOUNT = 100;
 
 interface RevenueCatDeps {
   findUserByFirebaseUid: (firebaseUid: string) => Promise<{id: string} | null>;
+  getOrCreateUserByFirebaseUid?: (firebaseUid: string) => Promise<{id: string} | null>;
   upsertSubscription: (
     userId: string,
     planTier: "free" | "monthly_20" | "monthly_50" | "payg",
@@ -61,6 +62,37 @@ const defaultDeps: RevenueCatDeps = {
   async findUserByFirebaseUid(firebaseUid: string) {
     const user = await userRepository.findUserByFirebaseUid(firebaseUid);
     return user ? {id: user.id} : null;
+  },
+  async getOrCreateUserByFirebaseUid(firebaseUid: string) {
+    try {
+      const firebaseUser = await admin.auth().getUser(firebaseUid);
+      const email = firebaseUser.email;
+
+      if (!email) {
+        logger.warn("RevenueCat webhook: Firebase user has no email", {firebaseUid});
+        return null;
+      }
+
+      const user = await userRepository.getOrCreateUserByFirebaseIdentity({
+        firebaseUid,
+        email,
+        displayName: firebaseUser.displayName ?? null,
+        avatarUrl: firebaseUser.photoURL ?? null,
+      });
+      return {id: user.id};
+    } catch (err) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        (err as {code?: unknown}).code === "auth/user-not-found"
+      ) {
+        logger.warn("RevenueCat webhook: Firebase user not found", {firebaseUid});
+        return null;
+      }
+
+      throw err;
+    }
   },
   async upsertSubscription(userId, planTier, planStatus, renewalAt, stripeSubscriptionId) {
     await subscriptionService.upsertSubscription({
@@ -284,11 +316,15 @@ export const revenueCatWebhookHandler = async (
     }
 
     try {
-      const cloudUser = await deps.findUserByFirebaseUid(app_user_id);
+      let cloudUser = await deps.findUserByFirebaseUid(app_user_id);
+      if (!cloudUser && deps.getOrCreateUserByFirebaseUid) {
+        cloudUser = await deps.getOrCreateUserByFirebaseUid(app_user_id);
+      }
+
       if (!cloudUser) {
         logger.warn("RevenueCat webhook: Cloud SQL user not found", {app_user_id, type});
-        // Return 200 to prevent RevenueCat from retrying unknowable events
-        res.status(200).json({received: true});
+        // Return non-2xx so RevenueCat can retry once user identity is available.
+        res.status(503).json({received: false, error: "Cloud SQL user not ready"});
         return;
       }
 

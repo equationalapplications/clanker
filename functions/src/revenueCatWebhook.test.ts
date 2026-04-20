@@ -289,3 +289,81 @@ test("revenueCatWebhookHandler does not map RevenueCat transaction ID to stripeS
   assert.equal(upsertCalls.length, 1);
   assert.equal(upsertCalls[0].stripeSubscriptionId, undefined);
 });
+
+test("revenueCatWebhookHandler bootstraps Cloud SQL user when missing", async () => {
+  const res = createResponseRecorder();
+  const upsertCalls: Array<{
+    userId: string;
+    planTier: string;
+    planStatus: string;
+    renewalAt: Date | null | undefined;
+  }> = [];
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer rc-secret",
+      },
+      body: {
+        event: {
+          type: "INITIAL_PURCHASE",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => null,
+      getOrCreateUserByFirebaseUid: async () => ({id: "cloud-user-bootstrapped"}),
+      upsertSubscription: async (userId, planTier, planStatus, renewalAt) => {
+        upsertCalls.push({userId, planTier, planStatus, renewalAt});
+      },
+      addCredits: async () => undefined,
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls.length, 1);
+  assert.deepEqual(upsertCalls[0], {
+    userId: "cloud-user-bootstrapped",
+    planTier: "monthly_20",
+    planStatus: "active",
+    renewalAt: new Date(Date.UTC(2026, 4, 20)),
+  });
+});
+
+test("revenueCatWebhookHandler returns retryable status when Cloud SQL user is unavailable", async () => {
+  const res = createResponseRecorder();
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer rc-secret",
+      },
+      body: {
+        event: {
+          type: "INITIAL_PURCHASE",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => null,
+      getOrCreateUserByFirebaseUid: async () => null,
+      upsertSubscription: async () => undefined,
+      addCredits: async () => undefined,
+    }
+  );
+
+  assert.equal(res.statusCode, 503);
+  assert.deepEqual(res.body, {
+    received: false,
+    error: "Cloud SQL user not ready",
+  });
+});
