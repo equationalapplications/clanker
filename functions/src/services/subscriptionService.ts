@@ -24,6 +24,26 @@ export const subscriptionService = {
     return result[0] || null;
   },
 
+  async getOrCreateDefaultSubscription(userId: string) {
+    const db = await getDb();
+    await db
+      .insert(subscriptions)
+      .values({
+        userId,
+        planTier: 'free',
+        planStatus: 'active',
+        currentCredits: 50,
+      })
+      .onConflictDoNothing({ target: subscriptions.userId });
+
+    const subscription = await this.getSubscription(userId);
+    if (!subscription) {
+      throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`);
+    }
+
+    return subscription;
+  },
+
   async upsertSubscription(params: UpsertSubscriptionParams) {
     const db = await getDb();
     const [upserted] = await db

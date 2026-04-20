@@ -86,12 +86,7 @@ const handler = async (
         
         if (!subscription) {
             logger.info("Creating default subscription for new user", { userId: user.id });
-            subscription = await deps.subscriptionService.upsertSubscription({
-                userId: user.id,
-                planTier: 'free',
-                planStatus: 'active',
-                currentCredits: 50, // Onboarding credits
-            });
+            subscription = await deps.subscriptionService.getOrCreateDefaultSubscription(user.id);
         }
 
         logger.info("Token exchange/bootstrap successful", {

@@ -47,6 +47,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
     },
     subscriptionService: {
       getSubscription: async () => null, // First call returns null for new user
+      getOrCreateDefaultSubscription: async () => mockSubscription,
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
     },
@@ -117,6 +118,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
     },
     subscriptionService: {
       getSubscription: async () => mockSubscription,
+      getOrCreateDefaultSubscription: async () => mockSubscription,
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
     },
@@ -187,6 +189,7 @@ test("exchangeTokenHandler returns timestamps as ISO strings, not Date objects",
     },
     subscriptionService: {
       getSubscription: async () => mockSubscription,
+      getOrCreateDefaultSubscription: async () => mockSubscription,
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
     },
@@ -244,6 +247,7 @@ test("exchangeTokenHandler returns null termsAcceptedAt as null", async () => {
     },
     subscriptionService: {
       getSubscription: async () => mockSubscription,
+      getOrCreateDefaultSubscription: async () => mockSubscription,
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
     },
@@ -262,6 +266,59 @@ test("exchangeTokenHandler returns null termsAcceptedAt as null", async () => {
   assert.strictEqual(result.subscription.termsAcceptedAt, null);
 });
 
+test("exchangeTokenHandler does not reset credits when default subscription creation races", async () => {
+  const now = new Date("2026-04-20T00:00:00.000Z");
+  const mockUser = {
+    id: "user-race",
+    firebaseUid: "firebase-uid-race",
+    email: "race@example.com",
+    displayName: null,
+    avatarUrl: null,
+    isProfilePublic: false,
+    defaultCharacterId: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const existingSubscription = {
+    userId: "user-race",
+    planTier: "monthly_20",
+    planStatus: "active",
+    currentCredits: 200,
+    termsVersion: "v1",
+    termsAcceptedAt: null,
+  };
+
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async () => mockUser,
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => null,
+      updateUser: async () => mockUser,
+    },
+    subscriptionService: {
+      getSubscription: async () => null,
+      getOrCreateDefaultSubscription: async () => existingSubscription,
+      upsertSubscription: async () => {
+        throw new Error("upsertSubscription should not be used for bootstrap defaults");
+      },
+      acceptTerms: async () => {},
+    },
+  };
+
+  const result = await exchangeTokenHandler({
+    auth: {
+      uid: "firebase-uid-race",
+      token: {
+        uid: "firebase-uid-race",
+        email: "race@example.com",
+      },
+    },
+  } as never, mockDeps as unknown as ExchangeTokenDeps);
+
+  assert.strictEqual(result.subscription.currentCredits, 200);
+});
+
 test("exchangeTokenHandler throws internal error when userRepository fails", async () => {
   const mockDeps = {
     userRepository: {
@@ -274,6 +331,7 @@ test("exchangeTokenHandler throws internal error when userRepository fails", asy
     },
     subscriptionService: {
       getSubscription: async () => null,
+      getOrCreateDefaultSubscription: async () => null,
       upsertSubscription: async () => null,
       acceptTerms: async () => {},
     },
@@ -302,6 +360,7 @@ test("exchangeTokenHandler maps Cloud SQL config errors to failed-precondition",
     },
     subscriptionService: {
       getSubscription: async () => null,
+      getOrCreateDefaultSubscription: async () => null,
       upsertSubscription: async () => null,
       acceptTerms: async () => {},
     },
@@ -349,6 +408,7 @@ test("exchangeTokenHandler throws when required user timestamps are missing", as
     },
     subscriptionService: {
       getSubscription: async () => mockSubscription,
+      getOrCreateDefaultSubscription: async () => mockSubscription,
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
     },

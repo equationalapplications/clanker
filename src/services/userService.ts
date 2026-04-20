@@ -31,7 +31,7 @@ export interface UserPrivate {
   credits: number
   isProfilePublic: boolean | null
   defaultCharacter: string
-  hasAcceptedTermsDate: Date | null
+  hasAcceptedTermsDate: string | null
 }
 
 type Callable<Req, Res> = (payload: Req) => Promise<{ data: Res }>
@@ -134,7 +134,7 @@ export const getUserPrivate = async (): Promise<UserPrivate | null> => {
     credits: state.subscription.currentCredits || 0,
     isProfilePublic: profile.is_profile_public,
     defaultCharacter: profile.default_character_id || '',
-    hasAcceptedTermsDate: state.subscription.termsAcceptedAt ? new Date(state.subscription.termsAcceptedAt) : null,
+    hasAcceptedTermsDate: state.subscription.termsAcceptedAt || null,
   }
 }
 
