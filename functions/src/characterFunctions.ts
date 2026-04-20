@@ -41,6 +41,33 @@ function parseOptionalTimestamp(value: string | undefined, field: 'createdAt' | 
   return parsed;
 }
 
+function parseOptionalTextField(
+  value: unknown,
+  field: 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context'
+): string | null | undefined {
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    throw new HttpsError('invalid-argument', `character.${field} must be a string or null when provided.`);
+  }
+
+  return value;
+}
+
+function parseOptionalIsPublic(value: unknown): boolean | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== 'boolean') {
+    throw new HttpsError('invalid-argument', 'character.isPublic must be a boolean when provided.');
+  }
+
+  return value;
+}
+
 export const syncCharacter = onCall(
   {
     region: 'us-central1',
@@ -84,22 +111,31 @@ export const syncCharacterHandler = async (
   try {
     const createdAt = parseOptionalTimestamp(character.createdAt, 'createdAt');
     const updatedAt = parseOptionalTimestamp(character.updatedAt, 'updatedAt');
+    const avatar = parseOptionalTextField(character.avatar, 'avatar');
+    const appearance = parseOptionalTextField(character.appearance, 'appearance');
+    const traits = parseOptionalTextField(character.traits, 'traits');
+    const emotions = parseOptionalTextField(character.emotions, 'emotions');
+    const context = parseOptionalTextField(character.context, 'context');
+    const isPublic = parseOptionalIsPublic(character.isPublic);
 
     const upserted = await deps.characterService.upsertCharacter({
       ...(character.id ? { id: character.id } : {}),
       userId: user.id,
       name: character.name,
-      avatar: character.avatar,
-      appearance: character.appearance,
-      traits: character.traits,
-      emotions: character.emotions,
-      context: character.context,
-      isPublic: character.isPublic,
+      avatar,
+      appearance,
+      traits,
+      emotions,
+      context,
+      isPublic,
       createdAt,
       updatedAt,
     }, user.id);
     return upserted;
   } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
     logger.error('Failed to sync character', { error });
     throw new HttpsError('internal', 'Failed to sync character.');
   }

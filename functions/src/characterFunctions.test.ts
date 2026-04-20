@@ -91,3 +91,39 @@ test("deleteCharacterHandler rejects non-string characterId", async () => {
       err.message.includes("Character ID is required")
   );
 });
+
+test("syncCharacterHandler rejects invalid optional text fields", async () => {
+  await assert.rejects(
+    async () => syncCharacterHandler({
+      auth,
+      data: {
+        character: {
+          name: "Nova",
+          avatar: 42,
+        },
+      },
+    } as never, buildDeps()),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "invalid-argument" &&
+      err.message.includes("character.avatar must be a string or null")
+  );
+});
+
+test("syncCharacterHandler rejects invalid optional boolean field", async () => {
+  await assert.rejects(
+    async () => syncCharacterHandler({
+      auth,
+      data: {
+        character: {
+          name: "Nova",
+          isPublic: "true",
+        },
+      },
+    } as never, buildDeps()),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "invalid-argument" &&
+      err.message.includes("character.isPublic must be a boolean")
+  );
+});

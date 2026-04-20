@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, check, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, check, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
@@ -41,6 +41,9 @@ export const creditTransactions = pgTable('credit_transactions', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
   userIdIdx: index('credit_transactions_user_id_idx').on(table.userId),
+  idempotencyIdx: uniqueIndex('credit_transactions_idempotency_idx')
+    .on(table.userId, table.reason, table.referenceId)
+    .where(sql`${table.referenceId} IS NOT NULL`),
 }));
 
 export const characters = pgTable('characters', {

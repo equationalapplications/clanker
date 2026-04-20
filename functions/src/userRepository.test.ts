@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-process.env.NODE_ENV = 'test';
-
 import { userRepository } from './services/userRepository.js';
 
 test('getOrCreateUserByFirebaseIdentity rejects email match with different firebase uid', async (t) => {

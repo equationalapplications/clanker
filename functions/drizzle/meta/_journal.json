@@ -8,6 +8,13 @@
       "when": 1776408532549,
       "tag": "0000_dazzling_kid_colt",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777003200000,
+      "tag": "0001_credit_transactions_idempotency",
+      "breakpoints": true
     }
   ]
 }
