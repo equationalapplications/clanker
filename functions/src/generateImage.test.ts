@@ -374,3 +374,58 @@ test("generateImageHandler maps identity conflicts to failed-precondition", asyn
     );
   });
 });
+
+test("generateImageHandler maps Vertex IAM permission denial to failed-precondition", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => {
+      spendCalls += 1;
+      return true;
+    };
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateImageHandler(
+          {
+            auth,
+            data: {
+              prompt: "hero portrait",
+            },
+          } as never,
+          {
+            generateImage: async () => {
+              throw {
+                name: "ClientError",
+                stackTrace: {
+                  code: 403,
+                  status: "PERMISSION_DENIED",
+                  errorDetails: [
+                    {
+                      reason: "IAM_PERMISSION_DENIED",
+                      metadata: {
+                        permission: "aiplatform.endpoints.predict",
+                        resource: "projects/clanker-prod/locations/us-central1/publishers/google/models/gemini-2.5-flash-image",
+                      },
+                    },
+                  ],
+                },
+              };
+            },
+          }
+        ),
+      (err: unknown) =>
+        err instanceof HttpsError &&
+        err.code === "failed-precondition" &&
+        err.message.includes("Vertex AI permission")
+    );
+
+    assert.equal(spendCalls, 0);
+  });
+});

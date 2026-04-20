@@ -44,19 +44,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseOptionalTimestamp(value: string | undefined, field: 'createdAt' | 'updatedAt'): Date | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  const parsed = new Date(value);
-  if (!Number.isFinite(parsed.getTime())) {
-    throw new HttpsError('invalid-argument', `${field} must be a valid timestamp when provided.`);
-  }
-
-  return parsed;
-}
-
 function parseOptionalTextField(
   value: unknown,
   field: 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context'
@@ -119,8 +106,6 @@ export const syncCharacterHandler = async (
     throw new HttpsError('invalid-argument', 'character.name must be a non-empty string.');
   }
 
-  const createdAt = parseOptionalTimestamp(character.createdAt, 'createdAt');
-  const updatedAt = parseOptionalTimestamp(character.updatedAt, 'updatedAt');
   const avatar = parseOptionalTextField(character.avatar, 'avatar');
   const appearance = parseOptionalTextField(character.appearance, 'appearance');
   const traits = parseOptionalTextField(character.traits, 'traits');
@@ -144,8 +129,8 @@ export const syncCharacterHandler = async (
       emotions,
       context,
       isPublic,
-      createdAt,
-      updatedAt,
+      createdAt: undefined,
+      updatedAt: undefined,
     }, user.id);
 
     return serializeCharacter(upserted as unknown as Record<string, unknown>);

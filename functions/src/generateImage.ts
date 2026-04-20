@@ -105,6 +105,42 @@ function isIdentityConflictError(error: unknown): boolean {
   return toErrorMessage(error).toLowerCase().includes("different firebase uid");
 }
 
+function isVertexIamPermissionDenied(error: unknown): boolean {
+  const message = toErrorMessage(error).toLowerCase();
+  if (
+    message.includes("iam_permission_denied") ||
+    message.includes("aiplatform.endpoints.predict")
+  ) {
+    return true;
+  }
+
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const raw = error as {
+    code?: number;
+    status?: string;
+    details?: Array<{reason?: string; metadata?: {permission?: string}}>;
+    stackTrace?: {
+      code?: number;
+      status?: string;
+      errorDetails?: Array<{reason?: string; metadata?: {permission?: string}}>;
+    };
+  };
+
+  const code = raw.stackTrace?.code ?? raw.code;
+  const status = (raw.stackTrace?.status ?? raw.status ?? "").toString().toUpperCase();
+  const details = [...(raw.stackTrace?.errorDetails ?? []), ...(raw.details ?? [])];
+  const detailSignals = details.some((detail) => {
+    const reason = (detail.reason ?? "").toUpperCase();
+    const permission = detail.metadata?.permission ?? "";
+    return reason === "IAM_PERMISSION_DENIED" || permission === "aiplatform.endpoints.predict";
+  });
+
+  return (code === 403 || status === "PERMISSION_DENIED") && detailSignals;
+}
+
 function getProjectId(): string | undefined {
   const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
   const value = fromEnv?.trim();
@@ -434,6 +470,14 @@ const handler = async (
 
     if (error instanceof HttpsError) {
       throw error;
+    }
+
+    if (isVertexIamPermissionDenied(error)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Vertex AI permission missing for generateimage runtime service account. " +
+          "Grant roles/aiplatform.user and retry."
+      );
     }
 
     throw new HttpsError("internal", "Failed to generate image.");

@@ -317,3 +317,53 @@ test("exchangeTokenHandler maps Cloud SQL config errors to failed-precondition",
     (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
   );
 });
+
+test("exchangeTokenHandler throws when required user timestamps are missing", async () => {
+  const mockUser = {
+    id: "user-missing-ts",
+    firebaseUid: "firebase-uid-missing-ts",
+    email: "missing-ts@example.com",
+    displayName: null,
+    avatarUrl: null,
+    isProfilePublic: false,
+    defaultCharacterId: null,
+    createdAt: undefined,
+    updatedAt: new Date(),
+  };
+
+  const mockSubscription = {
+    userId: "user-missing-ts",
+    planTier: "free",
+    planStatus: "active",
+    currentCredits: 50,
+    termsVersion: null,
+    termsAcceptedAt: null,
+  };
+
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async () => mockUser,
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => null,
+      updateUser: async () => mockUser,
+    },
+    subscriptionService: {
+      getSubscription: async () => mockSubscription,
+      upsertSubscription: async () => mockSubscription,
+      acceptTerms: async () => {},
+    },
+  };
+
+  await assert.rejects(
+    async () => exchangeTokenHandler({
+      auth: {
+        uid: "firebase-uid-missing-ts",
+        token: {
+          uid: "firebase-uid-missing-ts",
+          email: "missing-ts@example.com",
+        },
+      },
+    } as never, mockDeps as unknown as ExchangeTokenDeps),
+    (err: unknown) => err instanceof HttpsError && err.code === "internal"
+  );
+});

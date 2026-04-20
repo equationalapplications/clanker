@@ -25,7 +25,7 @@ function isIdentityConflictError(error: unknown): boolean {
 
 function isCloudSqlConfigError(error: unknown): boolean {
     const normalized = toErrorMessage(error).toLowerCase();
-    return normalized.includes("missing required cloud sql environment var");
+    return normalized.includes("missing required cloud sql environment variable");
 }
 
 /**
@@ -102,8 +102,30 @@ const handler = async (
         // Convert Date objects to ISO strings before returning.
         // Firebase callable encode() treats Date as a plain object and
         // serialises it to {} via Object.entries (which is empty for Date).
-        const toISO = (v: unknown): string | null =>
-            v instanceof Date ? v.toISOString() : (v as string | null);
+        const toISO = (v: unknown): string | null => {
+            if (v === null || v === undefined) {
+                return null;
+            }
+
+            if (v instanceof Date) {
+                return v.toISOString();
+            }
+
+            if (typeof v === "string") {
+                return v;
+            }
+
+            throw new Error("Invalid timestamp value in exchangeToken response payload.");
+        };
+
+        const toRequiredISO = (v: unknown, field: string): string => {
+            const iso = toISO(v);
+            if (!iso) {
+                throw new Error(`Missing required timestamp field in exchangeToken response payload: ${field}`);
+            }
+
+            return iso;
+        };
 
         return {
             user: {
@@ -114,8 +136,8 @@ const handler = async (
                 avatarUrl: user.avatarUrl,
                 isProfilePublic: user.isProfilePublic,
                 defaultCharacterId: user.defaultCharacterId,
-                createdAt: toISO(user.createdAt),
-                updatedAt: toISO(user.updatedAt),
+                createdAt: toRequiredISO(user.createdAt, "user.createdAt"),
+                updatedAt: toRequiredISO(user.updatedAt, "user.updatedAt"),
             },
             subscription: {
                 planTier: subscription.planTier,

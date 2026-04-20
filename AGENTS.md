@@ -5,7 +5,7 @@
 
 # Run Checks
 
-  Run the following commands to ensure your code is clean and error-free:
+  After changing the expo app (root) or cloud functions (functions/), run these checks:
 
   ```bash
   npm run typecheck
