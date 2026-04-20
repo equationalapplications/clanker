@@ -9,8 +9,8 @@ export const users = pgTable('users', {
   avatarUrl: text('avatar_url'),
   isProfilePublic: boolean('is_profile_public').notNull().default(false),
   defaultCharacterId: uuid('default_character_id'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const subscriptions = pgTable('subscriptions', {

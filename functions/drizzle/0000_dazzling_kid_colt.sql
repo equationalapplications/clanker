@@ -60,8 +60,8 @@ CREATE TABLE "users" (
 	"avatar_url" text,
 	"is_profile_public" boolean DEFAULT false NOT NULL,
 	"default_character_id" uuid,
-	"created_at" timestamp with time zone DEFAULT now(),
-	"updated_at" timestamp with time zone DEFAULT now(),
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "users_firebase_uid_unique" UNIQUE("firebase_uid"),
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
