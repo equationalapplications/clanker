@@ -1,6 +1,6 @@
 # Clanker
 
-> An AI chatbot Expo app with Firebase + Supabase architecture. Users create custom characters and chat with them using Vertex AI, with subscription-based access control.
+> An AI chatbot Expo app with Firebase + Cloud SQL architecture. Users create custom characters and chat with them using Vertex AI, with subscription-based access control.
 
 ## Getting Started
 
@@ -14,7 +14,7 @@
 
 ## Architecture & Auth
 
-- [Auth flow (concise)](docs/AUTH_FLOW.md) — Step-by-step: Firebase Auth → `exchangeToken` cloud function → Supabase session tokens.
+- [Auth flow (concise)](docs/AUTH_FLOW.md) — Step-by-step: Firebase Auth → `exchangeToken` cloud function → Cloud SQL bootstrap payload.
 - [Auth source-of-truth](docs/AUTH_SOURCE_OF_TRUTH.md) — Why Firebase is the canonical identity provider and how Supabase is used downstream.
 - [Auth provider name sync](docs/AUTH_PROVIDER_NAME_SYNC.md) — How Apple/Google names are captured and synced to profile display data.
 - [Firebase setup](docs/FIREBASE_SETUP.md) — How to configure mobile Firebase app files for EAS builds and local builds.
@@ -53,7 +53,7 @@
 - **Frontend**: React Native 0.81, Expo SDK 54, TypeScript 5.9
 - **Navigation**: Expo Router (file-based routing)
 - **Authentication**: Firebase Auth
-- **Backend**: Supabase (PostgreSQL + Storage + Real-time)
+- **Backend**: Firebase Functions + Cloud SQL (PostgreSQL)
 - **AI**: Google Cloud Vertex AI
 - **State Management**: React Query (TanStack Query)
 - **Payments**: Stripe

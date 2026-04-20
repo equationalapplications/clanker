@@ -1,84 +1,19 @@
 import {onCall, CallableRequest, HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
-import {getSupabaseUrl} from "./runtimeConfig.js";
+import {and, count, desc, eq, ilike, inArray, or} from "drizzle-orm";
 import {requireAdmin} from "./adminAuth.js";
-import {findSupabaseUserByEmail, findSupabaseUserByFirebaseUid} from "./supabaseAdmin.js";
+import {getDb} from "./db/cloudSql.js";
+import {users, subscriptions, characters, messages} from "./db/schema.js";
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-const APP_NAME = "clanker";
 const DEFAULT_RESET_CREDITS = 50;
 const MAX_SAFE_DB_CREDITS = 2_147_483_647;
 const ALLOWED_PLAN_TIERS = new Set(["free", "monthly_20", "monthly_50", "payg"]);
 const ALLOWED_PLAN_STATUS = new Set(["active", "cancelled", "expired"]);
-const UNKNOWN_PLAN_VALUE = "unknown";
-
-function normalizePlanTier(value: unknown): string {
-  if (typeof value === "string" && ALLOWED_PLAN_TIERS.has(value)) {
-    return value;
-  }
-  return UNKNOWN_PLAN_VALUE;
-}
-
-function normalizePlanStatus(value: unknown): string {
-  if (typeof value === "string" && ALLOWED_PLAN_STATUS.has(value)) {
-    return value;
-  }
-  return UNKNOWN_PLAN_VALUE;
-}
-
-function normalizeWritablePlanTier(value: unknown): string {
-  const normalized = normalizePlanTier(value);
-  return normalized === UNKNOWN_PLAN_VALUE ? "free" : normalized;
-}
-
-function normalizeWritablePlanStatus(value: unknown): string {
-  const normalized = normalizePlanStatus(value);
-  return normalized === UNKNOWN_PLAN_VALUE ? "active" : normalized;
-}
-
-function normalizeCurrentCredits(value: unknown): number {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    return 0;
-  }
-  return Math.floor(parsed);
-}
-
-function parseRenewalDate(value: unknown): string | null {
-  if (value == null) {
-    return null;
-  }
-
-  if (typeof value !== "string") {
-    throw new HttpsError("invalid-argument", "renewalDate must be a string or null.");
-  }
-
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return null;
-  }
-
-  const isoUtcPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
-  if (!isoUtcPattern.test(trimmed)) {
-    throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
-  }
-
-  const parsedDate = new Date(trimmed);
-  if (Number.isNaN(parsedDate.getTime())) {
-    throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
-  }
-
-  const normalized = parsedDate.toISOString();
-  if (trimmed !== normalized && trimmed !== normalized.replace(".000Z", "Z")) {
-    throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
-  }
-
-  return normalized;
-}
 
 interface AdminListUsersData {
   page?: number;
@@ -102,51 +37,6 @@ interface SetSubscriptionData extends AdminMutationData {
   planTier: string;
   planStatus: string;
   renewalDate?: string | null;
-}
-
-function getSupabaseServiceRoleKey(): string | undefined {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY;
-}
-
-function assertSupabaseConfig(): {supabaseUrl: string; serviceKey: string} {
-  const supabaseUrl = getSupabaseUrl();
-  const serviceKey = getSupabaseServiceRoleKey();
-
-  if (!supabaseUrl || !serviceKey) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL."
-    );
-  }
-
-  return {supabaseUrl: supabaseUrl.replace(/\/+$/, ""), serviceKey};
-}
-
-async function supabaseRequest(
-  path: string,
-  init: RequestInit = {},
-  headers: Record<string, string> = {}
-): Promise<Response> {
-  const {supabaseUrl, serviceKey} = assertSupabaseConfig();
-  const response = await fetch(`${supabaseUrl}${path}`, {
-    ...init,
-    headers: {
-      "Authorization": `Bearer ${serviceKey}`,
-      "apikey": serviceKey,
-      "Content-Type": "application/json",
-      ...headers,
-    },
-  });
-
-  return response;
-}
-
-async function parseJsonSafe<T>(response: Response): Promise<T | null> {
-  try {
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
 }
 
 function assertRequestId(requestId: unknown): string {
@@ -173,6 +63,55 @@ function assertReason(reason: unknown): string {
   return reason.trim();
 }
 
+function parseRenewalDate(value: unknown): Date | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new HttpsError("invalid-argument", "renewalDate must be a string or null.");
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const isoUtcPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+  if (!isoUtcPattern.test(trimmed)) {
+    throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
+  }
+
+  const parsedDate = new Date(trimmed);
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
+  }
+
+  return parsedDate;
+}
+
+function normalizePlanTier(value: unknown): "free" | "monthly_20" | "monthly_50" | "payg" {
+  if (typeof value === "string" && ALLOWED_PLAN_TIERS.has(value)) {
+    return value as "free" | "monthly_20" | "monthly_50" | "payg";
+  }
+  return "free";
+}
+
+function normalizePlanStatus(value: unknown): "active" | "cancelled" | "expired" {
+  if (typeof value === "string" && ALLOWED_PLAN_STATUS.has(value)) {
+    return value as "active" | "cancelled" | "expired";
+  }
+  return "active";
+}
+
+function normalizeCurrentCredits(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+  return Math.floor(parsed);
+}
+
 function auditLog(
   actorUid: string,
   actorEmail: string | null,
@@ -192,255 +131,53 @@ function auditLog(
   });
 }
 
-async function getSubscriptionRow(userId: string): Promise<Record<string, unknown> | null> {
-  const response = await supabaseRequest(
-    `/rest/v1/user_app_subscriptions?user_id=eq.${encodeURIComponent(userId)}&app_name=eq.${APP_NAME}&select=*`
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    logger.error("Failed to fetch user subscription", {userId, errorText});
-    throw new HttpsError("internal", "Failed to fetch subscription.");
-  }
-
-  const rows = await parseJsonSafe<Array<Record<string, unknown>>>(response);
-  return rows && rows.length > 0 ? rows[0] : null;
+async function getUserById(userId: string) {
+  const db = await getDb();
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return result[0] ?? null;
 }
 
-async function getSubscriptionRowsByUserIds(
-  userIds: string[]
-): Promise<Map<string, Record<string, unknown>>> {
-  const uniqueUserIds = Array.from(new Set(userIds.filter((userId) => userId.length > 0)));
-  if (uniqueUserIds.length === 0) {
-    return new Map<string, Record<string, unknown>>();
-  }
+async function getUserByFirebaseUid(firebaseUid: string) {
+  const db = await getDb();
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.firebaseUid, firebaseUid))
+    .limit(1);
+  return result[0] ?? null;
+}
 
-  const userIdFilter = `in.(${uniqueUserIds
-    .map((userId) => `"${userId.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`)
-    .join(",")})`;
-  const params = new URLSearchParams({
-    app_name: `eq.${APP_NAME}`,
-    user_id: userIdFilter,
-    select: "user_id,plan_tier,plan_status,current_credits,terms_accepted_at,terms_version",
-  });
-
-  const response = await supabaseRequest(`/rest/v1/user_app_subscriptions?${params.toString()}`);
-  if (!response.ok) {
-    const errorText = await response.text();
-    logger.error("Failed to batch fetch user subscriptions", {errorText, userCount: uniqueUserIds.length});
-    throw new HttpsError("internal", "Failed to fetch user subscriptions.");
-  }
-
-  const rows = await parseJsonSafe<Array<Record<string, unknown>>>(response);
-  const byUserId = new Map<string, Record<string, unknown>>();
-  for (const row of rows ?? []) {
-    const rowUserId = typeof row.user_id === "string" ? row.user_id : "";
-    if (rowUserId) {
-      byUserId.set(rowUserId, row);
-    }
-  }
-
-  return byUserId;
+async function getSubscription(userId: string) {
+  const db = await getDb();
+  const result = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .limit(1);
+  return result[0] ?? null;
 }
 
 async function upsertSubscription(
   userId: string,
-  fields: Record<string, unknown>
+  patch: Partial<typeof subscriptions.$inferInsert>
 ): Promise<void> {
-  const response = await supabaseRequest(
-    `/rest/v1/user_app_subscriptions?on_conflict=user_id,app_name`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: userId,
-        app_name: APP_NAME,
-        updated_at: new Date().toISOString(),
-        ...fields,
-      }),
-    },
-    {"Prefer": "resolution=merge-duplicates,return=representation"}
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    logger.error("Failed to upsert user subscription", {userId, errorText});
-    throw new HttpsError("internal", "Failed to update subscription.");
-  }
-}
-
-function isMissingTableError(response: Response, errorText: string): boolean {
-  if (response.status !== 404) {
-    return false;
-  }
-
-  try {
-    const parsedError: unknown = JSON.parse(errorText);
-    if (parsedError && typeof parsedError === "object") {
-      const postgrestError = parsedError as {
-        code?: unknown;
-        message?: unknown;
-      };
-
-      if (postgrestError.code === "PGRST205") {
-        return true;
-      }
-
-      if (
-        typeof postgrestError.message === "string" &&
-        postgrestError.message.includes("Could not find the table")
-      ) {
-        return true;
-      }
-    }
-  } catch {
-    // Fall back to plain-text matching when the response body is not JSON.
-  }
-
-  return errorText.includes("Could not find the table");
-}
-
-async function deleteFromCanonicalTable(
-  tableName: string,
-  query: string
-): Promise<void> {
-  const expectedPath = `/rest/v1/${tableName}`;
-  const matchesExpectedTable = query === expectedPath ||
-    query.startsWith(`${expectedPath}?`);
-
-  if (!matchesExpectedTable) {
-    logger.error("Mismatched canonical table delete query", {
-      tableName,
-      query,
-      expectedPath,
-    });
-    throw new HttpsError(
-      "internal",
-      `Invalid delete query for canonical table ${tableName}.`
-    );
-  }
-
-  const response = await supabaseRequest(query, {method: "DELETE"});
-  if (response.ok) {
-    return;
-  }
-
-  const errorText = await response.text();
-  if (isMissingTableError(response, errorText)) {
-    logger.error("Canonical table missing for admin delete operation", {
-      tableName,
-      errorText,
-    });
-    throw new HttpsError(
-      "failed-precondition",
-      `Database schema mismatch: expected canonical table ${tableName}.`
-    );
-  }
-
-  logger.error("Failed canonical table delete request", {
-    tableName,
-    status: response.status,
-    errorText,
-  });
-
-  throw new HttpsError("internal", `Failed to delete rows from ${tableName}.`);
-}
-
-async function deleteAppDataByUser(userId: string): Promise<void> {
-  const [deleteMessages, deleteCharacters] = await Promise.allSettled([
-    deleteFromCanonicalTable(
-      "yours_brightly_messages",
-      `/rest/v1/yours_brightly_messages?or=(sender_user_id.eq.${encodeURIComponent(userId)},recipient_user_id.eq.${encodeURIComponent(userId)})`
-    ),
-    deleteFromCanonicalTable(
-      "yours_brightly_characters",
-      `/rest/v1/yours_brightly_characters?user_id=eq.${encodeURIComponent(userId)}`
-    ),
-  ]);
-
-  const failedOperations: string[] = [];
-  const operationErrors: unknown[] = [];
-
-  if (deleteMessages.status === "rejected") {
-    failedOperations.push("messages");
-    operationErrors.push(deleteMessages.reason);
-    logger.error("Delete operation failed for user messages", {
+  const db = await getDb();
+  await db
+    .insert(subscriptions)
+    .values({
       userId,
-      error: deleteMessages.reason,
-      errorMessage: deleteMessages.reason instanceof Error ?
-        deleteMessages.reason.message :
-        String(deleteMessages.reason),
+      planTier: "free",
+      planStatus: "active",
+      currentCredits: 0,
+      ...patch,
+    })
+    .onConflictDoUpdate({
+      target: subscriptions.userId,
+      set: {
+        ...patch,
+        updatedAt: new Date(),
+      },
     });
-  }
-
-  if (deleteCharacters.status === "rejected") {
-    failedOperations.push("characters");
-    operationErrors.push(deleteCharacters.reason);
-    logger.error("Delete operation failed for user characters", {
-      userId,
-      error: deleteCharacters.reason,
-      errorMessage: deleteCharacters.reason instanceof Error ?
-        deleteCharacters.reason.message :
-        String(deleteCharacters.reason),
-    });
-  }
-
-  if (failedOperations.length > 0) {
-    const propagatedError = operationErrors.find((error) => error instanceof HttpsError);
-    if (propagatedError instanceof HttpsError) {
-      throw propagatedError;
-    }
-    throw new HttpsError("internal", "Failed to delete all user app data.");
-  }
-}
-
-async function deleteSubscriptionRows(userId: string): Promise<void> {
-  const deleteResponse = await supabaseRequest(
-    `/rest/v1/user_app_subscriptions?user_id=eq.${encodeURIComponent(userId)}&app_name=eq.${encodeURIComponent(APP_NAME)}`,
-    {method: "DELETE"}
-  );
-
-  if (!deleteResponse.ok) {
-    const errorText = await deleteResponse.text();
-    logger.error("Failed to delete user subscriptions", {userId, errorText});
-    throw new HttpsError("internal", "Failed to delete user subscriptions.");
-  }
-}
-
-async function deleteSupabaseAuthUser(userId: string): Promise<void> {
-  // Hard-delete (should_soft_delete: false) to fully remove the auth record
-  // and release the email.  Required for Apple/Google account-deletion
-  // compliance and to allow clean re-registration.
-  const response = await supabaseRequest(`/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
-    method: "DELETE",
-    body: JSON.stringify({should_soft_delete: false}),
-  });
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      logger.info("Supabase auth user already deleted", {userId});
-      return;
-    }
-    const errorText = await response.text();
-    logger.error("Failed to delete Supabase auth user", {userId, errorText});
-    throw new HttpsError("internal", "Failed to delete Supabase auth user.");
-  }
-}
-
-async function getSupabaseAuthUser(userId: string): Promise<Record<string, unknown> | null> {
-  const response = await supabaseRequest(`/auth/v1/admin/users/${encodeURIComponent(userId)}`);
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      logger.info("Supabase auth user not found", {userId});
-      return null;
-    }
-
-    const errorText = await response.text();
-    logger.error("Failed to fetch Supabase auth user", {userId, errorText});
-    throw new HttpsError("internal", "Failed to fetch Supabase auth user.");
-  }
-
-  return parseJsonSafe<Record<string, unknown>>(response);
 }
 
 async function deleteFirebaseAuthUser(firebaseUid: string, logContext: Record<string, unknown>): Promise<void> {
@@ -465,54 +202,6 @@ async function deleteFirebaseAuthUser(firebaseUid: string, logContext: Record<st
   }
 }
 
-async function deleteUserDataAndSupabaseIdentity(userId: string): Promise<void> {
-  await deleteAppDataByUser(userId);
-  await deleteSubscriptionRows(userId);
-  await deleteSupabaseAuthUser(userId);
-}
-
-async function getSupabaseAuthUsers(
-  page: number,
-  pageSize: number,
-  filter?: string
-): Promise<{users: Array<Record<string, unknown>>; totalCount?: number}> {
-  const params = new URLSearchParams({
-    page: String(page),
-    per_page: String(pageSize),
-  });
-
-  // Supabase GoTrue Admin API supports an undocumented "filter" query param.
-  // Confirmed in GoTrue source: FindUsersInAudience applies email/full_name matching server-side.
-  if (typeof filter === "string" && filter.trim().length > 0) {
-    params.set("filter", filter.trim());
-  }
-
-  const response = await supabaseRequest(`/auth/v1/admin/users?${params.toString()}`);
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    logger.error("Failed to list users from Supabase auth admin", {errorText});
-    throw new HttpsError("internal", "Failed to list users.");
-  }
-
-  const payload = await parseJsonSafe<{
-    users?: Array<Record<string, unknown>>;
-    count?: number;
-    total?: number;
-    totalCount?: number;
-  }>(response);
-
-  const responseCountCandidates = [payload?.count, payload?.total, payload?.totalCount];
-  const totalCount = responseCountCandidates.find((value) =>
-    typeof value === "number" && Number.isFinite(value)
-  );
-
-  return {
-    users: payload?.users ?? [],
-    totalCount,
-  };
-}
-
 const adminListUsersHandler = async (request: CallableRequest) => {
   const adminContext = requireAdmin(request);
   const data = (request.data ?? {}) as AdminListUsersData;
@@ -535,93 +224,73 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     ? 25
     : Math.min(100, Math.max(1, Math.floor(rawPageSize)));
   const search = typeof data.search === "string" ? data.search.trim() : "";
-  const hasPlanTierFilter = data.planTier !== undefined;
-  if (hasPlanTierFilter && typeof data.planTier !== "string") {
-    logger.warn("Ignoring non-string planTier filter for adminListUsers", {
-      actorUid: adminContext.actorUid,
-      rawPlanTierType: typeof data.planTier,
-    });
-  }
 
-  const rawPlanTierFilter = typeof data.planTier === "string" ? data.planTier.trim().toLowerCase() : undefined;
-  const planTierFilter = rawPlanTierFilter && ALLOWED_PLAN_TIERS.has(rawPlanTierFilter) ?
-    rawPlanTierFilter :
+  const rawPlanTierFilter =
+    typeof data.planTier === "string" ? data.planTier.trim().toLowerCase() : undefined;
+  const planTierFilter =
+    rawPlanTierFilter && ALLOWED_PLAN_TIERS.has(rawPlanTierFilter) ? rawPlanTierFilter : undefined;
+
+  const rawPlanStatusFilter =
+    typeof data.planStatus === "string" ? data.planStatus.trim().toLowerCase() : undefined;
+  const planStatusFilter =
+    rawPlanStatusFilter && ALLOWED_PLAN_STATUS.has(rawPlanStatusFilter) ?
+      rawPlanStatusFilter :
+      undefined;
+
+  const db = await getDb();
+
+  const searchClause = search.length > 0 ?
+    or(
+      ilike(users.email, `%${search}%`),
+      ilike(users.displayName, `%${search}%`),
+      ilike(users.firebaseUid, `%${search}%`)
+    ) :
     undefined;
-  if (rawPlanTierFilter && !planTierFilter) {
-    logger.warn("Ignoring invalid planTier filter for adminListUsers", {
-      actorUid: adminContext.actorUid,
-      rawPlanTierFilter,
-    });
-  }
 
-  const hasPlanStatusFilter = data.planStatus !== undefined;
-  if (hasPlanStatusFilter && typeof data.planStatus !== "string") {
-    logger.warn("Ignoring non-string planStatus filter for adminListUsers", {
-      actorUid: adminContext.actorUid,
-      rawPlanStatusType: typeof data.planStatus,
-    });
-  }
+  const userRows = await db
+    .select()
+    .from(users)
+    .where(searchClause)
+    .orderBy(desc(users.createdAt))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
-  const rawPlanStatusFilter = typeof data.planStatus === "string" ? data.planStatus.trim().toLowerCase() : undefined;
-  const planStatusFilter = rawPlanStatusFilter && ALLOWED_PLAN_STATUS.has(rawPlanStatusFilter) ?
-    rawPlanStatusFilter :
-    undefined;
-  if (rawPlanStatusFilter && !planStatusFilter) {
-    logger.warn("Ignoring invalid planStatus filter for adminListUsers", {
-      actorUid: adminContext.actorUid,
-      rawPlanStatusFilter,
-    });
-  }
+  const totalResult = await db
+    .select({value: count()})
+    .from(users)
+    .where(searchClause);
+  const totalCount = Number(totalResult[0]?.value ?? 0);
 
-  const {users, totalCount} = await getSupabaseAuthUsers(page, pageSize, search);
-  const userIds = users
-    .map((user) => (typeof user.id === "string" ? user.id : ""))
-    .filter((userId) => userId.length > 0);
-  const subscriptionsByUserId = await getSubscriptionRowsByUserIds(userIds);
+  const userIds = userRows.map((row) => row.id);
+  const subscriptionRows = userIds.length > 0 ?
+    await db
+      .select()
+      .from(subscriptions)
+      .where(inArray(subscriptions.userId, userIds)) :
+    [];
 
-  const hydratedUsers = users.map((user) => {
-    const userId = typeof user.id === "string" ? user.id : "";
-    const subscription = userId ? subscriptionsByUserId.get(userId) : null;
-    const planTier = normalizePlanTier(subscription?.plan_tier);
-    const planStatus = normalizePlanStatus(subscription?.plan_status);
-    const email =
-      typeof user.email === "string"
-        ? user.email
-        : typeof user.phone === "string"
-          ? user.phone
-          : "unknown";
+  const subscriptionsByUserId = new Map(
+    subscriptionRows.map((row) => [row.userId, row])
+  );
 
-    if (subscription && planTier === UNKNOWN_PLAN_VALUE) {
-      logger.warn("Unexpected plan_tier value in subscription row", {
-        userId,
-        rawPlanTier: subscription.plan_tier,
-      });
-    }
-
-    if (subscription && planStatus === UNKNOWN_PLAN_VALUE) {
-      logger.warn("Unexpected plan_status value in subscription row", {
-        userId,
-        rawPlanStatus: subscription.plan_status,
-      });
-    }
+  const hydratedUsers = userRows.map((row) => {
+    const subscription = subscriptionsByUserId.get(row.id);
+    const planTier = normalizePlanTier(subscription?.planTier);
+    const planStatus = normalizePlanStatus(subscription?.planStatus);
 
     return {
-      userId,
-      email,
-      createdAt: user.created_at ?? null,
+      userId: row.id,
+      email: row.email,
+      createdAt: row.createdAt?.toISOString?.() ?? row.createdAt ?? null,
       planTier,
       planStatus,
-      currentCredits: normalizeCurrentCredits(subscription?.current_credits),
-      termsAcceptedAt: (subscription?.terms_accepted_at as string | null) ?? null,
-      termsVersion: (subscription?.terms_version as string | null) ?? null,
+      currentCredits: normalizeCurrentCredits(subscription?.currentCredits),
+      termsAcceptedAt: subscription?.termsAcceptedAt?.toISOString?.() ?? null,
+      termsVersion: subscription?.termsVersion ?? null,
     };
   });
 
   const filtered = hydratedUsers.filter((row) => {
-    if (!row.userId) {
-      return false;
-    }
-
     if (planTierFilter && row.planTier !== planTierFilter) {
       return false;
     }
@@ -643,17 +312,13 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     totalCount,
   });
 
-  const hasMore = typeof totalCount === "number" && Number.isFinite(totalCount)
-    ? page * pageSize < totalCount
-    : hydratedUsers.length === pageSize;
-
   return {
     success: true,
     users: filtered,
     page,
     pageSize,
     totalCount,
-    hasMore,
+    hasMore: page * pageSize < totalCount,
   };
 };
 
@@ -676,31 +341,14 @@ const adminSetUserCreditsHandler = async (request: CallableRequest) => {
     );
   }
 
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new HttpsError("not-found", "User not found.");
+  }
+
   const credits = Math.floor(data.credits);
-  const existingSubscription = await getSubscriptionRow(userId);
-  const planTier = normalizeWritablePlanTier(existingSubscription?.plan_tier);
-  const planStatus = normalizeWritablePlanStatus(existingSubscription?.plan_status);
-
-  if (existingSubscription && planTier === "free" && existingSubscription.plan_tier !== "free") {
-    logger.warn("Coercing unexpected plan_tier while updating credits", {
-      userId,
-      rawPlanTier: existingSubscription.plan_tier,
-      coercedPlanTier: planTier,
-    });
-  }
-
-  if (existingSubscription && planStatus === "active" && existingSubscription.plan_status !== "active") {
-    logger.warn("Coercing unexpected plan_status while updating credits", {
-      userId,
-      rawPlanStatus: existingSubscription.plan_status,
-      coercedPlanStatus: planStatus,
-    });
-  }
-
   await upsertSubscription(userId, {
-    plan_tier: planTier,
-    plan_status: planStatus,
-    current_credits: credits,
+    currentCredits: credits,
   });
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "set_credits", requestId, {
@@ -735,16 +383,28 @@ const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
     throw new HttpsError("invalid-argument", "Invalid plan status.");
   }
 
-  const updates: Record<string, unknown> = {
-    plan_tier: planTier,
-    plan_status: planStatus,
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new HttpsError("not-found", "User not found.");
+  }
+
+  const patch: Partial<typeof subscriptions.$inferInsert> = {
+    planTier: normalizePlanTier(planTier),
+    planStatus: normalizePlanStatus(planStatus),
+  };
+
+  const applied: Record<string, unknown> = {
+    planTier,
+    planStatus,
   };
 
   if (Object.prototype.hasOwnProperty.call(data, "renewalDate")) {
-    updates.plan_renewal_at = parseRenewalDate(data.renewalDate);
+    const renewalDate = parseRenewalDate(data.renewalDate);
+    patch.billingCycleEnd = renewalDate;
+    applied.renewalDate = renewalDate ? renewalDate.toISOString() : null;
   }
 
-  await upsertSubscription(userId, updates);
+  await upsertSubscription(userId, patch);
 
   auditLog(
     adminContext.actorUid,
@@ -753,9 +413,7 @@ const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
     "set_subscription",
     requestId,
     {
-      planTier,
-      planStatus,
-      renewalDate: updates.plan_renewal_at,
+      ...applied,
       reason,
     }
   );
@@ -765,13 +423,7 @@ const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
     action: "adminSetUserSubscription",
     targetUserId: userId,
     requestId,
-    applied: {
-      planTier,
-      planStatus,
-      ...(Object.prototype.hasOwnProperty.call(updates, "plan_renewal_at") ?
-        {renewalDate: updates.plan_renewal_at} :
-        {}),
-    },
+    applied,
   };
 };
 
@@ -783,7 +435,7 @@ const adminClearTermsAcceptanceHandler = async (request: CallableRequest) => {
   const reason = assertReason(data.reason);
   const requestId = assertRequestId(data.requestId);
 
-  const existingSubscription = await getSubscriptionRow(userId);
+  const existingSubscription = await getSubscription(userId);
   if (!existingSubscription) {
     throw new HttpsError(
       "failed-precondition",
@@ -791,31 +443,15 @@ const adminClearTermsAcceptanceHandler = async (request: CallableRequest) => {
     );
   }
 
-  const planTier = normalizeWritablePlanTier(existingSubscription.plan_tier);
-  const planStatus = normalizeWritablePlanStatus(existingSubscription.plan_status);
-
-  if (planTier === "free" && existingSubscription.plan_tier !== "free") {
-    logger.warn("Coercing unexpected plan_tier while clearing terms", {
-      userId,
-      rawPlanTier: existingSubscription.plan_tier,
-      coercedPlanTier: planTier,
-    });
-  }
-
-  if (planStatus === "active" && existingSubscription.plan_status !== "active") {
-    logger.warn("Coercing unexpected plan_status while clearing terms", {
-      userId,
-      rawPlanStatus: existingSubscription.plan_status,
-      coercedPlanStatus: planStatus,
-    });
-  }
-
-  await upsertSubscription(userId, {
-    plan_tier: planTier,
-    plan_status: planStatus,
-    terms_accepted_at: null,
-    terms_version: null,
-  });
+  const db = await getDb();
+  await db
+    .update(subscriptions)
+    .set({
+      termsAcceptedAt: null,
+      termsVersion: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptions.userId, userId));
 
   auditLog(
     adminContext.actorUid,
@@ -843,16 +479,30 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
   const reason = assertReason(data.reason);
   const requestId = assertRequestId(data.requestId);
 
-  await deleteAppDataByUser(userId);
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new HttpsError("not-found", "User not found.");
+  }
+
+  const db = await getDb();
+
+  await db
+    .delete(messages)
+    .where(eq(messages.senderUserId, userId));
+
+  await db
+    .delete(characters)
+    .where(eq(characters.userId, userId));
+
   await upsertSubscription(userId, {
-    plan_tier: "free",
-    plan_status: "active",
-    plan_renewal_at: null,
-    current_credits: DEFAULT_RESET_CREDITS,
-    terms_accepted_at: null,
-    terms_version: null,
-    billing_provider_id: null,
-    billing_metadata: {},
+    planTier: "free",
+    planStatus: "active",
+    billingCycleEnd: null,
+    currentCredits: DEFAULT_RESET_CREDITS,
+    termsAcceptedAt: null,
+    termsVersion: null,
+    stripeCustomerId: null,
+    stripeSubscriptionId: null,
   });
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "reset_user_state", requestId, {
@@ -883,22 +533,21 @@ const adminDeleteUserHandler = async (request: CallableRequest) => {
   const reason = assertReason(data.reason);
   const requestId = assertRequestId(data.requestId);
 
-  const supabaseAuthUser = await getSupabaseAuthUser(userId);
-  const metadataFirebaseUid =
-    typeof supabaseAuthUser?.user_metadata === "object" && supabaseAuthUser.user_metadata
-      ? (supabaseAuthUser.user_metadata as Record<string, unknown>).firebaseUid
-      : null;
-  const firebaseUid = typeof metadataFirebaseUid === "string" ? metadataFirebaseUid : null;
-
-  if (firebaseUid) {
-    await deleteFirebaseAuthUser(firebaseUid, {userId});
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new HttpsError("not-found", "User not found.");
   }
 
-  await deleteUserDataAndSupabaseIdentity(userId);
+  await deleteFirebaseAuthUser(user.firebaseUid, {userId});
+
+  const db = await getDb();
+  await db
+    .delete(users)
+    .where(eq(users.id, userId));
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "delete_user", requestId, {
     reason,
-    firebaseUid,
+    firebaseUid: user.firebaseUid,
   });
 
   return {
@@ -917,45 +566,20 @@ const deleteMyAccountHandler = async (request: CallableRequest) => {
   }
 
   const firebaseUid = auth.uid;
-  const token = auth.token as Record<string, unknown> | undefined;
-  const email = typeof token?.email === "string" ? token.email.trim().toLowerCase() : null;
 
-  let supabaseUserId: string | null = null;
-  try {
-    const userByFirebaseUid = await findSupabaseUserByFirebaseUid(firebaseUid);
-    if (userByFirebaseUid) {
-      supabaseUserId = userByFirebaseUid.id;
-    } else if (email) {
-      const userByEmail = await findSupabaseUserByEmail(email);
-      supabaseUserId = userByEmail?.id ?? null;
-    }
-  } catch (error) {
-    logger.error("Failed to resolve Supabase user for self-service deletion", {
-      firebaseUid,
-      email,
-      error,
-    });
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-    throw new HttpsError("internal", "Failed to resolve account for deletion.");
+  const user = await getUserByFirebaseUid(firebaseUid);
+  if (user) {
+    const db = await getDb();
+    await db
+      .delete(users)
+      .where(eq(users.id, user.id));
   }
 
-  if (supabaseUserId) {
-    await deleteUserDataAndSupabaseIdentity(supabaseUserId);
-  } else {
-    logger.warn("Self-service delete found no Supabase user; deleting Firebase account only", {
-      firebaseUid,
-      email,
-    });
-  }
-
-  await deleteFirebaseAuthUser(firebaseUid, {userId: supabaseUserId, email});
+  await deleteFirebaseAuthUser(firebaseUid, {userId: user?.id ?? null});
 
   logger.info("self_service_delete_account", {
     firebaseUid,
-    email,
-    userId: supabaseUserId,
+    userId: user?.id ?? null,
     deleted: true,
     timestamp: new Date().toISOString(),
   });
@@ -963,7 +587,7 @@ const deleteMyAccountHandler = async (request: CallableRequest) => {
   return {
     success: true,
     deleted: true,
-    userId: supabaseUserId,
+    userId: user?.id ?? null,
   };
 };
 
@@ -981,7 +605,6 @@ const sharedCallableOptions = {
   region: "us-central1" as const,
   enforceAppCheck: true,
   invoker: "public" as const,
-  secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
 };
 
 export const adminListUsers = onCall(sharedCallableOptions, (request) => adminListUsersHandler(request));

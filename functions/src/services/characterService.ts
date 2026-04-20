@@ -68,10 +68,13 @@ export const characterService = {
       return insertedWithProvidedId;
     }
     
-    // Insert new character (userId already set in character object)
+    // Insert new character and always enforce owner from explicit parameter.
     const [inserted] = await db
       .insert(characters)
-      .values(character)
+      .values({
+        ...character,
+        userId,
+      })
       .returning();
     return inserted;
   },

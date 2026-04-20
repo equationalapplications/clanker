@@ -45,7 +45,6 @@
     "@react-navigation/drawer": "^7.9.4",
     "@react-navigation/elements": "^2.9.14",
     "@react-navigation/native": "^7.1.33",
-    "@supabase/supabase-js": "^2.103.0",
     "@tanstack/react-query": "^5.97.0",
     "@tanstack/react-query-persist-client": "^5.97.0",
     "@xstate/react": "^6.1.0",

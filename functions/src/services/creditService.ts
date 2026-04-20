@@ -78,4 +78,36 @@ export const creditService = {
       return updatedCredits;
     });
   },
+
+  async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string): Promise<number> {
+    const db = await getDb();
+    return await db.transaction(async (tx) => {
+      const startingCredits = Math.max(0, delta);
+      const result = await tx
+        .insert(subscriptions)
+        .values({
+          userId,
+          currentCredits: startingCredits,
+        })
+        .onConflictDoUpdate({
+          target: subscriptions.userId,
+          set: {
+            currentCredits: sql`GREATEST(${subscriptions.currentCredits} + ${delta}, 0)`,
+            updatedAt: new Date(),
+          },
+        })
+        .returning({ currentCredits: subscriptions.currentCredits });
+
+      const updatedCredits = result[0].currentCredits;
+
+      await tx.insert(creditTransactions).values({
+        userId,
+        delta,
+        reason,
+        referenceId,
+      });
+
+      return updatedCredits;
+    });
+  },
 };

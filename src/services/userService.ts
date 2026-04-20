@@ -131,8 +131,10 @@ export const getUserPrivate = async (): Promise<UserPrivate | null> => {
     return null
   }
 
+  const isActive = state.subscription.planStatus === 'active'
+
   return {
-    credits: state.subscription.currentCredits || 0,
+    credits: isActive ? state.subscription.currentCredits || 0 : 0,
     isProfilePublic: profile.is_profile_public,
     defaultCharacter: profile.default_character_id || '',
     hasAcceptedTermsDate: state.subscription.termsAcceptedAt ? new Date(state.subscription.termsAcceptedAt) : null,

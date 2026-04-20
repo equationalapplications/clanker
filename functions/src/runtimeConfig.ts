@@ -1,6 +1,5 @@
 import {defineString} from "firebase-functions/params";
 
-const SUPABASE_URL_PARAM = defineString("SUPABASE_URL");
 const STRIPE_MONTHLY_20_PRICE_ID_PARAM = defineString("STRIPE_MONTHLY_20_PRICE_ID");
 const STRIPE_MONTHLY_50_PRICE_ID_PARAM = defineString("STRIPE_MONTHLY_50_PRICE_ID");
 const STRIPE_CREDIT_PACK_PRICE_ID_PARAM = defineString("STRIPE_CREDIT_PACK_PRICE_ID");
@@ -26,10 +25,6 @@ function readParamOrEnv(
   }
   const value = raw?.trim();
   return value ? value : undefined;
-}
-
-export function getSupabaseUrl(): string | undefined {
-  return readParamOrEnv(SUPABASE_URL_PARAM, "SUPABASE_URL");
 }
 
 export function getStripePriceIds(): {

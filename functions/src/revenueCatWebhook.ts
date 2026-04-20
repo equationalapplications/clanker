@@ -3,7 +3,9 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import {timingSafeEqual} from "crypto";
 import type {Request, Response} from "express";
-import {findSupabaseUserByEmail, callSupabaseRpc, upsertUserSubscription} from "./supabaseAdmin.js";
+import {userRepository} from "./services/userRepository.js";
+import {subscriptionService} from "./services/subscriptionService.js";
+import {creditService} from "./services/creditService.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -11,7 +13,7 @@ if (!admin.apps.length) {
 }
 
 // RevenueCat product identifier → DB tier mapping
-const REVENUECAT_PRODUCT_TO_TIER: Record<string, string> = {
+const REVENUECAT_PRODUCT_TO_TIER: Record<string, "monthly_20" | "monthly_50"> = {
   "monthly_20_subscription": "monthly_20",
   "monthly_50_subscription": "monthly_50",
 };
@@ -41,7 +43,37 @@ function constantTimeEquals(provided: string | null, expected: string): boolean 
   }
 }
 const CREDIT_PACK_AMOUNT = 100;
-const APP_NAME = "clanker";
+
+interface RevenueCatDeps {
+  findUserByFirebaseUid: (firebaseUid: string) => Promise<{id: string} | null>;
+  upsertSubscription: (
+    userId: string,
+    planTier: "free" | "monthly_20" | "monthly_50" | "payg",
+    planStatus: "active" | "cancelled" | "expired",
+    renewalAt?: Date | null,
+    stripeSubscriptionId?: string | null
+  ) => Promise<void>;
+  addCredits: (userId: string, amount: number, reason: string, referenceId?: string) => Promise<void>;
+}
+
+const defaultDeps: RevenueCatDeps = {
+  async findUserByFirebaseUid(firebaseUid: string) {
+    const user = await userRepository.findUserByFirebaseUid(firebaseUid);
+    return user ? {id: user.id} : null;
+  },
+  async upsertSubscription(userId, planTier, planStatus, renewalAt, stripeSubscriptionId) {
+    await subscriptionService.upsertSubscription({
+      userId,
+      planTier,
+      planStatus,
+      billingCycleEnd: renewalAt,
+      stripeSubscriptionId,
+    });
+  },
+  async addCredits(userId: string, amount: number, reason: string, referenceId?: string) {
+    await creditService.addCredits(userId, amount, reason, referenceId);
+  },
+};
 
 function isRevenueCatCreditPackProduct(productId: string): boolean {
   return REVENUECAT_CREDIT_PACK_IDS.has(productId);
@@ -174,7 +206,11 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
   };
 }
 
-export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
+export const revenueCatWebhookHandler = async (
+  req: Request,
+  res: Response,
+  deps: RevenueCatDeps = defaultDeps
+) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
       return;
@@ -247,10 +283,9 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
     }
 
     try {
-      // Resolve Supabase user via Firebase UID → email → Supabase user lookup
-      const supabaseUserId = await resolveSupabaseUserId(app_user_id);
-      if (!supabaseUserId) {
-        logger.warn("RevenueCat webhook: Supabase user not found", {app_user_id, type});
+      const cloudUser = await deps.findUserByFirebaseUid(app_user_id);
+      if (!cloudUser) {
+        logger.warn("RevenueCat webhook: Cloud SQL user not found", {app_user_id, type});
         // Return 200 to prevent RevenueCat from retrying unknowable events
         res.status(200).json({received: true});
         return;
@@ -264,51 +299,51 @@ export const revenueCatWebhookHandler = async (req: Request, res: Response) => {
           const tier = REVENUECAT_PRODUCT_TO_TIER[product_id];
           const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
             new Date(expiration_at_ms) : null;
-          const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ?
-            expirationDate.toISOString() : null;
-          await upsertUserSubscription(supabaseUserId, APP_NAME, tier, "active", {
-            billing_provider_id: original_transaction_id ?? null,
-            plan_renewal_at: renewalAt,
-          });
+          const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
+          await deps.upsertSubscription(
+            cloudUser.id,
+            tier,
+            "active",
+            renewalAt,
+            original_transaction_id ?? null
+          );
           logger.info("RevenueCat: subscription upserted", {
             app_user_id,
             tier,
             type,
           });
         } else if (isRevenueCatCreditPackProduct(product_id)) {
-          await callSupabaseRpc("add_user_credits", {
-            p_user_id: supabaseUserId,
-            p_app_name: APP_NAME,
-            p_credit_amount: CREDIT_PACK_AMOUNT,
-            p_description: "revenuecat_credit_pack_purchase",
-            p_reference_id: original_transaction_id ?? null,
-          });
+          await deps.addCredits(
+            cloudUser.id,
+            CREDIT_PACK_AMOUNT,
+            "revenuecat_credit_pack_purchase",
+            original_transaction_id ?? undefined
+          );
           logger.info("RevenueCat: credits added", {app_user_id, credits: CREDIT_PACK_AMOUNT});
         }
         break;
       }
       case "NON_RENEWING_PURCHASE": {
         if (isRevenueCatCreditPackProduct(product_id)) {
-          await callSupabaseRpc("add_user_credits", {
-            p_user_id: supabaseUserId,
-            p_app_name: APP_NAME,
-            p_credit_amount: CREDIT_PACK_AMOUNT,
-            p_description: "revenuecat_non_renewing_purchase",
-            p_reference_id: original_transaction_id ?? null,
-          });
+          await deps.addCredits(
+            cloudUser.id,
+            CREDIT_PACK_AMOUNT,
+            "revenuecat_non_renewing_purchase",
+            original_transaction_id ?? undefined
+          );
           logger.info("RevenueCat: non-renewing credits added", {app_user_id});
         }
         break;
       }
       case "CANCELLATION": {
         const tier = REVENUECAT_PRODUCT_TO_TIER[product_id] ?? "free";
-        await upsertUserSubscription(supabaseUserId, APP_NAME, tier, "cancelled");
+        await deps.upsertSubscription(cloudUser.id, tier, "cancelled");
         logger.info("RevenueCat: subscription cancelled", {app_user_id, product_id});
         break;
       }
       case "EXPIRATION": {
         const tier = REVENUECAT_PRODUCT_TO_TIER[product_id] ?? "free";
-        await upsertUserSubscription(supabaseUserId, APP_NAME, tier, "expired");
+        await deps.upsertSubscription(cloudUser.id, tier, "expired");
         logger.info("RevenueCat: subscription expired", {app_user_id, product_id});
         break;
       }
@@ -328,39 +363,7 @@ export const revenueCatWebhook = onRequest(
   {
     region: "us-central1",
     invoker: "public",
-    secrets: ["REVENUECAT_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY"]
+    secrets: ["REVENUECAT_WEBHOOK_SECRET"]
   },
   revenueCatWebhookHandler
 );
-
-/**
- * Resolve a Supabase user ID from a Firebase UID.
- * Firebase UID is stored as the RevenueCat app_user_id.
- * We look up the Firebase user by UID to get their email, then
- * find the Supabase user by email.
- */
-async function resolveSupabaseUserId(firebaseUid: string): Promise<string | null> {
-  let email: string | undefined;
-  try {
-    const firebaseUser = await admin.auth().getUser(firebaseUid);
-    email = firebaseUser.email;
-  } catch (err) {
-    const code = typeof err === "object" && err !== null && "code" in err ?
-      String((err as {code?: unknown}).code) :
-      undefined;
-    if (code === "auth/user-not-found") {
-      logger.warn("resolveSupabaseUserId: Firebase user not found", {firebaseUid});
-      return null;
-    }
-    logger.error("resolveSupabaseUserId: Firebase lookup failed", {firebaseUid, err});
-    throw err;
-  }
-
-  if (!email) {
-    logger.warn("resolveSupabaseUserId: Firebase user has no email", {firebaseUid});
-    return null;
-  }
-
-  const supabaseUser = await findSupabaseUserByEmail(email);
-  return supabaseUser?.id ?? null;
-}
