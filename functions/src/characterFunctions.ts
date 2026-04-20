@@ -103,21 +103,21 @@ export const syncCharacterHandler = async (
     throw new HttpsError('invalid-argument', 'character.name must be a non-empty string.');
   }
 
+  const createdAt = parseOptionalTimestamp(character.createdAt, 'createdAt');
+  const updatedAt = parseOptionalTimestamp(character.updatedAt, 'updatedAt');
+  const avatar = parseOptionalTextField(character.avatar, 'avatar');
+  const appearance = parseOptionalTextField(character.appearance, 'appearance');
+  const traits = parseOptionalTextField(character.traits, 'traits');
+  const emotions = parseOptionalTextField(character.emotions, 'emotions');
+  const context = parseOptionalTextField(character.context, 'context');
+  const isPublic = parseOptionalIsPublic(character.isPublic);
+
   const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
   if (!user) {
     throw new HttpsError('not-found', 'User not found.');
   }
 
   try {
-    const createdAt = parseOptionalTimestamp(character.createdAt, 'createdAt');
-    const updatedAt = parseOptionalTimestamp(character.updatedAt, 'updatedAt');
-    const avatar = parseOptionalTextField(character.avatar, 'avatar');
-    const appearance = parseOptionalTextField(character.appearance, 'appearance');
-    const traits = parseOptionalTextField(character.traits, 'traits');
-    const emotions = parseOptionalTextField(character.emotions, 'emotions');
-    const context = parseOptionalTextField(character.context, 'context');
-    const isPublic = parseOptionalIsPublic(character.isPublic);
-
     const upserted = await deps.characterService.upsertCharacter({
       ...(character.id ? { id: character.id } : {}),
       userId: user.id,

@@ -152,12 +152,13 @@ test("parseRevenueCatEvent rejects invalid required fields", () => {
   );
 });
 
-test("revenueCatWebhookHandler normalizes cancellation to free tier", async () => {
+test("revenueCatWebhookHandler keeps paid tier active on cancellation until expiration", async () => {
   const res = createResponseRecorder();
   const upsertCalls: Array<{
     userId: string;
     planTier: string;
     planStatus: string;
+    renewalAt: Date | null | undefined;
   }> = [];
 
   await revenueCatWebhookHandler(
@@ -171,14 +172,15 @@ test("revenueCatWebhookHandler normalizes cancellation to free tier", async () =
           type: "CANCELLATION",
           app_user_id: "uid_123",
           product_id: "monthly_20_subscription",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
         },
       },
     } as never,
     res as never,
     {
       findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
-      upsertSubscription: async (userId, planTier, planStatus) => {
-        upsertCalls.push({userId, planTier, planStatus});
+      upsertSubscription: async (userId, planTier, planStatus, renewalAt) => {
+        upsertCalls.push({userId, planTier, planStatus, renewalAt});
       },
       addCredits: async () => undefined,
     }
@@ -188,8 +190,9 @@ test("revenueCatWebhookHandler normalizes cancellation to free tier", async () =
   assert.equal(upsertCalls.length, 1);
   assert.deepEqual(upsertCalls[0], {
     userId: "cloud-user-1",
-    planTier: "free",
-    planStatus: "cancelled",
+    planTier: "monthly_20",
+    planStatus: "active",
+    renewalAt: new Date(Date.UTC(2026, 4, 20)),
   });
 });
 

@@ -337,8 +337,30 @@ export const revenueCatWebhookHandler = async (
         break;
       }
       case "CANCELLATION": {
-        await deps.upsertSubscription(cloudUser.id, "free", "cancelled");
-        logger.info("RevenueCat: subscription cancelled", {app_user_id, product_id});
+        const tier = REVENUECAT_PRODUCT_TO_TIER[product_id];
+        if (tier) {
+          const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
+            new Date(expiration_at_ms) : null;
+          const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
+          await deps.upsertSubscription(
+            cloudUser.id,
+            tier,
+            "active",
+            renewalAt,
+            original_transaction_id ?? null
+          );
+          logger.info("RevenueCat: subscription cancellation recorded (auto-renew off, entitlement still active)", {
+            app_user_id,
+            product_id,
+            tier,
+          });
+        } else {
+          await deps.upsertSubscription(cloudUser.id, "free", "cancelled");
+          logger.warn("RevenueCat: cancellation for unknown product, defaulting to free/cancelled", {
+            app_user_id,
+            product_id,
+          });
+        }
         break;
       }
       case "EXPIRATION": {

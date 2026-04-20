@@ -54,7 +54,7 @@ Semantics:
 
 ## Authorization And Billing Rules
 
-1. Resolve Cloud SQL user from Firebase identity.
+1. Resolve Cloud SQL user from Firebase identity (create on first authenticated call when absent).
 2. Load active row from `subscriptions` for that user.
 3. Authorize usage:
 - Unlimited tier (`monthly_20`, `monthly_50`) -> allow without credit spend.
@@ -76,12 +76,10 @@ Function returns Firebase `HttpsError` codes:
 - `unauthenticated`: missing auth context or token UID mismatch.
 - `invalid-argument`: prompt missing, empty after trim, exceeds 12000 chars, or `referenceId` exceeds 128 chars.
 - `failed-precondition`: missing token email or missing required server config.
-- `not-found`: Cloud SQL user not found for authenticated email.
 - `resource-exhausted`: no unlimited tier and no available credits.
-- `internal`: downstream failures (subscription query, model invocation, credit RPC, unexpected failures).
+- `internal`: user lookup/create failures, downstream failures (subscription query, model invocation, credit RPC), or other unexpected failures.
 
 Operational logs include separate debug signals for:
-- Authenticated email with no Cloud SQL user.
 - Cloud SQL user with no active subscription rows.
 
 ## Client Integration

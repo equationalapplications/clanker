@@ -97,17 +97,17 @@ The functions require environment variables for Cloud SQL and Stripe. These are 
 
 ### Secrets vs params policy
 
-`clanker` now keeps only true secrets in Firebase Secret Manager and uses Firebase params/env config for non-sensitive values.
+`clanker` keeps credentials in Firebase Secret Manager and uses Firebase params/env config for non-sensitive values.
 
 - Keep in Secret Manager:
-  - `STRIPE_SECRET_KEY`
-  - `STRIPE_WEBHOOK_SECRET`
-  - `REVENUECAT_WEBHOOK_SECRET`
-- Use params/env config (non-sensitive):
   - `CLOUD_SQL_CONNECTION_NAME`
   - `CLOUD_SQL_DB_USER`
   - `CLOUD_SQL_DB_PASS`
   - `CLOUD_SQL_DB_NAME`
+  - `STRIPE_SECRET_KEY`
+  - `STRIPE_WEBHOOK_SECRET`
+  - `REVENUECAT_WEBHOOK_SECRET`
+- Use params/env config (non-sensitive):
   - `STRIPE_MONTHLY_20_PRICE_ID`
   - `STRIPE_MONTHLY_50_PRICE_ID`
   - `STRIPE_CREDIT_PACK_PRICE_ID`
@@ -140,7 +140,7 @@ Use this checklist when setting up Firebase Functions for a new environment.
 ### Local development
 
 - [ ] Copy `functions/.env.example` to `functions/.env`.
-- [ ] Fill non-sensitive values in `functions/.env`:
+- [ ] Fill local runtime values in `functions/.env` (includes sensitive Cloud SQL values; do not commit):
   - `CLOUD_SQL_CONNECTION_NAME`
   - `CLOUD_SQL_DB_USER`
   - `CLOUD_SQL_DB_PASS`
@@ -151,6 +151,10 @@ Use this checklist when setting up Firebase Functions for a new environment.
   - `STRIPE_SUCCESS_URL`
   - `STRIPE_CANCEL_URL`
 - [ ] Ensure sensitive values exist in Firebase Secret Manager for the target project:
+  - `CLOUD_SQL_CONNECTION_NAME`
+  - `CLOUD_SQL_DB_USER`
+  - `CLOUD_SQL_DB_PASS`
+  - `CLOUD_SQL_DB_NAME`
   - `STRIPE_SECRET_KEY`
   - `STRIPE_WEBHOOK_SECRET`
   - `REVENUECAT_WEBHOOK_SECRET`
@@ -162,6 +166,10 @@ Use this checklist when setting up Firebase Functions for a new environment.
 
 - [ ] Confirm active project: `firebase use <staging-project-id-or-alias>`.
 - [ ] Verify secrets are present in staging:
+  - `firebase functions:secrets:get CLOUD_SQL_CONNECTION_NAME`
+  - `firebase functions:secrets:get CLOUD_SQL_DB_USER`
+  - `firebase functions:secrets:get CLOUD_SQL_DB_PASS`
+  - `firebase functions:secrets:get CLOUD_SQL_DB_NAME`
   - `firebase functions:secrets:get STRIPE_SECRET_KEY`
   - `firebase functions:secrets:get STRIPE_WEBHOOK_SECRET`
   - `firebase functions:secrets:get REVENUECAT_WEBHOOK_SECRET`
