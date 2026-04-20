@@ -73,8 +73,8 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       avatarUrl: mockUser.avatarUrl,
       isProfilePublic: mockUser.isProfilePublic,
       defaultCharacterId: mockUser.defaultCharacterId,
-      createdAt: mockUser.createdAt,
-      updatedAt: mockUser.updatedAt,
+      createdAt: mockUser.createdAt.toISOString(),
+      updatedAt: mockUser.updatedAt.toISOString(),
     },
     subscription: {
       planTier: mockSubscription.planTier,
@@ -141,17 +141,125 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       avatarUrl: mockUser.avatarUrl,
       isProfilePublic: mockUser.isProfilePublic,
       defaultCharacterId: mockUser.defaultCharacterId,
-      createdAt: mockUser.createdAt,
-      updatedAt: mockUser.updatedAt,
+      createdAt: mockUser.createdAt.toISOString(),
+      updatedAt: mockUser.updatedAt.toISOString(),
     },
     subscription: {
       planTier: mockSubscription.planTier,
       planStatus: mockSubscription.planStatus,
       currentCredits: mockSubscription.currentCredits,
       termsVersion: mockSubscription.termsVersion,
-      termsAcceptedAt: mockSubscription.termsAcceptedAt,
+      termsAcceptedAt: mockSubscription.termsAcceptedAt.toISOString(),
     },
   });
+});
+
+test("exchangeTokenHandler returns timestamps as ISO strings, not Date objects", async () => {
+  const now = new Date("2025-06-15T12:00:00.000Z");
+  const mockUser = {
+    id: "user-ts",
+    firebaseUid: "firebase-uid-ts",
+    email: "ts@example.com",
+    displayName: "TS User",
+    avatarUrl: null,
+    isProfilePublic: false,
+    defaultCharacterId: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const accepted = new Date("2025-06-16T08:00:00.000Z");
+  const mockSubscription = {
+    userId: "user-ts",
+    planTier: "free",
+    planStatus: "active",
+    currentCredits: 50,
+    termsVersion: "v1",
+    termsAcceptedAt: accepted,
+  };
+
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async () => mockUser,
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => null,
+      updateUser: async () => mockUser,
+    },
+    subscriptionService: {
+      getSubscription: async () => mockSubscription,
+      upsertSubscription: async () => mockSubscription,
+      acceptTerms: async () => {},
+    },
+  };
+
+  const result = await exchangeTokenHandler({
+    auth: {
+      uid: "firebase-uid-ts",
+      token: {
+        uid: "firebase-uid-ts",
+        email: "ts@example.com",
+      },
+    },
+  } as never, mockDeps as unknown as ExchangeTokenDeps);
+
+  // Timestamps must be ISO strings so Firebase callable encode() doesn't
+  // corrupt them to empty objects (Date → {} via Object.entries).
+  assert.strictEqual(typeof result.user.createdAt, "string");
+  assert.strictEqual(typeof result.user.updatedAt, "string");
+  assert.strictEqual(result.user.createdAt, "2025-06-15T12:00:00.000Z");
+  assert.strictEqual(result.user.updatedAt, "2025-06-15T12:00:00.000Z");
+  assert.strictEqual(typeof result.subscription.termsAcceptedAt, "string");
+  assert.strictEqual(result.subscription.termsAcceptedAt, "2025-06-16T08:00:00.000Z");
+});
+
+test("exchangeTokenHandler returns null termsAcceptedAt as null", async () => {
+  const now = new Date("2025-06-15T12:00:00.000Z");
+  const mockUser = {
+    id: "user-null",
+    firebaseUid: "firebase-uid-null",
+    email: "null@example.com",
+    displayName: null,
+    avatarUrl: null,
+    isProfilePublic: false,
+    defaultCharacterId: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const mockSubscription = {
+    userId: "user-null",
+    planTier: "free",
+    planStatus: "active",
+    currentCredits: 50,
+    termsVersion: null,
+    termsAcceptedAt: null,
+  };
+
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async () => mockUser,
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => null,
+      updateUser: async () => mockUser,
+    },
+    subscriptionService: {
+      getSubscription: async () => mockSubscription,
+      upsertSubscription: async () => mockSubscription,
+      acceptTerms: async () => {},
+    },
+  };
+
+  const result = await exchangeTokenHandler({
+    auth: {
+      uid: "firebase-uid-null",
+      token: {
+        uid: "firebase-uid-null",
+        email: "null@example.com",
+      },
+    },
+  } as never, mockDeps as unknown as ExchangeTokenDeps);
+
+  assert.strictEqual(result.subscription.termsAcceptedAt, null);
 });
 
 test("exchangeTokenHandler throws internal error when userRepository fails", async () => {

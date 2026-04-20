@@ -82,6 +82,12 @@ const handler = async (
             userId: user.id,
         });
 
+        // Convert Date objects to ISO strings before returning.
+        // Firebase callable encode() treats Date as a plain object and
+        // serialises it to {} via Object.entries (which is empty for Date).
+        const toISO = (v: unknown): string | null =>
+            v instanceof Date ? v.toISOString() : (v as string | null);
+
         return {
             user: {
                 id: user.id,
@@ -91,15 +97,15 @@ const handler = async (
                 avatarUrl: user.avatarUrl,
                 isProfilePublic: user.isProfilePublic,
                 defaultCharacterId: user.defaultCharacterId,
-                createdAt: user.createdAt,
-                updatedAt: user.updatedAt,
+                createdAt: toISO(user.createdAt),
+                updatedAt: toISO(user.updatedAt),
             },
             subscription: {
                 planTier: subscription.planTier,
                 planStatus: subscription.planStatus,
                 currentCredits: subscription.currentCredits,
                 termsVersion: subscription.termsVersion,
-                termsAcceptedAt: subscription.termsAcceptedAt,
+                termsAcceptedAt: toISO(subscription.termsAcceptedAt),
             },
         };
     } catch (err: unknown) {
