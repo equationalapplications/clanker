@@ -127,7 +127,7 @@ describe('CreditsDisplay purchase flows', () => {
     expect(JSON.stringify(tree.toJSON())).toContain('Purchase failed. Please try again.')
   })
 
-  it('refetches credits and clears loading after native subscription purchase', async () => {
+  it('refreshes bootstrap and clears loading after native subscription purchase', async () => {
     jest.replaceProperty(Platform, 'OS', 'ios')
     const CreditsDisplay = require('~/components/CreditsDisplay').default
     let tree!: ReturnType<typeof create>
@@ -145,12 +145,13 @@ describe('CreditsDisplay purchase flows', () => {
     const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
 
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('monthly_20')
-    expect(mockRefetch).toHaveBeenCalledTimes(1)
+    expect(mockRefetch).not.toHaveBeenCalled()
+    expect(mockAuthServiceSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
     expect(subscribeButton.props.disabled).toBe(false)
     expect(buyButton.props.disabled).toBe(false)
   })
 
-  it('refetches credits when restore is pressed', async () => {
+  it('refreshes bootstrap when restore is pressed without query refetch', async () => {
     const CreditsDisplay = require('~/components/CreditsDisplay').default
     let tree!: ReturnType<typeof create>
 
@@ -164,6 +165,7 @@ describe('CreditsDisplay purchase flows', () => {
       await restoreButton.props.onPress()
     })
 
-    expect(mockRefetch).toHaveBeenCalledTimes(1)
+    expect(mockRefetch).not.toHaveBeenCalled()
+    expect(mockAuthServiceSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
   })
 })

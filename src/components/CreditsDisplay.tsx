@@ -35,7 +35,6 @@ export default function CreditsDisplay() {
     try {
       await makePackagePurchase('payg')
       if (Platform.OS !== 'web') {
-        await refetch()
         authService.send({ type: 'REFRESH_BOOTSTRAP' })
       }
       // On web: Stripe checkout has been opened in the browser. Keep buttons
@@ -59,7 +58,6 @@ export default function CreditsDisplay() {
     try {
       await makePackagePurchase('monthly_20')
       if (Platform.OS !== 'web') {
-        await refetch()
         authService.send({ type: 'REFRESH_BOOTSTRAP' })
       }
       // On web: same as above — keep buttons disabled until user returns.
@@ -79,7 +77,6 @@ export default function CreditsDisplay() {
   const handleRestore = async () => {
     setIsPurchasing('restore')
     try {
-      await refetch()
       authService.send({ type: 'REFRESH_BOOTSTRAP' })
     } catch (e) {
       console.error('Restore failed:', e)

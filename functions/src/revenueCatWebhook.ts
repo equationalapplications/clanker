@@ -305,8 +305,7 @@ export const revenueCatWebhookHandler = async (
             cloudUser.id,
             tier,
             "active",
-            renewalAt,
-            original_transaction_id ?? null
+            renewalAt
           );
           logger.info("RevenueCat: subscription upserted", {
             app_user_id,
@@ -346,8 +345,7 @@ export const revenueCatWebhookHandler = async (
             cloudUser.id,
             tier,
             "active",
-            renewalAt,
-            original_transaction_id ?? null
+            renewalAt
           );
           logger.info("RevenueCat: subscription cancellation recorded (auto-renew off, entitlement still active)", {
             app_user_id,

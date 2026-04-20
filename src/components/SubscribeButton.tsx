@@ -1,7 +1,6 @@
 import Button from './Button'
 import { Platform } from 'react-native'
 import { makePackagePurchase, type ProductType } from '../utilities/makePackagePurchase'
-import { useUserCredits } from '~/hooks/useUserCredits'
 import { useAuthMachine } from '~/hooks/useMachines'
 
 interface Props {
@@ -10,7 +9,6 @@ interface Props {
 }
 
 export default function SubscribeButton({ onChangeIsLoading, productType = 'monthly_20' }: Props) {
-  const { refetch } = useUserCredits()
   const authService = useAuthMachine()
 
   const onPressSubscribe = async () => {
@@ -18,7 +16,6 @@ export default function SubscribeButton({ onChangeIsLoading, productType = 'mont
     try {
       await makePackagePurchase(productType)
       if (Platform.OS !== 'web') {
-        await refetch()
         authService.send({ type: 'REFRESH_BOOTSTRAP' })
       }
     } finally {

@@ -236,3 +236,56 @@ test("revenueCatWebhookHandler normalizes expiration to free tier", async () => 
     planStatus: "expired",
   });
 });
+
+test("revenueCatWebhookHandler does not map RevenueCat transaction ID to stripeSubscriptionId", async () => {
+  const res = createResponseRecorder();
+  const upsertCalls: Array<{
+    userId: string;
+    planTier: string;
+    planStatus: string;
+    renewalAt: Date | null | undefined;
+    stripeSubscriptionId: string | null | undefined;
+  }> = [];
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer rc-secret",
+      },
+      body: {
+        event: {
+          type: "INITIAL_PURCHASE",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+          original_transaction_id: "rc_txn_123",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      upsertSubscription: async (
+        userId,
+        planTier,
+        planStatus,
+        renewalAt,
+        stripeSubscriptionId
+      ) => {
+        upsertCalls.push({
+          userId,
+          planTier,
+          planStatus,
+          renewalAt,
+          stripeSubscriptionId,
+        });
+      },
+      addCredits: async () => undefined,
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls.length, 1);
+  assert.equal(upsertCalls[0].stripeSubscriptionId, undefined);
+});

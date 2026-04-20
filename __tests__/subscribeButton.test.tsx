@@ -100,11 +100,10 @@ describe('SubscribeButton', () => {
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(2, false)
   })
 
-  it('refreshes credits and bootstrap state after native purchase', async () => {
+  it('refreshes bootstrap state after native purchase without query refetch', async () => {
     mockPlatformOS = 'ios'
     const onChangeIsLoading = jest.fn()
     mockMakePackagePurchase.mockResolvedValueOnce(undefined)
-    mockRefetch.mockResolvedValueOnce(undefined)
 
     const SubscribeButton = require('~/components/SubscribeButton').default
     let tree!: ReturnType<typeof create>
@@ -119,7 +118,7 @@ describe('SubscribeButton', () => {
       await button.props.onPress()
     })
 
-    expect(mockRefetch).toHaveBeenCalledTimes(1)
+    expect(mockRefetch).not.toHaveBeenCalled()
     expect(mockAuthSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
   })
 })
