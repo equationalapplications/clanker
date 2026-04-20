@@ -25,7 +25,9 @@ export interface BootstrapResponse {
   subscription: SubscriptionSnapshot
 }
 
-export async function bootstrapSession(): Promise<BootstrapResponse> {
+let bootstrapSessionInFlight: Promise<BootstrapResponse> | null = null
+
+async function runBootstrapSession(): Promise<BootstrapResponse> {
   const user = getCurrentUser()
   if (!user) {
     throw new Error('No Firebase user is currently signed in')
@@ -63,5 +65,19 @@ export async function bootstrapSession(): Promise<BootstrapResponse> {
   } catch (err: any) {
     console.error('Bootstrap failed:', err)
     throw new Error('Failed to bootstrap session: ' + (err.message || err))
+  }
+}
+
+export async function bootstrapSession(): Promise<BootstrapResponse> {
+  if (bootstrapSessionInFlight) {
+    return await bootstrapSessionInFlight
+  }
+
+  bootstrapSessionInFlight = runBootstrapSession()
+
+  try {
+    return await bootstrapSessionInFlight
+  } finally {
+    bootstrapSessionInFlight = null
   }
 }

@@ -88,22 +88,8 @@ export interface GetUserCharactersResponse {
   characters: CharacterSnapshot[]
 }
 
-let getUserStateInFlight: Promise<BootstrapResponse> | null = null
-
-// Re-use bootstrapSession for user state with in-flight dedupe.
-export const getUserState = async (): Promise<BootstrapResponse> => {
-  if (getUserStateInFlight) {
-    return await getUserStateInFlight
-  }
-
-  getUserStateInFlight = bootstrapSession()
-
-  try {
-    return await getUserStateInFlight
-  } finally {
-    getUserStateInFlight = null
-  }
-}
+// bootstrapSession handles module-level in-flight dedupe across all callers.
+export const getUserState = async (): Promise<BootstrapResponse> => bootstrapSession()
 
 export const updateUserProfile = withAppCheck(
   updateUserProfileCallable as Callable<UpdateUserProfileRequest, UpdateUserProfileResponse>,
