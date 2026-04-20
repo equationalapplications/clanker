@@ -337,14 +337,12 @@ export const revenueCatWebhookHandler = async (
         break;
       }
       case "CANCELLATION": {
-        const tier = REVENUECAT_PRODUCT_TO_TIER[product_id] ?? "free";
-        await deps.upsertSubscription(cloudUser.id, tier, "cancelled");
+        await deps.upsertSubscription(cloudUser.id, "free", "cancelled");
         logger.info("RevenueCat: subscription cancelled", {app_user_id, product_id});
         break;
       }
       case "EXPIRATION": {
-        const tier = REVENUECAT_PRODUCT_TO_TIER[product_id] ?? "free";
-        await deps.upsertSubscription(cloudUser.id, tier, "expired");
+        await deps.upsertSubscription(cloudUser.id, "free", "expired");
         logger.info("RevenueCat: subscription expired", {app_user_id, product_id});
         break;
       }

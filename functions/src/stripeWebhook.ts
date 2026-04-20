@@ -223,7 +223,7 @@ export const stripeWebhookHandler = async (
     }
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
-      await handleSubscriptionDeleted(sub, stripe, priceIds, deps);
+      await handleSubscriptionDeleted(sub, stripe, deps);
       break;
     }
     case "invoice.payment_succeeded": {
@@ -378,7 +378,6 @@ async function handleSubscriptionUpdated(
 async function handleSubscriptionDeleted(
   sub: Stripe.Subscription,
   stripe: Stripe,
-  priceIds: StripePriceIds,
   deps: StripeWebhookDeps
 ): Promise<void> {
   const customerId = getStripeId(sub.customer as StripeExpandableId);
@@ -395,15 +394,12 @@ async function handleSubscriptionDeleted(
   const user = await deps.findUserByEmail(customer.email);
   if (!user) return;
 
-  const priceId = sub.items.data[0]?.price?.id;
-  const resolvedTier = priceId ? getTierByPriceId(priceId, priceIds) : undefined;
-  const tier = resolvedTier ?? "free";
-
   await deps.upsertSubscription({
     userId: user.id,
-    planTier: tier,
+    planTier: "free",
     planStatus: "cancelled",
     stripeSubscriptionId: sub.id,
+    stripeCustomerId: customerId,
   });
 
   logger.info("customer.subscription.deleted: subscription cancelled", {

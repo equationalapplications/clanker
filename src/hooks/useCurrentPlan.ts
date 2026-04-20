@@ -36,8 +36,9 @@ export function useCurrentPlan(): CurrentPlan {
   )
 
   const tier = isPlanTier(subscription?.planTier) ? subscription.planTier : null
+  const isActive = subscription?.planStatus === 'active'
 
-  const isSubscriber = tier !== null && SUBSCRIPTION_TIERS.includes(tier)
+  const isSubscriber = isActive && tier !== null && SUBSCRIPTION_TIERS.includes(tier)
 
   return { tier, isSubscriber, isLoading }
 }

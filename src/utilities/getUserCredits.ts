@@ -45,7 +45,7 @@ export const getUserCredits = async (): Promise<UserCredits> => {
     const isUnlimited =
       isActive && isPlanTier(planTier) && SUBSCRIPTION_TIERS.includes(planTier)
 
-    const totalCredits = isActive ? currentCredits : 0
+    const totalCredits = Math.max(0, currentCredits)
 
     return {
       totalCredits,

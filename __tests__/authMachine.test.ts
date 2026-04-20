@@ -105,6 +105,25 @@ describe('authMachine', () => {
     actor.stop()
   })
 
+  it('clears stale error when NO_USER_FOUND is received in signedOut', async () => {
+    const user = makeUser()
+    const bootstrapError = new Error('bootstrap failed')
+    mockBootstrapSession.mockRejectedValue(bootstrapError)
+
+    const actor = createActor(authMachine)
+    actor.start()
+    actor.send({ type: 'USER_FOUND', user: user as any } as any)
+
+    await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.error).toBe(bootstrapError)
+
+    actor.send({ type: 'NO_USER_FOUND' })
+    await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+
+    expect(actor.getSnapshot().context.error).toBeNull()
+    actor.stop()
+  })
+
   it('clears local session data when NO_USER_FOUND occurs after an active session', async () => {
     const user = makeUser()
     const bootstrapData = {

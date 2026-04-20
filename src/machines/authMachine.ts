@@ -54,10 +54,11 @@ export const authMachine = createMachine(
         {
           target: '.signedOut',
           guard: 'hadActiveSession',
-          actions: 'clearSessionData',
+          actions: ['clearSessionData', assign({ error: null })],
         },
         {
           target: '.signedOut',
+          actions: assign({ error: null }),
         },
       ],
       SIGN_OUT: [
@@ -134,6 +135,7 @@ export const authMachine = createMachine(
           src: 'signOut',
           onDone: {
             target: 'signedOut',
+            actions: assign({ error: null }),
           },
           onError: {
             // Even if signout fails, go to signed out state

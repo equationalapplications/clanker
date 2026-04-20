@@ -207,7 +207,7 @@ function parseInput(data: unknown): {prompt: string; referenceId: string | null}
 
 async function fetchUsageState(userId: string): Promise<UsageState> {
   const sub = await subscriptionService.getSubscription(userId);
-  if (!sub || sub.planStatus !== 'active') {
+  if (!sub) {
     return {
       planTier: null,
       hasUnlimited: false,
@@ -216,7 +216,8 @@ async function fetchUsageState(userId: string): Promise<UsageState> {
   }
 
   const planTier = sub.planTier;
-  const hasUnlimited = UNLIMITED_TIERS.has(planTier);
+  const isActive = sub.planStatus === "active";
+  const hasUnlimited = isActive && UNLIMITED_TIERS.has(planTier);
   const creditBalance = hasUnlimited ? 0 : Math.max(0, sub.currentCredits ?? 0);
 
   return {

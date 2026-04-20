@@ -45,7 +45,7 @@ describe('getUserPrivate', () => {
     expect(result?.credits).toBe(77)
   })
 
-  it('returns zero credits when plan is not active', async () => {
+  it('returns current credits when plan is not active', async () => {
     mockGetUserState.mockResolvedValue({
       user: {
         id: 'u1',
@@ -69,6 +69,6 @@ describe('getUserPrivate', () => {
     const result = await getUserPrivate()
 
     expect(result).not.toBeNull()
-    expect(result?.credits).toBe(0)
+    expect(result?.credits).toBe(77)
   })
 })

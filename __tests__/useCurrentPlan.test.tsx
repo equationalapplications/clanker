@@ -18,6 +18,7 @@ interface MockState {
   context: {
     subscription: {
       planTier: string
+      planStatus: string
     } | null
   }
   matches: (stateValue: string) => boolean
@@ -25,13 +26,18 @@ interface MockState {
 
 const mockUseSelector = useSelector as jest.Mock
 
-function makeState(options?: { planTier?: string | null; activeStates?: string[] }): MockState {
+function makeState(options?: {
+  planTier?: string | null
+  planStatus?: string
+  activeStates?: string[]
+}): MockState {
   const planTier = options?.planTier ?? null
+  const planStatus = options?.planStatus ?? 'active'
   const activeStates = new Set(options?.activeStates ?? [])
 
   return {
     context: {
-      subscription: planTier ? { planTier } : null,
+      subscription: planTier ? { planTier, planStatus } : null,
     },
     matches: (stateValue: string) => activeStates.has(stateValue),
   }
@@ -92,6 +98,18 @@ describe('useCurrentPlan', () => {
     expect(result.isSubscriber).toBe(false)
   })
 
+  it('marks cancelled subscription tiers as non-subscribers', () => {
+    const result = renderUseCurrentPlan(
+      makeState({
+        planTier: PLAN_TIERS.MONTHLY_20,
+        planStatus: 'cancelled',
+      }),
+    )
+
+    expect(result.tier).toBe(PLAN_TIERS.MONTHLY_20)
+    expect(result.isSubscriber).toBe(false)
+  })
+
   it('returns null tier when subscription context is missing', () => {
     const result = renderUseCurrentPlan(makeState({ planTier: null }))
 
@@ -130,7 +148,10 @@ describe('useCurrentPlan', () => {
     expect(isLoadingSelector).toBeDefined()
 
     expect(subscriptionSelector?.(state)).toBeNull()
-    expect(subscriptionSelector?.(subState)).toEqual({ planTier: PLAN_TIERS.MONTHLY_20 })
+    expect(subscriptionSelector?.(subState)).toEqual({
+      planTier: PLAN_TIERS.MONTHLY_20,
+      planStatus: 'active',
+    })
     expect(isLoadingSelector?.(state)).toBe(true)
   })
 })

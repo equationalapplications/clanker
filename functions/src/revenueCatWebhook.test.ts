@@ -151,3 +151,85 @@ test("parseRevenueCatEvent rejects invalid required fields", () => {
     /Missing or invalid event\.product_id/
   );
 });
+
+test("revenueCatWebhookHandler normalizes cancellation to free tier", async () => {
+  const res = createResponseRecorder();
+  const upsertCalls: Array<{
+    userId: string;
+    planTier: string;
+    planStatus: string;
+  }> = [];
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer rc-secret",
+      },
+      body: {
+        event: {
+          type: "CANCELLATION",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      upsertSubscription: async (userId, planTier, planStatus) => {
+        upsertCalls.push({userId, planTier, planStatus});
+      },
+      addCredits: async () => undefined,
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls.length, 1);
+  assert.deepEqual(upsertCalls[0], {
+    userId: "cloud-user-1",
+    planTier: "free",
+    planStatus: "cancelled",
+  });
+});
+
+test("revenueCatWebhookHandler normalizes expiration to free tier", async () => {
+  const res = createResponseRecorder();
+  const upsertCalls: Array<{
+    userId: string;
+    planTier: string;
+    planStatus: string;
+  }> = [];
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer rc-secret",
+      },
+      body: {
+        event: {
+          type: "EXPIRATION",
+          app_user_id: "uid_123",
+          product_id: "monthly_50_subscription",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      upsertSubscription: async (userId, planTier, planStatus) => {
+        upsertCalls.push({userId, planTier, planStatus});
+      },
+      addCredits: async () => undefined,
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls.length, 1);
+  assert.deepEqual(upsertCalls[0], {
+    userId: "cloud-user-1",
+    planTier: "free",
+    planStatus: "expired",
+  });
+});

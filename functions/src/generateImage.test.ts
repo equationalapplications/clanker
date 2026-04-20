@@ -43,12 +43,17 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
   };
 }
 
-function buildSubscription(userId: string, planTier: "payg" | "monthly_20", currentCredits: number): SubscriptionRecord {
+function buildSubscription(
+  userId: string,
+  planTier: "payg" | "monthly_20",
+  currentCredits: number,
+  planStatus: "active" | "cancelled" | "expired" = "active"
+): SubscriptionRecord {
   return {
     id: `sub-${userId}`,
     userId,
     planTier,
-    planStatus: "active",
+    planStatus,
     currentCredits,
     termsVersion: null,
     termsAcceptedAt: null,
@@ -225,6 +230,47 @@ test("generateImageHandler does not spend credit for unlimited users", async () 
     assert.equal(result.remainingCredits, null);
     assert.equal(result.planTier, "monthly_20");
     assert.equal(spendCalls, 0);
+  });
+});
+
+test("generateImageHandler allows cancelled plans to spend remaining credits", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3, "cancelled");
+    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+      spendCalls += 1;
+      assert.equal(amount, 1);
+      assert.equal(reason, "image generation");
+      assert.equal(referenceId, "image-cancelled");
+      return true;
+    };
+    creditService.getCredits = async () => 2;
+
+    const result = await generateImageHandler(
+      {
+        auth,
+        data: {
+          prompt: "hero portrait",
+          referenceId: "image-cancelled",
+        },
+      } as never,
+      {
+        generateImage: async () => ({
+          imageBase64: "aGVsbG8=",
+          mimeType: "image/png",
+        }),
+      }
+    );
+
+    assert.equal(result.creditsSpent, 1);
+    assert.equal(result.remainingCredits, 2);
+    assert.equal(result.planTier, "payg");
+    assert.equal(spendCalls, 1);
   });
 });
 

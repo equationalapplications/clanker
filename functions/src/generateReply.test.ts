@@ -43,12 +43,17 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
   };
 }
 
-function buildSubscription(userId: string, planTier: "payg" | "monthly_20", currentCredits: number): SubscriptionRecord {
+function buildSubscription(
+  userId: string,
+  planTier: "payg" | "monthly_20",
+  currentCredits: number,
+  planStatus: "active" | "cancelled" | "expired" = "active"
+): SubscriptionRecord {
   return {
     id: `sub-${userId}`,
     userId,
     planTier,
-    planStatus: "active",
+    planStatus,
     currentCredits,
     termsVersion: null,
     termsAcceptedAt: null,
@@ -179,6 +184,44 @@ test("generateReplyHandler does not spend credits for unlimited users", async ()
     assert.equal(result.remainingCredits, null);
     assert.equal(result.planTier, "monthly_20");
     assert.equal(spendCalls, 0);
+  });
+});
+
+test("generateReplyHandler allows cancelled plans to spend remaining credits", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3, "cancelled");
+    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+      spendCalls += 1;
+      assert.equal(amount, 1);
+      assert.equal(reason, "chat response");
+      assert.equal(referenceId, "message-cancelled");
+      return true;
+    };
+    creditService.getCredits = async () => 2;
+
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: {
+          prompt: "hello",
+          referenceId: "message-cancelled",
+        },
+      } as never,
+      {
+        generateText: async () => "reply from model",
+      }
+    );
+
+    assert.equal(result.creditsSpent, 1);
+    assert.equal(result.remainingCredits, 2);
+    assert.equal(result.planTier, "payg");
+    assert.equal(spendCalls, 1);
   });
 });
 
