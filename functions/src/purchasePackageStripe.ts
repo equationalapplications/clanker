@@ -4,7 +4,6 @@ import admin from "firebase-admin";
 import Stripe from "stripe";
 import { getStripePriceIds, getStripeCheckoutUrls } from "./runtimeConfig.js";
 import { validateAndNormalizeStripeSecretKey } from "./stripeConfig.js";
-import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 type LoggerLike = Pick<typeof logger, "error" | "warn" | "info">;
 const defaultLogger: LoggerLike = logger;
@@ -173,7 +172,7 @@ export const purchasePackageStripe = onCall(
         region: "us-central1",
         invoker: "public",
         enforceAppCheck: true,
-        secrets: [...CLOUD_SQL_SECRETS, "STRIPE_SECRET_KEY"],
+        secrets: ["STRIPE_SECRET_KEY"],
     },
     handler
 );

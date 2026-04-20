@@ -24,7 +24,6 @@ export const creditService = {
         .where(
           and(
             eq(subscriptions.userId, userId),
-            eq(subscriptions.planStatus, 'active'),
             gte(subscriptions.currentCredits, amount)
           )
         )
