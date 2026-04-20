@@ -71,7 +71,12 @@ export const authMachine = createMachine(
     states: {
       initializing: {},
       signedOut: {
-        entry: assign({ user: null, dbUser: null, subscription: null, error: null }),
+        entry: assign({
+          user: null,
+          dbUser: null,
+          subscription: null,
+          error: ({ context }) => context.error,
+        }),
         on: {
           SIGN_IN: 'signingIn',
         },

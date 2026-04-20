@@ -93,14 +93,15 @@ describe('authMachine', () => {
 
   it('returns to signedOut when bootstrap fails', async () => {
     const user = makeUser()
-    mockBootstrapSession.mockRejectedValue(new Error('bootstrap failed'))
+    const bootstrapError = new Error('bootstrap failed')
+    mockBootstrapSession.mockRejectedValue(bootstrapError)
 
     const actor = createActor(authMachine)
     actor.start()
     actor.send({ type: 'USER_FOUND', user: user as any } as any)
 
     await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
-    expect(actor.getSnapshot().context.error).toBeNull()
+    expect(actor.getSnapshot().context.error).toBe(bootstrapError)
     actor.stop()
   })
 
@@ -125,7 +126,7 @@ describe('authMachine', () => {
     actor.stop()
   })
 
-  it('still reaches signedOut when SIGN_OUT fails', async () => {
+  it('still reaches signedOut and keeps error when SIGN_OUT fails', async () => {
     const user = makeUser()
     const bootstrapData = {
       user: { id: 'user-1' },
@@ -138,12 +139,13 @@ describe('authMachine', () => {
     actor.send({ type: 'USER_FOUND', user: user as any } as any)
     await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
 
-    mockFirebaseSignOut.mockRejectedValue(new Error('sign-out failed'))
+    const signOutError = new Error('sign-out failed')
+    mockFirebaseSignOut.mockRejectedValue(signOutError)
     actor.send({ type: 'SIGN_OUT' })
 
     await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
     expect(mockFirebaseSignOut).toHaveBeenCalledTimes(1)
-    expect(actor.getSnapshot().context.error).toBeNull()
+    expect(actor.getSnapshot().context.error).toBe(signOutError)
     actor.stop()
   })
 })

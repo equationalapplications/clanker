@@ -102,6 +102,7 @@ Chat history between users and characters.
 ## Connectivity
 
 - Environment: Firebase Cloud Functions (Node.js 22)
+- Database version target: PostgreSQL 18
 - Driver: `pg` (node-postgres)
 - Connector: `@google-cloud/cloud-sql-connector`
 - ORM: Drizzle ORM
@@ -113,17 +114,17 @@ Chat history between users and characters.
 
 ## Instance Sizing Recommendations
 
-### Dev / Staging (0–10 internal users)
+### Production (Launch, 0 users)
 
 | Setting | Value |
 | :--- | :--- |
 | Edition | Cloud SQL Enterprise |
 | Instance class | 1 vCPU, 3.75–4 GB RAM |
 | Availability | Single-zone |
-| Storage | 20 GB SSD with autoresize enabled |
+| Storage | 10 GB SSD with no autoresize enabled |
 | PITR | 7 days |
 | Backups | Daily automated + binary logging |
-| Estimated monthly cost | ~$50–$110 |
+| Estimated monthly cost | ~$45–$105 |
 
 ### Early Production (Up to 50 light users, low concurrency)
 
