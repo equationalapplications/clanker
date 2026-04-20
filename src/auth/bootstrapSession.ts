@@ -8,8 +8,8 @@ export interface UserSnapshot {
   avatarUrl: string | null
   isProfilePublic: boolean
   defaultCharacterId: string | null
-  createdAt: Date | string
-  updatedAt: Date | string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface SubscriptionSnapshot {
@@ -17,7 +17,7 @@ export interface SubscriptionSnapshot {
   planStatus: string
   currentCredits: number
   termsVersion: string | null
-  termsAcceptedAt: Date | string | null
+  termsAcceptedAt: string | null
 }
 
 export interface BootstrapResponse {
@@ -52,10 +52,8 @@ export async function bootstrapSession(): Promise<BootstrapResponse> {
       throw new Error('Invalid bootstrap response: missing user or subscription data')
     }
 
-    const createdAtValid =
-      typeof data.user.createdAt === 'string' || data.user.createdAt instanceof Date
-    const updatedAtValid =
-      typeof data.user.updatedAt === 'string' || data.user.updatedAt instanceof Date
+    const createdAtValid = typeof data.user.createdAt === 'string'
+    const updatedAtValid = typeof data.user.updatedAt === 'string'
 
     if (!createdAtValid || !updatedAtValid) {
       throw new Error('Invalid bootstrap response: missing or invalid user timestamps')

@@ -52,14 +52,8 @@ const mapUserProfileFromState = (state: BootstrapResponse | null): UserProfile |
     avatar_url: state.user.avatarUrl,
     is_profile_public: state.user.isProfilePublic,
     default_character_id: state.user.defaultCharacterId,
-    created_at:
-      typeof state.user.createdAt === 'string'
-        ? state.user.createdAt
-        : state.user.createdAt.toISOString(),
-    updated_at:
-      typeof state.user.updatedAt === 'string'
-        ? state.user.updatedAt
-        : state.user.updatedAt.toISOString(),
+    created_at: state.user.createdAt,
+    updated_at: state.user.updatedAt,
   }
 }
 
@@ -98,10 +92,8 @@ export const upsertUserProfile = async (
       avatar_url: user.avatarUrl,
       is_profile_public: user.isProfilePublic,
       default_character_id: user.defaultCharacterId,
-      created_at:
-        typeof user.createdAt === 'string' ? user.createdAt : user.createdAt.toISOString(),
-      updated_at:
-        typeof user.updatedAt === 'string' ? user.updatedAt : user.updatedAt.toISOString(),
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
     }
   } catch (error) {
     console.error('Error upserting user profile:', error)

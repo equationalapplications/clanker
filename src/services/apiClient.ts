@@ -68,8 +68,8 @@ export interface CharacterSnapshot {
   emotions: string | null
   context: string | null
   isPublic: boolean
-  createdAt: string | Date
-  updatedAt: string | Date
+  createdAt: string
+  updatedAt: string
 }
 
 export interface SyncCharacterRequest {

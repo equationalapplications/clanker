@@ -20,8 +20,8 @@ describe('userService profile timestamp mapping', () => {
   })
 
   it('maps bootstrap user updatedAt to profile updated_at', async () => {
-    const createdAt = new Date('2026-04-20T10:00:00.000Z')
-    const updatedAt = new Date('2026-04-20T11:00:00.000Z')
+    const createdAt = '2026-04-20T10:00:00.000Z'
+    const updatedAt = '2026-04-20T11:00:00.000Z'
 
     mockGetUserState.mockResolvedValue({
       user: {
@@ -48,8 +48,8 @@ describe('userService profile timestamp mapping', () => {
 
     expect(profile).toMatchObject({
       user_id: 'u1',
-      created_at: createdAt.toISOString(),
-      updated_at: updatedAt.toISOString(),
+      created_at: createdAt,
+      updated_at: updatedAt,
     })
   })
 
