@@ -77,6 +77,91 @@ test("revenueCatWebhookHandler validates payload shape", async () => {
   assert.equal(res.body, "Invalid payload");
 });
 
+test("revenueCatWebhookHandler accepts JSON string body", async () => {
+  await withAdminAuthAndFetchStubs(
+    async () => {
+      throw {code: "auth/user-not-found"};
+    },
+    async () => {
+      throw new Error("Fetch should not be called when user is unknown");
+    },
+    async () => {
+      const res = createResponseRecorder();
+      await revenueCatWebhookHandler(
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer rc-secret",
+          },
+          body: JSON.stringify({
+            event: {
+              type: "TEST",
+              app_user_id: "uid_123",
+              product_id: "test_product",
+            },
+          }),
+        } as never,
+        res as never
+      );
+
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(res.body, {received: true});
+    }
+  );
+});
+
+test("revenueCatWebhookHandler parses req.rawBody when req.body is undefined", async () => {
+  await withAdminAuthAndFetchStubs(
+    async () => {
+      throw {code: "auth/user-not-found"};
+    },
+    async () => {
+      throw new Error("Fetch should not be called when user is unknown");
+    },
+    async () => {
+      const res = createResponseRecorder();
+      await revenueCatWebhookHandler(
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer rc-secret",
+          },
+          body: undefined,
+          rawBody: Buffer.from(JSON.stringify({
+            api_version: "1.0",
+            event: {
+              type: "TEST",
+              app_user_id: "uid_123",
+              product_id: "test_product",
+            },
+          })),
+        } as never,
+        res as never
+      );
+
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(res.body, {received: true});
+    }
+  );
+});
+
+test("revenueCatWebhookHandler accepts raw secret Authorization value", async () => {
+  const res = createResponseRecorder();
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {
+        authorization: "rc-secret",
+      },
+      body: {},
+    } as never,
+    res as never
+  );
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body, "Invalid payload");
+});
+
 test("parseRevenueCatEvent accepts minimal valid payload", () => {
   const parsed = parseRevenueCatEvent({
     event: {
@@ -91,6 +176,61 @@ test("parseRevenueCatEvent accepts minimal valid payload", () => {
       type: "INITIAL_PURCHASE",
       app_user_id: "uid_123",
       product_id: "monthly_20_subscription",
+    },
+  });
+});
+
+test("parseRevenueCatEvent accepts x-www-form-urlencoded payload", () => {
+  const encoded = new URLSearchParams({
+    api_version: "1.0",
+    event: JSON.stringify({
+      type: "TEST",
+      app_user_id: "uid_123",
+      product_id: "test_product",
+    }),
+  }).toString();
+
+  const parsed = parseRevenueCatEvent(encoded);
+  assert.deepEqual(parsed, {
+    event: {
+      type: "TEST",
+      app_user_id: "uid_123",
+      product_id: "test_product",
+    },
+  });
+});
+
+test("parseRevenueCatEvent accepts stringified event field", () => {
+  const parsed = parseRevenueCatEvent({
+    api_version: "1.0",
+    event: JSON.stringify({
+      type: "TEST",
+      app_user_id: "uid_123",
+      product_id: "test_product",
+    }),
+  });
+
+  assert.deepEqual(parsed, {
+    event: {
+      type: "TEST",
+      app_user_id: "uid_123",
+      product_id: "test_product",
+    },
+  });
+});
+
+test("parseRevenueCatEvent accepts root-level event object", () => {
+  const parsed = parseRevenueCatEvent({
+    type: "TEST",
+    app_user_id: "uid_123",
+    product_id: "test_product",
+  });
+
+  assert.deepEqual(parsed, {
+    event: {
+      type: "TEST",
+      app_user_id: "uid_123",
+      product_id: "test_product",
     },
   });
 });
@@ -136,6 +276,26 @@ test("parseRevenueCatEvent rejects invalid optional fields", () => {
     }),
     /Invalid event\.original_transaction_id/
   );
+});
+
+test("parseRevenueCatEvent accepts null optional fields", () => {
+  const parsed = parseRevenueCatEvent({
+    event: {
+      type: "TEST",
+      app_user_id: "uid_123",
+      product_id: "test_product",
+      expiration_at_ms: null,
+      original_transaction_id: null,
+    },
+  });
+
+  assert.deepEqual(parsed, {
+    event: {
+      type: "TEST",
+      app_user_id: "uid_123",
+      product_id: "test_product",
+    },
+  });
 });
 
 test("parseRevenueCatEvent only returns allowed fields", () => {
@@ -357,5 +517,111 @@ test("revenueCatWebhookHandler returns 200 when firebase user is not found", asy
       assert.equal(res.statusCode, 200);
       assert.deepEqual(res.body, {received: true});
     }
+  );
+});
+
+test("revenueCatWebhookHandler returns 200 for TEST event without external lookups", async () => {
+  await withAdminAuthAndFetchStubs(
+    async () => {
+      throw new Error("Firebase Auth lookup should not run for TEST events");
+    },
+    async () => {
+      throw new Error("Fetch should not run for TEST events");
+    },
+    async () => {
+      const res = createResponseRecorder();
+      await revenueCatWebhookHandler(
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer rc-secret",
+          },
+          body: {
+            event: {
+              type: "TEST",
+              app_user_id: "uid_test",
+              product_id: "test_product",
+            },
+          },
+        } as never,
+        res as never
+      );
+
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(res.body, {received: true});
+    }
+  );
+});
+
+test("revenueCatWebhookHandler accepts lowercase bearer scheme", async () => {
+  await withAdminAuthAndFetchStubs(
+    async () => {
+      throw {code: "auth/user-not-found"};
+    },
+    async () => {
+      throw new Error("Fetch should not be called when user is unknown");
+    },
+    async () => {
+      const res = createResponseRecorder();
+      await revenueCatWebhookHandler(
+        {
+          method: "POST",
+          headers: {
+            authorization: "bearer rc-secret",
+          },
+          body: {
+            event: {
+              type: "TEST",
+              app_user_id: "uid_test",
+              product_id: "test_product",
+            },
+          },
+        } as never,
+        res as never
+      );
+
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(res.body, {received: true});
+    }
+  );
+});
+
+test("revenueCatWebhookHandler accepts uppercase BEARER scheme", async () => {
+  await withAdminAuthAndFetchStubs(
+    async () => {
+      throw {code: "auth/user-not-found"};
+    },
+    async () => {
+      throw new Error("Fetch should not be called when user is unknown");
+    },
+    async () => {
+      const res = createResponseRecorder();
+      await revenueCatWebhookHandler(
+        {
+          method: "POST",
+          headers: {
+            authorization: "BEARER rc-secret",
+          },
+          body: {
+            event: {
+              type: "TEST",
+              app_user_id: "uid_test",
+              product_id: "test_product",
+            },
+          },
+        } as never,
+        res as never
+      );
+
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(res.body, {received: true});
+    }
+  );
+});
+
+test("parseRevenueCatEvent rejects non-form strings with JSON error not form error", () => {
+  assert.throws(
+    () => parseRevenueCatEvent("foo"),
+    {message: "Invalid JSON body"}
   );
 });
