@@ -4,6 +4,7 @@ import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
 import { creditService } from "./services/creditService.js";
+import { subscriptionService } from "./services/subscriptionService.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 // Initialize the Admin SDK if not already initialized
@@ -104,6 +105,18 @@ const handler = async (request: CallableRequest) => {
     }
 
     throw new HttpsError("internal", "Failed to bootstrap user.");
+  }
+
+  try {
+    await subscriptionService.getOrCreateDefaultSubscription(user.id);
+  } catch (error: unknown) {
+    logger.error("Failed to bootstrap subscription in spendCredits", {
+      userId: user.id,
+      firebaseUid: request.auth.uid,
+      email,
+      error,
+    });
+    throw new HttpsError("internal", "Failed to bootstrap user subscription.");
   }
 
   const success = await creditService.spendCredits(user.id, amount, description, referenceId ?? undefined);

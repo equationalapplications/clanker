@@ -218,14 +218,8 @@ function parseInput(data: unknown): {prompt: string; referenceId: string | null}
 }
 
 async function fetchUsageState(userId: string): Promise<UsageState> {
-  const sub = await subscriptionService.getSubscription(userId);
-  if (!sub) {
-    return {
-      planTier: null,
-      hasUnlimited: false,
-      creditBalance: 0,
-    };
-  }
+  const existing = await subscriptionService.getSubscription(userId);
+  const sub = existing ?? await subscriptionService.getOrCreateDefaultSubscription(userId);
 
   const planTier = sub.planTier;
   const isActive = sub.planStatus === "active";

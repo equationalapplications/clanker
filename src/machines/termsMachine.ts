@@ -1,7 +1,7 @@
 import { createMachine, assign, fromPromise, ActorRefFrom } from 'xstate'
 import { TERMS } from '~/config/termsConfig'
 import { acceptTermsFn } from '~/services/apiClient'
-import { SubscriptionSnapshot } from '~/auth/bootstrapSession'
+import type { SubscriptionSnapshot } from '~/auth/bootstrapSession'
 
 export interface TermsMachineContext {
   subscription: SubscriptionSnapshot | null
@@ -109,4 +109,3 @@ export const termsMachine = createMachine(
 )
 
 export type TermsMachineActor = ActorRefFrom<typeof termsMachine>
-

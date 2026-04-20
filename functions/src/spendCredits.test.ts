@@ -5,10 +5,12 @@ import {HttpsError} from "firebase-functions/v2/https";
 import {spendCreditsHandler} from "./spendCredits.js";
 import {userRepository} from "./services/userRepository.js";
 import {creditService} from "./services/creditService.js";
+import {subscriptionService} from "./services/subscriptionService.js";
 
 type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
 
 const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity;
+const originalGetOrCreateDefaultSubscription = subscriptionService.getOrCreateDefaultSubscription;
 const originalSpendCredits = creditService.spendCredits;
 
 function buildUser(uid: string, email: string): UserRecord {
@@ -30,6 +32,7 @@ async function withServiceMocks(run: () => Promise<void>) {
     await run();
   } finally {
     userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
+    subscriptionService.getOrCreateDefaultSubscription = originalGetOrCreateDefaultSubscription;
     creditService.spendCredits = originalSpendCredits;
   }
 }
@@ -63,6 +66,21 @@ test("spendCreditsHandler calls credit service with floored amount", async () =>
     let spendCalls = 0;
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getOrCreateDefaultSubscription = async () => ({
+      id: "sub-1",
+      userId: user.id,
+      planTier: "payg",
+      planStatus: "active",
+      currentCredits: 50,
+      termsVersion: null,
+      termsAcceptedAt: null,
+      stripeSubscriptionId: null,
+      stripeCustomerId: null,
+      billingCycleStart: null,
+      billingCycleEnd: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     creditService.spendCredits = async (userId, amount, description, referenceId) => {
       spendCalls += 1;
       assert.equal(userId, user.id);
@@ -101,6 +119,21 @@ test("spendCreditsHandler throws resource-exhausted when spend fails", async () 
     const user = buildUser(uid, email);
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getOrCreateDefaultSubscription = async () => ({
+      id: "sub-2",
+      userId: user.id,
+      planTier: "payg",
+      planStatus: "active",
+      currentCredits: 50,
+      termsVersion: null,
+      termsAcceptedAt: null,
+      stripeSubscriptionId: null,
+      stripeCustomerId: null,
+      billingCycleStart: null,
+      billingCycleEnd: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     creditService.spendCredits = async () => false;
 
     await assert.rejects(
@@ -149,5 +182,52 @@ test("spendCreditsHandler maps identity conflicts to failed-precondition", async
         } as never),
       (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
     );
+  });
+});
+
+test("spendCreditsHandler bootstraps default subscription before spending", async () => {
+  await withServiceMocks(async () => {
+    const uid = "firebase-uid-3";
+    const email = "bootstrap@example.com";
+    const user = buildUser(uid, email);
+    let bootstrapCalls = 0;
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getOrCreateDefaultSubscription = async () => {
+      bootstrapCalls += 1;
+      return {
+        id: "sub-3",
+        userId: user.id,
+        planTier: "payg",
+        planStatus: "active",
+        currentCredits: 50,
+        termsVersion: null,
+        termsAcceptedAt: null,
+        stripeSubscriptionId: null,
+        stripeCustomerId: null,
+        billingCycleStart: null,
+        billingCycleEnd: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    };
+    creditService.spendCredits = async () => true;
+
+    const result = await spendCreditsHandler({
+      auth: {
+        uid,
+        token: {
+          uid,
+          email,
+        },
+      },
+      data: {
+        amount: 1,
+        description: "chat response",
+      },
+    } as never);
+
+    assert.deepEqual(result, {success: true});
+    assert.equal(bootstrapCalls, 1);
   });
 });

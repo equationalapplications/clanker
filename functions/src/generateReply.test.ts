@@ -12,6 +12,7 @@ type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionServ
 
 const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity;
 const originalGetSubscription = subscriptionService.getSubscription;
+const originalGetOrCreateDefaultSubscription = subscriptionService.getOrCreateDefaultSubscription;
 const originalSpendCredits = creditService.spendCredits;
 const originalGetCredits = creditService.getCredits;
 
@@ -72,6 +73,7 @@ async function withServiceMocks(run: () => Promise<void>) {
   } finally {
     userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
     subscriptionService.getSubscription = originalGetSubscription;
+    subscriptionService.getOrCreateDefaultSubscription = originalGetOrCreateDefaultSubscription;
     creditService.spendCredits = originalSpendCredits;
     creditService.getCredits = originalGetCredits;
   }
@@ -251,6 +253,41 @@ test("generateReplyHandler rejects when user has no credits and no unlimited pla
         ),
       (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
     );
+  });
+});
+
+test("generateReplyHandler bootstraps default subscription when missing", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let bootstrapCalls = 0;
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => null as never;
+    subscriptionService.getOrCreateDefaultSubscription = async () => {
+      bootstrapCalls += 1;
+      return buildSubscription(user.id, "payg", 50);
+    };
+    creditService.spendCredits = async () => true;
+    creditService.getCredits = async () => 49;
+
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: {
+          prompt: "hello",
+        },
+      } as never,
+      {
+        generateText: async () => "reply from model",
+      }
+    );
+
+    assert.equal(result.creditsSpent, 1);
+    assert.equal(result.remainingCredits, 49);
+    assert.equal(result.planTier, "payg");
+    assert.equal(bootstrapCalls, 1);
   });
 });
 
