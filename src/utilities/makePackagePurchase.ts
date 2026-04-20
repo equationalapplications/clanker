@@ -33,7 +33,7 @@ export async function makePackagePurchase(productType: ProductType = 'monthly_20
       // Native: use RevenueCat for in-app purchases
       const productIdentifier = REVENUECAT_PRODUCT_MAP[activeProductType]
       const customerInfo = await purchaseProduct(productIdentifier)
-      // CreditsDisplay component handles refetch() immediately after return
+      // Callers handle native post-purchase refresh for credits and subscription UI state.
       return customerInfo
     } else if (Platform.OS === 'web') {
       // Web: use Stripe checkout via Firebase Cloud Function

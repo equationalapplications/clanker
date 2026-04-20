@@ -1,10 +1,40 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
 
+let mockPlatformOS: 'web' | 'ios' | 'android' = 'web'
 const mockMakePackagePurchase = jest.fn()
+const mockRefetch = jest.fn()
+const mockAuthSend = jest.fn()
+
+jest.mock('react-native', () => {
+  const React = require('react')
+
+  return {
+    Pressable: ({ children, onPress, ...props }: any) =>
+      React.createElement('Pressable', { onPress, ...props }, children),
+    Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
+    Platform: {
+      get OS() {
+        return mockPlatformOS
+      },
+    },
+  }
+})
 
 jest.mock('~/utilities/makePackagePurchase', () => ({
   makePackagePurchase: (...args: unknown[]) => mockMakePackagePurchase(...args),
+}))
+
+jest.mock('~/hooks/useUserCredits', () => ({
+  useUserCredits: () => ({
+    refetch: (...args: unknown[]) => mockRefetch(...args),
+  }),
+}))
+
+jest.mock('~/hooks/useMachines', () => ({
+  useAuthMachine: () => ({
+    send: (...args: unknown[]) => mockAuthSend(...args),
+  }),
 }))
 
 jest.mock('~/components/Button', () => {
@@ -21,6 +51,7 @@ jest.mock('~/components/Button', () => {
 describe('SubscribeButton', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPlatformOS = 'web'
   })
 
   it('toggles loading state around successful purchase', async () => {
@@ -67,5 +98,28 @@ describe('SubscribeButton', () => {
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('monthly_20')
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(1, true)
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(2, false)
+  })
+
+  it('refreshes credits and bootstrap state after native purchase', async () => {
+    mockPlatformOS = 'ios'
+    const onChangeIsLoading = jest.fn()
+    mockMakePackagePurchase.mockResolvedValueOnce(undefined)
+    mockRefetch.mockResolvedValueOnce(undefined)
+
+    const SubscribeButton = require('~/components/SubscribeButton').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<SubscribeButton onChangeIsLoading={onChangeIsLoading} productType="monthly_20" />)
+    })
+
+    const button = tree.root.findByProps({ testID: 'subscribe-button' })
+
+    await act(async () => {
+      await button.props.onPress()
+    })
+
+    expect(mockRefetch).toHaveBeenCalledTimes(1)
+    expect(mockAuthSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
   })
 })
