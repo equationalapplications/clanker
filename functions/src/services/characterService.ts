@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { characters, messages } from '../db/schema.js';
 
@@ -56,33 +56,38 @@ export const characterService = {
     // This preserves local->cloud sync for pre-existing local UUIDs while still blocking
     // attempts to overwrite a character owned by a different user.
     if (character.id) {
-      const existing = await db
-        .select()
-        .from(characters)
-        .where(eq(characters.id, character.id))
-        .limit(1);
-      
-      if (existing[0] && existing[0].userId !== userId) {
-        throw new Error('Character does not belong to user');
-      }
-      
-      if (existing[0]) {
-        const [updated] = await db
-          .update(characters)
-          .set(buildCharacterUpdateValues(character))
-          .where(and(eq(characters.id, character.id), eq(characters.userId, userId)))
-          .returning();
-        return updated;
-      }
-
-      const [insertedWithProvidedId] = await db
+      const [upserted] = await db
         .insert(characters)
         .values({
           ...character,
           userId,
         })
+        .onConflictDoUpdate({
+          target: characters.id,
+          set: buildCharacterUpdateValues(character),
+          where: eq(characters.userId, userId),
+        })
         .returning();
-      return insertedWithProvidedId;
+
+      if (!upserted) {
+        const existing = await db
+          .select()
+          .from(characters)
+          .where(eq(characters.id, character.id))
+          .limit(1);
+
+        if (existing[0] && existing[0].userId !== userId) {
+          throw new Error('Character does not belong to user');
+        }
+
+        if (existing[0]) {
+          return existing[0];
+        }
+
+        throw new Error('Failed to upsert character');
+      }
+
+      return upserted;
     }
     
     // Insert new character and always enforce owner from explicit parameter.
