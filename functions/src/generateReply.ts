@@ -5,6 +5,7 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
+import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const DEFAULT_MODEL = "gemini-2.5-flash";
@@ -336,6 +337,7 @@ export const generateReply = onCall(
     region: DEFAULT_REGION,
     enforceAppCheck: true,
     invoker: "public",
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => handler(request)
 );

@@ -2,6 +2,7 @@ import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/
 import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { subscriptionService } from './services/subscriptionService.js';
+import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_DISPLAY_NAME_LENGTH = 100;
@@ -134,6 +135,7 @@ export const updateUserProfile = onCall(
     region: 'us-central1',
     enforceAppCheck: true,
     invoker: 'public',
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => updateUserProfileHandler(request)
 );
@@ -185,6 +187,7 @@ export const acceptTerms = onCall(
     region: 'us-central1',
     enforceAppCheck: true,
     invoker: 'public',
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => acceptTermsHandler(request)
 );

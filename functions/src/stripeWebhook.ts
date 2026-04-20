@@ -8,6 +8,7 @@ import {validateAndNormalizeStripeSecretKey} from "./stripeConfig.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
+import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import type {UpsertSubscriptionParams} from "./services/subscriptionService.js";
 
 // Initialize the Admin SDK if not already initialized
@@ -252,6 +253,7 @@ export const stripeWebhook = onRequest(
     region: "us-central1",
     invoker: "public",
     secrets: [
+      ...CLOUD_SQL_SECRETS,
       "STRIPE_SECRET_KEY",
       "STRIPE_WEBHOOK_SECRET",
     ]

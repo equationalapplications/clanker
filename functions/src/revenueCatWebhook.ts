@@ -6,6 +6,7 @@ import type {Request, Response} from "express";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
+import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -363,7 +364,7 @@ export const revenueCatWebhook = onRequest(
   {
     region: "us-central1",
     invoker: "public",
-    secrets: ["REVENUECAT_WEBHOOK_SECRET"]
+    secrets: [...CLOUD_SQL_SECRETS, "REVENUECAT_WEBHOOK_SECRET"]
   },
   revenueCatWebhookHandler
 );

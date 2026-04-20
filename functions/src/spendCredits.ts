@@ -4,6 +4,7 @@ import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
 import { creditService } from "./services/creditService.js";
+import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -101,7 +102,8 @@ export const spendCredits = onCall(
   {
     region: "us-central1",
     enforceAppCheck: true,
-    invoker: "public"
+    invoker: "public",
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => {
     return handler(request);

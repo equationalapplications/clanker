@@ -2,6 +2,7 @@ import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/
 import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { characterService } from './services/characterService.js';
+import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -45,6 +46,7 @@ export const syncCharacter = onCall(
     region: 'us-central1',
     enforceAppCheck: true,
     invoker: 'public',
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => syncCharacterHandler(request)
 );
@@ -108,6 +110,7 @@ export const deleteCharacter = onCall(
     region: 'us-central1',
     enforceAppCheck: true,
     invoker: 'public',
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => deleteCharacterHandler(request)
 );
@@ -153,6 +156,7 @@ export const getUserCharacters = onCall(
     region: 'us-central1',
     enforceAppCheck: true,
     invoker: 'public',
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   async (request) => {
     if (!request.auth) {

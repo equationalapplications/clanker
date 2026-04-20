@@ -5,6 +5,7 @@ import {count, desc, eq, ilike, inArray, or} from "drizzle-orm";
 import {requireAdmin} from "./adminAuth.js";
 import {getDb} from "./db/cloudSql.js";
 import {users, subscriptions, characters, messages} from "./db/schema.js";
+import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -607,6 +608,7 @@ const sharedCallableOptions = {
   region: "us-central1" as const,
   enforceAppCheck: true,
   invoker: "public" as const,
+  secrets: [...CLOUD_SQL_SECRETS],
 };
 
 export const adminListUsers = onCall(sharedCallableOptions, (request) => adminListUsersHandler(request));
