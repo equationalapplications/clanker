@@ -217,3 +217,38 @@ test("updateUserProfileHandler updates profile on valid payload", async () => {
   assert.equal(result.id, "user-42");
   assert.equal(result.displayName, "New Name");
 });
+
+test("updateUserProfileHandler returns timestamps as ISO strings", async () => {
+  const createdAt = new Date("2026-01-01T00:00:00.000Z");
+  const updatedAt = new Date("2026-01-02T00:00:00.000Z");
+
+  const deps = buildUpdateUserProfileDeps({
+    userRepository: {
+      findUserByFirebaseUid: async () => ({id: "user-42"} as never),
+      updateUser: async () => ({
+        id: "user-42",
+        firebaseUid: "firebase-uid-1",
+        email: "person@example.com",
+        displayName: "New Name",
+        avatarUrl: null,
+        isProfilePublic: false,
+        defaultCharacterId: null,
+        createdAt,
+        updatedAt,
+      } as never),
+    },
+  } as unknown as Partial<UpdateUserProfileDeps>);
+
+  const result = await updateUserProfileHandler(
+    {
+      auth,
+      data: {displayName: "New Name"},
+    } as never,
+    deps
+  );
+
+  assert.equal(typeof result.createdAt, "string");
+  assert.equal(typeof result.updatedAt, "string");
+  assert.equal(result.createdAt, createdAt.toISOString());
+  assert.equal(result.updatedAt, updatedAt.toISOString());
+});

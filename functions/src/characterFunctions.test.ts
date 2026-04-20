@@ -4,7 +4,7 @@ import {HttpsError} from "firebase-functions/v2/https";
 
 process.env.NODE_ENV = "test";
 
-const {syncCharacterHandler, deleteCharacterHandler} = await import("./characterFunctions.js");
+const {syncCharacterHandler, deleteCharacterHandler, getUserCharactersHandler} = await import("./characterFunctions.js");
 
 type CharacterFunctionDeps = NonNullable<Parameters<typeof syncCharacterHandler>[1]>;
 
@@ -126,4 +126,85 @@ test("syncCharacterHandler rejects invalid optional boolean field", async () => 
       err.code === "invalid-argument" &&
       err.message.includes("character.isPublic must be a boolean")
   );
+});
+
+test("syncCharacterHandler returns timestamps as ISO strings", async () => {
+  const createdAt = new Date("2026-01-01T00:00:00.000Z");
+  const updatedAt = new Date("2026-01-02T00:00:00.000Z");
+
+  const result = await syncCharacterHandler(
+    {
+      auth,
+      data: {
+        character: {
+          name: "Nova",
+        },
+      },
+    } as never,
+    {
+      userRepository: {
+        findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+      },
+      characterService: {
+        upsertCharacter: async () => ({
+          id: "character-1",
+          userId: "user-1",
+          name: "Nova",
+          avatar: null,
+          appearance: null,
+          traits: null,
+          emotions: null,
+          context: null,
+          isPublic: false,
+          createdAt,
+          updatedAt,
+        } as never),
+      },
+    } as unknown as CharacterFunctionDeps
+  );
+
+  assert.equal(typeof result.createdAt, "string");
+  assert.equal(typeof result.updatedAt, "string");
+  assert.equal(result.createdAt, createdAt.toISOString());
+  assert.equal(result.updatedAt, updatedAt.toISOString());
+});
+
+test("getUserCharactersHandler returns character timestamps as ISO strings", async () => {
+  const createdAt = new Date("2026-01-01T00:00:00.000Z");
+  const updatedAt = new Date("2026-01-02T00:00:00.000Z");
+
+  const result = await getUserCharactersHandler(
+    {
+      auth,
+      data: {},
+    } as never,
+    {
+      userRepository: {
+        findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+      },
+      characterService: {
+        getUserCharacters: async () => ([
+          {
+            id: "character-1",
+            userId: "user-1",
+            name: "Nova",
+            avatar: null,
+            appearance: null,
+            traits: null,
+            emotions: null,
+            context: null,
+            isPublic: false,
+            createdAt,
+            updatedAt,
+          },
+        ] as never),
+      },
+    } as unknown as CharacterFunctionDeps
+  );
+
+  assert.equal(result.characters.length, 1);
+  assert.equal(typeof result.characters[0]?.createdAt, "string");
+  assert.equal(typeof result.characters[0]?.updatedAt, "string");
+  assert.equal(result.characters[0]?.createdAt, createdAt.toISOString());
+  assert.equal(result.characters[0]?.updatedAt, updatedAt.toISOString());
 });

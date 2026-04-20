@@ -24,6 +24,22 @@ type CharacterFunctionDeps = {
   characterService: Pick<typeof characterService, 'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters'>;
 };
 
+function toISO(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return value instanceof Date ? value.toISOString() : (value as string);
+}
+
+function serializeCharacter(character: Record<string, unknown>) {
+  return {
+    ...character,
+    createdAt: toISO(character.createdAt),
+    updatedAt: toISO(character.updatedAt),
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -131,7 +147,8 @@ export const syncCharacterHandler = async (
       createdAt,
       updatedAt,
     }, user.id);
-    return upserted;
+
+    return serializeCharacter(upserted as unknown as Record<string, unknown>);
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;
@@ -194,22 +211,31 @@ export const getUserCharacters = onCall(
     invoker: 'public',
     secrets: [...CLOUD_SQL_SECRETS],
   },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Authentication required.');
-    }
-
-    const user = await userRepository.findUserByFirebaseUid(request.auth.uid);
-    if (!user) {
-      throw new HttpsError('not-found', 'User not found.');
-    }
-
-    try {
-      const characters = await characterService.getUserCharacters(user.id);
-      return { characters };
-    } catch (error) {
-      logger.error('Failed to get user characters', { error });
-      throw new HttpsError('internal', 'Failed to get user characters.');
-    }
-  }
+  (request) => getUserCharactersHandler(request)
 );
+
+export const getUserCharactersHandler = async (
+  request: CallableRequest,
+  deps: CharacterFunctionDeps = { userRepository, characterService }
+) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required.');
+  }
+
+  const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
+  if (!user) {
+    throw new HttpsError('not-found', 'User not found.');
+  }
+
+  try {
+    const characters = await deps.characterService.getUserCharacters(user.id);
+    return {
+      characters: characters.map((character) =>
+        serializeCharacter(character as unknown as Record<string, unknown>)
+      ),
+    };
+  } catch (error) {
+    logger.error('Failed to get user characters', { error });
+    throw new HttpsError('internal', 'Failed to get user characters.');
+  }
+};

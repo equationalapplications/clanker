@@ -20,6 +20,14 @@ type UserFunctionDeps = {
   subscriptionService: Pick<typeof subscriptionService, 'acceptTerms'>;
 };
 
+function toISO(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return value instanceof Date ? value.toISOString() : (value as string);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -172,7 +180,12 @@ export const updateUserProfileHandler = async (
     if (!updatedUser) {
       throw new HttpsError('not-found', 'User not found.');
     }
-    return updatedUser;
+
+    return {
+      ...updatedUser,
+      createdAt: toISO(updatedUser.createdAt),
+      updatedAt: toISO(updatedUser.updatedAt),
+    };
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;
