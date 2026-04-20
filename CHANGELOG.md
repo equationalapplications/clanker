@@ -1,3 +1,12 @@
+## [27.1.1](https://github.com/equationalapplications/clanker/compare/v27.1.0...v27.1.1) (2026-04-20)
+
+
+### Bug Fixes
+
+* **webhook:** case-insensitive Bearer auth and smarter form detection ([d41ed04](https://github.com/equationalapplications/clanker/commit/d41ed04023ce367aa1918d9cf935a67a6b174f13))
+* **webhook:** compare buffer byte length and deduplicate body extraction ([6825790](https://github.com/equationalapplications/clanker/commit/68257909e683cf4bc9e9a4c5199a6fe7a64f2a4e))
+* **webhook:** skip auth for TEST events ([0c1c822](https://github.com/equationalapplications/clanker/commit/0c1c82264abbd5fe532c0a18c0d9620e9d913c41))
+
 # [27.1.0](https://github.com/equationalapplications/clanker/compare/v27.0.0...v27.1.0) (2026-04-17)
 
 
