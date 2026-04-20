@@ -13,73 +13,79 @@ export interface UpsertSubscriptionParams {
   billingCycleEnd?: Date | null;
 }
 
-export const subscriptionService = {
-  async getSubscription(userId: string) {
-    const db = await getDb();
-    const result = await db
-      .select()
-      .from(subscriptions)
-      .where(eq(subscriptions.userId, userId))
-      .limit(1);
-    return result[0] || null;
-  },
+interface SubscriptionServiceDeps {
+  getDb: typeof getDb;
+}
 
-  async getOrCreateDefaultSubscription(userId: string) {
-    const db = await getDb();
-    await db
-      .insert(subscriptions)
-      .values({
-        userId,
-        planTier: 'free',
-        planStatus: 'active',
-        currentCredits: 50,
-      })
-      .onConflictDoNothing({ target: subscriptions.userId });
+export const createSubscriptionService = (
+  deps: SubscriptionServiceDeps = { getDb },
+) => {
+  const service = {
+    async getSubscription(userId: string) {
+      const db = await deps.getDb();
+      const result = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.userId, userId))
+        .limit(1);
+      return result[0] || null;
+    },
 
-    const subscription = await this.getSubscription(userId);
-    if (!subscription) {
-      throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`);
-    }
+    async getOrCreateDefaultSubscription(userId: string) {
+      const db = await deps.getDb();
+      await db
+        .insert(subscriptions)
+        .values({
+          userId,
+          planTier: 'free',
+          planStatus: 'active',
+          currentCredits: 50,
+        })
+        .onConflictDoNothing({ target: subscriptions.userId });
 
-    return subscription;
-  },
+      const subscription = await service.getSubscription(userId);
+      if (!subscription) {
+        throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`);
+      }
 
-  async upsertSubscription(params: UpsertSubscriptionParams) {
-    const db = await getDb();
-    const [upserted] = await db
-      .insert(subscriptions)
-      .values({
-        userId: params.userId,
-        planTier: params.planTier,
-        planStatus: params.planStatus,
-        currentCredits: params.currentCredits ?? 0,
-        stripeSubscriptionId: params.stripeSubscriptionId,
-        stripeCustomerId: params.stripeCustomerId,
-        billingCycleStart: params.billingCycleStart,
-        billingCycleEnd: params.billingCycleEnd,
-      })
-      .onConflictDoUpdate({
-        target: subscriptions.userId,
-        set: {
+      return subscription;
+    },
+
+    async upsertSubscription(params: UpsertSubscriptionParams) {
+      const db = await deps.getDb();
+      const [upserted] = await db
+        .insert(subscriptions)
+        .values({
+          userId: params.userId,
           planTier: params.planTier,
           planStatus: params.planStatus,
-          currentCredits: params.currentCredits ?? sql`${subscriptions.currentCredits}`,
-          stripeSubscriptionId: params.stripeSubscriptionId !== undefined ? params.stripeSubscriptionId : sql`${subscriptions.stripeSubscriptionId}`,
-          stripeCustomerId: params.stripeCustomerId !== undefined ? params.stripeCustomerId : sql`${subscriptions.stripeCustomerId}`,
-          billingCycleStart: params.billingCycleStart !== undefined ? params.billingCycleStart : sql`${subscriptions.billingCycleStart}`,
-          billingCycleEnd: params.billingCycleEnd !== undefined ? params.billingCycleEnd : sql`${subscriptions.billingCycleEnd}`,
-          updatedAt: new Date(),
-        }
-      })
-      .returning();
-    return upserted;
-  },
+          currentCredits: params.currentCredits ?? 0,
+          stripeSubscriptionId: params.stripeSubscriptionId,
+          stripeCustomerId: params.stripeCustomerId,
+          billingCycleStart: params.billingCycleStart,
+          billingCycleEnd: params.billingCycleEnd,
+        })
+        .onConflictDoUpdate({
+          target: subscriptions.userId,
+          set: {
+            planTier: params.planTier,
+            planStatus: params.planStatus,
+            currentCredits: params.currentCredits ?? sql`${subscriptions.currentCredits}`,
+            stripeSubscriptionId: params.stripeSubscriptionId !== undefined ? params.stripeSubscriptionId : sql`${subscriptions.stripeSubscriptionId}`,
+            stripeCustomerId: params.stripeCustomerId !== undefined ? params.stripeCustomerId : sql`${subscriptions.stripeCustomerId}`,
+            billingCycleStart: params.billingCycleStart !== undefined ? params.billingCycleStart : sql`${subscriptions.billingCycleStart}`,
+            billingCycleEnd: params.billingCycleEnd !== undefined ? params.billingCycleEnd : sql`${subscriptions.billingCycleEnd}`,
+            updatedAt: new Date(),
+          }
+        })
+        .returning();
+      return upserted;
+    },
 
-  async acceptTerms(userId: string, version: string, acceptedAt: Date) {
-    const db = await getDb();
-    const existing = await this.getSubscription(userId);
+    async acceptTerms(userId: string, version: string, acceptedAt: Date) {
+      const db = await deps.getDb();
+      await service.getOrCreateDefaultSubscription(userId);
 
-    if (existing) {
       await db
         .update(subscriptions)
         .set({
@@ -88,12 +94,10 @@ export const subscriptionService = {
           updatedAt: new Date(),
         })
         .where(eq(subscriptions.userId, userId));
-    } else {
-      await db.insert(subscriptions).values({
-        userId,
-        termsVersion: version,
-        termsAcceptedAt: acceptedAt,
-      });
-    }
-  },
+    },
+  };
+
+  return service;
 };
+
+export const subscriptionService = createSubscriptionService();
