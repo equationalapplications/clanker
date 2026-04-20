@@ -15,6 +15,13 @@
       "when": 1777003200000,
       "tag": "0001_credit_transactions_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776697000000,
+      "tag": "0002_users_timestamps_not_null",
+      "breakpoints": true
     }
   ]
 }

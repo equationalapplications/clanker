@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Text, Button } from 'react-native-paper'
 import { useRouter } from 'expo-router'
-import { getUserState } from '~/services/apiClient'
 import { useAuthMachine } from '~/hooks/useMachines'
 
 export default function CheckoutSuccess() {
@@ -11,11 +10,6 @@ export default function CheckoutSuccess() {
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      try {
-        await getUserState()
-      } catch (error: any) {
-        console.warn('⚠️ User state refresh failed after checkout:', error.message)
-      }
       authService.send({ type: 'REFRESH_BOOTSTRAP' })
       router.replace('/')
     }, 3000)
@@ -32,12 +26,7 @@ export default function CheckoutSuccess() {
       </Text>
       <Button
         mode="contained"
-        onPress={async () => {
-          try {
-            await getUserState()
-          } catch (error: any) {
-            console.warn('⚠️ User state refresh failed after checkout:', error.message)
-          }
+        onPress={() => {
           authService.send({ type: 'REFRESH_BOOTSTRAP' })
           router.replace('/')
         }}

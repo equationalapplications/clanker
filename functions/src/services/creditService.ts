@@ -90,7 +90,10 @@ export const creditService = {
         // Use UPDATE ... RETURNING to ensure atomic deduction and prevent negative balance.
         const result = await tx
           .update(subscriptions)
-          .set({ currentCredits: sql`${subscriptions.currentCredits} - ${amount}` })
+          .set({
+            currentCredits: sql`${subscriptions.currentCredits} - ${amount}`,
+            updatedAt: new Date(),
+          })
           .where(
             and(
               eq(subscriptions.userId, userId),

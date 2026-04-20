@@ -12,7 +12,6 @@ import { useUserPrivateData, userKeys } from '~/hooks/useUser'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { makePackagePurchase, type ProductType } from '~/utilities/makePackagePurchase'
 import { restorePurchases } from '~/config/revenueCatConfig'
-import { getUserState } from '~/services/apiClient'
 import { APPLE_EULA_URL } from '~/config/constants'
 
 export default function SubscribeScreen() {
@@ -51,7 +50,6 @@ export default function SubscribeScreen() {
     setInFlightAction('restore')
     try {
       await restorePurchases()
-      await getUserState()
       authService.send({ type: 'REFRESH_BOOTSTRAP' })
       // Invalidate to ensure all components pick up fresh data
       await queryClient.invalidateQueries({ queryKey: userKeys.private(user?.uid) })
