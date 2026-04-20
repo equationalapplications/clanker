@@ -44,6 +44,7 @@ export const syncCharacter = onCall(
   {
     region: 'us-central1',
     enforceAppCheck: true,
+    invoker: 'public',
   },
   (request) => syncCharacterHandler(request)
 );
@@ -106,6 +107,7 @@ export const deleteCharacter = onCall(
   {
     region: 'us-central1',
     enforceAppCheck: true,
+    invoker: 'public',
   },
   (request) => deleteCharacterHandler(request)
 );
@@ -150,6 +152,7 @@ export const getUserCharacters = onCall(
   {
     region: 'us-central1',
     enforceAppCheck: true,
+    invoker: 'public',
   },
   async (request) => {
     if (!request.auth) {

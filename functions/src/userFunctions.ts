@@ -133,6 +133,7 @@ export const updateUserProfile = onCall(
   {
     region: 'us-central1',
     enforceAppCheck: true,
+    invoker: 'public',
   },
   (request) => updateUserProfileHandler(request)
 );
@@ -183,6 +184,7 @@ export const acceptTerms = onCall(
   {
     region: 'us-central1',
     enforceAppCheck: true,
+    invoker: 'public',
   },
   (request) => acceptTermsHandler(request)
 );
