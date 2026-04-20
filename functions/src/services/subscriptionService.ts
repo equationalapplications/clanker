@@ -59,7 +59,7 @@ export const createSubscriptionService = (
           userId: params.userId,
           planTier: params.planTier,
           planStatus: params.planStatus,
-          currentCredits: params.currentCredits ?? 0,
+          currentCredits: params.currentCredits ?? 50,
           stripeSubscriptionId: params.stripeSubscriptionId,
           stripeCustomerId: params.stripeCustomerId,
           billingCycleStart: params.billingCycleStart,
