@@ -169,7 +169,6 @@ Move from 1 vCPU to 2 vCPU when any of the following occur:
 - **Memory**: Memory pressure > 75% or swap activity observed
 - **Query latency**: p95 query latency exceeds SLO (e.g., > 150–200 ms) after query/index tuning
 - **Connection contention**: Connection wait events increase despite small function pool (`max: 5`)
-- **Background jobs**: Scheduled jobs or webhook processing start overlapping, causing lock contention
 
 Enable HA when:
 
