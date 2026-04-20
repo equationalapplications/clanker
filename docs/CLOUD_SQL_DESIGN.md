@@ -110,3 +110,77 @@ Chat history between users and characters.
     - `max: 5`
     - `idleTimeoutMillis: 30000`
     - `connectionTimeoutMillis: 10000`
+
+## Instance Sizing Recommendations
+
+### Dev / Staging (0–10 internal users)
+
+| Setting | Value |
+| :--- | :--- |
+| Edition | Cloud SQL Enterprise |
+| Instance class | 1 vCPU, 3.75–4 GB RAM |
+| Availability | Single-zone |
+| Storage | 20 GB SSD with autoresize enabled |
+| PITR | 7 days |
+| Backups | Daily automated + binary logging |
+| Estimated monthly cost | ~$50–$110 |
+
+### Early Production (Up to 50 light users, low concurrency)
+
+| Setting | Value |
+| :--- | :--- |
+| Edition | Cloud SQL Enterprise |
+| Instance class | 1 vCPU, 3.75–4 GB RAM |
+| Availability | Single-zone initially |
+| Storage | 20–30 GB SSD with autoresize enabled |
+| PITR | 14–30 days |
+| Backups | Daily automated + binary logging |
+| Estimated monthly cost | ~$70–$140 |
+
+### Growth Phase (50–200 users, noticeable concurrency spikes)
+
+| Setting | Value |
+| :--- | :--- |
+| Edition | Cloud SQL Enterprise |
+| Instance class | 2 vCPU, 8 GB RAM |
+| Availability | Single-zone initially; HA if downtime < SLO |
+| Storage | 30–50 GB SSD with autoresize enabled |
+| PITR | 14–30 days |
+| Backups | Daily automated + binary logging |
+| Estimated monthly cost | ~$140–$320 (single-zone); ~$260–$520 (HA) |
+
+### Reliability-First Production (Revenue-impacting downtime)
+
+| Setting | Value |
+| :--- | :--- |
+| Edition | Cloud SQL Enterprise |
+| Instance class | 2+ vCPU, 8+ GB RAM |
+| Availability | Regional HA enabled |
+| Storage | 50+ GB SSD with autoresize enabled |
+| PITR | 30 days |
+| Backups | Daily automated + binary logging |
+| Estimated monthly cost | ~$260–$700+ |
+
+## Scaling Triggers
+
+Move from 1 vCPU to 2 vCPU when any of the following occur:
+
+- **CPU**: Sustained CPU usage > 60% during peak windows
+- **Memory**: Memory pressure > 75% or swap activity observed
+- **Query latency**: p95 query latency exceeds SLO (e.g., > 150–200 ms) after query/index tuning
+- **Connection contention**: Connection wait events increase despite small function pool (`max: 5`)
+- **Background jobs**: Scheduled jobs or webhook processing start overlapping, causing lock contention
+
+Enable HA when:
+
+- Single-zone maintenance/restart downtime is unacceptable
+- Recovery expectations are strict (business or compliance driven)
+- Revenue or user impact from downtime is meaningful
+
+## Connection Pool Sizing
+
+The application uses a connection pool with `max: 5`. Cloud Functions can auto-scale independently, meaning multiple function instances may exist simultaneously. A 1 vCPU Cloud SQL instance typically supports ~100 connections.
+
+- **Safe headroom**: Up to ~20 concurrent function instances before hitting the connection ceiling
+- **For 5 users**: Connection exhaustion is effectively impossible under normal use
+- **Monitoring**: Track `pg_stat_activity` connection count or Cloud SQL's `cloudsql.googleapis.com/database/postgresql/num_backends` metric. Scale if connections regularly exceed 60–70% of `max_connections`
