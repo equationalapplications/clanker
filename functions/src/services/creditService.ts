@@ -15,6 +15,27 @@ function isUniqueViolation(error: unknown): error is { code: string } {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === UNIQUE_VIOLATION_CODE;
 }
 
+export function assertIdempotentDeltaMatch(params: {
+  requestedDelta: number;
+  existingDelta: number | null;
+  reason: string;
+  referenceId: string;
+}): void {
+  const { requestedDelta, existingDelta, reason, referenceId } = params;
+
+  if (existingDelta === null) {
+    throw new Error(
+      `Idempotency validation missing transaction for reason "${reason}" and referenceId "${referenceId}".`
+    );
+  }
+
+  if (existingDelta !== requestedDelta) {
+    throw new Error(
+      `Idempotency delta mismatch for reason "${reason}" and referenceId "${referenceId}".`
+    );
+  }
+}
+
 export const creditService = {
   async getCredits(userId: string): Promise<number> {
     const db = await getDb();
@@ -41,6 +62,25 @@ export const creditService = {
             });
           } catch (error) {
             if (isUniqueViolation(error)) {
+              const existing = await tx
+                .select({ delta: creditTransactions.delta })
+                .from(creditTransactions)
+                .where(
+                  and(
+                    eq(creditTransactions.userId, userId),
+                    eq(creditTransactions.reason, reason),
+                    eq(creditTransactions.referenceId, referenceId)
+                  )
+                )
+                .limit(1);
+
+              assertIdempotentDeltaMatch({
+                requestedDelta: -amount,
+                existingDelta: existing[0]?.delta ?? null,
+                reason,
+                referenceId,
+              });
+
               return true;
             }
             throw error;
@@ -97,6 +137,25 @@ export const creditService = {
           });
         } catch (error) {
           if (isUniqueViolation(error)) {
+            const existing = await tx
+              .select({ delta: creditTransactions.delta })
+              .from(creditTransactions)
+              .where(
+                and(
+                  eq(creditTransactions.userId, userId),
+                  eq(creditTransactions.reason, reason),
+                  eq(creditTransactions.referenceId, referenceId)
+                )
+              )
+              .limit(1);
+
+            assertIdempotentDeltaMatch({
+              requestedDelta: amount,
+              existingDelta: existing[0]?.delta ?? null,
+              reason,
+              referenceId,
+            });
+
             const current = await tx
               .select({ currentCredits: subscriptions.currentCredits })
               .from(subscriptions)
@@ -151,6 +210,25 @@ export const creditService = {
           });
         } catch (error) {
           if (isUniqueViolation(error)) {
+            const existing = await tx
+              .select({ delta: creditTransactions.delta })
+              .from(creditTransactions)
+              .where(
+                and(
+                  eq(creditTransactions.userId, userId),
+                  eq(creditTransactions.reason, reason),
+                  eq(creditTransactions.referenceId, referenceId)
+                )
+              )
+              .limit(1);
+
+            assertIdempotentDeltaMatch({
+              requestedDelta: delta,
+              existingDelta: existing[0]?.delta ?? null,
+              reason,
+              referenceId,
+            });
+
             const current = await tx
               .select({ currentCredits: subscriptions.currentCredits })
               .from(subscriptions)

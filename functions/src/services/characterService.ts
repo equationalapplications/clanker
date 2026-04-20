@@ -2,6 +2,32 @@ import { and, eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { characters, messages } from '../db/schema.js';
 
+type CharacterUpdateInput = Pick<
+  typeof characters.$inferInsert,
+  'name' | 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context' | 'isPublic' | 'updatedAt'
+>;
+
+export function buildCharacterUpdateValues(character: CharacterUpdateInput) {
+  const updateValues = {
+    name: character.name,
+    avatar: character.avatar,
+    appearance: character.appearance,
+    traits: character.traits,
+    emotions: character.emotions,
+    context: character.context,
+    updatedAt: character.updatedAt ?? new Date(),
+  };
+
+  if (character.isPublic === undefined) {
+    return updateValues;
+  }
+
+  return {
+    ...updateValues,
+    isPublic: character.isPublic,
+  };
+}
+
 export const characterService = {
   async getUserCharacterCount(userId: string): Promise<number> {
     const db = await getDb();
@@ -43,16 +69,7 @@ export const characterService = {
       if (existing[0]) {
         const [updated] = await db
           .update(characters)
-          .set({
-            name: character.name,
-            avatar: character.avatar,
-            appearance: character.appearance,
-            traits: character.traits,
-            emotions: character.emotions,
-            context: character.context,
-            isPublic: character.isPublic,
-            updatedAt: character.updatedAt ?? new Date(),
-          })
+          .set(buildCharacterUpdateValues(character))
           .where(and(eq(characters.id, character.id), eq(characters.userId, userId)))
           .returning();
         return updated;
