@@ -17,7 +17,7 @@ declare global {
     FIREBASE_APPCHECK_DEBUG_TOKEN?: string | boolean
   }
 
-  // eslint-disable-next-line no-var
+   
   var FIREBASE_APPCHECK_DEBUG_TOKEN: string | boolean | undefined
 }
 

@@ -45,12 +45,14 @@ Security considerations
 
 - Do not use the Supabase service role key in any client code. It must only be available to trusted server/cloud environments.
 - Ensure callable functions require authentication (the code already throws `unauthenticated` if `request.auth` is missing).
-- Limit CORS and origins for the callable function to the set of allowed client hosts (see the function's `cors` list).
-- Rotate the SUPABASE_SERVICE_ROLE_KEY and SUPABASE_JWT_SECRET on a secure schedule and update cloud environment variables.
+- Gen 2 callable functions handle CORS automatically. If browser preflight fails, first check Cloud Run invoker IAM.
+- Keep the underlying Cloud Run service publicly invokable (`allUsers` with `roles/run.invoker`) so unauthenticated browser preflight requests can reach the callable CORS handler.
+- Rotate the SUPABASE_SERVICE_ROLE_KEY on a secure schedule and update cloud environment variables.
 
 Troubleshooting
 
 - "Authentication required" / unauthenticated: Client is not signed into Firebase or callable is invoked without a Firebase auth context. Confirm `auth.currentUser` exists before calling the function.
+- "blocked by CORS policy" + preflight 401/403 with no `Access-Control-Allow-Origin`: Cloud Run invoker IAM is usually too restrictive (missing `allUsers` -> `roles/run.invoker`).
 - "Firebase user email is required": The Firebase token did not contain a verified email (common for some anonymous or incomplete sign-ins). Ensure your Firebase sign-in method provides an email.
 - "Could not find or create a Supabase user": Check function logs for errors from the Supabase Admin API; verify `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_URL` are set in the function environment.
 - "Failed to get Supabase user session": Check the function's `getSupabaseUserSession` call and Supabase project quotas/limits.
