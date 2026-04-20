@@ -40,17 +40,19 @@ export const getUserCredits = async (): Promise<UserCredits> => {
       }
     }
 
-    const { planTier, currentCredits } = state.subscription
-    const isUnlimited = isPlanTier(planTier) && SUBSCRIPTION_TIERS.includes(planTier)
+    const { planTier, planStatus, currentCredits } = state.subscription
+    const isActive = planStatus === 'active'
+    const isUnlimited =
+      isActive && isPlanTier(planTier) && SUBSCRIPTION_TIERS.includes(planTier)
 
-    const totalCredits = isUnlimited ? 0 : currentCredits
+    const totalCredits = isActive ? currentCredits : 0
 
     return {
       totalCredits,
       hasUnlimited: isUnlimited,
       subscriptions: [{
         tier: planTier,
-        credits: currentCredits,
+        credits: totalCredits,
         isUnlimited
       }],
     }
