@@ -11,6 +11,23 @@ if (!admin.apps?.length) {
     admin.initializeApp();
 }
 
+function toErrorMessage(error: unknown): string {
+    if (error instanceof Error && typeof error.message === "string") {
+        return error.message;
+    }
+
+    return String(error);
+}
+
+function isIdentityConflictError(error: unknown): boolean {
+    return toErrorMessage(error).toLowerCase().includes("different firebase uid");
+}
+
+function isCloudSqlConfigError(error: unknown): boolean {
+    const normalized = toErrorMessage(error).toLowerCase();
+    return normalized.includes("missing required cloud sql environment variable");
+}
+
 /**
  * exchangeToken (2nd Gen callable)
  *
@@ -110,6 +127,24 @@ const handler = async (
         };
     } catch (err: unknown) {
         logger.error("Token exchange failed", { err, email });
+        if (err instanceof HttpsError) {
+            throw err;
+        }
+
+        if (isCloudSqlConfigError(err)) {
+            throw new HttpsError(
+                "failed-precondition",
+                "Server configuration is incomplete."
+            );
+        }
+
+        if (isIdentityConflictError(err)) {
+            throw new HttpsError(
+                "failed-precondition",
+                "User identity is already linked to another account."
+            );
+        }
+
         throw new HttpsError("internal", "Failed to bootstrap user.");
     }
 };

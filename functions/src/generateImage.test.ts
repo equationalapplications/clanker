@@ -342,3 +342,35 @@ test("generateImageHandler does not spend credit when generation fails", async (
     assert.equal(spendCalls, 0);
   });
 });
+
+test("generateImageHandler maps identity conflicts to failed-precondition", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => {
+      throw new Error("Existing user email is linked to a different Firebase UID.");
+    };
+    subscriptionService.getSubscription = async () => buildSubscription("unused-user", "payg", 1);
+    creditService.spendCredits = async () => true;
+    creditService.getCredits = async () => 0;
+
+    await assert.rejects(
+      async () =>
+        generateImageHandler(
+          {
+            auth,
+            data: {
+              prompt: "hero portrait",
+            },
+          } as never,
+          {
+            generateImage: async () => ({
+              imageBase64: "aGVsbG8=",
+              mimeType: "image/png",
+            }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+    );
+  });
+});

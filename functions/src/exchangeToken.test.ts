@@ -289,3 +289,31 @@ test("exchangeTokenHandler throws internal error when userRepository fails", asy
     (err: unknown) => err instanceof HttpsError && err.code === "internal"
   );
 });
+
+test("exchangeTokenHandler maps Cloud SQL config errors to failed-precondition", async () => {
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async () => {
+        throw new Error("Missing required Cloud SQL environment variables: CLOUD_SQL_DB_USER");
+      },
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => null,
+      updateUser: async () => null,
+    },
+    subscriptionService: {
+      getSubscription: async () => null,
+      upsertSubscription: async () => null,
+      acceptTerms: async () => {},
+    },
+  };
+
+  await assert.rejects(
+    async () => exchangeTokenHandler({
+      auth: {
+        uid: "firebase-uid-1",
+        token: {uid: "firebase-uid-1", email: "fail@example.com"},
+      },
+    } as never, mockDeps as unknown as ExchangeTokenDeps),
+    (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+  );
+});

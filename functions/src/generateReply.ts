@@ -80,6 +80,18 @@ interface VertexAIModule {
   VertexAI: VertexAIConstructor;
 }
 
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error && typeof error.message === "string") {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+function isIdentityConflictError(error: unknown): boolean {
+  return toErrorMessage(error).toLowerCase().includes("different firebase uid");
+}
+
 function getProjectId(): string | undefined {
   const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
   const value = fromEnv?.trim();
@@ -289,12 +301,30 @@ const handler = async (
 
   const {prompt, referenceId} = parseInput(request.data);
 
-  const user = await userRepository.getOrCreateUserByFirebaseIdentity({
-    firebaseUid: request.auth.uid,
-    email,
-    displayName: decoded.name || null,
-    avatarUrl: decoded.picture || null,
-  });
+  let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
+  try {
+    user = await userRepository.getOrCreateUserByFirebaseIdentity({
+      firebaseUid: request.auth.uid,
+      email,
+      displayName: decoded.name || null,
+      avatarUrl: decoded.picture || null,
+    });
+  } catch (error: unknown) {
+    logger.error("Failed to bootstrap user identity in generateReply", {
+      firebaseUid: request.auth.uid,
+      email,
+      error,
+    });
+
+    if (isIdentityConflictError(error)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "User identity is already linked to another account."
+      );
+    }
+
+    throw new HttpsError("internal", "Failed to bootstrap user.");
+  }
 
   const usage = await fetchUsageState(user.id);
   assertUsageAuthorized(usage);

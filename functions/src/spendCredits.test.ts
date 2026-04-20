@@ -122,3 +122,32 @@ test("spendCreditsHandler throws resource-exhausted when spend fails", async () 
     );
   });
 });
+
+test("spendCreditsHandler maps identity conflicts to failed-precondition", async () => {
+  await withServiceMocks(async () => {
+    const uid = "firebase-uid-conflict";
+    const email = "conflict@example.com";
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => {
+      throw new Error("Existing user email is linked to a different Firebase UID.");
+    };
+
+    await assert.rejects(
+      async () =>
+        spendCreditsHandler({
+          auth: {
+            uid,
+            token: {
+              uid,
+              email,
+            },
+          },
+          data: {
+            amount: 1,
+            description: "chat response",
+          },
+        } as never),
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+    );
+  });
+});

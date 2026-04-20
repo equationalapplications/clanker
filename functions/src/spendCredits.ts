@@ -17,6 +17,19 @@ interface SpendCreditsData {
   referenceId?: string;
 }
 
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error && typeof error.message === "string") {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+function isIdentityConflictError(error: unknown): boolean {
+  const normalized = toErrorMessage(error).toLowerCase();
+  return normalized.includes("different firebase uid");
+}
+
 const handler = async (request: CallableRequest) => {
   // Require authentication
   if (!request.auth) {
@@ -70,10 +83,28 @@ const handler = async (request: CallableRequest) => {
     : "";
   const referenceId = trimmedReferenceId.length > 0 ? trimmedReferenceId : null;
 
-  const user = await userRepository.getOrCreateUserByFirebaseIdentity({
-    firebaseUid: request.auth.uid,
-    email: email,
-  });
+  let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
+  try {
+    user = await userRepository.getOrCreateUserByFirebaseIdentity({
+      firebaseUid: request.auth.uid,
+      email,
+    });
+  } catch (error: unknown) {
+    logger.error("Failed to bootstrap user identity in spendCredits", {
+      firebaseUid: request.auth.uid,
+      email,
+      error,
+    });
+
+    if (isIdentityConflictError(error)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "User identity is already linked to another account."
+      );
+    }
+
+    throw new HttpsError("internal", "Failed to bootstrap user.");
+  }
 
   const success = await creditService.spendCredits(user.id, amount, description, referenceId ?? undefined);
 

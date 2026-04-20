@@ -331,3 +331,32 @@ test("generateReplyHandler preserves HttpsError from model generation", async ()
     assert.equal(spendCalls, 0);
   });
 });
+
+test("generateReplyHandler maps identity conflicts to failed-precondition", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => {
+      throw new Error("Existing user email is linked to a different Firebase UID.");
+    };
+    subscriptionService.getSubscription = async () => buildSubscription("unused-user", "payg", 1);
+    creditService.spendCredits = async () => true;
+    creditService.getCredits = async () => 0;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              prompt: "hello",
+            },
+          } as never,
+          {
+            generateText: async () => "unused",
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+    );
+  });
+});
