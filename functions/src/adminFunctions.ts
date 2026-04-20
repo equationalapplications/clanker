@@ -1,7 +1,7 @@
 import {onCall, CallableRequest, HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
-import {and, count, desc, eq, ilike, inArray, or} from "drizzle-orm";
+import {count, desc, eq, ilike, inArray, or} from "drizzle-orm";
 import {requireAdmin} from "./adminAuth.js";
 import {getDb} from "./db/cloudSql.js";
 import {users, subscriptions, characters, messages} from "./db/schema.js";
@@ -383,6 +383,9 @@ const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
     throw new HttpsError("invalid-argument", "Invalid plan status.");
   }
 
+  const hasRenewalDate = Object.prototype.hasOwnProperty.call(data, "renewalDate");
+  const renewalDate = hasRenewalDate ? parseRenewalDate(data.renewalDate) : undefined;
+
   const user = await getUserById(userId);
   if (!user) {
     throw new HttpsError("not-found", "User not found.");
@@ -398,8 +401,7 @@ const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
     planStatus,
   };
 
-  if (Object.prototype.hasOwnProperty.call(data, "renewalDate")) {
-    const renewalDate = parseRenewalDate(data.renewalDate);
+  if (hasRenewalDate) {
     patch.billingCycleEnd = renewalDate;
     applied.renewalDate = renewalDate ? renewalDate.toISOString() : null;
   }

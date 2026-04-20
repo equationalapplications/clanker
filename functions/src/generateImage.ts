@@ -296,7 +296,7 @@ function getImageGenerator(): GenerateImageFn {
 
 // Per-user request throttle for image generation.
 // Note: This is instance-level memory and does not enforce limits across multiple Cloud Run instances.
-// For global rate limiting across instances, consider using Firestore/Supabase.
+// For global rate limiting across instances, consider using Firestore or Cloud SQL.
 const throttleBuckets = new Map<string, number[]>();
 const THROTTLE_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 

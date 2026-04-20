@@ -3,6 +3,11 @@ jest.mock('~/services/apiClient', () => ({
   updateUserProfile: jest.fn(),
 }))
 
+jest.mock('~/config/firebaseConfig', () => ({
+  appCheckReady: Promise.resolve(),
+  deleteMyAccountFn: jest.fn(),
+}))
+
 import { getUserState } from '~/services/apiClient'
 import { getUserPrivate } from '~/services/userService'
 

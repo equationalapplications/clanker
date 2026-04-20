@@ -1,6 +1,6 @@
 /**
  * Local SQLite message service
- * Replaced Supabase cloud storage with local-first architecture
+ * Local-first message service with Firebase callable sync hooks
  */
 
 import { IMessage } from 'react-native-gifted-chat'

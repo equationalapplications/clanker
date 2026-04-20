@@ -6,7 +6,7 @@ This document outlines the architecture and management of Firebase Cloud Functio
 
 `clanker` utilizes several backend services implemented as Firebase Cloud Functions. These functions are deployed to the dedicated `clanker-prod` Firebase project.
 
-For details on the `exchangeToken` bridge extraction, see [firebase-auth-supabase-bridge](./FIREBASE_AUTH_SUPABASE_BRIDGE.md).
+`exchangeToken` now performs Cloud SQL bootstrap directly.
 
 The source code for these functions is located in the `/functions` directory at the root of this repository.
 
@@ -34,20 +34,20 @@ By setting `"codebase": "clanker"`, deploy commands can reliably target this app
 
 ### `exchangeToken`
 
-- **Purpose**: Authenticates a Firebase user with the shared Supabase backend.
+- **Purpose**: Bootstraps a Firebase user in Cloud SQL and returns app user + subscription state.
 - **Process**:
-    1. Verifies the user's Firebase Auth ID token.
-    2. Finds the corresponding user in Supabase by email.
-    3. If the user doesn't exist, it creates a new Supabase user.
-    4. Generates and returns a valid Supabase session (access and refresh tokens).
+  1. Verifies the user's Firebase Auth ID token.
+  2. Finds or creates the corresponding Cloud SQL user.
+  3. Finds or initializes the user's Cloud SQL subscription row.
+  4. Returns bootstrap payload `{ user, subscription }`.
 
 ### `generateReply`
 
 - **Purpose**: Generates chat/introduction text replies server-side using Vertex AI with enforced auth and billing.
 - **Process**:
     1. Verifies callable auth context and token integrity.
-    2. Resolves Supabase user by authenticated Firebase UID first, then falls back to Firebase email when needed.
-    3. Reads active subscription rows from `user_app_subscriptions`.
+    2. Resolves Cloud SQL user from authenticated Firebase identity.
+    3. Reads active subscription row from Cloud SQL `subscriptions` table.
     4. Authorizes access (unlimited tiers or available credits).
     5. Calls Vertex AI to generate the reply.
     6. Spends one credit only for non-unlimited plans, and only after successful generation.
@@ -64,8 +64,8 @@ By setting `"codebase": "clanker"`, deploy commands can reliably target this app
 - **Purpose**: Generates character avatar images server-side with enforced auth, App Check, throttling, and billing.
 - **Process**:
     1. Verifies callable auth context and token integrity.
-    2. Resolves Supabase user by Firebase UID first, then email fallback.
-    3. Reads active subscription rows and validates access (unlimited tiers or available credits).
+    2. Resolves Cloud SQL user from Firebase identity.
+    3. Reads active subscription row and validates access (unlimited tiers or available credits).
     4. Applies prompt validation + per-user throttling guard.
     5. Calls Vertex AI image model (`gemini-2.5-flash-image`) and extracts inline base64 image data.
     6. Spends one credit only for non-unlimited plans and only after successful generation.
@@ -93,19 +93,21 @@ By setting `"codebase": "clanker"`, deploy commands can reliably target this app
 
 ## Environment Configuration
 
-The functions require several environment variables to connect to Supabase and Stripe. These are documented in `functions/.env.example`. For local development, you can create a `.env` file in the `functions` directory. For production, these are configured securely in the Google Cloud environment.
+The functions require environment variables for Cloud SQL and Stripe. These are documented in `functions/.env.example`. For local development, you can create a `.env` file in the `functions` directory. For production, these are configured securely in Google Cloud.
 
 ### Secrets vs params policy
 
 `clanker` now keeps only true secrets in Firebase Secret Manager and uses Firebase params/env config for non-sensitive values.
 
 - Keep in Secret Manager:
-  - `SUPABASE_SERVICE_ROLE_KEY`
   - `STRIPE_SECRET_KEY`
   - `STRIPE_WEBHOOK_SECRET`
   - `REVENUECAT_WEBHOOK_SECRET`
 - Use params/env config (non-sensitive):
-  - `SUPABASE_URL`
+  - `CLOUD_SQL_CONNECTION_NAME`
+  - `CLOUD_SQL_DB_USER`
+  - `CLOUD_SQL_DB_PASS`
+  - `CLOUD_SQL_DB_NAME`
   - `STRIPE_MONTHLY_20_PRICE_ID`
   - `STRIPE_MONTHLY_50_PRICE_ID`
   - `STRIPE_CREDIT_PACK_PRICE_ID`
@@ -139,14 +141,16 @@ Use this checklist when setting up Firebase Functions for a new environment.
 
 - [ ] Copy `functions/.env.example` to `functions/.env`.
 - [ ] Fill non-sensitive values in `functions/.env`:
-  - `SUPABASE_URL`
+  - `CLOUD_SQL_CONNECTION_NAME`
+  - `CLOUD_SQL_DB_USER`
+  - `CLOUD_SQL_DB_PASS`
+  - `CLOUD_SQL_DB_NAME`
   - `STRIPE_MONTHLY_20_PRICE_ID`
   - `STRIPE_MONTHLY_50_PRICE_ID`
   - `STRIPE_CREDIT_PACK_PRICE_ID`
   - `STRIPE_SUCCESS_URL`
   - `STRIPE_CANCEL_URL`
 - [ ] Ensure sensitive values exist in Firebase Secret Manager for the target project:
-  - `SUPABASE_SERVICE_ROLE_KEY`
   - `STRIPE_SECRET_KEY`
   - `STRIPE_WEBHOOK_SECRET`
   - `REVENUECAT_WEBHOOK_SECRET`
@@ -158,7 +162,6 @@ Use this checklist when setting up Firebase Functions for a new environment.
 
 - [ ] Confirm active project: `firebase use <staging-project-id-or-alias>`.
 - [ ] Verify secrets are present in staging:
-  - `firebase functions:secrets:get SUPABASE_SERVICE_ROLE_KEY`
   - `firebase functions:secrets:get STRIPE_SECRET_KEY`
   - `firebase functions:secrets:get STRIPE_WEBHOOK_SECRET`
   - `firebase functions:secrets:get REVENUECAT_WEBHOOK_SECRET`

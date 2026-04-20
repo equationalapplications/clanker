@@ -2,7 +2,7 @@
  * Character service - local-first with cloud backup
  *
  * Primary storage: Local SQLite database
- * Cloud sync: Supabase (backup/restore via characterSyncService)
+ * Cloud sync: Firebase callable APIs backed by Cloud SQL
  */
 
 import { getCurrentUser } from '~/config/firebaseConfig'
@@ -178,19 +178,19 @@ export const createNewCharacter = async (): Promise<{ id: string }> => {
 
 /**
  * FUTURE FEATURE: Save character to cloud
- * This will sync a local character to Supabase for sharing/backup
+ * This will sync a local character to cloud storage for sharing/backup
  */
 export const saveCharacterToCloud = async (
   characterId: string,
   userId: string,
 ): Promise<{ cloudId: string; success: boolean }> => {
   console.log('🚧 saveCharacterToCloud: Not yet implemented')
-  console.log('📋 This feature will sync local character to Supabase')
+  console.log('📋 This feature will sync local character to Cloud SQL backend')
   console.log('📋 Use cases: sharing characters, backup, cross-device sync')
 
   // TODO: Implement cloud sync
   // 1. Get local character
-  // 2. Create/update in Supabase using cloudCharacterService
+  // 2. Create/update via callable functions backed by Cloud SQL
   // 3. Mark as synced in local DB
   // 4. Return cloud ID
 
@@ -199,17 +199,17 @@ export const saveCharacterToCloud = async (
 
 /**
  * FUTURE FEATURE: Load character from cloud
- * This will import a character from Supabase to local storage
+ * This will import a character from cloud storage to local SQLite
  */
 export const loadCharacterFromCloud = async (
   cloudId: string,
   userId: string,
 ): Promise<Character | null> => {
   console.log('🚧 loadCharacterFromCloud: Not yet implemented')
-  console.log('📋 This feature will import Supabase character to local storage')
+  console.log('📋 This feature will import cloud character to local storage')
 
   // TODO: Implement cloud import
-  // 1. Fetch from Supabase using cloudCharacterService
+  // 1. Fetch from Cloud SQL via callable API
   // 2. Save to local DB with cloud_id reference
   // 3. Return local character
 
@@ -222,7 +222,7 @@ export const loadCharacterFromCloud = async (
  */
 export const getPublicCharacters = async (): Promise<Character[]> => {
   console.log('🚧 getPublicCharacters: Not yet implemented')
-  console.log('📋 This feature will browse public characters from Supabase')
+  console.log('📋 This feature will browse public characters from cloud backend')
 
   // TODO: Implement public character browsing
   // Use cloudCharacterService.getPublicCharacters()
@@ -232,7 +232,7 @@ export const getPublicCharacters = async (): Promise<Character[]> => {
 
 /**
  * FUTURE FEATURE: Sync local character with cloud updates
- * This will pull updates from Supabase for synced characters
+ * This will pull updates from cloud backend for synced characters
  */
 export const syncCharacterFromCloud = async (
   characterId: string,
@@ -243,7 +243,7 @@ export const syncCharacterFromCloud = async (
 
   // TODO: Implement cloud sync pull
   // 1. Get local character's cloud_id
-  // 2. Fetch latest from Supabase
+  // 2. Fetch latest from Cloud SQL backend
   // 3. Update local DB with changes
   // 4. Return updated character
 

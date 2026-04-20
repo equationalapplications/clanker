@@ -40,14 +40,13 @@ Output:
 - `users[]` (user id/email/created/subscription/terms fields)
 - `page`
 - `pageSize`
-- `totalCount` (optional, if provided by upstream Supabase Auth response)
+- `totalCount`
 - `hasMore`
 
 Search behavior:
 
-- `search` is forwarded server-side to Supabase Auth Admin API via `filter` (`/auth/v1/admin/users?...&filter=TERM`).
-- This `filter` parameter is currently undocumented in the JS SDK but is supported by GoTrue Admin API implementation.
-- `planTier` and `planStatus` remain client-side page-scoped filtering after subscription hydration.
+- `search` is applied against Cloud SQL user fields (`email`, `displayName`, `firebaseUid`).
+- `planTier` and `planStatus` remain page-scoped filtering after subscription hydration.
 
 ### `adminSetUserCredits`
 
@@ -112,8 +111,8 @@ Action set:
 
 - deletes app data rows
 - deletes subscription rows
-- deletes Supabase auth user
-- deletes Firebase auth user when `user_metadata.firebaseUid` exists
+- deletes Firebase auth user
+- deletes Cloud SQL user row
 
 ## Audit Logging
 
@@ -133,11 +132,14 @@ enforce server-side idempotency for repeated request ids.
 
 Admin callables require:
 
-- `SUPABASE_SERVICE_ROLE_KEY`
+- Firebase Admin access to delete Firebase Auth users
 
-Admin callables also require non-secret configuration:
+Admin callables use Cloud SQL via the shared database connector environment:
 
-- `SUPABASE_URL`
+- `CLOUD_SQL_CONNECTION_NAME`
+- `CLOUD_SQL_DB_USER`
+- `CLOUD_SQL_DB_PASS`
+- `CLOUD_SQL_DB_NAME`
 
 Optional bootstrap authorization config:
 

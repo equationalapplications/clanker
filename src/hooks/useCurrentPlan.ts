@@ -17,7 +17,7 @@ const isPlanTier = (value: unknown): value is PlanTier => {
 /**
  * Derives the current subscription plan from the authMachine's subscription context.
  *
- * This eliminates the need to decode a Supabase JWT — the subscription data is
+ * This eliminates the need to decode any raw JWT — the subscription data is
  * already managed by authMachine during the bootstrap process.
  */
 export function useCurrentPlan(): CurrentPlan {

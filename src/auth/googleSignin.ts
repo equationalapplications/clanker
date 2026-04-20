@@ -65,7 +65,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     const googleDisplayName =
       response.data?.user?.name?.trim() || `${givenName} ${familyName}`.trim()
 
-    // Ensure display name is available for profile rendering and Supabase profile sync.
+    // Ensure display name is available for profile rendering and Cloud SQL profile sync.
     if (googleDisplayName && !userCredential.user.displayName) {
       await userCredential.user.updateProfile({ displayName: googleDisplayName })
     }

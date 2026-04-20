@@ -8,7 +8,7 @@ Text generation now runs through a Firebase 2nd Gen callable function, `generate
 
 This ensures:
 - Firebase Auth is verified server-side before usage.
-- Access control is enforced from Supabase subscription state.
+- Access control is enforced from Cloud SQL subscription state.
 - Credit spending is enforced server-side for non-unlimited tiers.
 - Vertex AI credentials and model invocation remain server-only.
 
@@ -54,13 +54,13 @@ Semantics:
 
 ## Authorization And Billing Rules
 
-1. Resolve Supabase user by Firebase UID first, then fallback to token email lookup.
-2. Load active rows from `user_app_subscriptions` for app `clanker`.
+1. Resolve Cloud SQL user from Firebase identity.
+2. Load active row from `subscriptions` for that user.
 3. Authorize usage:
 - Unlimited tier (`monthly_20`, `monthly_50`) -> allow without credit spend.
 - Otherwise require aggregate `current_credits >= 1`.
 4. Generate text reply with Vertex AI.
-5. If credit-based usage, spend exactly 1 credit using `spend_user_credits` RPC.
+5. If credit-based usage, spend exactly 1 credit via the Cloud SQL-backed credit service.
 
 Generation limits:
 - Vertex model config sets `maxOutputTokens = 1024` for cost/latency control.
@@ -68,7 +68,7 @@ Generation limits:
 Important billing behavior:
 - Credit spending occurs after successful model generation.
 - Failed model generation must not decrement credits.
-- Invalid credit RPC payload is treated as internal error (not silently accepted).
+- Invalid credit update payload is treated as internal error (not silently accepted).
 
 ## Error Mapping
 
@@ -76,13 +76,13 @@ Function returns Firebase `HttpsError` codes:
 - `unauthenticated`: missing auth context or token UID mismatch.
 - `invalid-argument`: prompt missing, empty after trim, exceeds 12000 chars, or `referenceId` exceeds 128 chars.
 - `failed-precondition`: missing token email or missing required server config.
-- `not-found`: Supabase user not found for authenticated email.
+- `not-found`: Cloud SQL user not found for authenticated email.
 - `resource-exhausted`: no unlimited tier and no available credits.
 - `internal`: downstream failures (subscription query, model invocation, credit RPC, unexpected failures).
 
 Operational logs include separate debug signals for:
-- Authenticated email with no Supabase user.
-- Supabase user with no active subscription rows.
+- Authenticated email with no Cloud SQL user.
+- Cloud SQL user with no active subscription rows.
 
 ## Client Integration
 
