@@ -60,8 +60,9 @@ export const createCharacterService = (
       const db = await deps.getDb();
 
       // If character has an ID, either update owned rows or insert a new row with that ID.
-      // This preserves local->cloud sync for pre-existing local UUIDs while still blocking
-      // attempts to overwrite a character owned by a different user.
+      // Here character.id is the remote cloud character ID (UUID), which is tracked
+      // separately from local SQLite IDs (e.g. char_<timestamp>_<random>). This keeps
+      // cloud_id-based sync stable while still blocking cross-user overwrites.
       if (character.id) {
         const [upserted] = await db
           .insert(characters)
