@@ -41,8 +41,11 @@ const isAppCheckAlreadyInitializedError = (error: unknown) => {
   return code.includes('already-initialized')
 }
 
+const isDevBuild =
+  typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production'
+
 const enableLocalWebAppCheckDebugToken = () => {
-  if (typeof window === 'undefined' || process.env.NODE_ENV === 'production') {
+  if (typeof window === 'undefined' || !isDevBuild) {
     return
   }
 
