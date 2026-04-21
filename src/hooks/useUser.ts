@@ -159,13 +159,13 @@ export function useUpdateProfile() {
     onMutate: (updates) => {
       if (!dbUser) return { previousDbUser: null }
       const optimisticUpdates = {
-        ...('display_name' in updates ? { displayName: updates.display_name ?? null } : {}),
-        ...('avatar_url' in updates ? { avatarUrl: updates.avatar_url ?? null } : {}),
-        ...('is_profile_public' in updates
-          ? { isProfilePublic: updates.is_profile_public ?? dbUser.isProfilePublic }
+        ...(updates.display_name !== undefined ? { displayName: updates.display_name } : {}),
+        ...(updates.avatar_url !== undefined ? { avatarUrl: updates.avatar_url } : {}),
+        ...(updates.is_profile_public !== undefined
+          ? { isProfilePublic: updates.is_profile_public }
           : {}),
-        ...('default_character_id' in updates
-          ? { defaultCharacterId: updates.default_character_id ?? null }
+        ...(updates.default_character_id !== undefined
+          ? { defaultCharacterId: updates.default_character_id }
           : {}),
       }
       if (Object.keys(optimisticUpdates).length === 0) {
