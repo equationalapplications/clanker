@@ -97,6 +97,43 @@ Do not define `GOOGLE_SERVICES_JSON` or `GOOGLE_SERVICE_INFO_PLIST` in your loca
 
 ---
 
+## Auth Provider Checklist
+
+Use this checklist for whichever Firebase project and app identifiers you are using. In this repository, examples may reference the current production project (`clanker-prod`) and bundle/package ID (`com.equationalapplications.clanker`), but you should substitute your own values when cloning or reusing the app.
+
+### Google Sign-In
+
+1. In Firebase Console, open **Authentication -> Sign-in method -> Google** and enable it.
+2. In **Project settings -> Your apps**, confirm your iOS bundle ID and Android package name are registered in the target Firebase project.
+    Example for this repo: `com.equationalapplications.clanker`.
+3. Re-download fresh `GoogleService-Info.plist` and `google-services.json` after enabling Google auth.
+4. Confirm `GoogleService-Info.plist` includes `CLIENT_ID` and `REVERSED_CLIENT_ID`.
+5. Confirm `google-services.json` has non-empty `client[0].oauth_client` entries.
+6. Set/update OAuth env vars in EAS and local `.env`:
+    - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+    - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
+    - Optional: `GOOGLE_IOS_URL_SCHEME` (if you need to override plist-derived value)
+7. Re-run local setup if needed to refresh temp files:
+
+```bash
+npm run prebuild:setup
+```
+
+### Apple Sign-In
+
+1. In Firebase Console, open **Authentication -> Sign-in method -> Apple** and enable it.
+2. Configure Apple provider credentials for the target Firebase project:
+    - Apple Team ID
+    - Key ID
+    - Services ID
+    - Private key (`.p8`)
+3. In Apple Developer, ensure the **Sign in with Apple** capability is enabled for your app's iOS bundle ID.
+    Example for this repo: `com.equationalapplications.clanker`.
+4. Confirm your app build enables Apple Sign-In in Expo/native config.
+    Example for this repo: `usesAppleSignIn: true` is already set in `app.config.ts`.
+
+---
+
 ## Syncing Non-Secret Environment Variables
 
 EAS provides a convenient way to keep your other, non-secret environment variables (like API keys) in sync for local development.
