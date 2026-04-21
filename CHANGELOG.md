@@ -1,3 +1,11 @@
+## [28.1.1](https://github.com/equationalapplications/clanker/compare/v28.1.0...v28.1.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **docs:** indent checklist code fence in firebase setup guide ([1b8f32e](https://github.com/equationalapplications/clanker/commit/1b8f32efccf093be3972ddadd5aaa8c2282a16a6))
+* **services:** trim verifiedAt in usage parsers ([65b444d](https://github.com/equationalapplications/clanker/commit/65b444dfb8f48e133e1815a15aed04f7b9c4d5f2))
+
 # [28.1.0](https://github.com/equationalapplications/clanker/compare/v28.0.1...v28.1.0) (2026-04-21)
 
 
