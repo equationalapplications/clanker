@@ -29,7 +29,7 @@ type CharacterFunctionDeps = {
   subscriptionService: Pick<typeof subscriptionService, 'getSubscription'>;
 };
 
-const CLOUD_CHARACTER_PLAN_TIERS = new Set(['monthly_20', 'monthly_50']);
+const CLOUD_CHARACTER_ALLOWED_PLANS = new Set(['monthly_20', 'monthly_50']);
 
 async function assertCloudCharacterAccess(
   userId: string,
@@ -37,9 +37,9 @@ async function assertCloudCharacterAccess(
 ): Promise<void> {
   const subscription = await deps.subscriptionService.getSubscription(userId);
   const hasAccess = Boolean(
-    subscription &&
+      subscription &&
       subscription.planStatus === 'active' &&
-      CLOUD_CHARACTER_PLAN_TIERS.has(subscription.planTier)
+      CLOUD_CHARACTER_ALLOWED_PLANS.has(subscription.planTier)
   );
 
   if (!hasAccess) {

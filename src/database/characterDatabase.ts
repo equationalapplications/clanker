@@ -68,7 +68,7 @@ function toAppFormat(char: LocalCharacter) {
         traits: char.traits,
         emotions: char.emotions,
         context: char.context,
-        is_public: char.is_public === 1,
+        is_public: char.save_to_cloud === 1 ? char.is_public === 1 : false,
         created_at: new Date(char.created_at).toISOString(),
         updated_at: new Date(char.updated_at).toISOString(),
         synced_to_cloud: char.synced_to_cloud === 1,

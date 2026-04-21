@@ -65,7 +65,7 @@ export default function EditCharacterScreen() {
       emotions: character.emotions || '',
       context: character.context || '',
       saveToCloud: character.save_to_cloud ? 'true' : 'false',
-      isSharable: character.is_public ? 'true' : 'false',
+      isShareable: character.is_public ? 'true' : 'false',
     }
   }, [character])
 
@@ -77,7 +77,7 @@ export default function EditCharacterScreen() {
       emotions,
       context,
       saveToCloud: saveToCloud ? 'true' : 'false',
-      isSharable: isSharable ? 'true' : 'false',
+      isShareable: isSharable ? 'true' : 'false',
     },
     loadedValues,
   )
@@ -304,7 +304,7 @@ export default function EditCharacterScreen() {
 
         <View style={styles.toggleRow}>
           <View style={styles.toggleTextContainer}>
-            <Text variant="titleMedium">Make Character Sharable</Text>
+            <Text variant="titleMedium">Make Character Shareable</Text>
             <Text variant="bodySmall" style={styles.toggleHelperText}>
               Enabled only when cloud saving is on.
             </Text>
