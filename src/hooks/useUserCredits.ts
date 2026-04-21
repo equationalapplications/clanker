@@ -22,11 +22,10 @@ export const useUserCredits = () => {
     data: user ? credits : undefined,
     isLoading,
     error,
-    refetch: async () => {
+    refetch: () => {
       if (user) {
         requestBootstrapRefresh(authService, 'manual')
       }
-      return Promise.resolve({ data: user ? credits : undefined })
     },
   }
 }
