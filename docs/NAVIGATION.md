@@ -86,7 +86,7 @@ app/
 3. **Inside the drawer layout** we evaluate `useSubscriptionStatus()`:
    - `needsTermsAcceptance` → redirect to `/accept-terms` (modal lives in `app/(drawer)/accept-terms.tsx`).
    - otherwise render the drawer + tabs normally.
-4. **Acceptance modal** is optimistic: the UI proceeds immediately while Supabase claims update in the background.
+4. **Acceptance modal** is optimistic: the UI proceeds immediately while backend terms-acceptance persistence completes in the background.
 
 ## Deep Linking Reference
 

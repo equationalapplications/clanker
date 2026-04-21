@@ -65,19 +65,12 @@ export async function recordTermsAcceptance(userId: string) {
   const now = new Date().toISOString()
 
   // Atomically update terms fields and verify the row exists
-  const { data: updatedSubscription, error: updateError } = await supabaseClient
-    .from('user_app_subscriptions')
-    .update({
-      terms_accepted_at: now,
-      terms_version: TERMS.version,
-      updated_at: now,
-    })
-    .eq('user_id', userId)
-    .eq('app_name', APP_NAME)
-    .select('user_id')
-    .maybeSingle()
+  const updatedSubscription = await upsertTermsAcceptance({
+    userId,
+    termsVersion: TERMS.version,
+    acceptedAt: now,
+  })
 
-  if (updateError) throw updateError
   if (!updatedSubscription) {
     throw new Error('Missing subscription row for terms acceptance')
   }

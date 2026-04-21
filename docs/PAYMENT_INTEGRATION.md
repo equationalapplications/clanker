@@ -46,8 +46,8 @@ Both webhooks are deployed as Firebase Cloud Functions in `account/functions/src
 |---|---|
 | `STRIPE_SECRET_KEY` | Stripe secret API key |
 | `STRIPE_WEBHOOK_SECRET` | Webhook signing secret from Stripe dashboard |
-| `SUPABASE_URL` | Supabase project REST URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+| `CLOUD_SQL_CONNECTION_NAME` | Cloud SQL instance connection name (`project:region:instance`) |
+| `DB_NAME` / `DB_USER` / `DB_PASSWORD` | Cloud SQL database credentials (typically via Firebase Secrets) |
 
 #### Event → Action Mapping
 
@@ -86,8 +86,8 @@ Replace `price_TODO_*` with real price IDs from the Stripe dashboard.
 | Variable | Description |
 |---|---|
 | `REVENUECAT_WEBHOOK_SECRET` | Shared secret configured in RevenueCat dashboard |
-| `SUPABASE_URL` | Supabase project REST URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+| `CLOUD_SQL_CONNECTION_NAME` | Cloud SQL instance connection name (`project:region:instance`) |
+| `DB_NAME` / `DB_USER` / `DB_PASSWORD` | Cloud SQL database credentials (typically via Firebase Secrets) |
 
 #### Authentication
 
@@ -133,8 +133,10 @@ These product IDs must match App Store Connect / Google Play Console exactly.
 firebase functions:secrets:set STRIPE_SECRET_KEY
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 firebase functions:secrets:set REVENUECAT_WEBHOOK_SECRET
-firebase functions:secrets:set SUPABASE_URL
-firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY
+firebase functions:secrets:set CLOUD_SQL_CONNECTION_NAME
+firebase functions:secrets:set DB_NAME
+firebase functions:secrets:set DB_USER
+firebase functions:secrets:set DB_PASSWORD
 ```
 
 Register the webhook URLs in:
@@ -211,7 +213,7 @@ These are referenced in `src/config/constants.ts` and passed to `purchasePackage
 
 `handleCheckoutCompleted` in `stripeWebhook.ts` uses a two-stage lookup:
 
-1. **Primary**: look up Supabase user by `customer_details.email`
-2. **Fallback**: if email lookup fails, resolve Firebase UID from `session.client_reference_id` → get email from `admin.auth().getUser(uid)` → retry email lookup → finally try `findSupabaseUserByFirebaseUid` (queries `auth.users` by `raw_user_meta_data->>'firebaseUid'`)
+1. **Primary**: look up Cloud SQL user by `customer_details.email`
+2. **Fallback**: if email lookup fails, resolve Firebase UID from `session.client_reference_id` → get email from `admin.auth().getUser(uid)` → retry email lookup using Firebase UID-based Cloud SQL user resolution.
 
-This fallback requires the `get_user_id_by_firebase_uid` Supabase RPC function (migration: `20260327000000_create_get_user_id_by_firebase_uid.sql`).
+This fallback requires Cloud SQL repository support for Firebase UID-to-user resolution.

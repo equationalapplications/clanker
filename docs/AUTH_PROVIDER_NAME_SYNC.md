@@ -6,7 +6,7 @@ This app now captures and persists user names from social providers during sign-
 - Apple (web): requests `name` scope and persists returned profile name to Firebase when available.
 - Google (native): backfills Firebase `displayName` from Google profile payload when Firebase does not populate it automatically.
 
-After authentication, the app syncs Firebase identity fields into the Supabase `profiles` row while preserving user customizations:
+After authentication, the app syncs Firebase identity fields into the Cloud SQL `users` profile data while preserving user customizations:
 
 - Fills `display_name` only when it is currently empty.
 - Fills `email` only when it is currently empty.
