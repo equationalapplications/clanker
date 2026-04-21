@@ -110,4 +110,3 @@ if (!subscription || !subscription.termsAcceptedAt || !subscription.termsVersion
 
 - [NAVIGATION.md](./NAVIGATION.md) - Updated with optimistic flow
 - [Optimistic UI Pattern](https://www.patterns.dev/posts/optimistic-ui) - Design pattern explanation
-

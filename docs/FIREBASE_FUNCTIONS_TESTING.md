@@ -8,9 +8,9 @@ The tests in `functions/src/*.test.ts` focus on function-level behavior:
 
 - Callable auth and input validation (`exchangeToken`, `spendCredits`, `purchasePackageStripe`)
 - Webhook request validation (`stripeWebhook`, `revenueCatWebhook`)
-- Happy-path Supabase RPC/session flow for key callables using mocked `fetch`
+- Happy-path Cloud SQL bootstrap/repository flow for key callables using mocked dependencies
 
-The suite intentionally avoids live network calls to Stripe, Supabase, and Firebase Auth.
+The suite intentionally avoids live network calls to Stripe, Cloud SQL, and Firebase Auth.
 
 ## Commands
 
@@ -39,7 +39,7 @@ The callable now fails fast with `failed-precondition` if `STRIPE_SECRET_KEY` is
 ## Test Design Notes
 
 - Tests call exported internal handlers directly (`*Handler`) so they can assert behavior without emulator setup.
-- For Supabase flows, tests replace `globalThis.fetch` with deterministic responses and restore it after each test.
+- For Cloud SQL-backed flows, tests mock repository/service boundaries with deterministic behavior and restore mocks after each test.
 - Webhook tests use in-memory request/response recorders to validate status codes and response bodies for guard-rail logic.
 - Stripe purchase tests include fail-fast coverage for missing checkout URL config and malformed Stripe secret values.
 

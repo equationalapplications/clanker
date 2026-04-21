@@ -4,7 +4,7 @@ This document outlines the schema design for the dedicated Clanker Cloud SQL ins
 
 ## Overview
 
-The database is a single-tenant PostgreSQL instance managed by Google Cloud SQL. It replaces the previous Supabase multi-tenant architecture.
+The database is a single-tenant PostgreSQL instance managed by Google Cloud SQL.
 
 ## Schema
 

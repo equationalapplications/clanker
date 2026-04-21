@@ -7,7 +7,7 @@ Client sends prompt to Firebase callable `generateImage`, function calls Vertex 
 then returns image base64 + billing metadata.
 
 The app stores returned base64 in SQLite `avatar_data` and renders a data URI.
-No Supabase Storage upload is used in this flow.
+No cloud object-storage upload is used in this flow.
 
 ## Architecture
 

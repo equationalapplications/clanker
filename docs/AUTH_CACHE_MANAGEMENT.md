@@ -8,18 +8,16 @@ The authentication system now includes proper React Query cache management to en
 
 When a user signs out, the following happens in order:
 
-1. **Supabase Sign Out** - Clear Supabase session
-2. **Firebase Sign Out** - Clear Firebase auth state
-3. **React Query Cache Clear** - Clear all cached data
-4. **Auth Manager Reset** - Reset internal auth state
+1. **Firebase Sign Out** - Clear Firebase auth state
+2. **React Query Cache Clear** - Clear all cached data
+3. **Auth Manager Reset** - Reset internal auth state
 
 ```typescript
-const signOut = async () => {
-  console.log('🧹 Signing out from Supabase...')
-  await supabaseClient.auth.signOut()
+import { signOut } from '~/config/firebaseConfig'
 
+const handleSignOut = async () => {
   console.log('🔥 Signing out from Firebase...')
-  await auth.signOut()
+  await signOut()
   setUser(null)
 
   console.log('🗑️ Clearing React Query cache...')
@@ -36,7 +34,7 @@ With offline support, the app caches user-specific data (characters, messages, p
 
 1. **Privacy Risk**: Next user could see previous user's cached data
 2. **Data Corruption**: Cached data could be associated with wrong user
-3. **Stale Sessions**: Old Supabase tokens could remain in cache
+3. **Stale Sessions**: Old auth/session state could remain in cache
 
 The `queryClient.clear()` call ensures:
 
@@ -196,4 +194,4 @@ queryClient.clear()
 - `docs/OFFLINE_SUPPORT.md` - Complete offline guide
 - `docs/NAVIGATION.md` - Navigation architecture details
 - `docs/AUTH_FLOW.md` - Authentication flow
-- `docs/SUPABASE_AUTH.md` - Multi-tenant auth system
+- `docs/CLOUD_SQL_DESIGN.md` - Cloud SQL schema and data model

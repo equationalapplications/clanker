@@ -81,4 +81,4 @@ Troubleshooting
 Notes on migration state
 
 - This document describes the current Cloud SQL bootstrap flow.
-- Legacy Supabase session exchange and JWT-claims-based auth are removed from the active client auth path.
+- Legacy third-party session exchange and JWT-claims-based auth are removed from the active client auth path.
