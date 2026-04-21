@@ -41,6 +41,9 @@ export async function generateChatReply({
   if (!data?.reply || typeof data.reply !== 'string') {
     throw new Error('Invalid generateReply response payload')
   }
+  if (!data.verifiedAt || typeof data.verifiedAt !== 'string') {
+    throw new Error('Invalid generateReply response payload: missing verifiedAt')
+  }
 
   return {
     reply: data.reply.trim(),
@@ -53,6 +56,6 @@ export async function generateChatReply({
       data.planStatus === 'active' || data.planStatus === 'cancelled' || data.planStatus === 'expired'
         ? data.planStatus
         : null,
-    verifiedAt: typeof data.verifiedAt === 'string' ? data.verifiedAt : new Date().toISOString(),
+    verifiedAt: data.verifiedAt,
   }
 }

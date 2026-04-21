@@ -1,13 +1,11 @@
 /**
- * React Query hooks for user profile management with offline support
+ * User profile hooks backed by auth machine context.
  *
- * Features:
- * - Automatic caching and background updates
- * - Optimistic updates for profile changes
- * - Offline mutation queuing
+ * Read hooks derive snapshot data from `authMachine`, and `refetch` triggers
+ * an explicit bootstrap refresh event instead of query polling.
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { requestBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
@@ -28,7 +26,7 @@ export const userKeys = {
 }
 
 /**
- * Hook to get user profile with React Query
+ * Hook to get user profile from auth machine context
  */
 export function useUserProfile() {
   const authService = useAuthMachine()
@@ -70,7 +68,7 @@ export function useUserProfile() {
 }
 
 /**
- * Hook to get public user data
+ * Hook to get public user data from auth machine context
  */
 export function useUserPublicData() {
   const authService = useAuthMachine()
@@ -107,7 +105,7 @@ export function useUserPublicData() {
 }
 
 /**
- * Hook to get private user data
+ * Hook to get private user data from auth machine context
  */
 export function useUserPrivateData() {
   const authService = useAuthMachine()
@@ -145,29 +143,29 @@ export function useUserPrivateData() {
 }
 
 /**
- * Mutation hook to update user profile with optimistic update
+ * Mutation hook to update user profile with auth-machine optimistic update
  */
 export function useUpdateProfile() {
-  const queryClient = useQueryClient()
   const authService = useAuthMachine()
-  const user = useSelector(authService, (state) => state.context.user)
+  const dbUser = useSelector(authService, (state) => state.context.dbUser)
 
   return useMutation({
     mutationFn: (updates: UserProfileUpdate) => upsertUserProfile(updates),
 
-    // Optimistic update
-    onMutate: async (updates) => {
-      await queryClient.cancelQueries({ queryKey: userKeys.profile(user?.uid) })
-
-      const previousProfile = queryClient.getQueryData<UserProfile>(userKeys.profile(user?.uid))
-
-      // Optimistically update the profile
-      queryClient.setQueryData<UserProfile>(userKeys.profile(user?.uid), (old) => {
-        if (!old) return old
-        return { ...old, ...updates, updated_at: new Date().toISOString() }
+    onMutate: (updates) => {
+      if (!dbUser) return { previousDbUser: null }
+      authService.send({
+        type: 'DB_USER_PATCHED_LOCAL',
+        updates: {
+          displayName: updates.display_name ?? dbUser.displayName,
+          avatarUrl: updates.avatar_url ?? dbUser.avatarUrl,
+          isProfilePublic: updates.is_profile_public ?? dbUser.isProfilePublic,
+          defaultCharacterId: updates.default_character_id ?? dbUser.defaultCharacterId,
+          updatedAt: new Date().toISOString(),
+        },
       })
 
-      return { previousProfile }
+      return { previousDbUser: dbUser }
     },
 
     onSuccess: (data) => {
@@ -183,20 +181,23 @@ export function useUpdateProfile() {
           updatedAt: data.updated_at,
         }
         authService.send({ type: 'DB_USER_PATCHED_LOCAL', updates: mappedUpdates })
-        queryClient.setQueryData(userKeys.profile(user?.uid), data)
-
-        // Invalidate related queries
-        queryClient.invalidateQueries({ queryKey: userKeys.public(user?.uid) })
-        queryClient.invalidateQueries({ queryKey: userKeys.private(user?.uid) })
       }
     },
 
-    onError: (error, variables, context) => {
+    onError: (error, variables, context: { previousDbUser: typeof dbUser } | undefined) => {
       console.error('❌ Failed to update profile:', error)
 
-      // Rollback optimistic update
-      if (context?.previousProfile) {
-        queryClient.setQueryData(userKeys.profile(user?.uid), context.previousProfile)
+      if (context?.previousDbUser) {
+        authService.send({
+          type: 'DB_USER_PATCHED_LOCAL',
+          updates: {
+            displayName: context.previousDbUser.displayName,
+            avatarUrl: context.previousDbUser.avatarUrl,
+            isProfilePublic: context.previousDbUser.isProfilePublic,
+            defaultCharacterId: context.previousDbUser.defaultCharacterId,
+            updatedAt: context.previousDbUser.updatedAt,
+          },
+        })
       }
     },
   })

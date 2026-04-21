@@ -52,7 +52,10 @@ function parseResponse(payload: unknown): GenerateImageViaCallableResponse {
     record.planStatus === 'active' || record.planStatus === 'cancelled' || record.planStatus === 'expired'
       ? record.planStatus
       : null
-  const verifiedAt = typeof record.verifiedAt === 'string' ? record.verifiedAt : new Date().toISOString()
+  const verifiedAt = typeof record.verifiedAt === 'string' ? record.verifiedAt.trim() : ''
+  if (!verifiedAt) {
+    throw new Error('Image generation returned invalid verifiedAt')
+  }
 
   return {
     imageBase64,
