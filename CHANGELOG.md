@@ -1,3 +1,69 @@
+# [28.0.0](https://github.com/equationalapplications/clanker/compare/v27.1.1...v28.0.0) (2026-04-21)
+
+
+* refactor!: migrate from Supabase to dedicated Cloud SQL ([dd0ca95](https://github.com/equationalapplications/clanker/commit/dd0ca95b92d1ed7c120e300d80f0ab09bcf65c9d))
+
+
+### Bug Fixes
+
+* address pr 268 code review feedback ([573e3b5](https://github.com/equationalapplications/clanker/commit/573e3b5abfb725309251c85757c07f107297c4d7))
+* address PR 268 code review feedback ([a4841c0](https://github.com/equationalapplications/clanker/commit/a4841c0796ebe3f8930445fe0b0cf72297296d71))
+* address PR review feedback on user and character services ([59df959](https://github.com/equationalapplications/clanker/commit/59df9596afe4f5c14eacbbe47b6c5c0e8d3cf3a1))
+* address PR268 review feedback ([0cb57c2](https://github.com/equationalapplications/clanker/commit/0cb57c265f0bf3b65c111fffdf6f25b2d7fa1afc))
+* address pr268 review items ([1253c89](https://github.com/equationalapplications/clanker/commit/1253c899adf081ecfbb8440b02bd916eee8d16ea))
+* **api:** harden callable contract handling ([6155a2a](https://github.com/equationalapplications/clanker/commit/6155a2aade3dc7801f5c072d443e8ab6c8aa3263))
+* **appcheck:** update recaptcha key and debug token ([8652c53](https://github.com/equationalapplications/clanker/commit/8652c5348923038283c3a2a19329ab29229dc5b4))
+* **auth:** avoid date drift and credit reset ([dd00b32](https://github.com/equationalapplications/clanker/commit/dd00b32a1a86ca050ba20119c22adb05e10e0da3))
+* **auth:** dedupe bootstrap session calls ([4077c38](https://github.com/equationalapplications/clanker/commit/4077c38d97545ef4d2dca56f39e8692fd3fd4e78))
+* **auth:** isolate bootstrap by uid ([4ed7dc1](https://github.com/equationalapplications/clanker/commit/4ed7dc1ed4a64ee83f967a7a3466c8a8e79bcb1c))
+* **auth:** preserve error when transitioning to signedOut ([c61201f](https://github.com/equationalapplications/clanker/commit/c61201fd65a4710808fe718ac97f7876d3c54a44))
+* **auth:** remove unnecessary CORS allowlist and clarify Cloud Run IAM requirement ([d43a780](https://github.com/equationalapplications/clanker/commit/d43a780e5b1221c2d5ec895bc1163418daa98f61))
+* **billing:** gate credits on active subscription status ([77f58ae](https://github.com/equationalapplications/clanker/commit/77f58aed495879efab67ea800bfd9926f711d148))
+* **character:** make provided-id upsert atomic ([7fb7b65](https://github.com/equationalapplications/clanker/commit/7fb7b65095e16bb460b7a6849510af9b4b737ce0))
+* consolidate purchase refresh mechanism ([0ee034d](https://github.com/equationalapplications/clanker/commit/0ee034da27e910155a419cb711739d121974465a))
+* **credits:** refresh query after native purchase ([2bddc87](https://github.com/equationalapplications/clanker/commit/2bddc87add35f48d19e8c4c1e8ec610d4dca32a6))
+* **exchangeToken:** convert Date timestamps to ISO strings in callable response ([73b9357](https://github.com/equationalapplications/clanker/commit/73b93574bc00bcbf1a3ffb91e60a7b92116b3fb5))
+* **functions:** address PR 268 review feedback ([ab2f631](https://github.com/equationalapplications/clanker/commit/ab2f631edcd308be7da8d70b3fe32c24a829c833))
+* **functions:** align credit spending and reduce Stripe function secrets ([bf70748](https://github.com/equationalapplications/clanker/commit/bf70748aa60b1092449a42842e138938d90fa93e))
+* **functions:** bootstrap defaults in acceptTerms ([3e411ae](https://github.com/equationalapplications/clanker/commit/3e411ae89cca0cd637e0bd0bbbaf2bed028d63a7))
+* **functions:** detect cloud sql config errors ([19a2232](https://github.com/equationalapplications/clanker/commit/19a2232e2260e1f2f759ad4a7ca5c311a6891fc3))
+* **functions:** enforce ownership and input validation ([d6d4056](https://github.com/equationalapplications/clanker/commit/d6d40566739f5015bb966392d1ce5a1bd0b65635))
+* **functions:** guard callable payload validation ([009c4d5](https://github.com/equationalapplications/clanker/commit/009c4d5c4b820c29a310ec54f1582e54e80abe48))
+* **functions:** guard idempotent credit delta ([66241e4](https://github.com/equationalapplications/clanker/commit/66241e46724f76e96598f0a0a81d7966b812bb89))
+* **functions:** normalize callable bootstrap errors ([332e8c3](https://github.com/equationalapplications/clanker/commit/332e8c367224f2c82c71d244ce716399a43d6c6e))
+* **functions:** prevent duplicate credit mutations and validate character fields ([314cd3b](https://github.com/equationalapplications/clanker/commit/314cd3b5ff8f1f37b67716af06ec8aa53b88fa98))
+* **functions:** require non-null user timestamps ([b1ebe7b](https://github.com/equationalapplications/clanker/commit/b1ebe7b4d803bcb4f19fe94a77b7ba762a1506ae))
+* **functions:** resolve latest copilot review findings ([587d517](https://github.com/equationalapplications/clanker/commit/587d51724a3db380baa73aeff9ce14e056b0b9e3))
+* **functions:** resolve test paths from cwd ([c322262](https://github.com/equationalapplications/clanker/commit/c322262c97d382a1ecf147556cd83acb94195f86))
+* **functions:** serialize callable timestamps to ISO strings ([bac18c0](https://github.com/equationalapplications/clanker/commit/bac18c02c9be05b5b8c6bb0c633e2b7381168300))
+* **functions:** use public IP for Cloud SQL connector ([d333fac](https://github.com/equationalapplications/clanker/commit/d333fac5c33568209c2c115a6ae728b4686f8177))
+* implement PR 268 review feedback for type safety and error consistency ([a3dcf7e](https://github.com/equationalapplications/clanker/commit/a3dcf7e1fcfdf387675f548bf6e8e617d2a662d5))
+* **purchase:** refresh state after native purchase ([d28d3b8](https://github.com/equationalapplications/clanker/commit/d28d3b835484b21c0b8f5739f993f8c3abc234dd)), closes [#268](https://github.com/equationalapplications/clanker/issues/268)
+* **purchase:** skip refresh on cancel ([0b4c5f6](https://github.com/equationalapplications/clanker/commit/0b4c5f64faa1c803921d219b049a2a9bb7139691))
+* remove remaining supabaseClient imports and state checks from UI ([bb391f4](https://github.com/equationalapplications/clanker/commit/bb391f4b1ec466cebe6565c18da5a068d95a716e))
+* resolve PR 268 review findings ([4995d8c](https://github.com/equationalapplications/clanker/commit/4995d8c68ad2c6917a299a0a9687f4ad4c20bcfd)), closes [#268](https://github.com/equationalapplications/clanker/issues/268)
+* revenueCat entitlement, docs, validation ([e6a1ace](https://github.com/equationalapplications/clanker/commit/e6a1acedc0a1b7c7e8a7822089a1d45757a1658f))
+* **revenueCat:** retry webhook when Cloud SQL user unavailable ([2307c1b](https://github.com/equationalapplications/clanker/commit/2307c1bcac101ef0b5d1f78ed6273364b129a501))
+* **state:** dedupe refresh and touch updatedAt ([b7158e1](https://github.com/equationalapplications/clanker/commit/b7158e10e4630edfbf5d024c022d29abcdc2411e))
+* **subscription:** keep default credits on webhook upsert ([0c591c2](https://github.com/equationalapplications/clanker/commit/0c591c209eae5d677b4c78ee42f685a6f5de7baa))
+* **subscription:** preserve credits on cancelled/expired status ([457bf4b](https://github.com/equationalapplications/clanker/commit/457bf4b8411e59dca9b53b1b6b27efaefd5ec86e))
+* **sync:** refresh credits and harden tests ([c719c90](https://github.com/equationalapplications/clanker/commit/c719c905109c30d2609c9e733868bf3a4d9d3d51))
+* **userRepository:** reject email identity when firebase uid differs ([e6d8b6d](https://github.com/equationalapplications/clanker/commit/e6d8b6d5da09f8c248314508e4a6fb995790f3f9))
+* **userService:** restore updated_at to profile and bootstrap ([b73b266](https://github.com/equationalapplications/clanker/commit/b73b2667966d246c172931b7936ce6f0a3bbc6e7))
+
+
+### Features
+
+* **appcheck:** web debug token support for localhost dev ([8c520b6](https://github.com/equationalapplications/clanker/commit/8c520b681bdee36ec7fc2259484cb2a8b0fc9ded))
+* **functions:** add Cloud SQL secrets to DB-backed functions ([5aa710e](https://github.com/equationalapplications/clanker/commit/5aa710e30d255688cbac20a6d6291e927413649a))
+
+
+### BREAKING CHANGES
+
+* All direct Supabase connections and the auth
+bridge have been removed. The application now exclusively relies
+on Firebase Cloud Functions and Cloud SQL.
+
 ## [27.1.1](https://github.com/equationalapplications/clanker/compare/v27.1.0...v27.1.1) (2026-04-20)
 
 
