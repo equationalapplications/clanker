@@ -17,7 +17,6 @@ declare global {
     FIREBASE_APPCHECK_DEBUG_TOKEN?: string | boolean
   }
 
-   
   var FIREBASE_APPCHECK_DEBUG_TOKEN: string | boolean | undefined
 }
 

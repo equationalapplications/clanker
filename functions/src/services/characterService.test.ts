@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import test from 'node:test';
 
-import { buildCharacterUpdateValues } from './characterService.js';
-
-const characterServiceSourcePath = path.resolve(process.cwd(), 'src/services/characterService.ts');
+import { buildCharacterUpdateValues, createCharacterService } from './characterService.js';
+import { characters } from '../db/schema.js';
 
 test('buildCharacterUpdateValues omits isPublic when field is undefined', () => {
   const result = buildCharacterUpdateValues({
@@ -38,18 +35,44 @@ test('buildCharacterUpdateValues includes isPublic when field is provided', () =
   assert.equal((result as { isPublic?: boolean }).isPublic, true);
 });
 
-test('upsertCharacter uses atomic conflict handling for provided IDs', async () => {
-  const source = await readFile(characterServiceSourcePath, 'utf8');
-  const upsertStart = source.indexOf('async upsertCharacter');
-  const upsertEnd = source.indexOf('async deleteCharacter', upsertStart);
+test('upsertCharacter rejects writing over a character owned by another user', async () => {
+  let conflictTarget: unknown;
+  let conflictWhere: unknown;
 
-  assert.notEqual(upsertStart, -1);
-  assert.notEqual(upsertEnd, -1);
+  const fakeDb = {
+    insert: () => ({
+      values: () => ({
+        onConflictDoUpdate: (params: { target: unknown; where: unknown }) => {
+          conflictTarget = params.target;
+          conflictWhere = params.where;
 
-  const upsertBlock = source.slice(upsertStart, upsertEnd);
+          return {
+            returning: async () => [],
+          };
+        },
+        returning: async () => [{ id: 'new-char', userId: 'user-1' }],
+      }),
+    }),
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ id: 'char-1', userId: 'other-user' }],
+        }),
+      }),
+    }),
+  };
 
-  assert.match(upsertBlock, /onConflictDoUpdate\(\{/);
-  assert.match(upsertBlock, /target:\s*characters\.id/);
-  assert.match(upsertBlock, /where:\s*eq\(characters\.userId,\s*userId\)/);
-  assert.match(upsertBlock, /if\s*\(!upserted\)/);
+  const service = createCharacterService({
+    getDb: async () => fakeDb as never,
+  });
+
+  await assert.rejects(
+    async () => {
+      await service.upsertCharacter({ id: 'char-1', name: 'Updated Name' } as never, 'user-1');
+    },
+    /Character does not belong to user/
+  );
+
+  assert.equal(conflictTarget, characters.id);
+  assert.ok(conflictWhere);
 });

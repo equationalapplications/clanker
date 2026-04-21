@@ -82,6 +82,7 @@ export default function CreditsDisplay() {
     setIsPurchasing('restore')
     try {
       authService.send({ type: 'REFRESH_BOOTSTRAP' })
+      await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
     } catch (e) {
       console.error('Restore failed:', e)
       setErrorMessage('Sync failed. Please try again.')

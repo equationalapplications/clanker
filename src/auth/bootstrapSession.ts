@@ -43,7 +43,7 @@ async function runBootstrapSession(): Promise<BootstrapResponse> {
     // Get the bootstrap response from Firebase function
     const response = await exchangeToken()
     const data = response.data as BootstrapResponse
-    
+
     console.log('Bootstrap response received', {
       userId: data?.user?.id,
       planTier: data?.subscription?.planTier,

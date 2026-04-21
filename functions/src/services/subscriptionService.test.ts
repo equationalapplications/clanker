@@ -1,19 +1,36 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import test from 'node:test';
+import { createSubscriptionService } from './subscriptionService.js';
 
-const subscriptionServiceSourcePath = path.resolve(process.cwd(), 'src/services/subscriptionService.ts');
+test('upsertSubscription defaults first insert credits to 50 when omitted', async () => {
+  let insertValues: Record<string, unknown> | null = null;
 
-test('upsertSubscription preserves default credits on first insert when credits are omitted', async () => {
-  const source = await readFile(subscriptionServiceSourcePath, 'utf8');
-  const upsertStart = source.indexOf('async upsertSubscription');
-  const upsertEnd = source.indexOf('async acceptTerms', upsertStart);
+  const fakeDb = {
+    insert: () => ({
+      values: (values: Record<string, unknown>) => {
+        insertValues = values;
+        return {
+          onConflictDoUpdate: () => ({
+            returning: async () => [values],
+          }),
+        };
+      },
+    }),
+  };
 
-  assert.notEqual(upsertStart, -1);
-  assert.notEqual(upsertEnd, -1);
+  const service = createSubscriptionService({
+    getDb: async () => fakeDb as any,
+  });
 
-  const upsertBlock = source.slice(upsertStart, upsertEnd);
+  const upserted = await service.upsertSubscription({
+    userId: 'user-1',
+    planTier: 'free',
+    planStatus: 'active',
+  });
 
-  assert.match(upsertBlock, /currentCredits:\s*params\.currentCredits\s*\?\?\s*50/);
+  const insertedCredits = (insertValues as { currentCredits?: unknown } | null)?.currentCredits;
+  const upsertedCredits = (upserted as { currentCredits?: unknown } | null)?.currentCredits;
+
+  assert.equal(insertedCredits, 50);
+  assert.equal(upsertedCredits, 50);
 });

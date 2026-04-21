@@ -176,5 +176,6 @@ describe('CreditsDisplay purchase flows', () => {
 
     expect(mockRefetch).not.toHaveBeenCalled()
     expect(mockAuthServiceSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['userCredits'] })
   })
 })

@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import test from 'node:test';
 
-import { assertIdempotentDeltaMatch } from './creditService.js';
-
-const creditServiceSourcePath = path.resolve(process.cwd(), 'src/services/creditService.ts');
+import { assertIdempotentDeltaMatch, createCreditService } from './creditService.js';
 
 test('assertIdempotentDeltaMatch allows duplicate request when delta matches', () => {
   assert.doesNotThrow(() => {
@@ -46,18 +42,36 @@ test('assertIdempotentDeltaMatch throws when duplicate key exists but transactio
   );
 });
 
-test('spendCredits updates subscriptions.updatedAt when deducting credits', async () => {
-  const source = await readFile(creditServiceSourcePath, 'utf8');
-  const spendCreditsStart = source.indexOf('async spendCredits');
-  const spendCreditsEnd = source.indexOf('if (result.length === 0)', spendCreditsStart);
+test('spendCredits writes updatedAt when deducting credits', async () => {
+  let updateSetValues: Record<string, unknown> | null = null;
 
-  assert.notEqual(spendCreditsStart, -1);
-  assert.notEqual(spendCreditsEnd, -1);
+  const fakeTx = {
+    insert: () => ({
+      values: async () => [],
+    }),
+    update: () => ({
+      set: (values: Record<string, unknown>) => {
+        updateSetValues = values;
+        return {
+          where: () => ({
+            returning: async () => [{ updatedCredits: 95 }],
+          }),
+        };
+      },
+    }),
+  };
 
-  const spendCreditsBlock = source.slice(spendCreditsStart, spendCreditsEnd);
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<boolean>) => await fn(fakeTx),
+  };
 
-  assert.match(
-    spendCreditsBlock,
-    /\.set\(\{[\s\S]*currentCredits:[\s\S]*updatedAt:\s*new Date\(\)/
-  );
+  const service = createCreditService({
+    getDb: async () => fakeDb as any,
+  });
+
+  const spent = await service.spendCredits('user-1', 5, 'image generation');
+
+  assert.equal(spent, true);
+  const updatedAt = (updateSetValues as { updatedAt?: unknown } | null)?.updatedAt;
+  assert.ok(updatedAt instanceof Date);
 });
