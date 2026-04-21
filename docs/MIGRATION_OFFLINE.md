@@ -121,8 +121,8 @@ Renders nothing when online. Shows a slim dark bar with "You're offline" when th
 | `useCharacter(id)` | SQLite | offlineFirst | Seeded from list cache |
 | `useMessages(charId, userId)` | SQLite | offlineFirst | Polls every 5s for AI responses |
 | `useUserPublicData()` | Cloud SQL | online | Persisted cache shown offline |
-| `useUserPrivateData()` | Cloud SQL | online | Real-time credits/subscription data |
-| `useUserProfile()` | Cloud SQL | online | Real-time profile data |
+| `useUserPrivateData()` | Cloud SQL | online | Cached data with periodic refetch for credits/subscription changes |
+| `useUserProfile()` | Cloud SQL | online | Cached profile data refreshed by polling/refetch, not real-time |
 
 ## Validation Checklist
 

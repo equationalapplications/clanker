@@ -47,7 +47,7 @@ Submit remains disabled until all validation requirements are satisfied.
 
 - Email/name search is server-side: the dashboard passes `search` to `adminListUsers`, which executes Cloud SQL-backed user directory search.
 - Search input is debounced on the client (`300ms`) to avoid excessive function calls while typing.
-- Plan filters (`planTier`, `planStatus`) remain page-scoped client-side filters because they come from `user_app_subscriptions` hydration, not base identity fields.
+- Plan filters (`planTier`, `planStatus`) remain page-scoped client-side filters because they come from hydrated Cloud SQL subscription data, not base identity fields.
 - Query transitions use React Query `keepPreviousData` so page/filter changes do not flash an empty loading state.
 - Pagination supports page size selection (`25`, `50`, `100`) and resets to page 1 when search/filters/page-size change.
 
