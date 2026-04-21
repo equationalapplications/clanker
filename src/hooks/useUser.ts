@@ -144,6 +144,7 @@ export function useUserPrivateData() {
 
 /**
  * Mutation hook to update user profile with auth-machine optimistic update
+ * while keeping React Query mutation lifecycle for network write/error handling.
  */
 export function useUpdateProfile() {
   const authService = useAuthMachine()
@@ -154,13 +155,23 @@ export function useUpdateProfile() {
 
     onMutate: (updates) => {
       if (!dbUser) return { previousDbUser: null }
+      const optimisticUpdates = {
+        ...('display_name' in updates ? { displayName: updates.display_name ?? null } : {}),
+        ...('avatar_url' in updates ? { avatarUrl: updates.avatar_url ?? null } : {}),
+        ...('is_profile_public' in updates
+          ? { isProfilePublic: updates.is_profile_public ?? dbUser.isProfilePublic }
+          : {}),
+        ...('default_character_id' in updates
+          ? { defaultCharacterId: updates.default_character_id ?? null }
+          : {}),
+      }
+      if (Object.keys(optimisticUpdates).length === 0) {
+        return { previousDbUser: dbUser }
+      }
       authService.send({
         type: 'DB_USER_PATCHED_LOCAL',
         updates: {
-          displayName: updates.display_name ?? dbUser.displayName,
-          avatarUrl: updates.avatar_url ?? dbUser.avatarUrl,
-          isProfilePublic: updates.is_profile_public ?? dbUser.isProfilePublic,
-          defaultCharacterId: updates.default_character_id ?? dbUser.defaultCharacterId,
+          ...optimisticUpdates,
           updatedAt: new Date().toISOString(),
         },
       })
