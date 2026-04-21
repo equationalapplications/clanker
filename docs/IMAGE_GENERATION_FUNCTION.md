@@ -9,7 +9,7 @@ Client code sends a prompt, backend enforces auth and billing, backend calls Ver
 (`gemini-2.5-flash-image`), and returns raw base64 image data.
 
 The app stores returned base64 locally in SQLite (`characters.avatar_data`).
-No Supabase Storage upload is used for generated avatars.
+No cloud object-storage upload is used for generated avatars.
 
 ## Callable Contract
 
@@ -40,7 +40,7 @@ type GenerateImageResponse = {
 
 - Firebase Authentication (valid callable auth context)
 - Firebase App Check (`enforceAppCheck: true`)
-- Supabase identity resolution (Firebase UID first, email fallback)
+- Cloud SQL user resolution (Firebase UID first, email fallback)
 - Subscription/credit authorization (unlimited tiers or >=1 credit)
 - Prompt validation (non-empty, max length)
 - Per-user rate limiting (in-memory request window)
@@ -71,7 +71,7 @@ If any check fails, function fails closed with `HttpsError`.
 Success logs include:
 
 - Firebase UID
-- Supabase user ID
+- Cloud SQL user ID
 - Plan tier
 - Credits spent and remaining credits
 - Latency
