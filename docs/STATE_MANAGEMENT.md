@@ -18,7 +18,7 @@
 
 | Machine | File | Responsibility |
 |---|---|---|
-| `authMachine` | `src/machines/authMachine.ts` | Firebase → Supabase token exchange, session refresh, sign-out |
+| `authMachine` | `src/machines/authMachine.ts` | Firebase auth bootstrap, Cloud SQL user/subscription state, sign-out |
 | `termsMachine` | `src/machines/termsMachine.ts` | Check and record Terms of Service acceptance |
 | `characterMachine` | `src/machines/characterMachine.ts` | Character CRUD with optimistic updates and rollback |
 
@@ -92,26 +92,9 @@ component so that:
 
 ## `useCurrentPlan` — Deriving Plan Tier from authMachine
 
-`useCurrentPlan` reads the subscription tier from the Supabase JWT stored in
-`authMachine.context.supabaseSession`. It uses `useSelector` to react to session changes
-rather than registering a separate `supabaseClient.auth.onAuthStateChange` listener (which
-would be a duplicate of the listener already inside `authMachine`).
+`useCurrentPlan` reads the subscription tier from `authMachine.context.subscription`,
+which is populated from the `exchangeToken` bootstrap payload (`{ user, subscription }`).
+It uses `useSelector` to react to auth machine updates and avoid extra auth/session listeners.
 
-```ts
-const accessToken = useSelector(
-  authService,
-  (state) => state.context.supabaseSession?.access_token ?? null,
-)
-const isLoading = useSelector(
-  authService,
-  (state) =>
-    state.matches('initializing') ||
-    state.matches('signingIn') ||
-    state.matches('exchangingToken') ||
-    state.matches('establishingSupabaseSession'),
-)
-const tier = accessToken ? extractTierFromToken(accessToken, APP_NAME) : null
-```
-
-`isLoading` mirrors the same loading states that `RootLayoutNav` uses so that components
-rendering plan-gated UI don't flash the wrong state during the auth flow.
+`isLoading` mirrors the same loading states used by navigation so plan-gated UI does not
+flash incorrect state during initialization/sign-in/bootstrap.

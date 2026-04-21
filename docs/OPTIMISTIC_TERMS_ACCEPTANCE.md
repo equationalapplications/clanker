@@ -122,6 +122,5 @@ if (!hasAcceptedCurrentTerms(userId, 'clanker')) {
 ## References
 
 - [NAVIGATION.md](./NAVIGATION.md) - Updated with optimistic flow
-- [TERMS_ACCEPTANCE_SYSTEM.md](../../equationalapplications.com/docs/TERMS_ACCEPTANCE_SYSTEM.md) - Architectural overview
 - [Optimistic UI Pattern](https://www.patterns.dev/posts/optimistic-ui) - Design pattern explanation
 

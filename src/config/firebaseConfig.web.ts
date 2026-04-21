@@ -11,6 +11,15 @@ import {
 import { getFunctions, httpsCallable, type Functions } from 'firebase/functions'
 import { reportError } from '~/utilities/reportError'
 
+declare global {
+  // Firebase docs use the global FIREBASE_APPCHECK_DEBUG_TOKEN marker on web.
+  interface Window {
+    FIREBASE_APPCHECK_DEBUG_TOKEN?: string | boolean
+  }
+
+  var FIREBASE_APPCHECK_DEBUG_TOKEN: string | boolean | undefined
+}
+
 const config = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -32,10 +41,31 @@ const isAppCheckAlreadyInitializedError = (error: unknown) => {
   return code.includes('already-initialized')
 }
 
+const enableLocalWebAppCheckDebugToken = () => {
+  if (typeof window === 'undefined' || process.env.NODE_ENV === 'production') {
+    return
+  }
+
+  const configuredDebugToken = process.env.EXPO_PUBLIC_WEB_APP_CHECK_DEBUG_TOKEN?.trim()
+  if (!configuredDebugToken) {
+    return
+  }
+
+  const tokenValue = configuredDebugToken.toLowerCase() === 'auto' ? true : configuredDebugToken
+
+  // Firebase Web App Check reads this global before initializeAppCheck.
+  globalThis.FIREBASE_APPCHECK_DEBUG_TOKEN = tokenValue
+  window.FIREBASE_APPCHECK_DEBUG_TOKEN = tokenValue
+
+  console.log('🧪 Firebase App Check web debug token enabled for development')
+}
+
 const appCheckReady: Promise<void> = (() => {
   if (typeof window === 'undefined') {
     return Promise.resolve()
   }
+
+  enableLocalWebAppCheckDebugToken()
 
   const recaptchaSiteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY?.trim()
   if (!recaptchaSiteKey) {
@@ -88,6 +118,11 @@ const adminClearTermsAcceptanceFn = httpsCallable(functionsInstance, 'adminClear
 const adminResetUserStateFn = httpsCallable(functionsInstance, 'adminResetUserState')
 const adminDeleteUserFn = httpsCallable(functionsInstance, 'adminDeleteUser')
 const deleteMyAccountFn = httpsCallable(functionsInstance, 'deleteMyAccount')
+const updateUserProfileFn = httpsCallable(functionsInstance, 'updateUserProfile')
+const acceptTermsFn = httpsCallable(functionsInstance, 'acceptTerms')
+const syncCharacterFn = httpsCallable(functionsInstance, 'syncCharacter')
+const deleteCharacterFn = httpsCallable(functionsInstance, 'deleteCharacter')
+const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters')
 
 export type FirebaseUser = User
 export { appCheckReady }
@@ -110,4 +145,9 @@ export {
   adminResetUserStateFn,
   adminDeleteUserFn,
   deleteMyAccountFn,
+  updateUserProfileFn,
+  acceptTermsFn,
+  syncCharacterFn,
+  deleteCharacterFn,
+  getUserCharactersFn,
 }

@@ -3,10 +3,7 @@ import { createActor, waitFor } from 'xstate'
 const mockOnAuthStateChanged = jest.fn(() => jest.fn())
 const mockFirebaseSignOut = jest.fn()
 
-const mockSetSession = jest.fn()
-const mockSupabaseSignOut = jest.fn()
-
-const mockGetSupabaseUserSession = jest.fn()
+const mockBootstrapSession = jest.fn()
 
 const mockSignOutFromGoogle = jest.fn()
 const mockSignOutFromApple = jest.fn()
@@ -14,7 +11,6 @@ const mockSignOutFromApple = jest.fn()
 const mockLoginRevenueCat = jest.fn()
 const mockLogoutRevenueCat = jest.fn()
 const mockSetCrashlyticsUserId = jest.fn()
-const mockSyncFirebaseIdentityToProfile = jest.fn()
 const mockQueryClientClear = jest.fn()
 
 jest.mock('../src/config/firebaseConfig', () => ({
@@ -22,17 +18,8 @@ jest.mock('../src/config/firebaseConfig', () => ({
   signOut: mockFirebaseSignOut,
 }))
 
-jest.mock('../src/config/supabaseClient', () => ({
-  supabaseClient: {
-    auth: {
-      setSession: mockSetSession,
-      signOut: mockSupabaseSignOut,
-    },
-  },
-}))
-
-jest.mock('../src/auth/getSupabaseUserSession', () => ({
-  getSupabaseUserSession: mockGetSupabaseUserSession,
+jest.mock('../src/auth/bootstrapSession', () => ({
+  bootstrapSession: mockBootstrapSession,
 }))
 
 jest.mock('../src/auth/googleSignin', () => ({
@@ -52,10 +39,6 @@ jest.mock('../src/config/revenueCatConfig', () => ({
 
 jest.mock('../src/services/crashlyticsService', () => ({
   setCrashlyticsUserId: mockSetCrashlyticsUserId,
-}))
-
-jest.mock('../src/services/userService', () => ({
-  syncFirebaseIdentityToProfile: mockSyncFirebaseIdentityToProfile,
 }))
 
 jest.mock('../src/config/queryClient', () => ({
@@ -82,54 +65,72 @@ describe('authMachine', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockFirebaseSignOut.mockResolvedValue(undefined)
-    mockSupabaseSignOut.mockResolvedValue({ error: null })
     mockSignOutFromGoogle.mockResolvedValue(undefined)
     mockSignOutFromApple.mockResolvedValue(undefined)
     mockLogoutRevenueCat.mockResolvedValue(undefined)
     mockSetCrashlyticsUserId.mockResolvedValue(undefined)
   })
 
-  it('reaches signedIn and stores supabase session after USER_FOUND', async () => {
+  it('reaches signedIn and stores bootstrap snapshot after USER_FOUND', async () => {
     const user = makeUser('firebase-123')
-    const session = { expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: 'supa-1' } }
-    mockGetSupabaseUserSession.mockResolvedValue({ access_token: 'a', refresh_token: 'r' })
-    mockSetSession.mockResolvedValue({ data: { session }, error: null })
+    const bootstrapData = {
+      user: { id: 'user-1', firebaseUid: 'firebase-123', email: 'test@example.com' },
+      subscription: { planTier: 'free', currentCredits: 50 }
+    }
+    mockBootstrapSession.mockResolvedValue(bootstrapData)
 
     const actor = createActor(authMachine)
     actor.start()
     actor.send({ type: 'USER_FOUND', user: user as any } as any)
 
     await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
-    expect(actor.getSnapshot().context.supabaseSession).toEqual(session)
+    expect(actor.getSnapshot().context.dbUser).toEqual(bootstrapData.user)
+    expect(actor.getSnapshot().context.subscription).toEqual(bootstrapData.subscription)
     expect(actor.getSnapshot().context.error).toBeNull()
     expect(mockLoginRevenueCat).toHaveBeenCalledWith('firebase-123')
-    expect(mockSyncFirebaseIdentityToProfile).toHaveBeenCalledWith(
-      'Test User',
-      'test@example.com',
-      'https://example.com/avatar.png',
-    )
     actor.stop()
   })
 
-  it('returns to signedOut when token exchange fails', async () => {
+  it('returns to signedOut when bootstrap fails', async () => {
     const user = makeUser()
-    mockGetSupabaseUserSession.mockRejectedValue(new Error('exchange failed'))
+    const bootstrapError = new Error('bootstrap failed')
+    mockBootstrapSession.mockRejectedValue(bootstrapError)
 
     const actor = createActor(authMachine)
     actor.start()
     actor.send({ type: 'USER_FOUND', user: user as any } as any)
 
     await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
-    expect(mockSetSession).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.error).toBe(bootstrapError)
+    actor.stop()
+  })
+
+  it('clears stale error when NO_USER_FOUND is received in signedOut', async () => {
+    const user = makeUser()
+    const bootstrapError = new Error('bootstrap failed')
+    mockBootstrapSession.mockRejectedValue(bootstrapError)
+
+    const actor = createActor(authMachine)
+    actor.start()
+    actor.send({ type: 'USER_FOUND', user: user as any } as any)
+
+    await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.error).toBe(bootstrapError)
+
+    actor.send({ type: 'NO_USER_FOUND' })
+    await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+
     expect(actor.getSnapshot().context.error).toBeNull()
     actor.stop()
   })
 
   it('clears local session data when NO_USER_FOUND occurs after an active session', async () => {
     const user = makeUser()
-    const session = { expires_at: Math.floor(Date.now() / 1000) + 3600 }
-    mockGetSupabaseUserSession.mockResolvedValue({ access_token: 'a', refresh_token: 'r' })
-    mockSetSession.mockResolvedValue({ data: { session }, error: null })
+    const bootstrapData = {
+      user: { id: 'user-1' },
+      subscription: { planTier: 'free' }
+    }
+    mockBootstrapSession.mockResolvedValue(bootstrapData)
 
     const actor = createActor(authMachine)
     actor.start()
@@ -140,30 +141,30 @@ describe('authMachine', () => {
     await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
 
     expect(mockQueryClientClear).toHaveBeenCalled()
-    expect(mockSupabaseSignOut).toHaveBeenCalledWith({ scope: 'local' })
     expect(mockLogoutRevenueCat).toHaveBeenCalled()
     actor.stop()
   })
 
-  it('still reaches signedOut when SIGN_OUT fails', async () => {
+  it('still reaches signedOut and keeps error when SIGN_OUT fails', async () => {
     const user = makeUser()
-    mockGetSupabaseUserSession.mockResolvedValue({ access_token: 'a', refresh_token: 'r' })
-    mockSetSession.mockResolvedValue({
-      data: { session: { expires_at: Math.floor(Date.now() / 1000) + 3600 } },
-      error: null,
-    })
+    const bootstrapData = {
+      user: { id: 'user-1' },
+      subscription: { planTier: 'free' }
+    }
+    mockBootstrapSession.mockResolvedValue(bootstrapData)
 
     const actor = createActor(authMachine)
     actor.start()
     actor.send({ type: 'USER_FOUND', user: user as any } as any)
     await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
 
-    mockFirebaseSignOut.mockRejectedValue(new Error('sign-out failed'))
+    const signOutError = new Error('sign-out failed')
+    mockFirebaseSignOut.mockRejectedValue(signOutError)
     actor.send({ type: 'SIGN_OUT' })
 
     await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
     expect(mockFirebaseSignOut).toHaveBeenCalledTimes(1)
-    expect(actor.getSnapshot().context.error).toBeNull()
+    expect(actor.getSnapshot().context.error).toBe(signOutError)
     actor.stop()
   })
 })

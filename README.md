@@ -1,6 +1,6 @@
 # Clanker
 
-> An AI chatbot Expo app with Firebase + Supabase architecture. Users create custom characters and chat with them using Vertex AI, with subscription-based access control.
+> An AI chatbot Expo app with Firebase + Cloud SQL architecture. Users create custom characters and chat with them using Vertex AI, with subscription-based access control.
 
 ## Getting Started
 
@@ -14,11 +14,12 @@
 
 ## Architecture & Auth
 
-- [Auth flow (concise)](docs/AUTH_FLOW.md) — Step-by-step: Firebase Auth → `exchangeToken` cloud function → Supabase session tokens.
-- [Auth source-of-truth](docs/AUTH_SOURCE_OF_TRUTH.md) — Why Firebase is the canonical identity provider and how Supabase is used downstream.
+- [Auth flow (concise)](docs/AUTH_FLOW.md) — Step-by-step: Firebase Auth → `exchangeToken` cloud function → Cloud SQL bootstrap payload.
+- [Auth source-of-truth](docs/AUTH_SOURCE_OF_TRUTH.md) — Why Firebase is the canonical identity provider and how Cloud SQL bootstrap state is used downstream.
 - [Auth provider name sync](docs/AUTH_PROVIDER_NAME_SYNC.md) — How Apple/Google names are captured and synced to profile display data.
 - [Firebase setup](docs/FIREBASE_SETUP.md) — How to configure mobile Firebase app files for EAS builds and local builds.
 - [Firebase Cloud Functions](docs/FIREBASE_FUNCTIONS.md) — How backend functions (`exchangeToken`, `purchasePackageStripe`) are managed and deployed.
+- [Callable error normalization](docs/CALLABLE_ERROR_NORMALIZATION.md) — How callable handlers map bootstrap/config errors to stable `HttpsError` codes without leaking internals.
 - [Chat response function](docs/CHAT_RESPONSE_FUNCTION.md) — Secure callable architecture for server-side text generation, auth checks, and credit billing.
 - [Image generation function](docs/IMAGE_GENERATION_FUNCTION.md) — Server-side image generation with auth, billing, and abuse controls.
 - [Firebase Functions testing](docs/FIREBASE_FUNCTIONS_TESTING.md) — Test strategy and local commands for callable and webhook function coverage in `functions/`.
@@ -31,8 +32,8 @@
 
 - [Image generation](docs/IMAGE_GENERATION.md) — Callable-based image generation flow with local SQLite avatar storage.
 - [First-login credits](docs/FIRST_LOGIN_CREDITS.md) — How first-login users are provisioned to 50 free credits.
-- [Supabase subscription & RLS](docs/SUPABASE_AUTH.md) — Full multi-tenant subscription architecture, JWT claims, and RLS examples.
-- [Supabase data structure](docs/SUPABASE_DATA_STRUCTURE.md) — SQL schemas and TypeScript interfaces for core tables (users, characters, messages, subscriptions).
+- [Cloud SQL design](docs/CLOUD_SQL_DESIGN.md) — Current PostgreSQL schema and service-layer architecture for users, subscriptions, characters, and messages.
+- [Supabase migration inventory (historical)](docs/SUPABASE_REMOVAL_INVENTORY.md) — Legacy migration tracking notes kept for historical reference.
 
 ## Payments & Subscriptions
 
@@ -53,7 +54,7 @@
 - **Frontend**: React Native 0.81, Expo SDK 54, TypeScript 5.9
 - **Navigation**: Expo Router (file-based routing)
 - **Authentication**: Firebase Auth
-- **Backend**: Supabase (PostgreSQL + Storage + Real-time)
+- **Backend**: Firebase Functions + Cloud SQL (PostgreSQL)
 - **AI**: Google Cloud Vertex AI
 - **State Management**: React Query (TanStack Query)
 - **Payments**: Stripe

@@ -2,15 +2,11 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {
-  callSupabaseRpc,
-  findSupabaseUserByFirebaseUid,
-  findSupabaseUserByEmail,
-  getSupabaseAdminClient,
-} from "./supabaseAdmin.js";
-import {extractRemainingCredits, isAcknowledgedSpend} from "./billing.js";
+import { userRepository } from "./services/userRepository.js";
+import { subscriptionService } from "./services/subscriptionService.js";
+import { creditService } from "./services/creditService.js";
+import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
-const APP_NAME = "clanker";
 const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
@@ -26,11 +22,6 @@ if (!admin.apps.length) {
 interface GenerateReplyData {
   prompt: string;
   referenceId?: string;
-}
-
-interface SubscriptionRow {
-  plan_tier: string;
-  current_credits: number | null;
 }
 
 interface UsageState {
@@ -87,6 +78,18 @@ interface VertexAIConstructor {
 
 interface VertexAIModule {
   VertexAI: VertexAIConstructor;
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error && typeof error.message === "string") {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+function isIdentityConflictError(error: unknown): boolean {
+  return toErrorMessage(error).toLowerCase().includes("different firebase uid");
 }
 
 function getProjectId(): string | undefined {
@@ -214,59 +217,20 @@ function parseInput(data: unknown): {prompt: string; referenceId: string | null}
   };
 }
 
-function parseUsage(rows: SubscriptionRow[]): UsageState {
-  if (rows.length === 0) {
-    return {
-      planTier: null,
-      hasUnlimited: false,
-      creditBalance: 0,
-    };
-  }
+async function fetchUsageState(userId: string): Promise<UsageState> {
+  const existing = await subscriptionService.getSubscription(userId);
+  const sub = existing ?? await subscriptionService.getOrCreateDefaultSubscription(userId);
 
-  let hasUnlimited = false;
-  let credits = 0;
-  let planTier: string | null = null;
-
-  for (const row of rows) {
-    if (!planTier) {
-      planTier = row.plan_tier;
-    }
-
-    if (UNLIMITED_TIERS.has(row.plan_tier)) {
-      hasUnlimited = true;
-      planTier = row.plan_tier;
-      continue;
-    }
-
-    credits += Math.max(0, row.current_credits ?? 0);
-  }
+  const planTier = sub.planTier;
+  const isActive = sub.planStatus === "active";
+  const hasUnlimited = isActive && UNLIMITED_TIERS.has(planTier);
+  const creditBalance = hasUnlimited ? 0 : Math.max(0, sub.currentCredits ?? 0);
 
   return {
     planTier,
     hasUnlimited,
-    creditBalance: credits,
+    creditBalance,
   };
-}
-
-async function fetchUsageState(supabaseUserId: string): Promise<UsageState> {
-  const supabase = getSupabaseAdminClient();
-  const {data, error} = await supabase
-    .from("user_app_subscriptions")
-    .select("plan_tier, current_credits")
-    .eq("user_id", supabaseUserId)
-    .eq("app_name", APP_NAME)
-    .eq("plan_status", "active");
-
-  if (error) {
-    logger.error("Failed to load subscription state", {supabaseUserId, error});
-    throw new HttpsError("internal", "Failed to verify subscription access.");
-  }
-
-  if (!data || data.length === 0) {
-    logger.info("No active subscription rows for Supabase user", {supabaseUserId});
-  }
-
-  return parseUsage((data ?? []) as SubscriptionRow[]);
 }
 
 function assertUsageAuthorized(usage: UsageState): void {
@@ -278,38 +242,8 @@ function assertUsageAuthorized(usage: UsageState): void {
   }
 }
 
-async function spendOneCredit(
-  supabaseUserId: string,
-  referenceId: string | null
-): Promise<number | null> {
-  const spendResult = await callSupabaseRpc("spend_user_credits", {
-    p_user_id: supabaseUserId,
-    p_app_name: APP_NAME,
-    p_credit_amount: 1,
-    p_description: "chat response",
-    p_reference_id: referenceId,
-  });
-
-  const remainingCredits = extractRemainingCredits(spendResult);
-  if (remainingCredits !== null) {
-    return remainingCredits;
-  }
-
-  if (isAcknowledgedSpend(spendResult)) {
-    // Some DB/RPC variants return only a success acknowledgement (e.g. boolean true).
-    // In this case we keep the operation successful and omit a concrete remaining balance.
-    return null;
-  }
-
-  logger.error("spend_user_credits returned invalid payload", {
-    supabaseUserId,
-    spendResult,
-  });
-  throw new HttpsError("internal", "Failed to spend user credits.");
-}
-
 async function spendOneCreditIfRequired(
-  supabaseUserId: string,
+  userId: string,
   usage: UsageState,
   referenceId: string | null
 ): Promise<number | null> {
@@ -318,14 +252,20 @@ async function spendOneCreditIfRequired(
   }
 
   try {
-    return await spendOneCredit(supabaseUserId, referenceId);
+    const success = await creditService.spendCredits(userId, 1, "chat response", referenceId ?? undefined);
+    if (!success) {
+      throw new HttpsError("resource-exhausted", "Insufficient credits to complete the operation.");
+    }
+    
+    // Get updated credits
+    return await creditService.getCredits(userId);
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;
     }
 
     logger.error("Failed to spend user credits", {
-      supabaseUserId,
+      userId,
       referenceId,
       error,
     });
@@ -355,23 +295,32 @@ const handler = async (
 
   const {prompt, referenceId} = parseInput(request.data);
 
-  let supabaseUser = await findSupabaseUserByFirebaseUid(request.auth.uid);
-  if (!supabaseUser) {
-    logger.info("No Supabase user found for Firebase UID; falling back to email lookup", {
+  let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
+  try {
+    user = await userRepository.getOrCreateUserByFirebaseIdentity({
       firebaseUid: request.auth.uid,
-    });
-    supabaseUser = await findSupabaseUserByEmail(email);
-  }
-
-  if (!supabaseUser) {
-    logger.info("No Supabase user found for authenticated Firebase identity", {
       email,
-      firebaseUid: request.auth.uid,
+      displayName: decoded.name || null,
+      avatarUrl: decoded.picture || null,
     });
-    throw new HttpsError("not-found", "User not found.");
+  } catch (error: unknown) {
+    logger.error("Failed to bootstrap user identity in generateReply", {
+      firebaseUid: request.auth.uid,
+      email,
+      error,
+    });
+
+    if (isIdentityConflictError(error)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "User identity is already linked to another account."
+      );
+    }
+
+    throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const usage = await fetchUsageState(supabaseUser.id);
+  const usage = await fetchUsageState(user.id);
   assertUsageAuthorized(usage);
 
   const generateText = options.generateText ?? getTextGenerator();
@@ -381,7 +330,7 @@ const handler = async (
     reply = (await generateText(prompt)).trim();
   } catch (error) {
     logger.error("generateReply model call failed", {
-      supabaseUserId: supabaseUser.id,
+      userId: user.id,
       error,
     });
 
@@ -396,7 +345,7 @@ const handler = async (
     throw new HttpsError("internal", "Model returned an empty chat response.");
   }
 
-  const remainingCredits = await spendOneCreditIfRequired(supabaseUser.id, usage, referenceId);
+  const remainingCredits = await spendOneCreditIfRequired(user.id, usage, referenceId);
 
   return {
     reply,
@@ -413,7 +362,7 @@ export const generateReply = onCall(
     region: DEFAULT_REGION,
     enforceAppCheck: true,
     invoker: "public",
-    secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => handler(request)
 );

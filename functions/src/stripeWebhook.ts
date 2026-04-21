@@ -5,9 +5,11 @@ import Stripe from "stripe";
 import type {Request, Response} from "express";
 import {getStripePriceIds} from "./runtimeConfig.js";
 import {validateAndNormalizeStripeSecretKey} from "./stripeConfig.js";
-import {
-  findSupabaseUserByEmail, callSupabaseRpc, upsertUserSubscription, findSupabaseUserByFirebaseUid,
-} from "./supabaseAdmin.js";
+import {userRepository} from "./services/userRepository.js";
+import {subscriptionService} from "./services/subscriptionService.js";
+import {creditService} from "./services/creditService.js";
+import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
+import type {UpsertSubscriptionParams} from "./services/subscriptionService.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -15,7 +17,45 @@ if (!admin.apps.length) {
 }
 
 const CREDIT_PACK_AMOUNT = 100;
-const APP_NAME = "clanker";
+
+type UserLookup = {
+  id: string;
+  email: string;
+};
+
+interface StripeWebhookDeps {
+  findUserByEmail: (email: string) => Promise<UserLookup | null>;
+  findUserByFirebaseUid: (firebaseUid: string) => Promise<UserLookup | null>;
+  upsertSubscription: (params: UpsertSubscriptionParams) => Promise<void>;
+  addCredits: (userId: string, amount: number, reason: string, referenceId?: string) => Promise<void>;
+  adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
+}
+
+const defaultDeps: StripeWebhookDeps = {
+  async findUserByEmail(email: string) {
+    const user = await userRepository.findUserByEmail(email);
+    if (!user) {
+      return null;
+    }
+    return {id: user.id, email: user.email};
+  },
+  async findUserByFirebaseUid(firebaseUid: string) {
+    const user = await userRepository.findUserByFirebaseUid(firebaseUid);
+    if (!user) {
+      return null;
+    }
+    return {id: user.id, email: user.email};
+  },
+  async upsertSubscription(params: UpsertSubscriptionParams) {
+    await subscriptionService.upsertSubscription(params);
+  },
+  async addCredits(userId: string, amount: number, reason: string, referenceId?: string) {
+    await creditService.addCredits(userId, amount, reason, referenceId);
+  },
+  async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
+    await creditService.adjustCredits(userId, delta, reason, referenceId);
+  },
+};
 
 type StripeExpandableId = string | {id?: string} | null | undefined;
 type StripePriceIds = {
@@ -53,7 +93,10 @@ function getRequiredStripePriceIds(): StripePriceIds {
   };
 }
 
-function getTierByPriceId(priceId: string, priceIds: StripePriceIds): string | undefined {
+function getTierByPriceId(
+  priceId: string,
+  priceIds: StripePriceIds
+): "monthly_20" | "monthly_50" | undefined {
   const {monthly20, monthly50} = priceIds;
   if (priceId === monthly20) return "monthly_20";
   if (priceId === monthly50) return "monthly_50";
@@ -114,7 +157,11 @@ export function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status):
   }
 }
 
-export const stripeWebhookHandler = async (req: StripeWebhookRequest, res: Response) => {
+export const stripeWebhookHandler = async (
+  req: StripeWebhookRequest,
+  res: Response,
+  deps: StripeWebhookDeps = defaultDeps
+) => {
   if (req.method !== "POST") {
     res.status(405).send("Method Not Allowed");
     return;
@@ -166,27 +213,27 @@ export const stripeWebhookHandler = async (req: StripeWebhookRequest, res: Respo
     switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      await handleCheckoutCompleted(stripe, session, priceIds);
+      await handleCheckoutCompleted(stripe, session, priceIds, deps);
       break;
     }
     case "customer.subscription.updated": {
       const sub = event.data.object as Stripe.Subscription;
-      await handleSubscriptionUpdated(sub, stripe, priceIds);
+      await handleSubscriptionUpdated(sub, stripe, priceIds, deps);
       break;
     }
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
-      await handleSubscriptionDeleted(sub, stripe, priceIds);
+      await handleSubscriptionDeleted(sub, stripe, deps);
       break;
     }
     case "invoice.payment_succeeded": {
       const invoice = event.data.object as Stripe.Invoice;
-      await handleInvoicePaymentSucceeded(stripe, invoice, priceIds);
+      await handleInvoicePaymentSucceeded(stripe, invoice, priceIds, deps);
       break;
     }
     case "charge.refunded": {
       const charge = event.data.object as Stripe.Charge;
-      await handleChargeRefunded(stripe, charge, priceIds);
+      await handleChargeRefunded(stripe, charge, priceIds, deps);
       break;
     }
     default:
@@ -206,9 +253,9 @@ export const stripeWebhook = onRequest(
     region: "us-central1",
     invoker: "public",
     secrets: [
+      ...CLOUD_SQL_SECRETS,
       "STRIPE_SECRET_KEY",
       "STRIPE_WEBHOOK_SECRET",
-      "SUPABASE_SERVICE_ROLE_KEY",
     ]
   },
   stripeWebhookHandler
@@ -217,39 +264,23 @@ export const stripeWebhook = onRequest(
 async function handleCheckoutCompleted(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
-  priceIds: StripePriceIds
+  priceIds: StripePriceIds,
+  deps: StripeWebhookDeps
 ): Promise<void> {
   const customerEmail = session.customer_details?.email ?? session.customer_email;
 
   // Primary lookup: by email
-  let supabaseUser = customerEmail
-    ? await findSupabaseUserByEmail(customerEmail)
+  let user = customerEmail
+    ? await deps.findUserByEmail(customerEmail)
     : null;
 
   // Fallback: resolve via Firebase UID set in client_reference_id
-  if (!supabaseUser && session.client_reference_id) {
-    let firebaseEmail: string | undefined;
-    try {
-      const firebaseUser = await admin.auth().getUser(session.client_reference_id);
-      firebaseEmail = firebaseUser.email;
-    } catch (err) {
-      logger.warn("checkout.session.completed: Firebase UID lookup failed", {
-        clientReferenceId: session.client_reference_id,
-        err,
-      });
-    }
-
-    if (firebaseEmail) {
-      supabaseUser = await findSupabaseUserByEmail(firebaseEmail);
-    }
-
-    if (!supabaseUser) {
-      supabaseUser = await findSupabaseUserByFirebaseUid(session.client_reference_id);
-    }
+  if (!user && session.client_reference_id) {
+    user = await deps.findUserByFirebaseUid(session.client_reference_id);
   }
 
-  if (!supabaseUser) {
-    logger.warn("checkout.session.completed: Supabase user not found", {
+  if (!user) {
+    logger.warn("checkout.session.completed: Cloud SQL user not found", {
       customerEmail,
       clientReferenceId: session.client_reference_id,
     });
@@ -268,9 +299,12 @@ async function handleCheckoutCompleted(
       // Subscription product → upsert subscription row
       const subscriptionId = getStripeId(session.subscription as StripeExpandableId);
       const customerId = getStripeId(session.customer as StripeExpandableId);
-      await upsertUserSubscription(supabaseUser.id, APP_NAME, tier, "active", {
-        stripe_subscription_id: subscriptionId,
-        stripe_customer_id: customerId,
+      await deps.upsertSubscription({
+        userId: user.id,
+        planTier: tier,
+        planStatus: "active",
+        stripeSubscriptionId: subscriptionId,
+        stripeCustomerId: customerId,
       });
       logger.info("checkout.session.completed: subscription upserted", {
         email: customerEmail,
@@ -279,13 +313,12 @@ async function handleCheckoutCompleted(
     } else if (isCreditPackPriceId(priceId, priceIds)) {
       // Credit pack → add credits
       const qty = item.quantity ?? 1;
-      await callSupabaseRpc("add_user_credits", {
-        p_user_id: supabaseUser.id,
-        p_app_name: APP_NAME,
-        p_credit_amount: CREDIT_PACK_AMOUNT * qty,
-        p_description: "stripe_credit_pack_purchase",
-        p_reference_id: session.id,
-      });
+      await deps.addCredits(
+        user.id,
+        CREDIT_PACK_AMOUNT * qty,
+        "stripe_credit_pack_purchase",
+        session.id
+      );
       logger.info("checkout.session.completed: credits added", {
         email: customerEmail,
         credits: CREDIT_PACK_AMOUNT * qty,
@@ -297,7 +330,8 @@ async function handleCheckoutCompleted(
 async function handleSubscriptionUpdated(
   sub: Stripe.Subscription,
   stripe: Stripe,
-  priceIds: StripePriceIds
+  priceIds: StripePriceIds,
+  deps: StripeWebhookDeps
 ): Promise<void> {
   const customerId = getStripeId(sub.customer as StripeExpandableId);
   if (!customerId) {
@@ -321,14 +355,17 @@ async function handleSubscriptionUpdated(
     return;
   }
 
-  const supabaseUser = await findSupabaseUserByEmail(customer.email);
-  if (!supabaseUser) return;
+  const user = await deps.findUserByEmail(customer.email);
+  if (!user) return;
 
   const planStatus = mapStripeSubscriptionStatus(sub.status);
 
-  await upsertUserSubscription(supabaseUser.id, APP_NAME, tier, planStatus, {
-    stripe_subscription_id: sub.id,
-    stripe_customer_id: customerId,
+  await deps.upsertSubscription({
+    userId: user.id,
+    planTier: tier,
+    planStatus,
+    stripeSubscriptionId: sub.id,
+    stripeCustomerId: customerId,
   });
 
   logger.info("customer.subscription.updated: subscription synced", {
@@ -341,7 +378,7 @@ async function handleSubscriptionUpdated(
 async function handleSubscriptionDeleted(
   sub: Stripe.Subscription,
   stripe: Stripe,
-  priceIds: StripePriceIds
+  deps: StripeWebhookDeps
 ): Promise<void> {
   const customerId = getStripeId(sub.customer as StripeExpandableId);
   if (!customerId) {
@@ -354,15 +391,15 @@ async function handleSubscriptionDeleted(
     return;
   }
 
-  const supabaseUser = await findSupabaseUserByEmail(customer.email);
-  if (!supabaseUser) return;
+  const user = await deps.findUserByEmail(customer.email);
+  if (!user) return;
 
-  const priceId = sub.items.data[0]?.price?.id;
-  const resolvedTier = priceId ? getTierByPriceId(priceId, priceIds) : undefined;
-  const tier = resolvedTier ?? "free";
-
-  await upsertUserSubscription(supabaseUser.id, APP_NAME, tier, "cancelled", {
-    stripe_subscription_id: sub.id,
+  await deps.upsertSubscription({
+    userId: user.id,
+    planTier: "free",
+    planStatus: "cancelled",
+    stripeSubscriptionId: sub.id,
+    stripeCustomerId: customerId,
   });
 
   logger.info("customer.subscription.deleted: subscription cancelled", {
@@ -373,27 +410,27 @@ async function handleSubscriptionDeleted(
 async function handleInvoicePaymentSucceeded(
   stripe: Stripe,
   invoice: Stripe.Invoice,
-  priceIds: StripePriceIds
+  priceIds: StripePriceIds,
+  deps: StripeWebhookDeps
 ): Promise<void> {
   // Only handle non-subscription invoices (one-time PAYG credit pack purchases)
   const subscriptionId = invoice.parent?.subscription_details?.subscription;
   if (subscriptionId || !invoice.customer_email) return;
 
-  const supabaseUser = await findSupabaseUserByEmail(invoice.customer_email);
-  if (!supabaseUser) return;
+  const user = await deps.findUserByEmail(invoice.customer_email);
+  if (!user) return;
 
   // Check if any line item is a credit pack.
   for (const item of invoice.lines.data) {
     const priceId = getInvoiceLineItemPriceId(item);
     if (isCreditPackPriceId(priceId, priceIds)) {
       const qty = item.quantity ?? 1;
-      await callSupabaseRpc("add_user_credits", {
-        p_user_id: supabaseUser.id,
-        p_app_name: APP_NAME,
-        p_credit_amount: CREDIT_PACK_AMOUNT * qty,
-        p_description: "stripe_invoice_payment",
-        p_reference_id: invoice.id,
-      });
+      await deps.addCredits(
+        user.id,
+        CREDIT_PACK_AMOUNT * qty,
+        "stripe_invoice_payment",
+        invoice.id
+      );
       logger.info("invoice.payment_succeeded: credits added", {
         email: invoice.customer_email,
         credits: CREDIT_PACK_AMOUNT * qty,
@@ -405,7 +442,8 @@ async function handleInvoicePaymentSucceeded(
 async function handleChargeRefunded(
   stripe: Stripe,
   charge: Stripe.Charge,
-  priceIds: StripePriceIds
+  priceIds: StripePriceIds,
+  deps: StripeWebhookDeps
 ): Promise<void> {
   const customerEmail = charge.billing_details?.email;
   if (!customerEmail) {
@@ -413,8 +451,8 @@ async function handleChargeRefunded(
     return;
   }
 
-  const supabaseUser = await findSupabaseUserByEmail(customerEmail);
-  if (!supabaseUser) return;
+  const user = await deps.findUserByEmail(customerEmail);
+  if (!user) return;
 
   let creditPackQty = 0;
   let isSubscriptionRefund = false;
@@ -434,20 +472,23 @@ async function handleChargeRefunded(
   }
 
   if (creditPackQty > 0) {
-    await callSupabaseRpc("update_user_credits", {
-      p_user_id: supabaseUser.id,
-      p_app_name: APP_NAME,
-      p_credit_change: -(CREDIT_PACK_AMOUNT * creditPackQty),
-      p_description: "stripe_refund",
-      p_reference_id: charge.id,
-    });
+    await deps.adjustCredits(
+      user.id,
+      -(CREDIT_PACK_AMOUNT * creditPackQty),
+      "stripe_refund",
+      charge.id
+    );
     logger.info("charge.refunded: credits deducted", {
       email: customerEmail,
       credits: CREDIT_PACK_AMOUNT * creditPackQty,
     });
   } else if (isSubscriptionRefund) {
     // For subscription refunds, cancel the subscription
-    await upsertUserSubscription(supabaseUser.id, APP_NAME, "free", "cancelled", {});
+    await deps.upsertSubscription({
+      userId: user.id,
+      planTier: "free",
+      planStatus: "cancelled",
+    });
     logger.info("charge.refunded: subscription cancelled", {email: customerEmail});
   } else {
     logger.warn("charge.refunded: unable to classify refund", {

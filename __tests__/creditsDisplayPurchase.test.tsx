@@ -4,7 +4,8 @@ import { Platform } from 'react-native'
 
 const mockUseUserCredits = jest.fn()
 const mockMakePackagePurchase = jest.fn()
-const mockRefreshSession = jest.fn()
+const mockAuthServiceSend = jest.fn()
+const mockInvalidateQueries = jest.fn()
 
 jest.mock('react-native-paper', () => {
   const React = require('react')
@@ -49,16 +50,18 @@ jest.mock('~/hooks/useUserCredits', () => ({
   useUserCredits: (...args: unknown[]) => mockUseUserCredits(...args),
 }))
 
-jest.mock('~/utilities/makePackagePurchase', () => ({
-  makePackagePurchase: (...args: unknown[]) => mockMakePackagePurchase(...args),
+jest.mock('~/hooks/useMachines', () => ({
+  useAuthMachine: () => ({ send: mockAuthServiceSend }),
 }))
 
-jest.mock('~/config/supabaseClient', () => ({
-  supabaseClient: {
-    auth: {
-      refreshSession: (...args: unknown[]) => mockRefreshSession(...args),
-    },
-  },
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({
+    invalidateQueries: (...args: unknown[]) => mockInvalidateQueries(...args),
+  }),
+}))
+
+jest.mock('~/utilities/makePackagePurchase', () => ({
+  makePackagePurchase: (...args: unknown[]) => mockMakePackagePurchase(...args),
 }))
 
 jest.mock('~/components/LoadingIndicator', () => () => null)
@@ -68,7 +71,7 @@ describe('CreditsDisplay purchase flows', () => {
   let consoleErrorSpy: jest.SpyInstance
 
   beforeEach(() => {
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
     jest.clearAllMocks()
     jest.replaceProperty(Platform, 'OS', 'web')
 
@@ -81,7 +84,6 @@ describe('CreditsDisplay purchase flows', () => {
     })
 
     mockMakePackagePurchase.mockResolvedValue(undefined)
-    mockRefreshSession.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -106,6 +108,7 @@ describe('CreditsDisplay purchase flows', () => {
 
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('payg')
     expect(mockRefetch).not.toHaveBeenCalled()
+    expect(mockInvalidateQueries).not.toHaveBeenCalled()
     expect(buyButton.props.disabled).toBe(true)
     expect(subscribeButton.props.disabled).toBe(true)
   })
@@ -132,8 +135,9 @@ describe('CreditsDisplay purchase flows', () => {
     expect(JSON.stringify(tree.toJSON())).toContain('Purchase failed. Please try again.')
   })
 
-  it('refetches credits and clears loading after native subscription purchase', async () => {
+  it('refreshes bootstrap and clears loading after native subscription purchase', async () => {
     jest.replaceProperty(Platform, 'OS', 'ios')
+    mockMakePackagePurchase.mockResolvedValueOnce({ appUserId: 'user-1' })
     const CreditsDisplay = require('~/components/CreditsDisplay').default
     let tree!: ReturnType<typeof create>
 
@@ -150,12 +154,56 @@ describe('CreditsDisplay purchase flows', () => {
     const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
 
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('monthly_20')
-    expect(mockRefetch).toHaveBeenCalledTimes(1)
+    expect(mockRefetch).not.toHaveBeenCalled()
+    expect(mockAuthServiceSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['userCredits'] })
     expect(subscribeButton.props.disabled).toBe(false)
     expect(buyButton.props.disabled).toBe(false)
   })
 
-  it('refreshes session and refetches credits when restore is pressed', async () => {
+  it('does not refresh state when native subscription purchase is cancelled', async () => {
+    jest.replaceProperty(Platform, 'OS', 'ios')
+    mockMakePackagePurchase.mockResolvedValueOnce(null)
+    const CreditsDisplay = require('~/components/CreditsDisplay').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<CreditsDisplay />)
+    })
+
+    const subscribeButton = tree.root.findByProps({ testID: 'Unlimited Subscription - $20/Month' })
+
+    await act(async () => {
+      await subscribeButton.props.onPress()
+    })
+
+    expect(mockAuthServiceSend).not.toHaveBeenCalled()
+    expect(mockInvalidateQueries).not.toHaveBeenCalled()
+    expect(subscribeButton.props.disabled).toBe(false)
+  })
+
+  it('does not refresh state when native payg purchase is cancelled', async () => {
+    jest.replaceProperty(Platform, 'OS', 'ios')
+    mockMakePackagePurchase.mockResolvedValueOnce(null)
+    const CreditsDisplay = require('~/components/CreditsDisplay').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<CreditsDisplay />)
+    })
+
+    const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
+
+    await act(async () => {
+      await buyButton.props.onPress()
+    })
+
+    expect(mockAuthServiceSend).not.toHaveBeenCalled()
+    expect(mockInvalidateQueries).not.toHaveBeenCalled()
+    expect(buyButton.props.disabled).toBe(false)
+  })
+
+  it('refreshes bootstrap when restore is pressed without query refetch', async () => {
     const CreditsDisplay = require('~/components/CreditsDisplay').default
     let tree!: ReturnType<typeof create>
 
@@ -169,7 +217,8 @@ describe('CreditsDisplay purchase flows', () => {
       await restoreButton.props.onPress()
     })
 
-    expect(mockRefreshSession).toHaveBeenCalledTimes(1)
-    expect(mockRefetch).toHaveBeenCalledTimes(1)
+    expect(mockRefetch).not.toHaveBeenCalled()
+    expect(mockAuthServiceSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['userCredits'] })
   })
 })

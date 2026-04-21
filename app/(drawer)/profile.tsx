@@ -32,7 +32,7 @@ export default function Profile() {
   const displayName =
     asTrimmedString(userPublic?.name) || asTrimmedString(user?.displayName) || ''
   const email = asTrimmedString(user?.email) || asTrimmedString(userPublic?.email) || ''
-  // Try Supabase profile first, fall back to Firebase photoURL, then to default
+  // Try server profile first, fall back to Firebase photoURL, then to default
   const photoURL = asNonEmptyUri(
     userPublic?.avatar,
     asNonEmptyUri(user?.photoURL, defaultAvatarUrl),
@@ -55,8 +55,8 @@ export default function Profile() {
     setIsDeleting(true)
     try {
       await deleteUser()
-      // Server already hard-deleted both Firebase and Supabase auth records.
-      // SIGN_OUT clears local session state (Supabase, RevenueCat, query cache).
+      // Server already hard-deleted Firebase auth records and database data.
+      // SIGN_OUT clears local session state (RevenueCat, query cache).
       // The sign-out actor tolerates already-deleted accounts gracefully.
       authService.send({ type: 'SIGN_OUT' })
     } catch (error) {

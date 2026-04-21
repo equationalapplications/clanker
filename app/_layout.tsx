@@ -46,7 +46,16 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
   const characterService = useCharacterMachine()
 
   const previousAuthSnapshotRef = useRef<
-    { isSignedInState: boolean; firebaseUserId: string | null; supabaseUserId: string | null } | null
+    {
+      isSignedInState: boolean
+      firebaseUserId: string | null
+      dbUserId: string | null
+      planTier: string | null
+      planStatus: string | null
+      currentCredits: number | null
+      termsVersion: string | null
+      termsAcceptedAt: string | null
+    } | null
   >(null)
 
   // authMachine → characterMachine: forward user changes (deduplicated)
@@ -66,11 +75,17 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const subscription = authService.subscribe((state) => {
       const firebaseUserId = state.context.user?.uid ?? null
-      const supabaseUserId = state.context.supabaseSession?.user?.id ?? null
+      const dbUserId = state.context.dbUser?.id ?? null
+      const subscription = state.context.subscription
       const nextAuthSnapshot = {
         isSignedInState: state.matches('signedIn'),
         firebaseUserId,
-        supabaseUserId,
+        dbUserId,
+        planTier: subscription?.planTier ?? null,
+        planStatus: subscription?.planStatus ?? null,
+        currentCredits: subscription?.currentCredits ?? null,
+        termsVersion: subscription?.termsVersion ?? null,
+        termsAcceptedAt: subscription?.termsAcceptedAt ?? null,
       }
       const previousAuthSnapshot = previousAuthSnapshotRef.current
 
@@ -78,7 +93,12 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
         !previousAuthSnapshot ||
         previousAuthSnapshot.isSignedInState !== nextAuthSnapshot.isSignedInState ||
         previousAuthSnapshot.firebaseUserId !== nextAuthSnapshot.firebaseUserId ||
-        previousAuthSnapshot.supabaseUserId !== nextAuthSnapshot.supabaseUserId
+        previousAuthSnapshot.dbUserId !== nextAuthSnapshot.dbUserId ||
+        previousAuthSnapshot.planTier !== nextAuthSnapshot.planTier ||
+        previousAuthSnapshot.planStatus !== nextAuthSnapshot.planStatus ||
+        previousAuthSnapshot.currentCredits !== nextAuthSnapshot.currentCredits ||
+        previousAuthSnapshot.termsVersion !== nextAuthSnapshot.termsVersion ||
+        previousAuthSnapshot.termsAcceptedAt !== nextAuthSnapshot.termsAcceptedAt
       ) {
         previousAuthSnapshotRef.current = nextAuthSnapshot
         termsService.send({ type: 'AUTH_STATE_CHANGED', authState: state })
@@ -120,8 +140,7 @@ function RootLayoutNav() {
     isLoading:
       state.matches('initializing') ||
       state.matches('signingIn') ||
-      state.matches('exchangingToken') ||
-      state.matches('establishingSupabaseSession'),
+      state.matches('bootstrapping'),
   }))
   const prevUserRef = useRef<typeof user>(null)
 

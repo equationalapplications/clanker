@@ -21,7 +21,7 @@ export interface LocalCharacter {
     created_at: number
     updated_at: number
     synced_to_cloud: number // 0 or 1
-    cloud_id: string | null // Supabase ID if synced
+    cloud_id: string | null // remote ID if synced
     deleted_at: number | null // null = active, timestamp = soft-deleted
 }
 

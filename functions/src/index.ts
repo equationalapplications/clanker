@@ -27,6 +27,17 @@ export {
 } from "./purchasePackageStripe.js";
 
 export {
+  updateUserProfile,
+  acceptTerms,
+} from "./userFunctions.js";
+
+export {
+  syncCharacter,
+  deleteCharacter,
+  getUserCharacters,
+} from "./characterFunctions.js";
+
+export {
   adminListUsers,
   adminSetUserCredits,
   adminSetUserSubscription,

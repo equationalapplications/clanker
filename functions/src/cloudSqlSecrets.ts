@@ -1,0 +1,6 @@
+export const CLOUD_SQL_SECRETS = [
+  "CLOUD_SQL_CONNECTION_NAME",
+  "CLOUD_SQL_DB_USER",
+  "CLOUD_SQL_DB_PASS",
+  "CLOUD_SQL_DB_NAME",
+] as const;

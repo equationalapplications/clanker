@@ -163,7 +163,7 @@ export async function loginRevenueCat(userId: string): Promise<void> {
 
 /**
  * Revert RevenueCat to an anonymous user on sign-out.
- * Call this alongside Firebase/Supabase sign-out.
+ * Call this alongside Firebase sign-out.
  */
 export async function logoutRevenueCat(): Promise<void> {
   if (Platform.OS === 'web' || !isInitialized) return

@@ -6,7 +6,6 @@ import {
 } from '../config/constants'
 import { purchasePackageStripe } from '../config/firebaseConfig'
 import { purchaseProduct } from '../config/revenueCatConfig'
-import { supabaseClient } from '../config/supabaseClient'
 
 export type ProductType = 'monthly_20' | 'monthly_50' | 'payg'
 
@@ -34,10 +33,7 @@ export async function makePackagePurchase(productType: ProductType = 'monthly_20
       // Native: use RevenueCat for in-app purchases
       const productIdentifier = REVENUECAT_PRODUCT_MAP[activeProductType]
       const customerInfo = await purchaseProduct(productIdentifier)
-      // Refresh claims only after successful purchase; no-op on cancellation/error null result.
-      if (customerInfo !== null) {
-        await supabaseClient.auth.refreshSession()
-      }
+      // Callers handle native post-purchase refresh for credits and subscription UI state.
       return customerInfo
     } else if (Platform.OS === 'web') {
       // Web: use Stripe checkout via Firebase Cloud Function
