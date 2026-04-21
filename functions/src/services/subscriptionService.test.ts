@@ -19,7 +19,7 @@ test('upsertSubscription defaults first insert credits to 50 when omitted', asyn
   };
 
   const service = createSubscriptionService({
-    getDb: async () => fakeDb as any,
+    getDb: async () => fakeDb as never,
   });
 
   const upserted = await service.upsertSubscription({

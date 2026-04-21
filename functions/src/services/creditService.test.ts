@@ -66,7 +66,7 @@ test('spendCredits writes updatedAt when deducting credits', async () => {
   };
 
   const service = createCreditService({
-    getDb: async () => fakeDb as any,
+    getDb: async () => fakeDb as never,
   });
 
   const spent = await service.spendCredits('user-1', 5, 'image generation');
