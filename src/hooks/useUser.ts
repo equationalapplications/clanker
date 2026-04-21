@@ -73,15 +73,16 @@ export function useUserProfile() {
  */
 export function useUserPublicData() {
   const authService = useAuthMachine()
-  const { user, dbUser, isLoading, error } = useSelector(authService, (state) => ({
-    user: state.context.user,
-    dbUser: state.context.dbUser,
-    error: state.context.error,
-    isLoading:
+  const user = useSelector(authService, (state) => state.context.user)
+  const dbUser = useSelector(authService, (state) => state.context.dbUser)
+  const isLoading = useSelector(
+    authService,
+    (state) =>
       state.matches('initializing') ||
       state.matches('signingIn') ||
-      state.matches('bootstrapping'),
-  }))
+      state.matches('bootstrapping')
+  )
+  const error = useSelector(authService, (state) => state.context.error)
 
   const userPublic = dbUser
     ? {
