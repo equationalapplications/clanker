@@ -1,13 +1,16 @@
 import React from 'react'
 import { View, StyleSheet, Platform } from 'react-native'
 import { Card, Text, Button, Chip, Snackbar, useTheme } from 'react-native-paper'
+import { useQueryClient } from '@tanstack/react-query'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
-import { supabaseClient } from '~/config/supabaseClient'
+import { useAuthMachine } from '~/hooks/useMachines'
 
 export default function CreditsDisplay() {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
+  const authService = useAuthMachine()
+  const queryClient = useQueryClient()
   const { colors } = useTheme()
   const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
@@ -32,9 +35,10 @@ export default function CreditsDisplay() {
   const handleBuyCredits = async () => {
     setIsPurchasing('payg')
     try {
-      await makePackagePurchase('payg')
-      if (Platform.OS !== 'web') {
-        await refetch()
+      const purchaseResult = await makePackagePurchase('payg')
+      if (Platform.OS !== 'web' && purchaseResult != null) {
+        authService.send({ type: 'REFRESH_BOOTSTRAP' })
+        await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
       }
       // On web: Stripe checkout has been opened in the browser. Keep buttons
       // disabled to prevent multiple parallel checkouts; isPurchasing resets
@@ -55,9 +59,10 @@ export default function CreditsDisplay() {
   const handleSubscribe = async () => {
     setIsPurchasing('subscribe')
     try {
-      await makePackagePurchase('monthly_20')
-      if (Platform.OS !== 'web') {
-        await refetch()
+      const purchaseResult = await makePackagePurchase('monthly_20')
+      if (Platform.OS !== 'web' && purchaseResult != null) {
+        authService.send({ type: 'REFRESH_BOOTSTRAP' })
+        await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
       }
       // On web: same as above — keep buttons disabled until user returns.
     } catch (e) {
@@ -76,8 +81,8 @@ export default function CreditsDisplay() {
   const handleRestore = async () => {
     setIsPurchasing('restore')
     try {
-      await supabaseClient.auth.refreshSession()
-      await refetch()
+      authService.send({ type: 'REFRESH_BOOTSTRAP' })
+      await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
     } catch (e) {
       console.error('Restore failed:', e)
       setErrorMessage('Sync failed. Please try again.')
@@ -88,82 +93,82 @@ export default function CreditsDisplay() {
 
   return (
     <>
-    <Card style={styles.card}>
-      <Card.Content>
-        <Text variant="headlineSmall" style={styles.title}>
-          Your Credits
-        </Text>
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text variant="headlineSmall" style={styles.title}>
+            Your Credits
+          </Text>
 
-        {credits?.hasUnlimited ? (
-          <View style={styles.unlimitedContainer}>
-            <Chip icon="infinity" mode="flat" style={[styles.unlimitedChip, { backgroundColor: colors.tertiaryContainer }]}>
-              Unlimited Credits
-            </Chip>
-            <Text variant="bodyMedium" style={styles.description}>
-              You have unlimited credits with your subscription!
-            </Text>
-            {credits.totalCredits > 0 && (
-              <Text variant="bodySmall" style={[styles.savedCredits, { color: colors.onSurfaceVariant }]}>
-                Plus {credits.totalCredits} saved credits for later
+          {credits?.hasUnlimited ? (
+            <View style={styles.unlimitedContainer}>
+              <Chip icon="infinity" mode="flat" style={[styles.unlimitedChip, { backgroundColor: colors.tertiaryContainer }]}>
+                Unlimited Credits
+              </Chip>
+              <Text variant="bodyMedium" style={styles.description}>
+                You have unlimited credits with your subscription!
               </Text>
-            )}
-          </View>
-        ) : (
-          <View style={styles.creditsContainer}>
-            <Text variant="displaySmall" style={[styles.creditsCount, { color: colors.primary }]}>
-              {credits?.totalCredits || 0}
-            </Text>
-            <Text variant="bodyMedium">Credits Available</Text>
-          </View>
-        )}
-
-        <View style={styles.actionsContainer}>
-          {!credits?.hasUnlimited && (
-            <Button
-              mode="contained"
-              onPress={handleSubscribe}
-              style={styles.actionButton}
-              disabled={isPurchasing !== null}
-              loading={isPurchasing === 'subscribe'}
-            >
-              Unlimited Subscription - $20/Month
-            </Button>
+              {credits.totalCredits > 0 && (
+                <Text variant="bodySmall" style={[styles.savedCredits, { color: colors.onSurfaceVariant }]}>
+                  Plus {credits.totalCredits} saved credits for later
+                </Text>
+              )}
+            </View>
+          ) : (
+            <View style={styles.creditsContainer}>
+              <Text variant="displaySmall" style={[styles.creditsCount, { color: colors.primary }]}>
+                {credits?.totalCredits || 0}
+              </Text>
+              <Text variant="bodyMedium">Credits Available</Text>
+            </View>
           )}
 
+          <View style={styles.actionsContainer}>
+            {!credits?.hasUnlimited && (
+              <Button
+                mode="contained"
+                onPress={handleSubscribe}
+                style={styles.actionButton}
+                disabled={isPurchasing !== null}
+                loading={isPurchasing === 'subscribe'}
+              >
+                Unlimited Subscription - $20/Month
+              </Button>
+            )}
+
+            <Button
+              mode="outlined"
+              onPress={handleBuyCredits}
+              style={styles.actionButton}
+              disabled={isPurchasing !== null}
+              loading={isPurchasing === 'payg'}
+            >
+              Buy 100 Credits - $10
+            </Button>
+          </View>
+
           <Button
-            mode="outlined"
-            onPress={handleBuyCredits}
-            style={styles.actionButton}
-            disabled={isPurchasing !== null}
-            loading={isPurchasing === 'payg'}
+            mode="text"
+            onPress={handleRestore}
+            disabled={Platform.OS === 'web' ? isPurchasing === 'restore' : isPurchasing !== null}
+            loading={isPurchasing === 'restore'}
+            style={styles.restoreButton}
           >
-            Buy 100 Credits - $10
+            Sync Subscription &amp; Credits
           </Button>
-        </View>
+          <Text variant="bodySmall" style={[styles.syncHelperText, { color: colors.onSurfaceVariant }]}>
+            Use this if your subscription or credits aren&apos;t showing correctly.
+          </Text>
+        </Card.Content>
+      </Card>
 
-        <Button
-          mode="text"
-          onPress={handleRestore}
-          disabled={Platform.OS === 'web' ? isPurchasing === 'restore' : isPurchasing !== null}
-          loading={isPurchasing === 'restore'}
-          style={styles.restoreButton}
-        >
-          Sync Subscription &amp; Credits
-        </Button>
-        <Text variant="bodySmall" style={[styles.syncHelperText, { color: colors.onSurfaceVariant }]}>
-          Use this if your subscription or credits aren&apos;t showing correctly.
-        </Text>
-      </Card.Content>
-    </Card>
-
-    <Snackbar
-      visible={errorMessage !== null}
-      onDismiss={() => setErrorMessage(null)}
-      duration={4000}
-    >
-      {errorMessage}
-    </Snackbar>
-  </>
+      <Snackbar
+        visible={errorMessage !== null}
+        onDismiss={() => setErrorMessage(null)}
+        duration={4000}
+      >
+        {errorMessage}
+      </Snackbar>
+    </>
   )
 }
 

@@ -30,7 +30,7 @@ async function initAppCheck() {
   })
 }
 
-// Exported so callers (e.g. getSupabaseUserSession) can await App Check readiness
+// Exported so callers (e.g. bootstrapSession) can await App Check readiness
 // before invoking callable functions that enforce App Check.
 export const appCheckReady = initAppCheck().catch((err: unknown) => {
   reportError(err, 'App Check initialization')
@@ -66,6 +66,11 @@ const adminClearTermsAcceptanceFn = httpsCallable(functionsInstance, 'adminClear
 const adminResetUserStateFn = httpsCallable(functionsInstance, 'adminResetUserState')
 const adminDeleteUserFn = httpsCallable(functionsInstance, 'adminDeleteUser')
 const deleteMyAccountFn = httpsCallable(functionsInstance, 'deleteMyAccount')
+const updateUserProfileFn = httpsCallable(functionsInstance, 'updateUserProfile')
+const acceptTermsFn = httpsCallable(functionsInstance, 'acceptTerms')
+const syncCharacterFn = httpsCallable(functionsInstance, 'syncCharacter')
+const deleteCharacterFn = httpsCallable(functionsInstance, 'deleteCharacter')
+const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters')
 
 export type FirebaseUser = FirebaseAuthTypes.User
 
@@ -87,4 +92,9 @@ export {
   adminResetUserStateFn,
   adminDeleteUserFn,
   deleteMyAccountFn,
+  updateUserProfileFn,
+  acceptTermsFn,
+  syncCharacterFn,
+  deleteCharacterFn,
+  getUserCharactersFn,
 }

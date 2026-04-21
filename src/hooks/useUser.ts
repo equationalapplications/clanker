@@ -4,12 +4,11 @@
  * Features:
  * - Automatic caching and background updates
  * - Optimistic updates for profile changes
- * - Real-time subscriptions via query invalidation
+ * - Polling updates via refetchInterval
  * - Offline mutation queuing
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
 import {
@@ -20,7 +19,6 @@ import {
   UserProfile,
   UserProfileUpdate,
 } from '~/services/userService'
-import { supabaseClient } from '~/config/supabaseClient'
 
 /**
  * Query key factory for user data
@@ -38,40 +36,14 @@ export const userKeys = {
 export function useUserProfile() {
   const authService = useAuthMachine()
   const user = useSelector(authService, (state) => state.context.user)
-  const queryClient = useQueryClient()
 
   const query = useQuery({
     queryKey: userKeys.profile(user?.uid),
     queryFn: getUserProfile,
     enabled: !!user,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 30000, // Poll every 30 seconds
   })
-
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!user?.uid) return
-
-    const channel = supabaseClient
-      .channel(`user-profile-${user.uid}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'profiles',
-          filter: `user_id=eq.${user.uid}`,
-        },
-        (payload) => {
-          console.log('📡 Real-time profile change:', payload.eventType)
-          queryClient.invalidateQueries({ queryKey: userKeys.profile(user.uid) })
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabaseClient.removeChannel(channel)
-    }
-  }, [user?.uid, queryClient])
 
   return {
     ...query,
@@ -91,6 +63,7 @@ export function useUserPublicData() {
     queryFn: getUserPublic,
     enabled: !!user,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 30000,
   })
 
   return {
@@ -111,6 +84,7 @@ export function useUserPrivateData() {
     queryFn: getUserPrivate,
     enabled: !!user,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 30000,
   })
 
   return {

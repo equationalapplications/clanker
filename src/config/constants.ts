@@ -1,27 +1,9 @@
 import { Platform } from 'react-native'
 
-type MaybeString = string | null | undefined
-
-const sanitize = (value: MaybeString) => {
-  if (typeof value !== 'string') return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-const resolveConfigValue = (preferredKey: string, fallbackKey?: string) => {
-  return (
-    sanitize(process.env[preferredKey]) ||
-    (fallbackKey ? sanitize(process.env[fallbackKey]) : undefined)
-  )
-}
-
-// Canonical app identifier used across Supabase queries and Firebase exchangeToken
+// Canonical app identifier used for backend bootstrap and app-scoped API calls.
 export const APP_NAME = 'clanker'
 
 export const defaultAvatarUrl = 'https://www.gravatar.com/avatar?d=mp'
-
-export const supabaseUrl = resolveConfigValue('EXPO_PUBLIC_SUPABASE_URL')
-export const supabaseAnonKey = resolveConfigValue('EXPO_PUBLIC_SUPABASE_ANON_KEY')
 
 export const stripeCustomerPortal = 'https://billing.stripe.com/p/login/28obLIehA711btKcMM'
 export const APPLE_EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'

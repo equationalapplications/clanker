@@ -2,7 +2,10 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {findSupabaseUserByEmail, callSupabaseRpc} from "./supabaseAdmin.js";
+import { userRepository } from "./services/userRepository.js";
+import { creditService } from "./services/creditService.js";
+import { subscriptionService } from "./services/subscriptionService.js";
+import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -13,6 +16,19 @@ interface SpendCreditsData {
   amount: number;
   description: string;
   referenceId?: string;
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error && typeof error.message === "string") {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+function isIdentityConflictError(error: unknown): boolean {
+  const normalized = toErrorMessage(error).toLowerCase();
+  return normalized.includes("different firebase uid");
 }
 
 const handler = async (request: CallableRequest) => {
@@ -68,30 +84,60 @@ const handler = async (request: CallableRequest) => {
     : "";
   const referenceId = trimmedReferenceId.length > 0 ? trimmedReferenceId : null;
 
-  // Look up Supabase user by email
-  const supabaseUser = await findSupabaseUserByEmail(email);
-  if (!supabaseUser) {
-    logger.error("Supabase user not found for email", {email});
-    throw new HttpsError("not-found", "User not found.");
+  let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
+  try {
+    user = await userRepository.getOrCreateUserByFirebaseIdentity({
+      firebaseUid: request.auth.uid,
+      email,
+    });
+  } catch (error: unknown) {
+    logger.error("Failed to bootstrap user identity in spendCredits", {
+      firebaseUid: request.auth.uid,
+      email,
+      error,
+    });
+
+    if (isIdentityConflictError(error)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "User identity is already linked to another account."
+      );
+    }
+
+    throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  // Call the server-side spend_user_credits RPC
-  const result = await callSupabaseRpc("spend_user_credits", {
-    p_user_id: supabaseUser.id,
-    p_app_name: "clanker",
-    p_credit_amount: amount,
-    p_description: description,
-    p_reference_id: referenceId,
-  });
+  try {
+    await subscriptionService.getOrCreateDefaultSubscription(user.id);
+  } catch (error: unknown) {
+    logger.error("Failed to bootstrap subscription in spendCredits", {
+      userId: user.id,
+      firebaseUid: request.auth.uid,
+      email,
+      error,
+    });
+    throw new HttpsError("internal", "Failed to bootstrap user subscription.");
+  }
+
+  const success = await creditService.spendCredits(user.id, amount, description, referenceId ?? undefined);
+
+  if (!success) {
+    logger.warn("spendCredits failed - insufficient credits or user subscription missing", {
+      userId: user.id,
+      amount,
+      description,
+    });
+    throw new HttpsError("resource-exhausted", "Insufficient credits.");
+  }
 
   logger.info("spendCredits succeeded", {
     email,
-    supabaseUserId: supabaseUser.id,
+    userId: user.id,
     amount,
     description,
   });
 
-  return {success: true, result};
+  return {success: true};
 };
 
 export const spendCreditsHandler = handler;
@@ -100,8 +146,8 @@ export const spendCredits = onCall(
   {
     region: "us-central1",
     enforceAppCheck: true,
-    secrets: ["SUPABASE_SERVICE_ROLE_KEY"],
-    invoker: "public"
+    invoker: "public",
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => {
     return handler(request);

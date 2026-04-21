@@ -33,14 +33,6 @@ jest.mock('~/config/revenueCatConfig', () => ({
   purchaseProduct: jest.fn(),
 }))
 
-jest.mock('~/config/supabaseClient', () => ({
-  supabaseClient: {
-    auth: {
-      refreshSession: jest.fn(),
-    },
-  },
-}))
-
 type PlatformOS = 'web' | 'ios' | 'android'
 
 function createHarness(platform: PlatformOS = 'web') {
@@ -51,23 +43,19 @@ function createHarness(platform: PlatformOS = 'web') {
   const { makePackagePurchase } = require('~/utilities/makePackagePurchase')
   const { purchasePackageStripe } = require('~/config/firebaseConfig')
   const { purchaseProduct } = require('~/config/revenueCatConfig')
-  const { supabaseClient } = require('~/config/supabaseClient')
 
   const purchasePackageStripeMock = purchasePackageStripe as jest.Mock
   const purchaseProductMock = purchaseProduct as jest.Mock
   const openURLMock = Linking.openURL as jest.Mock
-  const refreshSessionMock = supabaseClient.auth.refreshSession as jest.Mock
 
   purchasePackageStripeMock.mockResolvedValue({ data: 'https://checkout.stripe.test/session_1' })
   purchaseProductMock.mockResolvedValue({ entitlements: {} })
-  refreshSessionMock.mockResolvedValue(undefined)
 
   return {
     makePackagePurchase,
     purchasePackageStripeMock,
     purchaseProductMock,
     openURLMock,
-    refreshSessionMock,
   }
 }
 
@@ -112,56 +100,38 @@ describe('makePackagePurchase', () => {
     }
   })
 
-  it('uses RevenueCat and refreshes session on native', async () => {
-    const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock, refreshSessionMock } = createHarness('ios')
+  it('uses RevenueCat on native', async () => {
+    const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } = createHarness('ios')
 
     await makePackagePurchase('payg')
 
     expect(purchaseProductMock).toHaveBeenCalledWith('credit_100')
-    expect(refreshSessionMock).toHaveBeenCalledTimes(1)
     expect(purchasePackageStripeMock).not.toHaveBeenCalled()
     expect(openURLMock).not.toHaveBeenCalled()
   })
 
   it('uses Android RevenueCat product id on Android native', async () => {
-    const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock, refreshSessionMock } = createHarness('android')
+    const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } = createHarness('android')
 
     await makePackagePurchase('payg')
 
     expect(purchaseProductMock).toHaveBeenCalledWith('credit_pack_100')
-    expect(refreshSessionMock).toHaveBeenCalledTimes(1)
     expect(purchasePackageStripeMock).not.toHaveBeenCalled()
     expect(openURLMock).not.toHaveBeenCalled()
   })
 
-  it('does not refresh session when RevenueCat returns null customer info', async () => {
-    const { makePackagePurchase, purchaseProductMock, refreshSessionMock } = createHarness('ios')
+  it('handles null customer info from RevenueCat', async () => {
+    const { makePackagePurchase, purchaseProductMock } = createHarness('ios')
     purchaseProductMock.mockResolvedValueOnce(null)
 
     const result = await makePackagePurchase('monthly_20')
 
     expect(result).toBeNull()
     expect(purchaseProductMock).toHaveBeenCalledWith('monthly_20_subscription')
-    expect(refreshSessionMock).not.toHaveBeenCalled()
-  })
-
-  it('propagates native session refresh failures after successful purchase', async () => {
-    const { makePackagePurchase, purchaseProductMock, refreshSessionMock } = createHarness('ios')
-    purchaseProductMock.mockResolvedValueOnce({ entitlements: { premium: {} } })
-    refreshSessionMock.mockRejectedValueOnce(new Error('refresh failed'))
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-
-    try {
-      await expect(makePackagePurchase('monthly_20')).rejects.toThrow('refresh failed')
-      expect(purchaseProductMock).toHaveBeenCalledWith('monthly_20_subscription')
-      expect(refreshSessionMock).toHaveBeenCalledTimes(1)
-    } finally {
-      consoleErrorSpy.mockRestore()
-    }
   })
 
   it('rejects monthly_50 purchase while product is disabled', async () => {
-    const { makePackagePurchase, purchaseProductMock, refreshSessionMock } = createHarness('ios')
+    const { makePackagePurchase, purchaseProductMock } = createHarness('ios')
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 
     try {
@@ -169,20 +139,18 @@ describe('makePackagePurchase', () => {
         'monthly_50 purchase is disabled until RevenueCat product setup is complete.',
       )
       expect(purchaseProductMock).not.toHaveBeenCalled()
-      expect(refreshSessionMock).not.toHaveBeenCalled()
     } finally {
       consoleErrorSpy.mockRestore()
     }
   })
 
   it('propagates errors when opening Stripe checkout URL fails', async () => {
-    const { makePackagePurchase, openURLMock, refreshSessionMock } = createHarness('web')
+    const { makePackagePurchase, openURLMock } = createHarness('web')
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
     openURLMock.mockRejectedValueOnce(new Error('cannot open url'))
 
     try {
       await expect(makePackagePurchase('payg')).rejects.toThrow('cannot open url')
-      expect(refreshSessionMock).not.toHaveBeenCalled()
     } finally {
       consoleErrorSpy.mockRestore()
     }
