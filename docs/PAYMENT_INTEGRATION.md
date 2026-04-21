@@ -97,8 +97,8 @@ RevenueCat sends an `Authorization: Bearer <secret>` header. The handler verifie
 |---|---|
 | `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription → upsert `subscriptions`. Credit pack → add credits via `creditService`. |
 | `NON_RENEWING_PURCHASE` | Credit pack → add credits via `creditService`. |
-| `CANCELLATION` | Set `plan_status = 'cancelled'` |
-| `EXPIRATION` | Set `plan_status = 'expired'` |
+| `CANCELLATION` | Known subscription product → keep entitlement `plan_status = 'active'` with auto-renew off. Unknown product → fall back to `plan_tier = 'free'`, `plan_status = 'cancelled'`. |
+| `EXPIRATION` | Upsert `plan_tier = 'free'` and set `plan_status = 'expired'`. |
 
 #### Product ID → DB Tier Mapping
 
