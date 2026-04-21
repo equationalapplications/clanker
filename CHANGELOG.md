@@ -1,3 +1,10 @@
+## [28.0.1](https://github.com/equationalapplications/clanker/compare/v28.0.0...v28.0.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **auth:** normalize email and gate appcheck ([e21f19a](https://github.com/equationalapplications/clanker/commit/e21f19a4b8e92a679a14b27d94fe16ff16cf5723))
+
 # [28.0.0](https://github.com/equationalapplications/clanker/compare/v27.1.1...v28.0.0) (2026-04-21)
 
 
