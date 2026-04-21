@@ -26,13 +26,13 @@ Credits  will not expire and they roll over. They are not consumed if the user h
 
 ### Refunds
 
-Refunds are handled provider-side: Stripe, Apple App Store, and Google Play manage refund mechanics. The webhook handlers sync the resulting state back to `user_app_subscriptions` automatically — no local transaction table is required.
+Refunds are handled provider-side: Stripe, Apple App Store, and Google Play manage refund mechanics. The webhook handlers sync the resulting state back to `subscriptions` automatically — no local transaction table is required.
 
 ---
 
 ## Webhook Endpoints
 
-Both webhooks are deployed as Firebase Cloud Functions in `account/functions/src/`.
+Both webhooks are deployed as Firebase Cloud Functions in `functions/src/`.
 
 ### Stripe Webhook
 
@@ -46,29 +46,27 @@ Both webhooks are deployed as Firebase Cloud Functions in `account/functions/src
 |---|---|
 | `STRIPE_SECRET_KEY` | Stripe secret API key |
 | `STRIPE_WEBHOOK_SECRET` | Webhook signing secret from Stripe dashboard |
-| `SUPABASE_URL` | Supabase project REST URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+| `CLOUD_SQL_CONNECTION_NAME` | Cloud SQL instance connection name (`project:region:instance`) |
+| `CLOUD_SQL_DB_NAME` / `CLOUD_SQL_DB_USER` / `CLOUD_SQL_DB_PASS` | Cloud SQL database credentials (via Firebase Secrets) |
 
 #### Event → Action Mapping
 
 | Stripe Event | Action |
 |---|---|
-| `checkout.session.completed` | Subscription product → upsert `user_app_subscriptions` with matching tier. Credit pack → call `add_user_credits` RPC. |
+| `checkout.session.completed` | Subscription product → upsert `subscriptions` with matching tier. Credit pack → add credits via `creditService`. |
 | `customer.subscription.updated` | Update `plan_tier`, `plan_status`, `plan_renewal_at` |
 | `customer.subscription.deleted` | Set `plan_status = 'cancelled'` |
-| `invoice.payment_succeeded` | For one-time PAYG invoices → call `add_user_credits` |
-| `charge.refunded` | Credit pack refund → deduct via `update_user_credits`. Subscription refund → set `plan_status = 'cancelled'`. |
+| `invoice.payment_succeeded` | For one-time PAYG invoices → add credits via `creditService`. |
+| `charge.refunded` | Credit pack refund → deduct credits via `creditService`. Subscription refund → set `plan_status = 'cancelled'`. |
 
 #### Price ID → DB Tier Mapping
 
-Configure in `functions/src/stripeWebhook.ts` `STRIPE_PRICE_TO_TIER`:
+Configure via Stripe price ID environment variables consumed by `functions/src/runtimeConfig.ts` and `functions/src/stripeWebhook.ts`:
 
 ```typescript
-const STRIPE_PRICE_TO_TIER: Record<string, string> = {
-  "price_TODO_monthly_20": "monthly_20",  // $20/month
-  "price_TODO_monthly_50": "monthly_50",  // $50/month
-};
-const STRIPE_CREDIT_PACK_PRICE_ID = "price_TODO_credit_pack"; // $10/100 credits
+STRIPE_MONTHLY_20_PRICE_ID=price_TODO_monthly_20
+STRIPE_MONTHLY_50_PRICE_ID=price_TODO_monthly_50
+STRIPE_CREDIT_PACK_PRICE_ID=price_TODO_credit_pack
 ```
 
 Replace `price_TODO_*` with real price IDs from the Stripe dashboard.
@@ -86,8 +84,8 @@ Replace `price_TODO_*` with real price IDs from the Stripe dashboard.
 | Variable | Description |
 |---|---|
 | `REVENUECAT_WEBHOOK_SECRET` | Shared secret configured in RevenueCat dashboard |
-| `SUPABASE_URL` | Supabase project REST URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+| `CLOUD_SQL_CONNECTION_NAME` | Cloud SQL instance connection name (`project:region:instance`) |
+| `CLOUD_SQL_DB_NAME` / `CLOUD_SQL_DB_USER` / `CLOUD_SQL_DB_PASS` | Cloud SQL database credentials (via Firebase Secrets) |
 
 #### Authentication
 
@@ -97,8 +95,8 @@ RevenueCat sends an `Authorization: Bearer <secret>` header. The handler verifie
 
 | RevenueCat Event | Action |
 |---|---|
-| `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription → upsert `user_app_subscriptions`. Credit pack → call `add_user_credits`. |
-| `NON_RENEWING_PURCHASE` | Credit pack → call `add_user_credits` |
+| `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription → upsert `subscriptions`. Credit pack → add credits via `creditService`. |
+| `NON_RENEWING_PURCHASE` | Credit pack → add credits via `creditService`. |
 | `CANCELLATION` | Set `plan_status = 'cancelled'` |
 | `EXPIRATION` | Set `plan_status = 'expired'` |
 
@@ -133,8 +131,10 @@ These product IDs must match App Store Connect / Google Play Console exactly.
 firebase functions:secrets:set STRIPE_SECRET_KEY
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 firebase functions:secrets:set REVENUECAT_WEBHOOK_SECRET
-firebase functions:secrets:set SUPABASE_URL
-firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY
+firebase functions:secrets:set CLOUD_SQL_CONNECTION_NAME
+firebase functions:secrets:set CLOUD_SQL_DB_NAME
+firebase functions:secrets:set CLOUD_SQL_DB_USER
+firebase functions:secrets:set CLOUD_SQL_DB_PASS
 ```
 
 Register the webhook URLs in:
@@ -158,13 +158,13 @@ Client (web)
   → user completes payment on Stripe-hosted page
   → Stripe redirects user to STRIPE_SUCCESS_URL / STRIPE_CANCEL_URL
   → Stripe fires checkout.session.completed webhook
-  → stripeWebhook Cloud Function upserts user_app_subscriptions or adds credits
+  → stripeWebhook Cloud Function upserts subscriptions or adds credits
 ```
 
 ### `purchasePackageStripe` Cloud Function
 
 **Type:** `onCall` (Firebase callable — requires authenticated Firebase user)  
-**Location:** `account/functions/src/purchasePackageStripe.ts`  
+**Location:** `functions/src/purchasePackageStripe.ts`  
 **Region:** `us-central1`
 
 ### Required Environment Variables
@@ -211,7 +211,8 @@ These are referenced in `src/config/constants.ts` and passed to `purchasePackage
 
 `handleCheckoutCompleted` in `stripeWebhook.ts` uses a two-stage lookup:
 
-1. **Primary**: look up Supabase user by `customer_details.email`
-2. **Fallback**: if email lookup fails, resolve Firebase UID from `session.client_reference_id` → get email from `admin.auth().getUser(uid)` → retry email lookup → finally try `findSupabaseUserByFirebaseUid` (queries `auth.users` by `raw_user_meta_data->>'firebaseUid'`)
+1. **Primary**: look up Cloud SQL user by `customer_details.email` / `customer_email`.
+2. **Fallback**: if email lookup fails, resolve by Firebase UID from `session.client_reference_id` using `findUserByFirebaseUid`.
 
-This fallback requires the `get_user_id_by_firebase_uid` Supabase RPC function (migration: `20260327000000_create_get_user_id_by_firebase_uid.sql`).
+If neither lookup succeeds, the webhook logs a warning and exits gracefully for that
+event. Stripe retries unexpected processing errors (non-2xx) automatically.

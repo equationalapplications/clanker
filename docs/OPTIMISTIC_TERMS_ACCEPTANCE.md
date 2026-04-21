@@ -3,12 +3,13 @@
 ## Decision
 
 - Use optimistic acceptance: navigate immediately after user accepts terms.
-- Do not block on forced JWT refresh.
+- Do not block on forced auth-token refresh.
 
 ## Why
 
 Terms acceptance is a legal/compliance state, not an auth boundary.
-Security must be enforced on server-side operations, not by delaying client navigation.
+Security is enforced by callable handlers and backend services backed by Cloud SQL,
+not by delaying client navigation.
 
 Benefits:
 - Better UX (no blocking wait/spinner)
@@ -19,17 +20,17 @@ Benefits:
 ## Flow
 
 1. User taps Accept.
-2. Client writes acceptance asynchronously.
+2. Client writes acceptance asynchronously via the `acceptTerms` callable.
 3. Client immediately continues into the app.
-4. JWT claims update on natural refresh.
-5. Server checks terms/subscription state on protected operations.
+4. Subscription state is reflected on the next bootstrap/state refresh.
+5. Protected callable/service operations validate terms/subscription state.
 
 ## Implementation
 
 ### Client
 
 - Keep a local optimistic accepted flag for current session.
-- Use local accepted state before token claims when deciding whether to gate terms UI.
+- Use local accepted state before bootstrap subscription state when deciding whether to gate terms UI.
 
 ### Client-Side (`useSubscriptionStatus`)
 
@@ -37,13 +38,13 @@ Benefits:
 // Local state tracks optimistic acceptance
 const [localTermsAccepted, setLocalTermsAccepted] = useState(false)
 
-// Check local state first, then JWT claims
+// Check local optimistic state first, then bootstrap subscription state.
 if (localTermsAccepted) {
   // User accepted this session, let them through
   return { needsTermsAcceptance: false }
 }
 
-// Otherwise check JWT claims...
+// Otherwise check `subscription.termsVersion` / `subscription.termsAcceptedAt`...
 ```
 
 ### Accept Action
@@ -61,63 +62,49 @@ const onPressAccept = async () => {
 ### Persistence
 
 ```typescript
-export async function recordTermsAcceptance(userId: string) {
-  const now = new Date().toISOString()
+import { TERMS } from '~/config/termsConfig'
+import { acceptTermsFn } from '~/services/apiClient'
 
-  // Atomically update terms fields and verify the row exists
-  const { data: updatedSubscription, error: updateError } = await supabaseClient
-    .from('user_app_subscriptions')
-    .update({
-      terms_accepted_at: now,
-      terms_version: TERMS.version,
-      updated_at: now,
-    })
-    .eq('user_id', userId)
-    .eq('app_name', APP_NAME)
-    .select('user_id')
-    .maybeSingle()
-
-  if (updateError) throw updateError
-  if (!updatedSubscription) {
-    throw new Error('Missing subscription row for terms acceptance')
+// Use the same app wrapper as production code so App Check readiness is awaited.
+export async function recordTermsAcceptance() {
+  const response = await acceptTermsFn({ termsVersion: TERMS.version })
+  if (response?.data?.success !== true) {
+    throw new Error('Malformed accept terms response')
   }
 }
 ```
+
+On the backend, `acceptTerms` is a Firebase callable (`enforceAppCheck: true`) that
+resolves the current Cloud SQL user and updates `subscriptions.termsVersion` plus
+`subscriptions.termsAcceptedAt` through `subscriptionService.acceptTerms(...)`.
 
 ## Server Enforcement
 
 Enforce terms at request/data boundaries.
 
-### Database (RLS)
-
-```sql
-CREATE POLICY "Users must accept current terms"
-ON clanker
-FOR ALL
-USING (user_has_current_terms('clanker', '1.0'));
-```
-
-### API
+### Callable + Service Layer
 
 ```typescript
-// Validate on actual operations
-if (!hasAcceptedCurrentTerms(userId, 'clanker')) {
-  return { error: 'Terms acceptance required' }
+// Callable handlers enforce auth + App Check, then use Cloud SQL-backed services.
+// Terms fields are stored on `subscriptions` and checked by business logic.
+if (!subscription || !subscription.termsAcceptedAt || !subscription.termsVersion) {
+  throw new HttpsError('failed-precondition', 'Terms acceptance required')
 }
 ```
 
 ## Failure Model
 
-- If async write fails, user may proceed briefly, but server enforcement rejects protected actions.
-- Prompt retry when server denies due to missing current terms.
-- Natural token refresh resolves stale claims without forced re-auth.
+- If async callable write fails, user may proceed briefly, but protected backend actions
+  can reject until terms are persisted in Cloud SQL.
+- Prompt retry when callable/service checks deny due to missing current terms.
+- Subsequent bootstrap/state refresh reflects accepted terms without forced re-auth.
 
 ## Test Focus
 
 - Accept -> immediate navigation (no blocking refresh).
-- Offline/intermittent network -> eventual write + server consistency.
-- Write failure -> protected API/RLS denial + recovery path.
-- Stale token -> access correct after natural refresh.
+- Offline/intermittent network -> eventual callable success + Cloud SQL consistency.
+- Write failure -> protected callable/service denial + recovery path.
+- Bootstrap refresh -> terms state converges after successful acceptance.
 
 ## References
 
