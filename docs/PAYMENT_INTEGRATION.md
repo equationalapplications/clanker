@@ -55,9 +55,9 @@ Both webhooks are deployed as Firebase Cloud Functions in `functions/src/`.
 |---|---|
 | `checkout.session.completed` | Subscription product → upsert `subscriptions` with matching tier. Credit pack → add credits via `creditService`. |
 | `customer.subscription.updated` | Update `plan_tier`, `plan_status`, `plan_renewal_at` |
-| `customer.subscription.deleted` | Set `plan_status = 'cancelled'` |
+| `customer.subscription.deleted` | Set `plan_status = 'cancelled'` and `plan_tier = 'free'` |
 | `invoice.payment_succeeded` | For one-time PAYG invoices → add credits via `creditService`. |
-| `charge.refunded` | Credit pack refund → deduct credits via `creditService`. Subscription refund → set `plan_status = 'cancelled'`. |
+| `charge.refunded` | Credit pack refund → deduct credits via `creditService`. Subscription refund → set `plan_status = 'cancelled'` and `plan_tier = 'free'`. |
 
 #### Price ID → DB Tier Mapping
 
