@@ -39,6 +39,7 @@ export function useUserProfile() {
       state.matches('signingIn') ||
       state.matches('bootstrapping')
   )
+  const error = useSelector(authService, (state) => state.context.error)
 
   const profile: UserProfile | null = dbUser
     ? {
@@ -57,7 +58,7 @@ export function useUserProfile() {
     data: user ? profile : null,
     profile: user ? profile : null,
     isLoading,
-    error: null,
+    error,
     refetch: async () => {
       if (user) {
         requestBootstrapRefresh(authService, 'manual')
@@ -72,9 +73,10 @@ export function useUserProfile() {
  */
 export function useUserPublicData() {
   const authService = useAuthMachine()
-  const { user, dbUser, isLoading } = useSelector(authService, (state) => ({
+  const { user, dbUser, isLoading, error } = useSelector(authService, (state) => ({
     user: state.context.user,
     dbUser: state.context.dbUser,
+    error: state.context.error,
     isLoading:
       state.matches('initializing') ||
       state.matches('signingIn') ||
@@ -94,7 +96,7 @@ export function useUserPublicData() {
     data: user ? userPublic : null,
     userPublic: user ? userPublic : null,
     isLoading,
-    error: null,
+    error,
     refetch: async () => {
       if (user) {
         requestBootstrapRefresh(authService, 'manual')
@@ -109,10 +111,11 @@ export function useUserPublicData() {
  */
 export function useUserPrivateData() {
   const authService = useAuthMachine()
-  const { user, dbUser, subscription, isLoading } = useSelector(authService, (state) => ({
+  const { user, dbUser, subscription, isLoading, error } = useSelector(authService, (state) => ({
     user: state.context.user,
     dbUser: state.context.dbUser,
     subscription: state.context.subscription,
+    error: state.context.error,
     isLoading:
       state.matches('initializing') ||
       state.matches('signingIn') ||
@@ -132,7 +135,7 @@ export function useUserPrivateData() {
     data: userPrivate,
     userPrivate,
     isLoading,
-    error: null,
+    error,
     refetch: async () => {
       if (user) {
         requestBootstrapRefresh(authService, 'manual')

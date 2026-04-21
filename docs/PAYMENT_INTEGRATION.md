@@ -63,7 +63,7 @@ Both webhooks are deployed as Firebase Cloud Functions in `functions/src/`.
 
 Configure via Stripe price ID environment variables consumed by `functions/src/runtimeConfig.ts` and `functions/src/stripeWebhook.ts`:
 
-```typescript
+```dotenv
 STRIPE_MONTHLY_20_PRICE_ID=price_TODO_monthly_20
 STRIPE_MONTHLY_50_PRICE_ID=price_TODO_monthly_50
 STRIPE_CREDIT_PACK_PRICE_ID=price_TODO_credit_pack

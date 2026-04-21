@@ -1,6 +1,7 @@
 import { sendMessage } from '~/services/messageService'
 import { saveAIMessage } from '~/database/messageDatabase'
 import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
+import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
 import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
 
@@ -13,12 +14,7 @@ export interface Character {
   context: string
 }
 
-export interface UsageSnapshot {
-  remainingCredits: number | null
-  planTier: string | null
-  planStatus: 'active' | 'cancelled' | 'expired' | null
-  verifiedAt: string
-}
+export type UsageSnapshot = UsageSnapshotPayload
 
 function toUsageSnapshot(data: GenerateChatReplyResult): UsageSnapshot {
   return {

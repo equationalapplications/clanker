@@ -15,12 +15,13 @@ export const useUserCredits = () => {
       state.matches('signingIn') ||
       state.matches('bootstrapping'),
   )
+  const error = useSelector(authService, (state) => state.context.error)
   const credits = useAuthCredits()
 
   return {
     data: user ? credits : undefined,
     isLoading,
-    error: null,
+    error,
     refetch: async () => {
       if (user) {
         requestBootstrapRefresh(authService, 'manual')
