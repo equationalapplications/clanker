@@ -26,6 +26,8 @@ describe('generateImageViaCallable', () => {
         creditsSpent: 1,
         remainingCredits: 3,
         planTier: 'payg',
+        planStatus: 'active',
+        verifiedAt: '2026-01-01T00:00:00.000Z',
       },
     })
 
@@ -47,6 +49,8 @@ describe('generateImageViaCallable', () => {
       creditsSpent: 1,
       remainingCredits: 3,
       planTier: 'payg',
+      planStatus: 'active',
+      verifiedAt: '2026-01-01T00:00:00.000Z',
     })
   })
 
@@ -58,6 +62,8 @@ describe('generateImageViaCallable', () => {
         creditsSpent: 0,
         remainingCredits: null,
         planTier: 'monthly_20',
+        planStatus: 'active',
+        verifiedAt: '2026-01-01T00:00:00.000Z',
       },
     })
 
@@ -73,6 +79,8 @@ describe('generateImageViaCallable', () => {
       creditsSpent: 0,
       remainingCredits: null,
       planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-01-01T00:00:00.000Z',
     })
   })
 
@@ -93,5 +101,23 @@ describe('generateImageViaCallable', () => {
     resolveAppCheck()
 
     await expect(promise).rejects.toThrow('Image generation returned empty image data')
+  })
+
+  it('rejects callable responses missing verifiedAt', async () => {
+    mockGenerateImageFn.mockResolvedValue({
+      data: {
+        imageBase64: 'YWJj',
+        mimeType: 'image/webp',
+        creditsSpent: 1,
+      },
+    })
+
+    const promise = generateImageViaCallable('astronaut')
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    await expect(promise).rejects.toThrow('Image generation returned invalid verifiedAt')
   })
 })

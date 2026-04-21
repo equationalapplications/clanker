@@ -3,6 +3,8 @@ import { IMessage } from 'react-native-gifted-chat'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { sendMessageWithAIResponse, Character } from '~/services/aiChatService'
 import { useChatMessages, messageKeys } from '~/hooks/useMessages'
+import { useAuthMachine } from '~/hooks/useMachines'
+import { usageSnapshotFromError } from '~/services/usageSnapshot'
 
 interface UseAIChatProps {
   characterId: string
@@ -24,6 +26,7 @@ interface UseAIChatReturn {
 export function useAIChat({ characterId, userId, character }: UseAIChatProps): UseAIChatReturn {
   const messages = useChatMessages({ id: characterId, userId })
   const queryClient = useQueryClient()
+  const authService = useAuthMachine()
   const [error, setError] = useState<string | null>(null)
 
   // Mutation for sending message with AI response
@@ -57,7 +60,18 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       return { previousMessages }
     },
 
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (result?.usageSnapshot) {
+        authService.send({
+          type: 'USAGE_SNAPSHOT_RECEIVED',
+          source: 'generateReply',
+          remainingCredits: result.usageSnapshot.remainingCredits,
+          planTier: result.usageSnapshot.planTier,
+          planStatus: result.usageSnapshot.planStatus,
+          verifiedAt: result.usageSnapshot.verifiedAt,
+        })
+      }
+
       console.log('✅ AI chat message sent successfully')
       setError(null)
 
@@ -71,6 +85,18 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       console.error('❌ Failed to send AI chat message:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message'
       setError(errorMessage)
+
+      const usageSnapshot = usageSnapshotFromError(err)
+      if (usageSnapshot) {
+        authService.send({
+          type: 'USAGE_SNAPSHOT_RECEIVED',
+          source: 'generateReply',
+          remainingCredits: usageSnapshot.remainingCredits,
+          planTier: usageSnapshot.planTier,
+          planStatus: usageSnapshot.planStatus,
+          verifiedAt: usageSnapshot.verifiedAt,
+        })
+      }
 
       // Rollback optimistic update
       if (context?.previousMessages) {

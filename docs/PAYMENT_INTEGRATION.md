@@ -26,13 +26,13 @@ Credits  will not expire and they roll over. They are not consumed if the user h
 
 ### Refunds
 
-Refunds are handled provider-side: Stripe, Apple App Store, and Google Play manage refund mechanics. The webhook handlers sync the resulting state back to Cloud SQL subscription/credit records automatically — no local transaction table is required.
+Refunds are handled provider-side: Stripe, Apple App Store, and Google Play manage refund mechanics. The webhook handlers sync the resulting state back to `subscriptions` automatically — no local transaction table is required.
 
 ---
 
 ## Webhook Endpoints
 
-Both webhooks are deployed as Firebase Cloud Functions in `account/functions/src/`.
+Both webhooks are deployed as Firebase Cloud Functions in `functions/src/`.
 
 ### Stripe Webhook
 
@@ -53,22 +53,20 @@ Both webhooks are deployed as Firebase Cloud Functions in `account/functions/src
 
 | Stripe Event | Action |
 |---|---|
-| `checkout.session.completed` | Subscription product → upsert subscription via `subscriptionService.upsertSubscription`. Credit pack → add credits via `creditService.addCredits`. |
-| `customer.subscription.updated` | Upsert Cloud SQL subscription with mapped `planTier` and Stripe-derived `planStatus`. |
-| `customer.subscription.deleted` | Upsert Cloud SQL subscription as `planTier: free`, `planStatus: cancelled`. |
-| `invoice.payment_succeeded` | For one-time invoices with a credit-pack price → add credits via `creditService.addCredits`. |
-| `charge.refunded` | Credit pack refund → deduct via `creditService.adjustCredits`. Subscription refund → upsert subscription as `free/cancelled`. |
+| `checkout.session.completed` | Subscription product → upsert `subscriptions` with matching tier. Credit pack → add credits via `creditService`. |
+| `customer.subscription.updated` | Update `plan_tier`, `plan_status`, `billing_cycle_start`, `billing_cycle_end` |
+| `customer.subscription.deleted` | Set `plan_status = 'cancelled'` and `plan_tier = 'free'` |
+| `invoice.payment_succeeded` | For one-time PAYG invoices → add credits via `creditService`. |
+| `charge.refunded` | Credit pack refund → deduct credits via `creditService`. Subscription refund → set `plan_status = 'cancelled'` and `plan_tier = 'free'`. |
 
 #### Price ID → DB Tier Mapping
 
-Configure in `functions/src/stripeWebhook.ts` `STRIPE_PRICE_TO_TIER`:
+Configure via Stripe price ID environment variables consumed by `functions/src/runtimeConfig.ts` and `functions/src/stripeWebhook.ts`:
 
-```typescript
-const STRIPE_PRICE_TO_TIER: Record<string, string> = {
-  "price_TODO_monthly_20": "monthly_20",  // $20/month
-  "price_TODO_monthly_50": "monthly_50",  // $50/month
-};
-const STRIPE_CREDIT_PACK_PRICE_ID = "price_TODO_credit_pack"; // $10/100 credits
+```dotenv
+STRIPE_MONTHLY_20_PRICE_ID=price_TODO_monthly_20
+STRIPE_MONTHLY_50_PRICE_ID=price_TODO_monthly_50
+STRIPE_CREDIT_PACK_PRICE_ID=price_TODO_credit_pack
 ```
 
 Replace `price_TODO_*` with real price IDs from the Stripe dashboard.
@@ -97,10 +95,10 @@ RevenueCat sends an `Authorization: Bearer <secret>` header. The handler verifie
 
 | RevenueCat Event | Action |
 |---|---|
-| `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription product → upsert Cloud SQL subscription (`active`, with renewal date when present). Credit pack product → add credits via `creditService.addCredits`. |
-| `NON_RENEWING_PURCHASE` | Credit pack product → add credits via `creditService.addCredits`. |
-| `CANCELLATION` | Known subscription product → keep entitlement active and upsert with latest renewal date; unknown product → fallback to `free/cancelled`. |
-| `EXPIRATION` | Upsert Cloud SQL subscription as `free/expired`. |
+| `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription → upsert `subscriptions`. Credit pack → add credits via `creditService`. |
+| `NON_RENEWING_PURCHASE` | Credit pack → add credits via `creditService`. |
+| `CANCELLATION` | Known subscription product → keep entitlement `plan_status = 'active'` with auto-renew off. Unknown product → fall back to `plan_tier = 'free'`, `plan_status = 'cancelled'`. |
+| `EXPIRATION` | Upsert `plan_tier = 'free'` and set `plan_status = 'expired'`. |
 
 #### Product ID → DB Tier Mapping
 
@@ -160,13 +158,13 @@ Client (web)
   → user completes payment on Stripe-hosted page
   → Stripe redirects user to STRIPE_SUCCESS_URL / STRIPE_CANCEL_URL
   → Stripe fires checkout.session.completed webhook
-  → stripeWebhook Cloud Function upserts Cloud SQL subscriptions or adds credits
+  → stripeWebhook Cloud Function upserts subscriptions or adds credits
 ```
 
 ### `purchasePackageStripe` Cloud Function
 
 **Type:** `onCall` (Firebase callable — requires authenticated Firebase user)  
-**Location:** `account/functions/src/purchasePackageStripe.ts`  
+**Location:** `functions/src/purchasePackageStripe.ts`  
 **Region:** `us-central1`
 
 ### Required Environment Variables
@@ -213,7 +211,8 @@ These are referenced in `src/config/constants.ts` and passed to `purchasePackage
 
 `handleCheckoutCompleted` in `stripeWebhook.ts` uses a two-stage lookup:
 
-1. **Primary**: look up Cloud SQL user by `customer_details.email`
-2. **Fallback**: if email lookup fails, look up the Cloud SQL user directly by Firebase UID using `session.client_reference_id` (via `findUserByFirebaseUid(...)`).
+1. **Primary**: look up Cloud SQL user by `customer_details.email` / `customer_email`.
+2. **Fallback**: if email lookup fails, resolve by Firebase UID from `session.client_reference_id` using `findUserByFirebaseUid`.
 
-This fallback requires Cloud SQL repository support for Firebase UID-to-user resolution.
+If neither lookup succeeds, the webhook logs a warning and exits gracefully for that
+event. Stripe retries unexpected processing errors (non-2xx) automatically.

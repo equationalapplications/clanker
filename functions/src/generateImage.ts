@@ -28,8 +28,17 @@ interface GenerateImageData {
 
 interface UsageState {
   planTier: string | null;
+  planStatus: "active" | "cancelled" | "expired";
   hasUnlimited: boolean;
   creditBalance: number;
+}
+
+function normalizePlanStatus(status: string | null | undefined): UsageState["planStatus"] {
+  if (status === "active" || status === "cancelled" || status === "expired") {
+    return status;
+  }
+
+  return "expired";
 }
 
 interface GeneratedImageResult {
@@ -43,6 +52,15 @@ export interface GenerateImageResponse {
   creditsSpent: number;
   remainingCredits: number | null;
   planTier: string | null;
+  planStatus: "active" | "cancelled" | "expired";
+  verifiedAt: string;
+}
+
+interface UsageSnapshotDetails {
+  remainingCredits: number | null;
+  planTier: string | null;
+  planStatus: "active" | "cancelled" | "expired";
+  verifiedAt: string;
 }
 
 type GenerateImageFn = (prompt: string) => Promise<GeneratedImageResult>;
@@ -182,20 +200,32 @@ async function fetchUsageState(userId: string): Promise<UsageState> {
   if (!sub) {
     return {
       planTier: null,
+      planStatus: "expired",
       hasUnlimited: false,
       creditBalance: 0,
     };
   }
 
   const planTier = sub.planTier;
-  const isActive = sub.planStatus === "active";
+  const planStatus = normalizePlanStatus(sub.planStatus);
+  const isActive = planStatus === "active";
   const hasUnlimited = isActive && UNLIMITED_TIERS.has(planTier);
   const creditBalance = hasUnlimited ? 0 : Math.max(0, sub.currentCredits ?? 0);
 
   return {
     planTier,
+    planStatus,
     hasUnlimited,
     creditBalance,
+  };
+}
+
+function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
+  return {
+    remainingCredits: usage.hasUnlimited ? null : usage.creditBalance,
+    planTier: usage.planTier,
+    planStatus: usage.planStatus,
+    verifiedAt: new Date().toISOString(),
   };
 }
 
@@ -203,7 +233,8 @@ function assertUsageAuthorized(usage: UsageState): void {
   if (!usage.hasUnlimited && usage.creditBalance < 1) {
     throw new HttpsError(
       "resource-exhausted",
-      "Insufficient credits. Purchase credits or subscribe for unlimited access."
+      "Insufficient credits. Purchase credits or subscribe for unlimited access.",
+      toUsageSnapshotDetails(usage)
     );
   }
 }
@@ -531,6 +562,8 @@ const handler = async (
     creditsSpent: usage.hasUnlimited ? 0 : 1,
     remainingCredits,
     planTier: usage.planTier,
+    planStatus: usage.planStatus,
+    verifiedAt: new Date().toISOString(),
   };
 };
 

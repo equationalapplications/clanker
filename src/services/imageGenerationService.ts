@@ -6,6 +6,8 @@ export interface GenerateImageViaCallableResponse {
   creditsSpent: number
   remainingCredits: number | null
   planTier: string | null
+  planStatus: 'active' | 'cancelled' | 'expired' | null
+  verifiedAt: string
 }
 
 function normalizeBase64(value: string): string {
@@ -46,6 +48,14 @@ function parseResponse(payload: unknown): GenerateImageViaCallableResponse {
       : null
 
   const planTier = typeof record.planTier === 'string' ? record.planTier : null
+  const planStatus =
+    record.planStatus === 'active' || record.planStatus === 'cancelled' || record.planStatus === 'expired'
+      ? record.planStatus
+      : null
+  const verifiedAt = typeof record.verifiedAt === 'string' ? record.verifiedAt.trim() : ''
+  if (!verifiedAt) {
+    throw new Error('Image generation returned invalid verifiedAt')
+  }
 
   return {
     imageBase64,
@@ -53,6 +63,8 @@ function parseResponse(payload: unknown): GenerateImageViaCallableResponse {
     creditsSpent,
     remainingCredits,
     planTier,
+    planStatus,
+    verifiedAt,
   }
 }
 
