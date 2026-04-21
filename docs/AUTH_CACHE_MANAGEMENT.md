@@ -13,9 +13,11 @@ When a user signs out, the following happens in order:
 3. **Auth Manager Reset** - Reset internal auth state
 
 ```typescript
-const signOut = async () => {
+import { signOut } from '~/config/firebaseConfig'
+
+const handleSignOut = async () => {
   console.log('🔥 Signing out from Firebase...')
-  await auth.signOut()
+  await signOut()
   setUser(null)
 
   console.log('🗑️ Clearing React Query cache...')
