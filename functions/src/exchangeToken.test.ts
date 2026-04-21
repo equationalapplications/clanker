@@ -16,6 +16,61 @@ test("exchangeTokenHandler rejects unauthenticated requests", async () => {
   );
 });
 
+test("exchangeTokenHandler normalizes token email before repository lookup", async () => {
+  const mockUser = {
+    id: "user-normalized-email",
+    firebaseUid: "firebase-uid-normalized-email",
+    email: "normalized@example.com",
+    displayName: null,
+    avatarUrl: null,
+    isProfilePublic: false,
+    defaultCharacterId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockSubscription = {
+    userId: "user-normalized-email",
+    planTier: "free",
+    planStatus: "active",
+    currentCredits: 50,
+    termsVersion: null,
+    termsAcceptedAt: null,
+  };
+
+  let capturedEmail = "";
+
+  const mockDeps = {
+    userRepository: {
+      getOrCreateUserByFirebaseIdentity: async ({email}: {email: string}) => {
+        capturedEmail = email;
+        return mockUser;
+      },
+      findUserByEmail: async () => null,
+      findUserByFirebaseUid: async () => null,
+      updateUser: async () => mockUser,
+    },
+    subscriptionService: {
+      getSubscription: async () => mockSubscription,
+      getOrCreateDefaultSubscription: async () => mockSubscription,
+      upsertSubscription: async () => mockSubscription,
+      acceptTerms: async () => {},
+    },
+  };
+
+  await exchangeTokenHandler({
+    auth: {
+      uid: "firebase-uid-normalized-email",
+      token: {
+        uid: "firebase-uid-normalized-email",
+        email: "  Normalized@Example.Com  ",
+      },
+    },
+  } as never, mockDeps as unknown as ExchangeTokenDeps);
+
+  assert.strictEqual(capturedEmail, "normalized@example.com");
+});
+
 test("exchangeTokenHandler bootstraps a new user with onboarding credits", async () => {
   const mockUser = {
     id: "user-123",
