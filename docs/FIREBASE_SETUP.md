@@ -112,7 +112,7 @@ Use this checklist for whichever Firebase project and app identifiers you are us
 6. Set/update OAuth env vars in EAS and local `.env`:
     - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
     - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
-    - Optional: `GOOGLE_IOS_URL_SCHEME` (if you need to override plist-derived value)
+    - No separate `GOOGLE_IOS_URL_SCHEME` env var is required; the iOS URL scheme comes from `GoogleService-Info.plist` / app config.
 7. Re-run local setup if needed to refresh temp files:
 
 ```bash
