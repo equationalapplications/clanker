@@ -32,14 +32,15 @@ export const userKeys = {
  */
 export function useUserProfile() {
   const authService = useAuthMachine()
-  const { user, dbUser, isLoading } = useSelector(authService, (state) => ({
-    user: state.context.user,
-    dbUser: state.context.dbUser,
-    isLoading:
+  const user = useSelector(authService, (state) => state.context.user)
+  const dbUser = useSelector(authService, (state) => state.context.dbUser)
+  const isLoading = useSelector(
+    authService,
+    (state) =>
       state.matches('initializing') ||
       state.matches('signingIn') ||
-      state.matches('bootstrapping'),
-  }))
+      state.matches('bootstrapping')
+  )
 
   const profile: UserProfile | null = dbUser
     ? {
