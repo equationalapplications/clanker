@@ -16,8 +16,8 @@ export default function SubscribeButton({ onChangeIsLoading, productType = 'mont
   const onPressSubscribe = async () => {
     onChangeIsLoading(true)
     try {
-      await makePackagePurchase(productType)
-      if (Platform.OS !== 'web') {
+      const purchaseResult = await makePackagePurchase(productType)
+      if (Platform.OS !== 'web' && purchaseResult != null) {
         authService.send({ type: 'REFRESH_BOOTSTRAP' })
         await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
       }

@@ -103,7 +103,7 @@ describe('SubscribeButton', () => {
   it('refreshes bootstrap state and invalidates credits query after native purchase', async () => {
     mockPlatformOS = 'ios'
     const onChangeIsLoading = jest.fn()
-    mockMakePackagePurchase.mockResolvedValueOnce(undefined)
+    mockMakePackagePurchase.mockResolvedValueOnce({ appUserId: 'user-1' })
 
     const SubscribeButton = require('~/components/SubscribeButton').default
     let tree!: ReturnType<typeof create>
@@ -120,5 +120,29 @@ describe('SubscribeButton', () => {
 
     expect(mockAuthSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['userCredits'] })
+  })
+
+  it('does not refresh bootstrap state when native purchase is cancelled', async () => {
+    mockPlatformOS = 'ios'
+    const onChangeIsLoading = jest.fn()
+    mockMakePackagePurchase.mockResolvedValueOnce(null)
+
+    const SubscribeButton = require('~/components/SubscribeButton').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<SubscribeButton onChangeIsLoading={onChangeIsLoading} productType="monthly_20" />)
+    })
+
+    const button = tree.root.findByProps({ testID: 'subscribe-button' })
+
+    await act(async () => {
+      await button.props.onPress()
+    })
+
+    expect(mockAuthSend).not.toHaveBeenCalled()
+    expect(mockInvalidateQueries).not.toHaveBeenCalled()
+    expect(onChangeIsLoading).toHaveBeenNthCalledWith(1, true)
+    expect(onChangeIsLoading).toHaveBeenNthCalledWith(2, false)
   })
 })

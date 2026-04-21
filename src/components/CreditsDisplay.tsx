@@ -35,8 +35,8 @@ export default function CreditsDisplay() {
   const handleBuyCredits = async () => {
     setIsPurchasing('payg')
     try {
-      await makePackagePurchase('payg')
-      if (Platform.OS !== 'web') {
+      const purchaseResult = await makePackagePurchase('payg')
+      if (Platform.OS !== 'web' && purchaseResult != null) {
         authService.send({ type: 'REFRESH_BOOTSTRAP' })
         await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
       }
@@ -59,8 +59,8 @@ export default function CreditsDisplay() {
   const handleSubscribe = async () => {
     setIsPurchasing('subscribe')
     try {
-      await makePackagePurchase('monthly_20')
-      if (Platform.OS !== 'web') {
+      const purchaseResult = await makePackagePurchase('monthly_20')
+      if (Platform.OS !== 'web' && purchaseResult != null) {
         authService.send({ type: 'REFRESH_BOOTSTRAP' })
         await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
       }

@@ -137,6 +137,7 @@ describe('CreditsDisplay purchase flows', () => {
 
   it('refreshes bootstrap and clears loading after native subscription purchase', async () => {
     jest.replaceProperty(Platform, 'OS', 'ios')
+    mockMakePackagePurchase.mockResolvedValueOnce({ appUserId: 'user-1' })
     const CreditsDisplay = require('~/components/CreditsDisplay').default
     let tree!: ReturnType<typeof create>
 
@@ -157,6 +158,48 @@ describe('CreditsDisplay purchase flows', () => {
     expect(mockAuthServiceSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['userCredits'] })
     expect(subscribeButton.props.disabled).toBe(false)
+    expect(buyButton.props.disabled).toBe(false)
+  })
+
+  it('does not refresh state when native subscription purchase is cancelled', async () => {
+    jest.replaceProperty(Platform, 'OS', 'ios')
+    mockMakePackagePurchase.mockResolvedValueOnce(null)
+    const CreditsDisplay = require('~/components/CreditsDisplay').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<CreditsDisplay />)
+    })
+
+    const subscribeButton = tree.root.findByProps({ testID: 'Unlimited Subscription - $20/Month' })
+
+    await act(async () => {
+      await subscribeButton.props.onPress()
+    })
+
+    expect(mockAuthServiceSend).not.toHaveBeenCalled()
+    expect(mockInvalidateQueries).not.toHaveBeenCalled()
+    expect(subscribeButton.props.disabled).toBe(false)
+  })
+
+  it('does not refresh state when native payg purchase is cancelled', async () => {
+    jest.replaceProperty(Platform, 'OS', 'ios')
+    mockMakePackagePurchase.mockResolvedValueOnce(null)
+    const CreditsDisplay = require('~/components/CreditsDisplay').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<CreditsDisplay />)
+    })
+
+    const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
+
+    await act(async () => {
+      await buyButton.props.onPress()
+    })
+
+    expect(mockAuthServiceSend).not.toHaveBeenCalled()
+    expect(mockInvalidateQueries).not.toHaveBeenCalled()
     expect(buyButton.props.disabled).toBe(false)
   })
 

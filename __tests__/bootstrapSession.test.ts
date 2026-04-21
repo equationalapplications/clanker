@@ -63,9 +63,11 @@ describe('bootstrapSession', () => {
       },
     }
 
-    let resolveFirstCall: ((value: { data: typeof bootstrapData }) => void) | null = null
+    let resolveFirstCall!: (value: { data: typeof bootstrapData }) => void
     const firstCallPromise = new Promise<{ data: typeof bootstrapData }>((resolve) => {
-      resolveFirstCall = resolve
+      resolveFirstCall = (value) => {
+        resolve(value)
+      }
     })
 
     mockExchangeToken
@@ -76,7 +78,7 @@ describe('bootstrapSession', () => {
     currentUid = 'firebase-2'
     const second = bootstrapSession()
 
-    resolveFirstCall?.({ data: bootstrapData })
+    resolveFirstCall({ data: bootstrapData })
 
     const [firstResult, secondResult] = await Promise.all([first, second])
 
