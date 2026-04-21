@@ -17,12 +17,21 @@ const defaultDeps: UserRepositoryDeps = {
   getDb,
 };
 
+const normalizeEmail = (email: string): string => {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) {
+    throw new Error('Email must not be empty.');
+  }
+
+  return normalizedEmail;
+};
+
 export const userRepository = {
   async getOrCreateUserByFirebaseIdentity(
     params: CreateUserParams,
     deps: UserRepositoryDeps = defaultDeps
   ) {
-    const normalizedEmail = params.email.toLowerCase();
+    const normalizedEmail = normalizeEmail(params.email);
 
     const existingByUid = await this.findUserByFirebaseUid(params.firebaseUid, deps);
     if (existingByUid) {
@@ -65,7 +74,7 @@ export const userRepository = {
 
   async findUserByEmail(email: string, deps: UserRepositoryDeps = defaultDeps) {
     const db = await deps.getDb();
-    const result = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+    const result = await db.select().from(users).where(eq(users.email, normalizeEmail(email))).limit(1);
     return result[0] || null;
   },
 

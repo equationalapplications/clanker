@@ -63,8 +63,8 @@ const handler = async (
         );
     }
 
-    const email = decoded.email;
-    if (!email) {
+    const normalizedEmail = decoded.email?.trim().toLowerCase();
+    if (!normalizedEmail) {
         logger.error("No email in Firebase token");
         throw new HttpsError(
             "failed-precondition",
@@ -76,7 +76,7 @@ const handler = async (
         // 1. Get or create user
         const user = await deps.userRepository.getOrCreateUserByFirebaseIdentity({
             firebaseUid: uid,
-            email,
+            email: normalizedEmail,
             displayName: decoded.name || null,
             avatarUrl: decoded.picture || null,
         });
@@ -90,7 +90,7 @@ const handler = async (
         }
 
         logger.info("Token exchange/bootstrap successful", {
-            email,
+            email: normalizedEmail,
             userId: user.id,
         });
 
@@ -143,7 +143,7 @@ const handler = async (
             },
         };
     } catch (err: unknown) {
-        logger.error("Token exchange failed", { err, email });
+        logger.error("Token exchange failed", { err, email: normalizedEmail });
         if (err instanceof HttpsError) {
             throw err;
         }
