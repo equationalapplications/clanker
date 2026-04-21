@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, StyleSheet, Platform } from 'react-native'
 import { Card, Text, Button, Chip, Snackbar, useTheme } from 'react-native-paper'
+import { useQueryClient } from '@tanstack/react-query'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
@@ -9,6 +10,7 @@ import { useAuthMachine } from '~/hooks/useMachines'
 export default function CreditsDisplay() {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
   const authService = useAuthMachine()
+  const queryClient = useQueryClient()
   const { colors } = useTheme()
   const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
@@ -36,6 +38,7 @@ export default function CreditsDisplay() {
       await makePackagePurchase('payg')
       if (Platform.OS !== 'web') {
         authService.send({ type: 'REFRESH_BOOTSTRAP' })
+        await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
       }
       // On web: Stripe checkout has been opened in the browser. Keep buttons
       // disabled to prevent multiple parallel checkouts; isPurchasing resets
@@ -59,6 +62,7 @@ export default function CreditsDisplay() {
       await makePackagePurchase('monthly_20')
       if (Platform.OS !== 'web') {
         authService.send({ type: 'REFRESH_BOOTSTRAP' })
+        await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
       }
       // On web: same as above — keep buttons disabled until user returns.
     } catch (e) {

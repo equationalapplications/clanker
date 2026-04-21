@@ -30,7 +30,7 @@ export const getUserCredits = async (): Promise<UserCredits> => {
 
   try {
     const state = await getUserState()
-    
+
     if (!state?.subscription) {
       console.error('❌ getUserCredits: Error getting user state')
       return {

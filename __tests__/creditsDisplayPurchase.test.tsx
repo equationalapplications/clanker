@@ -5,6 +5,7 @@ import { Platform } from 'react-native'
 const mockUseUserCredits = jest.fn()
 const mockMakePackagePurchase = jest.fn()
 const mockAuthServiceSend = jest.fn()
+const mockInvalidateQueries = jest.fn()
 
 jest.mock('react-native-paper', () => {
   const React = require('react')
@@ -51,6 +52,12 @@ jest.mock('~/hooks/useUserCredits', () => ({
 
 jest.mock('~/hooks/useMachines', () => ({
   useAuthMachine: () => ({ send: mockAuthServiceSend }),
+}))
+
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({
+    invalidateQueries: (...args: unknown[]) => mockInvalidateQueries(...args),
+  }),
 }))
 
 jest.mock('~/utilities/makePackagePurchase', () => ({
@@ -101,6 +108,7 @@ describe('CreditsDisplay purchase flows', () => {
 
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('payg')
     expect(mockRefetch).not.toHaveBeenCalled()
+    expect(mockInvalidateQueries).not.toHaveBeenCalled()
     expect(buyButton.props.disabled).toBe(true)
     expect(subscribeButton.props.disabled).toBe(true)
   })
@@ -147,6 +155,7 @@ describe('CreditsDisplay purchase flows', () => {
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('monthly_20')
     expect(mockRefetch).not.toHaveBeenCalled()
     expect(mockAuthServiceSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['userCredits'] })
     expect(subscribeButton.props.disabled).toBe(false)
     expect(buyButton.props.disabled).toBe(false)
   })
