@@ -49,4 +49,39 @@ describe('bootstrapSession', () => {
     expect(firstResult).toEqual(bootstrapData)
     expect(secondResult).toEqual(bootstrapData)
   })
+
+  it('does not reuse in-flight bootstrap across different users', async () => {
+    let currentUid = 'firebase-1'
+    mockGetCurrentUser.mockImplementation(() => ({ uid: currentUid }))
+
+    const secondUserData = {
+      ...bootstrapData,
+      user: {
+        ...bootstrapData.user,
+        id: 'user-2',
+        firebaseUid: 'firebase-2',
+      },
+    }
+
+    let resolveFirstCall: ((value: { data: typeof bootstrapData }) => void) | null = null
+    const firstCallPromise = new Promise<{ data: typeof bootstrapData }>((resolve) => {
+      resolveFirstCall = resolve
+    })
+
+    mockExchangeToken
+      .mockImplementationOnce(() => firstCallPromise)
+      .mockResolvedValueOnce({ data: secondUserData })
+
+    const first = bootstrapSession()
+    currentUid = 'firebase-2'
+    const second = bootstrapSession()
+
+    resolveFirstCall?.({ data: bootstrapData })
+
+    const [firstResult, secondResult] = await Promise.all([first, second])
+
+    expect(mockExchangeToken).toHaveBeenCalledTimes(2)
+    expect(firstResult.user.firebaseUid).toBe('firebase-1')
+    expect(secondResult.user.firebaseUid).toBe('firebase-2')
+  })
 })

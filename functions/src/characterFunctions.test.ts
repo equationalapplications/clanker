@@ -246,3 +246,37 @@ test("getUserCharactersHandler returns character timestamps as ISO strings", asy
   assert.equal(result.characters[0]?.createdAt, createdAt.toISOString());
   assert.equal(result.characters[0]?.updatedAt, updatedAt.toISOString());
 });
+
+test("syncCharacterHandler rejects invalid timestamp value types", async () => {
+  await assert.rejects(
+    async () =>
+      syncCharacterHandler(
+        {
+          auth,
+          data: {
+            character: {
+              name: "Nova",
+            },
+          },
+        } as never,
+        {
+          userRepository: {
+            findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+          },
+          characterService: {
+            upsertCharacter: async () => ({
+              id: "character-1",
+              userId: "user-1",
+              name: "Nova",
+              createdAt: {invalid: true},
+              updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+            } as never),
+          },
+        } as unknown as CharacterFunctionDeps
+      ),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "internal" &&
+      err.message.includes("Failed to sync character")
+  );
+});

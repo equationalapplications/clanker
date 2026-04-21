@@ -25,7 +25,15 @@ function toISO(value: unknown): string | null {
     return null;
   }
 
-  return value instanceof Date ? value.toISOString() : (value as string);
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  throw new Error(`Invalid timestamp value type: ${typeof value}`);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

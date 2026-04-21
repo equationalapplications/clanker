@@ -25,7 +25,12 @@ export interface BootstrapResponse {
   subscription: SubscriptionSnapshot
 }
 
-let bootstrapSessionInFlight: Promise<BootstrapResponse> | null = null
+type BootstrapInFlight = {
+  uid: string
+  promise: Promise<BootstrapResponse>
+}
+
+let bootstrapSessionInFlight: BootstrapInFlight | null = null
 
 async function runBootstrapSession(): Promise<BootstrapResponse> {
   const user = getCurrentUser()
@@ -69,15 +74,25 @@ async function runBootstrapSession(): Promise<BootstrapResponse> {
 }
 
 export async function bootstrapSession(): Promise<BootstrapResponse> {
-  if (bootstrapSessionInFlight) {
-    return await bootstrapSessionInFlight
+  const user = getCurrentUser()
+  if (!user) {
+    throw new Error('No Firebase user is currently signed in')
   }
 
-  bootstrapSessionInFlight = runBootstrapSession()
+  const uid = user.uid
+
+  if (bootstrapSessionInFlight?.uid === uid) {
+    return await bootstrapSessionInFlight.promise
+  }
+
+  const promise = runBootstrapSession()
+  bootstrapSessionInFlight = { uid, promise }
 
   try {
-    return await bootstrapSessionInFlight
+    return await promise
   } finally {
-    bootstrapSessionInFlight = null
+    if (bootstrapSessionInFlight?.uid === uid && bootstrapSessionInFlight.promise === promise) {
+      bootstrapSessionInFlight = null
+    }
   }
 }

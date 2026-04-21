@@ -252,3 +252,37 @@ test("updateUserProfileHandler returns timestamps as ISO strings", async () => {
   assert.equal(result.createdAt, createdAt.toISOString());
   assert.equal(result.updatedAt, updatedAt.toISOString());
 });
+
+test("updateUserProfileHandler rejects invalid timestamp value types", async () => {
+  const deps = buildUpdateUserProfileDeps({
+    userRepository: {
+      findUserByFirebaseUid: async () => ({id: "user-42"} as never),
+      updateUser: async () => ({
+        id: "user-42",
+        firebaseUid: "firebase-uid-1",
+        email: "person@example.com",
+        displayName: "New Name",
+        avatarUrl: null,
+        isProfilePublic: false,
+        defaultCharacterId: null,
+        createdAt: {not: "a timestamp"},
+        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+      } as never),
+    },
+  } as unknown as Partial<UpdateUserProfileDeps>);
+
+  await assert.rejects(
+    async () =>
+      updateUserProfileHandler(
+        {
+          auth,
+          data: {displayName: "New Name"},
+        } as never,
+        deps
+      ),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "internal" &&
+      err.message.includes("Failed to update user profile")
+  );
+});
