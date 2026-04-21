@@ -1,6 +1,18 @@
 import { useLocalSearchParams, router } from 'expo-router'
 import { View, StyleSheet, ScrollView } from 'react-native'
-import { Text, TextInput, Button, Divider, HelperText } from 'react-native-paper'
+import { Share } from 'react-native'
+import { Image } from 'expo-image'
+import {
+  Text,
+  TextInput,
+  Button,
+  Divider,
+  HelperText,
+  Switch,
+  Snackbar,
+  Portal,
+  Modal,
+} from 'react-native-paper'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
@@ -9,10 +21,17 @@ import CharacterAvatar from '~/components/CharacterAvatar'
 import { useImageGeneration } from '~/hooks/useImageGeneration'
 import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
+import { useCurrentPlan } from '~/hooks/useCurrentPlan'
+import {
+  buildCharacterQrCodeUrl,
+  buildCharacterShareUrl,
+  buildNativeCharacterShareLink,
+} from '~/utilities/characterShare'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const authService = useAuthMachine()
+  const { isSubscriber } = useCurrentPlan()
   const { user } = useSelector(authService, (state) => ({
     user: state.context.user,
   }))
@@ -28,9 +47,13 @@ export default function EditCharacterScreen() {
   const [traits, setTraits] = useState('')
   const [emotions, setEmotions] = useState('')
   const [context, setContext] = useState('')
+  const [saveToCloud, setSaveToCloud] = useState(false)
+  const [isSharable, setIsSharable] = useState(false)
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [didAttemptSave, setDidAttemptSave] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [showShareModal, setShowShareModal] = useState(false)
   const prevIsUpdatingRef = useRef(false)
 
   // Track loaded values for dirty-state comparison
@@ -42,10 +65,15 @@ export default function EditCharacterScreen() {
       traits: character.traits || '',
       emotions: character.emotions || '',
       context: character.context || '',
+      saveToCloud: character.save_to_cloud ?? false,
+      isSharable: character.is_public || false,
     }
   }, [character])
 
-  useEditDirtyState({ name, appearance, traits, emotions, context }, loadedValues)
+  useEditDirtyState(
+    { name, appearance, traits, emotions, context, saveToCloud, isSharable },
+    loadedValues,
+  )
 
   // Update local state when character data loads
   useEffect(() => {
@@ -55,6 +83,8 @@ export default function EditCharacterScreen() {
       setTraits(character.traits || '')
       setEmotions(character.emotions || '')
       setContext(character.context || '')
+      setSaveToCloud(character.save_to_cloud ?? false)
+      setIsSharable(character.is_public || false)
       setAvatarUri(character.avatar ?? null)
     }
   }, [character])
@@ -97,6 +127,54 @@ export default function EditCharacterScreen() {
       traits,
       emotions,
       context,
+      save_to_cloud: saveToCloud,
+      is_public: saveToCloud ? isSharable : false,
+    })
+  }
+
+  const cloudCharacterId = character?.cloud_id ?? null
+  const shareUrl = cloudCharacterId ? buildCharacterShareUrl(cloudCharacterId) : null
+  const nativeShareLink = cloudCharacterId ? buildNativeCharacterShareLink(cloudCharacterId) : null
+  const qrCodeUrl = shareUrl ? buildCharacterQrCodeUrl(shareUrl) : null
+
+  const handleToggleSaveToCloud = (nextValue: boolean) => {
+    if (nextValue && !isSubscriber) {
+      setToastMessage('Cloud character save requires a monthly_20 or monthly_50 subscription.')
+      return
+    }
+
+    setSaveToCloud(nextValue)
+    if (!nextValue) {
+      setIsSharable(false)
+    }
+  }
+
+  const handleOpenShareCard = () => {
+    if (!cloudCharacterId || !shareUrl) {
+      setToastMessage('Save this character to cloud and sync it first, then try sharing again.')
+      return
+    }
+    setShowShareModal(true)
+  }
+
+  const handleShare = async () => {
+    if (!shareUrl) {
+      setToastMessage('No share link available for this character yet.')
+      return
+    }
+
+    const title = `Meet ${name || character?.name || 'my character'} on Clanker`
+    const messageLines = [
+      title,
+      '',
+      `Web link: ${shareUrl}`,
+      nativeShareLink ? `App deep link: ${nativeShareLink}` : null,
+    ].filter(Boolean) as string[]
+
+    await Share.share({
+      title,
+      message: messageLines.join('\n'),
+      url: shareUrl,
     })
   }
 
@@ -207,6 +285,36 @@ export default function EditCharacterScreen() {
           numberOfLines={4}
         />
 
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleTextContainer}>
+            <Text variant="titleMedium">Save to Cloud</Text>
+            <Text variant="bodySmall" style={styles.toggleHelperText}>
+              Requires monthly_20 or monthly_50 subscription.
+            </Text>
+          </View>
+          <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} />
+        </View>
+
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleTextContainer}>
+            <Text variant="titleMedium">Make Character Sharable</Text>
+            <Text variant="bodySmall" style={styles.toggleHelperText}>
+              Enabled only when cloud saving is on.
+            </Text>
+          </View>
+          <Switch
+            value={isSharable}
+            onValueChange={setIsSharable}
+            disabled={!saveToCloud}
+          />
+        </View>
+
+        {isSharable ? (
+          <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton}>
+            Share Character
+          </Button>
+        ) : null}
+
         <Divider style={styles.divider} />
 
         <View style={styles.buttonContainer}>
@@ -235,6 +343,53 @@ export default function EditCharacterScreen() {
           </HelperText>
         ) : null}
       </View>
+
+      <Portal>
+        <Modal
+          visible={showShareModal}
+          onDismiss={() => setShowShareModal(false)}
+          contentContainerStyle={styles.shareModal}
+        >
+          <Text variant="headlineSmall" style={styles.shareTitle}>
+            Share Character
+          </Text>
+          <CharacterAvatar size={96} imageUrl={avatarUri} characterName={name} />
+          <Text variant="titleLarge" style={styles.shareCharacterName}>
+            {name || 'Character'}
+          </Text>
+          {shareUrl ? (
+            <>
+              <Text selectable style={styles.shareLink}>
+                {shareUrl}
+              </Text>
+              {qrCodeUrl ? (
+                <Image
+                  source={{ uri: qrCodeUrl }}
+                  style={styles.qrImage}
+                  contentFit="contain"
+                />
+              ) : null}
+              <Button mode="contained" icon="share" onPress={handleShare}>
+                Share
+              </Button>
+            </>
+          ) : (
+            <Text variant="bodyMedium">No share link available yet.</Text>
+          )}
+        </Modal>
+      </Portal>
+
+      <Snackbar
+        visible={toastMessage !== null}
+        onDismiss={() => setToastMessage(null)}
+        duration={4000}
+        action={{
+          label: 'Subscribe',
+          onPress: () => router.push('/subscribe'),
+        }}
+      >
+        {toastMessage}
+      </Snackbar>
     </ScrollView>
   )
 }
@@ -266,6 +421,23 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: 20,
   },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  toggleTextContainer: {
+    flex: 1,
+  },
+  toggleHelperText: {
+    opacity: 0.7,
+  },
+  shareButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
   buttonContainer: {
     flexDirection: 'row',
     gap: 12,
@@ -277,5 +449,26 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 8,
     textAlign: 'center',
+  },
+  shareModal: {
+    margin: 20,
+    padding: 20,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    gap: 12,
+  },
+  shareTitle: {
+    textAlign: 'center',
+  },
+  shareCharacterName: {
+    textAlign: 'center',
+  },
+  shareLink: {
+    textAlign: 'center',
+  },
+  qrImage: {
+    width: 220,
+    height: 220,
   },
 })

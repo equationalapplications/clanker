@@ -124,6 +124,16 @@ export const createCharacterService = (
         .where(eq(characters.userId, userId))
         .orderBy(sql`${characters.updatedAt} DESC`);
     },
+
+    async getPublicCharacterById(characterId: string) {
+      const db = await deps.getDb();
+      const result = await db
+        .select()
+        .from(characters)
+        .where(sql`${characters.id} = ${characterId} AND ${characters.isPublic} = true`)
+        .limit(1);
+      return result[0] ?? null;
+    },
   };
 
   return service;

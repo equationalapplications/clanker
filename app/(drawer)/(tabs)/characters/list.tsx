@@ -1,17 +1,22 @@
 import { View, StyleSheet, FlatList } from 'react-native'
-import { Text, Button, ActivityIndicator } from 'react-native-paper'
+import { Text, Button, ActivityIndicator, Snackbar } from 'react-native-paper'
 import { router } from 'expo-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacters, useCreateCharacter } from '~/hooks/useCharacters'
 import { CharacterCard } from '~/components/CharacterCard'
 import { useCharacterMachine } from '~/hooks/useMachines'
+import { useCurrentPlan } from '~/hooks/useCurrentPlan'
+import { restoreFromCloud } from '~/services/characterSyncService'
 
 export default function CharactersListScreen() {
   const { characters, isLoading } = useCharacters()
   const { create, isPending, pendingCharacterId } = useCreateCharacter()
+  const { isSubscriber } = useCurrentPlan()
   const characterService = useCharacterMachine()
   const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
+  const [isRestoring, setIsRestoring] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   // Navigate to edit page when creation completes
   useEffect(() => {
@@ -23,6 +28,25 @@ export default function CharactersListScreen() {
 
   const handleCreateCharacter = () => {
     create({ name: 'New Character', is_public: false })
+  }
+
+  const handleRetrieveFromCloud = async () => {
+    if (!isSubscriber) {
+      setToastMessage('Cloud retrieval requires a monthly_20 or monthly_50 subscription.')
+      return
+    }
+
+    setIsRestoring(true)
+    try {
+      await restoreFromCloud()
+      characterService.send({ type: 'LOAD' })
+    } catch (error) {
+      setToastMessage(
+        error instanceof Error ? error.message : 'Failed to retrieve characters from cloud.',
+      )
+    } finally {
+      setIsRestoring(false)
+    }
   }
 
   if (isLoading) {
@@ -48,6 +72,17 @@ export default function CharactersListScreen() {
           disabled={isPending || isCreatingDefault}
         >
           New
+        </Button>
+      </View>
+      <View style={styles.retrieveContainer}>
+        <Button
+          mode="outlined"
+          icon="cloud-download"
+          onPress={handleRetrieveFromCloud}
+          loading={isRestoring}
+          disabled={isRestoring}
+        >
+          Retrieve from Cloud
         </Button>
       </View>
 
@@ -83,6 +118,18 @@ export default function CharactersListScreen() {
           contentContainerStyle={styles.list}
         />
       )}
+
+      <Snackbar
+        visible={toastMessage !== null}
+        onDismiss={() => setToastMessage(null)}
+        duration={4000}
+        action={{
+          label: 'Subscribe',
+          onPress: () => router.push('/subscribe'),
+        }}
+      >
+        {toastMessage}
+      </Snackbar>
     </View>
   )
 }
@@ -100,6 +147,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: 'bold',
+  },
+  retrieveContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
   list: {
     paddingBottom: 16,
