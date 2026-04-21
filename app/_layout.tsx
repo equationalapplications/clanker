@@ -2,7 +2,7 @@
 import 'expo-dev-client'
 import { StatusBar } from 'expo-status-bar'
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context'
-import { View, StyleSheet, Pressable } from 'react-native'
+import { View, StyleSheet, Pressable, AppState } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { Stack, router } from 'expo-router'
@@ -107,6 +107,17 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
 
     return subscription.unsubscribe
   }, [authService, termsService])
+
+  // lifecycle → authMachine: foreground signal for stale-gated bootstrap refresh
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        authService.send({ type: 'APP_FOREGROUNDED', at: new Date().toISOString() })
+      }
+    })
+
+    return () => subscription.remove()
+  }, [authService])
 
   return <>{children}</>
 }

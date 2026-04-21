@@ -1,8 +1,7 @@
 import Button from './Button'
 import { Platform } from 'react-native'
-import { useQueryClient } from '@tanstack/react-query'
 import { makePackagePurchase, type ProductType } from '../utilities/makePackagePurchase'
-import { useAuthMachine } from '~/hooks/useMachines'
+import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
 
 interface Props {
   onChangeIsLoading: (isLoading: boolean) => void
@@ -10,16 +9,14 @@ interface Props {
 }
 
 export default function SubscribeButton({ onChangeIsLoading, productType = 'monthly_20' }: Props) {
-  const authService = useAuthMachine()
-  const queryClient = useQueryClient()
+  const refreshBootstrap = useBootstrapRefresh()
 
   const onPressSubscribe = async () => {
     onChangeIsLoading(true)
     try {
       const purchaseResult = await makePackagePurchase(productType)
       if (Platform.OS !== 'web' && purchaseResult != null) {
-        authService.send({ type: 'REFRESH_BOOTSTRAP' })
-        await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
+        refreshBootstrap('purchase')
       }
     } finally {
       onChangeIsLoading(false)

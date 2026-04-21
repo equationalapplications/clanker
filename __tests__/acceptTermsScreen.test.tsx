@@ -82,6 +82,11 @@ describe('accept-terms screen', () => {
       renderer.create(<AcceptTermsScreen />)
     })
 
+    expect(mockAuthService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'TERMS_ACCEPTED_LOCAL',
+      }),
+    )
     expect(mockRouterReplace).toHaveBeenCalledWith('/')
   })
 

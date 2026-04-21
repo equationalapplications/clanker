@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useCharacterMachine } from '~/hooks/useMachines'
+import { useAuthMachine, useCharacterMachine } from '~/hooks/useMachines'
 import { generateImageViaCallable } from '~/services/imageGenerationService'
 import { saveCharacterImageLocally } from '~/services/localImageStorageService'
+import { usageSnapshotFromError } from '~/services/usageSnapshot'
 
 interface UseImageGenerationProps {
   characterId: string
@@ -24,6 +25,7 @@ export function useImageGeneration({
   onImageGenerated,
 }: UseImageGenerationProps): UseImageGenerationReturn {
   const characterService = useCharacterMachine()
+  const authService = useAuthMachine()
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,11 +56,32 @@ export function useImageGeneration({
         creditsSpent: generated.creditsSpent,
       })
 
+      authService.send({
+        type: 'USAGE_SNAPSHOT_RECEIVED',
+        source: 'generateImage',
+        remainingCredits: generated.remainingCredits,
+        planTier: generated.planTier,
+        planStatus: generated.planStatus,
+        verifiedAt: generated.verifiedAt,
+      })
+
       characterService.send({ type: 'LOAD' })
 
       onImageGenerated?.(dataUri)
       return dataUri
     } catch (err) {
+      const usageSnapshot = usageSnapshotFromError(err)
+      if (usageSnapshot) {
+        authService.send({
+          type: 'USAGE_SNAPSHOT_RECEIVED',
+          source: 'generateImage',
+          remainingCredits: usageSnapshot.remainingCredits,
+          planTier: usageSnapshot.planTier,
+          planStatus: usageSnapshot.planStatus,
+          verifiedAt: usageSnapshot.verifiedAt,
+        })
+      }
+
       const e = err instanceof Error ? err : new Error('Unknown error occurred')
       console.error('Error generating local image:', e)
       setError(e.message)

@@ -150,6 +150,8 @@ test("generateReplyHandler spends one credit for payg users", async () => {
     assert.equal(result.creditsSpent, 1);
     assert.equal(result.remainingCredits, 2);
     assert.equal(result.planTier, "payg");
+    assert.equal(result.planStatus, "active");
+    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(spendCalls, 1);
   });
 });
@@ -185,6 +187,8 @@ test("generateReplyHandler does not spend credits for unlimited users", async ()
     assert.equal(result.creditsSpent, 0);
     assert.equal(result.remainingCredits, null);
     assert.equal(result.planTier, "monthly_20");
+    assert.equal(result.planStatus, "active");
+    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(spendCalls, 0);
   });
 });
@@ -223,6 +227,8 @@ test("generateReplyHandler allows cancelled plans to spend remaining credits", a
     assert.equal(result.creditsSpent, 1);
     assert.equal(result.remainingCredits, 2);
     assert.equal(result.planTier, "payg");
+    assert.equal(result.planStatus, "cancelled");
+    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(spendCalls, 1);
   });
 });
@@ -251,7 +257,10 @@ test("generateReplyHandler rejects when user has no credits and no unlimited pla
             generateText: async () => "unused",
           }
         ),
-      (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
+      (err: unknown) =>
+        err instanceof HttpsError &&
+        err.code === "resource-exhausted" &&
+        typeof (err.details as {verifiedAt?: unknown})?.verifiedAt === "string"
     );
   });
 });
@@ -287,6 +296,8 @@ test("generateReplyHandler bootstraps default subscription when missing", async 
     assert.equal(result.creditsSpent, 1);
     assert.equal(result.remainingCredits, 49);
     assert.equal(result.planTier, "payg");
+    assert.equal(result.planStatus, "active");
+    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(bootstrapCalls, 1);
   });
 });

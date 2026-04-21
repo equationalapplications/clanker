@@ -3,13 +3,11 @@ import { useNavigation } from '@react-navigation/native'
 import React, { useState } from 'react'
 import { ScrollView, StyleSheet, View, Platform, Linking } from 'react-native'
 import { Card, Text, IconButton, Button, Snackbar, List, Divider } from 'react-native-paper'
-import { useQueryClient } from '@tanstack/react-query'
-import { useSelector } from '@xstate/react'
 
 import CreditsDisplay from '~/components/CreditsDisplay'
 import { useIsPremium } from '~/hooks/useIsPremium'
-import { useUserPrivateData, userKeys } from '~/hooks/useUser'
-import { useAuthMachine } from '~/hooks/useMachines'
+import { useUserPrivateData } from '~/hooks/useUser'
+import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
 import { makePackagePurchase, type ProductType } from '~/utilities/makePackagePurchase'
 import { restorePurchases } from '~/config/revenueCatConfig'
 import { APPLE_EULA_URL } from '~/config/constants'
@@ -17,9 +15,7 @@ import { APPLE_EULA_URL } from '~/config/constants'
 export default function SubscribeScreen() {
   const router = useRouter()
   const navigation = useNavigation()
-  const queryClient = useQueryClient()
-  const authService = useAuthMachine()
-  const user = useSelector(authService, (state) => state.context.user)
+  const refreshBootstrap = useBootstrapRefresh()
   const isPremium = useIsPremium()
 
   // Override the drawer header title so the route-group name "(drawer)" never leaks through
@@ -35,9 +31,7 @@ export default function SubscribeScreen() {
     setInFlightAction(productType)
     try {
       await makePackagePurchase(productType)
-      authService.send({ type: 'REFRESH_BOOTSTRAP' })
-      // Invalidate to ensure all components pick up fresh data
-      await queryClient.invalidateQueries({ queryKey: userKeys.private(user?.uid) })
+      refreshBootstrap('purchase')
     } catch (e) {
       console.error('Purchase failed:', e)
       setErrorMessage('Purchase failed. Please try again.')
@@ -50,9 +44,7 @@ export default function SubscribeScreen() {
     setInFlightAction('restore')
     try {
       await restorePurchases()
-      authService.send({ type: 'REFRESH_BOOTSTRAP' })
-      // Invalidate to ensure all components pick up fresh data
-      await queryClient.invalidateQueries({ queryKey: userKeys.private(user?.uid) })
+      refreshBootstrap('restore')
     } catch (e) {
       console.error('Restore failed:', e)
       setErrorMessage('Restore failed. Please try again.')
