@@ -1,16 +1,14 @@
 import React from 'react'
 import { View, StyleSheet, Platform } from 'react-native'
 import { Card, Text, Button, Chip, Snackbar, useTheme } from 'react-native-paper'
-import { useQueryClient } from '@tanstack/react-query'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
-import { useAuthMachine } from '~/hooks/useMachines'
+import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
 
 export default function CreditsDisplay() {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
-  const authService = useAuthMachine()
-  const queryClient = useQueryClient()
+  const refreshBootstrap = useBootstrapRefresh()
   const { colors } = useTheme()
   const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
@@ -37,8 +35,7 @@ export default function CreditsDisplay() {
     try {
       const purchaseResult = await makePackagePurchase('payg')
       if (Platform.OS !== 'web' && purchaseResult != null) {
-        authService.send({ type: 'REFRESH_BOOTSTRAP' })
-        await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
+        refreshBootstrap('purchase')
       }
       // On web: Stripe checkout has been opened in the browser. Keep buttons
       // disabled to prevent multiple parallel checkouts; isPurchasing resets
@@ -61,8 +58,7 @@ export default function CreditsDisplay() {
     try {
       const purchaseResult = await makePackagePurchase('monthly_20')
       if (Platform.OS !== 'web' && purchaseResult != null) {
-        authService.send({ type: 'REFRESH_BOOTSTRAP' })
-        await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
+        refreshBootstrap('purchase')
       }
       // On web: same as above — keep buttons disabled until user returns.
     } catch (e) {
@@ -81,8 +77,7 @@ export default function CreditsDisplay() {
   const handleRestore = async () => {
     setIsPurchasing('restore')
     try {
-      authService.send({ type: 'REFRESH_BOOTSTRAP' })
-      await queryClient.invalidateQueries({ queryKey: ['userCredits'] })
+      refreshBootstrap('restore')
     } catch (e) {
       console.error('Restore failed:', e)
       setErrorMessage('Sync failed. Please try again.')

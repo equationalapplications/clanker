@@ -1,6 +1,6 @@
 import { sendMessage } from '~/services/messageService'
 import { saveAIMessage } from '~/database/messageDatabase'
-import { generateChatReply } from '~/services/chatReplyService'
+import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
 import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
 
@@ -11,6 +11,22 @@ export interface Character {
   traits: string
   emotions: string
   context: string
+}
+
+export interface UsageSnapshot {
+  remainingCredits: number | null
+  planTier: string | null
+  planStatus: 'active' | 'cancelled' | 'expired' | null
+  verifiedAt: string
+}
+
+function toUsageSnapshot(data: GenerateChatReplyResult): UsageSnapshot {
+  return {
+    remainingCredits: data.remainingCredits,
+    planTier: data.planTier,
+    planStatus: data.planStatus,
+    verifiedAt: data.verifiedAt,
+  }
 }
 
 interface ChatContext {
@@ -159,7 +175,7 @@ export const sendMessageWithAIResponse = async (
   character: Character,
   userId: string,
   conversationHistory: IMessage[] = [],
-): Promise<void> => {
+): Promise<{ usageSnapshot: UsageSnapshot | null }> => {
   try {
     // 1. Send the user's message to local database
     await sendMessage(character.id, userId, userMessage)
@@ -180,19 +196,20 @@ export const sendMessageWithAIResponse = async (
 
     // 4. Generate AI response through secure cloud function
     const prompt = buildChatPrompt(userMessage.text, chatContext)
-    const aiResponseText = await generateChatReply({
+    const aiResponse = await generateChatReply({
       prompt,
       referenceId: buildReferenceId(userMessage._id),
     })
 
     // 5. Save AI response to local database
-    await saveAIMessage(character.id, userId, aiResponseText, aiResponseId, {
+    await saveAIMessage(character.id, userId, aiResponse.reply, aiResponseId, {
       user: {
         _id: character.id, // The character is responding
         name: character.name,
         avatar: character.appearance || undefined,
       },
     })
+    return { usageSnapshot: toUsageSnapshot(aiResponse) }
   } catch (error) {
     console.error('Error in sendMessageWithAIResponse:', error)
 
@@ -217,6 +234,7 @@ export const sendMessageWithAIResponse = async (
           },
         },
       )
+      return { usageSnapshot: null }
     } catch (fallbackError) {
       console.error('Error sending fallback message:', fallbackError)
       throw error // Re-throw original error
@@ -238,14 +256,14 @@ export const sendCharacterIntroduction = async (
       `${character.traits} ${character.emotions}`.trim(),
     )
 
-    const introText = await generateChatReply({
+    const introResult = await generateChatReply({
       prompt: introPrompt,
       referenceId: buildReferenceId(`intro-${character.id}`),
     })
 
     const introId = `intro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-    await saveAIMessage(character.id, userId, introText, introId, {
+    await saveAIMessage(character.id, userId, introResult.reply, introId, {
       user: {
         _id: character.id,
         name: character.name,

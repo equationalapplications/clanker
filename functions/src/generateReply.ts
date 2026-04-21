@@ -26,6 +26,7 @@ interface GenerateReplyData {
 
 interface UsageState {
   planTier: string | null;
+  planStatus: "active" | "cancelled" | "expired";
   hasUnlimited: boolean;
   creditBalance: number;
 }
@@ -35,6 +36,15 @@ export interface GenerateReplyResponse {
   creditsSpent: number;
   remainingCredits: number | null;
   planTier: string | null;
+  planStatus: "active" | "cancelled" | "expired";
+  verifiedAt: string;
+}
+
+interface UsageSnapshotDetails {
+  remainingCredits: number | null;
+  planTier: string | null;
+  planStatus: "active" | "cancelled" | "expired";
+  verifiedAt: string;
 }
 
 type GenerateTextFn = (prompt: string) => Promise<string>;
@@ -228,8 +238,18 @@ async function fetchUsageState(userId: string): Promise<UsageState> {
 
   return {
     planTier,
+    planStatus: sub.planStatus,
     hasUnlimited,
     creditBalance,
+  };
+}
+
+function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
+  return {
+    remainingCredits: usage.hasUnlimited ? null : usage.creditBalance,
+    planTier: usage.planTier,
+    planStatus: usage.planStatus,
+    verifiedAt: new Date().toISOString(),
   };
 }
 
@@ -237,7 +257,8 @@ function assertUsageAuthorized(usage: UsageState): void {
   if (!usage.hasUnlimited && usage.creditBalance < 1) {
     throw new HttpsError(
       "resource-exhausted",
-      "Insufficient credits. Purchase credits or subscribe for unlimited access."
+      "Insufficient credits. Purchase credits or subscribe for unlimited access.",
+      toUsageSnapshotDetails(usage)
     );
   }
 }
@@ -352,6 +373,8 @@ const handler = async (
     creditsSpent: usage.hasUnlimited ? 0 : 1,
     remainingCredits,
     planTier: usage.planTier,
+    planStatus: usage.planStatus,
+    verifiedAt: new Date().toISOString(),
   };
 };
 

@@ -1,20 +1,31 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Text, Button } from 'react-native-paper'
 import { useRouter } from 'expo-router'
-import { useAuthMachine } from '~/hooks/useMachines'
+import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
 
 export default function CheckoutSuccess() {
   const router = useRouter()
-  const authService = useAuthMachine()
+  const refreshBootstrap = useBootstrapRefresh()
+  const hasTriggeredRef = useRef(false)
+
+  const refreshAndNavigate = useCallback(() => {
+    if (hasTriggeredRef.current) {
+      router.replace('/')
+      return
+    }
+
+    hasTriggeredRef.current = true
+    refreshBootstrap('purchase')
+    router.replace('/')
+  }, [refreshBootstrap, router])
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      authService.send({ type: 'REFRESH_BOOTSTRAP' })
-      router.replace('/')
+      refreshAndNavigate()
     }, 3000)
     return () => clearTimeout(timer)
-  }, [authService, router])
+  }, [refreshAndNavigate])
 
   return (
     <View style={styles.container}>
@@ -27,8 +38,7 @@ export default function CheckoutSuccess() {
       <Button
         mode="contained"
         onPress={() => {
-          authService.send({ type: 'REFRESH_BOOTSTRAP' })
-          router.replace('/')
+          refreshAndNavigate()
         }}
         style={styles.button}
       >

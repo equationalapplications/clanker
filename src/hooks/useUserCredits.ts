@@ -1,23 +1,36 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { getUserCredits, deductCredits } from '~/utilities/getUserCredits'
+import { deductCredits } from '~/utilities/getUserCredits'
 import { useAuthMachine } from '~/hooks/useMachines'
+import { useAuthCredits } from '~/hooks/useAuthSnapshot'
+import { requestBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
 
 export const useUserCredits = () => {
   const authService = useAuthMachine()
   const user = useSelector(authService, (state) => state.context.user)
+  const isLoading = useSelector(
+    authService,
+    (state) =>
+      state.matches('initializing') ||
+      state.matches('signingIn') ||
+      state.matches('bootstrapping'),
+  )
+  const credits = useAuthCredits()
 
-  return useQuery({
-    queryKey: ['userCredits', user?.uid],
-    queryFn: getUserCredits,
-    enabled: !!user,
-    staleTime: 1000 * 10, // 10 seconds - credits change frequently
-    refetchInterval: 1000 * 30, // Refetch every 30 seconds
-  })
+  return {
+    data: user ? credits : undefined,
+    isLoading,
+    error: null,
+    refetch: async () => {
+      if (user) {
+        requestBootstrapRefresh(authService, 'manual')
+      }
+      return Promise.resolve({ data: user ? credits : undefined })
+    },
+  }
 }
 
 export const useDeductCredits = () => {
-  const queryClient = useQueryClient()
   const authService = useAuthMachine()
   const user = useSelector(authService, (state) => state.context.user)
 
@@ -25,8 +38,9 @@ export const useDeductCredits = () => {
     mutationFn: ({ amount, description }: { amount: number; description?: string }) =>
       deductCredits(amount, description),
     onSuccess: () => {
-      // Immediately refetch credits after deduction
-      queryClient.invalidateQueries({ queryKey: ['userCredits', user?.uid] })
+      if (user) {
+        requestBootstrapRefresh(authService, 'manual')
+      }
     },
     onError: (error) => {
       console.error('Failed to deduct credits:', error)

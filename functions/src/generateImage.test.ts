@@ -154,6 +154,8 @@ test("generateImageHandler spends one credit for payg users", async () => {
     assert.equal(result.creditsSpent, 1);
     assert.equal(result.remainingCredits, 2);
     assert.equal(result.planTier, "payg");
+    assert.equal(result.planStatus, "active");
+    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(spendCalls, 1);
   });
 });
@@ -229,6 +231,8 @@ test("generateImageHandler does not spend credit for unlimited users", async () 
     assert.equal(result.creditsSpent, 0);
     assert.equal(result.remainingCredits, null);
     assert.equal(result.planTier, "monthly_20");
+    assert.equal(result.planStatus, "active");
+    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(spendCalls, 0);
   });
 });
@@ -270,6 +274,8 @@ test("generateImageHandler allows cancelled plans to spend remaining credits", a
     assert.equal(result.creditsSpent, 1);
     assert.equal(result.remainingCredits, 2);
     assert.equal(result.planTier, "payg");
+    assert.equal(result.planStatus, "cancelled");
+    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(spendCalls, 1);
   });
 });
@@ -301,7 +307,10 @@ test("generateImageHandler rejects users without unlimited plan and no credits",
             }),
           }
         ),
-      (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
+      (err: unknown) =>
+        err instanceof HttpsError &&
+        err.code === "resource-exhausted" &&
+        typeof (err.details as {verifiedAt?: unknown})?.verifiedAt === "string"
     );
   });
 });

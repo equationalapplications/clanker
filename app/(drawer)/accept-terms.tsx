@@ -4,6 +4,7 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { useSelector } from '@xstate/react'
 import { AcceptTerms } from '~/components/AcceptTerms'
 import { useTermsMachine, useAuthMachine } from '~/hooks/useMachines'
+import { TERMS } from '~/config/termsConfig'
 
 export default function AcceptTermsScreen() {
   const params = useLocalSearchParams()
@@ -19,7 +20,11 @@ export default function AcceptTermsScreen() {
 
   useEffect(() => {
     if (accepted) {
-      authService.send({ type: 'REFRESH_BOOTSTRAP' })
+      authService.send({
+        type: 'TERMS_ACCEPTED_LOCAL',
+        termsVersion: TERMS.version,
+        termsAcceptedAt: new Date().toISOString(),
+      })
       router.replace('/')
     }
   }, [accepted, authService])

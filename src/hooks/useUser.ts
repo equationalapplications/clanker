@@ -4,18 +4,15 @@
  * Features:
  * - Automatic caching and background updates
  * - Optimistic updates for profile changes
- * - Polling updates via refetchInterval
  * - Offline mutation queuing
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
+import { requestBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
 import {
-  getUserProfile,
   upsertUserProfile,
-  getUserPublic,
-  getUserPrivate,
   UserProfile,
   UserProfileUpdate,
 } from '~/services/userService'
@@ -35,19 +32,39 @@ export const userKeys = {
  */
 export function useUserProfile() {
   const authService = useAuthMachine()
-  const user = useSelector(authService, (state) => state.context.user)
+  const { user, dbUser, isLoading } = useSelector(authService, (state) => ({
+    user: state.context.user,
+    dbUser: state.context.dbUser,
+    isLoading:
+      state.matches('initializing') ||
+      state.matches('signingIn') ||
+      state.matches('bootstrapping'),
+  }))
 
-  const query = useQuery({
-    queryKey: userKeys.profile(user?.uid),
-    queryFn: getUserProfile,
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchInterval: 30000, // Poll every 30 seconds
-  })
+  const profile: UserProfile | null = dbUser
+    ? {
+        user_id: dbUser.id,
+        display_name: dbUser.displayName,
+        email: dbUser.email,
+        avatar_url: dbUser.avatarUrl,
+        is_profile_public: dbUser.isProfilePublic,
+        default_character_id: dbUser.defaultCharacterId,
+        created_at: dbUser.createdAt,
+        updated_at: dbUser.updatedAt,
+      }
+    : null
 
   return {
-    ...query,
-    profile: query.data,
+    data: user ? profile : null,
+    profile: user ? profile : null,
+    isLoading,
+    error: null,
+    refetch: async () => {
+      if (user) {
+        requestBootstrapRefresh(authService, 'manual')
+      }
+      return Promise.resolve({ data: user ? profile : null })
+    },
   }
 }
 
@@ -56,19 +73,35 @@ export function useUserProfile() {
  */
 export function useUserPublicData() {
   const authService = useAuthMachine()
-  const user = useSelector(authService, (state) => state.context.user)
+  const { user, dbUser, isLoading } = useSelector(authService, (state) => ({
+    user: state.context.user,
+    dbUser: state.context.dbUser,
+    isLoading:
+      state.matches('initializing') ||
+      state.matches('signingIn') ||
+      state.matches('bootstrapping'),
+  }))
 
-  const query = useQuery({
-    queryKey: userKeys.public(user?.uid),
-    queryFn: getUserPublic,
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchInterval: 30000,
-  })
+  const userPublic = dbUser
+    ? {
+        uid: dbUser.id,
+        name: dbUser.displayName || '',
+        avatar: dbUser.avatarUrl || '',
+        email: dbUser.email || '',
+      }
+    : null
 
   return {
-    ...query,
-    userPublic: query.data,
+    data: user ? userPublic : null,
+    userPublic: user ? userPublic : null,
+    isLoading,
+    error: null,
+    refetch: async () => {
+      if (user) {
+        requestBootstrapRefresh(authService, 'manual')
+      }
+      return Promise.resolve({ data: user ? userPublic : null })
+    },
   }
 }
 
@@ -77,19 +110,36 @@ export function useUserPublicData() {
  */
 export function useUserPrivateData() {
   const authService = useAuthMachine()
-  const user = useSelector(authService, (state) => state.context.user)
+  const { user, dbUser, subscription, isLoading } = useSelector(authService, (state) => ({
+    user: state.context.user,
+    dbUser: state.context.dbUser,
+    subscription: state.context.subscription,
+    isLoading:
+      state.matches('initializing') ||
+      state.matches('signingIn') ||
+      state.matches('bootstrapping'),
+  }))
 
-  const query = useQuery({
-    queryKey: userKeys.private(user?.uid),
-    queryFn: getUserPrivate,
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchInterval: 30000,
-  })
+  const userPrivate = user
+    ? {
+        credits: Math.max(0, subscription?.currentCredits ?? 0),
+        isProfilePublic: dbUser?.isProfilePublic ?? null,
+        defaultCharacter: dbUser?.defaultCharacterId || '',
+        hasAcceptedTermsDate: subscription?.termsAcceptedAt || null,
+      }
+    : null
 
   return {
-    ...query,
-    userPrivate: query.data,
+    data: userPrivate,
+    userPrivate,
+    isLoading,
+    error: null,
+    refetch: async () => {
+      if (user) {
+        requestBootstrapRefresh(authService, 'manual')
+      }
+      return Promise.resolve({ data: userPrivate })
+    },
   }
 }
 
@@ -124,6 +174,14 @@ export function useUpdateProfile() {
 
       // Update with real data from server
       if (data) {
+        const mappedUpdates = {
+          displayName: data.display_name,
+          avatarUrl: data.avatar_url,
+          isProfilePublic: data.is_profile_public,
+          defaultCharacterId: data.default_character_id,
+          updatedAt: data.updated_at,
+        }
+        authService.send({ type: 'DB_USER_PATCHED_LOCAL', updates: mappedUpdates })
         queryClient.setQueryData(userKeys.profile(user?.uid), data)
 
         // Invalidate related queries

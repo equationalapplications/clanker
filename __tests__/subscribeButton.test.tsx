@@ -3,8 +3,7 @@ import { act, create } from 'react-test-renderer'
 
 let mockPlatformOS: 'web' | 'ios' | 'android' = 'web'
 const mockMakePackagePurchase = jest.fn()
-const mockAuthSend = jest.fn()
-const mockInvalidateQueries = jest.fn()
+const mockRefreshBootstrap = jest.fn()
 
 jest.mock('react-native', () => {
   const React = require('react')
@@ -25,16 +24,8 @@ jest.mock('~/utilities/makePackagePurchase', () => ({
   makePackagePurchase: (...args: unknown[]) => mockMakePackagePurchase(...args),
 }))
 
-jest.mock('~/hooks/useMachines', () => ({
-  useAuthMachine: () => ({
-    send: (...args: unknown[]) => mockAuthSend(...args),
-  }),
-}))
-
-jest.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({
-    invalidateQueries: (...args: unknown[]) => mockInvalidateQueries(...args),
-  }),
+jest.mock('~/hooks/useBootstrapRefresh', () => ({
+  useBootstrapRefresh: () => (...args: unknown[]) => mockRefreshBootstrap(...args),
 }))
 
 jest.mock('~/components/Button', () => {
@@ -100,7 +91,7 @@ describe('SubscribeButton', () => {
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(2, false)
   })
 
-  it('refreshes bootstrap state and invalidates credits query after native purchase', async () => {
+  it('refreshes bootstrap state after native purchase', async () => {
     mockPlatformOS = 'ios'
     const onChangeIsLoading = jest.fn()
     mockMakePackagePurchase.mockResolvedValueOnce({ appUserId: 'user-1' })
@@ -118,8 +109,7 @@ describe('SubscribeButton', () => {
       await button.props.onPress()
     })
 
-    expect(mockAuthSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['userCredits'] })
+    expect(mockRefreshBootstrap).toHaveBeenCalledWith('purchase')
   })
 
   it('does not refresh bootstrap state when native purchase is cancelled', async () => {
@@ -140,8 +130,7 @@ describe('SubscribeButton', () => {
       await button.props.onPress()
     })
 
-    expect(mockAuthSend).not.toHaveBeenCalled()
-    expect(mockInvalidateQueries).not.toHaveBeenCalled()
+    expect(mockRefreshBootstrap).not.toHaveBeenCalled()
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(1, true)
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(2, false)
   })

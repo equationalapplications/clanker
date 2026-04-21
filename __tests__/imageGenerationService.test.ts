@@ -26,6 +26,8 @@ describe('generateImageViaCallable', () => {
         creditsSpent: 1,
         remainingCredits: 3,
         planTier: 'payg',
+        planStatus: 'active',
+        verifiedAt: '2026-01-01T00:00:00.000Z',
       },
     })
 
@@ -47,6 +49,8 @@ describe('generateImageViaCallable', () => {
       creditsSpent: 1,
       remainingCredits: 3,
       planTier: 'payg',
+      planStatus: 'active',
+      verifiedAt: '2026-01-01T00:00:00.000Z',
     })
   })
 
@@ -58,6 +62,8 @@ describe('generateImageViaCallable', () => {
         creditsSpent: 0,
         remainingCredits: null,
         planTier: 'monthly_20',
+        planStatus: 'active',
+        verifiedAt: '2026-01-01T00:00:00.000Z',
       },
     })
 
@@ -73,6 +79,8 @@ describe('generateImageViaCallable', () => {
       creditsSpent: 0,
       remainingCredits: null,
       planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-01-01T00:00:00.000Z',
     })
   })
 

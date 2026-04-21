@@ -3,9 +3,7 @@ import { act, create } from 'react-test-renderer'
 
 let mockPlatformOS: 'web' | 'ios' | 'android' = 'ios'
 const mockRestorePurchases = jest.fn()
-const mockGetUserState = jest.fn()
-const mockAuthSend = jest.fn()
-const mockInvalidateQueries = jest.fn()
+const mockRefreshBootstrap = jest.fn()
 
 jest.mock('react-native', () => {
     const React = require('react')
@@ -65,16 +63,16 @@ jest.mock('@react-navigation/native', () => ({
     useNavigation: () => ({ setOptions: jest.fn() }),
 }))
 
-jest.mock('@tanstack/react-query', () => ({
-    useQueryClient: () => ({ invalidateQueries: (...args: unknown[]) => mockInvalidateQueries(...args) }),
-}))
-
 jest.mock('@xstate/react', () => ({
     useSelector: jest.fn(() => ({ uid: 'firebase-uid-restore' })),
 }))
 
 jest.mock('~/hooks/useMachines', () => ({
-    useAuthMachine: () => ({ send: (...args: unknown[]) => mockAuthSend(...args) }),
+    useAuthMachine: () => ({ send: jest.fn() }),
+}))
+
+jest.mock('~/hooks/useBootstrapRefresh', () => ({
+    useBootstrapRefresh: () => (...args: unknown[]) => mockRefreshBootstrap(...args),
 }))
 
 jest.mock('~/hooks/useIsPremium', () => ({
@@ -96,10 +94,6 @@ jest.mock('~/config/revenueCatConfig', () => ({
     restorePurchases: (...args: unknown[]) => mockRestorePurchases(...args),
 }))
 
-jest.mock('~/services/apiClient', () => ({
-    getUserState: (...args: unknown[]) => mockGetUserState(...args),
-}))
-
 jest.mock('~/components/CreditsDisplay', () => () => null)
 
 describe('Subscribe restore refresh behavior', () => {
@@ -107,8 +101,6 @@ describe('Subscribe restore refresh behavior', () => {
         jest.clearAllMocks()
         mockPlatformOS = 'ios'
         mockRestorePurchases.mockResolvedValue(undefined)
-        mockGetUserState.mockResolvedValue({})
-        mockInvalidateQueries.mockResolvedValue(undefined)
     })
 
     it('uses single bootstrap refresh path on restore', async () => {
@@ -126,8 +118,6 @@ describe('Subscribe restore refresh behavior', () => {
         })
 
         expect(mockRestorePurchases).toHaveBeenCalled()
-        expect(mockGetUserState).not.toHaveBeenCalled()
-        expect(mockAuthSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
-        expect(mockInvalidateQueries).toHaveBeenCalled()
+        expect(mockRefreshBootstrap).toHaveBeenCalledWith('restore')
     })
 })

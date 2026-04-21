@@ -17,6 +17,7 @@
 - [Auth flow (concise)](docs/AUTH_FLOW.md) — Step-by-step: Firebase Auth → `exchangeToken` cloud function → Cloud SQL bootstrap payload.
 - [Auth source-of-truth](docs/AUTH_SOURCE_OF_TRUTH.md) — Why Firebase is the canonical identity provider and how Cloud SQL bootstrap state is used downstream.
 - [Auth provider name sync](docs/AUTH_PROVIDER_NAME_SYNC.md) — How Apple/Google names are captured and synced to profile display data.
+- [Bootstrap event-driven refresh](docs/BOOTSTRAP_EVENT_DRIVEN_REFRESH.md) — How auth bootstrap reconciliation now works without interval polling, including refresh reason semantics, lifecycle triggers, and usage snapshot updates.
 - [Firebase setup](docs/FIREBASE_SETUP.md) — How to configure mobile Firebase app files for EAS builds and local builds.
 - [Firebase Cloud Functions](docs/FIREBASE_FUNCTIONS.md) — How backend functions (`exchangeToken`, `purchasePackageStripe`) are managed and deployed.
 - [Callable error normalization](docs/CALLABLE_ERROR_NORMALIZATION.md) — How callable handlers map bootstrap/config errors to stable `HttpsError` codes without leaking internals.

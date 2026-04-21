@@ -2,19 +2,14 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 
 const mockReplace = jest.fn()
-const mockGetUserState = jest.fn()
-const mockAuthSend = jest.fn()
+const mockRefreshBootstrap = jest.fn()
 
 jest.mock('expo-router', () => ({
     useRouter: () => ({ replace: mockReplace }),
 }))
 
-jest.mock('~/services/apiClient', () => ({
-    getUserState: (...args: unknown[]) => mockGetUserState(...args),
-}))
-
-jest.mock('~/hooks/useMachines', () => ({
-    useAuthMachine: () => ({ send: (...args: unknown[]) => mockAuthSend(...args) }),
+jest.mock('~/hooks/useBootstrapRefresh', () => ({
+    useBootstrapRefresh: () => (...args: unknown[]) => mockRefreshBootstrap(...args),
 }))
 
 jest.mock('react-native-paper', () => {
@@ -35,7 +30,6 @@ describe('Checkout success refresh behavior', () => {
     beforeEach(() => {
         jest.useFakeTimers()
         jest.clearAllMocks()
-        mockGetUserState.mockResolvedValue({})
     })
 
     afterEach(() => {
@@ -53,8 +47,7 @@ describe('Checkout success refresh behavior', () => {
             jest.advanceTimersByTime(3000)
         })
 
-        expect(mockGetUserState).not.toHaveBeenCalled()
-        expect(mockAuthSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
+        expect(mockRefreshBootstrap).toHaveBeenCalledWith('purchase')
         expect(mockReplace).toHaveBeenCalledWith('/')
     })
 
@@ -72,8 +65,7 @@ describe('Checkout success refresh behavior', () => {
             await button.props.onPress()
         })
 
-        expect(mockGetUserState).not.toHaveBeenCalled()
-        expect(mockAuthSend).toHaveBeenCalledWith({ type: 'REFRESH_BOOTSTRAP' })
+        expect(mockRefreshBootstrap).toHaveBeenCalledWith('purchase')
         expect(mockReplace).toHaveBeenCalledWith('/')
     })
 })
