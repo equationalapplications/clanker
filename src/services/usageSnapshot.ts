@@ -21,7 +21,7 @@ export function toUsageSnapshotPayload(value: unknown): UsageSnapshotPayload | n
     verifiedAt?: unknown
   }
 
-  const verifiedAt = typeof record.verifiedAt === 'string' ? record.verifiedAt : null
+  const verifiedAt = typeof record.verifiedAt === 'string' ? record.verifiedAt.trim() : ''
   if (!verifiedAt) {
     return null
   }

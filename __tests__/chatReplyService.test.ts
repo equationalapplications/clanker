@@ -60,4 +60,42 @@ describe('generateChatReply', () => {
       'Invalid generateReply response payload: missing verifiedAt',
     )
   })
+
+  it('rejects callable responses with whitespace-only verifiedAt', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: {
+        reply: 'hello',
+        verifiedAt: '   ',
+      },
+    })
+
+    const resultPromise = generateChatReply({ prompt: 'hello' })
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    await expect(resultPromise).rejects.toThrow(
+      'Invalid generateReply response payload: missing verifiedAt',
+    )
+  })
+
+  it('trims whitespace-padded verifiedAt and returns the normalized timestamp', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: {
+        reply: 'hello',
+        verifiedAt: ' 2026-01-01T00:00:00.000Z ',
+      },
+    })
+
+    const resultPromise = generateChatReply({ prompt: 'hello' })
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    await expect(resultPromise).resolves.toMatchObject({
+      verifiedAt: '2026-01-01T00:00:00.000Z',
+    })
+  })
 })
