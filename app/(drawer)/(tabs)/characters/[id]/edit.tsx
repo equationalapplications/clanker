@@ -1,6 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { View, StyleSheet, ScrollView } from 'react-native'
-import { Share } from 'react-native'
+import { View, StyleSheet, ScrollView , Share } from 'react-native'
 import { Image } from 'expo-image'
 import {
   Text,
@@ -65,13 +64,21 @@ export default function EditCharacterScreen() {
       traits: character.traits || '',
       emotions: character.emotions || '',
       context: character.context || '',
-      saveToCloud: character.save_to_cloud ?? false,
-      isSharable: character.is_public || false,
+      saveToCloud: character.save_to_cloud ? 'true' : 'false',
+      isSharable: character.is_public ? 'true' : 'false',
     }
   }, [character])
 
   useEditDirtyState(
-    { name, appearance, traits, emotions, context, saveToCloud, isSharable },
+    {
+      name,
+      appearance,
+      traits,
+      emotions,
+      context,
+      saveToCloud: saveToCloud ? 'true' : 'false',
+      isSharable: isSharable ? 'true' : 'false',
+    },
     loadedValues,
   )
 

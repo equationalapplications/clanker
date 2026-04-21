@@ -369,8 +369,9 @@ test("getPublicCharacterHandler returns shared public character", async () => {
     } as unknown as CharacterFunctionDeps
   );
 
-  assert.equal(result.id, "123e4567-e89b-42d3-a456-426614174000");
-  assert.equal(result.name, "Nova");
-  assert.equal(result.createdAt, createdAt.toISOString());
-  assert.equal(result.updatedAt, updatedAt.toISOString());
+  const payload = result as Record<string, unknown>;
+  assert.equal(payload.id, "123e4567-e89b-42d3-a456-426614174000");
+  assert.equal(payload.name, "Nova");
+  assert.equal(payload.createdAt, createdAt.toISOString());
+  assert.equal(payload.updatedAt, updatedAt.toISOString());
 });
