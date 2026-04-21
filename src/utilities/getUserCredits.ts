@@ -50,11 +50,13 @@ export const getUserCredits = async (): Promise<UserCredits> => {
     return {
       totalCredits,
       hasUnlimited: isUnlimited,
-      subscriptions: [{
-        tier: planTier,
-        credits: totalCredits,
-        isUnlimited
-      }],
+      subscriptions: [
+        {
+          tier: planTier,
+          credits: totalCredits,
+          isUnlimited,
+        },
+      ],
     }
   } catch (error) {
     console.error('Error checking user credits:', error)
