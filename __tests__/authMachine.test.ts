@@ -202,6 +202,48 @@ describe('authMachine', () => {
     actor.stop()
   })
 
+  it('clears pending refresh reason when it matches completed active refresh', async () => {
+    const user = makeUser('firebase-replay-clear-1')
+    const bootstrapData = {
+      user: { id: 'user-replay-clear-1' },
+      subscription: { planTier: 'free', planStatus: 'active', currentCredits: 50 },
+    }
+
+    let resolveManual!: (value: typeof bootstrapData) => void
+    const manualPromise = new Promise<typeof bootstrapData>((resolve) => {
+      resolveManual = resolve
+    })
+
+    mockBootstrapSession
+      .mockResolvedValueOnce(bootstrapData)
+      .mockImplementationOnce(() => manualPromise)
+      .mockResolvedValueOnce(bootstrapData)
+
+    const actor = createActor(authMachine)
+    actor.start()
+    actor.send({ type: 'USER_FOUND', user: user as any } as any)
+    await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
+
+    actor.send({ type: 'REFRESH_BOOTSTRAP', reason: 'manual' } as any)
+    await waitFor(actor, (state) => state.matches('bootstrapping'), WAIT_OPTS)
+    actor.send({ type: 'REFRESH_BOOTSTRAP', reason: 'manual' } as any)
+    resolveManual(bootstrapData)
+
+    await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.pendingRefreshReason).toBeNull()
+    expect(actor.getSnapshot().context.lastRefreshReason).toBe('manual')
+    expect(mockBootstrapSession).toHaveBeenCalledTimes(2)
+
+    actor.send({ type: 'REFRESH_BOOTSTRAP', reason: 'purchase' } as any)
+    await waitFor(
+      actor,
+      () => mockBootstrapSession.mock.calls.length === 3 && actor.getSnapshot().matches('signedIn'),
+      WAIT_OPTS,
+    )
+    expect(mockBootstrapSession).toHaveBeenCalledTimes(3)
+    actor.stop()
+  })
+
   it('bypasses throttle for manual refresh reason', async () => {
     const user = makeUser('firebase-manual-1')
     const bootstrapData = {

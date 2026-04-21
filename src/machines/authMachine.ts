@@ -267,6 +267,12 @@ export const authMachine = createMachine(
       markRefreshCompleted: assign({
         lastRefreshReason: ({ context }) => context.activeRefreshReason,
         lastRefreshAt: () => new Date().toISOString(),
+        pendingRefreshReason: ({ context }) => {
+          if (!context.activeRefreshReason) return context.pendingRefreshReason
+          return context.pendingRefreshReason === context.activeRefreshReason
+            ? null
+            : context.pendingRefreshReason
+        },
         activeRefreshReason: null,
       }),
       startRefreshFromEvent: assign({
