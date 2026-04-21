@@ -85,7 +85,23 @@ For local builds (i.e., running `eas build --local ...`), you cannot pull the se
     GOOGLE_SERVICE_INFO_PLIST_BASE64="<paste-your-base64-string-for-GoogleService-Info.plist-here>"
     ```
 
-Your local builds are now configured. The scripts in `package.json` will handle the rest automatically.
+5.  **Export `.env` vars into your shell before local EAS build**:
+
+    ```bash
+    set -o allexport
+    source .env
+    set +o allexport
+    ```
+
+6.  **Run local build**:
+
+    ```bash
+    npx eas-cli build -p android --local
+    ```
+
+Your local builds are now configured. `set -o allexport` ensures
+`GOOGLE_SERVICES_JSON_BASE64` and `GOOGLE_SERVICE_INFO_PLIST_BASE64` are
+exported so EAS local build subprocesses can read them.
 
 ### Why the temp directory?
 

@@ -13,9 +13,9 @@ const formatError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err)
 
 const getGoogleServicesJson = () => {
-  // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
+  // Extract from base64 if provided via environment variable (local builds)
   if (process.env.GOOGLE_SERVICES_JSON_BASE64) {
-    const tmpPath = path.join('./temp', `google-services.${process.pid}.json`)
+    const tmpPath = path.join('./temp', 'google-services.json')
     try {
       fs.mkdirSync('./temp', { recursive: true })
       fs.writeFileSync(
@@ -30,26 +30,21 @@ const getGoogleServicesJson = () => {
       )
     }
   }
-  // for EAS build from environment variable
+  // EAS cloud builds: GOOGLE_SERVICES_JSON is a file env var resolved to a path
   if (process.env.GOOGLE_SERVICES_JSON) {
     return process.env.GOOGLE_SERVICES_JSON
-  }
-  // for local build from temp file
-  if (fs.existsSync('./temp/google-services.json')) {
-    return './temp/google-services.json'
   }
   // for local development from root
   if (fs.existsSync('./google-services.json')) {
     return './google-services.json'
   }
-  // for local build when no file is present
   return undefined
 }
 
 const getGoogleServiceInfoPlist = () => {
-  // Extract from base64 if provided by EAS (e.g. during CLI config introspection in GitHub Actions)
+  // Extract from base64 if provided via environment variable (local builds)
   if (process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64) {
-    const tmpPath = path.join('./temp', `GoogleService-Info.${process.pid}.plist`)
+    const tmpPath = path.join('./temp', 'GoogleService-Info.plist')
     try {
       fs.mkdirSync('./temp', { recursive: true })
       fs.writeFileSync(
@@ -64,19 +59,14 @@ const getGoogleServiceInfoPlist = () => {
       )
     }
   }
-  // for EAS build from environment variable
+  // EAS cloud builds: GOOGLE_SERVICE_INFO_PLIST is a file env var resolved to a path
   if (process.env.GOOGLE_SERVICE_INFO_PLIST) {
     return process.env.GOOGLE_SERVICE_INFO_PLIST
-  }
-  // for local build from temp file
-  if (fs.existsSync('./temp/GoogleService-Info.plist')) {
-    return './temp/GoogleService-Info.plist'
   }
   // for local development from root
   if (fs.existsSync('./GoogleService-Info.plist')) {
     return './GoogleService-Info.plist'
   }
-  // for local build when no file is present
   return undefined
 }
 
