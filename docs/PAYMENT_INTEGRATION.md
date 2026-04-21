@@ -26,7 +26,7 @@ Credits  will not expire and they roll over. They are not consumed if the user h
 
 ### Refunds
 
-Refunds are handled provider-side: Stripe, Apple App Store, and Google Play manage refund mechanics. The webhook handlers sync the resulting state back to `user_app_subscriptions` automatically — no local transaction table is required.
+Refunds are handled provider-side: Stripe, Apple App Store, and Google Play manage refund mechanics. The webhook handlers sync the resulting state back to Cloud SQL subscription/credit records automatically — no local transaction table is required.
 
 ---
 
@@ -46,18 +46,18 @@ Both webhooks are deployed as Firebase Cloud Functions in `account/functions/src
 |---|---|
 | `STRIPE_SECRET_KEY` | Stripe secret API key |
 | `STRIPE_WEBHOOK_SECRET` | Webhook signing secret from Stripe dashboard |
-| `SUPABASE_URL` | Supabase project REST URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+| `CLOUD_SQL_CONNECTION_NAME` | Cloud SQL instance connection name (`project:region:instance`) |
+| `CLOUD_SQL_DB_NAME` / `CLOUD_SQL_DB_USER` / `CLOUD_SQL_DB_PASS` | Cloud SQL database credentials (via Firebase Secrets) |
 
 #### Event → Action Mapping
 
 | Stripe Event | Action |
 |---|---|
-| `checkout.session.completed` | Subscription product → upsert `user_app_subscriptions` with matching tier. Credit pack → call `add_user_credits` RPC. |
-| `customer.subscription.updated` | Update `plan_tier`, `plan_status`, `plan_renewal_at` |
-| `customer.subscription.deleted` | Set `plan_status = 'cancelled'` |
-| `invoice.payment_succeeded` | For one-time PAYG invoices → call `add_user_credits` |
-| `charge.refunded` | Credit pack refund → deduct via `update_user_credits`. Subscription refund → set `plan_status = 'cancelled'`. |
+| `checkout.session.completed` | Subscription product → upsert subscription via `subscriptionService.upsertSubscription`. Credit pack → add credits via `creditService.addCredits`. |
+| `customer.subscription.updated` | Upsert Cloud SQL subscription with mapped `planTier` and Stripe-derived `planStatus`. |
+| `customer.subscription.deleted` | Upsert Cloud SQL subscription as `planTier: free`, `planStatus: cancelled`. |
+| `invoice.payment_succeeded` | For one-time invoices with a credit-pack price → add credits via `creditService.addCredits`. |
+| `charge.refunded` | Credit pack refund → deduct via `creditService.adjustCredits`. Subscription refund → upsert subscription as `free/cancelled`. |
 
 #### Price ID → DB Tier Mapping
 
@@ -86,8 +86,8 @@ Replace `price_TODO_*` with real price IDs from the Stripe dashboard.
 | Variable | Description |
 |---|---|
 | `REVENUECAT_WEBHOOK_SECRET` | Shared secret configured in RevenueCat dashboard |
-| `SUPABASE_URL` | Supabase project REST URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+| `CLOUD_SQL_CONNECTION_NAME` | Cloud SQL instance connection name (`project:region:instance`) |
+| `CLOUD_SQL_DB_NAME` / `CLOUD_SQL_DB_USER` / `CLOUD_SQL_DB_PASS` | Cloud SQL database credentials (via Firebase Secrets) |
 
 #### Authentication
 
@@ -97,10 +97,10 @@ RevenueCat sends an `Authorization: Bearer <secret>` header. The handler verifie
 
 | RevenueCat Event | Action |
 |---|---|
-| `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription → upsert `user_app_subscriptions`. Credit pack → call `add_user_credits`. |
-| `NON_RENEWING_PURCHASE` | Credit pack → call `add_user_credits` |
-| `CANCELLATION` | Set `plan_status = 'cancelled'` |
-| `EXPIRATION` | Set `plan_status = 'expired'` |
+| `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription product → upsert Cloud SQL subscription (`active`, with renewal date when present). Credit pack product → add credits via `creditService.addCredits`. |
+| `NON_RENEWING_PURCHASE` | Credit pack product → add credits via `creditService.addCredits`. |
+| `CANCELLATION` | Known subscription product → keep entitlement active and upsert with latest renewal date; unknown product → fallback to `free/cancelled`. |
+| `EXPIRATION` | Upsert Cloud SQL subscription as `free/expired`. |
 
 #### Product ID → DB Tier Mapping
 
@@ -133,8 +133,10 @@ These product IDs must match App Store Connect / Google Play Console exactly.
 firebase functions:secrets:set STRIPE_SECRET_KEY
 firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 firebase functions:secrets:set REVENUECAT_WEBHOOK_SECRET
-firebase functions:secrets:set SUPABASE_URL
-firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY
+firebase functions:secrets:set CLOUD_SQL_CONNECTION_NAME
+firebase functions:secrets:set CLOUD_SQL_DB_NAME
+firebase functions:secrets:set CLOUD_SQL_DB_USER
+firebase functions:secrets:set CLOUD_SQL_DB_PASS
 ```
 
 Register the webhook URLs in:
@@ -158,7 +160,7 @@ Client (web)
   → user completes payment on Stripe-hosted page
   → Stripe redirects user to STRIPE_SUCCESS_URL / STRIPE_CANCEL_URL
   → Stripe fires checkout.session.completed webhook
-  → stripeWebhook Cloud Function upserts user_app_subscriptions or adds credits
+  → stripeWebhook Cloud Function upserts Cloud SQL subscriptions or adds credits
 ```
 
 ### `purchasePackageStripe` Cloud Function
@@ -211,7 +213,7 @@ These are referenced in `src/config/constants.ts` and passed to `purchasePackage
 
 `handleCheckoutCompleted` in `stripeWebhook.ts` uses a two-stage lookup:
 
-1. **Primary**: look up Supabase user by `customer_details.email`
-2. **Fallback**: if email lookup fails, resolve Firebase UID from `session.client_reference_id` → get email from `admin.auth().getUser(uid)` → retry email lookup → finally try `findSupabaseUserByFirebaseUid` (queries `auth.users` by `raw_user_meta_data->>'firebaseUid'`)
+1. **Primary**: look up Cloud SQL user by `customer_details.email`
+2. **Fallback**: if email lookup fails, look up the Cloud SQL user directly by Firebase UID using `session.client_reference_id` (via `findUserByFirebaseUid(...)`).
 
-This fallback requires the `get_user_id_by_firebase_uid` Supabase RPC function (migration: `20260327000000_create_get_user_id_by_firebase_uid.sql`).
+This fallback requires Cloud SQL repository support for Firebase UID-to-user resolution.

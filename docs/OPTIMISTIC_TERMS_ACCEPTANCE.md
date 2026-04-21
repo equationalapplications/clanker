@@ -61,25 +61,10 @@ const onPressAccept = async () => {
 ### Persistence
 
 ```typescript
-export async function recordTermsAcceptance(userId: string) {
-  const now = new Date().toISOString()
-
-  // Atomically update terms fields and verify the row exists
-  const { data: updatedSubscription, error: updateError } = await supabaseClient
-    .from('user_app_subscriptions')
-    .update({
-      terms_accepted_at: now,
-      terms_version: TERMS.version,
-      updated_at: now,
-    })
-    .eq('user_id', userId)
-    .eq('app_name', APP_NAME)
-    .select('user_id')
-    .maybeSingle()
-
-  if (updateError) throw updateError
-  if (!updatedSubscription) {
-    throw new Error('Missing subscription row for terms acceptance')
+export async function recordTermsAcceptance() {
+  const response = await acceptTermsFn({ termsVersion: TERMS.version })
+  if (response?.data?.success !== true) {
+    throw new Error('Malformed accept terms response')
   }
 }
 ```
@@ -123,4 +108,3 @@ if (!hasAcceptedCurrentTerms(userId, 'clanker')) {
 
 - [NAVIGATION.md](./NAVIGATION.md) - Updated with optimistic flow
 - [Optimistic UI Pattern](https://www.patterns.dev/posts/optimistic-ui) - Design pattern explanation
-

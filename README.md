@@ -33,7 +33,6 @@
 - [Image generation](docs/IMAGE_GENERATION.md) — Callable-based image generation flow with local SQLite avatar storage.
 - [First-login credits](docs/FIRST_LOGIN_CREDITS.md) — How first-login users are provisioned to 50 free credits.
 - [Cloud SQL design](docs/CLOUD_SQL_DESIGN.md) — Current PostgreSQL schema and service-layer architecture for users, subscriptions, characters, and messages.
-- [Supabase migration inventory (historical)](docs/SUPABASE_REMOVAL_INVENTORY.md) — Legacy migration tracking notes kept for historical reference.
 
 ## Payments & Subscriptions
 

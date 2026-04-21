@@ -10,7 +10,7 @@ This document describes the offline-first architecture implemented in the app. A
 | Query cache | TanStack Query v5 | In-memory cache with offlineFirst for local queries |
 | Cache persistence | expo-sqlite/kv-store | Survives app restarts — queries served offline immediately |
 | Network detection | @react-native-community/netinfo | Drives `onlineManager`, triggers reconnect sync |
-| Cloud backup | Supabase `clanker_characters` | Backup/restore for characters only |
+| Cloud backup | Cloud SQL `characters` table | Backup/restore for characters only |
 
 Messages are **never synced to cloud** (privacy by design).
 
@@ -56,7 +56,7 @@ Messages are **never synced to cloud** (privacy by design).
 
 ### User profile / credits
 
-- These are Supabase cloud queries (`networkMode: 'online'`)
+- These are Cloud SQL-backed cloud queries (`networkMode: 'online'`)
 - When offline, the persisted cache from the last successful fetch is shown
 - No offline writes supported for profile (only online)
 
@@ -80,7 +80,7 @@ Only characters, not messages. Sync direction: **local → cloud** (local is sou
 
 1. User deletes a character → `deleteCharacter()` sets `deleted_at = now(), synced_to_cloud = 0`
 2. Character disappears from UI immediately (filtered out of `getUserCharacters`)
-3. On next sync, `syncDeletionsToCloud` deletes from Supabase
+3. On next sync, `syncDeletionsToCloud` deletes from Cloud SQL
 4. After cloud confirms deletion, `hardDeleteCharacterLocal` removes from SQLite (+ messages)
 
 ### Restore from cloud (new device)
@@ -92,7 +92,7 @@ import { restoreFromCloud } from '~/services/characterSyncService'
 await restoreFromCloud()
 ```
 
-All characters from Supabase are imported into local SQLite. Only cloud records with a newer `updated_at` than existing local records are written; local-only or locally-newer characters are preserved.
+All characters from Cloud SQL are imported into local SQLite. Only cloud records with a newer `updated_at` than existing local records are written; local-only or locally-newer characters are preserved.
 
 ## NetworkStatusBanner
 
@@ -120,9 +120,9 @@ Renders nothing when online. Shows a slim dark bar with "You're offline" when th
 | `useCharacters()` | SQLite | offlineFirst | Full CRUD + optimistic updates |
 | `useCharacter(id)` | SQLite | offlineFirst | Seeded from list cache |
 | `useMessages(charId, userId)` | SQLite | offlineFirst | Polls every 5s for AI responses |
-| `useUserPublicData()` | Supabase | online | Persisted cache shown offline |
-| `useUserPrivateData()` | Supabase | online | Real-time credits subscription |
-| `useUserProfile()` | Supabase | online | Real-time profile subscription |
+| `useUserPublicData()` | Cloud SQL | online | Persisted cache shown offline |
+| `useUserPrivateData()` | Cloud SQL | online | Cached data with periodic refetch for credits/subscription changes |
+| `useUserProfile()` | Cloud SQL | online | Cached profile data refreshed by polling/refetch, not real-time |
 
 ## Validation Checklist
 
