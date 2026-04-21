@@ -1,3 +1,20 @@
+# [28.1.0](https://github.com/equationalapplications/clanker/compare/v28.0.1...v28.1.0) (2026-04-21)
+
+
+### Bug Fixes
+
+* **auth:** clear stale pending refresh replay reason ([ad2c442](https://github.com/equationalapplications/clanker/commit/ad2c4422961f6014d28e1e64bca03a488693ef4b))
+* **auth:** require server verifiedAt and align user optimistic patching ([105604c](https://github.com/equationalapplications/clanker/commit/105604ce7c48baa76012d979dce231c99a9589d2))
+* **auth:** simplify optimistic profile patch payloads ([728dce8](https://github.com/equationalapplications/clanker/commit/728dce835e961df012d607ca597c661fa21239a2))
+* **auth:** surface machine errors in user hooks ([a09ebf4](https://github.com/equationalapplications/clanker/commit/a09ebf418cd69efd5481c7f7f1d69df89da6987a))
+* **functions:** normalize usage planStatus in image and chat handlers ([a5f58c7](https://github.com/equationalapplications/clanker/commit/a5f58c70a061bee506890e99d47389c2c74fffb6))
+* normalize email lookup and docs ([9eb653e](https://github.com/equationalapplications/clanker/commit/9eb653ec01c4e0d98001e70e045f4512f3f075d3))
+
+
+### Features
+
+* **auth:** make bootstrap refresh event-driven ([2efa422](https://github.com/equationalapplications/clanker/commit/2efa422a837fd1824be882b38e08cc86f9ed3971))
+
 ## [28.0.1](https://github.com/equationalapplications/clanker/compare/v28.0.0...v28.0.1) (2026-04-21)
 
 
