@@ -315,6 +315,41 @@ test("generateImageHandler rejects users without unlimited plan and no credits",
   });
 });
 
+test("generateImageHandler returns fallback planStatus details when subscription is missing", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => null as never;
+    creditService.spendCredits = async () => true;
+    creditService.getCredits = async () => 0;
+
+    await assert.rejects(
+      async () =>
+        generateImageHandler(
+          {
+            auth,
+            data: {
+              prompt: "hero portrait",
+            },
+          } as never,
+          {
+            generateImage: async () => ({
+              imageBase64: "aGVsbG8=",
+              mimeType: "image/png",
+            }),
+          }
+        ),
+      (err: unknown) =>
+        err instanceof HttpsError &&
+        err.code === "resource-exhausted" &&
+        (err.details as {planStatus?: unknown})?.planStatus === "expired"
+    );
+  });
+});
+
 test("generateImageHandler does not spend credit when generation fails", async () => {
   const auth = buildAuth();
 

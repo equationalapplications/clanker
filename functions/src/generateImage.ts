@@ -33,6 +33,14 @@ interface UsageState {
   creditBalance: number;
 }
 
+function normalizePlanStatus(status: string | null | undefined): UsageState["planStatus"] {
+  if (status === "active" || status === "cancelled" || status === "expired") {
+    return status;
+  }
+
+  return "expired";
+}
+
 interface GeneratedImageResult {
   imageBase64: string;
   mimeType: string;
@@ -192,19 +200,21 @@ async function fetchUsageState(userId: string): Promise<UsageState> {
   if (!sub) {
     return {
       planTier: null,
+      planStatus: "expired",
       hasUnlimited: false,
       creditBalance: 0,
     };
   }
 
   const planTier = sub.planTier;
-  const isActive = sub.planStatus === "active";
+  const planStatus = normalizePlanStatus(sub.planStatus);
+  const isActive = planStatus === "active";
   const hasUnlimited = isActive && UNLIMITED_TIERS.has(planTier);
   const creditBalance = hasUnlimited ? 0 : Math.max(0, sub.currentCredits ?? 0);
 
   return {
     planTier,
-    planStatus: sub.planStatus,
+    planStatus,
     hasUnlimited,
     creditBalance,
   };
