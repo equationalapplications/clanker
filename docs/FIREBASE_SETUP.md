@@ -115,9 +115,9 @@ Use this checklist for whichever Firebase project and app identifiers you are us
     - No separate `GOOGLE_IOS_URL_SCHEME` env var is required; the iOS URL scheme comes from `GoogleService-Info.plist` / app config.
 7. Re-run local setup if needed to refresh temp files:
 
-```bash
-npm run prebuild:setup
-```
+    ```bash
+    npm run prebuild:setup
+    ```
 
 ### Apple Sign-In
 
@@ -153,4 +153,3 @@ eas env:pull --environment development
 *   This file is already listed in `.gitignore` to prevent accidental commits.
 *   It contains sensitive API keys and credentials.
 *   Each developer needs to create their own `.env` file.
-
