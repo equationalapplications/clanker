@@ -60,9 +60,9 @@ When returning from Stripe:
 
 When a user signs out or their UID changes:
 
-- All checkout-related `localStorage` entries are cleared via a `BroadcastChannel` message
-- All `attemptId` and lock entries are discarded
-- This prevents scenarios where a user signs out, someone else signs in, and old purchase attempts leak into the new session
+- A `BroadcastChannel` message triggers cleanup of pending checkout attempt state and invalidates active checkout-related UI state across tabs
+- Pending `attemptId` state is cleared, and lock entries are discarded so another user does not inherit an in-progress checkout flow
+- This prevents scenarios where a user signs out, someone else signs in, and stale in-progress purchase state leaks into the new session
 
 ### No Polling
 
