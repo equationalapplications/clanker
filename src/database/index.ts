@@ -102,14 +102,14 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         const hasAvatarData = columns.some((column) => column.name === 'avatar_data')
         const hasAvatarMimeType = columns.some((column) => column.name === 'avatar_mime_type')
         const hasSaveToCloud = columns.some((column) => column.name === 'save_to_cloud')
+        const characterColumnPresence: Record<string, boolean> = {
+            deleted_at: hasDeletedAt,
+            avatar_data: hasAvatarData,
+            avatar_mime_type: hasAvatarMimeType,
+            save_to_cloud: hasSaveToCloud,
+        }
         const hasLatestCharacterSchema = LATEST_SCHEMA_REQUIRED_COLUMNS.characters.every(
-            (requiredColumn) =>
-                ({
-                    deleted_at: hasDeletedAt,
-                    avatar_data: hasAvatarData,
-                    avatar_mime_type: hasAvatarMimeType,
-                    save_to_cloud: hasSaveToCloud,
-                })[requiredColumn],
+            (requiredColumn) => characterColumnPresence[requiredColumn] === true,
         )
 
         if (hasLatestCharacterSchema) {

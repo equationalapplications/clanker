@@ -397,7 +397,6 @@ export default function EditCharacterScreen() {
           )}
         </Modal>
       </Portal>
-
       </ScrollView>
 
       <Snackbar
