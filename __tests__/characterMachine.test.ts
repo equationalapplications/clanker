@@ -32,6 +32,7 @@ function makeCharacter(overrides: Partial<DbCharacter> = {}): DbCharacter {
     synced_to_cloud: false,
     save_to_cloud: false,
     cloud_id: null,
+    summary_checkpoint: 0,
     ...overrides,
   }
 }

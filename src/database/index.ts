@@ -133,6 +133,15 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         ) {
             inferredVersion = 5
         }
+        if (
+            hasCharacterColumn('deleted_at') &&
+            hasCharacterColumn('avatar_data') &&
+            hasCharacterColumn('avatar_mime_type') &&
+            hasCharacterColumn('save_to_cloud') &&
+            hasCharacterColumn('summary_checkpoint')
+        ) {
+            inferredVersion = 6
+        }
         await runMigrations(executor, inferredVersion)
         return
     }
