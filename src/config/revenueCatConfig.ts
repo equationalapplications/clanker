@@ -39,7 +39,8 @@ export async function initializeRevenueCat(): Promise<void> {
 
 /**
  * Purchase a product by its RevenueCat product identifier.
- * Returns the CustomerInfo after a successful purchase.
+ * Returns the CustomerInfo after a successful purchase, or null if user cancels.
+ * Throws if RevenueCat is not initialized or if the purchase fails for other reasons.
  */
 export async function purchaseProduct(productIdentifier: string): Promise<CustomerInfo | null> {
   if (!isInitialized) {
@@ -102,7 +103,6 @@ export async function purchaseProduct(productIdentifier: string): Promise<Custom
       console.log('Purchase cancelled by user.')
       return null
     }
-    console.error('❌ Purchase error:', error)
     throw error
   }
 }

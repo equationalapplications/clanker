@@ -105,11 +105,16 @@ RevenueCat sends an `Authorization: Bearer <secret>` header. The handler verifie
 Configured in `functions/src/revenueCatWebhook.ts`:
 
 ```typescript
-const REVENUECAT_PRODUCT_TO_TIER: Record<string, string> = {
+const REVENUECAT_PRODUCT_TO_TIER: Record<string, "monthly_20" | "monthly_50"> = {
   "monthly_20_subscription": "monthly_20",
   "monthly_50_subscription": "monthly_50",
 };
-const REVENUECAT_CREDIT_PACK_ID = Platform.OS === 'ios' ? "credit_100" : "credit_pack_100"; // 100 credits (iOS id differs due to App Store rename restriction)
+
+// Support iOS (credit_100) and Android (credit_pack_100) credit-pack product IDs
+const REVENUECAT_CREDIT_PACK_IDS = new Set([
+  "credit_pack_100",
+  "credit_100",
+]);
 ```
 
 Note: the webhook receives the base subscription ID (`monthly_20_subscription`) without the base plan suffix — the mapping above stays correct for both platforms.

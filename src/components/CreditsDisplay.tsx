@@ -116,7 +116,7 @@ export default function CreditsDisplay({
       // On web: same as above — keep buttons disabled until user returns.
     } catch (e: any) {
       console.error(e)
-      setErrorMessage(e?.message ?? 'Purchase failed. Please try again.')
+      setErrorMessage('Purchase failed. Please try again.')
       if (Platform.OS === 'web') {
         resetPurchaseState()
       }
