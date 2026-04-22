@@ -2,97 +2,96 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 
 jest.mock('react-native-gifted-chat', () => {
-    const React = require('react')
+  const React = require('react')
 
-    return {
-        Composer: (props: any) => React.createElement('Composer', { __chatComposerMock: true, ...props }),
-    }
+  return {
+    Composer: (props: any) => React.createElement('Composer', { __chatComposerMock: true, ...props }),
+  }
 })
 
 describe('ChatComposer', () => {
-    beforeEach(() => {
-        jest.clearAllMocks()
-        jest.useRealTimers()
+  beforeEach(() => {
+    jest.clearAllMocks()
+    jest.useRealTimers()
+  })
+
+  it('sends on web when Enter is pressed without Shift', () => {
+    const onSend = jest.fn()
+    const preventDefault = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    act(() => {
+      tree = create(<ChatComposer text="  hello world  " onSend={onSend} />)
     })
 
-    it('sends on web when Enter is pressed without Shift', () => {
-        const onSend = jest.fn()
-        const preventDefault = jest.fn()
-        const ChatComposer = require('~/components/ChatComposer.web').default
-        let tree!: ReturnType<typeof create>
+    const composer = tree.root.findByProps({ __chatComposerMock: true })
 
-        act(() => {
-            tree = create(<ChatComposer text="  hello world  " onSend={onSend} />)
-        })
-
-        const composer = tree.root.findByProps({ __chatComposerMock: true })
-
-        act(() => {
-            composer.props.textInputProps.onKeyPress({
-                nativeEvent: {
-                    key: 'Enter',
-                    shiftKey: false,
-                },
-                preventDefault,
-            })
-        })
-
-        expect(preventDefault).toHaveBeenCalledTimes(1)
-        expect(onSend).toHaveBeenCalledWith({ text: 'hello world' }, true)
+    act(() => {
+      composer.props.textInputProps.onKeyPress({
+        nativeEvent: {
+          key: 'Enter',
+          shiftKey: false,
+        },
+        preventDefault,
+      })
     })
 
-    it('keeps newline path on web when Shift+Enter is pressed', () => {
-        const onSend = jest.fn()
-        const preventDefault = jest.fn()
-        const ChatComposer = require('~/components/ChatComposer.web').default
-        let tree!: ReturnType<typeof create>
+    expect(preventDefault).toHaveBeenCalledTimes(1)
+    expect(onSend).toHaveBeenCalledWith({ text: 'hello world' }, true)
+  })
 
-        act(() => {
-            tree = create(<ChatComposer text="hello world" onSend={onSend} />)
-        })
+  it('keeps newline path on web when Shift+Enter is pressed', () => {
+    const onSend = jest.fn()
+    const preventDefault = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
 
-        const composer = tree.root.findByProps({ __chatComposerMock: true })
-
-        act(() => {
-            composer.props.textInputProps.onKeyPress({
-                nativeEvent: {
-                    key: 'Enter',
-                    shiftKey: true,
-                },
-                preventDefault,
-            })
-        })
-
-        expect(preventDefault).not.toHaveBeenCalled()
-        expect(onSend).not.toHaveBeenCalled()
+    act(() => {
+      tree = create(<ChatComposer text="hello world" onSend={onSend} />)
     })
 
-    it('does not send on web when Enter is pressed with whitespace-only text', () => {
-        const onSend = jest.fn()
-        const preventDefault = jest.fn()
-        const ChatComposer = require('~/components/ChatComposer.web').default
-        let tree!: ReturnType<typeof create>
+    const composer = tree.root.findByProps({ __chatComposerMock: true })
 
-        act(() => {
-            tree = create(<ChatComposer text="   " onSend={onSend} />)
-        })
-
-        const composer = tree.root.findByProps({ __chatComposerMock: true })
-
-        act(() => {
-            composer.props.textInputProps.onKeyPress({
-                nativeEvent: {
-                    key: 'Enter',
-                    shiftKey: false,
-                },
-                preventDefault,
-            })
-        })
-
-        expect(preventDefault).toHaveBeenCalledTimes(1)
-        expect(onSend).not.toHaveBeenCalled()
+    act(() => {
+      composer.props.textInputProps.onKeyPress({
+        nativeEvent: {
+          key: 'Enter',
+          shiftKey: true,
+        },
+        preventDefault,
+      })
     })
 
+    expect(preventDefault).not.toHaveBeenCalled()
+    expect(onSend).not.toHaveBeenCalled()
+  })
+
+  it('does not send on web when Enter is pressed with whitespace-only text', () => {
+    const onSend = jest.fn()
+    const preventDefault = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    act(() => {
+      tree = create(<ChatComposer text="   " onSend={onSend} />)
+    })
+
+    const composer = tree.root.findByProps({ __chatComposerMock: true })
+
+    act(() => {
+      composer.props.textInputProps.onKeyPress({
+        nativeEvent: {
+          key: 'Enter',
+          shiftKey: false,
+        },
+        preventDefault,
+      })
+    })
+
+    expect(preventDefault).toHaveBeenCalledTimes(1)
+    expect(onSend).not.toHaveBeenCalled()
+  })
     it('submits on native when submit editing fires', () => {
         const onSend = jest.fn()
         const ChatComposer = require('~/components/ChatComposer').default
