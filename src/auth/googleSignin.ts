@@ -1,13 +1,12 @@
 // todo: use one-tap https://react-native-google-signin.github.io/docs/one-tap
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
-import { Platform } from 'react-native'
 import { getAuth, signInWithCredential, GoogleAuthProvider } from '@react-native-firebase/auth'
 
 // Configure Google Sign-In
 export const initializeGoogleSignIn = () => {
   // Base config works for Android and iOS; Android uses the Web client ID.
   const baseConfig: Record<string, any> = {
-    webClientId: '54051268985-0o12j8d0hh6t5t2p9sbasm3diir0c71u.apps.googleusercontent.com',
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     offlineAccess: true,
     hostedDomain: '',
     forceCodeForRefreshToken: true,

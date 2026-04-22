@@ -13,6 +13,8 @@ If you are migrating projects, always re-download both files from the target Fir
 
 The method for providing these files differs depending on your build environment.
 
+> **CLI note**: All commands in this guide use `npx eas-cli` rather than the global `eas` binary. This ensures you always run the project-pinned version without needing a global install.
+
 ---
 
 ## 1. EAS Cloud Builds (Production & Preview)
@@ -33,15 +35,17 @@ Then, run the following commands from the project root to create the file enviro
 
 **For Android:**
 ```bash
-eas env:create --environment production --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --visibility secret --non-interactive
+npx eas-cli env:create production --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --visibility secret --non-interactive
 ```
 
 **For iOS:**
 ```bash
-eas env:create --environment production --name GOOGLE_SERVICE_INFO_PLIST --type file --value ./GoogleService-Info.plist --visibility secret --non-interactive
+npx eas-cli env:create production --name GOOGLE_SERVICE_INFO_PLIST --type file --value ./GoogleService-Info.plist --visibility secret --non-interactive
 ```
 
-> **Updating existing vars**: add `--force` to overwrite. `env:update` does not support file-type variables — `env:create --force` is the only way.
+> **Updating existing file vars**: add `--force` to overwrite. `env:update` does not support `--type file` — `env:create --force` is the only way to update a file variable.
+
+> **Updating existing string vars**: either `env:create --force` (simpler) or `env:update <environment> --variable-name <NAME> --value <new-value> --non-interactive`.
 
 That's it! Your cloud builds are now configured.
 
@@ -56,7 +60,7 @@ For local builds (`eas build --local`), EAS does not inject cloud secrets into y
 1.  You download the Firebase config files and encode them as base64.
 2.  You store the base64 strings in a local `.env` file.
 3.  You run one of the `npm run build:*` scripts.
-4.  `scripts/eas-local-build.js` loads `.env` and spawns `eas-cli build --local`.
+4.  `scripts/eas-local-build.js` loads `.env` and spawns `npx eas-cli build --local`.
 5.  Inside the build, `app.config.ts` decodes `GOOGLE_SERVICES_JSON_BASE64` into `./temp/google-services.json` and returns that path.
 
 ### Setup Steps
@@ -103,7 +107,7 @@ For local builds (`eas build --local`), EAS does not inject cloud secrets into y
     ```
 
     These call `scripts/eas-local-build.js`, which loads `.env` and invokes
-    `eas-cli build --local --profile <profile> --platform <platform>`.
+    `npx eas-cli build --local --profile <profile> --platform <platform>`.
 
     Alternatively, export `.env` yourself and run `eas-cli` directly:
 
@@ -146,15 +150,34 @@ Use this checklist for whichever Firebase project and app identifiers you are us
 
 ## Syncing Non-Secret Environment Variables
 
-EAS provides a convenient way to keep your other, non-secret environment variables (like API keys) in sync for local development.
+EAS provides commands to sync non-secret environment variables between EAS and local files.
 
-Run the following command to pull variables from the `development` environment on EAS into a local `.env` file:
+> **Note**: `env:push` and `env:pull` both default to `.env.local`. Use `--path .env` to target your main `.env` file.
+
+### Push local → EAS (bulk create/overwrite)
+
+Use `env:push` to upload all variables from a local file to an EAS environment. This is the preferred approach when setting many variables at once:
 
 ```bash
-eas env:pull --environment development
+# Push .env to EAS development, overwriting any existing string vars
+npx eas-cli env:push development --path .env --force
 ```
 
-**Note**: This command **will not** download the contents of your secret Firebase files. It will add placeholders for them, which is why the manual base64 process for local builds is necessary.
+`env:push` only handles **string** variables. Use `env:create --type file` separately for Firebase config file vars (see above).
+
+### Pull EAS → local
+
+Use `env:pull` to write all non-secret variables from an EAS environment into a local file:
+
+```bash
+# Pull development vars (writes to .env.local by default)
+npx eas-cli env:pull development
+
+# Or write directly into your .env
+npx eas-cli env:pull development --path .env
+```
+
+**Note**: `env:pull` will **not** download the contents of secret file vars (`GOOGLE_SERVICES_JSON`, etc.). It adds placeholders for them, which is why the manual base64 process for local builds is still necessary.
 
 ## Important Security Notes
 

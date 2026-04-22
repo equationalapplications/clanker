@@ -46,7 +46,7 @@ export const initializeGoogleSignIn = async () => {
 
   if (window.google && window.google.accounts) {
     window.google.accounts.id.initialize({
-      client_id: '54051268985-0o12j8d0hh6t5t2p9sbasm3diir0c71u.apps.googleusercontent.com',
+      client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
       callback: () => {}, // Will be set per sign-in attempt
     })
   }
