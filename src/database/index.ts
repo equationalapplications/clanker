@@ -4,7 +4,13 @@
 
 import { Platform } from 'react-native'
 import * as SQLite from 'expo-sqlite'
-import { CREATE_TABLES, SCHEMA_VERSION, MIGRATIONS } from './schema'
+import {
+    CREATE_TABLES,
+    SCHEMA_VERSION,
+    MIGRATIONS,
+    LATEST_SCHEMA_REQUIRED_COLUMNS,
+    MIGRATION_SKIP_GUARDS,
+} from './schema'
 
 let db: SQLite.SQLiteDatabase | null = null
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null
@@ -90,14 +96,15 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // - A legacy DB that predates schema_version and still needs migrations
         //
         // Distinguish between these by confirming the DB already has the
-        // migration-added columns from the latest schema (v5).
+        // migration-added columns from the latest schema.
         const columns = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(characters)')
-        const hasDeletedAt = columns.some((column) => column.name === 'deleted_at')
-        const hasAvatarData = columns.some((column) => column.name === 'avatar_data')
-        const hasAvatarMimeType = columns.some((column) => column.name === 'avatar_mime_type')
-        const hasSummaryCheckpoint = columns.some((column) => column.name === 'summary_checkpoint')
+        const characterColumnNames = new Set(columns.map((column) => column.name))
+        const hasCharacterColumn = (columnName: string) => characterColumnNames.has(columnName)
+        const hasLatestCharacterSchema = LATEST_SCHEMA_REQUIRED_COLUMNS.characters.every(
+            (requiredColumn) => hasCharacterColumn(requiredColumn),
+        )
 
-        if (hasAvatarData && hasDeletedAt && hasAvatarMimeType && hasSummaryCheckpoint) {
+        if (hasLatestCharacterSchema) {
             // Fresh DB already at latest schema: just record the current schema version
             await executor.runAsync(
                 'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
@@ -109,11 +116,32 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // Legacy DB without schema_version can be partially migrated.
         // Infer the nearest version so we only apply missing migrations.
         let inferredVersion = 0
-        if (hasDeletedAt) inferredVersion = 2
-        if (hasDeletedAt && hasAvatarData) inferredVersion = 3
-        if (hasDeletedAt && hasAvatarData && hasAvatarMimeType) inferredVersion = 4
-        if (hasDeletedAt && hasAvatarData && hasAvatarMimeType && hasSummaryCheckpoint)
+        if (hasCharacterColumn('deleted_at')) inferredVersion = 2
+        if (hasCharacterColumn('deleted_at') && hasCharacterColumn('avatar_data')) inferredVersion = 3
+        if (
+            hasCharacterColumn('deleted_at') &&
+            hasCharacterColumn('avatar_data') &&
+            hasCharacterColumn('avatar_mime_type')
+        ) {
+            inferredVersion = 4
+        }
+        if (
+            hasCharacterColumn('deleted_at') &&
+            hasCharacterColumn('avatar_data') &&
+            hasCharacterColumn('avatar_mime_type') &&
+            hasCharacterColumn('save_to_cloud')
+        ) {
             inferredVersion = 5
+        }
+        if (
+            hasCharacterColumn('deleted_at') &&
+            hasCharacterColumn('avatar_data') &&
+            hasCharacterColumn('avatar_mime_type') &&
+            hasCharacterColumn('save_to_cloud') &&
+            hasCharacterColumn('summary_checkpoint')
+        ) {
+            inferredVersion = 6
+        }
         await runMigrations(executor, inferredVersion)
         return
     }
@@ -137,34 +165,13 @@ async function applyMigrations(executor: DatabaseExecutor, fromVersion: number):
     for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {
         const migration = MIGRATIONS[version]
         if (migration) {
-            if (version === 2) {
-                const hasDeletedAt = await hasColumn(executor, 'characters', 'deleted_at')
-                if (hasDeletedAt) {
-                    console.log('Skipping migration 2: characters.deleted_at already exists')
-                    continue
-                }
-            }
-
-            if (version === 3) {
-                const hasAvatarData = await hasColumn(executor, 'characters', 'avatar_data')
-                if (hasAvatarData) {
-                    console.log('Skipping migration 3: characters.avatar_data already exists')
-                    continue
-                }
-            }
-
-            if (version === 4) {
-                const hasAvatarMimeType = await hasColumn(executor, 'characters', 'avatar_mime_type')
-                if (hasAvatarMimeType) {
-                    console.log('Skipping migration 4: characters.avatar_mime_type already exists')
-                    continue
-                }
-            }
-
-            if (version === 5) {
-                const hasSummaryCheckpoint = await hasColumn(executor, 'characters', 'summary_checkpoint')
-                if (hasSummaryCheckpoint) {
-                    console.log('Skipping migration 5: characters.summary_checkpoint already exists')
+            const skipGuard = MIGRATION_SKIP_GUARDS[version]
+            if (skipGuard) {
+                const columnExists = await hasColumn(executor, skipGuard.table, skipGuard.column)
+                if (columnExists) {
+                    console.log(
+                        `Skipping migration ${version}: ${skipGuard.table}.${skipGuard.column} already exists`,
+                    )
                     continue
                 }
             }

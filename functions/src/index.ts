@@ -39,6 +39,7 @@ export {
   syncCharacter,
   deleteCharacter,
   getUserCharacters,
+  getPublicCharacter,
 } from "./characterFunctions.js";
 
 export {
