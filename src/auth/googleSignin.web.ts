@@ -64,6 +64,12 @@ export const initializeGoogleSignIn = async () => {
  * Falls back to Google One Tap / OAuth2 if popup is blocked
  */
 export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
+  // Validate client ID once at the start
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+  if (!webClientId) {
+    return { success: false, error: 'Google Web Client ID not configured' }
+  }
+
   try {
     // Primary method: Firebase signInWithPopup (most reliable, avoids FedCM issues)
     try {
@@ -97,7 +103,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
 
     return new Promise((resolve) => {
       window.google.accounts.id.initialize({
-        client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+        client_id: webClientId,
         callback: async (response: any) => {
           try {
             if (response.credential) {
@@ -117,16 +123,9 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
       window.google.accounts.id.prompt((notification: any) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
           // One Tap not available, try OAuth2 token flow
-          // client_id is validated in initializeGoogleSignIn()
-          const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
-          if (!clientId) {
-            resolve({ success: false, error: 'Google Web Client ID not configured' })
-            return
-          }
-
           window.google.accounts.oauth2
             .initTokenClient({
-              client_id: clientId,
+              client_id: webClientId,
               scope: 'email profile',
               callback: async (response: any) => {
                 try {

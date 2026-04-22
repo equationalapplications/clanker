@@ -12,6 +12,7 @@ const mockLoginRevenueCat = jest.fn()
 const mockLogoutRevenueCat = jest.fn()
 const mockSetCrashlyticsUserId = jest.fn()
 const mockQueryClientClear = jest.fn()
+const mockKvStorePersisterRemoveClient = jest.fn()
 
 jest.mock('../src/config/firebaseConfig', () => ({
   onAuthStateChanged: mockOnAuthStateChanged,
@@ -47,6 +48,12 @@ jest.mock('../src/config/queryClient', () => ({
   },
 }))
 
+jest.mock('../src/config/queryPersister', () => ({
+  kvStorePersister: {
+    removeClient: mockKvStorePersisterRemoveClient,
+  },
+}))
+
 const { authMachine } = require('../src/machines/authMachine')
 
 const WAIT_OPTS = { timeout: 2000 }
@@ -69,6 +76,7 @@ describe('authMachine', () => {
     mockSignOutFromApple.mockResolvedValue(undefined)
     mockLogoutRevenueCat.mockResolvedValue(undefined)
     mockSetCrashlyticsUserId.mockResolvedValue(undefined)
+    mockKvStorePersisterRemoveClient.mockResolvedValue(undefined)
   })
 
   it('reaches signedIn and stores bootstrap snapshot after USER_FOUND', async () => {
@@ -106,6 +114,7 @@ describe('authMachine', () => {
     expect(mockQueryClientClear).toHaveBeenCalled()
     expect(mockLogoutRevenueCat).toHaveBeenCalled()
     expect(mockSetCrashlyticsUserId).toHaveBeenCalledWith(null)
+    expect(mockKvStorePersisterRemoveClient).toHaveBeenCalled()
     actor.stop()
   })
 

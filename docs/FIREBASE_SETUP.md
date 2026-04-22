@@ -13,7 +13,7 @@ If you are migrating projects, always re-download both files from the target Fir
 
 The method for providing these files differs depending on your build environment.
 
-> **CLI note**: All commands in this guide use `npx eas-cli` rather than the global `eas` binary. This avoids requiring a global install.
+> **CLI note**: Commands in this guide use `npx eas-cli` to run the project-pinned version. You may also use the global `eas` binary if installed.
 
 ---
 
@@ -134,8 +134,8 @@ Use this checklist for whichever Firebase project and app identifiers you are us
 5. Confirm `google-services.json` has non-empty `client[0].oauth_client` entries.
 6. Set/update OAuth env vars in EAS and local `.env`:
     - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` - Required for web and Android native OAuth
-    - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` - Required for iOS native OAuth (optional if using web-only OAuth)
-    - `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME` - iOS URL scheme for OAuth callback (required if `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` is set)
+    - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` - Optional; required for native iOS OAuth (used by react-native-google-signin)
+    - `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME` - Optional; iOS URL scheme for Google OAuth callback (used in `app.config.ts`; if not set, defaults to reverse domain notation of bundle ID)
 7. Re-run local setup if needed to refresh temp files:
 
     ```bash
