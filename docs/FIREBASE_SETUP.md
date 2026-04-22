@@ -29,17 +29,19 @@ For builds running on Expo Application Services (EAS), we use **File Environment
 
 First, download your `google-services.json` and `GoogleService-Info.plist` files from the Firebase Console.
 
-Then, run the following commands from the project root to create the file environment variables on EAS. You only need to do this once per project.
+Then, run the following commands from the project root to create the file environment variables on EAS. You only need to do this once per project; when **updating** existing vars (e.g. after migrating Firebase projects), add `--force`.
 
 **For Android:**
 ```bash
-eas env:create --name GOOGLE_SERVICES_JSON --type file --file ./google-services.json --environment production,staging,preview,development
+eas env:create --environment production --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --visibility secret --non-interactive
 ```
 
 **For iOS:**
 ```bash
-eas env:create --name GOOGLE_SERVICE_INFO_PLIST --type file --file ./GoogleService-Info.plist --environment production,staging,preview,development
+eas env:create --environment production --name GOOGLE_SERVICE_INFO_PLIST --type file --value ./GoogleService-Info.plist --visibility secret --non-interactive
 ```
+
+> **Updating existing vars**: add `--force` to overwrite. `env:update` does not support file-type variables — `env:create --force` is the only way.
 
 That's it! Your cloud builds are now configured.
 
