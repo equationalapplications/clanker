@@ -1,3 +1,5 @@
+import QRCode from 'qrcode'
+
 const DEFAULT_CHARACTER_SHARE_BASE_URL = 'https://clanker.app'
 
 const normalizeBaseUrl = (url: string) => url.replace(/\/+$/, '')
@@ -17,5 +19,10 @@ export const buildCharacterShareUrl = (cloudCharacterId: string) =>
 export const buildNativeCharacterShareLink = (cloudCharacterId: string) =>
   `com.equationalapplications.clanker://characters/shared/${encodeURIComponent(cloudCharacterId)}`
 
-export const buildCharacterQrCodeUrl = (shareUrl: string) =>
-  `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(shareUrl)}`
+export const buildCharacterQrCodeDataUrl = async (shareUrl: string) => {
+  return QRCode.toDataURL(shareUrl, {
+    width: 512,
+    margin: 1,
+    errorCorrectionLevel: 'M',
+  })
+}

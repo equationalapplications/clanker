@@ -2,17 +2,32 @@ import { useEffect, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { ActivityIndicator, Button, Text } from 'react-native-paper'
+import { useSelector } from '@xstate/react'
 import { importSharedCharacterFromCloud } from '~/services/characterSyncService'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
+import { useAuthMachine } from '~/hooks/useMachines'
 
 export default function SharedCharacterImportScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
+  const authService = useAuthMachine()
+  const { user, isAuthLoading } = useSelector(authService, (state) => ({
+    user: state.context.user,
+    isAuthLoading:
+      state.matches('initializing') ||
+      state.matches('signingIn') ||
+      state.matches('bootstrapping'),
+  }))
   const { isSubscriber, isLoading: isPlanLoading } = useCurrentPlan()
   const [isImporting, setIsImporting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (isPlanLoading || !id) {
+    if (isPlanLoading || isAuthLoading || !id) {
+      return
+    }
+
+    if (!user) {
+      setErrorMessage('Sign in to import this shared character.')
       return
     }
 
@@ -49,9 +64,9 @@ export default function SharedCharacterImportScreen() {
     return () => {
       cancelled = true
     }
-  }, [id, isPlanLoading, isSubscriber])
+  }, [id, isAuthLoading, isPlanLoading, isSubscriber, user])
 
-  if (isPlanLoading || isImporting) {
+  if (isAuthLoading || isPlanLoading || isImporting) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" />
@@ -69,7 +84,12 @@ export default function SharedCharacterImportScreen() {
         <Button mode="outlined" onPress={() => router.replace('/characters/list')}>
           Back to Characters
         </Button>
-        {!isSubscriber ? (
+        {!user ? (
+          <Button mode="contained" onPress={() => router.replace('/sign-in')}>
+            Sign In
+          </Button>
+        ) : null}
+        {user && !isSubscriber ? (
           <Button mode="contained" onPress={() => router.push('/subscribe')}>
             Subscribe
           </Button>

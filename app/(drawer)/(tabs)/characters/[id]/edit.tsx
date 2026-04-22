@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { View, StyleSheet, ScrollView , Share } from 'react-native'
+import { View, StyleSheet, ScrollView, Share } from 'react-native'
 import { Image } from 'expo-image'
 import {
   Text,
@@ -22,7 +22,7 @@ import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 import {
-  buildCharacterQrCodeUrl,
+  buildCharacterQrCodeDataUrl,
   buildCharacterShareUrl,
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
@@ -47,12 +47,16 @@ export default function EditCharacterScreen() {
   const [emotions, setEmotions] = useState('')
   const [context, setContext] = useState('')
   const [saveToCloud, setSaveToCloud] = useState(false)
-  const [isSharable, setIsSharable] = useState(false)
+  const [isShareable, setIsShareable] = useState(false)
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [didAttemptSave, setDidAttemptSave] = useState(false)
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [toastState, setToastState] = useState<{
+    message: string
+    requiresSubscription: boolean
+  } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
   const prevIsUpdatingRef = useRef(false)
 
   // Track loaded values for dirty-state comparison
@@ -77,7 +81,7 @@ export default function EditCharacterScreen() {
       emotions,
       context,
       saveToCloud: saveToCloud ? 'true' : 'false',
-      isShareable: isSharable ? 'true' : 'false',
+      isShareable: isShareable ? 'true' : 'false',
     },
     loadedValues,
   )
@@ -91,7 +95,7 @@ export default function EditCharacterScreen() {
       setEmotions(character.emotions || '')
       setContext(character.context || '')
       setSaveToCloud(character.save_to_cloud ?? false)
-      setIsSharable(character.is_public || false)
+      setIsShareable(character.is_public || false)
       setAvatarUri(character.avatar ?? null)
     }
   }, [character])
@@ -135,30 +139,60 @@ export default function EditCharacterScreen() {
       emotions,
       context,
       save_to_cloud: saveToCloud,
-      is_public: saveToCloud ? isSharable : false,
+      is_public: saveToCloud ? isShareable : false,
     })
   }
 
   const cloudCharacterId = character?.cloud_id ?? null
   const shareUrl = cloudCharacterId ? buildCharacterShareUrl(cloudCharacterId) : null
   const nativeShareLink = cloudCharacterId ? buildNativeCharacterShareLink(cloudCharacterId) : null
-  const qrCodeUrl = shareUrl ? buildCharacterQrCodeUrl(shareUrl) : null
+
+  useEffect(() => {
+    if (!shareUrl) {
+      setQrCodeDataUrl(null)
+      return
+    }
+
+    let cancelled = false
+    buildCharacterQrCodeDataUrl(shareUrl)
+      .then((url) => {
+        if (!cancelled) {
+          setQrCodeDataUrl(url)
+        }
+      })
+      .catch((error) => {
+        console.warn('Failed to generate QR code:', error)
+        if (!cancelled) {
+          setQrCodeDataUrl(null)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [shareUrl])
 
   const handleToggleSaveToCloud = (nextValue: boolean) => {
     if (nextValue && !isSubscriber) {
-      setToastMessage('Cloud character save requires a monthly_20 or monthly_50 subscription.')
+      setToastState({
+        message: 'Cloud character save requires a monthly_20 or monthly_50 subscription.',
+        requiresSubscription: true,
+      })
       return
     }
 
     setSaveToCloud(nextValue)
     if (!nextValue) {
-      setIsSharable(false)
+      setIsShareable(false)
     }
   }
 
   const handleOpenShareCard = () => {
     if (!cloudCharacterId || !shareUrl) {
-      setToastMessage('Save this character to cloud and sync it first, then try sharing again.')
+      setToastState({
+        message: 'Save this character to cloud and sync it first, then try sharing again.',
+        requiresSubscription: false,
+      })
       return
     }
     setShowShareModal(true)
@@ -166,7 +200,10 @@ export default function EditCharacterScreen() {
 
   const handleShare = async () => {
     if (!shareUrl) {
-      setToastMessage('No share link available for this character yet.')
+      setToastState({
+        message: 'No share link available for this character yet.',
+        requiresSubscription: false,
+      })
       return
     }
 
@@ -310,13 +347,13 @@ export default function EditCharacterScreen() {
             </Text>
           </View>
           <Switch
-            value={isSharable}
-            onValueChange={setIsSharable}
+            value={isShareable}
+            onValueChange={setIsShareable}
             disabled={!saveToCloud}
           />
         </View>
 
-        {isSharable ? (
+        {isShareable ? (
           <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton}>
             Share Character
           </Button>
@@ -369,9 +406,9 @@ export default function EditCharacterScreen() {
               <Text selectable style={styles.shareLink}>
                 {shareUrl}
               </Text>
-              {qrCodeUrl ? (
+              {qrCodeDataUrl ? (
                 <Image
-                  source={{ uri: qrCodeUrl }}
+                  source={{ uri: qrCodeDataUrl }}
                   style={styles.qrImage}
                   contentFit="contain"
                 />
@@ -387,15 +424,19 @@ export default function EditCharacterScreen() {
       </Portal>
 
       <Snackbar
-        visible={toastMessage !== null}
-        onDismiss={() => setToastMessage(null)}
+        visible={toastState !== null}
+        onDismiss={() => setToastState(null)}
         duration={4000}
-        action={{
-          label: 'Subscribe',
-          onPress: () => router.push('/subscribe'),
-        }}
+        action={
+          toastState?.requiresSubscription && !isSubscriber
+            ? {
+                label: 'Subscribe',
+                onPress: () => router.push('/subscribe'),
+              }
+            : undefined
+        }
       >
-        {toastMessage}
+        {toastState?.message}
       </Snackbar>
     </ScrollView>
   )

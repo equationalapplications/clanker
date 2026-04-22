@@ -6,8 +6,8 @@ This feature adds explicit, subscription-gated cloud persistence and sharing for
 
 - Character edit screen now includes:
   - `Save to Cloud` toggle (subscription-gated with subscribe CTA toast)
-  - `Make Character Sharable` toggle (disabled unless cloud-save is enabled)
-  - Share button (shown only for sharable characters)
+  - `Make Character Shareable` toggle (disabled unless cloud-save is enabled)
+  - Share button (shown only for shareable characters)
 - Share flow provides a social-friendly card with:
   - Character avatar
   - Character name

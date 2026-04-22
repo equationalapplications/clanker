@@ -16,7 +16,10 @@ export default function CharactersListScreen() {
   const characterService = useCharacterMachine()
   const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
   const [isRestoring, setIsRestoring] = useState(false)
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [toastState, setToastState] = useState<{
+    message: string
+    requiresSubscription: boolean
+  } | null>(null)
 
   // Navigate to edit page when creation completes
   useEffect(() => {
@@ -32,7 +35,10 @@ export default function CharactersListScreen() {
 
   const handleRetrieveFromCloud = async () => {
     if (!isSubscriber) {
-      setToastMessage('Cloud retrieval requires a monthly_20 or monthly_50 subscription.')
+      setToastState({
+        message: 'Cloud retrieval requires a monthly_20 or monthly_50 subscription.',
+        requiresSubscription: true,
+      })
       return
     }
 
@@ -41,9 +47,10 @@ export default function CharactersListScreen() {
       await restoreFromCloud()
       characterService.send({ type: 'LOAD' })
     } catch (error) {
-      setToastMessage(
-        error instanceof Error ? error.message : 'Failed to retrieve characters from cloud.',
-      )
+      setToastState({
+        message: error instanceof Error ? error.message : 'Failed to retrieve characters from cloud.',
+        requiresSubscription: false,
+      })
     } finally {
       setIsRestoring(false)
     }
@@ -120,15 +127,19 @@ export default function CharactersListScreen() {
       )}
 
       <Snackbar
-        visible={toastMessage !== null}
-        onDismiss={() => setToastMessage(null)}
+        visible={toastState !== null}
+        onDismiss={() => setToastState(null)}
         duration={4000}
-        action={{
-          label: 'Subscribe',
-          onPress: () => router.push('/subscribe'),
-        }}
+        action={
+          toastState?.requiresSubscription && !isSubscriber
+            ? {
+                label: 'Subscribe',
+                onPress: () => router.push('/subscribe'),
+              }
+            : undefined
+        }
       >
-        {toastMessage}
+        {toastState?.message}
       </Snackbar>
     </View>
   )

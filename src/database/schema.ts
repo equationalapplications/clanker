@@ -6,6 +6,25 @@
 export const SCHEMA_VERSION = 5
 
 /**
+ * Columns that must exist for a database to be treated as already matching
+ * the latest schema version during bootstrap.
+ */
+export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
+  characters: ['deleted_at', 'avatar_data', 'avatar_mime_type', 'save_to_cloud'],
+}
+
+/**
+ * Column-presence guards that can be used to skip migrations when upgrading
+ * legacy databases that may already contain the target column.
+ */
+export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: string }> = {
+  2: { table: 'characters', column: 'deleted_at' },
+  3: { table: 'characters', column: 'avatar_data' },
+  4: { table: 'characters', column: 'avatar_mime_type' },
+  5: { table: 'characters', column: 'save_to_cloud' },
+}
+
+/**
  * SQL statements to create tables
  */
 export const CREATE_TABLES = `
