@@ -229,6 +229,7 @@ export default function EditCharacterScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Keep Snackbar as a sibling so it anchors to viewport bottom instead of scroll content. */}
       <ScrollView style={styles.scrollView}>
       <View style={styles.content}>
         <Text variant="headlineMedium" style={styles.title}>

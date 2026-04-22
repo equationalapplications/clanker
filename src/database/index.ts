@@ -109,7 +109,7 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
             save_to_cloud: hasSaveToCloud,
         }
         const hasLatestCharacterSchema = LATEST_SCHEMA_REQUIRED_COLUMNS.characters.every(
-            (requiredColumn) => characterColumnPresence[requiredColumn] === true,
+            (requiredColumn) => characterColumnPresence[requiredColumn],
         )
 
         if (hasLatestCharacterSchema) {
