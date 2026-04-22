@@ -182,7 +182,7 @@ export default function EditCharacterScreen() {
       return
     }
 
-      setSaveToCloud(nextValue)
+    setSaveToCloud(nextValue)
     if (!nextValue) {
       setIsCharacterShareable(false)
     }

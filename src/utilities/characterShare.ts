@@ -29,7 +29,7 @@ export const buildCharacterQrCodeDataUrl = async (shareUrl: string) => {
   } catch (error) {
     const details = error instanceof Error ? error.message : String(error)
     throw new Error(
-      `Failed to generate QR code. Please try again in a moment. Details: ${details}`,
+      `Failed to generate QR code. Check the share URL format or try again. Details: ${details}`,
     )
   }
 }
