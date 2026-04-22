@@ -90,7 +90,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
 
     return new Promise((resolve) => {
       window.google.accounts.id.initialize({
-        client_id: '54051268985-0o12j8d0hh6t5t2p9sbasm3diir0c71u.apps.googleusercontent.com',
+        client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
         callback: async (response: any) => {
           try {
             if (response.credential) {
@@ -112,7 +112,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
           // One Tap not available, try OAuth2 token flow
           window.google.accounts.oauth2
             .initTokenClient({
-              client_id: '54051268985-0o12j8d0hh6t5t2p9sbasm3diir0c71u.apps.googleusercontent.com',
+              client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
               scope: 'email profile',
               callback: async (response: any) => {
                 try {
