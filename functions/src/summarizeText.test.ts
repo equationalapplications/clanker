@@ -46,27 +46,6 @@ test("summarizeTextHandler validates input payload", async () => {
   );
 });
 
-test("summarizeTextHandler enforces maxCharacters upper bound", async () => {
-  const auth = buildAuth();
-
-  await assert.rejects(
-    async () =>
-      summarizeTextHandler(
-        {
-          auth,
-          data: {
-            text: "hello",
-            maxCharacters: 4001,
-          },
-        } as never,
-        {
-          generateSummary: async () => "unused",
-        }
-      ),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
-});
-
 test("summarizeTextHandler trims and truncates generated summary", async () => {
   const auth = buildAuth();
 

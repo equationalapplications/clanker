@@ -50,7 +50,7 @@ Input:
 ```json
 {
   "text": "string (required, non-empty, max 16000 chars)",
-  "maxCharacters": "number (required integer, 1..4000)"
+  "maxCharacters": "number (required positive integer, no server-side upper bound)"
 }
 ```
 

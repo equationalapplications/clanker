@@ -5,7 +5,6 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
 const MAX_INPUT_LENGTH = 16_000;
-const MAX_SUMMARY_LENGTH = 4_000;
 const MAX_OUTPUT_TOKENS = 1_024;
 
 interface SummarizeTextData {
@@ -104,13 +103,6 @@ function parseInput(data: unknown): {text: string; maxCharacters: number} {
   }
 
   const maxCharacters = rawMaxCharacters;
-
-  if (maxCharacters > MAX_SUMMARY_LENGTH) {
-    throw new HttpsError(
-      "invalid-argument",
-      `maxCharacters must be at most ${MAX_SUMMARY_LENGTH}.`
-    );
-  }
 
   return {
     text: rawText,
