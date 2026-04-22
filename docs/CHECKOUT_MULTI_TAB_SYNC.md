@@ -68,9 +68,9 @@ When a user signs out or their UID changes:
 
 The system does **not** use interval polling to check purchase state. Instead:
 
-- **Focus/visibility recovery**: When a tab regains focus or becomes visible, it queries the server once to reconcile state
+- **Focus/visibility recovery**: When a tab regains focus or becomes visible, it re-hydrates checkout attempt state from `localStorage`, re-derives lock state locally, and expires stale pending attempts based on TTL
 - **BroadcastChannel events**: Explicit broadcasts trigger immediate reconciliation across tabs
-- **Convergence via requestBootstrapRefresh**: The auth bootstrap refresh mechanism is event-driven and deduped; when checkout completes, a purchase-scoped refresh is requested but not forced repeatedly
+- **Convergence via requestBootstrapRefresh**: The auth bootstrap refresh mechanism is event-driven and deduped; when a checkout reaches a terminal state, a purchase-scoped refresh may be requested to converge server-backed state without repeated queries
 
 ## Stripe Return-Tab Recovery Flow
 
@@ -87,9 +87,9 @@ The system does **not** use interval polling to check purchase state. Instead:
 ### Manual Testing Checklist
 
 - **Single-tab flow**: Initiate purchase, complete Stripe redirect in same tab, verify state cleanup
-- **Multi-tab flow**: Open checkout in Tab A, initiate Stripe in Tab A, complete redirect in Tab B, verify Tab A's checkout UI is disabled
+- **Multi-tab flow**: Open checkout in Tab A, initiate Stripe in Tab A, complete redirect in Tab B, verify Tab A receives the terminal update, clears pending state, and its checkout UI unlocks
 - **Tab closure**: Close the return-tab after Stripe redirect, verify other tabs eventually recover state via focus event
-- **Stale recovery**: Wait longer than TTL window, attempt to use old `attemptId`, verify it is rejected
+- **Stale recovery**: Wait longer than TTL window, regain focus/visibility, verify the stale pending attempt is transitioned locally to `expired` and the UI shows timeout/recovery messaging rather than remaining locked
 - **Sign-out**: Complete a purchase, sign out, sign back in as different user, verify old `attemptId` is inaccessible
 - **UID change**: Trigger UID change (token refresh with new UID), verify all locks are cleared
 
@@ -133,7 +133,7 @@ BroadcastChannel ensures that:
 - **attemptId is scoped to UID**: An `attemptId` is only valid for the user who initiated it
 - **Locks are per-product + UID**: Prevents cross-user purchase race conditions
 - **localStorage is per-origin**: Web checkout only; native app uses in-memory state
-- **TTL enforcement**: Stale attempts are rejected even if `attemptId` is present in storage
+- **TTL handling**: Stale pending attempts are expired during focus/visibility recovery, even if their `attemptId` is still present in storage
 - **Sign-out clears pending state**: Pending attempts are removed on auth identity changes so new sessions do not inherit in-progress locks
 
 ## Related Documentation
