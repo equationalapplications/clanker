@@ -47,51 +47,68 @@ That's it! Your cloud builds are now configured.
 
 ## 2. Local Development Builds
 
-For local builds (i.e., running `eas build --local ...`), you cannot pull the secret files from EAS. Instead, we use a local `.env` file and scripts to manage them.
+For local builds (`eas build --local`), EAS does not inject cloud secrets into your local shell. Instead, store the Firebase config files as base64 strings in a local `.env` file. The `scripts/eas-local-build.js` wrapper loads `.env` and passes the vars into the `eas-cli` subprocess, where `app.config.ts` decodes them at config-evaluation time.
 
 ### How it Works
 
-1.  You download the Firebase config files.
-2.  You convert their contents into `base64` strings.
-3.  You store these strings in a local `.env` file.
-4.  When you run a local build script (like `npm run build:...`), a setup script decodes the base64 string and creates the necessary files under `./temp/`.
-5.  A cleanup script automatically removes the files after the build is complete.
+1.  You download the Firebase config files and encode them as base64.
+2.  You store the base64 strings in a local `.env` file.
+3.  You run one of the `npm run build:*` scripts.
+4.  `scripts/eas-local-build.js` loads `.env` and spawns `eas-cli build --local`.
+5.  Inside the build, `app.config.ts` decodes `GOOGLE_SERVICES_JSON_BASE64` into `./temp/google-services.json` and returns that path.
 
 ### Setup Steps
 
 1.  **Download Config Files**: Get `google-services.json` and `GoogleService-Info.plist` from your Firebase Console.
 
-2.  **Convert to Base64**: Open your terminal and run the following commands on the downloaded files.
+2.  **Convert to Base64** (single-line output for `.env` values):
 
-    *On macOS & Linux:*
+    *On macOS (BSD base64):*
     ```bash
-    # For Android
-    base64 -i google-services.json
-
-    # For iOS
-    base64 -i GoogleService-Info.plist
+    base64 -i google-services.json | tr -d '\n'
+    base64 -i GoogleService-Info.plist | tr -d '\n'
     ```
-    Copy the output string from each command.
 
-3.  **Create `.env` file**: In the project root, create a file named `.env`.
+    *On Linux (GNU base64):*
+    ```bash
+    base64 -w 0 google-services.json
+    base64 -w 0 GoogleService-Info.plist
+    ```
 
-4.  **Add to `.env`**: Add the copied base64 strings to your `.env` file. The file should look like this:
+    Copy each output string.
+
+3.  **Create `.env`** in the project root:
 
     ```env
     # .env - For local builds only. DO NOT COMMIT THIS FILE.
 
-    # IMPORTANT: Use the *_BASE64 names locally to avoid collisions with EAS file env vars
-    GOOGLE_SERVICES_JSON_BASE64="<paste-your-base64-string-for-google-services.json-here>"
-    GOOGLE_SERVICE_INFO_PLIST_BASE64="<paste-your-base64-string-for-GoogleService-Info.plist-here>"
+    # IMPORTANT: Use the *_BASE64 names — GOOGLE_SERVICES_JSON and
+    # GOOGLE_SERVICE_INFO_PLIST (without suffix) are reserved for EAS cloud file env vars.
+    GOOGLE_SERVICES_JSON_BASE64="<base64-of-google-services.json>"
+    GOOGLE_SERVICE_INFO_PLIST_BASE64="<base64-of-GoogleService-Info.plist>"
     ```
 
-Your local builds are now configured. The scripts in `package.json` will handle the rest automatically.
+4.  **Run a local build** via the npm scripts:
 
-### Why the temp directory?
+    ```bash
+    # Android
+    npm run build:prod-a
+    npm run build:dev-a
 
-- Our `app.config.ts` first looks for EAS-provided file paths (`GOOGLE_SERVICES_JSON`, `GOOGLE_SERVICE_INFO_PLIST`).
-- If those are not present (local builds), it falls back to `./temp/google-services.json` and `./temp/GoogleService-Info.plist`.
-- The `./temp/` folder is ignored by git and kept out of Metro's module graph to avoid accidental tracking or caching issues during development.
+    # iOS
+    npm run build:prod-i
+    npm run build:dev-i
+    ```
+
+    These call `scripts/eas-local-build.js`, which loads `.env` and invokes
+    `eas-cli build --local --profile <profile> --platform <platform>`.
+
+    Alternatively, export `.env` yourself and run `eas-cli` directly:
+
+    ```bash
+    set -o allexport; source .env; set +o allexport
+    npx eas-cli build --platform android --profile production --local
+    ```
 
 Do not define `GOOGLE_SERVICES_JSON` or `GOOGLE_SERVICE_INFO_PLIST` in your local `.env`. Those names are reserved for EAS file environment variables.
 
