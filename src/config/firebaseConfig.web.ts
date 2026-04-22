@@ -110,6 +110,8 @@ const generateReplyFn = httpsCallable(functionsInstance, 'generateReply')
 
 const generateImageFn = httpsCallable(functionsInstance, 'generateImage')
 
+const summarizeTextFn = httpsCallable(functionsInstance, 'summarizeText')
+
 const purchasePackageStripe = httpsCallable(functionsInstance, 'purchasePackageStripe')
 
 const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
@@ -140,6 +142,7 @@ export {
   exchangeToken,
   generateReplyFn,
   generateImageFn,
+  summarizeTextFn,
   purchasePackageStripe,
   spendCreditsFn,
   adminListUsersFn,

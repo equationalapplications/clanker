@@ -139,8 +139,29 @@ async function getModel(): Promise<GenerativeModelLike> {
       });
     } catch (error: unknown) {
       modelPromise = undefined;
+
       const message = error instanceof Error ? error.message : String(error);
-      throw new HttpsError("internal", `Failed to initialize summarization model: ${message}`);
+      const missingVertexModule =
+        (error instanceof Error &&
+          ("code" in error && (error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND")) ||
+        message.includes("@google-cloud/vertexai");
+
+      if (missingVertexModule) {
+        throw new HttpsError(
+          "failed-precondition",
+          "The @google-cloud/vertexai package is not available. " +
+            "Ensure it is installed and deployed with this function."
+        );
+      }
+
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      throw new HttpsError(
+        "internal",
+        `Failed to initialize summarization model: ${message}`
+      );
     }
   })();
 

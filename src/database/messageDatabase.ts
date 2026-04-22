@@ -36,7 +36,7 @@ function toGiftedChatMessage(
     text: msg.text,
     createdAt: new Date(msg.created_at),
     user: {
-      _id: isUserMessage ? msg.sender_user_id : msg.recipient_user_id || msg.character_id,
+      _id: msg.sender_user_id,
       name: isUserMessage ? 'You' : 'Character',
     },
     character_id: msg.character_id,
