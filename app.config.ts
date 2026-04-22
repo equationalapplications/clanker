@@ -70,6 +70,21 @@ const getGoogleServiceInfoPlist = () => {
   return undefined
 }
 
+const getGoogleIosUrlScheme = () => {
+  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim()
+  if (!iosClientId) {
+    return undefined
+  }
+
+  const suffix = '.apps.googleusercontent.com'
+  if (!iosClientId.endsWith(suffix)) {
+    return undefined
+  }
+
+  const clientIdCore = iosClientId.slice(0, -suffix.length)
+  return `com.googleusercontent.apps.${clientIdCore}`
+}
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   scheme: 'com.equationalapplications.clanker',
@@ -167,7 +182,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "@react-native-google-signin/google-signin",
       {
-        "iosUrlScheme": "com.googleusercontent.apps.790870307455-eec2ci25b9amdrm52d7067jkmocovdbd"
+        "iosUrlScheme": getGoogleIosUrlScheme()
       }
     ],
   ],
