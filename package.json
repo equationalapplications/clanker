@@ -1,6 +1,6 @@
 {
   "name": "clanker",
-  "version": "28.1.1",
+  "version": "28.2.0",
   "main": "expo-router/entry",
   "scripts": {
     "build:prod-a": "node scripts/eas-local-build.js --platform android --profile production",

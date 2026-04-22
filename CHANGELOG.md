@@ -1,3 +1,35 @@
+# [28.2.0](https://github.com/equationalapplications/clanker/compare/v28.1.1...v28.2.0) (2026-04-22)
+
+
+### Bug Fixes
+
+* **build:** simplify local EAS builds via env var injection ([2d9b6ac](https://github.com/equationalapplications/clanker/commit/2d9b6ac18d2bb3ed8b72f88c32f5b5c2ff5c9bd2))
+* **build:** stabilize local firebase temp paths ([51d50e5](https://github.com/equationalapplications/clanker/commit/51d50e5f231bcafaef7d8f4ff3b755a7e0a624b3))
+* **characters:** add share-sheet error handling ([4b32489](https://github.com/equationalapplications/clanker/commit/4b32489f58e5134a47494871ecc4597fef48a5d6))
+* **characters:** address final review nits ([6b2fb1c](https://github.com/equationalapplications/clanker/commit/6b2fb1cfa7e89e5b2989970feb78f2005fc86dbf))
+* **characters:** address review feedback on naming and state ([a4a9a2f](https://github.com/equationalapplications/clanker/commit/a4a9a2f80a6aa6d495799e84f62f28dc683e4ba2))
+* **characters:** harden qr generation and sync transition logic ([10a27d5](https://github.com/equationalapplications/clanker/commit/10a27d52a7cf335b1d50cafc1602a9d27912f451))
+* **characters:** make share failure toast generic ([40d128d](https://github.com/equationalapplications/clanker/commit/40d128d720e2930ef7e2aae9e3c87b171e7e928e))
+* **characters:** polish migration and share error messages ([d7f840a](https://github.com/equationalapplications/clanker/commit/d7f840a9c94396da235d7456a81bdeb8474d11e4))
+* **characters:** polish qr error handling and logging ([5f25eff](https://github.com/equationalapplications/clanker/commit/5f25effafd6ec4d374baf7630aed3b47e08d6a6a))
+* **characters:** refine messaging and shareable state naming ([4411e7b](https://github.com/equationalapplications/clanker/commit/4411e7b7a9f26f10b5f190229c1312e276ca6972))
+* **characters:** remove qr code and resolve review follow-ups ([fee0f3a](https://github.com/equationalapplications/clanker/commit/fee0f3a8dd42a332d47a70ae823a51d9ef410bb1))
+* **characters:** resolve remaining PR review feedback ([fc8430f](https://github.com/equationalapplications/clanker/commit/fc8430f07994b283e5718ac2d1c33a8a6ab8db62))
+* **chat:** advance summary_checkpoint before attempt to prevent burst retries on failure ([e2e9c48](https://github.com/equationalapplications/clanker/commit/e2e9c48c35bc7305996b78ab01c04f56010d5392))
+* **chat:** persist summary checkpoints for 20-message batches ([8b2167d](https://github.com/equationalapplications/clanker/commit/8b2167d71e1f4ce05480ba6e384689a295762da2))
+* **chat:** resolve three review issues - web callable, role detection, and getModel error handling ([70e5b30](https://github.com/equationalapplications/clanker/commit/70e5b30799692d10fa2a25aa102c378370816a94))
+* **chat:** select most recent messages for prompt context ([0655d89](https://github.com/equationalapplications/clanker/commit/0655d899c534a6e967ebb65f1f0407ce5592ff5d))
+* **docs:** make local Firebase base64 commands cross-platform ([13b1004](https://github.com/equationalapplications/clanker/commit/13b1004f1a44d9047f43eb7be2a3d3989fa2bccb))
+* **functions:** harden summarizeText input typing ([2c84b5d](https://github.com/equationalapplications/clanker/commit/2c84b5d2b715f2c04399cd26c2163f861b05d755))
+* **functions:** remove hardcoded maxCharacters upper bound from summarizeText ([1161dd3](https://github.com/equationalapplications/clanker/commit/1161dd3af4f3019d2ea9af9b94240e9cf0be0363))
+
+
+### Features
+
+* **characters:** add cloud save share UI and deep-link import ([85e82c4](https://github.com/equationalapplications/clanker/commit/85e82c4034cc4a04bd016c136e3490daf7fcf236))
+* **characters:** add cloud share backend and opt-in sync flag ([9578d86](https://github.com/equationalapplications/clanker/commit/9578d86954219cd76b02935b331819f31512e82d))
+* **chat:** add background chat memory summarization pipeline ([cf48f2c](https://github.com/equationalapplications/clanker/commit/cf48f2cc48e3106fda7c3e6cfa151e128cf7fccb))
+
 ## [28.1.1](https://github.com/equationalapplications/clanker/compare/v28.1.0...v28.1.1) (2026-04-21)
 
 
