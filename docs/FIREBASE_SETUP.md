@@ -38,7 +38,7 @@ eas env:create --environment production --name GOOGLE_SERVICES_JSON --type file 
 
 **For iOS:**
 ```bash
-eas env:create --environment production --name GOOGLE_SERVICE_INFO_PLIST --type file --value ./temp/GoogleService-Info.plist --visibility secret --non-interactive
+eas env:create --environment production --name GOOGLE_SERVICE_INFO_PLIST --type file --value ./GoogleService-Info.plist --visibility secret --non-interactive
 ```
 
 > **Updating existing vars**: add `--force` to overwrite. `env:update` does not support file-type variables — `env:create --force` is the only way.
