@@ -1,4 +1,14 @@
 let mockPlatformOS: 'web' | 'ios' | 'android' = 'web'
+const mockRandomUUID = jest.fn(() => 'attempt-web-uuid')
+const mockGetCurrentUser = jest.fn()
+const mockUpsertCheckoutAttempt = jest.fn()
+const mockPublish = jest.fn()
+const mockClose = jest.fn()
+const mockCreateCheckoutChannel = jest.fn(() => ({
+  publish: mockPublish,
+  subscribe: jest.fn(),
+  close: mockClose,
+}))
 
 jest.mock('react-native', () => {
   return {
@@ -27,10 +37,24 @@ jest.mock('~/config/constants', () => ({
 
 jest.mock('~/config/firebaseConfig', () => ({
   purchasePackageStripe: jest.fn(),
+  getCurrentUser: () => mockGetCurrentUser(),
 }))
 
 jest.mock('~/config/revenueCatConfig', () => ({
   purchaseProduct: jest.fn(),
+}))
+
+jest.mock('~/utilities/checkoutStateStore', () => ({
+  CHECKOUT_SCHEMA_VERSION: 1,
+  upsertCheckoutAttempt: mockUpsertCheckoutAttempt,
+}))
+
+jest.mock('~/utilities/checkoutChannel', () => ({
+  createCheckoutChannel: mockCreateCheckoutChannel,
+}))
+
+jest.mock('expo-crypto', () => ({
+  randomUUID: () => mockRandomUUID(),
 }))
 
 type PlatformOS = 'web' | 'ios' | 'android'
@@ -64,40 +88,197 @@ describe('makePackagePurchase', () => {
     jest.resetModules()
     jest.clearAllMocks()
     mockPlatformOS = 'web'
+    mockRandomUUID.mockReset()
+    mockRandomUUID.mockReturnValue('attempt-web-uuid')
+    mockGetCurrentUser.mockReturnValue({ uid: 'user-1' })
+    mockCreateCheckoutChannel.mockReturnValue({
+      publish: mockPublish,
+      subscribe: jest.fn(),
+      close: mockClose,
+    })
+    mockUpsertCheckoutAttempt.mockImplementation((_uid: string, incoming: unknown) => ({
+      applied: true,
+      record: incoming,
+    }))
   })
 
+  function withMockWindowLocation<T>(callback: (location: { href: string }) => Promise<T>): Promise<T> {
+    const originalWindow = globalThis.window
+    const mockLocation = { href: '' }
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: { location: mockLocation } as unknown as Window,
+    })
+
+    return callback(mockLocation).finally(() => {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        writable: true,
+        value: originalWindow,
+      })
+    })
+  }
+
   it('uses credit-pack Stripe price on web payg purchase', async () => {
-    const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } = createHarness('web')
+    await withMockWindowLocation(async location => {
+      const {
+        makePackagePurchase,
+        purchasePackageStripeMock,
+        purchaseProductMock,
+        openURLMock,
+      } = createHarness('web')
 
-    await makePackagePurchase('payg')
+      await makePackagePurchase('payg')
 
-    expect(purchasePackageStripeMock).toHaveBeenCalledWith({ priceId: 'price_credit_pack' })
-    expect(openURLMock).toHaveBeenCalledWith('https://checkout.stripe.test/session_1')
-    expect(purchaseProductMock).not.toHaveBeenCalled()
+      expect(mockRandomUUID).toHaveBeenCalledTimes(1)
+      expect(purchasePackageStripeMock).toHaveBeenCalledWith({
+        priceId: 'price_credit_pack',
+        attemptId: 'attempt-web-uuid',
+      })
+      expect(location.href).toBe('https://checkout.stripe.test/session_1')
+      expect(openURLMock).not.toHaveBeenCalled()
+      expect(purchaseProductMock).not.toHaveBeenCalled()
+    })
+  })
+
+  it('persists and publishes a pending checkout attempt before redirect on web', async () => {
+    const sequence: string[] = []
+
+    mockUpsertCheckoutAttempt.mockImplementation((_uid: string, incoming: unknown) => {
+      sequence.push('persist')
+      return {
+        applied: true,
+        record: incoming,
+      }
+    })
+    mockPublish.mockImplementation(() => {
+      sequence.push('publish')
+    })
+
+    await withMockWindowLocation(async location => {
+      const {
+        makePackagePurchase,
+        purchasePackageStripeMock,
+        purchaseProductMock,
+        openURLMock,
+      } = createHarness('web')
+
+      let redirectedHref = ''
+      Object.defineProperty(location, 'href', {
+        configurable: true,
+        get: () => redirectedHref,
+        set: (value: string) => {
+          sequence.push('redirect')
+          redirectedHref = value
+        },
+      })
+
+      await makePackagePurchase('payg')
+
+      expect(purchasePackageStripeMock).toHaveBeenCalledWith({
+        priceId: 'price_credit_pack',
+        attemptId: 'attempt-web-uuid',
+      })
+      expect(mockCreateCheckoutChannel).toHaveBeenCalledWith({ uid: 'user-1' })
+      expect(mockCreateCheckoutChannel).toHaveBeenCalledTimes(1)
+      expect(mockUpsertCheckoutAttempt).toHaveBeenCalledTimes(1)
+      expect(mockPublish).toHaveBeenCalledTimes(1)
+      expect(mockClose).toHaveBeenCalledTimes(1)
+      expect(sequence).toEqual(['persist', 'publish', 'redirect'])
+
+      expect(mockUpsertCheckoutAttempt).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          attemptId: 'attempt-web-uuid',
+          productType: 'payg',
+          status: 'pending',
+          sourceTabId: expect.any(String),
+          schemaVersion: 1,
+        }),
+      )
+
+      const persistedRecord = mockUpsertCheckoutAttempt.mock.calls[0][1]
+
+      expect(persistedRecord).toEqual(
+        expect.objectContaining({
+          at: expect.any(String),
+        }),
+      )
+      expect(Number.isFinite(Date.parse((persistedRecord as { at: string }).at))).toBe(true)
+
+      expect(mockPublish).toHaveBeenCalledWith({
+        type: 'CHECKOUT_STARTED',
+        payload: persistedRecord,
+      })
+      expect(redirectedHref).toBe('https://checkout.stripe.test/session_1')
+      expect(openURLMock).not.toHaveBeenCalled()
+      expect(purchaseProductMock).not.toHaveBeenCalled()
+    })
   })
 
   it('uses monthly Stripe price on web subscription purchase', async () => {
-    const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } = createHarness('web')
+    await withMockWindowLocation(async location => {
+      const {
+        makePackagePurchase,
+        purchasePackageStripeMock,
+        purchaseProductMock,
+        openURLMock,
+      } = createHarness('web')
 
-    await makePackagePurchase('monthly_20')
+      await makePackagePurchase('monthly_20')
 
-    expect(purchasePackageStripeMock).toHaveBeenCalledWith({ priceId: 'price_monthly_20' })
-    expect(openURLMock).toHaveBeenCalledWith('https://checkout.stripe.test/session_1')
-    expect(purchaseProductMock).not.toHaveBeenCalled()
+      expect(purchasePackageStripeMock).toHaveBeenCalledWith({
+        priceId: 'price_monthly_20',
+        attemptId: 'attempt-web-uuid',
+      })
+      expect(location.href).toBe('https://checkout.stripe.test/session_1')
+      expect(openURLMock).not.toHaveBeenCalled()
+      expect(purchaseProductMock).not.toHaveBeenCalled()
+    })
+  })
+
+  it('redirects on web without persisting when uid is unavailable', async () => {
+    mockGetCurrentUser.mockReturnValue(null)
+
+    await withMockWindowLocation(async location => {
+      const {
+        makePackagePurchase,
+        purchasePackageStripeMock,
+        purchaseProductMock,
+        openURLMock,
+      } = createHarness('web')
+
+      await expect(makePackagePurchase('monthly_20')).resolves.toBeUndefined()
+
+      expect(purchasePackageStripeMock).toHaveBeenCalledWith({
+        priceId: 'price_monthly_20',
+        attemptId: 'attempt-web-uuid',
+      })
+      expect(mockUpsertCheckoutAttempt).not.toHaveBeenCalled()
+      expect(mockCreateCheckoutChannel).not.toHaveBeenCalled()
+      expect(mockPublish).not.toHaveBeenCalled()
+      expect(mockClose).not.toHaveBeenCalled()
+      expect(location.href).toBe('https://checkout.stripe.test/session_1')
+      expect(openURLMock).not.toHaveBeenCalled()
+      expect(purchaseProductMock).not.toHaveBeenCalled()
+    })
   })
 
   it('throws when Stripe checkout URL is missing on web', async () => {
-    const { makePackagePurchase, purchasePackageStripeMock, openURLMock } = createHarness('web')
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      purchasePackageStripeMock.mockResolvedValue({ data: '' })
+    await withMockWindowLocation(async () => {
+      const { makePackagePurchase, purchasePackageStripeMock, openURLMock } = createHarness('web')
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        purchasePackageStripeMock.mockResolvedValue({ data: '' })
 
-      await expect(makePackagePurchase('payg')).rejects.toThrow('No checkout URL returned from Stripe. Please try again.')
+        await expect(makePackagePurchase('payg')).rejects.toThrow('No checkout URL returned from Stripe. Please try again.')
 
-      expect(openURLMock).not.toHaveBeenCalled()
-    } finally {
-      consoleErrorSpy.mockRestore()
-    }
+        expect(openURLMock).not.toHaveBeenCalled()
+      } finally {
+        consoleErrorSpy.mockRestore()
+      }
+    })
   })
 
   it('uses RevenueCat on native', async () => {
@@ -144,15 +325,13 @@ describe('makePackagePurchase', () => {
     }
   })
 
-  it('propagates errors when opening Stripe checkout URL fails', async () => {
-    const { makePackagePurchase, openURLMock } = createHarness('web')
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    openURLMock.mockRejectedValueOnce(new Error('cannot open url'))
+  it('keeps native Linking path untouched on iOS', async () => {
+    const { makePackagePurchase, purchaseProductMock, purchasePackageStripeMock, openURLMock } = createHarness('ios')
 
-    try {
-      await expect(makePackagePurchase('payg')).rejects.toThrow('cannot open url')
-    } finally {
-      consoleErrorSpy.mockRestore()
-    }
+    await makePackagePurchase('monthly_20')
+
+    expect(purchaseProductMock).toHaveBeenCalledWith('monthly_20_subscription')
+    expect(purchasePackageStripeMock).not.toHaveBeenCalled()
+    expect(openURLMock).not.toHaveBeenCalled()
   })
 })
