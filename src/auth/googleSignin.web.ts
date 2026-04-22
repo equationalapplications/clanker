@@ -112,7 +112,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
           // One Tap not available, try OAuth2 token flow
           window.google.accounts.oauth2
             .initTokenClient({
-              client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
+              client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
               scope: 'email profile',
               callback: async (response: any) => {
                 try {
