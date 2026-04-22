@@ -1,3 +1,11 @@
+## [28.3.2](https://github.com/equationalapplications/clanker/compare/v28.3.1...v28.3.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* **auth:** address code review feedback ([8cd86ae](https://github.com/equationalapplications/clanker/commit/8cd86ae9b1fbbc90c434b97e86d3dc40b421b17a))
+* **auth:** validate env vars and cleanup on bootstrap failure ([aa70d22](https://github.com/equationalapplications/clanker/commit/aa70d220f54fa97f2d1bfd1ec56284e80783afc3))
+
 ## [28.3.1](https://github.com/equationalapplications/clanker/compare/v28.3.0...v28.3.1) (2026-04-22)
 
 
