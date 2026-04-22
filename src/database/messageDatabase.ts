@@ -330,3 +330,61 @@ export async function getMostRecentMessage(
 
     return toGiftedChatMessage(message, userId)
 }
+
+/**
+ * Get recent messages for summary generation (oldest to newest)
+ */
+export async function getMessagesForContextSummary(
+    characterId: string,
+    userId: string,
+    limit: number,
+): Promise<IMessage[]> {
+    const db = await getDatabase()
+
+    const messages = await db.getAllAsync<LocalMessage>(
+        `SELECT * FROM messages 
+     WHERE character_id = ? 
+     AND (sender_user_id = ? OR recipient_user_id = ?)
+     ORDER BY created_at DESC 
+     LIMIT ?`,
+        [characterId, userId, userId, limit],
+    )
+
+    return messages.reverse().map((msg) => toGiftedChatMessage(msg, userId))
+}
+
+/**
+ * Prune old messages while keeping only the newest messages for a conversation
+ */
+export async function pruneMessagesForCharacter(
+    characterId: string,
+    userId: string,
+    keepLatestCount: number,
+): Promise<void> {
+    const db = await getDatabase()
+
+    if (keepLatestCount <= 0) {
+        await db.runAsync(
+            `DELETE FROM messages 
+       WHERE character_id = ? 
+       AND (sender_user_id = ? OR recipient_user_id = ?)`,
+            [characterId, userId, userId],
+        )
+        return
+    }
+
+    await db.runAsync(
+        `DELETE FROM messages
+     WHERE character_id = ?
+       AND (sender_user_id = ? OR recipient_user_id = ?)
+       AND id NOT IN (
+         SELECT id
+         FROM messages
+         WHERE character_id = ?
+           AND (sender_user_id = ? OR recipient_user_id = ?)
+         ORDER BY created_at DESC
+         LIMIT ?
+       )`,
+        [characterId, userId, userId, characterId, userId, userId, keepLatestCount],
+    )
+}

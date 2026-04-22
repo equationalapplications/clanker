@@ -78,6 +78,19 @@ By setting `"codebase": "clanker"`, deploy commands can reliably target this app
 
 - **Reference**: See [Image generation function deep-dive](./IMAGE_GENERATION_FUNCTION.md).
 
+### `summarizeText`
+
+- **Purpose**: Summarizes chat memory text server-side for local SQLite context compaction.
+- **Process**:
+    1. Verifies callable auth context and token integrity.
+    2. Validates summarization input (`text`, `maxCharacters`).
+    3. Calls Vertex AI text model and returns bounded summary output.
+- **Security**:
+  - Enforces App Check.
+  - Keeps model invocation server-side.
+- **Billing**:
+  - Does not spend user credits.
+
 ### `purchasePackageStripe`
 
 - **Purpose**: Creates a Stripe Checkout session for purchasing subscriptions or one-time packages.
@@ -176,7 +189,7 @@ Use this checklist when setting up Firebase Functions for a new environment.
 - [ ] Deploy from `functions/`: `npm run deploy`.
 - [ ] If prompted, enter missing non-sensitive param values once (CLI persists them for the staging project).
 - [ ] Smoke test:
-  - callable: `exchangeToken`, `generateReply`, `generateImage`, `spendCredits`, `purchasePackageStripe`
+  - callable: `exchangeToken`, `generateReply`, `generateImage`, `summarizeText`, `spendCredits`, `purchasePackageStripe`
   - webhooks: `stripeWebhook`, `revenueCatWebhook`
 
 ### Production
@@ -253,6 +266,7 @@ All callable and webhook Cloud Run services must have the tag. Current list:
 - `exchangetoken`
 - `generatereply`
 - `generateimage`
+- `summarizetext`
 - `purchasepackagestripe`
 - `spendcredits`
 - `stripewebhook`
@@ -303,7 +317,7 @@ gcloud run services add-iam-policy-binding FUNCTION_NAME \
 To tag and grant access to **all services at once**:
 
 ```bash
-for fn in exchangetoken generatereply generateimage purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+for fn in exchangetoken generatereply generateimage summarizetext purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
   adminresetuserstate admindeleteuser deletemyaccount; do
   echo "=== $fn ==="
@@ -315,7 +329,7 @@ done
 
 # Wait ~15 seconds for tag propagation, then:
 
-for fn in exchangetoken generatereply generateimage purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+for fn in exchangetoken generatereply generateimage summarizetext purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
   adminresetuserstate admindeleteuser deletemyaccount; do
   echo "=== $fn ==="
@@ -330,7 +344,7 @@ done
 To **verify** which services have the tag:
 
 ```bash
-for fn in exchangetoken generatereply generateimage purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
+for fn in exchangetoken generatereply generateimage summarizetext purchasepackagestripe spendcredits stripewebhook revenuecatwebhook \
   adminlistusers adminsetusercredits adminsetusersubscription admincleartermsacceptance \
   adminresetuserstate admindeleteuser deletemyaccount; do
   echo "=== $fn ==="

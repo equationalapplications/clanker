@@ -11,6 +11,10 @@ export {
 } from "./generateImage.js";
 
 export {
+  summarizeText,
+} from "./summarizeText.js";
+
+export {
   spendCredits,
 } from "./spendCredits.js";
 

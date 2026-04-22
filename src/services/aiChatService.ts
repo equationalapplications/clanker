@@ -1,6 +1,13 @@
 import { sendMessage } from '~/services/messageService'
-import { saveAIMessage } from '~/database/messageDatabase'
+import {
+  getMessageCount,
+  getMessagesForContextSummary,
+  pruneMessagesForCharacter,
+  saveAIMessage,
+} from '~/database/messageDatabase'
+import { getCharacter as getLocalCharacter, updateCharacter } from '~/database/characterDatabase'
 import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
+import { summarizeText } from '~/services/summarizeTextService'
 import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
 import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
@@ -42,7 +49,11 @@ const MAX_CHARACTER_TRAITS_LENGTH = 1_000
 const MAX_USER_MESSAGE_LENGTH = 3_000
 const MAX_HISTORY_CHARS = 4_500
 const MAX_REFERENCE_ID_LENGTH = 128
+const SUMMARY_TRIGGER_MESSAGE_COUNT = 20
+const SUMMARY_KEEP_RECENT_MESSAGE_COUNT = 20
+const SUMMARY_MAX_CHARACTERS = 4_000
 const ELLIPSIS = '...'
+const activeSummaryJobs = new Set<string>()
 
 function truncateText(value: string, maxLength: number): string {
   if (maxLength <= 0) {
@@ -102,6 +113,90 @@ function buildReferenceId(value: unknown): string | undefined {
 
   const referenceId = truncateText(String(value), MAX_REFERENCE_ID_LENGTH)
   return referenceId.length > 0 ? referenceId : undefined
+}
+
+function buildSummaryInput(
+  characterName: string,
+  previousSummary: string,
+  recentMessages: {
+    role: 'user' | 'assistant'
+    content: string
+  }[],
+): string {
+  const previousSection = previousSummary.trim()
+    ? `Previous conversation summary (older context):\n${previousSummary.trim()}`
+    : 'Previous conversation summary (older context):\n(none yet)'
+
+  const recentSection = recentMessages
+    .map((message) => `${message.role}: ${message.content.trim()}`)
+    .join('\n')
+
+  return `You are maintaining long-term memory for an AI character named ${characterName}.
+
+Create an updated conversation summary that:
+- keeps key facts, goals, preferences, and unresolved threads
+- prioritizes details from recent messages over older summarized context
+- avoids repetition
+- stays concise
+
+${previousSection}
+
+Recent messages (higher priority):
+${recentSection}`
+}
+
+async function summarizeConversationInBackground(character: Character, userId: string): Promise<void> {
+  const summaryKey = `${character.id}:${userId}`
+  if (activeSummaryJobs.has(summaryKey)) {
+    return
+  }
+
+  activeSummaryJobs.add(summaryKey)
+
+  try {
+    const messageCount = await getMessageCount(character.id, userId)
+    if (messageCount === 0 || messageCount % SUMMARY_TRIGGER_MESSAGE_COUNT !== 0) {
+      return
+    }
+
+    const [latestCharacter, recentMessages] = await Promise.all([
+      getLocalCharacter(character.id, userId),
+      getMessagesForContextSummary(character.id, userId, SUMMARY_KEEP_RECENT_MESSAGE_COUNT),
+    ])
+
+    if (recentMessages.length === 0) {
+      return
+    }
+
+    const previousSummary = latestCharacter?.context ?? character.context ?? ''
+    const summaryInput = buildSummaryInput(
+      latestCharacter?.name ?? character.name,
+      previousSummary,
+      recentMessages.map((message) => ({
+        role: message.user._id === userId ? 'user' : 'assistant',
+        content: message.text,
+      })),
+    )
+
+    const summary = await summarizeText({
+      text: summaryInput,
+      maxCharacters: SUMMARY_MAX_CHARACTERS,
+    })
+
+    const normalizedSummary = summary.trim()
+    if (!normalizedSummary) {
+      return
+    }
+
+    await updateCharacter(character.id, userId, {
+      context: normalizedSummary.slice(0, SUMMARY_MAX_CHARACTERS),
+    })
+    await pruneMessagesForCharacter(character.id, userId, SUMMARY_KEEP_RECENT_MESSAGE_COUNT)
+  } catch (error) {
+    console.warn('Failed to summarize conversation context:', error)
+  } finally {
+    activeSummaryJobs.delete(summaryKey)
+  }
 }
 
 function buildChatPrompt(userMessage: string, context: ChatContext): string {
@@ -181,7 +276,7 @@ export const sendMessageWithAIResponse = async (
       characterName: character.name,
       characterPersonality: character.context || character.appearance,
       characterTraits: `${character.traits} ${character.emotions}`.trim(),
-      conversationHistory: conversationHistory.slice(-10).map((msg) => ({
+      conversationHistory: conversationHistory.slice(0, 10).reverse().map((msg) => ({
         role: msg.user._id === userId ? 'user' : 'assistant',
         content: msg.text,
       })),
@@ -205,6 +300,8 @@ export const sendMessageWithAIResponse = async (
         avatar: character.appearance || undefined,
       },
     })
+
+    void summarizeConversationInBackground(character, userId)
     return { usageSnapshot: toUsageSnapshot(aiResponse) }
   } catch (error) {
     console.error('Error in sendMessageWithAIResponse:', error)
