@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { View, StyleSheet, ScrollView , Share } from 'react-native'
+import { View, StyleSheet, ScrollView, Share } from 'react-native'
 import { Image } from 'expo-image'
 import {
   Text,
