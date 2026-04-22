@@ -98,18 +98,13 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // Distinguish between these by confirming the DB already has the
         // migration-added columns from the latest schema.
         const columns = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(characters)')
-        const hasDeletedAt = columns.some((column) => column.name === 'deleted_at')
-        const hasAvatarData = columns.some((column) => column.name === 'avatar_data')
-        const hasAvatarMimeType = columns.some((column) => column.name === 'avatar_mime_type')
-        const hasSaveToCloud = columns.some((column) => column.name === 'save_to_cloud')
-        const characterColumnPresence: Record<string, boolean> = {
-            deleted_at: hasDeletedAt,
-            avatar_data: hasAvatarData,
-            avatar_mime_type: hasAvatarMimeType,
-            save_to_cloud: hasSaveToCloud,
-        }
+        const characterColumnNames = new Set(columns.map((column) => column.name))
+        const hasDeletedAt = characterColumnNames.has('deleted_at')
+        const hasAvatarData = characterColumnNames.has('avatar_data')
+        const hasAvatarMimeType = characterColumnNames.has('avatar_mime_type')
+        const hasSaveToCloud = characterColumnNames.has('save_to_cloud')
         const hasLatestCharacterSchema = LATEST_SCHEMA_REQUIRED_COLUMNS.characters.every(
-            (requiredColumn) => characterColumnPresence[requiredColumn],
+            (requiredColumn) => characterColumnNames.has(requiredColumn),
         )
 
         if (hasLatestCharacterSchema) {
