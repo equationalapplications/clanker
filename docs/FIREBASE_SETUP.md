@@ -13,7 +13,7 @@ If you are migrating projects, always re-download both files from the target Fir
 
 The method for providing these files differs depending on your build environment.
 
-> **CLI note**: Commands in this guide use `npx eas-cli` to run the project-pinned version. You may also use the global `eas` binary if installed.
+> **CLI note**: Commands in this guide use `npx eas-cli` to run the EAS CLI without requiring a global install. You may also use the global `eas` binary if installed.
 
 ---
 
