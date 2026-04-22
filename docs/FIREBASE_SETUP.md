@@ -61,13 +61,20 @@ For local builds (`eas build --local`), EAS does not inject cloud secrets into y
 
 1.  **Download Config Files**: Get `google-services.json` and `GoogleService-Info.plist` from your Firebase Console.
 
-2.  **Convert to Base64**:
+2.  **Convert to Base64** (single-line output for `.env` values):
 
-    *On macOS & Linux:*
+    *On macOS (BSD base64):*
     ```bash
-    base64 -i google-services.json
-    base64 -i GoogleService-Info.plist
+    base64 -i google-services.json | tr -d '\n'
+    base64 -i GoogleService-Info.plist | tr -d '\n'
     ```
+
+    *On Linux (GNU base64):*
+    ```bash
+    base64 -w 0 google-services.json
+    base64 -w 0 GoogleService-Info.plist
+    ```
+
     Copy each output string.
 
 3.  **Create `.env`** in the project root:
@@ -126,4 +133,3 @@ eas env:pull --environment development
 *   This file is already listed in `.gitignore` to prevent accidental commits.
 *   It contains sensitive API keys and credentials.
 *   Each developer needs to create their own `.env` file.
-
