@@ -128,15 +128,6 @@ Use this checklist for whichever Firebase project and app identifiers you are us
 3. Re-download fresh `GoogleService-Info.plist` and `google-services.json` after enabling Google auth.
 4. Confirm `GoogleService-Info.plist` includes `CLIENT_ID` and `REVERSED_CLIENT_ID`.
 5. Confirm `google-services.json` has non-empty `client[0].oauth_client` entries.
-6. Set/update OAuth env vars in EAS and local `.env`:
-    - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
-    - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
-    - No separate `GOOGLE_IOS_URL_SCHEME` env var is required; the iOS URL scheme comes from `GoogleService-Info.plist` / app config.
-7. Re-run local setup if needed to refresh temp files:
-
-    ```bash
-    npm run prebuild:setup
-    ```
 
 ### Apple Sign-In
 
