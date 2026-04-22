@@ -4,9 +4,16 @@ import { getAuth, signInWithCredential, GoogleAuthProvider } from '@react-native
 
 // Configure Google Sign-In
 export const initializeGoogleSignIn = () => {
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+  if (!webClientId) {
+    throw new Error(
+      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Configure it in .env or EAS secrets.'
+    )
+  }
+
   // Base config works for Android and iOS; Android uses the Web client ID.
   const baseConfig: Record<string, any> = {
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    webClientId,
     offlineAccess: true,
     hostedDomain: '',
     forceCodeForRefreshToken: true,
