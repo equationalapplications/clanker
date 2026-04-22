@@ -156,6 +156,14 @@ export async function updateCharacter(
     updates: CharacterUpdate,
 ) {
     const db = await getDatabase()
+    const existing = await db.getFirstAsync<LocalCharacter>(
+        'SELECT * FROM characters WHERE id = ? AND user_id = ?',
+        [characterId, userId],
+    )
+
+    if (!existing) {
+        return null
+    }
 
     const updateFields: string[] = ['updated_at = ?']
     const values: any[] = [Date.now()]
@@ -195,6 +203,14 @@ export async function updateCharacter(
             updateFields.push('is_public = ?')
             values.push(0)
         }
+    }
+
+    const isEnablingCloudSave = updates.save_to_cloud === true && existing.save_to_cloud !== 1
+    if (isEnablingCloudSave) {
+        // Shared imports can carry a foreign cloud_id. When the user opts into their own cloud save,
+        // force a new cloud record under their account on next sync.
+        updateFields.push('cloud_id = ?')
+        values.push(null)
     }
 
     // Mark as not synced when updated locally
