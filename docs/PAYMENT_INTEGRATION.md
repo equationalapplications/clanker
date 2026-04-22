@@ -117,7 +117,7 @@ const REVENUECAT_CREDIT_PACK_IDS = new Set([
 ]);
 ```
 
-Note: the webhook receives the base subscription ID (`monthly_20_subscription`) without the base plan suffix — the mapping above stays correct for both platforms.
+Note: the webhook normalizes subscription IDs before lookup. If RevenueCat sends Android-style IDs with a base plan suffix (for example `monthly_20_subscription:monthly-usd-20`), the handler strips the suffix and still maps to the correct tier.
 
 These product IDs must match App Store Connect / Google Play Console exactly.
 
@@ -132,7 +132,7 @@ REVENUECAT_PRODUCTS.MONTHLY_20 =
     : 'monthly_20_subscription'                  // iOS: product ID only
 ```
 
-The RevenueCat webhook still receives only the base subscription ID (`monthly_20_subscription`) for both platforms — the backend mapping is unaffected.
+The RevenueCat webhook mapping is resilient to either format: base ID (`monthly_20_subscription`) or Android base-plan-suffixed ID (`monthly_20_subscription:monthly-usd-20`).
 
 #### Google Play Console IDs
 
