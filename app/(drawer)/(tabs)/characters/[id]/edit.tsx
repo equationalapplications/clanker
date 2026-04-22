@@ -48,7 +48,7 @@ export default function EditCharacterScreen() {
   const [emotions, setEmotions] = useState('')
   const [context, setContext] = useState('')
   const [saveToCloud, setSaveToCloud] = useState(false)
-  const [isShareable, setIsShareable] = useState(false)
+  const [isCharacterShareable, setIsCharacterShareable] = useState(false)
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [didAttemptSave, setDidAttemptSave] = useState(false)
@@ -82,7 +82,7 @@ export default function EditCharacterScreen() {
       emotions,
       context,
       saveToCloud: saveToCloud ? 'true' : 'false',
-      isShareable: isShareable ? 'true' : 'false',
+      isShareable: isCharacterShareable ? 'true' : 'false',
     },
     loadedValues,
   )
@@ -96,7 +96,7 @@ export default function EditCharacterScreen() {
       setEmotions(character.emotions || '')
       setContext(character.context || '')
       setSaveToCloud(character.save_to_cloud ?? false)
-      setIsShareable(character.is_public || false)
+      setIsCharacterShareable(character.is_public || false)
       setAvatarUri(character.avatar ?? null)
     }
   }, [character])
@@ -140,7 +140,7 @@ export default function EditCharacterScreen() {
       emotions,
       context,
       save_to_cloud: saveToCloud,
-      is_public: saveToCloud ? isShareable : false,
+      is_public: saveToCloud ? isCharacterShareable : false,
     })
   }
 
@@ -182,9 +182,9 @@ export default function EditCharacterScreen() {
       return
     }
 
-    setSaveToCloud(nextValue)
+      setSaveToCloud(nextValue)
     if (!nextValue) {
-      setIsShareable(false)
+      setIsCharacterShareable(false)
     }
   }
 
@@ -348,13 +348,13 @@ export default function EditCharacterScreen() {
             </Text>
           </View>
           <Switch
-            value={isShareable}
-            onValueChange={setIsShareable}
+            value={isCharacterShareable}
+            onValueChange={setIsCharacterShareable}
             disabled={!saveToCloud}
           />
         </View>
 
-        {isShareable ? (
+        {isCharacterShareable ? (
           <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton}>
             Share Character
           </Button>

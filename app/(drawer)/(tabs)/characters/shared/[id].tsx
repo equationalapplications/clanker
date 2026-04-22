@@ -27,7 +27,7 @@ export default function SharedCharacterImportScreen() {
     }
 
     if (!user) {
-      setErrorMessage('Sign in to import this shared character.')
+      setErrorMessage('Please sign in to import this shared character.')
       return
     }
 
