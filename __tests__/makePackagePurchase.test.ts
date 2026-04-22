@@ -28,7 +28,11 @@ jest.mock('~/config/constants', () => ({
   stripeMonthly50PriceId: 'price_monthly_50',
   stripeCreditPackPriceId: 'price_credit_pack',
   REVENUECAT_PRODUCTS: {
-    MONTHLY_20: 'monthly_20_subscription',
+    get MONTHLY_20() {
+      return mockPlatformOS === 'android'
+        ? 'monthly_20_subscription:monthly-usd-20'
+        : 'monthly_20_subscription'
+    },
     get CREDIT_PACK() {
       return mockPlatformOS === 'ios' ? 'credit_100' : 'credit_pack_100'
     },
@@ -331,6 +335,16 @@ describe('makePackagePurchase', () => {
     await makePackagePurchase('monthly_20')
 
     expect(purchaseProductMock).toHaveBeenCalledWith('monthly_20_subscription')
+    expect(purchasePackageStripeMock).not.toHaveBeenCalled()
+    expect(openURLMock).not.toHaveBeenCalled()
+  })
+
+  it('uses Android base plan product id for monthly_20 on Android', async () => {
+    const { makePackagePurchase, purchaseProductMock, purchasePackageStripeMock, openURLMock } = createHarness('android')
+
+    await makePackagePurchase('monthly_20')
+
+    expect(purchaseProductMock).toHaveBeenCalledWith('monthly_20_subscription:monthly-usd-20')
     expect(purchasePackageStripeMock).not.toHaveBeenCalled()
     expect(openURLMock).not.toHaveBeenCalled()
   })

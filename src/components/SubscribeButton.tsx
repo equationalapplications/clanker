@@ -1,5 +1,5 @@
 import Button from './Button'
-import { Platform } from 'react-native'
+import { Alert, Platform } from 'react-native'
 import { makePackagePurchase, type ProductType } from '../utilities/makePackagePurchase'
 import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
 
@@ -18,6 +18,9 @@ export default function SubscribeButton({ onChangeIsLoading, productType = 'mont
       if (Platform.OS !== 'web' && purchaseResult != null) {
         refreshBootstrap('purchase')
       }
+    } catch (e: any) {
+      console.error('❌ SubscribeButton purchase error:', e)
+      Alert.alert('Purchase Failed', 'Something went wrong. Please try again.')
     } finally {
       onChangeIsLoading(false)
     }
