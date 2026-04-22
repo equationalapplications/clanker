@@ -1,3 +1,19 @@
+# [28.3.0](https://github.com/equationalapplications/clanker/compare/v28.2.0...v28.3.0) (2026-04-22)
+
+
+### Bug Fixes
+
+* **characters:** clarify cloud save subscription message ([01cb2d1](https://github.com/equationalapplications/clanker/commit/01cb2d1abf7882c7cf4106bf5a5643b4f09c8c29))
+* **characters:** use theme color in share modal; fix schema version doc ([447396a](https://github.com/equationalapplications/clanker/commit/447396a7a9a1ee03994f03e58da72dead706362c))
+* **checkout:** address PR review feedback for web checkout sync ([1735acd](https://github.com/equationalapplications/clanker/commit/1735acde71bb41284117a2a3c4ba7c4d0e05cecc))
+
+
+### Features
+
+* **chat:** make Enter send message, Shift+Enter adds newline ([549c6fd](https://github.com/equationalapplications/clanker/commit/549c6fd352d66eb690e488f4a69031fea531bd02))
+* **checkout:** multi-tab robustness + Stripe return recovery ([9abd565](https://github.com/equationalapplications/clanker/commit/9abd56507409ab4fdd4ade7179206176e26fbfa7))
+* **subscribe:** add Apple EULA link to Legal card ([915234a](https://github.com/equationalapplications/clanker/commit/915234aeae6913b0b45f7f906ed55bba19e026f4))
+
 # [28.2.0](https://github.com/equationalapplications/clanker/compare/v28.1.1...v28.2.0) (2026-04-22)
 
 
