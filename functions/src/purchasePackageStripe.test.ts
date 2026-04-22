@@ -80,6 +80,46 @@ test("purchasePackageStripeHandler validates unknown priceId", async () => {
   );
 });
 
+test("purchasePackageStripeHandler validates attemptId when provided", async () => {
+  await assert.rejects(
+    async () =>
+      purchasePackageStripeHandler({
+        auth: {
+          uid: "firebase-uid-1",
+          token: {uid: "firebase-uid-1"},
+        },
+        data: {
+          priceId: "price_monthly_20",
+          attemptId: 123,
+        },
+      } as never),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "invalid-argument" &&
+      err.message.includes("attemptId")
+  );
+});
+
+test("purchasePackageStripeHandler rejects oversized attemptId", async () => {
+  await assert.rejects(
+    async () =>
+      purchasePackageStripeHandler({
+        auth: {
+          uid: "firebase-uid-1",
+          token: {uid: "firebase-uid-1"},
+        },
+        data: {
+          priceId: "price_monthly_20",
+          attemptId: "a".repeat(129),
+        },
+      } as never),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "invalid-argument" &&
+      err.message.includes("at most 128 characters")
+  );
+});
+
 test("purchasePackageStripeHandler fails fast when Stripe price config is missing", async () => {
   const originalMonthly20 = process.env.STRIPE_MONTHLY_20_PRICE_ID;
   delete process.env.STRIPE_MONTHLY_20_PRICE_ID;
@@ -408,4 +448,94 @@ test("purchasePackageStripeHandler sends metadata and client_reference_id to che
       assert.equal(payload.metadata.email, "buyer@example.com");
     }
   );
+});
+
+test("purchasePackageStripeHandler appends attemptId to checkout return URLs and metadata", async (t) => {
+  const originalSuccessUrl = process.env.STRIPE_SUCCESS_URL;
+  const originalCancelUrl = process.env.STRIPE_CANCEL_URL;
+  process.env.STRIPE_SUCCESS_URL = "https://staging.clanker-ai.com/checkout/success?source=web";
+  process.env.STRIPE_CANCEL_URL = "https://staging.clanker-ai.com/checkout/cancel?source=web";
+
+  const {createCheckoutSessionMock} = stubHandlerDeps(
+    t,
+    "recurring",
+    "cs_attempt",
+    "https://checkout.stripe.test/attempt"
+  );
+
+  try {
+    await withAdminAuthStub(
+      async () => ({email: "buyer@example.com"}),
+      async () => {
+        await purchasePackageStripeHandler({
+          auth: {
+            uid: "firebase-uid-attempt",
+            token: {uid: "firebase-uid-attempt"},
+          },
+          data: {
+            priceId: "price_monthly_20",
+            attemptId: "attempt_123",
+          },
+        } as never);
+      }
+    );
+
+    const payload = createCheckoutSessionMock.mock.calls[0].arguments[0] as {
+      success_url: string;
+      cancel_url: string;
+      metadata: {firebase_uid: string; email: string; attemptId?: string};
+    };
+
+    const successUrl = new URL(payload.success_url);
+    const cancelUrl = new URL(payload.cancel_url);
+
+    assert.equal(successUrl.searchParams.get("source"), "web");
+    assert.equal(cancelUrl.searchParams.get("source"), "web");
+    assert.equal(successUrl.searchParams.get("attemptId"), "attempt_123");
+    assert.equal(cancelUrl.searchParams.get("attemptId"), "attempt_123");
+    assert.equal(payload.metadata.attemptId, "attempt_123");
+  } finally {
+    process.env.STRIPE_SUCCESS_URL = originalSuccessUrl;
+    process.env.STRIPE_CANCEL_URL = originalCancelUrl;
+  }
+});
+
+test("purchasePackageStripeHandler keeps UUID-like attemptId accepted and propagated", async (t) => {
+  const {createCheckoutSessionMock} = stubHandlerDeps(
+    t,
+    "recurring",
+    "cs_uuid_attempt",
+    "https://checkout.stripe.test/uuid-attempt"
+  );
+
+  const attemptId = "550e8400-e29b-41d4-a716-446655440000";
+
+  await withAdminAuthStub(
+    async () => ({email: "buyer@example.com"}),
+    async () => {
+      await purchasePackageStripeHandler({
+        auth: {
+          uid: "firebase-uid-uuid-attempt",
+          token: {uid: "firebase-uid-uuid-attempt"},
+        },
+        data: {
+          priceId: "price_monthly_20",
+          attemptId,
+        },
+      } as never);
+    }
+  );
+
+  const payload = createCheckoutSessionMock.mock.calls[0].arguments[0] as {
+    success_url: string;
+    cancel_url: string;
+    metadata: {firebase_uid: string; email: string; attemptId?: string};
+  };
+
+  const successUrl = new URL(payload.success_url);
+  const cancelUrl = new URL(payload.cancel_url);
+
+  assert.equal(successUrl.searchParams.get("attemptId"), attemptId);
+  assert.equal(cancelUrl.searchParams.get("attemptId"), attemptId);
+  assert.equal(payload.metadata.attemptId, attemptId);
 });

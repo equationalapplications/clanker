@@ -43,6 +43,7 @@
 - [Payment integration](docs/PAYMENT_INTEGRATION.md) — Client-side integration patterns for payments and subscriptions.
 - [Payment system design](docs/PAYMENT_SYSTEM.md) — Architecture and billing flow for multi-tenant subscriptions.
 - [Payment troubleshooting](docs/PAYMENT_TROUBLESHOOTING.md) — Common webhook and billing errors with fixes.
+- [Multi-tab checkout robustness](docs/CHECKOUT_MULTI_TAB_SYNC.md) — How Stripe return-tab recovery works using localStorage, BroadcastChannel, per-product locks, and event-driven refresh without polling.
 
 ## Policies & Compliance
 

@@ -8,6 +8,7 @@ import CreditsDisplay from '~/components/CreditsDisplay'
 import { useIsPremium } from '~/hooks/useIsPremium'
 import { useUserPrivateData } from '~/hooks/useUser'
 import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
+import { useWebCheckoutSync } from '~/hooks/useWebCheckoutSync'
 import { makePackagePurchase, type ProductType } from '~/utilities/makePackagePurchase'
 import { restorePurchases } from '~/config/revenueCatConfig'
 import { APPLE_EULA_URL } from '~/config/constants'
@@ -16,6 +17,12 @@ export default function SubscribeScreen() {
   const router = useRouter()
   const navigation = useNavigation()
   const refreshBootstrap = useBootstrapRefresh()
+  const handleWebCheckoutSucceeded = React.useCallback(() => {
+    refreshBootstrap('purchase')
+  }, [refreshBootstrap])
+  const { locks: webCheckoutLocks, expiredMessage, clearExpiredMessage } = useWebCheckoutSync({
+    onCheckoutSucceeded: handleWebCheckoutSucceeded,
+  })
   const isPremium = useIsPremium()
 
   // Override the drawer header title so the route-group name "(drawer)" never leaks through
@@ -62,6 +69,13 @@ export default function SubscribeScreen() {
     }
   }
 
+  const snackbarMessage = errorMessage ?? expiredMessage
+
+  const handleDismissSnackbar = () => {
+    setErrorMessage(null)
+    clearExpiredMessage()
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -94,7 +108,11 @@ export default function SubscribeScreen() {
         </Card>
 
         {Platform.OS === 'web' ? (
-          <CreditsDisplay />
+          <CreditsDisplay
+            webCheckoutLocks={webCheckoutLocks}
+            expiredMessage={expiredMessage}
+            onDismissExpiredMessage={clearExpiredMessage}
+          />
         ) : (
           <View style={styles.buttonContainer}>
             {!isPremium && (
@@ -224,11 +242,11 @@ export default function SubscribeScreen() {
       </ScrollView>
 
       <Snackbar
-        visible={errorMessage !== null}
-        onDismiss={() => setErrorMessage(null)}
+        visible={snackbarMessage !== null}
+        onDismiss={handleDismissSnackbar}
         duration={4000}
       >
-        {errorMessage}
+        {snackbarMessage}
       </Snackbar>
     </View>
   )
