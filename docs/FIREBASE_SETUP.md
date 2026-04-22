@@ -134,8 +134,7 @@ Use this checklist for whichever Firebase project and app identifiers you are us
 5. Confirm `google-services.json` has non-empty `client[0].oauth_client` entries.
 6. Set/update OAuth env vars in EAS and local `.env`:
     - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` - Required for web and Android native OAuth
-    - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` - Optional; required for native iOS OAuth (used by react-native-google-signin)
-    - `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME` - Optional; iOS URL scheme for Google OAuth callback (used in `app.config.ts`; if not set, defaults to reverse domain notation of bundle ID)
+    - `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME` - Required for iOS OAuth callback; set to the `REVERSED_CLIENT_ID` value from `GoogleService-Info.plist`
 7. Re-run local setup if needed to refresh temp files:
 
     ```bash
