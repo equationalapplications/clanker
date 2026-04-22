@@ -205,7 +205,7 @@ export const authMachine = createMachine(
           },
           onError: {
             target: 'signedOut',
-            actions: assign({ error: ({ event }) => event.error as Error }),
+            actions: ['clearFailedBootstrapSession', assign({ error: ({ event }) => event.error as Error })],
           },
         },
       },
@@ -385,6 +385,15 @@ export const authMachine = createMachine(
           logoutRevenueCat(),
           kvStorePersister.removeClient(),
         ]).catch((err) => console.error('clearSessionData failed:', err))
+        queryClient.clear()
+      },
+      clearFailedBootstrapSession: () => {
+        Promise.all([
+          firebaseSignOut(),
+          setCrashlyticsUserId(null),
+          logoutRevenueCat(),
+          kvStorePersister.removeClient(),
+        ]).catch((err) => console.error('clearFailedBootstrapSession failed:', err))
         queryClient.clear()
       },
     },
