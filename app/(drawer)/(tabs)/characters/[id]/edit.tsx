@@ -150,7 +150,7 @@ export default function EditCharacterScreen() {
   const handleToggleSaveToCloud = (nextValue: boolean) => {
     if (nextValue && !isSubscriber) {
       setToastState({
-        message: 'Cloud character save requires a monthly_20 or monthly_50 subscription.',
+        message: 'Cloud character save requires a monthly subscription.',
         requiresSubscription: true,
       })
       return
