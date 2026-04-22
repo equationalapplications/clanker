@@ -4,13 +4,16 @@ This document describes how chat memory is compacted in the Expo app to reduce S
 
 ## Summary
 
-The app now summarizes each conversation automatically every 20 stored messages.
+The app summarizes a conversation when at least 20 newly accumulated stored messages have been added since the last successful summary checkpoint.
 
 The generated summary is written into the character `context` field and old chat rows are pruned, while the most recent 20 messages are kept in SQLite for near-term conversational detail.
 
 ## Trigger Behavior
 
-- Trigger condition: total message count for a character conversation reaches a multiple of 20.
+- `characters.summary_checkpoint` stores the stored-message count baseline recorded after the last successful summarization for a `(characterId, userId)` conversation.
+- `messageCount` is the current `COUNT(*)` of stored messages for that conversation.
+- Trigger condition: run summarization when `messageCount - summary_checkpoint >= 20`.
+- Because older rows are pruned after summarization, `messageCount` can decrease over time; this is not a simple "total historical messages reached a multiple of 20" rule.
 - Trigger location: after an AI reply is saved locally.
 - Execution mode: fire-and-forget background task so message send UX is not blocked.
 - Concurrency guard: one summary job per `(characterId, userId)` can run at a time.
