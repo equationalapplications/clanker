@@ -212,6 +212,13 @@ export default function SubscribeScreen() {
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
               onPress={() => router.push('/privacy')}
             />
+            <Divider />
+            <List.Item
+              title="Apple Standard EULA"
+              left={(props) => <List.Icon {...props} icon="apple" />}
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => Linking.openURL(APPLE_EULA_URL)}
+            />
           </Card.Content>
         </Card>
       </ScrollView>
