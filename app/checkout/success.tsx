@@ -3,10 +3,10 @@ import { StyleSheet, View } from 'react-native'
 import { Text, Button } from 'react-native-paper'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
-import { getCurrentUser } from '~/config/firebaseConfig'
 import { createCheckoutChannel } from '~/utilities/checkoutChannel'
 import { CHECKOUT_SCHEMA_VERSION, readCheckoutAttempts, upsertCheckoutAttempt } from '~/utilities/checkoutStateStore'
 import { resolveCheckoutAttemptId } from '~/utilities/checkoutAttemptId'
+import { resolveCheckoutUid } from '~/utilities/resolveCheckoutUid'
 
 export default function CheckoutSuccess() {
   const router = useRouter()
@@ -15,7 +15,7 @@ export default function CheckoutSuccess() {
   const hasTriggeredRef = useRef(false)
   const attemptId = useMemo(() => resolveCheckoutAttemptId(params.attemptId), [params.attemptId])
 
-  const refreshAndNavigate = useCallback(() => {
+  const refreshAndNavigate = useCallback(async () => {
     if (hasTriggeredRef.current) {
       router.replace('/')
       return
@@ -23,7 +23,7 @@ export default function CheckoutSuccess() {
 
     hasTriggeredRef.current = true
 
-    const uid = getCurrentUser()?.uid
+    const uid = await resolveCheckoutUid()
     if (attemptId && uid) {
       const existing = readCheckoutAttempts(uid)[attemptId]
 
@@ -51,8 +51,8 @@ export default function CheckoutSuccess() {
   }, [attemptId, refreshBootstrap, router])
 
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      refreshAndNavigate()
+    const timer = setTimeout(() => {
+      void refreshAndNavigate()
     }, 3000)
     return () => clearTimeout(timer)
   }, [refreshAndNavigate])
@@ -69,7 +69,7 @@ export default function CheckoutSuccess() {
         mode="contained"
         testID="checkout-success-go-to-app"
         onPress={() => {
-          refreshAndNavigate()
+          void refreshAndNavigate()
         }}
         style={styles.button}
       >

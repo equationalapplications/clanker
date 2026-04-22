@@ -29,6 +29,7 @@ export interface CreateCheckoutChannelOptions {
 }
 
 const CHANNEL_PREFIX = 'checkout:channel:'
+const SENDER_PREFIX = 'checkout:sender:'
 
 function hasWindow(): boolean {
   return typeof window !== 'undefined'
@@ -83,9 +84,22 @@ function isValidEvent(value: unknown): value is CheckoutChannelEvent {
   )
 }
 
+function createSenderId(): string {
+  try {
+    if (typeof globalThis.crypto?.randomUUID === 'function') {
+      return `${SENDER_PREFIX}${globalThis.crypto.randomUUID()}`
+    }
+  } catch {
+    // Ignore crypto access failures and fall back to timestamp/random entropy.
+  }
+
+  return `${SENDER_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
 export function createCheckoutChannel({ uid }: CreateCheckoutChannelOptions): CheckoutChannel {
   const listeners = new Set<CheckoutChannelHandler>()
   const channelName = `clanker:${uid}:checkout`
+  const senderId = createSenderId()
   let broadcastChannel: BroadcastChannel | null = null
   let removeStorageListener: (() => void) | null = null
 
@@ -100,11 +114,20 @@ export function createCheckoutChannel({ uid }: CreateCheckoutChannelOptions): Ch
   }
 
   const onExternalEvent = (candidate: unknown): void => {
-    if (!isValidEvent(candidate)) {
+    let eventPayload: unknown = candidate
+    let eventSenderId: string | null = null
+
+    if (candidate && typeof candidate === 'object' && 'event' in candidate) {
+      const envelope = candidate as { event?: unknown; senderId?: unknown }
+      eventPayload = envelope.event
+      eventSenderId = typeof envelope.senderId === 'string' ? envelope.senderId : null
+    }
+
+    if (eventSenderId === senderId || !isValidEvent(eventPayload)) {
       return
     }
 
-    dispatch(candidate)
+    dispatch(eventPayload)
   }
 
   if (typeof globalThis.BroadcastChannel === 'function') {
@@ -153,7 +176,10 @@ export function createCheckoutChannel({ uid }: CreateCheckoutChannelOptions): Ch
 
     if (broadcastChannel) {
       try {
-        broadcastChannel.postMessage(event)
+        broadcastChannel.postMessage({
+          event,
+          senderId,
+        })
       } catch {
         // Ignore broadcast failures and keep local behavior deterministic.
       }

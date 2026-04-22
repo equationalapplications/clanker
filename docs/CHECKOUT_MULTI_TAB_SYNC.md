@@ -11,8 +11,8 @@ This document describes how Clanker's checkout flow maintains robustness across 
 When a user initiates a purchase:
 
 1. **attemptId contract**: A unique `attemptId` is generated and persisted to `localStorage` before redirecting to Stripe
-2. **Stripe success/cancel redirect**: Stripe redirects back to the configured return URL (e.g., `/checkout/return?session_id=...`)
-3. **Return-page behavior**: The return page retrieves the `attemptId` from `localStorage`, validates it against the session, and initiates recovery logic
+2. **Stripe success/cancel redirect**: Stripe redirects back to `/checkout/success?attemptId=...` or `/checkout/cancel?attemptId=...`
+3. **Return-page behavior**: The success/cancel route reads the `attemptId` from query params, updates the matching per-UID attempt record, and broadcasts the terminal event for cross-tab unlock/recovery
 
 ### Multi-Tab Awareness with BroadcastChannel
 
@@ -25,13 +25,13 @@ When Stripe redirects in one tab:
 ### localStorage + BroadcastChannel Architecture
 
 **localStorage** stores:
-- `attemptId`: The unique attempt identifier for the current purchase flow
-- `lastValidatedAttemptId`: The most recent successfully processed attemptId (for TTL stale recovery)
-- Product-specific lock entries for per-product purchase coordination
+- `checkout:attempts:${uid}`: JSON object keyed by `attemptId`, where each value is a `CheckoutAttemptRecord` (`attemptId`, `productType`, `status`, `at`, `sourceTabId`, `schemaVersion`)
+- Pending records in that map are the source of truth for derived pay-as-you-go vs subscription lock state
+- Terminal (`succeeded` / `cancelled` / `expired`) records remain in the map until explicitly cleared
 
 **BroadcastChannel** broadcasts:
-- Checkout completion events (success/cancel) across tabs
-- Product lock acquisitions and releases
+- Checkout lifecycle events (`CHECKOUT_STARTED`, `CHECKOUT_SUCCEEDED`, `CHECKOUT_CANCELLED`, `CHECKOUT_STALE_CLEARED`) across tabs
+- Derived lock-state transitions (pending -> terminal/expired) for pay-as-you-go and subscription purchase UI
 - UID changes (triggering cache invalidation)
 
 ## State Management & Locking
@@ -40,19 +40,19 @@ When Stripe redirects in one tab:
 
 To prevent race conditions where multiple tabs attempt simultaneous purchases of the same product:
 
-- Before starting checkout, the system acquires a per-product lock stored in `localStorage`
-- The lock is scoped to the product ID and current user UID
-- Other tabs monitor this lock via `BroadcastChannel` and disable their purchase buttons for that product
-- The lock is released on successful completion or cancellation
+- Before starting checkout, the system writes a `pending` attempt record for the current UID and product type
+- Locks are derived from `pending` attempt records (`payg` vs non-`payg`) rather than separate lock keys
+- Other tabs consume checkout channel events and re-derive lock state from shared attempt records
+- Locks clear when matching attempts move to `succeeded`, `cancelled`, or `expired`
 
 ### TTL Stale Recovery
 
 When returning from Stripe:
 
-1. The `attemptId` from the URL/localStorage is validated
-2. `lastValidatedAttemptId` is checked to ensure the attempt is not stale (within TTL window)
-3. If stale, the system discards the attempt and clears associated state
-4. If valid, the system proceeds with recovery and credit reconciliation
+1. The active attempt map is loaded from `checkout:attempts:${uid}`
+2. Pending records are compared against the TTL window
+3. If stale, the record transitions to `expired` and a `CHECKOUT_STALE_CLEARED` event is broadcast
+4. Remaining non-stale records continue driving lock state until they transition terminally
 
 ## State Clearing & Synchronization
 
@@ -74,12 +74,12 @@ The system does **not** use interval polling to check purchase state. Instead:
 
 ## Stripe Return-Tab Recovery Flow
 
-1. **User completes Stripe payment**: Redirects to return URL in a possibly different tab
-2. **Return page loads**: Retrieves `attemptId` from localStorage
-3. **Validation query**: Calls the server to validate the `attemptId` and session state
-4. **BroadcastChannel broadcast**: Notifies all tabs of the result (success/cancel/expired)
-5. **Tab cleanup**: Listening tabs clear their checkoutStateStore and per-product locks
-6. **Credits reconciliation**: If successful, the returning tab displays confirmation and triggers `requestBootstrapRefresh('purchase')`
+1. **User completes Stripe payment**: Redirects to success/cancel URL in a possibly different tab
+2. **Return page loads**: Reads `attemptId` from the URL query string
+3. **Local attempt transition**: If a matching record exists under `checkout:attempts:${uid}`, it is updated to `succeeded` or `cancelled`
+4. **BroadcastChannel broadcast**: The return tab publishes a terminal event so other tabs immediately re-derive lock state
+5. **Tab cleanup**: Listening tabs unlock affected product flows; stale pending records are later transitioned to `expired` by TTL recovery when tabs regain focus/visibility
+6. **Credits reconciliation**: On success, the return tab triggers `requestBootstrapRefresh('purchase')`
 7. **Convergence**: The purchase-driven bootstrap refresh is event-driven and deduped; multiple tabs do not re-query unnecessarily
 
 ## Testing & Verification
@@ -108,7 +108,7 @@ The system does **not** use interval polling to check purchase state. Instead:
 
 The system relies on:
 - **Event-driven updates**: BroadcastChannel broadcasts and visibility changes trigger reconciliation
-- **Server-side state**: The source of truth (payment success/failure) lives on the server, queried once on return
+- **Server-side state**: Stripe/webhook processing remains the backend source of truth; return pages only apply local terminal transitions from the redirect context
 - **Deduplication**: Multiple concurrent recovery attempts are deduped by the bootstrap refresh mechanism
 
 ### requestBootstrapRefresh('purchase') Convergence
@@ -134,7 +134,7 @@ BroadcastChannel ensures that:
 - **Locks are per-product + UID**: Prevents cross-user purchase race conditions
 - **localStorage is per-origin**: Web checkout only; native app uses in-memory state
 - **TTL enforcement**: Stale attempts are rejected even if `attemptId` is present in storage
-- **Sign-out clears state**: All checkout data is removed when authentication changes
+- **Sign-out clears pending state**: Pending attempts are removed on auth identity changes so new sessions do not inherit in-progress locks
 
 ## Related Documentation
 

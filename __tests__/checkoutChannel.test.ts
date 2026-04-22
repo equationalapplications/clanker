@@ -1,3 +1,13 @@
+class SelfDeliveringBroadcastChannel {
+  public onmessage: ((event: MessageEvent<unknown>) => void) | null = null
+
+  postMessage(message: unknown): void {
+    this.onmessage?.({ data: message } as MessageEvent<unknown>)
+  }
+
+  close(): void {}
+}
+
 describe('checkoutChannel.web', () => {
   const originalBroadcastChannel = (globalThis as { BroadcastChannel?: typeof BroadcastChannel })
     .BroadcastChannel
@@ -73,6 +83,31 @@ describe('checkoutChannel.web', () => {
         type: 'CHECKOUT_CANCELLED',
       }),
     )
+    channel.close()
+  })
+
+  it('does not double-dispatch when BroadcastChannel self-delivers to sender', () => {
+    ;(globalThis as { BroadcastChannel?: unknown }).BroadcastChannel =
+      SelfDeliveringBroadcastChannel as unknown as typeof BroadcastChannel
+
+    const { createCheckoutChannel } = require('~/utilities/checkoutChannel.web')
+    const channel = createCheckoutChannel({ uid: 'user-a' })
+    const handler = jest.fn()
+    channel.subscribe(handler)
+
+    channel.publish({
+      type: 'CHECKOUT_STARTED',
+      payload: {
+        attemptId: 'attempt-2b',
+        productType: 'payg',
+        status: 'pending',
+        at: '2026-04-22T10:00:00.000Z',
+        sourceTabId: 'tab-a',
+        schemaVersion: 1,
+      },
+    })
+
+    expect(handler).toHaveBeenCalledTimes(1)
     channel.close()
   })
 

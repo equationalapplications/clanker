@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Text, Button } from 'react-native-paper'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { getCurrentUser } from '~/config/firebaseConfig'
 import { createCheckoutChannel } from '~/utilities/checkoutChannel'
 import { CHECKOUT_SCHEMA_VERSION, readCheckoutAttempts, upsertCheckoutAttempt } from '~/utilities/checkoutStateStore'
 import { resolveCheckoutAttemptId } from '~/utilities/checkoutAttemptId'
+import { resolveCheckoutUid } from '~/utilities/resolveCheckoutUid'
 
 export default function CheckoutCancel() {
   const router = useRouter()
@@ -13,14 +13,14 @@ export default function CheckoutCancel() {
   const hasTriggeredRef = useRef(false)
   const attemptId = useMemo(() => resolveCheckoutAttemptId(params.attemptId), [params.attemptId])
 
-  const completeCancelAttempt = useCallback(() => {
+  const completeCancelAttempt = useCallback(async () => {
     if (hasTriggeredRef.current) {
       return
     }
 
     hasTriggeredRef.current = true
 
-    const uid = getCurrentUser()?.uid
+    const uid = await resolveCheckoutUid()
     if (attemptId && uid) {
       const existing = readCheckoutAttempts(uid)[attemptId]
 
@@ -44,19 +44,19 @@ export default function CheckoutCancel() {
     }
   }, [attemptId])
 
-  const navigateBackToApp = useCallback(() => {
-    completeCancelAttempt()
+  const navigateBackToApp = useCallback(async () => {
+    await completeCancelAttempt()
     router.replace('/')
   }, [completeCancelAttempt, router])
 
-  const navigateToRetry = useCallback(() => {
-    completeCancelAttempt()
+  const navigateToRetry = useCallback(async () => {
+    await completeCancelAttempt()
     router.back()
   }, [completeCancelAttempt, router])
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigateBackToApp()
+      void navigateBackToApp()
     }, 3000)
 
     return () => clearTimeout(timer)
@@ -73,12 +73,20 @@ export default function CheckoutCancel() {
       <Button
         mode="contained"
         testID="checkout-cancel-try-again"
-        onPress={navigateToRetry}
+        onPress={() => {
+          void navigateToRetry()
+        }}
         style={styles.button}
       >
         Try again
       </Button>
-      <Button mode="text" testID="checkout-cancel-back-to-app" onPress={navigateBackToApp}>
+      <Button
+        mode="text"
+        testID="checkout-cancel-back-to-app"
+        onPress={() => {
+          void navigateBackToApp()
+        }}
+      >
         Back to app
       </Button>
     </View>
