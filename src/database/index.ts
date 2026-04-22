@@ -99,12 +99,9 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // migration-added columns from the latest schema.
         const columns = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(characters)')
         const characterColumnNames = new Set(columns.map((column) => column.name))
-        const hasDeletedAt = characterColumnNames.has('deleted_at')
-        const hasAvatarData = characterColumnNames.has('avatar_data')
-        const hasAvatarMimeType = characterColumnNames.has('avatar_mime_type')
-        const hasSaveToCloud = characterColumnNames.has('save_to_cloud')
+        const hasCharacterColumn = (columnName: string) => characterColumnNames.has(columnName)
         const hasLatestCharacterSchema = LATEST_SCHEMA_REQUIRED_COLUMNS.characters.every(
-            (requiredColumn) => characterColumnNames.has(requiredColumn),
+            (requiredColumn) => hasCharacterColumn(requiredColumn),
         )
 
         if (hasLatestCharacterSchema) {
@@ -119,10 +116,23 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // Legacy DB without schema_version can be partially migrated.
         // Infer the nearest version so we only apply missing migrations.
         let inferredVersion = 0
-        if (hasDeletedAt) inferredVersion = 2
-        if (hasDeletedAt && hasAvatarData) inferredVersion = 3
-        if (hasDeletedAt && hasAvatarData && hasAvatarMimeType) inferredVersion = 4
-        if (hasDeletedAt && hasAvatarData && hasAvatarMimeType && hasSaveToCloud) inferredVersion = 5
+        if (hasCharacterColumn('deleted_at')) inferredVersion = 2
+        if (hasCharacterColumn('deleted_at') && hasCharacterColumn('avatar_data')) inferredVersion = 3
+        if (
+            hasCharacterColumn('deleted_at') &&
+            hasCharacterColumn('avatar_data') &&
+            hasCharacterColumn('avatar_mime_type')
+        ) {
+            inferredVersion = 4
+        }
+        if (
+            hasCharacterColumn('deleted_at') &&
+            hasCharacterColumn('avatar_data') &&
+            hasCharacterColumn('avatar_mime_type') &&
+            hasCharacterColumn('save_to_cloud')
+        ) {
+            inferredVersion = 5
+        }
         await runMigrations(executor, inferredVersion)
         return
     }
