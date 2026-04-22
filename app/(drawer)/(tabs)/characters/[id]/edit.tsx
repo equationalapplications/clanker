@@ -47,7 +47,7 @@ export default function EditCharacterScreen() {
   const [emotions, setEmotions] = useState('')
   const [context, setContext] = useState('')
   const [saveToCloud, setSaveToCloud] = useState(false)
-  const [isSharable, setIsSharable] = useState(false)
+  const [isShareable, setIsShareable] = useState(false)
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [didAttemptSave, setDidAttemptSave] = useState(false)
