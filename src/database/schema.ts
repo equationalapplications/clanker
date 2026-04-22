@@ -3,7 +3,26 @@
  * Supports messages and characters with optional cloud sync
  */
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
+
+/**
+ * Columns that must exist for a database to be treated as already matching
+ * the latest schema version during bootstrap.
+ */
+export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
+  characters: ['deleted_at', 'avatar_data', 'avatar_mime_type', 'save_to_cloud'],
+}
+
+/**
+ * Column-presence guards that can be used to skip migrations when upgrading
+ * legacy databases that may already contain the target column.
+ */
+export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: string }> = {
+  2: { table: 'characters', column: 'deleted_at' },
+  3: { table: 'characters', column: 'avatar_data' },
+  4: { table: 'characters', column: 'avatar_mime_type' },
+  5: { table: 'characters', column: 'save_to_cloud' },
+}
 
 /**
  * SQL statements to create tables
@@ -25,6 +44,7 @@ export const CREATE_TABLES = `
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     synced_to_cloud INTEGER DEFAULT 0,
+    save_to_cloud INTEGER DEFAULT 0,
     cloud_id TEXT,
     deleted_at INTEGER
   );
@@ -68,4 +88,5 @@ export const MIGRATIONS: Record<number, string> = {
   2: `ALTER TABLE characters ADD COLUMN deleted_at INTEGER;`,
   3: `ALTER TABLE characters ADD COLUMN avatar_data TEXT;`,
   4: `ALTER TABLE characters ADD COLUMN avatar_mime_type TEXT DEFAULT 'image/webp';`,
+  5: `ALTER TABLE characters ADD COLUMN save_to_cloud INTEGER DEFAULT 0;`,
 }

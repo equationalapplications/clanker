@@ -13,7 +13,7 @@
 import { Storage } from '~/utilities/kvStorage'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'
-import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn } from './apiClient'
+import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn } from './apiClient'
 import type { CharacterSnapshot } from './apiClient'
 import {
     getUnsyncedCharacters,
@@ -27,6 +27,25 @@ import {
 
 const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function generateLocalCharacterId() {
+    const uuid = globalThis.crypto?.randomUUID?.()
+    if (uuid) {
+        return `char_${uuid}`
+    }
+
+    if (globalThis.crypto?.getRandomValues) {
+        const bytes = new Uint8Array(16)
+        globalThis.crypto.getRandomValues(bytes)
+        bytes[6] = (bytes[6] & 0x0f) | 0x40
+        bytes[8] = (bytes[8] & 0x3f) | 0x80
+        const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+        const fallbackUuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+        return `char_${fallbackUuid}`
+    }
+
+    throw new Error('Secure random generator unavailable for local character IDs.')
+}
 
 export async function getLastSyncTime(): Promise<string | null> {
     return Storage.getItem(LAST_SYNC_KEY)
@@ -106,6 +125,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     created_at: new Date(cloudChar.createdAt).getTime(),
                     updated_at: new Date(cloudChar.updatedAt).getTime(),
                     synced_to_cloud: 1 as number,
+                    save_to_cloud: 1 as number,
                     cloud_id: cloudChar.id,
                     deleted_at: null as number | null,
                 }
@@ -141,7 +161,7 @@ async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
                     traits: char.traits,
                     emotions: char.emotions,
                     context: char.context,
-                    isPublic: Number(char.is_public) === 1,
+                    isPublic: Boolean(char.is_public),
                     createdAt: new Date(char.created_at).toISOString(),
                     updatedAt: new Date(char.updated_at).toISOString(),
                 }
@@ -156,6 +176,50 @@ async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
             console.warn('Failed to sync character to cloud:', char.id, error.message)
         }
     }
+}
+
+export async function importSharedCharacterFromCloud(
+    cloudCharacterId: string,
+    userId?: string,
+): Promise<{ localCharacterId: string; cloudCharacterId: string }> {
+    const localUserId = userId || getCurrentUser()?.uid
+    if (!localUserId) {
+        throw new Error('User not authenticated')
+    }
+
+    const result = await getPublicCharacterFn({ characterId: cloudCharacterId })
+    const cloudCharacter = result.data
+    if (!cloudCharacter) {
+        throw new Error('Shared character not found')
+    }
+
+    const localChars = await getAllCharactersIncludingDeleted(localUserId)
+    const existingLocal = localChars.find((char) => char.cloud_id === cloudCharacter.id)
+    const localCharacterId = existingLocal?.id || generateLocalCharacterId()
+
+    await batchInsertCharacters([
+        {
+            id: localCharacterId,
+            user_id: localUserId,
+            name: cloudCharacter.name,
+            avatar: cloudCharacter.avatar,
+            avatar_data: null,
+            avatar_mime_type: null,
+            appearance: cloudCharacter.appearance,
+            traits: cloudCharacter.traits,
+            emotions: cloudCharacter.emotions,
+            context: cloudCharacter.context,
+            is_public: cloudCharacter.isPublic ? 1 : 0,
+            created_at: new Date(cloudCharacter.createdAt).getTime(),
+            updated_at: new Date(cloudCharacter.updatedAt).getTime(),
+            synced_to_cloud: 1,
+            save_to_cloud: 0,
+            cloud_id: cloudCharacter.id,
+            deleted_at: null,
+        },
+    ])
+
+    return { localCharacterId, cloudCharacterId: cloudCharacter.id }
 }
 
 async function syncDeletionsToCloud(localUserId: string): Promise<void> {

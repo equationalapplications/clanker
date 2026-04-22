@@ -4,6 +4,7 @@ import {
   appCheckReady,
   acceptTermsFn as acceptTermsCallable,
   deleteCharacterFn as deleteCharacterCallable,
+  getPublicCharacterFn as getPublicCharacterCallable,
   getUserCharactersFn as getUserCharactersCallable,
   syncCharacterFn as syncCharacterCallable,
   updateUserProfileFn as updateUserProfileCallable,
@@ -88,6 +89,10 @@ export interface GetUserCharactersResponse {
   characters: CharacterSnapshot[]
 }
 
+export interface GetPublicCharacterRequest {
+  characterId: string
+}
+
 // bootstrapSession handles module-level in-flight dedupe across all callers.
 export const getUserState = async (): Promise<BootstrapResponse> => bootstrapSession()
 
@@ -107,4 +112,8 @@ export const deleteCharacterFn = withAppCheck(
 )
 export const getUserCharactersFn = withAppCheckOptional(
   getUserCharactersCallable as OptionalCallable<void, GetUserCharactersResponse>,
+)
+
+export const getPublicCharacterFn = withAppCheck(
+  getPublicCharacterCallable as Callable<GetPublicCharacterRequest, CharacterSnapshot>,
 )

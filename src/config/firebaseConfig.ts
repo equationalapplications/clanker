@@ -71,6 +71,7 @@ const acceptTermsFn = httpsCallable(functionsInstance, 'acceptTerms')
 const syncCharacterFn = httpsCallable(functionsInstance, 'syncCharacter')
 const deleteCharacterFn = httpsCallable(functionsInstance, 'deleteCharacter')
 const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters')
+const getPublicCharacterFn = httpsCallable(functionsInstance, 'getPublicCharacter')
 
 export type FirebaseUser = FirebaseAuthTypes.User
 
@@ -97,4 +98,5 @@ export {
   syncCharacterFn,
   deleteCharacterFn,
   getUserCharactersFn,
+  getPublicCharacterFn,
 }

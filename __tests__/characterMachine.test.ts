@@ -30,6 +30,7 @@ function makeCharacter(overrides: Partial<DbCharacter> = {}): DbCharacter {
     created_at: NOW,
     updated_at: NOW,
     synced_to_cloud: false,
+    save_to_cloud: false,
     cloud_id: null,
     ...overrides,
   }

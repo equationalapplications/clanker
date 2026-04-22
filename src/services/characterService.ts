@@ -28,6 +28,7 @@ export interface Character {
   created_at: string
   updated_at: string
   synced_to_cloud?: boolean
+  save_to_cloud?: boolean
   cloud_id?: string | null
 }
 
