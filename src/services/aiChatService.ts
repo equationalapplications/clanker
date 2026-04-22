@@ -115,6 +115,19 @@ function buildReferenceId(value: unknown): string | undefined {
   return referenceId.length > 0 ? referenceId : undefined
 }
 
+function getRecentConversationHistory(messages: IMessage[], limit: number): IMessage[] {
+  if (limit <= 0 || messages.length === 0) {
+    return []
+  }
+
+  return [...messages]
+    .sort(
+      (left, right) =>
+        new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+    )
+    .slice(-limit)
+}
+
 function buildSummaryInput(
   characterName: string,
   previousSummary: string,
@@ -276,7 +289,7 @@ export const sendMessageWithAIResponse = async (
       characterName: character.name,
       characterPersonality: character.context || character.appearance,
       characterTraits: `${character.traits} ${character.emotions}`.trim(),
-      conversationHistory: conversationHistory.slice(0, 10).reverse().map((msg) => ({
+      conversationHistory: getRecentConversationHistory(conversationHistory, 10).map((msg) => ({
         role: msg.user._id === userId ? 'user' : 'assistant',
         content: msg.text,
       })),
