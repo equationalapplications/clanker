@@ -158,7 +158,7 @@ Recent messages (higher priority):
 ${recentSection}`
 }
 
-async function summarizeConversationInBackground(character: Character, userId: string): Promise<void> {
+async function triggerConversationSummary(character: Character, userId: string): Promise<void> {
   const summaryKey = `${character.id}:${userId}`
   if (activeSummaryJobs.has(summaryKey)) {
     return
@@ -167,15 +167,21 @@ async function summarizeConversationInBackground(character: Character, userId: s
   activeSummaryJobs.add(summaryKey)
 
   try {
-    const messageCount = await getMessageCount(character.id, userId)
-    if (messageCount === 0 || messageCount % SUMMARY_TRIGGER_MESSAGE_COUNT !== 0) {
+    const [latestCharacter, messageCount] = await Promise.all([
+      getLocalCharacter(character.id, userId),
+      getMessageCount(character.id, userId),
+    ])
+
+    const lastSummaryCheckpoint = Math.max(0, latestCharacter?.summary_checkpoint ?? 0)
+    if (messageCount - lastSummaryCheckpoint < SUMMARY_TRIGGER_MESSAGE_COUNT) {
       return
     }
 
-    const [latestCharacter, recentMessages] = await Promise.all([
-      getLocalCharacter(character.id, userId),
-      getMessagesForContextSummary(character.id, userId, SUMMARY_KEEP_RECENT_MESSAGE_COUNT),
-    ])
+    const recentMessages = await getMessagesForContextSummary(
+      character.id,
+      userId,
+      SUMMARY_KEEP_RECENT_MESSAGE_COUNT,
+    )
 
     if (recentMessages.length === 0) {
       return
@@ -203,6 +209,7 @@ async function summarizeConversationInBackground(character: Character, userId: s
 
     await updateCharacter(character.id, userId, {
       context: normalizedSummary.slice(0, SUMMARY_MAX_CHARACTERS),
+      summary_checkpoint: messageCount,
     })
     await pruneMessagesForCharacter(character.id, userId, SUMMARY_KEEP_RECENT_MESSAGE_COUNT)
   } catch (error) {
@@ -314,7 +321,7 @@ export const sendMessageWithAIResponse = async (
       },
     })
 
-    void summarizeConversationInBackground(character, userId)
+    void triggerConversationSummary(character, userId)
     return { usageSnapshot: toUsageSnapshot(aiResponse) }
   } catch (error) {
     console.error('Error in sendMessageWithAIResponse:', error)

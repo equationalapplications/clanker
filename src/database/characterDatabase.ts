@@ -23,6 +23,7 @@ export interface LocalCharacter {
     synced_to_cloud: number // 0 or 1
     cloud_id: string | null // remote ID if synced
     deleted_at: number | null // null = active, timestamp = soft-deleted
+    summary_checkpoint?: number | null // highest message count included in context summary
 }
 
 export interface CharacterInsert {
@@ -44,6 +45,7 @@ export interface CharacterUpdate {
     traits?: string | null
     emotions?: string | null
     context?: string | null
+    summary_checkpoint?: number
     is_public?: boolean
 }
 
@@ -70,6 +72,7 @@ function toAppFormat(char: LocalCharacter) {
         updated_at: new Date(char.updated_at).toISOString(),
         synced_to_cloud: char.synced_to_cloud === 1,
         cloud_id: char.cloud_id,
+        summary_checkpoint: char.summary_checkpoint ?? 0,
     }
 }
 
@@ -112,8 +115,8 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
 
     await db.runAsync(
         `INSERT INTO characters 
-     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at, summary_checkpoint)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             id,
             userId,
@@ -131,6 +134,7 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
             0, // not synced to cloud initially
             null, // no cloud ID initially
             null, // not deleted
+            0, // no summarized messages yet
         ],
     )
 
@@ -178,6 +182,10 @@ export async function updateCharacter(
     if (updates.context !== undefined) {
         updateFields.push('context = ?')
         values.push(updates.context)
+    }
+    if (updates.summary_checkpoint !== undefined) {
+        updateFields.push('summary_checkpoint = ?')
+        values.push(updates.summary_checkpoint)
     }
     if (updates.is_public !== undefined) {
         updateFields.push('is_public = ?')
@@ -325,8 +333,8 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
         for (const char of characters) {
             await db.runAsync(
                 `INSERT OR REPLACE INTO characters 
-         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at, summary_checkpoint)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     char.id,
                     char.user_id,
@@ -344,6 +352,7 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
                     char.synced_to_cloud,
                     char.cloud_id,
                     char.deleted_at ?? null,
+                    char.summary_checkpoint ?? 0,
                 ],
             )
         }
