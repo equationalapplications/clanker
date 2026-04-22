@@ -177,6 +177,15 @@ async function triggerConversationSummary(character: Character, userId: string):
       return
     }
 
+    // Advance the checkpoint before attempting so a failed attempt (network error,
+    // Vertex unavailable, etc.) does not re-trigger summarization on every
+    // subsequent message. The next retry will only happen once 20 more new
+    // messages have accumulated. On success the checkpoint is overwritten with
+    // the post-prune count below.
+    await updateCharacter(character.id, userId, {
+      summary_checkpoint: messageCount,
+    })
+
     const recentMessages = await getMessagesForContextSummary(
       character.id,
       userId,
