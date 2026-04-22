@@ -1,3 +1,10 @@
+## [28.3.3](https://github.com/equationalapplications/clanker/compare/v28.3.2...v28.3.3) (2026-04-22)
+
+
+### Bug Fixes
+
+* **purchases:** use base plan ID for Android subscription ([24dbdbe](https://github.com/equationalapplications/clanker/commit/24dbdbe09a8d5fc5dedceaf1b8e67992eb9231ff))
+
 ## [28.3.2](https://github.com/equationalapplications/clanker/compare/v28.3.1...v28.3.2) (2026-04-22)
 
 
