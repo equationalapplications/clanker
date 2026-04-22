@@ -21,8 +21,10 @@ export interface LocalCharacter {
     created_at: number
     updated_at: number
     synced_to_cloud: number // 0 or 1
+    save_to_cloud: number // 0 or 1
     cloud_id: string | null // remote ID if synced
     deleted_at: number | null // null = active, timestamp = soft-deleted
+    summary_checkpoint?: number | null // highest message count included in context summary
 }
 
 export interface CharacterInsert {
@@ -35,6 +37,7 @@ export interface CharacterInsert {
     emotions?: string | null
     context?: string | null
     is_public?: boolean
+    save_to_cloud?: boolean
 }
 
 export interface CharacterUpdate {
@@ -44,7 +47,9 @@ export interface CharacterUpdate {
     traits?: string | null
     emotions?: string | null
     context?: string | null
+    summary_checkpoint?: number
     is_public?: boolean
+    save_to_cloud?: boolean
 }
 
 /**
@@ -65,11 +70,13 @@ function toAppFormat(char: LocalCharacter) {
         traits: char.traits,
         emotions: char.emotions,
         context: char.context,
-        is_public: char.is_public === 1,
+        is_public: char.save_to_cloud === 1 ? char.is_public === 1 : false,
         created_at: new Date(char.created_at).toISOString(),
         updated_at: new Date(char.updated_at).toISOString(),
         synced_to_cloud: char.synced_to_cloud === 1,
+        save_to_cloud: char.save_to_cloud === 1,
         cloud_id: char.cloud_id,
+        summary_checkpoint: char.summary_checkpoint ?? 0,
     }
 }
 
@@ -112,8 +119,8 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
 
     await db.runAsync(
         `INSERT INTO characters 
-     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             id,
             userId,
@@ -129,8 +136,10 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
             now,
             now,
             0, // not synced to cloud initially
+            data.save_to_cloud ? 1 : 0, // opt-in cloud save
             null, // no cloud ID initially
             null, // not deleted
+            0, // no summarized messages yet
         ],
     )
 
@@ -151,6 +160,14 @@ export async function updateCharacter(
     updates: CharacterUpdate,
 ) {
     const db = await getDatabase()
+    const existing = await db.getFirstAsync<LocalCharacter>(
+        'SELECT * FROM characters WHERE id = ? AND user_id = ?',
+        [characterId, userId],
+    )
+
+    if (!existing) {
+        return null
+    }
 
     const updateFields: string[] = ['updated_at = ?']
     const values: any[] = [Date.now()]
@@ -179,9 +196,21 @@ export async function updateCharacter(
         updateFields.push('context = ?')
         values.push(updates.context)
     }
+    if (updates.summary_checkpoint !== undefined) {
+        updateFields.push('summary_checkpoint = ?')
+        values.push(updates.summary_checkpoint)
+    }
     if (updates.is_public !== undefined) {
         updateFields.push('is_public = ?')
         values.push(updates.is_public ? 1 : 0)
+    }
+    if (updates.save_to_cloud !== undefined) {
+        updateFields.push('save_to_cloud = ?')
+        values.push(updates.save_to_cloud ? 1 : 0)
+        if (!updates.save_to_cloud) {
+            updateFields.push('is_public = ?')
+            values.push(0)
+        }
     }
 
     // Mark as not synced when updated locally
@@ -266,7 +295,7 @@ export async function getUnsyncedCharacters(userId: string) {
     const db = await getDatabase()
 
     const characters = await db.getAllAsync<LocalCharacter>(
-        'SELECT * FROM characters WHERE user_id = ? AND synced_to_cloud = 0 AND (deleted_at IS NULL OR deleted_at = 0) ORDER BY updated_at DESC',
+        'SELECT * FROM characters WHERE user_id = ? AND synced_to_cloud = 0 AND save_to_cloud = 1 AND (deleted_at IS NULL OR deleted_at = 0) ORDER BY updated_at DESC',
         [userId],
     )
 
@@ -325,8 +354,8 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
         for (const char of characters) {
             await db.runAsync(
                 `INSERT OR REPLACE INTO characters 
-         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, cloud_id, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     char.id,
                     char.user_id,
@@ -342,8 +371,10 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
                     char.created_at,
                     char.updated_at,
                     char.synced_to_cloud,
+                    char.save_to_cloud,
                     char.cloud_id,
                     char.deleted_at ?? null,
+                    char.summary_checkpoint ?? 0,
                 ],
             )
         }

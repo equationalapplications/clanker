@@ -110,6 +110,8 @@ const generateReplyFn = httpsCallable(functionsInstance, 'generateReply')
 
 const generateImageFn = httpsCallable(functionsInstance, 'generateImage')
 
+const summarizeTextFn = httpsCallable(functionsInstance, 'summarizeText')
+
 const purchasePackageStripe = httpsCallable(functionsInstance, 'purchasePackageStripe')
 
 const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
@@ -126,6 +128,7 @@ const acceptTermsFn = httpsCallable(functionsInstance, 'acceptTerms')
 const syncCharacterFn = httpsCallable(functionsInstance, 'syncCharacter')
 const deleteCharacterFn = httpsCallable(functionsInstance, 'deleteCharacter')
 const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters')
+const getPublicCharacterFn = httpsCallable(functionsInstance, 'getPublicCharacter')
 
 export type FirebaseUser = User
 export { appCheckReady }
@@ -139,6 +142,7 @@ export {
   exchangeToken,
   generateReplyFn,
   generateImageFn,
+  summarizeTextFn,
   purchasePackageStripe,
   spendCreditsFn,
   adminListUsersFn,
@@ -153,4 +157,5 @@ export {
   syncCharacterFn,
   deleteCharacterFn,
   getUserCharactersFn,
+  getPublicCharacterFn,
 }

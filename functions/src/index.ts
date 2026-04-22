@@ -11,6 +11,10 @@ export {
 } from "./generateImage.js";
 
 export {
+  summarizeText,
+} from "./summarizeText.js";
+
+export {
   spendCredits,
 } from "./spendCredits.js";
 
@@ -35,6 +39,7 @@ export {
   syncCharacter,
   deleteCharacter,
   getUserCharacters,
+  getPublicCharacter,
 } from "./characterFunctions.js";
 
 export {

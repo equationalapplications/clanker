@@ -32,7 +32,9 @@
 ## Data & Features
 
 - [Image generation](docs/IMAGE_GENERATION.md) — Callable-based image generation flow with local SQLite avatar storage.
+- [Chat memory summarization](docs/CHAT_MEMORY_SUMMARIZATION.md) — Background conversation summarization every 20 messages with SQLite pruning and context compaction.
 - [First-login credits](docs/FIRST_LOGIN_CREDITS.md) — How first-login users are provisioned to 50 free credits.
+- [Cloud character save + share](docs/CLOUD_CHARACTER_SAVE_SHARE.md) — Subscription-gated cloud save toggles, shareable character links, and deep-link import flow.
 - [Cloud SQL design](docs/CLOUD_SQL_DESIGN.md) — Current PostgreSQL schema and service-layer architecture for users, subscriptions, characters, and messages.
 
 ## Payments & Subscriptions
