@@ -26,7 +26,8 @@ export const buildCharacterQrCodeDataUrl = async (shareUrl: string) => {
       margin: 1,
       errorCorrectionLevel: 'M',
     })
-  } catch {
-    throw new Error('Unable to generate QR code for this character link.')
+  } catch (error) {
+    const details = error instanceof Error ? error.message : String(error)
+    throw new Error(`Unable to generate QR code for this character link: ${details}`)
   }
 }

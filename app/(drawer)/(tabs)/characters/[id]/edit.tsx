@@ -21,6 +21,7 @@ import { useImageGeneration } from '~/hooks/useImageGeneration'
 import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
+import { reportError } from '~/utilities/reportError'
 import {
   buildCharacterQrCodeDataUrl,
   buildCharacterShareUrl,
@@ -161,7 +162,7 @@ export default function EditCharacterScreen() {
         }
       })
       .catch((error) => {
-        console.warn('Failed to generate QR code:', error)
+        reportError(error, 'characterShareQrCode')
         if (!cancelled) {
           setQrCodeDataUrl(null)
         }

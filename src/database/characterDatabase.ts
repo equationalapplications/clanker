@@ -206,7 +206,7 @@ export async function updateCharacter(
         }
         if (isEnablingCloudSave) {
             // Shared imports can carry a foreign cloud_id. When the user opts into their own cloud save,
-            // force a new cloud record under their account on next sync.
+            // setting cloud_id to null forces creation of a new cloud record under their account on next sync.
             updateFields.push('cloud_id = ?')
             values.push(null)
         }
