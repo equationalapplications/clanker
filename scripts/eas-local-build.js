@@ -28,4 +28,13 @@ const result = spawnSync(cmd, ['eas-cli', 'build', '--local', ...args], {
   env: process.env,
 })
 
+if (result.error) {
+  console.error(`Failed to start ${cmd}: ${result.error.message}`)
+  process.exit(1)
+}
+
+if (result.signal) {
+  console.error(`${cmd} was terminated by signal ${result.signal}`)
+  process.exit(1)
+}
 process.exit(result.status ?? 1)
