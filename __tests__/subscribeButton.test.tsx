@@ -17,6 +17,9 @@ jest.mock('react-native', () => {
         return mockPlatformOS
       },
     },
+    Alert: {
+      alert: jest.fn(),
+    },
   }
 })
 
@@ -72,6 +75,7 @@ describe('SubscribeButton', () => {
     mockMakePackagePurchase.mockRejectedValueOnce(new Error('purchase failed'))
 
     const SubscribeButton = require('~/components/SubscribeButton').default
+    const { Alert } = require('react-native')
     let tree!: ReturnType<typeof create>
 
     await act(async () => {
@@ -80,15 +84,14 @@ describe('SubscribeButton', () => {
 
     const button = tree.root.findByProps({ testID: 'subscribe-button' })
 
-    await expect(
-      act(async () => {
-        await button.props.onPress()
-      }),
-    ).rejects.toThrow('purchase failed')
+    await act(async () => {
+      await button.props.onPress()
+    })
 
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('monthly_20')
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(1, true)
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(2, false)
+    expect(Alert.alert).toHaveBeenCalledWith('Purchase Failed', 'Something went wrong. Please try again.')
   })
 
   it('refreshes bootstrap state after native purchase', async () => {
