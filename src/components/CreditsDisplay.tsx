@@ -5,13 +5,61 @@ import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
 import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
+import type { WebCheckoutLocks } from '~/hooks/useWebCheckoutSync'
 
-export default function CreditsDisplay() {
+interface CreditsDisplayProps {
+  webCheckoutLocks?: WebCheckoutLocks
+  expiredMessage?: string | null
+  onDismissExpiredMessage?: () => void
+}
+
+export default function CreditsDisplay({
+  webCheckoutLocks,
+  expiredMessage,
+  onDismissExpiredMessage,
+}: CreditsDisplayProps) {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
   const refreshBootstrap = useBootstrapRefresh()
   const { colors } = useTheme()
   const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+  const webPurchaseStartRef = React.useRef<'subscribe' | 'payg' | null>(null)
+  const isWeb = Platform.OS === 'web'
+  const isLocalWebPurchaseLocked = isWeb && (isPurchasing === 'subscribe' || isPurchasing === 'payg')
+  const isSubscribeLocked = isWeb
+    ? (isLocalWebPurchaseLocked || !!webCheckoutLocks?.isSubscribeLocked)
+    : isPurchasing !== null
+  const isPaygLocked = isWeb
+    ? (isLocalWebPurchaseLocked || !!webCheckoutLocks?.isPaygLocked)
+    : isPurchasing !== null
+  // On web, parent (subscribe.tsx) owns expiredMessage. Only show local errorMessage.
+  // On native, show errorMessage or expiredMessage since there's no parent snackbar.
+  const snackbarMessage = isWeb ? errorMessage : errorMessage ?? expiredMessage
+
+  const handleDismissSnackbar = () => {
+    setErrorMessage(null)
+    if (!isWeb) {
+      onDismissExpiredMessage?.()
+    }
+  }
+
+  const tryStartPurchase = (purchaseType: 'subscribe' | 'payg') => {
+    if (isWeb) {
+      if (webPurchaseStartRef.current !== null) {
+        return false
+      }
+
+      webPurchaseStartRef.current = purchaseType
+    }
+
+    setIsPurchasing(purchaseType)
+    return true
+  }
+
+  const resetPurchaseState = () => {
+    webPurchaseStartRef.current = null
+    setIsPurchasing(null)
+  }
 
   if (isLoading) {
     return <LoadingIndicator />
@@ -31,30 +79,35 @@ export default function CreditsDisplay() {
   }
 
   const handleBuyCredits = async () => {
-    setIsPurchasing('payg')
+    if (!tryStartPurchase('payg')) {
+      return
+    }
+
     try {
       const purchaseResult = await makePackagePurchase('payg')
       if (Platform.OS !== 'web' && purchaseResult != null) {
         refreshBootstrap('purchase')
       }
       // On web: Stripe checkout has been opened in the browser. Keep buttons
-      // disabled to prevent multiple parallel checkouts; isPurchasing resets
-      // when the user returns and taps "Sync Subscription & Credits".
+      // disabled until Stripe navigates away from this tab.
     } catch (e) {
       console.error(e)
       setErrorMessage('Purchase failed. Please try again.')
       if (Platform.OS === 'web') {
-        setIsPurchasing(null)
+        resetPurchaseState()
       }
     } finally {
       if (Platform.OS !== 'web') {
-        setIsPurchasing(null)
+        resetPurchaseState()
       }
     }
   }
 
   const handleSubscribe = async () => {
-    setIsPurchasing('subscribe')
+    if (!tryStartPurchase('subscribe')) {
+      return
+    }
+
     try {
       const purchaseResult = await makePackagePurchase('monthly_20')
       if (Platform.OS !== 'web' && purchaseResult != null) {
@@ -65,11 +118,11 @@ export default function CreditsDisplay() {
       console.error(e)
       setErrorMessage('Purchase failed. Please try again.')
       if (Platform.OS === 'web') {
-        setIsPurchasing(null)
+        resetPurchaseState()
       }
     } finally {
       if (Platform.OS !== 'web') {
-        setIsPurchasing(null)
+        resetPurchaseState()
       }
     }
   }
@@ -123,7 +176,7 @@ export default function CreditsDisplay() {
                 mode="contained"
                 onPress={handleSubscribe}
                 style={styles.actionButton}
-                disabled={isPurchasing !== null}
+                disabled={isSubscribeLocked}
                 loading={isPurchasing === 'subscribe'}
               >
                 Unlimited Subscription - $20/Month
@@ -134,7 +187,7 @@ export default function CreditsDisplay() {
               mode="outlined"
               onPress={handleBuyCredits}
               style={styles.actionButton}
-              disabled={isPurchasing !== null}
+              disabled={isPaygLocked}
               loading={isPurchasing === 'payg'}
             >
               Buy 100 Credits - $10
@@ -157,11 +210,11 @@ export default function CreditsDisplay() {
       </Card>
 
       <Snackbar
-        visible={errorMessage !== null}
-        onDismiss={() => setErrorMessage(null)}
+        visible={snackbarMessage !== null}
+        onDismiss={handleDismissSnackbar}
         duration={4000}
       >
-        {errorMessage}
+        {snackbarMessage}
       </Snackbar>
     </>
   )

@@ -8,6 +8,7 @@ import { validateAndNormalizeStripeSecretKey } from "./stripeConfig.js";
 type LoggerLike = Pick<typeof logger, "error" | "warn" | "info">;
 const defaultLogger: LoggerLike = logger;
 let activeLogger: LoggerLike = defaultLogger;
+const MAX_ATTEMPT_ID_LENGTH = 128;
 
 export function setPurchasePackageStripeLoggerForTests(next?: LoggerLike): void {
     activeLogger = next ?? defaultLogger;
@@ -35,6 +36,25 @@ function getRequiredValue(name: string, value?: string): string {
         );
     }
     return value;
+}
+
+function appendAttemptId(url: string, attemptId?: string): string {
+    if (!attemptId) {
+        return url;
+    }
+
+    let parsedUrl: URL;
+    try {
+        parsedUrl = new URL(url);
+    } catch {
+        throw new HttpsError(
+            "failed-precondition",
+            `Invalid checkout URL configuration: ${url}`
+        );
+    }
+
+    parsedUrl.searchParams.set("attemptId", attemptId);
+    return parsedUrl.toString();
 }
 
 export function resolveCheckoutModeFromPriceType(
@@ -92,7 +112,32 @@ const handler = async (request: CallableRequest) => {
         );
     }
 
+    if (typeof data.attemptId !== "undefined" && typeof data.attemptId !== "string") {
+        throw new HttpsError(
+            "invalid-argument",
+            "attemptId must be a non-empty trimmed string when provided."
+        );
+    }
+
+    if (typeof data.attemptId === "string") {
+        const trimmedAttemptId = data.attemptId.trim();
+        if (trimmedAttemptId.length === 0) {
+            throw new HttpsError(
+                "invalid-argument",
+                "attemptId must be a non-empty trimmed string when provided."
+            );
+        }
+
+        if (trimmedAttemptId.length > MAX_ATTEMPT_ID_LENGTH) {
+            throw new HttpsError(
+                "invalid-argument",
+                `attemptId must be at most ${MAX_ATTEMPT_ID_LENGTH} characters when provided.`
+            );
+        }
+    }
+
     const { priceId } = data;
+    const attemptId = typeof data.attemptId === "string" ? data.attemptId.trim() : undefined;
     if (!ALLOWED_PRICE_IDS.has(priceId)) {
         throw new HttpsError("invalid-argument", `Unknown priceId: ${priceId}`);
     }
@@ -129,16 +174,21 @@ const handler = async (request: CallableRequest) => {
         });
     }
 
+    const metadata: Stripe.MetadataParam = {
+        firebase_uid: request.auth.uid,
+        email,
+    };
+    if (attemptId) {
+        metadata.attemptId = attemptId;
+    }
+
     const session = await stripe.checkout.sessions.create({
         customer: stripeCustomerId,
         mode,
         line_items: [{ price: priceId, quantity: 1 }],
-        success_url: STRIPE_SUCCESS_URL,
-        cancel_url: STRIPE_CANCEL_URL,
-        metadata: {
-            firebase_uid: request.auth.uid,
-            email,
-        },
+        success_url: appendAttemptId(STRIPE_SUCCESS_URL, attemptId),
+        cancel_url: appendAttemptId(STRIPE_CANCEL_URL, attemptId),
+        metadata,
         client_reference_id: request.auth.uid,
     });
 

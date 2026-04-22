@@ -2,14 +2,53 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 
 const mockReplace = jest.fn()
+const mockBack = jest.fn()
 const mockRefreshBootstrap = jest.fn()
+const mockPublish = jest.fn()
+const mockClose = jest.fn()
+const mockReadCheckoutAttempts = jest.fn()
+const mockUpsertCheckoutAttempt = jest.fn()
+const mockOnAuthStateChanged = jest.fn()
+const mockCreateCheckoutChannel = jest.fn(() => ({
+    publish: mockPublish,
+    subscribe: jest.fn(),
+    close: mockClose,
+}))
+const mockGetCurrentUser = jest.fn()
+const mockUseLocalSearchParams = jest.fn()
+const AUTH_RESTORATION_DELAY_MS = 200
+
+const baseAttempt = {
+    attemptId: 'attempt-1',
+    productType: 'payg',
+    status: 'pending',
+    at: '2026-04-22T10:00:00.000Z',
+    sourceTabId: 'tab-a',
+    schemaVersion: 1,
+}
 
 jest.mock('expo-router', () => ({
-    useRouter: () => ({ replace: mockReplace }),
+    useRouter: () => ({ replace: mockReplace, back: mockBack }),
+    useLocalSearchParams: () => mockUseLocalSearchParams(),
 }))
 
 jest.mock('~/hooks/useBootstrapRefresh', () => ({
-    useBootstrapRefresh: () => (...args: unknown[]) => mockRefreshBootstrap(...args),
+    useBootstrapRefresh: () => mockRefreshBootstrap,
+}))
+
+jest.mock('~/config/firebaseConfig', () => ({
+    getCurrentUser: () => mockGetCurrentUser(),
+    onAuthStateChanged: (callback: (user: unknown) => void) => mockOnAuthStateChanged(callback),
+}))
+
+jest.mock('~/utilities/checkoutChannel', () => ({
+    createCheckoutChannel: mockCreateCheckoutChannel,
+}))
+
+jest.mock('~/utilities/checkoutStateStore', () => ({
+    CHECKOUT_SCHEMA_VERSION: 1,
+    readCheckoutAttempts: mockReadCheckoutAttempts,
+    upsertCheckoutAttempt: mockUpsertCheckoutAttempt,
 }))
 
 jest.mock('react-native-paper', () => {
@@ -30,13 +69,21 @@ describe('Checkout success refresh behavior', () => {
     beforeEach(() => {
         jest.useFakeTimers()
         jest.clearAllMocks()
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: undefined })
+        mockGetCurrentUser.mockReturnValue({ uid: 'user-1' })
+        mockOnAuthStateChanged.mockImplementation(() => jest.fn())
+        mockReadCheckoutAttempts.mockReturnValue({})
+        mockUpsertCheckoutAttempt.mockImplementation((_uid: string, incoming: unknown) => ({
+            applied: true,
+            record: incoming,
+        }))
     })
 
     afterEach(() => {
         jest.useRealTimers()
     })
 
-    it('uses only auth bootstrap refresh on timer redirect path', async () => {
+    it('always refreshes purchase bootstrap on success even without matching attempt', async () => {
         const CheckoutSuccess = require('../app/checkout/success').default
 
         await act(async () => {
@@ -48,10 +95,68 @@ describe('Checkout success refresh behavior', () => {
         })
 
         expect(mockRefreshBootstrap).toHaveBeenCalledWith('purchase')
+        expect(mockPublish).not.toHaveBeenCalled()
         expect(mockReplace).toHaveBeenCalledWith('/')
     })
 
-    it('uses only auth bootstrap refresh on button path', async () => {
+    it('publishes CHECKOUT_SUCCEEDED exactly once when matching attempt exists', async () => {
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+
+        const CheckoutSuccess = require('../app/checkout/success').default
+
+        await act(async () => {
+            create(<CheckoutSuccess />)
+        })
+
+        await act(async () => {
+            jest.advanceTimersByTime(3000)
+        })
+
+        expect(mockUpsertCheckoutAttempt).toHaveBeenCalledTimes(1)
+        expect(mockCreateCheckoutChannel).toHaveBeenCalledTimes(1)
+        expect(mockPublish).toHaveBeenCalledTimes(1)
+        expect(mockPublish).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: 'CHECKOUT_SUCCEEDED',
+                payload: expect.objectContaining({
+                    attemptId: 'attempt-1',
+                    status: 'succeeded',
+                }),
+            }),
+        )
+        expect(mockRefreshBootstrap).toHaveBeenCalledWith('purchase')
+        expect(mockReplace).toHaveBeenCalledWith('/')
+    })
+
+    it('does not publish CHECKOUT_SUCCEEDED when upsert does not apply', async () => {
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+        mockUpsertCheckoutAttempt.mockImplementation((_uid: string, incoming: unknown) => ({
+            applied: false,
+            record: incoming,
+        }))
+
+        const CheckoutSuccess = require('../app/checkout/success').default
+
+        await act(async () => {
+            create(<CheckoutSuccess />)
+        })
+
+        await act(async () => {
+            jest.advanceTimersByTime(3000)
+        })
+
+        expect(mockUpsertCheckoutAttempt).toHaveBeenCalledTimes(1)
+        expect(mockPublish).not.toHaveBeenCalled()
+        expect(mockRefreshBootstrap).toHaveBeenCalledWith('purchase')
+        expect(mockReplace).toHaveBeenCalledWith('/')
+    })
+
+    it('dedupes success side-effects when button press happens before timer', async () => {
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+
         const CheckoutSuccess = require('../app/checkout/success').default
         let tree!: ReturnType<typeof create>
 
@@ -59,13 +164,250 @@ describe('Checkout success refresh behavior', () => {
             tree = create(<CheckoutSuccess />)
         })
 
-        const button = tree.root.findByProps({ testID: 'checkout-success-button' })
-
         await act(async () => {
-            await button.props.onPress()
+            tree.root.findByProps({ testID: 'checkout-success-go-to-app' }).props.onPress()
         })
 
+        await act(async () => {
+            jest.advanceTimersByTime(3000)
+        })
+
+        expect(mockUpsertCheckoutAttempt).toHaveBeenCalledTimes(1)
+        expect(mockPublish).toHaveBeenCalledTimes(1)
+        expect(mockRefreshBootstrap).toHaveBeenCalledTimes(1)
+        expect(mockReplace).toHaveBeenCalledTimes(2)
+    })
+
+    it('dedupes success side-effects when timer fires before button press', async () => {
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+
+        const CheckoutSuccess = require('../app/checkout/success').default
+        let tree!: ReturnType<typeof create>
+
+        await act(async () => {
+            tree = create(<CheckoutSuccess />)
+        })
+
+        await act(async () => {
+            jest.advanceTimersByTime(3000)
+        })
+
+        await act(async () => {
+            tree.root.findByProps({ testID: 'checkout-success-go-to-app' }).props.onPress()
+        })
+
+        expect(mockUpsertCheckoutAttempt).toHaveBeenCalledTimes(1)
+        expect(mockPublish).toHaveBeenCalledTimes(1)
+        expect(mockRefreshBootstrap).toHaveBeenCalledTimes(1)
+        expect(mockReplace).toHaveBeenCalledTimes(2)
+    })
+
+    it('waits for auth restoration on success page before publishing terminal event', async () => {
+        let currentUser: { uid: string } | null = null
+        mockGetCurrentUser.mockImplementation(() => currentUser)
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+        mockOnAuthStateChanged.mockImplementation((callback: (user: { uid: string } | null) => void) => {
+            const unsubscribe = jest.fn()
+            setTimeout(() => {
+                currentUser = { uid: 'user-1' }
+                callback(currentUser)
+            }, AUTH_RESTORATION_DELAY_MS)
+            return unsubscribe
+        })
+
+        const CheckoutSuccess = require('../app/checkout/success').default
+
+        await act(async () => {
+            create(<CheckoutSuccess />)
+        })
+
+        await act(async () => {
+            jest.advanceTimersByTime(3200)
+        })
+
+        expect(mockOnAuthStateChanged).toHaveBeenCalledTimes(1)
+        expect(mockPublish).toHaveBeenCalledTimes(1)
         expect(mockRefreshBootstrap).toHaveBeenCalledWith('purchase')
+        expect(mockReplace).toHaveBeenCalledWith('/')
+    })
+
+    it('does not publish cancel event when attempt is missing', async () => {
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'missing-attempt' })
+        mockReadCheckoutAttempts.mockReturnValue({})
+
+        const CheckoutCancel = require('../app/checkout/cancel').default
+
+        await act(async () => {
+            create(<CheckoutCancel />)
+        })
+
+        await act(async () => {
+            jest.advanceTimersByTime(3000)
+        })
+
+        expect(mockPublish).not.toHaveBeenCalled()
+        expect(mockRefreshBootstrap).not.toHaveBeenCalled()
+        expect(mockReplace).toHaveBeenCalledWith('/')
+    })
+
+    it('publishes CHECKOUT_CANCELLED exactly once when matching attempt exists', async () => {
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+
+        const CheckoutCancel = require('../app/checkout/cancel').default
+
+        await act(async () => {
+            create(<CheckoutCancel />)
+        })
+
+        await act(async () => {
+            jest.advanceTimersByTime(3000)
+        })
+
+        expect(mockUpsertCheckoutAttempt).toHaveBeenCalledTimes(1)
+        expect(mockCreateCheckoutChannel).toHaveBeenCalledTimes(1)
+        expect(mockPublish).toHaveBeenCalledTimes(1)
+        expect(mockPublish).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: 'CHECKOUT_CANCELLED',
+                payload: expect.objectContaining({
+                    attemptId: 'attempt-1',
+                    status: 'cancelled',
+                }),
+            }),
+        )
+        expect(mockRefreshBootstrap).not.toHaveBeenCalled()
+        expect(mockReplace).toHaveBeenCalledWith('/')
+    })
+
+    it('does not publish CHECKOUT_CANCELLED when upsert does not apply', async () => {
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+        mockUpsertCheckoutAttempt.mockImplementation((_uid: string, incoming: unknown) => ({
+            applied: false,
+            record: incoming,
+        }))
+
+        const CheckoutCancel = require('../app/checkout/cancel').default
+
+        await act(async () => {
+            create(<CheckoutCancel />)
+        })
+
+        await act(async () => {
+            jest.advanceTimersByTime(3000)
+        })
+
+        expect(mockUpsertCheckoutAttempt).toHaveBeenCalledTimes(1)
+        expect(mockPublish).not.toHaveBeenCalled()
+        expect(mockReplace).toHaveBeenCalledWith('/')
+    })
+
+    it('routes Try again to retry flow and Back to app to root', async () => {
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+
+        const CheckoutCancel = require('../app/checkout/cancel').default
+        let tree!: ReturnType<typeof create>
+
+        await act(async () => {
+            tree = create(<CheckoutCancel />)
+        })
+
+        await act(async () => {
+            tree.root.findByProps({ testID: 'checkout-cancel-try-again' }).props.onPress()
+        })
+
+        expect(mockBack).toHaveBeenCalledTimes(1)
+        expect(mockReplace).not.toHaveBeenCalled()
+
+        mockBack.mockClear()
+        mockReplace.mockClear()
+
+        await act(async () => {
+            tree.root.findByProps({ testID: 'checkout-cancel-back-to-app' }).props.onPress()
+        })
+
+        expect(mockBack).not.toHaveBeenCalled()
+        expect(mockReplace).toHaveBeenCalledWith('/')
+    })
+
+    it('dedupes cancel side-effects when back-to-app press happens before timer', async () => {
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+
+        const CheckoutCancel = require('../app/checkout/cancel').default
+        let tree!: ReturnType<typeof create>
+
+        await act(async () => {
+            tree = create(<CheckoutCancel />)
+        })
+
+        await act(async () => {
+            tree.root.findByProps({ testID: 'checkout-cancel-back-to-app' }).props.onPress()
+        })
+
+        await act(async () => {
+            jest.advanceTimersByTime(3000)
+        })
+
+        expect(mockUpsertCheckoutAttempt).toHaveBeenCalledTimes(1)
+        expect(mockPublish).toHaveBeenCalledTimes(1)
+        expect(mockReplace).toHaveBeenCalledTimes(2)
+    })
+
+    it('dedupes cancel side-effects when timer fires before back-to-app press', async () => {
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+
+        const CheckoutCancel = require('../app/checkout/cancel').default
+        let tree!: ReturnType<typeof create>
+
+        await act(async () => {
+            tree = create(<CheckoutCancel />)
+        })
+
+        await act(async () => {
+            jest.advanceTimersByTime(3000)
+        })
+
+        await act(async () => {
+            tree.root.findByProps({ testID: 'checkout-cancel-back-to-app' }).props.onPress()
+        })
+
+        expect(mockUpsertCheckoutAttempt).toHaveBeenCalledTimes(1)
+        expect(mockPublish).toHaveBeenCalledTimes(1)
+        expect(mockReplace).toHaveBeenCalledTimes(2)
+    })
+
+    it('waits for auth restoration on cancel page before publishing terminal event', async () => {
+        let currentUser: { uid: string } | null = null
+        mockGetCurrentUser.mockImplementation(() => currentUser)
+        mockUseLocalSearchParams.mockReturnValue({ attemptId: 'attempt-1' })
+        mockReadCheckoutAttempts.mockReturnValue({ 'attempt-1': baseAttempt })
+        mockOnAuthStateChanged.mockImplementation((callback: (user: { uid: string } | null) => void) => {
+            const unsubscribe = jest.fn()
+            setTimeout(() => {
+                currentUser = { uid: 'user-1' }
+                callback(currentUser)
+            }, AUTH_RESTORATION_DELAY_MS)
+            return unsubscribe
+        })
+
+        const CheckoutCancel = require('../app/checkout/cancel').default
+
+        await act(async () => {
+            create(<CheckoutCancel />)
+        })
+
+        await act(async () => {
+            jest.advanceTimersByTime(3200)
+        })
+
+        expect(mockOnAuthStateChanged).toHaveBeenCalledTimes(1)
+        expect(mockPublish).toHaveBeenCalledTimes(1)
         expect(mockReplace).toHaveBeenCalledWith('/')
     })
 })
