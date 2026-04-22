@@ -12,7 +12,6 @@ This feature adds explicit, subscription-gated cloud persistence and sharing for
   - Character avatar
   - Character name
   - Public share URL using cloud UUID (`/characters/shared/{id}`)
-  - QR code for the URL
 - Characters list screen now includes `Retrieve from Cloud`:
   - Subscription-gated with toast + subscribe action
   - Imports latest cloud characters into local storage
@@ -69,4 +68,3 @@ Utility helpers generate:
 
 - Web share URL
 - Native deep link (`com.equationalapplications.clanker://...`)
-- QR code image URL for sharing card rendering

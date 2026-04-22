@@ -1,6 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router'
 import { View, StyleSheet, ScrollView, Share } from 'react-native'
-import { Image } from 'expo-image'
 import {
   Text,
   TextInput,
@@ -21,9 +20,7 @@ import { useImageGeneration } from '~/hooks/useImageGeneration'
 import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
-import { reportError } from '~/utilities/reportError'
 import {
-  buildCharacterQrCodeDataUrl,
   buildCharacterShareUrl,
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
@@ -57,7 +54,6 @@ export default function EditCharacterScreen() {
     requiresSubscription: boolean
   } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
   const prevIsUpdatingRef = useRef(false)
 
   // Track loaded values for dirty-state comparison
@@ -148,31 +144,6 @@ export default function EditCharacterScreen() {
   const shareUrl = cloudCharacterId ? buildCharacterShareUrl(cloudCharacterId) : null
   const nativeShareLink = cloudCharacterId ? buildNativeCharacterShareLink(cloudCharacterId) : null
 
-  useEffect(() => {
-    if (!shareUrl) {
-      setQrCodeDataUrl(null)
-      return
-    }
-
-    let cancelled = false
-    buildCharacterQrCodeDataUrl(shareUrl)
-      .then((url) => {
-        if (!cancelled) {
-          setQrCodeDataUrl(url)
-        }
-      })
-      .catch((error) => {
-        reportError(error, 'characterShareQrCode')
-        if (!cancelled) {
-          setQrCodeDataUrl(null)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [shareUrl])
-
   const handleToggleSaveToCloud = (nextValue: boolean) => {
     if (nextValue && !isSubscriber) {
       setToastState({
@@ -248,7 +219,8 @@ export default function EditCharacterScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView}>
       <View style={styles.content}>
         <Text variant="headlineMedium" style={styles.title}>
           Edit Character
@@ -407,13 +379,6 @@ export default function EditCharacterScreen() {
               <Text selectable style={styles.shareLink}>
                 {shareUrl}
               </Text>
-              {qrCodeDataUrl ? (
-                <Image
-                  source={{ uri: qrCodeDataUrl }}
-                  style={styles.qrImage}
-                  contentFit="contain"
-                />
-              ) : null}
               <Button mode="contained" icon="share" onPress={handleShare}>
                 Share
               </Button>
@@ -423,6 +388,8 @@ export default function EditCharacterScreen() {
           )}
         </Modal>
       </Portal>
+
+      </ScrollView>
 
       <Snackbar
         visible={toastState !== null}
@@ -439,12 +406,15 @@ export default function EditCharacterScreen() {
       >
         {toastState?.message}
       </Snackbar>
-    </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  scrollView: {
     flex: 1,
   },
   content: {
@@ -515,9 +485,5 @@ const styles = StyleSheet.create({
   },
   shareLink: {
     textAlign: 'center',
-  },
-  qrImage: {
-    width: 220,
-    height: 220,
   },
 })

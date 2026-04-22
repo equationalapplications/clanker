@@ -1,5 +1,3 @@
-import QRCode from 'qrcode'
-
 const DEFAULT_CHARACTER_SHARE_BASE_URL = 'https://clanker.app'
 
 const normalizeBaseUrl = (url: string) => url.replace(/\/+$/, '')
@@ -18,18 +16,3 @@ export const buildCharacterShareUrl = (cloudCharacterId: string) =>
 
 export const buildNativeCharacterShareLink = (cloudCharacterId: string) =>
   `com.equationalapplications.clanker://characters/shared/${encodeURIComponent(cloudCharacterId)}`
-
-export const buildCharacterQrCodeDataUrl = async (shareUrl: string) => {
-  try {
-    return await QRCode.toDataURL(shareUrl, {
-      width: 512,
-      margin: 1,
-      errorCorrectionLevel: 'M',
-    })
-  } catch (error) {
-    const details = error instanceof Error ? error.message : String(error)
-    throw new Error(
-      `Failed to generate QR code. Check the share URL format or try again. Details: ${details}`,
-    )
-  }
-}

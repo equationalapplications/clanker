@@ -28,6 +28,25 @@ import {
 const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
+function generateLocalCharacterId() {
+    const uuid = globalThis.crypto?.randomUUID?.()
+    if (uuid) {
+        return `char_${uuid}`
+    }
+
+    if (globalThis.crypto?.getRandomValues) {
+        const bytes = new Uint8Array(16)
+        globalThis.crypto.getRandomValues(bytes)
+        bytes[6] = (bytes[6] & 0x0f) | 0x40
+        bytes[8] = (bytes[8] & 0x3f) | 0x80
+        const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')
+        const fallbackUuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+        return `char_${fallbackUuid}`
+    }
+
+    throw new Error('Secure random generator unavailable for local character IDs.')
+}
+
 export async function getLastSyncTime(): Promise<string | null> {
     return Storage.getItem(LAST_SYNC_KEY)
 }
@@ -176,8 +195,7 @@ export async function importSharedCharacterFromCloud(
 
     const localChars = await getAllCharactersIncludingDeleted(localUserId)
     const existingLocal = localChars.find((char) => char.cloud_id === cloudCharacter.id)
-    const localCharacterId =
-        existingLocal?.id || `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const localCharacterId = existingLocal?.id || generateLocalCharacterId()
 
     await batchInsertCharacters([
         {
