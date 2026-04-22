@@ -43,6 +43,9 @@ jest.mock('~/components/Button', () => {
 })
 
 describe('SubscribeButton', () => {
+  const hadOriginalDev = Object.prototype.hasOwnProperty.call(globalThis, '__DEV__')
+  const originalDev = (globalThis as { __DEV__?: boolean }).__DEV__
+
   beforeEach(() => {
     jest.clearAllMocks()
     mockPlatformOS = 'web'
@@ -50,7 +53,12 @@ describe('SubscribeButton', () => {
   })
 
   afterAll(() => {
-    ;(globalThis as { __DEV__?: boolean }).__DEV__ = undefined
+    if (hadOriginalDev) {
+      ;(globalThis as { __DEV__?: boolean }).__DEV__ = originalDev
+      return
+    }
+
+    delete (globalThis as { __DEV__?: boolean }).__DEV__
   })
 
   it('toggles loading state around successful purchase', async () => {
