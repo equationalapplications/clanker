@@ -1,3 +1,11 @@
+## [28.3.1](https://github.com/equationalapplications/clanker/compare/v28.3.0...v28.3.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* **auth:** consistent env var usage in googleSignin.web ([10a164a](https://github.com/equationalapplications/clanker/commit/10a164af014c2c9f03f85cd38a9bdcd42cff0fdb))
+* **auth:** reset failed bootstrap sessions ([bb26ded](https://github.com/equationalapplications/clanker/commit/bb26ded3f1eea62071679694fdb12fa0d3ac4066))
+
 # [28.3.0](https://github.com/equationalapplications/clanker/compare/v28.2.0...v28.3.0) (2026-04-22)
 
 
