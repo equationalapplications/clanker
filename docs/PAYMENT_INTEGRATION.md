@@ -105,18 +105,38 @@ RevenueCat sends an `Authorization: Bearer <secret>` header. The handler verifie
 Configured in `functions/src/revenueCatWebhook.ts`:
 
 ```typescript
-const REVENUECAT_PRODUCT_TO_TIER: Record<string, string> = {
+const REVENUECAT_PRODUCT_TO_TIER: Record<string, "monthly_20" | "monthly_50"> = {
   "monthly_20_subscription": "monthly_20",
   "monthly_50_subscription": "monthly_50",
 };
-const REVENUECAT_CREDIT_PACK_ID = Platform.OS === 'ios' ? "credit_100" : "credit_pack_100"; // 100 credits (iOS id differs due to App Store rename restriction)
+
+// Support iOS (credit_100) and Android (credit_pack_100) credit-pack product IDs
+const REVENUECAT_CREDIT_PACK_IDS = new Set([
+  "credit_pack_100",
+  "credit_100",
+]);
 ```
+
+Note: the webhook receives the base subscription ID (`monthly_20_subscription`) without the base plan suffix — the mapping above stays correct for both platforms.
 
 These product IDs must match App Store Connect / Google Play Console exactly.
 
+#### Platform Product ID Differences
+
+Play Billing v5 requires the full `{subscription_id}:{base_plan_id}` format when **initiating a purchase** on Android. iOS App Store has no concept of base plans. The client resolves this at runtime in `src/config/constants.ts`:
+
+```typescript
+REVENUECAT_PRODUCTS.MONTHLY_20 =
+  Platform.OS === 'android'
+    ? 'monthly_20_subscription:monthly-usd-20'   // Android: subscription_id:base_plan_id
+    : 'monthly_20_subscription'                  // iOS: product ID only
+```
+
+The RevenueCat webhook still receives only the base subscription ID (`monthly_20_subscription`) for both platforms — the backend mapping is unaffected.
+
 #### Google Play Console IDs
 
-| Product ID | Type | Base Plan ID / Purchase Option ID |
+| Product ID | Type | Base Plan ID |
 |---|---|---|
 | `monthly_20_subscription` | Auto-renewing subscription | `monthly-usd-20` |
 | `monthly_50_subscription` | Auto-renewing subscription | `monthly-usd-50` |
