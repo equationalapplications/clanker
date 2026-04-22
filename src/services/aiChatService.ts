@@ -207,11 +207,13 @@ async function triggerConversationSummary(character: Character, userId: string):
       return
     }
 
+    await pruneMessagesForCharacter(character.id, userId, SUMMARY_KEEP_RECENT_MESSAGE_COUNT)
+    const postPruneMessageCount = await getMessageCount(character.id, userId)
+
     await updateCharacter(character.id, userId, {
       context: normalizedSummary.slice(0, SUMMARY_MAX_CHARACTERS),
-      summary_checkpoint: messageCount,
+      summary_checkpoint: postPruneMessageCount,
     })
-    await pruneMessagesForCharacter(character.id, userId, SUMMARY_KEEP_RECENT_MESSAGE_COUNT)
   } catch (error) {
     console.warn('Failed to summarize conversation context:', error)
   } finally {
