@@ -197,7 +197,7 @@ export default function EditCharacterScreen() {
     } catch (error) {
       reportError(error, 'characterShare')
       setToastState({
-        message: 'Unable to open the share sheet. Check sharing permissions and try again.',
+        message: 'Sharing was unsuccessful. Please try again.',
         requiresSubscription: false,
       })
     }
