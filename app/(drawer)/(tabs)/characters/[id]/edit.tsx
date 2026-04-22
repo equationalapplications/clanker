@@ -20,6 +20,7 @@ import { useImageGeneration } from '~/hooks/useImageGeneration'
 import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
+import { reportError } from '~/utilities/reportError'
 import {
   buildCharacterShareUrl,
   buildNativeCharacterShareLink,
@@ -187,11 +188,19 @@ export default function EditCharacterScreen() {
       nativeShareLink ? `App deep link: ${nativeShareLink}` : null,
     ].filter(Boolean) as string[]
 
-    await Share.share({
-      title,
-      message: messageLines.join('\n'),
-      url: shareUrl,
-    })
+    try {
+      await Share.share({
+        title,
+        message: messageLines.join('\n'),
+        url: shareUrl,
+      })
+    } catch (error) {
+      reportError(error, 'characterShare')
+      setToastState({
+        message: 'Unable to open the share sheet right now. Please try again.',
+        requiresSubscription: false,
+      })
+    }
   }
 
   if (isLoading) {
