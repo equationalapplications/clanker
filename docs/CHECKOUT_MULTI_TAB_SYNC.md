@@ -70,7 +70,7 @@ The system does **not** use interval polling to check purchase state. Instead:
 
 - **Focus/visibility recovery**: When a tab regains focus or becomes visible, it re-hydrates checkout attempt state from `localStorage`, re-derives lock state locally, and expires stale pending attempts based on TTL
 - **BroadcastChannel events**: Explicit broadcasts trigger immediate reconciliation across tabs
-- **Convergence via requestBootstrapRefresh**: The auth bootstrap refresh mechanism is event-driven and deduped; when a checkout reaches a terminal state, a purchase-scoped refresh may be requested to converge server-backed state without repeated queries
+- **Convergence via requestBootstrapRefresh**: The auth bootstrap refresh mechanism is event-driven and deduped; on successful checkout, a purchase-scoped refresh may be requested to converge server-backed state without repeated queries
 
 ## Stripe Return-Tab Recovery Flow
 
