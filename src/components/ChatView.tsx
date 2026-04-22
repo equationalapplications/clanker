@@ -1,6 +1,7 @@
 import { router, Stack } from 'expo-router'
 import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
-import { GiftedChat, IMessage, User, Bubble, ComposerProps, SendProps } from 'react-native-gifted-chat'
+import { GiftedChat, Bubble } from 'react-native-gifted-chat'
+import type { IMessage, User, ComposerProps, SendProps } from 'react-native-gifted-chat'
 import { useCallback } from 'react'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 import { useSelector } from '@xstate/react'
