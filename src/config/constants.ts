@@ -35,7 +35,11 @@ export const SUBSCRIPTION_TIERS: PlanTier[] = [PLAN_TIERS.MONTHLY_20, PLAN_TIERS
 // RevenueCat product identifiers (must match App Store Connect / Google Play Console)
 // iOS uses 'credit_100' (name was taken on re-creation); Android uses 'credit_pack_100'
 export const REVENUECAT_PRODUCTS = {
-  MONTHLY_20: 'monthly_20_subscription',
+  // Android base plans use `subscription_id:base_plan_id` format (Play Billing v5).
+  // iOS App Store does not have base plans — identifier is just the product ID.
+  MONTHLY_20: Platform.OS === 'android'
+    ? 'monthly_20_subscription:monthly-usd-20'
+    : 'monthly_20_subscription',
   // MONTHLY_50 intentionally disabled until product is fully configured in RevenueCat.
   // MONTHLY_50: 'monthly_50_subscription',
   CREDIT_PACK: Platform.OS === 'ios' ? 'credit_100' : 'credit_pack_100',

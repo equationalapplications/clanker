@@ -39,12 +39,12 @@ export async function initializeRevenueCat(): Promise<void> {
 
 /**
  * Purchase a product by its RevenueCat product identifier.
- * Returns the CustomerInfo after a successful purchase.
+ * Returns the CustomerInfo after a successful purchase, or null if user cancels.
+ * Throws if RevenueCat is not initialized or if the purchase fails for other reasons.
  */
 export async function purchaseProduct(productIdentifier: string): Promise<CustomerInfo | null> {
   if (!isInitialized) {
-    console.error('RevenueCat is not initialized. Call initializeRevenueCat() first.')
-    return null
+    throw new Error('RevenueCat is not initialized. Call initializeRevenueCat() first.')
   }
 
   try {
@@ -81,14 +81,13 @@ export async function purchaseProduct(productIdentifier: string): Promise<Custom
       ].find((product) => product.identifier === productIdentifier)
 
       if (!matchedProduct) {
-        console.error(
-          `Product "${productIdentifier}" not found in RevenueCat offerings or products.`,
-          `Available offerings: ${JSON.stringify(Object.keys(offerings.all))}`,
-          `Available offering products: ${JSON.stringify(allProductIds)}`,
-          `Fetched INAPP products: ${JSON.stringify(inAppProducts.map((p) => p.identifier))}`,
-          `Fetched SUBS products: ${JSON.stringify(subsProducts.map((p) => p.identifier))}`,
+        throw new Error(
+          `Product "${productIdentifier}" not found. ` +
+          `Offerings: [${Object.keys(offerings.all).join(', ')}]. ` +
+          `Offering products: [${allProductIds.join(', ')}]. ` +
+          `INAPP: [${inAppProducts.map((p) => p.identifier).join(', ')}]. ` +
+          `SUBS: [${subsProducts.map((p) => p.identifier).join(', ')}].`,
         )
-        return null
       }
 
       const { customerInfo } = await Purchases.purchaseStoreProduct(matchedProduct)
@@ -102,10 +101,9 @@ export async function purchaseProduct(productIdentifier: string): Promise<Custom
   } catch (error: any) {
     if (error.userCancelled) {
       console.log('Purchase cancelled by user.')
-    } else {
-      console.error('❌ Purchase error:', error)
+      return null
     }
-    return null
+    throw error
   }
 }
 
