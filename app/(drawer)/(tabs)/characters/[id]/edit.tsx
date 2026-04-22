@@ -10,6 +10,7 @@ import {
   Snackbar,
   Portal,
   Modal,
+  useTheme,
 } from 'react-native-paper'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSelector } from '@xstate/react'
@@ -28,6 +29,7 @@ import {
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
+  const theme = useTheme()
   const authService = useAuthMachine()
   const { isSubscriber } = useCurrentPlan()
   const { user } = useSelector(authService, (state) => ({
@@ -231,173 +233,173 @@ export default function EditCharacterScreen() {
     <View style={styles.container}>
       {/* Keep snackbar as a sibling so it anchors to viewport bottom instead of scroll content. */}
       <ScrollView style={styles.scrollView}>
-      <View style={styles.content}>
-        <Text variant="headlineMedium" style={styles.title}>
-          Edit Character
-        </Text>
+        <View style={styles.content}>
+          <Text variant="headlineMedium" style={styles.title}>
+            Edit Character
+          </Text>
 
-        <View style={styles.avatarContainer}>
-          <CharacterAvatar size={120} imageUrl={avatarUri} characterName={name} />
-          <Button
+          <View style={styles.avatarContainer}>
+            <CharacterAvatar size={120} imageUrl={avatarUri} characterName={name} />
+            <Button
+              mode="outlined"
+              icon={isGenerating ? undefined : 'image-auto-adjust'}
+              onPress={() => {
+                clearError()
+                generateImage(buildImagePrompt({ name, appearance, traits, emotions }))
+              }}
+              disabled={isGenerating}
+              loading={isGenerating}
+              style={styles.generateButton}
+            >
+              {avatarUri ? 'Regenerate Image' : 'Generate Image'}
+            </Button>
+            {imageError ? (
+              <HelperText type="error" visible>
+                {imageError}
+              </HelperText>
+            ) : null}
+          </View>
+
+          <Divider style={styles.avatarDivider} />
+
+          <TextInput
+            label="Name"
+            value={name}
+            onChangeText={setName}
             mode="outlined"
-            icon={isGenerating ? undefined : 'image-auto-adjust'}
-            onPress={() => {
-              clearError()
-              generateImage(buildImagePrompt({ name, appearance, traits, emotions }))
-            }}
-            disabled={isGenerating}
-            loading={isGenerating}
-            style={styles.generateButton}
-          >
-            {avatarUri ? 'Regenerate Image' : 'Generate Image'}
-          </Button>
-          {imageError ? (
-            <HelperText type="error" visible>
-              {imageError}
+            style={styles.input}
+            maxLength={30}
+          />
+
+          <TextInput
+            label="Appearance"
+            value={appearance}
+            onChangeText={setAppearance}
+            mode="outlined"
+            style={styles.input}
+            multiline
+            numberOfLines={3}
+            maxLength={144}
+          />
+
+          <TextInput
+            label="Personality Traits"
+            value={traits}
+            onChangeText={setTraits}
+            mode="outlined"
+            style={styles.input}
+            multiline
+            numberOfLines={3}
+            maxLength={144}
+          />
+
+          <TextInput
+            label="Emotions"
+            value={emotions}
+            onChangeText={setEmotions}
+            mode="outlined"
+            style={styles.input}
+            multiline
+            numberOfLines={3}
+            maxLength={144}
+          />
+
+          <TextInput
+            label="Context"
+            value={context}
+            onChangeText={setContext}
+            mode="outlined"
+            style={styles.input}
+            multiline
+            numberOfLines={4}
+          />
+
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleTextContainer}>
+              <Text variant="titleMedium">Save to Cloud</Text>
+              <Text variant="bodySmall" style={styles.toggleHelperText}>
+                Requires monthly_20 or monthly_50 subscription.
+              </Text>
+            </View>
+            <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} />
+          </View>
+
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleTextContainer}>
+              <Text variant="titleMedium">Make Character Shareable</Text>
+              <Text variant="bodySmall" style={styles.toggleHelperText}>
+                Enabled only when cloud saving is on.
+              </Text>
+            </View>
+            <Switch
+              value={isCharacterShareable}
+              onValueChange={setIsCharacterShareable}
+              disabled={!saveToCloud}
+            />
+          </View>
+
+          {isCharacterShareable ? (
+            <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton}>
+              Share Character
+            </Button>
+          ) : null}
+
+          <Divider style={styles.divider} />
+
+          <View style={styles.buttonContainer}>
+            <Button
+              mode="text"
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/characters/list'))}
+              style={styles.button}
+            >
+              Cancel
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleSave}
+              disabled={isSaving || isUpdating}
+              loading={isSaving || isUpdating}
+              style={styles.button}
+            >
+              Save Changes
+            </Button>
+          </View>
+          {didAttemptSave && updateError ? (
+            <HelperText type="error" visible style={styles.errorText}>
+              {updateError instanceof Error
+                ? updateError.message
+                : 'Failed to save character. Please try again.'}
             </HelperText>
           ) : null}
         </View>
 
-        <Divider style={styles.avatarDivider} />
-
-        <TextInput
-          label="Name"
-          value={name}
-          onChangeText={setName}
-          mode="outlined"
-          style={styles.input}
-          maxLength={30}
-        />
-
-        <TextInput
-          label="Appearance"
-          value={appearance}
-          onChangeText={setAppearance}
-          mode="outlined"
-          style={styles.input}
-          multiline
-          numberOfLines={3}
-          maxLength={144}
-        />
-
-        <TextInput
-          label="Personality Traits"
-          value={traits}
-          onChangeText={setTraits}
-          mode="outlined"
-          style={styles.input}
-          multiline
-          numberOfLines={3}
-          maxLength={144}
-        />
-
-        <TextInput
-          label="Emotions"
-          value={emotions}
-          onChangeText={setEmotions}
-          mode="outlined"
-          style={styles.input}
-          multiline
-          numberOfLines={3}
-          maxLength={144}
-        />
-
-        <TextInput
-          label="Context"
-          value={context}
-          onChangeText={setContext}
-          mode="outlined"
-          style={styles.input}
-          multiline
-          numberOfLines={4}
-        />
-
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleTextContainer}>
-            <Text variant="titleMedium">Save to Cloud</Text>
-            <Text variant="bodySmall" style={styles.toggleHelperText}>
-              Requires monthly_20 or monthly_50 subscription.
-            </Text>
-          </View>
-          <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} />
-        </View>
-
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleTextContainer}>
-            <Text variant="titleMedium">Make Character Shareable</Text>
-            <Text variant="bodySmall" style={styles.toggleHelperText}>
-              Enabled only when cloud saving is on.
-            </Text>
-          </View>
-          <Switch
-            value={isCharacterShareable}
-            onValueChange={setIsCharacterShareable}
-            disabled={!saveToCloud}
-          />
-        </View>
-
-        {isCharacterShareable ? (
-          <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton}>
-            Share Character
-          </Button>
-        ) : null}
-
-        <Divider style={styles.divider} />
-
-        <View style={styles.buttonContainer}>
-          <Button
-            mode="text"
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/characters/list'))}
-            style={styles.button}
+        <Portal>
+          <Modal
+            visible={showShareModal}
+            onDismiss={() => setShowShareModal(false)}
+            contentContainerStyle={[styles.shareModal, { backgroundColor: theme.colors.surface }]}
           >
-            Cancel
-          </Button>
-          <Button
-            mode="contained"
-            onPress={handleSave}
-            disabled={isSaving || isUpdating}
-            loading={isSaving || isUpdating}
-            style={styles.button}
-          >
-            Save Changes
-          </Button>
-        </View>
-        {didAttemptSave && updateError ? (
-          <HelperText type="error" visible style={styles.errorText}>
-            {updateError instanceof Error
-              ? updateError.message
-              : 'Failed to save character. Please try again.'}
-          </HelperText>
-        ) : null}
-      </View>
-
-      <Portal>
-        <Modal
-          visible={showShareModal}
-          onDismiss={() => setShowShareModal(false)}
-          contentContainerStyle={styles.shareModal}
-        >
-          <Text variant="headlineSmall" style={styles.shareTitle}>
-            Share Character
-          </Text>
-          <CharacterAvatar size={96} imageUrl={avatarUri} characterName={name} />
-          <Text variant="titleLarge" style={styles.shareCharacterName}>
-            {name || 'Character'}
-          </Text>
-          {shareUrl ? (
-            <>
-              <Text selectable style={styles.shareLink}>
-                {shareUrl}
-              </Text>
-              <Button mode="contained" icon="share" onPress={handleShare}>
-                Share
-              </Button>
-            </>
-          ) : (
-            <Text variant="bodyMedium">No share link available yet.</Text>
-          )}
-        </Modal>
-      </Portal>
+            <Text variant="headlineSmall" style={styles.shareTitle}>
+              Share Character
+            </Text>
+            <CharacterAvatar size={96} imageUrl={avatarUri} characterName={name} />
+            <Text variant="titleLarge" style={styles.shareCharacterName}>
+              {name || 'Character'}
+            </Text>
+            {shareUrl ? (
+              <>
+                <Text selectable style={styles.shareLink}>
+                  {shareUrl}
+                </Text>
+                <Button mode="contained" icon="share" onPress={handleShare}>
+                  Share
+                </Button>
+              </>
+            ) : (
+              <Text variant="bodyMedium">No share link available yet.</Text>
+            )}
+          </Modal>
+        </Portal>
       </ScrollView>
 
       <Snackbar
@@ -407,9 +409,9 @@ export default function EditCharacterScreen() {
         action={
           toastState?.requiresSubscription && !isSubscriber
             ? {
-                label: 'Subscribe',
-                onPress: () => router.push('/subscribe'),
-              }
+              label: 'Subscribe',
+              onPress: () => router.push('/subscribe'),
+            }
             : undefined
         }
       >
@@ -482,7 +484,6 @@ const styles = StyleSheet.create({
     margin: 20,
     padding: 20,
     borderRadius: 12,
-    backgroundColor: '#fff',
     alignItems: 'center',
     gap: 12,
   },
