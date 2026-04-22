@@ -36,7 +36,7 @@ This applies to:
 SQLite `characters` now has a dedicated `save_to_cloud` flag:
 
 - Column: `save_to_cloud INTEGER DEFAULT 0`
-- Schema version bumped to `5`
+- Schema version bumped to `5` (current version is `6`, which adds `summary_checkpoint`)
 - Existing rows default to cloud-save off after migration
 
 Sync behavior now filters to rows with:
