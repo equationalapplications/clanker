@@ -334,6 +334,65 @@ test("syncCharacterHandler rejects users without cloud-character subscription ac
   );
 });
 
+test("getUserCharactersHandler rejects users without cloud-character subscription access", async () => {
+  await assert.rejects(
+    async () =>
+      getUserCharactersHandler(
+        {
+          auth,
+          data: {},
+        } as never,
+        {
+          userRepository: {
+            findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+          },
+          subscriptionService: {
+            getSubscription: async () => ({planTier: "free", planStatus: "active"} as never),
+          },
+          characterService: {
+            getUserCharacters: async () => {
+              throw new Error("Unexpected character service call");
+            },
+          },
+        } as unknown as CharacterFunctionDeps
+      ),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "permission-denied" &&
+      err.message.includes("subscription is required")
+  );
+});
+
+test("getPublicCharacterHandler rejects users without cloud-character subscription access", async () => {
+  await assert.rejects(
+    async () =>
+      getPublicCharacterHandler(
+        {
+          auth,
+          data: {
+            characterId: "123e4567-e89b-42d3-a456-426614174000",
+          },
+        } as never,
+        {
+          userRepository: {
+            findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+          },
+          subscriptionService: {
+            getSubscription: async () => ({planTier: "free", planStatus: "active"} as never),
+          },
+          characterService: {
+            getPublicCharacterById: async () => {
+              throw new Error("Unexpected character service call");
+            },
+          },
+        } as unknown as CharacterFunctionDeps
+      ),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "permission-denied" &&
+      err.message.includes("subscription is required")
+  );
+});
 test("getPublicCharacterHandler returns shared public character", async () => {
   const createdAt = new Date("2026-01-01T00:00:00.000Z");
   const updatedAt = new Date("2026-01-02T00:00:00.000Z");
