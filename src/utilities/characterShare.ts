@@ -20,9 +20,13 @@ export const buildNativeCharacterShareLink = (cloudCharacterId: string) =>
   `com.equationalapplications.clanker://characters/shared/${encodeURIComponent(cloudCharacterId)}`
 
 export const buildCharacterQrCodeDataUrl = async (shareUrl: string) => {
-  return QRCode.toDataURL(shareUrl, {
-    width: 512,
-    margin: 1,
-    errorCorrectionLevel: 'M',
-  })
+  try {
+    return await QRCode.toDataURL(shareUrl, {
+      width: 512,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+    })
+  } catch {
+    throw new Error('Unable to generate QR code for this character link.')
+  }
 }
