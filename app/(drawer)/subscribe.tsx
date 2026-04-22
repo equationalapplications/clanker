@@ -217,7 +217,7 @@ export default function SubscribeScreen() {
               title="Apple Standard EULA"
               left={(props) => <List.Icon {...props} icon="apple" />}
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
-              onPress={() => Linking.openURL(APPLE_EULA_URL)}
+              onPress={handleOpenAppleEula}
             />
           </Card.Content>
         </Card>
