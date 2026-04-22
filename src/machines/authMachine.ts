@@ -205,7 +205,7 @@ export const authMachine = createMachine(
           },
           onError: {
             target: 'signedOut',
-            actions: assign({ error: ({ event }) => event.error as Error }),
+            actions: ['clearSessionData', assign({ error: ({ event }) => event.error as Error })],
           },
         },
       },

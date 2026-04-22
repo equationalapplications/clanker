@@ -42,11 +42,18 @@ const loadGoogleScript = (): Promise<void> => {
 }
 
 export const initializeGoogleSignIn = async () => {
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+  if (!webClientId) {
+    throw new Error(
+      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Configure it in .env or EAS secrets.'
+    )
+  }
+
   await loadGoogleScript()
 
   if (window.google && window.google.accounts) {
     window.google.accounts.id.initialize({
-      client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      client_id: webClientId,
       callback: () => {}, // Will be set per sign-in attempt
     })
   }
@@ -110,9 +117,16 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
       window.google.accounts.id.prompt((notification: any) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
           // One Tap not available, try OAuth2 token flow
+          // client_id is validated in initializeGoogleSignIn()
+          const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+          if (!clientId) {
+            resolve({ success: false, error: 'Google Web Client ID not configured' })
+            return
+          }
+
           window.google.accounts.oauth2
             .initTokenClient({
-              client_id: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
+              client_id: clientId,
               scope: 'email profile',
               callback: async (response: any) => {
                 try {
