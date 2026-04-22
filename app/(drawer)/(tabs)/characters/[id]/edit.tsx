@@ -318,7 +318,7 @@ export default function EditCharacterScreen() {
             <View style={styles.toggleTextContainer}>
               <Text variant="titleMedium">Save to Cloud</Text>
               <Text variant="bodySmall" style={styles.toggleHelperText}>
-                Requires monthly_20 or monthly_50 subscription.
+                Requires a monthly subscription.
               </Text>
             </View>
             <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} />
