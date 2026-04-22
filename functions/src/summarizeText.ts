@@ -82,7 +82,7 @@ ${text}`;
 function parseInput(data: unknown): {text: string; maxCharacters: number} {
   const payload = data as SummarizeTextData | undefined;
   const rawText = typeof payload?.text === "string" ? payload.text.trim() : "";
-  const maxCharacters = payload?.maxCharacters;
+  const rawMaxCharacters = payload?.maxCharacters;
 
   if (!rawText) {
     throw new HttpsError("invalid-argument", "text must be a non-empty string.");
@@ -95,9 +95,15 @@ function parseInput(data: unknown): {text: string; maxCharacters: number} {
     );
   }
 
-  if (!Number.isInteger(maxCharacters) || maxCharacters < 1) {
+  if (
+    typeof rawMaxCharacters !== "number" ||
+    !Number.isInteger(rawMaxCharacters) ||
+    rawMaxCharacters < 1
+  ) {
     throw new HttpsError("invalid-argument", "maxCharacters must be a positive integer.");
   }
+
+  const maxCharacters = rawMaxCharacters;
 
   if (maxCharacters > MAX_SUMMARY_LENGTH) {
     throw new HttpsError(
