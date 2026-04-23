@@ -5,13 +5,14 @@ import LoadingIndicator from '~/components/LoadingIndicator'
 
 export default function Index() {
   const authService = useAuthMachine()
-  const { user, isLoading } = useSelector(authService, (state) => ({
-    user: state.context.user,
-    isLoading:
+  const user = useSelector(authService, (state) => state.context.user)
+  const isLoading = useSelector(
+    authService,
+    (state) =>
       state.matches('initializing') ||
       state.matches('signingIn') ||
       state.matches('bootstrapping'),
-  }))
+  )
 
   if (isLoading) {
     return <LoadingIndicator />
