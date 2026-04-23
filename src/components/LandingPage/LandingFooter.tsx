@@ -8,19 +8,26 @@ export default function LandingFooter() {
 
   return (
     <View style={styles.footer}>
-      <Pressable onPress={() => router.push('/terms')}>
+      <Pressable accessibilityRole="link" onPress={() => router.push('/terms')}>
         <Text variant="bodySmall" style={[styles.link, { color: colors.outline }]}>
           Terms and Conditions
         </Text>
       </Pressable>
       <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
-      <Pressable onPress={() => router.push('/privacy')}>
+      <Pressable accessibilityRole="link" onPress={() => router.push('/privacy')}>
         <Text variant="bodySmall" style={[styles.link, { color: colors.outline }]}>
           Privacy Policy
         </Text>
       </Pressable>
       <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
-      <Pressable onPress={() => Linking.openURL('https://equationalapplications.com/')}>
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => {
+          void Linking.openURL('https://equationalapplications.com/').catch((error) => {
+            console.warn('Failed to open Equational Applications website', error)
+          })
+        }}
+      >
         <Text variant="bodySmall" style={[styles.link, { color: colors.outline }]}>
           Equational Applications LLC
         </Text>

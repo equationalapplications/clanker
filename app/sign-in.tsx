@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { StyleSheet, View, Alert, Platform, ScrollView, useWindowDimensions, Linking } from 'react-native'
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
+import * as ExpoLinking from 'expo-linking'
 import { useSelector } from '@xstate/react'
 
 import ProviderButton from '~/auth/AuthProviderButton'
@@ -52,9 +53,21 @@ export default function SignIn() {
       .then((url) => {
         if (!url) return
 
-        const parsed = new URL(url)
-        const pathname = parsed.pathname
-        const validatedPath = toValidatedInternalHref(pathname)
+        // expo-linking correctly handles custom-scheme URLs like
+        // com.equationalapplications.clanker://chat/123 where new URL() would
+        // treat 'chat' as the host and return '/123' as the pathname.
+        const parsed = ExpoLinking.parse(url)
+        const { path, queryParams } = parsed
+
+        if (!path) return
+
+        const pathname = '/' + path
+        const search =
+          queryParams && Object.keys(queryParams).length > 0
+            ? '?' + new URLSearchParams(queryParams as Record<string, string>).toString()
+            : ''
+        const fullPath = pathname + search
+        const validatedPath = toValidatedInternalHref(fullPath)
 
         if (validatedPath && isProtectedPath(pathname)) {
           setInitialRedirect(validatedPath)
