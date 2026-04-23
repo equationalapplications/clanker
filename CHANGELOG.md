@@ -1,3 +1,11 @@
+## [28.3.4](https://github.com/equationalapplications/clanker/compare/v28.3.3...v28.3.4) (2026-04-23)
+
+
+### Bug Fixes
+
+* **auth:** explicitly set iOS client IDs for sign-in ([e56ad3a](https://github.com/equationalapplications/clanker/commit/e56ad3a83d11e098921e08d3ba9b19ac9b970487))
+* **payments:** harden RC product ID handling ([4faf8bf](https://github.com/equationalapplications/clanker/commit/4faf8bf8d98122cb9598a74189b363b3765bacb5))
+
 ## [28.3.3](https://github.com/equationalapplications/clanker/compare/v28.3.2...v28.3.3) (2026-04-22)
 
 
