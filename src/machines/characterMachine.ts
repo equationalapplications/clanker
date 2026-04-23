@@ -10,6 +10,11 @@ import {
   updateCharacter as updateCharacterDb,
   deleteCharacter as deleteCharacterDb,
 } from '~/database/characterDatabase'
+import {
+  syncAllToCloud,
+  restoreFromCloud,
+  removeCharacterFromCloud,
+} from '~/services/characterSyncService'
 import { loadDefaultAvatarBase64 } from '~/services/defaultAvatarService'
 
 // Events
@@ -21,15 +26,22 @@ type CharacterEvent =
   | { type: 'USER_CHANGED'; userId: string | null }
   | { type: 'CHARACTERS_SYNCED'; characters: Character[] }
   | { type: 'CLEAR_PENDING_NAV' }
+  | { type: 'CLOUD_SYNC' }
+  | { type: 'CLOUD_UNSYNC'; id: string }
 
 // Context
 interface CharacterContext {
   characters: Character[]
   userId: string | null
   error: Error | null
+  cloudSyncError: Error | null
+  cloudUnsyncError: Error | null
   pendingCharacterId: string | null
   optimisticSnapshot: Character[] | null // for rollback
   pendingTempId: string | null
+  priorSaveToCloud: boolean | null
+  priorCloudId: string | null
+  pendingUnsyncId: string | null
 }
 
 const DEFAULT_CHARACTER_INSERT: CharacterInsert = {
@@ -86,6 +98,11 @@ export const characterMachine = createMachine(
       pendingCharacterId: null,
       optimisticSnapshot: null,
       pendingTempId: null,
+      priorSaveToCloud: null,
+      cloudSyncError: null,
+      cloudUnsyncError: null,
+      priorCloudId: null,
+      pendingUnsyncId: null,
     } as CharacterContext,
     on: {
       USER_CHANGED: {
@@ -94,9 +111,14 @@ export const characterMachine = createMachine(
           userId: ({ event }) => event.userId,
           characters: [],
           error: null,
+          cloudSyncError: null,
+          cloudUnsyncError: null,
           pendingCharacterId: null,
           optimisticSnapshot: null,
           pendingTempId: null,
+          priorSaveToCloud: null,
+          priorCloudId: null,
+          pendingUnsyncId: null,
         }),
       },
       LOAD: [
@@ -122,6 +144,13 @@ export const characterMachine = createMachine(
           CHARACTERS_SYNCED: {
             actions: assign({
               characters: ({ event }) => event.characters,
+            }),
+          },
+          CLOUD_SYNC: 'cloudSyncing',
+          CLOUD_UNSYNC: {
+            target: 'cloudUnsyncing',
+            actions: assign({
+              pendingUnsyncId: ({ event }) => event.id,
             }),
           },
         },
@@ -195,6 +224,7 @@ export const characterMachine = createMachine(
           const optimisticCharacter: Character = {
             id: tempId,
             user_id: context.userId,
+            owner_user_id: context.userId,
             name: event.data.name,
             is_public: event.data.is_public ?? false,
             created_at: now,
@@ -248,6 +278,20 @@ export const characterMachine = createMachine(
         entry: assign({
           error: null,
           optimisticSnapshot: ({ context }) => context.characters,
+          priorSaveToCloud: ({ context, event }) => {
+            if (event.type !== 'UPDATE') return null
+            const char = context.characters.find((c) => c.id === event.id)
+            return char?.save_to_cloud ?? null
+          },
+          priorCloudId: ({ context, event }) => {
+            if (event.type !== 'UPDATE') return null
+            const char = context.characters.find((c) => c.id === event.id)
+            return char?.cloud_id ?? null
+          },
+          pendingUnsyncId: ({ event }) => {
+            if (event.type !== 'UPDATE') return null
+            return event.id
+          },
           characters: ({ context, event }) => {
             if (event.type !== 'UPDATE') return context.characters
             return context.characters.map((c) =>
@@ -262,21 +306,121 @@ export const characterMachine = createMachine(
             if (event.type !== 'UPDATE') throw new Error('Invalid event')
             return { userId: context.userId, id: event.id, updates: event.updates }
           },
-          onDone: {
-            target: 'idle',
-            actions: assign({
-              characters: ({ context, event }) =>
-                context.characters.map((c) => (c.id === event.output.id ? event.output : c)),
-              optimisticSnapshot: null,
-              error: null,
-            }),
-          },
+          onDone: [
+            {
+              guard: 'updateTurnedOnCloud',
+              target: 'cloudSyncing',
+              actions: assign({
+                characters: ({ context, event }) =>
+                  context.characters.map((c) => (c.id === event.output.id ? event.output : c)),
+                optimisticSnapshot: null,
+                error: null,
+              }),
+            },
+            {
+              guard: 'updateTurnedOffCloudWithCloudId',
+              target: 'cloudUnsyncing',
+              actions: assign({
+                characters: ({ context, event }) =>
+                  context.characters.map((c) => (c.id === event.output.id ? event.output : c)),
+                optimisticSnapshot: null,
+                error: null,
+              }),
+            },
+            {
+              target: 'idle',
+              actions: assign({
+                characters: ({ context, event }) =>
+                  context.characters.map((c) => (c.id === event.output.id ? event.output : c)),
+                optimisticSnapshot: null,
+                error: null,
+                priorSaveToCloud: null,
+                priorCloudId: null,
+                pendingUnsyncId: null,
+              }),
+            },
+          ],
           onError: {
             target: 'idle',
             actions: assign({
               error: ({ event }) => event.error as Error | null,
               characters: ({ context }) => context.optimisticSnapshot ?? [],
               optimisticSnapshot: null,
+            }),
+          },
+        },
+      },
+      cloudSyncing: {
+        entry: assign({ cloudSyncError: null }),
+        on: {
+          LOAD: {},
+          CREATE: {},
+          UPDATE: {},
+          DELETE: {},
+          CLOUD_SYNC: {},
+          CLOUD_UNSYNC: {},
+        },
+        invoke: {
+          id: 'cloudSync',
+          src: 'cloudSyncActor',
+          input: ({ context }) => ({ userId: context.userId }),
+          onDone: {
+            target: 'loading',
+            actions: assign({
+              priorSaveToCloud: null,
+              priorCloudId: null,
+              pendingUnsyncId: null,
+              error: null,
+              cloudSyncError: null,
+            }),
+          },
+          onError: {
+            target: 'idle',
+            actions: assign({
+              error: ({ event }) => event.error as Error | null,
+              cloudSyncError: ({ event }) => event.error as Error | null,
+              priorSaveToCloud: null,
+              priorCloudId: null,
+              pendingUnsyncId: null,
+            }),
+          },
+        },
+      },
+      cloudUnsyncing: {
+        entry: assign({ cloudUnsyncError: null }),
+        on: {
+          LOAD: {},
+          CREATE: {},
+          UPDATE: {},
+          DELETE: {},
+          CLOUD_SYNC: {},
+          CLOUD_UNSYNC: {},
+        },
+        invoke: {
+          id: 'cloudUnsync',
+          src: 'cloudUnsyncActor',
+          input: ({ context }) => ({
+            userId: context.userId,
+            id: context.pendingUnsyncId ?? '',
+          }),
+          onDone: {
+            target: 'loading',
+            actions: assign({
+              priorSaveToCloud: null,
+              priorCloudId: null,
+              pendingUnsyncId: null,
+              error: null,
+              cloudUnsyncError: null,
+            }),
+          },
+          onError: {
+            target: 'idle',
+            actions: assign({
+              error: ({ event }) => event.error as Error | null,
+              cloudUnsyncError: ({ event }) => event.error as Error | null,
+              priorSaveToCloud: null,
+              priorCloudId: null,
+              pendingUnsyncId: null,
             }),
           },
         },
@@ -349,10 +493,36 @@ export const characterMachine = createMachine(
           await deleteCharacterDb(input.id, input.userId)
         },
       ),
+      cloudSyncActor: fromPromise(
+        async ({ input }: { input: { userId: string | null } }) => {
+          if (!input.userId) throw new Error('User not logged in')
+          await syncAllToCloud(input.userId)
+          await restoreFromCloud(input.userId)
+        },
+      ),
+      cloudUnsyncActor: fromPromise(
+        async ({ input }: { input: { userId: string | null; id: string } }) => {
+          if (!input.userId) throw new Error('User not logged in')
+          if (!input.id) throw new Error('Missing character id for unsync')
+          await removeCharacterFromCloud(input.id, input.userId)
+        },
+      ),
     },
     guards: {
       hasCharacters: ({ context }) => context.characters.length > 0,
       hasUserId: ({ context }) => context.userId !== null,
+      updateTurnedOnCloud: ({ context, event }) => {
+        const output = (event as { output?: { save_to_cloud?: boolean } }).output
+        return output?.save_to_cloud === true && context.priorSaveToCloud !== true
+      },
+      updateTurnedOffCloudWithCloudId: ({ context, event }) => {
+        const output = (event as { output?: { save_to_cloud?: boolean } }).output
+        return (
+          output?.save_to_cloud !== true &&
+          context.priorSaveToCloud === true &&
+          Boolean(context.priorCloudId)
+        )
+      },
     },
     delays: {},
   },

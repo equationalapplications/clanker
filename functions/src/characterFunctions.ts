@@ -1,7 +1,7 @@
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
-import { characterService } from './services/characterService.js';
+import { characterService, CharacterOwnershipError } from './services/characterService.js';
 import { subscriptionService } from './services/subscriptionService.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 
@@ -24,7 +24,7 @@ type CharacterFunctionDeps = {
   userRepository: Pick<typeof userRepository, 'findUserByFirebaseUid'>;
   characterService: Pick<
     typeof characterService,
-    'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters' | 'getPublicCharacterById'
+    'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters' | 'getPublicCharacterWithOwner'
   >;
   subscriptionService: Pick<typeof subscriptionService, 'getSubscription'>;
 };
@@ -66,11 +66,20 @@ function toISO(value: unknown): string | null {
   throw new Error(`Invalid timestamp value type: ${typeof value}`);
 }
 
-function serializeCharacter(character: Record<string, unknown>) {
+function serializeCharacter(
+  character: Record<string, unknown>,
+  ownerFirebaseUid: string
+) {
+  // ownerUserId is the OWNER'S Firebase UID (matches client `auth.currentUser.uid`).
+  // The internal `character.userId` is the Cloud SQL `users.id` UUID and must NOT
+  // be exposed as ownership identity, since clients compare against Firebase uid.
+  const { userId: _internalUserId, ...rest } = character;
+  void _internalUserId;
   return {
-    ...character,
+    ...rest,
     createdAt: toISO(character.createdAt),
     updatedAt: toISO(character.updatedAt),
+    ownerUserId: ownerFirebaseUid,
   };
 }
 
@@ -168,11 +177,19 @@ export const syncCharacterHandler = async (
       updatedAt: undefined,
     }, user.id);
 
-    return serializeCharacter(upserted as unknown as Record<string, unknown>);
+    return serializeCharacter(upserted as unknown as Record<string, unknown>, request.auth.uid);
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;
     }
+
+    if (error instanceof CharacterOwnershipError) {
+      throw new HttpsError(
+        'permission-denied',
+        'Character does not belong to authenticated user.'
+      );
+    }
+
     logger.error('Failed to sync character', { error });
     throw new HttpsError('internal', 'Failed to sync character.');
   }
@@ -219,6 +236,17 @@ export const deleteCharacterHandler = async (
     await deps.characterService.deleteCharacter(normalizedCharacterId, user.id);
     return { success: true };
   } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    if (error instanceof CharacterOwnershipError) {
+      throw new HttpsError(
+        'permission-denied',
+        'Character does not belong to authenticated user.'
+      );
+    }
+
     logger.error('Failed to delete character', { error });
     throw new HttpsError('internal', 'Failed to delete character.');
   }
@@ -252,7 +280,7 @@ export const getUserCharactersHandler = async (
     const characters = await deps.characterService.getUserCharacters(user.id);
     return {
       characters: characters.map((character) =>
-        serializeCharacter(character as unknown as Record<string, unknown>)
+        serializeCharacter(character as unknown as Record<string, unknown>, request.auth!.uid)
       ),
     };
   } catch (error) {
@@ -300,11 +328,14 @@ export const getPublicCharacterHandler = async (
   await assertCloudCharacterAccess(user.id, deps);
 
   try {
-    const character = await deps.characterService.getPublicCharacterById(normalizedCharacterId);
-    if (!character) {
+    const row = await deps.characterService.getPublicCharacterWithOwner(normalizedCharacterId);
+    if (!row) {
       throw new HttpsError('not-found', 'Public character not found.');
     }
-    return serializeCharacter(character as unknown as Record<string, unknown>);
+    return serializeCharacter(
+      row.character as unknown as Record<string, unknown>,
+      row.ownerFirebaseUid
+    );
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;

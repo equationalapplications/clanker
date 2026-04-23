@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildCharacterUpdateValues, createCharacterService } from './characterService.js';
+import {
+  buildCharacterUpdateValues,
+  CharacterOwnershipError,
+  createCharacterService,
+} from './characterService.js';
 import { characters } from '../db/schema.js';
 
 test('buildCharacterUpdateValues omits isPublic when field is undefined', () => {
@@ -66,12 +70,9 @@ test('upsertCharacter rejects writing over a character owned by another user', a
     getDb: async () => fakeDb as never,
   });
 
-  await assert.rejects(
-    async () => {
-      await service.upsertCharacter({ id: 'char-1', name: 'Updated Name' } as never, 'user-1');
-    },
-    /Character does not belong to user/
-  );
+  await assert.rejects(async () => {
+    await service.upsertCharacter({ id: 'char-1', name: 'Updated Name' } as never, 'user-1');
+  }, CharacterOwnershipError);
 
   assert.equal(conflictTarget, characters.id);
   assert.ok(conflictWhere);

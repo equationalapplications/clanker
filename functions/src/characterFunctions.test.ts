@@ -5,6 +5,7 @@ import {HttpsError} from "firebase-functions/v2/https";
 process.env.NODE_ENV = "test";
 
 const {syncCharacterHandler, deleteCharacterHandler, getUserCharactersHandler, getPublicCharacterHandler} = await import("./characterFunctions.js");
+const {CharacterOwnershipError} = await import("./services/characterService.js");
 
 type CharacterFunctionDeps = NonNullable<Parameters<typeof syncCharacterHandler>[1]>;
 
@@ -262,6 +263,14 @@ test("getUserCharactersHandler returns character timestamps as ISO strings", asy
   assert.equal(typeof result.characters[0]?.updatedAt, "string");
   assert.equal(result.characters[0]?.createdAt, createdAt.toISOString());
   assert.equal(result.characters[0]?.updatedAt, updatedAt.toISOString());
+  assert.equal(
+    (result.characters[0] as Record<string, unknown>).ownerUserId,
+    "firebase-uid-1"
+  );
+  assert.equal(
+    (result.characters[0] as Record<string, unknown>).userId,
+    undefined
+  );
 });
 
 test("syncCharacterHandler rejects invalid timestamp value types", async () => {
@@ -381,7 +390,7 @@ test("getPublicCharacterHandler rejects users without cloud-character subscripti
             getSubscription: async () => ({planTier: "free", planStatus: "active"} as never),
           },
           characterService: {
-            getPublicCharacterById: async () => {
+            getPublicCharacterWithOwner: async () => {
               throw new Error("Unexpected character service call");
             },
           },
@@ -411,18 +420,21 @@ test("getPublicCharacterHandler returns shared public character", async () => {
         getSubscription: async () => ({planTier: "monthly_50", planStatus: "active"} as never),
       },
       characterService: {
-        getPublicCharacterById: async () => ({
-          id: "123e4567-e89b-42d3-a456-426614174000",
-          userId: "owner-1",
-          name: "Nova",
-          avatar: "https://example.com/avatar.png",
-          appearance: "Tall",
-          traits: "Calm",
-          emotions: "Happy",
-          context: "Shared",
-          isPublic: true,
-          createdAt,
-          updatedAt,
+        getPublicCharacterWithOwner: async () => ({
+          character: {
+            id: "123e4567-e89b-42d3-a456-426614174000",
+            userId: "owner-1",
+            name: "Nova",
+            avatar: "https://example.com/avatar.png",
+            appearance: "Tall",
+            traits: "Calm",
+            emotions: "Happy",
+            context: "Shared",
+            isPublic: true,
+            createdAt,
+            updatedAt,
+          },
+          ownerFirebaseUid: "owner-firebase-uid",
         } as never),
       },
     } as unknown as CharacterFunctionDeps
@@ -433,4 +445,111 @@ test("getPublicCharacterHandler returns shared public character", async () => {
   assert.equal(payload.name, "Nova");
   assert.equal(payload.createdAt, createdAt.toISOString());
   assert.equal(payload.updatedAt, updatedAt.toISOString());
+  assert.equal(payload.ownerUserId, "owner-firebase-uid");
+  assert.equal(payload.userId, undefined);
+});
+
+test("syncCharacterHandler rejects when character belongs to another user", async () => {
+  await assert.rejects(
+    async () => syncCharacterHandler(
+      {
+        auth,
+        data: {
+          character: {
+            id: "00000000-0000-4000-8000-000000000001",
+            name: "Nova",
+          },
+        },
+      } as never,
+      {
+        userRepository: {
+          findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+        },
+        subscriptionService: {
+          getSubscription: async () => ({planTier: "monthly_20", planStatus: "active"} as never),
+        },
+        characterService: {
+          upsertCharacter: async () => {
+            throw new CharacterOwnershipError();
+          },
+        },
+      } as unknown as CharacterFunctionDeps
+    ),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "permission-denied" &&
+      err.message.includes("does not belong to authenticated user")
+  );
+});
+
+test("deleteCharacterHandler rejects when character belongs to another user", async () => {
+  await assert.rejects(
+    async () => deleteCharacterHandler(
+      {
+        auth,
+        data: {
+          characterId: "00000000-0000-4000-8000-000000000001",
+        },
+      } as never,
+      {
+        userRepository: {
+          findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+        },
+        subscriptionService: {
+          getSubscription: async () => ({planTier: "monthly_20", planStatus: "active"} as never),
+        },
+        characterService: {
+          deleteCharacter: async () => {
+            throw new CharacterOwnershipError();
+          },
+        },
+      } as unknown as CharacterFunctionDeps
+    ),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "permission-denied" &&
+      err.message.includes("does not belong to authenticated user")
+  );
+});
+
+test("syncCharacterHandler response includes ownerUserId", async () => {
+  const result = await syncCharacterHandler(
+    {
+      auth,
+      data: {
+        character: {
+          name: "Nova",
+        },
+      },
+    } as never,
+    {
+      userRepository: {
+        findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+      },
+      subscriptionService: {
+        getSubscription: async () => ({planTier: "monthly_20", planStatus: "active"} as never),
+      },
+      characterService: {
+        upsertCharacter: async () => ({
+          id: "character-1",
+          userId: "user-1",
+          name: "Nova",
+          avatar: null,
+          appearance: null,
+          traits: null,
+          emotions: null,
+          context: null,
+          isPublic: false,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        } as never),
+      },
+    } as unknown as CharacterFunctionDeps
+  );
+
+  assert.equal(
+    (result as Record<string, unknown>).ownerUserId,
+    "firebase-uid-1"
+  );
+  assert.equal((result as Record<string, unknown>).userId, undefined);
 });

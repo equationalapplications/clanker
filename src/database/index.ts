@@ -20,6 +20,48 @@ type DatabaseExecutor = Pick<
     'execAsync' | 'runAsync' | 'getAllAsync' | 'getFirstAsync'
 >
 
+function isOPFSLockError(error: unknown): boolean {
+    const msg = error instanceof Error ? error.message : String(error)
+    return (
+        msg.includes('NoModificationAllowedError') ||
+        msg.includes('createSyncAccessHandle') ||
+        msg.includes('Access Handles cannot be created')
+    )
+}
+
+async function openDatabaseAsyncWithRetry(
+    name: string,
+    retries = 5,
+    baseDelayMs = 300,
+): Promise<SQLite.SQLiteDatabase> {
+    let lastError: unknown
+    for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+            return await SQLite.openDatabaseAsync(name)
+        } catch (error) {
+            lastError = error
+            if (!isOPFSLockError(error)) throw error
+            console.warn(`[DB] OPFS lock on attempt ${attempt + 1}/${retries}, retrying…`)
+            await new Promise((resolve) => setTimeout(resolve, baseDelayMs * (attempt + 1)))
+        }
+    }
+    if (Platform.OS === 'web' && isOPFSLockError(lastError)) {
+        console.error(
+            `[DB] Retries exhausted while opening "${name}". Preserving existing OPFS data and aborting instead of deleting the database.`,
+        )
+        throw new Error(
+            `Database "${name}" is locked in browser storage. Close other tabs or windows using this app and try again.`,
+            { cause: lastError instanceof Error ? lastError : undefined },
+        )
+    }
+    if (lastError instanceof Error) {
+        throw lastError
+    }
+    throw new Error(`Failed to open database "${name}" after ${retries} attempt(s).`, {
+        cause: lastError,
+    })
+}
+
 /**
  * Initialize and return the database instance
  */
@@ -41,7 +83,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 
     dbPromise = (async () => {
         try {
-            const database = await SQLite.openDatabaseAsync('clanker.db')
+            const database = await openDatabaseAsyncWithRetry('clanker.db')
             await initializeDatabase(database)
             db = database
             return database
@@ -141,6 +183,16 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
             hasCharacterColumn('summary_checkpoint')
         ) {
             inferredVersion = 6
+        }
+        if (
+            hasCharacterColumn('deleted_at') &&
+            hasCharacterColumn('avatar_data') &&
+            hasCharacterColumn('avatar_mime_type') &&
+            hasCharacterColumn('save_to_cloud') &&
+            hasCharacterColumn('summary_checkpoint') &&
+            hasCharacterColumn('owner_user_id')
+        ) {
+            inferredVersion = 7
         }
         await runMigrations(executor, inferredVersion)
         return

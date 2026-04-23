@@ -71,6 +71,7 @@ export interface CharacterSnapshot {
   isPublic: boolean
   createdAt: string
   updatedAt: string
+  ownerUserId: string
 }
 
 export interface SyncCharacterRequest {

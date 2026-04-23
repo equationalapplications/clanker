@@ -94,6 +94,12 @@ export const userRepository = {
     return result[0] || null;
   },
 
+  async findUserById(userId: string, deps: UserRepositoryDeps = defaultDeps) {
+    const db = await deps.getDb();
+    const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    return result[0] || null;
+  },
+
   async updateUser(
     userId: string,
     updates: Partial<typeof users.$inferInsert>,

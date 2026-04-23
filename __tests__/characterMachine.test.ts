@@ -1,13 +1,20 @@
 import { createActor, waitFor } from 'xstate'
 import { characterMachine } from '../src/machines/characterMachine'
 import * as characterDatabase from '../src/database/characterDatabase'
+import * as characterSyncService from '../src/services/characterSyncService'
 
 jest.mock('../src/database/characterDatabase')
 jest.mock('../src/services/defaultAvatarService', () => ({
   loadDefaultAvatarBase64: jest.fn().mockResolvedValue('default-avatar'),
 }))
+jest.mock('../src/services/characterSyncService', () => ({
+  syncAllToCloud: jest.fn().mockResolvedValue(undefined),
+  restoreFromCloud: jest.fn().mockResolvedValue(undefined),
+  removeCharacterFromCloud: jest.fn().mockResolvedValue(undefined),
+}))
 
 const mockDb = jest.mocked(characterDatabase)
+const mockSyncService = jest.mocked(characterSyncService)
 
 // Derive from the database function so synced_to_cloud and cloud_id are required,
 // matching what the mocks expect to return.
@@ -33,6 +40,7 @@ function makeCharacter(overrides: Partial<DbCharacter> = {}): DbCharacter {
     save_to_cloud: false,
     cloud_id: null,
     summary_checkpoint: 0,
+    owner_user_id: USER_ID,
     ...overrides,
   }
 }
@@ -453,6 +461,128 @@ describe('default character creation', () => {
     const snap = actor.getSnapshot()
     expect(snap.context.characters).toEqual([])
     expect(snap.context.error).toBeInstanceOf(Error)
+    actor.stop()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CLOUD_SYNC
+// ---------------------------------------------------------------------------
+describe('CLOUD_SYNC', () => {
+  beforeEach(() => {
+    mockSyncService.syncAllToCloud.mockResolvedValue(undefined)
+    mockSyncService.restoreFromCloud.mockResolvedValue(undefined)
+    mockSyncService.removeCharacterFromCloud.mockResolvedValue(undefined)
+  })
+
+  it('transitions idle → cloudSyncing and calls syncAllToCloud', async () => {
+    const char = makeCharacter()
+    const actor = await bootWithUser([char])
+
+    mockDb.getUserCharacters.mockResolvedValue([char])
+
+    actor.send({ type: 'CLOUD_SYNC' })
+    expect(actor.getSnapshot().matches('cloudSyncing')).toBe(true)
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+    expect(mockSyncService.syncAllToCloud).toHaveBeenCalledWith(USER_ID)
+    actor.stop()
+  })
+
+  it('auto-syncs after update with save_to_cloud: true', async () => {
+    const char = makeCharacter({ save_to_cloud: false, cloud_id: null })
+    const actor = await bootWithUser([char])
+
+    mockDb.getUserCharacters.mockResolvedValue([char])
+
+    const updatedChar = makeCharacter({ save_to_cloud: true, cloud_id: null })
+    mockDb.updateCharacter.mockResolvedValue(updatedChar)
+
+    actor.send({ type: 'UPDATE', id: 'char-1', updates: { save_to_cloud: true } })
+    await waitFor(actor, (s) => s.matches('cloudSyncing'), WAIT_OPTS)
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+    expect(mockSyncService.syncAllToCloud).toHaveBeenCalledWith(USER_ID)
+    actor.stop()
+  })
+
+  it('does not auto-sync after update when save_to_cloud already true', async () => {
+    const char = makeCharacter({ save_to_cloud: true, cloud_id: '00000000-0000-4000-8000-000000000001' })
+    const actor = await bootWithUser([char])
+
+    mockDb.getUserCharacters.mockResolvedValue([char])
+    mockSyncService.syncAllToCloud.mockClear()
+
+    const updatedChar = makeCharacter({
+      save_to_cloud: true,
+      cloud_id: '00000000-0000-4000-8000-000000000001',
+      name: 'Renamed',
+    })
+    mockDb.updateCharacter.mockResolvedValue(updatedChar)
+
+    actor.send({ type: 'UPDATE', id: 'char-1', updates: { name: 'Renamed' } })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+
+    expect(mockSyncService.syncAllToCloud).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.characters[0].name).toBe('Renamed')
+    actor.stop()
+  })
+
+  it('auto-unsyncs after update turning save_to_cloud off with existing cloud_id', async () => {
+    const char = makeCharacter({ save_to_cloud: true, cloud_id: '00000000-0000-4000-8000-000000000001' })
+    const actor = await bootWithUser([char])
+
+    mockDb.getUserCharacters.mockResolvedValue([char])
+
+    const updatedChar = makeCharacter({ save_to_cloud: false, cloud_id: '00000000-0000-4000-8000-000000000001' })
+    mockDb.updateCharacter.mockResolvedValue(updatedChar)
+
+    actor.send({ type: 'UPDATE', id: 'char-1', updates: { save_to_cloud: false } })
+    await waitFor(actor, (s) => s.matches('cloudUnsyncing'), WAIT_OPTS)
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+    expect(mockSyncService.removeCharacterFromCloud).toHaveBeenCalledWith(
+      'char-1',
+      USER_ID,
+    )
+    actor.stop()
+  })
+
+  it('sets context.error when cloud sync fails', async () => {
+    const char = makeCharacter()
+    const actor = await bootWithUser([char])
+
+    mockSyncService.syncAllToCloud.mockRejectedValue(new Error('network error'))
+
+    actor.send({ type: 'CLOUD_SYNC' })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+
+    expect(actor.getSnapshot().context.error).toBeInstanceOf(Error)
+    actor.stop()
+  })
+
+  it('ignores UPDATE and CLOUD_SYNC events while cloudSyncing', async () => {
+    const char = makeCharacter()
+    const actor = await bootWithUser([char])
+
+    // Keep sync pending
+    let resolveSync!: () => void
+    mockSyncService.syncAllToCloud.mockReturnValue(
+      new Promise<void>((resolve) => { resolveSync = resolve })
+    )
+
+    actor.send({ type: 'CLOUD_SYNC' })
+    expect(actor.getSnapshot().matches('cloudSyncing')).toBe(true)
+
+    // These should be nooped
+    actor.send({ type: 'UPDATE', id: 'char-1', updates: { name: 'Blocked' } })
+    actor.send({ type: 'CLOUD_SYNC' })
+
+    // Still cloudSyncing
+    expect(actor.getSnapshot().matches('cloudSyncing')).toBe(true)
+    expect(actor.getSnapshot().context.characters[0].name).toBe('Test Character') // unchanged
+
+    resolveSync()
     actor.stop()
   })
 })
