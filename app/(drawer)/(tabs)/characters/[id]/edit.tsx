@@ -14,7 +14,7 @@ import {
 } from 'react-native-paper'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSelector } from '@xstate/react'
-import { useCharacter, useUpdateCharacter, useUnsyncCharacter } from '~/hooks/useCharacters'
+import { useCharacter, useUpdateCharacter, useUnsyncCharacter, useSyncCharacters } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { useImageGeneration } from '~/hooks/useImageGeneration'
@@ -42,6 +42,7 @@ export default function EditCharacterScreen() {
     error: updateError,
   } = useUpdateCharacter()
   const { isCloudUnsyncing, error: unsyncError } = useUnsyncCharacter()
+  const { isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -60,6 +61,7 @@ export default function EditCharacterScreen() {
   const [showShareModal, setShowShareModal] = useState(false)
   const prevIsUpdatingRef = useRef(false)
   const prevIsCloudUnsyncingRef = useRef(false)
+  const prevIsCloudSyncingRef = useRef(false)
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -77,8 +79,10 @@ export default function EditCharacterScreen() {
 
   const canEdit = useMemo(() => {
     if (!character || !user?.uid) return false
-    // If owner_user_id is empty string (legacy/unset), default to allowing edit
-    if (!character.owner_user_id) return true
+    // Treat empty owner_user_id as unknown ownership:
+    // - allow edits for purely local legacy characters (no cloud_id)
+    // - deny edits for cloud/shared characters with unknown ownership
+    if (!character.owner_user_id) return !character.cloud_id
     return user.uid === character.owner_user_id
   }, [character, user?.uid])
 
@@ -123,10 +127,11 @@ export default function EditCharacterScreen() {
   useEffect(() => {
     const justFinishedUpdating = !isUpdating && prevIsUpdatingRef.current
     const justFinishedUnsyncing = !isCloudUnsyncing && prevIsCloudUnsyncingRef.current
-    if (isSaving && !isUpdating && !isCloudUnsyncing && (justFinishedUpdating || justFinishedUnsyncing)) {
-      // Update (and any subsequent cloud unsync) has completed
+    const justFinishedSyncing = !isCloudSyncing && prevIsCloudSyncingRef.current
+    if (isSaving && !isUpdating && !isCloudUnsyncing && !isCloudSyncing && (justFinishedUpdating || justFinishedUnsyncing || justFinishedSyncing)) {
+      // Update (and any subsequent cloud sync or unsync) has completed
       setIsSaving(false)
-      if (!updateError && !unsyncError) {
+      if (!updateError && !unsyncError && !cloudSyncError) {
         // Success: navigate away only if there's no error
         if (router.canGoBack()) {
           router.back()
@@ -138,7 +143,8 @@ export default function EditCharacterScreen() {
     }
     prevIsUpdatingRef.current = isUpdating
     prevIsCloudUnsyncingRef.current = isCloudUnsyncing
-  }, [isUpdating, isCloudUnsyncing, isSaving, updateError, unsyncError])
+    prevIsCloudSyncingRef.current = isCloudSyncing
+  }, [isUpdating, isCloudUnsyncing, isCloudSyncing, isSaving, updateError, unsyncError, cloudSyncError])
 
   const {
     generateImage,
@@ -415,17 +421,19 @@ export default function EditCharacterScreen() {
             <Button
               mode="contained"
               onPress={handleSave}
-              disabled={isSaving || isUpdating || isCloudUnsyncing || !canEdit}
-              loading={isSaving || isUpdating || isCloudUnsyncing}
+              disabled={isSaving || isUpdating || isCloudUnsyncing || isCloudSyncing || !canEdit}
+              loading={isSaving || isUpdating || isCloudUnsyncing || isCloudSyncing}
               style={styles.button}
             >
               Save Changes
             </Button>
           </View>
-          {didAttemptSave && (updateError || unsyncError) ? (
+          {didAttemptSave && (updateError || unsyncError || cloudSyncError) ? (
             <HelperText type="error" visible style={styles.errorText}>
               {unsyncError instanceof Error
                 ? unsyncError.message
+                : cloudSyncError instanceof Error
+                ? cloudSyncError.message
                 : updateError instanceof Error
                 ? updateError.message
                 : 'Failed to save character. Please try again.'}
