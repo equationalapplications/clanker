@@ -506,6 +506,28 @@ describe('CLOUD_SYNC', () => {
     actor.stop()
   })
 
+  it('does not auto-sync after update when save_to_cloud already true', async () => {
+    const char = makeCharacter({ save_to_cloud: true, cloud_id: '00000000-0000-4000-8000-000000000001' })
+    const actor = await bootWithUser([char])
+
+    mockDb.getUserCharacters.mockResolvedValue([char])
+    mockSyncService.syncAllToCloud.mockClear()
+
+    const updatedChar = makeCharacter({
+      save_to_cloud: true,
+      cloud_id: '00000000-0000-4000-8000-000000000001',
+      name: 'Renamed',
+    })
+    mockDb.updateCharacter.mockResolvedValue(updatedChar)
+
+    actor.send({ type: 'UPDATE', id: 'char-1', updates: { name: 'Renamed' } })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+
+    expect(mockSyncService.syncAllToCloud).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.characters[0].name).toBe('Renamed')
+    actor.stop()
+  })
+
   it('auto-unsyncs after update turning save_to_cloud off with existing cloud_id', async () => {
     const char = makeCharacter({ save_to_cloud: true, cloud_id: '00000000-0000-4000-8000-000000000001' })
     const actor = await bootWithUser([char])

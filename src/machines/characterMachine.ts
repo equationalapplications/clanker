@@ -499,9 +499,9 @@ export const characterMachine = createMachine(
     guards: {
       hasCharacters: ({ context }) => context.characters.length > 0,
       hasUserId: ({ context }) => context.userId !== null,
-      updateTurnedOnCloud: ({ event }) => {
+      updateTurnedOnCloud: ({ context, event }) => {
         const output = (event as { output?: { save_to_cloud?: boolean } }).output
-        return output?.save_to_cloud === true
+        return output?.save_to_cloud === true && context.priorSaveToCloud !== true
       },
       updateTurnedOffCloudWithCloudId: ({ context, event }) => {
         const output = (event as { output?: { save_to_cloud?: boolean } }).output

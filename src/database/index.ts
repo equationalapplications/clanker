@@ -54,7 +54,12 @@ async function openDatabaseAsyncWithRetry(
             { cause: lastError instanceof Error ? lastError : undefined },
         )
     }
-    throw lastError
+    if (lastError instanceof Error) {
+        throw lastError
+    }
+    throw new Error(`Failed to open database "${name}" after ${retries} attempt(s).`, {
+        cause: lastError,
+    })
 }
 
 /**

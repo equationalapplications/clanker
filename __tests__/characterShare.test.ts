@@ -12,11 +12,11 @@ describe('characterShare', () => {
     process.env.EXPO_PUBLIC_CHARACTER_SHARE_BASE_URL = originalShareBaseUrl
   })
 
-  test('defaults to clanker-ai.com when share base URL is not configured', () => {
+  test('defaults to clanker.app when share base URL is not configured', () => {
     delete process.env.EXPO_PUBLIC_CHARACTER_SHARE_BASE_URL
 
     expect(buildCharacterShareUrl('abc 123')).toBe(
-      'https://clanker-ai.com/characters/shared/abc%20123',
+      'https://clanker.app/characters/shared/abc%20123',
     )
   })
 
