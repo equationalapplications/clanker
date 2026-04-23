@@ -251,7 +251,8 @@ export async function removeCharacterFromCloud(localCharacterId: string, userId:
         await deleteCharacterFn({ characterId: cloudId })
     } catch (error: any) {
         // If already not found on cloud, still proceed to clear local link
-        if (error?.code !== 'not-found') {
+        const errorCode = typeof error?.code === 'string' ? error.code : ''
+        if (errorCode !== 'not-found' && !errorCode.endsWith('/not-found')) {
             throw error
         }
     }
