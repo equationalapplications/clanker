@@ -22,6 +22,8 @@ import {
     markCharacterSynced,
     hardDeleteCharacterLocal,
     batchInsertCharacters,
+    clearCharacterCloudLink,
+    getCharacter,
     LocalCharacter,
 } from '../database/characterDatabase'
 
@@ -129,7 +131,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     cloud_id: cloudChar.id,
                     deleted_at: null as number | null,
                     summary_checkpoint: 0,
-                    owner_user_id: localUserId,
+                    owner_user_id: cloudChar.ownerUserId || localUserId,
                 }
             })
             .filter((c: LocalCharacter) => {
@@ -219,11 +221,42 @@ export async function importSharedCharacterFromCloud(
             cloud_id: cloudCharacter.id,
             deleted_at: null,
             summary_checkpoint: 0,
-            owner_user_id: localUserId,
+            owner_user_id: cloudCharacter.ownerUserId || localUserId,
         },
     ])
 
     return { localCharacterId, cloudCharacterId: cloudCharacter.id }
+}
+
+/**
+ * Remove a character from cloud while keeping the local copy.
+ * Sets save_to_cloud = off locally, clears cloud_id and synced_to_cloud.
+ * Noop if the character has no cloud_id.
+ */
+export async function removeCharacterFromCloud(localCharacterId: string, userId: string): Promise<void> {
+    const localChar = await getCharacter(localCharacterId, userId)
+    if (!localChar) return
+
+    const cloudId = localChar.cloud_id && UUID_REGEX.test(localChar.cloud_id)
+        ? localChar.cloud_id
+        : null
+
+    if (!cloudId) {
+        // No cloud copy — just clear the link (noop success)
+        await clearCharacterCloudLink(localCharacterId, userId)
+        return
+    }
+
+    try {
+        await deleteCharacterFn({ characterId: cloudId })
+    } catch (error: any) {
+        // If already not found on cloud, still proceed to clear local link
+        if (error?.code !== 'not-found') {
+            throw error
+        }
+    }
+
+    await clearCharacterCloudLink(localCharacterId, userId)
 }
 
 async function syncDeletionsToCloud(localUserId: string): Promise<void> {

@@ -293,6 +293,19 @@ export async function markCharacterSynced(localId: string, cloudId: string) {
 }
 
 /**
+ * Clear cloud link for a character (used when unsyncing from cloud)
+ * Sets cloud_id = NULL, synced_to_cloud = 0. Does NOT delete the local record.
+ */
+export async function clearCharacterCloudLink(characterId: string, userId: string) {
+    const db = await getDatabase()
+
+    await db.runAsync(
+        'UPDATE characters SET cloud_id = NULL, synced_to_cloud = 0 WHERE id = ? AND user_id = ?',
+        [characterId, userId],
+    )
+}
+
+/**
  * Get characters that need syncing to cloud
  */
 export async function getUnsyncedCharacters(userId: string) {
