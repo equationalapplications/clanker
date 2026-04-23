@@ -3,11 +3,10 @@ import { Text, Button, ActivityIndicator, Snackbar, IconButton } from 'react-nat
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useSelector } from '@xstate/react'
-import { useCharacters, useCreateCharacter } from '~/hooks/useCharacters'
+import { useCharacters, useCreateCharacter, useSyncCharacters } from '~/hooks/useCharacters'
 import { CharacterCard } from '~/components/CharacterCard'
 import { useCharacterMachine } from '~/hooks/useMachines'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
-import { restoreFromCloud } from '~/services/characterSyncService'
 
 export default function CharactersListScreen() {
   const { characters, isLoading } = useCharacters()
@@ -15,7 +14,7 @@ export default function CharactersListScreen() {
   const { isSubscriber } = useCurrentPlan()
   const characterService = useCharacterMachine()
   const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
-  const [isRestoring, setIsRestoring] = useState(false)
+  const { sync, isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
   const [toastState, setToastState] = useState<{
     message: string
     requiresSubscription: boolean
@@ -33,7 +32,7 @@ export default function CharactersListScreen() {
     create({ name: 'New Character', is_public: false })
   }
 
-  const handleRetrieveFromCloud = async () => {
+  const handleCloudSync = () => {
     if (!isSubscriber) {
       setToastState({
         message: 'Cloud retrieval requires a monthly subscription.',
@@ -41,20 +40,17 @@ export default function CharactersListScreen() {
       })
       return
     }
+    sync()
+  }
 
-    setIsRestoring(true)
-    try {
-      await restoreFromCloud()
-      characterService.send({ type: 'LOAD' })
-    } catch (error) {
+  useEffect(() => {
+    if (cloudSyncError) {
       setToastState({
-        message: error instanceof Error ? error.message : 'Failed to retrieve characters from cloud.',
+        message: cloudSyncError instanceof Error ? cloudSyncError.message : 'Failed to sync characters.',
         requiresSubscription: false,
       })
-    } finally {
-      setIsRestoring(false)
     }
-  }
+  }, [cloudSyncError])
 
   if (isLoading) {
     return (
@@ -75,9 +71,9 @@ export default function CharactersListScreen() {
           <IconButton
             icon="cloud-sync"
             size={28}
-            onPress={handleRetrieveFromCloud}
-            loading={isRestoring}
-            disabled={isRestoring}
+            onPress={handleCloudSync}
+            loading={isCloudSyncing}
+            disabled={isCloudSyncing}
             accessibilityLabel="Cloud Sync"
           />
           <Button
