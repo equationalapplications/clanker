@@ -204,6 +204,9 @@ function RootLayoutNav() {
 
   return (
     <Stack>
+      {/* Landing page - always accessible, no header */}
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+
       {/* Protected routes - only available when logged in */}
       <Stack.Protected guard={!!user}>
         <Stack.Screen name="(drawer)" options={{ headerShown: false }} />

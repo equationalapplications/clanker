@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
-import { StyleSheet, View, Alert, Platform, ScrollView, useWindowDimensions } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useEffect, useState } from 'react'
+import { StyleSheet, View, Alert, Platform, ScrollView, useWindowDimensions, Linking } from 'react-native'
+import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
+import * as ExpoLinking from 'expo-linking'
 import { useSelector } from '@xstate/react'
 
 import ProviderButton from '~/auth/AuthProviderButton'
@@ -9,6 +10,11 @@ import Logo from '~/components/Logo'
 import { MonoText, TitleText } from '~/components/StyledText'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { handleAppleRedirectResult } from '~/auth/appleSignin'
+import {
+  isProtectedPath,
+  toValidatedInternalHref,
+  resolveRedirectDestination,
+} from '~/utilities/authRedirect'
 
 // Defer native Apple auth require to avoid loading it in web bundles.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -28,11 +34,45 @@ export default function SignIn() {
     error: state.context.error,
   }))
 
+  const { redirect } = useLocalSearchParams<{ redirect?: string }>()
+  const [initialRedirect, setInitialRedirect] = useState<Href | null>(null)
+
+  useEffect(() => {
+    Linking.getInitialURL()
+      .then((url) => {
+        if (!url) return
+
+        // expo-linking correctly handles custom-scheme URLs like
+        // com.equationalapplications.clanker://chat/123 where new URL() would
+        // treat 'chat' as the host and return '/123' as the pathname.
+        const parsed = ExpoLinking.parse(url)
+        const { path, queryParams } = parsed
+
+        if (!path) return
+
+        const pathname = '/' + path
+        const search =
+          queryParams && Object.keys(queryParams).length > 0
+            ? '?' + new URLSearchParams(queryParams as Record<string, string>).toString()
+            : ''
+        const fullPath = pathname + search
+        const validatedPath = toValidatedInternalHref(fullPath)
+
+        if (validatedPath && isProtectedPath(pathname)) {
+          setInitialRedirect(validatedPath)
+        }
+      })
+      .catch((error) => {
+        console.warn('Failed to read initial URL for post-auth redirect:', error)
+      })
+  }, [])
+
   useEffect(() => {
     if (isSignedIn) {
-      router.replace('/characters/list')
+      const destination = resolveRedirectDestination(initialRedirect, redirect)
+      router.replace(destination)
     }
-  }, [isSignedIn, router])
+  }, [isSignedIn, router, redirect, initialRedirect])
 
   useEffect(() => {
     if (error) {
