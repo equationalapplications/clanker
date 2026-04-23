@@ -1,24 +1,19 @@
 import { View, StyleSheet, Pressable, Linking } from 'react-native'
 import { Text, useTheme } from 'react-native-paper'
-import { useRouter } from 'expo-router'
+import { Link } from 'expo-router'
 
 export default function LandingFooter() {
   const { colors } = useTheme()
-  const router = useRouter()
 
   return (
     <View style={styles.footer}>
-      <Pressable accessibilityRole="link" onPress={() => router.push('/terms')}>
-        <Text variant="bodySmall" style={[styles.link, { color: colors.outline }]}>
-          Terms and Conditions
-        </Text>
-      </Pressable>
+      <Link href="/terms" style={[styles.link, { color: colors.outline }]}>
+        <Text variant="bodySmall">Terms and Conditions</Text>
+      </Link>
       <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
-      <Pressable accessibilityRole="link" onPress={() => router.push('/privacy')}>
-        <Text variant="bodySmall" style={[styles.link, { color: colors.outline }]}>
-          Privacy Policy
-        </Text>
-      </Pressable>
+      <Link href="/privacy" style={[styles.link, { color: colors.outline }]}>
+        <Text variant="bodySmall">Privacy Policy</Text>
+      </Link>
       <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
       <Pressable
         accessibilityRole="link"
