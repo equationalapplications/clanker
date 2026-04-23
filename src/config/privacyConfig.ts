@@ -8,8 +8,8 @@ export interface PrivacyConfig {
 }
 
 export const PRIVACY: PrivacyConfig = {
-  version: '1.0',
-  lastUpdated: 'September 28, 2025',
+  version: '1.2',
+  lastUpdated: 'April 23, 2026',
   privacy: `
 Equational Applications LLC ("we", "us", "our") is committed to protecting your privacy.
 This privacy policy explains how we collect, use, and disclose information through our
@@ -33,6 +33,15 @@ our behalf, such as payment processing and data storage. We may also share your
 information with our affiliates, as well as with law enforcement or other authorities if
 we believe it is necessary to comply with a legal obligation or to protect our rights and
 property.
+
+AI Processing of Chat Content
+When you use the chat feature, the content you submit — including your messages, character
+descriptions and personas, and any attached images or files — is transmitted to Google
+Vertex AI, operated by Google LLC, which generates responses on our behalf. Google
+processes this content as our service provider under the Google Cloud Privacy Notice
+(https://cloud.google.com/terms/cloud-privacy-notice) and does not use it to train its
+foundation models. Please do not submit sensitive personal information (such as government
+identifiers, financial account numbers, or health records) in chat.
 
 Retention of Information
 We may retain your information for as long as necessary to provide and improve the App, to
