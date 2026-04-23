@@ -112,19 +112,24 @@ export const createCharacterService = (
     async deleteCharacter(characterId: string, userId: string) {
       const db = await deps.getDb();
 
-      const existing = await db
-        .select()
-        .from(characters)
-        .where(eq(characters.id, characterId))
-        .limit(1);
-
-      if (existing[0] && existing[0].userId !== userId) {
-        throw new Error('Character does not belong to user');
-      }
-
-      await db
+      const deleted = await db
         .delete(characters)
-        .where(sql`${characters.id} = ${characterId} AND ${characters.userId} = ${userId}`);
+        .where(sql`${characters.id} = ${characterId} AND ${characters.userId} = ${userId}`)
+        .returning({ id: characters.id });
+
+      if (deleted.length === 0) {
+        // Nothing deleted — check whether the record exists under a different user
+        const existing = await db
+          .select({ id: characters.id })
+          .from(characters)
+          .where(eq(characters.id, characterId))
+          .limit(1);
+
+        if (existing[0]) {
+          throw new Error('Character does not belong to user');
+        }
+        // Not found at all — treat as idempotent success
+      }
     },
 
     async getUserCharacters(userId: string) {

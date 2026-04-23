@@ -491,6 +491,7 @@ export const characterMachine = createMachine(
       cloudUnsyncActor: fromPromise(
         async ({ input }: { input: { userId: string | null; id: string } }) => {
           if (!input.userId) throw new Error('User not logged in')
+          if (!input.id) throw new Error('Missing character id for unsync')
           await removeCharacterFromCloud(input.id, input.userId)
         },
       ),

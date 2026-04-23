@@ -20,6 +20,59 @@ type DatabaseExecutor = Pick<
     'execAsync' | 'runAsync' | 'getAllAsync' | 'getFirstAsync'
 >
 
+function isOPFSLockError(error: unknown): boolean {
+    const msg = error instanceof Error ? error.message : String(error)
+    return (
+        msg.includes('NoModificationAllowedError') ||
+        msg.includes('createSyncAccessHandle') ||
+        msg.includes('Access Handles cannot be created')
+    )
+}
+
+async function deleteOPFSDatabase(name: string): Promise<void> {
+    if (typeof navigator === 'undefined' || !('storage' in navigator)) return
+    try {
+        const root = await navigator.storage.getDirectory()
+        // AccessHandlePoolVFS creates the main file plus pool entries; remove all
+        // entries whose names start with the DB name.
+        const toDelete: string[] = []
+        for await (const [entryName] of (root as unknown as AsyncIterable<[string, FileSystemHandle]>)) {
+            if (entryName === name || entryName.startsWith(`${name}-`)) {
+                toDelete.push(entryName)
+            }
+        }
+        await Promise.allSettled(toDelete.map((n) => root.removeEntry(n)))
+        console.warn(`[DB] Deleted locked OPFS entries for "${name}":`, toDelete)
+    } catch (err) {
+        console.warn('[DB] Could not delete OPFS entries:', err)
+    }
+}
+
+async function openDatabaseAsyncWithRetry(
+    name: string,
+    retries = 5,
+    baseDelayMs = 300,
+): Promise<SQLite.SQLiteDatabase> {
+    let lastError: unknown
+    for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+            return await SQLite.openDatabaseAsync(name)
+        } catch (error) {
+            lastError = error
+            if (!isOPFSLockError(error)) throw error
+            console.warn(`[DB] OPFS lock on attempt ${attempt + 1}/${retries}, retrying…`)
+            await new Promise((resolve) => setTimeout(resolve, baseDelayMs * (attempt + 1)))
+        }
+    }
+    // All retries exhausted — delete the OPFS file and try once more (fresh DB)
+    if (Platform.OS === 'web') {
+        console.warn('[DB] Retries exhausted, deleting locked OPFS database and starting fresh')
+        await deleteOPFSDatabase(name)
+        return SQLite.openDatabaseAsync(name)
+    }
+    throw lastError
+}
+
 /**
  * Initialize and return the database instance
  */
@@ -41,7 +94,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 
     dbPromise = (async () => {
         try {
-            const database = await SQLite.openDatabaseAsync('clanker.db')
+            const database = await openDatabaseAsyncWithRetry('clanker.db')
             await initializeDatabase(database)
             db = database
             return database
