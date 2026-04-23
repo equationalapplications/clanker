@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { View, StyleSheet, ScrollView, Share } from 'react-native'
+import { Alert, View, StyleSheet, ScrollView, Share } from 'react-native'
 import {
   Text,
   TextInput,
@@ -73,16 +73,33 @@ export default function EditCharacterScreen() {
     }
   }, [character])
 
+  const canEdit = useMemo(() => {
+    if (!character || !user?.uid) return false
+    // If owner_user_id is empty string (legacy/unset), default to allowing edit
+    if (!character.owner_user_id) return true
+    return user.uid === character.owner_user_id
+  }, [character, user?.uid])
+
   useEditDirtyState(
-    {
-      name,
-      appearance,
-      traits,
-      emotions,
-      context,
-      saveToCloud: saveToCloud ? 'true' : 'false',
-      isShareable: isCharacterShareable ? 'true' : 'false',
-    },
+    canEdit
+      ? {
+          name,
+          appearance,
+          traits,
+          emotions,
+          context,
+          saveToCloud: saveToCloud ? 'true' : 'false',
+          isShareable: isCharacterShareable ? 'true' : 'false',
+        }
+      : loadedValues ?? {
+          name: '',
+          appearance: '',
+          traits: '',
+          emotions: '',
+          context: '',
+          saveToCloud: 'false',
+          isShareable: 'false',
+        },
     loadedValues,
   )
 
@@ -153,6 +170,27 @@ export default function EditCharacterScreen() {
         message: 'Cloud character save requires a monthly subscription.',
         requiresSubscription: true,
       })
+      return
+    }
+
+    if (!nextValue && character?.save_to_cloud === true) {
+      Alert.alert(
+        'Remove from Cloud?',
+        'Are you sure you want to remove the character from the cloud?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Confirm',
+            onPress: () => {
+              setSaveToCloud(false)
+              setIsCharacterShareable(false)
+            },
+          },
+        ],
+      )
       return
     }
 
@@ -247,7 +285,7 @@ export default function EditCharacterScreen() {
                 clearError()
                 generateImage(buildImagePrompt({ name, appearance, traits, emotions }))
               }}
-              disabled={isGenerating}
+              disabled={isGenerating || !canEdit}
               loading={isGenerating}
               style={styles.generateButton}
             >
@@ -269,6 +307,7 @@ export default function EditCharacterScreen() {
             mode="outlined"
             style={styles.input}
             maxLength={30}
+            editable={canEdit}
           />
 
           <TextInput
@@ -280,6 +319,7 @@ export default function EditCharacterScreen() {
             multiline
             numberOfLines={3}
             maxLength={144}
+            editable={canEdit}
           />
 
           <TextInput
@@ -291,6 +331,7 @@ export default function EditCharacterScreen() {
             multiline
             numberOfLines={3}
             maxLength={144}
+            editable={canEdit}
           />
 
           <TextInput
@@ -302,6 +343,7 @@ export default function EditCharacterScreen() {
             multiline
             numberOfLines={3}
             maxLength={144}
+            editable={canEdit}
           />
 
           <TextInput
@@ -312,6 +354,7 @@ export default function EditCharacterScreen() {
             style={styles.input}
             multiline
             numberOfLines={4}
+            editable={canEdit}
           />
 
           <View style={styles.toggleRow}>
@@ -321,8 +364,18 @@ export default function EditCharacterScreen() {
                 Requires a monthly subscription.
               </Text>
             </View>
-            <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} />
+            <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} disabled={!canEdit} />
           </View>
+
+          {character.owner_user_id && canEdit ? (
+            <Text variant="bodySmall" style={styles.ownershipText}>
+              You own this character. Only you can edit the cloud version.
+            </Text>
+          ) : character.owner_user_id && !canEdit ? (
+            <Text variant="bodySmall" style={styles.ownershipText}>
+              You can view this character, but only the owner can edit it.
+            </Text>
+          ) : null}
 
           <View style={styles.toggleRow}>
             <View style={styles.toggleTextContainer}>
@@ -334,12 +387,12 @@ export default function EditCharacterScreen() {
             <Switch
               value={isCharacterShareable}
               onValueChange={setIsCharacterShareable}
-              disabled={!saveToCloud}
+              disabled={!saveToCloud || !canEdit}
             />
           </View>
 
           {isCharacterShareable ? (
-            <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton}>
+            <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton} disabled={!canEdit}>
               Share Character
             </Button>
           ) : null}
@@ -357,7 +410,7 @@ export default function EditCharacterScreen() {
             <Button
               mode="contained"
               onPress={handleSave}
-              disabled={isSaving || isUpdating}
+              disabled={isSaving || isUpdating || !canEdit}
               loading={isSaving || isUpdating}
               style={styles.button}
             >
@@ -495,5 +548,9 @@ const styles = StyleSheet.create({
   },
   shareLink: {
     textAlign: 'center',
+  },
+  ownershipText: {
+    opacity: 0.7,
+    marginBottom: 8,
   },
 })
