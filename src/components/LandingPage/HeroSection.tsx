@@ -1,4 +1,4 @@
-import { StyleSheet, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, View, useWindowDimensions, Linking } from 'react-native'
 import { useEffect } from 'react'
 import { Button, useTheme } from 'react-native-paper'
 import { Image } from 'expo-image'
@@ -94,7 +94,7 @@ export default function HeroSection() {
   }))
 
   const handleCTA = () => {
-    router.push(isSignedIn ? '/chat' : '/sign-in')
+    Linking.openURL('https://clanker-ai.com/chat')
   }
 
   return (
@@ -105,7 +105,7 @@ export default function HeroSection() {
           mode="text"
           compact
           textColor={colors.primary}
-          onPress={() => router.push(isSignedIn ? '/chat' : '/sign-in')}
+          onPress={() => Linking.openURL('https://clanker-ai.com/chat')}
           style={styles.signInBtn}
         >
           {isSignedIn ? 'Open App' : 'Sign In'}
