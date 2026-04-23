@@ -71,6 +71,7 @@ function serializeCharacter(character: Record<string, unknown>) {
     ...character,
     createdAt: toISO(character.createdAt),
     updatedAt: toISO(character.updatedAt),
+    ownerUserId: character.userId,
   };
 }
 

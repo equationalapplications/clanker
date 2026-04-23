@@ -111,6 +111,17 @@ export const createCharacterService = (
 
     async deleteCharacter(characterId: string, userId: string) {
       const db = await deps.getDb();
+
+      const existing = await db
+        .select()
+        .from(characters)
+        .where(eq(characters.id, characterId))
+        .limit(1);
+
+      if (existing[0] && existing[0].userId !== userId) {
+        throw new Error('Character does not belong to user');
+      }
+
       await db
         .delete(characters)
         .where(sql`${characters.id} = ${characterId} AND ${characters.userId} = ${userId}`);

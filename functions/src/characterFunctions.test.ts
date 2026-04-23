@@ -434,3 +434,102 @@ test("getPublicCharacterHandler returns shared public character", async () => {
   assert.equal(payload.createdAt, createdAt.toISOString());
   assert.equal(payload.updatedAt, updatedAt.toISOString());
 });
+
+test("syncCharacterHandler rejects when character belongs to another user", async () => {
+  await assert.rejects(
+    async () => syncCharacterHandler(
+      {
+        auth,
+        data: {
+          character: {
+            id: "00000000-0000-4000-8000-000000000001",
+            name: "Nova",
+          },
+        },
+      } as never,
+      {
+        userRepository: {
+          findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+        },
+        subscriptionService: {
+          getSubscription: async () => ({planTier: "monthly_20", planStatus: "active"} as never),
+        },
+        characterService: {
+          upsertCharacter: async () => {
+            throw new Error("Character does not belong to user");
+          },
+        },
+      } as unknown as CharacterFunctionDeps
+    ),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "internal"
+  );
+});
+
+test("deleteCharacterHandler rejects when character belongs to another user", async () => {
+  await assert.rejects(
+    async () => deleteCharacterHandler(
+      {
+        auth,
+        data: {
+          characterId: "00000000-0000-4000-8000-000000000001",
+        },
+      } as never,
+      {
+        userRepository: {
+          findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+        },
+        subscriptionService: {
+          getSubscription: async () => ({planTier: "monthly_20", planStatus: "active"} as never),
+        },
+        characterService: {
+          deleteCharacter: async () => {
+            throw new Error("Character does not belong to user");
+          },
+        },
+      } as unknown as CharacterFunctionDeps
+    ),
+    (err: unknown) =>
+      err instanceof HttpsError &&
+      err.code === "internal"
+  );
+});
+
+test("syncCharacterHandler response includes ownerUserId", async () => {
+  const result = await syncCharacterHandler(
+    {
+      auth,
+      data: {
+        character: {
+          name: "Nova",
+        },
+      },
+    } as never,
+    {
+      userRepository: {
+        findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+      },
+      subscriptionService: {
+        getSubscription: async () => ({planTier: "monthly_20", planStatus: "active"} as never),
+      },
+      characterService: {
+        upsertCharacter: async () => ({
+          id: "character-1",
+          userId: "user-1",
+          name: "Nova",
+          avatar: null,
+          appearance: null,
+          traits: null,
+          emotions: null,
+          context: null,
+          isPublic: false,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        } as never),
+      },
+    } as unknown as CharacterFunctionDeps
+  );
+
+  assert.equal((result as Record<string, unknown>).ownerUserId, "user-1");
+});
