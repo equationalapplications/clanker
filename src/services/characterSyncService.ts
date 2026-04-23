@@ -231,7 +231,7 @@ export async function importSharedCharacterFromCloud(
 /**
  * Remove a character from cloud while keeping the local copy.
  * Clears the local cloud link and sync state after removing the cloud copy when present.
- * Noop if the character has no cloud_id.
+ * If the character has no cloud_id, only clears the local link (noop w.r.t. cloud deletion).
  */
 export async function removeCharacterFromCloud(localCharacterId: string, userId: string): Promise<void> {
     const localChar = await getCharacter(localCharacterId, userId)
