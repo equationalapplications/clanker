@@ -38,9 +38,11 @@ export default function SignIn() {
   const [initialRedirect, setInitialRedirect] = useState<Href | null>(null)
 
   useEffect(() => {
+    let mounted = true
+
     Linking.getInitialURL()
       .then((url) => {
-        if (!url) return
+        if (!mounted || !url) return
 
         // expo-linking correctly handles custom-scheme URLs like
         // com.equationalapplications.clanker://chat/123 where new URL() would
@@ -65,6 +67,10 @@ export default function SignIn() {
       .catch((error) => {
         console.warn('Failed to read initial URL for post-auth redirect:', error)
       })
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
   useEffect(() => {

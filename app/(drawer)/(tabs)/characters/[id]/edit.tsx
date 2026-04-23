@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { View, StyleSheet, ScrollView, Share } from 'react-native'
+import { Alert, View, StyleSheet, ScrollView, Share } from 'react-native'
 import {
   Text,
   TextInput,
@@ -14,7 +14,7 @@ import {
 } from 'react-native-paper'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSelector } from '@xstate/react'
-import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
+import { useCharacter, useUpdateCharacter, useUnsyncCharacter, useSyncCharacters } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { useImageGeneration } from '~/hooks/useImageGeneration'
@@ -41,6 +41,8 @@ export default function EditCharacterScreen() {
     isPending: isUpdating,
     error: updateError,
   } = useUpdateCharacter()
+  const { isCloudUnsyncing, error: unsyncError } = useUnsyncCharacter()
+  const { isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -58,6 +60,8 @@ export default function EditCharacterScreen() {
   } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
   const prevIsUpdatingRef = useRef(false)
+  const prevIsCloudUnsyncingRef = useRef(false)
+  const prevIsCloudSyncingRef = useRef(false)
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -73,16 +77,35 @@ export default function EditCharacterScreen() {
     }
   }, [character])
 
+  const canEdit = useMemo(() => {
+    if (!character || !user?.uid) return false
+    // Treat empty owner_user_id as unknown ownership:
+    // - allow edits for purely local legacy characters (no cloud_id)
+    // - deny edits for cloud/shared characters with unknown ownership
+    if (!character.owner_user_id) return !character.cloud_id
+    return user.uid === character.owner_user_id
+  }, [character, user?.uid])
+
   useEditDirtyState(
-    {
-      name,
-      appearance,
-      traits,
-      emotions,
-      context,
-      saveToCloud: saveToCloud ? 'true' : 'false',
-      isShareable: isCharacterShareable ? 'true' : 'false',
-    },
+    canEdit
+      ? {
+          name,
+          appearance,
+          traits,
+          emotions,
+          context,
+          saveToCloud: saveToCloud ? 'true' : 'false',
+          isShareable: isCharacterShareable ? 'true' : 'false',
+        }
+      : loadedValues ?? {
+          name: '',
+          appearance: '',
+          traits: '',
+          emotions: '',
+          context: '',
+          saveToCloud: 'false',
+          isShareable: 'false',
+        },
     loadedValues,
   )
 
@@ -102,10 +125,13 @@ export default function EditCharacterScreen() {
 
   // Effect to handle navigation after saving
   useEffect(() => {
-    if (isSaving && !isUpdating && prevIsUpdatingRef.current) {
-      // Update just completed
-      setIsSaving(false) // Reset saving trigger
-      if (!updateError) {
+    const justFinishedUpdating = !isUpdating && prevIsUpdatingRef.current
+    const justFinishedUnsyncing = !isCloudUnsyncing && prevIsCloudUnsyncingRef.current
+    const justFinishedSyncing = !isCloudSyncing && prevIsCloudSyncingRef.current
+    if (isSaving && !isUpdating && !isCloudUnsyncing && !isCloudSyncing && (justFinishedUpdating || justFinishedUnsyncing || justFinishedSyncing)) {
+      // Update (and any subsequent cloud sync or unsync) has completed
+      setIsSaving(false)
+      if (!updateError && !unsyncError && !cloudSyncError) {
         // Success: navigate away only if there's no error
         if (router.canGoBack()) {
           router.back()
@@ -113,10 +139,12 @@ export default function EditCharacterScreen() {
           router.replace('/characters/list')
         }
       }
-      // If there's an error, we stay on the page, and an error message can be displayed.
+      // If there's an error, stay on the page so the error message is visible.
     }
     prevIsUpdatingRef.current = isUpdating
-  }, [isUpdating, isSaving, updateError])
+    prevIsCloudUnsyncingRef.current = isCloudUnsyncing
+    prevIsCloudSyncingRef.current = isCloudSyncing
+  }, [isUpdating, isCloudUnsyncing, isCloudSyncing, isSaving, updateError, unsyncError, cloudSyncError])
 
   const {
     generateImage,
@@ -153,6 +181,27 @@ export default function EditCharacterScreen() {
         message: 'Cloud character save requires a monthly subscription.',
         requiresSubscription: true,
       })
+      return
+    }
+
+    if (!nextValue && character?.save_to_cloud === true) {
+      Alert.alert(
+        'Remove from Cloud?',
+        'Are you sure you want to remove the character from the cloud?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Confirm',
+            onPress: () => {
+              setSaveToCloud(false)
+              setIsCharacterShareable(false)
+            },
+          },
+        ],
+      )
       return
     }
 
@@ -247,7 +296,7 @@ export default function EditCharacterScreen() {
                 clearError()
                 generateImage(buildImagePrompt({ name, appearance, traits, emotions }))
               }}
-              disabled={isGenerating}
+              disabled={isGenerating || !canEdit}
               loading={isGenerating}
               style={styles.generateButton}
             >
@@ -269,6 +318,7 @@ export default function EditCharacterScreen() {
             mode="outlined"
             style={styles.input}
             maxLength={30}
+            editable={canEdit}
           />
 
           <TextInput
@@ -280,6 +330,7 @@ export default function EditCharacterScreen() {
             multiline
             numberOfLines={3}
             maxLength={144}
+            editable={canEdit}
           />
 
           <TextInput
@@ -291,6 +342,7 @@ export default function EditCharacterScreen() {
             multiline
             numberOfLines={3}
             maxLength={144}
+            editable={canEdit}
           />
 
           <TextInput
@@ -302,6 +354,7 @@ export default function EditCharacterScreen() {
             multiline
             numberOfLines={3}
             maxLength={144}
+            editable={canEdit}
           />
 
           <TextInput
@@ -312,6 +365,7 @@ export default function EditCharacterScreen() {
             style={styles.input}
             multiline
             numberOfLines={4}
+            editable={canEdit}
           />
 
           <View style={styles.toggleRow}>
@@ -321,8 +375,18 @@ export default function EditCharacterScreen() {
                 Requires a monthly subscription.
               </Text>
             </View>
-            <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} />
+            <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} disabled={!canEdit} />
           </View>
+
+          {character.owner_user_id && canEdit ? (
+            <Text variant="bodySmall" style={styles.ownershipText}>
+              You own this character. Only you can edit the cloud version.
+            </Text>
+          ) : character.owner_user_id && !canEdit ? (
+            <Text variant="bodySmall" style={styles.ownershipText}>
+              You can view this character, but only the owner can edit it.
+            </Text>
+          ) : null}
 
           <View style={styles.toggleRow}>
             <View style={styles.toggleTextContainer}>
@@ -334,12 +398,12 @@ export default function EditCharacterScreen() {
             <Switch
               value={isCharacterShareable}
               onValueChange={setIsCharacterShareable}
-              disabled={!saveToCloud}
+              disabled={!saveToCloud || !canEdit}
             />
           </View>
 
           {isCharacterShareable ? (
-            <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton}>
+            <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton} disabled={!canEdit}>
               Share Character
             </Button>
           ) : null}
@@ -357,16 +421,20 @@ export default function EditCharacterScreen() {
             <Button
               mode="contained"
               onPress={handleSave}
-              disabled={isSaving || isUpdating}
-              loading={isSaving || isUpdating}
+              disabled={isSaving || isUpdating || isCloudUnsyncing || isCloudSyncing || !canEdit}
+              loading={isSaving || isUpdating || isCloudUnsyncing || isCloudSyncing}
               style={styles.button}
             >
               Save Changes
             </Button>
           </View>
-          {didAttemptSave && updateError ? (
+          {didAttemptSave && (updateError || unsyncError || cloudSyncError) ? (
             <HelperText type="error" visible style={styles.errorText}>
-              {updateError instanceof Error
+              {unsyncError instanceof Error
+                ? unsyncError.message
+                : cloudSyncError instanceof Error
+                ? cloudSyncError.message
+                : updateError instanceof Error
                 ? updateError.message
                 : 'Failed to save character. Please try again.'}
             </HelperText>
@@ -495,5 +563,9 @@ const styles = StyleSheet.create({
   },
   shareLink: {
     textAlign: 'center',
+  },
+  ownershipText: {
+    opacity: 0.7,
+    marginBottom: 8,
   },
 })

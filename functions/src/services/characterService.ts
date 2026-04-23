@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
-import { characters, messages } from '../db/schema.js';
+import { characters, messages, users } from '../db/schema.js';
 
 type CharacterUpdateInput = Pick<
   typeof characters.$inferInsert,
@@ -30,6 +30,13 @@ export function buildCharacterUpdateValues(character: CharacterUpdateInput) {
 
 interface CharacterServiceDeps {
   getDb: typeof getDb;
+}
+
+export class CharacterOwnershipError extends Error {
+  constructor(message = 'Character does not belong to user') {
+    super(message);
+    this.name = 'CharacterOwnershipError';
+  }
 }
 
 export const createCharacterService = (
@@ -85,7 +92,7 @@ export const createCharacterService = (
             .limit(1);
 
           if (existing[0] && existing[0].userId !== userId) {
-            throw new Error('Character does not belong to user');
+            throw new CharacterOwnershipError();
           }
 
           if (existing[0]) {
@@ -111,9 +118,25 @@ export const createCharacterService = (
 
     async deleteCharacter(characterId: string, userId: string) {
       const db = await deps.getDb();
-      await db
+
+      const deleted = await db
         .delete(characters)
-        .where(sql`${characters.id} = ${characterId} AND ${characters.userId} = ${userId}`);
+        .where(sql`${characters.id} = ${characterId} AND ${characters.userId} = ${userId}`)
+        .returning({ id: characters.id });
+
+      if (deleted.length === 0) {
+        // Nothing deleted — check whether the record exists under a different user
+        const existing = await db
+          .select({ id: characters.id })
+          .from(characters)
+          .where(eq(characters.id, characterId))
+          .limit(1);
+
+        if (existing[0]) {
+          throw new CharacterOwnershipError();
+        }
+        // Not found at all — treat as idempotent success
+      }
     },
 
     async getUserCharacters(userId: string) {
@@ -130,6 +153,20 @@ export const createCharacterService = (
       const result = await db
         .select()
         .from(characters)
+        .where(sql`${characters.id} = ${characterId} AND ${characters.isPublic} = true`)
+        .limit(1);
+      return result[0] ?? null;
+    },
+
+    async getPublicCharacterWithOwner(characterId: string): Promise<{
+      character: typeof characters.$inferSelect;
+      ownerFirebaseUid: string;
+    } | null> {
+      const db = await deps.getDb();
+      const result = await db
+        .select({ character: characters, ownerFirebaseUid: users.firebaseUid })
+        .from(characters)
+        .innerJoin(users, eq(characters.userId, users.id))
         .where(sql`${characters.id} = ${characterId} AND ${characters.isPublic} = true`)
         .limit(1);
       return result[0] ?? null;

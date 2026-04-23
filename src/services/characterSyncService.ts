@@ -22,6 +22,8 @@ import {
     markCharacterSynced,
     hardDeleteCharacterLocal,
     batchInsertCharacters,
+    clearCharacterCloudLink,
+    getCharacter,
     LocalCharacter,
 } from '../database/characterDatabase'
 
@@ -128,6 +130,8 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     save_to_cloud: 1 as number,
                     cloud_id: cloudChar.id,
                     deleted_at: null as number | null,
+                    summary_checkpoint: 0,
+                    owner_user_id: localUserId,
                 }
             })
             .filter((c: LocalCharacter) => {
@@ -216,10 +220,44 @@ export async function importSharedCharacterFromCloud(
             save_to_cloud: 0,
             cloud_id: cloudCharacter.id,
             deleted_at: null,
+            summary_checkpoint: 0,
+            owner_user_id: cloudCharacter.ownerUserId || localUserId,
         },
     ])
 
     return { localCharacterId, cloudCharacterId: cloudCharacter.id }
+}
+
+/**
+ * Remove a character from cloud while keeping the local copy.
+ * Clears the local cloud link and sync state after removing the cloud copy when present.
+ * If the character has no cloud_id, only clears the local link (noop w.r.t. cloud deletion).
+ */
+export async function removeCharacterFromCloud(localCharacterId: string, userId: string): Promise<void> {
+    const localChar = await getCharacter(localCharacterId, userId)
+    if (!localChar) return
+
+    const cloudId = localChar.cloud_id && UUID_REGEX.test(localChar.cloud_id)
+        ? localChar.cloud_id
+        : null
+
+    if (!cloudId) {
+        // No cloud copy — just clear the link (noop success)
+        await clearCharacterCloudLink(localCharacterId, userId)
+        return
+    }
+
+    try {
+        await deleteCharacterFn({ characterId: cloudId })
+    } catch (error: any) {
+        // If already not found on cloud, still proceed to clear local link
+        const errorCode = typeof error?.code === 'string' ? error.code : ''
+        if (errorCode !== 'not-found' && !errorCode.endsWith('/not-found')) {
+            throw error
+        }
+    }
+
+    await clearCharacterCloudLink(localCharacterId, userId)
 }
 
 async function syncDeletionsToCloud(localUserId: string): Promise<void> {

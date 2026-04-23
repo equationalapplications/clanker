@@ -17,8 +17,8 @@ import { useAuthMachine } from '~/hooks/useMachines'
 
 export default function HeroSection() {
   const { colors } = useTheme()
-  const router = useRouter()
   const { height } = useWindowDimensions()
+  const router = useRouter()
   const authService = useAuthMachine()
   const isSignedIn = useSelector(authService, (s) => s.matches('signedIn'))
 
@@ -67,10 +67,10 @@ export default function HeroSection() {
   // --- Shiver: every 10 s, rapid translateX burst ---
   const shiverX = useSharedValue(0)
 
-  // JS-thread interval is fine — we just write to the shared value
   useEffect(() => {
-    const id = setInterval(() => {
-      shiverX.value = withSequence(
+    shiverX.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 10000 }),
         withTiming(5, { duration: 55 }),
         withTiming(-5, { duration: 55 }),
         withTiming(4, { duration: 45 }),
@@ -78,9 +78,10 @@ export default function HeroSection() {
         withTiming(2, { duration: 40 }),
         withTiming(-2, { duration: 40 }),
         withTiming(0, { duration: 55 })
-      )
-    }, 10000)
-    return () => clearInterval(id)
+      ),
+      -1,
+      false
+    )
   }, [shiverX])
 
   // Shared animated style for both title halo wrapper and CTA halo wrapper
@@ -93,8 +94,13 @@ export default function HeroSection() {
     shadowOpacity: glowOpacity.value,
   }))
 
-  const handleCTA = () => {
-    router.push(isSignedIn ? '/chat' : '/sign-in')
+  const handleChatIntent = () => {
+    if (isSignedIn) {
+      router.push('/chat')
+      return
+    }
+
+    router.push('/sign-in?redirect=/chat')
   }
 
   return (
@@ -105,7 +111,7 @@ export default function HeroSection() {
           mode="text"
           compact
           textColor={colors.primary}
-          onPress={() => router.push(isSignedIn ? '/chat' : '/sign-in')}
+          onPress={handleChatIntent}
           style={styles.signInBtn}
         >
           {isSignedIn ? 'Open App' : 'Sign In'}
@@ -147,7 +153,7 @@ export default function HeroSection() {
             textColor={colors.onPrimary}
             contentStyle={styles.ctaContent}
             labelStyle={styles.ctaLabel}
-            onPress={handleCTA}
+            onPress={handleChatIntent}
           >
             {isSignedIn ? 'Open App' : 'Try the App!'}
           </Button>
