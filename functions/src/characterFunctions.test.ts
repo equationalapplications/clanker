@@ -5,6 +5,7 @@ import {HttpsError} from "firebase-functions/v2/https";
 process.env.NODE_ENV = "test";
 
 const {syncCharacterHandler, deleteCharacterHandler, getUserCharactersHandler, getPublicCharacterHandler} = await import("./characterFunctions.js");
+const {CharacterOwnershipError} = await import("./services/characterService.js");
 
 type CharacterFunctionDeps = NonNullable<Parameters<typeof syncCharacterHandler>[1]>;
 
@@ -499,14 +500,15 @@ test("deleteCharacterHandler rejects when character belongs to another user", as
         },
         characterService: {
           deleteCharacter: async () => {
-            throw new Error("Character does not belong to user");
+            throw new CharacterOwnershipError();
           },
         },
       } as unknown as CharacterFunctionDeps
     ),
     (err: unknown) =>
       err instanceof HttpsError &&
-      err.code === "internal"
+      err.code === "permission-denied" &&
+      err.message.includes("does not belong to authenticated user")
   );
 });
 

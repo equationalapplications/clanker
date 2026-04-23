@@ -29,25 +29,6 @@ function isOPFSLockError(error: unknown): boolean {
     )
 }
 
-async function deleteOPFSDatabase(name: string): Promise<void> {
-    if (typeof navigator === 'undefined' || !('storage' in navigator)) return
-    try {
-        const root = await navigator.storage.getDirectory()
-        // AccessHandlePoolVFS creates the main file plus pool entries; remove all
-        // entries whose names start with the DB name.
-        const toDelete: string[] = []
-        for await (const [entryName] of (root as unknown as AsyncIterable<[string, FileSystemHandle]>)) {
-            if (entryName === name || entryName.startsWith(`${name}-`)) {
-                toDelete.push(entryName)
-            }
-        }
-        await Promise.allSettled(toDelete.map((n) => root.removeEntry(n)))
-        console.warn(`[DB] Deleted locked OPFS entries for "${name}":`, toDelete)
-    } catch (err) {
-        console.warn('[DB] Could not delete OPFS entries:', err)
-    }
-}
-
 async function openDatabaseAsyncWithRetry(
     name: string,
     retries = 5,
@@ -64,11 +45,14 @@ async function openDatabaseAsyncWithRetry(
             await new Promise((resolve) => setTimeout(resolve, baseDelayMs * (attempt + 1)))
         }
     }
-    // All retries exhausted — delete the OPFS file and try once more (fresh DB)
-    if (Platform.OS === 'web') {
-        console.warn('[DB] Retries exhausted, deleting locked OPFS database and starting fresh')
-        await deleteOPFSDatabase(name)
-        return SQLite.openDatabaseAsync(name)
+    if (Platform.OS === 'web' && isOPFSLockError(lastError)) {
+        console.error(
+            `[DB] Retries exhausted while opening "${name}". Preserving existing OPFS data and aborting instead of deleting the database.`,
+        )
+        throw new Error(
+            `Database "${name}" is locked in browser storage. Close other tabs or windows using this app and try again.`,
+            { cause: lastError instanceof Error ? lastError : undefined },
+        )
     }
     throw lastError
 }

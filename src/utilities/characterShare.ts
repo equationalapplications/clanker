@@ -1,4 +1,4 @@
-const DEFAULT_CHARACTER_SHARE_BASE_URL = 'https://clanker.app'
+const DEFAULT_CHARACTER_SHARE_BASE_URL = 'https://clanker-ai.com'
 
 const normalizeBaseUrl = (url: string) => url.replace(/\/+$/, '')
 

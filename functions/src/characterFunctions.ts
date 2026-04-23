@@ -2,6 +2,7 @@ import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/
 import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { characterService } from './services/characterService.js';
+import { CharacterOwnershipError } from './services/characterService.js';
 import { subscriptionService } from './services/subscriptionService.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 
@@ -228,6 +229,17 @@ export const deleteCharacterHandler = async (
     await deps.characterService.deleteCharacter(normalizedCharacterId, user.id);
     return { success: true };
   } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    if (error instanceof CharacterOwnershipError) {
+      throw new HttpsError(
+        'permission-denied',
+        'Character does not belong to authenticated user.'
+      );
+    }
+
     logger.error('Failed to delete character', { error });
     throw new HttpsError('internal', 'Failed to delete character.');
   }

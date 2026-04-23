@@ -32,6 +32,13 @@ interface CharacterServiceDeps {
   getDb: typeof getDb;
 }
 
+export class CharacterOwnershipError extends Error {
+  constructor(message = 'Character does not belong to user') {
+    super(message);
+    this.name = 'CharacterOwnershipError';
+  }
+}
+
 export const createCharacterService = (
   deps: CharacterServiceDeps = { getDb },
 ) => {
@@ -126,7 +133,7 @@ export const createCharacterService = (
           .limit(1);
 
         if (existing[0]) {
-          throw new Error('Character does not belong to user');
+          throw new CharacterOwnershipError();
         }
         // Not found at all — treat as idempotent success
       }
