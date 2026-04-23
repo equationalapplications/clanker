@@ -37,6 +37,16 @@ export function resolveRedirectDestination(
   initialRedirect: Href | null,
   redirectParam: string | undefined,
 ): Href {
+  const initialRedirectPathname =
+    typeof initialRedirect === 'string' ? initialRedirect.split(/[?#]/, 1)[0] : null
+  const validatedInitialRedirect =
+    initialRedirect &&
+    initialRedirectPathname &&
+    toValidatedInternalHref(initialRedirectPathname) &&
+    isProtectedPath(initialRedirectPathname)
+      ? initialRedirect
+      : null
+
   const paramRedirect = toValidatedInternalHref(
     typeof redirectParam === 'string' ? redirectParam : undefined
   )
@@ -47,5 +57,5 @@ export function resolveRedirectDestination(
       ? paramRedirect
       : null
 
-  return initialRedirect ?? protectedParamRedirect ?? '/characters/list'
+  return validatedInitialRedirect ?? protectedParamRedirect ?? '/characters/list'
 }

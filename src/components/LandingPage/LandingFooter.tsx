@@ -7,16 +7,12 @@ export default function LandingFooter() {
 
   return (
     <View style={styles.footer}>
-      <Link href="/terms" asChild>
-        <Text variant="bodySmall" style={[styles.link, { color: colors.outline }]}>
-          Terms and Conditions
-        </Text>
+      <Link href="/terms" style={[styles.link, { color: colors.outline }]}>
+        Terms and Conditions
       </Link>
       <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
-      <Link href="/privacy" asChild>
-        <Text variant="bodySmall" style={[styles.link, { color: colors.outline }]}>
-          Privacy Policy
-        </Text>
+      <Link href="/privacy" style={[styles.link, { color: colors.outline }]}>
+        Privacy Policy
       </Link>
       <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
       <Pressable
