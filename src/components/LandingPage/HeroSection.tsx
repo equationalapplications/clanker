@@ -2,7 +2,6 @@ import { StyleSheet, View, useWindowDimensions, Linking } from 'react-native'
 import { useEffect } from 'react'
 import { Button, useTheme } from 'react-native-paper'
 import { Image } from 'expo-image'
-import { useRouter } from 'expo-router'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -17,7 +16,6 @@ import { useAuthMachine } from '~/hooks/useMachines'
 
 export default function HeroSection() {
   const { colors } = useTheme()
-  const router = useRouter()
   const { height } = useWindowDimensions()
   const authService = useAuthMachine()
   const isSignedIn = useSelector(authService, (s) => s.matches('signedIn'))

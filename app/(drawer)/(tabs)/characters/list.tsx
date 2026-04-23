@@ -1,5 +1,5 @@
 import { View, StyleSheet, FlatList } from 'react-native'
-import { Text, Button, ActivityIndicator, Snackbar } from 'react-native-paper'
+import { Text, Button, ActivityIndicator, Snackbar, IconButton } from 'react-native-paper'
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useSelector } from '@xstate/react'
@@ -71,26 +71,25 @@ export default function CharactersListScreen() {
         <Text variant="headlineMedium" style={styles.title}>
           Characters
         </Text>
-        <Button
-          mode="contained"
-          icon="plus"
-          onPress={handleCreateCharacter}
-          loading={isPending || isCreatingDefault}
-          disabled={isPending || isCreatingDefault}
-        >
-          New
-        </Button>
-      </View>
-      <View style={styles.retrieveContainer}>
-        <Button
-          mode="outlined"
-          icon="cloud-download"
-          onPress={handleRetrieveFromCloud}
-          loading={isRestoring}
-          disabled={isRestoring}
-        >
-          Retrieve from Cloud
-        </Button>
+        <View style={styles.headerActions}>
+          <IconButton
+            icon="cloud-sync"
+            size={22}
+            onPress={handleRetrieveFromCloud}
+            loading={isRestoring}
+            disabled={isRestoring}
+            accessibilityLabel="Cloud Sync"
+          />
+          <Button
+            mode="contained"
+            icon="plus"
+            onPress={handleCreateCharacter}
+            loading={isPending || isCreatingDefault}
+            disabled={isPending || isCreatingDefault}
+          >
+            New
+          </Button>
+        </View>
       </View>
 
       {!characters || characters.length === 0 ? (
@@ -159,9 +158,10 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
   },
-  retrieveContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   list: {
     paddingBottom: 16,
