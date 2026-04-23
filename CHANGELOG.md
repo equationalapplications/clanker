@@ -1,3 +1,18 @@
+# [28.4.0](https://github.com/equationalapplications/clanker/compare/v28.3.4...v28.4.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* **landing:** address code review feedback ([b5a5ac1](https://github.com/equationalapplications/clanker/commit/b5a5ac1ef0bb21feb4f5dd6fb01403a14e829668))
+* **landing:** address code review feedback (round 2) ([ec53ae6](https://github.com/equationalapplications/clanker/commit/ec53ae6ecb2d274cc7b2d861bc1acefef467def6))
+* **landing:** improve SEO and link crawlability ([943004b](https://github.com/equationalapplications/clanker/commit/943004bac004267904d11b984e2d6fccaacb4f63))
+* **landing:** tighten hero section spacing ([2037f5c](https://github.com/equationalapplications/clanker/commit/2037f5cab1c3d7cec5b33fa75ed191beb7570533))
+
+
+### Features
+
+* **landing:** web landing page with deep link auth redirect ([5ef3d82](https://github.com/equationalapplications/clanker/commit/5ef3d8257c50fef7635da0a8b93330c6313a9452))
+
 ## [28.3.4](https://github.com/equationalapplications/clanker/compare/v28.3.3...v28.3.4) (2026-04-23)
 
 
