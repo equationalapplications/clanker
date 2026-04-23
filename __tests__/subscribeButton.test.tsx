@@ -43,9 +43,22 @@ jest.mock('~/components/Button', () => {
 })
 
 describe('SubscribeButton', () => {
+  const hadOriginalDev = Object.prototype.hasOwnProperty.call(globalThis, '__DEV__')
+  const originalDev = (globalThis as { __DEV__?: boolean }).__DEV__
+
   beforeEach(() => {
     jest.clearAllMocks()
     mockPlatformOS = 'web'
+    ;(globalThis as { __DEV__?: boolean }).__DEV__ = undefined
+  })
+
+  afterAll(() => {
+    if (hadOriginalDev) {
+      ;(globalThis as { __DEV__?: boolean }).__DEV__ = originalDev
+      return
+    }
+
+    delete (globalThis as { __DEV__?: boolean }).__DEV__
   })
 
   it('toggles loading state around successful purchase', async () => {
@@ -70,9 +83,10 @@ describe('SubscribeButton', () => {
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(2, false)
   })
 
-  it('always clears loading state when purchase throws', async () => {
+  it('always clears loading state when purchase throws and surfaces safe details in development', async () => {
     const onChangeIsLoading = jest.fn()
     mockMakePackagePurchase.mockRejectedValueOnce(new Error('purchase failed'))
+    ;(globalThis as { __DEV__?: boolean }).__DEV__ = true
 
     const SubscribeButton = require('~/components/SubscribeButton').default
     const { Alert } = require('react-native')
@@ -91,6 +105,31 @@ describe('SubscribeButton', () => {
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('monthly_20')
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(1, true)
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(2, false)
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Purchase Failed',
+      'Something went wrong. Please try again.\n\nDetails: purchase failed'
+    )
+  })
+
+  it('shows generic purchase failure message in production', async () => {
+    const onChangeIsLoading = jest.fn()
+    mockMakePackagePurchase.mockRejectedValueOnce(new Error('payment declined'))
+    ;(globalThis as { __DEV__?: boolean }).__DEV__ = false
+
+    const SubscribeButton = require('~/components/SubscribeButton').default
+    const { Alert } = require('react-native')
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<SubscribeButton onChangeIsLoading={onChangeIsLoading} />)
+    })
+
+    const button = tree.root.findByProps({ testID: 'subscribe-button' })
+
+    await act(async () => {
+      await button.props.onPress()
+    })
+
     expect(Alert.alert).toHaveBeenCalledWith('Purchase Failed', 'Something went wrong. Please try again.')
   })
 

@@ -335,6 +335,94 @@ test("revenueCatWebhookHandler bootstraps Cloud SQL user when missing", async ()
   });
 });
 
+test("revenueCatWebhookHandler maps Android base-plan-suffixed subscription IDs", async () => {
+  const res = createResponseRecorder();
+  const upsertCalls: Array<{
+    userId: string;
+    planTier: string;
+    planStatus: string;
+    renewalAt: Date | null | undefined;
+  }> = [];
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer rc-secret",
+      },
+      body: {
+        event: {
+          type: "INITIAL_PURCHASE",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription:monthly-usd-20",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      upsertSubscription: async (userId, planTier, planStatus, renewalAt) => {
+        upsertCalls.push({userId, planTier, planStatus, renewalAt});
+      },
+      addCredits: async () => undefined,
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls.length, 1);
+  assert.deepEqual(upsertCalls[0], {
+    userId: "cloud-user-1",
+    planTier: "monthly_20",
+    planStatus: "active",
+    renewalAt: new Date(Date.UTC(2026, 4, 20)),
+  });
+});
+
+test("revenueCatWebhookHandler maps cancellation for Android base-plan-suffixed subscription IDs", async () => {
+  const res = createResponseRecorder();
+  const upsertCalls: Array<{
+    userId: string;
+    planTier: string;
+    planStatus: string;
+    renewalAt: Date | null | undefined;
+  }> = [];
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer rc-secret",
+      },
+      body: {
+        event: {
+          type: "CANCELLATION",
+          app_user_id: "uid_123",
+          product_id: "monthly_50_subscription:monthly-usd-50",
+          expiration_at_ms: Date.UTC(2026, 5, 1),
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      upsertSubscription: async (userId, planTier, planStatus, renewalAt) => {
+        upsertCalls.push({userId, planTier, planStatus, renewalAt});
+      },
+      addCredits: async () => undefined,
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls.length, 1);
+  assert.deepEqual(upsertCalls[0], {
+    userId: "cloud-user-1",
+    planTier: "monthly_50",
+    planStatus: "active",
+    renewalAt: new Date(Date.UTC(2026, 5, 1)),
+  });
+});
+
 test("revenueCatWebhookHandler returns retryable status when Cloud SQL user is unavailable", async () => {
   const res = createResponseRecorder();
 

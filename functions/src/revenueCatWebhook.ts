@@ -109,7 +109,17 @@ const defaultDeps: RevenueCatDeps = {
 };
 
 function isRevenueCatCreditPackProduct(productId: string): boolean {
-  return REVENUECAT_CREDIT_PACK_IDS.has(productId);
+  return REVENUECAT_CREDIT_PACK_IDS.has(normalizeRevenueCatProductId(productId));
+}
+
+function normalizeRevenueCatProductId(productId: string): string {
+  const trimmedProductId = productId.trim();
+  const separatorIndex = trimmedProductId.indexOf(":");
+  if (separatorIndex === -1) {
+    return trimmedProductId;
+  }
+
+  return trimmedProductId.slice(0, separatorIndex);
 }
 
 // Shape of RevenueCat webhook event payload (abbreviated)
@@ -306,8 +316,14 @@ export const revenueCatWebhookHandler = async (
 
     const {type, app_user_id, product_id, expiration_at_ms, original_transaction_id} =
       payload.event;
+    const normalizedProductId = normalizeRevenueCatProductId(product_id);
 
-    logger.info("Received RevenueCat event", {type, app_user_id, product_id});
+    logger.info("Received RevenueCat event", {
+      type,
+      app_user_id,
+      product_id,
+      normalized_product_id: normalizedProductId,
+    });
 
     // RevenueCat dashboard test events are connectivity checks and do not need user-side effects.
     if (type === "TEST") {
@@ -332,8 +348,8 @@ export const revenueCatWebhookHandler = async (
       case "INITIAL_PURCHASE":
       case "RENEWAL":
       case "PRODUCT_CHANGE": {
-        if (REVENUECAT_PRODUCT_TO_TIER[product_id]) {
-          const tier = REVENUECAT_PRODUCT_TO_TIER[product_id];
+        if (REVENUECAT_PRODUCT_TO_TIER[normalizedProductId]) {
+          const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
           const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
             new Date(expiration_at_ms) : null;
           const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
@@ -372,7 +388,7 @@ export const revenueCatWebhookHandler = async (
         break;
       }
       case "CANCELLATION": {
-        const tier = REVENUECAT_PRODUCT_TO_TIER[product_id];
+        const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
         if (tier) {
           const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
             new Date(expiration_at_ms) : null;
