@@ -1,6 +1,8 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
 
+const mockPush = jest.fn()
+
 jest.mock('react-native', () => {
   const React = require('react')
 
@@ -50,7 +52,7 @@ jest.mock('expo-image', () => ({
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
-    push: mockPush,
+    push: (...args: any[]) => mockPush(...args),
   }),
 }))
 
@@ -93,8 +95,6 @@ jest.mock('@xstate/react', () => ({
 jest.mock('~/hooks/useMachines', () => ({
   useAuthMachine: jest.fn(),
 }))
-
-const mockPush = jest.fn()
 
 // Import AFTER mocking
 import { useSelector } from '@xstate/react'

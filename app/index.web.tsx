@@ -1,7 +1,25 @@
 import Head from 'expo-router/head'
+import { Redirect } from 'expo-router'
+import { useSelector } from '@xstate/react'
 import LandingPage from '~/components/LandingPage'
+import LoadingIndicator from '~/components/LoadingIndicator'
+import { useAuthMachine } from '~/hooks/useMachines'
 
 export default function WebIndex() {
+  const authService = useAuthMachine()
+  const user = useSelector(authService, (state) => state.context.user)
+  const isLoading = useSelector(
+    authService,
+    (state) =>
+      state.matches('initializing') ||
+      state.matches('signingIn') ||
+      state.matches('bootstrapping'),
+  )
+
+  if (isLoading) {
+    return <LoadingIndicator />
+  }
+
   return (
     <>
       <Head>
@@ -17,7 +35,7 @@ export default function WebIndex() {
         />
         <meta property="og:type" content="website" />
       </Head>
-      <LandingPage />
+      {user ? <Redirect href="/chat" /> : <LandingPage />}
     </>
   )
 }
