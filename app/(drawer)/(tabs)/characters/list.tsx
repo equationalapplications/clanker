@@ -74,7 +74,7 @@ export default function CharactersListScreen() {
         <View style={styles.headerActions}>
           <IconButton
             icon="cloud-sync"
-            size={22}
+            size={28}
             onPress={handleRetrieveFromCloud}
             loading={isRestoring}
             disabled={isRestoring}
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 12,
   },
   list: {
     paddingBottom: 16,
