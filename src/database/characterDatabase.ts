@@ -25,6 +25,7 @@ export interface LocalCharacter {
     cloud_id: string | null // remote ID if synced
     deleted_at: number | null // null = active, timestamp = soft-deleted
     summary_checkpoint?: number | null // highest message count included in context summary
+    owner_user_id: string
 }
 
 export interface CharacterInsert {
@@ -77,6 +78,7 @@ function toAppFormat(char: LocalCharacter) {
         save_to_cloud: char.save_to_cloud === 1,
         cloud_id: char.cloud_id,
         summary_checkpoint: char.summary_checkpoint ?? 0,
+        owner_user_id: char.owner_user_id,
     }
 }
 
@@ -119,8 +121,9 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
 
     await db.runAsync(
         `INSERT INTO characters 
-     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint, owner_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+
         [
             id,
             userId,
@@ -140,6 +143,7 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
             null, // no cloud ID initially
             null, // not deleted
             0, // no summarized messages yet
+            userId,
         ],
     )
 
@@ -354,8 +358,9 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
         for (const char of characters) {
             await db.runAsync(
                 `INSERT OR REPLACE INTO characters 
-         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint, owner_user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+
                 [
                     char.id,
                     char.user_id,
@@ -375,6 +380,7 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
                     char.cloud_id,
                     char.deleted_at ?? null,
                     char.summary_checkpoint ?? 0,
+                    char.owner_user_id || char.user_id,
                 ],
             )
         }

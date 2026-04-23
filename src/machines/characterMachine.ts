@@ -195,6 +195,7 @@ export const characterMachine = createMachine(
           const optimisticCharacter: Character = {
             id: tempId,
             user_id: context.userId,
+            owner_user_id: context.userId,
             name: event.data.name,
             is_public: event.data.is_public ?? false,
             created_at: now,

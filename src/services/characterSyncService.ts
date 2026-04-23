@@ -128,6 +128,8 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     save_to_cloud: 1 as number,
                     cloud_id: cloudChar.id,
                     deleted_at: null as number | null,
+                    summary_checkpoint: 0,
+                    owner_user_id: localUserId,
                 }
             })
             .filter((c: LocalCharacter) => {
@@ -216,6 +218,8 @@ export async function importSharedCharacterFromCloud(
             save_to_cloud: 0,
             cloud_id: cloudCharacter.id,
             deleted_at: null,
+            summary_checkpoint: 0,
+            owner_user_id: localUserId,
         },
     ])
 
