@@ -84,6 +84,11 @@ jest.mock('~/hooks/useCharacters', () => ({
     isPending: false,
     error: null,
   })),
+  useUnsyncCharacter: jest.fn(() => ({
+    unsync: jest.fn(),
+    isCloudUnsyncing: false,
+    error: null,
+  })),
 }))
 
 jest.mock('~/hooks/useCurrentPlan', () => ({

@@ -71,10 +71,11 @@ export function useSyncCharacters() {
 export function useUnsyncCharacter() {
   const characterService = useCharacterMachine()
   const isCloudUnsyncing = useSelector(characterService, (s) => s.matches('cloudUnsyncing'))
+  const error = useSelector(characterService, (s) => s.context.error)
 
   const unsync = (id: string) => {
     characterService.send({ type: 'CLOUD_UNSYNC', id })
   }
 
-  return { unsync, isCloudUnsyncing }
+  return { unsync, isCloudUnsyncing, error }
 }

@@ -14,7 +14,7 @@ import {
 } from 'react-native-paper'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSelector } from '@xstate/react'
-import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
+import { useCharacter, useUpdateCharacter, useUnsyncCharacter } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { useImageGeneration } from '~/hooks/useImageGeneration'
@@ -41,6 +41,7 @@ export default function EditCharacterScreen() {
     isPending: isUpdating,
     error: updateError,
   } = useUpdateCharacter()
+  const { isCloudUnsyncing, error: unsyncError } = useUnsyncCharacter()
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -58,6 +59,7 @@ export default function EditCharacterScreen() {
   } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
   const prevIsUpdatingRef = useRef(false)
+  const prevIsCloudUnsyncingRef = useRef(false)
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -119,10 +121,12 @@ export default function EditCharacterScreen() {
 
   // Effect to handle navigation after saving
   useEffect(() => {
-    if (isSaving && !isUpdating && prevIsUpdatingRef.current) {
-      // Update just completed
-      setIsSaving(false) // Reset saving trigger
-      if (!updateError) {
+    const justFinishedUpdating = !isUpdating && prevIsUpdatingRef.current
+    const justFinishedUnsyncing = !isCloudUnsyncing && prevIsCloudUnsyncingRef.current
+    if (isSaving && !isUpdating && !isCloudUnsyncing && (justFinishedUpdating || justFinishedUnsyncing)) {
+      // Update (and any subsequent cloud unsync) has completed
+      setIsSaving(false)
+      if (!updateError && !unsyncError) {
         // Success: navigate away only if there's no error
         if (router.canGoBack()) {
           router.back()
@@ -130,10 +134,11 @@ export default function EditCharacterScreen() {
           router.replace('/characters/list')
         }
       }
-      // If there's an error, we stay on the page, and an error message can be displayed.
+      // If there's an error, stay on the page so the error message is visible.
     }
     prevIsUpdatingRef.current = isUpdating
-  }, [isUpdating, isSaving, updateError])
+    prevIsCloudUnsyncingRef.current = isCloudUnsyncing
+  }, [isUpdating, isCloudUnsyncing, isSaving, updateError, unsyncError])
 
   const {
     generateImage,
@@ -410,8 +415,8 @@ export default function EditCharacterScreen() {
             <Button
               mode="contained"
               onPress={handleSave}
-              disabled={isSaving || isUpdating || !canEdit}
-              loading={isSaving || isUpdating}
+              disabled={isSaving || isUpdating || isCloudUnsyncing || !canEdit}
+              loading={isSaving || isUpdating || isCloudUnsyncing}
               style={styles.button}
             >
               Save Changes
@@ -422,6 +427,13 @@ export default function EditCharacterScreen() {
               {updateError instanceof Error
                 ? updateError.message
                 : 'Failed to save character. Please try again.'}
+            </HelperText>
+          ) : null}
+          {didAttemptSave && unsyncError ? (
+            <HelperText type="error" visible style={styles.errorText}>
+              {unsyncError instanceof Error
+                ? unsyncError.message
+                : 'Failed to remove character from cloud. Please try again.'}
             </HelperText>
           ) : null}
         </View>

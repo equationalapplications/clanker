@@ -91,9 +91,14 @@ export default function CharactersListScreen() {
           <IconButton
             icon="cloud-sync"
             size={28}
-            onPress={handleCloudSync}
+            onPress={() => {
+              if (isCloudSyncing || isPending || isCreatingDefault) {
+                return
+              }
+              handleCloudSync()
+            }}
             loading={isCloudSyncing}
-            disabled={isCloudSyncing}
+            disabled={isCloudSyncing || isPending || isCreatingDefault}
             accessibilityLabel="Cloud Sync"
           />
           <Button

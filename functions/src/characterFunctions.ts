@@ -1,8 +1,7 @@
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
-import { characterService } from './services/characterService.js';
-import { CharacterOwnershipError } from './services/characterService.js';
+import { characterService, CharacterOwnershipError } from './services/characterService.js';
 import { subscriptionService } from './services/subscriptionService.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 
