@@ -1,7 +1,7 @@
 import { View, StyleSheet, FlatList } from 'react-native'
 import { Text, Button, ActivityIndicator, Snackbar, IconButton } from 'react-native-paper'
 import { router } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacters, useCreateCharacter, useSyncCharacters } from '~/hooks/useCharacters'
 import { CharacterCard } from '~/components/CharacterCard'
@@ -15,6 +15,9 @@ export default function CharactersListScreen() {
   const characterService = useCharacterMachine()
   const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
   const { sync, isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
+  const [cloudSyncRequested, setCloudSyncRequested] = useState(false)
+  const cloudSyncErrorAtRequestRef = useRef<unknown>(null)
+  const didEnterCloudSyncStateRef = useRef(false)
   const [toastState, setToastState] = useState<{
     message: string
     requiresSubscription: boolean
@@ -40,17 +43,34 @@ export default function CharactersListScreen() {
       })
       return
     }
+    cloudSyncErrorAtRequestRef.current = cloudSyncError
+    didEnterCloudSyncStateRef.current = false
+    setCloudSyncRequested(true)
     sync()
   }
 
   useEffect(() => {
-    if (cloudSyncError) {
+    if (cloudSyncRequested && isCloudSyncing) {
+      didEnterCloudSyncStateRef.current = true
+    }
+  }, [cloudSyncRequested, isCloudSyncing])
+
+  useEffect(() => {
+    if (!cloudSyncRequested || isCloudSyncing || !didEnterCloudSyncStateRef.current) {
+      return
+    }
+
+    if (cloudSyncError && cloudSyncError !== cloudSyncErrorAtRequestRef.current) {
       setToastState({
         message: cloudSyncError instanceof Error ? cloudSyncError.message : 'Failed to sync characters.',
         requiresSubscription: false,
       })
     }
-  }, [cloudSyncError])
+
+    cloudSyncErrorAtRequestRef.current = cloudSyncError
+    didEnterCloudSyncStateRef.current = false
+    setCloudSyncRequested(false)
+  }, [cloudSyncError, cloudSyncRequested, isCloudSyncing])
 
   if (isLoading) {
     return (
