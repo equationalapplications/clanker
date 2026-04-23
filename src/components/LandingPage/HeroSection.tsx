@@ -174,14 +174,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 48,
-    paddingBottom: 24,
     paddingHorizontal: 24,
     gap: 4,
   },
   titleWrap: {
     paddingHorizontal: 16,
     paddingVertical: 4,
+    marginBottom: 18,
+    borderRadius: 16,
   },
   title: {
     fontSize: 44,
