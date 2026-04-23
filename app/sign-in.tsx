@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
-import { StyleSheet, View, Alert, Platform, ScrollView, useWindowDimensions } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useEffect, useState } from 'react'
+import { StyleSheet, View, Alert, Platform, ScrollView, useWindowDimensions, Linking } from 'react-native'
+import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
 import { useSelector } from '@xstate/react'
 
 import ProviderButton from '~/auth/AuthProviderButton'
@@ -13,6 +13,22 @@ import { handleAppleRedirectResult } from '~/auth/appleSignin'
 // Defer native Apple auth require to avoid loading it in web bundles.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const AppleAuthentication = Platform.OS === 'ios' ? require('expo-apple-authentication') : null
+
+const PROTECTED_PREFIXES = ['/chat', '/characters', '/profile', '/settings', '/subscribe', '/admin']
+
+function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
+  )
+}
+
+function toValidatedInternalHref(pathname: string | null | undefined): Href | null {
+  if (!pathname || !pathname.startsWith('/') || pathname.startsWith('//')) {
+    return null
+  }
+
+  return pathname as Href
+}
 
 export default function SignIn() {
   const router = useRouter()
@@ -28,11 +44,42 @@ export default function SignIn() {
     error: state.context.error,
   }))
 
+  const { redirect } = useLocalSearchParams<{ redirect?: string }>()
+  const [initialRedirect, setInitialRedirect] = useState<Href | null>(null)
+
+  useEffect(() => {
+    Linking.getInitialURL()
+      .then((url) => {
+        if (!url) return
+
+        const parsed = new URL(url)
+        const pathname = parsed.pathname
+        const validatedPath = toValidatedInternalHref(pathname)
+
+        if (validatedPath && isProtectedPath(pathname)) {
+          setInitialRedirect(validatedPath)
+        }
+      })
+      .catch((error) => {
+        console.warn('Failed to read initial URL for post-auth redirect:', error)
+      })
+  }, [])
+
   useEffect(() => {
     if (isSignedIn) {
-      router.replace('/characters/list')
+      const paramRedirect = toValidatedInternalHref(
+        typeof redirect === 'string' ? redirect : undefined
+      )
+
+      // Preference order:
+      // 1. cold-start deep link recovered from Linking.getInitialURL()
+      // 2. in-app redirect param supplied by caller
+      // 3. standard post-auth fallback
+      const destination: Href = initialRedirect ?? paramRedirect ?? '/characters/list'
+
+      router.replace(destination)
     }
-  }, [isSignedIn, router])
+  }, [isSignedIn, router, redirect, initialRedirect])
 
   useEffect(() => {
     if (error) {
