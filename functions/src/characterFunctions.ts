@@ -21,10 +21,10 @@ type SyncCharacterPayload = {
 };
 
 type CharacterFunctionDeps = {
-  userRepository: Pick<typeof userRepository, 'findUserByFirebaseUid' | 'findUserById'>;
+  userRepository: Pick<typeof userRepository, 'findUserByFirebaseUid'>;
   characterService: Pick<
     typeof characterService,
-    'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters' | 'getPublicCharacterById'
+    'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters' | 'getPublicCharacterWithOwner'
   >;
   subscriptionService: Pick<typeof subscriptionService, 'getSubscription'>;
 };
@@ -328,18 +328,13 @@ export const getPublicCharacterHandler = async (
   await assertCloudCharacterAccess(user.id, deps);
 
   try {
-    const character = await deps.characterService.getPublicCharacterById(normalizedCharacterId);
-    if (!character) {
+    const row = await deps.characterService.getPublicCharacterWithOwner(normalizedCharacterId);
+    if (!row) {
       throw new HttpsError('not-found', 'Public character not found.');
     }
-    const ownerInternalId = (character as unknown as { userId: string }).userId;
-    const owner = await deps.userRepository.findUserById(ownerInternalId);
-    if (!owner) {
-      throw new HttpsError('not-found', 'Public character owner not found.');
-    }
     return serializeCharacter(
-      character as unknown as Record<string, unknown>,
-      owner.firebaseUid
+      row.character as unknown as Record<string, unknown>,
+      row.ownerFirebaseUid
     );
   } catch (error) {
     if (error instanceof HttpsError) {

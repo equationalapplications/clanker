@@ -34,6 +34,8 @@ interface CharacterContext {
   characters: Character[]
   userId: string | null
   error: Error | null
+  cloudSyncError: Error | null
+  cloudUnsyncError: Error | null
   pendingCharacterId: string | null
   optimisticSnapshot: Character[] | null // for rollback
   pendingTempId: string | null
@@ -97,6 +99,8 @@ export const characterMachine = createMachine(
       optimisticSnapshot: null,
       pendingTempId: null,
       priorSaveToCloud: null,
+      cloudSyncError: null,
+      cloudUnsyncError: null,
       priorCloudId: null,
       pendingUnsyncId: null,
     } as CharacterContext,
@@ -107,6 +111,8 @@ export const characterMachine = createMachine(
           userId: ({ event }) => event.userId,
           characters: [],
           error: null,
+          cloudSyncError: null,
+          cloudUnsyncError: null,
           pendingCharacterId: null,
           optimisticSnapshot: null,
           pendingTempId: null,
@@ -345,6 +351,7 @@ export const characterMachine = createMachine(
         },
       },
       cloudSyncing: {
+        entry: assign({ cloudSyncError: null }),
         on: {
           LOAD: {},
           CREATE: {},
@@ -364,12 +371,14 @@ export const characterMachine = createMachine(
               priorCloudId: null,
               pendingUnsyncId: null,
               error: null,
+              cloudSyncError: null,
             }),
           },
           onError: {
             target: 'idle',
             actions: assign({
               error: ({ event }) => event.error as Error | null,
+              cloudSyncError: ({ event }) => event.error as Error | null,
               priorSaveToCloud: null,
               priorCloudId: null,
               pendingUnsyncId: null,
@@ -378,6 +387,7 @@ export const characterMachine = createMachine(
         },
       },
       cloudUnsyncing: {
+        entry: assign({ cloudUnsyncError: null }),
         on: {
           LOAD: {},
           CREATE: {},
@@ -400,12 +410,14 @@ export const characterMachine = createMachine(
               priorCloudId: null,
               pendingUnsyncId: null,
               error: null,
+              cloudUnsyncError: null,
             }),
           },
           onError: {
             target: 'idle',
             actions: assign({
               error: ({ event }) => event.error as Error | null,
+              cloudUnsyncError: ({ event }) => event.error as Error | null,
               priorSaveToCloud: null,
               priorCloudId: null,
               pendingUnsyncId: null,

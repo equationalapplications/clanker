@@ -390,7 +390,7 @@ test("getPublicCharacterHandler rejects users without cloud-character subscripti
             getSubscription: async () => ({planTier: "free", planStatus: "active"} as never),
           },
           characterService: {
-            getPublicCharacterById: async () => {
+            getPublicCharacterWithOwner: async () => {
               throw new Error("Unexpected character service call");
             },
           },
@@ -415,27 +415,26 @@ test("getPublicCharacterHandler returns shared public character", async () => {
     {
       userRepository: {
         findUserByFirebaseUid: async () => ({id: "user-1"} as never),
-        findUserById: async (id: string) =>
-          id === "owner-1"
-            ? ({id: "owner-1", firebaseUid: "owner-firebase-uid"} as never)
-            : null,
       },
       subscriptionService: {
         getSubscription: async () => ({planTier: "monthly_50", planStatus: "active"} as never),
       },
       characterService: {
-        getPublicCharacterById: async () => ({
-          id: "123e4567-e89b-42d3-a456-426614174000",
-          userId: "owner-1",
-          name: "Nova",
-          avatar: "https://example.com/avatar.png",
-          appearance: "Tall",
-          traits: "Calm",
-          emotions: "Happy",
-          context: "Shared",
-          isPublic: true,
-          createdAt,
-          updatedAt,
+        getPublicCharacterWithOwner: async () => ({
+          character: {
+            id: "123e4567-e89b-42d3-a456-426614174000",
+            userId: "owner-1",
+            name: "Nova",
+            avatar: "https://example.com/avatar.png",
+            appearance: "Tall",
+            traits: "Calm",
+            emotions: "Happy",
+            context: "Shared",
+            isPublic: true,
+            createdAt,
+            updatedAt,
+          },
+          ownerFirebaseUid: "owner-firebase-uid",
         } as never),
       },
     } as unknown as CharacterFunctionDeps

@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
-import { characters, messages } from '../db/schema.js';
+import { characters, messages, users } from '../db/schema.js';
 
 type CharacterUpdateInput = Pick<
   typeof characters.$inferInsert,
@@ -153,6 +153,20 @@ export const createCharacterService = (
       const result = await db
         .select()
         .from(characters)
+        .where(sql`${characters.id} = ${characterId} AND ${characters.isPublic} = true`)
+        .limit(1);
+      return result[0] ?? null;
+    },
+
+    async getPublicCharacterWithOwner(characterId: string): Promise<{
+      character: typeof characters.$inferSelect;
+      ownerFirebaseUid: string;
+    } | null> {
+      const db = await deps.getDb();
+      const result = await db
+        .select({ character: characters, ownerFirebaseUid: users.firebaseUid })
+        .from(characters)
+        .innerJoin(users, eq(characters.userId, users.id))
         .where(sql`${characters.id} = ${characterId} AND ${characters.isPublic} = true`)
         .limit(1);
       return result[0] ?? null;

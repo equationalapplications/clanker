@@ -422,18 +422,13 @@ export default function EditCharacterScreen() {
               Save Changes
             </Button>
           </View>
-          {didAttemptSave && updateError ? (
-            <HelperText type="error" visible style={styles.errorText}>
-              {updateError instanceof Error
-                ? updateError.message
-                : 'Failed to save character. Please try again.'}
-            </HelperText>
-          ) : null}
-          {didAttemptSave && unsyncError ? (
+          {didAttemptSave && (updateError || unsyncError) ? (
             <HelperText type="error" visible style={styles.errorText}>
               {unsyncError instanceof Error
                 ? unsyncError.message
-                : 'Failed to remove character from cloud. Please try again.'}
+                : updateError instanceof Error
+                ? updateError.message
+                : 'Failed to save character. Please try again.'}
             </HelperText>
           ) : null}
         </View>
