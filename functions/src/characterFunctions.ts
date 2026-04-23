@@ -183,6 +183,14 @@ export const syncCharacterHandler = async (
     if (error instanceof HttpsError) {
       throw error;
     }
+
+    if (error instanceof CharacterOwnershipError) {
+      throw new HttpsError(
+        'permission-denied',
+        'Character does not belong to authenticated user.'
+      );
+    }
+
     logger.error('Failed to sync character', { error });
     throw new HttpsError('internal', 'Failed to sync character.');
   }

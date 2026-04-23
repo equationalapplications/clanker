@@ -92,7 +92,7 @@ export const createCharacterService = (
             .limit(1);
 
           if (existing[0] && existing[0].userId !== userId) {
-            throw new Error('Character does not belong to user');
+            throw new CharacterOwnershipError();
           }
 
           if (existing[0]) {

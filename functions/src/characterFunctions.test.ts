@@ -471,14 +471,15 @@ test("syncCharacterHandler rejects when character belongs to another user", asyn
         },
         characterService: {
           upsertCharacter: async () => {
-            throw new Error("Character does not belong to user");
+            throw new CharacterOwnershipError();
           },
         },
       } as unknown as CharacterFunctionDeps
     ),
     (err: unknown) =>
       err instanceof HttpsError &&
-      err.code === "internal"
+      err.code === "permission-denied" &&
+      err.message.includes("does not belong to authenticated user")
   );
 });
 
