@@ -262,6 +262,14 @@ test("getUserCharactersHandler returns character timestamps as ISO strings", asy
   assert.equal(typeof result.characters[0]?.updatedAt, "string");
   assert.equal(result.characters[0]?.createdAt, createdAt.toISOString());
   assert.equal(result.characters[0]?.updatedAt, updatedAt.toISOString());
+  assert.equal(
+    (result.characters[0] as Record<string, unknown>).ownerUserId,
+    "firebase-uid-1"
+  );
+  assert.equal(
+    (result.characters[0] as Record<string, unknown>).userId,
+    undefined
+  );
 });
 
 test("syncCharacterHandler rejects invalid timestamp value types", async () => {
@@ -406,6 +414,10 @@ test("getPublicCharacterHandler returns shared public character", async () => {
     {
       userRepository: {
         findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+        findUserById: async (id: string) =>
+          id === "owner-1"
+            ? ({id: "owner-1", firebaseUid: "owner-firebase-uid"} as never)
+            : null,
       },
       subscriptionService: {
         getSubscription: async () => ({planTier: "monthly_50", planStatus: "active"} as never),
@@ -433,6 +445,8 @@ test("getPublicCharacterHandler returns shared public character", async () => {
   assert.equal(payload.name, "Nova");
   assert.equal(payload.createdAt, createdAt.toISOString());
   assert.equal(payload.updatedAt, updatedAt.toISOString());
+  assert.equal(payload.ownerUserId, "owner-firebase-uid");
+  assert.equal(payload.userId, undefined);
 });
 
 test("syncCharacterHandler rejects when character belongs to another user", async () => {
@@ -531,5 +545,9 @@ test("syncCharacterHandler response includes ownerUserId", async () => {
     } as unknown as CharacterFunctionDeps
   );
 
-  assert.equal((result as Record<string, unknown>).ownerUserId, "user-1");
+  assert.equal(
+    (result as Record<string, unknown>).ownerUserId,
+    "firebase-uid-1"
+  );
+  assert.equal((result as Record<string, unknown>).userId, undefined);
 });

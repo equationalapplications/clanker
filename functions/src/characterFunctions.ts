@@ -21,7 +21,7 @@ type SyncCharacterPayload = {
 };
 
 type CharacterFunctionDeps = {
-  userRepository: Pick<typeof userRepository, 'findUserByFirebaseUid'>;
+  userRepository: Pick<typeof userRepository, 'findUserByFirebaseUid' | 'findUserById'>;
   characterService: Pick<
     typeof characterService,
     'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters' | 'getPublicCharacterById'
@@ -66,12 +66,20 @@ function toISO(value: unknown): string | null {
   throw new Error(`Invalid timestamp value type: ${typeof value}`);
 }
 
-function serializeCharacter(character: Record<string, unknown>) {
+function serializeCharacter(
+  character: Record<string, unknown>,
+  ownerFirebaseUid: string
+) {
+  // ownerUserId is the OWNER'S Firebase UID (matches client `auth.currentUser.uid`).
+  // The internal `character.userId` is the Cloud SQL `users.id` UUID and must NOT
+  // be exposed as ownership identity, since clients compare against Firebase uid.
+  const { userId: _internalUserId, ...rest } = character;
+  void _internalUserId;
   return {
-    ...character,
+    ...rest,
     createdAt: toISO(character.createdAt),
     updatedAt: toISO(character.updatedAt),
-    ownerUserId: character.userId,
+    ownerUserId: ownerFirebaseUid,
   };
 }
 
@@ -169,7 +177,7 @@ export const syncCharacterHandler = async (
       updatedAt: undefined,
     }, user.id);
 
-    return serializeCharacter(upserted as unknown as Record<string, unknown>);
+    return serializeCharacter(upserted as unknown as Record<string, unknown>, request.auth.uid);
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;
@@ -253,7 +261,7 @@ export const getUserCharactersHandler = async (
     const characters = await deps.characterService.getUserCharacters(user.id);
     return {
       characters: characters.map((character) =>
-        serializeCharacter(character as unknown as Record<string, unknown>)
+        serializeCharacter(character as unknown as Record<string, unknown>, request.auth!.uid)
       ),
     };
   } catch (error) {
@@ -305,7 +313,15 @@ export const getPublicCharacterHandler = async (
     if (!character) {
       throw new HttpsError('not-found', 'Public character not found.');
     }
-    return serializeCharacter(character as unknown as Record<string, unknown>);
+    const ownerInternalId = (character as unknown as { userId: string }).userId;
+    const owner = await deps.userRepository.findUserById(ownerInternalId);
+    if (!owner) {
+      throw new HttpsError('not-found', 'Public character owner not found.');
+    }
+    return serializeCharacter(
+      character as unknown as Record<string, unknown>,
+      owner.firebaseUid
+    );
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;
