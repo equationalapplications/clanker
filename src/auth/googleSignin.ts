@@ -12,13 +12,16 @@ export const initializeGoogleSignIn = () => {
   }
 
   // Base config works for Android and iOS; Android uses the Web client ID.
+  // iosClientId is set explicitly so Google Sign-In doesn't need to read CLIENT_ID
+  // from the bundled GoogleService-Info.plist (which may be stripped in some builds).
+  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
   const baseConfig: Record<string, any> = {
     webClientId,
+    ...(iosClientId ? { iosClientId } : {}),
     offlineAccess: true,
     hostedDomain: '',
     forceCodeForRefreshToken: true,
     accountName: '',
-    googleServicePlistPath: '',
     profileImageSize: 120,
   }
 
