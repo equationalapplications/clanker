@@ -40,6 +40,12 @@ export function resolveRedirectDestination(
   const paramRedirect = toValidatedInternalHref(
     typeof redirectParam === 'string' ? redirectParam : undefined
   )
+  const paramRedirectPathname =
+    typeof paramRedirect === 'string' ? paramRedirect.split(/[?#]/, 1)[0] : null
+  const protectedParamRedirect =
+    paramRedirect && paramRedirectPathname && isProtectedPath(paramRedirectPathname)
+      ? paramRedirect
+      : null
 
-  return initialRedirect ?? paramRedirect ?? '/characters/list'
+  return initialRedirect ?? protectedParamRedirect ?? '/characters/list'
 }
