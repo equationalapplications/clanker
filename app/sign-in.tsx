@@ -10,26 +10,15 @@ import Logo from '~/components/Logo'
 import { MonoText, TitleText } from '~/components/StyledText'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { handleAppleRedirectResult } from '~/auth/appleSignin'
+import {
+  isProtectedPath,
+  toValidatedInternalHref,
+  resolveRedirectDestination,
+} from '~/utilities/authRedirect'
 
 // Defer native Apple auth require to avoid loading it in web bundles.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const AppleAuthentication = Platform.OS === 'ios' ? require('expo-apple-authentication') : null
-
-const PROTECTED_PREFIXES = ['/chat', '/characters', '/profile', '/settings', '/subscribe', '/admin']
-
-function isProtectedPath(pathname: string): boolean {
-  return PROTECTED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
-  )
-}
-
-function toValidatedInternalHref(pathname: string | null | undefined): Href | null {
-  if (!pathname || !pathname.startsWith('/') || pathname.startsWith('//')) {
-    return null
-  }
-
-  return pathname as Href
-}
 
 export default function SignIn() {
   const router = useRouter()
@@ -80,16 +69,7 @@ export default function SignIn() {
 
   useEffect(() => {
     if (isSignedIn) {
-      const paramRedirect = toValidatedInternalHref(
-        typeof redirect === 'string' ? redirect : undefined
-      )
-
-      // Preference order:
-      // 1. cold-start deep link recovered from Linking.getInitialURL()
-      // 2. in-app redirect param supplied by caller
-      // 3. standard post-auth fallback
-      const destination: Href = initialRedirect ?? paramRedirect ?? '/characters/list'
-
+      const destination = resolveRedirectDestination(initialRedirect, redirect)
       router.replace(destination)
     }
   }, [isSignedIn, router, redirect, initialRedirect])

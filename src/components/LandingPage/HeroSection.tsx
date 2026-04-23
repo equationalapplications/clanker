@@ -91,7 +91,6 @@ export default function HeroSection() {
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 28,
     shadowOpacity: glowOpacity.value,
-    borderRadius: 16,
   }))
 
   const handleCTA = () => {
@@ -99,7 +98,7 @@ export default function HeroSection() {
   }
 
   return (
-    <View style={[styles.hero, { minHeight: height, backgroundColor: colors.background }]}>
+    <View style={[styles.hero, { minHeight: Math.min(height, 560), backgroundColor: colors.background }]}>
       {/* Top-right sign-in button — no glow, just subtle */}
       <View style={styles.topBar}>
         <Button
@@ -175,33 +174,33 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 80,
-    paddingBottom: 40,
+    paddingTop: 48,
+    paddingBottom: 24,
     paddingHorizontal: 24,
-    gap: 8,
+    gap: 4,
   },
   titleWrap: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   title: {
-    fontSize: 56,
-    lineHeight: 64,
+    fontSize: 44,
+    lineHeight: 52,
     textAlign: 'center',
   },
   tagline: {
-    fontSize: 16,
+    fontSize: 15,
     textAlign: 'center',
     opacity: 0.8,
-    marginBottom: 24,
+    marginBottom: 8,
   },
   logo: {
-    width: 200,
-    height: 200,
-    marginVertical: 24,
+    width: 140,
+    height: 140,
+    marginVertical: 12,
   },
   ctaWrap: {
-    marginTop: 32,
+    marginTop: 16,
     borderRadius: 40,
   },
   ctaContent: {
