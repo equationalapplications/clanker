@@ -65,10 +65,10 @@ export default function HeroSection() {
   // --- Shiver: every 10 s, rapid translateX burst ---
   const shiverX = useSharedValue(0)
 
-  // JS-thread interval is fine — we just write to the shared value
   useEffect(() => {
-    const id = setInterval(() => {
-      shiverX.value = withSequence(
+    shiverX.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 10000 }),
         withTiming(5, { duration: 55 }),
         withTiming(-5, { duration: 55 }),
         withTiming(4, { duration: 45 }),
@@ -76,9 +76,10 @@ export default function HeroSection() {
         withTiming(2, { duration: 40 }),
         withTiming(-2, { duration: 40 }),
         withTiming(0, { duration: 55 })
-      )
-    }, 10000)
-    return () => clearInterval(id)
+      ),
+      -1,
+      false
+    )
   }, [shiverX])
 
   // Shared animated style for both title halo wrapper and CTA halo wrapper
