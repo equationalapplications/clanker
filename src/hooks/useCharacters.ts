@@ -55,3 +55,26 @@ export function useDeleteCharacter() {
 
   return { remove, isPending }
 }
+
+export function useSyncCharacters() {
+  const characterService = useCharacterMachine()
+  const isCloudSyncing = useSelector(characterService, (s) => s.matches('cloudSyncing'))
+  const error = useSelector(characterService, (s) => s.context.error)
+
+  const sync = () => {
+    characterService.send({ type: 'CLOUD_SYNC' })
+  }
+
+  return { sync, isCloudSyncing, error }
+}
+
+export function useUnsyncCharacter() {
+  const characterService = useCharacterMachine()
+  const isCloudUnsyncing = useSelector(characterService, (s) => s.matches('cloudUnsyncing'))
+
+  const unsync = (id: string) => {
+    characterService.send({ type: 'CLOUD_UNSYNC', id })
+  }
+
+  return { unsync, isCloudUnsyncing }
+}
