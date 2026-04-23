@@ -36,7 +36,7 @@ export default function CharactersListScreen() {
   const handleRetrieveFromCloud = async () => {
     if (!isSubscriber) {
       setToastState({
-        message: 'Cloud retrieval requires a monthly_20 or monthly_50 subscription.',
+        message: 'Cloud retrieval requires a monthly subscription.',
         requiresSubscription: true,
       })
       return
