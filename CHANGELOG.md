@@ -1,3 +1,34 @@
+# [28.5.0](https://github.com/equationalapplications/clanker/compare/v28.4.0...v28.5.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* **auth-redirect:** address code review feedback ([05bbd4c](https://github.com/equationalapplications/clanker/commit/05bbd4cf9c6db56c0b9d1f0eb15f168707411ab4))
+* **characters:** gate owner backfill and save flow ([452c0b4](https://github.com/equationalapplications/clanker/commit/452c0b49a6f430d616ab2ca21d44b6fec6b7b1b1))
+* **characters:** simplify subscription requirement message ([fcb6f0c](https://github.com/equationalapplications/clanker/commit/fcb6f0c5791f041aec2b10f53c89229b895a6631))
+* **database:** clear save_to_cloud when unsyncing character ([3545bc2](https://github.com/equationalapplications/clanker/commit/3545bc2847f02cfe5fef1d0570dda333be858041))
+* **data:** harden lock and ownership errors ([d9e4407](https://github.com/equationalapplications/clanker/commit/d9e44079ce66cbd65194a528924942f8409da220))
+* **functions:** map ownership errors consistently ([3cd685e](https://github.com/equationalapplications/clanker/commit/3cd685e333bd00da91a9fb0802d5530ef9128b39))
+* **functions:** use Firebase UID for ownerUserId, not internal user ID ([af82c93](https://github.com/equationalapplications/clanker/commit/af82c938277a07a9683af91a19b32ee46124acaa))
+* **landing:** remove JS timer from hero shiver ([fba23db](https://github.com/equationalapplications/clanker/commit/fba23db1b34d84937fb1521f91238442af8544f9))
+* **landing:** use internal router navigation to resolve sign-in loop on web ([7fe9a59](https://github.com/equationalapplications/clanker/commit/7fe9a59f181392fe2b0895428898bbd391504c9a))
+* **machine:** scope sync/unsync errors + eliminate public char owner round-trip ([2ccfd24](https://github.com/equationalapplications/clanker/commit/2ccfd245847cf72c484eb0e69ea5431f8e7377e5))
+* **sync:** prevent stale cloud unsync state and tighten cloud unlink logic ([d4f9ed9](https://github.com/equationalapplications/clanker/commit/d4f9ed9de3d03bfc20d31e8ceb58591b3b651950))
+* **sync:** tighten cloud update guard ([5f2466c](https://github.com/equationalapplications/clanker/commit/5f2466c69ed9e7a8c0f5d9d8a8686e1912ee4dc9))
+* **ui:** guard cloud sync button + block nav during cloudUnsyncing ([084f835](https://github.com/equationalapplications/clanker/commit/084f83503b187e7d37d57504209fbd48c1af94d1))
+* **ui:** scope cloud sync toast errors ([c77a4f9](https://github.com/equationalapplications/clanker/commit/c77a4f9c4c9700eb66bf987292c1fb54d50098a0))
+* **web:** reduce auth root re-renders by splitting useSelector state selectors ([5777430](https://github.com/equationalapplications/clanker/commit/57774308eab141ca970d9a2d6c87b4572c74c4c3))
+
+
+### Features
+
+* **characters:** add owner_user_id column with backfill migration ([54d2161](https://github.com/equationalapplications/clanker/commit/54d2161bc157cde7172f9dabf4bb6fbc5f92785e))
+* **characters:** add useSyncCharacters and useUnsyncCharacter hooks ([e5683fe](https://github.com/equationalapplications/clanker/commit/e5683fe87fa5fe25e167adbbb7d4e9f79ce0fcc2))
+* **characters:** machine cloudSyncing and cloudUnsyncing with locking ([f6f639d](https://github.com/equationalapplications/clanker/commit/f6f639d6183882b394d36a51dc6527aedca480eb))
+* **characters:** ownership read-only mode and cloud removal confirm ([bbaa126](https://github.com/equationalapplications/clanker/commit/bbaa126d2e44014e72944b6a276d484231ee6485))
+* **characters:** support unsync from cloud preserving local copy ([0958acc](https://github.com/equationalapplications/clanker/commit/0958acc4cf8e3c83518b5fa8aa5ab8ebb241abad))
+* **functions:** expose owner and enforce owner-only character writes ([d4b0270](https://github.com/equationalapplications/clanker/commit/d4b027089b9396522f7fc49f53109fab75fbe10b))
+
 # [28.4.0](https://github.com/equationalapplications/clanker/compare/v28.3.4...v28.4.0) (2026-04-23)
 
 
