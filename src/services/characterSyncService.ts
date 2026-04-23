@@ -131,7 +131,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     cloud_id: cloudChar.id,
                     deleted_at: null as number | null,
                     summary_checkpoint: 0,
-                    owner_user_id: cloudChar.ownerUserId || localUserId,
+                    owner_user_id: localUserId,
                 }
             })
             .filter((c: LocalCharacter) => {
