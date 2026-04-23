@@ -50,7 +50,7 @@ jest.mock('expo-image', () => ({
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
   }),
 }))
 
@@ -94,8 +94,9 @@ jest.mock('~/hooks/useMachines', () => ({
   useAuthMachine: jest.fn(),
 }))
 
+const mockPush = jest.fn()
+
 // Import AFTER mocking
-import { Linking } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
 import HeroSection from '~/components/LandingPage/HeroSection'
@@ -105,7 +106,7 @@ describe('HeroSection Web Navigation', () => {
     jest.clearAllMocks()
   })
 
-  it('calls Linking.openURL when top-right Sign In button is clicked (not signed in)', () => {
+  it('routes to sign-in redirect when top-right Sign In button is clicked (not signed in)', () => {
     // Setup: mock auth state as not signed in
     const mockAuthService = {}
     ;(useAuthMachine as jest.Mock).mockReturnValue(mockAuthService)
@@ -127,12 +128,11 @@ describe('HeroSection Web Navigation', () => {
       topBarSignInButton.props.onPress()
     })
 
-    const openURLMock = Linking.openURL as jest.Mock
-    expect(openURLMock).toHaveBeenCalledWith('https://clanker-ai.com/chat')
-    expect(openURLMock).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/sign-in?redirect=/chat')
+    expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
-  it('calls Linking.openURL when hero CTA button is clicked (not signed in)', () => {
+  it('routes to sign-in redirect when hero CTA button is clicked (not signed in)', () => {
     // Setup: mock auth state as not signed in
     const mockAuthService = {}
     ;(useAuthMachine as jest.Mock).mockReturnValue(mockAuthService)
@@ -154,11 +154,10 @@ describe('HeroSection Web Navigation', () => {
       ctaButton.props.onPress()
     })
 
-    const openURLMock = Linking.openURL as jest.Mock
-    expect(openURLMock).toHaveBeenCalledWith('https://clanker-ai.com/chat')
+    expect(mockPush).toHaveBeenCalledWith('/sign-in?redirect=/chat')
   })
 
-  it('shows "Open App" label when signed in but calls same URL on click', () => {
+  it('shows "Open App" label when signed in and routes to chat on click', () => {
     // Setup: mock auth state as signed in
     const mockAuthService = {}
     ;(useAuthMachine as jest.Mock).mockReturnValue(mockAuthService)
@@ -176,13 +175,12 @@ describe('HeroSection Web Navigation', () => {
     // The button's children should contain "Open App" text
     expect(topBarButton.props.children).toContain('Open App')
 
-    // Click the button and verify Linking.openURL is called with same URL
+    // Click the button and verify it routes internally to /chat
     act(() => {
       topBarButton.props.onPress()
     })
 
-    const openURLMock = Linking.openURL as jest.Mock
-    expect(openURLMock).toHaveBeenCalledWith('https://clanker-ai.com/chat')
+    expect(mockPush).toHaveBeenCalledWith('/chat')
   })
 })
 

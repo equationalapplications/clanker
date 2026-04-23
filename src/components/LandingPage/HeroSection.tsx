@@ -1,7 +1,8 @@
-import { StyleSheet, View, useWindowDimensions, Linking } from 'react-native'
+import { StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useEffect } from 'react'
 import { Button, useTheme } from 'react-native-paper'
 import { Image } from 'expo-image'
+import { useRouter } from 'expo-router'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -17,6 +18,7 @@ import { useAuthMachine } from '~/hooks/useMachines'
 export default function HeroSection() {
   const { colors } = useTheme()
   const { height } = useWindowDimensions()
+  const router = useRouter()
   const authService = useAuthMachine()
   const isSignedIn = useSelector(authService, (s) => s.matches('signedIn'))
 
@@ -92,8 +94,13 @@ export default function HeroSection() {
     shadowOpacity: glowOpacity.value,
   }))
 
-  const handleCTA = () => {
-    Linking.openURL('https://clanker-ai.com/chat')
+  const handleChatIntent = () => {
+    if (isSignedIn) {
+      router.push('/chat')
+      return
+    }
+
+    router.push('/sign-in?redirect=/chat')
   }
 
   return (
@@ -104,7 +111,7 @@ export default function HeroSection() {
           mode="text"
           compact
           textColor={colors.primary}
-          onPress={() => Linking.openURL('https://clanker-ai.com/chat')}
+          onPress={handleChatIntent}
           style={styles.signInBtn}
         >
           {isSignedIn ? 'Open App' : 'Sign In'}
@@ -146,7 +153,7 @@ export default function HeroSection() {
             textColor={colors.onPrimary}
             contentStyle={styles.ctaContent}
             labelStyle={styles.ctaLabel}
-            onPress={handleCTA}
+            onPress={handleChatIntent}
           >
             {isSignedIn ? 'Open App' : 'Try the App!'}
           </Button>
