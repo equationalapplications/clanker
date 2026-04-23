@@ -151,7 +151,10 @@ Use this checklist for whichever Firebase project and app identifiers you are us
     - Private key (`.p8`)
 3. In Apple Developer, ensure the **Sign in with Apple** capability is enabled for your app's iOS bundle ID.
     Example for this repo: `com.equationalapplications.clanker`.
-4. Confirm your app build enables Apple Sign-In in Expo/native config.
+4. In Apple Developer → **Identifiers → Services IDs** → `com.equationalapplications.clanker.signin` → **Configure** (Sign In with Apple):
+    - **Domains**: `clanker-ai.com`, `clanker-prod.firebaseapp.com`, `clanker-prod.web.app`
+    - **Return URLs**: `https://clanker-prod.firebaseapp.com/__/auth/handler`, `https://clanker-prod.web.app/__/auth/handler`
+5. Confirm your app build enables Apple Sign-In in Expo/native config.
     Example for this repo: `usesAppleSignIn: true` is already set in `app.config.ts`.
 
 ---
