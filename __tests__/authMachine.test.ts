@@ -13,6 +13,7 @@ const mockLogoutRevenueCat = jest.fn()
 const mockSetCrashlyticsUserId = jest.fn()
 const mockQueryClientClear = jest.fn()
 const mockKvStorePersisterRemoveClient = jest.fn()
+const mockClearSettings = jest.fn()
 
 jest.mock('../src/config/firebaseConfig', () => ({
   onAuthStateChanged: mockOnAuthStateChanged,
@@ -52,6 +53,10 @@ jest.mock('../src/config/queryPersister', () => ({
   kvStorePersister: {
     removeClient: mockKvStorePersisterRemoveClient,
   },
+}))
+
+jest.mock('../src/utilities/settingsStorage', () => ({
+  clearSettings: mockClearSettings,
 }))
 
 const { authMachine } = require('../src/machines/authMachine')
@@ -277,6 +282,26 @@ describe('authMachine', () => {
     await waitFor(actor, () => mockBootstrapSession.mock.calls.length >= 3, WAIT_OPTS)
 
     expect(mockBootstrapSession.mock.calls.length).toBeGreaterThanOrEqual(3)
+    actor.stop()
+  })
+
+  it('clears user settings on SIGN_OUT', async () => {
+    const user = makeUser()
+    const bootstrapData = {
+      user: { id: 'user-1' },
+      subscription: { planTier: 'free' },
+    }
+    mockBootstrapSession.mockResolvedValue(bootstrapData)
+
+    const actor = createActor(authMachine)
+    actor.start()
+    actor.send({ type: 'USER_FOUND', user: user as any } as any)
+    await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
+
+    actor.send({ type: 'SIGN_OUT' })
+    await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+
+    expect(mockClearSettings).toHaveBeenCalledTimes(1)
     actor.stop()
   })
 })

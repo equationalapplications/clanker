@@ -19,6 +19,24 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
+        name="chat"
+        options={{
+          title: 'Chat',
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <TabBarIcon name={focused ? 'chatbubble' : 'chatbubble-outline'} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="talk"
+        options={{
+          title: 'Talk',
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <TabBarIcon name={focused ? 'mic' : 'mic-outline'} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="characters"
         options={{
           title: 'Characters',
@@ -43,15 +61,6 @@ export default function TabLayout() {
               ])
             }
           },
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Chat',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-            <TabBarIcon name={focused ? 'chatbubble' : 'chatbubble-outline'} color={color} />
-          ),
         }}
       />
     </Tabs>

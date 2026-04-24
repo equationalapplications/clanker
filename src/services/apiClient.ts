@@ -54,6 +54,7 @@ export interface SyncCharacterPayload {
   traits?: string | null
   emotions?: string | null
   context?: string | null
+  voice?: string | null
   isPublic?: boolean
   createdAt?: string
   updatedAt?: string
@@ -68,6 +69,7 @@ export interface CharacterSnapshot {
   traits: string | null
   emotions: string | null
   context: string | null
+  voice?: string | null
   isPublic: boolean
   createdAt: string
   updatedAt: string

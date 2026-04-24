@@ -57,6 +57,17 @@ export default function Support() {
           <Divider style={styles.divider} />
 
           <Text variant="titleSmall" style={styles.question}>
+            How do voice replies work and what do they cost?
+          </Text>
+          <Text variant="bodyMedium" style={styles.bodyText}>
+            Open the Talk tab, tap the mic, and speak. Your character replies out loud in their
+            chosen voice. Monthly subscribers get unlimited voice replies. Pay-as-you-go users
+            spend 2 credits per reply.
+          </Text>
+
+          <Divider style={styles.divider} />
+
+          <Text variant="titleSmall" style={styles.question}>
             How do I sign in?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>

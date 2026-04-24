@@ -165,6 +165,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-font',
     'expo-image',
     [
+      'expo-speech-recognition',
+      {
+        microphonePermission: 'Allow Clanker to access your microphone for voice conversations.',
+        speechRecognitionPermission: 'Allow Clanker to transcribe your speech for voice conversations.',
+      },
+    ],
+    [
       "@react-native-google-signin/google-signin",
       {
         "iosUrlScheme": process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME

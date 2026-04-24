@@ -4,6 +4,30 @@ jest.mock('expo-modules-core/src/polyfill/dangerous-internal', () => ({}), {
   virtual: true,
 })
 
+// Mock the native Crashlytics module directly so alias/path resolution does not
+// allow @react-native-firebase/crashlytics to initialize during Jest runs.
+jest.mock('@react-native-firebase/crashlytics', () => {
+  const mockCrashlyticsInstance = {
+    setCrashlyticsCollectionEnabled: jest.fn().mockResolvedValue(undefined),
+    setUserId: jest.fn().mockResolvedValue(undefined),
+    log: jest.fn(),
+    recordError: jest.fn(),
+  }
+
+  const getCrashlytics = jest.fn(() => mockCrashlyticsInstance)
+
+  return {
+    __esModule: true,
+    default: jest.fn(() => mockCrashlyticsInstance),
+    getCrashlytics,
+    setCrashlyticsCollectionEnabled: jest.fn((instance, enabled) =>
+      instance.setCrashlyticsCollectionEnabled(enabled)
+    ),
+    setUserId: jest.fn((instance, userId) => instance.setUserId(userId)),
+    log: jest.fn((instance, message) => instance.log(message)),
+    recordError: jest.fn((instance, error) => instance.recordError(error)),
+  }
+})
 // Mock expo-sqlite to prevent native module initialization errors in Jest
 jest.mock('expo-sqlite', () => {
   return {
