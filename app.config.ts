@@ -107,7 +107,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: 'com.equationalapplications.clanker',
     googleServicesFile: getGoogleServicesJson(),
-    permissions: ['RECORD_AUDIO'],
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundImage: './assets/adaptive-icon-background.png',
