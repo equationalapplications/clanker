@@ -7,22 +7,18 @@ export default function LandingFooter() {
   const { colors } = useTheme()
   const { openPreferences } = useCookieConsent()
 
+  const linkStyle = StyleSheet.flatten([styles.link, { color: colors.outline }])
+
   return (
     <View style={styles.footer}>
       <Link href="/terms" asChild>
-        <Text
-          variant="bodySmall"
-          style={[styles.link, { color: colors.outline }]}
-        >
+        <Text variant="bodySmall" style={linkStyle}>
           Terms and Conditions
         </Text>
       </Link>
       <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
       <Link href="/privacy" asChild>
-        <Text
-          variant="bodySmall"
-          style={[styles.link, { color: colors.outline }]}
-        >
+        <Text variant="bodySmall" style={linkStyle}>
           Privacy Policy
         </Text>
       </Link>
@@ -35,7 +31,7 @@ export default function LandingFooter() {
           })
         }}
       >
-        <Text variant="bodySmall" style={[styles.link, { color: colors.outline }]}>
+        <Text variant="bodySmall" style={linkStyle}>
           Equational Applications LLC
         </Text>
       </Pressable>
@@ -43,7 +39,7 @@ export default function LandingFooter() {
         <>
           <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
           <Pressable accessibilityRole="link" onPress={openPreferences}>
-            <Text variant="bodySmall" style={[styles.link, { color: colors.outline }]}>
+            <Text variant="bodySmall" style={linkStyle}>
               Cookie Preferences
             </Text>
           </Pressable>
