@@ -135,7 +135,18 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       setReplyText(response.replyText)
       setVoiceState('playing')
 
-      const ext = response.audioMimeType.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'wav'
+      const MIME_TO_EXT: Record<string, string> = {
+        'audio/wav': 'wav',
+        'audio/x-wav': 'wav',
+        'audio/mpeg': 'mp3',
+        'audio/mp3': 'mp3',
+        'audio/ogg': 'ogg',
+        'audio/mp4': 'm4a',
+        'audio/aac': 'aac',
+        'audio/webm': 'webm',
+        'audio/flac': 'flac',
+      }
+      const ext = MIME_TO_EXT[response.audioMimeType] ?? 'wav'
       const path = `${FileSystem.cacheDirectory}voice-reply-${Date.now()}.${ext}`
       tempPathRef.current = path
 
