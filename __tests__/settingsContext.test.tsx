@@ -68,7 +68,15 @@ describe('SettingsContext', () => {
     })
   })
 
-  describe('updateSetting darkMode — preferences consent gate', () => {
+  describe('updateSetting darkMode — preferences consent gate (web only)', () => {
+    beforeEach(() => {
+      // The darkMode consent gate only applies on web
+      ;(globalThis as any).__setJestPlatformOS('web')
+    })
+    afterEach(() => {
+      ;(globalThis as any).__resetJestPlatformOS()
+    })
+
     it('does NOT persist darkMode when preferences consent is not granted', () => {
       withConsent(false)
       let api: any
@@ -126,6 +134,26 @@ describe('SettingsContext', () => {
       act(() => api.updateSetting('darkMode', true))
 
       expect(api.settings.darkMode).toBe(true)
+    })
+
+    it('persists darkMode on native regardless of preferences consent', () => {
+      ;(globalThis as any).__resetJestPlatformOS() // switch to native (ios)
+      withConsent(false)
+      let api: any
+      act(() => {
+        create(
+          <CookieConsentProvider>
+            <SettingsProvider>
+              <Probe onReady={(a) => { api = a }} />
+            </SettingsProvider>
+          </CookieConsentProvider>,
+        )
+      })
+      mockStorageSetItemSync.mockClear()
+
+      act(() => api.updateSetting('darkMode', true))
+
+      expect(mockStorageSetItemSync).toHaveBeenCalledWith('setting:darkMode', '1')
     })
   })
 

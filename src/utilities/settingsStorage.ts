@@ -4,11 +4,11 @@ export type SettingKey = 'analytics' | 'darkMode' | 'notifications'
 
 export const SETTING_KEYS: SettingKey[] = ['analytics', 'darkMode', 'notifications']
 
-export function settingKey(key: string): string {
+export function settingKey(key: SettingKey): string {
     return `setting:${key}`
 }
 
-export function readBoolSync(key: string, defaultValue: boolean): boolean {
+export function readBoolSync(key: SettingKey, defaultValue: boolean): boolean {
     try {
         const raw = Storage.getItemSync(settingKey(key))
         if (raw === null || raw === '') return defaultValue

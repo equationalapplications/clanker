@@ -5,7 +5,7 @@ import React, {
     useCallback,
     ReactNode,
 } from 'react'
-import { Appearance } from 'react-native'
+import { Appearance, Platform } from 'react-native'
 import { Storage } from '~/utilities/kvStorage'
 import { setCrashlyticsEnabled } from '~/services/crashlyticsService'
 import { useCookieConsent } from '~/components/CookieConsent'
@@ -36,8 +36,9 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     const { canUse } = useCookieConsent()
 
     const updateSetting = useCallback((key: SettingKey, value: boolean) => {
-        // Gate persistence of preference settings on cookie consent
-        const requiresPreferencesConsent = key === 'darkMode'
+        // Gate persistence of darkMode on cookie consent, but only on web.
+        // On native, cookie consent is not available (no localStorage), so always persist.
+        const requiresPreferencesConsent = key === 'darkMode' && Platform.OS === 'web'
         const shouldPersist = !requiresPreferencesConsent || canUse('preferences')
 
         if (shouldPersist) {
