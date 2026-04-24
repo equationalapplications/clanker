@@ -8,7 +8,7 @@ export interface PrivacyConfig {
 }
 
 export const PRIVACY: PrivacyConfig = {
-  version: '1.3',
+  version: '1.4',
   lastUpdated: 'April 23, 2026',
   privacy: `
 Equational Applications LLC ("we", "us", "our") is committed to protecting your privacy.
@@ -49,17 +49,21 @@ We use cookies and similar storage on the web app for the following purposes:
 
 - Strictly necessary: required for sign-in, security, and core app functionality
   (e.g., Firebase Authentication session). These cannot be turned off.
-- Preferences: remembers UI choices such as theme (off by default).
+- Preferences: may remember a UI choice you actively make, such as theme, so the
+  app can apply that setting on future visits. Apart from such user-requested UI
+  preferences, additional non-essential preference storage is off by default unless
+  you enable the Preferences category.
 - Analytics: helps us understand product usage to improve the app (off by default,
   not currently active).
 - Marketing: reserved for future advertising measurement (off by default,
   not currently active).
 
 Legal basis: For visitors in the EU, EEA, UK, and Canada (including Quebec), we
-rely on your explicit consent before setting any non-essential cookies. You can
-accept, reject, or change your choices at any time using "Cookie Preferences"
-in the landing page footer or in Settings on the web. Your consent is stored
-locally for 12 months, after which we will ask again.
+rely on your explicit consent before setting non-essential cookies or similar
+storage, except where storage is used to remember a setting you directly request.
+You can accept, reject, or change your choices at any time using "Cookie
+Preferences" in the landing page footer or in Settings on the web. Your consent is
+stored locally for 12 months, after which we will ask again.
 
 Third parties: When you start a Stripe checkout, you are redirected to Stripe
 on stripe.com; cookies set during that flow are governed by Stripe's privacy
