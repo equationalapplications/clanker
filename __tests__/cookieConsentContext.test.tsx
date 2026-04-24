@@ -6,6 +6,13 @@ import {
 } from '~/components/CookieConsent'
 import * as crashlyticsService from '~/services/crashlyticsService'
 
+jest.mock('~/services/crashlyticsService', () => ({
+  initializeCrashlytics: jest.fn().mockResolvedValue(undefined),
+  setCrashlyticsEnabled: jest.fn().mockResolvedValue(undefined),
+  setCrashlyticsUserId: jest.fn().mockResolvedValue(undefined),
+  logCrashlyticsError: jest.fn().mockResolvedValue(undefined),
+}))
+
 function Probe({ onReady }: { onReady: (api: ReturnType<typeof useCookieConsent>) => void }) {
   const api = useCookieConsent()
   React.useEffect(() => onReady(api), [api, onReady])
