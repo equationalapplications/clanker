@@ -57,7 +57,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 24,
     paddingHorizontal: 16,
-    gap: 4,
+    columnGap: 4,
+    rowGap: 4,
   },
   link: {
     textDecorationLine: 'underline',

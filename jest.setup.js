@@ -49,7 +49,8 @@ jest.mock('expo-router', () => {
 const localStorageMock = (() => {
   let store = {}
   return {
-    getItem: (key) => store[key] || null,
+    getItem: (key) =>
+      Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null,
     setItem: (key, value) => {
       store[key] = value.toString()
     },

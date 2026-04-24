@@ -4,10 +4,16 @@ import {
   CookieConsentRecord,
 } from './cookieConsentTypes'
 
+function hasWindow(): boolean {
+  return typeof window !== 'undefined'
+}
+
 function getStorage(): Storage | null {
   try {
-    if (typeof window === 'undefined') return null
-    return window.localStorage
+    const candidate =
+      (globalThis as { localStorage?: Storage }).localStorage ??
+      (hasWindow() ? window.localStorage : undefined)
+    return candidate ?? null
   } catch {
     return null
   }
