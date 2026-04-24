@@ -36,7 +36,7 @@ export default function CookiePreferencesModal() {
   if (!isPreferencesOpen) return null
 
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={closePreferences}>
+    <Modal transparent visible animationType="none" onRequestClose={closePreferences}>
       <View style={styles.backdrop}>
         <View
           testID="cookie-preferences-modal"
