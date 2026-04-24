@@ -1,3 +1,10 @@
+## [28.7.1](https://github.com/equationalapplications/clanker/compare/v28.7.0...v28.7.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* **deeplinks:** replace clanker.app with clanker-ai.com across all platforms ([61e1916](https://github.com/equationalapplications/clanker/commit/61e1916e37342b40b3c51ac145578aa2640e0064))
+
 # [28.7.0](https://github.com/equationalapplications/clanker/compare/v28.6.1...v28.7.0) (2026-04-24)
 
 
