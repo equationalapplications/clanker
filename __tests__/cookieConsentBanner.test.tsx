@@ -1,5 +1,6 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
+import { Switch } from 'react-native-paper'
 import {
   CookieConsentProvider,
   CookieConsentBanner,
@@ -64,5 +65,53 @@ describe('CookieConsentBanner', () => {
     act(() => api.rejectAll())
     expect(api.canUse('analytics')).toBe(false)
     expect(api.canUse('necessary')).toBe(true)
+  })
+
+  describe('CookiePreferencesModal — strictly necessary toggle', () => {
+    it('strictly necessary switch is always disabled and on', () => {
+      let api: any
+      let tree: any
+      act(() => {
+        tree = create(
+          <CookieConsentProvider>
+            <ApiProbe onReady={(a) => { api = a }} />
+            <CookiePreferencesModal />
+          </CookieConsentProvider>,
+        )
+      })
+
+      act(() => api.openPreferences())
+
+      const switches = tree.root.findAllByType(Switch)
+      const necessarySwitch = switches.find(
+        (s: any) => s.props.accessibilityLabel === 'Toggle Strictly necessary',
+      )
+      expect(necessarySwitch).toBeDefined()
+      expect(necessarySwitch.props.disabled).toBe(true)
+      expect(necessarySwitch.props.value).toBe(true)
+    })
+
+    it('strictly necessary switch stays on even after rejectAll pre-seeds choices', () => {
+      let api: any
+      let tree: any
+      act(() => {
+        tree = create(
+          <CookieConsentProvider>
+            <ApiProbe onReady={(a) => { api = a }} />
+            <CookiePreferencesModal />
+          </CookieConsentProvider>,
+        )
+      })
+
+      act(() => api.rejectAll())
+      act(() => api.openPreferences())
+
+      const switches = tree.root.findAllByType(Switch)
+      const necessarySwitch = switches.find(
+        (s: any) => s.props.accessibilityLabel === 'Toggle Strictly necessary',
+      )
+      expect(necessarySwitch.props.value).toBe(true)
+      expect(necessarySwitch.props.disabled).toBe(true)
+    })
   })
 })

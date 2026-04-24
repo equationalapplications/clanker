@@ -8,30 +8,13 @@ import React, {
 import { Appearance } from 'react-native'
 import { Storage } from '~/utilities/kvStorage'
 import { setCrashlyticsEnabled } from '~/services/crashlyticsService'
+import { useCookieConsent } from '~/components/CookieConsent'
+import { SettingKey, settingKey, readBoolSync } from '~/utilities/settingsStorage'
 
-// Storage key helpers
-function settingKey(key: string): string {
-    return `setting:${key}`
-}
+export { clearSettings } from '~/utilities/settingsStorage'
 
-function readBoolSync(key: string, defaultValue: boolean): boolean {
-    try {
-        const raw = Storage.getItemSync(settingKey(key))
-        if (raw === null) return defaultValue
-        return raw === '1'
-    } catch {
-        return defaultValue
-    }
-}
-
-// Settings shape
-interface Settings {
-    analytics: boolean
-    darkMode: boolean
-    notifications: boolean
-}
-
-type SettingKey = keyof Settings
+// Settings shape — derived from SettingKey so the two can't drift
+type Settings = Record<SettingKey, boolean>
 
 interface SettingsContextType {
     settings: Settings
@@ -50,13 +33,19 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
         darkMode: readBoolSync('darkMode', Appearance.getColorScheme() === 'dark'),
         notifications: readBoolSync('notifications', true),
     }))
+    const { canUse } = useCookieConsent()
 
     const updateSetting = useCallback((key: SettingKey, value: boolean) => {
-        // Persist synchronously so non-React code can read it immediately
-        try {
-            Storage.setItemSync(settingKey(key), value ? '1' : '0')
-        } catch (err) {
-            console.error(`Failed to persist setting "${key}":`, err)
+        // Gate persistence of preference settings on cookie consent
+        const requiresPreferencesConsent = key === 'darkMode'
+        const shouldPersist = !requiresPreferencesConsent || canUse('preferences')
+
+        if (shouldPersist) {
+            try {
+                Storage.setItemSync(settingKey(key), value ? '1' : '0')
+            } catch (err) {
+                console.error(`Failed to persist setting "${key}":`, err)
+            }
         }
 
         // Side-effect: sync Crashlytics enabled state when analytics toggle changes
@@ -65,7 +54,7 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
         }
 
         setSettings((prev) => ({ ...prev, [key]: value }))
-    }, [])
+    }, [canUse])
 
     return (
         <SettingsContext.Provider value={{ settings, updateSetting }}>

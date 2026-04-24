@@ -14,8 +14,8 @@ const LABELS: Record<CookieCategory, { title: string; description: string }> = {
     description: 'Remembers UI choices like theme.',
   },
   analytics: {
-    title: 'Analytics',
-    description: 'Helps us understand how Clanker is used so we can improve it.',
+    title: 'Crash reporting',
+    description: 'Sends crash and error reports to help us fix bugs and improve stability.',
   },
   marketing: {
     title: 'Marketing',

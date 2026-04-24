@@ -4,6 +4,7 @@ import {
   CookieConsentProvider,
   useCookieConsent,
 } from '~/components/CookieConsent'
+import * as crashlyticsService from '../src/services/crashlyticsService'
 
 function Probe({ onReady }: { onReady: (api: ReturnType<typeof useCookieConsent>) => void }) {
   const api = useCookieConsent()
@@ -12,7 +13,10 @@ function Probe({ onReady }: { onReady: (api: ReturnType<typeof useCookieConsent>
 }
 
 describe('CookieConsentContext', () => {
-  beforeEach(() => window.localStorage.clear())
+  beforeEach(() => {
+    window.localStorage.clear()
+    jest.clearAllMocks()
+  })
 
   it('shows banner when no consent exists', () => {
     let api: any
@@ -93,5 +97,60 @@ describe('CookieConsentContext', () => {
       )
     })
     expect(api.isBannerVisible).toBe(true)
+  })
+
+  it('acceptAll calls setCrashlyticsEnabled(true)', () => {
+    let api: any
+    act(() => {
+      create(
+        <CookieConsentProvider>
+          <Probe onReady={(a) => { api = a }} />
+        </CookieConsentProvider>,
+      )
+    })
+    act(() => api.acceptAll())
+    expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('rejectAll calls setCrashlyticsEnabled(false)', () => {
+    let api: any
+    act(() => {
+      create(
+        <CookieConsentProvider>
+          <Probe onReady={(a) => { api = a }} />
+        </CookieConsentProvider>,
+      )
+    })
+    act(() => api.rejectAll())
+    expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(false)
+  })
+
+  it('savePreferences calls setCrashlyticsEnabled with the analytics choice', () => {
+    let api: any
+    act(() => {
+      create(
+        <CookieConsentProvider>
+          <Probe onReady={(a) => { api = a }} />
+        </CookieConsentProvider>,
+      )
+    })
+    act(() => api.savePreferences({ analytics: true, marketing: false, preferences: false }))
+    expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(true)
+
+    act(() => api.savePreferences({ analytics: false }))
+    expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(false)
+  })
+
+  it('savePreferences enforces necessary:true even when caller passes necessary:false', () => {
+    let api: any
+    act(() => {
+      create(
+        <CookieConsentProvider>
+          <Probe onReady={(a) => { api = a }} />
+        </CookieConsentProvider>,
+      )
+    })
+    act(() => api.savePreferences({ necessary: false, analytics: false, marketing: false, preferences: false }))
+    expect(api.canUse('necessary')).toBe(true)
   })
 })
