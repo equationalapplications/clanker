@@ -64,19 +64,21 @@ export async function generateVoiceReply({
   }
 
   const data = responseData as GenerateVoiceReplyCallableResponse
+  const trimmedReplyText = typeof data.replyText === 'string' ? data.replyText.trim() : ''
+  const trimmedAudioBase64 = typeof data.audioBase64 === 'string' ? data.audioBase64.trim() : ''
   const verifiedAt = typeof data.verifiedAt === 'string' ? data.verifiedAt.trim() : ''
 
-  if (typeof data.replyText !== 'string' || typeof data.audioBase64 !== 'string' || !verifiedAt) {
+  if (!trimmedReplyText || !trimmedAudioBase64 || !verifiedAt) {
     throw new Error('Invalid generateVoiceReply response payload')
   }
 
   return {
-    replyText: data.replyText.trim(),
+    replyText: trimmedReplyText,
     rawReplyText:
       typeof data.rawReplyText === 'string' && data.rawReplyText.trim().length > 0
         ? data.rawReplyText.trim()
-        : data.replyText.trim(),
-    audioBase64: data.audioBase64.trim(),
+        : trimmedReplyText,
+    audioBase64: trimmedAudioBase64,
     audioMimeType:
       typeof data.audioMimeType === 'string' && data.audioMimeType.trim().length > 0
         ? data.audioMimeType.trim()
