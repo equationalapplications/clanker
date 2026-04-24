@@ -7,9 +7,9 @@ import {
   buildChatPrompt,
   getRecentConversationHistory,
   triggerConversationSummary,
-  UsageSnapshot,
+  type UsageSnapshot,
 } from '~/services/aiChatService'
-import { IMessage } from 'react-native-gifted-chat'
+import type { IMessage } from 'react-native-gifted-chat'
 
 type VoiceCharacter = {
   id: string
