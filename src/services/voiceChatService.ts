@@ -14,6 +14,7 @@ import { IMessage } from 'react-native-gifted-chat'
 type VoiceCharacter = {
   id: string
   name: string
+  avatar?: string | null
   appearance: string | null
   traits: string | null
   emotions: string | null
@@ -76,7 +77,7 @@ export async function sendVoiceMessage(
     user: {
       _id: character.id,
       name: character.name,
-      avatar: character.appearance || undefined,
+      avatar: character.avatar || undefined,
     },
   })
 
