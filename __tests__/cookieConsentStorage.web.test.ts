@@ -20,21 +20,28 @@ describe('cookieConsentStorage.web', () => {
   })
 
   it('round-trips a valid record', () => {
-    const now = new Date('2026-01-01T00:00:00Z').toISOString()
-    const record = {
-      policyVersion: COOKIE_POLICY_VERSION,
-      consentedAt: now,
-      expiresAt: new Date('2027-01-01T00:00:00Z').toISOString(),
-      regionMode: 'opt-in-strict' as const,
-      choices: {
-        necessary: true,
-        analytics: false,
-        marketing: false,
-        preferences: false,
-      },
+    jest.useFakeTimers()
+    jest.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+
+    try {
+      const now = new Date('2026-01-01T00:00:00Z').toISOString()
+      const record = {
+        policyVersion: COOKIE_POLICY_VERSION,
+        consentedAt: now,
+        expiresAt: new Date('2027-01-01T00:00:00Z').toISOString(),
+        regionMode: 'opt-in-strict' as const,
+        choices: {
+          necessary: true,
+          analytics: false,
+          marketing: false,
+          preferences: false,
+        },
+      }
+      writeConsent(record)
+      expect(readConsent()).toEqual(record)
+    } finally {
+      jest.useRealTimers()
     }
-    writeConsent(record)
-    expect(readConsent()).toEqual(record)
   })
 
   it('returns null when JSON is corrupt', () => {
