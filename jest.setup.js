@@ -4,15 +4,18 @@ jest.mock('expo-modules-core/src/polyfill/dangerous-internal', () => ({}), {
   virtual: true,
 })
 
-// Mock crashlyticsService to prevent native Firebase module initialization in Jest.
-// The native module is only available on device; web uses a .web.ts stub at runtime.
-jest.mock('./src/services/crashlyticsService', () => ({
-  initializeCrashlytics: jest.fn().mockResolvedValue(undefined),
-  setCrashlyticsEnabled: jest.fn().mockResolvedValue(undefined),
-  setCrashlyticsUserId: jest.fn().mockResolvedValue(undefined),
-  logCrashlyticsError: jest.fn().mockResolvedValue(undefined),
-}))
+// Mock the native Crashlytics module directly so alias/path resolution does not
+// allow @react-native-firebase/crashlytics to initialize during Jest runs.
+jest.mock('@react-native-firebase/crashlytics', () => {
+  const mockCrashlyticsInstance = {
+    setCrashlyticsCollectionEnabled: jest.fn().mockResolvedValue(undefined),
+    setUserId: jest.fn().mockResolvedValue(undefined),
+    log: jest.fn(),
+    recordError: jest.fn(),
+  }
 
+  return () => mockCrashlyticsInstance
+})
 // Mock expo-sqlite to prevent native module initialization errors in Jest
 jest.mock('expo-sqlite', () => {
   return {
