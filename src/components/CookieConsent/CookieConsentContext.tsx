@@ -45,8 +45,7 @@ function buildRecord(choices: Record<CookieCategory, boolean>): CookieConsentRec
 }
 
 export function CookieConsentProvider({ children }: { children: React.ReactNode }) {
-  const initial = readConsent()
-  const [record, setRecord] = useState<CookieConsentRecord | null>(initial)
+  const [record, setRecord] = useState<CookieConsentRecord | null>(() => readConsent())
   const [isPreferencesOpen, setPreferencesOpen] = useState(false)
 
   const persist = useCallback((choices: Record<CookieCategory, boolean>) => {
@@ -77,7 +76,10 @@ export function CookieConsentProvider({ children }: { children: React.ReactNode 
     [persist, record],
   )
 
-  const choices = record?.choices ?? defaultRejectChoices()
+  const choices = useMemo(
+    () => record?.choices ?? defaultRejectChoices(),
+    [record],
+  )
   const canUse = useCallback(
     (category: CookieCategory) => (record ? choices[category] === true : category === 'necessary'),
     [record, choices],

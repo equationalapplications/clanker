@@ -24,13 +24,26 @@ jest.mock('expo-sqlite', () => {
   }
 })
 
-// Mock expo-router Link component
-jest.mock('expo-router', () => ({
-  Link: ({ children, href }: any) => children,
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
-  useSegments: () => [],
-  usePathname: () => '/',
-}))
+// Mock only the expo-router pieces needed for tests while preserving other runtime exports
+jest.mock('expo-router', () => {
+  const actualExpoRouter = jest.requireActual('expo-router')
+  const mockRouter = {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => false),
+    setParams: jest.fn(),
+  }
+
+  return {
+    ...actualExpoRouter,
+    Link: ({ children, href }: any) => children,
+    router: actualExpoRouter.router ?? mockRouter,
+    useRouter: () => mockRouter,
+    useSegments: () => [],
+    usePathname: () => '/',
+  }
+})
 
 // Mock localStorage for web tests
 const localStorageMock = (() => {
@@ -53,8 +66,26 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 })
 
-// Set Platform.OS to 'web' for web-specific tests
-Object.defineProperty(require('react-native').Platform, 'OS', {
-  value: 'web',
+// Helpers for suites that need to temporarily override Platform.OS.
+// Use __setJestPlatformOS('web') in beforeEach and __resetJestPlatformOS() in afterEach.
+const _rnPlatform = require('react-native').Platform
+const _originalOSDescriptor =
+  Object.getOwnPropertyDescriptor(_rnPlatform, 'OS') || {
+    value: _rnPlatform.OS,
+    configurable: true,
+    writable: true,
+  }
+
+Object.defineProperty(globalThis, '__setJestPlatformOS', {
+  value: (os: string) => {
+    Object.defineProperty(_rnPlatform, 'OS', { value: os, configurable: true })
+  },
+  configurable: true,
+})
+
+Object.defineProperty(globalThis, '__resetJestPlatformOS', {
+  value: () => {
+    Object.defineProperty(_rnPlatform, 'OS', _originalOSDescriptor)
+  },
   configurable: true,
 })

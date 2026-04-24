@@ -8,7 +8,7 @@ Web-only. Native (iOS/Android) is out of scope because the app does not load thi
 
 ```
 app/_layout.tsx
-  └─ CookieConsentProvider (web behavior; null elsewhere)
+  └─ CookieConsentProvider (renders on all platforms; canUse() available everywhere)
        ├─ <RootLayoutNav />            (existing)
        ├─ <CookieConsentBanner />      (lower-right, web only)
        └─ <CookiePreferencesModal />   (web only)

@@ -13,8 +13,15 @@ function ApiProbe({ onReady }: { onReady: (api: ReturnType<typeof useCookieConse
   return null
 }
 
+declare const __setJestPlatformOS: (os: string) => void
+declare const __resetJestPlatformOS: () => void
+
 describe('CookieConsentBanner', () => {
-  beforeEach(() => window.localStorage.clear())
+  beforeEach(() => {
+    __setJestPlatformOS('web')
+    window.localStorage.clear()
+  })
+  afterEach(() => __resetJestPlatformOS())
 
   it('provider renders with banner and modal components', () => {
     let tree: any
@@ -26,7 +33,7 @@ describe('CookieConsentBanner', () => {
         </CookieConsentProvider>,
       )
     })
-    // On non-web platform in test env, components return null but don't error
+    // Verify provider and consent components render without error.
     expect(tree).toBeDefined()
   })
 
