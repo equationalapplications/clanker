@@ -1,5 +1,6 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
+import { Appearance } from 'react-native'
 import { CookieConsentProvider } from '~/components/CookieConsent'
 import {
   SettingsProvider,
@@ -7,6 +8,7 @@ import {
   useSettings,
 } from '~/contexts/SettingsContext'
 import * as crashlyticsService from '~/services/crashlyticsService'
+import { Storage } from '~/utilities/kvStorage'
 import { CONSENT_STORAGE_KEY } from '~/utilities/cookieConsentTypes'
 
 const mockStorageSetItemSync = jest.fn()
@@ -154,6 +156,79 @@ describe('SettingsContext', () => {
       act(() => api.updateSetting('darkMode', true))
 
       expect(mockStorageSetItemSync).toHaveBeenCalledWith('setting:darkMode', '1')
+    })
+  })
+
+  describe('initial darkMode — preferences consent gate (web only)', () => {
+    let appearanceSpy: jest.SpyInstance
+
+    beforeEach(() => {
+      // Set system colour scheme to light so the system default is false
+      appearanceSpy = jest.spyOn(Appearance, 'getColorScheme').mockReturnValue('light')
+      // Set storage to have dark mode stored as true ('1')
+      ;(Storage.getItemSync as jest.Mock).mockImplementation((key: string) => {
+        if (key === 'setting:darkMode') return '1'
+        return null
+      })
+      ;(globalThis as any).__setJestPlatformOS('web')
+    })
+
+    afterEach(() => {
+      appearanceSpy.mockRestore()
+      ;(Storage.getItemSync as jest.Mock).mockReturnValue(null)
+      ;(globalThis as any).__resetJestPlatformOS()
+    })
+
+    it('on web without preferences consent, uses system scheme even when storage has a value', () => {
+      withConsent(false) // preferences: false
+      let api: any
+      act(() => {
+        create(
+          <CookieConsentProvider>
+            <SettingsProvider>
+              <Probe onReady={(a) => { api = a }} />
+            </SettingsProvider>
+          </CookieConsentProvider>,
+        )
+      })
+
+      // Storage has '1' (dark) but system is 'light' (false) — should use system
+      expect(api.settings.darkMode).toBe(false)
+    })
+
+    it('on web with preferences consent, initializes darkMode from storage', () => {
+      withConsent(true) // preferences: true
+      let api: any
+      act(() => {
+        create(
+          <CookieConsentProvider>
+            <SettingsProvider>
+              <Probe onReady={(a) => { api = a }} />
+            </SettingsProvider>
+          </CookieConsentProvider>,
+        )
+      })
+
+      // Storage has '1' (dark) — should read from storage
+      expect(api.settings.darkMode).toBe(true)
+    })
+
+    it('on native, initializes darkMode from storage regardless of consent', () => {
+      ;(globalThis as any).__resetJestPlatformOS() // switch to native (ios)
+      withConsent(false) // preferences: false
+      let api: any
+      act(() => {
+        create(
+          <CookieConsentProvider>
+            <SettingsProvider>
+              <Probe onReady={(a) => { api = a }} />
+            </SettingsProvider>
+          </CookieConsentProvider>,
+        )
+      })
+
+      // Storage has '1' (dark) — native should always read from storage
+      expect(api.settings.darkMode).toBe(true)
     })
   })
 

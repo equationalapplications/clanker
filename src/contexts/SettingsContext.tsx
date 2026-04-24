@@ -10,6 +10,7 @@ import { Storage } from '~/utilities/kvStorage'
 import { setCrashlyticsEnabled } from '~/services/crashlyticsService'
 import { useCookieConsent } from '~/components/CookieConsent'
 import { SettingKey, settingKey, readBoolSync } from '~/utilities/settingsStorage'
+import { readConsent } from '~/utilities/cookieConsentStorage.web'
 
 export { clearSettings } from '~/utilities/settingsStorage'
 
@@ -28,11 +29,19 @@ interface SettingsProviderProps {
 }
 
 export function SettingsProvider({ children }: SettingsProviderProps) {
-    const [settings, setSettings] = useState<Settings>(() => ({
-        analytics: readBoolSync('analytics', false),
-        darkMode: readBoolSync('darkMode', Appearance.getColorScheme() === 'dark'),
-        notifications: readBoolSync('notifications', true),
-    }))
+    const [settings, setSettings] = useState<Settings>(() => {
+        const systemDark = Appearance.getColorScheme() === 'dark'
+        // On web, only read the persisted darkMode value if preferences consent has been
+        // granted; otherwise fall back to the system colour scheme to avoid reading
+        // preference storage without consent.
+        const hasPreferencesConsent =
+            Platform.OS !== 'web' || readConsent()?.choices?.preferences === true
+        return {
+            analytics: readBoolSync('analytics', false),
+            darkMode: hasPreferencesConsent ? readBoolSync('darkMode', systemDark) : systemDark,
+            notifications: readBoolSync('notifications', true),
+        }
+    })
     const { canUse } = useCookieConsent()
 
     const updateSetting = useCallback((key: SettingKey, value: boolean) => {
