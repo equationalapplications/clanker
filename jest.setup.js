@@ -24,6 +24,14 @@ jest.mock('expo-sqlite', () => {
   }
 })
 
+// Mock expo-router Link component
+jest.mock('expo-router', () => ({
+  Link: ({ children, href }: any) => children,
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useSegments: () => [],
+  usePathname: () => '/',
+}))
+
 // Mock localStorage for web tests
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
@@ -43,4 +51,10 @@ const localStorageMock = (() => {
 
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
+})
+
+// Set Platform.OS to 'web' for web-specific tests
+Object.defineProperty(require('react-native').Platform, 'OS', {
+  value: 'web',
+  configurable: true,
 })
