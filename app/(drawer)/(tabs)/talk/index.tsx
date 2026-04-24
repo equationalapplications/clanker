@@ -28,7 +28,11 @@ function TalkView({ characterId }: { characterId: string }) {
     (voiceState === 'transcribing' || voiceState === 'processing' ? transcription : '') ||
     (voiceState === 'playing' ? replyText : '')
 
-  const isBusy = voiceState === 'transcribing' || voiceState === 'processing' || voiceState === 'playing'
+  const isBusy =
+    voiceState === 'listening' ||
+    voiceState === 'transcribing' ||
+    voiceState === 'processing' ||
+    voiceState === 'playing'
   const canEdit = voiceState === 'idle'
 
   return (

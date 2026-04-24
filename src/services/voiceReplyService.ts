@@ -57,15 +57,16 @@ export async function generateVoiceReply({
     referenceId,
   })
 
-  const data = result.data as GenerateVoiceReplyCallableResponse
+  const responseData = result.data
+
+  if (!responseData || typeof responseData !== 'object') {
+    throw new Error('Invalid generateVoiceReply response payload')
+  }
+
+  const data = responseData as GenerateVoiceReplyCallableResponse
   const verifiedAt = typeof data.verifiedAt === 'string' ? data.verifiedAt.trim() : ''
 
-  if (
-    !data ||
-    typeof data.replyText !== 'string' ||
-    typeof data.audioBase64 !== 'string' ||
-    !verifiedAt
-  ) {
+  if (typeof data.replyText !== 'string' || typeof data.audioBase64 !== 'string' || !verifiedAt) {
     throw new Error('Invalid generateVoiceReply response payload')
   }
 
