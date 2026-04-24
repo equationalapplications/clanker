@@ -8,7 +8,7 @@ export interface PrivacyConfig {
 }
 
 export const PRIVACY: PrivacyConfig = {
-  version: '1.2',
+  version: '1.3',
   lastUpdated: 'April 23, 2026',
   privacy: `
 Equational Applications LLC ("we", "us", "our") is committed to protecting your privacy.
@@ -42,6 +42,28 @@ processes this content as our service provider under the Google Cloud Privacy No
 (https://cloud.google.com/terms/cloud-privacy-notice) and does not use it to train its
 foundation models. Please do not submit sensitive personal information (such as government
 identifiers, financial account numbers, or health records) in chat.
+
+Cookies and Similar Technologies (Web Only)
+
+We use cookies and similar storage on the web app for the following purposes:
+
+- Strictly necessary: required for sign-in, security, and core app functionality
+  (e.g., Firebase Authentication session). These cannot be turned off.
+- Preferences: remembers UI choices such as theme (off by default).
+- Analytics: helps us understand product usage to improve the app (off by default,
+  not currently active).
+- Marketing: reserved for future advertising measurement (off by default,
+  not currently active).
+
+Legal basis: For visitors in the EU, EEA, UK, and Canada (including Quebec), we
+rely on your explicit consent before setting any non-essential cookies. You can
+accept, reject, or change your choices at any time using "Cookie Preferences"
+in the landing page footer or in Settings on the web. Your consent is stored
+locally for 12 months, after which we will ask again.
+
+Third parties: When you start a Stripe checkout, you are redirected to Stripe
+on stripe.com; cookies set during that flow are governed by Stripe's privacy
+notice, not ours.
 
 Retention of Information
 We may retain your information for as long as necessary to provide and improve the App, to

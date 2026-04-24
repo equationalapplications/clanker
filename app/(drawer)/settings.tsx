@@ -1,11 +1,12 @@
 import React from 'react'
-import { StyleSheet, ScrollView, View } from 'react-native'
+import { StyleSheet, ScrollView, View, Platform } from 'react-native'
 import { Text, List, Switch, Button, Divider } from 'react-native-paper'
 import { router, type Href } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useSettings } from '~/contexts/SettingsContext'
+import { useCookieConsent } from '~/components/CookieConsent'
 import pkg from '../../package.json'
 
 const version = pkg.version
@@ -16,6 +17,7 @@ export default function Settings() {
     user: state.context.user,
   }))
   const { settings, updateSetting } = useSettings()
+  const { openPreferences } = useCookieConsent()
   const { bottom } = useSafeAreaInsets()
 
   const signOut = () => {
@@ -123,6 +125,14 @@ export default function Settings() {
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
           onPress={() => router.push('/privacy')}
         />
+
+        {Platform.OS === 'web' && (
+          <List.Item
+            title="Cookie Preferences"
+            left={(props) => <List.Icon {...props} icon="cookie" />}
+            onPress={openPreferences}
+          />
+        )}
 
         <List.Item
           title="Support"
