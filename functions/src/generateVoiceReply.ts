@@ -391,7 +391,7 @@ async function spendCreditsIfRequired(
       throw new HttpsError("resource-exhausted", "Insufficient credits to complete voice reply.");
     }
 
-    return creditService.getCredits(userId);
+    return await creditService.getCredits(userId);
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;
