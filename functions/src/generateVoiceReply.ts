@@ -385,12 +385,26 @@ async function spendCreditsIfRequired(
     return null;
   }
 
-  const success = await creditService.spendCredits(userId, 2, "voice reply", referenceId ?? undefined);
-  if (!success) {
-    throw new HttpsError("resource-exhausted", "Insufficient credits to complete voice reply.");
-  }
+  try {
+    const success = await creditService.spendCredits(userId, 2, "voice reply", referenceId ?? undefined);
+    if (!success) {
+      throw new HttpsError("resource-exhausted", "Insufficient credits to complete voice reply.");
+    }
 
-  return creditService.getCredits(userId);
+    return creditService.getCredits(userId);
+  } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    logger.error("Failed to spend credits for voice reply.", {
+      userId,
+      referenceId,
+      error,
+    });
+
+    throw new HttpsError("internal", "Failed to spend credits for voice reply.");
+  }
 }
 
 function cleanReplyText(rawText: string): string {
