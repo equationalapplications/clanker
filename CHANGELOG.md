@@ -1,3 +1,36 @@
+# [28.7.0](https://github.com/equationalapplications/clanker/compare/v28.6.1...v28.7.0) (2026-04-24)
+
+
+### Bug Fixes
+
+* **deps:** add expo-file-system to package.json to fix CI lint failure ([3fc8f82](https://github.com/equationalapplications/clanker/commit/3fc8f823456b4d1bd5f6aee66cf4a58683fd70d4))
+* guard stale state in voice events and settings ([3eb2014](https://github.com/equationalapplications/clanker/commit/3eb2014e0aaf6903a9d70955cf87d00119181c2d))
+* **settings:** gate initial darkMode read on preferences consent on web ([8c7943c](https://github.com/equationalapplications/clanker/commit/8c7943c5654971a0cdc3f1de663e7735579a745b))
+* **settings:** narrow SettingKey types and gate darkMode consent web-only ([91ccace](https://github.com/equationalapplications/clanker/commit/91ccacea7865dd2764123ed27ed11444639e331c))
+* **tests:** mock crashlyticsService in failing test suites to fix CI ([c9973ab](https://github.com/equationalapplications/clanker/commit/c9973ab284f60a193e04788d5d4de1b82ffad82a))
+* **voice:** add clearListenTimer to startListening useCallback deps ([9706ef4](https://github.com/equationalapplications/clanker/commit/9706ef4088537ba2e21588a017e154a0764f5185))
+* **voice:** apply fourth review batch feedback ([9ba4cb6](https://github.com/equationalapplications/clanker/commit/9ba4cb6e39c0023f42d9f9174f95e3c276a3ee7f))
+* **voice:** apply review feedback from PR [#306](https://github.com/equationalapplications/clanker/issues/306) ([ec96ed8](https://github.com/equationalapplications/clanker/commit/ec96ed82a0104703b15dee9420d1326841e87e38))
+* **voice:** apply second review batch feedback ([fa70d66](https://github.com/equationalapplications/clanker/commit/fa70d66d71e8032273ed0f85bffcc0927113969a))
+* **voice:** apply third review batch feedback ([f74e959](https://github.com/equationalapplications/clanker/commit/f74e95910661add3b66e510327b42df8b09c1527))
+* **voice:** defensive filter for styleHints and clearer TTS instruction ([f8eedda](https://github.com/equationalapplications/clanker/commit/f8eedda3fd2a21d14e789eb8c06a3a0819c624e9))
+* **voice:** move credit spend to after successful text+TTS generation ([200c833](https://github.com/equationalapplications/clanker/commit/200c83340ae7c030cc694e6af7dd68a6b555e9c9))
+* **voice:** remove unawaited removeItem from clearSettings; drop misleading fallback message in voiceChatService catch block ([f34a158](https://github.com/equationalapplications/clanker/commit/f34a1585ed6528f3999e29892856054175af9078))
+* **voice:** use character.avatar (not appearance) for AI message avatar in voiceChatService ([63f3843](https://github.com/equationalapplications/clanker/commit/63f3843cf4b8fafc4307ab9c92e2d99ef6992fa7))
+* **voice:** use import type for UsageSnapshot/IMessage; fix settingsStorage indentation ([c684047](https://github.com/equationalapplications/clanker/commit/c684047bb1a254e32dd238058c7805079eba8f03))
+* **voice:** use MIME-to-extension lookup map for audio file path ([8a7e7fd](https://github.com/equationalapplications/clanker/commit/8a7e7fd80e83e06063e77959b9ba60dc14fde3a4))
+
+
+### Features
+
+* **cookies:** enforce consent rules for settings persistence and Crashlytics ([f2d946c](https://github.com/equationalapplications/clanker/commit/f2d946cc5672a1176f2d70243023f1202a3070a2))
+* **voice:** add Talk tab with voice conversation support ([53e32c3](https://github.com/equationalapplications/clanker/commit/53e32c3d2d6b156d119ad434d864754c93900c3f))
+
+
+### Performance Improvements
+
+* **voice:** cache GoogleGenAI client at module level in generateVoiceReply ([8b0c333](https://github.com/equationalapplications/clanker/commit/8b0c3332faeda5edb5cc03cd1f51ec0dcd293fe7))
+
 ## [28.6.1](https://github.com/equationalapplications/clanker/compare/v28.6.0...v28.6.1) (2026-04-24)
 
 
