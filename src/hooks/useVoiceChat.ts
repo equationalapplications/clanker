@@ -181,9 +181,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
 
     transcriptionRef.current = transcript
     setTranscription(transcript)
-    if (voiceState !== 'processing') {
-      setVoiceState('transcribing')
-    }
+    setVoiceState((prev) => (prev === 'processing' ? prev : 'transcribing'))
 
     if (isFinal) {
       finalTranscriptionRef.current = transcript
