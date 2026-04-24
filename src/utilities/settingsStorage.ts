@@ -11,7 +11,7 @@ export function settingKey(key: string): string {
 export function readBoolSync(key: string, defaultValue: boolean): boolean {
     try {
         const raw = Storage.getItemSync(settingKey(key))
-        if (raw === null) return defaultValue
+        if (raw === null || raw === '') return defaultValue
         return raw === '1'
     } catch {
         return defaultValue

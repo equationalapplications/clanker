@@ -171,12 +171,20 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
 
       await player.play()
     } catch (err) {
+      if (!isMountedRef.current || cancelledRef.current) {
+        await cleanupPlayback()
+        return
+      }
       const errorMessage = err instanceof Error ? err.message : 'Voice reply failed'
       await fail(errorMessage)
     }
   }, [character, cleanupPlayback, currentUser?.uid, fail, goIdle, messages])
 
   useSpeechRecognitionEvent('result', (payload) => {
+    if (!recognitionActiveRef.current || cancelledRef.current || !isMountedRef.current) {
+      return
+    }
+
     const { transcript, isFinal } = extractTranscript(payload)
 
     if (!transcript) {
@@ -193,6 +201,9 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
   })
 
   useSpeechRecognitionEvent('error', () => {
+    if (!recognitionActiveRef.current || cancelledRef.current || !isMountedRef.current) {
+      return
+    }
     clearListenTimer()
     recognitionActiveRef.current = false
     void fail('Microphone permission required. Enable it in Settings.')
