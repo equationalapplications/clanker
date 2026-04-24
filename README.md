@@ -48,6 +48,7 @@
 ## Policies & Compliance
 
 - [Privacy integration](docs/PRIVACY_INTEGRATION.md) — How privacy policy and user consent are handled.
+- [Cookie consent (web)](docs/COOKIE_CONSENT.md) — Lower-right banner with Accept/Reject parity, granular preferences, and `canUse()` gating for non-essential cookies, satisfying GDPR + Quebec Law 25.
 - [Terms integration](docs/TERMS_INTEGRATION.md) — Legacy terms flow vs subscription-driven access control.
 - [Apple subscription consent](docs/APPLE_SUBSCRIPTION_CONSENT.md) — Paywall legal-link requirements, Terms + Apple EULA hosting, and safe custom-consent scope for auto-renewable subscriptions.
 - [Support page](docs/SUPPORT_PAGE.md) — Public support route and FAQ content used for App Store support URL compliance.
