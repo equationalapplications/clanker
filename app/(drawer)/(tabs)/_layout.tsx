@@ -27,42 +27,42 @@ export default function TabLayout() {
           ),
         }}
       />
-        <Tabs.Screen
-          name="talk"
-          options={{
-            title: 'Talk',
-            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-              <TabBarIcon name={focused ? 'mic' : 'mic-outline'} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="characters"
-          options={{
-            title: 'Characters',
-            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-              <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} />
-            ),
-          }}
-          listeners={{
-            tabPress: (e) => {
-              if (editDirtyRef.current) {
-                e.preventDefault()
-                Alert.alert('Unsaved Changes', 'You have unsaved changes. Discard them?', [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Discard',
-                    style: 'destructive',
-                    onPress: () => {
-                      setEditDirty(false)
-                      router.navigate('/characters/list')
-                    },
+      <Tabs.Screen
+        name="talk"
+        options={{
+          title: 'Talk',
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <TabBarIcon name={focused ? 'mic' : 'mic-outline'} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="characters"
+        options={{
+          title: 'Characters',
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} />
+          ),
+        }}
+        listeners={{
+          tabPress: (e) => {
+            if (editDirtyRef.current) {
+              e.preventDefault()
+              Alert.alert('Unsaved Changes', 'You have unsaved changes. Discard them?', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Discard',
+                  style: 'destructive',
+                  onPress: () => {
+                    setEditDirty(false)
+                    router.navigate('/characters/list')
                   },
-                ])
-              }
-            },
-          }}
-        />
+                },
+              ])
+            }
+          },
+        }}
+      />
     </Tabs>
   )
 }
