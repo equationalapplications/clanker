@@ -1,3 +1,11 @@
+## [28.5.1](https://github.com/equationalapplications/clanker/compare/v28.5.0...v28.5.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* **db:** add migration 8 for owner backfill repair ([3505252](https://github.com/equationalapplications/clanker/commit/3505252aec6ea881fea7cfbfcd6c745456e97430))
+* **db:** backfill owner for local chars ([93928c7](https://github.com/equationalapplications/clanker/commit/93928c76eb72edcd5d343e96cb5fb3381fbdad56))
+
 # [28.5.0](https://github.com/equationalapplications/clanker/compare/v28.4.0...v28.5.0) (2026-04-23)
 
 
