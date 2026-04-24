@@ -281,7 +281,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       const errorMessage = err instanceof Error ? err.message : 'Failed to start listening'
       await fail(errorMessage)
     }
-  }, [canUseNativeVoice, character, characterId, fail, isSubscriber, remainingCredits, voiceState])
+  }, [canUseNativeVoice, character, characterId, clearListenTimer, fail, isSubscriber, remainingCredits, voiceState])
 
   const cancel = useCallback(() => {
     cancelledRef.current = true
