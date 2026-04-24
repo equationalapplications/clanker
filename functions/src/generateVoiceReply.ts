@@ -124,8 +124,26 @@ function getProjectId(): string | undefined {
   return value ? value : undefined;
 }
 
+interface GenAiClientLike {
+  models: {
+    generateContent: (payload: Record<string, unknown>) => Promise<{
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{
+            inlineData?: {
+              data?: string;
+              mimeType?: string;
+            };
+          }>;
+        };
+      }>;
+    }>;
+  };
+}
+
 let textGenerator: GenerateTextFn | undefined;
 let modelPromise: Promise<GenerativeModelLike> | undefined;
+let genAiClientPromise: Promise<GenAiClientLike> | undefined;
 let speechSynthesizer: SynthesizeSpeechFn | undefined;
 
 async function getModel(): Promise<GenerativeModelLike> {
@@ -207,46 +225,51 @@ function getTextGenerator(): GenerateTextFn {
   return textGenerator;
 }
 
+async function getGenAiClient(): Promise<GenAiClientLike> {
+  if (genAiClientPromise) {
+    return genAiClientPromise;
+  }
+
+  const project = getProjectId();
+  if (!project) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Missing GCLOUD_PROJECT for Vertex AI speech synthesis."
+    );
+  }
+
+  genAiClientPromise = (async () => {
+    try {
+      const moduleName = "@google/genai";
+      const genAiModule = await import(moduleName) as {
+        GoogleGenAI: new (config: Record<string, unknown>) => GenAiClientLike;
+      };
+      return new genAiModule.GoogleGenAI({
+        vertexai: true,
+        project,
+        location: DEFAULT_REGION,
+      });
+    } catch (error: unknown) {
+      genAiClientPromise = undefined;
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+      throw new HttpsError("internal", `Failed to initialize Google GenAI client: ${toErrorMessage(error)}`);
+    }
+  })();
+
+  return genAiClientPromise;
+}
+
+
 function getSpeechSynthesizer(): SynthesizeSpeechFn {
   if (speechSynthesizer) {
     return speechSynthesizer;
   }
 
   speechSynthesizer = async (text: string, voice: string) => {
-    const project = getProjectId();
-    if (!project) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Missing GCLOUD_PROJECT for Vertex AI speech synthesis."
-      );
-    }
-
     try {
-      const moduleName = "@google/genai";
-      const genAiModule = await import(moduleName) as {
-        GoogleGenAI: new (config: Record<string, unknown>) => {
-          models: {
-            generateContent: (payload: Record<string, unknown>) => Promise<{
-              candidates?: Array<{
-                content?: {
-                  parts?: Array<{
-                    inlineData?: {
-                      data?: string;
-                      mimeType?: string;
-                    };
-                  }>;
-                };
-              }>;
-            }>;
-          };
-        };
-      };
-
-      const client = new genAiModule.GoogleGenAI({
-        vertexai: true,
-        project,
-        location: DEFAULT_REGION,
-      });
+      const client = await getGenAiClient();
 
       const response = await client.models.generateContent({
         model: TTS_MODEL,
