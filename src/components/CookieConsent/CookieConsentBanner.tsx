@@ -14,7 +14,7 @@ export default function CookieConsentBanner() {
   return (
     <View
       accessibilityLabel="Cookie consent"
-      style={[styles.container, { backgroundColor: colors.elevation.level3, borderColor: colors.outline }]}
+      style={StyleSheet.flatten([styles.container, { backgroundColor: colors.elevation.level3, borderColor: colors.outline }])}
     >
       <Text variant="titleSmall" style={{ color: colors.onSurface, marginBottom: 8 }}>
         Cookies on Clanker
@@ -24,7 +24,7 @@ export default function CookieConsentBanner() {
         analytics, preferences, and marketing. You can change your choice anytime in Cookie
         Preferences.{' '}
         <Link href="/privacy">
-          <Text style={[styles.link, { color: colors.primary }]}>Privacy policy</Text>
+          <Text style={StyleSheet.flatten([styles.link, { color: colors.primary }])}>Privacy policy</Text>
         </Link>
         .
       </Text>
@@ -32,7 +32,7 @@ export default function CookieConsentBanner() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Reject all cookies"
-          style={[styles.btn, { borderColor: colors.outline }]}
+          style={StyleSheet.flatten([styles.btn, { borderColor: colors.outline }])}
           onPress={rejectAll}
         >
           <Text style={{ color: colors.onSurface }}>Reject all</Text>
@@ -40,7 +40,7 @@ export default function CookieConsentBanner() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Manage cookie preferences"
-          style={[styles.btn, { borderColor: colors.outline }]}
+          style={StyleSheet.flatten([styles.btn, { borderColor: colors.outline }])}
           onPress={openPreferences}
         >
           <Text style={{ color: colors.onSurface }}>Manage preferences</Text>
@@ -48,7 +48,7 @@ export default function CookieConsentBanner() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Accept all cookies"
-          style={[styles.btnPrimary, { backgroundColor: colors.primary }]}
+          style={StyleSheet.flatten([styles.btnPrimary, { backgroundColor: colors.primary }])}
           onPress={acceptAll}
         >
           <Text style={{ color: colors.onPrimary }}>Accept all</Text>
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     zIndex: 1000,
   },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' },
+  row: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 8, rowGap: 8, justifyContent: 'flex-end' },
   btn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
   btnPrimary: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   link: { textDecorationLine: 'underline' },

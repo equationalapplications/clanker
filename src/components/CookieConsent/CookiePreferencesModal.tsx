@@ -40,7 +40,7 @@ export default function CookiePreferencesModal() {
       <View style={styles.backdrop}>
         <View
           testID="cookie-preferences-modal"
-          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.outline }]}
+          style={StyleSheet.flatten([styles.card, { backgroundColor: colors.surface, borderColor: colors.outline }])}
         >
           <Text variant="titleMedium" style={{ color: colors.onSurface, marginBottom: 12 }}>
             Cookie preferences
@@ -68,7 +68,7 @@ export default function CookiePreferencesModal() {
               accessibilityRole="button"
               accessibilityLabel="Cancel cookie preferences"
               onPress={closePreferences}
-              style={[styles.btn, { borderColor: colors.outline }]}
+              style={StyleSheet.flatten([styles.btn, { borderColor: colors.outline }])}
             >
               <Text style={{ color: colors.onSurface }}>Cancel</Text>
             </Pressable>
@@ -76,7 +76,7 @@ export default function CookiePreferencesModal() {
               accessibilityRole="button"
               accessibilityLabel="Save cookie preferences"
               onPress={() => savePreferences(draft)}
-              style={[styles.btnPrimary, { backgroundColor: colors.primary }]}
+              style={StyleSheet.flatten([styles.btnPrimary, { backgroundColor: colors.primary }])}
             >
               <Text style={{ color: colors.onPrimary }}>Save</Text>
             </Pressable>
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   },
   card: { width: '100%', maxWidth: 480, borderRadius: 12, borderWidth: 1, padding: 20 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  actions: { flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 16 },
+  actions: { flexDirection: 'row', columnGap: 8, justifyContent: 'flex-end', marginTop: 16 },
   btn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
   btnPrimary: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
 })
