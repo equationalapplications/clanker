@@ -18,7 +18,7 @@ interface UseVoiceChatReturn {
   transcription: string
   replyText: string
   error: string | null
-  startListening: () => void
+  startListening: () => Promise<void>
   cancel: () => void
 }
 
