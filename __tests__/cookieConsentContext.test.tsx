@@ -4,7 +4,7 @@ import {
   CookieConsentProvider,
   useCookieConsent,
 } from '~/components/CookieConsent'
-import * as crashlyticsService from '../src/services/crashlyticsService'
+import * as crashlyticsService from '~/services/crashlyticsService'
 
 function Probe({ onReady }: { onReady: (api: ReturnType<typeof useCookieConsent>) => void }) {
   const api = useCookieConsent()
