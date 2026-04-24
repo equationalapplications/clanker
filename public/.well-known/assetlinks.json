@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.equationalapplications.clanker",
+      "sha256_cert_fingerprints": [
+        "07:A1:EA:6D:7D:01:55:92:E2:16:12:D9:0A:0E:DF:19:A7:99:E1:A4:25:31:4D:40:EC:7B:AB:C0:F0:99:DC:D0"
+      ]
+    }
+  }
+]
