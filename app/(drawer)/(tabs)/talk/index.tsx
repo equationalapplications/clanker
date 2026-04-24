@@ -1,5 +1,5 @@
-import { Stack, router } from 'expo-router'
-import React from 'react'
+import { Stack, router, useFocusEffect } from 'expo-router'
+import React, { useCallback } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Text } from 'react-native-paper'
@@ -12,7 +12,15 @@ import { useVoiceChat } from '~/hooks/useVoiceChat'
 
 function TalkView({ characterId }: { characterId: string }) {
   const { data: character } = useCharacter(characterId)
-  const { voiceState, transcription, replyText, error, startListening } = useVoiceChat(characterId)
+  const { voiceState, transcription, replyText, error, startListening, cancel } = useVoiceChat(characterId)
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        cancel()
+      }
+    }, [cancel]),
+  )
 
   if (!character) {
     return (

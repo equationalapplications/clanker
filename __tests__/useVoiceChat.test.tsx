@@ -8,6 +8,7 @@ const mockUseSelector = jest.fn()
 const mockSendVoiceMessage = jest.fn()
 const mockRouterPush = jest.fn()
 const mockRequestPermissionsAsync = jest.fn()
+const mockRequestRecordingPermissionsAsync = jest.fn()
 const mockStart = jest.fn()
 const mockStop = jest.fn()
 const mockWriteAsStringAsync = jest.fn()
@@ -87,6 +88,8 @@ jest.mock('expo-audio', () => ({
     release: (...args: unknown[]) => mockRelease(...args),
     addListener: (...args: unknown[]) => mockAddListener(...args),
   }),
+  requestRecordingPermissionsAsync: (...args: unknown[]) =>
+    mockRequestRecordingPermissionsAsync(...args),
 }))
 
 jest.mock('react-native-reanimated', () => ({
@@ -133,6 +136,7 @@ describe('useVoiceChat', () => {
     )
 
     mockRequestPermissionsAsync.mockResolvedValue({ granted: true })
+    mockRequestRecordingPermissionsAsync.mockResolvedValue({ granted: true })
     mockSendVoiceMessage.mockResolvedValue({
       audioBase64: 'UklG',
       audioMimeType: 'audio/wav',
@@ -271,6 +275,41 @@ describe('useVoiceChat', () => {
       await flushPromises()
     })
 
+    expect(mockStart).toHaveBeenCalledTimes(1)
+  })
+
+  it('sets error when audio recording permission is denied', async () => {
+    mockRequestRecordingPermissionsAsync.mockResolvedValueOnce({ granted: false })
+
+    const { getHookValue } = renderHook()
+
+    await act(async () => {
+      await getHookValue().startListening()
+      await flushPromises()
+    })
+
+    expect(getHookValue().voiceState).toBe('error')
+    expect(mockStart).not.toHaveBeenCalled()
+  })
+
+  it('blocks double-tap while listening (re-entrancy guard)', async () => {
+    const { getHookValue } = renderHook()
+
+    // Start listening (state transitions to listening)
+    await act(async () => {
+      await getHookValue().startListening()
+      await flushPromises()
+    })
+
+    expect(getHookValue().voiceState).toBe('listening')
+
+    // Second tap while already listening — should be a no-op
+    await act(async () => {
+      await getHookValue().startListening()
+      await flushPromises()
+    })
+
+    // Only one STT session should have been started
     expect(mockStart).toHaveBeenCalledTimes(1)
   })
 

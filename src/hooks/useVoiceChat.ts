@@ -1,7 +1,7 @@
 import { useSelector } from '@xstate/react'
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition'
-import { createAudioPlayer } from 'expo-audio'
-import * as FileSystem from 'expo-file-system'
+import { createAudioPlayer, requestRecordingPermissionsAsync } from 'expo-audio'
+import * as FileSystem from 'expo-file-system/legacy'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Platform } from 'react-native'
@@ -205,6 +205,10 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
   })
 
   const startListening = useCallback(async () => {
+    if (voiceState !== 'idle' && voiceState !== 'error') {
+      return
+    }
+
     if (!canUseNativeVoice) {
       setError('Voice is available on iOS and Android in native builds only.')
       setVoiceState('error')
@@ -246,8 +250,11 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
     }
 
     try {
-      const permissions = await ExpoSpeechRecognitionModule.requestPermissionsAsync()
-      if (!permissions.granted) {
+      const [sttPermission, audioPermission] = await Promise.all([
+        ExpoSpeechRecognitionModule.requestPermissionsAsync(),
+        requestRecordingPermissionsAsync(),
+      ])
+      if (!sttPermission.granted || !audioPermission.granted) {
         setError('Microphone permission required. Enable it in Settings.')
         setVoiceState('error')
         return
@@ -268,7 +275,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       const errorMessage = err instanceof Error ? err.message : 'Failed to start listening'
       await fail(errorMessage)
     }
-  }, [canUseNativeVoice, character, characterId, fail, isSubscriber, remainingCredits])
+  }, [canUseNativeVoice, character, characterId, fail, isSubscriber, remainingCredits, voiceState])
 
   const cancel = useCallback(() => {
     cancelledRef.current = true
