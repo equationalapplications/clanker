@@ -7,6 +7,10 @@ export {
 } from "./generateReply.js";
 
 export {
+  generateVoiceReply,
+} from "./generateVoiceReply.js";
+
+export {
   generateImage,
 } from "./generateImage.js";
 

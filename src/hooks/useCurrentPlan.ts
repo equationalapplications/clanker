@@ -6,6 +6,7 @@ interface CurrentPlan {
   tier: PlanTier | null
   isSubscriber: boolean
   isLoading: boolean
+  remainingCredits: number | null
 }
 
 const ALL_PLAN_TIERS = Object.values(PLAN_TIERS)
@@ -37,8 +38,12 @@ export function useCurrentPlan(): CurrentPlan {
 
   const tier = isPlanTier(subscription?.planTier) ? subscription.planTier : null
   const isActive = subscription?.planStatus === 'active'
+  const remainingCredits =
+    typeof subscription?.currentCredits === 'number' && Number.isFinite(subscription.currentCredits)
+      ? Math.max(0, subscription.currentCredits)
+      : null
 
   const isSubscriber = isActive && tier !== null && SUBSCRIPTION_TIERS.includes(tier)
 
-  return { tier, isSubscriber, isLoading }
+  return { tier, isSubscriber, isLoading, remainingCredits }
 }

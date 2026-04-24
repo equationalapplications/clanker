@@ -25,6 +25,7 @@ export interface Character {
   traits: string | null
   emotions: string | null
   context: string | null
+  voice?: string | null
   is_public: boolean
   created_at: string
   updated_at: string
