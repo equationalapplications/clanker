@@ -7,6 +7,7 @@
 - **[Git Workflow & Branching](docs/GIT_WORKFLOW.md)** — Branch strategy (staging → main), PR process, commit guidelines, and conventional commits.
 - **[Merge Strategy](docs/MERGE_STRATEGY.md)** — How to promote code from staging → main (and sync main → staging) using merge commits.
 - **[Expo Updates & Runtime Versioning](docs/EXPO_UPDATES.md)** — How OTA updates work, runtime version strategy, and the relationship between conventional commits and deployment types (OTA vs native builds).
+- **[Web Debugging](docs/WEB_DEBUGGING.md)** — Live debugging with Metro + VS Code browser tools; React Native Web style pitfalls (gap, style arrays, animationType) that crash Chrome.
 
 ## State Management
 
@@ -48,6 +49,7 @@
 ## Policies & Compliance
 
 - [Privacy integration](docs/PRIVACY_INTEGRATION.md) — How privacy policy and user consent are handled.
+- [Cookie consent (web)](docs/COOKIE_CONSENT.md) — Lower-right banner with Accept/Reject parity, granular preferences, and `canUse()` gating for non-essential cookies, satisfying GDPR + Quebec Law 25.
 - [Terms integration](docs/TERMS_INTEGRATION.md) — Legacy terms flow vs subscription-driven access control.
 - [Apple subscription consent](docs/APPLE_SUBSCRIPTION_CONSENT.md) — Paywall legal-link requirements, Terms + Apple EULA hosting, and safe custom-consent scope for auto-renewable subscriptions.
 - [Support page](docs/SUPPORT_PAGE.md) — Public support route and FAQ content used for App Store support URL compliance.
