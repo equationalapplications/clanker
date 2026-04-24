@@ -62,7 +62,7 @@ Imported shared characters are local copies with cloud-save disabled by default 
 Share URL generation uses:
 
 - `EXPO_PUBLIC_CHARACTER_SHARE_BASE_URL` (optional)
-- Fallback: `https://clanker.app`
+- Fallback: `https://clanker-ai.com`
 
 Utility helpers generate:
 

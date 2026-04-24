@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "348YP6L5PD.com.equationalapplications.clanker",
+        "paths": ["/characters/shared/*"]
+      }
+    ]
+  }
+}

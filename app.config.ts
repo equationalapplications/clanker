@@ -99,7 +99,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleServicesFile: getGoogleServiceInfoPlist(),
     supportsTablet: true,
     usesAppleSignIn: true,
-    associatedDomains: ['applinks:clanker.app', 'applinks:www.clanker.app'],
+    associatedDomains: ['applinks:clanker-ai.com', 'applinks:www.clanker-ai.com'],
     config: {
       usesNonExemptEncryption: false,
     },
@@ -118,14 +118,21 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           {
             scheme: 'fb1503390336819593',
           },
+        ],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [
           {
             scheme: 'https',
-            host: 'clanker.app',
+            host: 'clanker-ai.com',
             pathPrefix: '/characters/shared/',
           },
           {
             scheme: 'https',
-            host: 'www.clanker.app',
+            host: 'www.clanker-ai.com',
             pathPrefix: '/characters/shared/',
           },
         ],
