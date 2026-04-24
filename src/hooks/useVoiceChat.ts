@@ -276,6 +276,8 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
         interimResults: true,
       })
     } catch (err) {
+      clearListenTimer()
+      recognitionActiveRef.current = false
       const errorMessage = err instanceof Error ? err.message : 'Failed to start listening'
       await fail(errorMessage)
     }
