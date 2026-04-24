@@ -200,13 +200,37 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
     }
   })
 
-  useSpeechRecognitionEvent('error', () => {
+  useSpeechRecognitionEvent('error', (payload) => {
     if (!recognitionActiveRef.current || cancelledRef.current || !isMountedRef.current) {
       return
     }
     clearListenTimer()
     recognitionActiveRef.current = false
-    void fail('Microphone permission required. Enable it in Settings.')
+
+    const errorPayload = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {}
+    const rawError =
+      typeof errorPayload.error === 'string'
+        ? errorPayload.error
+        : typeof errorPayload.code === 'string'
+          ? errorPayload.code
+          : typeof errorPayload.type === 'string'
+            ? errorPayload.type
+            : ''
+    const rawMessage = typeof errorPayload.message === 'string' ? errorPayload.message : ''
+    const normalizedError = `${rawError} ${rawMessage}`.toLowerCase()
+    const isPermissionError =
+      normalizedError.includes('permission') ||
+      normalizedError.includes('not-allowed') ||
+      normalizedError.includes('service-not-allowed') ||
+      normalizedError.includes('audio-capture') ||
+      normalizedError.includes('mic') ||
+      normalizedError.includes('microphone')
+
+    void fail(
+      isPermissionError
+        ? 'Microphone permission required. Enable it in Settings.'
+        : 'Speech recognition failed. Please try again.'
+    )
   })
 
   useSpeechRecognitionEvent('end', () => {
