@@ -39,6 +39,10 @@ export async function sendVoiceMessage(
     throw new Error('transcribedText must be non-empty')
   }
 
+  if (!character.voice) {
+    throw new Error('character.voice is required for a voice message')
+  }
+
   const userMessageId = `voice_user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
   await sendMessage(character.id, userId, {
     _id: userMessageId,
@@ -61,7 +65,7 @@ export async function sendVoiceMessage(
 
   const voiceResult = await generateVoiceReply({
     prompt,
-    characterVoice: character.voice || '',
+    characterVoice: character.voice,
     characterTraits: character.traits || undefined,
     characterEmotions: character.emotions || undefined,
     referenceId: userMessageId,

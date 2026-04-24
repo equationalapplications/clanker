@@ -445,6 +445,8 @@ const handler = async (
   const usage = await fetchUsageState(user.id);
   assertUsageAuthorized(usage);
 
+  const remainingCredits = await spendCreditsIfRequired(user.id, usage, input.referenceId);
+
   const generateText = options.generateText ?? getTextGenerator();
   const synthesizeSpeech = options.synthesizeSpeech ?? getSpeechSynthesizer();
 
@@ -465,13 +467,14 @@ const handler = async (
   }
 
   const replyText = cleanReplyText(rawReplyText) || rawReplyText;
-  const speechInput = [replyText, input.characterTraits, input.characterEmotions]
+  const styleHints = [input.characterTraits, input.characterEmotions]
     .filter((part) => part.length > 0)
-    .join("\n");
+    .join(", ");
+  const speechInput = styleHints
+    ? `Say the following with ${styleHints}:\n${replyText}`
+    : replyText;
 
   const audio = await synthesizeSpeech(speechInput, input.characterVoice);
-
-  const remainingCredits = await spendCreditsIfRequired(user.id, usage, input.referenceId);
 
   return {
     replyText,

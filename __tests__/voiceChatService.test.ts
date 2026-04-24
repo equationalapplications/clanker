@@ -144,4 +144,14 @@ describe('sendVoiceMessage', () => {
       },
     })
   })
+
+  it('throws before saving user message when character.voice is missing', async () => {
+    const characterWithoutVoice = { ...character, voice: null }
+
+    await expect(
+      sendVoiceMessage('hello', characterWithoutVoice, 'user-1', []),
+    ).rejects.toThrow('character.voice is required for a voice message')
+
+    expect(mockSendMessage).not.toHaveBeenCalled()
+  })
 })

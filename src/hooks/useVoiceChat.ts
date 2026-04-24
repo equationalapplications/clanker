@@ -290,16 +290,17 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
 
   useEffect(() => {
     return () => {
+      const wasRecognitionActive = recognitionActiveRef.current
       isMountedRef.current = false
       cancelledRef.current = true
       recognitionActiveRef.current = false
       clearListenTimer()
-      if (voiceState === 'listening' || voiceState === 'transcribing') {
+      if (wasRecognitionActive) {
         ExpoSpeechRecognitionModule.stop()
       }
       void cleanupPlayback()
     }
-  }, [cleanupPlayback, clearListenTimer, voiceState])
+  }, [cleanupPlayback, clearListenTimer])
 
   return useMemo(
     () => ({
