@@ -81,18 +81,22 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
   }, [])
 
   const cleanupPlayback = useCallback(async () => {
-    playerSubRef.current?.remove()
-    playerSubRef.current = null
+    try {
+      playerSubRef.current?.remove()
+      playerSubRef.current = null
 
-    if (playerRef.current) {
-      playerRef.current.release()
-      playerRef.current = null
-    }
+      if (playerRef.current) {
+        playerRef.current.release()
+        playerRef.current = null
+      }
 
-    if (tempPathRef.current) {
-      const path = tempPathRef.current
-      tempPathRef.current = null
-      await FileSystem.deleteAsync(path, { idempotent: true })
+      if (tempPathRef.current) {
+        const path = tempPathRef.current
+        tempPathRef.current = null
+        await FileSystem.deleteAsync(path, { idempotent: true })
+      }
+    } catch (error) {
+      console.warn('Failed to clean up playback resources', error)
     }
   }, [])
 
