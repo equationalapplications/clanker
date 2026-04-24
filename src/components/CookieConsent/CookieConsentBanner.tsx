@@ -13,7 +13,6 @@ export default function CookieConsentBanner() {
 
   return (
     <View
-      accessibilityRole="dialog"
       accessibilityLabel="Cookie consent"
       style={[styles.container, { backgroundColor: colors.elevation.level3, borderColor: colors.outline }]}
     >
