@@ -37,7 +37,7 @@ jest.mock('expo-router', () => {
 
   return {
     ...actualExpoRouter,
-    Link: ({ children, href }: any) => children,
+    Link: ({ children, href }) => children,
     router: actualExpoRouter.router ?? mockRouter,
     useRouter: () => mockRouter,
     useSegments: () => [],
