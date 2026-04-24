@@ -17,6 +17,7 @@ import {
   readConsent,
   writeConsent,
 } from '~/utilities/cookieConsentStorage.web'
+import { setCrashlyticsEnabled } from '~/services/crashlyticsService'
 
 interface ConsentApi {
   isBannerVisible: boolean
@@ -52,6 +53,7 @@ export function CookieConsentProvider({ children }: { children: React.ReactNode 
     const next = buildRecord(choices)
     writeConsent(next)
     setRecord(next)
+    void setCrashlyticsEnabled(choices.analytics === true)
   }, [])
 
   const acceptAll = useCallback(() => {

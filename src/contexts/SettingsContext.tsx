@@ -5,33 +5,17 @@ import React, {
     useCallback,
     ReactNode,
 } from 'react'
-import { Appearance } from 'react-native'
+import { Appearance, Platform } from 'react-native'
 import { Storage } from '~/utilities/kvStorage'
 import { setCrashlyticsEnabled } from '~/services/crashlyticsService'
+import { useCookieConsent } from '~/components/CookieConsent'
+import { SettingKey, settingKey, readBoolSync } from '~/utilities/settingsStorage'
+import { readConsent } from '~/utilities/cookieConsentStorage.web'
 
-// Storage key helpers
-function settingKey(key: string): string {
-    return `setting:${key}`
-}
+export { clearSettings } from '~/utilities/settingsStorage'
 
-function readBoolSync(key: string, defaultValue: boolean): boolean {
-    try {
-        const raw = Storage.getItemSync(settingKey(key))
-        if (raw === null) return defaultValue
-        return raw === '1'
-    } catch {
-        return defaultValue
-    }
-}
-
-// Settings shape
-interface Settings {
-    analytics: boolean
-    darkMode: boolean
-    notifications: boolean
-}
-
-type SettingKey = keyof Settings
+// Settings shape — derived from SettingKey so the two can't drift
+type Settings = Record<SettingKey, boolean>
 
 interface SettingsContextType {
     settings: Settings
@@ -45,18 +29,33 @@ interface SettingsProviderProps {
 }
 
 export function SettingsProvider({ children }: SettingsProviderProps) {
-    const [settings, setSettings] = useState<Settings>(() => ({
-        analytics: readBoolSync('analytics', false),
-        darkMode: readBoolSync('darkMode', Appearance.getColorScheme() === 'dark'),
-        notifications: readBoolSync('notifications', true),
-    }))
+    const [settings, setSettings] = useState<Settings>(() => {
+        const systemDark = Appearance.getColorScheme() === 'dark'
+        // On web, only read the persisted darkMode value if preferences consent has been
+        // granted; otherwise fall back to the system colour scheme to avoid reading
+        // preference storage without consent.
+        const hasPreferencesConsent =
+            Platform.OS !== 'web' || readConsent()?.choices?.preferences === true
+        return {
+            analytics: readBoolSync('analytics', false),
+            darkMode: hasPreferencesConsent ? readBoolSync('darkMode', systemDark) : systemDark,
+            notifications: readBoolSync('notifications', true),
+        }
+    })
+    const { canUse } = useCookieConsent()
 
     const updateSetting = useCallback((key: SettingKey, value: boolean) => {
-        // Persist synchronously so non-React code can read it immediately
-        try {
-            Storage.setItemSync(settingKey(key), value ? '1' : '0')
-        } catch (err) {
-            console.error(`Failed to persist setting "${key}":`, err)
+        // Gate persistence of darkMode on cookie consent, but only on web.
+        // On native, cookie consent is not available (no localStorage), so always persist.
+        const requiresPreferencesConsent = key === 'darkMode' && Platform.OS === 'web'
+        const shouldPersist = !requiresPreferencesConsent || canUse('preferences')
+
+        if (shouldPersist) {
+            try {
+                Storage.setItemSync(settingKey(key), value ? '1' : '0')
+            } catch (err) {
+                console.error(`Failed to persist setting "${key}":`, err)
+            }
         }
 
         // Side-effect: sync Crashlytics enabled state when analytics toggle changes
@@ -65,7 +64,7 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
         }
 
         setSettings((prev) => ({ ...prev, [key]: value }))
-    }, [])
+    }, [canUse])
 
     return (
         <SettingsContext.Provider value={{ settings, updateSetting }}>

@@ -21,7 +21,7 @@ export default function CookieConsentBanner() {
       </Text>
       <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant, marginBottom: 12 }}>
         We use cookies necessary to run the app. With your consent we may also use cookies for
-        analytics, preferences, and marketing. You can change your choice anytime in Cookie
+        crash reporting, preferences, and marketing. You can change your choice anytime in Cookie
         Preferences.{' '}
         <Link href="/privacy">
           <Text style={StyleSheet.flatten([styles.link, { color: colors.primary }])}>Privacy policy</Text>

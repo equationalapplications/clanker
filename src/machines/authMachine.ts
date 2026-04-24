@@ -13,6 +13,7 @@ import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
 import { setCrashlyticsUserId } from '~/services/crashlyticsService'
 import { queryClient } from '~/config/queryClient'
 import { kvStorePersister } from '~/config/queryPersister'
+import { clearSettings } from '~/utilities/settingsStorage'
 
 export type BootstrapRefreshReason =
   | 'purchase'
@@ -470,6 +471,7 @@ export const authMachine = createMachine(
         await setCrashlyticsUserId(null)
         await logoutRevenueCat()
         await kvStorePersister.removeClient()
+        clearSettings()
         if (Platform.OS === 'ios') {
           await signOutFromApple()
         } else if (Platform.OS === 'android') {

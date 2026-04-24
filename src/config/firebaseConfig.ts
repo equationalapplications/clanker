@@ -52,6 +52,7 @@ const functionsInstance = getFunctions(firebaseApp, 'us-central1')
 const exchangeToken = httpsCallable(functionsInstance, 'exchangeToken')
 
 const generateReplyFn = httpsCallable(functionsInstance, 'generateReply')
+const generateVoiceReplyFn = httpsCallable(functionsInstance, 'generateVoiceReply')
 
 const generateImageFn = httpsCallable(functionsInstance, 'generateImage')
 const summarizeTextFn = httpsCallable(functionsInstance, 'summarizeText')
@@ -84,6 +85,7 @@ export {
   signOut,
   exchangeToken,
   generateReplyFn,
+  generateVoiceReplyFn,
   generateImageFn,
   summarizeTextFn,
   purchasePackageStripe,

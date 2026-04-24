@@ -115,7 +115,7 @@ function buildReferenceId(value: unknown): string | undefined {
   return referenceId.length > 0 ? referenceId : undefined
 }
 
-function getRecentConversationHistory(messages: IMessage[], limit: number): IMessage[] {
+export function getRecentConversationHistory(messages: IMessage[], limit: number): IMessage[] {
   if (limit <= 0 || messages.length === 0) {
     return []
   }
@@ -158,7 +158,7 @@ Recent messages (higher priority):
 ${recentSection}`
 }
 
-async function triggerConversationSummary(character: Character, userId: string): Promise<void> {
+export async function triggerConversationSummary(character: Character, userId: string): Promise<void> {
   const summaryKey = `${character.id}:${userId}`
   if (activeSummaryJobs.has(summaryKey)) {
     return
@@ -230,7 +230,7 @@ async function triggerConversationSummary(character: Character, userId: string):
   }
 }
 
-function buildChatPrompt(userMessage: string, context: ChatContext): string {
+export function buildChatPrompt(userMessage: string, context: ChatContext): string {
   const characterName = truncateText(context.characterName, MAX_CHARACTER_NAME_LENGTH)
   const characterPersonality = truncateText(
     context.characterPersonality,

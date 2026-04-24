@@ -24,6 +24,11 @@ const FEATURES = [
     body: 'Chat with characters that actually remember their personality. Long conversation memory is automatically summarized so your Clanker stays in character.',
   },
   {
+    icon: 'microphone-outline' as const,
+    title: 'Talk to Your Character',
+    body: 'Tap the mic and speak - your character replies in their own voice. Monthly subscribers talk for free; others use 2 credits per reply.',
+  },
+  {
     icon: 'cloud-sync-outline' as const,
     title: 'Share & Sync',
     body: 'Save characters to the cloud and sync across all your devices. Share any character via link — anyone can open it instantly.',
