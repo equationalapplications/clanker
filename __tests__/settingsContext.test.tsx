@@ -6,7 +6,7 @@ import {
   clearSettings,
   useSettings,
 } from '~/contexts/SettingsContext'
-import * as crashlyticsService from '../src/services/crashlyticsService'
+import * as crashlyticsService from '~/services/crashlyticsService'
 import { CONSENT_STORAGE_KEY } from '~/utilities/cookieConsentTypes'
 
 const mockStorageSetItemSync = jest.fn()
