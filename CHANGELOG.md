@@ -1,3 +1,26 @@
+# [28.6.0](https://github.com/equationalapplications/clanker/compare/v28.5.1...v28.6.0) (2026-04-24)
+
+
+### Bug Fixes
+
+* **consent:** enforce necessary=true at storage + canUse boundaries ([f30356c](https://github.com/equationalapplications/clanker/commit/f30356c179cd6660c5da4ae40112b601e0221286))
+* **CookieConsentBanner:** remove invalid accessibilityRole='dialog' from View ([51d3e2a](https://github.com/equationalapplications/clanker/commit/51d3e2a34b9f0c72f02c4bbe30d7f8652339e0a2))
+* **test:** apply code review feedback on jest setup and context perf ([af233a2](https://github.com/equationalapplications/clanker/commit/af233a2efc83502d6de323e39b1a24a796256084))
+* **test:** remove TS type annotation from plain JS jest.setup.js ([4d3136c](https://github.com/equationalapplications/clanker/commit/4d3136cda4c559a6c7a96d82af7bd1cf4ca5fb3c))
+* **test:** strip remaining TS annotations from plain JS jest.setup.js ([eda9e59](https://github.com/equationalapplications/clanker/commit/eda9e591589199b580016867e6fc32206270e17a))
+* **web:** address review feedback on gap, localStorage mock, and getStorage ([d121934](https://github.com/equationalapplications/clanker/commit/d121934276e4dd7244317e3f8ac8c532ef953905))
+* **web:** flatten style arrays in Link asChild children to resolve CSSStyleDeclaration crash ([6b909c4](https://github.com/equationalapplications/clanker/commit/6b909c4a1316bd4eec133a592955ad192172a67a))
+* **web:** remove animationType fade from Modal to fix useNativeDriver and CSSStyleDeclaration crash ([10580b7](https://github.com/equationalapplications/clanker/commit/10580b79911ab8bac387112c9776329071e0c705))
+* **web:** resolve CSSStyleDeclaration indexed setter error in cookie banner ([f08ec9b](https://github.com/equationalapplications/clanker/commit/f08ec9beb5890c36db1f664be70994c3c10bfaa8))
+
+
+### Features
+
+* **web:** add cookie consent banner and preferences modal ([92b4efa](https://github.com/equationalapplications/clanker/commit/92b4efaf788452fb37d37a3dfcc5655cb1b27394))
+* **web:** add cookie consent provider and canUse gating ([369884b](https://github.com/equationalapplications/clanker/commit/369884b1552a0efeaf42df7e8e4575c80fa0e221))
+* **web:** add cookie consent storage and types ([c5dd97d](https://github.com/equationalapplications/clanker/commit/c5dd97d6c54d1863ec7eed51d073d27b1ad0c733))
+* **web:** integrate cookie consent provider and UI into app layout ([f1fddb5](https://github.com/equationalapplications/clanker/commit/f1fddb54b80ab926a60202e14afee06c5d9925b1))
+
 ## [28.5.1](https://github.com/equationalapplications/clanker/compare/v28.5.0...v28.5.1) (2026-04-24)
 
 
