@@ -233,7 +233,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       return
     }
 
-    if (!isSubscriber && (remainingCredits ?? 0) < 2) {
+    if (!isSubscriber && typeof remainingCredits === 'number' && remainingCredits < 2) {
       Alert.alert(
         'Insufficient Credits',
         'Voice replies cost 2 credits. Purchase more or subscribe for unlimited.',

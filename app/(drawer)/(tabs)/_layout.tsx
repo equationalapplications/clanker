@@ -31,6 +31,7 @@ export default function TabLayout() {
           name="talk"
           options={{
             title: 'Talk',
+            unmountOnBlur: true,
             tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
               <TabBarIcon name={focused ? 'mic' : 'mic-outline'} color={color} />
             ),

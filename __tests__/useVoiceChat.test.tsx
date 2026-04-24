@@ -223,6 +223,24 @@ describe('useVoiceChat', () => {
     expect(mockStart).not.toHaveBeenCalled()
   })
 
+  it('allows non-subscriber when remainingCredits is null (still loading)', async () => {
+    mockUseCurrentPlan.mockReturnValue({ isSubscriber: false, isLoading: true, remainingCredits: null })
+
+    const { getHookValue } = renderHook()
+
+    await act(async () => {
+      await getHookValue().startListening()
+      await flushPromises()
+    })
+
+    expect(Alert.alert).not.toHaveBeenCalledWith(
+      'Insufficient Credits',
+      expect.any(String),
+      expect.any(Array),
+    )
+    expect(mockStart).toHaveBeenCalled()
+  })
+
   it('allows subscriber with zero credits', async () => {
     mockUseCurrentPlan.mockReturnValue({ isSubscriber: true, isLoading: false, remainingCredits: 0 })
 
