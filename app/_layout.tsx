@@ -11,6 +11,11 @@ import { KeyboardProvider } from 'react-native-keyboard-controller'
 
 import { useSelector, useActorRef } from '@xstate/react'
 import { ThemeProvider } from '~/components/ThemeProvider'
+import {
+  CookieConsentProvider,
+  CookieConsentBanner,
+  CookiePreferencesModal,
+} from '~/components/CookieConsent'
 import { Icon, useTheme } from 'react-native-paper'
 import { SettingsProvider } from '~/contexts/SettingsContext'
 import { queryClient } from '~/config/queryClient'
@@ -294,26 +299,30 @@ export default function RootLayout() {
   }
 
   return (
-    <SettingsProvider>
-      <ThemeProvider>
-        <GlobalStateProvider>
-          <PersistQueryClientProvider
-            client={queryClient}
-            persistOptions={{
-              persister: kvStorePersister,
-              maxAge: 1000 * 60 * 60 * 24,
-            }}
-          >
-            <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-              <KeyboardProvider>
-                <StatusBar style="auto" />
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </SafeAreaProvider>
-          </PersistQueryClientProvider>
-        </GlobalStateProvider>
-      </ThemeProvider>
-    </SettingsProvider>
+    <CookieConsentProvider>
+      <SettingsProvider>
+        <ThemeProvider>
+          <GlobalStateProvider>
+            <PersistQueryClientProvider
+              client={queryClient}
+              persistOptions={{
+                persister: kvStorePersister,
+                maxAge: 1000 * 60 * 60 * 24,
+              }}
+            >
+              <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+                <KeyboardProvider>
+                  <StatusBar style="auto" />
+                  <RootLayoutNav />
+                  <CookieConsentBanner />
+                  <CookiePreferencesModal />
+                </KeyboardProvider>
+              </SafeAreaProvider>
+            </PersistQueryClientProvider>
+          </GlobalStateProvider>
+        </ThemeProvider>
+      </SettingsProvider>
+    </CookieConsentProvider>
   )
 }
 
