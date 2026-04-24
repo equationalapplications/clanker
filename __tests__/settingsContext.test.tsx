@@ -69,11 +69,9 @@ describe('SettingsContext', () => {
       expect(mockStorageSetItemSync).toHaveBeenCalledWith('setting:notifications', '')
     })
 
-    it('calls removeItem for each setting key', () => {
+    it('does not call removeItem (empty-string write is sufficient)', () => {
       clearSettings()
-      expect(mockStorageRemoveItem).toHaveBeenCalledWith('setting:analytics')
-      expect(mockStorageRemoveItem).toHaveBeenCalledWith('setting:darkMode')
-      expect(mockStorageRemoveItem).toHaveBeenCalledWith('setting:notifications')
+      expect(mockStorageRemoveItem).not.toHaveBeenCalled()
     })
   })
 

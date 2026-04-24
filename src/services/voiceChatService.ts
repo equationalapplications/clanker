@@ -54,86 +54,58 @@ export async function sendVoiceMessage(
     },
   })
 
-  try {
-    const prompt = buildChatPrompt(text, {
-      characterName: character.name || 'Character',
-      characterPersonality: character.context || character.appearance || '',
-      characterTraits: `${character.traits ?? ''} ${character.emotions ?? ''}`.trim(),
-      conversationHistory: getRecentConversationHistory(conversationHistory, 10).map((msg) => ({
-        role: msg.user._id === userId ? 'user' : 'assistant',
-        content: msg.text,
-      })),
-    })
+  const prompt = buildChatPrompt(text, {
+    characterName: character.name || 'Character',
+    characterPersonality: character.context || character.appearance || '',
+    characterTraits: `${character.traits ?? ''} ${character.emotions ?? ''}`.trim(),
+    conversationHistory: getRecentConversationHistory(conversationHistory, 10).map((msg) => ({
+      role: msg.user._id === userId ? 'user' : 'assistant',
+      content: msg.text,
+    })),
+  })
 
-    const voiceResult = await generateVoiceReply({
-      prompt,
-      characterVoice: character.voice,
-      characterTraits: character.traits || undefined,
-      characterEmotions: character.emotions || undefined,
-      referenceId: userMessageId,
-    })
+  const voiceResult = await generateVoiceReply({
+    prompt,
+    characterVoice: character.voice,
+    characterTraits: character.traits || undefined,
+    characterEmotions: character.emotions || undefined,
+    referenceId: userMessageId,
+  })
 
-    const aiResponseId = `voice_ai_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
-    await saveAIMessage(character.id, userId, voiceResult.replyText, aiResponseId, {
-      user: {
-        _id: character.id,
-        name: character.name,
-        avatar: character.avatar || undefined,
-      },
-    })
+  const aiResponseId = `voice_ai_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+  await saveAIMessage(character.id, userId, voiceResult.replyText, aiResponseId, {
+    user: {
+      _id: character.id,
+      name: character.name,
+      avatar: character.avatar || undefined,
+    },
+  })
 
-    void triggerConversationSummary(
-      {
-        id: character.id,
-        name: character.name || 'Character',
-        appearance: character.appearance || '',
-        traits: character.traits || '',
-        emotions: character.emotions || '',
-        context: character.context || '',
-      },
-      userId,
-    )
+  void triggerConversationSummary(
+    {
+      id: character.id,
+      name: character.name || 'Character',
+      appearance: character.appearance || '',
+      traits: character.traits || '',
+      emotions: character.emotions || '',
+      context: character.context || '',
+    },
+    userId,
+  )
 
-    await queryClient.invalidateQueries({
-      queryKey: messageKeys.list(character.id, userId),
-    })
+  await queryClient.invalidateQueries({
+    queryKey: messageKeys.list(character.id, userId),
+  })
 
-    return {
-      audioBase64: voiceResult.audioBase64,
-      audioMimeType: voiceResult.audioMimeType,
-      replyText: voiceResult.replyText,
-      usageSnapshot: {
-        remainingCredits: voiceResult.remainingCredits,
-        planTier: voiceResult.planTier,
-        planStatus: voiceResult.planStatus,
-        verifiedAt: voiceResult.verifiedAt,
-      },
-    }
-  } catch (error) {
-    const fallbackResponseId = `voice_ai_error_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
-
-    try {
-      await saveAIMessage(
-        character.id,
-        userId,
-        "Sorry, I couldn't generate a voice reply right now.",
-        fallbackResponseId,
-        {
-          user: {
-            _id: character.id,
-            name: character.name,
-            avatar: character.avatar || undefined,
-          },
-        },
-      )
-
-      await queryClient.invalidateQueries({
-        queryKey: messageKeys.list(character.id, userId),
-      })
-    } catch {
-      // Best effort only: preserve the original error if fallback persistence also fails.
-    }
-
-    throw error
+  return {
+    audioBase64: voiceResult.audioBase64,
+    audioMimeType: voiceResult.audioMimeType,
+    replyText: voiceResult.replyText,
+    usageSnapshot: {
+      remainingCredits: voiceResult.remainingCredits,
+      planTier: voiceResult.planTier,
+      planStatus: voiceResult.planStatus,
+      verifiedAt: voiceResult.verifiedAt,
+    },
   }
 }

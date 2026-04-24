@@ -22,8 +22,6 @@ export function clearSettings(): void {
   for (const key of SETTING_KEYS) {
     try {
       Storage.setItemSync(settingKey(key), '')
-      // removeItem is async; wipe synchronously by writing empty string then remove async
-      void Storage.removeItem(settingKey(key))
     } catch {
       // best-effort
     }
