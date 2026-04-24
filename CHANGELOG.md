@@ -1,3 +1,10 @@
+## [28.6.1](https://github.com/equationalapplications/clanker/compare/v28.6.0...v28.6.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* **schema:** handle NULL owner_user_id/is_public in migration 8 backfill ([288b6b0](https://github.com/equationalapplications/clanker/commit/288b6b0c9ad3ffb922425aa22fed54f302200dfb))
+
 # [28.6.0](https://github.com/equationalapplications/clanker/compare/v28.5.1...v28.6.0) (2026-04-24)
 
 
