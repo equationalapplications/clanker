@@ -44,13 +44,11 @@ function TalkView({ characterId }: { characterId: string }) {
           headerTitle: () => (
             <View style={styles.headerTitle}>
               <Pressable
-                onPress={() => {
-                  if (canEdit) {
-                    router.push(`/characters/${characterId}/edit`)
-                  }
-                }}
+                onPress={canEdit ? () => router.push(`/characters/${characterId}/edit`) : undefined}
+                disabled={!canEdit}
                 accessibilityRole="button"
-                accessibilityLabel={`Edit ${character.name}`}
+                accessibilityState={{ disabled: !canEdit }}
+                accessibilityLabel={canEdit ? `Edit ${character.name}` : character.name}
               >
                 <CharacterAvatar size={40} imageUrl={character.avatar} characterName={character.name} />
               </Pressable>
