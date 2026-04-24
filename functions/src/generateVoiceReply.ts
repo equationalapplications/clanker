@@ -459,8 +459,6 @@ const handler = async (
   const usage = await fetchUsageState(user.id);
   assertUsageAuthorized(usage);
 
-  const remainingCredits = await spendCreditsIfRequired(user.id, usage, input.referenceId);
-
   const generateText = options.generateText ?? getTextGenerator();
   const synthesizeSpeech = options.synthesizeSpeech ?? getSpeechSynthesizer();
 
@@ -489,6 +487,8 @@ const handler = async (
     : replyText;
 
   const audio = await synthesizeSpeech(speechInput, input.characterVoice);
+
+  const remainingCredits = await spendCreditsIfRequired(user.id, usage, input.referenceId);
 
   return {
     replyText,
