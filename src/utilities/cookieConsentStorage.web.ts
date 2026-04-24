@@ -23,7 +23,7 @@ function isRecord(value: unknown): value is CookieConsentRecord {
   const c = v.choices
   if (!c || typeof c !== 'object') return false
   return (
-    typeof c.necessary === 'boolean' &&
+    c.necessary === true &&
     typeof c.analytics === 'boolean' &&
     typeof c.marketing === 'boolean' &&
     typeof c.preferences === 'boolean'

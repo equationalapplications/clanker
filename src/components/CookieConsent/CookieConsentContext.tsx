@@ -81,7 +81,8 @@ export function CookieConsentProvider({ children }: { children: React.ReactNode 
     [record],
   )
   const canUse = useCallback(
-    (category: CookieCategory) => (record ? choices[category] === true : category === 'necessary'),
+    (category: CookieCategory) =>
+      category === 'necessary' || (record ? choices[category] === true : false),
     [record, choices],
   )
 
