@@ -52,7 +52,7 @@ export async function sendVoiceMessage(
   const prompt = buildChatPrompt(text, {
     characterName: character.name || 'Character',
     characterPersonality: character.context || character.appearance || '',
-    characterTraits: `${character.traits} ${character.emotions}`.trim(),
+    characterTraits: `${character.traits ?? ''} ${character.emotions ?? ''}`.trim(),
     conversationHistory: getRecentConversationHistory(conversationHistory, 10).map((msg) => ({
       role: msg.user._id === userId ? 'user' : 'assistant',
       content: msg.text,

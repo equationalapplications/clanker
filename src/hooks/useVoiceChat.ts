@@ -135,7 +135,8 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       setReplyText(response.replyText)
       setVoiceState('playing')
 
-      const path = `${FileSystem.cacheDirectory}voice-reply-${Date.now()}.wav`
+      const ext = response.audioMimeType.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'wav'
+      const path = `${FileSystem.cacheDirectory}voice-reply-${Date.now()}.${ext}`
       tempPathRef.current = path
 
       await FileSystem.writeAsStringAsync(path, response.audioBase64, {
