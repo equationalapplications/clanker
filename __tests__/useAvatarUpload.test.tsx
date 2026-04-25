@@ -34,13 +34,29 @@ const mockLaunchImageLibraryAsync = jest.mocked(ImagePicker.launchImageLibraryAs
 const mockManipulateAsync = jest.mocked(manipulateAsync)
 const MockFile = jest.mocked(File)
 const mockSaveCharacterImageLocally = jest.mocked(saveCharacterImageLocally)
+const createdFiles: Array<{
+  base64: jest.Mock<Promise<string>, []>
+  delete: jest.Mock<Promise<void>, []>
+}> = []
 
 function setupFileMock(base64 = 'BASE64_DATA') {
-  MockFile.mockImplementation(
-    () => ({ base64: jest.fn().mockResolvedValue(base64), delete: jest.fn() }) as never,
-  )
+  createdFiles.length = 0
+  MockFile.mockImplementation(() => {
+    const file = {
+      base64: jest.fn().mockResolvedValue(base64),
+      delete: jest.fn().mockResolvedValue(undefined),
+    }
+    createdFiles.push(file)
+    return file as never
+  })
 }
 
+afterEach(() => {
+  createdFiles.forEach((file) => {
+    expect(file.delete).toHaveBeenCalled()
+  })
+  createdFiles.length = 0
+})
 function createDeferred<T>() {
   let resolve!: (value: T) => void
   const promise = new Promise<T>((res) => {
