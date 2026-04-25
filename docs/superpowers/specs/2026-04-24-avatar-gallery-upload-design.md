@@ -12,12 +12,16 @@ converted to WebP (same format as AI-generated avatars) and stored in SQLite
 
 New hook `useAvatarUpload` mirrors the shape of `useImageGeneration`. It:
 1. Launches `expo-image-picker` library picker (no camera).
-2. Converts result to WebP via `expo-image-manipulator` (no resize — AI path
-   stores images at whatever size Vertex returns, so we match that).
-3. Reads the converted file URI → base64.
-4. Calls existing `saveCharacterImageLocally(characterId, base64, 'image/webp')`.
-5. Returns a data URI and calls `onImageUploaded` callback (parallel to
+2. Validates the selected image is at least 200×200 px.
+3. Converts result to WebP via `expo-image-manipulator`, resizing down to a
+   1024 px maximum dimension if the image exceeds that threshold.
+4. Reads the converted file URI → base64 via `new File(uri).base64()`.
+5. Calls existing `saveCharacterImageLocally(characterId, base64, 'image/webp')`.
+6. Sends a `LOAD` event to the character machine so the updated avatar is
+   reflected immediately in the UI.
+7. Returns a data URI and calls `onImageUploaded` callback (parallel to
    `onImageGenerated` in `useImageGeneration`).
+8. Cleans up the temp WebP file written by `manipulateAsync`.
 
 The edit screen adds one new "Upload Photo" button beside the existing
 Generate/Regenerate button.
@@ -70,15 +74,20 @@ interface UseAvatarUploadReturn {
 
 ```typescript
 import { useState } from 'react'
+import { File } from 'expo-file-system'
 import * as ImagePicker from 'expo-image-picker'
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
-import * as FileSystem from 'expo-file-system'
+import { useCharacterMachine } from '~/hooks/useMachines'
 import { saveCharacterImageLocally } from '~/services/localImageStorageService'
+
+const MIN_IMAGE_DIMENSION = 200
+const MAX_IMAGE_DIMENSION = 1024
 
 export function useAvatarUpload({
   characterId,
   onImageUploaded,
 }: UseAvatarUploadProps): UseAvatarUploadReturn {
+  const characterService = useCharacterMachine()
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -99,31 +108,51 @@ export function useAvatarUpload({
         return null
       }
 
-      const sourceUri = pickerResult.assets[0].uri
+      const [asset] = pickerResult.assets
+      if (!asset) throw new Error('No image selected')
 
-      // Convert to WebP (no resize — match AI avatar storage behaviour)
-      const manipResult = await manipulateAsync(
-        sourceUri,
-        [],                         // no transform actions
-        { format: SaveFormat.WEBP, compress: 0.9 },
-      )
+      const { uri: sourceUri, width, height } = asset
 
-      // Read file as base64
-      const base64 = await FileSystem.readAsStringAsync(manipResult.uri, {
-        encoding: FileSystem.EncodingType.Base64,
+      // Enforce minimum dimensions
+      if (width < MIN_IMAGE_DIMENSION || height < MIN_IMAGE_DIMENSION) {
+        throw new Error('Image too small. Minimum size is 200×200 pixels.')
+      }
+
+      // Resize down if larger than 1024 px on either axis; otherwise no resize
+      const actions =
+        width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION
+          ? [{ resize: width >= height ? { width: MAX_IMAGE_DIMENSION } : { height: MAX_IMAGE_DIMENSION } }]
+          : []
+
+      const manipulated = await manipulateAsync(sourceUri, actions, {
+        format: SaveFormat.WEBP,
+        compress: 0.9,
       })
 
+      // Read file as base64 using the expo-file-system File API
+      const base64 = await new File(manipulated.uri).base64()
       const dataUri = await saveCharacterImageLocally(characterId, base64, 'image/webp')
 
+      // Refresh character machine so the new avatar is visible immediately
+      characterService.send({ type: 'LOAD' })
+
       onImageUploaded?.(dataUri)
+
+      // Clean up temp WebP file created by manipulateAsync
+      try {
+        new File(manipulated.uri).delete()
+      } catch (cleanupErr) {
+        console.warn('Failed to clean up temp avatar file:', cleanupErr)
+      }
+
       return dataUri
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to upload image'
+      const message = err instanceof Error ? err.message : 'Failed to upload image'
       // Permission denial surfaces as a thrown error from launchImageLibraryAsync
-      if (typeof msg === 'string' && msg.toLowerCase().includes('permission')) {
+      if (message.toLowerCase().includes('permission')) {
         setError('Photo library access denied')
       } else {
-        setError(msg)
+        setError(message)
       }
       return null
     } finally {
@@ -213,7 +242,8 @@ plugins: [
 Mock targets:
 - `expo-image-picker` → `launchImageLibraryAsync`
 - `expo-image-manipulator` → `manipulateAsync`
-- `expo-file-system` → `readAsStringAsync`
+- `expo-file-system` → `File` (mock `base64()` and `delete()` instance methods)
+- `~/hooks/useMachines` → `useCharacterMachine` (mock `send`)
 - `~/services/localImageStorageService` → `saveCharacterImageLocally`
 
 Test cases:
@@ -221,18 +251,19 @@ Test cases:
 | # | Scenario | Expected |
 |---|----------|----------|
 | 1 | User cancels picker | `uploadAvatar` returns `null`, `saveCharacterImageLocally` not called, no error set |
-| 2 | Happy path | `manipulateAsync` called with `SaveFormat.WEBP`, `saveCharacterImageLocally` called with base64 + `'image/webp'`, returned dataUri passed to `onImageUploaded`, `isUploading` resets to false |
-| 3 | `manipulateAsync` throws | `error` set to message, `saveCharacterImageLocally` not called, returns `null` |
-| 4 | `saveCharacterImageLocally` throws | `error` set to message, returns `null` |
-| 5 | `launchImageLibraryAsync` throws with "permission" in message | `error` set to `'Photo library access denied'`, returns `null` |
-| 6 | `isUploading` is true during async operation, false after | verify state transitions |
+| 2 | Happy path (image within limits) | `manipulateAsync` called with no resize actions + `SaveFormat.WEBP`, `File.base64()` called, `saveCharacterImageLocally` called with base64 + `'image/webp'`, `characterService.send({ type: 'LOAD' })` called, returned dataUri passed to `onImageUploaded`, `isUploading` resets to false |
+| 3 | Happy path (image > 1024 px wide) | `manipulateAsync` called with `[{ resize: { width: 1024 } }]` resize action |
+| 4 | Image too small (< 200×200) | `error` set to `'Image too small. Minimum size is 200×200 pixels.'`, returns `null` |
+| 5 | `manipulateAsync` throws | `error` set to message, `saveCharacterImageLocally` not called, returns `null` |
+| 6 | `saveCharacterImageLocally` throws | `error` set to message, returns `null` |
+| 7 | `launchImageLibraryAsync` throws with "permission" in message | `error` set to `'Photo library access denied'`, returns `null` |
+| 8 | `isUploading` is true during async operation, false after | verify state transitions |
 
 ---
 
 ## Out of Scope
 
 - Cropping UI (user uploads as-is)
-- Image resize (AI path doesn't resize; upload matches)
 - Web platform (gallery picker is native-only; web already has no AI generation UI either)
 - Credit deduction
 - Cloud storage
