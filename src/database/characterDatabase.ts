@@ -382,8 +382,8 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
         for (const char of characters) {
             await db.runAsync(
                 `INSERT OR REPLACE INTO characters 
-         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint, owner_user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint, owner_user_id, voice)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 
                 [
                     char.id,
@@ -405,6 +405,7 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
                     char.deleted_at ?? null,
                     char.summary_checkpoint ?? 0,
                     char.owner_user_id || char.user_id,
+                    char.voice ?? null,
                 ],
             )
         }

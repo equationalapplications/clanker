@@ -326,7 +326,7 @@ describe('EditCharacterScreen - voice selector', () => {
     expect(voiceButton).toBeDefined()
   })
 
-  it('shows "None selected" when character has no voice', () => {
+  it('falls back to default voice when character voice is null', () => {
     const character = makeCharacter({ voice: null })
     mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
 
@@ -336,8 +336,10 @@ describe('EditCharacterScreen - voice selector', () => {
     })
 
     const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
-    const noneButton = buttons.find((b) => b.props.children === 'None selected')
-    expect(noneButton).toBeDefined()
+    const defaultVoiceButton = buttons.find((b) =>
+      typeof b.props.children === 'string' && b.props.children.includes('Umbriel'),
+    )
+    expect(defaultVoiceButton).toBeDefined()
   })
 
   it('selecting a voice calls update with correct voice value', () => {

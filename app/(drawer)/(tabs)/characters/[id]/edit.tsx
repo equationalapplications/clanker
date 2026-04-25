@@ -30,6 +30,8 @@ import {
 } from '~/utilities/characterShare'
 import { GEMINI_VOICES } from '~/constants/geminiVoices'
 
+const DEFAULT_VOICE = 'Umbriel'
+
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const theme = useTheme()
@@ -52,7 +54,7 @@ export default function EditCharacterScreen() {
   const [traits, setTraits] = useState('')
   const [emotions, setEmotions] = useState('')
   const [context, setContext] = useState('')
-  const [voice, setVoice] = useState<string | null>(null)
+  const [voice, setVoice] = useState<string>(DEFAULT_VOICE)
   const [voiceMenuVisible, setVoiceMenuVisible] = useState(false)
   const [saveToCloud, setSaveToCloud] = useState(false)
   const [isCharacterShareable, setIsCharacterShareable] = useState(false)
@@ -77,7 +79,7 @@ export default function EditCharacterScreen() {
       traits: character.traits || '',
       emotions: character.emotions || '',
       context: character.context || '',
-      voice: character.voice ?? '',
+      voice: character.voice ?? DEFAULT_VOICE,
       saveToCloud: character.save_to_cloud ? 'true' : 'false',
       isShareable: character.is_public ? 'true' : 'false',
     }
@@ -100,7 +102,7 @@ export default function EditCharacterScreen() {
           traits,
           emotions,
           context,
-          voice: voice ?? '',
+          voice,
           saveToCloud: saveToCloud ? 'true' : 'false',
           isShareable: isCharacterShareable ? 'true' : 'false',
         }
@@ -110,7 +112,7 @@ export default function EditCharacterScreen() {
           traits: '',
           emotions: '',
           context: '',
-          voice: '',
+          voice: DEFAULT_VOICE,
           saveToCloud: 'false',
           isShareable: 'false',
         },
@@ -127,7 +129,7 @@ export default function EditCharacterScreen() {
       setContext(character.context || '')
       setSaveToCloud(character.save_to_cloud ?? false)
       setIsCharacterShareable(character.is_public || false)
-      setVoice(character.voice ?? null)
+      setVoice(character.voice ?? DEFAULT_VOICE)
       setAvatarUri(character.avatar ?? null)
     }
   }, [character])
@@ -420,12 +422,10 @@ export default function EditCharacterScreen() {
                 disabled={!canEdit}
                 style={styles.voiceButton}
               >
-                {voice
-                  ? (() => {
-                      const style = GEMINI_VOICES.find((v) => v.name === voice)?.style
-                      return style ? `${voice} — ${style}` : voice
-                    })()
-                  : 'None selected'}
+                {(() => {
+                  const style = GEMINI_VOICES.find((v) => v.name === voice)?.style
+                  return style ? `${voice} — ${style}` : voice
+                })()}
               </Button>
             }
           >
