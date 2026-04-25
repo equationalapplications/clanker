@@ -121,7 +121,7 @@ Index: `(character_id)`. No cloud mirror — derived data, regenerable from `wik
 
 ### `characters` table additions (v9 migration)
 
-Add two columns to existing `characters` table (mirror `summary_checkpoint` pattern, [src/database/schema.ts](/src/database/schema.ts#L26)):
+Add two columns to existing `characters` table (mirror the existing `summary_checkpoint` column pattern in [src/database/schema.ts](/src/database/schema.ts)):
 
 ```
 heal_checkpoint     INTEGER NOT NULL DEFAULT 0   -- message count at last memoryHeal
