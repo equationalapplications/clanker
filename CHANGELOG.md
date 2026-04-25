@@ -1,3 +1,17 @@
+# [28.8.0](https://github.com/equationalapplications/clanker/compare/v28.7.1...v28.8.0) (2026-04-25)
+
+
+### Bug Fixes
+
+* **avatar:** use single File instance with try/finally for guaranteed cleanup ([707b33a](https://github.com/equationalapplications/clanker/commit/707b33a5db9680bee4fd86d4d99803b65418da19))
+* clean up temp webp files after avatar upload ([7c6eab6](https://github.com/equationalapplications/clanker/commit/7c6eab63eba7f87c8b208ebf3f22bb0cc18f2fb4))
+
+
+### Features
+
+* **avatar:** migrate to File API and remove size constraints ([6fec4fd](https://github.com/equationalapplications/clanker/commit/6fec4fd538552b02c0343825ae8be54616020374))
+* **characters:** add photo library avatar upload ([37900a2](https://github.com/equationalapplications/clanker/commit/37900a2f6d3da2e01c99c4bae1baaf79dca9a8be))
+
 ## [28.7.1](https://github.com/equationalapplications/clanker/compare/v28.7.0...v28.7.1) (2026-04-24)
 
 
