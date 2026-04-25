@@ -73,7 +73,7 @@ interface UseAvatarUploadReturn {
 import { useState } from 'react'
 import * as ImagePicker from 'expo-image-picker'
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 import { saveCharacterImageLocally } from '~/services/localImageStorageService'
 
 export function useAvatarUpload({
