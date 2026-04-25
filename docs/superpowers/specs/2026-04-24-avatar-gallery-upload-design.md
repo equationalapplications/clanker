@@ -129,23 +129,26 @@ export function useAvatarUpload({
         compress: 0.9,
       })
 
-      // Read file as base64 using the expo-file-system File API
-      const base64 = await new File(manipulated.uri).base64()
-      const dataUri = await saveCharacterImageLocally(characterId, base64, 'image/webp')
-
-      // Refresh character machine so the new avatar is visible immediately
-      characterService.send({ type: 'LOAD' })
-
-      onImageUploaded?.(dataUri)
-
-      // Clean up temp WebP file created by manipulateAsync
+      // Reuse a single File instance for both base64 read and cleanup
+      const manipulatedFile = new File(manipulated.uri)
       try {
-        new File(manipulated.uri).delete()
-      } catch (cleanupErr) {
-        console.warn('Failed to clean up temp avatar file:', cleanupErr)
-      }
+        const base64 = await manipulatedFile.base64()
+        const dataUri = await saveCharacterImageLocally(characterId, base64, 'image/webp')
 
-      return dataUri
+        // Refresh character machine so the new avatar is visible immediately
+        characterService.send({ type: 'LOAD' })
+
+        onImageUploaded?.(dataUri)
+
+        return dataUri
+      } finally {
+        // Clean up temp WebP file — always runs, even on error
+        try {
+          manipulatedFile.delete()
+        } catch (cleanupErr) {
+          console.warn('Failed to clean up temp avatar file:', cleanupErr)
+        }
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to upload image'
       // Permission denial surfaces as a thrown error from launchImageLibraryAsync
