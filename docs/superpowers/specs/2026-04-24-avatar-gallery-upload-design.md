@@ -215,7 +215,8 @@ Error display: fold `uploadError` into the existing `imageError` Snackbar
 ## app.config.ts Changes
 
 Add `NSPhotoLibraryUsageDescription` to `ios.infoPlist` and the
-`expo-image-picker` plugin entry:
+`expo-image-picker` plugin entry (iOS/Android; web uses the browser file picker
+automatically with no additional config):
 
 ```typescript
 ios: {
@@ -267,7 +268,6 @@ Test cases:
 ## Out of Scope
 
 - Cropping UI (user uploads as-is)
-- Web platform (gallery picker is native-only; web already has no AI generation UI either)
 - Credit deduction
 - Cloud storage
 - User profile avatar (separate feature)
