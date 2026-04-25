@@ -19,6 +19,7 @@ jest.mock('expo-image-manipulator', () => ({
 
 jest.mock('expo-file-system/legacy', () => ({
   readAsStringAsync: jest.fn(),
+  deleteAsync: jest.fn(),
   EncodingType: {
     Base64: 'base64',
   },
@@ -31,6 +32,7 @@ jest.mock('~/services/localImageStorageService', () => ({
 const mockLaunchImageLibraryAsync = jest.mocked(ImagePicker.launchImageLibraryAsync)
 const mockManipulateAsync = jest.mocked(manipulateAsync)
 const mockReadAsStringAsync = jest.mocked(FileSystem.readAsStringAsync)
+const mockDeleteAsync = jest.mocked(FileSystem.deleteAsync)
 const mockSaveCharacterImageLocally = jest.mocked(saveCharacterImageLocally)
 
 function createDeferred<T>() {

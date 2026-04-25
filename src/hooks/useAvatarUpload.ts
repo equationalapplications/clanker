@@ -64,13 +64,22 @@ export function useAvatarUpload({
         compress: 0.9,
       })
 
-      const base64 = await FileSystem.readAsStringAsync(manipulated.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      })
+      try {
+        const base64 = await FileSystem.readAsStringAsync(manipulated.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        })
 
-      const dataUri = await saveCharacterImageLocally(characterId, base64, 'image/webp')
-      onImageUploaded?.(dataUri)
-      return dataUri
+        const dataUri = await saveCharacterImageLocally(characterId, base64, 'image/webp')
+        onImageUploaded?.(dataUri)
+        return dataUri
+      } finally {
+        // Clean up temp WebP file created by manipulateAsync
+        try {
+          await FileSystem.deleteAsync(manipulated.uri, { idempotent: true })
+        } catch (cleanupErr) {
+          console.warn('Failed to clean up temp avatar file:', cleanupErr)
+        }
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to upload image'
       if (message.toLowerCase().includes('permission')) {
