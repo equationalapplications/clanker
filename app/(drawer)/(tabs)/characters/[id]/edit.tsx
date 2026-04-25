@@ -18,6 +18,7 @@ import { useCharacter, useUpdateCharacter, useUnsyncCharacter, useSyncCharacters
 import { useAuthMachine } from '~/hooks/useMachines'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { useImageGeneration } from '~/hooks/useImageGeneration'
+import { useAvatarUpload } from '~/hooks/useAvatarUpload'
 import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
@@ -156,6 +157,18 @@ export default function EditCharacterScreen() {
     onImageGenerated: (fileUri) => setAvatarUri(fileUri),
   })
 
+  const {
+    uploadAvatar,
+    isUploading,
+    error: uploadError,
+    clearError: clearUploadError,
+  } = useAvatarUpload({
+    characterId: id || '',
+    onImageUploaded: (dataUri) => setAvatarUri(dataUri),
+  })
+
+  const avatarError = uploadError || imageError
+
   const handleSave = () => {
     if (!id || !user?.uid) return
     setDidAttemptSave(true)
@@ -289,22 +302,39 @@ export default function EditCharacterScreen() {
 
           <View style={styles.avatarContainer}>
             <CharacterAvatar size={120} imageUrl={avatarUri} characterName={name} />
-            <Button
-              mode="outlined"
-              icon={isGenerating ? undefined : 'image-auto-adjust'}
-              onPress={() => {
-                clearError()
-                generateImage(buildImagePrompt({ name, appearance, traits, emotions }))
-              }}
-              disabled={isGenerating || !canEdit}
-              loading={isGenerating}
-              style={styles.generateButton}
-            >
-              {avatarUri ? 'Regenerate Image' : 'Generate Image'}
-            </Button>
-            {imageError ? (
+            <View style={styles.avatarActionsRow}>
+              <Button
+                mode="outlined"
+                icon={isUploading ? undefined : 'image-plus'}
+                onPress={() => {
+                  clearError()
+                  clearUploadError()
+                  uploadAvatar()
+                }}
+                disabled={isUploading || isGenerating || !canEdit}
+                loading={isUploading}
+                style={styles.avatarActionButton}
+              >
+                Upload Photo
+              </Button>
+              <Button
+                mode="outlined"
+                icon={isGenerating ? undefined : 'image-auto-adjust'}
+                onPress={() => {
+                  clearError()
+                  clearUploadError()
+                  generateImage(buildImagePrompt({ name, appearance, traits, emotions }))
+                }}
+                disabled={isGenerating || isUploading || !canEdit}
+                loading={isGenerating}
+                style={styles.avatarActionButton}
+              >
+                {avatarUri ? 'Regenerate Image' : 'Generate Image'}
+              </Button>
+            </View>
+            {avatarError ? (
               <HelperText type="error" visible>
-                {imageError}
+                {avatarError}
               </HelperText>
             ) : null}
           </View>
@@ -507,8 +537,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 12,
   },
-  generateButton: {
-    alignSelf: 'center',
+  avatarActionsRow: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  avatarActionButton: {
+    flex: 1,
   },
   avatarDivider: {
     marginBottom: 20,

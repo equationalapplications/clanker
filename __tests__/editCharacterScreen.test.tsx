@@ -109,6 +109,15 @@ jest.mock('~/hooks/useImageGeneration', () => ({
   })),
 }))
 
+jest.mock('~/hooks/useAvatarUpload', () => ({
+  useAvatarUpload: jest.fn(() => ({
+    uploadAvatar: jest.fn(),
+    isUploading: false,
+    error: null,
+    clearError: jest.fn(),
+  })),
+}))
+
 jest.mock('~/hooks/useEditDirtyState', () => ({
   useEditDirtyState: jest.fn(),
 }))
