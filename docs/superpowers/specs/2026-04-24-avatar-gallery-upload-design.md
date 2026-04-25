@@ -12,9 +12,8 @@ converted to WebP (same format as AI-generated avatars) and stored in SQLite
 
 New hook `useAvatarUpload` mirrors the shape of `useImageGeneration`. It:
 1. Launches `expo-image-picker` library picker (no camera).
-2. Converts result to WebP via `expo-image-manipulator`, clamping dimensions:
-   - Minimum: 200×200 (reject/error if source smaller)
-   - Maximum: 1024×1024 (resize down, preserving aspect ratio, if larger)
+2. Converts result to WebP via `expo-image-manipulator` (no resize — AI path
+   stores images at whatever size Vertex returns, so we match that).
 3. Reads the converted file URI → base64.
 4. Calls existing `saveCharacterImageLocally(characterId, base64, 'image/webp')`.
 5. Returns a data URI and calls `onImageUploaded` callback (parallel to
@@ -73,7 +72,7 @@ interface UseAvatarUploadReturn {
 import { useState } from 'react'
 import * as ImagePicker from 'expo-image-picker'
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
-import * as FileSystem from 'expo-file-system/legacy'
+import * as FileSystem from 'expo-file-system'
 import { saveCharacterImageLocally } from '~/services/localImageStorageService'
 
 export function useAvatarUpload({
@@ -102,23 +101,10 @@ export function useAvatarUpload({
 
       const sourceUri = pickerResult.assets[0].uri
 
-      const { width, height } = pickerResult.assets[0]
-
-      // Reject images smaller than 200×200
-      if (width < 200 || height < 200) {
-        throw new Error('Image too small. Minimum size is 200×200 pixels.')
-      }
-
-      // Clamp to 1024×1024 max (preserve aspect ratio)
-      const actions =
-        width > 1024 || height > 1024
-          ? [{ resize: width >= height ? { width: 1024 } : { height: 1024 } }]
-          : []
-
-      // Convert to WebP, resize if needed
+      // Convert to WebP (no resize — match AI avatar storage behaviour)
       const manipResult = await manipulateAsync(
         sourceUri,
-        actions,
+        [],                         // no transform actions
         { format: SaveFormat.WEBP, compress: 0.9 },
       )
 
@@ -177,7 +163,7 @@ const {
   onImageUploaded: (dataUri) => setAvatarUri(dataUri),
 })
 
-// Upload button (add beside existing Generate button):
+// Button (add beside existing Generate button):
 <Button
   mode="outlined"
   icon="image-plus"
@@ -187,13 +173,6 @@ const {
 >
   Upload Photo
 </Button>
-
-// Generate/Regenerate button — also disable when uploading:
-<Button
-  // ...existing props...
-  disabled={isGenerating || isUploading || !canEdit}
-  // ...
-/>
 ```
 
 Error display: fold `uploadError` into the existing `imageError` Snackbar
@@ -242,25 +221,19 @@ Test cases:
 | # | Scenario | Expected |
 |---|----------|----------|
 | 1 | User cancels picker | `uploadAvatar` returns `null`, `saveCharacterImageLocally` not called, no error set |
-| 2 | Happy path (large image) | `manipulateAsync` called with resize action + `SaveFormat.WEBP`, `saveCharacterImageLocally` called with base64 + `'image/webp'`, returned dataUri passed to `onImageUploaded`, `isUploading` resets to false |
-| 2b | Happy path (small-but-valid image, e.g. 300×300) | `manipulateAsync` called with empty actions array (no resize), rest same as #2 |
+| 2 | Happy path | `manipulateAsync` called with `SaveFormat.WEBP`, `saveCharacterImageLocally` called with base64 + `'image/webp'`, returned dataUri passed to `onImageUploaded`, `isUploading` resets to false |
 | 3 | `manipulateAsync` throws | `error` set to message, `saveCharacterImageLocally` not called, returns `null` |
 | 4 | `saveCharacterImageLocally` throws | `error` set to message, returns `null` |
 | 5 | `launchImageLibraryAsync` throws with "permission" in message | `error` set to `'Photo library access denied'`, returns `null` |
 | 6 | `isUploading` is true during async operation, false after | verify state transitions |
-| 7 | Image smaller than 200×200 | `error` set to `'Image too small. Minimum size is 200×200 pixels.'`, `saveCharacterImageLocally` not called, returns `null` |
-
----
-
-## Web Platform
-
-`expo-image-picker` works on web via `<input type="file">` — no extra config. Upload Photo button renders on web without platform gate. Same size constraints apply. Verify `manipulateAsync` WebP output on web (canvas-based; generally supported in modern browsers).
 
 ---
 
 ## Out of Scope
 
 - Cropping UI (user uploads as-is)
+- Image resize (AI path doesn't resize; upload matches)
+- Web platform (gallery picker is native-only; web already has no AI generation UI either)
 - Credit deduction
 - Cloud storage
 - User profile avatar (separate feature)

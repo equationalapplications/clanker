@@ -3,7 +3,7 @@ import { act, create } from 'react-test-renderer'
 import { useAvatarUpload } from '~/hooks/useAvatarUpload'
 import { saveCharacterImageLocally } from '~/services/localImageStorageService'
 import * as ImagePicker from 'expo-image-picker'
-import * as FileSystem from 'expo-file-system/legacy'
+import { File } from 'expo-file-system'
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
 
 jest.mock('expo-image-picker', () => ({
@@ -17,23 +17,29 @@ jest.mock('expo-image-manipulator', () => ({
   },
 }))
 
-jest.mock('expo-file-system/legacy', () => ({
-  readAsStringAsync: jest.fn(),
-  deleteAsync: jest.fn(),
-  EncodingType: {
-    Base64: 'base64',
-  },
+jest.mock('expo-file-system', () => ({
+  File: jest.fn(),
 }))
 
 jest.mock('~/services/localImageStorageService', () => ({
   saveCharacterImageLocally: jest.fn(),
 }))
 
+const mockCharacterSend = jest.fn()
+jest.mock('~/hooks/useMachines', () => ({
+  useCharacterMachine: () => ({ send: mockCharacterSend }),
+}))
+
 const mockLaunchImageLibraryAsync = jest.mocked(ImagePicker.launchImageLibraryAsync)
 const mockManipulateAsync = jest.mocked(manipulateAsync)
-const mockReadAsStringAsync = jest.mocked(FileSystem.readAsStringAsync)
-const mockDeleteAsync = jest.mocked(FileSystem.deleteAsync)
+const MockFile = jest.mocked(File)
 const mockSaveCharacterImageLocally = jest.mocked(saveCharacterImageLocally)
+
+function setupFileMock(base64 = 'BASE64_DATA') {
+  MockFile.mockImplementation(
+    () => ({ base64: jest.fn().mockResolvedValue(base64), delete: jest.fn() }) as never,
+  )
+}
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void
@@ -78,6 +84,7 @@ function renderHook(onImageUploaded?: (dataUri: string) => void) {
 describe('useAvatarUpload', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockCharacterSend.mockReset()
   })
 
   it('returns null and skips save when picker is canceled', async () => {
@@ -99,7 +106,7 @@ describe('useAvatarUpload', () => {
     const onImageUploaded = jest.fn()
     mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(1800, 1200) as never)
     mockManipulateAsync.mockResolvedValue({ uri: 'file://converted.webp' } as never)
-    mockReadAsStringAsync.mockResolvedValue('BASE64_DATA' as never)
+    setupFileMock()
     mockSaveCharacterImageLocally.mockResolvedValue('data:image/webp;base64,BASE64_DATA')
 
     const { getHookValue } = renderHook(onImageUploaded)
@@ -117,13 +124,14 @@ describe('useAvatarUpload', () => {
     expect(mockSaveCharacterImageLocally).toHaveBeenCalledWith('char-1', 'BASE64_DATA', 'image/webp')
     expect(onImageUploaded).toHaveBeenCalledWith('data:image/webp;base64,BASE64_DATA')
     expect(result).toBe('data:image/webp;base64,BASE64_DATA')
+    expect(mockCharacterSend).toHaveBeenCalledWith({ type: 'LOAD' })
     expect(getHookValue().isUploading).toBe(false)
   })
 
   it('keeps valid small images unresized', async () => {
     mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(300, 300) as never)
     mockManipulateAsync.mockResolvedValue({ uri: 'file://converted.webp' } as never)
-    mockReadAsStringAsync.mockResolvedValue('BASE64_DATA' as never)
+    setupFileMock()
     mockSaveCharacterImageLocally.mockResolvedValue('data:image/webp;base64,BASE64_DATA')
 
     const { getHookValue } = renderHook()
@@ -158,7 +166,7 @@ describe('useAvatarUpload', () => {
   it('sets error and returns null when local save fails', async () => {
     mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(600, 600) as never)
     mockManipulateAsync.mockResolvedValue({ uri: 'file://converted.webp' } as never)
-    mockReadAsStringAsync.mockResolvedValue('BASE64_DATA' as never)
+    setupFileMock()
     mockSaveCharacterImageLocally.mockRejectedValue(new Error('SQLite write failed'))
 
     const { getHookValue } = renderHook()
@@ -190,7 +198,7 @@ describe('useAvatarUpload', () => {
     const pickerDeferred = createDeferred<ReturnType<typeof makePickerResult>>()
     mockLaunchImageLibraryAsync.mockReturnValue(pickerDeferred.promise as never)
     mockManipulateAsync.mockResolvedValue({ uri: 'file://converted.webp' } as never)
-    mockReadAsStringAsync.mockResolvedValue('BASE64_DATA' as never)
+    setupFileMock()
     mockSaveCharacterImageLocally.mockResolvedValue('data:image/webp;base64,BASE64_DATA')
 
     const { getHookValue } = renderHook()

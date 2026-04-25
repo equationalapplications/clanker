@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import * as FileSystem from 'expo-file-system/legacy'
+import { File } from 'expo-file-system'
 import * as ImagePicker from 'expo-image-picker'
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
+import { useCharacterMachine } from '~/hooks/useMachines'
 import { saveCharacterImageLocally } from '~/services/localImageStorageService'
 
 interface UseAvatarUploadProps {
@@ -23,6 +24,7 @@ export function useAvatarUpload({
   characterId,
   onImageUploaded,
 }: UseAvatarUploadProps): UseAvatarUploadReturn {
+  const characterService = useCharacterMachine()
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -64,22 +66,21 @@ export function useAvatarUpload({
         compress: 0.9,
       })
 
-      try {
-        const base64 = await FileSystem.readAsStringAsync(manipulated.uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        })
+      const base64 = await new File(manipulated.uri).base64()
+      const dataUri = await saveCharacterImageLocally(characterId, base64, 'image/webp')
 
-        const dataUri = await saveCharacterImageLocally(characterId, base64, 'image/webp')
-        onImageUploaded?.(dataUri)
-        return dataUri
-      } finally {
-        // Clean up temp WebP file created by manipulateAsync
-        try {
-          await FileSystem.deleteAsync(manipulated.uri, { idempotent: true })
-        } catch (cleanupErr) {
-          console.warn('Failed to clean up temp avatar file:', cleanupErr)
-        }
+      characterService.send({ type: 'LOAD' })
+
+      onImageUploaded?.(dataUri)
+
+      // Clean up temp WebP file created by manipulateAsync
+      try {
+        new File(manipulated.uri).delete()
+      } catch (cleanupErr) {
+        console.warn('Failed to clean up temp avatar file:', cleanupErr)
       }
+
+      return dataUri
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to upload image'
       if (message.toLowerCase().includes('permission')) {
