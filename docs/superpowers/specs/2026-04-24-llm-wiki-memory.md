@@ -7,7 +7,7 @@ Branch: staging
 
 ## Problem
 
-Current memory = `context TEXT` blob on `characters` table (local SQLite [src/database/schema.ts](/src/database/schema.ts#L47), Cloud SQL [functions/src/db/schema.ts](/functions/src/db/schema.ts#L54)). Refreshed every 20 msgs by `triggerConversationSummary` ([src/services/aiChatService.ts](/src/services/aiChatService.ts#L161)) → `summarizeText` callable. Cap `SUMMARY_MAX_CHARACTERS = 4000` ([src/services/aiChatService.ts](/src/services/aiChatService.ts#L54)).
+Current memory = `context TEXT` blob on `characters` table (local SQLite [src/database/schema.ts](/src/database/schema.ts#L44), Cloud SQL [functions/src/db/schema.ts](/functions/src/db/schema.ts#L57)). Refreshed every 20 msgs by `triggerConversationSummary` ([src/services/aiChatService.ts](/src/services/aiChatService.ts#L161)) → `summarizeText` callable. Cap `SUMMARY_MAX_CHARACTERS = 4000` ([src/services/aiChatService.ts](/src/services/aiChatService.ts#L54)).
 
 Fine for chatbot. Fail for agent loop:
 
@@ -36,7 +36,7 @@ Agent need memory it can **read, write, update, delete** mid-run.
 
 ## Schema (v9 migration)
 
-Current `SCHEMA_VERSION = 8` ([src/database/schema.ts](/src/database/schema.ts#L1)). Bump → `9`. Add SQL strings to `MIGRATIONS` map ([src/database/schema.ts](/src/database/schema.ts#L95-L102)) keyed `9`. Idempotent guards via `IF NOT EXISTS`. Apply via existing `applyMigrations()` ([src/database/index.ts](/src/database/index.ts#L216-L234)).
+Current `SCHEMA_VERSION = 8` ([src/database/schema.ts](/src/database/schema.ts#L6)). Bump → `9`. Add SQL strings to `MIGRATIONS` map ([src/database/schema.ts](/src/database/schema.ts#L95-L102)) keyed `9`. Idempotent guards via `IF NOT EXISTS`. Apply via existing `applyMigrations()` ([src/database/index.ts](/src/database/index.ts#L216-L234)).
 
 Mirror in Cloud SQL Drizzle schema ([functions/src/db/schema.ts](/functions/src/db/schema.ts)) — uuid PKs, FK to `characters.id` / `users.id`. PostgreSQL → use `tsvector` + GIN index instead of FTS5 (not available in PG). Tables only mirrored when host character has `save_to_cloud=1`.
 
@@ -154,8 +154,8 @@ Export from [functions/src/index.ts](/functions/src/index.ts) alongside existing
 ### `memoryRead` — fast retrieval, pre-turn
 
 - In: `{ characterId: string, rawQuery: string, limit?: number }` (userId derived from `request.auth.uid`)
-- Server (cloud path, premium only — see Query Preprocessing): PG `websearch_to_tsquery('english', rawQuery)` → MATCH against `tsvector` column on `wiki_entries`. Stemming + stop-words handled natively, no extra LLM. Plan check: `SUBSCRIPTION_TIERS.includes(decoded.planTier)` ([src/config/constants.ts](/src/config/constants.ts#L33)).
-- Client (local path, all users): preprocesses `rawQuery` via `buildFtsQuery` (see Query Preprocessing) before calling `wikiDatabase.searchEntries`.
+- Server (cloud path, premium + cloud-synced only — see Query Preprocessing): PG `websearch_to_tsquery('english', rawQuery)` → MATCH against `tsvector` column on `wiki_entries`. Stemming + stop-words handled natively, no extra LLM. Plan check: `usage.hasUnlimited` derived from `fetchUsageState(userId)` via `subscriptionService.getSubscription` (mirrors [functions/src/generateReply.ts](/functions/src/generateReply.ts#L238) pattern). Non-premium users are always local-only (no `save_to_cloud`); they never reach this callable. A premium user who has not enabled cloud sync also takes the local path.
+- Client (local path — all non-cloud-synced users): preprocesses `rawQuery` via `buildFtsQuery` (see Query Preprocessing) before querying local SQLite via `wikiDatabase.searchEntries`. Routing decision: `character.save_to_cloud === 1` → callable; else local-only.
 - Always returned: all `agent_tasks` where `status='pending'` ordered by `priority DESC`; + last N `memory_events` (default 5).
 - Out: `{ facts: WikiEntry[], openTasks: AgentTask[], recentEvents: MemoryEvent[] }`
 - No LLM at read time. Side-effect: bump `access_count`, set `last_accessed_at` on returned facts.
@@ -178,7 +178,7 @@ Export from [functions/src/index.ts](/functions/src/index.ts) alongside existing
   - **Orphan pages**: entries with `access_count=0` AND age > 30 days → soft-delete (`deleted_at` set)
   - **Missing concepts**: gaps inferred from open tasks lacking related entries → seed new `wiki_entries` with `confidence='tentative'`
 - Out: `{ diff: { contradictionsFlagged, staleDowngraded, orphansRemoved, conceptsSeeded } }`
-- Premium monthly users (`SUBSCRIPTION_TIERS`): runs in cloud against full Cloud SQL wiki. Free / non-premium users: `memoryHeal` is a no-op (returns empty diff). Local-only users get health from `memoryWrite` per-turn fixes; full heal is a paid feature.
+- Premium monthly users (`usage.hasUnlimited` via `fetchUsageState`, same pattern as `generateReply`): runs in cloud against full Cloud SQL wiki. Non-premium users never have `save_to_cloud`, so the callable is unreachable for them; if invoked anyway, return empty diff. Full wiki heal is a paid, cloud-synced feature.
 
 ### `memoryPatch` — direct agent write mid-turn
 
@@ -254,7 +254,7 @@ Works identically on iOS, Android, Web (compromise.js is pure JS, no native modu
 
 Server-side `memoryRead` skips client preprocessing entirely. Passes raw user message to `websearch_to_tsquery('english', rawQuery)` against the `tsvector` column. PostgreSQL handles stemming, stop-words, and morphological analysis natively. No `compromise.js` server-side. No extra LLM cost.
 
-Plan gate: `decoded.planTier && SUBSCRIPTION_TIERS.includes(decoded.planTier)` ([src/config/constants.ts](/src/config/constants.ts#L33)). Non-premium → server falls through to client-built FTS5 query path even when cloud-synced.
+Plan gate on server: `usage.hasUnlimited` (from `fetchUsageState`, which calls `subscriptionService.getSubscription` — same source of truth as `generateReply`). Non-premium users never reach the callable (no `save_to_cloud`); if a future code path hits the callable without `hasUnlimited`, return `HttpsError('permission-denied')`.
 
 ### Derived Synonym Enrichment
 
