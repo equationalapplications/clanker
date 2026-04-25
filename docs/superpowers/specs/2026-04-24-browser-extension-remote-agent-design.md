@@ -2,8 +2,8 @@
 
 ## Overview
 
-Goal: let user chat with Clanker app on phone, while trusted browser extension on
-user home desktop performs browser tasks on authenticated sites user already uses.
+Goal: let user chat with Clanker app on phone, while a trusted browser extension on
+the user's home desktop performs browser tasks on authenticated sites the user already uses.
 
 Core value: cross-device agent action, not generic automation platform.
 
