@@ -56,3 +56,6 @@ credentials.json
 /equationalapplications.com/plan.md
 plan.md
 firebase-debug.log
+
+# Git worktrees
+.worktrees/
