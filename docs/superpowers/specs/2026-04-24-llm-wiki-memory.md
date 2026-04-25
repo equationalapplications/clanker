@@ -7,7 +7,7 @@ Branch: staging
 
 ## Problem
 
-Current memory = `context TEXT` blob on `characters` table (local SQLite [src/database/schema.ts](src/database/schema.ts#L47), Cloud SQL [functions/src/db/schema.ts](functions/src/db/schema.ts#L54)). Refreshed every 20 msgs by `triggerConversationSummary` ([src/services/aiChatService.ts](src/services/aiChatService.ts#L161)) → `summarizeText` callable. Cap `SUMMARY_MAX_CHARACTERS = 4000` ([src/services/aiChatService.ts](src/services/aiChatService.ts#L54)).
+Current memory = `context TEXT` blob on `characters` table (local SQLite [src/database/schema.ts](/src/database/schema.ts#L47), Cloud SQL [functions/src/db/schema.ts](/functions/src/db/schema.ts#L54)). Refreshed every 20 msgs by `triggerConversationSummary` ([src/services/aiChatService.ts](/src/services/aiChatService.ts#L161)) → `summarizeText` callable. Cap `SUMMARY_MAX_CHARACTERS = 4000` ([src/services/aiChatService.ts](/src/services/aiChatService.ts#L54)).
 
 Fine for chatbot. Fail for agent loop:
 
@@ -36,9 +36,9 @@ Agent need memory it can **read, write, update, delete** mid-run.
 
 ## Schema (v9 migration)
 
-Current `SCHEMA_VERSION = 8` ([src/database/schema.ts](src/database/schema.ts#L1)). Bump → `9`. Add SQL strings to `MIGRATIONS` map ([src/database/schema.ts](src/database/schema.ts#L95-L102)) keyed `9`. Idempotent guards via `IF NOT EXISTS`. Apply via existing `applyMigrations()` ([src/database/index.ts](src/database/index.ts#L216-L234)).
+Current `SCHEMA_VERSION = 8` ([src/database/schema.ts](/src/database/schema.ts#L1)). Bump → `9`. Add SQL strings to `MIGRATIONS` map ([src/database/schema.ts](/src/database/schema.ts#L95-L102)) keyed `9`. Idempotent guards via `IF NOT EXISTS`. Apply via existing `applyMigrations()` ([src/database/index.ts](/src/database/index.ts#L216-L234)).
 
-Mirror in Cloud SQL Drizzle schema ([functions/src/db/schema.ts](functions/src/db/schema.ts)) — uuid PKs, FK to `characters.id` / `users.id`. PostgreSQL → use `tsvector` + GIN index instead of FTS5 (not available in PG). Tables only mirrored when host character has `save_to_cloud=1`.
+Mirror in Cloud SQL Drizzle schema ([functions/src/db/schema.ts](/functions/src/db/schema.ts)) — uuid PKs, FK to `characters.id` / `users.id`. PostgreSQL → use `tsvector` + GIN index instead of FTS5 (not available in PG). Tables only mirrored when host character has `save_to_cloud=1`.
 
 ### `wiki_entries` — long-term facts (stable)
 
@@ -121,7 +121,7 @@ Index: `(character_id)`. No cloud mirror — derived data, regenerable from `wik
 
 ### `characters` table additions (v9 migration)
 
-Add two columns to existing `characters` table (mirror `summary_checkpoint` pattern, [src/database/schema.ts](src/database/schema.ts#L26)):
+Add two columns to existing `characters` table (mirror `summary_checkpoint` pattern, [src/database/schema.ts](/src/database/schema.ts#L26)):
 
 ```
 heal_checkpoint     INTEGER NOT NULL DEFAULT 0   -- message count at last memoryHeal
@@ -130,7 +130,7 @@ memory_checkpoint   INTEGER NOT NULL DEFAULT 0   -- message count at last memory
 
 ### Data access layer
 
-New files matching existing pattern ([src/database/characterDatabase.ts](src/database/characterDatabase.ts), [src/database/messageDatabase.ts](src/database/messageDatabase.ts)):
+New files matching existing pattern ([src/database/characterDatabase.ts](/src/database/characterDatabase.ts), [src/database/messageDatabase.ts](/src/database/messageDatabase.ts)):
 
 - `src/database/wikiDatabase.ts` — raw SQL via `expo-sqlite`, exports `LocalWikiEntry` interface, CRUD + FTS5 query
 - `src/database/agentTaskDatabase.ts`
@@ -138,9 +138,9 @@ New files matching existing pattern ([src/database/characterDatabase.ts](src/dat
 
 ## Firebase Callables (agent tool API)
 
-All match existing template: `onCall({ region: 'us-central1', enforceAppCheck: true, invoker: 'public', secrets: [...CLOUD_SQL_SECRETS] }, (req) => handler(req, deps))`. Handler exported separately for tests (pattern from [functions/src/generateReply.ts](functions/src/generateReply.ts#L298), [functions/src/characterFunctions.ts](functions/src/characterFunctions.ts#L117)).
+All match existing template: `onCall({ region: 'us-central1', enforceAppCheck: true, invoker: 'public', secrets: [...CLOUD_SQL_SECRETS] }, (req) => handler(req, deps))`. Handler exported separately for tests (pattern from [functions/src/generateReply.ts](/functions/src/generateReply.ts#L298), [functions/src/characterFunctions.ts](/functions/src/characterFunctions.ts#L117)).
 
-Auth check ([functions/src/generateReply.ts](functions/src/generateReply.ts#L311-L320) pattern):
+Auth check ([functions/src/generateReply.ts](/functions/src/generateReply.ts#L311-L320) pattern):
 
 ```ts
 if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
@@ -149,12 +149,12 @@ if (!decoded || decoded.uid !== request.auth.uid)
   throw new HttpsError("unauthenticated", "Invalid Firebase authentication token.");
 ```
 
-Export from [functions/src/index.ts](functions/src/index.ts) alongside existing callables.
+Export from [functions/src/index.ts](/functions/src/index.ts) alongside existing callables.
 
 ### `memoryRead` — fast retrieval, pre-turn
 
 - In: `{ characterId: string, rawQuery: string, limit?: number }` (userId derived from `request.auth.uid`)
-- Server (cloud path, premium only — see Query Preprocessing): PG `websearch_to_tsquery('english', rawQuery)` → MATCH against `tsvector` column on `wiki_entries`. Stemming + stop-words handled natively, no extra LLM. Plan check: `SUBSCRIPTION_TIERS.includes(decoded.planTier)` ([src/config/constants.ts](src/config/constants.ts#L33)).
+- Server (cloud path, premium only — see Query Preprocessing): PG `websearch_to_tsquery('english', rawQuery)` → MATCH against `tsvector` column on `wiki_entries`. Stemming + stop-words handled natively, no extra LLM. Plan check: `SUBSCRIPTION_TIERS.includes(decoded.planTier)` ([src/config/constants.ts](/src/config/constants.ts#L33)).
 - Client (local path, all users): preprocesses `rawQuery` via `buildFtsQuery` (see Query Preprocessing) before calling `wikiDatabase.searchEntries`.
 - Always returned: all `agent_tasks` where `status='pending'` ordered by `priority DESC`; + last N `memory_events` (default 5).
 - Out: `{ facts: WikiEntry[], openTasks: AgentTask[], recentEvents: MemoryEvent[] }`
@@ -166,12 +166,12 @@ Export from [functions/src/index.ts](functions/src/index.ts) alongside existing 
 - In: `{ characterId: string, conversationChunk: string }`
 - Server: LLM extract facts → fuzzy title match merge (avoid dup) → upsert `wiki_entries` → create/update/close `agent_tasks` → append `memory_events` → update `derived_synonyms` from co-occurring tags (see Derived Synonym Enrichment) → run prune if event count threshold → check heal trigger (see `memoryHeal`)
 - Out: `{ diff: { entriesAdded, entriesUpdated, tasksOpened, tasksClosed, eventsAppended, synonymsUpdated } }`
-- Reuses LLM infra from `summarizeText` ([functions/src/summarizeText.ts](functions/src/summarizeText.ts))
+- Reuses LLM infra from `summarizeText` ([functions/src/summarizeText.ts](/functions/src/summarizeText.ts))
 
 ### `memoryHeal` — full-wiki health check, periodic
 
 - In: `{ characterId: string }`
-- Trigger: `memoryWrite` fires this fire-and-forget when `messageCount - character.heal_checkpoint >= 20` (mirrors `SUMMARY_TRIGGER_MESSAGE_COUNT`, [src/services/aiChatService.ts](src/services/aiChatService.ts#L52)). After firing, advance `heal_checkpoint` to current `messageCount` (same retry-storm guard as summary, [src/services/aiChatService.ts](src/services/aiChatService.ts#L184)).
+- Trigger: `memoryWrite` fires this fire-and-forget when `messageCount - character.heal_checkpoint >= 20` (mirrors `SUMMARY_TRIGGER_MESSAGE_COUNT`, [src/services/aiChatService.ts](/src/services/aiChatService.ts#L52)). Before the heal starts, advance `heal_checkpoint` to the current `messageCount` as a scheduling checkpoint / retry-storm guard (same pattern as summary, [src/services/aiChatService.ts](/src/services/aiChatService.ts#L184)). This checkpoint is **not** rolled back if the heal later fails; failure is logged/appended as an operational event, and the next full heal becomes eligible only after another 20 messages.
 - Server: LLM receives full wiki dump (entries + open tasks + recent events) → returns structured diff:
   - **Contradictions**: pairs of entries with conflicting bodies → downgrade older to `confidence='tentative'`, append `memory_events` of type `'observation'` flagging conflict
   - **Stale claims**: entries with `last_accessed_at` > 60 days AND no related recent events → downgrade `confidence='inferred' → 'tentative'`
@@ -184,7 +184,7 @@ Export from [functions/src/index.ts](functions/src/index.ts) alongside existing 
 
 - In: `{ characterId: string, operation: 'upsert_entry'|'delete_entry'|'task_create'|'task_update', payload: object }`
 - Agent tool-call when explicit commit / close task mid-turn
-- Rate limit: max 10 calls per agent turn (track via in-memory map keyed by `auth.uid + turn_id`, or fold into existing usage gating in [functions/src/services/](functions/src/services/))
+- Rate limit: max 10 calls per agent turn (track via in-memory map keyed by `auth.uid + turn_id`, or fold into existing usage gating in [functions/src/services/](/functions/src/services/))
 
 ### `memoryForget` — user-initiated delete
 
@@ -194,7 +194,7 @@ Export from [functions/src/index.ts](functions/src/index.ts) alongside existing 
 
 ## Client Service
 
-New `src/services/memoryService.ts` matching [src/services/chatReplyService.ts](src/services/chatReplyService.ts) pattern:
+New `src/services/memoryService.ts` matching [src/services/chatReplyService.ts](/src/services/chatReplyService.ts) pattern:
 
 ```ts
 const memoryReadFn = httpsCallable(functionsInstance, 'memoryRead')
@@ -205,20 +205,20 @@ export async function patchMemory(characterId: string, op: PatchOp): Promise<voi
 export async function forgetMemory(characterId: string, target: ForgetTarget): Promise<void>
 ```
 
-`triggerMemoryWrite` mirrors `triggerConversationSummary` ([src/services/aiChatService.ts](src/services/aiChatService.ts#L161)) — fire-and-forget, deduped via `Set<string>` keyed `${characterId}:${userId}` (same pattern as `activeSummaryJobs` [src/services/aiChatService.ts](src/services/aiChatService.ts#L56)).
+`triggerMemoryWrite` mirrors `triggerConversationSummary` ([src/services/aiChatService.ts](/src/services/aiChatService.ts#L161)) — fire-and-forget, deduped via `Set<string>` keyed `${characterId}:${userId}` (same pattern as `activeSummaryJobs` [src/services/aiChatService.ts](/src/services/aiChatService.ts#L56)).
 
 Offline / not cloud-synced fallback: read directly from local SQLite via `wikiDatabase.ts` instead of callable. Decision rule: if `character.save_to_cloud === 1 && synced_to_cloud === 1` → callable; else local.
 
 ## Wire-up: `aiChatService.sendMessageWithAIResponse`
 
-Modify [src/services/aiChatService.ts](src/services/aiChatService.ts) (after message save, ~line 335 region):
+Modify [src/services/aiChatService.ts](/src/services/aiChatService.ts) (after message save, ~line 335 region):
 
 1. **Pre-turn**: `const bundle = await fetchMemoryBundle(character.id, userMessage)` — fail-soft (return empty bundle on error, never block reply)
-2. **Compose prompt**: extend `buildChatPrompt` ([src/services/aiChatService.ts](src/services/aiChatService.ts)) to accept optional `memoryBundle`; render structured block (see Context Injection) before user msg
+2. **Compose prompt**: extend `buildChatPrompt` ([src/services/aiChatService.ts](/src/services/aiChatService.ts)) to accept optional `memoryBundle`; render structured block (see Context Injection) before user msg
 3. **Reply**: existing `generateChatReply` flow unchanged
 4. **Post-turn**: alongside existing `triggerConversationSummary(character, userId)`, send `WRITE` event to `wikiHealMachine` (see State Machine) — orchestrates `memoryWrite` then conditional `memoryHeal`, all fire-and-forget
 
-`generateReply` callable signature ([functions/src/generateReply.ts](functions/src/generateReply.ts)) unchanged in v1 — bundle composed client-side into the `prompt` field. v2 may move composition server-side.
+`generateReply` callable signature ([functions/src/generateReply.ts](/functions/src/generateReply.ts)) unchanged in v1 — bundle composed client-side into the `prompt` field. v2 may move composition server-side.
 
 ## Query Preprocessing Pipeline
 
@@ -254,7 +254,7 @@ Works identically on iOS, Android, Web (compromise.js is pure JS, no native modu
 
 Server-side `memoryRead` skips client preprocessing entirely. Passes raw user message to `websearch_to_tsquery('english', rawQuery)` against the `tsvector` column. PostgreSQL handles stemming, stop-words, and morphological analysis natively. No `compromise.js` server-side. No extra LLM cost.
 
-Plan gate: `decoded.planTier && SUBSCRIPTION_TIERS.includes(decoded.planTier)` ([src/config/constants.ts](src/config/constants.ts#L33)). Non-premium → server falls through to client-built FTS5 query path even when cloud-synced.
+Plan gate: `decoded.planTier && SUBSCRIPTION_TIERS.includes(decoded.planTier)` ([src/config/constants.ts](/src/config/constants.ts#L33)). Non-premium → server falls through to client-built FTS5 query path even when cloud-synced.
 
 ### Derived Synonym Enrichment
 
@@ -269,7 +269,7 @@ Example: entries tagged `health` with titles "morning run", "jog before work", "
 
 ## State Machine: `wikiHealMachine`
 
-New `src/machines/wikiHealMachine.ts`. Mirrors XState v5 pattern from existing machines ([src/machines/termsMachine.ts](src/machines/termsMachine.ts), [src/machines/characterMachine.ts](src/machines/characterMachine.ts)). Orchestrates the post-turn write+heal flow with fail-soft semantics throughout.
+New `src/machines/wikiHealMachine.ts`. Mirrors XState v5 pattern from existing machines ([src/machines/termsMachine.ts](/src/machines/termsMachine.ts), [src/machines/characterMachine.ts](/src/machines/characterMachine.ts)). Orchestrates the post-turn write+heal flow with fail-soft semantics throughout.
 
 **States**:
 
@@ -282,20 +282,20 @@ checking   [fromPromise: getMessageCount + load character.heal_checkpoint]
   → shouldHeal=false → writing  (proceed, skip heal)
 
 writing    [fromPromise: triggerMemoryWrite callable]
-  → done + shouldHeal=true  → healing
+  → done + shouldHeal=true  → healing  (advance heal_checkpoint to messageCount before triggering)
   → done + shouldHeal=false → idle
   → error                    → idle  (fail-soft, log only)
 
-healing    [fromPromise: triggerMemoryHeal callable]
-  → done  → idle  (advance heal_checkpoint to messageCount)
-  → error → idle  (fail-soft)
+healing    [fromPromise: triggerMemoryHeal callable; heal_checkpoint already advanced before start]
+  → done  → idle
+  → error → idle  (fail-soft; checkpoint not rolled back — next heal eligible after 20 more messages)
 ```
 
 **Context**: `{ characterId, userId, chunk, messageCount, healCheckpoint, shouldHeal }`.
 
 **Trigger condition** (in `checking` state guard): `messageCount - healCheckpoint >= 20` (constant `HEAL_TRIGGER_MESSAGE_COUNT = 20`, harmonized with `SUMMARY_TRIGGER_MESSAGE_COUNT`).
 
-**Dedup**: machine instance per `(characterId, userId)` pair, stored in `Map`. Sending `WRITE` while machine is in non-`idle` state = no-op (matches `activeSummaryJobs` Set pattern, [src/services/aiChatService.ts](src/services/aiChatService.ts#L56)).
+**Dedup**: machine instance per `(characterId, userId)` pair, stored in `Map`. Sending `WRITE` while machine is in non-`idle` state = no-op (matches `activeSummaryJobs` Set pattern, [src/services/aiChatService.ts](/src/services/aiChatService.ts#L56)).
 
 **Premium check**: `healing` state actor inspects `subscription.planTier` via `useCurrentPlan` equivalent on the service side; non-premium → skip the callable, transition straight to `idle` while still advancing `heal_checkpoint` (so non-premium users don't accumulate phantom debt).
 
@@ -335,7 +335,7 @@ Detection: librarian LLM prompted to label each extracted fact with `source_type
 
 ## Cloud Sync
 
-Match existing `syncCharacter` model ([functions/src/characterFunctions.ts](functions/src/characterFunctions.ts#L117)):
+Match existing `syncCharacter` model ([functions/src/characterFunctions.ts](/functions/src/characterFunctions.ts#L117)):
 
 - Wiki rows inherit parent character's `save_to_cloud`. If 0 → local only, all callables fall back to local.
 - New callable `syncMemory({ characterId })` uploads pending rows (`synced_to_cloud=0`) to Cloud SQL, sets `cloud_id` + `synced_to_cloud=1`. Or fold into existing `syncCharacter` payload.
@@ -344,24 +344,24 @@ Match existing `syncCharacter` model ([functions/src/characterFunctions.ts](func
 ## Files Touched
 
 **New**:
-- [src/database/wikiDatabase.ts](src/database/wikiDatabase.ts)
-- [src/database/agentTaskDatabase.ts](src/database/agentTaskDatabase.ts)
-- [src/database/memoryEventDatabase.ts](src/database/memoryEventDatabase.ts)
-- [src/database/derivedSynonymDatabase.ts](src/database/derivedSynonymDatabase.ts)
-- [src/database/ftsQueryBuilder.ts](src/database/ftsQueryBuilder.ts)
-- [src/database/synonymMapBase.ts](src/database/synonymMapBase.ts)
-- [src/services/memoryService.ts](src/services/memoryService.ts)
-- [src/machines/wikiHealMachine.ts](src/machines/wikiHealMachine.ts)
-- [functions/src/memoryFunctions.ts](functions/src/memoryFunctions.ts) (or split per callable: `memoryRead.ts`, `memoryWrite.ts`, `memoryPatch.ts`, `memoryForget.ts`, `memoryHeal.ts`)
+- [src/database/wikiDatabase.ts](/src/database/wikiDatabase.ts)
+- [src/database/agentTaskDatabase.ts](/src/database/agentTaskDatabase.ts)
+- [src/database/memoryEventDatabase.ts](/src/database/memoryEventDatabase.ts)
+- [src/database/derivedSynonymDatabase.ts](/src/database/derivedSynonymDatabase.ts)
+- [src/database/ftsQueryBuilder.ts](/src/database/ftsQueryBuilder.ts)
+- [src/database/synonymMapBase.ts](/src/database/synonymMapBase.ts)
+- [src/services/memoryService.ts](/src/services/memoryService.ts)
+- [src/machines/wikiHealMachine.ts](/src/machines/wikiHealMachine.ts)
+- [functions/src/memoryFunctions.ts](/functions/src/memoryFunctions.ts) (or split per callable: `memoryRead.ts`, `memoryWrite.ts`, `memoryPatch.ts`, `memoryForget.ts`, `memoryHeal.ts`)
 - `__tests__/memoryService.test.ts`, `__tests__/wikiDatabase.test.ts`, `__tests__/ftsQueryBuilder.test.ts`, `__tests__/wikiHealMachine.test.ts`
 - `functions/src/memoryFunctions.test.ts`
 
 **Modified**:
-- [src/database/schema.ts](src/database/schema.ts) — bump `SCHEMA_VERSION` → 9, add `MIGRATIONS[9]` (3 wiki tables + FTS5 + triggers + `derived_synonyms` + `characters` ALTERs for `heal_checkpoint`/`memory_checkpoint`), add `CREATE_TABLES` entries
-- [functions/src/db/schema.ts](functions/src/db/schema.ts) — add Drizzle tables for cloud mirror with `tsvector` + GIN index
-- [src/services/aiChatService.ts](src/services/aiChatService.ts) — call `fetchMemoryBundle` in pre-turn; send `WRITE` event to `wikiHealMachine` instead of direct `triggerMemoryWrite`; extend `buildChatPrompt`
-- [src/config/firebaseConfig.ts](src/config/firebaseConfig.ts) — register 5 new callables
-- [functions/src/index.ts](functions/src/index.ts) — export 5 new callables
+- [src/database/schema.ts](/src/database/schema.ts) — bump `SCHEMA_VERSION` → 9, add `MIGRATIONS[9]` (3 wiki tables + FTS5 + triggers + `derived_synonyms` + `characters` ALTERs for `heal_checkpoint`/`memory_checkpoint`), add `CREATE_TABLES` entries
+- [functions/src/db/schema.ts](/functions/src/db/schema.ts) — add Drizzle tables for cloud mirror with `tsvector` + GIN index
+- [src/services/aiChatService.ts](/src/services/aiChatService.ts) — call `fetchMemoryBundle` in pre-turn; send `WRITE` event to `wikiHealMachine` instead of direct `triggerMemoryWrite`; extend `buildChatPrompt`
+- [src/config/firebaseConfig.ts](/src/config/firebaseConfig.ts) — register 5 new callables
+- [functions/src/index.ts](/functions/src/index.ts) — export 5 new callables
 - `package.json` — add `compromise` dependency
 
 **Unchanged**: `generateReply`, `summarizeText`, existing `context` column (coexists).
@@ -370,17 +370,17 @@ Match existing `syncCharacter` model ([functions/src/characterFunctions.ts](func
 
 Match existing patterns:
 
-- **Client unit** ([__tests__/voiceChatService.test.ts](__tests__/voiceChatService.test.ts) style): mock callables via `jest.mock('~/services/memoryService', ...)`; assert fire-and-forget dedup
+- **Client unit** ([__tests__/voiceChatService.test.ts](/__tests__/voiceChatService.test.ts) style): mock callables via `jest.mock('~/services/memoryService', ...)`; assert fire-and-forget dedup
 - **DB unit**: open in-memory SQLite, run migrations 1→9, verify FTS5 query results, soft-delete behavior, `derived_synonyms` upsert from tag co-occurrence
 - **Query builder** (`__tests__/ftsQueryBuilder.test.ts`): pure-function tests covering Layer 1 sanitize edge cases (punctuation-only, single-char, all-stopword input → null), Layer 2 base+derived synonym merge, Layer 3 compromise.js lemmatization, final FTS5 escaping
-- **State machine** (`__tests__/wikiHealMachine.test.ts`, [__tests__/termsMachine.test.ts](__tests__/termsMachine.test.ts) style): assert state transitions for shouldHeal=true/false, dedup on duplicate `WRITE` events, fail-soft on actor errors, premium gate skips `healing` state
-- **Backend handler** ([functions/src/generateReply.test.ts](functions/src/generateReply.test.ts) / [functions/src/characterFunctions.test.ts](functions/src/characterFunctions.test.ts) style): build mock `deps`, call handler directly, mock auth via `buildAuth()` pattern; cover `memoryHeal` contradiction/stale/orphan/missing branches
+- **State machine** (`__tests__/wikiHealMachine.test.ts`, [__tests__/termsMachine.test.ts](/__tests__/termsMachine.test.ts) style): assert state transitions for shouldHeal=true/false, dedup on duplicate `WRITE` events, fail-soft on actor errors, premium gate skips `healing` state
+- **Backend handler** ([functions/src/generateReply.test.ts](/functions/src/generateReply.test.ts) / [functions/src/characterFunctions.test.ts](/functions/src/characterFunctions.test.ts) style): build mock `deps`, call handler directly, mock auth via `buildAuth()` pattern; cover `memoryHeal` contradiction/stale/orphan/missing branches
 - Coverage targets: librarian merge dedup, conflict downgrade, user-stated overwrite, prune threshold trigger, fail-soft on `memoryRead` error, heal trigger at 20-message delta, premium plan gate on cloud NLP path
 
 ## Open Questions
 
 - v9 migration: ship FTS5 triggers in same migration or feature-flag rollout?
-- Librarian model + cost cap per user/day (reuse credit system from [functions/src/services/](functions/src/services/)?)
+- Librarian model + cost cap per user/day (reuse credit system from [functions/src/services/](/functions/src/services/)?)
 - Migration of existing `characters.context` blob → seed `wiki_entries` on first run? Or lazy: librarian opportunistically extracts on first `memoryWrite`?
 - `memoryPatch` rate-limiting: in-memory map sufficient or need Cloud SQL counter?
 - Deprecation timeline for `characters.context` once wiki proven?
@@ -410,11 +410,7 @@ Match existing patterns:
 
 ---
 
-# Explore codebase for library extraction feasibility
-
-Good concept. Let me analyze carefully before advising.
-
-## Feasibility: Extract `expo-agent-memory` NPM Package
+## Appendix: `expo-agent-memory` Package Extraction Feasibility
 
 ### Core insight: Split cleanly by layer
 
