@@ -132,7 +132,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     deleted_at: null as number | null,
                     summary_checkpoint: 0,
                     owner_user_id: localUserId,
-                    voice: (cloudChar as any).voice ?? null,
+                    voice: cloudChar.voice ?? null,
                 }
             })
             .filter((c: LocalCharacter) => {
@@ -224,7 +224,7 @@ export async function importSharedCharacterFromCloud(
             deleted_at: null,
             summary_checkpoint: 0,
             owner_user_id: cloudCharacter.ownerUserId || localUserId,
-            voice: (cloudCharacter as any).voice ?? null,
+            voice: cloudCharacter.voice ?? null,
         },
     ])
 

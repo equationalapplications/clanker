@@ -312,6 +312,20 @@ describe('EditCharacterScreen - voice selector', () => {
     expect(voiceButton).toBeDefined()
   })
 
+  it('falls back to voice name when style is missing', () => {
+    const character = makeCharacter({ voice: 'FutureVoice' })
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
+    const voiceButton = buttons.find((b) => b.props.children === 'FutureVoice')
+    expect(voiceButton).toBeDefined()
+  })
+
   it('shows "None selected" when character has no voice', () => {
     const character = makeCharacter({ voice: null })
     mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)

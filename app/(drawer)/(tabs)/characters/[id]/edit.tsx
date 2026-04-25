@@ -421,7 +421,10 @@ export default function EditCharacterScreen() {
                 style={styles.voiceButton}
               >
                 {voice
-                  ? `${voice} — ${GEMINI_VOICES.find((v) => v.name === voice)?.style ?? ''}`
+                  ? (() => {
+                      const style = GEMINI_VOICES.find((v) => v.name === voice)?.style
+                      return style ? `${voice} — ${style}` : voice
+                    })()
                   : 'None selected'}
               </Button>
             }

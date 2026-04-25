@@ -24,7 +24,7 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
   5: { table: 'characters', column: 'save_to_cloud' },
   6: { table: 'characters', column: 'summary_checkpoint' },
   7: { table: 'characters', column: 'owner_user_id' },
-  8: { table: 'characters', column: 'voice' },
+  9: { table: 'characters', column: 'voice' },
 }
 
 /**
