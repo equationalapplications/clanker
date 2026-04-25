@@ -1,4 +1,4 @@
-import { CREATE_TABLES, MIGRATION_SKIP_GUARDS } from '../src/database/schema'
+import { CREATE_TABLES, MIGRATIONS, MIGRATION_SKIP_GUARDS } from '../src/database/schema'
 
 describe('database schema migration guards', () => {
   it('guards voice column on migration 9, not migration 8', () => {
@@ -7,6 +7,11 @@ describe('database schema migration guards', () => {
   })
 
   it('includes voice column in base characters table', () => {
-    expect(CREATE_TABLES).toContain('voice TEXT')
+    expect(CREATE_TABLES).toContain("voice TEXT NOT NULL DEFAULT 'Umbriel'")
+  })
+
+  it('backfills voice in migration 9', () => {
+    expect(MIGRATIONS[9]).toContain("DEFAULT 'Umbriel'")
+    expect(MIGRATIONS[9]).toContain("UPDATE characters SET voice = 'Umbriel'")
   })
 })

@@ -1,17 +1,20 @@
 const mockRunAsync = jest.fn()
+const mockGetFirstAsync = jest.fn()
 
 jest.mock('../src/database/index', () => ({
   getDatabase: jest.fn(async () => ({
     withTransactionAsync: async (fn: () => Promise<void>) => fn(),
     runAsync: mockRunAsync,
+    getFirstAsync: mockGetFirstAsync,
   })),
 }))
 
-import { batchInsertCharacters, type LocalCharacter } from '../src/database/characterDatabase'
+import { batchInsertCharacters, createCharacter, type LocalCharacter } from '../src/database/characterDatabase'
 
 describe('batchInsertCharacters', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockGetFirstAsync.mockResolvedValue(null)
   })
 
   it('includes voice in insert columns and values', async () => {
@@ -44,5 +47,15 @@ describe('batchInsertCharacters', () => {
     const [sql, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
     expect(sql).toContain('owner_user_id, voice')
     expect(values.at(-1)).toBe('Kore')
+  })
+
+  it('defaults createCharacter voice to Umbriel when omitted', async () => {
+    await createCharacter('user-1', {
+      name: 'New Character',
+      is_public: false,
+    })
+
+    const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
+    expect(values.at(-1)).toBe('Umbriel')
   })
 })

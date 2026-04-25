@@ -29,6 +29,7 @@ import {
 
 const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const DEFAULT_VOICE = 'Umbriel'
 
 function generateLocalCharacterId() {
     const uuid = globalThis.crypto?.randomUUID?.()
@@ -132,7 +133,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     deleted_at: null as number | null,
                     summary_checkpoint: 0,
                     owner_user_id: localUserId,
-                    voice: cloudChar.voice ?? null,
+                    voice: cloudChar.voice ?? DEFAULT_VOICE,
                 }
             })
             .filter((c: LocalCharacter) => {
@@ -224,7 +225,7 @@ export async function importSharedCharacterFromCloud(
             deleted_at: null,
             summary_checkpoint: 0,
             owner_user_id: cloudCharacter.ownerUserId || localUserId,
-            voice: cloudCharacter.voice ?? null,
+            voice: cloudCharacter.voice ?? DEFAULT_VOICE,
         },
     ])
 

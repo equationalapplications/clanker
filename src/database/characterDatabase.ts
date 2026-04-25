@@ -6,6 +6,8 @@
 import { getDatabase } from './index'
 import { sanitizeImageMimeType } from '~/utilities/imageMimeType'
 
+const DEFAULT_VOICE = 'Umbriel'
+
 export interface LocalCharacter {
     id: string
     user_id: string
@@ -148,7 +150,7 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
             null, // not deleted
             0, // no summarized messages yet
             userId,
-            data.voice ?? null,
+            data.voice ?? DEFAULT_VOICE,
         ],
     )
 
@@ -405,7 +407,7 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
                     char.deleted_at ?? null,
                     char.summary_checkpoint ?? 0,
                     char.owner_user_id || char.user_id,
-                    char.voice ?? null,
+                    char.voice ?? DEFAULT_VOICE,
                 ],
             )
         }
