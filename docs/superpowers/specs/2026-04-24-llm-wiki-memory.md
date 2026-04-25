@@ -138,7 +138,7 @@ New files matching existing pattern ([src/database/characterDatabase.ts](/src/da
 
 ## Firebase Callables (agent tool API)
 
-All match existing template: `onCall({ region: 'us-central1', enforceAppCheck: true, invoker: 'public', secrets: [...CLOUD_SQL_SECRETS] }, (req) => handler(req, deps))`. Handler exported separately for tests (pattern from [functions/src/generateReply.ts](/functions/src/generateReply.ts#L298), [functions/src/characterFunctions.ts](/functions/src/characterFunctions.ts#L117)).
+All match existing template: `onCall({ region: 'us-central1', enforceAppCheck: true, invoker: 'public', secrets: [...CLOUD_SQL_SECRETS] }, (req) => handler(req, deps))`. Handler exported separately for tests (pattern from [functions/src/generateReply.ts](/functions/src/generateReply.ts), [functions/src/characterFunctions.ts](/functions/src/characterFunctions.ts#L117)).
 
 Auth check ([functions/src/generateReply.ts](/functions/src/generateReply.ts#L311-L320) pattern):
 
