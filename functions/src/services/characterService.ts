@@ -4,7 +4,7 @@ import { characters, messages, users } from '../db/schema.js';
 
 type CharacterUpdateInput = Pick<
   typeof characters.$inferInsert,
-  'name' | 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context' | 'isPublic' | 'updatedAt'
+  'name' | 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context' | 'voice' | 'isPublic' | 'updatedAt'
 >;
 
 export function buildCharacterUpdateValues(character: CharacterUpdateInput) {
@@ -15,6 +15,7 @@ export function buildCharacterUpdateValues(character: CharacterUpdateInput) {
     traits: character.traits,
     emotions: character.emotions,
     context: character.context,
+    voice: character.voice,
     updatedAt: character.updatedAt ?? new Date(),
   };
 

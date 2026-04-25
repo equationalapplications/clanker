@@ -15,6 +15,7 @@ type SyncCharacterPayload = {
   traits?: string | null;
   emotions?: string | null;
   context?: string | null;
+  voice?: string | null;
   isPublic?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -89,7 +90,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseOptionalTextField(
   value: unknown,
-  field: 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context'
+  field: 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context' | 'voice'
 ): string | null | undefined {
   if (value === undefined || value === null) {
     return value;
@@ -154,6 +155,7 @@ export const syncCharacterHandler = async (
   const traits = parseOptionalTextField(character.traits, 'traits');
   const emotions = parseOptionalTextField(character.emotions, 'emotions');
   const context = parseOptionalTextField(character.context, 'context');
+  const voice = parseOptionalTextField(character.voice, 'voice');
   const isPublic = parseOptionalIsPublic(character.isPublic);
 
   const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
@@ -172,6 +174,7 @@ export const syncCharacterHandler = async (
       traits,
       emotions,
       context,
+      voice,
       isPublic,
       createdAt: undefined,
       updatedAt: undefined,

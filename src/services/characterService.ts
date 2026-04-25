@@ -163,6 +163,7 @@ export const createNewCharacter = async (): Promise<{ id: string }> => {
       context: 'A helpful companion ready for meaningful conversations.',
       is_public: false,
       avatar_data: avatarData,
+      voice: 'Umbriel',
     })
 
     if (!character) {

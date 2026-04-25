@@ -132,6 +132,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     deleted_at: null as number | null,
                     summary_checkpoint: 0,
                     owner_user_id: localUserId,
+                    voice: (cloudChar as any).voice ?? null,
                 }
             })
             .filter((c: LocalCharacter) => {
@@ -165,6 +166,7 @@ async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
                     traits: char.traits,
                     emotions: char.emotions,
                     context: char.context,
+                    voice: char.voice,
                     isPublic: Boolean(char.is_public),
                     createdAt: new Date(char.created_at).toISOString(),
                     updatedAt: new Date(char.updated_at).toISOString(),
@@ -222,6 +224,7 @@ export async function importSharedCharacterFromCloud(
             deleted_at: null,
             summary_checkpoint: 0,
             owner_user_id: cloudCharacter.ownerUserId || localUserId,
+            voice: (cloudCharacter as any).voice ?? null,
         },
     ])
 

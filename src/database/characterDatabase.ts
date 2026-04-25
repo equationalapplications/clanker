@@ -26,6 +26,7 @@ export interface LocalCharacter {
     deleted_at: number | null // null = active, timestamp = soft-deleted
     summary_checkpoint?: number | null // highest message count included in context summary
     owner_user_id: string
+    voice: string | null
 }
 
 export interface CharacterInsert {
@@ -39,6 +40,7 @@ export interface CharacterInsert {
     context?: string | null
     is_public?: boolean
     save_to_cloud?: boolean
+    voice?: string | null
 }
 
 export interface CharacterUpdate {
@@ -51,6 +53,7 @@ export interface CharacterUpdate {
     summary_checkpoint?: number
     is_public?: boolean
     save_to_cloud?: boolean
+    voice?: string | null
 }
 
 /**
@@ -79,6 +82,7 @@ function toAppFormat(char: LocalCharacter) {
         cloud_id: char.cloud_id,
         summary_checkpoint: char.summary_checkpoint ?? 0,
         owner_user_id: char.owner_user_id,
+        voice: char.voice,
     }
 }
 
@@ -121,8 +125,8 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
 
     await db.runAsync(
         `INSERT INTO characters 
-     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint, owner_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint, owner_user_id, voice)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 
         [
             id,
@@ -144,6 +148,7 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
             null, // not deleted
             0, // no summarized messages yet
             userId,
+            data.voice ?? null,
         ],
     )
 
@@ -215,6 +220,10 @@ export async function updateCharacter(
             updateFields.push('is_public = ?')
             values.push(0)
         }
+    }
+    if (updates.voice !== undefined) {
+        updateFields.push('voice = ?')
+        values.push(updates.voice ?? null)
     }
 
     // Mark as not synced when updated locally

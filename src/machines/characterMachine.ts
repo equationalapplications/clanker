@@ -51,6 +51,7 @@ const DEFAULT_CHARACTER_INSERT: CharacterInsert = {
   traits: 'Loyal, curious, resourceful, and a little sarcastic.',
   emotions: 'Calm, attentive, and eager to help.',
   context: 'A newly created companion character ready to chat and develop its personality.',
+  voice: 'Umbriel',
 }
 
 const createDefaultCharacterActor = fromPromise(
