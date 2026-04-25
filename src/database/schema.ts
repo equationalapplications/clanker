@@ -51,7 +51,8 @@ export const CREATE_TABLES = `
     cloud_id TEXT,
     deleted_at INTEGER,
     summary_checkpoint INTEGER DEFAULT 0,
-    owner_user_id TEXT NOT NULL DEFAULT ''
+    owner_user_id TEXT NOT NULL DEFAULT '',
+    voice TEXT
   );
 
   -- Indexes for characters

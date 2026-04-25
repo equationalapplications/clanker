@@ -42,7 +42,7 @@ Add `voice` to the SQLite schema via a standard migration (v8 → v9), wire it t
 
 | File | Change |
 |---|---|
-| `src/database/schema.ts` | Bump `SCHEMA_VERSION` to 9; add `voice` to `LATEST_SCHEMA_REQUIRED_COLUMNS`; add migration 8 skip guard; add `ALTER TABLE characters ADD COLUMN voice TEXT` migration |
+| `src/database/schema.ts` | Bump `SCHEMA_VERSION` to 9; add `voice` to `LATEST_SCHEMA_REQUIRED_COLUMNS`; add migration 9 skip guard; add `ALTER TABLE characters ADD COLUMN voice TEXT` migration |
 | `src/database/characterDatabase.ts` | Add `voice` to `LocalCharacter`, `CharacterInsert`, `CharacterUpdate`, `toAppFormat()`, `createCharacter()` INSERT, and `updateCharacter()` SET builder |
 | `src/machines/characterMachine.ts` | Add `voice: 'Umbriel'` to `DEFAULT_CHARACTER_INSERT` |
 | `src/services/characterService.ts` | Add `voice: 'Umbriel'` to the `createCharacter()` call inside `createNewCharacter()` |
@@ -132,9 +132,9 @@ SCHEMA_VERSION = 9
 
 LATEST_SCHEMA_REQUIRED_COLUMNS.characters += 'voice'
 
-MIGRATION_SKIP_GUARDS[8] = { table: 'characters', column: 'voice' }
+MIGRATION_SKIP_GUARDS[9] = { table: 'characters', column: 'voice' }
 
-Migration 8 SQL:
+Migration 9 SQL:
   ALTER TABLE characters ADD COLUMN voice TEXT
 ```
 
