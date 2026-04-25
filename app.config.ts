@@ -99,6 +99,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleServicesFile: getGoogleServiceInfoPlist(),
     supportsTablet: true,
     usesAppleSignIn: true,
+    infoPlist: {
+      NSPhotoLibraryUsageDescription:
+        'Allow Clanker to access your photo library to set a character avatar.',
+    },
     associatedDomains: ['applinks:clanker-ai.com', 'applinks:www.clanker-ai.com'],
     config: {
       usesNonExemptEncryption: false,
@@ -171,6 +175,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/app-check',
     'expo-font',
     'expo-image',
+    [
+      'expo-image-picker',
+      {
+        photosPermission:
+          'Allow Clanker to access your photo library to set a character avatar.',
+      },
+    ],
     [
       'expo-speech-recognition',
       {
