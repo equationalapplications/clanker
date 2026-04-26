@@ -3,14 +3,16 @@
  * Supports messages and characters with optional cloud sync
  */
 
-export const SCHEMA_VERSION = 8
+import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
+
+export const SCHEMA_VERSION = 10
 
 /**
  * Columns that must exist for a database to be treated as already matching
  * the latest schema version during bootstrap.
  */
 export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
-  characters: ['deleted_at', 'avatar_data', 'avatar_mime_type', 'save_to_cloud', 'summary_checkpoint', 'owner_user_id'],
+  characters: ['deleted_at', 'avatar_data', 'avatar_mime_type', 'save_to_cloud', 'summary_checkpoint', 'owner_user_id', 'voice'],
 }
 
 /**
@@ -24,6 +26,7 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
   5: { table: 'characters', column: 'save_to_cloud' },
   6: { table: 'characters', column: 'summary_checkpoint' },
   7: { table: 'characters', column: 'owner_user_id' },
+  9: { table: 'characters', column: 'voice' },
 }
 
 /**
@@ -50,7 +53,8 @@ export const CREATE_TABLES = `
     cloud_id TEXT,
     deleted_at INTEGER,
     summary_checkpoint INTEGER DEFAULT 0,
-    owner_user_id TEXT NOT NULL DEFAULT ''
+    owner_user_id TEXT NOT NULL DEFAULT '',
+    voice TEXT NOT NULL DEFAULT '${DEFAULT_VOICE}'
   );
 
   -- Indexes for characters
@@ -96,4 +100,6 @@ export const MIGRATIONS: Record<number, string> = {
   6: `ALTER TABLE characters ADD COLUMN summary_checkpoint INTEGER DEFAULT 0;`,
   7: `ALTER TABLE characters ADD COLUMN owner_user_id TEXT NOT NULL DEFAULT ''; UPDATE characters SET owner_user_id = user_id WHERE owner_user_id = '' AND (save_to_cloud = 1 OR cloud_id IS NULL);`,
   8: `UPDATE characters SET owner_user_id = user_id WHERE (owner_user_id IS NULL OR owner_user_id = '') AND (save_to_cloud = 1 OR cloud_id IS NULL OR COALESCE(is_public, 0) = 0);`,
+  9: `ALTER TABLE characters ADD COLUMN voice TEXT NOT NULL DEFAULT '${DEFAULT_VOICE}';`,
+  10: `UPDATE characters SET voice = '${DEFAULT_VOICE}' WHERE voice IS NULL OR voice = '';`,
 }

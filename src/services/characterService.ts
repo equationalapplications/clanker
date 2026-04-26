@@ -6,6 +6,7 @@
  */
 
 import { getCurrentUser } from '~/config/firebaseConfig'
+import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 import * as characterDB from '../database/characterDatabase'
 import type { CharacterInsert, CharacterUpdate } from '../database/characterDatabase'
 import { loadDefaultAvatarBase64 } from './defaultAvatarService'
@@ -163,6 +164,7 @@ export const createNewCharacter = async (): Promise<{ id: string }> => {
       context: 'A helpful companion ready for meaningful conversations.',
       is_public: false,
       avatar_data: avatarData,
+      voice: DEFAULT_VOICE,
     })
 
     if (!character) {

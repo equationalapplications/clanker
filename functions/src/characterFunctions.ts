@@ -4,6 +4,7 @@ import { userRepository } from './services/userRepository.js';
 import { characterService, CharacterOwnershipError } from './services/characterService.js';
 import { subscriptionService } from './services/subscriptionService.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
+import { DEFAULT_VOICE } from './constants/voiceDefaults.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -15,6 +16,7 @@ type SyncCharacterPayload = {
   traits?: string | null;
   emotions?: string | null;
   context?: string | null;
+  voice?: string | null;
   isPublic?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -89,7 +91,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseOptionalTextField(
   value: unknown,
-  field: 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context'
+  field: 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context' | 'voice'
 ): string | null | undefined {
   if (value === undefined || value === null) {
     return value;
@@ -154,6 +156,17 @@ export const syncCharacterHandler = async (
   const traits = parseOptionalTextField(character.traits, 'traits');
   const emotions = parseOptionalTextField(character.emotions, 'emotions');
   const context = parseOptionalTextField(character.context, 'context');
+  const voice = Object.prototype.hasOwnProperty.call(character, 'voice')
+    ? (() => {
+        const parsedVoice = parseOptionalTextField(character.voice, 'voice');
+        if (parsedVoice == null) {
+          return DEFAULT_VOICE;
+        }
+
+        const normalizedVoice = parsedVoice.trim();
+        return normalizedVoice.length === 0 ? DEFAULT_VOICE : normalizedVoice;
+      })()
+    : undefined;
   const isPublic = parseOptionalIsPublic(character.isPublic);
 
   const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
@@ -172,6 +185,7 @@ export const syncCharacterHandler = async (
       traits,
       emotions,
       context,
+      voice,
       isPublic,
       createdAt: undefined,
       updatedAt: undefined,
