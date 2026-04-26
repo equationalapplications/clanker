@@ -82,4 +82,17 @@ describe('batchInsertCharacters', () => {
     const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
     expect(values).toContain('Umbriel')
   })
+
+  it('defaults updateCharacter voice to Umbriel when blank', async () => {
+    mockGetFirstAsync
+      .mockResolvedValueOnce({ id: 'char-1', user_id: 'user-1' })
+      .mockResolvedValueOnce(null)
+
+    await updateCharacter('char-1', 'user-1', {
+      voice: '   ',
+    })
+
+    const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
+    expect(values).toContain('Umbriel')
+  })
 })

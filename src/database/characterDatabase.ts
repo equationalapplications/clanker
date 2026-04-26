@@ -28,7 +28,7 @@ export interface LocalCharacter {
     deleted_at: number | null // null = active, timestamp = soft-deleted
     summary_checkpoint?: number | null // highest message count included in context summary
     owner_user_id: string
-    voice: string | null
+    voice: string
 }
 
 export interface CharacterInsert {
@@ -226,8 +226,15 @@ export async function updateCharacter(
         }
     }
     if (updates.voice !== undefined) {
+        const normalizedVoice =
+            updates.voice == null
+                ? DEFAULT_VOICE
+                : updates.voice.trim() === ''
+                  ? DEFAULT_VOICE
+                  : updates.voice.trim()
+
         updateFields.push('voice = ?')
-        values.push(updates.voice ?? DEFAULT_VOICE)
+        values.push(normalizedVoice)
     }
 
     // Mark as not synced when updated locally

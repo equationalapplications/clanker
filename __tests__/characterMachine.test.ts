@@ -34,7 +34,7 @@ function makeCharacter(overrides: Partial<DbCharacter> = {}): DbCharacter {
     traits: null,
     emotions: null,
     context: null,
-    voice: null,
+    voice: 'Umbriel',
     created_at: NOW,
     updated_at: NOW,
     synced_to_cloud: false,

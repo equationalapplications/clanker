@@ -157,7 +157,15 @@ export const syncCharacterHandler = async (
   const emotions = parseOptionalTextField(character.emotions, 'emotions');
   const context = parseOptionalTextField(character.context, 'context');
   const voice = Object.prototype.hasOwnProperty.call(character, 'voice')
-    ? (parseOptionalTextField(character.voice, 'voice') ?? DEFAULT_VOICE)
+    ? (() => {
+        const parsedVoice = parseOptionalTextField(character.voice, 'voice');
+        if (parsedVoice == null) {
+          return DEFAULT_VOICE;
+        }
+
+        const normalizedVoice = parsedVoice.trim();
+        return normalizedVoice.length === 0 ? DEFAULT_VOICE : normalizedVoice;
+      })()
     : undefined;
   const isPublic = parseOptionalIsPublic(character.isPublic);
 
