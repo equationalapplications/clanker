@@ -10,8 +10,13 @@ describe('database schema migration guards', () => {
     expect(CREATE_TABLES).toContain("voice TEXT NOT NULL DEFAULT 'Umbriel'")
   })
 
-  it('backfills voice in migration 9', () => {
+  it('adds voice column in migration 9', () => {
     expect(MIGRATIONS[9]).toContain("DEFAULT 'Umbriel'")
-    expect(MIGRATIONS[9]).toContain("UPDATE characters SET voice = 'Umbriel'")
+    expect(MIGRATIONS[9]).not.toContain('UPDATE')
+  })
+
+  it('backfills voice with TRIM in migration 10', () => {
+    expect(MIGRATIONS[10]).toContain("UPDATE characters SET voice = 'Umbriel'")
+    expect(MIGRATIONS[10]).toContain("TRIM(voice) = ''")
   })
 })

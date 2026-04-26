@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 9
+export const SCHEMA_VERSION = 10
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -100,5 +100,6 @@ export const MIGRATIONS: Record<number, string> = {
   6: `ALTER TABLE characters ADD COLUMN summary_checkpoint INTEGER DEFAULT 0;`,
   7: `ALTER TABLE characters ADD COLUMN owner_user_id TEXT NOT NULL DEFAULT ''; UPDATE characters SET owner_user_id = user_id WHERE owner_user_id = '' AND (save_to_cloud = 1 OR cloud_id IS NULL);`,
   8: `UPDATE characters SET owner_user_id = user_id WHERE (owner_user_id IS NULL OR owner_user_id = '') AND (save_to_cloud = 1 OR cloud_id IS NULL OR COALESCE(is_public, 0) = 0);`,
-  9: `ALTER TABLE characters ADD COLUMN voice TEXT NOT NULL DEFAULT '${DEFAULT_VOICE}'; UPDATE characters SET voice = '${DEFAULT_VOICE}' WHERE voice IS NULL OR voice = '';`,
+  9: `ALTER TABLE characters ADD COLUMN voice TEXT NOT NULL DEFAULT '${DEFAULT_VOICE}';`,
+  10: `UPDATE characters SET voice = '${DEFAULT_VOICE}' WHERE voice IS NULL OR TRIM(voice) = '';`,
 }

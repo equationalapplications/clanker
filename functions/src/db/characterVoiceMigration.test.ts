@@ -10,6 +10,6 @@ test("character voice migration backfills null and empty values", async () => {
   const sql = await readFile(migrationPath, "utf8");
 
   assert.match(sql, new RegExp(`ADD COLUMN "voice" text DEFAULT '${DEFAULT_VOICE}'`));
-  assert.match(sql, /WHERE "voice" IS NULL OR "voice" = ''/);
+  assert.match(sql, /WHERE "voice" IS NULL OR btrim\("voice"\) = ''/);
   assert.match(sql, /ALTER COLUMN "voice" SET NOT NULL/);
 });
