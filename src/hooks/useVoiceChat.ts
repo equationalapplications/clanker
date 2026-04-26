@@ -105,8 +105,11 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       if (tempFileRef.current) {
         const file = tempFileRef.current
         tempFileRef.current = null
-        if (file.exists) {
+        try {
           file.delete()
+        } catch (deleteError) {
+          // Ignore deletion errors; file may not exist or may be in use
+          console.warn('[useVoiceChat] Failed to delete temp audio file', deleteError)
         }
       }
     } catch (error) {
@@ -185,7 +188,12 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i)
         }
-        file.write(bytes)
+        try {
+          file.write(bytes)
+        } catch (writeError) {
+          await fail(`Failed to write audio file: ${writeError instanceof Error ? writeError.message : String(writeError)}`)
+          return
+        }
         tempFileRef.current = file
         playerUri = file.uri
       }
@@ -220,6 +228,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
     }
     finalTranscriptionRef.current = ''
     transcriptionRef.current = ''
+    setTranscription('')
   })
 
   useSpeechRecognitionEvent('result', (payload) => {

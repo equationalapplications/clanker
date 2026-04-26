@@ -365,3 +365,37 @@ test("generateVoiceReplyHandler maps identity conflicts to failed-precondition",
     );
   });
 });
+
+test("generateVoiceReplyHandler works with raw PCM from synthesizeSpeech mock", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
+    creditService.spendCredits = async () => true;
+    creditService.getCredits = async () => 3;
+
+    // Create a minimal valid PCM buffer (100 bytes of zeros)
+    const pcmBuffer = Buffer.alloc(100);
+    const pcmBase64 = pcmBuffer.toString("base64");
+
+    const result = await generateVoiceReplyHandler(
+      {auth, data: {prompt: "hello", characterVoice: "Kore"}} as never,
+      {
+        generateText: stubGenerateText,
+        // In real production, getSpeechSynthesizer wraps raw PCM.
+        // This mock simulates synthesizeSpeech returning raw PCM.
+        synthesizeSpeech: async () => ({
+          audioBase64: pcmBase64,
+          audioMimeType: "audio/L16;codec=pcm;rate=24000",
+        }),
+      }
+    );
+
+    // Handler should return whatever synthesizeSpeech provides
+    assert.equal(result.audioMimeType, "audio/L16;codec=pcm;rate=24000");
+    assert.ok(result.audioBase64.length > 0, "audioBase64 should be non-empty");
+    assert.ok(result.replyText.length > 0, "replyText should be non-empty");
+  });
+});
