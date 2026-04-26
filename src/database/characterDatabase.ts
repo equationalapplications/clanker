@@ -4,9 +4,8 @@
  */
 
 import { getDatabase } from './index'
+import { DEFAULT_VOICE } from '~/constants/geminiVoices'
 import { sanitizeImageMimeType } from '~/utilities/imageMimeType'
-
-const DEFAULT_VOICE = 'Umbriel'
 
 export interface LocalCharacter {
     id: string

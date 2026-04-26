@@ -28,9 +28,7 @@ import {
   buildCharacterShareUrl,
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
-import { GEMINI_VOICES } from '~/constants/geminiVoices'
-
-const DEFAULT_VOICE = 'Umbriel'
+import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()

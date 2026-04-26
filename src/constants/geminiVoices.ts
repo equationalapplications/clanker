@@ -3,6 +3,8 @@ export interface GeminiVoice {
   style: string
 }
 
+export const DEFAULT_VOICE = 'Umbriel'
+
 export const GEMINI_VOICES: GeminiVoice[] = [
   { name: 'Zephyr',        style: 'Bright' },
   { name: 'Puck',          style: 'Upbeat' },

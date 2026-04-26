@@ -11,6 +11,7 @@
  */
 
 import { Storage } from '~/utilities/kvStorage'
+import { DEFAULT_VOICE } from '~/constants/geminiVoices'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn } from './apiClient'
@@ -29,7 +30,6 @@ import {
 
 const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const DEFAULT_VOICE = 'Umbriel'
 
 function generateLocalCharacterId() {
     const uuid = globalThis.crypto?.randomUUID?.()

@@ -15,6 +15,7 @@ import {
   restoreFromCloud,
   removeCharacterFromCloud,
 } from '~/services/characterSyncService'
+import { DEFAULT_VOICE } from '~/constants/geminiVoices'
 import { loadDefaultAvatarBase64 } from '~/services/defaultAvatarService'
 
 // Events
@@ -51,7 +52,7 @@ const DEFAULT_CHARACTER_INSERT: CharacterInsert = {
   traits: 'Loyal, curious, resourceful, and a little sarcastic.',
   emotions: 'Calm, attentive, and eager to help.',
   context: 'A newly created companion character ready to chat and develop its personality.',
-  voice: 'Umbriel',
+  voice: DEFAULT_VOICE,
 }
 
 const createDefaultCharacterActor = fromPromise(
