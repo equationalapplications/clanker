@@ -57,7 +57,7 @@ Add `voice` to the SQLite schema via migrations v8→v9 (add column) and v9→v1
 | `app.config.ts` | Register `expo-audio` config plugin with `microphonePermission`, `enableBackgroundPlayback: true`, `enableBackgroundRecording: false` |
 | `src/hooks/useVoiceChat.ts` | Remove web guard from `startListening`; make permissions web-aware (web: STT only, native: STT + audio recording); make playback web-aware (web: data URI `data:<mime>;base64,…` passed to `createAudioPlayer`, native: `new File(Paths.cache, name)` with `file.write(Uint8Array)` decoded from base64); call `setAudioModeAsync` once on mount (native only); update mocks in test file for new `File`/`Paths` API |
 | `__tests__/editCharacterScreen.test.tsx` | Add tests: voice selector renders, selecting a voice calls `update` with correct value |
-| `__tests__/useVoiceChat.test.tsx` | Add tests: voice selector renders, selecting a voice calls `update` with correct value; update mocks for new `File(Paths.cache, name)` API; add web branch tests: STT-only permissions, data-URI playback (no file write), browser error message, no `setAudioModeAsync` |
+| `__tests__/useVoiceChat.test.tsx` | Update mocks for new `File(Paths.cache, name)` API; add web branch tests: STT-only permissions, data-URI playback (no file write), browser error message, no `setAudioModeAsync` |
 
 ---
 

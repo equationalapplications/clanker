@@ -268,7 +268,9 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
 
     void fail(
       isPermissionError
-        ? 'Microphone permission required. Enable it in Settings.'
+        ? canUseNativeVoice
+          ? 'Microphone permission required. Enable it in Settings.'
+          : 'Microphone permission required. Allow it in your browser.'
         : 'Speech recognition failed. Please try again.'
     )
   })
