@@ -4,9 +4,9 @@ import { userRepository } from './services/userRepository.js';
 import { characterService, CharacterOwnershipError } from './services/characterService.js';
 import { subscriptionService } from './services/subscriptionService.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
+import { DEFAULT_VOICE } from './constants/voiceDefaults.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DEFAULT_VOICE = 'Umbriel';
 
 type SyncCharacterPayload = {
   id?: string;

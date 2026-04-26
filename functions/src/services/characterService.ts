@@ -1,8 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { characters, messages, users } from '../db/schema.js';
-
-const DEFAULT_VOICE = 'Umbriel';
+import { DEFAULT_VOICE } from '../constants/voiceDefaults.js';
 
 type CharacterUpdateInput = Pick<
   typeof characters.$inferInsert,

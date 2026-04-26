@@ -1,5 +1,6 @@
 import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, check, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { DEFAULT_VOICE } from '../constants/voiceDefaults.js';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -55,7 +56,7 @@ export const characters = pgTable('characters', {
   traits: text('traits'),
   emotions: text('emotions'),
   context: text('context'),
-  voice: text('voice').notNull().default('Umbriel'),
+  voice: text('voice').notNull().default(DEFAULT_VOICE),
   isPublic: boolean('is_public').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

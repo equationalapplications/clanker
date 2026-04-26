@@ -70,6 +70,17 @@ describe('batchInsertCharacters', () => {
     expect(values.at(-1)).toBe('Umbriel')
   })
 
+  it('trims createCharacter voice before insert', async () => {
+    await createCharacter('user-1', {
+      name: 'New Character',
+      is_public: false,
+      voice: '  Kore  ',
+    })
+
+    const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
+    expect(values.at(-1)).toBe('Kore')
+  })
+
   it('defaults updateCharacter voice to Umbriel when null', async () => {
     mockGetFirstAsync
       .mockResolvedValueOnce({ id: 'char-1', user_id: 'user-1' })
@@ -94,5 +105,65 @@ describe('batchInsertCharacters', () => {
 
     const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
     expect(values).toContain('Umbriel')
+  })
+
+  it('trims batchInsertCharacters voice before insert', async () => {
+    const character: LocalCharacter = {
+      id: 'char-1',
+      user_id: 'user-1',
+      name: 'Char',
+      avatar: null,
+      avatar_data: null,
+      avatar_mime_type: null,
+      appearance: null,
+      traits: null,
+      emotions: null,
+      context: null,
+      is_public: 0,
+      created_at: 1,
+      updated_at: 2,
+      synced_to_cloud: 1,
+      save_to_cloud: 1,
+      cloud_id: 'cloud-1',
+      deleted_at: null,
+      summary_checkpoint: 0,
+      owner_user_id: 'user-1',
+      voice: '  Kore  ',
+    }
+
+    await batchInsertCharacters([character])
+
+    const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
+    expect(values.at(-1)).toBe('Kore')
+  })
+
+  it('defaults batchInsertCharacters voice to Umbriel when blank', async () => {
+    const character: LocalCharacter = {
+      id: 'char-1',
+      user_id: 'user-1',
+      name: 'Char',
+      avatar: null,
+      avatar_data: null,
+      avatar_mime_type: null,
+      appearance: null,
+      traits: null,
+      emotions: null,
+      context: null,
+      is_public: 0,
+      created_at: 1,
+      updated_at: 2,
+      synced_to_cloud: 1,
+      save_to_cloud: 1,
+      cloud_id: 'cloud-1',
+      deleted_at: null,
+      summary_checkpoint: 0,
+      owner_user_id: 'user-1',
+      voice: '   ',
+    }
+
+    await batchInsertCharacters([character])
+
+    const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
+    expect(values.at(-1)).toBe('Umbriel')
   })
 })

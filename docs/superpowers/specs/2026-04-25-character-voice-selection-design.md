@@ -17,7 +17,7 @@ Additionally, align the app with the latest [`expo-audio` docs](https://docs.exp
 
 ### Problem
 
-The `Character` TypeScript type and `CharacterSnapshot`/`SyncCharacterPayload` client types already have `voice?: string | null`, but:
+The `Character` TypeScript type and `CharacterSnapshot`/`SyncCharacterPayload` client types already include a voice field shape, but:
 1. The SQLite schema has no `voice` column — values are silently dropped on every save
 2. `CharacterInsert` / `CharacterUpdate` don't include `voice` — the DB layer can't write it
 3. `DEFAULT_CHARACTER_INSERT` in `characterMachine.ts` doesn't set `voice`
@@ -142,7 +142,7 @@ Migration 9 SQL:
 
 ```typescript
 // LocalCharacter (raw SQLite row)
-voice: string | null
+voice: string
 
 // CharacterInsert
 voice?: string | null
@@ -254,10 +254,9 @@ Add `voice: text('voice')` to the `characters` table definition (alongside `cont
 
 ### Cloud function handler (`functions/src/characterFunctions.ts`)
 
-1. Add `voice?: string | null` to `SyncCharacterPayload` type
-2. Parse it: `const voice = parseOptionalTextField(character.voice, 'voice')`  
-   — `parseOptionalTextField` already accepts `'avatar' | 'appearance' | 'traits' | 'emotions' | 'context'`; extend the union to include `'voice'`
-3. Pass to upsert: add `voice` to the `upsertCharacter(...)` call
+1. Include voice in `SyncCharacterPayload` handling
+2. Parse and normalize voice (trim + default when blank)
+3. Pass normalized voice to `upsertCharacter(...)`
 4. `serializeCharacter` spreads the DB row via `...rest` so `voice` flows through automatically once the column exists
 
 ### Cloud character service (`functions/src/services/characterService.ts`)
@@ -287,9 +286,9 @@ const result = await syncCharacterFn({
 })
 ```
 
-**`restoreFromCloud`** — add `voice: cloudChar.voice ?? null` to the `LocalCharacter` mapping inside `.map()`.
+**`restoreFromCloud`** — normalize cloud voice before local write: trim and fallback to `DEFAULT_VOICE` when null/blank.
 
-**`importSharedCharacterFromCloud`** — add `voice: cloudCharacter.voice ?? null` to the `batchInsertCharacters` payload.
+**`importSharedCharacterFromCloud`** — normalize cloud voice before local write: trim and fallback to `DEFAULT_VOICE` when null/blank.
 
 ---
 
@@ -298,7 +297,7 @@ const result = await syncCharacterFn({
 ### State additions
 
 ```typescript
-const [voice, setVoice] = useState<string | null>(null)
+const [voice, setVoice] = useState<string>(DEFAULT_VOICE)
 const [voiceMenuVisible, setVoiceMenuVisible] = useState(false)
 ```
 
@@ -307,14 +306,14 @@ const [voiceMenuVisible, setVoiceMenuVisible] = useState(false)
 In the existing `useEffect` that loads character data:
 
 ```typescript
-setVoice(character.voice ?? null)
+setVoice(character.voice ?? DEFAULT_VOICE)
 ```
 
 ### Dirty-state tracking
 
-Add `voice: voice ?? ''` to both the `canEdit` branch and the fallback shape passed to `useEditDirtyState`.
+Add `voice` to both the `canEdit` branch and the fallback shape passed to `useEditDirtyState`.
 
-Add `voice: character.voice ?? ''` to `loadedValues`.
+Add `voice: character.voice ?? DEFAULT_VOICE` to `loadedValues`.
 
 ### handleSave
 
@@ -346,7 +345,7 @@ Voice dropdown sits below the `context` field and above the cloud save section, 
       onPress={() => canEdit && setVoiceMenuVisible(true)}
       disabled={!canEdit}
     >
-      {voice ? `${voice} — ${styleFor(voice)}` : 'None selected'}
+      {`${voice} — ${styleFor(voice)}`}
     </Button>
   }
 >
@@ -371,8 +370,8 @@ Voice dropdown sits below the `context` field and above the cloud save section, 
 Add to existing test file:
 
 1. **Voice selector renders** — when character has `voice: 'Umbriel'`, the anchor button label contains `'Umbriel'`
-2. **Voice selector shows "None selected"** — when character has `voice: null`
-3. **Selecting a voice calls update with correct value** — simulate `Menu.Item` press, verify `mockUpdate` called with `voice: 'Kore'`
+2. **Voice selector defaults to Umbriel when missing** — when character voice is absent, the anchor label shows `'Umbriel'`
+3. **Selecting a voice calls update with normalized value** — simulate `Menu.Item` press, verify `mockUpdate` called with trimmed voice name
 
 The `Menu` mock in `react-native-paper` mock needs `Menu`, `Menu.Item` added (currently missing).
 
@@ -384,7 +383,7 @@ Add assertion that `DEFAULT_CHARACTER_INSERT` (or the character created by `crea
 
 ## Error Handling
 
-No new error cases. The `voice` field is optional — if a user clears it (selects nothing), it saves as `null` and the existing `useVoiceChat` alert handles the empty-voice scenario at talk time.
+No new error cases. Characters always persist a normalized non-empty voice value. Input is trimmed and defaults to `DEFAULT_VOICE` when null/blank, so talk flows no longer depend on a runtime missing-voice fallback.
 
 ---
 

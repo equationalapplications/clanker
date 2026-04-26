@@ -7,6 +7,15 @@ import { getDatabase } from './index'
 import { DEFAULT_VOICE } from '~/constants/geminiVoices'
 import { sanitizeImageMimeType } from '~/utilities/imageMimeType'
 
+function normalizeVoice(voice: string | null | undefined): string {
+    if (typeof voice !== 'string') {
+        return DEFAULT_VOICE
+    }
+
+    const trimmedVoice = voice.trim()
+    return trimmedVoice.length > 0 ? trimmedVoice : DEFAULT_VOICE
+}
+
 export interface LocalCharacter {
     id: string
     user_id: string
@@ -149,9 +158,7 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
             null, // not deleted
             0, // no summarized messages yet
             userId,
-            typeof data.voice === 'string' && data.voice.trim().length > 0
-                ? data.voice
-                : DEFAULT_VOICE,
+            normalizeVoice(data.voice),
         ],
     )
 
@@ -415,7 +422,7 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
                     char.deleted_at ?? null,
                     char.summary_checkpoint ?? 0,
                     char.owner_user_id || char.user_id,
-                    char.voice ?? DEFAULT_VOICE,
+                    normalizeVoice(char.voice),
                 ],
             )
         }
