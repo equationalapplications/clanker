@@ -39,6 +39,22 @@ test('buildCharacterUpdateValues includes isPublic when field is provided', () =
   assert.equal((result as { isPublic?: boolean }).isPublic, true);
 });
 
+test('buildCharacterUpdateValues omits undefined voice', () => {
+  const result = buildCharacterUpdateValues({
+    name: 'Updated',
+    avatar: null,
+    appearance: null,
+    traits: null,
+    emotions: null,
+    context: null,
+    voice: undefined,
+    isPublic: undefined,
+    updatedAt: undefined,
+  });
+
+  assert.equal('voice' in result, false);
+});
+
 test('upsertCharacter rejects writing over a character owned by another user', async () => {
   let conflictTarget: unknown;
   let conflictWhere: unknown;

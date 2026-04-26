@@ -1,6 +1,6 @@
 import { useSelector } from '@xstate/react'
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition'
-import { createAudioPlayer, requestRecordingPermissionsAsync } from 'expo-audio'
+import { createAudioPlayer, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio'
 import * as FileSystem from 'expo-file-system/legacy'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -71,6 +71,18 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
   const tempPathRef = useRef<string | null>(null)
 
   const canUseNativeVoice = Platform.OS !== 'web'
+
+  useEffect(() => {
+    if (!canUseNativeVoice) return
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      allowsRecording: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'mixWithOthers',
+    }).catch((err) => {
+      console.warn('[useVoiceChat] setAudioModeAsync failed', err)
+    })
+  }, [canUseNativeVoice])
 
   const clearListenTimer = useCallback(() => {
     if (!timerRef.current) {

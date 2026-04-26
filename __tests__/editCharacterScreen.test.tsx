@@ -51,6 +51,14 @@ jest.mock('react-native-paper', () => {
     Portal: ({ children }: any) => React.createElement('Portal', null, children),
     Modal: ({ visible, children }: any) =>
       visible ? React.createElement('Modal', null, children) : null,
+    Menu: Object.assign(
+      ({ visible, children, anchor }: any) =>
+        React.createElement('Menu', { visible }, anchor, visible ? children : null),
+      {
+        Item: ({ title, onPress }: any) =>
+          React.createElement('MenuItem', { onPress }, title),
+      },
+    ),
     useTheme: () => ({ colors: { surface: '#fff' } }),
     ActivityIndicator: () => null,
   }
@@ -284,5 +292,94 @@ describe('EditCharacterScreen - non-owner read-only', () => {
     inputs.forEach((input) => {
       expect(input.props.editable).toBe(false)
     })
+  })
+})
+
+describe('EditCharacterScreen - voice selector', () => {
+  it('shows voice name in anchor button when character has a voice', () => {
+    const character = makeCharacter({ voice: 'Umbriel' })
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
+    const voiceButton = buttons.find((b) =>
+      typeof b.props.children === 'string' && b.props.children.includes('Umbriel'),
+    )
+    expect(voiceButton).toBeDefined()
+  })
+
+  it('falls back to voice name when style is missing', () => {
+    const character = makeCharacter({ voice: 'FutureVoice' })
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
+    const voiceButton = buttons.find((b) => b.props.children === 'FutureVoice')
+    expect(voiceButton).toBeDefined()
+  })
+
+  it('falls back to default voice when character voice is null', () => {
+    const character = makeCharacter({ voice: null })
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
+    const defaultVoiceButton = buttons.find((b) =>
+      typeof b.props.children === 'string' && b.props.children.includes('Umbriel'),
+    )
+    expect(defaultVoiceButton).toBeDefined()
+  })
+
+  it('selecting a voice calls update with correct voice value', () => {
+    const character = makeCharacter({ voice: 'Umbriel' })
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    // Open the menu
+    const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
+    const voiceButton = buttons.find((b) =>
+      typeof b.props.children === 'string' && b.props.children.includes('Umbriel'),
+    )
+    act(() => {
+      voiceButton!.props.onPress()
+    })
+
+    // Press the Kore menu item
+    const menuItems = tree.root.findAll((node) => String(node.type) === 'MenuItem')
+    const koreItem = menuItems.find((item) =>
+      typeof item.props.children === 'string' && item.props.children.includes('Kore'),
+    )
+    act(() => {
+      koreItem!.props.onPress()
+    })
+
+    // Save
+    const saveButton = tree.root
+      .findAll((node) => String(node.type) === 'Button')
+      .find((b) => b.props.children === 'Save Changes')
+    act(() => {
+      saveButton!.props.onPress()
+    })
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      'char-1',
+      expect.objectContaining({ voice: 'Kore' }),
+    )
   })
 })

@@ -9,6 +9,7 @@ const mockSendVoiceMessage = jest.fn()
 const mockRouterPush = jest.fn()
 const mockRequestPermissionsAsync = jest.fn()
 const mockRequestRecordingPermissionsAsync = jest.fn()
+const mockSetAudioModeAsync = jest.fn()
 const mockStart = jest.fn()
 const mockStop = jest.fn()
 const mockWriteAsStringAsync = jest.fn()
@@ -90,6 +91,7 @@ jest.mock('expo-audio', () => ({
   }),
   requestRecordingPermissionsAsync: (...args: unknown[]) =>
     mockRequestRecordingPermissionsAsync(...args),
+  setAudioModeAsync: (...args: unknown[]) => mockSetAudioModeAsync(...args),
 }))
 
 jest.mock('react-native-reanimated', () => ({
@@ -147,6 +149,7 @@ describe('useVoiceChat', () => {
     mockWriteAsStringAsync.mockResolvedValue(undefined)
     mockDeleteAsync.mockResolvedValue(undefined)
     mockPlay.mockResolvedValue(undefined)
+    mockSetAudioModeAsync.mockResolvedValue(undefined)
     mockAddListener.mockImplementation((_event: string, callback: (status: any) => void) => {
       callback({ didJustFinish: true })
       return { remove: jest.fn() }
@@ -435,5 +438,16 @@ describe('useVoiceChat', () => {
 
     expect(getHookValue().voiceState).toBe('error')
     expect(mockDeleteAsync).toHaveBeenCalled()
+  })
+
+  it('calls setAudioModeAsync on mount with expected mode', () => {
+    mockSetAudioModeAsync.mockResolvedValue(undefined)
+    renderHook()
+    expect(mockSetAudioModeAsync).toHaveBeenCalledWith({
+      playsInSilentMode: true,
+      allowsRecording: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'mixWithOthers',
+    })
   })
 })

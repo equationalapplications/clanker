@@ -10,6 +10,7 @@ import {
   Snackbar,
   Portal,
   Modal,
+  Menu,
   useTheme,
 } from 'react-native-paper'
 import { useState, useEffect, useMemo, useRef } from 'react'
@@ -27,6 +28,7 @@ import {
   buildCharacterShareUrl,
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
+import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -50,6 +52,8 @@ export default function EditCharacterScreen() {
   const [traits, setTraits] = useState('')
   const [emotions, setEmotions] = useState('')
   const [context, setContext] = useState('')
+  const [voice, setVoice] = useState<string>(DEFAULT_VOICE)
+  const [voiceMenuVisible, setVoiceMenuVisible] = useState(false)
   const [saveToCloud, setSaveToCloud] = useState(false)
   const [isCharacterShareable, setIsCharacterShareable] = useState(false)
   const [avatarUri, setAvatarUri] = useState<string | null>(null)
@@ -73,6 +77,7 @@ export default function EditCharacterScreen() {
       traits: character.traits || '',
       emotions: character.emotions || '',
       context: character.context || '',
+      voice: character.voice ?? DEFAULT_VOICE,
       saveToCloud: character.save_to_cloud ? 'true' : 'false',
       isShareable: character.is_public ? 'true' : 'false',
     }
@@ -95,6 +100,7 @@ export default function EditCharacterScreen() {
           traits,
           emotions,
           context,
+          voice,
           saveToCloud: saveToCloud ? 'true' : 'false',
           isShareable: isCharacterShareable ? 'true' : 'false',
         }
@@ -104,6 +110,7 @@ export default function EditCharacterScreen() {
           traits: '',
           emotions: '',
           context: '',
+          voice: DEFAULT_VOICE,
           saveToCloud: 'false',
           isShareable: 'false',
         },
@@ -120,6 +127,7 @@ export default function EditCharacterScreen() {
       setContext(character.context || '')
       setSaveToCloud(character.save_to_cloud ?? false)
       setIsCharacterShareable(character.is_public || false)
+      setVoice(character.voice ?? DEFAULT_VOICE)
       setAvatarUri(character.avatar ?? null)
     }
   }, [character])
@@ -181,6 +189,7 @@ export default function EditCharacterScreen() {
       context,
       save_to_cloud: saveToCloud,
       is_public: saveToCloud ? isCharacterShareable : false,
+      voice,
     })
   }
 
@@ -398,6 +407,38 @@ export default function EditCharacterScreen() {
             editable={canEdit}
           />
 
+          <Divider style={styles.voiceDivider} />
+
+          <Text variant="labelLarge" style={styles.voiceLabel}>Voice</Text>
+          <Menu
+            visible={voiceMenuVisible}
+            onDismiss={() => setVoiceMenuVisible(false)}
+            anchor={
+              <Button
+                mode="outlined"
+                onPress={() => canEdit && setVoiceMenuVisible(true)}
+                disabled={!canEdit}
+                style={styles.voiceButton}
+              >
+                {(() => {
+                  const style = GEMINI_VOICES.find((v) => v.name === voice)?.style
+                  return style ? `${voice} — ${style}` : voice
+                })()}
+              </Button>
+            }
+          >
+            {GEMINI_VOICES.map((v) => (
+              <Menu.Item
+                key={v.name}
+                title={`${v.name} — ${v.style}`}
+                onPress={() => {
+                  setVoice(v.name)
+                  setVoiceMenuVisible(false)
+                }}
+              />
+            ))}
+          </Menu>
+
           <View style={styles.toggleRow}>
             <View style={styles.toggleTextContainer}>
               <Text variant="titleMedium">Save to Cloud</Text>
@@ -550,6 +591,16 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 16,
+  },
+  voiceDivider: {
+    marginBottom: 16,
+  },
+  voiceLabel: {
+    marginBottom: 8,
+  },
+  voiceButton: {
+    marginBottom: 16,
+    alignSelf: 'stretch',
   },
   divider: {
     marginVertical: 20,

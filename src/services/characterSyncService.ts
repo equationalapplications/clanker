@@ -11,6 +11,7 @@
  */
 
 import { Storage } from '~/utilities/kvStorage'
+import { normalizeVoice } from '~/constants/voiceDefaults'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn } from './apiClient'
@@ -132,6 +133,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     deleted_at: null as number | null,
                     summary_checkpoint: 0,
                     owner_user_id: localUserId,
+                    voice: normalizeVoice(cloudChar.voice),
                 }
             })
             .filter((c: LocalCharacter) => {
@@ -165,6 +167,7 @@ async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
                     traits: char.traits,
                     emotions: char.emotions,
                     context: char.context,
+                    voice: char.voice,
                     isPublic: Boolean(char.is_public),
                     createdAt: new Date(char.created_at).toISOString(),
                     updatedAt: new Date(char.updated_at).toISOString(),
@@ -222,6 +225,7 @@ export async function importSharedCharacterFromCloud(
             deleted_at: null,
             summary_checkpoint: 0,
             owner_user_id: cloudCharacter.ownerUserId || localUserId,
+            voice: normalizeVoice(cloudCharacter.voice),
         },
     ])
 
