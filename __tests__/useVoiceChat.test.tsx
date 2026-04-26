@@ -334,7 +334,8 @@ describe('useVoiceChat', () => {
     })
 
     expect(mockSendVoiceMessage).not.toHaveBeenCalled()
-    expect(getHookValue().voiceState).toBe('idle')
+    expect(getHookValue().voiceState).toBe('error')
+    expect(getHookValue().error).toContain("Didn't catch that")
   })
 
   it('stops recognition when MAX_LISTEN_MS timer fires', async () => {

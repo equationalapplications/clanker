@@ -131,7 +131,17 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
   const processTranscript = useCallback(async () => {
     const currentText = (finalTranscriptionRef.current || transcriptionRef.current).trim()
 
-    if (!currentText || !character || !currentUser?.uid) {
+    if (!currentText) {
+      setTranscription('')
+      if (character && currentUser?.uid) {
+        await fail("Didn't catch that. Tap the mic and try again.")
+      } else {
+        goIdle()
+      }
+      return
+    }
+
+    if (!character || !currentUser?.uid) {
       setTranscription('')
       goIdle()
       return
@@ -201,6 +211,14 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       await fail(errorMessage)
     }
   }, [character, cleanupPlayback, currentUser?.uid, fail, goIdle, messages])
+
+  useSpeechRecognitionEvent('nomatch', () => {
+    if (!recognitionActiveRef.current || cancelledRef.current || !isMountedRef.current) {
+      return
+    }
+    finalTranscriptionRef.current = ''
+    transcriptionRef.current = ''
+  })
 
   useSpeechRecognitionEvent('result', (payload) => {
     if (!recognitionActiveRef.current || cancelledRef.current || !isMountedRef.current) {
