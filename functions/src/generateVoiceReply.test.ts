@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {HttpsError} from "firebase-functions/v2/https";
 
-import {generateVoiceReplyHandler} from "./generateVoiceReply.js";
+import {
+  generateVoiceReplyHandler,
+  testIsRawPcmMimeType,
+  testBuildWavHeader,
+  testWrapPcmAsWav,
+} from "./generateVoiceReply.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
@@ -398,4 +403,120 @@ test("generateVoiceReplyHandler works with raw PCM from synthesizeSpeech mock", 
     assert.ok(result.audioBase64.length > 0, "audioBase64 should be non-empty");
     assert.ok(result.replyText.length > 0, "replyText should be non-empty");
   });
+});
+
+test("isRawPcmMimeType detects raw PCM formats", async () => {
+  // Should detect audio/L16 variants
+  assert.equal(testIsRawPcmMimeType("audio/L16"), true);
+  assert.equal(testIsRawPcmMimeType("audio/L16;codec=pcm;rate=24000"), true);
+  assert.equal(testIsRawPcmMimeType("AUDIO/L16"), true);
+  assert.equal(testIsRawPcmMimeType("Audio/L16;codec=pcm"), true);
+
+  // Should detect audio/pcm variants
+  assert.equal(testIsRawPcmMimeType("audio/pcm"), true);
+  assert.equal(testIsRawPcmMimeType("AUDIO/PCM"), true);
+  assert.equal(testIsRawPcmMimeType("audio/pcm;rate=48000"), true);
+
+  // Should not detect other formats
+  assert.equal(testIsRawPcmMimeType("audio/wav"), false);
+  assert.equal(testIsRawPcmMimeType("audio/mpeg"), false);
+  assert.equal(testIsRawPcmMimeType("audio/mp3"), false);
+  assert.equal(testIsRawPcmMimeType("audio/ogg"), false);
+});
+
+test("buildWavHeader generates valid RIFF WAV header", async () => {
+  const pcmByteLength = 1000;
+  const sampleRate = 24000;
+  const numChannels = 1;
+  const bitsPerSample = 16;
+
+  const header = testBuildWavHeader(pcmByteLength, sampleRate, numChannels, bitsPerSample);
+
+  // Header must be exactly 44 bytes
+  assert.equal(header.length, 44, "WAV header must be 44 bytes");
+
+  // Verify RIFF header signature
+  assert.equal(header.toString("ascii", 0, 4), "RIFF", "Bytes 0-3 should be RIFF");
+
+  // Verify file size field (36 + pcmByteLength)
+  const fileSizeField = header.readUInt32LE(4);
+  assert.equal(fileSizeField, 36 + pcmByteLength, "File size field should match PCM length + 36");
+
+  // Verify WAVE marker
+  assert.equal(header.toString("ascii", 8, 12), "WAVE", "Bytes 8-11 should be WAVE");
+
+  // Verify fmt subchunk
+  assert.equal(header.toString("ascii", 12, 16), "fmt ", "Bytes 12-15 should be 'fmt '");
+  assert.equal(header.readUInt32LE(16), 16, "Subchunk1Size should be 16 for PCM");
+  assert.equal(header.readUInt16LE(20), 1, "Audio format should be 1 (PCM)");
+
+  // Verify channel count
+  assert.equal(header.readUInt16LE(22), numChannels, "NumChannels should match input");
+
+  // Verify sample rate
+  assert.equal(header.readUInt32LE(24), sampleRate, "SampleRate should match input");
+
+  // Verify byte rate (SampleRate * NumChannels * BitsPerSample/8)
+  const expectedByteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  assert.equal(header.readUInt32LE(28), expectedByteRate, "ByteRate calculation incorrect");
+
+  // Verify block align (NumChannels * BitsPerSample/8)
+  const expectedBlockAlign = (numChannels * bitsPerSample) / 8;
+  assert.equal(header.readUInt16LE(32), expectedBlockAlign, "BlockAlign calculation incorrect");
+
+  // Verify bits per sample
+  assert.equal(header.readUInt16LE(34), bitsPerSample, "BitsPerSample should match input");
+
+  // Verify data chunk marker
+  assert.equal(header.toString("ascii", 36, 40), "data", "Bytes 36-39 should be 'data'");
+
+  // Verify data chunk size
+  assert.equal(header.readUInt32LE(40), pcmByteLength, "Data chunk size should match PCM length");
+});
+
+test("wrapPcmAsWav produces valid WAV container", async () => {
+  // Create test PCM data (100 bytes of silence)
+  const pcmBuffer = Buffer.alloc(100);
+  const pcmBase64 = pcmBuffer.toString("base64");
+  const mimeType = "audio/L16;codec=pcm;rate=24000;channels=1;bits=16";
+
+  const wrappedBase64 = testWrapPcmAsWav(pcmBase64, mimeType);
+  const wrappedBuffer = Buffer.from(wrappedBase64, "base64");
+
+  // Wrapped buffer should be 44 bytes header + 100 bytes PCM = 144 bytes
+  assert.equal(wrappedBuffer.length, 144, "Wrapped audio should be 44 (header) + 100 (PCM) = 144 bytes");
+
+  // Verify WAV header structure
+  assert.equal(wrappedBuffer.toString("ascii", 0, 4), "RIFF", "Should start with RIFF");
+  assert.equal(wrappedBuffer.toString("ascii", 8, 12), "WAVE", "Should contain WAVE marker");
+  assert.equal(wrappedBuffer.toString("ascii", 36, 40), "data", "Should contain data chunk marker");
+
+  // Verify file size in header matches actual size
+  const fileSizeField = wrappedBuffer.readUInt32LE(4);
+  assert.equal(fileSizeField, 36 + 100, "File size field should be 36 + PCM size");
+
+  // Verify data chunk size matches PCM length
+  const dataSizeField = wrappedBuffer.readUInt32LE(40);
+  assert.equal(dataSizeField, 100, "Data chunk size should match PCM length");
+});
+
+test("wrapPcmAsWav handles missing MIME parameters with defaults", async () => {
+  const pcmBuffer = Buffer.alloc(50);
+  const pcmBase64 = pcmBuffer.toString("base64");
+
+  // MIME type with no parameters - should use defaults
+  const wrappedBase64 = testWrapPcmAsWav(pcmBase64, "audio/L16");
+  const wrappedBuffer = Buffer.from(wrappedBase64, "base64");
+
+  // Should still produce valid WAV
+  assert.equal(wrappedBuffer.toString("ascii", 0, 4), "RIFF", "Should be valid WAV");
+
+  // Verify default sample rate (24000)
+  assert.equal(wrappedBuffer.readUInt32LE(24), 24000, "Should use default sample rate of 24000");
+
+  // Verify default channels (1)
+  assert.equal(wrappedBuffer.readUInt16LE(22), 1, "Should use default channels of 1");
+
+  // Verify default bits per sample (16)
+  assert.equal(wrappedBuffer.readUInt16LE(34), 16, "Should use default bits per sample of 16");
 });
