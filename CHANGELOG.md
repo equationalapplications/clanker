@@ -1,3 +1,30 @@
+# [29.0.0](https://github.com/equationalapplications/clanker/compare/v28.8.0...v29.0.0) (2026-04-26)
+
+
+### Bug Fixes
+
+* **schema:** include voice in base table ([13ce108](https://github.com/equationalapplications/clanker/commit/13ce10803f57bc586af786e725ffa9d8d9add376))
+* **voice:** centralize app default voice constant ([1cd0380](https://github.com/equationalapplications/clanker/commit/1cd0380afade152128bc5346f12c4b2a8b30cb4e))
+* **voice:** centralize functions default and trim normalization ([c3c3f31](https://github.com/equationalapplications/clanker/commit/c3c3f312f6a2ae8441a77a82b167ff35a62a2382))
+* **voice:** default and backfill voice values ([22cf463](https://github.com/equationalapplications/clanker/commit/22cf463dea9e2b72ab50383f5938e8428f394a7e))
+* **voice:** enforce default and sync persist ([02a4dcc](https://github.com/equationalapplications/clanker/commit/02a4dcc140cd3298fc6b88593650eb904dc71ab6))
+* **voice:** enforce non-null voice writes ([f4b159f](https://github.com/equationalapplications/clanker/commit/f4b159f0b5f60310278441eceff4686cc2d4d764))
+* **voice:** migration guard and sync type safety ([d773543](https://github.com/equationalapplications/clanker/commit/d773543114041e7c4f7a33f7c7005d0223428778)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
+* **voice:** normalize whitespace across all layers ([0bacb51](https://github.com/equationalapplications/clanker/commit/0bacb5188a9f0108381383f0863219e5727cb03c)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
+* **voice:** preserve omitted voice and normalize blanks ([e9ea574](https://github.com/equationalapplications/clanker/commit/e9ea5743beb1318aad3215f77d82e7f79086f3d9)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
+* **voice:** split migration 9 backfill, trim whitespace in SQLite and Postgres ([7584773](https://github.com/equationalapplications/clanker/commit/7584773a7e0c27d8b17bdc504740c96fecd4dc5f))
+
+
+### Features
+
+* **voice:** persist character voice end-to-end ([feca2db](https://github.com/equationalapplications/clanker/commit/feca2db373cfde69031bb3cf15c98ac742740bf9))
+
+
+### BREAKING CHANGES
+
+* **voice:** app.config.ts now includes expo-audio plugin.
+Native build required. Cannot OTA.
+
 # [28.8.0](https://github.com/equationalapplications/clanker/compare/v28.7.1...v28.8.0) (2026-04-25)
 
 
