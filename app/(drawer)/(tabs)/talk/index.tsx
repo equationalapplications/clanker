@@ -1,5 +1,5 @@
 import { Stack, router, useFocusEffect } from 'expo-router'
-import React, { useCallback, useEffect } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Text } from 'react-native-paper'
@@ -51,12 +51,21 @@ function TalkView({ characterId }: { characterId: string }) {
     transform: [{ scale: glowScale.value }],
   }))
 
+  // Keep latest `cancel` in a ref so the focus effect cleanup runs only on
+  // blur/unmount, not every time `cancel` identity changes (which happens on
+  // every voiceState change and would otherwise cancel the in-flight session
+  // immediately after `startListening`).
+  const cancelRef = useRef(cancel)
+  useEffect(() => {
+    cancelRef.current = cancel
+  }, [cancel])
+
   useFocusEffect(
     useCallback(() => {
       return () => {
-        cancel()
+        cancelRef.current()
       }
-    }, [cancel]),
+    }, []),
   )
 
   if (!character) {

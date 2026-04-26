@@ -66,6 +66,7 @@ jest.mock('~/hooks/useMessages', () => ({
 
 jest.mock('expo-speech-recognition', () => ({
   ExpoSpeechRecognitionModule: {
+    isRecognitionAvailable: jest.fn().mockReturnValue(true),
     requestPermissionsAsync: (...args: unknown[]) => mockRequestPermissionsAsync(...args),
     start: (...args: unknown[]) => mockStart(...args),
     stop: (...args: unknown[]) => mockStop(...args),
