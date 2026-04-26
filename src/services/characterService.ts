@@ -6,7 +6,7 @@
  */
 
 import { getCurrentUser } from '~/config/firebaseConfig'
-import { DEFAULT_VOICE } from '~/constants/geminiVoices'
+import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 import * as characterDB from '../database/characterDatabase'
 import type { CharacterInsert, CharacterUpdate } from '../database/characterDatabase'
 import { loadDefaultAvatarBase64 } from './defaultAvatarService'

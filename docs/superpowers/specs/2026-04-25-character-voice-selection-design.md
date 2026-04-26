@@ -29,7 +29,7 @@ The `Character` TypeScript type and `CharacterSnapshot`/`SyncCharacterPayload` c
 
 ### Approach
 
-Add `voice` to the SQLite schema via a standard migration (v8 → v9), wire it through all data-layer types and functions, propagate it through the entire cloud sync pipeline (Drizzle schema, cloud function handler, sync service), patch both default-character creation paths, and add the picker UI. Register the `expo-audio` config plugin in `app.config.ts` and call `setAudioModeAsync` once on `useVoiceChat` mount. **Adding the config plugin is a native config change and requires a new build (no OTA).**
+Add `voice` to the SQLite schema via migrations v8→v9 (add column) and v9→v10 (backfill), wire it through all data-layer types and functions, propagate it through the entire cloud sync pipeline (Drizzle schema, cloud function handler, sync service), patch both default-character creation paths, and add the picker UI. Register the `expo-audio` config plugin in `app.config.ts` and call `setAudioModeAsync` once on `useVoiceChat` mount. **Adding the config plugin is a native config change and requires a new build (no OTA).**
 
 ### New Files
 
@@ -42,7 +42,7 @@ Add `voice` to the SQLite schema via a standard migration (v8 → v9), wire it t
 
 | File | Change |
 |---|---|
-| `src/database/schema.ts` | Bump `SCHEMA_VERSION` to 9; add `voice` to `LATEST_SCHEMA_REQUIRED_COLUMNS`; add migration 9 skip guard; add `ALTER TABLE characters ADD COLUMN voice TEXT` migration |
+| `src/database/schema.ts` | Bump `SCHEMA_VERSION` to 10; add `voice` to `LATEST_SCHEMA_REQUIRED_COLUMNS`; add migration 9 skip guard (ADD COLUMN) and migration 10 backfill |
 | `src/database/characterDatabase.ts` | Add `voice` to `LocalCharacter`, `CharacterInsert`, `CharacterUpdate`, `toAppFormat()`, `createCharacter()` INSERT, and `updateCharacter()` SET builder |
 | `src/machines/characterMachine.ts` | Add `voice: 'Umbriel'` to `DEFAULT_CHARACTER_INSERT` |
 | `src/services/characterService.ts` | Add `voice: 'Umbriel'` to the `createCharacter()` call inside `createNewCharacter()` |
@@ -128,14 +128,17 @@ No changes to the existing `requestRecordingPermissionsAsync()` call in `startLi
 ### Schema Migration
 
 ```
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 LATEST_SCHEMA_REQUIRED_COLUMNS.characters += 'voice'
 
 MIGRATION_SKIP_GUARDS[9] = { table: 'characters', column: 'voice' }
 
-Migration 9 SQL:
-  ALTER TABLE characters ADD COLUMN voice TEXT
+Migration 9 SQL (guarded — skipped if voice column already exists):
+  ALTER TABLE characters ADD COLUMN voice TEXT NOT NULL DEFAULT 'Umbriel'
+
+Migration 10 SQL (unguarded — always runs as a data-fix):
+  UPDATE characters SET voice = 'Umbriel' WHERE voice IS NULL OR voice = ''
 ```
 
 ### Type Changes (`characterDatabase.ts`)
@@ -245,7 +248,9 @@ Voice must round-trip through the entire sync pipeline without being dropped.
 ### Postgres migration (`functions/drizzle/0003_character_voice.sql`)
 
 ```sql
-ALTER TABLE "characters" ADD COLUMN "voice" text;
+ALTER TABLE "characters" ADD COLUMN "voice" text DEFAULT 'Umbriel';
+UPDATE "characters" SET "voice" = 'Umbriel' WHERE "voice" IS NULL OR "voice" = '';
+ALTER TABLE "characters" ALTER COLUMN "voice" SET NOT NULL;
 ```
 
 ### Drizzle schema (`functions/src/db/schema.ts`)

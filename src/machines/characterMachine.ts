@@ -15,7 +15,7 @@ import {
   restoreFromCloud,
   removeCharacterFromCloud,
 } from '~/services/characterSyncService'
-import { DEFAULT_VOICE } from '~/constants/geminiVoices'
+import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 import { loadDefaultAvatarBase64 } from '~/services/defaultAvatarService'
 
 // Events

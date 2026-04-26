@@ -11,9 +11,9 @@ type CharacterUpdateInput = Pick<
 export function buildCharacterUpdateValues(character: CharacterUpdateInput) {
   const normalizedVoice = character.voice == null
     ? undefined
-    : character.voice.trim() === ''
+    : character.voice === ''
       ? DEFAULT_VOICE
-      : character.voice.trim();
+      : character.voice;
 
   const updateValues = {
     name: character.name,

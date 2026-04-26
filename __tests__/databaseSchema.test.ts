@@ -15,8 +15,8 @@ describe('database schema migration guards', () => {
     expect(MIGRATIONS[9]).not.toContain('UPDATE')
   })
 
-  it('backfills voice with TRIM in migration 10', () => {
+  it('backfills voice in migration 10', () => {
     expect(MIGRATIONS[10]).toContain("UPDATE characters SET voice = 'Umbriel'")
-    expect(MIGRATIONS[10]).toContain("TRIM(voice) = ''")
+    expect(MIGRATIONS[10]).toContain("voice = ''")
   })
 })

@@ -55,22 +55,6 @@ test('buildCharacterUpdateValues omits undefined voice', () => {
   assert.equal('voice' in result, false);
 });
 
-test('buildCharacterUpdateValues normalizes whitespace voice to DEFAULT_VOICE', () => {
-  const result = buildCharacterUpdateValues({
-    name: 'Updated',
-    avatar: null,
-    appearance: null,
-    traits: null,
-    emotions: null,
-    context: null,
-    voice: '   ',
-    isPublic: undefined,
-    updatedAt: undefined,
-  });
-
-  assert.equal((result as { voice?: string }).voice, 'Umbriel');
-});
-
 test('upsertCharacter rejects writing over a character owned by another user', async () => {
   let conflictTarget: unknown;
   let conflictWhere: unknown;
