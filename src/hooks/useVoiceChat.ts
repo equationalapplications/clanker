@@ -1,7 +1,7 @@
 import { useSelector } from '@xstate/react'
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition'
 import { createAudioPlayer, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio'
-import * as FileSystem from 'expo-file-system/legacy'
+import { File, Paths } from 'expo-file-system'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Platform } from 'react-native'
@@ -68,7 +68,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
   const finalTranscriptionRef = useRef('')
   const playerRef = useRef<ReturnType<typeof createAudioPlayer> | null>(null)
   const playerSubRef = useRef<{ remove: () => void } | null>(null)
-  const tempPathRef = useRef<string | null>(null)
+  const tempFileRef = useRef<File | null>(null)
 
   const canUseNativeVoice = Platform.OS !== 'web'
 
@@ -102,10 +102,12 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
         playerRef.current = null
       }
 
-      if (tempPathRef.current) {
-        const path = tempPathRef.current
-        tempPathRef.current = null
-        await FileSystem.deleteAsync(path, { idempotent: true })
+      if (tempFileRef.current) {
+        const file = tempFileRef.current
+        tempFileRef.current = null
+        if (file.exists) {
+          file.delete()
+        }
       }
     } catch (error) {
       console.warn('Failed to clean up playback resources', error)
@@ -151,26 +153,34 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       setReplyText(response.replyText)
       setVoiceState('playing')
 
-      const MIME_TO_EXT: Record<string, string> = {
-        'audio/wav': 'wav',
-        'audio/x-wav': 'wav',
-        'audio/mpeg': 'mp3',
-        'audio/mp3': 'mp3',
-        'audio/ogg': 'ogg',
-        'audio/mp4': 'm4a',
-        'audio/aac': 'aac',
-        'audio/webm': 'webm',
-        'audio/flac': 'flac',
+      let playerUri: string
+      if (Platform.OS === 'web') {
+        playerUri = `data:${response.audioMimeType};base64,${response.audioBase64}`
+      } else {
+        const MIME_TO_EXT: Record<string, string> = {
+          'audio/wav': 'wav',
+          'audio/x-wav': 'wav',
+          'audio/mpeg': 'mp3',
+          'audio/mp3': 'mp3',
+          'audio/ogg': 'ogg',
+          'audio/mp4': 'm4a',
+          'audio/aac': 'aac',
+          'audio/webm': 'webm',
+          'audio/flac': 'flac',
+        }
+        const ext = MIME_TO_EXT[response.audioMimeType] ?? 'wav'
+        const file = new File(Paths.cache, `voice-reply-${Date.now()}.${ext}`)
+        const binaryString = atob(response.audioBase64)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        file.write(bytes)
+        tempFileRef.current = file
+        playerUri = file.uri
       }
-      const ext = MIME_TO_EXT[response.audioMimeType] ?? 'wav'
-      const path = `${FileSystem.cacheDirectory}voice-reply-${Date.now()}.${ext}`
-      tempPathRef.current = path
 
-      await FileSystem.writeAsStringAsync(path, response.audioBase64, {
-        encoding: FileSystem.EncodingType.Base64,
-      })
-
-      const player = createAudioPlayer({ uri: path })
+      const player = createAudioPlayer({ uri: playerUri })
       playerRef.current = player
       playerSubRef.current = player.addListener('playbackStatusUpdate', (status) => {
         if (status?.didJustFinish) {
@@ -260,12 +270,6 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       return
     }
 
-    if (!canUseNativeVoice) {
-      setError('Voice is available on iOS and Android in native builds only.')
-      setVoiceState('error')
-      return
-    }
-
     if (!character) {
       return
     }
@@ -301,14 +305,23 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
     }
 
     try {
-      const [sttPermission, audioPermission] = await Promise.all([
-        ExpoSpeechRecognitionModule.requestPermissionsAsync(),
-        requestRecordingPermissionsAsync(),
-      ])
-      if (!sttPermission.granted || !audioPermission.granted) {
-        setError('Microphone permission required. Enable it in Settings.')
-        setVoiceState('error')
-        return
+      if (canUseNativeVoice) {
+        const [sttPermission, audioPermission] = await Promise.all([
+          ExpoSpeechRecognitionModule.requestPermissionsAsync(),
+          requestRecordingPermissionsAsync(),
+        ])
+        if (!sttPermission.granted || !audioPermission.granted) {
+          setError('Microphone permission required. Enable it in Settings.')
+          setVoiceState('error')
+          return
+        }
+      } else {
+        const sttPermission = await ExpoSpeechRecognitionModule.requestPermissionsAsync()
+        if (!sttPermission.granted) {
+          setError('Microphone permission required. Allow it in your browser.')
+          setVoiceState('error')
+          return
+        }
       }
 
       setVoiceState('listening')
