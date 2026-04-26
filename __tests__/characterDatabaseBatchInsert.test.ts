@@ -9,7 +9,7 @@ jest.mock('../src/database/index', () => ({
   })),
 }))
 
-import { batchInsertCharacters, createCharacter, type LocalCharacter } from '../src/database/characterDatabase'
+import { batchInsertCharacters, createCharacter, updateCharacter, type LocalCharacter } from '../src/database/characterDatabase'
 
 describe('batchInsertCharacters', () => {
   beforeEach(() => {
@@ -57,5 +57,18 @@ describe('batchInsertCharacters', () => {
 
     const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
     expect(values.at(-1)).toBe('Umbriel')
+  })
+
+  it('defaults updateCharacter voice to Umbriel when null', async () => {
+    mockGetFirstAsync
+      .mockResolvedValueOnce({ id: 'char-1', user_id: 'user-1' })
+      .mockResolvedValueOnce(null)
+
+    await updateCharacter('char-1', 'user-1', {
+      voice: null,
+    })
+
+    const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
+    expect(values).toContain('Umbriel')
   })
 })

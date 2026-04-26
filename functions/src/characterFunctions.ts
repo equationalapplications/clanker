@@ -6,6 +6,7 @@ import { subscriptionService } from './services/subscriptionService.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DEFAULT_VOICE = 'Umbriel';
 
 type SyncCharacterPayload = {
   id?: string;
@@ -155,7 +156,7 @@ export const syncCharacterHandler = async (
   const traits = parseOptionalTextField(character.traits, 'traits');
   const emotions = parseOptionalTextField(character.emotions, 'emotions');
   const context = parseOptionalTextField(character.context, 'context');
-  const voice = parseOptionalTextField(character.voice, 'voice');
+  const voice = parseOptionalTextField(character.voice, 'voice') ?? DEFAULT_VOICE;
   const isPublic = parseOptionalIsPublic(character.isPublic);
 
   const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);

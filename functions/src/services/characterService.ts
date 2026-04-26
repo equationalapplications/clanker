@@ -2,6 +2,8 @@ import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { characters, messages, users } from '../db/schema.js';
 
+const DEFAULT_VOICE = 'Umbriel';
+
 type CharacterUpdateInput = Pick<
   typeof characters.$inferInsert,
   'name' | 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context' | 'voice' | 'isPublic' | 'updatedAt'
@@ -15,7 +17,7 @@ export function buildCharacterUpdateValues(character: CharacterUpdateInput) {
     traits: character.traits,
     emotions: character.emotions,
     context: character.context,
-    voice: character.voice,
+    ...(character.voice == null ? {} : {voice: character.voice || DEFAULT_VOICE}),
     updatedAt: character.updatedAt ?? new Date(),
   };
 

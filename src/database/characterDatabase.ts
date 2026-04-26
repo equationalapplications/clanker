@@ -225,7 +225,7 @@ export async function updateCharacter(
     }
     if (updates.voice !== undefined) {
         updateFields.push('voice = ?')
-        values.push(updates.voice ?? null)
+        values.push(updates.voice ?? DEFAULT_VOICE)
     }
 
     // Mark as not synced when updated locally
