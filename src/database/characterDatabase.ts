@@ -4,17 +4,8 @@
  */
 
 import { getDatabase } from './index'
-import { DEFAULT_VOICE } from '~/constants/geminiVoices'
+import { normalizeVoice } from '~/constants/voiceDefaults'
 import { sanitizeImageMimeType } from '~/utilities/imageMimeType'
-
-function normalizeVoice(voice: string | null | undefined): string {
-    if (typeof voice !== 'string') {
-        return DEFAULT_VOICE
-    }
-
-    const trimmedVoice = voice.trim()
-    return trimmedVoice.length > 0 ? trimmedVoice : DEFAULT_VOICE
-}
 
 export interface LocalCharacter {
     id: string
@@ -232,15 +223,8 @@ export async function updateCharacter(
         }
     }
     if (updates.voice !== undefined) {
-        const normalizedVoice =
-            updates.voice == null
-                ? DEFAULT_VOICE
-                : updates.voice.trim() === ''
-                  ? DEFAULT_VOICE
-                  : updates.voice.trim()
-
         updateFields.push('voice = ?')
-        values.push(normalizedVoice)
+        values.push(normalizeVoice(updates.voice))
     }
 
     // Mark as not synced when updated locally

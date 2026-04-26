@@ -3,7 +3,7 @@
  * Supports messages and characters with optional cloud sync
  */
 
-import { DEFAULT_VOICE } from '~/constants/geminiVoices'
+import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
 export const SCHEMA_VERSION = 9
 
