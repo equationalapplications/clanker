@@ -271,7 +271,7 @@ function isRawPcmMimeType(mimeType: string): boolean {
 }
 
 function parsePcmParam(mimeType: string, key: string): number | null {
-  const match = mimeType.toLowerCase().match(new RegExp(`${key}\\s*=\\s*(\\d+)`));
+  const match = mimeType.toLowerCase().match(new RegExp(`(?:^|;)\\s*${key}\\s*=\\s*(\\d+)`));
   if (!match) {
     return null;
   }

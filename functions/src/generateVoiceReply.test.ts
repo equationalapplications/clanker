@@ -520,3 +520,28 @@ test("wrapPcmAsWav handles missing MIME parameters with defaults", async () => {
   // Verify default bits per sample (16)
   assert.equal(wrappedBuffer.readUInt16LE(34), 16, "Should use default bits per sample of 16");
 });
+
+test("parsePcmParam does not mis-match partial parameter names", async () => {
+  const pcmBuffer = Buffer.alloc(50);
+  const pcmBase64 = pcmBuffer.toString("base64");
+
+  // 'bitrate' must not cause 'rate' extraction to return 48000
+  const wrappedBase64 = testWrapPcmAsWav(pcmBase64, "audio/L16;bitrate=48000;rate=24000");
+  const wrappedBuffer = Buffer.from(wrappedBase64, "base64");
+
+  // rate=24000 should win, not bitrate=48000
+  assert.equal(wrappedBuffer.readUInt32LE(24), 24000,
+    "Should extract rate=24000, not the 'rate' substring of bitrate=48000");
+});
+
+test("parsePcmParam extracts rate when bitrate appears first", async () => {
+  const pcmBuffer = Buffer.alloc(50);
+  const pcmBase64 = pcmBuffer.toString("base64");
+
+  // Same as above but with bitrate before rate to confirm ordering does not affect result
+  const wrappedBase64 = testWrapPcmAsWav(pcmBase64, "audio/L16;rate=24000;bitrate=48000");
+  const wrappedBuffer = Buffer.from(wrappedBase64, "base64");
+
+  assert.equal(wrappedBuffer.readUInt32LE(24), 24000,
+    "Should extract rate=24000, not the 'rate' substring of bitrate=48000");
+});
