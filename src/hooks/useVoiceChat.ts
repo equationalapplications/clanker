@@ -130,7 +130,6 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
 
   const processTranscript = useCallback(async () => {
     const currentText = (finalTranscriptionRef.current || transcriptionRef.current).trim()
-    console.log('[voice] processTranscript, text:', JSON.stringify(currentText))
 
     if (!currentText) {
       setTranscription('')
@@ -213,12 +212,9 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
     }
   }, [character, cleanupPlayback, currentUser?.uid, fail, goIdle, messages])
 
-  useSpeechRecognitionEvent('start', () => {
-    console.log('[voice] event: start')
-  })
+  useSpeechRecognitionEvent('start', () => {})
 
   useSpeechRecognitionEvent('nomatch', () => {
-    console.log('[voice] event: nomatch')
     if (!recognitionActiveRef.current || cancelledRef.current || !isMountedRef.current) {
       return
     }
@@ -230,7 +226,6 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
     if (!recognitionActiveRef.current || cancelledRef.current || !isMountedRef.current) {
       return
     }
-    console.log('[voice] event: result', JSON.stringify(payload))
 
     const { transcript, isFinal } = extractTranscript(payload)
 
@@ -248,7 +243,6 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
   })
 
   useSpeechRecognitionEvent('error', (payload) => {
-    console.log('[voice] error event fired, recognitionActive:', recognitionActiveRef.current, 'payload:', JSON.stringify(payload))
     if (!recognitionActiveRef.current || cancelledRef.current || !isMountedRef.current) {
       return
     }
@@ -274,7 +268,6 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       normalizedError.includes('mic') ||
       normalizedError.includes('microphone')
 
-    console.error('[voice] event: error', rawError, rawMessage)
     void fail(
       isPermissionError
         ? canUseNativeVoice
@@ -285,7 +278,6 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
   })
 
   useSpeechRecognitionEvent('end', () => {
-    console.log('[voice] event: end, recognitionActive:', recognitionActiveRef.current)
     if (!recognitionActiveRef.current) {
       return
     }
@@ -334,7 +326,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       return
     }
 
-    if (!ExpoSpeechRecognitionModule.isRecognitionAvailable()) {
+    if (!canUseNativeVoice && !ExpoSpeechRecognitionModule.isRecognitionAvailable()) {
       setError('Speech recognition is not supported in this browser.')
       setVoiceState('error')
       return
@@ -353,7 +345,6 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
         }
       } else {
         const sttPermission = await ExpoSpeechRecognitionModule.requestPermissionsAsync()
-        console.log('[voice] sttPermission:', JSON.stringify(sttPermission))
         if (!sttPermission.granted) {
           setError('Microphone permission required. Allow it in your browser.')
           setVoiceState('error')
@@ -361,11 +352,9 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
         }
       }
 
-      console.log('[voice] starting recognition')
       setVoiceState('listening')
       setTranscription('Listening...')
       timerRef.current = setTimeout(() => {
-        console.log('[voice] max listen timer fired, stopping')
         ExpoSpeechRecognitionModule.stop()
       }, MAX_LISTEN_MS)
       recognitionActiveRef.current = true
@@ -378,7 +367,6 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       clearListenTimer()
       recognitionActiveRef.current = false
       const errorMessage = err instanceof Error ? err.message : 'Failed to start listening'
-      console.error('[voice] start error:', errorMessage)
       await fail(errorMessage)
     }
   }, [canUseNativeVoice, character, characterId, clearListenTimer, fail, isSubscriber, remainingCredits, voiceState])
