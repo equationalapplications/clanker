@@ -261,6 +261,45 @@ test("syncCharacterHandler defaults null voice to Umbriel", async () => {
   assert.equal(receivedPayloads[0]?.voice, "Umbriel");
 });
 
+test("syncCharacterHandler leaves voice undefined when omitted", async () => {
+  const receivedPayloads: Array<Record<string, unknown>> = [];
+
+  await syncCharacterHandler(
+    {
+      auth,
+      data: {
+        character: {
+          name: "Nova",
+        },
+      },
+    } as never,
+    {
+      userRepository: {
+        findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+      },
+      subscriptionService: {
+        getSubscription: async () => ({planTier: "monthly_20", planStatus: "active"} as never),
+      },
+      characterService: {
+        upsertCharacter: async (payload: unknown) => {
+          receivedPayloads.push(payload as Record<string, unknown>);
+          return {
+            id: "character-1",
+            userId: "user-1",
+            name: "Nova",
+            voice: "Kore",
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+          } as never;
+        },
+      },
+    } as unknown as CharacterFunctionDeps
+  );
+
+  assert.equal(receivedPayloads.length, 1);
+  assert.equal(receivedPayloads[0]?.voice, undefined);
+});
+
 test("getUserCharactersHandler returns character timestamps as ISO strings", async () => {
   const createdAt = new Date("2026-01-01T00:00:00.000Z");
   const updatedAt = new Date("2026-01-02T00:00:00.000Z");

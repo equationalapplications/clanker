@@ -59,6 +59,17 @@ describe('batchInsertCharacters', () => {
     expect(values.at(-1)).toBe('Umbriel')
   })
 
+  it('defaults createCharacter voice to Umbriel when blank', async () => {
+    await createCharacter('user-1', {
+      name: 'New Character',
+      is_public: false,
+      voice: '   ',
+    })
+
+    const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
+    expect(values.at(-1)).toBe('Umbriel')
+  })
+
   it('defaults updateCharacter voice to Umbriel when null', async () => {
     mockGetFirstAsync
       .mockResolvedValueOnce({ id: 'char-1', user_id: 'user-1' })

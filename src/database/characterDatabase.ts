@@ -150,7 +150,9 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
             null, // not deleted
             0, // no summarized messages yet
             userId,
-            data.voice ?? DEFAULT_VOICE,
+            typeof data.voice === 'string' && data.voice.trim().length > 0
+                ? data.voice
+                : DEFAULT_VOICE,
         ],
     )
 

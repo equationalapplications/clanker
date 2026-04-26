@@ -156,7 +156,9 @@ export const syncCharacterHandler = async (
   const traits = parseOptionalTextField(character.traits, 'traits');
   const emotions = parseOptionalTextField(character.emotions, 'emotions');
   const context = parseOptionalTextField(character.context, 'context');
-  const voice = parseOptionalTextField(character.voice, 'voice') ?? DEFAULT_VOICE;
+  const voice = Object.prototype.hasOwnProperty.call(character, 'voice')
+    ? (parseOptionalTextField(character.voice, 'voice') ?? DEFAULT_VOICE)
+    : undefined;
   const isPublic = parseOptionalIsPublic(character.isPublic);
 
   const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
