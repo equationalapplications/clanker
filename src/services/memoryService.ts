@@ -152,6 +152,7 @@ function toDerivedSynonymUpserts(characterId: string, rows: unknown[]): DerivedS
 
 async function applyMemoryDiff(
   characterId: string,
+  userId: string,
   diff: { entries?: unknown[]; tasks?: unknown[]; events?: unknown[]; synonyms?: unknown[] },
 ): Promise<void> {
   const [entryRows, taskRows, eventRows, synonymRows] = [
@@ -167,7 +168,7 @@ async function applyMemoryDiff(
   await upsertDerivedSynonyms(synonymRows)
 
   await queryClient.invalidateQueries({
-    queryKey: ['memoryBundle', characterId],
+    queryKey: ['memoryBundle', characterId, userId],
   })
 }
 
@@ -211,7 +212,7 @@ export async function triggerMemoryWrite(
       sourceType: 'conversation',
     })
     const payload = result.data as MemoryWriteResponse
-    await applyMemoryDiff(character.id, payload.diff ?? {})
+    await applyMemoryDiff(character.id, userId, payload.diff ?? {})
   } catch (error) {
     console.warn('Failed to trigger memory write:', error)
   } finally {
@@ -265,7 +266,7 @@ export async function triggerMemoryHeal(characterId: string, userId: string, clo
 
     const result = await memoryHealFn({ characterId: resolvedCharacterId, localDump })
     const payload = result.data as MemoryHealResponse
-    await applyMemoryDiff(characterId, payload.diff ?? {})
+    await applyMemoryDiff(characterId, userId, payload.diff ?? {})
   } catch (error) {
     console.warn('Failed to trigger memory heal:', error)
   }
@@ -286,7 +287,7 @@ export async function triggerMemoryRead(character: Character, userId: string): P
     await appCheckReady
     const result = await memoryReadFn({ characterId: cloudId })
     const payload = result.data as MemoryReadResponse
-    await applyMemoryDiff(character.id, payload)
+    await applyMemoryDiff(character.id, userId, payload)
   } catch (error) {
     console.warn('Failed to bootstrap memory from cloud:', error)
   }
@@ -334,6 +335,6 @@ export async function forgetMemory(
   }
 
   await queryClient.invalidateQueries({
-    queryKey: ['memoryBundle', characterId],
+    queryKey: ['memoryBundle', characterId, userId],
   })
 }

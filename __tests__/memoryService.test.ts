@@ -197,7 +197,7 @@ describe('triggerMemoryWrite', () => {
       expect.objectContaining({ characterId: 'char-1', term: 'health' }),
     ])
     expect(mockInvalidateQueries).toHaveBeenCalledWith({
-      queryKey: ['memoryBundle', 'char-1'],
+      queryKey: ['memoryBundle', 'char-1', 'user-1'],
     })
   })
 })
@@ -226,7 +226,7 @@ describe('triggerMemoryHeal', () => {
       expect.objectContaining({ characterId: 'char-1' }),
     )
     expect(mockInvalidateQueries).toHaveBeenCalledWith({
-      queryKey: ['memoryBundle', 'char-1'],
+      queryKey: ['memoryBundle', 'char-1', 'user-1'],
     })
   })
 })
@@ -280,7 +280,7 @@ describe('triggerMemoryRead', () => {
     expect(mockCountEntries).toHaveBeenCalledWith('user-1', 'char-1')
     expect(mockMemoryReadFn).toHaveBeenCalledWith({ characterId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
     expect(mockUpsertWikiEntries).toHaveBeenCalled()
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['memoryBundle', 'char-1'] })
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['memoryBundle', 'char-1', 'user-1'] })
   })
 })
 
@@ -301,14 +301,14 @@ describe('forgetMemory', () => {
     await forgetMemory(localCharacter, 'user-1', { entryIds: ['e1', 'e2'] })
     expect(mockSoftDeleteWikiEntries).toHaveBeenCalledWith('char_local', 'user-1', ['e1', 'e2'])
     expect(mockSoftDeleteAgentTasks).not.toHaveBeenCalled()
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['memoryBundle', 'char_local'] })
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['memoryBundle', 'char_local', 'user-1'] })
   })
 
   it('soft-deletes all entries locally when clearAll is true', async () => {
     await forgetMemory(localCharacter, 'user-1', { clearAll: true })
     expect(mockSoftDeleteAllWikiEntries).toHaveBeenCalledWith('char_local', 'user-1')
     expect(mockSoftDeleteAllAgentTasks).toHaveBeenCalledWith('char_local', 'user-1')
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['memoryBundle', 'char_local'] })
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['memoryBundle', 'char_local', 'user-1'] })
   })
 
   it('does not call cloud forget for local-only characters', async () => {

@@ -4,6 +4,8 @@ import { getMessageCount } from '~/database/messageDatabase'
 import { getCharacter, updateCharacter } from '~/database/characterDatabase'
 import { onlineManager } from '@tanstack/react-query'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export interface WikiWriteInput {
   character: Character
   userId: string
@@ -37,7 +39,7 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
       return
     }
 
-    if (latestCharacter?.save_to_cloud && latestCharacter?.cloud_id) {
+    if (latestCharacter?.save_to_cloud && latestCharacter?.cloud_id && UUID_RE.test(latestCharacter.cloud_id)) {
       const bootstrapKey = `${input.character.id}:${input.userId}`
       if (!bootstrappedCharacters.has(bootstrapKey)) {
         const charForCloud = { ...input.character, cloud_id: latestCharacter.cloud_id }
