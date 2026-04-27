@@ -391,10 +391,10 @@ cd functions && npm run typecheck && npm run build && npm run test
 
 - **No vector search**: FTS5 keyword-based only (sufficient for v1)
 - **No cross-character memory**: Each character's wiki is isolated
-- **Heuristic fact extraction**: No LLM preprocessing (v2 planned)
-- **Contradiction detection stubbed**: Manual resolution only (v2 planned)
+- **Fact extraction is best-effort**: `memoryWrite` attempts LLM extraction with heuristic fallback, so extraction quality depends on model availability/output
+- **Contradiction detection is best-effort**: `memoryHeal` uses LLM-assisted detection, but results may require manual review and resolution
 - **No bootstrap on reconnect**: Requires manual navigation (workaround: log out/in)
-- **Contradiction flagging disabled**: Returns 0 until LLM integration
+- **Contradiction flagging is not guaranteed**: Flags are produced by current detection logic when available, rather than being hard-disabled
 
 ---
 

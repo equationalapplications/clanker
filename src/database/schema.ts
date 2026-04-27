@@ -37,7 +37,7 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
   6: { table: 'characters', column: 'summary_checkpoint' },
   7: { table: 'characters', column: 'owner_user_id' },
   9: { table: 'characters', column: 'voice' },
-  11: { table: 'characters', column: 'heal_checkpoint' },
+  11: { table: 'characters', column: 'memory_checkpoint' },
 }
 
 /**
