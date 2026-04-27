@@ -71,7 +71,11 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
       heal_checkpoint: messageCount,
     })
 
-    await triggerMemoryHeal(input.character.id, input.userId, latestCharacter?.cloud_id)
+    const healCloudId =
+      latestCharacter?.save_to_cloud && latestCharacter?.cloud_id && UUID_RE.test(latestCharacter.cloud_id)
+        ? latestCharacter.cloud_id
+        : undefined
+    await triggerMemoryHeal(input.character.id, input.userId, healCloudId)
   } catch (error) {
     console.warn('Failed to dispatch wiki write:', error)
   } finally {

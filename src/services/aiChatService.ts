@@ -168,7 +168,7 @@ function fitMemorySection(
   }
 
   const keptLines: string[] = []
-  let used = heading.length
+  let used = heading.length + 1 // +1 for the \n between heading and first line
 
   for (const line of lines) {
     const addition = `\n${line}`

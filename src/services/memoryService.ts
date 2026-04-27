@@ -155,12 +155,17 @@ async function applyMemoryDiff(
   userId: string,
   diff: { entries?: unknown[]; tasks?: unknown[]; events?: unknown[]; synonyms?: unknown[] },
 ): Promise<void> {
-  const [entryRows, taskRows, eventRows, synonymRows] = [
+  const [rawEntryRows, rawTaskRows, rawEventRows, synonymRows] = [
     toWikiEntryUpserts(diff.entries ?? [], characterId),
     toAgentTaskUpserts(diff.tasks ?? [], characterId),
     toMemoryEventUpserts(diff.events ?? [], characterId),
     toDerivedSynonymUpserts(characterId, diff.synonyms ?? []),
   ]
+
+  // Override userId with the locally-known value to prevent server payload mismatches
+  const entryRows = rawEntryRows.map((row) => ({ ...row, userId }))
+  const taskRows = rawTaskRows.map((row) => ({ ...row, userId }))
+  const eventRows = rawEventRows.map((row) => ({ ...row, userId }))
 
   await upsertWikiEntries(entryRows)
   await upsertAgentTasks(taskRows)
