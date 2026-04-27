@@ -94,11 +94,11 @@ Object.defineProperty(window, 'localStorage', {
 // Helpers for suites that need to temporarily override Platform.OS.
 // Use __setJestPlatformOS('web') in beforeEach and __resetJestPlatformOS() in afterEach.
 //
-// Platform is resolved lazily per-call so tests that call jest.resetModules()
-// or provide their own jest.mock('react-native', ...) get the correct instance.
-// The original OS descriptor is stored in a WeakMap keyed by Platform instance,
-// so overrides and restores always target the same object.
+// Platform resolved lazily in __setJestPlatformOS. The overridden instance is
+// stored in _lastOverriddenPlatform so __resetJestPlatformOS always restores
+// the same object, even if jest.resetModules() is called between set and reset.
 const _originalOSDescriptors = new WeakMap()
+let _lastOverriddenPlatform = null
 
 function _getJestPlatform() {
   return require('react-native').Platform
@@ -119,6 +119,7 @@ Object.defineProperty(globalThis, '__setJestPlatformOS', {
       )
     }
 
+    _lastOverriddenPlatform = platform
     Object.defineProperty(platform, 'OS', { value: os, configurable: true })
   },
   configurable: true,
@@ -126,13 +127,15 @@ Object.defineProperty(globalThis, '__setJestPlatformOS', {
 
 Object.defineProperty(globalThis, '__resetJestPlatformOS', {
   value: () => {
-    const platform = _getJestPlatform()
+    const platform = _lastOverriddenPlatform
+    if (!platform) return
     const descriptor = _originalOSDescriptors.get(platform)
 
     if (descriptor) {
       Object.defineProperty(platform, 'OS', descriptor)
       _originalOSDescriptors.delete(platform)
     }
+    _lastOverriddenPlatform = null
   },
   configurable: true,
 })
