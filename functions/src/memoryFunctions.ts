@@ -1390,17 +1390,15 @@ export const memoryHealHandler = async (
   }
 
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
-  if (!ownsCharacter) {
-    return {
-      diff: buildEmptyHealDiff(),
-    };
-  }
 
   const diff = await buildHealDiff(deps, characterId, identity.userId, identity.firebaseUid);
-  await persistHealDiff(deps, characterId, identity.userId, diff);
-  for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
-  for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
-  for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
+
+  if (ownsCharacter) {
+    await persistHealDiff(deps, characterId, identity.userId, diff);
+    for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
+    for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
+    for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
+  }
 
   return {
     diff,
