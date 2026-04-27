@@ -261,6 +261,71 @@ async function getGenAiClient(): Promise<GenAiClientLike> {
   return genAiClientPromise;
 }
 
+const DEFAULT_PCM_SAMPLE_RATE = 24_000;
+const DEFAULT_PCM_CHANNELS = 1;
+const DEFAULT_PCM_BITS_PER_SAMPLE = 16;
+
+function isRawPcmMimeType(mimeType: string): boolean {
+  const normalized = mimeType.toLowerCase();
+  return normalized.startsWith("audio/l16") || normalized.startsWith("audio/pcm");
+}
+
+function parsePcmParam(mimeType: string, key: string): number | null {
+  const match = mimeType.toLowerCase().match(new RegExp(`(?:^|;)\\s*${key}\\s*=\\s*(\\d+)`));
+  if (!match) {
+    return null;
+  }
+  const value = Number.parseInt(match[1], 10);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function buildWavHeader(
+  pcmByteLength: number,
+  sampleRate: number,
+  numChannels: number,
+  bitsPerSample: number
+): Buffer {
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const header = Buffer.alloc(44);
+
+  header.write("RIFF", 0, "ascii");
+  header.writeUInt32LE(36 + pcmByteLength, 4);
+  header.write("WAVE", 8, "ascii");
+  header.write("fmt ", 12, "ascii");
+  header.writeUInt32LE(16, 16); // PCM subchunk size
+  header.writeUInt16LE(1, 20); // PCM format
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36, "ascii");
+  header.writeUInt32LE(pcmByteLength, 40);
+
+  return header;
+}
+
+function wrapPcmAsWav(pcmBase64: string, mimeType: string): string {
+  const pcm = Buffer.from(pcmBase64, "base64");
+  const sampleRate = parsePcmParam(mimeType, "rate") ?? DEFAULT_PCM_SAMPLE_RATE;
+  const numChannels = parsePcmParam(mimeType, "channels") ?? DEFAULT_PCM_CHANNELS;
+  const bitsPerSample = parsePcmParam(mimeType, "bits") ?? DEFAULT_PCM_BITS_PER_SAMPLE;
+
+  if (!Number.isInteger(sampleRate) || sampleRate <= 0) {
+    throw new HttpsError("internal", `Unsupported PCM sample rate: ${sampleRate}`);
+  }
+  if (!Number.isInteger(numChannels) || numChannels <= 0) {
+    throw new HttpsError("internal", `Unsupported PCM channel count: ${numChannels}`);
+  }
+  if (!Number.isInteger(bitsPerSample) || bitsPerSample <= 0 || bitsPerSample % 8 !== 0) {
+    throw new HttpsError("internal", `Unsupported PCM bits per sample: ${bitsPerSample}`);
+  }
+
+  const header = buildWavHeader(pcm.length, sampleRate, numChannels, bitsPerSample);
+  return Buffer.concat([header, pcm]).toString("base64");
+}
+
 
 function getSpeechSynthesizer(): SynthesizeSpeechFn {
   if (speechSynthesizer) {
@@ -297,9 +362,21 @@ function getSpeechSynthesizer(): SynthesizeSpeechFn {
         for (const part of parts) {
           const base64 = part.inlineData?.data?.trim();
           if (base64) {
+            const rawMimeType = part.inlineData?.mimeType?.trim() || "audio/wav";
+            // Gemini TTS returns raw PCM (e.g. "audio/L16;codec=pcm;rate=24000"),
+            // which browsers cannot play directly. Wrap as WAV when raw PCM is
+            // detected so all clients (web + native) get a playable container.
+            if (isRawPcmMimeType(rawMimeType)) {
+              const wrapped = wrapPcmAsWav(base64, rawMimeType);
+              return {
+                audioBase64: wrapped,
+                audioMimeType: "audio/wav",
+              };
+            }
+
             return {
               audioBase64: base64,
-              audioMimeType: part.inlineData?.mimeType?.trim() || "audio/wav",
+              audioMimeType: rawMimeType,
             };
           }
         }
@@ -527,6 +604,13 @@ const handler = async (
 };
 
 export const generateVoiceReplyHandler = handler;
+
+// Exported only for unit testing. Do not use in production code.
+export const __test__ = {
+  isRawPcmMimeType,
+  buildWavHeader,
+  wrapPcmAsWav,
+} as const;
 
 export const generateVoiceReply = onCall(
   {

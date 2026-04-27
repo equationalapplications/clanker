@@ -9,7 +9,9 @@
 
 Persist a `voice` field on characters end-to-end — SQLite, cloud Postgres, and all sync paths — set `Umbriel` as the default voice for newly created characters, and add a voice selector dropdown to the Character Edit screen. This unblocks the Talk tab's press-to-talk flow, which currently alerts "No Voice Set" because no character has a voice configured.
 
-Additionally, align the app with the latest [`expo-audio` docs](https://docs.expo.dev/versions/latest/sdk/audio/) by adding the `expo-audio` config plugin (currently missing from `app.config.ts`) and configuring the audio session at runtime via `setAudioModeAsync`. Without these, voice-reply playback silently misbehaves (no background playback, no explicit silent-mode handling, and microphone permission strings come only from `expo-speech-recognition`).
+Voice must work on **all platforms** — iOS, Android, and web. On web, `expo-speech-recognition` wraps the browser's Web Speech API and `expo-audio` plays back via HTML5 Audio; no native build is required for web voice to function.
+
+Additionally, align the app with the latest [`expo-audio` docs](https://docs.expo.dev/versions/latest/sdk/audio/) by adding the `expo-audio` config plugin (currently missing from `app.config.ts`) and configuring the audio session at runtime via `setAudioModeAsync`. Without these, voice-reply playback silently misbehaves on native (no background playback, no explicit silent-mode handling, and microphone permission strings come only from `expo-speech-recognition`).
 
 ---
 
@@ -26,6 +28,7 @@ The `Character` TypeScript type and `CharacterSnapshot`/`SyncCharacterPayload` c
 6. Cloud sync silently drops `voice`: `syncUnsyncedToCloud` doesn't include it in the payload, `restoreFromCloud` and `importSharedCharacterFromCloud` don't map it back, the cloud Postgres schema has no `voice` column, and the Drizzle schema and cloud function handler don't handle it
 7. `expo-audio` is installed (~55.0.14) and used in `useVoiceChat.ts` (`createAudioPlayer`, `requestRecordingPermissionsAsync`), but no config plugin is registered in `app.config.ts`. Per the latest docs, the plugin is required for declaring the iOS `NSMicrophoneUsageDescription`, Android `RECORD_AUDIO` permission, and the iOS `audio` `UIBackgroundMode` capability needed for sustained background playback of voice replies.
 8. The audio session is never configured at runtime — `setAudioModeAsync` is not called, so playback in iOS silent mode is unreliable and background playback won't work even after the plugin is added.
+9. `useVoiceChat` has an explicit early return on web (`Platform.OS === 'web'`) that sets an error and aborts — web voice is a requirement and this guard must be removed.
 
 ### Approach
 
@@ -52,9 +55,9 @@ Add `voice` to the SQLite schema via migrations v8→v9 (add column) and v9→v1
 | `functions/src/services/characterService.ts` | Add `'voice'` to `CharacterUpdateInput` Pick; handle `voice` in `buildCharacterUpdateValues` |
 | `app/(drawer)/(tabs)/characters/[id]/edit.tsx` | Add `voice` state, load from character, include in `handleSave`, include in dirty-state tracking, add dropdown UI |
 | `app.config.ts` | Register `expo-audio` config plugin with `microphonePermission`, `enableBackgroundPlayback: true`, `enableBackgroundRecording: false` |
-| `src/hooks/useVoiceChat.ts` | Call `setAudioModeAsync` once on mount to configure the audio session |
+| `src/hooks/useVoiceChat.ts` | Remove web guard from `startListening`; make permissions web-aware (web: STT only, native: STT + audio recording); make playback web-aware (web: data URI `data:<mime>;base64,…` passed to `createAudioPlayer`, native: `new File(Paths.cache, name)` with `file.write(Uint8Array)` decoded from base64); call `setAudioModeAsync` once on mount (native only); update mocks in test file for new `File`/`Paths` API |
 | `__tests__/editCharacterScreen.test.tsx` | Add tests: voice selector renders, selecting a voice calls `update` with correct value |
-| `__tests__/useVoiceChat.test.tsx` | Add test verifying `setAudioModeAsync` is called on mount with the expected mode |
+| `__tests__/useVoiceChat.test.tsx` | Update mocks for new `File(Paths.cache, name)` API; add web branch tests: STT-only permissions, data-URI playback (no file write), browser error message, no `setAudioModeAsync` |
 
 ---
 
@@ -119,7 +122,44 @@ Rationale per [`AudioMode` docs](https://docs.expo.dev/versions/latest/sdk/audio
 
 ### Permission flow
 
-No changes to the existing `requestRecordingPermissionsAsync()` call in `startListening` — it already follows the docs' recommended pattern. The new config plugin ensures the iOS prompt has a proper rationale string and the Android permission is declared at install time.
+On native, no changes to the existing `requestRecordingPermissionsAsync()` call in `startListening`. The new config plugin ensures the iOS prompt has a proper rationale string and the Android permission is declared at install time.
+
+---
+
+## Web Voice Support
+
+Voice runs on web via the browser's built-in APIs. No extra packages required.
+
+### Speech recognition
+
+`expo-speech-recognition` wraps `window.SpeechRecognition` / `window.webkitSpeechRecognition` on web. `ExpoSpeechRecognitionModule.requestPermissionsAsync()` triggers the browser's mic permission dialog. `useSpeechRecognitionEvent` callbacks fire normally.
+
+On web, `requestRecordingPermissionsAsync()` (expo-audio) is **not** called — it is a native-only API. The STT permission grant covers mic access on web.
+
+### Audio playback
+
+`expo-file-system` legacy API is not available on web and is deprecated on all platforms. The modern `File`/`Paths` API is used on native: create a `File` instance pointing to `Paths.cache`, decode the base64 audio to `Uint8Array` using `atob` + charCodeAt loop, and write via `file.write(bytes)`. On web, the base64 audio is converted to a data URI and passed directly to `createAudioPlayer`:
+
+```ts
+if (Platform.OS === 'web') {
+  playerUri = `data:${response.audioMimeType};base64,${response.audioBase64}`
+} else {
+  const file = new File(Paths.cache, `voice-reply-${Date.now()}.${ext}`)
+  const bytes = new Uint8Array(atob(response.audioBase64).split('').map(c => c.charCodeAt(0)))
+  file.write(bytes)
+  playerUri = file.uri
+}
+```
+
+`expo-audio`'s web implementation uses the HTML5 `<audio>` element and accepts data URIs. Cleanup on web skips the `file.delete()` path (since `tempFileRef.current` is never set).
+
+### Error messaging
+
+Permission denied on web shows: `'Microphone permission required. Allow it in your browser.'` (distinguishable from the native Settings message).
+
+### `setAudioModeAsync` and config plugin
+
+Both are native-only concerns. `setAudioModeAsync` is already guarded by `canUseNativeVoice`. The config plugin (`app.config.ts`) only affects native builds and has no effect on web.
 
 ---
 
