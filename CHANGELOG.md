@@ -1,3 +1,12 @@
+## [29.1.1](https://github.com/equationalapplications/clanker/compare/v29.1.0...v29.1.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* **jest:** track Platform instance across resetModules ([430c8a5](https://github.com/equationalapplications/clanker/commit/430c8a597c2c753f182927f817becbfd822f583e))
+* **test:** lazy WeakMap Platform override helpers; migrate existing suites ([96698a7](https://github.com/equationalapplications/clanker/commit/96698a7bef81a518b49abe7d2329e2069006e62b))
+* **test:** preserve original OS descriptor fields when overriding Platform.OS ([64df583](https://github.com/equationalapplications/clanker/commit/64df583098545412e9ed72b6a9c9bc8dba8386eb))
+
 # [29.1.0](https://github.com/equationalapplications/clanker/compare/v29.0.0...v29.1.0) (2026-04-27)
 
 
