@@ -272,15 +272,15 @@ export async function triggerMemoryHeal(characterId: string, userId: string, clo
   }
 }
 
-export async function triggerMemoryRead(character: Character, userId: string): Promise<void> {
+export async function triggerMemoryRead(character: Character, userId: string): Promise<boolean> {
   const cloudId = resolveCloudCharacterId(character)
   if (cloudId === character.id) {
-    return
+    return true
   }
 
   const existingCount = await countEntries(userId, character.id)
   if (existingCount > 0) {
-    return
+    return true
   }
 
   try {
@@ -288,8 +288,10 @@ export async function triggerMemoryRead(character: Character, userId: string): P
     const result = await memoryReadFn({ characterId: cloudId })
     const payload = result.data as MemoryReadResponse
     await applyMemoryDiff(character.id, userId, payload)
+    return true
   } catch (error) {
     console.warn('Failed to bootstrap memory from cloud:', error)
+    return false
   }
 }
 

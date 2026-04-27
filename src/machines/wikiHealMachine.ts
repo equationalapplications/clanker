@@ -43,8 +43,10 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
       const bootstrapKey = `${input.character.id}:${input.userId}`
       if (!bootstrappedCharacters.has(bootstrapKey)) {
         const charForCloud = { ...input.character, cloud_id: latestCharacter.cloud_id }
-        await triggerMemoryRead(charForCloud, input.userId)
-        bootstrappedCharacters.add(bootstrapKey)
+        const bootstrapped = await triggerMemoryRead(charForCloud, input.userId)
+        if (bootstrapped) {
+          bootstrappedCharacters.add(bootstrapKey)
+        }
       }
     }
 

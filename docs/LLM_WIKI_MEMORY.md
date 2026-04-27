@@ -120,27 +120,33 @@ Block is **truncated entry-by-entry** (not mid-string) to fit within 1,500 chars
 
 Invoked by `dispatchWikiWrite` in [wikiHealMachine.ts](../src/machines/wikiHealMachine.ts) post-turn:
 
-1. **Fact Extraction** — Heuristic text chunking
+1. **Fact Extraction** — LLM-first structured extraction
+   - Sends `sourceText` through the write prompt to the model to extract candidate memory entries/tasks
+   - Parsed model output is used when valid; writes may be more semantic than simple sentence chunking
+   - Adds model cost/latency compared with a purely heuristic pipeline
+
+2. **Fallback Extraction** — Heuristic text chunking (if LLM/parsing fails)
    - Splits `sourceText` by sentence boundaries (`. ! ?`)
    - Top 3 sentences clipped to 200 chars each
    - Tags inferred from content keywords (health, work, relationships, goals)
 
-2. **Dedup Logic** — Fuzzy case-insensitive title match (token Jaccard similarity ≥ 0.5)
+3. **Dedup Logic** — Fuzzy case-insensitive title match (token Jaccard similarity ≥ 0.5)
    - Tokenizes both titles into words (length ≥ 3), computes intersection/union ratio
    - Updates body + downgrade confidence if changed
    - Adds event log entry for audit trail
 
-3. **Task Extraction** — Keyword-based filtering
-   - Detects "remind", "follow up", "todo" patterns
+4. **Task Extraction** — Keyword-based filtering / normalization
+   - Uses LLM-extracted tasks when available
+   - Falls back to detecting "remind", "follow up", "todo" patterns when needed
    - Priority inferred from urgency keywords
    - Due context set to "next conversation"
 
-4. **Synonym Enrichment** — Post-upsert
+5. **Synonym Enrichment** — Post-upsert
    - Collects title terms from newly added entries
    - Groups by tag → identifies co-occurring terms
    - Updates `derived_synonyms` table
 
-5. **Cloud Persist** (conditional)
+6. **Cloud Persist** (conditional)
    - If `character.save_to_cloud = 1` → upsert to Cloud SQL
    - If not cloud-synced → skip Cloud SQL, return diff for local apply
    - Always returns full diff payloads for client SQLite upsert
@@ -167,7 +173,7 @@ Invoked by `dispatchWikiWrite` in [wikiHealMachine.ts](../src/machines/wikiHealM
 
 ## Server-Side Memory Heal
 
-**Premium users only. Cloud-synced characters only (`save_to_cloud = 1` with a valid `cloud_id`). Optional maintenance pass, triggered every 20 messages (same cadence as write). In v1, `memoryHeal` uses heuristic rules for stale downgrade/orphan removal/concept seeding, and a Gemini LLM call for contradiction detection.**
+**Premium users only. Supported for cloud-synced characters (`save_to_cloud = 1` with a valid `cloud_id`) and for local-only premium characters via `localDump` when no owned cloud character is present. Optional maintenance pass, triggered every 20 messages (same cadence as write). In v1, `memoryHeal` uses heuristic rules for stale downgrade/orphan removal/concept seeding, and a Gemini LLM call for contradiction detection.**
 
 ### Flow: `memoryHeal` Callable
 

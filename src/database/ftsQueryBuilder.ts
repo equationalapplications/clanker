@@ -151,7 +151,8 @@ function buildSynonymMap(rows: { term: string; synonyms: string[] }[]): Map<stri
   const map = new Map<string, string[]>()
 
   for (const [term, synonyms] of Object.entries(SYNONYM_MAP_BASE)) {
-    map.set(term, [...synonyms])
+    const sanitizedSynonyms = synonyms.flatMap((s) => s.split(/\s+/).map(sanitizeToken).filter(Boolean))
+    map.set(term, sanitizedSynonyms)
   }
 
   for (const row of rows) {
