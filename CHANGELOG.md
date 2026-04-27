@@ -1,3 +1,32 @@
+# [29.2.0](https://github.com/equationalapplications/clanker/compare/v29.1.1...v29.2.0) (2026-04-27)
+
+
+### Bug Fixes
+
+* **aiChatService:** increase MAX_CHAT_PROMPT_LENGTH to 12,000 and implement looping history trim ([15bbfa9](https://github.com/equationalapplications/clanker/commit/15bbfa96c1f3ad803fc85124f7edf2eafd500c34))
+* **aiChatService:** remove unused MAX_HISTORY_CHARS constant ([5f7fa90](https://github.com/equationalapplications/clanker/commit/5f7fa90567dec91c57ddacf7eaeb588e1659c79f))
+* **chat:** budget conversation history to preserve user message tail ([acf5e40](https://github.com/equationalapplications/clanker/commit/acf5e4011d2bb5f9d359ef91f438869fe2da1d5c))
+* **memory:** address PR 325 review feedback ([ddb6b06](https://github.com/equationalapplications/clanker/commit/ddb6b06d1b742ce308e0a6f26654dbb53aa25a2c))
+* **memory:** address PR review feedback ([684a757](https://github.com/equationalapplications/clanker/commit/684a757b9c7ea50cedbbb2e86b339084167bd112))
+* **memory:** run buildHealDiff for all premium users, only persist if cloud-synced ([8659143](https://github.com/equationalapplications/clanker/commit/865914366628771cdbfb3b5b4063757fdfd7d914))
+* **memory:** scope cache keys to userId and validate bootstrap UUID ([17130f5](https://github.com/equationalapplications/clanker/commit/17130f50d445b44a8e98b0a151177bf478e9723b))
+* migration guard and update memory limitation docs ([08ea542](https://github.com/equationalapplications/clanker/commit/08ea54203eae264cb4cb70950e835bb553b0f6c3))
+* **wiki-memory:** add user_id isolation and batch query updates ([ceeadd6](https://github.com/equationalapplications/clanker/commit/ceeadd65ccac7d64c3d482bc4791482880fe5d70))
+* **wiki-memory:** apply code review fixes for lazy loading and user isolation ([3d3ff6e](https://github.com/equationalapplications/clanker/commit/3d3ff6e2141648d9ea206f303e79b8dd827002a5))
+* **wiki-memory:** atomicity and cloud ID resolution ([37146ea](https://github.com/equationalapplications/clanker/commit/37146ea3a191efad29a964bd6048f0cc4ad3c8c3))
+* **wiki-memory:** characterId mapping, search scope, budgeting, bootstrap ([ca5864d](https://github.com/equationalapplications/clanker/commit/ca5864d5bc380018dfb0b9ea4e98d425620f0a3c))
+* **wiki-memory:** gate heal on cloud chars, stable ids for local writes ([a295f70](https://github.com/equationalapplications/clanker/commit/a295f70335a9728fedfe3a24da946ef5270b11e5))
+* **wiki-memory:** preserve access stats on upsert, guard bootstrap to once per session ([e5c4f75](https://github.com/equationalapplications/clanker/commit/e5c4f7586eaf7bf286f47b499ae3e5fd983515db))
+* **wiki-memory:** uuid validation, collisions, bootstrap read ([7cdeb1e](https://github.com/equationalapplications/clanker/commit/7cdeb1e39482d8ba79a7aac2560201fe2737a52d))
+
+
+### Features
+
+* **memory:** add cloud function callables for wiki memory operations ([2a2f393](https://github.com/equationalapplications/clanker/commit/2a2f393ead4288ea893b088a4124fb10859ce833))
+* **memory:** complete v1 LLM wiki memory — fact extraction, forget API, synonym expansion ([79f97db](https://github.com/equationalapplications/clanker/commit/79f97db531ec9d750f710307770af8efcd0b7e78))
+* **memory:** enable memoryHeal for premium local-only characters ([10f8fcb](https://github.com/equationalapplications/clanker/commit/10f8fcbbc85361a1671e30aacaf251ce065e2b47))
+* **wiki-memory:** complete v1 implementation with documentation ([185ec8d](https://github.com/equationalapplications/clanker/commit/185ec8dc271438b3db405b0a2d66dac6dfa03915))
+
 ## [29.1.1](https://github.com/equationalapplications/clanker/compare/v29.1.0...v29.1.1) (2026-04-27)
 
 
