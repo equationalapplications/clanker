@@ -23,3 +23,27 @@ jest.mock('expo-sqlite', () => {
     },
   }
 })
+
+// Helpers for suites that need to temporarily override Platform.OS.
+// Use __setJestPlatformOS('web') in beforeEach and __resetJestPlatformOS() in afterEach.
+const _rnPlatform = require('react-native').Platform
+const _originalOSDescriptor =
+  Object.getOwnPropertyDescriptor(_rnPlatform, 'OS') || {
+    value: _rnPlatform.OS,
+    configurable: true,
+    writable: true,
+  }
+
+Object.defineProperty(globalThis, '__setJestPlatformOS', {
+  value: (os) => {
+    Object.defineProperty(_rnPlatform, 'OS', { value: os, configurable: true })
+  },
+  configurable: true,
+})
+
+Object.defineProperty(globalThis, '__resetJestPlatformOS', {
+  value: () => {
+    Object.defineProperty(_rnPlatform, 'OS', _originalOSDescriptor)
+  },
+  configurable: true,
+})
