@@ -594,23 +594,12 @@ const handler = async (
 
 export const generateVoiceReplyHandler = handler;
 
-// Export helpers for testing PCM→WAV wrapping behavior
-export function testIsRawPcmMimeType(mimeType: string): boolean {
-  return isRawPcmMimeType(mimeType);
-}
-
-export function testBuildWavHeader(
-  pcmByteLength: number,
-  sampleRate: number,
-  numChannels: number,
-  bitsPerSample: number
-): Buffer {
-  return buildWavHeader(pcmByteLength, sampleRate, numChannels, bitsPerSample);
-}
-
-export function testWrapPcmAsWav(pcmBase64: string, mimeType: string): string {
-  return wrapPcmAsWav(pcmBase64, mimeType);
-}
+// Exported only for unit testing. Do not use in production code.
+export const __test__ = {
+  isRawPcmMimeType,
+  buildWavHeader,
+  wrapPcmAsWav,
+} as const;
 
 export const generateVoiceReply = onCall(
   {

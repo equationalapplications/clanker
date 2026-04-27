@@ -4,10 +4,10 @@ import {HttpsError} from "firebase-functions/v2/https";
 
 import {
   generateVoiceReplyHandler,
-  testIsRawPcmMimeType,
-  testBuildWavHeader,
-  testWrapPcmAsWav,
+  __test__,
 } from "./generateVoiceReply.js";
+
+const {isRawPcmMimeType: testIsRawPcmMimeType, buildWavHeader: testBuildWavHeader, wrapPcmAsWav: testWrapPcmAsWav} = __test__;
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
@@ -538,8 +538,8 @@ test("parsePcmParam extracts rate when bitrate appears first", async () => {
   const pcmBuffer = Buffer.alloc(50);
   const pcmBase64 = pcmBuffer.toString("base64");
 
-  // Same as above but with bitrate before rate to confirm ordering does not affect result
-  const wrappedBase64 = testWrapPcmAsWav(pcmBase64, "audio/L16;rate=24000;bitrate=48000");
+  // bitrate=48000 appears before rate=24000; rate should still extract 24000
+  const wrappedBase64 = testWrapPcmAsWav(pcmBase64, "audio/L16;bitrate=48000;rate=24000");
   const wrappedBuffer = Buffer.from(wrappedBase64, "base64");
 
   assert.equal(wrappedBuffer.readUInt32LE(24), 24000,
