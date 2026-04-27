@@ -233,7 +233,7 @@ Runtime behavior per turn:
 - **Post-turn LLM passes**: for premium users, both `triggerConversationSummary` (refreshes `characters.context`) and `wikiHealMachine` (runs `memoryWrite`, optional `memoryHeal`) fire fire-and-forget on the same 20-message cadence. They are independent: one updates the rolling blob, the other updates structured tables. Neither reads the other's output.
 - **Seeding**: the librarian does **not** seed `wiki_entries` from existing `characters.context`. Wiki memory starts empty and grows from messages forward. `characters.context` keeps its own lifecycle.
 
-Prompt budget: the `[MEMORY]` block (≤1,500 chars) plus the existing context summary (≤4,000 chars) plus personality/traits must stay within `MAX_CHAT_PROMPT_LENGTH = 11,000`. `buildChatPrompt` truncates the `[MEMORY]` block first if needed (it's the lowest-priority piece because it's recoverable on the next turn). Truncation is **entry-level**: drop the lowest-scored entries whole rather than cutting mid-string, so rendered facts stay coherent.
+Prompt budget: the `[MEMORY]` block (≤1,500 chars) plus the existing context summary (≤4,000 chars) plus personality/traits must stay within `MAX_CHAT_PROMPT_LENGTH = 12,000`. `buildChatPrompt` iteratively trims conversation history from oldest entries to fit within the budget, preserving the tail (LLM instructions and user cue). The `[MEMORY]` block is truncated first if needed (it's the lowest-priority piece because it's recoverable on the next turn). Truncation is **entry-level**: drop the lowest-scored entries whole rather than cutting mid-string, so rendered facts stay coherent.
 
 Body length cap: the `memoryWrite` librarian system prompt must instruct the LLM to keep each `wiki_entries.body` under **200 characters**. This ensures up to 7–8 facts fit within the 1,500-char injection window with formatting overhead. Entries exceeding 200 chars stored server-side are still valid but will be truncated to 200 chars at render time in `buildChatPrompt`.
 
@@ -361,7 +361,7 @@ Recent episodic context: (last 3 memory_events)
 [/MEMORY]
 ```
 
-Deterministic. No LLM at read. Cheap. Total budget for the block: ≤ 1,500 chars (must fit alongside personality/traits inside `MAX_CHAT_PROMPT_LENGTH = 11_000` from [src/services/aiChatService.ts](/src/services/aiChatService.ts)).
+Deterministic. No LLM at read. Cheap. Total budget for the block: ≤ 1,500 chars (must fit alongside personality/traits inside `MAX_CHAT_PROMPT_LENGTH = 12_000` from [src/services/aiChatService.ts](/src/services/aiChatService.ts)).
 
 ## Confidence + Conflict Resolution (librarian policy)
 

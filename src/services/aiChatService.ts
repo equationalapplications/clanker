@@ -72,7 +72,7 @@ export interface MemoryBundle {
   recentEvents: MemoryEvent[]
 }
 
-const MAX_CHAT_PROMPT_LENGTH = 11_000
+const MAX_CHAT_PROMPT_LENGTH = 12_000
 const MAX_CHARACTER_NAME_LENGTH = 100
 const MAX_CHARACTER_PERSONALITY_LENGTH = 1_500
 const MAX_CHARACTER_TRAITS_LENGTH = 1_000
@@ -360,24 +360,13 @@ export function buildChatPrompt(userMessage: string, context: ChatContext): stri
   const boundedUserMessage = truncateText(userMessage, MAX_USER_MESSAGE_LENGTH)
   const memoryBlock = buildMemoryBlock(context.memoryBundle)
 
-  // Calculate remaining budget for conversation history accounting for memory block
-  // Estimate: fixed template text (~600 chars) + character info + memory + user message
-  const memoryBlockLength = memoryBlock.length
-  const fixedOverhead = 600 // Rough estimate for template, instructions, and markers
-  const contentUsed =
-    characterName.length +
-    characterPersonality.length +
-    characterTraits.length +
-    boundedUserMessage.length +
-    memoryBlockLength +
-    fixedOverhead
-  const remainingBudget = Math.max(1000, MAX_CHAT_PROMPT_LENGTH - contentUsed)
-  const boundedConversationHistory = buildConversationHistory(
+  // Start with full conversation history, then trim iteratively if prompt exceeds budget
+  let conversationHistory = buildConversationHistory(
     context.conversationHistory,
-    remainingBudget,
+    Math.max(1000, MAX_CHAT_PROMPT_LENGTH - 2000), // Initial estimate
   )
 
-  const prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
+  let prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
 
 Personality: ${characterPersonality}
 Traits: ${characterTraits}
@@ -390,12 +379,41 @@ Instructions:
 - Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
 
 ${memoryBlock ? `${memoryBlock}\n\n` : ''}Conversation history:
-${boundedConversationHistory}
+${conversationHistory}
 
 User: ${boundedUserMessage}
 ${characterName}:`
 
-  return truncateText(prompt, MAX_CHAT_PROMPT_LENGTH)
+  // If prompt exceeds budget, iteratively trim conversation history from oldest entries
+  while (prompt.length > MAX_CHAT_PROMPT_LENGTH && conversationHistory.length > 0) {
+    // Find the first newline boundary and remove the first message
+    const firstNewline = conversationHistory.indexOf('\n')
+    if (firstNewline === -1) {
+      conversationHistory = ''
+    } else {
+      conversationHistory = conversationHistory.slice(firstNewline + 1).trimStart()
+    }
+
+    prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
+
+Personality: ${characterPersonality}
+Traits: ${characterTraits}
+
+Instructions:
+- Respond as ${characterName} would, staying true to the personality and traits
+- Keep responses conversational and engaging
+- Respond naturally and authentically to the user's message
+- Don't break character or mention that you're an AI
+- Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
+
+${memoryBlock ? `${memoryBlock}\n\n` : ''}Conversation history:
+${conversationHistory}
+
+User: ${boundedUserMessage}
+${characterName}:`
+  }
+
+  return prompt
 }
 
 function buildIntroductionPrompt(
