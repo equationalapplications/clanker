@@ -85,8 +85,11 @@ export async function searchEntries(userId: string, characterId: string, query: 
     await db.runAsync(
       `UPDATE wiki_entries
        SET access_count = access_count + 1, last_accessed_at = ?
-       WHERE id IN (${placeholders})`,
-      [now, ...ids],
+       WHERE character_id = ?
+         AND user_id = ?
+         AND deleted_at IS NULL
+         AND id IN (${placeholders})`,
+      [now, characterId, userId, ...ids],
     )
   }
 

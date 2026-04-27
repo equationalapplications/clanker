@@ -72,12 +72,12 @@ function parseEventType(value: unknown): 'observation' | 'decision' | 'action' |
   return 'observation'
 }
 
-function toWikiEntryUpserts(rows: unknown[]): WikiEntryUpsertInput[] {
+function toWikiEntryUpserts(rows: unknown[], characterId?: string): WikiEntryUpsertInput[] {
   return rows
     .filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null)
     .map((row) => ({
       id: String(row.id ?? ''),
-      characterId: String(row.characterId ?? row.character_id ?? ''),
+      characterId: characterId ?? String(row.characterId ?? row.character_id ?? ''),
       userId: String(row.userId ?? row.user_id ?? ''),
       title: String(row.title ?? ''),
       body: String(row.body ?? ''),
@@ -95,12 +95,12 @@ function toWikiEntryUpserts(rows: unknown[]): WikiEntryUpsertInput[] {
     .filter((row) => row.id && row.characterId && row.userId && row.title && row.body)
 }
 
-function toAgentTaskUpserts(rows: unknown[]): AgentTaskUpsertInput[] {
+function toAgentTaskUpserts(rows: unknown[], characterId?: string): AgentTaskUpsertInput[] {
   return rows
     .filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null)
     .map((row) => ({
       id: String(row.id ?? ''),
-      characterId: String(row.characterId ?? row.character_id ?? ''),
+      characterId: characterId ?? String(row.characterId ?? row.character_id ?? ''),
       userId: String(row.userId ?? row.user_id ?? ''),
       description: String(row.description ?? ''),
       status: parseTaskStatus(row.status),
@@ -117,12 +117,12 @@ function toAgentTaskUpserts(rows: unknown[]): AgentTaskUpsertInput[] {
     .filter((row) => row.id && row.characterId && row.userId && row.description)
 }
 
-function toMemoryEventUpserts(rows: unknown[]): MemoryEventUpsertInput[] {
+function toMemoryEventUpserts(rows: unknown[], characterId?: string): MemoryEventUpsertInput[] {
   return rows
     .filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null)
     .map((row) => ({
       id: String(row.id ?? ''),
-      characterId: String(row.characterId ?? row.character_id ?? ''),
+      characterId: characterId ?? String(row.characterId ?? row.character_id ?? ''),
       userId: String(row.userId ?? row.user_id ?? ''),
       eventType: parseEventType(row.eventType),
       summary: String(row.summary ?? ''),
@@ -155,9 +155,9 @@ async function applyMemoryDiff(
   diff: { entries?: unknown[]; tasks?: unknown[]; events?: unknown[]; synonyms?: unknown[] },
 ): Promise<void> {
   const [entryRows, taskRows, eventRows, synonymRows] = [
-    toWikiEntryUpserts(diff.entries ?? []),
-    toAgentTaskUpserts(diff.tasks ?? []),
-    toMemoryEventUpserts(diff.events ?? []),
+    toWikiEntryUpserts(diff.entries ?? [], characterId),
+    toAgentTaskUpserts(diff.tasks ?? [], characterId),
+    toMemoryEventUpserts(diff.events ?? [], characterId),
     toDerivedSynonymUpserts(characterId, diff.synonyms ?? []),
   ]
 

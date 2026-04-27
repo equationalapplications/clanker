@@ -207,7 +207,7 @@ function buildMemoryBlock(memoryBundle?: MemoryBundle | null): string {
   )
   if (factSection.text) {
     sections.push(factSection.text)
-    remainingBudget = factSection.remainingBudget
+    remainingBudget = factSection.remainingBudget - 2 // account for \n\n separator
   }
 
   const taskSection = fitMemorySection(
@@ -217,7 +217,7 @@ function buildMemoryBlock(memoryBundle?: MemoryBundle | null): string {
   )
   if (taskSection.text) {
     sections.push(taskSection.text)
-    remainingBudget = taskSection.remainingBudget
+    remainingBudget = taskSection.remainingBudget - 2 // account for \n\n separator
   }
 
   const eventSection = fitMemorySection(

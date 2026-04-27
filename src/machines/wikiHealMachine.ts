@@ -28,11 +28,6 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
       getCharacter(input.character.id, input.userId),
     ])
 
-    const memoryCheckpoint = Math.max(0, latestCharacter?.memory_checkpoint ?? 0)
-    if (messageCount - memoryCheckpoint < MEMORY_WRITE_TRIGGER_MESSAGE_COUNT) {
-      return
-    }
-
     if (!onlineManager.isOnline()) {
       return
     }
@@ -40,6 +35,11 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
     if (latestCharacter?.save_to_cloud && latestCharacter?.cloud_id) {
       const charForCloud = { ...input.character, cloud_id: latestCharacter.cloud_id }
       await triggerMemoryRead(charForCloud, input.userId)
+    }
+
+    const memoryCheckpoint = Math.max(0, latestCharacter?.memory_checkpoint ?? 0)
+    if (messageCount - memoryCheckpoint < MEMORY_WRITE_TRIGGER_MESSAGE_COUNT) {
+      return
     }
 
     await updateCharacter(input.character.id, input.userId, {
