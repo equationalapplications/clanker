@@ -22,6 +22,13 @@
       "when": 1776697000000,
       "tag": "0002_users_timestamps_not_null",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777276800000,
+      "tag": "0004_wiki_memory",
+      "breakpoints": true
     }
   ]
 }

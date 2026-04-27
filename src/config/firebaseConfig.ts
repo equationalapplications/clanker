@@ -74,6 +74,11 @@ const syncCharacterFn = httpsCallable(functionsInstance, 'syncCharacter')
 const deleteCharacterFn = httpsCallable(functionsInstance, 'deleteCharacter')
 const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters')
 const getPublicCharacterFn = httpsCallable(functionsInstance, 'getPublicCharacter')
+const memoryReadFn = httpsCallable(functionsInstance, 'memoryRead')
+const memoryWriteFn = httpsCallable(functionsInstance, 'memoryWrite')
+const memoryHealFn = httpsCallable(functionsInstance, 'memoryHeal')
+const memoryForgetFn = httpsCallable(functionsInstance, 'memoryForget')
+const syncCharacterMemoryFn = httpsCallable(functionsInstance, 'syncCharacterMemory')
 
 export type FirebaseUser = FirebaseAuthTypes.User
 
@@ -103,4 +108,9 @@ export {
   deleteCharacterFn,
   getUserCharactersFn,
   getPublicCharacterFn,
+  memoryReadFn,
+  memoryWriteFn,
+  memoryHealFn,
+  memoryForgetFn,
+  syncCharacterMemoryFn,
 }

@@ -9,6 +9,8 @@ import { getCharacter as getLocalCharacter, updateCharacter } from '~/database/c
 import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
 import { summarizeText } from '~/services/summarizeTextService'
 import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
+import { fetchMemoryBundle } from '~/services/memoryService'
+import { dispatchWikiWrite } from '~/machines/wikiHealMachine'
 import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
 
@@ -19,6 +21,7 @@ export interface Character {
   traits: string
   emotions: string
   context: string
+  cloud_id?: string | null
 }
 
 export type UsageSnapshot = UsageSnapshotPayload
@@ -40,14 +43,41 @@ interface ChatContext {
     role: 'user' | 'assistant'
     content: string
   }[]
+  memoryBundle?: MemoryBundle | null
 }
 
-const MAX_CHAT_PROMPT_LENGTH = 11_000
+export interface MemoryFact {
+  id: string
+  title: string
+  body: string
+  confidence: 'certain' | 'inferred' | 'tentative'
+  tags: string[]
+}
+
+export interface MemoryTask {
+  id: string
+  description: string
+  priorityLabel: string
+}
+
+export interface MemoryEvent {
+  id: string
+  eventType: string
+  summary: string
+}
+
+export interface MemoryBundle {
+  facts: MemoryFact[]
+  openTasks: MemoryTask[]
+  recentEvents: MemoryEvent[]
+}
+
+const MAX_CHAT_PROMPT_LENGTH = 12_000
 const MAX_CHARACTER_NAME_LENGTH = 100
 const MAX_CHARACTER_PERSONALITY_LENGTH = 1_500
 const MAX_CHARACTER_TRAITS_LENGTH = 1_000
 const MAX_USER_MESSAGE_LENGTH = 3_000
-const MAX_HISTORY_CHARS = 4_500
+const MAX_MEMORY_BLOCK_CHARS = 1_500
 const MAX_REFERENCE_ID_LENGTH = 128
 const SUMMARY_TRIGGER_MESSAGE_COUNT = 20
 const SUMMARY_KEEP_RECENT_MESSAGE_COUNT = 20
@@ -113,6 +143,96 @@ function buildReferenceId(value: unknown): string | undefined {
 
   const referenceId = truncateText(String(value), MAX_REFERENCE_ID_LENGTH)
   return referenceId.length > 0 ? referenceId : undefined
+}
+
+function buildMemoryFactLine(fact: MemoryFact): string {
+  const tagText = fact.tags.length > 0 ? ` | tags: ${fact.tags.join(', ')}` : ''
+  return `  - [${fact.confidence}] ${truncateText(fact.body, 200)}${tagText}`
+}
+
+function buildMemoryTaskLine(task: MemoryTask): string {
+  return `  - [${task.priorityLabel}] ${task.description.trim()}`
+}
+
+function buildMemoryEventLine(event: MemoryEvent): string {
+  return `  - [${event.eventType}] ${event.summary.trim()}`
+}
+
+function fitMemorySection(
+  heading: string,
+  lines: string[],
+  budget: number,
+): { text: string; remainingBudget: number } {
+  if (budget <= 0 || lines.length === 0) {
+    return { text: '', remainingBudget: budget }
+  }
+
+  const keptLines: string[] = []
+  let used = heading.length + 1 // +1 for the \n between heading and first line
+
+  for (const line of lines) {
+    const addition = `\n${line}`
+    if (used + addition.length > budget) {
+      break
+    }
+
+    keptLines.push(line)
+    used += addition.length
+  }
+
+  if (keptLines.length === 0) {
+    return { text: '', remainingBudget: budget }
+  }
+
+  const text = `${heading}\n${keptLines.join('\n')}`
+  return {
+    text,
+    remainingBudget: budget - text.length,
+  }
+}
+
+function buildMemoryBlock(memoryBundle?: MemoryBundle | null): string {
+  if (!memoryBundle) {
+    return ''
+  }
+
+  const sections: string[] = []
+  let remainingBudget = MAX_MEMORY_BLOCK_CHARS - '[MEMORY]\n\n[/MEMORY]'.length
+
+  const factSection = fitMemorySection(
+    'Facts:',
+    memoryBundle.facts.slice(0, 10).map(buildMemoryFactLine),
+    remainingBudget,
+  )
+  if (factSection.text) {
+    sections.push(factSection.text)
+    remainingBudget = factSection.remainingBudget - 2 // account for \n\n separator
+  }
+
+  const taskSection = fitMemorySection(
+    'Open tasks:',
+    memoryBundle.openTasks.slice(0, 5).map(buildMemoryTaskLine),
+    remainingBudget,
+  )
+  if (taskSection.text) {
+    sections.push(taskSection.text)
+    remainingBudget = taskSection.remainingBudget - 2 // account for \n\n separator
+  }
+
+  const eventSection = fitMemorySection(
+    'Recent episodic context:',
+    memoryBundle.recentEvents.slice(0, 3).map(buildMemoryEventLine),
+    remainingBudget,
+  )
+  if (eventSection.text) {
+    sections.push(eventSection.text)
+  }
+
+  if (sections.length === 0) {
+    return ''
+  }
+
+  return `[MEMORY]\n${sections.join('\n\n')}\n[/MEMORY]`
 }
 
 export function getRecentConversationHistory(messages: IMessage[], limit: number): IMessage[] {
@@ -238,12 +358,15 @@ export function buildChatPrompt(userMessage: string, context: ChatContext): stri
   )
   const characterTraits = truncateText(context.characterTraits, MAX_CHARACTER_TRAITS_LENGTH)
   const boundedUserMessage = truncateText(userMessage, MAX_USER_MESSAGE_LENGTH)
-  const boundedConversationHistory = buildConversationHistory(
+  const memoryBlock = buildMemoryBlock(context.memoryBundle)
+
+  // Start with full conversation history, then trim iteratively if prompt exceeds budget
+  let conversationHistory = buildConversationHistory(
     context.conversationHistory,
-    MAX_HISTORY_CHARS,
+    Math.max(1000, MAX_CHAT_PROMPT_LENGTH - 2000), // Initial estimate
   )
 
-  const prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
+  let prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
 
 Personality: ${characterPersonality}
 Traits: ${characterTraits}
@@ -255,13 +378,42 @@ Instructions:
 - Don't break character or mention that you're an AI
 - Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
 
-Conversation history:
-${boundedConversationHistory}
+${memoryBlock ? `${memoryBlock}\n\n` : ''}Conversation history:
+${conversationHistory}
 
 User: ${boundedUserMessage}
 ${characterName}:`
 
-  return truncateText(prompt, MAX_CHAT_PROMPT_LENGTH)
+  // If prompt exceeds budget, iteratively trim conversation history from oldest entries
+  while (prompt.length > MAX_CHAT_PROMPT_LENGTH && conversationHistory.length > 0) {
+    // Find the first newline boundary and remove the first message
+    const firstNewline = conversationHistory.indexOf('\n')
+    if (firstNewline === -1) {
+      conversationHistory = ''
+    } else {
+      conversationHistory = conversationHistory.slice(firstNewline + 1).trimStart()
+    }
+
+    prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
+
+Personality: ${characterPersonality}
+Traits: ${characterTraits}
+
+Instructions:
+- Respond as ${characterName} would, staying true to the personality and traits
+- Keep responses conversational and engaging
+- Respond naturally and authentically to the user's message
+- Don't break character or mention that you're an AI
+- Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
+
+${memoryBlock ? `${memoryBlock}\n\n` : ''}Conversation history:
+${conversationHistory}
+
+User: ${boundedUserMessage}
+${characterName}:`
+  }
+
+  return prompt
 }
 
 function buildIntroductionPrompt(
@@ -297,10 +449,20 @@ export const sendMessageWithAIResponse = async (
   character: Character,
   userId: string,
   conversationHistory: IMessage[] = [],
+  options?: { hasUnlimited?: boolean },
 ): Promise<{ usageSnapshot: UsageSnapshot | null }> => {
   try {
     // 1. Send the user's message to local database
     await sendMessage(character.id, userId, userMessage)
+
+    let memoryBundle: MemoryBundle | null = null
+    if (options?.hasUnlimited) {
+      try {
+        memoryBundle = await fetchMemoryBundle(userId, character.id, userMessage.text)
+      } catch (error) {
+        console.warn('Failed to fetch memory bundle:', error)
+      }
+    }
 
     // 2. Prepare context for AI generation
     const chatContext: ChatContext = {
@@ -311,6 +473,7 @@ export const sendMessageWithAIResponse = async (
         role: msg.user._id === userId ? 'user' : 'assistant',
         content: msg.text,
       })),
+      memoryBundle,
     }
 
     // 3. Create AI response message ID
@@ -333,6 +496,13 @@ export const sendMessageWithAIResponse = async (
     })
 
     void triggerConversationSummary(character, userId)
+    if (options?.hasUnlimited) {
+      void dispatchWikiWrite({
+        character,
+        userId,
+        chunk: userMessage.text,
+      })
+    }
     return { usageSnapshot: toUsageSnapshot(aiResponse) }
   } catch (error) {
     console.error('Error in sendMessageWithAIResponse:', error)

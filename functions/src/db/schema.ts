@@ -79,3 +79,59 @@ export const messages = pgTable('messages', {
   senderUserIdIdx: index('messages_sender_user_id_idx').on(table.senderUserId),
   characterIdCreatedAtIdx: index('messages_character_id_created_at_idx').on(table.characterId, table.createdAt.desc()),
 }));
+
+export const wikiEntries = pgTable('wiki_entries', {
+  id: text('id').primaryKey(),
+  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  tags: jsonb('tags').notNull().default([]),
+  confidence: text('confidence').notNull().default('inferred'),
+  sourceType: text('source_type').notNull().default('agent_inferred'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }),
+  accessCount: integer('access_count').notNull().default(0),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => ({
+  characterUserIdx: index('wiki_entries_character_user_idx').on(table.characterId, table.userId),
+  characterDeletedIdx: index('wiki_entries_character_deleted_idx').on(table.characterId, table.deletedAt),
+  updatedAtIdx: index('wiki_entries_updated_at_idx').on(table.updatedAt.desc()),
+  confidenceCheck: check('wiki_entries_confidence_check', sql`${table.confidence} IN ('certain', 'inferred', 'tentative')`),
+  sourceTypeCheck: check('wiki_entries_source_type_check', sql`${table.sourceType} IN ('user_stated', 'agent_inferred', 'user_confirmed')`),
+}));
+
+export const agentTasks = pgTable('agent_tasks', {
+  id: text('id').primaryKey(),
+  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  description: text('description').notNull(),
+  status: text('status').notNull().default('pending'),
+  priority: integer('priority').notNull().default(0),
+  dueContext: text('due_context'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolutionNote: text('resolution_note'),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => ({
+  characterStatusIdx: index('agent_tasks_character_status_idx').on(table.characterId, table.userId, table.status),
+  priorityIdx: index('agent_tasks_priority_idx').on(table.priority.desc()),
+  statusCheck: check('agent_tasks_status_check', sql`${table.status} IN ('pending', 'in_progress', 'done', 'abandoned')`),
+}));
+
+export const memoryEvents = pgTable('memory_events', {
+  id: text('id').primaryKey(),
+  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  eventType: text('event_type').notNull(),
+  summary: text('summary').notNull(),
+  relatedEntryId: text('related_entry_id').references(() => wikiEntries.id, { onDelete: 'set null' }),
+  relatedTaskId: text('related_task_id').references(() => agentTasks.id, { onDelete: 'set null' }),
+  sourceRef: text('source_ref'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  characterCreatedIdx: index('memory_events_character_created_idx').on(table.characterId, table.userId, table.createdAt.desc()),
+  eventTypeCheck: check('memory_events_event_type_check', sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`),
+}));
