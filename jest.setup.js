@@ -99,18 +99,25 @@ const _originalOSDescriptor =
     value: _rnPlatform.OS,
     configurable: true,
     writable: true,
+    enumerable: true,
   }
 
 Object.defineProperty(globalThis, '__setJestPlatformOS', {
   value: (os) => {
-    Object.defineProperty(_rnPlatform, 'OS', { value: os, configurable: true })
+    Object.defineProperty(_rnPlatform, 'OS', {
+      ..._originalOSDescriptor,
+      value: os,
+    })
   },
   configurable: true,
 })
 
 Object.defineProperty(globalThis, '__resetJestPlatformOS', {
   value: () => {
-    Object.defineProperty(_rnPlatform, 'OS', _originalOSDescriptor)
+    Object.defineProperty(_rnPlatform, 'OS', {
+      ..._originalOSDescriptor,
+      value: _originalOSDescriptor.value,
+    })
   },
   configurable: true,
 })
