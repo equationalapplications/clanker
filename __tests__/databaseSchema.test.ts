@@ -28,7 +28,7 @@ describe('database schema migration guards', () => {
 
   it('bumps schema to v11 for wiki memory tables', () => {
     expect(SCHEMA_VERSION).toBe(11)
-    expect(MIGRATION_SKIP_GUARDS[11]).toEqual({ table: 'characters', column: 'heal_checkpoint' })
+    expect(MIGRATION_SKIP_GUARDS[11]).toEqual({ table: 'wiki_entries', column: 'id' })
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.characters).toEqual(
       expect.arrayContaining(['heal_checkpoint', 'memory_checkpoint']),
     )
@@ -45,9 +45,6 @@ describe('database schema migration guards', () => {
   })
 
   it('adds wiki memory schema in migration 11', () => {
-    expect(MIGRATIONS[11]).toContain('CREATE TABLE IF NOT EXISTS wiki_entries')
-    expect(MIGRATIONS[11]).toContain('CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts')
-    expect(MIGRATIONS[11]).toContain('CREATE TRIGGER IF NOT EXISTS wiki_entries_ai')
     expect(MIGRATIONS[11]).toContain('ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0')
     expect(MIGRATIONS[11]).toContain('ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0')
   })

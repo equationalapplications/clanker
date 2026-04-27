@@ -63,26 +63,30 @@ function toView(entry: LocalWikiEntry): WikiEntryView {
   }
 }
 
-export async function searchEntries(characterId: string, query: string): Promise<WikiEntryView[]> {
+export async function searchEntries(userId: string, characterId: string, query: string): Promise<WikiEntryView[]> {
   const db = await getDatabase()
   const rows = await db.getAllAsync<LocalWikiEntry>(
     `SELECT *
      FROM wiki_entries
      WHERE rowid IN (SELECT rowid FROM wiki_fts WHERE wiki_fts MATCH ?)
        AND character_id = ?
+       AND user_id = ?
        AND deleted_at IS NULL
      ORDER BY updated_at DESC
      LIMIT 10`,
-    [query, characterId],
+    [query, characterId, userId],
   )
 
-  const now = Date.now()
-  for (const row of rows) {
+  if (rows.length > 0) {
+    const now = Date.now()
+    const ids = rows.map((row) => row.id)
+    const placeholders = ids.map(() => '?').join(', ')
+
     await db.runAsync(
       `UPDATE wiki_entries
        SET access_count = access_count + 1, last_accessed_at = ?
-       WHERE id = ?`,
-      [now, row.id],
+       WHERE id IN (${placeholders})`,
+      [now, ...ids],
     )
   }
 
@@ -90,6 +94,7 @@ export async function searchEntries(characterId: string, query: string): Promise
 }
 
 export async function getRecentEntries(
+  userId: string,
   characterId: string,
   limit: number,
 ): Promise<WikiEntryView[]> {
@@ -98,23 +103,25 @@ export async function getRecentEntries(
     `SELECT *
      FROM wiki_entries
      WHERE character_id = ?
+       AND user_id = ?
        AND deleted_at IS NULL
      ORDER BY COALESCE(last_accessed_at, updated_at) DESC
      LIMIT ?`,
-    [characterId, limit],
+    [characterId, userId, limit],
   )
 
   return rows.map(toView)
 }
 
-export async function countEntries(characterId: string): Promise<number> {
+export async function countEntries(userId: string, characterId: string): Promise<number> {
   const db = await getDatabase()
   const row = await db.getFirstAsync<{ count: number }>(
     `SELECT COUNT(*) as count
      FROM wiki_entries
      WHERE character_id = ?
+       AND user_id = ?
        AND deleted_at IS NULL`,
-    [characterId],
+    [characterId, userId],
   )
 
   return row?.count ?? 0

@@ -153,7 +153,7 @@ describe('buildChatPrompt', () => {
       { hasUnlimited: true },
     )
 
-    expect(mockFetchMemoryBundle).toHaveBeenCalledWith('char-1', 'How am I doing?')
+    expect(mockFetchMemoryBundle).toHaveBeenCalledWith('user-1', 'char-1', 'How am I doing?')
     expect(mockGenerateChatReply).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining('[MEMORY]'),

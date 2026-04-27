@@ -161,15 +161,16 @@ async function applyMemoryDiff(
 }
 
 export async function fetchMemoryBundle(
+  userId: string,
   characterId: string,
   query: string,
 ): Promise<MemoryBundle> {
   const ftsQuery = await buildFtsQuery(query, characterId)
 
   const [facts, openTasks, recentEvents] = await Promise.all([
-    ftsQuery ? searchEntries(characterId, ftsQuery) : getRecentEntries(characterId, 10),
-    getOpenTasks(characterId, 5),
-    getRecentEvents(characterId, 3),
+    ftsQuery ? searchEntries(userId, characterId, ftsQuery) : getRecentEntries(userId, characterId, 10),
+    getOpenTasks(userId, characterId, 5),
+    getRecentEvents(userId, characterId, 3),
   ])
 
   return {

@@ -427,7 +427,7 @@ export const sendMessageWithAIResponse = async (
     let memoryBundle: MemoryBundle | null = null
     if (options?.hasUnlimited) {
       try {
-        memoryBundle = await fetchMemoryBundle(character.id, userMessage.text)
+        memoryBundle = await fetchMemoryBundle(userId, character.id, userMessage.text)
       } catch (error) {
         console.warn('Failed to fetch memory bundle:', error)
       }

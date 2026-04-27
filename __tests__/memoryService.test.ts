@@ -68,7 +68,7 @@ describe('fetchMemoryBundle', () => {
       },
     ])
 
-    await expect(fetchMemoryBundle('char-1', 'running')).resolves.toEqual({
+    await expect(fetchMemoryBundle('user-1', 'char-1', 'running')).resolves.toEqual({
       facts: [
         {
           id: 'entry-1',
@@ -83,7 +83,7 @@ describe('fetchMemoryBundle', () => {
     })
 
     expect(mockBuildFtsQuery).toHaveBeenCalledWith('running', 'char-1')
-    expect(mockSearchEntries).toHaveBeenCalledWith('char-1', '"run"* OR "jog"*')
+    expect(mockSearchEntries).toHaveBeenCalledWith('user-1', 'char-1', '"run"* OR "jog"*')
     expect(mockGetRecentEntries).not.toHaveBeenCalled()
   })
 
@@ -99,9 +99,9 @@ describe('fetchMemoryBundle', () => {
       },
     ])
 
-    await fetchMemoryBundle('char-1', 'the and but')
+    await fetchMemoryBundle('user-1', 'char-1', 'the and but')
 
-    expect(mockGetRecentEntries).toHaveBeenCalledWith('char-1', 10)
+    expect(mockGetRecentEntries).toHaveBeenCalledWith('user-1', 'char-1', 10)
     expect(mockSearchEntries).not.toHaveBeenCalled()
   })
 })

@@ -35,6 +35,7 @@ export interface MemoryEventView {
 }
 
 export async function getRecentEvents(
+  userId: string,
   characterId: string,
   limit: number,
 ): Promise<MemoryEventView[]> {
@@ -43,9 +44,10 @@ export async function getRecentEvents(
     `SELECT id, event_type, summary
      FROM memory_events
      WHERE character_id = ?
+       AND user_id = ?
      ORDER BY created_at DESC
      LIMIT ?`,
-    [characterId, limit],
+    [characterId, userId, limit],
   )
 
   return rows.map((row) => ({

@@ -53,6 +53,7 @@ function priorityToLabel(priority: number): string {
 }
 
 export async function getOpenTasks(
+  userId: string,
   characterId: string,
   limit: number,
 ): Promise<AgentTaskView[]> {
@@ -61,11 +62,12 @@ export async function getOpenTasks(
     `SELECT id, description, priority
      FROM agent_tasks
      WHERE character_id = ?
+       AND user_id = ?
        AND status = 'pending'
        AND deleted_at IS NULL
      ORDER BY priority DESC, updated_at DESC
      LIMIT ?`,
-    [characterId, limit],
+    [characterId, userId, limit],
   )
 
   return rows.map((row) => ({

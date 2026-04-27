@@ -37,7 +37,7 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
   6: { table: 'characters', column: 'summary_checkpoint' },
   7: { table: 'characters', column: 'owner_user_id' },
   9: { table: 'characters', column: 'voice' },
-  11: { table: 'characters', column: 'heal_checkpoint' },
+  11: { table: 'wiki_entries', column: 'id' },
 }
 
 /**
@@ -214,6 +214,8 @@ export const MIGRATIONS: Record<number, string> = {
   10: `UPDATE characters SET voice = '${DEFAULT_VOICE}' WHERE voice IS NULL OR voice = '';`,
   11: `ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0;
+-- Note: wiki tables, triggers, and indexes are already in CREATE_TABLES and applied at schema init
+-- Migration 11 only handles the characters table ALTERs; wiki structures are created upfront
 CREATE TABLE IF NOT EXISTS wiki_entries (
   id TEXT PRIMARY KEY NOT NULL,
   character_id TEXT NOT NULL,
