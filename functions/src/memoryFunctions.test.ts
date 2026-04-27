@@ -31,7 +31,26 @@ function buildAuth() {
 function buildDeps(options?: {
   planTier?: "free" | "monthly_20" | "monthly_50" | "payg";
   planStatus?: "active" | "cancelled" | "expired";
+  ownsCharacter?: boolean;
 }) {
+  const ownsCharacter = options?.ownsCharacter ?? false;
+  const selectChain = {
+    from() {
+      return {
+        where() {
+          return {
+            limit: async () => (ownsCharacter ? [{ id: "char-1" }] : []),
+            orderBy() {
+              return {
+                limit: async () => [],
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+
   return {
     userRepository: {
       getOrCreateUserByFirebaseIdentity: async () => ({
@@ -78,6 +97,21 @@ function buildDeps(options?: {
         updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       }),
     },
+    getDb: async () => ({
+      select: () => selectChain,
+      insert: () => ({
+        values: () => ({
+          onConflictDoUpdate: async () => undefined,
+        }),
+      }),
+      update: () => ({
+        set: () => ({
+          where: () => ({
+            returning: async () => [],
+          }),
+        }),
+      }),
+    }),
   };
 }
 
@@ -93,13 +127,13 @@ test("memoryReadHandler rejects non-premium calls", async () => {
     async () =>
       memoryReadHandler(
         { auth: buildAuth(), data: { characterId: "char-1" } } as never,
-        buildDeps({ planTier: "free", planStatus: "active" }),
+        buildDeps({ planTier: "free", planStatus: "active" }) as never,
       ),
     (err: unknown) => err instanceof HttpsError && err.code === "permission-denied",
   );
 });
 
-test("memoryWriteHandler returns empty diff envelope for premium caller", async () => {
+test("memoryWriteHandler returns structured diff envelope for premium caller", async () => {
   const result = await memoryWriteHandler(
     {
       auth: buildAuth(),
@@ -108,23 +142,16 @@ test("memoryWriteHandler returns empty diff envelope for premium caller", async 
         sourceText: "User asked about training plan",
       },
     } as never,
-    buildDeps(),
+    buildDeps() as never,
   );
 
-  assert.deepEqual(result, {
-    diff: {
-      entriesAdded: 0,
-      entriesUpdated: 0,
-      tasksOpened: 0,
-      tasksClosed: 0,
-      eventsAppended: 0,
-      synonymsUpdated: 0,
-      entries: [],
-      tasks: [],
-      events: [],
-      synonyms: [],
-    },
-  });
+  assert.equal(typeof result.diff.entriesAdded, "number");
+  assert.ok(result.diff.entriesAdded >= 1);
+  assert.equal(Array.isArray(result.diff.entries), true);
+  assert.equal(result.diff.entries[0]?.characterId, "char-1");
+  assert.equal(result.diff.entries[0]?.userId, "user-1");
+  assert.equal(result.diff.eventsAppended, 1);
+  assert.equal(result.diff.events[0]?.eventType, "observation");
 });
 
 test("memoryHealHandler returns empty diff for non-premium without error", async () => {
@@ -135,7 +162,7 @@ test("memoryHealHandler returns empty diff for non-premium without error", async
         characterId: "char-1",
       },
     } as never,
-    buildDeps({ planTier: "free", planStatus: "active" }),
+    buildDeps({ planTier: "free", planStatus: "active" }) as never,
   );
 
   assert.deepEqual(result, {
@@ -159,7 +186,7 @@ test("memoryForgetHandler validates target payload", async () => {
           auth: buildAuth(),
           data: { characterId: "char-1" },
         } as never,
-        buildDeps(),
+        buildDeps() as never,
       ),
     (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument",
   );
@@ -173,7 +200,7 @@ test("syncCharacterMemoryHandler returns zero-sync summary", async () => {
         characterId: "char-1",
       },
     } as never,
-    buildDeps(),
+    buildDeps() as never,
   );
 
   assert.deepEqual(result, {

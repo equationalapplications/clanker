@@ -1,19 +1,17 @@
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
+import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 import { userRepository } from './services/userRepository.js';
 import { subscriptionService } from './services/subscriptionService.js';
+import { getDb } from './db/cloudSql.js';
+import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
 
 const DEFAULT_REGION = 'us-central1';
 const PREMIUM_TIERS = new Set(['monthly_20', 'monthly_50']);
 
 type PlanStatus = 'active' | 'cancelled' | 'expired';
-
-type MemoryFunctionDeps = {
-  userRepository: Pick<typeof userRepository, 'getOrCreateUserByFirebaseIdentity'>;
-  subscriptionService: Pick<typeof subscriptionService, 'getSubscription' | 'getOrCreateDefaultSubscription'>;
-};
 
 type MemoryIdentity = {
   userId: string;
@@ -28,6 +26,7 @@ type MemoryReadPayload = {
 type MemoryWritePayload = {
   characterId?: unknown;
   sourceText?: unknown;
+  sourceType?: unknown;
 };
 
 type MemoryForgetPayload = {
@@ -37,9 +36,94 @@ type MemoryForgetPayload = {
   clearAll?: unknown;
 };
 
+type MemoryWriteEntry = {
+  id: string;
+  characterId: string;
+  userId: string;
+  title: string;
+  body: string;
+  tags: string[];
+  confidence: 'certain' | 'inferred' | 'tentative';
+  sourceType: 'user_stated' | 'agent_inferred' | 'user_confirmed';
+  createdAt: number;
+  updatedAt: number;
+  lastAccessedAt: number | null;
+  accessCount: number;
+  syncedToCloud: number;
+  cloudId: string | null;
+  deletedAt: number | null;
+};
+
+type MemoryWriteTask = {
+  id: string;
+  characterId: string;
+  userId: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'done' | 'abandoned';
+  priority: number;
+  dueContext: string | null;
+  createdAt: number;
+  updatedAt: number;
+  resolvedAt: number | null;
+  resolutionNote: string | null;
+  syncedToCloud: number;
+  cloudId: string | null;
+  deletedAt: number | null;
+};
+
+type MemoryWriteEvent = {
+  id: string;
+  characterId: string;
+  userId: string;
+  eventType: 'observation' | 'decision' | 'action' | 'outcome';
+  summary: string;
+  relatedEntryId: string | null;
+  relatedTaskId: string | null;
+  sourceRef: string | null;
+  createdAt: number;
+  syncedToCloud: number;
+  cloudId: string | null;
+};
+
+type MemoryWriteSynonym = {
+  term: string;
+  synonyms: string[];
+  updatedAt: number;
+};
+
+type MemoryWriteDiff = {
+  entriesAdded: number;
+  entriesUpdated: number;
+  tasksOpened: number;
+  tasksClosed: number;
+  eventsAppended: number;
+  synonymsUpdated: number;
+  entries: MemoryWriteEntry[];
+  tasks: MemoryWriteTask[];
+  events: MemoryWriteEvent[];
+  synonyms: MemoryWriteSynonym[];
+};
+
+type MemoryHealDiff = {
+  contradictionsFlagged: number;
+  staleDowngraded: number;
+  orphansRemoved: number;
+  conceptsSeeded: number;
+  entries: MemoryWriteEntry[];
+  tasks: MemoryWriteTask[];
+  events: MemoryWriteEvent[];
+};
+
+type MemoryFunctionDeps = {
+  userRepository: Pick<typeof userRepository, 'getOrCreateUserByFirebaseIdentity'>;
+  subscriptionService: Pick<typeof subscriptionService, 'getSubscription' | 'getOrCreateDefaultSubscription'>;
+  getDb: typeof getDb;
+};
+
 const defaultDeps: MemoryFunctionDeps = {
   userRepository,
   subscriptionService,
+  getDb,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -93,6 +177,19 @@ function parseSourceText(data: unknown): string {
   return value.trim();
 }
 
+function parseSourceType(data: unknown): 'conversation' | 'user_document' {
+  if (!isRecord(data)) {
+    return 'conversation';
+  }
+
+  const value = data.sourceType;
+  if (value === 'user_document') {
+    return 'user_document';
+  }
+
+  return 'conversation';
+}
+
 function parseStringIdList(value: unknown, field: 'entryIds' | 'taskIds'): string[] {
   if (value === undefined) {
     return [];
@@ -134,6 +231,117 @@ function parseForgetTargets(data: unknown): { entryIds: string[]; taskIds: strin
   return { entryIds, taskIds, clearAll };
 }
 
+function clip(value: string, maxLength: number): string {
+  const normalized = value.trim();
+  return normalized.length <= maxLength ? normalized : normalized.slice(0, maxLength).trimEnd();
+}
+
+function slugify(value: string): string {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 4)
+      .join('_') || 'memory'
+  );
+}
+
+function inferPriority(summary: string): number {
+  const lowered = summary.toLowerCase();
+  if (lowered.includes('urgent') || lowered.includes('asap') || lowered.includes('today')) {
+    return 2;
+  }
+
+  if (lowered.includes('later') || lowered.includes('someday') || lowered.includes('eventually')) {
+    return -1;
+  }
+
+  return 0;
+}
+
+function inferTags(summary: string): string[] {
+  const lowered = summary.toLowerCase();
+  const tags: string[] = [];
+
+  if (lowered.includes('health') || lowered.includes('workout') || lowered.includes('run')) {
+    tags.push('health');
+  }
+  if (lowered.includes('work') || lowered.includes('job') || lowered.includes('deadline')) {
+    tags.push('work');
+  }
+  if (lowered.includes('partner') || lowered.includes('friend') || lowered.includes('family')) {
+    tags.push('relationships');
+  }
+  if (lowered.includes('goal') || lowered.includes('plan') || lowered.includes('next')) {
+    tags.push('goals');
+  }
+
+  return tags.slice(0, 3);
+}
+
+function isTaskSentence(input: string): boolean {
+  return /\b(remind|follow up|check in|ask|todo|next)\b/i.test(input);
+}
+
+function fromDate(value: Date | null): number | null {
+  return value ? value.getTime() : null;
+}
+
+function toDate(value: number | null | undefined): Date | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return new Date(value);
+}
+
+function normalizeTerms(input: string): string[] {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .map((value) => value.trim())
+    .filter((value) => value.length >= 3)
+    .slice(0, 6);
+}
+
+function buildSynonyms(entries: MemoryWriteEntry[]): MemoryWriteSynonym[] {
+  const termsByTag = new Map<string, string[]>();
+
+  for (const entry of entries) {
+    const titleTerms = normalizeTerms(entry.title);
+    for (const tag of entry.tags) {
+      const existing = termsByTag.get(tag) ?? [];
+      existing.push(...titleTerms);
+      termsByTag.set(tag, existing);
+    }
+  }
+
+  const now = Date.now();
+  const rows: MemoryWriteSynonym[] = [];
+
+  for (const [term, values] of termsByTag.entries()) {
+    const counts = new Map<string, number>();
+    for (const value of values) {
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+
+    const synonyms = Array.from(counts.entries())
+      .filter(([, count]) => count >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .map(([value]) => value)
+      .slice(0, 5);
+
+    if (synonyms.length > 0) {
+      rows.push({ term, synonyms, updatedAt: now });
+    }
+  }
+
+  return rows;
+}
+
 async function authenticateAndResolveIdentity(
   request: CallableRequest,
   deps: MemoryFunctionDeps,
@@ -160,7 +368,7 @@ async function authenticateAndResolveIdentity(
   });
 
   const existing = await deps.subscriptionService.getSubscription(user.id);
-  const subscription = existing ?? await deps.subscriptionService.getOrCreateDefaultSubscription(user.id);
+  const subscription = existing ?? (await deps.subscriptionService.getOrCreateDefaultSubscription(user.id));
   const planStatus = normalizePlanStatus(subscription.planStatus);
   const hasUnlimited = planStatus === 'active' && PREMIUM_TIERS.has(subscription.planTier);
 
@@ -170,42 +378,505 @@ async function authenticateAndResolveIdentity(
   };
 }
 
+async function hasOwnedCloudCharacter(
+  deps: MemoryFunctionDeps,
+  characterId: string,
+  userId: string,
+): Promise<boolean> {
+  const db = await deps.getDb();
+  const row = await db
+    .select({ id: characters.id })
+    .from(characters)
+    .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
+    .limit(1);
+
+  return Boolean(row[0]?.id);
+}
+
 function buildEmptyReadResponse(characterId: string, query: string) {
   return {
     characterId,
     query,
-    entries: [] as Array<Record<string, never>>,
-    tasks: [] as Array<Record<string, never>>,
-    events: [] as Array<Record<string, never>>,
-    synonyms: [] as Array<Record<string, never>>,
+    entries: [] as MemoryWriteEntry[],
+    tasks: [] as MemoryWriteTask[],
+    events: [] as MemoryWriteEvent[],
+    synonyms: [] as MemoryWriteSynonym[],
   };
 }
 
-function buildEmptyWriteDiff() {
-  return {
-    entriesAdded: 0,
-    entriesUpdated: 0,
-    tasksOpened: 0,
-    tasksClosed: 0,
-    eventsAppended: 0,
-    synonymsUpdated: 0,
-    entries: [] as Array<Record<string, never>>,
-    tasks: [] as Array<Record<string, never>>,
-    events: [] as Array<Record<string, never>>,
-    synonyms: [] as Array<Record<string, never>>,
-  };
-}
-
-function buildEmptyHealDiff() {
+function buildEmptyHealDiff(): MemoryHealDiff {
   return {
     contradictionsFlagged: 0,
     staleDowngraded: 0,
     orphansRemoved: 0,
     conceptsSeeded: 0,
-    entries: [] as Array<Record<string, never>>,
-    tasks: [] as Array<Record<string, never>>,
-    events: [] as Array<Record<string, never>>,
+    entries: [],
+    tasks: [],
+    events: [],
   };
+}
+
+function mapCloudEntry(row: typeof wikiEntries.$inferSelect): MemoryWriteEntry {
+  return {
+    id: row.id,
+    characterId: row.characterId,
+    userId: row.userId,
+    title: row.title,
+    body: row.body,
+    tags: Array.isArray(row.tags) ? (row.tags.filter((value): value is string => typeof value === 'string')) : [],
+    confidence: row.confidence as MemoryWriteEntry['confidence'],
+    sourceType: row.sourceType as MemoryWriteEntry['sourceType'],
+    createdAt: row.createdAt.getTime(),
+    updatedAt: row.updatedAt.getTime(),
+    lastAccessedAt: fromDate(row.lastAccessedAt),
+    accessCount: row.accessCount,
+    syncedToCloud: 1,
+    cloudId: row.id,
+    deletedAt: fromDate(row.deletedAt),
+  };
+}
+
+function mapCloudTask(row: typeof agentTasks.$inferSelect): MemoryWriteTask {
+  return {
+    id: row.id,
+    characterId: row.characterId,
+    userId: row.userId,
+    description: row.description,
+    status: row.status as MemoryWriteTask['status'],
+    priority: row.priority,
+    dueContext: row.dueContext,
+    createdAt: row.createdAt.getTime(),
+    updatedAt: row.updatedAt.getTime(),
+    resolvedAt: fromDate(row.resolvedAt),
+    resolutionNote: row.resolutionNote,
+    syncedToCloud: 1,
+    cloudId: row.id,
+    deletedAt: fromDate(row.deletedAt),
+  };
+}
+
+function mapCloudEvent(row: typeof memoryEvents.$inferSelect): MemoryWriteEvent {
+  return {
+    id: row.id,
+    characterId: row.characterId,
+    userId: row.userId,
+    eventType: row.eventType as MemoryWriteEvent['eventType'],
+    summary: row.summary,
+    relatedEntryId: row.relatedEntryId,
+    relatedTaskId: row.relatedTaskId,
+    sourceRef: row.sourceRef,
+    createdAt: row.createdAt.getTime(),
+    syncedToCloud: 1,
+    cloudId: row.id,
+  };
+}
+
+async function loadWriteSeed(
+  deps: MemoryFunctionDeps,
+  characterId: string,
+  userId: string,
+): Promise<MemoryWriteEntry[]> {
+  const db = await deps.getDb();
+  const rows = await db
+    .select()
+    .from(wikiEntries)
+    .where(
+      and(
+        eq(wikiEntries.characterId, characterId),
+        eq(wikiEntries.userId, userId),
+        isNull(wikiEntries.deletedAt),
+      ),
+    )
+    .orderBy(desc(wikiEntries.updatedAt))
+    .limit(100);
+
+  return rows.map(mapCloudEntry);
+}
+
+function buildWriteDiff(
+  characterId: string,
+  userId: string,
+  sourceText: string,
+  sourceType: 'conversation' | 'user_document',
+  existingEntries: MemoryWriteEntry[],
+): MemoryWriteDiff {
+  const now = Date.now();
+  const existingByTitle = new Map(existingEntries.map((entry) => [entry.title.toLowerCase(), entry]));
+  const pieces = sourceText
+    .split(/(?<=[.!?])\s+/)
+    .map((piece) => piece.trim())
+    .filter((piece) => piece.length >= 10)
+    .slice(0, 3);
+
+  const entries: MemoryWriteEntry[] = [];
+  const events: MemoryWriteEvent[] = [];
+  let entriesAdded = 0;
+  let entriesUpdated = 0;
+
+  for (const [index, piece] of pieces.entries()) {
+    const baseTitle = clip(piece.split(/[,.!?]/)[0] || piece, 64);
+    const title = clip(baseTitle, 64);
+    const existing = existingByTitle.get(title.toLowerCase());
+
+    if (existing) {
+      const hasBodyChange = clip(piece, 200) !== existing.body;
+      const updated: MemoryWriteEntry = {
+        ...existing,
+        body: clip(piece, 200),
+        tags: inferTags(piece),
+        confidence: sourceType === 'user_document' ? 'certain' : 'inferred',
+        sourceType: sourceType === 'user_document' ? 'user_stated' : 'agent_inferred',
+        updatedAt: now,
+      };
+      entries.push(updated);
+      entriesUpdated += 1;
+
+      if (hasBodyChange) {
+        events.push({
+          id: `event_${now}_${index}_${slugify(title)}`,
+          characterId,
+          userId,
+          eventType: 'observation',
+          summary: clip(`Updated fact ${title}: ${existing.body}`, 200),
+          relatedEntryId: existing.id,
+          relatedTaskId: null,
+          sourceRef: sourceType,
+          createdAt: now,
+          syncedToCloud: 0,
+          cloudId: null,
+        });
+      }
+
+      continue;
+    }
+
+    entries.push({
+      id: `entry_${now}_${index}_${slugify(title)}`,
+      characterId,
+      userId,
+      title,
+      body: clip(piece, 200),
+      tags: inferTags(piece),
+      confidence: sourceType === 'user_document' ? 'certain' : 'inferred',
+      sourceType: sourceType === 'user_document' ? 'user_stated' : 'agent_inferred',
+      createdAt: now,
+      updatedAt: now,
+      lastAccessedAt: null,
+      accessCount: 0,
+      syncedToCloud: 0,
+      cloudId: null,
+      deletedAt: null,
+    });
+    entriesAdded += 1;
+  }
+
+  const tasks: MemoryWriteTask[] = pieces
+    .filter((piece) => isTaskSentence(piece))
+    .map((piece, index) => ({
+      id: `task_${now}_${index}_${slugify(piece)}`,
+      characterId,
+      userId,
+      description: clip(piece, 180),
+      status: 'pending',
+      priority: inferPriority(piece),
+      dueContext: 'next conversation',
+      createdAt: now,
+      updatedAt: now,
+      resolvedAt: null,
+      resolutionNote: null,
+      syncedToCloud: 0,
+      cloudId: null,
+      deletedAt: null,
+    }));
+
+  events.unshift({
+    id: `event_${now}_${slugify(sourceText)}`,
+    characterId,
+    userId,
+    eventType: 'observation',
+    summary: clip(sourceText, 200),
+    relatedEntryId: entries[0]?.id ?? null,
+    relatedTaskId: tasks[0]?.id ?? null,
+    sourceRef: sourceType,
+    createdAt: now,
+    syncedToCloud: 0,
+    cloudId: null,
+  });
+
+  const synonyms = buildSynonyms(entries);
+
+  return {
+    entriesAdded,
+    entriesUpdated,
+    tasksOpened: tasks.length,
+    tasksClosed: 0,
+    eventsAppended: events.length,
+    synonymsUpdated: synonyms.length,
+    entries,
+    tasks,
+    events,
+    synonyms,
+  };
+}
+
+async function persistWriteDiff(
+  deps: MemoryFunctionDeps,
+  characterId: string,
+  userId: string,
+  diff: MemoryWriteDiff,
+): Promise<void> {
+  const db = await deps.getDb();
+
+  if (diff.entries.length > 0) {
+    await db
+      .insert(wikiEntries)
+      .values(
+        diff.entries.map((entry) => ({
+          id: entry.id,
+          characterId,
+          userId,
+          title: entry.title,
+          body: entry.body,
+          tags: entry.tags,
+          confidence: entry.confidence,
+          sourceType: entry.sourceType,
+          createdAt: toDate(entry.createdAt) ?? new Date(),
+          updatedAt: toDate(entry.updatedAt) ?? new Date(),
+          lastAccessedAt: toDate(entry.lastAccessedAt),
+          accessCount: entry.accessCount,
+          deletedAt: toDate(entry.deletedAt),
+        })),
+      )
+      .onConflictDoUpdate({
+        target: wikiEntries.id,
+        set: {
+          title: sql`excluded.title`,
+          body: sql`excluded.body`,
+          tags: sql`excluded.tags`,
+          confidence: sql`excluded.confidence`,
+          sourceType: sql`excluded.source_type`,
+          updatedAt: sql`excluded.updated_at`,
+          lastAccessedAt: sql`excluded.last_accessed_at`,
+          accessCount: sql`excluded.access_count`,
+          deletedAt: sql`excluded.deleted_at`,
+        },
+      });
+  }
+
+  if (diff.tasks.length > 0) {
+    await db
+      .insert(agentTasks)
+      .values(
+        diff.tasks.map((task) => ({
+          id: task.id,
+          characterId,
+          userId,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          dueContext: task.dueContext,
+          createdAt: toDate(task.createdAt) ?? new Date(),
+          updatedAt: toDate(task.updatedAt) ?? new Date(),
+          resolvedAt: toDate(task.resolvedAt),
+          resolutionNote: task.resolutionNote,
+          deletedAt: toDate(task.deletedAt),
+        })),
+      )
+      .onConflictDoUpdate({
+        target: agentTasks.id,
+        set: {
+          description: sql`excluded.description`,
+          status: sql`excluded.status`,
+          priority: sql`excluded.priority`,
+          dueContext: sql`excluded.due_context`,
+          updatedAt: sql`excluded.updated_at`,
+          resolvedAt: sql`excluded.resolved_at`,
+          resolutionNote: sql`excluded.resolution_note`,
+          deletedAt: sql`excluded.deleted_at`,
+        },
+      });
+  }
+
+  if (diff.events.length > 0) {
+    await db
+      .insert(memoryEvents)
+      .values(
+        diff.events.map((event) => ({
+          id: event.id,
+          characterId,
+          userId,
+          eventType: event.eventType,
+          summary: event.summary,
+          relatedEntryId: event.relatedEntryId,
+          relatedTaskId: event.relatedTaskId,
+          sourceRef: event.sourceRef,
+          createdAt: toDate(event.createdAt) ?? new Date(),
+        })),
+      )
+      .onConflictDoUpdate({
+        target: memoryEvents.id,
+        set: {
+          eventType: sql`excluded.event_type`,
+          summary: sql`excluded.summary`,
+          relatedEntryId: sql`excluded.related_entry_id`,
+          relatedTaskId: sql`excluded.related_task_id`,
+          sourceRef: sql`excluded.source_ref`,
+        },
+      });
+  }
+}
+
+function taskAlreadyCoveredByEntries(task: MemoryWriteTask, entries: MemoryWriteEntry[]): boolean {
+  const title = `${task.description} ${task.dueContext ?? ''}`.toLowerCase();
+  return entries.some((entry) => `${entry.title} ${entry.body}`.toLowerCase().includes(title.slice(0, 20)));
+}
+
+async function buildHealDiff(
+  deps: MemoryFunctionDeps,
+  characterId: string,
+  userId: string,
+): Promise<MemoryHealDiff> {
+  const db = await deps.getDb();
+  const now = Date.now();
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+  const sixtyDaysAgo = now - 60 * 24 * 60 * 60 * 1000;
+
+  const entriesRows = await db
+    .select()
+    .from(wikiEntries)
+    .where(
+      and(
+        eq(wikiEntries.characterId, characterId),
+        eq(wikiEntries.userId, userId),
+        isNull(wikiEntries.deletedAt),
+      ),
+    )
+    .orderBy(
+      asc(sql`CASE WHEN ${wikiEntries.confidence} = 'certain' THEN 0 ELSE 1 END`),
+      desc(wikiEntries.accessCount),
+      desc(wikiEntries.updatedAt),
+    )
+    .limit(100);
+
+  const openTaskRows = await db
+    .select()
+    .from(agentTasks)
+    .where(
+      and(
+        eq(agentTasks.characterId, characterId),
+        eq(agentTasks.userId, userId),
+        eq(agentTasks.status, 'pending'),
+        isNull(agentTasks.deletedAt),
+      ),
+    )
+    .orderBy(desc(agentTasks.priority), desc(agentTasks.updatedAt))
+    .limit(20);
+
+  const mappedEntries = entriesRows.map(mapCloudEntry);
+  const events: MemoryWriteEvent[] = [];
+  let staleDowngraded = 0;
+  let orphansRemoved = 0;
+  let conceptsSeeded = 0;
+
+  const updatedEntries: MemoryWriteEntry[] = mappedEntries.map((entry) => {
+    const stale = entry.lastAccessedAt !== null && entry.lastAccessedAt < sixtyDaysAgo;
+    const orphan = entry.accessCount === 0 && entry.updatedAt < thirtyDaysAgo;
+
+    if (orphan && entry.deletedAt === null) {
+      orphansRemoved += 1;
+      return {
+        ...entry,
+        updatedAt: now,
+        deletedAt: now,
+      };
+    }
+
+    if (stale && entry.confidence === 'inferred') {
+      staleDowngraded += 1;
+      return {
+        ...entry,
+        confidence: 'tentative',
+        updatedAt: now,
+      };
+    }
+
+    return entry;
+  });
+
+  const seededEntries: MemoryWriteEntry[] = [];
+  for (const task of openTaskRows.map(mapCloudTask)) {
+    if (taskAlreadyCoveredByEntries(task, updatedEntries)) {
+      continue;
+    }
+
+    const seededId = `entry_${now}_${slugify(task.description)}`;
+    seededEntries.push({
+      id: seededId,
+      characterId,
+      userId,
+      title: clip(task.description, 64),
+      body: clip(`Potential missing concept from open task: ${task.description}`, 200),
+      tags: ['goals'],
+      confidence: 'tentative',
+      sourceType: 'agent_inferred',
+      createdAt: now,
+      updatedAt: now,
+      lastAccessedAt: null,
+      accessCount: 0,
+      syncedToCloud: 0,
+      cloudId: null,
+      deletedAt: null,
+    });
+
+    events.push({
+      id: `event_${now}_${slugify(task.id)}`,
+      characterId,
+      userId,
+      eventType: 'observation',
+      summary: clip(`Seeded memory concept from open task: ${task.description}`, 200),
+      relatedEntryId: seededId,
+      relatedTaskId: task.id,
+      sourceRef: 'memory_heal',
+      createdAt: now,
+      syncedToCloud: 0,
+      cloudId: null,
+    });
+
+    conceptsSeeded += 1;
+  }
+
+  const entries = [...updatedEntries, ...seededEntries];
+  const tasks = openTaskRows.map(mapCloudTask);
+
+  return {
+    contradictionsFlagged: 0,
+    staleDowngraded,
+    orphansRemoved,
+    conceptsSeeded,
+    entries,
+    tasks,
+    events,
+  };
+}
+
+async function persistHealDiff(
+  deps: MemoryFunctionDeps,
+  characterId: string,
+  userId: string,
+  diff: MemoryHealDiff,
+): Promise<void> {
+  await persistWriteDiff(deps, characterId, userId, {
+    entriesAdded: 0,
+    entriesUpdated: diff.entries.length,
+    tasksOpened: 0,
+    tasksClosed: 0,
+    eventsAppended: diff.events.length,
+    synonymsUpdated: 0,
+    entries: diff.entries,
+    tasks: [],
+    events: diff.events,
+    synonyms: [],
+  });
 }
 
 export const memoryReadHandler = async (
@@ -213,7 +884,6 @@ export const memoryReadHandler = async (
   deps: MemoryFunctionDeps = defaultDeps,
 ) => {
   const identity = await authenticateAndResolveIdentity(request, deps);
-  void identity.userId;
 
   const payload = request.data as MemoryReadPayload;
   const characterId = parseCharacterId(payload);
@@ -223,7 +893,57 @@ export const memoryReadHandler = async (
     throw new HttpsError('permission-denied', 'Memory read is available only for unlimited plans.');
   }
 
-  return buildEmptyReadResponse(characterId, query);
+  const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
+  if (!ownsCharacter) {
+    return buildEmptyReadResponse(characterId, query);
+  }
+
+  const db = await deps.getDb();
+  const entryWhere = and(
+    eq(wikiEntries.characterId, characterId),
+    eq(wikiEntries.userId, identity.userId),
+    isNull(wikiEntries.deletedAt),
+    query.length > 0
+      ? sql`to_tsvector('english', coalesce(${wikiEntries.title}, '') || ' ' || coalesce(${wikiEntries.body}, '') || ' ' || coalesce(${wikiEntries.tags}::text, '')) @@ websearch_to_tsquery('english', ${query})`
+      : undefined,
+  );
+
+  const [entriesRows, taskRows, eventRows] = await Promise.all([
+    db
+      .select()
+      .from(wikiEntries)
+      .where(entryWhere)
+      .orderBy(desc(wikiEntries.updatedAt))
+      .limit(10),
+    db
+      .select()
+      .from(agentTasks)
+      .where(
+        and(
+          eq(agentTasks.characterId, characterId),
+          eq(agentTasks.userId, identity.userId),
+          eq(agentTasks.status, 'pending'),
+          isNull(agentTasks.deletedAt),
+        ),
+      )
+      .orderBy(desc(agentTasks.priority), desc(agentTasks.updatedAt))
+      .limit(5),
+    db
+      .select()
+      .from(memoryEvents)
+      .where(and(eq(memoryEvents.characterId, characterId), eq(memoryEvents.userId, identity.userId)))
+      .orderBy(desc(memoryEvents.createdAt))
+      .limit(3),
+  ]);
+
+  return {
+    characterId,
+    query,
+    entries: entriesRows.map(mapCloudEntry),
+    tasks: taskRows.map(mapCloudTask),
+    events: eventRows.map(mapCloudEvent),
+    synonyms: buildSynonyms(entriesRows.map(mapCloudEntry)),
+  };
 };
 
 export const memoryWriteHandler = async (
@@ -233,17 +953,23 @@ export const memoryWriteHandler = async (
   const identity = await authenticateAndResolveIdentity(request, deps);
   const payload = request.data as MemoryWritePayload;
 
-  parseCharacterId(payload);
-  parseSourceText(payload);
-  void identity.userId;
+  const characterId = parseCharacterId(payload);
+  const sourceText = parseSourceText(payload);
+  const sourceType = parseSourceType(payload);
 
   if (!identity.hasUnlimited) {
     throw new HttpsError('permission-denied', 'Memory write is available only for unlimited plans.');
   }
 
-  return {
-    diff: buildEmptyWriteDiff(),
-  };
+  const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
+  const seedEntries = ownsCharacter ? await loadWriteSeed(deps, characterId, identity.userId) : [];
+  const diff = buildWriteDiff(characterId, identity.userId, sourceText, sourceType, seedEntries);
+
+  if (ownsCharacter) {
+    await persistWriteDiff(deps, characterId, identity.userId, diff);
+  }
+
+  return { diff };
 };
 
 export const memoryHealHandler = async (
@@ -251,18 +977,26 @@ export const memoryHealHandler = async (
   deps: MemoryFunctionDeps = defaultDeps,
 ) => {
   const identity = await authenticateAndResolveIdentity(request, deps);
-  parseCharacterId(request.data);
-  void identity.userId;
+  const characterId = parseCharacterId(request.data);
 
-  // Heal path is intentionally fail-soft when premium access is missing.
   if (!identity.hasUnlimited) {
     return {
       diff: buildEmptyHealDiff(),
     };
   }
 
+  const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
+  if (!ownsCharacter) {
+    return {
+      diff: buildEmptyHealDiff(),
+    };
+  }
+
+  const diff = await buildHealDiff(deps, characterId, identity.userId);
+  await persistHealDiff(deps, characterId, identity.userId, diff);
+
   return {
-    diff: buildEmptyHealDiff(),
+    diff,
   };
 };
 
@@ -273,19 +1007,96 @@ export const memoryForgetHandler = async (
   const identity = await authenticateAndResolveIdentity(request, deps);
   const payload = request.data as MemoryForgetPayload;
 
-  parseCharacterId(payload);
+  const characterId = parseCharacterId(payload);
   const targets = parseForgetTargets(payload);
-  void identity.userId;
 
   if (!identity.hasUnlimited) {
     throw new HttpsError('permission-denied', 'Memory forget is available only for unlimited plans.');
   }
 
+  const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
+  if (!ownsCharacter) {
+    return {
+      success: true,
+      deleted: {
+        entries: 0,
+        tasks: 0,
+      },
+    };
+  }
+
+  const db = await deps.getDb();
+  const deletedAt = new Date();
+  let deletedEntries = 0;
+  let deletedTasks = 0;
+
+  if (targets.clearAll) {
+    const [entryRows, taskRows] = await Promise.all([
+      db
+        .update(wikiEntries)
+        .set({ deletedAt, updatedAt: deletedAt })
+        .where(
+          and(
+            eq(wikiEntries.characterId, characterId),
+            eq(wikiEntries.userId, identity.userId),
+            isNull(wikiEntries.deletedAt),
+          ),
+        )
+        .returning({ id: wikiEntries.id }),
+      db
+        .update(agentTasks)
+        .set({ deletedAt, updatedAt: deletedAt })
+        .where(
+          and(
+            eq(agentTasks.characterId, characterId),
+            eq(agentTasks.userId, identity.userId),
+            isNull(agentTasks.deletedAt),
+          ),
+        )
+        .returning({ id: agentTasks.id }),
+    ]);
+
+    deletedEntries = entryRows.length;
+    deletedTasks = taskRows.length;
+  } else {
+    if (targets.entryIds.length > 0) {
+      const rows = await db
+        .update(wikiEntries)
+        .set({ deletedAt, updatedAt: deletedAt })
+        .where(
+          and(
+            eq(wikiEntries.characterId, characterId),
+            eq(wikiEntries.userId, identity.userId),
+            inArray(wikiEntries.id, targets.entryIds),
+            isNull(wikiEntries.deletedAt),
+          ),
+        )
+        .returning({ id: wikiEntries.id });
+      deletedEntries = rows.length;
+    }
+
+    if (targets.taskIds.length > 0) {
+      const rows = await db
+        .update(agentTasks)
+        .set({ deletedAt, updatedAt: deletedAt })
+        .where(
+          and(
+            eq(agentTasks.characterId, characterId),
+            eq(agentTasks.userId, identity.userId),
+            inArray(agentTasks.id, targets.taskIds),
+            isNull(agentTasks.deletedAt),
+          ),
+        )
+        .returning({ id: agentTasks.id });
+      deletedTasks = rows.length;
+    }
+  }
+
   return {
     success: true,
     deleted: {
-      entries: targets.clearAll ? 0 : targets.entryIds.length,
-      tasks: targets.clearAll ? 0 : targets.taskIds.length,
+      entries: deletedEntries,
+      tasks: deletedTasks,
     },
   };
 };
@@ -295,8 +1106,7 @@ export const syncCharacterMemoryHandler = async (
   deps: MemoryFunctionDeps = defaultDeps,
 ) => {
   const identity = await authenticateAndResolveIdentity(request, deps);
-  parseCharacterId(request.data);
-  void identity.userId;
+  const characterId = parseCharacterId(request.data);
 
   if (!identity.hasUnlimited) {
     return {
@@ -306,10 +1116,35 @@ export const syncCharacterMemoryHandler = async (
     };
   }
 
+  const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
+  if (!ownsCharacter) {
+    return {
+      syncedEntries: 0,
+      syncedTasks: 0,
+      syncedEvents: 0,
+    };
+  }
+
+  const db = await deps.getDb();
+  const [entryCount, taskCount, eventCount] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(wikiEntries)
+      .where(and(eq(wikiEntries.characterId, characterId), eq(wikiEntries.userId, identity.userId))),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(agentTasks)
+      .where(and(eq(agentTasks.characterId, characterId), eq(agentTasks.userId, identity.userId))),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(memoryEvents)
+      .where(and(eq(memoryEvents.characterId, characterId), eq(memoryEvents.userId, identity.userId))),
+  ]);
+
   return {
-    syncedEntries: 0,
-    syncedTasks: 0,
-    syncedEvents: 0,
+    syncedEntries: entryCount[0]?.count ?? 0,
+    syncedTasks: taskCount[0]?.count ?? 0,
+    syncedEvents: eventCount[0]?.count ?? 0,
   };
 };
 
