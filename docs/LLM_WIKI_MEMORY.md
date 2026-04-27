@@ -317,10 +317,11 @@ void dispatchWikiWrite({
 |--------|---------|-------|------|
 | **`characters.context`** (summary blob) | Every 20 messages | All users | None |
 | **Wiki entries** (write) | Every 20 messages | Premium only | `usage.hasUnlimited` |
-| **Wiki heal** | Every 20 messages | Premium, cloud-synced only | `save_to_cloud && cloud_id` |
+| **Wiki heal** | Every 20 messages | Premium only | `usage.hasUnlimited` |
 
 - Summary flow (`triggerConversationSummary`) unchanged
 - Wiki flow (`dispatchWikiWrite`) runs in parallel for premium users
+- Wiki heal can run for premium local-only characters using local data; cloud sync only affects whether Cloud SQL is bootstrapped/persisted
 - Prompt includes both: `[MEMORY]` block + existing summary section
 
 ---
