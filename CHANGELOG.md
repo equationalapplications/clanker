@@ -1,3 +1,20 @@
+# [29.1.0](https://github.com/equationalapplications/clanker/compare/v29.0.0...v29.1.0) (2026-04-27)
+
+
+### Bug Fixes
+
+* **voice:** address code review feedback for error handling and UI state ([3867e12](https://github.com/equationalapplications/clanker/commit/3867e12482a1f1810ff61c006567c7ed40ac5cfd))
+* **voice:** anchor parsePcmParam regex to parameter boundaries ([6c3c24d](https://github.com/equationalapplications/clanker/commit/6c3c24df91be7ae183c6509bca3930cff63bd503))
+* **voice:** handle nomatch + no-speech gracefully with friendly errors ([40dc4e8](https://github.com/equationalapplications/clanker/commit/40dc4e81d7d67865e53cd1488d217feb500b8977))
+* **voice:** platform-aware permission error message; trim whitespace in normalizeVoice ([b4955ca](https://github.com/equationalapplications/clanker/commit/b4955ca27e5f539a26fee0d4d948ca48158b5c66))
+* **voice:** resolve talk page re-entrancy and web audio playback ([6c04b6d](https://github.com/equationalapplications/clanker/commit/6c04b6d5ec5d9fa2a3bb0d1c2d7cd055df438ae2))
+* **voice:** validate PCM params before writing WAV header; deduplicate test ([78865f6](https://github.com/equationalapplications/clanker/commit/78865f61955dae7a086f36ab22b21b1c8d1156a2))
+
+
+### Features
+
+* **voice:** complete voice selection with web support and modern FileSystem ([408f1d3](https://github.com/equationalapplications/clanker/commit/408f1d31a12c438a18aee8bd1d78e5ff8ca58ee0))
+
 # [29.0.0](https://github.com/equationalapplications/clanker/compare/v28.8.0...v29.0.0) (2026-04-26)
 
 
