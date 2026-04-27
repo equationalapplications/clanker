@@ -239,6 +239,15 @@ function clip(value: string, maxLength: number): string {
   return normalized.length <= maxLength ? normalized : normalized.slice(0, maxLength).trimEnd();
 }
 
+function stableId(prefix: string, characterId: string, key: string): string {
+  let h = 5381;
+  const str = `${characterId}\x00${key}`;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  }
+  return `${prefix}_${h.toString(36)}`;
+}
+
 function inferPriority(summary: string): number {
   const lowered = summary.toLowerCase();
   if (lowered.includes('urgent') || lowered.includes('asap') || lowered.includes('today')) {
@@ -496,6 +505,7 @@ function buildWriteDiff(
   sourceText: string,
   sourceType: 'conversation' | 'user_document',
   existingEntries: MemoryWriteEntry[],
+  useStableIds = false,
 ): MemoryWriteDiff {
   const now = Date.now();
   const existingByTitle = new Map(existingEntries.map((entry) => [entry.title.toLowerCase(), entry]));
@@ -548,7 +558,7 @@ function buildWriteDiff(
     }
 
     entries.push({
-      id: `entry_${now}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+      id: useStableIds ? stableId('entry', characterId, title.toLowerCase()) : `entry_${now}_${index}_${Math.random().toString(36).substr(2, 9)}`,
       characterId,
       userId: firebaseUid,
       title,
@@ -570,7 +580,7 @@ function buildWriteDiff(
   const tasks: MemoryWriteTask[] = pieces
     .filter((piece) => isTaskSentence(piece))
     .map((piece, index) => ({
-      id: `task_${now}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+      id: useStableIds ? stableId('task', characterId, clip(piece, 64).toLowerCase()) : `task_${now}_${index}_${Math.random().toString(36).substr(2, 9)}`,
       characterId,
       userId: firebaseUid,
       description: clip(piece, 180),
@@ -961,7 +971,7 @@ export const memoryWriteHandler = async (
 
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
   const seedEntries = ownsCharacter ? await loadWriteSeed(deps, characterId, identity.userId, identity.firebaseUid) : [];
-  const diff = buildWriteDiff(characterId, identity.firebaseUid, sourceText, sourceType, seedEntries);
+  const diff = buildWriteDiff(characterId, identity.firebaseUid, sourceText, sourceType, seedEntries, !ownsCharacter);
 
   if (ownsCharacter) {
     await persistWriteDiff(deps, characterId, identity.userId, diff);
