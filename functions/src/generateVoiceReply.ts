@@ -311,6 +311,17 @@ function wrapPcmAsWav(pcmBase64: string, mimeType: string): string {
   const sampleRate = parsePcmParam(mimeType, "rate") ?? DEFAULT_PCM_SAMPLE_RATE;
   const numChannels = parsePcmParam(mimeType, "channels") ?? DEFAULT_PCM_CHANNELS;
   const bitsPerSample = parsePcmParam(mimeType, "bits") ?? DEFAULT_PCM_BITS_PER_SAMPLE;
+
+  if (!Number.isInteger(sampleRate) || sampleRate <= 0) {
+    throw new HttpsError("internal", `Unsupported PCM sample rate: ${sampleRate}`);
+  }
+  if (!Number.isInteger(numChannels) || numChannels <= 0) {
+    throw new HttpsError("internal", `Unsupported PCM channel count: ${numChannels}`);
+  }
+  if (!Number.isInteger(bitsPerSample) || bitsPerSample <= 0 || bitsPerSample % 8 !== 0) {
+    throw new HttpsError("internal", `Unsupported PCM bits per sample: ${bitsPerSample}`);
+  }
+
   const header = buildWavHeader(pcm.length, sampleRate, numChannels, bitsPerSample);
   return Buffer.concat([header, pcm]).toString("base64");
 }
