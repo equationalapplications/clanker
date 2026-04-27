@@ -41,6 +41,8 @@ function makeCharacter(overrides: Partial<DbCharacter> = {}): DbCharacter {
     save_to_cloud: false,
     cloud_id: null,
     summary_checkpoint: 0,
+    heal_checkpoint: 0,
+    memory_checkpoint: 0,
     owner_user_id: USER_ID,
     ...overrides,
   }

@@ -26,6 +26,8 @@ export interface LocalCharacter {
     cloud_id: string | null // remote ID if synced
     deleted_at: number | null // null = active, timestamp = soft-deleted
     summary_checkpoint?: number | null // highest message count included in context summary
+    heal_checkpoint?: number | null
+    memory_checkpoint?: number | null
     owner_user_id: string
     voice: string
 }
@@ -52,6 +54,8 @@ export interface CharacterUpdate {
     emotions?: string | null
     context?: string | null
     summary_checkpoint?: number
+    heal_checkpoint?: number
+    memory_checkpoint?: number
     is_public?: boolean
     save_to_cloud?: boolean
     voice?: string | null
@@ -82,6 +86,8 @@ function toAppFormat(char: LocalCharacter) {
         save_to_cloud: char.save_to_cloud === 1,
         cloud_id: char.cloud_id,
         summary_checkpoint: char.summary_checkpoint ?? 0,
+        heal_checkpoint: char.heal_checkpoint ?? 0,
+        memory_checkpoint: char.memory_checkpoint ?? 0,
         owner_user_id: char.owner_user_id,
         voice: char.voice,
     }
@@ -209,6 +215,14 @@ export async function updateCharacter(
     if (updates.summary_checkpoint !== undefined) {
         updateFields.push('summary_checkpoint = ?')
         values.push(updates.summary_checkpoint)
+    }
+    if (updates.heal_checkpoint !== undefined) {
+        updateFields.push('heal_checkpoint = ?')
+        values.push(updates.heal_checkpoint)
+    }
+    if (updates.memory_checkpoint !== undefined) {
+        updateFields.push('memory_checkpoint = ?')
+        values.push(updates.memory_checkpoint)
     }
     if (updates.is_public !== undefined) {
         updateFields.push('is_public = ?')
