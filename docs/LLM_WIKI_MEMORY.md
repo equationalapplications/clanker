@@ -167,7 +167,7 @@ Invoked by `dispatchWikiWrite` in [wikiHealMachine.ts](../src/machines/wikiHealM
 
 ## Server-Side Memory Heal
 
-**Premium users only. Optional full-wiki audit, triggered every 20 messages (same cadence as write).**
+**Premium users only. Cloud-synced characters only (`save_to_cloud = 1` with a valid `cloud_id`). Optional full-wiki audit, triggered every 20 messages (same cadence as write).**
 
 ### Flow: `memoryHeal` Callable
 
@@ -307,7 +307,8 @@ void dispatchWikiWrite({
 | System | Trigger | Scope | Gate |
 |--------|---------|-------|------|
 | **`characters.context`** (summary blob) | Every 20 messages | All users | None |
-| **Wiki entries** | Every 20 messages | Premium only | `usage.hasUnlimited` |
+| **Wiki entries** (write) | Every 20 messages | Premium only | `usage.hasUnlimited` |
+| **Wiki heal** | Every 20 messages | Premium, cloud-synced only | `save_to_cloud && cloud_id` |
 
 - Summary flow (`triggerConversationSummary`) unchanged
 - Wiki flow (`dispatchWikiWrite`) runs in parallel for premium users

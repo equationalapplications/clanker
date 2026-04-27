@@ -165,8 +165,13 @@ export async function upsertWikiEntries(entries: WikiEntryUpsertInput[]): Promis
           confidence = excluded.confidence,
           source_type = excluded.source_type,
           updated_at = excluded.updated_at,
-          last_accessed_at = excluded.last_accessed_at,
-          access_count = excluded.access_count,
+          last_accessed_at = CASE
+            WHEN wiki_entries.last_accessed_at IS NULL THEN excluded.last_accessed_at
+            WHEN excluded.last_accessed_at IS NULL THEN wiki_entries.last_accessed_at
+            WHEN excluded.last_accessed_at > wiki_entries.last_accessed_at THEN excluded.last_accessed_at
+            ELSE wiki_entries.last_accessed_at
+          END,
+          access_count = MAX(wiki_entries.access_count, excluded.access_count),
           synced_to_cloud = excluded.synced_to_cloud,
           cloud_id = excluded.cloud_id,
           deleted_at = excluded.deleted_at`,

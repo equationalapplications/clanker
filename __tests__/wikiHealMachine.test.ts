@@ -27,11 +27,12 @@ jest.mock('@tanstack/react-query', () => ({
   },
 }))
 
-import { dispatchWikiWrite } from '~/machines/wikiHealMachine'
+import { dispatchWikiWrite, resetBootstrapCache } from '~/machines/wikiHealMachine'
 
 describe('dispatchWikiWrite', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    resetBootstrapCache()
     mockUpdateCharacter.mockResolvedValue({})
     mockTriggerMemoryWrite.mockResolvedValue(undefined)
     mockTriggerMemoryHeal.mockResolvedValue(undefined)

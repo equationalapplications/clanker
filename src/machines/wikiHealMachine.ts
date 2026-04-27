@@ -13,6 +13,11 @@ export interface WikiWriteInput {
 const MEMORY_WRITE_TRIGGER_MESSAGE_COUNT = 20
 const HEAL_TRIGGER_MESSAGE_COUNT = 20
 const activeWikiJobs = new Set<string>()
+const bootstrappedCharacters = new Set<string>()
+
+export function resetBootstrapCache(): void {
+  bootstrappedCharacters.clear()
+}
 
 export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
   const jobKey = `${input.character.id}:${input.userId}`
@@ -33,8 +38,12 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
     }
 
     if (latestCharacter?.save_to_cloud && latestCharacter?.cloud_id) {
-      const charForCloud = { ...input.character, cloud_id: latestCharacter.cloud_id }
-      await triggerMemoryRead(charForCloud, input.userId)
+      const bootstrapKey = `${input.character.id}:${input.userId}`
+      if (!bootstrappedCharacters.has(bootstrapKey)) {
+        const charForCloud = { ...input.character, cloud_id: latestCharacter.cloud_id }
+        await triggerMemoryRead(charForCloud, input.userId)
+        bootstrappedCharacters.add(bootstrapKey)
+      }
     }
 
     const memoryCheckpoint = Math.max(0, latestCharacter?.memory_checkpoint ?? 0)
