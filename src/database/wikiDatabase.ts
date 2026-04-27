@@ -197,6 +197,22 @@ export async function upsertWikiEntries(entries: WikiEntryUpsertInput[]): Promis
   })
 }
 
+export async function getEntriesForHeal(userId: string, characterId: string): Promise<LocalWikiEntry[]> {
+  const db = await getDatabase()
+  return db.getAllAsync<LocalWikiEntry>(
+    `SELECT *
+     FROM wiki_entries
+     WHERE character_id = ?
+       AND user_id = ?
+       AND deleted_at IS NULL
+     ORDER BY
+       CASE WHEN confidence = 'certain' THEN 0 ELSE 1 END ASC,
+       access_count DESC
+     LIMIT 100`,
+    [characterId, userId],
+  )
+}
+
 export async function softDeleteWikiEntries(
   characterId: string,
   userId: string,

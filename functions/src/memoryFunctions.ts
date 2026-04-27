@@ -388,6 +388,93 @@ function buildSynonyms(entries: MemoryWriteEntry[]): MemoryWriteSynonym[] {
   return rows;
 }
 
+function parseLocalDumpEntries(
+  characterId: string,
+  userId: string,
+  raw: unknown,
+): MemoryWriteEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const now = Date.now();
+  return raw
+    .filter(isRecord)
+    .slice(0, 100)
+    .map((item): MemoryWriteEntry | null => {
+      const id = typeof item['id'] === 'string' && item['id'].trim().length > 0 ? item['id'].trim() : null;
+      const title = typeof item['title'] === 'string' ? clip(item['title'], 128) : null;
+      const body = typeof item['body'] === 'string' ? clip(item['body'], 200) : null;
+      if (!id || !title || !body) return null;
+
+      const tags: string[] = Array.isArray(item['tags'])
+        ? (item['tags'] as unknown[]).filter((t): t is string => typeof t === 'string').slice(0, 20)
+        : [];
+      const confidence: MemoryWriteEntry['confidence'] =
+        item['confidence'] === 'certain' || item['confidence'] === 'tentative' ? item['confidence'] : 'inferred';
+      const sourceType: MemoryWriteEntry['sourceType'] =
+        item['sourceType'] === 'user_stated' || item['sourceType'] === 'user_confirmed'
+          ? item['sourceType']
+          : 'agent_inferred';
+      const createdAt = typeof item['createdAt'] === 'number' ? item['createdAt'] : now;
+      const updatedAt = typeof item['updatedAt'] === 'number' ? item['updatedAt'] : now;
+      const lastAccessedAt = typeof item['lastAccessedAt'] === 'number' ? item['lastAccessedAt'] : null;
+      const accessCount = typeof item['accessCount'] === 'number' ? Math.max(0, Math.floor(item['accessCount'])) : 0;
+      const deletedAt = typeof item['deletedAt'] === 'number' ? item['deletedAt'] : null;
+
+      return {
+        id,
+        characterId,
+        userId,
+        title,
+        body,
+        tags,
+        confidence,
+        sourceType,
+        createdAt,
+        updatedAt,
+        lastAccessedAt,
+        accessCount,
+        syncedToCloud: 0,
+        cloudId: null,
+        deletedAt,
+      };
+    })
+    .filter((e): e is MemoryWriteEntry => e !== null);
+}
+
+function parseLocalDumpTasks(
+  characterId: string,
+  userId: string,
+  raw: unknown,
+): MemoryWriteTask[] {
+  if (!Array.isArray(raw)) return [];
+  const now = Date.now();
+  return raw
+    .filter(isRecord)
+    .slice(0, 20)
+    .map((item): MemoryWriteTask | null => {
+      const id = typeof item['id'] === 'string' && item['id'].trim().length > 0 ? item['id'].trim() : null;
+      const description = typeof item['description'] === 'string' ? clip(item['description'], 200) : null;
+      if (!id || !description) return null;
+      const priority = typeof item['priority'] === 'number' ? Math.floor(item['priority']) : 0;
+      return {
+        id,
+        characterId,
+        userId,
+        description,
+        status: 'pending',
+        priority,
+        dueContext: null,
+        createdAt: now,
+        updatedAt: now,
+        resolvedAt: null,
+        resolutionNote: null,
+        syncedToCloud: 0,
+        cloudId: null,
+        deletedAt: null,
+      };
+    })
+    .filter((t): t is MemoryWriteTask => t !== null);
+}
+
 async function authenticateAndResolveIdentity(
   request: CallableRequest,
   deps: MemoryFunctionDeps,
@@ -1102,44 +1189,55 @@ async function buildHealDiff(
   characterId: string,
   userId: string,
   firebaseUid: string,
+  seed?: { entries: MemoryWriteEntry[]; tasks: MemoryWriteTask[] },
 ): Promise<MemoryHealDiff> {
-  const db = await deps.getDb();
   const now = Date.now();
   const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
   const sixtyDaysAgo = now - 60 * 24 * 60 * 60 * 1000;
 
-  const entriesRows = await db
-    .select()
-    .from(wikiEntries)
-    .where(
-      and(
-        eq(wikiEntries.characterId, characterId),
-        eq(wikiEntries.userId, userId),
-        isNull(wikiEntries.deletedAt),
-      ),
-    )
-    .orderBy(
-      asc(sql`CASE WHEN ${wikiEntries.confidence} = 'certain' THEN 0 ELSE 1 END`),
-      desc(wikiEntries.accessCount),
-      desc(wikiEntries.updatedAt),
-    )
-    .limit(100);
+  let mappedEntries: MemoryWriteEntry[];
+  let openTaskRows: MemoryWriteTask[];
 
-  const openTaskRows = await db
-    .select()
-    .from(agentTasks)
-    .where(
-      and(
-        eq(agentTasks.characterId, characterId),
-        eq(agentTasks.userId, userId),
-        eq(agentTasks.status, 'pending'),
-        isNull(agentTasks.deletedAt),
-      ),
-    )
-    .orderBy(desc(agentTasks.priority), desc(agentTasks.updatedAt))
-    .limit(20);
+  if (seed) {
+    mappedEntries = seed.entries;
+    openTaskRows = seed.tasks;
+  } else {
+    const db = await deps.getDb();
+    const entriesRows = await db
+      .select()
+      .from(wikiEntries)
+      .where(
+        and(
+          eq(wikiEntries.characterId, characterId),
+          eq(wikiEntries.userId, userId),
+          isNull(wikiEntries.deletedAt),
+        ),
+      )
+      .orderBy(
+        asc(sql`CASE WHEN ${wikiEntries.confidence} = 'certain' THEN 0 ELSE 1 END`),
+        desc(wikiEntries.accessCount),
+        desc(wikiEntries.updatedAt),
+      )
+      .limit(100);
 
-  const mappedEntries = entriesRows.map((row) => mapCloudEntry(row, firebaseUid));
+    const taskRows = await db
+      .select()
+      .from(agentTasks)
+      .where(
+        and(
+          eq(agentTasks.characterId, characterId),
+          eq(agentTasks.userId, userId),
+          eq(agentTasks.status, 'pending'),
+          isNull(agentTasks.deletedAt),
+        ),
+      )
+      .orderBy(desc(agentTasks.priority), desc(agentTasks.updatedAt))
+      .limit(20);
+
+    mappedEntries = entriesRows.map((row) => mapCloudEntry(row, firebaseUid));
+    openTaskRows = taskRows.map((row) => mapCloudTask(row, firebaseUid));
+  }
+
   const contradictionPairs = await detectContradictions(mappedEntries, deps.generateContent);
   const contradictedIds = new Set(
     contradictionPairs.flatMap((p) => [p.entryAId, p.entryBId]),
@@ -1205,7 +1303,7 @@ async function buildHealDiff(
   }
 
   const seededEntries: MemoryWriteEntry[] = [];
-  for (const task of openTaskRows.map((row) => mapCloudTask(row, firebaseUid))) {
+  for (const task of openTaskRows) {
     if (taskAlreadyCoveredByEntries(task, updatedEntries)) {
       continue;
     }
@@ -1247,7 +1345,7 @@ async function buildHealDiff(
   }
 
   const entries = [...updatedEntries, ...seededEntries];
-  const tasks = openTaskRows.map((row) => mapCloudTask(row, firebaseUid));
+  const tasks = openTaskRows;
 
   return {
     contradictionsFlagged,
@@ -1391,7 +1489,16 @@ export const memoryHealHandler = async (
 
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
 
-  const diff = await buildHealDiff(deps, characterId, identity.userId, identity.firebaseUid);
+  let seed: { entries: MemoryWriteEntry[]; tasks: MemoryWriteTask[] } | undefined;
+  if (!ownsCharacter && isRecord(request.data) && isRecord(request.data['localDump'])) {
+    const dump = request.data['localDump'];
+    seed = {
+      entries: parseLocalDumpEntries(characterId, identity.firebaseUid, dump['entries']),
+      tasks: parseLocalDumpTasks(characterId, identity.firebaseUid, dump['tasks']),
+    };
+  }
+
+  const diff = await buildHealDiff(deps, characterId, identity.userId, identity.firebaseUid, seed);
 
   if (ownsCharacter) {
     await persistHealDiff(deps, characterId, identity.userId, diff);

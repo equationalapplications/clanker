@@ -77,6 +77,27 @@ export async function getOpenTasks(
   }))
 }
 
+export interface OpenTaskForHeal {
+  id: string
+  description: string
+  priority: number
+}
+
+export async function getOpenTasksForHeal(userId: string, characterId: string): Promise<OpenTaskForHeal[]> {
+  const db = await getDatabase()
+  return db.getAllAsync<OpenTaskForHeal>(
+    `SELECT id, description, priority
+     FROM agent_tasks
+     WHERE character_id = ?
+       AND user_id = ?
+       AND status = 'pending'
+       AND deleted_at IS NULL
+     ORDER BY priority DESC, updated_at DESC
+     LIMIT 20`,
+    [characterId, userId],
+  )
+}
+
 export async function upsertAgentTasks(tasks: AgentTaskUpsertInput[]): Promise<void> {
   if (tasks.length === 0) {
     return

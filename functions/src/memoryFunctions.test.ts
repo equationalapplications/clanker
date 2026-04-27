@@ -214,6 +214,46 @@ test("memoryWriteHandler falls back to heuristic when LLM returns unparseable re
   assert.equal(Array.isArray(result.diff.entries), true);
 });
 
+test("memoryHealHandler uses localDump for local-only premium character", async () => {
+  const localEntry = {
+    id: "entry-local-1",
+    title: "Morning runs",
+    body: "User runs every morning before work.",
+    tags: ["health"],
+    confidence: "inferred",
+    sourceType: "agent_inferred",
+    createdAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
+    updatedAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
+    lastAccessedAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
+    accessCount: 3,
+    deletedAt: null,
+  };
+
+  const localTask = {
+    id: "task-local-1",
+    description: "Ask about marathon training progress",
+    priority: 1,
+  };
+
+  const result = await memoryHealHandler(
+    {
+      auth: buildAuth(),
+      data: {
+        characterId: "local-char-1",
+        localDump: {
+          entries: [localEntry],
+          tasks: [localTask],
+        },
+      },
+    } as never,
+    buildDeps() as never,
+  );
+
+  assert.equal(typeof result.diff.contradictionsFlagged, "number");
+  assert.equal(typeof result.diff.conceptsSeeded, "number");
+  assert.equal(Array.isArray(result.diff.entries), true);
+});
+
 test("memoryHealHandler returns empty diff for non-premium without error", async () => {
   const result = await memoryHealHandler(
     {

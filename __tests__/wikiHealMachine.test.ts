@@ -121,7 +121,7 @@ describe('dispatchWikiWrite', () => {
     expect(mockUpdateCharacter).toHaveBeenNthCalledWith(2, 'char-1', 'user-1', {
       heal_checkpoint: 40,
     })
-    expect(mockTriggerMemoryHeal).not.toHaveBeenCalled()
+    expect(mockTriggerMemoryHeal).toHaveBeenCalledWith('char-1', 'user-1', undefined)
   })
 
   it('triggers heal when character is cloud-synced and both thresholds met', async () => {
@@ -146,7 +146,7 @@ describe('dispatchWikiWrite', () => {
       chunk: 'Ask about training plan next session',
     })
 
-    expect(mockTriggerMemoryHeal).toHaveBeenCalledWith('char-1', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890')
+    expect(mockTriggerMemoryHeal).toHaveBeenCalledWith('char-1', 'user-1', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890')
   })
 
   it('bootstraps memory from cloud when character is cloud-synced and wiki is empty', async () => {

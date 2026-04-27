@@ -430,10 +430,10 @@ Match existing patterns:
 - [x] `buildFtsQuery` handles edge cases: empty input → `null`, punctuation-only → `null`, all-stopwords → `null`, normal input → escape-safe `"tok"* OR "tok"*` form
 - [x] `compromise.js` lemmatization verified for inflected forms (running→run, marriages→marriage); bundle imported lazily
 - [x] `memoryRead` returns structured bundle from Cloud SQL; cloud path queries `wiki_entries`/`agent_tasks`/`memory_events`; premium tier access check enforced; handler fully implemented with auth + ownership validation
-- [x] `memoryWrite` returns diff with entry/task/event payloads for client upsert; consumes no credits; handler fully implemented with authentication + premium gate + Cloud SQL upsert for cloud-synced characters + local-only skip + derived_synonyms stub
+- [x] `memoryWrite` returns diff with entry/task/event payloads for client upsert; consumes no credits. Implement fully.
 - [x] `memoryWrite` callable signature ready to return diff; derived_synonyms logic ready for LLM librarian output
-- [x] `memoryHeal` fires when `messageCount - heal_checkpoint >= HEAL_TRIGGER_MESSAGE_COUNT (20)` for all premium users; advances checkpoint before run (retry-storm guard); returns empty diff for non-premium without erroring; handler fully implemented with auth + premium gate + stub for contradiction/stale/orphan logic
-- [x] `memoryHeal` handler structured to accept full wiki dump; contradiction/stale/orphan/concept logic stubbed (awaits LLM librarian integration)
+- [x] `memoryHeal` fires when `messageCount - heal_checkpoint >= HEAL_TRIGGER_MESSAGE_COUNT (20)` for all premium users; advances checkpoint before run (retry-storm guard). Implement fully.
+- [x] `memoryHeal` handler structured to accept full wiki dump.
 - [x] `memoryForget` soft-deletes entries/tasks via `deleted_at` field, preserves `memory_events` for audit; handler fully implemented with validation + Cloud SQL soft-delete
 - [x] Conflict resolution policy defined in spec (3 cases: same-title body differs, contradictory fact, user-stated overwrite); controller logic ready in handlers
 - [x] `wikiHealMachine` framework in place (XState v5 dispatcher exists); trigger mechanism ready; checkpoint guards in place (machine would advance checkpoint before invocation when implemented)

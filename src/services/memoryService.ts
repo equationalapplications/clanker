@@ -1,7 +1,7 @@
 import type { Character, MemoryBundle } from '~/services/aiChatService'
 import { buildFtsQuery } from '~/database/ftsQueryBuilder'
-import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, softDeleteWikiEntries, softDeleteAllWikiEntries, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
-import { getOpenTasks, upsertAgentTasks, softDeleteAgentTasks, softDeleteAllAgentTasks, type AgentTaskUpsertInput } from '~/database/agentTaskDatabase'
+import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, softDeleteWikiEntries, softDeleteAllWikiEntries, getEntriesForHeal, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
+import { getOpenTasks, upsertAgentTasks, softDeleteAgentTasks, softDeleteAllAgentTasks, getOpenTasksForHeal, type AgentTaskUpsertInput } from '~/database/agentTaskDatabase'
 import { getRecentEvents, appendMemoryEvents, type MemoryEventUpsertInput } from '~/database/memoryEventDatabase'
 import { upsertDerivedSynonyms, type DerivedSynonymUpsertInput } from '~/database/derivedSynonymDatabase'
 import { appCheckReady, memoryWriteFn, memoryHealFn, memoryReadFn, memoryForgetFn } from '~/config/firebaseConfig'
@@ -219,10 +219,51 @@ export async function triggerMemoryWrite(
   }
 }
 
-export async function triggerMemoryHeal(characterId: string, cloudId?: string | null): Promise<void> {
+export async function triggerMemoryHeal(characterId: string, userId: string, cloudId?: string | null): Promise<void> {
   try {
     await appCheckReady
-    const result = await memoryHealFn({ characterId: cloudId && UUID_RE.test(cloudId) ? cloudId : characterId })
+
+    const isLocalOnly = !cloudId || !UUID_RE.test(cloudId)
+    const resolvedCharacterId = isLocalOnly ? characterId : cloudId!
+
+    let localDump: { entries: object[]; tasks: object[] } | undefined
+    if (isLocalOnly) {
+      const [entries, tasks] = await Promise.all([
+        getEntriesForHeal(userId, characterId),
+        getOpenTasksForHeal(userId, characterId),
+      ])
+      localDump = {
+        entries: entries.map((e) => {
+          let tags: string[] = []
+          try {
+            const parsed: unknown = JSON.parse(e.tags)
+            tags = Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === 'string') : []
+          } catch {
+            tags = []
+          }
+          return {
+            id: e.id,
+            title: e.title,
+            body: e.body,
+            tags,
+            confidence: e.confidence,
+            sourceType: e.source_type,
+            createdAt: e.created_at,
+            updatedAt: e.updated_at,
+            lastAccessedAt: e.last_accessed_at,
+            accessCount: e.access_count,
+            deletedAt: e.deleted_at,
+          }
+        }),
+        tasks: tasks.map((t) => ({
+          id: t.id,
+          description: t.description,
+          priority: t.priority,
+        })),
+      }
+    }
+
+    const result = await memoryHealFn({ characterId: resolvedCharacterId, localDump })
     const payload = result.data as MemoryHealResponse
     await applyMemoryDiff(characterId, payload.diff ?? {})
   } catch (error) {

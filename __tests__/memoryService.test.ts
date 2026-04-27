@@ -2,6 +2,8 @@ const mockBuildFtsQuery = jest.fn()
 const mockSearchEntries = jest.fn()
 const mockGetRecentEntries = jest.fn()
 const mockGetOpenTasks = jest.fn()
+const mockGetOpenTasksForHeal = jest.fn()
+const mockGetEntriesForHeal = jest.fn()
 const mockGetRecentEvents = jest.fn()
 const mockCountEntries = jest.fn()
 const mockUpsertWikiEntries = jest.fn()
@@ -29,6 +31,7 @@ jest.mock('~/database/wikiDatabase', () => ({
   upsertWikiEntries: (...args: unknown[]) => mockUpsertWikiEntries(...args),
   softDeleteWikiEntries: (...args: unknown[]) => mockSoftDeleteWikiEntries(...args),
   softDeleteAllWikiEntries: (...args: unknown[]) => mockSoftDeleteAllWikiEntries(...args),
+  getEntriesForHeal: (...args: unknown[]) => mockGetEntriesForHeal(...args),
 }), { virtual: true })
 
 jest.mock('~/database/agentTaskDatabase', () => ({
@@ -36,6 +39,7 @@ jest.mock('~/database/agentTaskDatabase', () => ({
   upsertAgentTasks: (...args: unknown[]) => mockUpsertAgentTasks(...args),
   softDeleteAgentTasks: (...args: unknown[]) => mockSoftDeleteAgentTasks(...args),
   softDeleteAllAgentTasks: (...args: unknown[]) => mockSoftDeleteAllAgentTasks(...args),
+  getOpenTasksForHeal: (...args: unknown[]) => mockGetOpenTasksForHeal(...args),
 }), { virtual: true })
 
 jest.mock('~/database/memoryEventDatabase', () => ({
@@ -214,9 +218,13 @@ describe('triggerMemoryHeal', () => {
   })
 
   it('calls heal callable and invalidates memory cache', async () => {
-    await triggerMemoryHeal('char-1')
+    mockGetEntriesForHeal.mockResolvedValue([])
+    mockGetOpenTasksForHeal.mockResolvedValue([])
+    await triggerMemoryHeal('char-1', 'user-1')
 
-    expect(mockMemoryHealFn).toHaveBeenCalledWith({ characterId: 'char-1' })
+    expect(mockMemoryHealFn).toHaveBeenCalledWith(
+      expect.objectContaining({ characterId: 'char-1' }),
+    )
     expect(mockInvalidateQueries).toHaveBeenCalledWith({
       queryKey: ['memoryBundle', 'char-1'],
     })
