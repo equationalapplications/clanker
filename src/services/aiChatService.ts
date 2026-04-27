@@ -413,7 +413,7 @@ User: ${boundedUserMessage}
 ${characterName}:`
   }
 
-  return prompt
+  return prompt.slice(0, MAX_CHAT_PROMPT_LENGTH)
 }
 
 function buildIntroductionPrompt(

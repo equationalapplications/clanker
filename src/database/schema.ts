@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 11
+export const SCHEMA_VERSION = 12
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -37,7 +37,8 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
   6: { table: 'characters', column: 'summary_checkpoint' },
   7: { table: 'characters', column: 'owner_user_id' },
   9: { table: 'characters', column: 'voice' },
-  11: { table: 'characters', column: 'memory_checkpoint' },
+  11: { table: 'characters', column: 'heal_checkpoint' },
+  12: { table: 'characters', column: 'memory_checkpoint' },
 }
 
 /**
@@ -212,6 +213,6 @@ export const MIGRATIONS: Record<number, string> = {
   8: `UPDATE characters SET owner_user_id = user_id WHERE (owner_user_id IS NULL OR owner_user_id = '') AND (save_to_cloud = 1 OR cloud_id IS NULL OR COALESCE(is_public, 0) = 0);`,
   9: `ALTER TABLE characters ADD COLUMN voice TEXT NOT NULL DEFAULT '${DEFAULT_VOICE}';`,
   10: `UPDATE characters SET voice = '${DEFAULT_VOICE}' WHERE voice IS NULL OR voice = '';`,
-  11: `ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0`,
+  11: `ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0`,
+  12: `ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0`,
 }

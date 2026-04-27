@@ -26,9 +26,10 @@ describe('database schema migration guards', () => {
     expect(MIGRATIONS[10]).toContain("voice = ''")
   })
 
-  it('bumps schema to v11 for wiki memory tables', () => {
-    expect(SCHEMA_VERSION).toBe(11)
-    expect(MIGRATION_SKIP_GUARDS[11]).toEqual({ table: 'characters', column: 'memory_checkpoint' })
+  it('bumps schema to v12 for wiki memory tables', () => {
+    expect(SCHEMA_VERSION).toBe(12)
+    expect(MIGRATION_SKIP_GUARDS[11]).toEqual({ table: 'characters', column: 'heal_checkpoint' })
+    expect(MIGRATION_SKIP_GUARDS[12]).toEqual({ table: 'characters', column: 'memory_checkpoint' })
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.characters).toEqual(
       expect.arrayContaining(['heal_checkpoint', 'memory_checkpoint']),
     )
@@ -44,8 +45,10 @@ describe('database schema migration guards', () => {
     expect(CREATE_TABLES).toContain('memory_checkpoint INTEGER NOT NULL DEFAULT 0')
   })
 
-  it('adds wiki memory schema in migration 11', () => {
+  it('adds heal_checkpoint in migration 11 and memory_checkpoint in migration 12', () => {
     expect(MIGRATIONS[11]).toContain('ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0')
-    expect(MIGRATIONS[11]).toContain('ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0')
+    expect(MIGRATIONS[11]).not.toContain('memory_checkpoint')
+    expect(MIGRATIONS[12]).toContain('ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0')
+    expect(MIGRATIONS[12]).not.toContain('heal_checkpoint')
   })
 })
