@@ -359,11 +359,24 @@ export function buildChatPrompt(userMessage: string, context: ChatContext): stri
   )
   const characterTraits = truncateText(context.characterTraits, MAX_CHARACTER_TRAITS_LENGTH)
   const boundedUserMessage = truncateText(userMessage, MAX_USER_MESSAGE_LENGTH)
+  const memoryBlock = buildMemoryBlock(context.memoryBundle)
+
+  // Calculate remaining budget for conversation history accounting for memory block
+  // Estimate: fixed template text (~600 chars) + character info + memory + user message
+  const memoryBlockLength = memoryBlock.length
+  const fixedOverhead = 600 // Rough estimate for template, instructions, and markers
+  const contentUsed =
+    characterName.length +
+    characterPersonality.length +
+    characterTraits.length +
+    boundedUserMessage.length +
+    memoryBlockLength +
+    fixedOverhead
+  const remainingBudget = Math.max(1000, MAX_CHAT_PROMPT_LENGTH - contentUsed)
   const boundedConversationHistory = buildConversationHistory(
     context.conversationHistory,
-    MAX_HISTORY_CHARS,
+    remainingBudget,
   )
-  const memoryBlock = buildMemoryBlock(context.memoryBundle)
 
   const prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
 
