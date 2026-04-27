@@ -1,3 +1,47 @@
+# [29.1.0](https://github.com/equationalapplications/clanker/compare/v29.0.0...v29.1.0) (2026-04-27)
+
+
+### Bug Fixes
+
+* **voice:** address code review feedback for error handling and UI state ([3867e12](https://github.com/equationalapplications/clanker/commit/3867e12482a1f1810ff61c006567c7ed40ac5cfd))
+* **voice:** anchor parsePcmParam regex to parameter boundaries ([6c3c24d](https://github.com/equationalapplications/clanker/commit/6c3c24df91be7ae183c6509bca3930cff63bd503))
+* **voice:** handle nomatch + no-speech gracefully with friendly errors ([40dc4e8](https://github.com/equationalapplications/clanker/commit/40dc4e81d7d67865e53cd1488d217feb500b8977))
+* **voice:** platform-aware permission error message; trim whitespace in normalizeVoice ([b4955ca](https://github.com/equationalapplications/clanker/commit/b4955ca27e5f539a26fee0d4d948ca48158b5c66))
+* **voice:** resolve talk page re-entrancy and web audio playback ([6c04b6d](https://github.com/equationalapplications/clanker/commit/6c04b6d5ec5d9fa2a3bb0d1c2d7cd055df438ae2))
+* **voice:** validate PCM params before writing WAV header; deduplicate test ([78865f6](https://github.com/equationalapplications/clanker/commit/78865f61955dae7a086f36ab22b21b1c8d1156a2))
+
+
+### Features
+
+* **voice:** complete voice selection with web support and modern FileSystem ([408f1d3](https://github.com/equationalapplications/clanker/commit/408f1d31a12c438a18aee8bd1d78e5ff8ca58ee0))
+
+# [29.0.0](https://github.com/equationalapplications/clanker/compare/v28.8.0...v29.0.0) (2026-04-26)
+
+
+### Bug Fixes
+
+* **schema:** include voice in base table ([13ce108](https://github.com/equationalapplications/clanker/commit/13ce10803f57bc586af786e725ffa9d8d9add376))
+* **voice:** centralize app default voice constant ([1cd0380](https://github.com/equationalapplications/clanker/commit/1cd0380afade152128bc5346f12c4b2a8b30cb4e))
+* **voice:** centralize functions default and trim normalization ([c3c3f31](https://github.com/equationalapplications/clanker/commit/c3c3f312f6a2ae8441a77a82b167ff35a62a2382))
+* **voice:** default and backfill voice values ([22cf463](https://github.com/equationalapplications/clanker/commit/22cf463dea9e2b72ab50383f5938e8428f394a7e))
+* **voice:** enforce default and sync persist ([02a4dcc](https://github.com/equationalapplications/clanker/commit/02a4dcc140cd3298fc6b88593650eb904dc71ab6))
+* **voice:** enforce non-null voice writes ([f4b159f](https://github.com/equationalapplications/clanker/commit/f4b159f0b5f60310278441eceff4686cc2d4d764))
+* **voice:** migration guard and sync type safety ([d773543](https://github.com/equationalapplications/clanker/commit/d773543114041e7c4f7a33f7c7005d0223428778)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
+* **voice:** normalize whitespace across all layers ([0bacb51](https://github.com/equationalapplications/clanker/commit/0bacb5188a9f0108381383f0863219e5727cb03c)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
+* **voice:** preserve omitted voice and normalize blanks ([e9ea574](https://github.com/equationalapplications/clanker/commit/e9ea5743beb1318aad3215f77d82e7f79086f3d9)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
+* **voice:** split migration 9 backfill, trim whitespace in SQLite and Postgres ([7584773](https://github.com/equationalapplications/clanker/commit/7584773a7e0c27d8b17bdc504740c96fecd4dc5f))
+
+
+### Features
+
+* **voice:** persist character voice end-to-end ([feca2db](https://github.com/equationalapplications/clanker/commit/feca2db373cfde69031bb3cf15c98ac742740bf9))
+
+
+### BREAKING CHANGES
+
+* **voice:** app.config.ts now includes expo-audio plugin.
+Native build required. Cannot OTA.
+
 # [28.8.0](https://github.com/equationalapplications/clanker/compare/v28.7.1...v28.8.0) (2026-04-25)
 
 

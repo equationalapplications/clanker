@@ -34,6 +34,7 @@ function makeCharacter(overrides: Partial<DbCharacter> = {}): DbCharacter {
     traits: null,
     emotions: null,
     context: null,
+    voice: 'Umbriel',
     created_at: NOW,
     updated_at: NOW,
     synced_to_cloud: false,
@@ -444,6 +445,13 @@ describe('default character creation', () => {
     await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
 
     expect(actor.getSnapshot().context.characters).toEqual([defaultChar])
+
+    // Verify DEFAULT_CHARACTER_INSERT passes voice: 'Umbriel'
+    const clankerCall = mockDb.createCharacter.mock.calls.find(
+      ([_userId, data]) => data?.name === 'Clanker',
+    )
+    expect(clankerCall?.[1]).toMatchObject({ voice: 'Umbriel' })
+
     actor.stop()
   })
 

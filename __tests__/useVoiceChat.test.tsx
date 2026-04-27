@@ -9,10 +9,12 @@ const mockSendVoiceMessage = jest.fn()
 const mockRouterPush = jest.fn()
 const mockRequestPermissionsAsync = jest.fn()
 const mockRequestRecordingPermissionsAsync = jest.fn()
+const mockSetAudioModeAsync = jest.fn()
 const mockStart = jest.fn()
 const mockStop = jest.fn()
-const mockWriteAsStringAsync = jest.fn()
-const mockDeleteAsync = jest.fn()
+const mockCreateAudioPlayer = jest.fn()
+const mockFileWrite = jest.fn()
+const mockFileDelete = jest.fn()
 const mockRelease = jest.fn()
 const mockPlay = jest.fn()
 const mockAddListener = jest.fn()
@@ -64,6 +66,7 @@ jest.mock('~/hooks/useMessages', () => ({
 
 jest.mock('expo-speech-recognition', () => ({
   ExpoSpeechRecognitionModule: {
+    isRecognitionAvailable: jest.fn().mockReturnValue(true),
     requestPermissionsAsync: (...args: unknown[]) => mockRequestPermissionsAsync(...args),
     start: (...args: unknown[]) => mockStart(...args),
     stop: (...args: unknown[]) => mockStop(...args),
@@ -75,21 +78,30 @@ jest.mock('expo-speech-recognition', () => ({
   },
 }))
 
-jest.mock('expo-file-system/legacy', () => ({
-  cacheDirectory: 'file:///tmp/',
-  EncodingType: { Base64: 'base64' },
-  writeAsStringAsync: (...args: unknown[]) => mockWriteAsStringAsync(...args),
-  deleteAsync: (...args: unknown[]) => mockDeleteAsync(...args),
+jest.mock('expo-file-system', () => ({
+  File: jest.fn().mockImplementation((_dir: unknown, filename: string) => ({
+    uri: `file:///tmp/${filename}`,
+    exists: true,
+    write: (...args: unknown[]) => mockFileWrite(...args),
+    delete: () => mockFileDelete(),
+  })),
+  Paths: {
+    cache: {},
+  },
 }))
 
 jest.mock('expo-audio', () => ({
-  createAudioPlayer: () => ({
-    play: (...args: unknown[]) => mockPlay(...args),
-    release: (...args: unknown[]) => mockRelease(...args),
-    addListener: (...args: unknown[]) => mockAddListener(...args),
-  }),
+  createAudioPlayer: (...args: unknown[]) => {
+    mockCreateAudioPlayer(...args)
+    return {
+      play: (...innerArgs: unknown[]) => mockPlay(...innerArgs),
+      release: (...innerArgs: unknown[]) => mockRelease(...innerArgs),
+      addListener: (...innerArgs: unknown[]) => mockAddListener(...innerArgs),
+    }
+  },
   requestRecordingPermissionsAsync: (...args: unknown[]) =>
     mockRequestRecordingPermissionsAsync(...args),
+  setAudioModeAsync: (...args: unknown[]) => mockSetAudioModeAsync(...args),
 }))
 
 jest.mock('react-native-reanimated', () => ({
@@ -144,9 +156,8 @@ describe('useVoiceChat', () => {
       usageSnapshot: null,
     })
 
-    mockWriteAsStringAsync.mockResolvedValue(undefined)
-    mockDeleteAsync.mockResolvedValue(undefined)
     mockPlay.mockResolvedValue(undefined)
+    mockSetAudioModeAsync.mockResolvedValue(undefined)
     mockAddListener.mockImplementation((_event: string, callback: (status: any) => void) => {
       callback({ didJustFinish: true })
       return { remove: jest.fn() }
@@ -324,7 +335,8 @@ describe('useVoiceChat', () => {
     })
 
     expect(mockSendVoiceMessage).not.toHaveBeenCalled()
-    expect(getHookValue().voiceState).toBe('idle')
+    expect(getHookValue().voiceState).toBe('error')
+    expect(getHookValue().error).toContain("Didn't catch that")
   })
 
   it('stops recognition when MAX_LISTEN_MS timer fires', async () => {
@@ -362,9 +374,9 @@ describe('useVoiceChat', () => {
       'user-1',
       expect.any(Array),
     )
-    expect(mockWriteAsStringAsync).toHaveBeenCalled()
+    expect(mockFileWrite).toHaveBeenCalled()
     expect(mockPlay).toHaveBeenCalled()
-    expect(mockDeleteAsync).toHaveBeenCalled()
+    expect(mockFileDelete).toHaveBeenCalled()
     expect(getHookValue().voiceState).toBe('idle')
   })
 
@@ -418,7 +430,7 @@ describe('useVoiceChat', () => {
     })
 
     expect(mockRelease).toHaveBeenCalled()
-    expect(mockDeleteAsync).toHaveBeenCalled()
+    expect(mockFileDelete).toHaveBeenCalled()
   })
 
   it('moves to error and cleans file on playback failure', async () => {
@@ -434,6 +446,76 @@ describe('useVoiceChat', () => {
     })
 
     expect(getHookValue().voiceState).toBe('error')
-    expect(mockDeleteAsync).toHaveBeenCalled()
+    expect(mockFileDelete).toHaveBeenCalled()
+  })
+
+  it('calls setAudioModeAsync on mount with expected mode', () => {
+    mockSetAudioModeAsync.mockResolvedValue(undefined)
+    renderHook()
+    expect(mockSetAudioModeAsync).toHaveBeenCalledWith({
+      playsInSilentMode: true,
+      allowsRecording: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'mixWithOthers',
+    })
+  })
+
+  describe('web voice', () => {
+    beforeEach(() => {
+      ;(require('react-native').Platform as { OS: string }).OS = 'web'
+    })
+
+    afterEach(() => {
+      ;(require('react-native').Platform as { OS: string }).OS = 'ios'
+    })
+
+    it('requests only STT permission, not audio recording permission', async () => {
+      const { getHookValue } = renderHook()
+
+      await act(async () => {
+        await getHookValue().startListening()
+        await flushPromises()
+      })
+
+      expect(mockRequestPermissionsAsync).toHaveBeenCalledTimes(1)
+      expect(mockRequestRecordingPermissionsAsync).not.toHaveBeenCalled()
+    })
+
+    it('plays back using data URI without writing to the filesystem', async () => {
+      const { getHookValue } = renderHook()
+
+      await act(async () => {
+        await getHookValue().startListening()
+        emitSpeechEvent('result', { isFinal: true, results: [{ transcript: 'hello web' }] })
+        emitSpeechEvent('end', {})
+        await flushPromises()
+        await flushPromises()
+      })
+
+      expect(mockCreateAudioPlayer).toHaveBeenCalledWith({
+        uri: expect.stringMatching(/^data:audio\/wav;base64,/),
+      })
+      expect(mockFileWrite).not.toHaveBeenCalled()
+      expect(getHookValue().voiceState).toBe('idle')
+    })
+
+    it('shows browser-specific error when STT permission is denied', async () => {
+      mockRequestPermissionsAsync.mockResolvedValueOnce({ granted: false })
+
+      const { getHookValue } = renderHook()
+
+      await act(async () => {
+        await getHookValue().startListening()
+        await flushPromises()
+      })
+
+      expect(getHookValue().error).toBe('Microphone permission required. Allow it in your browser.')
+      expect(getHookValue().voiceState).toBe('error')
+    })
+
+    it('does not call setAudioModeAsync on mount', () => {
+      renderHook()
+      expect(mockSetAudioModeAsync).not.toHaveBeenCalled()
+    })
   })
 })
