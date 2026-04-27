@@ -41,7 +41,8 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
       memory_checkpoint: messageCount,
     })
 
-    await triggerMemoryWrite(input.character, input.userId, input.chunk)
+    const charForCloud = latestCharacter ? { ...input.character, cloud_id: latestCharacter.cloud_id } : input.character
+    await triggerMemoryWrite(charForCloud, input.userId, input.chunk)
 
     const healCheckpoint = Math.max(0, latestCharacter?.heal_checkpoint ?? 0)
     if (messageCount - healCheckpoint < HEAL_TRIGGER_MESSAGE_COUNT) {
@@ -52,7 +53,7 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
       heal_checkpoint: messageCount,
     })
 
-    await triggerMemoryHeal(input.character.id)
+    await triggerMemoryHeal(input.character.id, latestCharacter?.cloud_id)
   } catch (error) {
     console.warn('Failed to dispatch wiki write:', error)
   } finally {

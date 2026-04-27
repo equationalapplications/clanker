@@ -117,6 +117,6 @@ describe('dispatchWikiWrite', () => {
     expect(mockUpdateCharacter).toHaveBeenNthCalledWith(2, 'char-1', 'user-1', {
       heal_checkpoint: 40,
     })
-    expect(mockTriggerMemoryHeal).toHaveBeenCalledWith('char-1')
+    expect(mockTriggerMemoryHeal).toHaveBeenCalledWith('char-1', undefined)
   })
 })

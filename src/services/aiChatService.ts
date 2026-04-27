@@ -21,6 +21,7 @@ export interface Character {
   traits: string
   emotions: string
   context: string
+  cloud_id?: string | null
 }
 
 export type UsageSnapshot = UsageSnapshotPayload

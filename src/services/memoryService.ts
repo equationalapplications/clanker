@@ -9,6 +9,12 @@ import { queryClient } from '~/config/queryClient'
 
 const activeMemoryWrites = new Set<string>()
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function resolveCloudCharacterId(character: Character): string {
+  return character.cloud_id && UUID_RE.test(character.cloud_id) ? character.cloud_id : character.id
+}
+
 interface MemoryWriteResponse {
   diff?: {
     entries?: unknown[]
@@ -148,12 +154,10 @@ async function applyMemoryDiff(
     toDerivedSynonymUpserts(characterId, diff.synonyms ?? []),
   ]
 
-  await Promise.all([
-    upsertWikiEntries(entryRows),
-    upsertAgentTasks(taskRows),
-    appendMemoryEvents(eventRows),
-    upsertDerivedSynonyms(synonymRows),
-  ])
+  await upsertWikiEntries(entryRows)
+  await upsertAgentTasks(taskRows)
+  await appendMemoryEvents(eventRows)
+  await upsertDerivedSynonyms(synonymRows)
 
   await queryClient.invalidateQueries({
     queryKey: ['memoryBundle', characterId],
@@ -195,7 +199,7 @@ export async function triggerMemoryWrite(
   try {
     await appCheckReady
     const result = await memoryWriteFn({
-      characterId: character.id,
+      characterId: resolveCloudCharacterId(character),
       sourceText: chunk,
       sourceType: 'conversation',
     })
@@ -208,10 +212,10 @@ export async function triggerMemoryWrite(
   }
 }
 
-export async function triggerMemoryHeal(characterId: string): Promise<void> {
+export async function triggerMemoryHeal(characterId: string, cloudId?: string | null): Promise<void> {
   try {
     await appCheckReady
-    const result = await memoryHealFn({ characterId })
+    const result = await memoryHealFn({ characterId: cloudId && UUID_RE.test(cloudId) ? cloudId : characterId })
     const payload = result.data as MemoryHealResponse
     await applyMemoryDiff(characterId, payload.diff ?? {})
   } catch (error) {

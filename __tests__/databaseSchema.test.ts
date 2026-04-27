@@ -28,7 +28,7 @@ describe('database schema migration guards', () => {
 
   it('bumps schema to v11 for wiki memory tables', () => {
     expect(SCHEMA_VERSION).toBe(11)
-    expect(MIGRATION_SKIP_GUARDS[11]).toEqual({ table: 'wiki_entries', column: 'id' })
+    expect(MIGRATION_SKIP_GUARDS[11]).toEqual({ table: 'characters', column: 'heal_checkpoint' })
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.characters).toEqual(
       expect.arrayContaining(['heal_checkpoint', 'memory_checkpoint']),
     )
