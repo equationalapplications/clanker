@@ -5,14 +5,24 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 10
+export const SCHEMA_VERSION = 11
 
 /**
  * Columns that must exist for a database to be treated as already matching
  * the latest schema version during bootstrap.
  */
 export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
-  characters: ['deleted_at', 'avatar_data', 'avatar_mime_type', 'save_to_cloud', 'summary_checkpoint', 'owner_user_id', 'voice'],
+  characters: [
+    'deleted_at',
+    'avatar_data',
+    'avatar_mime_type',
+    'save_to_cloud',
+    'summary_checkpoint',
+    'owner_user_id',
+    'voice',
+    'heal_checkpoint',
+    'memory_checkpoint',
+  ],
 }
 
 /**
@@ -27,6 +37,7 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
   6: { table: 'characters', column: 'summary_checkpoint' },
   7: { table: 'characters', column: 'owner_user_id' },
   9: { table: 'characters', column: 'voice' },
+  11: { table: 'characters', column: 'heal_checkpoint' },
 }
 
 /**
@@ -54,7 +65,9 @@ export const CREATE_TABLES = `
     deleted_at INTEGER,
     summary_checkpoint INTEGER DEFAULT 0,
     owner_user_id TEXT NOT NULL DEFAULT '',
-    voice TEXT NOT NULL DEFAULT '${DEFAULT_VOICE}'
+    voice TEXT NOT NULL DEFAULT '${DEFAULT_VOICE}',
+    heal_checkpoint INTEGER NOT NULL DEFAULT 0,
+    memory_checkpoint INTEGER NOT NULL DEFAULT 0
   );
 
   -- Indexes for characters
@@ -82,6 +95,103 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(character_id, sender_user_id, recipient_user_id);
   CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
 
+  -- Wiki entries table
+  CREATE TABLE IF NOT EXISTS wiki_entries (
+    id TEXT PRIMARY KEY NOT NULL,
+    character_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    tags TEXT NOT NULL DEFAULT '[]',
+    confidence TEXT NOT NULL DEFAULT 'inferred',
+    source_type TEXT NOT NULL DEFAULT 'agent_inferred',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    last_accessed_at INTEGER,
+    access_count INTEGER NOT NULL DEFAULT 0,
+    synced_to_cloud INTEGER NOT NULL DEFAULT 0,
+    cloud_id TEXT,
+    deleted_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_user ON wiki_entries(character_id, user_id);
+  CREATE INDEX IF NOT EXISTS idx_wiki_entries_updated_at ON wiki_entries(updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_deleted ON wiki_entries(character_id, deleted_at);
+
+  CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts USING fts5(
+    title,
+    body,
+    tags,
+    content='wiki_entries',
+    content_rowid='rowid'
+  );
+
+  CREATE TRIGGER IF NOT EXISTS wiki_entries_ai AFTER INSERT ON wiki_entries BEGIN
+    INSERT INTO wiki_fts(rowid, title, body, tags)
+    VALUES (new.rowid, new.title, new.body, new.tags);
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS wiki_entries_au AFTER UPDATE ON wiki_entries BEGIN
+    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
+    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
+    INSERT INTO wiki_fts(rowid, title, body, tags)
+    VALUES (new.rowid, new.title, new.body, new.tags);
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS wiki_entries_ad AFTER DELETE ON wiki_entries BEGIN
+    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
+    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
+  END;
+
+  -- Agent tasks table
+  CREATE TABLE IF NOT EXISTS agent_tasks (
+    id TEXT PRIMARY KEY NOT NULL,
+    character_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    priority INTEGER NOT NULL DEFAULT 0,
+    due_context TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    resolved_at INTEGER,
+    resolution_note TEXT,
+    synced_to_cloud INTEGER NOT NULL DEFAULT 0,
+    cloud_id TEXT,
+    deleted_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_agent_tasks_character_status ON agent_tasks(character_id, user_id, status);
+  CREATE INDEX IF NOT EXISTS idx_agent_tasks_priority ON agent_tasks(priority DESC);
+
+  -- Memory events table
+  CREATE TABLE IF NOT EXISTS memory_events (
+    id TEXT PRIMARY KEY NOT NULL,
+    character_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    related_entry_id TEXT,
+    related_task_id TEXT,
+    source_ref TEXT,
+    created_at INTEGER NOT NULL,
+    synced_to_cloud INTEGER NOT NULL DEFAULT 0,
+    cloud_id TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_memory_events_character_created ON memory_events(character_id, user_id, created_at DESC);
+
+  -- Derived synonym table
+  CREATE TABLE IF NOT EXISTS derived_synonyms (
+    term TEXT NOT NULL,
+    character_id TEXT NOT NULL,
+    synonyms TEXT NOT NULL DEFAULT '[]',
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (term, character_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_derived_synonyms_character ON derived_synonyms(character_id);
+
   -- Schema version tracking
   CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY,
@@ -102,4 +212,87 @@ export const MIGRATIONS: Record<number, string> = {
   8: `UPDATE characters SET owner_user_id = user_id WHERE (owner_user_id IS NULL OR owner_user_id = '') AND (save_to_cloud = 1 OR cloud_id IS NULL OR COALESCE(is_public, 0) = 0);`,
   9: `ALTER TABLE characters ADD COLUMN voice TEXT NOT NULL DEFAULT '${DEFAULT_VOICE}';`,
   10: `UPDATE characters SET voice = '${DEFAULT_VOICE}' WHERE voice IS NULL OR voice = '';`,
+  11: `ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS wiki_entries (
+  id TEXT PRIMARY KEY NOT NULL,
+  character_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  tags TEXT NOT NULL DEFAULT '[]',
+  confidence TEXT NOT NULL DEFAULT 'inferred',
+  source_type TEXT NOT NULL DEFAULT 'agent_inferred',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  last_accessed_at INTEGER,
+  access_count INTEGER NOT NULL DEFAULT 0,
+  synced_to_cloud INTEGER NOT NULL DEFAULT 0,
+  cloud_id TEXT,
+  deleted_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_user ON wiki_entries(character_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_updated_at ON wiki_entries(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_deleted ON wiki_entries(character_id, deleted_at);
+CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts USING fts5(
+  title,
+  body,
+  tags,
+  content='wiki_entries',
+  content_rowid='rowid'
+);
+CREATE TRIGGER IF NOT EXISTS wiki_entries_ai AFTER INSERT ON wiki_entries BEGIN
+  INSERT INTO wiki_fts(rowid, title, body, tags)
+  VALUES (new.rowid, new.title, new.body, new.tags);
+END;
+CREATE TRIGGER IF NOT EXISTS wiki_entries_au AFTER UPDATE ON wiki_entries BEGIN
+  INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
+  VALUES ('delete', old.rowid, old.title, old.body, old.tags);
+  INSERT INTO wiki_fts(rowid, title, body, tags)
+  VALUES (new.rowid, new.title, new.body, new.tags);
+END;
+CREATE TRIGGER IF NOT EXISTS wiki_entries_ad AFTER DELETE ON wiki_entries BEGIN
+  INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
+  VALUES ('delete', old.rowid, old.title, old.body, old.tags);
+END;
+CREATE TABLE IF NOT EXISTS agent_tasks (
+  id TEXT PRIMARY KEY NOT NULL,
+  character_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  description TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  priority INTEGER NOT NULL DEFAULT 0,
+  due_context TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  resolved_at INTEGER,
+  resolution_note TEXT,
+  synced_to_cloud INTEGER NOT NULL DEFAULT 0,
+  cloud_id TEXT,
+  deleted_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_character_status ON agent_tasks(character_id, user_id, status);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_priority ON agent_tasks(priority DESC);
+CREATE TABLE IF NOT EXISTS memory_events (
+  id TEXT PRIMARY KEY NOT NULL,
+  character_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  related_entry_id TEXT,
+  related_task_id TEXT,
+  source_ref TEXT,
+  created_at INTEGER NOT NULL,
+  synced_to_cloud INTEGER NOT NULL DEFAULT 0,
+  cloud_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_memory_events_character_created ON memory_events(character_id, user_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS derived_synonyms (
+  term TEXT NOT NULL,
+  character_id TEXT NOT NULL,
+  synonyms TEXT NOT NULL DEFAULT '[]',
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (term, character_id)
+);
+CREATE INDEX IF NOT EXISTS idx_derived_synonyms_character ON derived_synonyms(character_id);`,
 }
