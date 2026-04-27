@@ -22,7 +22,6 @@ Agent need memory it can **read, write, update, delete** mid-run.
 
 - Structured memory, query <50ms (local), no LLM at read time
 - Split stable facts / volatile tasks / episodic events
-- Agent can patch mid-turn as tool call
 - Librarian pass async post-turn, never block reply (mirror `triggerConversationSummary` fire-and-forget)
 - Local SQLite + FTS5 first; Cloud SQL mirror gated on `save_to_cloud=1` (match existing sync model used by [src/services/characterSyncService.ts](/src/services/characterSyncService.ts))
 - Reuse existing `onCall` + handler-split-for-test pattern. No new infra.
@@ -33,6 +32,7 @@ Agent need memory it can **read, write, update, delete** mid-run.
 - Cross-character memory share
 - Realtime cross-device push (piggyback existing character cloud sync)
 - Remove or deprecate `characters.context` (it remains first-class and coexists with wiki memory)
+- **`memoryPatch`** (direct agent write mid-turn). Deferred to v2 — requires agent tool-calling integration in `generateReply`.
 - **On-device LLM inference** (Apple Intelligence / GGUF / `callstackincubator/ai`). Deferred to v2 — see [Future: Local Inference](#future-local-inference-v2).
 
 ## Schema (v11 migration)
@@ -104,7 +104,7 @@ cloud_id      TEXT
 
 Index: `(character_id, user_id, created_at DESC)`.
 
-Append-only at API level (no update/delete in `memoryPatch`). Pruning: when row count > N (default 200) per character, oldest M (default 50) compressed → librarian summarizes into a `wiki_entries` row, then deletes events. Pruning runs inside `memoryWrite` librarian pass, not on hot read path.
+Append-only at API level (no update/delete exposed). Pruning: when row count > N (default 200) per character, oldest M (default 50) compressed → librarian summarizes into a `wiki_entries` row, then deletes events. Pruning runs inside `memoryWrite` librarian pass, not on hot read path.
 
 ### `derived_synonyms` — auto-grown query expansion vocabulary
 
@@ -169,7 +169,7 @@ Export from [functions/src/index.ts](/functions/src/index.ts) alongside existing
 
 ### `memoryWrite` — librarian pass, post-turn
 
-- Access: **premium + cloud-synced characters only**. Non-premium and non-cloud-synced characters never invoke this callable; their memory grows only via explicit `memoryPatch` writes (premium users) or stays empty (non-premium).
+- Access: **premium + cloud-synced characters only**. Non-premium and non-cloud-synced characters never invoke this callable; their wiki memory stays empty in v1.
 - In: `{ characterId: string, conversationChunk: string }`
 - Cadence: invoked by `wikiHealMachine` when `messageCount - memory_checkpoint >= MEMORY_WRITE_TRIGGER_MESSAGE_COUNT (20)`. The machine advances `memory_checkpoint` to the current `messageCount` **before** invocation (retry-storm guard, mirrors `triggerConversationSummary`). The server treats the checkpoint as already advanced.
 - Server: LLM extract facts → fuzzy title match merge (avoid dup) → upsert `wiki_entries` → create/update/close `agent_tasks` → append `memory_events` → update `derived_synonyms` from co-occurring tags (see Derived Synonym Enrichment) → run prune if event count threshold
@@ -191,14 +191,6 @@ Export from [functions/src/index.ts](/functions/src/index.ts) alongside existing
 - Out: `{ diff: { contradictionsFlagged, staleDowngraded, orphansRemoved, conceptsSeeded } }`
 - Premium monthly users (`usage.hasUnlimited` via `fetchUsageState`, same pattern as `generateReply`): runs in cloud against full Cloud SQL wiki. Non-premium users never have `save_to_cloud`, so the callable is unreachable for them; if invoked anyway, return empty diff (no `HttpsError`, fail-soft).
 
-### `memoryPatch` — direct agent write mid-turn
-
-- Access: **premium users only** (any plan tier with `usage.hasUnlimited`). Routed by the client like `memoryRead`: if `character.save_to_cloud === 1 && synced_to_cloud === 1` the client calls the cloud callable; otherwise the client writes directly to local SQLite via `wikiDatabase`/`agentTaskDatabase`. Non-premium users do not have access to memory mutation.
-- In (cloud path): `{ characterId: string, operation: 'upsert_entry'|'delete_entry'|'task_create'|'task_update', payload: object }`
-- Agent tool-call when explicit commit / close task mid-turn.
-- Rate limit (cloud path): max 10 calls per agent turn (track via in-memory map keyed by `auth.uid + turn_id`). Implementation lives alongside other rate-limit logic in [functions/src/services/](/functions/src/services/).
-- Local path: same payload shape, no rate limit (single-process), same conflict resolution policy.
-
 ### `memoryForget` — user-initiated delete
 
 - In: `{ characterId: string, entryId?: string, taskId?: string, clearAll?: boolean }`
@@ -214,7 +206,6 @@ const memoryReadFn = httpsCallable(functionsInstance, 'memoryRead')
 // await appCheckReady before calling, same as chatReplyService
 export async function fetchMemoryBundle(characterId: string, query: string): Promise<MemoryBundle>
 export async function triggerMemoryWrite(character: Character, userId: string, chunk: string): Promise<void>
-export async function patchMemory(characterId: string, op: PatchOp): Promise<void>
 export async function forgetMemory(characterId: string, target: ForgetTarget): Promise<void>
 ```
 
@@ -361,8 +352,6 @@ Implemented inside `memoryWrite` handler (premium + cloud-synced only — the on
 - **Contradictory fact** → mark old `confidence='tentative'`, create new at `'inferred'`, next user confirm resolves
 - **User-stated fact** ("I told you, I hate cilantro") → always overwrite agent-inferred. Set `source_type='user_stated'`, `confidence='certain'`
 
-`memoryPatch` writes (cloud or local) bypass librarian conflict resolution — the agent or user is the source of truth and the write is applied as-supplied (with `confidence` and `source_type` from the payload).
-
 ## Cloud Sync
 
 Match existing character sync model ([src/services/characterSyncService.ts](/src/services/characterSyncService.ts), cloud handlers in [functions/src/characterFunctions.ts](/functions/src/characterFunctions.ts)):
@@ -374,7 +363,7 @@ Match existing character sync model ([src/services/characterSyncService.ts](/src
 
 ## Future: Local Inference (v2)
 
-Out of scope for v1. v1 librarian/heal passes always run via Cloud Functions when permitted (premium + cloud-synced); non-premium users get local-storage-only memory with **no LLM librarian** and rely on explicit local memory mutations (`memoryPatch`/manual edits).
+Out of scope for v1. v1 librarian/heal passes always run via Cloud Functions when permitted (premium + cloud-synced); non-premium users get local-storage-only memory with **no LLM librarian**.
 
 v2 will revisit on-device inference using `callstackincubator/ai` (Apple Intelligence on iOS 26+, GGUF via `llama.rn` for capable Android/older iOS). When added, `wikiHealMachine` `writing`/`healing` states will gain a tier check that routes locally first and falls back to the cloud callable on error or when the device is incapable. The library evaluation (vs `react-native-executorch`, `expo-ai-kit`) is preserved in `docs/superpowers/research/local-inference-libraries.md` (to be created when v2 starts).
 
@@ -389,7 +378,7 @@ v2 will revisit on-device inference using `callstackincubator/ai` (Apple Intelli
 - [src/database/synonymMapBase.ts](/src/database/synonymMapBase.ts)
 - [src/services/memoryService.ts](/src/services/memoryService.ts)
 - [src/machines/wikiHealMachine.ts](/src/machines/wikiHealMachine.ts)
-- `functions/src/memoryFunctions.ts` (or split per callable: `memoryRead.ts`, `memoryWrite.ts`, `memoryPatch.ts`, `memoryForget.ts`, `memoryHeal.ts`, `syncCharacterMemory.ts`)
+- `functions/src/memoryFunctions.ts` (or split per callable: `memoryRead.ts`, `memoryWrite.ts`, `memoryForget.ts`, `memoryHeal.ts`, `syncCharacterMemory.ts`)
 - `__tests__/wikiDatabase.test.ts`, `__tests__/ftsQueryBuilder.test.ts`, `__tests__/memoryService.test.ts`, `__tests__/wikiHealMachine.test.ts`
 - `functions/src/memoryFunctions.test.ts` (compiled to `functions/lib/memoryFunctions.test.js`, run via `node --test`)
 
@@ -398,7 +387,7 @@ v2 will revisit on-device inference using `callstackincubator/ai` (Apple Intelli
 - [functions/src/db/schema.ts](/functions/src/db/schema.ts) — add Drizzle tables for cloud mirror with `tsvector` column + GIN index; FK to `characters.id`/`users.id`; no `summary_checkpoint`/`heal_checkpoint` columns server-side
 - `functions/drizzle/000X_wiki_memory.sql` — generated by `npm run db:generate`, applied via `npm run migrate`
 - [src/services/aiChatService.ts](/src/services/aiChatService.ts) — call `fetchMemoryBundle` in pre-turn; send `WRITE` event to `wikiHealMachine` instead of direct `triggerMemoryWrite`; extend `buildChatPrompt`
-- [src/config/firebaseConfig.ts](/src/config/firebaseConfig.ts) — register 5 new agent callables (`memoryRead`, `memoryWrite`, `memoryHeal`, `memoryPatch`, `memoryForget`) plus 1 sync helper (`syncCharacterMemory`)
+- [src/config/firebaseConfig.ts](/src/config/firebaseConfig.ts) — register 4 new agent callables (`memoryRead`, `memoryWrite`, `memoryHeal`, `memoryForget`) plus 1 sync helper (`syncCharacterMemory`)
 - [functions/src/index.ts](/functions/src/index.ts) — export the new callables
 - `package.json` — add `compromise` dependency only (local-inference deps deferred to v2)
 
@@ -427,14 +416,12 @@ Match existing patterns:
 - [ ] `memoryHeal` fires when `messageCount - heal_checkpoint >= HEAL_TRIGGER_MESSAGE_COUNT (20)`; advances checkpoint before run (retry-storm guard, mirrors `triggerConversationSummary`); returns empty diff for non-premium without erroring
 - [ ] `memoryHeal` bounds token cost by capping full-wiki input to 100 entries
 - [ ] `memoryHeal` flags contradictions, downgrades stale claims, removes orphans, seeds missing concepts
-- [ ] `memoryPatch` callable from agent tool loop with auth + in-memory rate-limit (≤10 ops per turn)
 - [ ] `memoryForget` soft-deletes entries/tasks, preserves `memory_events`
 - [ ] Conflict resolution policy enforced (3 cases tested: same-title body differs, contradictory fact, user-stated overwrite)
 - [ ] `wikiHealMachine` follows XState v5 pattern from existing machines; states transition idle→checking→writing→healing→idle with fail-soft on errors
 - [ ] `aiChatService.sendMessageWithAIResponse` keeps `triggerConversationSummary` running for everyone; for premium + cloud-synced characters it additionally injects a `[MEMORY]` block via `fetchMemoryBundle` and sends `WRITE` to `wikiHealMachine` post-turn; both flows fail-soft and stay within `MAX_CHAT_PROMPT_LENGTH`
 - [ ] `characters.context` is unchanged — same writes, same reads, no librarian seeding from existing `context` blobs
-- [ ] `memoryPatch` works in both cloud (callable, premium + cloud-synced) and local (premium, not cloud-synced) modes; non-premium users have no memory mutation path
 - [ ] Cloud sync respects `character.save_to_cloud` flag; non-cloud-synced characters use local SQLite end-to-end; sync extension piggybacks on existing character sync orchestration
-- [ ] All 5 agent callables + `syncCharacterMemory` follow `enforceAppCheck`, `CLOUD_SQL_SECRETS`, handler-split-for-test pattern; user resolved via `userRepository.getOrCreateUserByFirebaseIdentity`
+- [ ] All 4 agent callables + `syncCharacterMemory` follow `enforceAppCheck`, `CLOUD_SQL_SECRETS`, handler-split-for-test pattern; user resolved via `userRepository.getOrCreateUserByFirebaseIdentity`
 - [ ] `npm run typecheck && npm run lint && npm run test` green at root (Jest)
 - [ ] `cd functions && npm run typecheck && npm run lint && npm run build && node --test lib/memoryFunctions.test.js` green
