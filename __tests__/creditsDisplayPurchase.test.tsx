@@ -1,6 +1,5 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
-import { Platform } from 'react-native'
 
 const mockUseUserCredits = jest.fn()
 const mockMakePackagePurchase = jest.fn()
@@ -82,7 +81,7 @@ describe('CreditsDisplay purchase flows', () => {
   beforeEach(() => {
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
     jest.clearAllMocks()
-    jest.replaceProperty(Platform, 'OS', 'web')
+    __setJestPlatformOS('web')
 
     mockRefetch.mockResolvedValue(undefined)
     mockUseUserCredits.mockReturnValue({
@@ -96,6 +95,7 @@ describe('CreditsDisplay purchase flows', () => {
   })
 
   afterEach(() => {
+    __resetJestPlatformOS()
     consoleErrorSpy.mockRestore()
   })
 
@@ -178,7 +178,7 @@ describe('CreditsDisplay purchase flows', () => {
   })
 
   it('refreshes bootstrap and clears loading after native subscription purchase', async () => {
-    jest.replaceProperty(Platform, 'OS', 'ios')
+    __setJestPlatformOS('ios')
     mockMakePackagePurchase.mockResolvedValueOnce({ appUserId: 'user-1' })
     const CreditsDisplay = require('~/components/CreditsDisplay').default
     let tree!: ReturnType<typeof create>
@@ -203,7 +203,7 @@ describe('CreditsDisplay purchase flows', () => {
   })
 
   it('does not refresh state when native subscription purchase is cancelled', async () => {
-    jest.replaceProperty(Platform, 'OS', 'ios')
+    __setJestPlatformOS('ios')
     mockMakePackagePurchase.mockResolvedValueOnce(null)
     const CreditsDisplay = require('~/components/CreditsDisplay').default
     let tree!: ReturnType<typeof create>
@@ -223,7 +223,7 @@ describe('CreditsDisplay purchase flows', () => {
   })
 
   it('does not refresh state when native payg purchase is cancelled', async () => {
-    jest.replaceProperty(Platform, 'OS', 'ios')
+    __setJestPlatformOS('ios')
     mockMakePackagePurchase.mockResolvedValueOnce(null)
     const CreditsDisplay = require('~/components/CreditsDisplay').default
     let tree!: ReturnType<typeof create>
