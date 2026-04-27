@@ -3,6 +3,8 @@ import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { userRepository } from './services/userRepository.js';
 import { subscriptionService } from './services/subscriptionService.js';
 import { getDb } from './db/cloudSql.js';
@@ -237,18 +239,6 @@ function clip(value: string, maxLength: number): string {
   return normalized.length <= maxLength ? normalized : normalized.slice(0, maxLength).trimEnd();
 }
 
-function slugify(value: string): string {
-  return (
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 4)
-      .join('_') || 'memory'
-  );
-}
-
 function inferPriority(summary: string): number {
   const lowered = summary.toLowerCase();
   if (lowered.includes('urgent') || lowered.includes('asap') || lowered.includes('today')) {
@@ -385,6 +375,10 @@ async function hasOwnedCloudCharacter(
   characterId: string,
   userId: string,
 ): Promise<boolean> {
+  if (!UUID_RE.test(characterId)) {
+    return false;
+  }
+
   const db = await deps.getDb();
   const row = await db
     .select({ id: characters.id })
@@ -536,7 +530,7 @@ function buildWriteDiff(
 
       if (hasBodyChange) {
         events.push({
-          id: `event_${now}_${index}_${slugify(title)}`,
+          id: `event_${now}_${index}_${Math.random().toString(36).substr(2, 9)}`,
           characterId,
           userId: firebaseUid,
           eventType: 'observation',
@@ -554,7 +548,7 @@ function buildWriteDiff(
     }
 
     entries.push({
-      id: `entry_${now}_${index}_${slugify(title)}`,
+      id: `entry_${now}_${index}_${Math.random().toString(36).substr(2, 9)}`,
       characterId,
       userId: firebaseUid,
       title,
@@ -576,7 +570,7 @@ function buildWriteDiff(
   const tasks: MemoryWriteTask[] = pieces
     .filter((piece) => isTaskSentence(piece))
     .map((piece, index) => ({
-      id: `task_${now}_${index}_${slugify(piece)}`,
+      id: `task_${now}_${index}_${Math.random().toString(36).substr(2, 9)}`,
       characterId,
       userId: firebaseUid,
       description: clip(piece, 180),
@@ -593,7 +587,7 @@ function buildWriteDiff(
     }));
 
   events.unshift({
-    id: `event_${now}_${slugify(sourceText)}`,
+    id: `event_${now}_${Math.random().toString(36).substr(2, 9)}`,
     characterId,
     userId: firebaseUid,
     eventType: 'observation',
@@ -813,7 +807,7 @@ async function buildHealDiff(
       continue;
     }
 
-    const seededId = `entry_${now}_${slugify(task.description)}`;
+    const seededId = `entry_${now}_${Math.random().toString(36).substr(2, 9)}`;
     seededEntries.push({
       id: seededId,
       characterId,
@@ -833,7 +827,7 @@ async function buildHealDiff(
     });
 
     events.push({
-      id: `event_${now}_${slugify(task.id)}`,
+      id: `event_${now}_${Math.random().toString(36).substr(2, 9)}`,
       characterId,
       userId: firebaseUid,
       eventType: 'observation',

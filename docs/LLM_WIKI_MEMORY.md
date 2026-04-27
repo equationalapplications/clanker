@@ -240,10 +240,10 @@ Same checkpoint-advance-before-invoke pattern as write:
 
 ### Callable: `memoryRead`
 
-Invoked once per character per device when:
-- Cloud-synced character (`character.save_to_cloud = 1`)
-- Premium user (`usage.hasUnlimited`)
-- Local wiki is empty (count = 0)
+Invoked by `triggerMemoryRead` in [memoryService.ts](../src/services/memoryService.ts), called from `dispatchWikiWrite` before the first write cycle. Fires when:
+- Cloud-synced character (`character.save_to_cloud = 1` with a valid Cloud UUID in `cloud_id`)
+- Local wiki is empty for that character (`countEntries == 0`)
+- User is online (implied by reaching `dispatchWikiWrite`)
 
 **Not on hot path.** Returns:
 ```json
@@ -255,7 +255,7 @@ Invoked once per character per device when:
 }
 ```
 
-Client applies via bulk upsert to local SQLite.
+Client applies via bulk upsert to local SQLite. Subsequent calls are no-ops once `countEntries > 0`.
 
 ---
 

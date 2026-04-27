@@ -3,12 +3,14 @@ const mockSearchEntries = jest.fn()
 const mockGetRecentEntries = jest.fn()
 const mockGetOpenTasks = jest.fn()
 const mockGetRecentEvents = jest.fn()
+const mockCountEntries = jest.fn()
 const mockUpsertWikiEntries = jest.fn()
 const mockUpsertAgentTasks = jest.fn()
 const mockAppendMemoryEvents = jest.fn()
 const mockUpsertDerivedSynonyms = jest.fn()
 const mockMemoryWriteFn = jest.fn()
 const mockMemoryHealFn = jest.fn()
+const mockMemoryReadFn = jest.fn()
 const mockInvalidateQueries = jest.fn()
 
 jest.mock('~/database/ftsQueryBuilder', () => ({
@@ -18,6 +20,7 @@ jest.mock('~/database/ftsQueryBuilder', () => ({
 jest.mock('~/database/wikiDatabase', () => ({
   searchEntries: (...args: unknown[]) => mockSearchEntries(...args),
   getRecentEntries: (...args: unknown[]) => mockGetRecentEntries(...args),
+  countEntries: (...args: unknown[]) => mockCountEntries(...args),
   upsertWikiEntries: (...args: unknown[]) => mockUpsertWikiEntries(...args),
 }), { virtual: true })
 
@@ -39,6 +42,7 @@ jest.mock('~/config/firebaseConfig', () => ({
   appCheckReady: Promise.resolve(),
   memoryWriteFn: (...args: unknown[]) => mockMemoryWriteFn(...args),
   memoryHealFn: (...args: unknown[]) => mockMemoryHealFn(...args),
+  memoryReadFn: (...args: unknown[]) => mockMemoryReadFn(...args),
 }))
 
 jest.mock('~/config/queryClient', () => ({
@@ -47,7 +51,7 @@ jest.mock('~/config/queryClient', () => ({
   },
 }))
 
-import { fetchMemoryBundle, triggerMemoryWrite, triggerMemoryHeal } from '~/services/memoryService'
+import { fetchMemoryBundle, triggerMemoryWrite, triggerMemoryHeal, triggerMemoryRead } from '~/services/memoryService'
 
 describe('fetchMemoryBundle', () => {
   beforeEach(() => {
@@ -206,5 +210,58 @@ describe('triggerMemoryHeal', () => {
     expect(mockInvalidateQueries).toHaveBeenCalledWith({
       queryKey: ['memoryBundle', 'char-1'],
     })
+  })
+})
+
+describe('triggerMemoryRead', () => {
+  const cloudCharacter = {
+    id: 'char-1',
+    name: 'Nova',
+    appearance: '',
+    traits: '',
+    emotions: '',
+    context: '',
+    cloud_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockCountEntries.mockResolvedValue(0)
+    mockMemoryReadFn.mockResolvedValue({
+      data: { entries: [], tasks: [], events: [], synonyms: [] },
+    })
+  })
+
+  it('does nothing when character has no cloud_id', async () => {
+    await triggerMemoryRead({ id: 'char_123_abc', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' }, 'user-1')
+
+    expect(mockCountEntries).not.toHaveBeenCalled()
+    expect(mockMemoryReadFn).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when local wiki already has entries', async () => {
+    mockCountEntries.mockResolvedValue(5)
+
+    await triggerMemoryRead(cloudCharacter, 'user-1')
+
+    expect(mockMemoryReadFn).not.toHaveBeenCalled()
+  })
+
+  it('calls memoryRead and applies diff when wiki is empty', async () => {
+    mockMemoryReadFn.mockResolvedValue({
+      data: {
+        entries: [{ id: 'e1', characterId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', userId: 'user-1', title: 'Fact', body: 'Body', tags: [], confidence: 'certain', sourceType: 'user_stated' }],
+        tasks: [],
+        events: [],
+        synonyms: [],
+      },
+    })
+
+    await triggerMemoryRead(cloudCharacter, 'user-1')
+
+    expect(mockCountEntries).toHaveBeenCalledWith('user-1', 'char-1')
+    expect(mockMemoryReadFn).toHaveBeenCalledWith({ characterId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
+    expect(mockUpsertWikiEntries).toHaveBeenCalled()
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['memoryBundle', 'char-1'] })
   })
 })

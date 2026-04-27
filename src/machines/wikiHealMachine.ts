@@ -1,5 +1,5 @@
 import type { Character } from '~/services/aiChatService'
-import { triggerMemoryWrite, triggerMemoryHeal } from '~/services/memoryService'
+import { triggerMemoryWrite, triggerMemoryHeal, triggerMemoryRead } from '~/services/memoryService'
 import { getMessageCount } from '~/database/messageDatabase'
 import { getCharacter, updateCharacter } from '~/database/characterDatabase'
 import { onlineManager } from '@tanstack/react-query'
@@ -35,6 +35,11 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
 
     if (!onlineManager.isOnline()) {
       return
+    }
+
+    if (latestCharacter?.save_to_cloud && latestCharacter?.cloud_id) {
+      const charForCloud = { ...input.character, cloud_id: latestCharacter.cloud_id }
+      await triggerMemoryRead(charForCloud, input.userId)
     }
 
     await updateCharacter(input.character.id, input.userId, {

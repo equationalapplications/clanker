@@ -1,5 +1,6 @@
 const mockTriggerMemoryWrite = jest.fn()
 const mockTriggerMemoryHeal = jest.fn()
+const mockTriggerMemoryRead = jest.fn()
 const mockGetMessageCount = jest.fn()
 const mockGetCharacter = jest.fn()
 const mockUpdateCharacter = jest.fn()
@@ -8,6 +9,7 @@ const mockIsOnline = jest.fn()
 jest.mock('~/services/memoryService', () => ({
   triggerMemoryWrite: (...args: unknown[]) => mockTriggerMemoryWrite(...args),
   triggerMemoryHeal: (...args: unknown[]) => mockTriggerMemoryHeal(...args),
+  triggerMemoryRead: (...args: unknown[]) => mockTriggerMemoryRead(...args),
 }))
 
 jest.mock('~/database/messageDatabase', () => ({
@@ -33,6 +35,7 @@ describe('dispatchWikiWrite', () => {
     mockUpdateCharacter.mockResolvedValue({})
     mockTriggerMemoryWrite.mockResolvedValue(undefined)
     mockTriggerMemoryHeal.mockResolvedValue(undefined)
+    mockTriggerMemoryRead.mockResolvedValue(undefined)
     mockIsOnline.mockReturnValue(true)
   })
 
@@ -118,5 +121,33 @@ describe('dispatchWikiWrite', () => {
       heal_checkpoint: 40,
     })
     expect(mockTriggerMemoryHeal).toHaveBeenCalledWith('char-1', undefined)
+  })
+
+  it('bootstraps memory from cloud when character is cloud-synced and wiki is empty', async () => {
+    mockGetMessageCount.mockResolvedValue(25)
+    mockGetCharacter.mockResolvedValue({
+      memory_checkpoint: 0,
+      heal_checkpoint: 0,
+      save_to_cloud: true,
+      cloud_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    })
+
+    await dispatchWikiWrite({
+      character: {
+        id: 'char-1',
+        name: 'Nova',
+        appearance: '',
+        traits: '',
+        emotions: '',
+        context: '',
+      },
+      userId: 'user-1',
+      chunk: 'First message',
+    })
+
+    expect(mockTriggerMemoryRead).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'char-1', cloud_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' }),
+      'user-1',
+    )
   })
 })

@@ -1,10 +1,10 @@
 import type { Character, MemoryBundle } from '~/services/aiChatService'
 import { buildFtsQuery } from '~/database/ftsQueryBuilder'
-import { searchEntries, getRecentEntries, upsertWikiEntries, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
+import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
 import { getOpenTasks, upsertAgentTasks, type AgentTaskUpsertInput } from '~/database/agentTaskDatabase'
 import { getRecentEvents, appendMemoryEvents, type MemoryEventUpsertInput } from '~/database/memoryEventDatabase'
 import { upsertDerivedSynonyms, type DerivedSynonymUpsertInput } from '~/database/derivedSynonymDatabase'
-import { appCheckReady, memoryWriteFn, memoryHealFn } from '~/config/firebaseConfig'
+import { appCheckReady, memoryWriteFn, memoryHealFn, memoryReadFn } from '~/config/firebaseConfig'
 import { queryClient } from '~/config/queryClient'
 
 const activeMemoryWrites = new Set<string>()
@@ -31,6 +31,13 @@ interface MemoryHealResponse {
     events?: unknown[]
     synonyms?: unknown[]
   }
+}
+
+interface MemoryReadResponse {
+  entries?: unknown[]
+  tasks?: unknown[]
+  events?: unknown[]
+  synonyms?: unknown[]
 }
 
 function parseConfidence(value: unknown): 'certain' | 'inferred' | 'tentative' {
@@ -220,5 +227,26 @@ export async function triggerMemoryHeal(characterId: string, cloudId?: string | 
     await applyMemoryDiff(characterId, payload.diff ?? {})
   } catch (error) {
     console.warn('Failed to trigger memory heal:', error)
+  }
+}
+
+export async function triggerMemoryRead(character: Character, userId: string): Promise<void> {
+  const cloudId = resolveCloudCharacterId(character)
+  if (cloudId === character.id) {
+    return
+  }
+
+  const existingCount = await countEntries(userId, character.id)
+  if (existingCount > 0) {
+    return
+  }
+
+  try {
+    await appCheckReady
+    const result = await memoryReadFn({ characterId: cloudId })
+    const payload = result.data as MemoryReadResponse
+    await applyMemoryDiff(character.id, payload)
+  } catch (error) {
+    console.warn('Failed to bootstrap memory from cloud:', error)
   }
 }
