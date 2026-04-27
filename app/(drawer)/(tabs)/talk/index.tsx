@@ -1,25 +1,71 @@
 import { Stack, router, useFocusEffect } from 'expo-router'
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Text } from 'react-native-paper'
 import { useSelector } from '@xstate/react'
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated'
 import { useCharacter, useCharacters } from '~/hooks/useCharacters'
 import { useMostRecentMessage } from '~/hooks/useMessages'
 import { useCharacterMachine } from '~/hooks/useMachines'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { useVoiceChat } from '~/hooks/useVoiceChat'
 
+const AVATAR_SIZE = 200
+const GLOW_SIZE = AVATAR_SIZE + 60
+
 function TalkView({ characterId }: { characterId: string }) {
   const { data: character } = useCharacter(characterId)
   const { voiceState, transcription, replyText, error, startListening, cancel } = useVoiceChat(characterId)
 
+  const glowScale = useSharedValue(1)
+  const glowOpacity = useSharedValue(0)
+
+  const isPlaying = voiceState === 'playing'
+
+  useEffect(() => {
+    if (isPlaying) {
+      glowOpacity.value = withTiming(0.7, { duration: 250 })
+      glowScale.value = withRepeat(
+        withTiming(1.15, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true,
+      )
+    } else {
+      cancelAnimation(glowScale)
+      cancelAnimation(glowOpacity)
+      glowOpacity.value = withTiming(0, { duration: 250 })
+      glowScale.value = withTiming(1, { duration: 250 })
+    }
+  }, [isPlaying, glowOpacity, glowScale])
+
+  const glowAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+    transform: [{ scale: glowScale.value }],
+  }))
+
+  // Keep latest `cancel` in a ref so the focus effect cleanup runs only on
+  // blur/unmount, not every time `cancel` identity changes (which happens on
+  // every voiceState change and would otherwise cancel the in-flight session
+  // immediately after `startListening`).
+  const cancelRef = useRef(cancel)
+  useEffect(() => {
+    cancelRef.current = cancel
+  }, [cancel])
+
   useFocusEffect(
     useCallback(() => {
       return () => {
-        cancel()
+        cancelRef.current()
       }
-    }, [cancel]),
+    }, []),
   )
 
   if (!character) {
@@ -30,18 +76,22 @@ function TalkView({ characterId }: { characterId: string }) {
     )
   }
 
-  const statusText =
-    error ||
-    (voiceState === 'listening' ? 'Listening...' : '') ||
-    (voiceState === 'transcribing' || voiceState === 'processing' ? transcription : '') ||
-    (voiceState === 'playing' ? replyText : '')
+  const statusText = (() => {
+    if (error) return error
+    if (voiceState === 'listening') return transcription || 'Listening…'
+    if (voiceState === 'transcribing') return transcription || 'Listening…'
+    if (voiceState === 'processing') return transcription || 'Thinking…'
+    if (voiceState === 'playing') return replyText || 'Speaking…'
+    return 'Tap the mic to talk'
+  })()
 
+  const showSpinner = voiceState === 'processing'
   const isBusy =
     voiceState === 'listening' ||
     voiceState === 'transcribing' ||
     voiceState === 'processing' ||
     voiceState === 'playing'
-  const canEdit = voiceState === 'idle'
+  const canEdit = voiceState === 'idle' || voiceState === 'error'
 
   return (
     <>
@@ -68,7 +118,17 @@ function TalkView({ characterId }: { characterId: string }) {
         }}
       />
       <View style={styles.container}>
+        <View style={styles.avatarWrap}>
+          <Animated.View style={[styles.glow, glowAnimatedStyle]} />
+          <CharacterAvatar
+            size={AVATAR_SIZE}
+            imageUrl={character.avatar}
+            characterName={character.name}
+          />
+        </View>
+
         <View style={styles.statusWrap}>
+          {showSpinner ? <ActivityIndicator size="small" style={styles.spinner} /> : null}
           <Text style={[styles.statusText, error ? styles.errorText : null]}>{statusText}</Text>
         </View>
 
@@ -82,7 +142,9 @@ function TalkView({ characterId }: { characterId: string }) {
           >
             {voiceState === 'playing' ? (
               <MaterialCommunityIcons name="volume-high" size={36} color="#ffffff" />
-            ) : isBusy ? (
+            ) : voiceState === 'listening' || voiceState === 'transcribing' ? (
+              <MaterialCommunityIcons name="microphone" size={36} color="#ffffff" />
+            ) : voiceState === 'processing' ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
               <MaterialCommunityIcons name="microphone" size={36} color="#ffffff" />
@@ -137,9 +199,10 @@ export default function TalkTabScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 32,
     paddingBottom: 56,
   },
   centered: {
@@ -161,13 +224,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  statusWrap: {
-    minHeight: 72,
-    justifyContent: 'center',
+  avatarWrap: {
+    width: GLOW_SIZE,
+    height: GLOW_SIZE,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glow: {
+    position: 'absolute',
+    width: GLOW_SIZE,
+    height: GLOW_SIZE,
+    borderRadius: GLOW_SIZE / 2,
+    backgroundColor: '#1f9d55',
+  },
+  statusWrap: {
+    minHeight: 80,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     paddingHorizontal: 8,
   },
+  spinner: {
+    marginRight: 4,
+  },
   statusText: {
+    flexShrink: 1,
     textAlign: 'center',
     fontSize: 16,
     lineHeight: 22,
