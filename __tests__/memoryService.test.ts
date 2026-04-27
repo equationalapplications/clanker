@@ -5,12 +5,17 @@ const mockGetOpenTasks = jest.fn()
 const mockGetRecentEvents = jest.fn()
 const mockCountEntries = jest.fn()
 const mockUpsertWikiEntries = jest.fn()
+const mockSoftDeleteWikiEntries = jest.fn()
+const mockSoftDeleteAllWikiEntries = jest.fn()
 const mockUpsertAgentTasks = jest.fn()
+const mockSoftDeleteAgentTasks = jest.fn()
+const mockSoftDeleteAllAgentTasks = jest.fn()
 const mockAppendMemoryEvents = jest.fn()
 const mockUpsertDerivedSynonyms = jest.fn()
 const mockMemoryWriteFn = jest.fn()
 const mockMemoryHealFn = jest.fn()
 const mockMemoryReadFn = jest.fn()
+const mockMemoryForgetFn = jest.fn()
 const mockInvalidateQueries = jest.fn()
 
 jest.mock('~/database/ftsQueryBuilder', () => ({
@@ -22,11 +27,15 @@ jest.mock('~/database/wikiDatabase', () => ({
   getRecentEntries: (...args: unknown[]) => mockGetRecentEntries(...args),
   countEntries: (...args: unknown[]) => mockCountEntries(...args),
   upsertWikiEntries: (...args: unknown[]) => mockUpsertWikiEntries(...args),
+  softDeleteWikiEntries: (...args: unknown[]) => mockSoftDeleteWikiEntries(...args),
+  softDeleteAllWikiEntries: (...args: unknown[]) => mockSoftDeleteAllWikiEntries(...args),
 }), { virtual: true })
 
 jest.mock('~/database/agentTaskDatabase', () => ({
   getOpenTasks: (...args: unknown[]) => mockGetOpenTasks(...args),
   upsertAgentTasks: (...args: unknown[]) => mockUpsertAgentTasks(...args),
+  softDeleteAgentTasks: (...args: unknown[]) => mockSoftDeleteAgentTasks(...args),
+  softDeleteAllAgentTasks: (...args: unknown[]) => mockSoftDeleteAllAgentTasks(...args),
 }), { virtual: true })
 
 jest.mock('~/database/memoryEventDatabase', () => ({
@@ -43,6 +52,7 @@ jest.mock('~/config/firebaseConfig', () => ({
   memoryWriteFn: (...args: unknown[]) => mockMemoryWriteFn(...args),
   memoryHealFn: (...args: unknown[]) => mockMemoryHealFn(...args),
   memoryReadFn: (...args: unknown[]) => mockMemoryReadFn(...args),
+  memoryForgetFn: (...args: unknown[]) => mockMemoryForgetFn(...args),
 }))
 
 jest.mock('~/config/queryClient', () => ({
@@ -51,7 +61,7 @@ jest.mock('~/config/queryClient', () => ({
   },
 }))
 
-import { fetchMemoryBundle, triggerMemoryWrite, triggerMemoryHeal, triggerMemoryRead } from '~/services/memoryService'
+import { fetchMemoryBundle, triggerMemoryWrite, triggerMemoryHeal, triggerMemoryRead, forgetMemory } from '~/services/memoryService'
 
 describe('fetchMemoryBundle', () => {
   beforeEach(() => {
@@ -263,5 +273,45 @@ describe('triggerMemoryRead', () => {
     expect(mockMemoryReadFn).toHaveBeenCalledWith({ characterId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
     expect(mockUpsertWikiEntries).toHaveBeenCalled()
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['memoryBundle', 'char-1'] })
+  })
+})
+
+describe('forgetMemory', () => {
+  const localCharacter = { id: 'char_local', cloud_id: null, name: 'Nova', appearance: '', traits: '', emotions: '', context: '' }
+  const cloudCharacter = { id: 'char_local', cloud_id: '550e8400-e29b-41d4-a716-446655440000', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockSoftDeleteWikiEntries.mockResolvedValue(1)
+    mockSoftDeleteAllWikiEntries.mockResolvedValue(3)
+    mockSoftDeleteAgentTasks.mockResolvedValue(0)
+    mockSoftDeleteAllAgentTasks.mockResolvedValue(1)
+    mockMemoryForgetFn.mockResolvedValue({ data: { success: true } })
+  })
+
+  it('soft-deletes specified entries locally by id', async () => {
+    await forgetMemory(localCharacter, 'user-1', { entryIds: ['e1', 'e2'] })
+    expect(mockSoftDeleteWikiEntries).toHaveBeenCalledWith('char_local', 'user-1', ['e1', 'e2'])
+    expect(mockSoftDeleteAgentTasks).not.toHaveBeenCalled()
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['memoryBundle', 'char_local'] })
+  })
+
+  it('soft-deletes all entries locally when clearAll is true', async () => {
+    await forgetMemory(localCharacter, 'user-1', { clearAll: true })
+    expect(mockSoftDeleteAllWikiEntries).toHaveBeenCalledWith('char_local', 'user-1')
+    expect(mockSoftDeleteAllAgentTasks).toHaveBeenCalledWith('char_local', 'user-1')
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['memoryBundle', 'char_local'] })
+  })
+
+  it('does not call cloud forget for local-only characters', async () => {
+    await forgetMemory(localCharacter, 'user-1', { entryIds: ['e1'] })
+    expect(mockMemoryForgetFn).not.toHaveBeenCalled()
+  })
+
+  it('calls cloud forget for characters with cloud_id', async () => {
+    await forgetMemory(cloudCharacter, 'user-1', { entryIds: ['e1'] })
+    expect(mockMemoryForgetFn).toHaveBeenCalledWith(
+      expect.objectContaining({ characterId: '550e8400-e29b-41d4-a716-446655440000', entryIds: ['e1'] }),
+    )
   })
 })

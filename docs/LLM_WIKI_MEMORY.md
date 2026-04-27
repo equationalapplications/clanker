@@ -43,7 +43,7 @@ LLM Wiki Memory extends the existing chat summarization system with **structured
 **`memory_events`** — Episodic append-only log
 - Event types: `observation`, `decision`, `action`, `outcome`
 - Links to related `wiki_entries` and `agent_tasks`
-- Auto-pruned when > 200 entries per character
+- Not currently auto-pruned; retention is unbounded unless pruning is implemented separately
 
 **`derived_synonyms`** — Auto-grown query expansion vocabulary
 - Built from co-occurring tags during `memoryWrite`
@@ -125,8 +125,8 @@ Invoked by `dispatchWikiWrite` in [wikiHealMachine.ts](../src/machines/wikiHealM
    - Top 3 sentences clipped to 200 chars each
    - Tags inferred from content keywords (health, work, relationships, goals)
 
-2. **Dedup Logic** — Fuzzy title match
-   - Checks existing entries for title similarity
+2. **Dedup Logic** — Fuzzy case-insensitive title match (token Jaccard similarity ≥ 0.5)
+   - Tokenizes both titles into words (length ≥ 3), computes intersection/union ratio
    - Updates body + downgrade confidence if changed
    - Adds event log entry for audit trail
 
@@ -167,34 +167,37 @@ Invoked by `dispatchWikiWrite` in [wikiHealMachine.ts](../src/machines/wikiHealM
 
 ## Server-Side Memory Heal
 
-**Premium users only. Cloud-synced characters only (`save_to_cloud = 1` with a valid `cloud_id`). Optional full-wiki audit, triggered every 20 messages (same cadence as write).**
+**Premium users only. Cloud-synced characters only (`save_to_cloud = 1` with a valid `cloud_id`). Optional maintenance pass, triggered every 20 messages (same cadence as write). In v1, `memoryHeal` uses heuristic rules for stale downgrade/orphan removal/concept seeding, and a Gemini LLM call for contradiction detection.**
 
 ### Flow: `memoryHeal` Callable
 
 Same checkpoint-advance-before-invoke pattern as write:
 
-1. **Load Capped Wiki** — Top 100 entries
+1. **Load Capped Wiki** — Top 100 entries for the heuristic pass
    - Priority: `confidence='certain'` first
    - Then by `accessCount DESC`
    - Then by `updated_at DESC`
 
-2. **Stale Downgrade**
+2. **Stale Downgrade** — Rule-based confidence decay
    - `last_accessed_at < 60 days ago` + `confidence='inferred'` → mark `tentative`
    - Preserves user-stated facts (`confidence='certain'`)
 
-3. **Orphan Removal**
+3. **Orphan Removal** — Rule-based cleanup
    - `access_count = 0` + age > 30 days → soft-delete
    - Keeps recent/unused new facts
 
-4. **Concept Seeding** — Infer missing facts from open tasks
+4. **Concept Seeding** — Task-derived tentative entry creation
    - For each pending task not covered by existing entries
    - Create tentative entry: `[tentative] <task description>`
    - Log event linking task → seeded entry
+   - In v1 this is heuristic seeding from task text, not LLM inference
 
-5. **Contradiction Detection** (v2 planned)
-   - Currently stubbed as `contradictionsFlagged = 0`
-   - v2 will add LLM-based conflict detection
-   - Marks conflicting pairs with `confidence='tentative'` for user resolution
+5. **Contradiction Detection** — LLM-assisted (v1)
+   - Sends up to 100 wiki entries to Gemini (`gemini-2.5-flash`)
+   - Parses returned JSON array of `{ entryAId, entryBId, reason }` pairs
+   - Older entry in each pair downgraded to `confidence='tentative'`
+   - `memory_event` of type `observation` appended for each flagged pair
+   - Fails soft: LLM errors skip contradiction pass, heuristic passes still apply
 
 ### Response
 ```json

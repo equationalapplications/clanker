@@ -1,10 +1,10 @@
 import type { Character, MemoryBundle } from '~/services/aiChatService'
 import { buildFtsQuery } from '~/database/ftsQueryBuilder'
-import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
-import { getOpenTasks, upsertAgentTasks, type AgentTaskUpsertInput } from '~/database/agentTaskDatabase'
+import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, softDeleteWikiEntries, softDeleteAllWikiEntries, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
+import { getOpenTasks, upsertAgentTasks, softDeleteAgentTasks, softDeleteAllAgentTasks, type AgentTaskUpsertInput } from '~/database/agentTaskDatabase'
 import { getRecentEvents, appendMemoryEvents, type MemoryEventUpsertInput } from '~/database/memoryEventDatabase'
 import { upsertDerivedSynonyms, type DerivedSynonymUpsertInput } from '~/database/derivedSynonymDatabase'
-import { appCheckReady, memoryWriteFn, memoryHealFn, memoryReadFn } from '~/config/firebaseConfig'
+import { appCheckReady, memoryWriteFn, memoryHealFn, memoryReadFn, memoryForgetFn } from '~/config/firebaseConfig'
 import { queryClient } from '~/config/queryClient'
 
 const activeMemoryWrites = new Set<string>()
@@ -249,4 +249,50 @@ export async function triggerMemoryRead(character: Character, userId: string): P
   } catch (error) {
     console.warn('Failed to bootstrap memory from cloud:', error)
   }
+}
+
+export async function forgetMemory(
+  character: Character,
+  userId: string,
+  target: { entryIds?: string[]; taskIds?: string[]; clearAll?: boolean },
+): Promise<void> {
+  const characterId = character.id
+  const cloudCharacterId = resolveCloudCharacterId(character)
+  const entryIds = target.entryIds ?? []
+  const taskIds = target.taskIds ?? []
+  const clearAll = target.clearAll ?? false
+
+  try {
+    if (clearAll) {
+      await Promise.all([
+        softDeleteAllWikiEntries(characterId, userId),
+        softDeleteAllAgentTasks(characterId, userId),
+      ])
+    } else {
+      await Promise.all([
+        entryIds.length > 0 ? softDeleteWikiEntries(characterId, userId, entryIds) : Promise.resolve(0),
+        taskIds.length > 0 ? softDeleteAgentTasks(characterId, userId, taskIds) : Promise.resolve(0),
+      ])
+    }
+  } catch (error) {
+    console.warn('Failed to apply local memory forget:', error)
+  }
+
+  if (cloudCharacterId !== characterId) {
+    try {
+      await appCheckReady
+      await memoryForgetFn({
+        characterId: cloudCharacterId,
+        entryIds,
+        taskIds,
+        clearAll,
+      })
+    } catch (error) {
+      console.warn('Failed to sync memory forget to cloud:', error)
+    }
+  }
+
+  await queryClient.invalidateQueries({
+    queryKey: ['memoryBundle', characterId],
+  })
 }

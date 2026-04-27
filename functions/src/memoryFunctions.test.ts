@@ -112,6 +112,7 @@ function buildDeps(options?: {
         }),
       }),
     }),
+    generateContent: async (_prompt: string) => "[]",
   };
 }
 
@@ -152,6 +153,65 @@ test("memoryWriteHandler returns structured diff envelope for premium caller", a
   assert.equal(result.diff.entries[0]?.userId, "firebase-uid-2");
   assert.equal(result.diff.eventsAppended, 1);
   assert.equal(result.diff.events[0]?.eventType, "observation");
+});
+
+test("memoryWriteHandler uses LLM-extracted entries when generateContent returns valid JSON", async () => {
+  let promptReceived: string | undefined;
+  const deps = {
+    ...buildDeps(),
+    generateContent: async (prompt: string) => {
+      promptReceived = prompt;
+      return JSON.stringify({
+        entries: [
+          {
+            title: "Weekly running habit",
+            body: "User runs three times per week for exercise.",
+            tags: ["health"],
+            confidence: "inferred",
+            sourceType: "agent_inferred",
+          },
+        ],
+        tasks: [],
+      });
+    },
+  };
+
+  const result = await memoryWriteHandler(
+    {
+      auth: buildAuth(),
+      data: {
+        characterId: "char-1",
+        sourceText: "I run 3 times a week",
+      },
+    } as never,
+    deps as never,
+  );
+
+  assert.ok(promptReceived !== undefined, "generateContent was called");
+  assert.equal(result.diff.entriesAdded, 1);
+  assert.equal(result.diff.entries[0]?.title, "Weekly running habit");
+  assert.equal(result.diff.entries[0]?.body, "User runs three times per week for exercise.");
+});
+
+test("memoryWriteHandler falls back to heuristic when LLM returns unparseable response", async () => {
+  const deps = {
+    ...buildDeps(),
+    generateContent: async (_prompt: string) => "not valid json at all",
+  };
+
+  const result = await memoryWriteHandler(
+    {
+      auth: buildAuth(),
+      data: {
+        characterId: "char-1",
+        sourceText: "User asked about training plan",
+      },
+    } as never,
+    deps as never,
+  );
+
+  assert.ok(result.diff.entriesAdded >= 1);
+  assert.equal(Array.isArray(result.diff.entries), true);
 });
 
 test("memoryHealHandler returns empty diff for non-premium without error", async () => {

@@ -1,3 +1,4 @@
+import * as logger from 'firebase-functions/logger';
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { DecodedIdToken } from 'firebase-admin/auth';
@@ -11,6 +12,8 @@ import { getDb } from './db/cloudSql.js';
 import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
 
 const DEFAULT_REGION = 'us-central1';
+const HEAL_MODEL = 'gemini-2.5-flash';
+const HEAL_MAX_OUTPUT_TOKENS = 1_024;
 const PREMIUM_TIERS = new Set(['monthly_20', 'monthly_50']);
 
 type PlanStatus = 'active' | 'cancelled' | 'expired';
@@ -121,12 +124,55 @@ type MemoryFunctionDeps = {
   userRepository: Pick<typeof userRepository, 'getOrCreateUserByFirebaseIdentity'>;
   subscriptionService: Pick<typeof subscriptionService, 'getSubscription' | 'getOrCreateDefaultSubscription'>;
   getDb: typeof getDb;
+  generateContent: (prompt: string) => Promise<string>;
 };
+
+interface VertexGenerativeModel {
+  generateContent(prompt: string): Promise<{ response: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> } }>;
+}
+interface VertexAILike {
+  getGenerativeModel(config: { model: string; generationConfig: { maxOutputTokens: number } }): VertexGenerativeModel;
+}
+interface VertexAIModule {
+  VertexAI: new (config: { project: string; location: string }) => VertexAILike;
+}
+
+let healModelPromise: Promise<VertexGenerativeModel> | undefined;
+
+async function getHealModel(): Promise<VertexGenerativeModel> {
+  if (healModelPromise) return healModelPromise;
+  const project = (process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT)?.trim();
+  if (!project) {
+    throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for memory heal.');
+  }
+  healModelPromise = (async () => {
+    try {
+      const mod = await import('@google-cloud/vertexai') as VertexAIModule;
+      const vertex = new mod.VertexAI({ project, location: DEFAULT_REGION });
+      return vertex.getGenerativeModel({
+        model: HEAL_MODEL,
+        generationConfig: { maxOutputTokens: HEAL_MAX_OUTPUT_TOKENS },
+      });
+    } catch (err: unknown) {
+      healModelPromise = undefined;
+      throw err;
+    }
+  })();
+  return healModelPromise;
+}
+
+async function defaultGenerateContent(prompt: string): Promise<string> {
+  const model = await getHealModel();
+  const result = await model.generateContent(prompt);
+  const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  return text;
+}
 
 const defaultDeps: MemoryFunctionDeps = {
   userRepository,
   subscriptionService,
   getDb,
+  generateContent: defaultGenerateContent,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -499,16 +545,46 @@ async function loadWriteSeed(
   return rows.map((row) => mapCloudEntry(row, firebaseUid));
 }
 
-function buildWriteDiff(
+const FUZZY_TITLE_THRESHOLD = 0.5;
+
+function titleTokens(title: string): Set<string> {
+  return new Set(title.toLowerCase().split(/\s+/).filter((t) => t.length >= 3));
+}
+
+function jaccardScore(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 0;
+  let intersection = 0;
+  for (const t of a) {
+    if (b.has(t)) intersection += 1;
+  }
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+function fuzzyFindEntry(
+  title: string,
+  candidates: MemoryWriteEntry[],
+): MemoryWriteEntry | undefined {
+  const tokens = titleTokens(title);
+  let best: { entry: MemoryWriteEntry; score: number } | undefined;
+  for (const candidate of candidates) {
+    const score = jaccardScore(tokens, titleTokens(candidate.title));
+    if (score >= FUZZY_TITLE_THRESHOLD && (!best || score > best.score)) {
+      best = { entry: candidate, score };
+    }
+  }
+  return best?.entry;
+}
+
+function buildWriteDiffHeuristic(
   characterId: string,
   firebaseUid: string,
   sourceText: string,
   sourceType: 'conversation' | 'user_document',
   existingEntries: MemoryWriteEntry[],
-  useStableIds = false,
+  useStableIds: boolean,
 ): MemoryWriteDiff {
   const now = Date.now();
-  const existingByTitle = new Map(existingEntries.map((entry) => [entry.title.toLowerCase(), entry]));
   const pieces = sourceText
     .split(/(?<=[.!?])\s+/)
     .map((piece) => piece.trim())
@@ -523,7 +599,7 @@ function buildWriteDiff(
   for (const [index, piece] of pieces.entries()) {
     const baseTitle = clip(piece.split(/[,.!?]/)[0] || piece, 64);
     const title = clip(baseTitle, 64);
-    const existing = existingByTitle.get(title.toLowerCase());
+    const existing = fuzzyFindEntry(title, existingEntries);
 
     if (existing) {
       const hasBodyChange = clip(piece, 200) !== existing.body;
@@ -540,7 +616,7 @@ function buildWriteDiff(
 
       if (hasBodyChange) {
         events.push({
-          id: `event_${now}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `event_${now}_${index}_${Math.random().toString(36).slice(2, 11)}`,
           characterId,
           userId: firebaseUid,
           eventType: 'observation',
@@ -558,7 +634,7 @@ function buildWriteDiff(
     }
 
     entries.push({
-      id: useStableIds ? stableId('entry', characterId, title.toLowerCase()) : `entry_${now}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+      id: useStableIds ? stableId('entry', characterId, title.toLowerCase()) : `entry_${now}_${index}_${Math.random().toString(36).slice(2, 11)}`,  
       characterId,
       userId: firebaseUid,
       title,
@@ -580,7 +656,7 @@ function buildWriteDiff(
   const tasks: MemoryWriteTask[] = pieces
     .filter((piece) => isTaskSentence(piece))
     .map((piece, index) => ({
-      id: useStableIds ? stableId('task', characterId, clip(piece, 64).toLowerCase()) : `task_${now}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+      id: useStableIds ? stableId('task', characterId, clip(piece, 64).toLowerCase()) : `task_${now}_${index}_${Math.random().toString(36).slice(2, 11)}`,  
       characterId,
       userId: firebaseUid,
       description: clip(piece, 180),
@@ -597,7 +673,7 @@ function buildWriteDiff(
     }));
 
   events.unshift({
-    id: `event_${now}_${Math.random().toString(36).substr(2, 9)}`,
+    id: `event_${now}_${Math.random().toString(36).slice(2, 11)}`,
     characterId,
     userId: firebaseUid,
     eventType: 'observation',
@@ -624,6 +700,238 @@ function buildWriteDiff(
     events,
     synonyms,
   };
+}
+
+type LLMWriteEntry = {
+  title: string;
+  body: string;
+  tags: string[];
+  confidence: string;
+  sourceType: string;
+};
+
+type LLMWriteResult = {
+  entries: LLMWriteEntry[];
+  tasks: { description: string }[];
+};
+
+function buildWritePrompt(sourceText: string, sourceType: 'conversation' | 'user_document'): string {
+  const docNote = sourceType === 'user_document' ? ' (use "certain" for document content)' : '';
+  return [
+    'You are a memory extractor for an AI companion app.',
+    'Extract stable facts and follow-up tasks from the text below.',
+    '',
+    'Return ONLY a JSON object with this exact shape:',
+    '{"entries":[{"title":"...","body":"...","tags":[...],"confidence":"certain|inferred","sourceType":"user_stated|agent_inferred"}],"tasks":[{"description":"..."}]}',
+    '',
+    'Rules:',
+    '- Each entry is ONE atomic fact (preference, relationship, health, work, goal, etc.)',
+    '- title: max 64 chars, descriptive name for the fact',
+    '- body: max 200 chars, the fact itself',
+    '- tags: 0-3 strings from: health, work, relationships, goals, emotions, schedule, finance',
+    `- confidence: "certain" if directly stated, "inferred" if implied${docNote}`,
+    '- sourceType: "user_stated" if user said it explicitly, "agent_inferred" if inferred',
+    '- tasks: things needing follow-up (reminders, todos, check-ins); description max 180 chars',
+    '- Return empty arrays if nothing found',
+    '- Return ONLY the JSON, no other text',
+    '',
+    `Source type: ${sourceType}`,
+    'Text:',
+    sourceText,
+  ].join('\n');
+}
+
+function parseWriteResult(raw: string): LLMWriteResult | null {
+  try {
+    const trimmed = raw.trim();
+    const start = trimmed.indexOf('{');
+    const end = trimmed.lastIndexOf('}');
+    if (start === -1 || end === -1) return null;
+    const parsed: unknown = JSON.parse(trimmed.slice(start, end + 1));
+    if (!isRecord(parsed) || !Array.isArray(parsed['entries'])) return null;
+    const entries: LLMWriteEntry[] = (parsed['entries'] as unknown[])
+      .filter((item): item is Record<string, unknown> =>
+        isRecord(item) &&
+        typeof item['title'] === 'string' && (item['title'] as string).trim().length > 0 &&
+        typeof item['body'] === 'string',
+      )
+      .map((item) => ({
+        title: clip(item['title'] as string, 64),
+        body: clip(item['body'] as string, 200),
+        tags: Array.isArray(item['tags'])
+          ? (item['tags'] as unknown[]).filter((t): t is string => typeof t === 'string').slice(0, 3)
+          : [],
+        confidence: typeof item['confidence'] === 'string' ? item['confidence'] : '',
+        sourceType: typeof item['sourceType'] === 'string' ? item['sourceType'] : '',
+      }));
+    const tasks = Array.isArray(parsed['tasks'])
+      ? (parsed['tasks'] as unknown[])
+          .filter(
+            (item): item is Record<string, unknown> =>
+              isRecord(item) &&
+              typeof item['description'] === 'string' &&
+              (item['description'] as string).trim().length > 0,
+          )
+          .map((item) => ({ description: clip(item['description'] as string, 180) }))
+      : [];
+    if (entries.length === 0 && tasks.length === 0) return null;
+    return { entries, tasks };
+  } catch {
+    return null;
+  }
+}
+
+function buildWriteDiffFromLLMResult(
+  characterId: string,
+  firebaseUid: string,
+  sourceText: string,
+  sourceType: 'conversation' | 'user_document',
+  existingEntries: MemoryWriteEntry[],
+  useStableIds: boolean,
+  llmResult: LLMWriteResult,
+): MemoryWriteDiff {
+  const now = Date.now();
+  const defaultConfidence: MemoryWriteEntry['confidence'] = sourceType === 'user_document' ? 'certain' : 'inferred';
+  const defaultSourceType: MemoryWriteEntry['sourceType'] = sourceType === 'user_document' ? 'user_stated' : 'agent_inferred';
+  const entries: MemoryWriteEntry[] = [];
+  const events: MemoryWriteEvent[] = [];
+  let entriesAdded = 0;
+  let entriesUpdated = 0;
+
+  for (const [index, item] of llmResult.entries.entries()) {
+    const title = item.title;
+    const body = item.body;
+    const tags = item.tags.length > 0 ? item.tags : inferTags(body);
+    const confidence: MemoryWriteEntry['confidence'] =
+      item.confidence === 'certain' || item.confidence === 'tentative' ? item.confidence : defaultConfidence;
+    const entrySourceType: MemoryWriteEntry['sourceType'] =
+      item.sourceType === 'user_stated' || item.sourceType === 'user_confirmed' ? item.sourceType : defaultSourceType;
+    const existing = fuzzyFindEntry(title, existingEntries);
+
+    if (existing) {
+      const hasBodyChange = body !== existing.body;
+      entries.push({
+        ...existing,
+        body,
+        tags,
+        confidence,
+        sourceType: entrySourceType,
+        updatedAt: now,
+      });
+      entriesUpdated += 1;
+
+      if (hasBodyChange) {
+        events.push({
+          id: `event_${now}_${index}_${Math.random().toString(36).slice(2, 11)}`,
+          characterId,
+          userId: firebaseUid,
+          eventType: 'observation',
+          summary: clip(`Updated fact ${title}: ${existing.body}`, 200),
+          relatedEntryId: existing.id,
+          relatedTaskId: null,
+          sourceRef: sourceType,
+          createdAt: now,
+          syncedToCloud: 0,
+          cloudId: null,
+        });
+      }
+
+      continue;
+    }
+
+    entries.push({
+      id: useStableIds
+        ? stableId('entry', characterId, title.toLowerCase())
+        : `entry_${now}_${index}_${Math.random().toString(36).slice(2, 11)}`,
+      characterId,
+      userId: firebaseUid,
+      title,
+      body,
+      tags,
+      confidence,
+      sourceType: entrySourceType,
+      createdAt: now,
+      updatedAt: now,
+      lastAccessedAt: null,
+      accessCount: 0,
+      syncedToCloud: 0,
+      cloudId: null,
+      deletedAt: null,
+    });
+    entriesAdded += 1;
+  }
+
+  const tasks: MemoryWriteTask[] = llmResult.tasks.map((item, index) => ({
+    id: useStableIds
+      ? stableId('task', characterId, clip(item.description, 64).toLowerCase())
+      : `task_${now}_${index}_${Math.random().toString(36).slice(2, 11)}`,
+    characterId,
+    userId: firebaseUid,
+    description: item.description,
+    status: 'pending',
+    priority: inferPriority(item.description),
+    dueContext: 'next conversation',
+    createdAt: now,
+    updatedAt: now,
+    resolvedAt: null,
+    resolutionNote: null,
+    syncedToCloud: 0,
+    cloudId: null,
+    deletedAt: null,
+  }));
+
+  events.unshift({
+    id: `event_${now}_${Math.random().toString(36).slice(2, 11)}`,
+    characterId,
+    userId: firebaseUid,
+    eventType: 'observation',
+    summary: clip(sourceText, 200),
+    relatedEntryId: entries[0]?.id ?? null,
+    relatedTaskId: tasks[0]?.id ?? null,
+    sourceRef: sourceType,
+    createdAt: now,
+    syncedToCloud: 0,
+    cloudId: null,
+  });
+
+  const synonyms = buildSynonyms(entries);
+
+  return {
+    entriesAdded,
+    entriesUpdated,
+    tasksOpened: tasks.length,
+    tasksClosed: 0,
+    eventsAppended: events.length,
+    synonymsUpdated: synonyms.length,
+    entries,
+    tasks,
+    events,
+    synonyms,
+  };
+}
+
+async function buildWriteDiff(
+  characterId: string,
+  firebaseUid: string,
+  sourceText: string,
+  sourceType: 'conversation' | 'user_document',
+  existingEntries: MemoryWriteEntry[],
+  useStableIds: boolean,
+  generateContent: (prompt: string) => Promise<string>,
+): Promise<MemoryWriteDiff> {
+  try {
+    const raw = await generateContent(buildWritePrompt(sourceText, sourceType));
+    const llmResult = parseWriteResult(raw);
+    if (llmResult !== null) {
+      return buildWriteDiffFromLLMResult(
+        characterId, firebaseUid, sourceText, sourceType, existingEntries, useStableIds, llmResult,
+      );
+    }
+  } catch (err: unknown) {
+    logger.warn('buildWriteDiff LLM extraction failed, using heuristic fallback', { err });
+  }
+
+  return buildWriteDiffHeuristic(characterId, firebaseUid, sourceText, sourceType, existingEntries, useStableIds);
 }
 
 async function persistWriteDiff(
@@ -738,6 +1046,57 @@ function taskAlreadyCoveredByEntries(task: MemoryWriteTask, entries: MemoryWrite
   return entries.some((entry) => `${entry.title} ${entry.body}`.toLowerCase().includes(title.slice(0, 20)));
 }
 
+type ContradictionPair = { entryAId: string; entryBId: string; reason: string };
+
+function buildContradictionPrompt(entries: MemoryWriteEntry[]): string {
+  const items = entries
+    .filter((e) => e.deletedAt === null)
+    .map((e) => ({ id: e.id, title: e.title, body: e.body }));
+  return [
+    'You are a memory auditor. Review the following memory entries and identify any pairs that state conflicting or contradictory facts.',
+    'Return ONLY a JSON array of objects with shape: [{"entryAId": "...", "entryBId": "...", "reason": "..."}]',
+    'If there are no contradictions, return an empty array: []',
+    'Do not include any explanation outside the JSON array.',
+    '',
+    'Memory entries:',
+    JSON.stringify(items),
+  ].join('\n');
+}
+
+function parseContradictions(raw: string): ContradictionPair[] {
+  try {
+    const trimmed = raw.trim();
+    const start = trimmed.indexOf('[');
+    const end = trimmed.lastIndexOf(']');
+    if (start === -1 || end === -1) return [];
+    const parsed: unknown = JSON.parse(trimmed.slice(start, end + 1));
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is ContradictionPair =>
+        isRecord(item) &&
+        typeof item['entryAId'] === 'string' &&
+        typeof item['entryBId'] === 'string' &&
+        typeof item['reason'] === 'string',
+    );
+  } catch {
+    return [];
+  }
+}
+
+async function detectContradictions(
+  entries: MemoryWriteEntry[],
+  generateContent: (prompt: string) => Promise<string>,
+): Promise<ContradictionPair[]> {
+  if (entries.filter((e) => e.deletedAt === null).length < 2) return [];
+  try {
+    const raw = await generateContent(buildContradictionPrompt(entries));
+    return parseContradictions(raw);
+  } catch (err: unknown) {
+    logger.warn('detectContradictions LLM call failed, skipping', { err });
+    return [];
+  }
+}
+
 async function buildHealDiff(
   deps: MemoryFunctionDeps,
   characterId: string,
@@ -781,10 +1140,15 @@ async function buildHealDiff(
     .limit(20);
 
   const mappedEntries = entriesRows.map((row) => mapCloudEntry(row, firebaseUid));
+  const contradictionPairs = await detectContradictions(mappedEntries, deps.generateContent);
+  const contradictedIds = new Set(
+    contradictionPairs.flatMap((p) => [p.entryAId, p.entryBId]),
+  );
   const events: MemoryWriteEvent[] = [];
   let staleDowngraded = 0;
   let orphansRemoved = 0;
   let conceptsSeeded = 0;
+  let contradictionsFlagged = 0;
 
   const updatedEntries: MemoryWriteEntry[] = mappedEntries.map((entry) => {
     const stale = entry.lastAccessedAt !== null && entry.lastAccessedAt < sixtyDaysAgo;
@@ -808,8 +1172,37 @@ async function buildHealDiff(
       };
     }
 
+    if (contradictedIds.has(entry.id) && entry.confidence !== 'tentative' && entry.confidence !== 'certain') {
+      return {
+        ...entry,
+        confidence: 'tentative',
+        updatedAt: now,
+      };
+    }
+
     return entry;
   });
+
+  for (const pair of contradictionPairs) {
+    const entryA = mappedEntries.find((e) => e.id === pair.entryAId);
+    const entryB = mappedEntries.find((e) => e.id === pair.entryBId);
+    if (!entryA || !entryB) continue;
+    const older = entryA.updatedAt <= entryB.updatedAt ? entryA : entryB;
+    contradictionsFlagged += 1;
+    events.push({
+      id: `event_${now}_${Math.random().toString(36).slice(2, 11)}`,
+      characterId,
+      userId: firebaseUid,
+      eventType: 'observation',
+      summary: clip(`Contradiction detected: "${older.title}" conflicts with another entry. ${pair.reason}`, 200),
+      relatedEntryId: older.id,
+      relatedTaskId: null,
+      sourceRef: 'memory_heal',
+      createdAt: now,
+      syncedToCloud: 0,
+      cloudId: null,
+    });
+  }
 
   const seededEntries: MemoryWriteEntry[] = [];
   for (const task of openTaskRows.map((row) => mapCloudTask(row, firebaseUid))) {
@@ -817,7 +1210,7 @@ async function buildHealDiff(
       continue;
     }
 
-    const seededId = `entry_${now}_${Math.random().toString(36).substr(2, 9)}`;
+    const seededId = `entry_${now}_${Math.random().toString(36).slice(2, 11)}`;
     seededEntries.push({
       id: seededId,
       characterId,
@@ -837,7 +1230,7 @@ async function buildHealDiff(
     });
 
     events.push({
-      id: `event_${now}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `event_${now}_${Math.random().toString(36).slice(2, 11)}`,
       characterId,
       userId: firebaseUid,
       eventType: 'observation',
@@ -857,7 +1250,7 @@ async function buildHealDiff(
   const tasks = openTaskRows.map((row) => mapCloudTask(row, firebaseUid));
 
   return {
-    contradictionsFlagged: 0,
+    contradictionsFlagged,
     staleDowngraded,
     orphansRemoved,
     conceptsSeeded,
@@ -971,10 +1364,13 @@ export const memoryWriteHandler = async (
 
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
   const seedEntries = ownsCharacter ? await loadWriteSeed(deps, characterId, identity.userId, identity.firebaseUid) : [];
-  const diff = buildWriteDiff(characterId, identity.firebaseUid, sourceText, sourceType, seedEntries, !ownsCharacter);
+  const diff = await buildWriteDiff(characterId, identity.firebaseUid, sourceText, sourceType, seedEntries, !ownsCharacter, deps.generateContent);
 
   if (ownsCharacter) {
     await persistWriteDiff(deps, characterId, identity.userId, diff);
+    for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
+    for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
+    for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
   }
 
   return { diff };
@@ -1002,6 +1398,9 @@ export const memoryHealHandler = async (
 
   const diff = await buildHealDiff(deps, characterId, identity.userId, identity.firebaseUid);
   await persistHealDiff(deps, characterId, identity.userId, diff);
+  for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
+  for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
+  for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
 
   return {
     diff,

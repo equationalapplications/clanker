@@ -30,7 +30,7 @@ describe('buildFtsQuery', () => {
     ])
 
     await expect(buildFtsQuery('Running plan!!!', 'char-1')).resolves.toBe(
-      '"run"* OR "jog"* OR "plan"*',
+      '"run"* OR "jog"* OR "sprint"* OR "exercise"* OR "plan"* OR "goal"* OR "strategy"* OR "agenda"*',
     )
   })
 
