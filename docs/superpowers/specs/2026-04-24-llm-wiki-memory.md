@@ -132,7 +132,7 @@ heal_checkpoint     INTEGER NOT NULL DEFAULT 0   -- message count at last memory
 memory_checkpoint   INTEGER NOT NULL DEFAULT 0   -- message count at last memoryWrite
 ```
 
-Add both to `LATEST_SCHEMA_REQUIRED_COLUMNS['characters']` and register a `MIGRATION_SKIP_GUARDS[11]` entry against `characters.heal_checkpoint` so re-running migration on already-migrated DBs is a no-op (matches the migration `5`/`6`/`9` pattern).
+Add both to `LATEST_SCHEMA_REQUIRED_COLUMNS['characters']` and register a `MIGRATION_SKIP_GUARDS[11]` entry against `characters.memory_checkpoint` so re-running migration on already-migrated DBs is a no-op (matches the migration `5`/`6`/`9` pattern).
 
 ### Data access layer
 
