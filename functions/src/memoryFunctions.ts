@@ -15,6 +15,7 @@ type PlanStatus = 'active' | 'cancelled' | 'expired';
 
 type MemoryIdentity = {
   userId: string;
+  firebaseUid: string;
   hasUnlimited: boolean;
 };
 
@@ -374,6 +375,7 @@ async function authenticateAndResolveIdentity(
 
   return {
     userId: user.id,
+    firebaseUid: request.auth.uid,
     hasUnlimited,
   };
 }
@@ -416,11 +418,11 @@ function buildEmptyHealDiff(): MemoryHealDiff {
   };
 }
 
-function mapCloudEntry(row: typeof wikiEntries.$inferSelect): MemoryWriteEntry {
+function mapCloudEntry(row: typeof wikiEntries.$inferSelect, firebaseUid: string): MemoryWriteEntry {
   return {
     id: row.id,
     characterId: row.characterId,
-    userId: row.userId,
+    userId: firebaseUid,
     title: row.title,
     body: row.body,
     tags: Array.isArray(row.tags) ? (row.tags.filter((value): value is string => typeof value === 'string')) : [],
@@ -436,11 +438,11 @@ function mapCloudEntry(row: typeof wikiEntries.$inferSelect): MemoryWriteEntry {
   };
 }
 
-function mapCloudTask(row: typeof agentTasks.$inferSelect): MemoryWriteTask {
+function mapCloudTask(row: typeof agentTasks.$inferSelect, firebaseUid: string): MemoryWriteTask {
   return {
     id: row.id,
     characterId: row.characterId,
-    userId: row.userId,
+    userId: firebaseUid,
     description: row.description,
     status: row.status as MemoryWriteTask['status'],
     priority: row.priority,
@@ -455,11 +457,11 @@ function mapCloudTask(row: typeof agentTasks.$inferSelect): MemoryWriteTask {
   };
 }
 
-function mapCloudEvent(row: typeof memoryEvents.$inferSelect): MemoryWriteEvent {
+function mapCloudEvent(row: typeof memoryEvents.$inferSelect, firebaseUid: string): MemoryWriteEvent {
   return {
     id: row.id,
     characterId: row.characterId,
-    userId: row.userId,
+    userId: firebaseUid,
     eventType: row.eventType as MemoryWriteEvent['eventType'],
     summary: row.summary,
     relatedEntryId: row.relatedEntryId,
@@ -475,6 +477,7 @@ async function loadWriteSeed(
   deps: MemoryFunctionDeps,
   characterId: string,
   userId: string,
+  firebaseUid: string,
 ): Promise<MemoryWriteEntry[]> {
   const db = await deps.getDb();
   const rows = await db
@@ -490,12 +493,12 @@ async function loadWriteSeed(
     .orderBy(desc(wikiEntries.updatedAt))
     .limit(100);
 
-  return rows.map(mapCloudEntry);
+  return rows.map((row) => mapCloudEntry(row, firebaseUid));
 }
 
 function buildWriteDiff(
   characterId: string,
-  userId: string,
+  firebaseUid: string,
   sourceText: string,
   sourceType: 'conversation' | 'user_document',
   existingEntries: MemoryWriteEntry[],
@@ -535,7 +538,7 @@ function buildWriteDiff(
         events.push({
           id: `event_${now}_${index}_${slugify(title)}`,
           characterId,
-          userId,
+          userId: firebaseUid,
           eventType: 'observation',
           summary: clip(`Updated fact ${title}: ${existing.body}`, 200),
           relatedEntryId: existing.id,
@@ -553,7 +556,7 @@ function buildWriteDiff(
     entries.push({
       id: `entry_${now}_${index}_${slugify(title)}`,
       characterId,
-      userId,
+      userId: firebaseUid,
       title,
       body: clip(piece, 200),
       tags: inferTags(piece),
@@ -575,7 +578,7 @@ function buildWriteDiff(
     .map((piece, index) => ({
       id: `task_${now}_${index}_${slugify(piece)}`,
       characterId,
-      userId,
+      userId: firebaseUid,
       description: clip(piece, 180),
       status: 'pending',
       priority: inferPriority(piece),
@@ -592,7 +595,7 @@ function buildWriteDiff(
   events.unshift({
     id: `event_${now}_${slugify(sourceText)}`,
     characterId,
-    userId,
+    userId: firebaseUid,
     eventType: 'observation',
     summary: clip(sourceText, 200),
     relatedEntryId: entries[0]?.id ?? null,
@@ -735,6 +738,7 @@ async function buildHealDiff(
   deps: MemoryFunctionDeps,
   characterId: string,
   userId: string,
+  firebaseUid: string,
 ): Promise<MemoryHealDiff> {
   const db = await deps.getDb();
   const now = Date.now();
@@ -772,7 +776,7 @@ async function buildHealDiff(
     .orderBy(desc(agentTasks.priority), desc(agentTasks.updatedAt))
     .limit(20);
 
-  const mappedEntries = entriesRows.map(mapCloudEntry);
+  const mappedEntries = entriesRows.map((row) => mapCloudEntry(row, firebaseUid));
   const events: MemoryWriteEvent[] = [];
   let staleDowngraded = 0;
   let orphansRemoved = 0;
@@ -804,7 +808,7 @@ async function buildHealDiff(
   });
 
   const seededEntries: MemoryWriteEntry[] = [];
-  for (const task of openTaskRows.map(mapCloudTask)) {
+  for (const task of openTaskRows.map((row) => mapCloudTask(row, firebaseUid))) {
     if (taskAlreadyCoveredByEntries(task, updatedEntries)) {
       continue;
     }
@@ -813,7 +817,7 @@ async function buildHealDiff(
     seededEntries.push({
       id: seededId,
       characterId,
-      userId,
+      userId: firebaseUid,
       title: clip(task.description, 64),
       body: clip(`Potential missing concept from open task: ${task.description}`, 200),
       tags: ['goals'],
@@ -831,7 +835,7 @@ async function buildHealDiff(
     events.push({
       id: `event_${now}_${slugify(task.id)}`,
       characterId,
-      userId,
+      userId: firebaseUid,
       eventType: 'observation',
       summary: clip(`Seeded memory concept from open task: ${task.description}`, 200),
       relatedEntryId: seededId,
@@ -846,7 +850,7 @@ async function buildHealDiff(
   }
 
   const entries = [...updatedEntries, ...seededEntries];
-  const tasks = openTaskRows.map(mapCloudTask);
+  const tasks = openTaskRows.map((row) => mapCloudTask(row, firebaseUid));
 
   return {
     contradictionsFlagged: 0,
@@ -939,10 +943,10 @@ export const memoryReadHandler = async (
   return {
     characterId,
     query,
-    entries: entriesRows.map(mapCloudEntry),
-    tasks: taskRows.map(mapCloudTask),
-    events: eventRows.map(mapCloudEvent),
-    synonyms: buildSynonyms(entriesRows.map(mapCloudEntry)),
+    entries: entriesRows.map((row) => mapCloudEntry(row, identity.firebaseUid)),
+    tasks: taskRows.map((row) => mapCloudTask(row, identity.firebaseUid)),
+    events: eventRows.map((row) => mapCloudEvent(row, identity.firebaseUid)),
+    synonyms: buildSynonyms(entriesRows.map((row) => mapCloudEntry(row, identity.firebaseUid))),
   };
 };
 
@@ -962,8 +966,8 @@ export const memoryWriteHandler = async (
   }
 
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
-  const seedEntries = ownsCharacter ? await loadWriteSeed(deps, characterId, identity.userId) : [];
-  const diff = buildWriteDiff(characterId, identity.userId, sourceText, sourceType, seedEntries);
+  const seedEntries = ownsCharacter ? await loadWriteSeed(deps, characterId, identity.userId, identity.firebaseUid) : [];
+  const diff = buildWriteDiff(characterId, identity.firebaseUid, sourceText, sourceType, seedEntries);
 
   if (ownsCharacter) {
     await persistWriteDiff(deps, characterId, identity.userId, diff);
@@ -992,7 +996,7 @@ export const memoryHealHandler = async (
     };
   }
 
-  const diff = await buildHealDiff(deps, characterId, identity.userId);
+  const diff = await buildHealDiff(deps, characterId, identity.userId, identity.firebaseUid);
   await persistHealDiff(deps, characterId, identity.userId, diff);
 
   return {

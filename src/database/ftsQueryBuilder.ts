@@ -1,6 +1,5 @@
 import { getDerivedSynonyms } from '~/database/derivedSynonymDatabase'
 import { SYNONYM_MAP_BASE } from '~/database/synonymMapBase'
-import nlp from 'compromise'
 
 const STOPWORDS = new Set([
   'a',
@@ -76,7 +75,8 @@ function normalizeInflection(token: string): string {
 
   if (token.endsWith('ing') && token.length > 5) {
     const stem = token.slice(0, -3)
-    return stem.endsWith(stem.slice(-1)) ? stem.slice(0, -1) : stem
+    const hasDoubledFinalChar = stem.length >= 2 && stem.slice(-1) === stem.slice(-2, -1)
+    return hasDoubledFinalChar ? stem.slice(0, -1) : stem
   }
 
   if (token.endsWith('es') && token.length > 4) {
@@ -92,7 +92,10 @@ function normalizeInflection(token: string): string {
 
 async function loadCompromise() {
   if (!compromiseLoader) {
-    compromiseLoader = Promise.resolve(nlp as CompromiseNlp)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('compromise') as { default?: CompromiseNlp } | CompromiseNlp
+    const nlp = (typeof mod === 'function' ? mod : (mod as { default?: CompromiseNlp }).default) as CompromiseNlp
+    compromiseLoader = Promise.resolve(nlp)
   }
 
   return compromiseLoader

@@ -149,7 +149,7 @@ test("memoryWriteHandler returns structured diff envelope for premium caller", a
   assert.ok(result.diff.entriesAdded >= 1);
   assert.equal(Array.isArray(result.diff.entries), true);
   assert.equal(result.diff.entries[0]?.characterId, "char-1");
-  assert.equal(result.diff.entries[0]?.userId, "user-1");
+  assert.equal(result.diff.entries[0]?.userId, "firebase-uid-2");
   assert.equal(result.diff.eventsAppended, 1);
   assert.equal(result.diff.events[0]?.eventType, "observation");
 });
