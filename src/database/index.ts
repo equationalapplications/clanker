@@ -263,7 +263,7 @@ async function applyMigrations(executor: DatabaseExecutor, fromVersion: number):
                 )
                 if (allColumnsExist.every((exists) => exists)) {
                     const guardDescr = skipGuards.map((g) => `${g.table}.${g.column}`).join(', ')
-                    console.log(`Skipping migration ${version}: ${guardDescr} already exist`)
+                    console.log(`Skipping migration ${version}: ${guardDescr} already exists`)
                     continue
                 }
             }

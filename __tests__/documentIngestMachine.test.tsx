@@ -86,7 +86,7 @@ describe('documentIngestMachine', () => {
     mockReadAsStringAsync.mockResolvedValue('Alice is a software engineer.')
     mockDigestStringAsync.mockResolvedValue('a'.repeat(64))
     mockFindEntriesByRef.mockResolvedValue([])
-    mockGetCharacter.mockResolvedValue({ id: 'char-1', cloud_id: null })
+    mockGetCharacter.mockResolvedValue({ id: 'char-1', cloud_id: 'cloud-uuid-1' })
     mockExtractDocument.mockResolvedValue({
       facts: [{ title: 'Alice', body: 'Alice is a software engineer.', tags: ['person'], confidence: 'certain' }],
       contentHash: 'a'.repeat(64),
@@ -163,7 +163,6 @@ describe('documentIngestMachine', () => {
   it('REPLACE in confirmingDuplicate calls forgetMemory and proceeds to extracting', async () => {
     mockFindEntriesByRef.mockResolvedValue([{ id: 'dup-1', deleted_at: null }])
     mockForgetMemory.mockResolvedValue(undefined)
-    mockGetCharacter.mockResolvedValue({ id: 'char-1', cloud_id: null })
 
     const actor = createTestActor()
     actor.send({ type: 'INGEST', characterId: 'char-1', userId: 'user-1' })
@@ -224,6 +223,18 @@ describe('documentIngestMachine', () => {
     expect(actor.getSnapshot().context.content).toBeNull()
 
     resolveExtract({ facts: [], contentHash: 'a'.repeat(64), truncated: false })
+    actor.stop()
+  })
+
+  it('goes to error state when character has no cloud_id (not yet synced)', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char-1', cloud_id: null })
+
+    const actor = createTestActor()
+    actor.send({ type: 'INGEST', characterId: 'char-1', userId: 'user-1' })
+
+    await waitForState(actor, 'idle') // error → idle after 0ms
+
+    expect(mockExtractDocument).not.toHaveBeenCalled()
     actor.stop()
   })
 

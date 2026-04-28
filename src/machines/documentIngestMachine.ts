@@ -35,7 +35,7 @@ export type DocumentIngestEvent =
 // ─── Actor inputs ─────────────────────────────────────────────────────────────
 interface CheckDupInput { characterId: string; userId: string; sourceRef: string }
 interface PurgeInput { characterId: string; userId: string; filename: string }
-interface ExtractInput { characterId: string; filename: string; content: string; contentHash: string }
+interface ExtractInput { characterId: string; userId: string; filename: string; content: string; contentHash: string }
 interface ApplyInput { characterId: string; userId: string; filename: string; contentHash: string; facts: ExtractedFact[] }
 
 // ─── Unique ID helper ─────────────────────────────────────────────────────────
@@ -214,6 +214,7 @@ export const documentIngestMachine = createMachine(
           src: 'extractDocumentActor',
           input: ({ context }): ExtractInput => ({
             characterId: context.characterId,
+            userId: context.userId,
             filename: context.filename ?? '',
             content: context.content ?? '',
             contentHash: context.contentHash ?? '',
@@ -351,7 +352,14 @@ export const documentIngestMachine = createMachine(
       }),
 
       extractDocumentActor: fromPromise(async ({ input }: { input: ExtractInput }): Promise<ExtractedFact[]> => {
-        const result = await extractDocument(input)
+        // Resolve the Cloud SQL UUID: the callable's ownership check queries
+        // the characters table by UUID, so passing a local "char_..." ID would
+        // always fail with permission-denied.
+        const character = await getCharacter(input.characterId, input.userId)
+        if (!character?.cloud_id) {
+          throw new Error('Character must be synced to cloud to ingest documents. Please try again after the character syncs.')
+        }
+        const result = await extractDocument({ ...input, characterId: character.cloud_id })
         return result.facts
       }),
 
