@@ -63,3 +63,7 @@ export {
   adminDeleteUser,
   deleteMyAccount,
 } from "./adminFunctions.js";
+
+export {
+  documentExtract,
+} from "./documentExtract.js";
