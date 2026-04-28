@@ -173,6 +173,19 @@ describe('documentExtractHandler', () => {
     );
   });
 
+  it('rejects content exceeding raw length cap (before normalization/hashing)', async () => {
+    // 200_000 * 3 + 1 chars — triggers the parseInput guard before any expensive work
+    const oversize = 'a'.repeat(600_001);
+    await assert.rejects(
+      () =>
+        documentExtractHandler(
+          makeRequest({ characterId: CHAR_ID, filename: 'f.txt', content: oversize, contentHash: 'a'.repeat(64) }),
+          makeDeps() as never,
+        ),
+      (e: unknown) => e instanceof HttpsError && e.code === 'invalid-argument',
+    );
+  });
+
   it('rejects binary/repetitive content', async () => {
     const binaryContent = 'A'.repeat(10_000);
     const binaryHash = hashContent(binaryContent);

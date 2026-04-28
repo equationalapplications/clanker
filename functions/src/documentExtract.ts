@@ -179,9 +179,14 @@ function parseInput(data: unknown): {
     throw new HttpsError('invalid-argument', 'filename is required after sanitization.');
   }
 
-  // content
+  // content — hard upper bound on raw length before any normalization/hashing
   if (typeof payload.content !== 'string') {
     throw new HttpsError('invalid-argument', 'content must be a string.');
+  }
+  // Allow 3× MAX_DOCUMENT_CHARS headroom so NFC-expanded Unicode still fits, while
+  // rejecting payloads large enough to cause meaningful normalization/hashing cost.
+  if (payload.content.length > MAX_DOCUMENT_CHARS * 3) {
+    throw new HttpsError('invalid-argument', 'content exceeds maximum allowed length.');
   }
 
   // contentHash
