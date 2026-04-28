@@ -62,6 +62,19 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           setToastMessage(`Added ${factCount} ${factCount === 1 ? 'memory' : 'memories'} from ${filename}`)
         } else if (state.matches('error')) {
           setToastMessage(state.context.errorMessage ?? 'Failed to ingest document.')
+        } else if (state.matches('confirmingDuplicate')) {
+          const count = state.context.duplicateEntryCount
+          const filename = state.context.filename ?? 'document'
+          const targetActor = actor
+          Alert.alert(
+            'Document Already Added',
+            `${count} ${count === 1 ? 'memory' : 'memories'} from "${filename}" already exist.`,
+            [
+              { text: 'Replace', onPress: () => targetActor.send({ type: 'REPLACE' }) },
+              { text: 'Add Anyway', onPress: () => targetActor.send({ type: 'ADD' }) },
+              { text: 'Cancel', style: 'cancel', onPress: () => targetActor.send({ type: 'CANCEL' }) },
+            ],
+          )
         } else if (state.matches('idle') && actorRef.current != null) {
           // Reset progress bar after returning to idle
           setTimeout(() => setProgress(0), 400)

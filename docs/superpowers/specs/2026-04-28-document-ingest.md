@@ -301,7 +301,7 @@ Document this skip behavior at the top of `memoryHealHandler`.
 
 ## File / Library Choices
 
-- **`expo-document-picker`** — already established Expo pattern. Add to client `package.json` dependencies. MIME filter: `text/plain`, `text/markdown`, `text/csv`, `text/tab-separated-values`, `application/json`, `text/yaml` (and accept `*/*` as fallback since some Android pickers don't honor MIME for `.md`, `.yaml`, etc.). Accepted extensions: `.txt`, `.md`, `.markdown`, `.csv`, `.tsv`, `.json`, `.yaml`, `.yml`.
+- **`expo-document-picker`** — already established Expo pattern. Add to client `package.json` dependencies. MIME filter: `['text/plain', 'text/markdown']`. Accepted extensions: `.txt`, `.md`, `.markdown`. Note: on some Android devices `.md` files may not have a registered MIME type; if the system picker returns no results the user should rename the file to `.txt` before uploading. Additional formats (csv, tsv, json, yaml) deferred to v3 once cross-platform MIME support is validated.
 - **`expo-file-system`** — already installed (`~55.0.16`). Use for reading picked file as UTF-8 string.
 - **Encoding constraint** — `TextDecoder` on native (Hermes) supports **UTF-8 only** (not spec-compliant per Expo docs). Files saved as UTF-16 or Windows code pages (common on Windows `.txt` exports) will decode as garbage. No polyfill added in v2 — document this limitation in the UI or help text. v3 can add the `text-encoding` polyfill if needed.
 - **SHA-256** — use Web Crypto `crypto.subtle.digest('SHA-256', ...)` on web; on native use `expo-crypto` (`Crypto.digestStringAsync(SHA256, ...)`). `expo-crypto` may not yet be installed — add to dependencies.

@@ -1,6 +1,6 @@
 import type { Character, MemoryBundle } from '~/services/aiChatService'
 import { buildFtsQuery } from '~/database/ftsQueryBuilder'
-import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, softDeleteWikiEntries, softDeleteAllWikiEntries, softDeleteWikiEntriesBySourceRef, getEntriesForHeal, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
+import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, softDeleteWikiEntries, softDeleteAllWikiEntries, softDeleteWikiEntriesBySourceRef, softDeleteWikiEntriesBySourceHash, getEntriesForHeal, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
 import { getOpenTasks, upsertAgentTasks, softDeleteAgentTasks, softDeleteAllAgentTasks, getOpenTasksForHeal, type AgentTaskUpsertInput } from '~/database/agentTaskDatabase'
 import { getRecentEvents, appendMemoryEvents, type MemoryEventUpsertInput } from '~/database/memoryEventDatabase'
 import { upsertDerivedSynonyms, type DerivedSynonymUpsertInput } from '~/database/derivedSynonymDatabase'
@@ -303,7 +303,7 @@ export async function triggerMemoryRead(character: Character, userId: string): P
 export async function forgetMemory(
   character: Pick<Character, 'id' | 'cloud_id'>,
   userId: string,
-  target: { entryIds?: string[]; taskIds?: string[]; clearAll?: boolean; sourceRef?: string },
+  target: { entryIds?: string[]; taskIds?: string[]; clearAll?: boolean; sourceRef?: string; sourceHash?: string },
 ): Promise<void> {
   const characterId = character.id
   const cloudCharacterId = resolveCloudCharacterId(character)
@@ -311,6 +311,7 @@ export async function forgetMemory(
   const taskIds = target.taskIds ?? []
   const clearAll = target.clearAll ?? false
   const sourceRef = target.sourceRef ?? null
+  const sourceHash = target.sourceHash ?? null
 
   try {
     if (clearAll) {
@@ -323,6 +324,7 @@ export async function forgetMemory(
         entryIds.length > 0 ? softDeleteWikiEntries(characterId, userId, entryIds) : Promise.resolve(0),
         taskIds.length > 0 ? softDeleteAgentTasks(characterId, userId, taskIds) : Promise.resolve(0),
         sourceRef !== null ? softDeleteWikiEntriesBySourceRef(characterId, userId, sourceRef) : Promise.resolve(0),
+        sourceHash !== null ? softDeleteWikiEntriesBySourceHash(characterId, userId, sourceHash) : Promise.resolve(0),
       ])
     }
   } catch (error) {
@@ -338,6 +340,7 @@ export async function forgetMemory(
         taskIds,
         clearAll,
         ...(sourceRef !== null ? { sourceRef } : {}),
+        ...(sourceHash !== null ? { sourceHash } : {}),
       })
     } catch (error) {
       console.warn('Failed to sync memory forget to cloud:', error)

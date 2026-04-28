@@ -408,7 +408,14 @@ export async function documentExtractHandler(
   // 4. Normalize content
   const content = normalizeContent(rawContent);
 
-  // 5. Truncate if needed
+  // 5. Hash verification against full normalized content (mirrors client hashing order).
+  // Must happen before truncation so both sides hash the same bytes.
+  const serverHash = sha256Hex(content);
+  if (serverHash.toLowerCase() !== clientHash.toLowerCase()) {
+    throw new HttpsError('invalid-argument', 'Content hash mismatch.');
+  }
+
+  // 6. Truncate if needed
   let truncated = false;
   let workingContent = content;
   if (content.length > MAX_DOCUMENT_CHARS) {
@@ -416,15 +423,9 @@ export async function documentExtractHandler(
     truncated = true;
   }
 
-  // 6. Empty check
+  // 7. Empty check
   if (!workingContent.trim()) {
     throw new HttpsError('invalid-argument', 'Document is empty.');
-  }
-
-  // 7. Hash verification (server-authoritative)
-  const serverHash = sha256Hex(workingContent);
-  if (serverHash.toLowerCase() !== clientHash.toLowerCase()) {
-    throw new HttpsError('invalid-argument', 'Content hash mismatch.');
   }
 
   // 8. Character ownership
@@ -438,7 +439,20 @@ export async function documentExtractHandler(
     throw new HttpsError('permission-denied', 'Character not found or not owned by user.');
   }
 
-  // 9. Daily rate limit with atomic increment
+  // 9. Entropy / binary check — must run before rate-limit increment so a bad document
+  // does not consume the user's daily quota.
+  assertNotBinaryOrRepetitive(workingContent);
+
+  // 10. Chunking — likewise before increment; an un-chunkable document must not burn quota.
+  const chunks = chunkContent(workingContent);
+  if (chunks.length === 0) {
+    throw new HttpsError('invalid-argument', 'Document produced no extractable chunks.');
+  }
+  if (chunks.length > MAX_CHUNKS) {
+    throw new HttpsError('resource-exhausted', 'Document too long after chunking.');
+  }
+
+  // 11. Daily rate limit with atomic increment (after all validation passes)
   const todayStr = new Date().toISOString().split('T')[0];
   const rateLimitRows = await db
     .update(subscriptions)
@@ -474,18 +488,6 @@ export async function documentExtractHandler(
     date: todayStr,
   });
 
-  // 10. Entropy / binary check
-  assertNotBinaryOrRepetitive(workingContent);
-
-  // 11. Chunking
-  const chunks = chunkContent(workingContent);
-  if (chunks.length === 0) {
-    throw new HttpsError('invalid-argument', 'Document produced no extractable chunks.');
-  }
-  if (chunks.length > MAX_CHUNKS) {
-    throw new HttpsError('resource-exhausted', 'Document too long after chunking.');
-  }
-
   // Log metadata only (no content)
   logger.info('documentExtract start', {
     filenameLen: filename.length,
@@ -504,7 +506,7 @@ export async function documentExtractHandler(
       throw new HttpsError('unavailable', 'Document extraction failed. Please retry.');
     }
 
-    // 13. Merge + dedup
+    // 13. Merge + dedup within document
     const facts = mergeAndDedup(rawFacts);
 
     logger.info('documentExtract done', {

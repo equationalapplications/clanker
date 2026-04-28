@@ -3,6 +3,7 @@ import { createActor } from 'xstate'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
+import { Platform } from 'react-native'
 import { findEntriesByHash, bulkInsertEntries, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
 import { appendMemoryEvents, type MemoryEventUpsertInput } from '~/database/memoryEventDatabase'
 import { forgetMemory } from '~/services/memoryService'
@@ -33,7 +34,7 @@ export type DocumentIngestEvent =
 
 // ─── Actor inputs ─────────────────────────────────────────────────────────────
 interface CheckDupInput { characterId: string; contentHash: string }
-interface PurgeInput { character: Pick<Character, 'id' | 'cloud_id'>; userId: string; filename: string }
+interface PurgeInput { character: Pick<Character, 'id' | 'cloud_id'>; userId: string; contentHash: string }
 interface ExtractInput { characterId: string; filename: string; content: string; contentHash: string }
 interface ApplyInput { characterId: string; userId: string; filename: string; contentHash: string; facts: ExtractedFact[] }
 
@@ -195,7 +196,7 @@ export const documentIngestMachine = createMachine(
               cloud_id: null,
             },
             userId: context.userId,
-            filename: context.filename ?? '',
+            contentHash: context.contentHash ?? '',
           }),
           onDone: 'extracting',
           onError: {
@@ -309,9 +310,17 @@ export const documentIngestMachine = createMachine(
       readDocument: fromPromise(
         async ({ input }: { input: { fileUri: string | null } }): Promise<{ content: string; contentHash: string }> => {
           if (!input.fileUri) throw new Error('No file URI available.')
-          const raw = await FileSystem.readAsStringAsync(input.fileUri, {
-            encoding: 'utf8',
-          })
+          let raw: string
+          if (Platform.OS === 'web') {
+            // expo-file-system does not support web; blob URIs from the document
+            // picker are readable via fetch on web.
+            const response = await fetch(input.fileUri)
+            raw = await response.text()
+          } else {
+            raw = await FileSystem.readAsStringAsync(input.fileUri, {
+              encoding: 'utf8',
+            })
+          }
           const content = normalizeContent(raw)
           if (!content.trim()) throw new Error('Document is empty.')
           const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, content)
@@ -325,7 +334,7 @@ export const documentIngestMachine = createMachine(
       }),
 
       purgeDocument: fromPromise(async ({ input }: { input: PurgeInput }): Promise<void> => {
-        await forgetMemory(input.character, input.userId, { sourceRef: input.filename })
+        await forgetMemory(input.character, input.userId, { sourceHash: input.contentHash })
       }),
 
       extractDocumentActor: fromPromise(async ({ input }: { input: ExtractInput }): Promise<ExtractedFact[]> => {

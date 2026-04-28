@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 13
+export const SCHEMA_VERSION = 14
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -230,4 +230,6 @@ export const MIGRATIONS: Record<number, string> = {
   13: `ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT;
 ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT;
 CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash)`,
+  14: `DROP INDEX IF EXISTS idx_wiki_entries_source_hash;
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL`,
 }

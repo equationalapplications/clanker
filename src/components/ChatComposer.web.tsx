@@ -1,6 +1,15 @@
-import { useCallback } from 'react'
+import { useCallback, useRef, useState, useEffect } from 'react'
+import { Alert, View, StyleSheet } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
+import { IconButton, Snackbar, Portal } from 'react-native-paper'
+import { useCurrentPlan } from '~/hooks/useCurrentPlan'
+import {
+  dispatchDocumentIngest,
+  getDocumentIngestMachineActor,
+  type DocumentIngestMachineActor,
+} from '~/machines/documentIngestMachine'
+import IngestProgressBar from '~/components/composer/IngestProgressBar'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -12,12 +21,80 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   onSend,
   text,
   textInputProps,
-   
-  characterId: _characterId,
-   
-  userId: _userId,
+  characterId,
+  userId,
   ...props
 }: ChatComposerProps<TMessage>) {
+  const { isSubscriber } = useCurrentPlan()
+
+  const actorRef = useRef<DocumentIngestMachineActor | undefined>(undefined)
+  const subscriptionRef = useRef<{ unsubscribe: () => void } | undefined>(undefined)
+  const [progress, setProgress] = useState(0)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    return () => {
+      subscriptionRef.current?.unsubscribe()
+    }
+  }, [])
+
+  const handleDocumentIngest = useCallback(() => {
+    if (!characterId || !userId) return
+
+    dispatchDocumentIngest(characterId, userId)
+    const actor = getDocumentIngestMachineActor(characterId)
+    if (!actor) return
+
+    if (actorRef.current !== actor) {
+      subscriptionRef.current?.unsubscribe()
+      actorRef.current = actor
+
+      subscriptionRef.current = actor.subscribe((state) => {
+        setProgress(state.context.progress)
+
+        if (state.matches('success')) {
+          const factCount = state.context.facts.length
+          const filename = state.context.filename ?? 'document'
+          setToastMessage(`Added ${factCount} ${factCount === 1 ? 'memory' : 'memories'} from ${filename}`)
+        } else if (state.matches('error')) {
+          setToastMessage(state.context.errorMessage ?? 'Failed to ingest document.')
+        } else if (state.matches('confirmingDuplicate')) {
+          const count = state.context.duplicateEntryCount
+          const filename = state.context.filename ?? 'document'
+          const targetActor = actor
+          Alert.alert(
+            'Document Already Added',
+            `${count} ${count === 1 ? 'memory' : 'memories'} from "${filename}" already exist.`,
+            [
+              { text: 'Replace', onPress: () => targetActor.send({ type: 'REPLACE' }) },
+              { text: 'Add Anyway', onPress: () => targetActor.send({ type: 'ADD' }) },
+              { text: 'Cancel', style: 'cancel', onPress: () => targetActor.send({ type: 'CANCEL' }) },
+            ],
+          )
+        } else if (state.matches('idle') && actorRef.current != null) {
+          setTimeout(() => setProgress(0), 400)
+        }
+      })
+    }
+  }, [characterId, userId])
+
+  const handlePlusPress = useCallback(() => {
+    Alert.alert(
+      'Add to Memory',
+      'Document text is sent to our AI provider for processing. Only UTF-8 encoded files are supported.',
+      [
+        {
+          text: 'Add document to memory',
+          onPress: handleDocumentIngest,
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ],
+    )
+  }, [handleDocumentIngest])
+
   const sendCurrentText = useCallback(() => {
     const trimmedText = text?.trim()
 
@@ -26,26 +103,71 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [onSend, text])
 
+  const showPlusButton = isSubscriber && Boolean(characterId) && Boolean(userId)
+
   return (
-    <Composer
-      {...props}
-      text={text}
-      textInputProps={{
-        ...textInputProps,
-        onKeyPress: (event) => {
-          const nativeEvent = event.nativeEvent as typeof event.nativeEvent & { shiftKey?: boolean }
+    <View style={styles.container}>
+      <IngestProgressBar progress={progress} />
+      <View style={styles.row}>
+        {showPlusButton && (
+          <IconButton
+            icon="plus"
+            size={20}
+            onPress={handlePlusPress}
+            style={styles.plusButton}
+            accessibilityLabel="Add document to memory"
+            accessibilityHint="Opens a menu to add a document to this character's memory"
+          />
+        )}
+        <View style={styles.composerWrapper}>
+          <Composer
+            {...props}
+            text={text}
+            textInputProps={{
+              ...textInputProps,
+              onKeyPress: (event) => {
+                const nativeEvent = event.nativeEvent as typeof event.nativeEvent & { shiftKey?: boolean }
 
-          textInputProps?.onKeyPress?.(event)
+                textInputProps?.onKeyPress?.(event)
 
-          if (nativeEvent.key !== 'Enter' || nativeEvent.shiftKey) {
-            return
-          }
+                if (nativeEvent.key !== 'Enter' || nativeEvent.shiftKey) {
+                  return
+                }
 
-          const webKeyEvent = event as { preventDefault?: () => void }
-          webKeyEvent.preventDefault?.()
-          sendCurrentText()
-        },
-      }}
-    />
+                const webKeyEvent = event as { preventDefault?: () => void }
+                webKeyEvent.preventDefault?.()
+                sendCurrentText()
+              },
+            }}
+          />
+        </View>
+      </View>
+      <Portal>
+        <Snackbar
+          visible={toastMessage !== null}
+          onDismiss={() => setToastMessage(null)}
+          duration={3000}
+        >
+          {toastMessage ?? ''}
+        </Snackbar>
+      </Portal>
+    </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  plusButton: {
+    margin: 0,
+    marginBottom: 2,
+  },
+  composerWrapper: {
+    flex: 1,
+  },
+})

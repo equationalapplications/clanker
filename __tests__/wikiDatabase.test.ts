@@ -21,7 +21,6 @@ import {
   softDeleteWikiEntries,
   softDeleteAllWikiEntries,
   findEntriesByHash,
-  findEntriesBySourceRef,
   bulkInsertEntries,
   softDeleteWikiEntriesBySourceRef,
   type WikiEntryUpsertInput,
@@ -280,20 +279,6 @@ describe('findEntriesByHash', () => {
     mockGetAllAsync.mockResolvedValue([])
     const result = await findEntriesByHash('char-1', 'notfound')
     expect(result).toEqual([])
-  })
-})
-
-describe('findEntriesBySourceRef', () => {
-  beforeEach(() => jest.clearAllMocks())
-
-  it('queries by character_id and source_ref', async () => {
-    mockGetAllAsync.mockResolvedValue([])
-    await findEntriesBySourceRef('char-1', 'notes.md')
-    expect(mockGetAllAsync).toHaveBeenCalledTimes(1)
-    const [sql, params] = mockGetAllAsync.mock.calls[0] as [string, unknown[]]
-    expect(sql).toContain('source_ref')
-    expect(params).toContain('char-1')
-    expect(params).toContain('notes.md')
   })
 })
 

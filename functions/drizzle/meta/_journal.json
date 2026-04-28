@@ -43,6 +43,13 @@
       "when": 1777398029649,
       "tag": "0005_subscriptions_document_counter",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1745827200000,
+      "tag": "0006_partial_source_hash_index",
+      "breakpoints": true
     }
   ]
 }

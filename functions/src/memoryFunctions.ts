@@ -40,6 +40,8 @@ type MemoryForgetPayload = {
   entryIds?: unknown;
   taskIds?: unknown;
   clearAll?: unknown;
+  sourceRef?: unknown;
+  sourceHash?: unknown;
 };
 
 type MemoryWriteEntry = {
@@ -265,6 +267,7 @@ function parseForgetTargets(data: unknown): {
   taskIds: string[];
   clearAll: boolean;
   sourceRef: string | null;
+  sourceHash: string | null;
 } {
   if (!isRecord(data)) {
     throw new HttpsError('invalid-argument', 'Valid forget payload is required.');
@@ -292,11 +295,20 @@ function parseForgetTargets(data: unknown): {
     sourceRef = cleaned.length > 0 ? cleaned : null;
   }
 
-  if (!clearAll && entryIds.length === 0 && taskIds.length === 0 && sourceRef === null) {
+  // Parse sourceHash: must be a 64-char hex SHA-256 string
+  let sourceHash: string | null = null;
+  if (data.sourceHash !== undefined) {
+    if (typeof data.sourceHash !== 'string' || !/^[0-9a-f]{64}$/i.test(data.sourceHash)) {
+      throw new HttpsError('invalid-argument', 'sourceHash must be a 64-character hex SHA-256 string.');
+    }
+    sourceHash = data.sourceHash.toLowerCase();
+  }
+
+  if (!clearAll && entryIds.length === 0 && taskIds.length === 0 && sourceRef === null && sourceHash === null) {
     throw new HttpsError('invalid-argument', 'At least one forget target is required.');
   }
 
-  return { entryIds, taskIds, clearAll, sourceRef };
+  return { entryIds, taskIds, clearAll, sourceRef, sourceHash };
 }
 
 function clip(value: string, maxLength: number): string {
@@ -1643,6 +1655,22 @@ export const memoryForgetHandler = async (
             eq(wikiEntries.characterId, characterId),
             eq(wikiEntries.userId, identity.userId),
             eq(wikiEntries.sourceRef, targets.sourceRef),
+            isNull(wikiEntries.deletedAt),
+          ),
+        )
+        .returning({ id: wikiEntries.id });
+      deletedEntries += rows.length;
+    }
+
+    if (targets.sourceHash !== null) {
+      const rows = await db
+        .update(wikiEntries)
+        .set({ deletedAt, updatedAt: deletedAt })
+        .where(
+          and(
+            eq(wikiEntries.characterId, characterId),
+            eq(wikiEntries.userId, identity.userId),
+            eq(wikiEntries.sourceHash, targets.sourceHash),
             isNull(wikiEntries.deletedAt),
           ),
         )

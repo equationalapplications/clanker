@@ -268,15 +268,6 @@ export async function findEntriesByHash(characterId: string, hash: string): Prom
   )
 }
 
-export async function findEntriesBySourceRef(characterId: string, sourceRef: string): Promise<LocalWikiEntry[]> {
-  const db = await getDatabase()
-  return db.getAllAsync<LocalWikiEntry>(
-    `SELECT * FROM wiki_entries
-     WHERE character_id = ? AND source_ref = ? AND deleted_at IS NULL`,
-    [characterId, sourceRef],
-  )
-}
-
 export async function bulkInsertEntries(entries: WikiEntryUpsertInput[]): Promise<void> {
   if (entries.length === 0) return
   const db = await getDatabase()
@@ -337,6 +328,22 @@ export async function softDeleteWikiEntriesBySourceRef(
      SET deleted_at = ?, updated_at = ?, synced_to_cloud = 0
      WHERE character_id = ? AND user_id = ? AND source_ref = ? AND deleted_at IS NULL`,
     [deletedAt, deletedAt, characterId, userId, sourceRef],
+  )
+  return result.changes ?? 0
+}
+
+export async function softDeleteWikiEntriesBySourceHash(
+  characterId: string,
+  userId: string,
+  sourceHash: string,
+): Promise<number> {
+  const db = await getDatabase()
+  const deletedAt = Date.now()
+  const result = await db.runAsync(
+    `UPDATE wiki_entries
+     SET deleted_at = ?, updated_at = ?, synced_to_cloud = 0
+     WHERE character_id = ? AND user_id = ? AND source_hash = ? AND deleted_at IS NULL`,
+    [deletedAt, deletedAt, characterId, userId, sourceHash],
   )
   return result.changes ?? 0
 }
