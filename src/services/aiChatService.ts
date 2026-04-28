@@ -503,10 +503,14 @@ export const sendMessageWithAIResponse = async (
 
     void triggerConversationSummary(character, userId)
     if (options?.hasUnlimited) {
+      const recentMessages = getRecentConversationHistory([...conversationHistory, userMessage], 20)
+      const chunk = recentMessages
+        .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
+        .join('\n')
       void dispatchWikiWrite({
         character,
         userId,
-        chunk: userMessage.text,
+        chunk: chunk || userMessage.text,
       })
     }
     return { usageSnapshot: toUsageSnapshot(aiResponse) }

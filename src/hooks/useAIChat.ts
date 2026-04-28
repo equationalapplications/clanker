@@ -111,6 +111,14 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         })
       }
 
+      // Firebase 'internal' errors from generateReply are typically caused by an expired
+      // App Check token (surfaces as a CORS failure). Trigger a bootstrap refresh so the
+      // token is renewed and the user can retry without a manual page reload.
+      const firebaseCode = (err as { code?: unknown }).code
+      if (firebaseCode === 'functions/internal') {
+        authService.send({ type: 'REFRESH_BOOTSTRAP', reason: 'foreground' })
+      }
+
       // Rollback optimistic update
       if (context?.previousMessages) {
         queryClient.setQueryData(messageKeys.list(characterId, userId), context.previousMessages)

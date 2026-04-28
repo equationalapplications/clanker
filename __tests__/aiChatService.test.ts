@@ -162,7 +162,7 @@ describe('buildChatPrompt', () => {
     expect(mockDispatchWikiWrite).toHaveBeenCalledWith({
       character: expect.objectContaining({ id: 'char-1' }),
       userId: 'user-1',
-      chunk: 'How am I doing?',
+      chunk: 'User: Yesterday I trained.\nUser: How am I doing?',
     })
     expect(mockSaveAIMessage).toHaveBeenCalledWith(
       'char-1',
