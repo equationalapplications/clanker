@@ -43,7 +43,7 @@
   ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT;
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL;
   ```
-  Note: SQLite does not support partial indexes via `CREATE INDEX ... WHERE`. Instead use a regular index: `CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash);`
+  Note: SQLite supports partial indexes via `CREATE INDEX ... WHERE`, so keep the partial index above as written.
 - [ ] Add `MIGRATION_SKIP_GUARDS[13]`:
   ```typescript
   13: { table: 'wiki_entries', column: 'source_hash' },
