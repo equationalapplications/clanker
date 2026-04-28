@@ -20,6 +20,10 @@ import {
   countEntries,
   softDeleteWikiEntries,
   softDeleteAllWikiEntries,
+  findEntriesByHash,
+  findEntriesBySourceRef,
+  bulkInsertEntries,
+  softDeleteWikiEntriesBySourceRef,
   type WikiEntryUpsertInput,
 } from '../src/database/wikiDatabase'
 
@@ -255,6 +259,108 @@ describe('softDeleteAllWikiEntries', () => {
   it('returns 0 when no rows match', async () => {
     mockRunAsync.mockResolvedValue({ changes: 0 })
     const result = await softDeleteAllWikiEntries('char-1', 'user-1')
+    expect(result).toBe(0)
+  })
+})
+
+describe('findEntriesByHash', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  it('queries by character_id and source_hash', async () => {
+    mockGetAllAsync.mockResolvedValue([])
+    await findEntriesByHash('char-1', 'abc123')
+    expect(mockGetAllAsync).toHaveBeenCalledTimes(1)
+    const [sql, params] = mockGetAllAsync.mock.calls[0] as [string, unknown[]]
+    expect(sql).toContain('source_hash')
+    expect(params).toContain('char-1')
+    expect(params).toContain('abc123')
+  })
+
+  it('returns empty array when no matches', async () => {
+    mockGetAllAsync.mockResolvedValue([])
+    const result = await findEntriesByHash('char-1', 'notfound')
+    expect(result).toEqual([])
+  })
+})
+
+describe('findEntriesBySourceRef', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  it('queries by character_id and source_ref', async () => {
+    mockGetAllAsync.mockResolvedValue([])
+    await findEntriesBySourceRef('char-1', 'notes.md')
+    expect(mockGetAllAsync).toHaveBeenCalledTimes(1)
+    const [sql, params] = mockGetAllAsync.mock.calls[0] as [string, unknown[]]
+    expect(sql).toContain('source_ref')
+    expect(params).toContain('char-1')
+    expect(params).toContain('notes.md')
+  })
+})
+
+describe('bulkInsertEntries', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  it('does nothing for empty array', async () => {
+    await bulkInsertEntries([])
+    expect(mockRunAsync).not.toHaveBeenCalled()
+  })
+
+  it('wraps all inserts in a single withTransactionAsync call', async () => {
+    const mockWithTx = jest.fn((fn: () => Promise<void>) => fn())
+    // Override the database mock to capture withTransactionAsync
+    const { getDatabase } = require('../src/database/index')
+    ;(getDatabase as jest.Mock).mockResolvedValueOnce({
+      withTransactionAsync: mockWithTx,
+      runAsync: mockRunAsync,
+    })
+    await bulkInsertEntries([makeEntry({ id: 'a' }), makeEntry({ id: 'b' })])
+    expect(mockWithTx).toHaveBeenCalledTimes(1)
+    expect(mockRunAsync).toHaveBeenCalledTimes(2)
+  })
+
+  it('includes source_hash and source_ref in insert', async () => {
+    await bulkInsertEntries([makeEntry({ id: 'a', sourceHash: 'hash123', sourceRef: 'notes.md' })])
+    const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
+    expect(values).toContain('hash123')
+    expect(values).toContain('notes.md')
+  })
+
+  it('rejects if runAsync throws mid-insert (transaction rolls back)', async () => {
+    const mockWithTx = jest.fn(async (fn: () => Promise<void>) => {
+      await fn()
+    })
+    const { getDatabase } = require('../src/database/index')
+    let callCount = 0
+    ;(getDatabase as jest.Mock).mockResolvedValueOnce({
+      withTransactionAsync: mockWithTx,
+      runAsync: jest.fn(async () => {
+        callCount++
+        if (callCount >= 2) throw new Error('DB error')
+      }),
+    })
+    await expect(
+      bulkInsertEntries([makeEntry({ id: 'a' }), makeEntry({ id: 'b' })])
+    ).rejects.toThrow('DB error')
+  })
+})
+
+describe('softDeleteWikiEntriesBySourceRef', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  it('runs UPDATE with correct source_ref filter', async () => {
+    mockRunAsync.mockResolvedValue({ changes: 3 })
+    const result = await softDeleteWikiEntriesBySourceRef('char-1', 'user-1', 'notes.md')
+    expect(result).toBe(3)
+    const [sql, params] = mockRunAsync.mock.calls[0] as [string, unknown[]]
+    expect(sql).toContain('source_ref')
+    expect(params).toContain('notes.md')
+    expect(params).toContain('char-1')
+    expect(params).toContain('user-1')
+  })
+
+  it('returns 0 when no rows changed', async () => {
+    mockRunAsync.mockResolvedValue({ changes: 0 })
+    const result = await softDeleteWikiEntriesBySourceRef('char-1', 'user-1', 'other.md')
     expect(result).toBe(0)
   })
 })

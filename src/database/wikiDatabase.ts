@@ -12,10 +12,12 @@ export interface LocalWikiEntry {
   updated_at: number
   last_accessed_at: number | null
   access_count: number
-  source_type: 'user_stated' | 'agent_inferred' | 'user_confirmed'
+  source_type: 'user_stated' | 'agent_inferred' | 'user_confirmed' | 'user_document'
   synced_to_cloud: number
   cloud_id: string | null
   deleted_at: number | null
+  source_hash: string | null
+  source_ref: string | null
 }
 
 export interface WikiEntryUpsertInput {
@@ -26,7 +28,9 @@ export interface WikiEntryUpsertInput {
   body: string
   tags: string[]
   confidence: 'certain' | 'inferred' | 'tentative'
-  sourceType?: 'user_stated' | 'agent_inferred' | 'user_confirmed'
+  sourceType?: 'user_stated' | 'agent_inferred' | 'user_confirmed' | 'user_document'
+  sourceHash?: string | null
+  sourceRef?: string | null
   createdAt?: number
   updatedAt?: number
   lastAccessedAt?: number | null
@@ -207,8 +211,10 @@ export async function upsertWikiEntries(entries: WikiEntryUpsertInput[]): Promis
           access_count,
           synced_to_cloud,
           cloud_id,
-          deleted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          deleted_at,
+          source_hash,
+          source_ref
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           title = excluded.title,
           body = excluded.body,
@@ -225,7 +231,10 @@ export async function upsertWikiEntries(entries: WikiEntryUpsertInput[]): Promis
           access_count = MAX(wiki_entries.access_count, excluded.access_count),
           synced_to_cloud = excluded.synced_to_cloud,
           cloud_id = excluded.cloud_id,
-          deleted_at = excluded.deleted_at`,
+          deleted_at = excluded.deleted_at,
+          source_hash = excluded.source_hash,
+          source_ref = excluded.source_ref`,
+
         [
           entry.id,
           entry.characterId,
@@ -242,10 +251,94 @@ export async function upsertWikiEntries(entries: WikiEntryUpsertInput[]): Promis
           entry.syncedToCloud ?? 0,
           entry.cloudId ?? null,
           entry.deletedAt ?? null,
+          entry.sourceHash ?? null,
+          entry.sourceRef ?? null,
         ],
       )
     }
   })
+}
+
+export async function findEntriesByHash(characterId: string, hash: string): Promise<LocalWikiEntry[]> {
+  const db = await getDatabase()
+  return db.getAllAsync<LocalWikiEntry>(
+    `SELECT * FROM wiki_entries
+     WHERE character_id = ? AND source_hash = ? AND deleted_at IS NULL`,
+    [characterId, hash],
+  )
+}
+
+export async function findEntriesBySourceRef(characterId: string, sourceRef: string): Promise<LocalWikiEntry[]> {
+  const db = await getDatabase()
+  return db.getAllAsync<LocalWikiEntry>(
+    `SELECT * FROM wiki_entries
+     WHERE character_id = ? AND source_ref = ? AND deleted_at IS NULL`,
+    [characterId, sourceRef],
+  )
+}
+
+export async function bulkInsertEntries(entries: WikiEntryUpsertInput[]): Promise<void> {
+  if (entries.length === 0) return
+  const db = await getDatabase()
+  await db.withTransactionAsync(async () => {
+    for (const entry of entries) {
+      const now = Date.now()
+      await db.runAsync(
+        `INSERT INTO wiki_entries (
+          id, character_id, user_id, title, body, tags, confidence, source_type,
+          created_at, updated_at, last_accessed_at, access_count,
+          synced_to_cloud, cloud_id, deleted_at, source_hash, source_ref
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          title = excluded.title,
+          body = excluded.body,
+          tags = excluded.tags,
+          confidence = excluded.confidence,
+          source_type = excluded.source_type,
+          updated_at = excluded.updated_at,
+          synced_to_cloud = excluded.synced_to_cloud,
+          cloud_id = excluded.cloud_id,
+          deleted_at = excluded.deleted_at,
+          source_hash = excluded.source_hash,
+          source_ref = excluded.source_ref`,
+        [
+          entry.id,
+          entry.characterId,
+          entry.userId,
+          entry.title.trim(),
+          entry.body.trim(),
+          JSON.stringify(entry.tags ?? []),
+          entry.confidence,
+          entry.sourceType ?? 'agent_inferred',
+          entry.createdAt ?? now,
+          entry.updatedAt ?? now,
+          entry.lastAccessedAt ?? null,
+          entry.accessCount ?? 0,
+          entry.syncedToCloud ?? 0,
+          entry.cloudId ?? null,
+          entry.deletedAt ?? null,
+          entry.sourceHash ?? null,
+          entry.sourceRef ?? null,
+        ],
+      )
+    }
+  })
+}
+
+export async function softDeleteWikiEntriesBySourceRef(
+  characterId: string,
+  userId: string,
+  sourceRef: string,
+): Promise<number> {
+  const db = await getDatabase()
+  const deletedAt = Date.now()
+  const result = await db.runAsync(
+    `UPDATE wiki_entries
+     SET deleted_at = ?, updated_at = ?, synced_to_cloud = 0
+     WHERE character_id = ? AND user_id = ? AND source_ref = ? AND deleted_at IS NULL`,
+    [deletedAt, deletedAt, characterId, userId, sourceRef],
+  )
+  return result.changes ?? 0
 }
 
 export async function getEntriesForHeal(userId: string, characterId: string): Promise<LocalWikiEntry[]> {
