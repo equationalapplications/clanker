@@ -28,9 +28,9 @@ This spec adds **user-initiated document ingest** for premium users: pick a `.tx
 - **Background / queued ingest** — ingest is foreground; cancellation supported.
 - **On-device LLM extraction** — same v2 deferral as wiki librarian; cloud callable only.
 
-## Schema (v14 migration)
+## Schema (v15 migration)
 
-Bump `SCHEMA_VERSION = 12 → 14` ([src/database/schema.ts](/src/database/schema.ts)). Two migrations were needed in practice: `MIGRATIONS[13]` adds `source_hash`/`source_ref` columns with a non-partial index; `MIGRATIONS[14]` drops and recreates as a partial index (`WHERE source_hash IS NOT NULL`) to avoid indexing NULL rows. Both have `MIGRATION_SKIP_GUARDS` mirroring the v11 pattern.
+Bump `SCHEMA_VERSION = 12 → 15` ([src/database/schema.ts](/src/database/schema.ts)). Three migrations were needed in practice, each with a single-column skip guard for retry safety: `MIGRATIONS[13]` adds `source_hash`; `MIGRATIONS[14]` adds `source_ref` + a non-partial index; `MIGRATIONS[15]` drops and recreates the index as a partial index (`WHERE source_hash IS NOT NULL`) to avoid indexing NULL rows.
 
 ### `wiki_entries` additions
 
@@ -321,7 +321,7 @@ Document this skip behavior at the top of `memoryHealHandler`.
 - `functions/src/documentExtract.test.ts`
 
 **Modified**:
-- [src/database/schema.ts](/src/database/schema.ts) — bump `SCHEMA_VERSION` → 14; add `MIGRATIONS[13]` (ALTER `wiki_entries` add `source_hash`/`source_ref` + regular index) and `MIGRATIONS[14]` (swap to partial index); extend `LATEST_SCHEMA_REQUIRED_COLUMNS['wiki_entries']`; add `MIGRATION_SKIP_GUARDS[13]`/`[14]`
+- [src/database/schema.ts](/src/database/schema.ts) — bump `SCHEMA_VERSION` → 15; add `MIGRATIONS[13]` (ALTER `wiki_entries` add `source_hash`), `MIGRATIONS[14]` (add `source_ref` + regular index), `MIGRATIONS[15]` (swap to partial index); each version has a single-column `MIGRATION_SKIP_GUARDS` entry for retry safety; extend `LATEST_SCHEMA_REQUIRED_COLUMNS['wiki_entries']`
 - [functions/src/db/schema.ts](/functions/src/db/schema.ts) — add `sourceHash` column + index to `wikiEntries` table; new Drizzle migration generated at `functions/drizzle/000X_document_source_hash.sql`
 - `src/database/wikiDatabase.ts` — add `findEntriesByHash`, `findEntriesBySourceRef`, `bulkInsertEntries`; extend `LocalWikiEntry` interface and `source_type` union
 - `src/services/memoryService.ts` — extend `ForgetTarget` union with `{ sourceRef }`; pass through to `memoryForget` callable
@@ -351,7 +351,7 @@ Match existing patterns:
 
 ## Acceptance Criteria
 
-- [ ] `SCHEMA_VERSION=14`; `MIGRATIONS[13]` adds `wiki_entries.source_hash`/`source_ref`; `MIGRATIONS[14]` converts to partial index; both idempotent via `MIGRATION_SKIP_GUARDS`; reflected in `LATEST_SCHEMA_REQUIRED_COLUMNS`
+- [ ] `SCHEMA_VERSION=15`; `MIGRATIONS[13]` adds `wiki_entries.source_hash`; `MIGRATIONS[14]` adds `source_ref` + regular index; `MIGRATIONS[15]` converts to partial index; each migration has a single-column skip guard; all reflected in `LATEST_SCHEMA_REQUIRED_COLUMNS`
 - [ ] Drizzle Cloud SQL schema mirrors `source_hash` column + index; new migration generated
 - [ ] `documentExtract` callable enforces: premium gate, daily rate limit (5/user/day), size cap (200K chars with truncation flag), hash verification, character ownership, chunk count ceiling
 - [ ] Server-side parallel extraction succeeds when one chunk LLM call fails (returns partial facts; partial-failure flag surfaced in response or logged — TBD during impl)

@@ -267,17 +267,18 @@ describe('findEntriesByHash', () => {
 
   it('queries by character_id and source_hash', async () => {
     mockGetAllAsync.mockResolvedValue([])
-    await findEntriesByHash('char-1', 'abc123')
+    await findEntriesByHash('char-1', 'user-1', 'abc123')
     expect(mockGetAllAsync).toHaveBeenCalledTimes(1)
     const [sql, params] = mockGetAllAsync.mock.calls[0] as [string, unknown[]]
     expect(sql).toContain('source_hash')
     expect(params).toContain('char-1')
+    expect(params).toContain('user-1')
     expect(params).toContain('abc123')
   })
 
   it('returns empty array when no matches', async () => {
     mockGetAllAsync.mockResolvedValue([])
-    const result = await findEntriesByHash('char-1', 'notfound')
+    const result = await findEntriesByHash('char-1', 'user-1', 'notfound')
     expect(result).toEqual([])
   })
 })

@@ -4,13 +4,13 @@ import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
 import { Platform } from 'react-native'
-import { findEntriesByHash, bulkInsertEntries, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
+import { findEntriesByRef, bulkInsertEntries, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
 import { appendMemoryEvents, type MemoryEventUpsertInput } from '~/database/memoryEventDatabase'
 import { forgetMemory } from '~/services/memoryService'
+import { getCharacter } from '~/database/characterDatabase'
 import { extractDocument, type ExtractedFact } from '~/services/documentIngestService'
 import { queryClient } from '~/config/queryClient'
 import { INGEST_STATE_PROGRESS } from '~/constants/documentIngestProgress'
-import type { Character } from '~/services/aiChatService'
 
 // ─── Context + Events ─────────────────────────────────────────────────────────
 export interface DocumentIngestContext {
@@ -33,8 +33,8 @@ export type DocumentIngestEvent =
   | { type: 'CANCEL' }
 
 // ─── Actor inputs ─────────────────────────────────────────────────────────────
-interface CheckDupInput { characterId: string; contentHash: string }
-interface PurgeInput { character: Pick<Character, 'id' | 'cloud_id'>; userId: string; filename: string }
+interface CheckDupInput { characterId: string; userId: string; sourceRef: string }
+interface PurgeInput { characterId: string; userId: string; filename: string }
 interface ExtractInput { characterId: string; filename: string; content: string; contentHash: string }
 interface ApplyInput { characterId: string; userId: string; filename: string; contentHash: string; facts: ExtractedFact[] }
 
@@ -152,7 +152,8 @@ export const documentIngestMachine = createMachine(
           src: 'checkDuplicate',
           input: ({ context }): CheckDupInput => ({
             characterId: context.characterId,
-            contentHash: context.contentHash ?? '',
+            userId: context.userId,
+            sourceRef: context.filename ?? '',
           }),
           onDone: [
             {
@@ -191,10 +192,7 @@ export const documentIngestMachine = createMachine(
           id: 'purgeDocument',
           src: 'purgeDocument',
           input: ({ context }): PurgeInput => ({
-            character: {
-              id: context.characterId,
-              cloud_id: null,
-            },
+            characterId: context.characterId,
             userId: context.userId,
             filename: context.filename ?? '',
           }),
@@ -307,7 +305,6 @@ export const documentIngestMachine = createMachine(
         const sanitized = asset.name
           .replace(/[/\\]/g, '')
           .replace(/\u0000/g, '')
-           
           .replace(/[\x00-\x1f\x7f]/g, '')
           .trim()
           .slice(0, 255)
@@ -336,15 +333,21 @@ export const documentIngestMachine = createMachine(
       ),
 
       checkDuplicate: fromPromise(async ({ input }: { input: CheckDupInput }): Promise<number> => {
-        const entries = await findEntriesByHash(input.characterId, input.contentHash)
+        const entries = await findEntriesByRef(input.characterId, input.userId, input.sourceRef)
         return entries.filter((e) => e.deleted_at === null).length
       }),
 
       purgeDocument: fromPromise(async ({ input }: { input: PurgeInput }): Promise<void> => {
+        // Look up the character to get the real cloud_id so forgetMemory can
+        // propagate the purge to Cloud SQL (avoids re-sync of stale entries).
+        const character = await getCharacter(input.characterId, input.userId)
+        const charForPurge = character
+          ? { id: character.id, cloud_id: character.cloud_id }
+          : { id: input.characterId, cloud_id: null }
         // Purge by filename (sourceRef) so the user's mental model matches:
         // "Replace" removes entries from this named document, not from any
         // document that happens to share the same content hash.
-        await forgetMemory(input.character, input.userId, { sourceRef: input.filename })
+        await forgetMemory(charForPurge, input.userId, { sourceRef: input.filename })
       }),
 
       extractDocumentActor: fromPromise(async ({ input }: { input: ExtractInput }): Promise<ExtractedFact[]> => {

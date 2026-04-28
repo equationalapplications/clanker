@@ -259,12 +259,21 @@ export async function upsertWikiEntries(entries: WikiEntryUpsertInput[]): Promis
   })
 }
 
-export async function findEntriesByHash(characterId: string, hash: string): Promise<LocalWikiEntry[]> {
+export async function findEntriesByHash(characterId: string, userId: string, hash: string): Promise<LocalWikiEntry[]> {
   const db = await getDatabase()
   return db.getAllAsync<LocalWikiEntry>(
     `SELECT * FROM wiki_entries
-     WHERE character_id = ? AND source_hash = ? AND deleted_at IS NULL`,
-    [characterId, hash],
+     WHERE character_id = ? AND user_id = ? AND source_hash = ? AND deleted_at IS NULL`,
+    [characterId, userId, hash],
+  )
+}
+
+export async function findEntriesByRef(characterId: string, userId: string, sourceRef: string): Promise<LocalWikiEntry[]> {
+  const db = await getDatabase()
+  return db.getAllAsync<LocalWikiEntry>(
+    `SELECT * FROM wiki_entries
+     WHERE character_id = ? AND user_id = ? AND source_ref = ? AND deleted_at IS NULL`,
+    [characterId, userId, sourceRef],
   )
 }
 

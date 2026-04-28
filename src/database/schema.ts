@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 14
+export const SCHEMA_VERSION = 15
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -40,7 +40,8 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
   9: [{ table: 'characters', column: 'voice' }],
   11: [{ table: 'characters', column: 'heal_checkpoint' }],
   12: [{ table: 'characters', column: 'memory_checkpoint' }],
-  13: [{ table: 'wiki_entries', column: 'source_hash' }, { table: 'wiki_entries', column: 'source_ref' }],
+  13: [{ table: 'wiki_entries', column: 'source_hash' }],
+  14: [{ table: 'wiki_entries', column: 'source_ref' }],
 }
 
 /**
@@ -227,9 +228,9 @@ export const MIGRATIONS: Record<number, string> = {
   10: `UPDATE characters SET voice = '${DEFAULT_VOICE}' WHERE voice IS NULL OR voice = '';`,
   11: `ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0`,
   12: `ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0`,
-  13: `ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT;
-ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT;
+  13: `ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT`,
+  14: `ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT;
 CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash)`,
-  14: `DROP INDEX IF EXISTS idx_wiki_entries_source_hash;
+  15: `DROP INDEX IF EXISTS idx_wiki_entries_source_hash;
 CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL`,
 }

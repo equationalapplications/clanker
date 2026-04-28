@@ -35,20 +35,23 @@ describe('database schema migration guards', () => {
     )
   })
 
-  it('bumps schema to v13 for wiki_entries source columns', () => {
-    expect(SCHEMA_VERSION).toBe(14)
-    expect(MIGRATION_SKIP_GUARDS[13]).toEqual([
-      { table: 'wiki_entries', column: 'source_hash' },
-      { table: 'wiki_entries', column: 'source_ref' },
-    ])
+  it('bumps schema to v15 for wiki_entries source columns with one guard per migration', () => {
+    expect(SCHEMA_VERSION).toBe(15)
+    // Migration 13: adds source_hash (one guard, retry-safe)
+    expect(MIGRATION_SKIP_GUARDS[13]).toEqual([{ table: 'wiki_entries', column: 'source_hash' }])
+    expect(MIGRATIONS[13]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT')
+    expect(MIGRATIONS[13]).not.toContain('source_ref')
+    // Migration 14: adds source_ref + initial index (one guard, retry-safe)
+    expect(MIGRATION_SKIP_GUARDS[14]).toEqual([{ table: 'wiki_entries', column: 'source_ref' }])
+    expect(MIGRATIONS[14]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT')
+    expect(MIGRATIONS[14]).toContain('idx_wiki_entries_source_hash')
+    // Migration 15: swaps to partial index (no guard needed, idempotent)
+    expect(MIGRATION_SKIP_GUARDS[15]).toBeUndefined()
+    expect(MIGRATIONS[15]).toContain('DROP INDEX IF EXISTS idx_wiki_entries_source_hash')
+    expect(MIGRATIONS[15]).toContain('WHERE source_hash IS NOT NULL')
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.wiki_entries).toEqual(
       expect.arrayContaining(['source_hash', 'source_ref']),
     )
-    expect(MIGRATIONS[13]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT')
-    expect(MIGRATIONS[13]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT')
-    expect(MIGRATIONS[13]).toContain('idx_wiki_entries_source_hash')
-    expect(MIGRATIONS[14]).toContain('DROP INDEX IF EXISTS idx_wiki_entries_source_hash')
-    expect(MIGRATIONS[14]).toContain('WHERE source_hash IS NOT NULL')
     expect(CREATE_TABLES).toContain('source_hash TEXT')
     expect(CREATE_TABLES).toContain('source_ref TEXT')
   })

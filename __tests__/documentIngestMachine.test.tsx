@@ -2,10 +2,11 @@
 const mockGetDocumentAsync = jest.fn()
 const mockReadAsStringAsync = jest.fn()
 const mockDigestStringAsync = jest.fn()
-const mockFindEntriesByHash = jest.fn()
+const mockFindEntriesByRef = jest.fn()
 const mockBulkInsertEntries = jest.fn()
 const mockAppendMemoryEvents = jest.fn()
 const mockForgetMemory = jest.fn()
+const mockGetCharacter = jest.fn()
 const mockExtractDocument = jest.fn()
 const mockInvalidateQueries = jest.fn()
 
@@ -24,7 +25,7 @@ jest.mock('expo-crypto', () => ({
 }))
 
 jest.mock('~/database/wikiDatabase', () => ({
-  findEntriesByHash: (...args: unknown[]) => mockFindEntriesByHash(...args),
+  findEntriesByRef: (...args: unknown[]) => mockFindEntriesByRef(...args),
   bulkInsertEntries: (...args: unknown[]) => mockBulkInsertEntries(...args),
 }))
 
@@ -34,6 +35,10 @@ jest.mock('~/database/memoryEventDatabase', () => ({
 
 jest.mock('~/services/memoryService', () => ({
   forgetMemory: (...args: unknown[]) => mockForgetMemory(...args),
+}))
+
+jest.mock('~/database/characterDatabase', () => ({
+  getCharacter: (...args: unknown[]) => mockGetCharacter(...args),
 }))
 
 jest.mock('~/services/documentIngestService', () => ({
@@ -80,7 +85,8 @@ describe('documentIngestMachine', () => {
     })
     mockReadAsStringAsync.mockResolvedValue('Alice is a software engineer.')
     mockDigestStringAsync.mockResolvedValue('a'.repeat(64))
-    mockFindEntriesByHash.mockResolvedValue([])
+    mockFindEntriesByRef.mockResolvedValue([])
+    mockGetCharacter.mockResolvedValue({ id: 'char-1', cloud_id: null })
     mockExtractDocument.mockResolvedValue({
       facts: [{ title: 'Alice', body: 'Alice is a software engineer.', tags: ['person'], confidence: 'certain' }],
       contentHash: 'a'.repeat(64),
@@ -106,7 +112,7 @@ describe('documentIngestMachine', () => {
 
     expect(mockGetDocumentAsync).toHaveBeenCalledTimes(1)
     expect(mockReadAsStringAsync).toHaveBeenCalledTimes(1)
-    expect(mockFindEntriesByHash).toHaveBeenCalledTimes(1)
+    expect(mockFindEntriesByRef).toHaveBeenCalledTimes(1)
     expect(mockExtractDocument).toHaveBeenCalledTimes(1)
     expect(mockBulkInsertEntries).toHaveBeenCalledTimes(1)
     expect(mockAppendMemoryEvents).toHaveBeenCalledTimes(1)
@@ -139,10 +145,10 @@ describe('documentIngestMachine', () => {
     actor.stop()
   })
 
-  it('transitions to confirmingDuplicate when hash match found', async () => {
-    mockFindEntriesByHash.mockResolvedValue([
-      { id: 'dup-1', deleted_at: null, source_hash: 'a'.repeat(64) },
-      { id: 'dup-2', deleted_at: null, source_hash: 'a'.repeat(64) },
+  it('transitions to confirmingDuplicate when sourceRef match found', async () => {
+    mockFindEntriesByRef.mockResolvedValue([
+      { id: 'dup-1', deleted_at: null, source_ref: 'notes.md' },
+      { id: 'dup-2', deleted_at: null, source_ref: 'notes.md' },
     ])
 
     const actor = createTestActor()
@@ -155,8 +161,9 @@ describe('documentIngestMachine', () => {
   })
 
   it('REPLACE in confirmingDuplicate calls forgetMemory and proceeds to extracting', async () => {
-    mockFindEntriesByHash.mockResolvedValue([{ id: 'dup-1', deleted_at: null }])
+    mockFindEntriesByRef.mockResolvedValue([{ id: 'dup-1', deleted_at: null }])
     mockForgetMemory.mockResolvedValue(undefined)
+    mockGetCharacter.mockResolvedValue({ id: 'char-1', cloud_id: null })
 
     const actor = createTestActor()
     actor.send({ type: 'INGEST', characterId: 'char-1', userId: 'user-1' })
@@ -172,7 +179,7 @@ describe('documentIngestMachine', () => {
   })
 
   it('ADD in confirmingDuplicate skips purge and proceeds to extracting', async () => {
-    mockFindEntriesByHash.mockResolvedValue([{ id: 'dup-1', deleted_at: null }])
+    mockFindEntriesByRef.mockResolvedValue([{ id: 'dup-1', deleted_at: null }])
 
     const actor = createTestActor()
     actor.send({ type: 'INGEST', characterId: 'char-1', userId: 'user-1' })

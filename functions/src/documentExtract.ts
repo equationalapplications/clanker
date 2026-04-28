@@ -165,16 +165,13 @@ function parseInput(data: unknown): {
     throw new HttpsError('invalid-argument', 'characterId must be a valid UUID.');
   }
 
-  // filename sanitization: allow only [A-Za-z0-9._\- ], strip path separators, null bytes.
-  // Note: zero-width chars are intentionally preserved as part of user-supplied display names.
+  // filename sanitization: allow only [A-Za-z0-9._\- ], strip everything else.
   if (typeof payload.filename !== 'string' || !payload.filename.trim()) {
     throw new HttpsError('invalid-argument', 'filename is required.');
   }
   const filename = payload.filename
-    .replace(/[/\\]/g, '')
-    .split('\0').join('')
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x1f\x7f]/g, '')
+    // Keep only alphanumerics, dots, underscores, hyphens, and spaces.
+    .replace(/[^A-Za-z0-9._\- ]/g, '')
     // trim() before slice so the 255-char cap applies to the final display
     // name, not to pre-sanitization byte garbage.
     .trim()

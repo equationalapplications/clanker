@@ -29,17 +29,22 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
   const actorRef = useRef<DocumentIngestMachineActor | undefined>(undefined)
   const subscriptionRef = useRef<{ unsubscribe: () => void } | undefined>(undefined)
+  const progressResetTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [progress, setProgress] = useState(0)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   useEffect(() => {
     return () => {
       subscriptionRef.current?.unsubscribe()
+      clearTimeout(progressResetTimerRef.current)
     }
   }, [])
 
   const handleDocumentIngest = useCallback(() => {
     if (!characterId || !userId) return
+
+    // Cancel any pending progress reset before starting a new ingest
+    clearTimeout(progressResetTimerRef.current)
 
     dispatchDocumentIngest(characterId, userId)
     const actor = getDocumentIngestMachineActor(characterId)
@@ -72,7 +77,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
             ],
           )
         } else if (state.matches('idle') && actorRef.current != null) {
-          setTimeout(() => setProgress(0), 400)
+          // Reset progress bar after returning to idle; store ID so it can be
+          // cancelled if a new ingest starts within the animation window.
+          progressResetTimerRef.current = setTimeout(() => setProgress(0), 400)
         }
       })
     }
