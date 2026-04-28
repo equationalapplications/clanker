@@ -18,7 +18,7 @@ function makeRequest(data: unknown, uid = 'uid-1') {
 
 // Helper: SHA-256 of content (NFC normalized, BOM stripped)
 function hashContent(content: string): string {
-  const normalized = content.replace(/^\uFEFF/, '').replace(/\u0000/g, '').normalize('NFC');
+  const normalized = content.replace(/^\uFEFF/, '').split('\0').join('').normalize('NFC');
   return createHash('sha256').update(normalized, 'utf8').digest('hex');
 }
 

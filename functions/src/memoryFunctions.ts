@@ -285,8 +285,8 @@ function parseForgetTargets(data: unknown): {
       throw new HttpsError('invalid-argument', 'sourceRef must be a string when provided.');
     }
     const cleaned = data.sourceRef
-      .replace(/[\/\\]/g, '')
-      .replace(/\u0000/g, '')
+      .replace(/[/\\]/g, '')
+      .split('\0').join('')
       .trim()
       .slice(0, 255);
     sourceRef = cleaned.length > 0 ? cleaned : null;

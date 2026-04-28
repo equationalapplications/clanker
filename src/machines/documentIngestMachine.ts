@@ -317,7 +317,7 @@ export const documentIngestMachine = createMachine(
         const sanitized = asset.name
           .replace(/[/\\]/g, '')
           .replace(/\u0000/g, '')
-          // eslint-disable-next-line no-control-regex
+           
           .replace(/[\x00-\x1f\x7f]/g, '')
           .trim()
           .slice(0, 255)

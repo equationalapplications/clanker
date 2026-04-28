@@ -413,10 +413,10 @@ test("memoryHealHandler does not downgrade or delete user_document entries", asy
     { ...buildDeps({ ownsCharacter: false }), generateContent: async () => "[]" } as never,
   );
 
-  const diff = result.diff as any;
+  const diff = result.diff as { orphansRemoved: number; staleDowngraded: number; entries: Array<{ id: string; deletedAt: null | string; confidence: string }> };
   assert.equal(diff.orphansRemoved, 0, "user_document entry should not be orphan-deleted");
   assert.equal(diff.staleDowngraded, 0, "user_document entry should not be stale-downgraded");
-  const updatedDocEntry = diff.entries.find((e: any) => e.id === "doc-entry-1");
+  const updatedDocEntry = diff.entries.find((e) => e.id === "doc-entry-1");
   if (updatedDocEntry) {
     assert.equal(updatedDocEntry.deletedAt, null, "user_document entry deletedAt should remain null");
     assert.equal(updatedDocEntry.confidence, "inferred", "user_document entry confidence should not change");

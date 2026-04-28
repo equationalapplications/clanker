@@ -139,7 +139,7 @@ function parseInput(data: unknown): {
   }
   const filename = payload.filename
     .replace(/[/\\]/g, '')
-    .replace(/\u0000/g, '')
+    .split('\0').join('')
     // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x1f\x7f]/g, '')
     .trim()
@@ -166,7 +166,7 @@ function normalizeContent(raw: string): string {
   // Strip BOM and null bytes before NFC normalization
   return raw
     .replace(/^\uFEFF/, '')
-    .replace(/\u0000/g, '')
+    .split('\0').join('')
     .normalize('NFC');
 }
 

@@ -12,9 +12,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   onSend,
   text,
   textInputProps,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   characterId: _characterId,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   userId: _userId,
   ...props
 }: ChatComposerProps<TMessage>) {
