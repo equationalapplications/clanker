@@ -137,15 +137,15 @@ describe('documentExtractHandler', () => {
     );
   });
 
-  it('rejects invalid characterId (not a UUID)', async () => {
-    await assert.rejects(
-      () =>
-        documentExtractHandler(
-          makeRequest({ characterId: 'not-a-uuid', filename: 'f.txt', content, contentHash }),
-          makeDeps() as never,
-        ),
-      (e: unknown) => e instanceof HttpsError && e.code === 'invalid-argument',
+  it('accepts non-UUID characterId', async () => {
+    // parseInput no longer enforces UUID format — the client always sends the
+    // cloud_id, but the server imposes no syntactic restriction so local IDs
+    // don't break the callable at the parse stage.
+    const result = await documentExtractHandler(
+      makeRequest({ characterId: 'not-a-uuid', filename: 'f.txt', content, contentHash }),
+      makeDeps() as never,
     );
+    assert.ok(Array.isArray(result.facts));
   });
 
   it('rejects empty content', async () => {
