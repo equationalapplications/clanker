@@ -160,11 +160,10 @@ function parseInput(data: unknown): {
     throw new HttpsError('invalid-argument', 'characterId is required.');
   }
   const characterId = payload.characterId.trim();
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!UUID_RE.test(characterId)) {
-    throw new HttpsError('invalid-argument', 'characterId must be a valid UUID.');
-  }
 
+  // Accept either a client-local character ID (for example `char_<...>`) or a
+  // Cloud SQL UUID. Any stricter identifier/ownership validation should happen
+  // at the point of lookup rather than during generic payload parsing.
   // filename sanitization: allow only [A-Za-z0-9._\- ], strip everything else.
   if (typeof payload.filename !== 'string' || !payload.filename.trim()) {
     throw new HttpsError('invalid-argument', 'filename is required.');
