@@ -966,19 +966,21 @@ function buildWriteDiffFromLLMResult(
     deletedAt: null,
   }));
 
-  events.unshift({
-    id: `event_${now}_${Math.random().toString(36).slice(2, 11)}`,
-    characterId,
-    userId: firebaseUid,
-    eventType: 'observation',
-    summary: clip(sourceText, 200),
-    relatedEntryId: entries[0]?.id ?? null,
-    relatedTaskId: tasks[0]?.id ?? null,
-    sourceRef: sourceType,
-    createdAt: now,
-    syncedToCloud: 0,
-    cloudId: null,
-  });
+  if (entries.length > 0 || tasks.length > 0) {
+    events.unshift({
+      id: `event_${now}_${Math.random().toString(36).slice(2, 11)}`,
+      characterId,
+      userId: firebaseUid,
+      eventType: 'observation',
+      summary: clip(sourceText, 200),
+      relatedEntryId: entries[0]?.id ?? null,
+      relatedTaskId: tasks[0]?.id ?? null,
+      sourceRef: sourceType,
+      createdAt: now,
+      syncedToCloud: 0,
+      cloudId: null,
+    });
+  }
 
   const synonyms = buildSynonyms(entries);
 

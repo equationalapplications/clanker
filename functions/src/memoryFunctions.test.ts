@@ -235,6 +235,7 @@ test("memoryWriteHandler does NOT fall back to heuristic when LLM returns valid 
   assert.equal(result.diff.entriesAdded, 0);
   assert.equal(result.diff.entries.length, 0);
   assert.equal(result.diff.tasksOpened, 0);
+  assert.equal(result.diff.eventsAppended, 0, "no events when LLM finds nothing to extract");
 });
 
 test("memoryHealHandler uses localDump for local-only premium character", async () => {

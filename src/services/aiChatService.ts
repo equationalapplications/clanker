@@ -413,7 +413,10 @@ User: ${boundedUserMessage}
 ${characterName}:`
   }
 
-  return prompt.slice(0, MAX_CHAT_PROMPT_LENGTH)
+  if (prompt.length <= MAX_CHAT_PROMPT_LENGTH) return prompt
+  // Preserve the model-cue suffix ("\nCharacterName:") so the model always knows whose turn it is
+  const suffix = `\n${characterName}:`
+  return prompt.slice(0, MAX_CHAT_PROMPT_LENGTH - suffix.length) + suffix
 }
 
 function buildIntroductionPrompt(
@@ -458,7 +461,12 @@ export const sendMessageWithAIResponse = async (
     // Fetch the latest character from the DB so the rolling summary written by a prior
     // triggerConversationSummary pass (which only updates the DB, not the machine state)
     // is included in the prompt.
-    const dbCharacter = await getLocalCharacter(character.id, userId)
+    let dbCharacter: Awaited<ReturnType<typeof getLocalCharacter>> = null
+    try {
+      dbCharacter = await getLocalCharacter(character.id, userId)
+    } catch (e) {
+      console.warn('Failed to read latest character context from DB:', e)
+    }
     const effectiveContext = dbCharacter?.context ?? character.context
 
     let memoryBundle: MemoryBundle | null = null
