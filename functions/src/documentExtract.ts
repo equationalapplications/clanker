@@ -310,13 +310,18 @@ function validateFact(raw: unknown): ExtractedFact | null {
 }
 
 function parseFacts(raw: string): ExtractedFact[] {
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(validateFact).filter((f): f is ExtractedFact => f !== null);
+    parsed = JSON.parse(raw);
   } catch {
-    return [];
+    throw new Error('Model returned malformed JSON for facts extraction.');
   }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error('Model returned a non-array JSON payload for facts extraction.');
+  }
+
+  return parsed.map(validateFact).filter((f): f is ExtractedFact => f !== null);
 }
 
 // ─── Merge + dedup across chunks ──────────────────────────────────────────────
