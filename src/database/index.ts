@@ -138,7 +138,7 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
 
 /**
  * Attempt to initialize FTS5 tables for wiki memory
- * On web (sql.js), FTS5 may not be available, so this fails gracefully
+ * On web (wa-sqlite via expo-sqlite), FTS5 may not be available, so this fails gracefully
  */
 async function tryInitializeWikiFts(executor: DatabaseExecutor): Promise<void> {
     try {
