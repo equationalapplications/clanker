@@ -92,10 +92,22 @@ function normalizeInflection(token: string): string {
 
 async function loadCompromise() {
   if (!compromiseLoader) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require('compromise') as { default?: CompromiseNlp } | CompromiseNlp
-    const nlp = (typeof mod === 'function' ? mod : (mod as { default?: CompromiseNlp }).default) as CompromiseNlp
-    compromiseLoader = Promise.resolve(nlp)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require('compromise') as { default?: CompromiseNlp } | CompromiseNlp
+      const nlp = (typeof mod === 'function' ? mod : (mod as { default?: CompromiseNlp }).default) as CompromiseNlp
+      if (typeof nlp !== 'function') {
+        throw new Error('compromise module not available')
+      }
+      compromiseLoader = Promise.resolve(nlp)
+    } catch {
+      // Fallback: use simple sanitization without NLP
+      compromiseLoader = Promise.resolve(((text: string) => ({
+        nouns: () => ({ toSingular: () => ({ out: () => [] }) }),
+        verbs: () => ({ toInfinitive: () => ({ out: () => [] }) }),
+        adjectives: () => ({ out: () => [] }),
+      })) as CompromiseNlp)
+    }
   }
 
   return compromiseLoader

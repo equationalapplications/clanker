@@ -861,7 +861,6 @@ function parseWriteResult(raw: string): LLMWriteResult | null {
           )
           .map((item) => ({ description: clip(item['description'] as string, 180) }))
       : [];
-    if (entries.length === 0 && tasks.length === 0) return null;
     return { entries, tasks };
   } catch {
     return null;
@@ -1014,6 +1013,7 @@ async function buildWriteDiff(
         characterId, firebaseUid, sourceText, sourceType, existingEntries, useStableIds, llmResult,
       );
     }
+    logger.warn('buildWriteDiff LLM returned unparsable result, using heuristic fallback');
   } catch (err: unknown) {
     logger.warn('buildWriteDiff LLM extraction failed, using heuristic fallback', { err });
   }

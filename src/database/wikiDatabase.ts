@@ -1,4 +1,4 @@
-import { getDatabase } from '~/database/index'
+import { getDatabase, isWikiFtsAvailable } from '~/database/index'
 
 export interface LocalWikiEntry {
   id: string
@@ -63,19 +63,70 @@ function toView(entry: LocalWikiEntry): WikiEntryView {
   }
 }
 
+/**
+ * Extract bare tokens from an FTS5 query string of the form `"foo"* OR "bar"*`.
+ * Used to translate the same query into a LIKE-based scan when FTS5 is not
+ * available (web/wa-sqlite).
+ */
+function extractFtsTokens(query: string): string[] {
+  const tokens: string[] = []
+  const re = /"([^"]+)"/g
+  let match: RegExpExecArray | null
+  while ((match = re.exec(query)) !== null) {
+    if (match[1]) tokens.push(match[1])
+  }
+  return tokens
+}
+
+function escapeLikePattern(token: string): string {
+  // Escape the LIKE wildcards and our chosen escape character.
+  return token.replace(/[\\%_]/g, (c) => `\\${c}`)
+}
+
 export async function searchEntries(userId: string, characterId: string, query: string): Promise<WikiEntryView[]> {
   const db = await getDatabase()
-  const rows = await db.getAllAsync<LocalWikiEntry>(
-    `SELECT *
-     FROM wiki_entries
-     WHERE rowid IN (SELECT rowid FROM wiki_fts WHERE wiki_fts MATCH ?)
-       AND character_id = ?
-       AND user_id = ?
-       AND deleted_at IS NULL
-     ORDER BY updated_at DESC
-     LIMIT 10`,
-    [query, characterId, userId],
-  )
+  let rows: LocalWikiEntry[]
+
+  if (isWikiFtsAvailable()) {
+    rows = await db.getAllAsync<LocalWikiEntry>(
+      `SELECT *
+       FROM wiki_entries
+       WHERE rowid IN (SELECT rowid FROM wiki_fts WHERE wiki_fts MATCH ?)
+         AND character_id = ?
+         AND user_id = ?
+         AND deleted_at IS NULL
+       ORDER BY updated_at DESC
+       LIMIT 10`,
+      [query, characterId, userId],
+    )
+  } else {
+    // Fallback for platforms without FTS5 (e.g. web/wa-sqlite): scan title/body/tags
+    // with LIKE on each token extracted from the FTS5-formatted query.
+    const tokens = extractFtsTokens(query).slice(0, 20)
+    if (tokens.length === 0) {
+      return []
+    }
+
+    const tokenClauses: string[] = []
+    const params: (string | number)[] = []
+    for (const token of tokens) {
+      const pattern = `%${escapeLikePattern(token)}%`
+      tokenClauses.push("(title LIKE ? ESCAPE '\\' OR body LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\')")
+      params.push(pattern, pattern, pattern)
+    }
+
+    rows = await db.getAllAsync<LocalWikiEntry>(
+      `SELECT *
+       FROM wiki_entries
+       WHERE character_id = ?
+         AND user_id = ?
+         AND deleted_at IS NULL
+         AND (${tokenClauses.join(' OR ')})
+       ORDER BY updated_at DESC
+       LIMIT 10`,
+      [characterId, userId, ...params],
+    )
+  }
 
   if (rows.length > 0) {
     const now = Date.now()
