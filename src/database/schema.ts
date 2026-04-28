@@ -229,8 +229,7 @@ export const MIGRATIONS: Record<number, string> = {
   11: `ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0`,
   12: `ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0`,
   13: `ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT`,
-  14: `ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT;
-CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash)`,
+  14: `ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT`,
   15: `DROP INDEX IF EXISTS idx_wiki_entries_source_hash;
 CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL`,
 }

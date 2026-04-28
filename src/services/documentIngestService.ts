@@ -64,7 +64,7 @@ function parseExtractedFact(raw: unknown): ExtractedFact | null {
     .slice(0, 6)
 
   if (rawTags.length > tags.length) {
-    console.warn('Extracted fact tags were filtered (server returned invalid tags)', { 
+    console.warn('Extracted fact tags were filtered (server returned invalid tags)', {
       originalCount: rawTags.length,
       filteredCount: tags.length,
     })
