@@ -34,7 +34,7 @@ export type DocumentIngestEvent =
 
 // ─── Actor inputs ─────────────────────────────────────────────────────────────
 interface CheckDupInput { characterId: string; contentHash: string }
-interface PurgeInput { character: Pick<Character, 'id' | 'cloud_id'>; userId: string; contentHash: string }
+interface PurgeInput { character: Pick<Character, 'id' | 'cloud_id'>; userId: string; filename: string }
 interface ExtractInput { characterId: string; filename: string; content: string; contentHash: string }
 interface ApplyInput { characterId: string; userId: string; filename: string; contentHash: string; facts: ExtractedFact[] }
 
@@ -196,7 +196,7 @@ export const documentIngestMachine = createMachine(
               cloud_id: null,
             },
             userId: context.userId,
-            contentHash: context.contentHash ?? '',
+            filename: context.filename ?? '',
           }),
           onDone: 'extracting',
           onError: {
@@ -279,7 +279,14 @@ export const documentIngestMachine = createMachine(
       },
 
       error: {
-        entry: assign({ progress: 0 }),
+        entry: [
+          assign({ progress: 0 }),
+          ({ context }: { context: DocumentIngestContext }) => {
+            if (context.errorMessage) {
+              console.error('[documentIngestMachine] ingest failed', { errorMessage: context.errorMessage })
+            }
+          },
+        ],
         after: {
           0: 'idle',
         },
@@ -334,7 +341,10 @@ export const documentIngestMachine = createMachine(
       }),
 
       purgeDocument: fromPromise(async ({ input }: { input: PurgeInput }): Promise<void> => {
-        await forgetMemory(input.character, input.userId, { sourceHash: input.contentHash })
+        // Purge by filename (sourceRef) so the user's mental model matches:
+        // "Replace" removes entries from this named document, not from any
+        // document that happens to share the same content hash.
+        await forgetMemory(input.character, input.userId, { sourceRef: input.filename })
       }),
 
       extractDocumentActor: fromPromise(async ({ input }: { input: ExtractInput }): Promise<ExtractedFact[]> => {
@@ -385,6 +395,11 @@ export const documentIngestMachine = createMachine(
 export type DocumentIngestMachineActor = ActorRefFrom<typeof documentIngestMachine>
 
 // ─── Actor registry (dedup: one actor per characterId) ────────────────────────
+// Actors are intentionally kept for the lifetime of the session — the progress
+// bar reads from the actor after `success`/`error`. For typical usage (1-5
+// characters per user) this is negligible. If per-character counts grow, add
+// a TTL cleanup that removes actors from the map after they've been idle for
+// >5 minutes. (v3 TODO)
 const activeIngestJobs = new Map<string, DocumentIngestMachineActor>()
 
 /**

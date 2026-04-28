@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
+import { PREMIUM_TIERS } from './constants/plans.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { userRepository } from './services/userRepository.js';
@@ -14,7 +15,6 @@ import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.j
 const DEFAULT_REGION = 'us-central1';
 const HEAL_MODEL = 'gemini-2.5-flash';
 const HEAL_MAX_OUTPUT_TOKENS = 1_024;
-const PREMIUM_TIERS = new Set(['monthly_20', 'monthly_50']);
 
 type PlanStatus = 'active' | 'cancelled' | 'expired';
 

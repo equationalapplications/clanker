@@ -37,7 +37,14 @@ function parseExtractedFact(raw: unknown): ExtractedFact | null {
       ? obj.confidence
       : null
 
-  if (!title || !body || !confidence) return null
+  if (!title || !body || !confidence) {
+    console.warn('[documentIngestService] Dropped server fact: missing required field(s)', {
+      hasTitle: Boolean(title),
+      hasBody: Boolean(body),
+      hasConfidence: Boolean(confidence),
+    })
+    return null
+  }
 
   // Validate length constraints; should never happen if server validated properly
   if (title.length > 80) {

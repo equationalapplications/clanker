@@ -9,6 +9,7 @@ import { userRepository } from './services/userRepository.js';
 import { subscriptionService } from './services/subscriptionService.js';
 import { getDb } from './db/cloudSql.js';
 import { characters, subscriptions } from './db/schema.js';
+import { PREMIUM_TIERS } from './constants/plans.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_REGION = 'us-central1';
@@ -18,7 +19,6 @@ const MAX_DOCUMENTS_PER_DAY = 5;
 const MAX_CHUNKS = 100;
 const CHUNK_TARGET_CHARS = 2_000;
 const EXTRACTION_CONCURRENCY = 4;
-const PREMIUM_TIERS = new Set(['monthly_20', 'monthly_50']);
 
 // Injection-escape tokens stripped before sending to LLM
 const INJECTION_TOKENS = [
@@ -175,6 +175,8 @@ function parseInput(data: unknown): {
     .split('\0').join('')
     // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x1f\x7f]/g, '')
+    // trim() before slice so the 255-char cap applies to the final display
+    // name, not to pre-sanitization byte garbage.
     .trim()
     .slice(0, 255);
   if (!filename) {
@@ -210,6 +212,11 @@ function sha256Hex(text: string): string {
 
 // ─── Entropy check ────────────────────────────────────────────────────────────
 function assertNotBinaryOrRepetitive(content: string): void {
+  // Unique-character count catches binary data and degenerate inputs cheaply
+  // (O(n), sub-ms for 200K). Does not catch semantically repetitive text
+  // (e.g. the same paragraph 10k times, which has >10 unique chars but would
+  // waste ~100 LLM calls). A compression-ratio check (zlib deflate ratio
+  // < 0.05) would cover that case cheaply — deferred to v3.
   if (content.length > 5_000 && new Set(content).size < 10) {
     throw new HttpsError('invalid-argument', 'Document appears to be binary or repetitive content.');
   }
@@ -452,7 +459,14 @@ export async function documentExtractHandler(
     throw new HttpsError('resource-exhausted', 'Document too long after chunking.');
   }
 
-  // 11. Daily rate limit with atomic increment (after all validation passes)
+  // 11. Daily rate limit with atomic increment (after all validation passes).
+  // The UPDATE ... WHERE clause is the atomicity boundary: it only increments
+  // if the count is below the cap for today. Two concurrent requests that both
+  // pass validation and race here will each run the UPDATE; the second will
+  // find count = MAX and get 0 rows back, correctly rejecting. The only
+  // edge case is two requests straddling midnight (date changes between
+  // the WHERE evaluation and the SET) — both could reset to count=1. This
+  // allows at most one extra document at the day boundary and is acceptable.
   const todayStr = new Date().toISOString().split('T')[0];
   const rateLimitRows = await db
     .update(subscriptions)
