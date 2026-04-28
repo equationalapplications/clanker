@@ -42,6 +42,39 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
 }
 
 /**
+ * FTS5 virtual table and triggers (platform-specific)
+ * Note: FTS5 is not available on web (sql.js). These statements are
+ * applied during initialization only on native platforms or when sql.js
+ * has FTS5 support.
+ */
+export const CREATE_WIKI_FTS = `
+  CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts USING fts5(
+    title,
+    body,
+    tags,
+    content='wiki_entries',
+    content_rowid='rowid'
+  );
+
+  CREATE TRIGGER IF NOT EXISTS wiki_entries_ai AFTER INSERT ON wiki_entries BEGIN
+    INSERT INTO wiki_fts(rowid, title, body, tags)
+    VALUES (new.rowid, new.title, new.body, new.tags);
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS wiki_entries_au AFTER UPDATE OF title, body, tags ON wiki_entries BEGIN
+    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
+    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
+    INSERT INTO wiki_fts(rowid, title, body, tags)
+    VALUES (new.rowid, new.title, new.body, new.tags);
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS wiki_entries_ad AFTER DELETE ON wiki_entries BEGIN
+    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
+    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
+  END;
+`
+
+/**
  * SQL statements to create tables
  */
 export const CREATE_TABLES = `
@@ -118,31 +151,6 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_user ON wiki_entries(character_id, user_id);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_updated_at ON wiki_entries(updated_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_deleted ON wiki_entries(character_id, deleted_at);
-
-  CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts USING fts5(
-    title,
-    body,
-    tags,
-    content='wiki_entries',
-    content_rowid='rowid'
-  );
-
-  CREATE TRIGGER IF NOT EXISTS wiki_entries_ai AFTER INSERT ON wiki_entries BEGIN
-    INSERT INTO wiki_fts(rowid, title, body, tags)
-    VALUES (new.rowid, new.title, new.body, new.tags);
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS wiki_entries_au AFTER UPDATE OF title, body, tags ON wiki_entries BEGIN
-    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
-    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
-    INSERT INTO wiki_fts(rowid, title, body, tags)
-    VALUES (new.rowid, new.title, new.body, new.tags);
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS wiki_entries_ad AFTER DELETE ON wiki_entries BEGIN
-    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
-    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
-  END;
 
   -- Agent tasks table
   CREATE TABLE IF NOT EXISTS agent_tasks (

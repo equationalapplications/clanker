@@ -6,6 +6,7 @@ import { Platform } from 'react-native'
 import * as SQLite from 'expo-sqlite'
 import {
     CREATE_TABLES,
+    CREATE_WIKI_FTS,
     SCHEMA_VERSION,
     MIGRATIONS,
     LATEST_SCHEMA_REQUIRED_COLUMNS,
@@ -115,11 +116,34 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
         }
 
         await applyInitializationPlan(database)
+        await tryInitializeWikiFts(database)
 
         console.log('✅ Database initialized successfully')
     } catch (error) {
         console.error('Failed to initialize database:', error)
         throw error
+    }
+}
+
+/**
+ * Attempt to initialize FTS5 tables for wiki memory
+ * On web (sql.js), FTS5 may not be available, so this fails gracefully
+ */
+async function tryInitializeWikiFts(executor: DatabaseExecutor): Promise<void> {
+    try {
+        await executor.execAsync(CREATE_WIKI_FTS)
+        console.log('✅ Wiki FTS5 tables initialized successfully')
+    } catch (error) {
+        // FTS5 is not available on web (sql.js). Fail gracefully.
+        // The wiki_entries table exists (created in CREATE_TABLES), but without FTS5 search.
+        if (Platform.OS === 'web') {
+            console.warn(
+                '[DB] FTS5 module not available on web platform. Wiki memory will work but without full-text search.',
+            )
+        } else {
+            // On native platforms, FTS5 should be available. Log the actual error.
+            console.error('Failed to initialize FTS5 tables:', error)
+        }
     }
 }
 
