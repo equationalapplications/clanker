@@ -43,9 +43,9 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
 
 /**
  * FTS5 virtual table and triggers (platform-specific)
- * Note: FTS5 is not available on web (sql.js). These statements are
- * applied during initialization only on native platforms or when sql.js
- * has FTS5 support.
+ * Note: On web, SQLite is provided via wa-sqlite through expo-sqlite, and
+ * these statements are applied during initialization only when FTS5 support
+ * is available there or on native platforms.
  */
 export const CREATE_WIKI_FTS = `
   CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts USING fts5(
