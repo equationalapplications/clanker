@@ -455,6 +455,12 @@ export const sendMessageWithAIResponse = async (
     // 1. Send the user's message to local database
     await sendMessage(character.id, userId, userMessage)
 
+    // Fetch the latest character from the DB so the rolling summary written by a prior
+    // triggerConversationSummary pass (which only updates the DB, not the machine state)
+    // is included in the prompt.
+    const dbCharacter = await getLocalCharacter(character.id, userId)
+    const effectiveContext = dbCharacter?.context ?? character.context
+
     let memoryBundle: MemoryBundle | null = null
     if (options?.hasUnlimited) {
       try {
@@ -467,7 +473,7 @@ export const sendMessageWithAIResponse = async (
     // 2. Prepare context for AI generation
     const chatContext: ChatContext = {
       characterName: character.name,
-      characterPersonality: character.context || character.appearance,
+      characterPersonality: effectiveContext || character.appearance,
       characterTraits: `${character.traits} ${character.emotions}`.trim(),
       conversationHistory: getRecentConversationHistory(conversationHistory, 10).map((msg) => ({
         role: msg.user._id === userId ? 'user' : 'assistant',
