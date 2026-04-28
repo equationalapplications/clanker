@@ -30,7 +30,7 @@ This spec adds **user-initiated document ingest** for premium users: pick a `.tx
 
 ## Schema (v14 migration)
 
-Bump `SCHEMA_VERSION = 11 → 14` ([src/database/schema.ts](/src/database/schema.ts)). Two migrations were needed in practice: `MIGRATIONS[13]` adds `source_hash`/`source_ref` columns with a non-partial index; `MIGRATIONS[14]` drops and recreates as a partial index (`WHERE source_hash IS NOT NULL`) to avoid indexing NULL rows. Both have `MIGRATION_SKIP_GUARDS` mirroring the v11 pattern.
+Bump `SCHEMA_VERSION = 12 → 14` ([src/database/schema.ts](/src/database/schema.ts)). Two migrations were needed in practice: `MIGRATIONS[13]` adds `source_hash`/`source_ref` columns with a non-partial index; `MIGRATIONS[14]` drops and recreates as a partial index (`WHERE source_hash IS NOT NULL`) to avoid indexing NULL rows. Both have `MIGRATION_SKIP_GUARDS` mirroring the v11 pattern.
 
 ### `wiki_entries` additions
 
