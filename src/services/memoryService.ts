@@ -1,6 +1,6 @@
 import type { Character, MemoryBundle } from '~/services/aiChatService'
 import { buildFtsQuery } from '~/database/ftsQueryBuilder'
-import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, softDeleteWikiEntries, softDeleteAllWikiEntries, getEntriesForHeal, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
+import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, softDeleteWikiEntries, softDeleteAllWikiEntries, softDeleteWikiEntriesBySourceRef, getEntriesForHeal, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
 import { getOpenTasks, upsertAgentTasks, softDeleteAgentTasks, softDeleteAllAgentTasks, getOpenTasksForHeal, type AgentTaskUpsertInput } from '~/database/agentTaskDatabase'
 import { getRecentEvents, appendMemoryEvents, type MemoryEventUpsertInput } from '~/database/memoryEventDatabase'
 import { upsertDerivedSynonyms, type DerivedSynonymUpsertInput } from '~/database/derivedSynonymDatabase'
@@ -48,8 +48,8 @@ function parseConfidence(value: unknown): 'certain' | 'inferred' | 'tentative' {
   return 'inferred'
 }
 
-function parseSourceType(value: unknown): 'user_stated' | 'agent_inferred' | 'user_confirmed' {
-  if (value === 'user_stated' || value === 'user_confirmed') {
+function parseSourceType(value: unknown): 'user_stated' | 'agent_inferred' | 'user_confirmed' | 'user_document' {
+  if (value === 'user_stated' || value === 'user_confirmed' || value === 'user_document') {
     return value
   }
 
@@ -303,13 +303,14 @@ export async function triggerMemoryRead(character: Character, userId: string): P
 export async function forgetMemory(
   character: Character,
   userId: string,
-  target: { entryIds?: string[]; taskIds?: string[]; clearAll?: boolean },
+  target: { entryIds?: string[]; taskIds?: string[]; clearAll?: boolean; sourceRef?: string },
 ): Promise<void> {
   const characterId = character.id
   const cloudCharacterId = resolveCloudCharacterId(character)
   const entryIds = target.entryIds ?? []
   const taskIds = target.taskIds ?? []
   const clearAll = target.clearAll ?? false
+  const sourceRef = target.sourceRef ?? null
 
   try {
     if (clearAll) {
@@ -321,6 +322,7 @@ export async function forgetMemory(
       await Promise.all([
         entryIds.length > 0 ? softDeleteWikiEntries(characterId, userId, entryIds) : Promise.resolve(0),
         taskIds.length > 0 ? softDeleteAgentTasks(characterId, userId, taskIds) : Promise.resolve(0),
+        sourceRef !== null ? softDeleteWikiEntriesBySourceRef(characterId, userId, sourceRef) : Promise.resolve(0),
       ])
     }
   } catch (error) {
@@ -335,6 +337,7 @@ export async function forgetMemory(
         entryIds,
         taskIds,
         clearAll,
+        ...(sourceRef !== null ? { sourceRef } : {}),
       })
     } catch (error) {
       console.warn('Failed to sync memory forget to cloud:', error)
