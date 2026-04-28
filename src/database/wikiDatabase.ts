@@ -278,51 +278,7 @@ export async function findEntriesByRef(characterId: string, userId: string, sour
 }
 
 export async function bulkInsertEntries(entries: WikiEntryUpsertInput[]): Promise<void> {
-  if (entries.length === 0) return
-  const db = await getDatabase()
-  await db.withTransactionAsync(async () => {
-    for (const entry of entries) {
-      const now = Date.now()
-      await db.runAsync(
-        `INSERT INTO wiki_entries (
-          id, character_id, user_id, title, body, tags, confidence, source_type,
-          created_at, updated_at, last_accessed_at, access_count,
-          synced_to_cloud, cloud_id, deleted_at, source_hash, source_ref
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          title = excluded.title,
-          body = excluded.body,
-          tags = excluded.tags,
-          confidence = excluded.confidence,
-          source_type = excluded.source_type,
-          updated_at = excluded.updated_at,
-          synced_to_cloud = excluded.synced_to_cloud,
-          cloud_id = excluded.cloud_id,
-          deleted_at = excluded.deleted_at,
-          source_hash = excluded.source_hash,
-          source_ref = excluded.source_ref`,
-        [
-          entry.id,
-          entry.characterId,
-          entry.userId,
-          entry.title.trim(),
-          entry.body.trim(),
-          JSON.stringify(entry.tags ?? []),
-          entry.confidence,
-          entry.sourceType ?? 'agent_inferred',
-          entry.createdAt ?? now,
-          entry.updatedAt ?? now,
-          entry.lastAccessedAt ?? null,
-          entry.accessCount ?? 0,
-          entry.syncedToCloud ?? 0,
-          entry.cloudId ?? null,
-          entry.deletedAt ?? null,
-          entry.sourceHash ?? null,
-          entry.sourceRef ?? null,
-        ],
-      )
-    }
-  })
+  return upsertWikiEntries(entries)
 }
 
 export async function softDeleteWikiEntriesBySourceRef(

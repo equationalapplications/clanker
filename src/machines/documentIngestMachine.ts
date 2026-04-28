@@ -268,7 +268,7 @@ export const documentIngestMachine = createMachine(
         entry: [
           assign({ progress: INGEST_STATE_PROGRESS.success }),
           ({ context }) => {
-            queryClient.invalidateQueries({ queryKey: ['memoryBundle', context.characterId] })
+            queryClient.invalidateQueries({ queryKey: ['memoryBundle', context.characterId, context.userId] })
           },
         ],
         after: {
