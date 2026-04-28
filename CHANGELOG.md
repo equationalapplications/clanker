@@ -1,3 +1,19 @@
+## [29.2.1](https://github.com/equationalapplications/clanker/compare/v29.2.0...v29.2.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* **aiChatService:** use latest stored character context before building prompt ([c7d6f56](https://github.com/equationalapplications/clanker/commit/c7d6f5626f03520774d164f9df371376903a1078))
+* **auth:** retry bootstrap up to 3x before signing out ([ae0e960](https://github.com/equationalapplications/clanker/commit/ae0e9600ddcbd635323e7e9dab90e567d0976252))
+* **database:** fallback to LIKE when FTS5 missing on web ([190c008](https://github.com/equationalapplications/clanker/commit/190c008a8d045273dd11fac9858fc6fe1a735aaf))
+* **database:** gracefully handle missing FTS5 on web ([a45d7f8](https://github.com/equationalapplications/clanker/commit/a45d7f8177493620c586b8a4d19e22049ad5aeba))
+* enforce prompt budget and split multi-column migration ([e6c0660](https://github.com/equationalapplications/clanker/commit/e6c06606163434540920f85da675d748f958be09))
+* **fts:** handle missing compromise module on web platform ([3be9acc](https://github.com/equationalapplications/clanker/commit/3be9acc86ae62f2c27677ff60c58750495922785))
+* **memory:** address review findings from PR 328 ([505505b](https://github.com/equationalapplications/clanker/commit/505505b4a192e2291af0657d6b7fb4f382a0ab28))
+* **memory:** don't fall back to heuristic when LLM returns valid empty result ([05f34e5](https://github.com/equationalapplications/clanker/commit/05f34e53076e0b4eed68da8f8d90bb4b97ab65c4))
+* **memory:** pass conversation history as wiki write chunk ([a2ed746](https://github.com/equationalapplications/clanker/commit/a2ed746fed413d83716cc552525ce7200d07423f))
+* **ui:** replace fragment with array in ConfirmationModal actions ([10963e2](https://github.com/equationalapplications/clanker/commit/10963e27a4cb38e06159322e37db2dfe4b33d389))
+
 # [29.2.0](https://github.com/equationalapplications/clanker/compare/v29.1.1...v29.2.0) (2026-04-27)
 
 
