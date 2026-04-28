@@ -9,6 +9,7 @@ jest.mock('../src/database/index', () => ({
     getFirstAsync: mockGetFirstAsync,
     getAllAsync: mockGetAllAsync,
   })),
+  isWikiFtsAvailable: jest.fn(() => true),
 }))
 
 import {

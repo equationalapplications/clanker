@@ -413,7 +413,10 @@ User: ${boundedUserMessage}
 ${characterName}:`
   }
 
-  return prompt
+  if (prompt.length <= MAX_CHAT_PROMPT_LENGTH) return prompt
+  // Preserve the model-cue suffix ("\nCharacterName:") so the model always knows whose turn it is
+  const suffix = `\n${characterName}:`
+  return prompt.slice(0, MAX_CHAT_PROMPT_LENGTH - suffix.length) + suffix
 }
 
 function buildIntroductionPrompt(
@@ -455,6 +458,17 @@ export const sendMessageWithAIResponse = async (
     // 1. Send the user's message to local database
     await sendMessage(character.id, userId, userMessage)
 
+    // Fetch the latest character from the DB so the rolling summary written by a prior
+    // triggerConversationSummary pass (which only updates the DB, not the machine state)
+    // is included in the prompt.
+    let dbCharacter: Awaited<ReturnType<typeof getLocalCharacter>> = null
+    try {
+      dbCharacter = await getLocalCharacter(character.id, userId)
+    } catch (e) {
+      console.warn('Failed to read latest character context from DB:', e)
+    }
+    const effectiveContext = dbCharacter?.context ?? character.context
+
     let memoryBundle: MemoryBundle | null = null
     if (options?.hasUnlimited) {
       try {
@@ -467,7 +481,7 @@ export const sendMessageWithAIResponse = async (
     // 2. Prepare context for AI generation
     const chatContext: ChatContext = {
       characterName: character.name,
-      characterPersonality: character.context || character.appearance,
+      characterPersonality: effectiveContext || character.appearance,
       characterTraits: `${character.traits} ${character.emotions}`.trim(),
       conversationHistory: getRecentConversationHistory(conversationHistory, 10).map((msg) => ({
         role: msg.user._id === userId ? 'user' : 'assistant',
@@ -497,10 +511,14 @@ export const sendMessageWithAIResponse = async (
 
     void triggerConversationSummary(character, userId)
     if (options?.hasUnlimited) {
+      const recentMessages = getRecentConversationHistory([...conversationHistory, userMessage], 20)
+      const chunk = recentMessages
+        .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
+        .join('\n')
       void dispatchWikiWrite({
         character,
         userId,
-        chunk: userMessage.text,
+        chunk: chunk || userMessage.text,
       })
     }
     return { usageSnapshot: toUsageSnapshot(aiResponse) }

@@ -104,6 +104,18 @@ describe('buildChatPrompt', () => {
     expect(prompt.indexOf('[MEMORY]')).toBeLessThan(prompt.indexOf('Conversation history:'))
   })
 
+  it('preserves characterName cue suffix when prompt exceeds budget', () => {
+    const longMessage = 'x'.repeat(12_000)
+    const prompt = buildChatPrompt(longMessage, {
+      characterName: 'Nova',
+      characterPersonality: 'Friendly coach',
+      characterTraits: 'calm',
+      conversationHistory: [],
+    } as any)
+    expect(prompt.length).toBeLessThanOrEqual(12_000)
+    expect(prompt.endsWith('\nNova:')).toBe(true)
+  })
+
   it('fetches and injects memory for premium chat flow, then dispatches write post-turn', async () => {
     mockGenerateChatReply.mockResolvedValue({
       reply: 'You are doing well.',
@@ -162,7 +174,7 @@ describe('buildChatPrompt', () => {
     expect(mockDispatchWikiWrite).toHaveBeenCalledWith({
       character: expect.objectContaining({ id: 'char-1' }),
       userId: 'user-1',
-      chunk: 'How am I doing?',
+      chunk: 'User: Yesterday I trained.\nUser: How am I doing?',
     })
     expect(mockSaveAIMessage).toHaveBeenCalledWith(
       'char-1',
