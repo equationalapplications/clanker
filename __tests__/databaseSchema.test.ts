@@ -27,13 +27,25 @@ describe('database schema migration guards', () => {
     expect(MIGRATIONS[10]).toContain("voice = ''")
   })
 
-  it('bumps schema to v12 for wiki memory tables', () => {
-    expect(SCHEMA_VERSION).toBe(12)
+  it('has migration guards for v11 and v12', () => {
     expect(MIGRATION_SKIP_GUARDS[11]).toEqual({ table: 'characters', column: 'heal_checkpoint' })
     expect(MIGRATION_SKIP_GUARDS[12]).toEqual({ table: 'characters', column: 'memory_checkpoint' })
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.characters).toEqual(
       expect.arrayContaining(['heal_checkpoint', 'memory_checkpoint']),
     )
+  })
+
+  it('bumps schema to v13 for wiki_entries source columns', () => {
+    expect(SCHEMA_VERSION).toBe(13)
+    expect(MIGRATION_SKIP_GUARDS[13]).toEqual({ table: 'wiki_entries', column: 'source_hash' })
+    expect(LATEST_SCHEMA_REQUIRED_COLUMNS.wiki_entries).toEqual(
+      expect.arrayContaining(['source_hash', 'source_ref']),
+    )
+    expect(MIGRATIONS[13]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT')
+    expect(MIGRATIONS[13]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT')
+    expect(MIGRATIONS[13]).toContain('idx_wiki_entries_source_hash')
+    expect(CREATE_TABLES).toContain('source_hash TEXT')
+    expect(CREATE_TABLES).toContain('source_ref TEXT')
   })
 
   it('includes wiki memory tables in base schema', () => {
