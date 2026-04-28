@@ -12,6 +12,7 @@ jest.mock('../src/database/index', () => ({
   isWikiFtsAvailable: jest.fn(() => true),
 }))
 
+import { isWikiFtsAvailable } from '../src/database/index'
 import {
   upsertWikiEntries,
   searchEntries,
@@ -142,6 +143,24 @@ describe('searchEntries', () => {
     expect(sql).toContain('deleted_at IS NULL')
     expect(values).toContain('char-2')
     expect(values).toContain('user-2')
+  })
+
+  it('uses LIKE ... ESCAPE when FTS is unavailable', async () => {
+    ;(isWikiFtsAvailable as jest.Mock).mockReturnValue(false)
+    mockGetAllAsync.mockResolvedValue([])
+    await searchEntries('user-1', 'char-1', '"run"*')
+
+    const [sql, params] = mockGetAllAsync.mock.calls[0] as [string, unknown[]]
+    expect(sql).not.toContain('wiki_fts')
+    expect(sql).toContain("LIKE ? ESCAPE '\\\'")
+    expect(params).toContain('%run%')
+  })
+
+  it('returns [] when no tokens can be extracted (FTS unavailable)', async () => {
+    ;(isWikiFtsAvailable as jest.Mock).mockReturnValue(false)
+    const result = await searchEntries('user-1', 'char-1', 'no quoted tokens here')
+    expect(result).toEqual([])
+    expect(mockGetAllAsync).not.toHaveBeenCalled()
   })
 })
 
