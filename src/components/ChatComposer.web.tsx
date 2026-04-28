@@ -3,12 +3,19 @@ import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
-  Pick<SendProps<TMessage>, 'onSend' | 'text'>
+  Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
+    characterId?: string
+    userId?: string
+  }
 
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
   onSend,
   text,
   textInputProps,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  characterId: _characterId,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  userId: _userId,
   ...props
 }: ChatComposerProps<TMessage>) {
   const sendCurrentText = useCallback(() => {
