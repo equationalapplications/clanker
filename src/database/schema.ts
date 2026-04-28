@@ -30,17 +30,17 @@ export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
  * Column-presence guards that can be used to skip migrations when upgrading
  * legacy databases that may already contain the target column.
  */
-export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: string }> = {
-  2: { table: 'characters', column: 'deleted_at' },
-  3: { table: 'characters', column: 'avatar_data' },
-  4: { table: 'characters', column: 'avatar_mime_type' },
-  5: { table: 'characters', column: 'save_to_cloud' },
-  6: { table: 'characters', column: 'summary_checkpoint' },
-  7: { table: 'characters', column: 'owner_user_id' },
-  9: { table: 'characters', column: 'voice' },
-  11: { table: 'characters', column: 'heal_checkpoint' },
-  12: { table: 'characters', column: 'memory_checkpoint' },
-  13: { table: 'wiki_entries', column: 'source_hash' },
+export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: string }[]> = {
+  2: [{ table: 'characters', column: 'deleted_at' }],
+  3: [{ table: 'characters', column: 'avatar_data' }],
+  4: [{ table: 'characters', column: 'avatar_mime_type' }],
+  5: [{ table: 'characters', column: 'save_to_cloud' }],
+  6: [{ table: 'characters', column: 'summary_checkpoint' }],
+  7: [{ table: 'characters', column: 'owner_user_id' }],
+  9: [{ table: 'characters', column: 'voice' }],
+  11: [{ table: 'characters', column: 'heal_checkpoint' }],
+  12: [{ table: 'characters', column: 'memory_checkpoint' }],
+  13: [{ table: 'wiki_entries', column: 'source_hash' }, { table: 'wiki_entries', column: 'source_ref' }],
 }
 
 /**

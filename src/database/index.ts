@@ -255,13 +255,15 @@ async function applyMigrations(executor: DatabaseExecutor, fromVersion: number):
     for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {
         const migration = MIGRATIONS[version]
         if (migration) {
-            const skipGuard = MIGRATION_SKIP_GUARDS[version]
-            if (skipGuard) {
-                const columnExists = await hasColumn(executor, skipGuard.table, skipGuard.column)
-                if (columnExists) {
-                    console.log(
-                        `Skipping migration ${version}: ${skipGuard.table}.${skipGuard.column} already exists`,
-                    )
+            const skipGuards = MIGRATION_SKIP_GUARDS[version]
+            if (skipGuards && skipGuards.length > 0) {
+                // Skip migration if ALL guard columns already exist
+                const allColumnsExist = await Promise.all(
+                    skipGuards.map((guard) => hasColumn(executor, guard.table, guard.column))
+                )
+                if (allColumnsExist.every((exists) => exists)) {
+                    const guardDescr = skipGuards.map((g) => `${g.table}.${g.column}`).join(', ')
+                    console.log(`Skipping migration ${version}: ${guardDescr} already exist`)
                     continue
                 }
             }

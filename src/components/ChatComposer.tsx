@@ -73,7 +73,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const handlePlusPress = useCallback(() => {
     Alert.alert(
       'Add to Memory',
-      'Document text is sent to our AI provider for processing.',
+      'Document text is sent to our AI provider for processing. Only UTF-8 encoded files are supported.',
       [
         {
           text: 'Add document to memory',

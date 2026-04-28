@@ -2,7 +2,8 @@ import { View, StyleSheet } from 'react-native'
 import { useTheme } from 'react-native-paper'
 
 interface IngestProgressBarProps {
-  progress: number // 0..1
+  // 0..1 progress value; source of truth is INGEST_STATE_PROGRESS in ~/constants/documentIngestProgress
+  progress: number
 }
 
 export default function IngestProgressBar({ progress }: IngestProgressBarProps) {

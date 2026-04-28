@@ -8,21 +8,8 @@ import { appendMemoryEvents, type MemoryEventUpsertInput } from '~/database/memo
 import { forgetMemory } from '~/services/memoryService'
 import { extractDocument, type ExtractedFact } from '~/services/documentIngestService'
 import { queryClient } from '~/config/queryClient'
+import { INGEST_STATE_PROGRESS } from '~/constants/documentIngestProgress'
 import type { Character } from '~/services/aiChatService'
-
-// ─── Progress mapping ──────────────────────────────────────────────────────────
-const STATE_PROGRESS: Record<string, number> = {
-  idle: 0,
-  picking: 0,
-  reading: 0.1,
-  checkingDuplicate: 0.2,
-  confirmingDuplicate: 0.3,
-  purging: 0.3,
-  extracting: 0.5,
-  applying: 0.9,
-  success: 1.0,
-  error: 0,
-}
 
 // ─── Context + Events ─────────────────────────────────────────────────────────
 export interface DocumentIngestContext {
@@ -46,7 +33,7 @@ export type DocumentIngestEvent =
 
 // ─── Actor inputs ─────────────────────────────────────────────────────────────
 interface CheckDupInput { characterId: string; contentHash: string }
-interface PurgeInput { character: Character; userId: string; filename: string }
+interface PurgeInput { character: Pick<Character, 'id' | 'cloud_id'>; userId: string; filename: string }
 interface ExtractInput { characterId: string; filename: string; content: string; contentHash: string }
 interface ApplyInput { characterId: string; userId: string; filename: string; contentHash: string; facts: ExtractedFact[] }
 
@@ -104,7 +91,7 @@ export const documentIngestMachine = createMachine(
       },
 
       picking: {
-        entry: assign({ progress: STATE_PROGRESS.picking }),
+        entry: assign({ progress: INGEST_STATE_PROGRESS.picking }),
         invoke: {
           id: 'pickDocument',
           src: 'pickDocument',
@@ -132,7 +119,7 @@ export const documentIngestMachine = createMachine(
       },
 
       reading: {
-        entry: assign({ progress: STATE_PROGRESS.reading }),
+        entry: assign({ progress: INGEST_STATE_PROGRESS.reading }),
         invoke: {
           id: 'readDocument',
           src: 'readDocument',
@@ -158,7 +145,7 @@ export const documentIngestMachine = createMachine(
       },
 
       checkingDuplicate: {
-        entry: assign({ progress: STATE_PROGRESS.checkingDuplicate }),
+        entry: assign({ progress: INGEST_STATE_PROGRESS.checkingDuplicate }),
         invoke: {
           id: 'checkDuplicate',
           src: 'checkDuplicate',
@@ -189,7 +176,7 @@ export const documentIngestMachine = createMachine(
       },
 
       confirmingDuplicate: {
-        entry: assign({ progress: STATE_PROGRESS.confirmingDuplicate }),
+        entry: assign({ progress: INGEST_STATE_PROGRESS.confirmingDuplicate }),
         on: {
           REPLACE: 'purging',
           ADD: 'extracting',
@@ -198,7 +185,7 @@ export const documentIngestMachine = createMachine(
       },
 
       purging: {
-        entry: assign({ progress: STATE_PROGRESS.purging }),
+        entry: assign({ progress: INGEST_STATE_PROGRESS.purging }),
         invoke: {
           id: 'purgeDocument',
           src: 'purgeDocument',
@@ -206,12 +193,7 @@ export const documentIngestMachine = createMachine(
             character: {
               id: context.characterId,
               cloud_id: null,
-              name: '',
-              appearance: '',
-              traits: '',
-              emotions: '',
-              context: '',
-            } as Character,
+            },
             userId: context.userId,
             filename: context.filename ?? '',
           }),
@@ -227,7 +209,7 @@ export const documentIngestMachine = createMachine(
       },
 
       extracting: {
-        entry: assign({ progress: STATE_PROGRESS.extracting }),
+        entry: assign({ progress: INGEST_STATE_PROGRESS.extracting }),
         invoke: {
           id: 'extractDocument',
           src: 'extractDocumentActor',
@@ -261,7 +243,7 @@ export const documentIngestMachine = createMachine(
       },
 
       applying: {
-        entry: assign({ progress: STATE_PROGRESS.applying }),
+        entry: assign({ progress: INGEST_STATE_PROGRESS.applying }),
         invoke: {
           id: 'applyFacts',
           src: 'applyFacts',
@@ -285,7 +267,7 @@ export const documentIngestMachine = createMachine(
 
       success: {
         entry: [
-          assign({ progress: STATE_PROGRESS.success }),
+          assign({ progress: INGEST_STATE_PROGRESS.success }),
           ({ context }) => {
             queryClient.invalidateQueries({ queryKey: ['memoryBundle', context.characterId] })
           },

@@ -1261,7 +1261,12 @@ async function buildHealDiff(
     openTaskRows = taskRows.map((row) => mapCloudTask(row, firebaseUid));
   }
 
-  const contradictionPairs = await detectContradictions(mappedEntries, deps.generateContent);
+  // Filter user_document entries before sending to LLM for contradiction detection.
+  // These entries are treated as immutable anchors — they cannot be contradicted.
+  // Passing them to the LLM wastes tokens and re-exposes user document content on every heal pass.
+  const contradictionCandidates = mappedEntries.filter((e) => e.sourceType !== 'user_document');
+
+  const contradictionPairs = await detectContradictions(contradictionCandidates, deps.generateContent);
   const contradictedIds = new Set(
     contradictionPairs.flatMap((p) => [p.entryAId, p.entryBId]),
   );

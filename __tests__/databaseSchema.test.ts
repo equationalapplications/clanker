@@ -10,7 +10,7 @@ import {
 describe('database schema migration guards', () => {
   it('guards voice column on migration 9, not migration 8', () => {
     expect(MIGRATION_SKIP_GUARDS[8]).toBeUndefined()
-    expect(MIGRATION_SKIP_GUARDS[9]).toEqual({ table: 'characters', column: 'voice' })
+    expect(MIGRATION_SKIP_GUARDS[9]).toEqual([{ table: 'characters', column: 'voice' }])
   })
 
   it('includes voice column in base characters table', () => {
@@ -28,8 +28,8 @@ describe('database schema migration guards', () => {
   })
 
   it('has migration guards for v11 and v12', () => {
-    expect(MIGRATION_SKIP_GUARDS[11]).toEqual({ table: 'characters', column: 'heal_checkpoint' })
-    expect(MIGRATION_SKIP_GUARDS[12]).toEqual({ table: 'characters', column: 'memory_checkpoint' })
+    expect(MIGRATION_SKIP_GUARDS[11]).toEqual([{ table: 'characters', column: 'heal_checkpoint' }])
+    expect(MIGRATION_SKIP_GUARDS[12]).toEqual([{ table: 'characters', column: 'memory_checkpoint' }])
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.characters).toEqual(
       expect.arrayContaining(['heal_checkpoint', 'memory_checkpoint']),
     )
@@ -37,7 +37,10 @@ describe('database schema migration guards', () => {
 
   it('bumps schema to v13 for wiki_entries source columns', () => {
     expect(SCHEMA_VERSION).toBe(13)
-    expect(MIGRATION_SKIP_GUARDS[13]).toEqual({ table: 'wiki_entries', column: 'source_hash' })
+    expect(MIGRATION_SKIP_GUARDS[13]).toEqual([
+      { table: 'wiki_entries', column: 'source_hash' },
+      { table: 'wiki_entries', column: 'source_ref' },
+    ])
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.wiki_entries).toEqual(
       expect.arrayContaining(['source_hash', 'source_ref']),
     )

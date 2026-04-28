@@ -26,6 +26,8 @@ export const subscriptions = pgTable('subscriptions', {
   stripeCustomerId: text('stripe_customer_id'),
   billingCycleStart: timestamp('billing_cycle_start', { withTimezone: true }),
   billingCycleEnd: timestamp('billing_cycle_end', { withTimezone: true }),
+  documentsIngestedCount: integer('documents_ingested_count').notNull().default(0),
+  documentsIngestedDate: text('documents_ingested_date'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({

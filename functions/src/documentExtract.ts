@@ -2,13 +2,13 @@ import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/
 import * as logger from 'firebase-functions/logger';
 import { createHash } from 'node:crypto';
 import type { DecodedIdToken } from 'firebase-admin/auth';
-import { and, count, eq, gte } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 import { userRepository } from './services/userRepository.js';
 import { subscriptionService } from './services/subscriptionService.js';
 import { getDb } from './db/cloudSql.js';
-import { characters, wikiEntries } from './db/schema.js';
+import { characters, subscriptions } from './db/schema.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_REGION = 'us-central1';
@@ -81,11 +81,43 @@ async function getModel(): Promise<GenerativeModelLike> {
       const moduleName = '@google-cloud/vertexai';
       const vertexModule = await import(moduleName) as {
         VertexAI: new (cfg: { project: string; location: string }) => {
-          getGenerativeModel(cfg: { model: string; generationConfig: { maxOutputTokens: number } }): GenerativeModelLike;
+          getGenerativeModel(cfg: {
+            model: string;
+            generationConfig: {
+              maxOutputTokens: number;
+              responseMimeType?: string;
+              responseSchema?: unknown;
+            };
+          }): GenerativeModelLike;
         };
       };
       const vertex = new vertexModule.VertexAI({ project: getProjectId(), location: DEFAULT_REGION });
-      return vertex.getGenerativeModel({ model: EXTRACT_MODEL, generationConfig: { maxOutputTokens: 2048 } });
+      // JSON schema for structured extraction output
+      const responseSchema = {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', maxLength: 80 },
+            body: { type: 'string', maxLength: 200 },
+            tags: {
+              type: 'array',
+              maxItems: 6,
+              items: { type: 'string', maxLength: 40 },
+            },
+            confidence: { type: 'string', enum: ['certain', 'inferred', 'tentative'] },
+          },
+          required: ['title', 'body', 'tags', 'confidence'],
+        },
+      };
+      return vertex.getGenerativeModel({
+        model: EXTRACT_MODEL,
+        generationConfig: {
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json',
+          responseSchema,
+        },
+      });
     } catch (err) {
       modelPromise = undefined;
       if (err instanceof HttpsError) throw err;
@@ -133,7 +165,8 @@ function parseInput(data: unknown): {
     throw new HttpsError('invalid-argument', 'characterId must be a valid UUID.');
   }
 
-  // filename sanitization: allow only [A-Za-z0-9._\- ], strip path separators, null bytes
+  // filename sanitization: allow only [A-Za-z0-9._\- ], strip path separators, null bytes.
+  // Note: zero-width chars are intentionally preserved as part of user-supplied display names.
   if (typeof payload.filename !== 'string' || !payload.filename.trim()) {
     throw new HttpsError('invalid-argument', 'filename is required.');
   }
@@ -307,12 +340,14 @@ function mergeAndDedup(allFacts: ExtractedFact[]): ExtractedFact[] {
   return Array.from(merged.values());
 }
 
-// ─── Concurrency helper ───────────────────────────────────────────────────────
+// ─── Concurrency helper with failure tracking ────────────────────────────────
 async function extractChunksConcurrently(
   chunks: string[],
   generateContent: (prompt: string) => Promise<string>,
-): Promise<ExtractedFact[]> {
+): Promise<{ facts: ExtractedFact[]; failedChunkCount: number }> {
   const allFacts: ExtractedFact[] = [];
+  let failedChunkCount = 0;
+
   // Process in batches of EXTRACTION_CONCURRENCY
   for (let i = 0; i < chunks.length; i += EXTRACTION_CONCURRENCY) {
     const batch = chunks.slice(i, i + EXTRACTION_CONCURRENCY);
@@ -322,11 +357,13 @@ async function extractChunksConcurrently(
     for (const result of results) {
       if (result.status === 'fulfilled') {
         allFacts.push(...result.value);
+      } else {
+        failedChunkCount += 1;
       }
-      // Silently drop failed chunks (partial extraction is better than full failure)
     }
   }
-  return allFacts;
+
+  return { facts: allFacts, failedChunkCount };
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
@@ -401,22 +438,41 @@ export async function documentExtractHandler(
     throw new HttpsError('permission-denied', 'Character not found or not owned by user.');
   }
 
-  // 9. Daily rate limit (count user_document entries created today)
-  const todayStart = new Date();
-  todayStart.setUTCHours(0, 0, 0, 0);
-  const [{ todayCount }] = await db
-    .select({ todayCount: count() })
-    .from(wikiEntries)
+  // 9. Daily rate limit with atomic increment
+  const todayStr = new Date().toISOString().split('T')[0];
+  const rateLimitRows = await db
+    .update(subscriptions)
+    .set({
+      documentsIngestedCount: sql`
+        CASE
+          WHEN ${subscriptions.documentsIngestedDate} = ${todayStr}
+          THEN GREATEST(COALESCE(${subscriptions.documentsIngestedCount}, 0), 0) + 1
+          ELSE 1
+        END
+      `,
+      documentsIngestedDate: todayStr,
+      updatedAt: new Date(),
+    })
     .where(
       and(
-        eq(wikiEntries.userId, user.id),
-        eq(wikiEntries.sourceType, 'user_document'),
-        gte(wikiEntries.createdAt, todayStart),
+        eq(subscriptions.userId, user.id),
+        sql`(
+          ${subscriptions.documentsIngestedDate} IS DISTINCT FROM ${todayStr}
+          OR COALESCE(${subscriptions.documentsIngestedCount}, 0) < ${MAX_DOCUMENTS_PER_DAY}
+        )`,
       ),
-    );
-  if ((todayCount ?? 0) >= MAX_DOCUMENTS_PER_DAY) {
+    )
+    .returning({ newCount: subscriptions.documentsIngestedCount });
+
+  if (rateLimitRows.length === 0) {
     throw new HttpsError('resource-exhausted', 'Daily document ingest limit reached.');
   }
+
+  logger.info('documentExtract rate limit incremented', {
+    userId: user.id,
+    newCount: rateLimitRows[0].newCount,
+    date: todayStr,
+  });
 
   // 10. Entropy / binary check
   assertNotBinaryOrRepetitive(workingContent);
@@ -440,22 +496,58 @@ export async function documentExtractHandler(
     userId: user.id,
   });
 
-  // 12. Parallel extraction
-  const rawFacts = await extractChunksConcurrently(chunks, deps.generateContent);
+  try {
+    // 12. Parallel extraction
+    const { facts: rawFacts, failedChunkCount } = await extractChunksConcurrently(chunks, deps.generateContent);
 
-  // 13. Merge + dedup
-  const facts = mergeAndDedup(rawFacts);
+    if (rawFacts.length === 0 && failedChunkCount > 0) {
+      throw new HttpsError('unavailable', 'Document extraction failed. Please retry.');
+    }
 
-  logger.info('documentExtract done', {
-    chunkCount: chunks.length,
-    rawFactCount: rawFacts.length,
-    finalFactCount: facts.length,
-    characterId,
-    userId: user.id,
-  });
+    // 13. Merge + dedup
+    const facts = mergeAndDedup(rawFacts);
 
-  // 14. Return (no DB write — client owns persistence)
-  return { facts, contentHash: serverHash, truncated };
+    logger.info('documentExtract done', {
+      chunkCount: chunks.length,
+      failedChunkCount,
+      rawFactCount: rawFacts.length,
+      finalFactCount: facts.length,
+      characterId,
+      userId: user.id,
+    });
+
+    // 14. Return (no DB write — client owns persistence)
+    return { facts, contentHash: serverHash, truncated };
+  } catch (error) {
+    try {
+      await db
+        .update(subscriptions)
+        .set({
+          documentsIngestedCount: sql`GREATEST(COALESCE(${subscriptions.documentsIngestedCount}, 0) - 1, 0)`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(subscriptions.userId, user.id),
+            eq(subscriptions.documentsIngestedDate, todayStr),
+          ),
+        )
+        .returning({ newCount: subscriptions.documentsIngestedCount });
+
+      logger.warn('documentExtract rate limit refunded after extraction failure', {
+        userId: user.id,
+        date: todayStr,
+      });
+    } catch (rollbackError) {
+      logger.error('documentExtract failed to refund rate limit counter', {
+        userId: user.id,
+        date: todayStr,
+        rollbackError: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+      });
+    }
+
+    throw error;
+  }
 }
 
 // ─── Export ───────────────────────────────────────────────────────────────────

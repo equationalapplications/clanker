@@ -28,20 +28,24 @@ function makeDeps(options: {
   planStatus?: string;
   ownsChar?: boolean;
   todayCount?: number;
+  todayDate?: string;
   extractedFacts?: unknown[];
+  generateContentImpl?: (prompt: string) => Promise<string>;
 } = {}) {
   const {
     planTier = 'monthly_20',
     planStatus = 'active',
     ownsChar = true,
     todayCount = 0,
+    todayDate = new Date().toISOString().split('T')[0],
     extractedFacts = [
       { title: 'Test fact', body: 'Test body content here.', tags: ['test'], confidence: 'certain' },
     ],
+    generateContentImpl,
   } = options;
 
-  // Track which select() call we're on so we can return the right shape
-  let dbSelectCall = 0;
+  let updateCallCount = 0;
+  const today = new Date().toISOString().split('T')[0];
 
   return {
     userRepository: {
@@ -70,33 +74,54 @@ function makeDeps(options: {
         stripeCustomerId: null,
         billingCycleStart: null,
         billingCycleEnd: null,
+        documentsIngestedCount: 0,
+        documentsIngestedDate: null,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       }),
     },
     getDb: async () => ({
       select() {
-        dbSelectCall += 1;
-        const thisCall = dbSelectCall;
         return {
           from() {
             return {
               where() {
-                if (thisCall === 1) {
-                  // Character ownership check — caller chains .limit()
-                  return {
-                    limit: async () => (ownsChar ? [{ id: 'char-1' }] : []),
-                  };
-                }
-                // Count check — caller awaits .where() directly
-                return Promise.resolve([{ todayCount }]);
+                // Character ownership check — caller chains .limit()
+                return {
+                  limit: async () => (ownsChar ? [{ id: 'char-1' }] : []),
+                };
+              },
+            };
+          },
+        };
+      },
+      update() {
+        updateCallCount += 1;
+        const thisCall = updateCallCount;
+        return {
+          set() {
+            return {
+              where() {
+                return {
+                  returning: async () => {
+                    if (thisCall === 1) {
+                      const effectiveCount = todayDate === today ? Math.max(0, todayCount) : 0;
+                      if (effectiveCount >= 5) {
+                        return [];
+                      }
+                      return [{ newCount: effectiveCount + 1 }];
+                    }
+                    return [{ newCount: Math.max(0, todayCount) }];
+                  },
+                };
               },
             };
           },
         };
       },
     }),
-    generateContent: async (_prompt: string) => JSON.stringify(extractedFacts),
+    generateContent: generateContentImpl ?? (async (_prompt: string) => JSON.stringify(extractedFacts)),
+    getUpdateCallCount: () => updateCallCount,
   };
 }
 
@@ -272,5 +297,24 @@ describe('documentExtractHandler', () => {
     assert.equal(result.truncated, false);
     assert.equal(result.contentHash, contentHash);
     assert.ok(Array.isArray(result.facts));
+  });
+
+  it('refunds daily counter when extraction fails after quota increment', async () => {
+    const deps = makeDeps({
+      generateContentImpl: async () => {
+        throw new Error('llm timeout');
+      },
+    });
+
+    await assert.rejects(
+      () =>
+        documentExtractHandler(
+          makeRequest({ characterId: CHAR_ID, filename: 'f.txt', content, contentHash }),
+          deps as never,
+        ),
+      (e: unknown) => e instanceof HttpsError && e.code === 'unavailable',
+    );
+
+    assert.equal(deps.getUpdateCallCount(), 2);
   });
 });

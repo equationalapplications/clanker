@@ -11,7 +11,7 @@ const activeMemoryWrites = new Set<string>()
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-function resolveCloudCharacterId(character: Character): string {
+function resolveCloudCharacterId(character: Pick<Character, 'id' | 'cloud_id'>): string {
   return character.cloud_id && UUID_RE.test(character.cloud_id) ? character.cloud_id : character.id
 }
 
@@ -301,7 +301,7 @@ export async function triggerMemoryRead(character: Character, userId: string): P
 }
 
 export async function forgetMemory(
-  character: Character,
+  character: Pick<Character, 'id' | 'cloud_id'>,
   userId: string,
   target: { entryIds?: string[]; taskIds?: string[]; clearAll?: boolean; sourceRef?: string },
 ): Promise<void> {

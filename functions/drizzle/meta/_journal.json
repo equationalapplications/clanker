@@ -36,6 +36,13 @@
       "when": 1777392156690,
       "tag": "0004_lame_gwen_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777398029649,
+      "tag": "0005_subscriptions_document_counter",
+      "breakpoints": true
     }
   ]
 }

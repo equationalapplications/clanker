@@ -30,8 +30,8 @@ function parseExtractedFact(raw: unknown): ExtractedFact | null {
   if (!raw || typeof raw !== 'object') return null
   const obj = raw as Record<string, unknown>
 
-  const title = typeof obj.title === 'string' ? obj.title.trim().slice(0, 80) : null
-  const body = typeof obj.body === 'string' ? obj.body.trim().slice(0, 200) : null
+  const title = typeof obj.title === 'string' ? obj.title.trim() : null
+  const body = typeof obj.body === 'string' ? obj.body.trim() : null
   const confidence =
     obj.confidence === 'certain' || obj.confidence === 'inferred' || obj.confidence === 'tentative'
       ? obj.confidence
@@ -39,12 +39,29 @@ function parseExtractedFact(raw: unknown): ExtractedFact | null {
 
   if (!title || !body || !confidence) return null
 
+  // Validate length constraints; should never happen if server validated properly
+  if (title.length > 80) {
+    console.warn('Extracted fact title exceeds 80 chars (server returned out-of-spec)', { titleLen: title.length })
+    return null
+  }
+  if (body.length > 200) {
+    console.warn('Extracted fact body exceeds 200 chars (server returned out-of-spec)', { bodyLen: body.length })
+    return null
+  }
+
   const rawTags = Array.isArray(obj.tags) ? obj.tags : []
   const tags = rawTags
     .filter((t): t is string => typeof t === 'string')
-    .map((t) => t.trim().toLowerCase().slice(0, 40))
-    .filter((t) => t.length > 0)
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length > 0 && t.length <= 40)
     .slice(0, 6)
+
+  if (rawTags.length > tags.length) {
+    console.warn('Extracted fact tags were filtered (server returned invalid tags)', { 
+      originalCount: rawTags.length,
+      filteredCount: tags.length,
+    })
+  }
 
   return { title, body, tags, confidence }
 }
