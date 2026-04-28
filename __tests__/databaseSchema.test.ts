@@ -1,5 +1,6 @@
 import {
   CREATE_TABLES,
+  CREATE_WIKI_FTS,
   LATEST_SCHEMA_REQUIRED_COLUMNS,
   MIGRATIONS,
   MIGRATION_SKIP_GUARDS,
@@ -37,7 +38,7 @@ describe('database schema migration guards', () => {
 
   it('includes wiki memory tables in base schema', () => {
     expect(CREATE_TABLES).toContain('CREATE TABLE IF NOT EXISTS wiki_entries')
-    expect(CREATE_TABLES).toContain('CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts')
+    expect(CREATE_WIKI_FTS).toContain('CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts')
     expect(CREATE_TABLES).toContain('CREATE TABLE IF NOT EXISTS agent_tasks')
     expect(CREATE_TABLES).toContain('CREATE TABLE IF NOT EXISTS memory_events')
     expect(CREATE_TABLES).toContain('CREATE TABLE IF NOT EXISTS derived_synonyms')

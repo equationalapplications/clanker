@@ -15,6 +15,17 @@ import {
 
 let db: SQLite.SQLiteDatabase | null = null
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null
+let wikiFtsAvailable = false
+
+/**
+ * Returns true if the SQLite build has FTS5 available and the wiki_fts virtual
+ * table was successfully created during initialization. On web (wa-sqlite via
+ * expo-sqlite) FTS5 is not bundled, so this returns false and callers should
+ * fall back to a LIKE-based scan.
+ */
+export function isWikiFtsAvailable(): boolean {
+    return wikiFtsAvailable
+}
 
 type DatabaseExecutor = Pick<
     SQLite.SQLiteDatabase,
@@ -132,13 +143,16 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
 async function tryInitializeWikiFts(executor: DatabaseExecutor): Promise<void> {
     try {
         await executor.execAsync(CREATE_WIKI_FTS)
+        wikiFtsAvailable = true
         console.log('✅ Wiki FTS5 tables initialized successfully')
     } catch (error) {
-        // FTS5 is not available on web (sql.js). Fail gracefully.
-        // The wiki_entries table exists (created in CREATE_TABLES), but without FTS5 search.
+        wikiFtsAvailable = false
+        // FTS5 is not available on web (wa-sqlite). Fail gracefully.
+        // The wiki_entries table exists (created in CREATE_TABLES); searchEntries
+        // falls back to a LIKE-based scan when this flag is false.
         if (Platform.OS === 'web') {
             console.warn(
-                '[DB] FTS5 module not available on web platform. Wiki memory will work but without full-text search.',
+                '[DB] FTS5 module not available on web platform. Wiki memory will use LIKE-based search fallback.',
             )
         } else {
             // On native platforms, FTS5 should be available. Log the actual error.
