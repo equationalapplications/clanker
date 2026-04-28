@@ -214,6 +214,30 @@ test("memoryWriteHandler falls back to heuristic when LLM returns unparseable re
   assert.equal(Array.isArray(result.diff.entries), true);
 });
 
+test("memoryWriteHandler does NOT fall back to heuristic when LLM returns valid empty result", async () => {
+  const deps = {
+    ...buildDeps(),
+    generateContent: async (_prompt: string) =>
+      JSON.stringify({ entries: [], tasks: [] }),
+  };
+
+  const result = await memoryWriteHandler(
+    {
+      auth: buildAuth(),
+      data: {
+        characterId: "char-1",
+        sourceText: "a\nb\nc\nd\ne\nf",
+      },
+    } as never,
+    deps as never,
+  );
+
+  assert.equal(result.diff.entriesAdded, 0);
+  assert.equal(result.diff.entries.length, 0);
+  assert.equal(result.diff.tasksOpened, 0);
+  assert.equal(result.diff.eventsAppended, 0, "no events when LLM finds nothing to extract");
+});
+
 test("memoryHealHandler uses localDump for local-only premium character", async () => {
   const localEntry = {
     id: "entry-local-1",

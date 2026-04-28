@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 11
+export const SCHEMA_VERSION = 12
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -37,8 +37,42 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
   6: { table: 'characters', column: 'summary_checkpoint' },
   7: { table: 'characters', column: 'owner_user_id' },
   9: { table: 'characters', column: 'voice' },
-  11: { table: 'characters', column: 'memory_checkpoint' },
+  11: { table: 'characters', column: 'heal_checkpoint' },
+  12: { table: 'characters', column: 'memory_checkpoint' },
 }
+
+/**
+ * FTS5 virtual table and triggers (platform-specific)
+ * Note: On web, SQLite is provided via wa-sqlite through expo-sqlite, and
+ * these statements are applied during initialization only when FTS5 support
+ * is available there or on native platforms.
+ */
+export const CREATE_WIKI_FTS = `
+  CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts USING fts5(
+    title,
+    body,
+    tags,
+    content='wiki_entries',
+    content_rowid='rowid'
+  );
+
+  CREATE TRIGGER IF NOT EXISTS wiki_entries_ai AFTER INSERT ON wiki_entries BEGIN
+    INSERT INTO wiki_fts(rowid, title, body, tags)
+    VALUES (new.rowid, new.title, new.body, new.tags);
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS wiki_entries_au AFTER UPDATE OF title, body, tags ON wiki_entries BEGIN
+    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
+    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
+    INSERT INTO wiki_fts(rowid, title, body, tags)
+    VALUES (new.rowid, new.title, new.body, new.tags);
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS wiki_entries_ad AFTER DELETE ON wiki_entries BEGIN
+    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
+    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
+  END;
+`
 
 /**
  * SQL statements to create tables
@@ -118,31 +152,6 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_updated_at ON wiki_entries(updated_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_deleted ON wiki_entries(character_id, deleted_at);
 
-  CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts USING fts5(
-    title,
-    body,
-    tags,
-    content='wiki_entries',
-    content_rowid='rowid'
-  );
-
-  CREATE TRIGGER IF NOT EXISTS wiki_entries_ai AFTER INSERT ON wiki_entries BEGIN
-    INSERT INTO wiki_fts(rowid, title, body, tags)
-    VALUES (new.rowid, new.title, new.body, new.tags);
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS wiki_entries_au AFTER UPDATE OF title, body, tags ON wiki_entries BEGIN
-    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
-    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
-    INSERT INTO wiki_fts(rowid, title, body, tags)
-    VALUES (new.rowid, new.title, new.body, new.tags);
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS wiki_entries_ad AFTER DELETE ON wiki_entries BEGIN
-    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
-    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
-  END;
-
   -- Agent tasks table
   CREATE TABLE IF NOT EXISTS agent_tasks (
     id TEXT PRIMARY KEY NOT NULL,
@@ -212,6 +221,6 @@ export const MIGRATIONS: Record<number, string> = {
   8: `UPDATE characters SET owner_user_id = user_id WHERE (owner_user_id IS NULL OR owner_user_id = '') AND (save_to_cloud = 1 OR cloud_id IS NULL OR COALESCE(is_public, 0) = 0);`,
   9: `ALTER TABLE characters ADD COLUMN voice TEXT NOT NULL DEFAULT '${DEFAULT_VOICE}';`,
   10: `UPDATE characters SET voice = '${DEFAULT_VOICE}' WHERE voice IS NULL OR voice = '';`,
-  11: `ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0`,
+  11: `ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0`,
+  12: `ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0`,
 }

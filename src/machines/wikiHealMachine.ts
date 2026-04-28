@@ -51,7 +51,11 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
     }
 
     const memoryCheckpoint = Math.max(0, latestCharacter?.memory_checkpoint ?? 0)
-    if (messageCount - memoryCheckpoint < MEMORY_WRITE_TRIGGER_MESSAGE_COUNT) {
+    // If checkpoint is ahead of message count, it's stale (e.g., after clearing messages)
+    // Reset it to 0 to allow new memory writes
+    const effectiveMemoryCheckpoint = memoryCheckpoint > messageCount ? 0 : memoryCheckpoint
+
+    if (messageCount - effectiveMemoryCheckpoint < MEMORY_WRITE_TRIGGER_MESSAGE_COUNT) {
       return
     }
 
@@ -63,10 +67,14 @@ export async function dispatchWikiWrite(input: WikiWriteInput): Promise<void> {
     await triggerMemoryWrite(charForCloud, input.userId, input.chunk)
 
     const healCheckpoint = Math.max(0, latestCharacter?.heal_checkpoint ?? 0)
-    if (messageCount - healCheckpoint < HEAL_TRIGGER_MESSAGE_COUNT) {
+    // If checkpoint is ahead of message count, it's stale (e.g., after clearing messages)
+    // Reset it to 0 to allow new memory heals
+    const effectiveHealCheckpoint = healCheckpoint > messageCount ? 0 : healCheckpoint
+    
+    if (messageCount - effectiveHealCheckpoint < HEAL_TRIGGER_MESSAGE_COUNT) {
       return
     }
-
+    
     await updateCharacter(input.character.id, input.userId, {
       heal_checkpoint: messageCount,
     })
