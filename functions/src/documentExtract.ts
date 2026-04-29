@@ -460,11 +460,15 @@ export async function documentExtractHandler(
   // A non-empty non-UUID value is still rejected because Cloud SQL queries use a
   // uuid column and passing a non-UUID would cause a Postgres type error.
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const db = await deps.getDb();
   if (characterId !== null) {
     if (!UUID_RE.test(characterId)) {
       throw new HttpsError('permission-denied', 'Character not found or not owned by user.');
     }
+  }
+
+  const db = await deps.getDb();
+
+  if (characterId !== null) {
     const charRows = await db
       .select({ id: characters.id })
       .from(characters)
