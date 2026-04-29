@@ -3,7 +3,6 @@ import { Alert, View, StyleSheet } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Snackbar, Portal } from 'react-native-paper'
-import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 import {
   dispatchDocumentIngest,
   getDocumentIngestMachineActor,
@@ -15,7 +14,7 @@ type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
     userId?: string
-    characterCloudId?: string | null
+    hasUnlimited?: boolean
   }
 
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
@@ -26,11 +25,10 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   textInputProps,
   characterId,
   userId,
-  characterCloudId,
+  hasUnlimited,
   ...props
 }: ChatComposerProps<TMessage>) {
   const skipNextSubmitRef = useRef(false)
-  const { isSubscriber } = useCurrentPlan()
 
   const actorRef = useRef<DocumentIngestMachineActor | undefined>(undefined)
   const subscriptionRef = useRef<{ unsubscribe: () => void } | undefined>(undefined)
@@ -116,11 +114,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [onSend, text])
 
-  // Only show the + button for cloud-synced characters. Local-only characters
-  // cannot use document ingest because the server callable requires a Cloud SQL
-  // UUID for the ownership check. Showing the button and then failing after the
-  // user has picked a file (the old behavior) is worse UX than hiding it.
-  const showPlusButton = isSubscriber && Boolean(characterId) && Boolean(userId) && Boolean(characterCloudId)
+  // Show the + button for any premium user with an active character session,
+  // regardless of whether the character is cloud-synced.
+  const showPlusButton = hasUnlimited && Boolean(characterId) && Boolean(userId)
 
   return (
     <View style={styles.container}>

@@ -374,8 +374,7 @@ Match existing patterns:
 ```mermaid
 flowchart TD
     A([User taps + in ChatComposer]) --> B{Premium?
-usage.hasUnlimited
-+ character cloud-synced}
+usage.hasUnlimited}
     B -- No --> Z([Button not rendered])
     B -- Yes --> C[Action sheet:\nAdd document to memory]
     C -- Cancel --> N([idle])

@@ -2,13 +2,8 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { Alert } from 'react-native'
 
-const mockIsSubscriber = jest.fn()
 const mockDispatchDocumentIngest = jest.fn()
 const mockGetDocumentIngestMachineActor = jest.fn()
-
-jest.mock('~/hooks/useCurrentPlan', () => ({
-  useCurrentPlan: () => ({ isSubscriber: mockIsSubscriber() }),
-}))
 
 jest.mock('~/machines/documentIngestMachine', () => ({
   dispatchDocumentIngest: (...args: any[]) => mockDispatchDocumentIngest(...args),
@@ -49,53 +44,48 @@ describe('ChatComposer with document ingest', () => {
   })
 
   it('does NOT render plus button for non-premium users', () => {
-    mockIsSubscriber.mockReturnValue(false)
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(
-        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" hasUnlimited={false} />,
       )
     })
     expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(0)
   })
 
-  it('renders plus button for premium users with characterId, userId, and cloud sync', () => {
-    mockIsSubscriber.mockReturnValue(true)
+  it('renders plus button for premium users with characterId and userId', () => {
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(
-        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" characterCloudId="cloud-uuid-1" />,
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" hasUnlimited={true} />,
       )
     })
     expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(1)
   })
 
-  it('does NOT render plus button for premium users without cloud sync', () => {
-    mockIsSubscriber.mockReturnValue(true)
+  it('renders plus button for premium users regardless of cloud sync status', () => {
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(
-        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" hasUnlimited={true} />,
       )
     })
-    expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(0)
+    expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(1)
   })
 
   it('does NOT render plus button for premium users without characterId', () => {
-    mockIsSubscriber.mockReturnValue(true)
     let tree!: ReturnType<typeof create>
     act(() => {
-      tree = create(<ChatComposer text="" onSend={jest.fn()} />)
+      tree = create(<ChatComposer text="" onSend={jest.fn()} hasUnlimited={true} />)
     })
     expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(0)
   })
 
   it('pressing plus button shows Alert with "Add document to memory" option', () => {
-    mockIsSubscriber.mockReturnValue(true)
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(
-        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" characterCloudId="cloud-uuid-1" />,
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" hasUnlimited={true} />,
       )
     })
     const button = tree.root.findByProps({ testID: 'plus-button' })
@@ -111,7 +101,6 @@ describe('ChatComposer with document ingest', () => {
   })
 
   it('dispatches ingest when "Add document to memory" is pressed', () => {
-    mockIsSubscriber.mockReturnValue(true)
     jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
       const addBtn = (buttons as any[])?.find((b) => b.text === 'Add document to memory')
       addBtn?.onPress?.()
@@ -119,7 +108,7 @@ describe('ChatComposer with document ingest', () => {
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(
-        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" characterCloudId="cloud-uuid-1" />,
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" hasUnlimited={true} />,
       )
     })
     const button = tree.root.findByProps({ testID: 'plus-button' })
