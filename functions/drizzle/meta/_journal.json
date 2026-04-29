@@ -50,6 +50,13 @@
       "when": 1745827200000,
       "tag": "0006_partial_source_hash_index",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777420800000,
+      "tag": "0007_source_ref_idx",
+      "breakpoints": true
     }
   ]
 }
