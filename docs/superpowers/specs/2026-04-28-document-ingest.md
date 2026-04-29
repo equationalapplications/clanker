@@ -379,7 +379,7 @@ usage.hasUnlimited
     B -- No --> Z([Button not rendered])
     B -- Yes --> C[Action sheet:\nAdd document to memory]
     C -- Cancel --> N([idle])
-    C -- Add document --> D[expo-document-picker\n.txt .md .csv .json .yaml MIME filter]
+    C -- Add document --> D[expo-document-picker\n.txt .md MIME filter]
     D -- Cancelled --> N
     D -- File picked --> E[Read file as UTF-8\nCompute SHA-256]
     E -- Error --> ER[Toast error] --> N

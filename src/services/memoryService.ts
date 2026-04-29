@@ -91,8 +91,8 @@ function toWikiEntryUpserts(rows: unknown[], characterId?: string): WikiEntryUps
       syncedToCloud: typeof row.syncedToCloud === 'number' ? row.syncedToCloud : 0,
       cloudId: typeof row.cloudId === 'string' ? row.cloudId : null,
       deletedAt: typeof row.deletedAt === 'number' ? row.deletedAt : null,
-      sourceHash: typeof row.sourceHash === 'string' ? row.sourceHash : null,
-      sourceRef: typeof row.sourceRef === 'string' ? row.sourceRef : null,
+      sourceHash: typeof row.sourceHash === 'string' ? row.sourceHash : typeof row.source_hash === 'string' ? row.source_hash : null,
+      sourceRef: typeof row.sourceRef === 'string' ? row.sourceRef : typeof row.source_ref === 'string' ? row.source_ref : null,
     }))
     .filter((row) => row.id && row.characterId && row.userId && row.title && row.body)
 }
