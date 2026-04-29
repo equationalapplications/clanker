@@ -26,6 +26,8 @@ export const subscriptions = pgTable('subscriptions', {
   stripeCustomerId: text('stripe_customer_id'),
   billingCycleStart: timestamp('billing_cycle_start', { withTimezone: true }),
   billingCycleEnd: timestamp('billing_cycle_end', { withTimezone: true }),
+  documentsIngestedCount: integer('documents_ingested_count').notNull().default(0),
+  documentsIngestedDate: text('documents_ingested_date'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
@@ -94,12 +96,16 @@ export const wikiEntries = pgTable('wiki_entries', {
   lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }),
   accessCount: integer('access_count').notNull().default(0),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  sourceHash: text('source_hash'),
+  sourceRef: text('source_ref'),
 }, (table) => ({
   characterUserIdx: index('wiki_entries_character_user_idx').on(table.characterId, table.userId),
   characterDeletedIdx: index('wiki_entries_character_deleted_idx').on(table.characterId, table.deletedAt),
   updatedAtIdx: index('wiki_entries_updated_at_idx').on(table.updatedAt.desc()),
+  sourceHashIdx: index('wiki_entries_source_hash_idx').on(table.characterId, table.sourceHash).where(sql`${table.sourceHash} IS NOT NULL`),
+  sourceRefIdx: index('wiki_entries_source_ref_idx').on(table.characterId, table.sourceRef).where(sql`${table.sourceRef} IS NOT NULL`),
   confidenceCheck: check('wiki_entries_confidence_check', sql`${table.confidence} IN ('certain', 'inferred', 'tentative')`),
-  sourceTypeCheck: check('wiki_entries_source_type_check', sql`${table.sourceType} IN ('user_stated', 'agent_inferred', 'user_confirmed')`),
+  sourceTypeCheck: check('wiki_entries_source_type_check', sql`${table.sourceType} IN ('user_stated', 'agent_inferred', 'user_confirmed', 'user_document')`),
 }));
 
 export const agentTasks = pgTable('agent_tasks', {

@@ -184,7 +184,16 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
             (requiredColumn) => hasCharacterColumn(requiredColumn),
         )
 
-        if (hasLatestCharacterSchema) {
+        // Also verify wiki_entries has its required columns (source_hash, source_ref added in
+        // migrations 13/14). A fresh install creates these via CREATE_TABLES, so both must
+        // be present before we can declare the DB is already at the latest schema.
+        const wikiCols = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(wiki_entries)')
+        const wikiColNames = new Set(wikiCols.map((c) => c.name))
+        const hasLatestWikiSchema = LATEST_SCHEMA_REQUIRED_COLUMNS.wiki_entries.every(
+            (requiredColumn) => wikiColNames.has(requiredColumn),
+        )
+
+        if (hasLatestCharacterSchema && hasLatestWikiSchema) {
             // Fresh DB already at latest schema: just record the current schema version
             await executor.runAsync(
                 'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
@@ -255,13 +264,15 @@ async function applyMigrations(executor: DatabaseExecutor, fromVersion: number):
     for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {
         const migration = MIGRATIONS[version]
         if (migration) {
-            const skipGuard = MIGRATION_SKIP_GUARDS[version]
-            if (skipGuard) {
-                const columnExists = await hasColumn(executor, skipGuard.table, skipGuard.column)
-                if (columnExists) {
-                    console.log(
-                        `Skipping migration ${version}: ${skipGuard.table}.${skipGuard.column} already exists`,
-                    )
+            const skipGuards = MIGRATION_SKIP_GUARDS[version]
+            if (skipGuards && skipGuards.length > 0) {
+                // Skip migration if ALL guard columns already exist
+                const allColumnsExist = await Promise.all(
+                    skipGuards.map((guard) => hasColumn(executor, guard.table, guard.column))
+                )
+                if (allColumnsExist.every((exists) => exists)) {
+                    const guardDescr = skipGuards.map((g) => `${g.table}.${g.column}`).join(', ')
+                    console.log(`Skipping migration ${version}: ${guardDescr} already exists`)
                     continue
                 }
             }

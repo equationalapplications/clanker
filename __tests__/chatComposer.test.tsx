@@ -9,6 +9,24 @@ jest.mock('react-native-gifted-chat', () => {
   }
 })
 
+jest.mock('~/machines/documentIngestMachine', () => ({
+  dispatchDocumentIngest: jest.fn(),
+  getDocumentIngestMachineActor: jest.fn(() => undefined),
+}))
+
+jest.mock('~/hooks/useCurrentPlan', () => ({
+  useCurrentPlan: () => ({ isSubscriber: false }),
+}))
+
+jest.mock('react-native-paper', () => ({
+  IconButton: () => null,
+  Snackbar: () => null,
+  Portal: ({ children }: any) => children,
+  useTheme: () => ({ colors: { primary: '#6200ee' } }),
+}))
+
+jest.mock('~/components/composer/IngestProgressBar', () => () => null)
+
 describe('ChatComposer', () => {
   beforeEach(() => {
     jest.clearAllMocks()
