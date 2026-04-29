@@ -26,6 +26,9 @@ config.server = {
   ...config.server,
   enhanceMiddleware: (middleware) => {
     return (req, res, next) => {
+      // Required for Firebase OAuth popup flows. This intentionally uses
+      // `same-origin-allow-popups`, which trades off full cross-origin isolation
+      // (and can affect features like SharedArrayBuffer) so auth popups work.
       res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless')
       res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups')
       middleware(req, res, next)

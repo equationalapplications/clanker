@@ -5,23 +5,27 @@ How to generate and apply schema migrations to the production Cloud SQL (Postgre
 ## Architecture
 
 - **ORM**: Drizzle ORM (TypeScript)
-- **Database**: PostgreSQL 18 (Cloud SQL — `clanker-prod:us-central1:clanker-prod`)
+- **Database**: PostgreSQL 18 (Cloud SQL — set `INSTANCE_CONNECTION_NAME` and `GCP_PROJECT` for the target environment)
 - **Schema definition**: `functions/src/db/schema.ts`
 - **Migrations folder**: `functions/drizzle/`
-- **Config**: `functions/drizzle.config.ts`
+- **Config**: `functions/drizzle.config.ts` (should reference `INSTANCE_CONNECTION_NAME` / `GCP_PROJECT` instead of hard-coded prod values)
 
 > **Note:** There is no `__drizzle_migrations` tracking table in production. Migrations must be applied manually via the node script below. Keep the "Applied Migrations" list in this file up to date.
+>
+> **Warning:** Before generating or applying migrations, verify that `GCP_PROJECT` and `INSTANCE_CONNECTION_NAME` point to the intended Cloud SQL instance (e.g. staging vs production). Do **not** run migration commands until you have confirmed the target.
 
 ---
 
 ## Applied Migrations
 
-| # | File | Description |
+This list covers the initial schema plus all subsequent migration files. Files are listed in the order they were applied. `0003_character_voice.sql` was applied manually and is absent from the Drizzle journal — that is intentional. The duplicate `0004_` prefix is from Drizzle's own numbering and both files are distinct.
+
+| # | File | Applied |
 |---|---|---|
-| 0 | `0000_dazzling_kid_colt.sql` | Initial schema (users, subscriptions, characters, messages, credit_transactions) |
+| initial | `0000_dazzling_kid_colt.sql` | Initial schema (users, subscriptions, characters, messages, credit_transactions) |
 | 1 | `0001_credit_transactions_idempotency.sql` | Idempotency index on credit_transactions |
 | 2 | `0002_users_timestamps_not_null.sql` | NOT NULL constraints on user timestamps |
-| 3 | `0003_character_voice.sql` | `characters.voice` column *(not in journal — applied manually 2026-04-29)* |
+| 3 | `0003_character_voice.sql` | `characters.voice` column *(not in Drizzle journal — applied manually 2026-04-29)* |
 | 4 | `0004_wiki_memory.sql` | `wiki_entries`, `agent_tasks`, `memory_events` tables |
 | 5 | `0004_lame_gwen_stacy.sql` | `wiki_entries.source_hash/source_ref`, updated source_type constraint |
 | 6 | `0005_subscriptions_document_counter.sql` | `subscriptions.documents_ingested_count/date` |
@@ -34,12 +38,12 @@ How to generate and apply schema migrations to the production Cloud SQL (Postgre
 
 ### Cloud SQL Auth Proxy
 
-The proxy must be running before any DB access. The binary lives at `/tmp/cloud-sql-proxy` (it doesn't survive reboots — re-download if missing):
+The proxy must be running before any DB access. Download the Cloud SQL Auth Proxy binary for your OS and architecture from the official install guide, save it to `/tmp/cloud-sql-proxy`, and make it executable (it doesn't survive reboots — re-download if missing):
+
+https://cloud.google.com/sql/docs/postgres/connect-auth-proxy#install
 
 ```bash
-curl -o /tmp/cloud-sql-proxy \
-  https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.15.2/cloud-sql-proxy.darwin.amd64 \
-  && chmod +x /tmp/cloud-sql-proxy
+chmod +x /tmp/cloud-sql-proxy
 ```
 
 ### gcloud authentication
@@ -90,11 +94,19 @@ const MIGRATIONS = [
       const stmts = fs.readFileSync('drizzle/' + file, 'utf8')
         .split('--> statement-breakpoint').map(s => s.trim()).filter(Boolean);
       console.log('Applying', file, '(' + stmts.length + ' statements)');
-      for (const stmt of stmts) await client.query(stmt);
-      console.log('  ✅ Done');
+      await client.query('BEGIN');
+      try {
+        for (const stmt of stmts) await client.query(stmt);
+        await client.query('COMMIT');
+        console.log('  ✅ Done');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      }
     }
   } catch (err) {
     console.error('❌', err.message, err.detail || '');
+    process.exitCode = 1;
   } finally { client.release(); p.end(); }
 })();
 "
