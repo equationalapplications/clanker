@@ -392,7 +392,10 @@ export const documentIngestMachine = createMachine(
 
       validateCharacter: fromPromise(async ({ input }: { input: { characterId: string; userId: string } }): Promise<string | null> => {
         const character = await getCharacter(input.characterId, input.userId)
-        return character?.cloud_id ?? null
+        if (!character) {
+          throw new Error(`Character not found for user: characterId=${input.characterId}, userId=${input.userId}`)
+        }
+        return character.cloud_id ?? null
       }),
 
       applyFacts: fromPromise(async ({ input }: { input: ApplyInput }): Promise<void> => {
