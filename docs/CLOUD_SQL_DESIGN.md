@@ -41,6 +41,8 @@ Stores subscription state and credit balance.
 | `stripe_customer_id` | `text` | |
 | `billing_cycle_start` | `timestamptz` | |
 | `billing_cycle_end` | `timestamptz` | |
+| `documents_ingested_count` | `integer` | Not Null, Default: `0` |
+| `documents_ingested_date` | `text` | |
 | `created_at` | `timestamptz` | Default: `now()` |
 | `updated_at` | `timestamptz` | Default: `now()` |
 
@@ -69,6 +71,7 @@ User-created characters.
 | `traits` | `text` | |
 | `emotions` | `text` | |
 | `context` | `text` | |
+| `voice` | `text` | Not Null, Default: `'Umbriel'` |
 | `is_public` | `boolean` | Not Null, Default: `false` |
 | `created_at` | `timestamptz` | Default: `now()` |
 | `updated_at` | `timestamptz` | Default: `now()` |
@@ -88,16 +91,95 @@ Chat history between users and characters.
 | `message_data` | `jsonb` | Not Null, Default: `'{}'` |
 | `created_at` | `timestamptz` | Default: `now()` |
 
+#### 6. `wiki_entries`
+Structured memory facts for characters (LLM Wiki Memory). Soft-deleted via `deleted_at`.
+
+| Column | Type | Constraints |
+| :--- | :--- | :--- |
+| `id` | `text` | PK |
+| `character_id` | `uuid` | Not Null, FK: `characters.id` (CASCADE) |
+| `user_id` | `uuid` | Not Null, FK: `users.id` (CASCADE) |
+| `title` | `text` | Not Null |
+| `body` | `text` | Not Null |
+| `tags` | `jsonb` | Not Null, Default: `[]` |
+| `confidence` | `text` | Not Null, Default: `'inferred'`, Check: `('certain', 'inferred', 'tentative')` |
+| `source_type` | `text` | Not Null, Default: `'agent_inferred'`, Check: `('user_stated', 'agent_inferred', 'user_confirmed', 'user_document')` |
+| `source_hash` | `text` | |
+| `source_ref` | `text` | |
+| `created_at` | `timestamptz` | Not Null, Default: `now()` |
+| `updated_at` | `timestamptz` | Not Null, Default: `now()` |
+| `last_accessed_at` | `timestamptz` | |
+| `access_count` | `integer` | Not Null, Default: `0` |
+| `deleted_at` | `timestamptz` | |
+
+#### 7. `agent_tasks`
+Tasks the agent tracks on behalf of a character. Soft-deleted via `deleted_at`.
+
+| Column | Type | Constraints |
+| :--- | :--- | :--- |
+| `id` | `text` | PK |
+| `character_id` | `uuid` | Not Null, FK: `characters.id` (CASCADE) |
+| `user_id` | `uuid` | Not Null, FK: `users.id` (CASCADE) |
+| `description` | `text` | Not Null |
+| `status` | `text` | Not Null, Default: `'pending'`, Check: `('pending', 'in_progress', 'done', 'abandoned')` |
+| `priority` | `integer` | Not Null, Default: `0` |
+| `due_context` | `text` | |
+| `created_at` | `timestamptz` | Not Null, Default: `now()` |
+| `updated_at` | `timestamptz` | Not Null, Default: `now()` |
+| `resolved_at` | `timestamptz` | |
+| `resolution_note` | `text` | |
+| `deleted_at` | `timestamptz` | |
+
+#### 8. `memory_events`
+Episodic event log for a character's memory history.
+
+| Column | Type | Constraints |
+| :--- | :--- | :--- |
+| `id` | `text` | PK |
+| `character_id` | `uuid` | Not Null, FK: `characters.id` (CASCADE) |
+| `user_id` | `uuid` | Not Null, FK: `users.id` (CASCADE) |
+| `event_type` | `text` | Not Null, Check: `('observation', 'decision', 'action', 'outcome')` |
+| `summary` | `text` | Not Null |
+| `related_entry_id` | `text` | FK: `wiki_entries.id` (SET NULL) |
+| `related_task_id` | `text` | FK: `agent_tasks.id` (SET NULL) |
+| `source_ref` | `text` | |
+| `created_at` | `timestamptz` | Not Null, Default: `now()` |
+
 ## Indexes
 
-- `users.firebase_uid` (Unique)
-- `users.email` (Unique)
-- `subscriptions.user_id` (Unique)
-- `characters.user_id`
-- `messages.character_id`
-- `messages.sender_user_id`
-- `messages.(character_id, created_at DESC)`
-- `credit_transactions.user_id`
+**users**
+- `firebase_uid` (Unique)
+- `email` (Unique)
+
+**subscriptions**
+- `user_id` (Unique)
+
+**characters**
+- `user_id`
+
+**messages**
+- `character_id`
+- `sender_user_id`
+- `(character_id, created_at DESC)`
+
+**credit_transactions**
+- `user_id`
+- `(user_id, reason, reference_id)` — partial unique index where `reference_id IS NOT NULL` (idempotency)
+
+**wiki_entries**
+- `(character_id, user_id)`
+- `(character_id, deleted_at)`
+- `(updated_at DESC)`
+- `(character_id, source_hash)` — partial where `source_hash IS NOT NULL`
+- `(character_id, source_ref)` — partial where `source_ref IS NOT NULL`
+- GIN index on `to_tsvector('english', title || ' ' || body || ' ' || tags::text)` (full-text search)
+
+**agent_tasks**
+- `(character_id, user_id, status)`
+- `(priority DESC)`
+
+**memory_events**
+- `(character_id, user_id, created_at DESC)`
 
 ## Connectivity
 
