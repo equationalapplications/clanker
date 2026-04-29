@@ -1,3 +1,10 @@
+## [29.3.1](https://github.com/equationalapplications/clanker/compare/v29.3.0...v29.3.1) (2026-04-29)
+
+
+### Bug Fixes
+
+* **web,docs:** allow OAuth popups and document Cloud SQL migrations ([2df333a](https://github.com/equationalapplications/clanker/commit/2df333a4d75a7a2c55e82a00cdcbe28587cac83e))
+
 # [29.3.0](https://github.com/equationalapplications/clanker/compare/v29.2.1...v29.3.0) (2026-04-29)
 
 
