@@ -159,8 +159,15 @@ function parseInput(data: unknown): {
   // omit (or pass null/empty) for local-only characters. A non-empty non-UUID
   // string is rejected because Cloud SQL queries require a UUID column value.
   const rawCharacterId = payload.characterId;
-  const trimmedCharacterId = typeof rawCharacterId === 'string' ? rawCharacterId.trim() : '';
-  const characterId = trimmedCharacterId || null;
+  let characterId: string | null;
+  if (rawCharacterId == null) {
+    characterId = null;
+  } else if (typeof rawCharacterId === 'string') {
+    const trimmedCharacterId = rawCharacterId.trim();
+    characterId = trimmedCharacterId || null;
+  } else {
+    throw new HttpsError('invalid-argument', 'characterId must be a string, null, or undefined.');
+  }
 
   // filename sanitization: allow only [A-Za-z0-9._\- ], strip everything else.
   if (typeof payload.filename !== 'string' || !payload.filename.trim()) {
