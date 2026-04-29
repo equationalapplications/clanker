@@ -13,6 +13,10 @@ describe('extractDocument', () => {
     jest.clearAllMocks()
   })
 
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
   it('returns parsed facts from callable response', async () => {
     mockDocumentExtractFn.mockResolvedValue({
       data: {
@@ -38,6 +42,7 @@ describe('extractDocument', () => {
   })
 
   it('drops facts with invalid confidence', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {})
     mockDocumentExtractFn.mockResolvedValue({
       data: {
         facts: [
