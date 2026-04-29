@@ -120,7 +120,7 @@ export const documentIngestMachine = createMachine(
             target: 'error',
             actions: assign({
               errorMessage: ({ event }) =>
-                event.error instanceof Error ? event.error.message : 'Character must be synced to cloud before ingesting documents.',
+                event.error instanceof Error ? event.error.message : 'Failed to validate character.',
             }),
           },
         },
