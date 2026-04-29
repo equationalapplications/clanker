@@ -113,7 +113,7 @@ export const documentIngestMachine = createMachine(
           onDone: {
             target: 'picking',
             actions: assign({
-              cloudId: ({ event }) => event.output as string | null,
+              cloudId: ({ event }) => event.output,
             }),
           },
           onError: {

@@ -159,10 +159,8 @@ function parseInput(data: unknown): {
   // omit (or pass null/empty) for local-only characters. A non-empty non-UUID
   // string is rejected because Cloud SQL queries require a UUID column value.
   const rawCharacterId = payload.characterId;
-  const characterId =
-    typeof rawCharacterId === 'string' && rawCharacterId.trim()
-      ? rawCharacterId.trim()
-      : null;
+  const trimmedCharacterId = typeof rawCharacterId === 'string' ? rawCharacterId.trim() : '';
+  const characterId = trimmedCharacterId || null;
 
   // filename sanitization: allow only [A-Za-z0-9._\- ], strip everything else.
   if (typeof payload.filename !== 'string' || !payload.filename.trim()) {
