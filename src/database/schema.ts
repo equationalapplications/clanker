@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 15
+export const SCHEMA_VERSION = 16
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -157,6 +157,7 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_updated_at ON wiki_entries(updated_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_deleted ON wiki_entries(character_id, deleted_at);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL;
 
   -- Agent tasks table
   CREATE TABLE IF NOT EXISTS agent_tasks (
@@ -233,4 +234,5 @@ export const MIGRATIONS: Record<number, string> = {
   14: `ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT`,
   15: `DROP INDEX IF EXISTS idx_wiki_entries_source_hash;
 CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL`,
+  16: `CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL`,
 }

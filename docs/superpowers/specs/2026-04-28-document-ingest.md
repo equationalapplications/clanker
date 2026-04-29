@@ -16,7 +16,7 @@ This spec adds **user-initiated document ingest** for premium users: pick a `.tx
 - Premium-gated `+` action in `ChatComposer` opens a document picker
 - Server callable extracts structured facts from supplied text (no client-side LLM, mirrors v1 server-extraction model)
 - Extracted entries written to local SQLite with `source_type='user_document'` so `memoryHeal` treats them as anchors
-- Idempotent re-upload: same content → no duplicates (hash-based dedup)
+- Idempotent re-upload: same filename → prompts Replace/Add Anyway (filename-based dedup; `source_ref` column)
 - User can purge all entries from a single uploaded document via `memoryForget`
 - Reasonable abuse / cost ceilings enforced both client and server
 
@@ -30,17 +30,20 @@ This spec adds **user-initiated document ingest** for premium users: pick a `.tx
 
 ## Schema (v15 migration)
 
-Bump `SCHEMA_VERSION = 12 → 15` ([src/database/schema.ts](/src/database/schema.ts)). Three migrations were needed in practice, each with a single-column skip guard for retry safety: `MIGRATIONS[13]` adds `source_hash`; `MIGRATIONS[14]` adds `source_ref` + a non-partial index; `MIGRATIONS[15]` drops and recreates the index as a partial index (`WHERE source_hash IS NOT NULL`) to avoid indexing NULL rows.
+Bump `SCHEMA_VERSION = 12 → 16` ([src/database/schema.ts](/src/database/schema.ts)). Four migrations were needed in practice, each with a single-column skip guard for retry safety: `MIGRATIONS[13]` adds `source_hash`; `MIGRATIONS[14]` adds `source_ref`; `MIGRATIONS[15]` drops any prior index and recreates it as a partial index (`WHERE source_hash IS NOT NULL`) to avoid indexing NULL rows; `MIGRATIONS[16]` adds a partial index on `(character_id, source_ref) WHERE source_ref IS NOT NULL` to support efficient purge-by-filename queries.
 
 ### `wiki_entries` additions
 
-Add one column to local SQLite:
+Add two columns to local SQLite:
 
 ```
 source_hash   TEXT                              -- SHA-256 of normalized source content; nullable for non-document entries
+source_ref    TEXT                              -- original filename (sanitized); nullable for non-document entries
 ```
 
-Index: `(character_id, source_hash)` — partial index where `source_hash IS NOT NULL`. Used for dedup lookup.
+Index: `(character_id, source_hash)` — partial index where `source_hash IS NOT NULL`. Stored with each entry for provenance; not used for duplicate prompting in v2.
+
+Index: `(character_id, source_ref)` — partial index where `source_ref IS NOT NULL`. Used for duplicate detection (`findEntriesByRef`) and purge-by-filename (`softDeleteWikiEntriesBySourceRef`).
 
 Cloud SQL Drizzle mirror ([functions/src/db/schema.ts](/functions/src/db/schema.ts)) gets the same column + index. Generate via `cd functions && npm run db:generate` then `npm run migrate` (see `/memories/repo/cloud-sql-migrations.md`).
 
@@ -161,15 +164,15 @@ reading         [fromPromise: read file via expo-file-system, compute SHA-256]
   → error                    → error → idle
   → CANCEL                   → idle
 
-checkingDuplicate [fromPromise: wikiDatabase.findEntriesByHash(characterId, hash)]
+checkingDuplicate [fromPromise: wikiDatabase.findEntriesBySourceRef(characterId, filename)]
   → no match                 → extracting
   → match found              → confirmingDuplicate
   → CANCEL                   → idle
 
 confirmingDuplicate  [presents action sheet: Replace | Add Anyway | Cancel]
                      [no timeout — modal stays until user responds; CANCEL event also exits]
-  → REPLACE   → purging       (soft-delete prior entries with this hash, then extract)
-  → ADD       → extracting    (proceed without purge; new entries get same hash)
+  → REPLACE   → purging       (soft-delete prior entries with this filename/sourceRef, then extract)
+  → ADD       → extracting    (proceed without purge; new entries get same sourceRef)
   → CANCEL    → idle
 
 purging         [fromPromise: forgetMemory({ sourceRef: filename }) — soft-deletes prior entries by source_ref]
@@ -321,7 +324,7 @@ Document this skip behavior at the top of `memoryHealHandler`.
 - `functions/src/documentExtract.test.ts`
 
 **Modified**:
-- [src/database/schema.ts](/src/database/schema.ts) — bump `SCHEMA_VERSION` → 15; add `MIGRATIONS[13]` (ALTER `wiki_entries` add `source_hash`), `MIGRATIONS[14]` (add `source_ref` + regular index), `MIGRATIONS[15]` (swap to partial index); each version has a single-column `MIGRATION_SKIP_GUARDS` entry for retry safety; extend `LATEST_SCHEMA_REQUIRED_COLUMNS['wiki_entries']`
+- [src/database/schema.ts](/src/database/schema.ts) — bump `SCHEMA_VERSION` → 16; add `MIGRATIONS[13]` (ALTER `wiki_entries` add `source_hash`), `MIGRATIONS[14]` (add `source_ref`), `MIGRATIONS[15]` (swap `source_hash` to partial index), `MIGRATIONS[16]` (add partial index on `source_ref`); extend `LATEST_SCHEMA_REQUIRED_COLUMNS['wiki_entries']`
 - [functions/src/db/schema.ts](/functions/src/db/schema.ts) — add `sourceHash` column + index to `wikiEntries` table; new Drizzle migration generated at `functions/drizzle/000X_document_source_hash.sql`
 - `src/database/wikiDatabase.ts` — add `findEntriesByHash`, `findEntriesBySourceRef`, `bulkInsertEntries`; extend `LocalWikiEntry` interface and `source_type` union
 - `src/services/memoryService.ts` — extend `ForgetTarget` union with `{ sourceRef }`; pass through to `memoryForget` callable
@@ -351,7 +354,7 @@ Match existing patterns:
 
 ## Acceptance Criteria
 
-- [ ] `SCHEMA_VERSION=15`; `MIGRATIONS[13]` adds `wiki_entries.source_hash`; `MIGRATIONS[14]` adds `source_ref` + regular index; `MIGRATIONS[15]` converts to partial index; each migration has a single-column skip guard; all reflected in `LATEST_SCHEMA_REQUIRED_COLUMNS`
+- [ ] `SCHEMA_VERSION=16`; `MIGRATIONS[13]` adds `wiki_entries.source_hash`; `MIGRATIONS[14]` adds `source_ref`; `MIGRATIONS[15]` converts `source_hash` index to partial index; `MIGRATIONS[16]` adds partial index on `source_ref`; all reflected in `LATEST_SCHEMA_REQUIRED_COLUMNS`
 - [ ] Drizzle Cloud SQL schema mirrors `source_hash` column + index; new migration generated
 - [ ] `documentExtract` callable enforces: premium gate, daily rate limit (5/user/day), size cap (200K chars with truncation flag), hash verification, character ownership, chunk count ceiling
 - [ ] Server-side parallel extraction succeeds when one chunk LLM call fails (returns partial facts; partial-failure flag surfaced in response or logged — TBD during impl)
@@ -370,7 +373,9 @@ Match existing patterns:
 
 ```mermaid
 flowchart TD
-    A([User taps + in ChatComposer]) --> B{Premium?\nusage.hasUnlimited}
+    A([User taps + in ChatComposer]) --> B{Premium?
+usage.hasUnlimited
++ character cloud-synced}
     B -- No --> Z([Button not rendered])
     B -- Yes --> C[Action sheet:\nAdd document to memory]
     C -- Cancel --> N([idle])
@@ -378,7 +383,7 @@ flowchart TD
     D -- Cancelled --> N
     D -- File picked --> E[Read file as UTF-8\nCompute SHA-256]
     E -- Error --> ER[Toast error] --> N
-    E -- Done --> F[wikiDatabase.findEntriesByHash]
+    E -- Done --> F[wikiDatabase.findEntriesByRef\n(filename / source_ref)]
     F -- No match --> H[documentExtract callable]
     F -- Match --> G{Action sheet:\nReplace · Add · Cancel}
     G -- Cancel --> N

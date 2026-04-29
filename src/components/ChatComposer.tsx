@@ -15,6 +15,7 @@ type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
     userId?: string
+    characterCloudId?: string | null
   }
 
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
@@ -25,6 +26,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   textInputProps,
   characterId,
   userId,
+  characterCloudId,
   ...props
 }: ChatComposerProps<TMessage>) {
   const skipNextSubmitRef = useRef(false)
@@ -114,7 +116,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [onSend, text])
 
-  const showPlusButton = isSubscriber && Boolean(characterId) && Boolean(userId)
+  // Only show the + button for cloud-synced characters. Local-only characters
+  // cannot use document ingest because the server callable requires a Cloud SQL
+  // UUID for the ownership check. Showing the button and then failing after the
+  // user has picked a file (the old behavior) is worse UX than hiding it.
+  const showPlusButton = isSubscriber && Boolean(characterId) && Boolean(userId) && Boolean(characterCloudId)
 
   return (
     <View style={styles.container}>

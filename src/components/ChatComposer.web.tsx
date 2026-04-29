@@ -15,6 +15,7 @@ type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
     userId?: string
+    characterCloudId?: string | null
   }
 
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
@@ -23,6 +24,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   textInputProps,
   characterId,
   userId,
+  characterCloudId,
   ...props
 }: ChatComposerProps<TMessage>) {
   const { isSubscriber } = useCurrentPlan()
@@ -110,7 +112,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [onSend, text])
 
-  const showPlusButton = isSubscriber && Boolean(characterId) && Boolean(userId)
+  const showPlusButton = isSubscriber && Boolean(characterId) && Boolean(userId) && Boolean(characterCloudId)
 
   return (
     <View style={styles.container}>

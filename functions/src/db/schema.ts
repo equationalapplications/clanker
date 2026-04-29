@@ -103,6 +103,7 @@ export const wikiEntries = pgTable('wiki_entries', {
   characterDeletedIdx: index('wiki_entries_character_deleted_idx').on(table.characterId, table.deletedAt),
   updatedAtIdx: index('wiki_entries_updated_at_idx').on(table.updatedAt.desc()),
   sourceHashIdx: index('wiki_entries_source_hash_idx').on(table.characterId, table.sourceHash).where(sql`${table.sourceHash} IS NOT NULL`),
+  sourceRefIdx: index('wiki_entries_source_ref_idx').on(table.characterId, table.sourceRef).where(sql`${table.sourceRef} IS NOT NULL`),
   confidenceCheck: check('wiki_entries_confidence_check', sql`${table.confidence} IN ('certain', 'inferred', 'tentative')`),
   sourceTypeCheck: check('wiki_entries_source_type_check', sql`${table.sourceType} IN ('user_stated', 'agent_inferred', 'user_confirmed', 'user_document')`),
 }));

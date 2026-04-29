@@ -218,7 +218,14 @@ function assertNotBinaryOrRepetitive(content: string): void {
   // (e.g. the same paragraph 10k times, which has >10 unique chars but would
   // waste ~100 LLM calls). A compression-ratio check (zlib deflate ratio
   // < 0.05) would cover that case cheaply — deferred to v3.
-  if (content.length > 5_000 && new Set(content).size < 10) {
+  if (content.length > 5_000) {
+    // Early-exit counter: stop scanning once we find 10 unique chars so we
+    // never allocate more than a small Set regardless of input size.
+    const seen = new Set<string>();
+    for (const ch of content) {
+      seen.add(ch);
+      if (seen.size >= 10) return;
+    }
     throw new HttpsError('invalid-argument', 'Document appears to be binary or repetitive content.');
   }
 }
@@ -248,6 +255,14 @@ function chunkContent(content: string): string[] {
           current = sentence;
         } else {
           current += (current ? ' ' : '') + sentence;
+        }
+        // Hard-split any segment that still exceeds the target (e.g. a single
+        // sentence or word run with no .?! boundary). Without this, one 200K
+        // paragraph with no punctuation would become a single 200K LLM call,
+        // defeating the chunk count cap and cost guard.
+        while (current.length > CHUNK_TARGET_CHARS) {
+          chunks.push(current.slice(0, CHUNK_TARGET_CHARS).trim());
+          current = current.slice(CHUNK_TARGET_CHARS);
         }
       }
       if (current.trim()) chunks.push(current.trim());

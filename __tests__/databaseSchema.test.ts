@@ -35,8 +35,8 @@ describe('database schema migration guards', () => {
     )
   })
 
-  it('bumps schema to v15 for wiki_entries source columns with one guard per migration', () => {
-    expect(SCHEMA_VERSION).toBe(15)
+  it('bumps schema to v16 for wiki_entries source columns with one guard per migration', () => {
+    expect(SCHEMA_VERSION).toBe(16)
     // Migration 13: adds source_hash (one guard, retry-safe)
     expect(MIGRATION_SKIP_GUARDS[13]).toEqual([{ table: 'wiki_entries', column: 'source_hash' }])
     expect(MIGRATIONS[13]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT')
@@ -49,15 +49,22 @@ describe('database schema migration guards', () => {
     expect(MIGRATION_SKIP_GUARDS[15]).toBeUndefined()
     expect(MIGRATIONS[15]).toContain('DROP INDEX IF EXISTS idx_wiki_entries_source_hash')
     expect(MIGRATIONS[15]).toContain('WHERE source_hash IS NOT NULL')
+    // Migration 16: adds partial index on source_ref (no guard needed, idempotent)
+    expect(MIGRATION_SKIP_GUARDS[16]).toBeUndefined()
+    expect(MIGRATIONS[16]).toContain('CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref')
+    expect(MIGRATIONS[16]).toContain('WHERE source_ref IS NOT NULL')
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.wiki_entries).toEqual(
       expect.arrayContaining(['source_hash', 'source_ref']),
     )
     expect(CREATE_TABLES).toContain('source_hash TEXT')
     expect(CREATE_TABLES).toContain('source_ref TEXT')
     // Fresh installs run CREATE_TABLES (skipping migrations when columns exist),
-    // so the partial index must live in CREATE_TABLES — not only in migration 15.
+    // so both partial indexes must live in CREATE_TABLES — not only in migrations.
     expect(CREATE_TABLES).toContain(
       'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL',
+    )
+    expect(CREATE_TABLES).toContain(
+      'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL',
     )
   })
 

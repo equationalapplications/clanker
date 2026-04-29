@@ -59,7 +59,18 @@ describe('ChatComposer with document ingest', () => {
     expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(0)
   })
 
-  it('renders plus button for premium users with characterId and userId', () => {
+  it('renders plus button for premium users with characterId, userId, and cloud sync', () => {
+    mockIsSubscriber.mockReturnValue(true)
+    let tree!: ReturnType<typeof create>
+    act(() => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" characterCloudId="cloud-uuid-1" />,
+      )
+    })
+    expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(1)
+  })
+
+  it('does NOT render plus button for premium users without cloud sync', () => {
     mockIsSubscriber.mockReturnValue(true)
     let tree!: ReturnType<typeof create>
     act(() => {
@@ -67,7 +78,7 @@ describe('ChatComposer with document ingest', () => {
         <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
       )
     })
-    expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(1)
+    expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(0)
   })
 
   it('does NOT render plus button for premium users without characterId', () => {
@@ -84,7 +95,7 @@ describe('ChatComposer with document ingest', () => {
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(
-        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" characterCloudId="cloud-uuid-1" />,
       )
     })
     const button = tree.root.findByProps({ testID: 'plus-button' })
@@ -108,7 +119,7 @@ describe('ChatComposer with document ingest', () => {
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(
-        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" characterCloudId="cloud-uuid-1" />,
       )
     })
     const button = tree.root.findByProps({ testID: 'plus-button' })

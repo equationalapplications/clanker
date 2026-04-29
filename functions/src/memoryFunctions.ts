@@ -53,6 +53,8 @@ type MemoryWriteEntry = {
   tags: string[];
   confidence: 'certain' | 'inferred' | 'tentative';
   sourceType: 'user_stated' | 'agent_inferred' | 'user_confirmed' | 'user_document';
+  sourceHash: string | null;
+  sourceRef: string | null;
   createdAt: number;
   updatedAt: number;
   lastAccessedAt: number | null;
@@ -459,6 +461,8 @@ function parseLocalDumpEntries(
         tags,
         confidence,
         sourceType,
+        sourceHash: null,
+        sourceRef: null,
         createdAt,
         updatedAt,
         lastAccessedAt,
@@ -595,6 +599,8 @@ function mapCloudEntry(row: typeof wikiEntries.$inferSelect, firebaseUid: string
     tags: Array.isArray(row.tags) ? (row.tags.filter((value): value is string => typeof value === 'string')) : [],
     confidence: row.confidence as MemoryWriteEntry['confidence'],
     sourceType: row.sourceType as MemoryWriteEntry['sourceType'],
+    sourceHash: row.sourceHash ?? null,
+    sourceRef: row.sourceRef ?? null,
     createdAt: row.createdAt.getTime(),
     updatedAt: row.updatedAt.getTime(),
     lastAccessedAt: fromDate(row.lastAccessedAt),
@@ -760,6 +766,8 @@ function buildWriteDiffHeuristic(
       tags: inferTags(piece),
       confidence: sourceType === 'user_document' ? 'certain' : 'inferred',
       sourceType: sourceType === 'user_document' ? 'user_stated' : 'agent_inferred',
+      sourceHash: null,
+      sourceRef: null,
       createdAt: now,
       updatedAt: now,
       lastAccessedAt: null,
@@ -967,6 +975,8 @@ function buildWriteDiffFromLLMResult(
       tags,
       confidence,
       sourceType: entrySourceType,
+      sourceHash: null,
+      sourceRef: null,
       createdAt: now,
       updatedAt: now,
       lastAccessedAt: null,
@@ -1361,6 +1371,8 @@ async function buildHealDiff(
       tags: ['goals'],
       confidence: 'tentative',
       sourceType: 'agent_inferred',
+      sourceHash: null,
+      sourceRef: null,
       createdAt: now,
       updatedAt: now,
       lastAccessedAt: null,

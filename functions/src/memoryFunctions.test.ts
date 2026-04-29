@@ -376,6 +376,65 @@ test("memoryForgetHandler soft-deletes by sourceRef", async () => {
   assert.ok(capturedWhere !== null, "where condition should have been captured");
 });
 
+test("memoryForgetHandler soft-deletes by sourceHash", async () => {
+  let capturedWhere: unknown = null;
+  const auth = buildAuth();
+  const charId = "00000000-0000-0000-0000-000000000001";
+  const validHash = "a".repeat(64);
+  const deps = {
+    ...buildDeps({ ownsCharacter: true }),
+    getDb: async () => ({
+      select() {
+        return {
+          from() {
+            return {
+              where() {
+                return { limit: async () => [{ id: charId }] };
+              },
+            };
+          },
+        };
+      },
+      update() {
+        return {
+          set() {
+            return {
+              where(condition: unknown) {
+                capturedWhere = condition;
+                return { returning: async () => [{ id: "entry-1" }, { id: "entry-2" }, { id: "entry-3" }] };
+              },
+            };
+          },
+        };
+      },
+    }),
+  };
+
+  const result = await memoryForgetHandler(
+    { auth, data: { characterId: charId, sourceHash: validHash } } as never,
+    deps as never,
+  );
+  assert.equal(result.success, true);
+  assert.equal(result.deleted.entries, 3);
+  assert.ok(capturedWhere !== null, "where condition should have been captured");
+});
+
+test("memoryForgetHandler rejects invalid sourceHash", async () => {
+  const auth = buildAuth();
+  const charId = "00000000-0000-0000-0000-000000000001";
+
+  await assert.rejects(
+    async () =>
+      memoryForgetHandler(
+        { auth, data: { characterId: charId, sourceHash: "not-a-valid-hash" } } as never,
+        buildDeps({ ownsCharacter: true }) as never,
+      ),
+    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument",
+  );
+});
+
+
+
 test("memoryHealHandler does not downgrade or delete user_document entries", async () => {
   const auth = buildAuth();
   const now = Date.now();
