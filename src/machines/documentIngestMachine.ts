@@ -37,9 +37,20 @@ interface PurgeInput { characterId: string; userId: string; filename: string }
 interface ExtractInput { characterId: string; userId: string; filename: string; content: string; contentHash: string }
 interface ApplyInput { characterId: string; userId: string; filename: string; contentHash: string; facts: ExtractedFact[] }
 
-// ─── Unique ID helper ─────────────────────────────────────────────────────────
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+// ─── Unique ID helpers (match server convention in functions/src/memoryFunctions.ts) ──
+// Server uses `entry_${now}_${index}_${random9}` and `event_${now}_${random9}`.
+// Mirror that exactly so logs/DB inspection are consistent and the random
+// suffix length matches (9 base36 chars ≈ 10^14 combinations per ms).
+function randomSuffix(): string {
+  return Math.random().toString(36).slice(2, 11)
+}
+
+function generateEntryId(now: number, index: number): string {
+  return `entry_${now}_${index}_${randomSuffix()}`
+}
+
+function generateEventId(now: number): string {
+  return `event_${now}_${randomSuffix()}`
 }
 
 // ─── Normalize text (mirror server normalization) ─────────────────────────────
@@ -365,8 +376,8 @@ export const documentIngestMachine = createMachine(
 
       applyFacts: fromPromise(async ({ input }: { input: ApplyInput }): Promise<void> => {
         const now = Date.now()
-        const entries: WikiEntryUpsertInput[] = input.facts.map((fact) => ({
-          id: generateId(),
+        const entries: WikiEntryUpsertInput[] = input.facts.map((fact, index) => ({
+          id: generateEntryId(now, index),
           characterId: input.characterId,
           userId: input.userId,
           title: fact.title,
@@ -387,7 +398,7 @@ export const documentIngestMachine = createMachine(
         await bulkInsertEntries(entries)
 
         const event: MemoryEventUpsertInput = {
-          id: generateId(),
+          id: generateEventId(now),
           characterId: input.characterId,
           userId: input.userId,
           eventType: 'action',
