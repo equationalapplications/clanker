@@ -1,6 +1,6 @@
 import type { Character, MemoryBundle } from '~/services/aiChatService'
 import { buildFtsQuery } from '~/database/ftsQueryBuilder'
-import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, softDeleteWikiEntries, softDeleteAllWikiEntries, getEntriesForHeal, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
+import { searchEntries, getRecentEntries, upsertWikiEntries, countEntries, softDeleteWikiEntries, softDeleteAllWikiEntries, softDeleteWikiEntriesBySourceRef, softDeleteWikiEntriesBySourceHash, getEntriesForHeal, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
 import { getOpenTasks, upsertAgentTasks, softDeleteAgentTasks, softDeleteAllAgentTasks, getOpenTasksForHeal, type AgentTaskUpsertInput } from '~/database/agentTaskDatabase'
 import { getRecentEvents, appendMemoryEvents, type MemoryEventUpsertInput } from '~/database/memoryEventDatabase'
 import { upsertDerivedSynonyms, type DerivedSynonymUpsertInput } from '~/database/derivedSynonymDatabase'
@@ -11,7 +11,7 @@ const activeMemoryWrites = new Set<string>()
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-function resolveCloudCharacterId(character: Character): string {
+function resolveCloudCharacterId(character: Pick<Character, 'id' | 'cloud_id'>): string {
   return character.cloud_id && UUID_RE.test(character.cloud_id) ? character.cloud_id : character.id
 }
 
@@ -48,8 +48,8 @@ function parseConfidence(value: unknown): 'certain' | 'inferred' | 'tentative' {
   return 'inferred'
 }
 
-function parseSourceType(value: unknown): 'user_stated' | 'agent_inferred' | 'user_confirmed' {
-  if (value === 'user_stated' || value === 'user_confirmed') {
+function parseSourceType(value: unknown): 'user_stated' | 'agent_inferred' | 'user_confirmed' | 'user_document' {
+  if (value === 'user_stated' || value === 'user_confirmed' || value === 'user_document') {
     return value
   }
 
@@ -91,6 +91,8 @@ function toWikiEntryUpserts(rows: unknown[], characterId?: string): WikiEntryUps
       syncedToCloud: typeof row.syncedToCloud === 'number' ? row.syncedToCloud : 0,
       cloudId: typeof row.cloudId === 'string' ? row.cloudId : null,
       deletedAt: typeof row.deletedAt === 'number' ? row.deletedAt : null,
+      sourceHash: typeof row.sourceHash === 'string' ? row.sourceHash : typeof row.source_hash === 'string' ? row.source_hash : null,
+      sourceRef: typeof row.sourceRef === 'string' ? row.sourceRef : typeof row.source_ref === 'string' ? row.source_ref : null,
     }))
     .filter((row) => row.id && row.characterId && row.userId && row.title && row.body)
 }
@@ -301,15 +303,40 @@ export async function triggerMemoryRead(character: Character, userId: string): P
 }
 
 export async function forgetMemory(
-  character: Character,
+  character: Pick<Character, 'id' | 'cloud_id'>,
   userId: string,
-  target: { entryIds?: string[]; taskIds?: string[]; clearAll?: boolean },
+  target: { entryIds?: string[]; taskIds?: string[]; clearAll?: boolean; sourceRef?: string; sourceHash?: string },
 ): Promise<void> {
   const characterId = character.id
   const cloudCharacterId = resolveCloudCharacterId(character)
   const entryIds = target.entryIds ?? []
   const taskIds = target.taskIds ?? []
   const clearAll = target.clearAll ?? false
+
+  // Normalize sourceRef: mirror server sanitization (strip path separators and null bytes,
+  // trim, cap at 255). Treat whitespace-only or empty values as null so they don't trigger
+  // a local soft-delete that the cloud call would treat as a no-op.
+  const rawSourceRef = target.sourceRef
+  const sourceRef: string | null =
+    rawSourceRef !== undefined
+      ? (() => {
+          const cleaned = rawSourceRef
+            .replace(/[/\\]/g, '')
+            .split('\0').join('')
+            .trim()
+            .slice(0, 255)
+          return cleaned.length > 0 ? cleaned : null
+        })()
+      : null
+
+  // Normalize sourceHash: must be a valid 64-char hex SHA-256 string.
+  // Discard invalid values so local deletion isn't applied when the cloud
+  // call would reject the same input.
+  const rawSourceHash = target.sourceHash
+  const sourceHash: string | null =
+    rawSourceHash !== undefined && /^[0-9a-f]{64}$/i.test(rawSourceHash)
+      ? rawSourceHash.toLowerCase()
+      : null
 
   try {
     if (clearAll) {
@@ -321,6 +348,8 @@ export async function forgetMemory(
       await Promise.all([
         entryIds.length > 0 ? softDeleteWikiEntries(characterId, userId, entryIds) : Promise.resolve(0),
         taskIds.length > 0 ? softDeleteAgentTasks(characterId, userId, taskIds) : Promise.resolve(0),
+        sourceRef !== null ? softDeleteWikiEntriesBySourceRef(characterId, userId, sourceRef) : Promise.resolve(0),
+        sourceHash !== null ? softDeleteWikiEntriesBySourceHash(characterId, userId, sourceHash) : Promise.resolve(0),
       ])
     }
   } catch (error) {
@@ -335,6 +364,8 @@ export async function forgetMemory(
         entryIds,
         taskIds,
         clearAll,
+        ...(sourceRef !== null ? { sourceRef } : {}),
+        ...(sourceHash !== null ? { sourceHash } : {}),
       })
     } catch (error) {
       console.warn('Failed to sync memory forget to cloud:', error)

@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
+import { PREMIUM_TIERS } from './constants/plans.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { userRepository } from './services/userRepository.js';
@@ -14,7 +15,6 @@ import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.j
 const DEFAULT_REGION = 'us-central1';
 const HEAL_MODEL = 'gemini-2.5-flash';
 const HEAL_MAX_OUTPUT_TOKENS = 1_024;
-const PREMIUM_TIERS = new Set(['monthly_20', 'monthly_50']);
 
 type PlanStatus = 'active' | 'cancelled' | 'expired';
 
@@ -40,6 +40,8 @@ type MemoryForgetPayload = {
   entryIds?: unknown;
   taskIds?: unknown;
   clearAll?: unknown;
+  sourceRef?: unknown;
+  sourceHash?: unknown;
 };
 
 type MemoryWriteEntry = {
@@ -50,7 +52,9 @@ type MemoryWriteEntry = {
   body: string;
   tags: string[];
   confidence: 'certain' | 'inferred' | 'tentative';
-  sourceType: 'user_stated' | 'agent_inferred' | 'user_confirmed';
+  sourceType: 'user_stated' | 'agent_inferred' | 'user_confirmed' | 'user_document';
+  sourceHash: string | null;
+  sourceRef: string | null;
   createdAt: number;
   updatedAt: number;
   lastAccessedAt: number | null;
@@ -260,7 +264,13 @@ function parseStringIdList(value: unknown, field: 'entryIds' | 'taskIds'): strin
   return parsed;
 }
 
-function parseForgetTargets(data: unknown): { entryIds: string[]; taskIds: string[]; clearAll: boolean } {
+function parseForgetTargets(data: unknown): {
+  entryIds: string[];
+  taskIds: string[];
+  clearAll: boolean;
+  sourceRef: string | null;
+  sourceHash: string | null;
+} {
   if (!isRecord(data)) {
     throw new HttpsError('invalid-argument', 'Valid forget payload is required.');
   }
@@ -273,11 +283,34 @@ function parseForgetTargets(data: unknown): { entryIds: string[]; taskIds: strin
     throw new HttpsError('invalid-argument', 'clearAll must be a boolean when provided.');
   }
 
-  if (!clearAll && entryIds.length === 0 && taskIds.length === 0) {
+  // Parse sourceRef: sanitize and limit to 255 chars
+  let sourceRef: string | null = null;
+  if (data.sourceRef !== undefined) {
+    if (typeof data.sourceRef !== 'string') {
+      throw new HttpsError('invalid-argument', 'sourceRef must be a string when provided.');
+    }
+    const cleaned = data.sourceRef
+      .replace(/[/\\]/g, '')
+      .split('\0').join('')
+      .trim()
+      .slice(0, 255);
+    sourceRef = cleaned.length > 0 ? cleaned : null;
+  }
+
+  // Parse sourceHash: must be a 64-char hex SHA-256 string
+  let sourceHash: string | null = null;
+  if (data.sourceHash !== undefined) {
+    if (typeof data.sourceHash !== 'string' || !/^[0-9a-f]{64}$/i.test(data.sourceHash)) {
+      throw new HttpsError('invalid-argument', 'sourceHash must be a 64-character hex SHA-256 string.');
+    }
+    sourceHash = data.sourceHash.toLowerCase();
+  }
+
+  if (!clearAll && entryIds.length === 0 && taskIds.length === 0 && sourceRef === null && sourceHash === null) {
     throw new HttpsError('invalid-argument', 'At least one forget target is required.');
   }
 
-  return { entryIds, taskIds, clearAll };
+  return { entryIds, taskIds, clearAll, sourceRef, sourceHash };
 }
 
 function clip(value: string, maxLength: number): string {
@@ -410,7 +443,7 @@ function parseLocalDumpEntries(
       const confidence: MemoryWriteEntry['confidence'] =
         item['confidence'] === 'certain' || item['confidence'] === 'tentative' ? item['confidence'] : 'inferred';
       const sourceType: MemoryWriteEntry['sourceType'] =
-        item['sourceType'] === 'user_stated' || item['sourceType'] === 'user_confirmed'
+        item['sourceType'] === 'user_stated' || item['sourceType'] === 'user_confirmed' || item['sourceType'] === 'user_document'
           ? item['sourceType']
           : 'agent_inferred';
       const createdAt = typeof item['createdAt'] === 'number' ? item['createdAt'] : now;
@@ -428,6 +461,8 @@ function parseLocalDumpEntries(
         tags,
         confidence,
         sourceType,
+        sourceHash: null,
+        sourceRef: null,
         createdAt,
         updatedAt,
         lastAccessedAt,
@@ -564,6 +599,8 @@ function mapCloudEntry(row: typeof wikiEntries.$inferSelect, firebaseUid: string
     tags: Array.isArray(row.tags) ? (row.tags.filter((value): value is string => typeof value === 'string')) : [],
     confidence: row.confidence as MemoryWriteEntry['confidence'],
     sourceType: row.sourceType as MemoryWriteEntry['sourceType'],
+    sourceHash: row.sourceHash ?? null,
+    sourceRef: row.sourceRef ?? null,
     createdAt: row.createdAt.getTime(),
     updatedAt: row.updatedAt.getTime(),
     lastAccessedAt: fromDate(row.lastAccessedAt),
@@ -728,7 +765,9 @@ function buildWriteDiffHeuristic(
       body: clip(piece, 200),
       tags: inferTags(piece),
       confidence: sourceType === 'user_document' ? 'certain' : 'inferred',
-      sourceType: sourceType === 'user_document' ? 'user_stated' : 'agent_inferred',
+      sourceType: sourceType === 'user_document' ? 'user_document' : 'agent_inferred',
+      sourceHash: null,
+      sourceRef: null,
       createdAt: now,
       updatedAt: now,
       lastAccessedAt: null,
@@ -936,6 +975,8 @@ function buildWriteDiffFromLLMResult(
       tags,
       confidence,
       sourceType: entrySourceType,
+      sourceHash: null,
+      sourceRef: null,
       createdAt: now,
       updatedAt: now,
       lastAccessedAt: null,
@@ -1193,6 +1234,8 @@ async function buildHealDiff(
   firebaseUid: string,
   seed?: { entries: MemoryWriteEntry[]; tasks: MemoryWriteTask[] },
 ): Promise<MemoryHealDiff> {
+  // user_document entries are treated as immutable anchors:
+  // skipped in contradiction, stale, and orphan passes.
   const now = Date.now();
   const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
   const sixtyDaysAgo = now - 60 * 24 * 60 * 60 * 1000;
@@ -1240,7 +1283,12 @@ async function buildHealDiff(
     openTaskRows = taskRows.map((row) => mapCloudTask(row, firebaseUid));
   }
 
-  const contradictionPairs = await detectContradictions(mappedEntries, deps.generateContent);
+  // Filter user_document entries before sending to LLM for contradiction detection.
+  // These entries are treated as immutable anchors — they cannot be contradicted.
+  // Passing them to the LLM wastes tokens and re-exposes user document content on every heal pass.
+  const contradictionCandidates = mappedEntries.filter((e) => e.sourceType !== 'user_document');
+
+  const contradictionPairs = await detectContradictions(contradictionCandidates, deps.generateContent);
   const contradictedIds = new Set(
     contradictionPairs.flatMap((p) => [p.entryAId, p.entryBId]),
   );
@@ -1251,10 +1299,11 @@ async function buildHealDiff(
   let contradictionsFlagged = 0;
 
   const updatedEntries: MemoryWriteEntry[] = mappedEntries.map((entry) => {
+    const isUserDoc = entry.sourceType === 'user_document';
     const stale = entry.lastAccessedAt !== null && entry.lastAccessedAt < sixtyDaysAgo;
     const orphan = entry.accessCount === 0 && entry.updatedAt < thirtyDaysAgo;
 
-    if (orphan && entry.deletedAt === null) {
+    if (orphan && !isUserDoc && entry.deletedAt === null) {
       orphansRemoved += 1;
       return {
         ...entry,
@@ -1263,7 +1312,7 @@ async function buildHealDiff(
       };
     }
 
-    if (stale && entry.confidence === 'inferred') {
+    if (stale && !isUserDoc && entry.confidence === 'inferred') {
       staleDowngraded += 1;
       return {
         ...entry,
@@ -1272,7 +1321,7 @@ async function buildHealDiff(
       };
     }
 
-    if (contradictedIds.has(entry.id) && entry.confidence !== 'tentative' && entry.confidence !== 'certain') {
+    if (!isUserDoc && contradictedIds.has(entry.id) && entry.confidence !== 'tentative' && entry.confidence !== 'certain') {
       return {
         ...entry,
         confidence: 'tentative',
@@ -1287,6 +1336,8 @@ async function buildHealDiff(
     const entryA = mappedEntries.find((e) => e.id === pair.entryAId);
     const entryB = mappedEntries.find((e) => e.id === pair.entryBId);
     if (!entryA || !entryB) continue;
+    // Skip if either entry is a user_document anchor
+    if (entryA.sourceType === 'user_document' || entryB.sourceType === 'user_document') continue;
     const older = entryA.updatedAt <= entryB.updatedAt ? entryA : entryB;
     contradictionsFlagged += 1;
     events.push({
@@ -1320,6 +1371,8 @@ async function buildHealDiff(
       tags: ['goals'],
       confidence: 'tentative',
       sourceType: 'agent_inferred',
+      sourceHash: null,
+      sourceRef: null,
       createdAt: now,
       updatedAt: now,
       lastAccessedAt: null,
@@ -1603,6 +1656,38 @@ export const memoryForgetHandler = async (
         )
         .returning({ id: agentTasks.id });
       deletedTasks = rows.length;
+    }
+
+    if (targets.sourceRef !== null) {
+      const rows = await db
+        .update(wikiEntries)
+        .set({ deletedAt, updatedAt: deletedAt })
+        .where(
+          and(
+            eq(wikiEntries.characterId, characterId),
+            eq(wikiEntries.userId, identity.userId),
+            eq(wikiEntries.sourceRef, targets.sourceRef),
+            isNull(wikiEntries.deletedAt),
+          ),
+        )
+        .returning({ id: wikiEntries.id });
+      deletedEntries += rows.length;
+    }
+
+    if (targets.sourceHash !== null) {
+      const rows = await db
+        .update(wikiEntries)
+        .set({ deletedAt, updatedAt: deletedAt })
+        .where(
+          and(
+            eq(wikiEntries.characterId, characterId),
+            eq(wikiEntries.userId, identity.userId),
+            eq(wikiEntries.sourceHash, targets.sourceHash),
+            isNull(wikiEntries.deletedAt),
+          ),
+        )
+        .returning({ id: wikiEntries.id });
+      deletedEntries += rows.length;
     }
   }
 

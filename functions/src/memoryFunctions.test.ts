@@ -333,3 +333,151 @@ test("syncCharacterMemoryHandler returns zero-sync summary", async () => {
     syncedEvents: 0,
   });
 });
+
+test("memoryForgetHandler soft-deletes by sourceRef", async () => {
+  let capturedWhere: unknown = null;
+  const auth = buildAuth();
+  const charId = "00000000-0000-0000-0000-000000000001";
+  const deps = {
+    ...buildDeps({ ownsCharacter: true }),
+    getDb: async () => ({
+      select() {
+        return {
+          from() {
+            return {
+              where() {
+                return { limit: async () => [{ id: charId }] };
+              },
+            };
+          },
+        };
+      },
+      update() {
+        return {
+          set() {
+            return {
+              where(condition: unknown) {
+                capturedWhere = condition;
+                return { returning: async () => [{ id: "entry-1" }, { id: "entry-2" }] };
+              },
+            };
+          },
+        };
+      },
+    }),
+  };
+
+  const result = await memoryForgetHandler(
+    { auth, data: { characterId: charId, sourceRef: "notes.md" } } as never,
+    deps as never,
+  );
+  assert.equal(result.success, true);
+  assert.equal(result.deleted.entries, 2);
+  assert.ok(capturedWhere !== null, "where condition should have been captured");
+});
+
+test("memoryForgetHandler soft-deletes by sourceHash", async () => {
+  let capturedWhere: unknown = null;
+  const auth = buildAuth();
+  const charId = "00000000-0000-0000-0000-000000000001";
+  const validHash = "a".repeat(64);
+  const deps = {
+    ...buildDeps({ ownsCharacter: true }),
+    getDb: async () => ({
+      select() {
+        return {
+          from() {
+            return {
+              where() {
+                return { limit: async () => [{ id: charId }] };
+              },
+            };
+          },
+        };
+      },
+      update() {
+        return {
+          set() {
+            return {
+              where(condition: unknown) {
+                capturedWhere = condition;
+                return { returning: async () => [{ id: "entry-1" }, { id: "entry-2" }, { id: "entry-3" }] };
+              },
+            };
+          },
+        };
+      },
+    }),
+  };
+
+  const result = await memoryForgetHandler(
+    { auth, data: { characterId: charId, sourceHash: validHash } } as never,
+    deps as never,
+  );
+  assert.equal(result.success, true);
+  assert.equal(result.deleted.entries, 3);
+  assert.ok(capturedWhere !== null, "where condition should have been captured");
+});
+
+test("memoryForgetHandler rejects invalid sourceHash", async () => {
+  const auth = buildAuth();
+  const charId = "00000000-0000-0000-0000-000000000001";
+
+  await assert.rejects(
+    async () =>
+      memoryForgetHandler(
+        { auth, data: { characterId: charId, sourceHash: "not-a-valid-hash" } } as never,
+        buildDeps({ ownsCharacter: true }) as never,
+      ),
+    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument",
+  );
+});
+
+
+
+test("memoryHealHandler does not downgrade or delete user_document entries", async () => {
+  const auth = buildAuth();
+  const now = Date.now();
+  const sixtyDaysAgo = now - 61 * 24 * 60 * 60 * 1000;
+
+  const docEntry = {
+    id: "doc-entry-1",
+    characterId: "char-1",
+    userId: "user-1",
+    title: "Doc fact",
+    body: "Fact from document",
+    tags: [],
+    confidence: "inferred",
+    sourceType: "user_document",
+    createdAt: sixtyDaysAgo,
+    updatedAt: sixtyDaysAgo,
+    lastAccessedAt: sixtyDaysAgo,
+    accessCount: 0,
+    syncedToCloud: 1,
+    cloudId: "doc-entry-1",
+    deletedAt: null,
+  };
+
+  const result = await memoryHealHandler(
+    {
+      auth,
+      data: {
+        characterId: "char-1",
+        localDump: {
+          entries: [docEntry],
+          tasks: [],
+        },
+      },
+    } as never,
+    { ...buildDeps({ ownsCharacter: false }), generateContent: async () => "[]" } as never,
+  );
+
+  const diff = result.diff as { orphansRemoved: number; staleDowngraded: number; entries: Array<{ id: string; deletedAt: null | string; confidence: string }> };
+  assert.equal(diff.orphansRemoved, 0, "user_document entry should not be orphan-deleted");
+  assert.equal(diff.staleDowngraded, 0, "user_document entry should not be stale-downgraded");
+  const updatedDocEntry = diff.entries.find((e) => e.id === "doc-entry-1");
+  if (updatedDocEntry) {
+    assert.equal(updatedDocEntry.deletedAt, null, "user_document entry deletedAt should remain null");
+    assert.equal(updatedDocEntry.confidence, "inferred", "user_document entry confidence should not change");
+  }
+});

@@ -34,8 +34,8 @@ Agent need memory it can **read, write, update, delete** mid-run.
 - Remove or deprecate `characters.context` (it remains first-class and coexists with wiki memory)
 - **`memoryPatch`** (direct agent write mid-turn). Deferred to v2 — requires agent tool-calling integration in `generateReply`.
 - **On-device LLM inference** (Apple Intelligence / GGUF / `callstackincubator/ai`). Deferred to v2 — see [Future: Local Inference](#future-local-inference-v2).
-- **User document ingest UI** (file picker / paste surface for users to add their own source documents). Deferred to v2 — `memoryWrite` callable already accepts `sourceType='user_document'`; only the UI trigger and provenance plumbing are missing.
-- **`wikiHealMachine` cadence bypass for manual ingest** (message-count gate doesn't apply to document ingest). Deferred to v2 — not needed until document ingest UI ships.
+- **User document ingest UI** (file picker / paste surface for users to add their own source documents). Deferred to v2 — see [2026-04-28-document-ingest.md](./2026-04-28-document-ingest.md). `memoryWrite` callable already accepts `sourceType='user_document'`; v2 adds a dedicated `documentExtract` callable + `documentIngestMachine` rather than reusing `memoryWrite`.
+- **`wikiHealMachine` cadence bypass for manual ingest** (message-count gate doesn't apply to document ingest). Resolved by v2 design: document ingest runs through an independent `documentIngestMachine`, bypassing `wikiHealMachine` entirely. See [2026-04-28-document-ingest.md](./2026-04-28-document-ingest.md).
 
 ## Schema (v11 migration)
 

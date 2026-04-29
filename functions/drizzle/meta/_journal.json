@@ -29,6 +29,34 @@
       "when": 1777276800000,
       "tag": "0004_wiki_memory",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777392156690,
+      "tag": "0004_lame_gwen_stacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777398029649,
+      "tag": "0005_subscriptions_document_counter",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1745827200000,
+      "tag": "0006_partial_source_hash_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777420800000,
+      "tag": "0007_source_ref_idx",
+      "breakpoints": true
     }
   ]
 }

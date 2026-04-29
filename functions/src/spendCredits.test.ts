@@ -78,6 +78,8 @@ test("spendCreditsHandler calls credit service with floored amount", async () =>
       stripeCustomerId: null,
       billingCycleStart: null,
       billingCycleEnd: null,
+      documentsIngestedCount: 0,
+      documentsIngestedDate: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -131,6 +133,8 @@ test("spendCreditsHandler throws resource-exhausted when spend fails", async () 
       stripeCustomerId: null,
       billingCycleStart: null,
       billingCycleEnd: null,
+      documentsIngestedCount: 0,
+      documentsIngestedDate: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -207,6 +211,8 @@ test("spendCreditsHandler bootstraps default subscription before spending", asyn
         stripeCustomerId: null,
         billingCycleStart: null,
         billingCycleEnd: null,
+        documentsIngestedCount: 0,
+        documentsIngestedDate: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };

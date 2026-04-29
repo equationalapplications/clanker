@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 12
+export const SCHEMA_VERSION = 16
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -23,22 +23,25 @@ export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
     'heal_checkpoint',
     'memory_checkpoint',
   ],
+  wiki_entries: ['source_hash', 'source_ref'],
 }
 
 /**
  * Column-presence guards that can be used to skip migrations when upgrading
  * legacy databases that may already contain the target column.
  */
-export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: string }> = {
-  2: { table: 'characters', column: 'deleted_at' },
-  3: { table: 'characters', column: 'avatar_data' },
-  4: { table: 'characters', column: 'avatar_mime_type' },
-  5: { table: 'characters', column: 'save_to_cloud' },
-  6: { table: 'characters', column: 'summary_checkpoint' },
-  7: { table: 'characters', column: 'owner_user_id' },
-  9: { table: 'characters', column: 'voice' },
-  11: { table: 'characters', column: 'heal_checkpoint' },
-  12: { table: 'characters', column: 'memory_checkpoint' },
+export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: string }[]> = {
+  2: [{ table: 'characters', column: 'deleted_at' }],
+  3: [{ table: 'characters', column: 'avatar_data' }],
+  4: [{ table: 'characters', column: 'avatar_mime_type' }],
+  5: [{ table: 'characters', column: 'save_to_cloud' }],
+  6: [{ table: 'characters', column: 'summary_checkpoint' }],
+  7: [{ table: 'characters', column: 'owner_user_id' }],
+  9: [{ table: 'characters', column: 'voice' }],
+  11: [{ table: 'characters', column: 'heal_checkpoint' }],
+  12: [{ table: 'characters', column: 'memory_checkpoint' }],
+  13: [{ table: 'wiki_entries', column: 'source_hash' }],
+  14: [{ table: 'wiki_entries', column: 'source_ref' }],
 }
 
 /**
@@ -145,12 +148,16 @@ export const CREATE_TABLES = `
     access_count INTEGER NOT NULL DEFAULT 0,
     synced_to_cloud INTEGER NOT NULL DEFAULT 0,
     cloud_id TEXT,
-    deleted_at INTEGER
+    deleted_at INTEGER,
+    source_hash TEXT,
+    source_ref TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_user ON wiki_entries(character_id, user_id);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_updated_at ON wiki_entries(updated_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_deleted ON wiki_entries(character_id, deleted_at);
+  CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL;
 
   -- Agent tasks table
   CREATE TABLE IF NOT EXISTS agent_tasks (
@@ -223,4 +230,9 @@ export const MIGRATIONS: Record<number, string> = {
   10: `UPDATE characters SET voice = '${DEFAULT_VOICE}' WHERE voice IS NULL OR voice = '';`,
   11: `ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0`,
   12: `ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0`,
+  13: `ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT`,
+  14: `ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT`,
+  15: `DROP INDEX IF EXISTS idx_wiki_entries_source_hash;
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL`,
+  16: `CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL`,
 }
