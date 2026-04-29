@@ -390,6 +390,10 @@ export const documentIngestMachine = createMachine(
         return result.facts
       }),
 
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      const isUuid = (value: string | null | undefined): value is string =>
+        typeof value === 'string' && UUID_REGEX.test(value)
+
       validateCharacter: fromPromise(async ({ input }: { input: { characterId: string; userId: string } }): Promise<string | null> => {
         const character = await getCharacter(input.characterId, input.userId)
         if (!character) {
@@ -399,7 +403,7 @@ export const documentIngestMachine = createMachine(
           })
           throw new Error('Character not found')
         }
-        return character.cloud_id ?? null
+        return isUuid(character.cloud_id) ? character.cloud_id : null
       }),
 
       applyFacts: fromPromise(async ({ input }: { input: ApplyInput }): Promise<void> => {
