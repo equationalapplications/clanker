@@ -43,6 +43,10 @@ describe('ChatComposer with document ingest', () => {
     jest.spyOn(Alert, 'alert')
   })
 
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
   it('does NOT render plus button for non-premium users', () => {
     let tree!: ReturnType<typeof create>
     act(() => {
@@ -54,16 +58,6 @@ describe('ChatComposer with document ingest', () => {
   })
 
   it('renders plus button for premium users with characterId and userId', () => {
-    let tree!: ReturnType<typeof create>
-    act(() => {
-      tree = create(
-        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" hasUnlimited={true} />,
-      )
-    })
-    expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(1)
-  })
-
-  it('renders plus button for premium users regardless of cloud sync status', () => {
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(

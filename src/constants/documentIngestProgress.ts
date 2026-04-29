@@ -5,6 +5,7 @@
  */
 export const INGEST_STATE_PROGRESS: Record<string, number> = {
   idle: 0,
+  validating: 0,
   picking: 0,
   reading: 0.1,
   checkingDuplicate: 0.2,

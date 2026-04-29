@@ -15,6 +15,7 @@ import { INGEST_STATE_PROGRESS } from '~/constants/documentIngestProgress'
 export interface DocumentIngestContext {
   characterId: string
   userId: string
+  cloudId: string | null
   filename: string | null
   fileUri: string | null
   contentHash: string | null
@@ -33,8 +34,8 @@ export type DocumentIngestEvent =
 
 // ─── Actor inputs ─────────────────────────────────────────────────────────────
 interface CheckDupInput { characterId: string; userId: string; sourceRef: string }
-interface PurgeInput { characterId: string; userId: string; filename: string }
-interface ExtractInput { characterId: string; userId: string; filename: string; content: string; contentHash: string }
+interface PurgeInput { characterId: string; userId: string; cloudId: string | null; filename: string }
+interface ExtractInput { cloudId: string; userId: string; filename: string; content: string; contentHash: string }
 interface ApplyInput { characterId: string; userId: string; filename: string; contentHash: string; facts: ExtractedFact[] }
 
 // ─── Unique ID helpers (match server convention in functions/src/memoryFunctions.ts) ──
@@ -71,6 +72,7 @@ export const documentIngestMachine = createMachine(
     context: ({ input }) => ({
       characterId: input.characterId,
       userId: input.userId,
+      cloudId: null,
       filename: null,
       fileUri: null,
       contentHash: null,
@@ -84,10 +86,11 @@ export const documentIngestMachine = createMachine(
       idle: {
         on: {
           INGEST: {
-            target: 'picking',
+            target: 'validating',
             actions: assign({
               characterId: ({ event }) => event.characterId,
               userId: ({ event }) => event.userId,
+              cloudId: null,
               filename: null,
               fileUri: null,
               contentHash: null,
@@ -96,6 +99,28 @@ export const documentIngestMachine = createMachine(
               duplicateEntryCount: 0,
               errorMessage: null,
               progress: 0,
+            }),
+          },
+        },
+      },
+
+      validating: {
+        entry: assign({ progress: INGEST_STATE_PROGRESS.validating }),
+        invoke: {
+          id: 'validateCharacter',
+          src: 'validateCharacter',
+          input: ({ context }) => ({ characterId: context.characterId, userId: context.userId }),
+          onDone: {
+            target: 'picking',
+            actions: assign({
+              cloudId: ({ event }) => event.output as string,
+            }),
+          },
+          onError: {
+            target: 'error',
+            actions: assign({
+              errorMessage: ({ event }) =>
+                event.error instanceof Error ? event.error.message : 'Character must be synced to cloud before ingesting documents.',
             }),
           },
         },
@@ -204,6 +229,7 @@ export const documentIngestMachine = createMachine(
           input: ({ context }): PurgeInput => ({
             characterId: context.characterId,
             userId: context.userId,
+            cloudId: context.cloudId,
             filename: context.filename ?? '',
           }),
           onDone: 'extracting',
@@ -223,7 +249,7 @@ export const documentIngestMachine = createMachine(
           id: 'extractDocument',
           src: 'extractDocumentActor',
           input: ({ context }): ExtractInput => ({
-            characterId: context.characterId,
+            cloudId: context.cloudId as string,
             userId: context.userId,
             filename: context.filename ?? '',
             content: context.content ?? '',
@@ -350,33 +376,26 @@ export const documentIngestMachine = createMachine(
       }),
 
       purgeDocument: fromPromise(async ({ input }: { input: PurgeInput }): Promise<void> => {
-        // Look up the character to get the real cloud_id so forgetMemory can
-        // propagate the purge to Cloud SQL (avoids re-sync of stale entries).
-        const character = await getCharacter(input.characterId, input.userId)
-        const charForPurge = character
-          ? { id: character.id, cloud_id: character.cloud_id }
-          : { id: input.characterId, cloud_id: null }
-        // Purge by filename (sourceRef) so the user's mental model matches:
-        // "Replace" removes entries from this named document, not from any
-        // document that happens to share the same content hash.
+        const charForPurge = { id: input.characterId, cloud_id: input.cloudId }
         await forgetMemory(charForPurge, input.userId, { sourceRef: input.filename })
       }),
 
       extractDocumentActor: fromPromise(async ({ input }: { input: ExtractInput }): Promise<ExtractedFact[]> => {
-        // Resolve the Cloud SQL UUID: the callable's ownership check queries
-        // the characters table by UUID, so passing a local "char_..." ID would
-        // always fail with permission-denied.
-        const character = await getCharacter(input.characterId, input.userId)
-        if (!character?.cloud_id) {
-          throw new Error('Character must be synced to cloud to ingest documents. Please try again after the character syncs.')
-        }
         const result = await extractDocument({
-          characterId: character.cloud_id,
+          characterId: input.cloudId,
           filename: input.filename,
           content: input.content,
           contentHash: input.contentHash,
         })
         return result.facts
+      }),
+
+      validateCharacter: fromPromise(async ({ input }: { input: { characterId: string; userId: string } }): Promise<string> => {
+        const character = await getCharacter(input.characterId, input.userId)
+        if (!character?.cloud_id) {
+          throw new Error('This character hasn\'t synced to the cloud yet. Please wait a moment and try again.')
+        }
+        return character.cloud_id
       }),
 
       applyFacts: fromPromise(async ({ input }: { input: ApplyInput }): Promise<void> => {
