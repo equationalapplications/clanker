@@ -161,9 +161,9 @@ function parseInput(data: unknown): {
   }
   const characterId = payload.characterId.trim();
 
-  // Accept either a client-local character ID (for example `char_<...>`) or a
-  // Cloud SQL UUID. Any stricter identifier/ownership validation should happen
-  // at the point of lookup rather than during generic payload parsing.
+  // characterId must be the Cloud SQL character UUID used for database lookup.
+  // Client-local IDs (for example `char_<...>`) are not accepted here because
+  // downstream queries require a UUID-compatible value.
   // filename sanitization: allow only [A-Za-z0-9._\- ], strip everything else.
   if (typeof payload.filename !== 'string' || !payload.filename.trim()) {
     throw new HttpsError('invalid-argument', 'filename is required.');
