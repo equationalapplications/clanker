@@ -26,7 +26,7 @@ interface DocumentExtractCallableResponse {
   truncated?: unknown
 }
 
-function parseExtractedFact(raw: unknown): ExtractedFact | null {
+function parseExtractedFact(raw: unknown, factIndex: number): ExtractedFact | null {
   if (!raw || typeof raw !== 'object') return null
   const obj = raw as Record<string, unknown>
 
@@ -39,6 +39,7 @@ function parseExtractedFact(raw: unknown): ExtractedFact | null {
 
   if (!title || !body || !confidence) {
     console.warn('[documentIngestService] Dropped server fact: missing required field(s)', {
+      factIndex,
       hasTitle: Boolean(title),
       hasBody: Boolean(body),
       hasConfidence: Boolean(confidence),
@@ -48,11 +49,11 @@ function parseExtractedFact(raw: unknown): ExtractedFact | null {
 
   // Validate length constraints; should never happen if server validated properly
   if (title.length > 80) {
-    console.warn('Extracted fact title exceeds 80 chars (server returned out-of-spec)', { titleLen: title.length })
+    console.warn('[documentIngestService] Dropped server fact: title exceeds 80 chars', { factIndex, titleLen: title.length })
     return null
   }
   if (body.length > 200) {
-    console.warn('Extracted fact body exceeds 200 chars (server returned out-of-spec)', { bodyLen: body.length })
+    console.warn('[documentIngestService] Dropped server fact: body exceeds 200 chars', { factIndex, bodyLen: body.length })
     return null
   }
 
@@ -64,7 +65,8 @@ function parseExtractedFact(raw: unknown): ExtractedFact | null {
     .slice(0, 6)
 
   if (rawTags.length > tags.length) {
-    console.warn('Extracted fact tags were filtered (server returned invalid tags)', {
+    console.warn('[documentIngestService] Filtered server fact tags', {
+      factIndex,
       originalCount: rawTags.length,
       filteredCount: tags.length,
     })
@@ -87,7 +89,7 @@ export async function extractDocument(input: DocumentExtractInput): Promise<Docu
 
   const rawFacts = Array.isArray(data?.facts) ? data.facts : []
   const facts = rawFacts
-    .map(parseExtractedFact)
+    .map((raw, i) => parseExtractedFact(raw, i))
     .filter((f): f is ExtractedFact => f !== null)
 
   const contentHash =
