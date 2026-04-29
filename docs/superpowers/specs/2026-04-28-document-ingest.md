@@ -30,7 +30,7 @@ This spec adds **user-initiated document ingest** for premium users: pick a `.tx
 
 ## Schema (v16 migration)
 
-Bump `SCHEMA_VERSION = 12 → 16` ([src/database/schema.ts](/src/database/schema.ts)). Four migrations were needed in practice, each with a single-column skip guard for retry safety: `MIGRATIONS[13]` adds `source_hash`; `MIGRATIONS[14]` adds `source_ref`; `MIGRATIONS[15]` drops any prior index and recreates it as a partial index (`WHERE source_hash IS NOT NULL`) to avoid indexing NULL rows; `MIGRATIONS[16]` adds a partial index on `(character_id, source_ref) WHERE source_ref IS NOT NULL` to support efficient purge-by-filename queries.
+Bump `SCHEMA_VERSION = 12 → 16` ([src/database/schema.ts](/src/database/schema.ts)). Migrations were needed in practice, each with a single-column skip guard for retry safety: `MIGRATIONS[13]` adds `source_hash`; `MIGRATIONS[14]` adds `source_ref`; `MIGRATIONS[15]` drops any prior index and recreates it as a partial index (`WHERE source_hash IS NOT NULL`) to avoid indexing NULL rows; `MIGRATIONS[16]` adds a partial index on `(character_id, source_ref) WHERE source_ref IS NOT NULL` to support efficient purge-by-filename queries.
 
 ### `wiki_entries` additions
 
