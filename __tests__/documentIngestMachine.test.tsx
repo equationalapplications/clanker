@@ -226,17 +226,18 @@ describe('documentIngestMachine', () => {
     actor.stop()
   })
 
-  it('goes to error state when character has no cloud_id (not yet synced)', async () => {
+  it('successfully ingests document for local-only character (no cloud_id)', async () => {
     mockGetCharacter.mockResolvedValue({ id: 'char-1', cloud_id: null })
 
     const actor = createTestActor()
     actor.send({ type: 'INGEST', characterId: 'char-1', userId: 'user-1' })
 
-    await waitForState(actor, 'idle') // error → idle after 0ms
+    await waitForState(actor, 'idle') // back to idle after success
 
-    // Validation fails before file picking — user never sees the document picker
-    expect(mockGetDocumentAsync).not.toHaveBeenCalled()
-    expect(mockExtractDocument).not.toHaveBeenCalled()
+    // Validation passes for local-only characters — file picker opens normally
+    expect(mockGetDocumentAsync).toHaveBeenCalledTimes(1)
+    expect(mockExtractDocument).toHaveBeenCalledTimes(1)
+    expect(mockBulkInsertEntries).toHaveBeenCalledTimes(1)
     actor.stop()
   })
 

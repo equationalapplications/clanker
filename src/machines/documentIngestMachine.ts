@@ -35,7 +35,7 @@ export type DocumentIngestEvent =
 // ─── Actor inputs ─────────────────────────────────────────────────────────────
 interface CheckDupInput { characterId: string; userId: string; sourceRef: string }
 interface PurgeInput { characterId: string; userId: string; cloudId: string | null; filename: string }
-interface ExtractInput { cloudId: string; userId: string; filename: string; content: string; contentHash: string }
+interface ExtractInput { cloudId: string | null; userId: string; filename: string; content: string; contentHash: string }
 interface ApplyInput { characterId: string; userId: string; filename: string; contentHash: string; facts: ExtractedFact[] }
 
 // ─── Unique ID helpers (match server convention in functions/src/memoryFunctions.ts) ──
@@ -113,7 +113,7 @@ export const documentIngestMachine = createMachine(
           onDone: {
             target: 'picking',
             actions: assign({
-              cloudId: ({ event }) => event.output as string,
+              cloudId: ({ event }) => event.output as string | null,
             }),
           },
           onError: {
@@ -249,7 +249,7 @@ export const documentIngestMachine = createMachine(
           id: 'extractDocument',
           src: 'extractDocumentActor',
           input: ({ context }): ExtractInput => ({
-            cloudId: context.cloudId as string,
+            cloudId: context.cloudId,
             userId: context.userId,
             filename: context.filename ?? '',
             content: context.content ?? '',
@@ -390,12 +390,9 @@ export const documentIngestMachine = createMachine(
         return result.facts
       }),
 
-      validateCharacter: fromPromise(async ({ input }: { input: { characterId: string; userId: string } }): Promise<string> => {
+      validateCharacter: fromPromise(async ({ input }: { input: { characterId: string; userId: string } }): Promise<string | null> => {
         const character = await getCharacter(input.characterId, input.userId)
-        if (!character?.cloud_id) {
-          throw new Error('This character hasn\'t synced to the cloud yet. Please wait a moment and try again.')
-        }
-        return character.cloud_id
+        return character?.cloud_id ?? null
       }),
 
       applyFacts: fromPromise(async ({ input }: { input: ApplyInput }): Promise<void> => {

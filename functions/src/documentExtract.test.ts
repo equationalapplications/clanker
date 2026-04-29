@@ -137,10 +137,9 @@ describe('documentExtractHandler', () => {
     );
   });
 
-  it('rejects non-UUID characterId with permission-denied', async () => {
-    // documentExtractHandler validates UUID format before the Cloud SQL query
-    // because characters.id is a Postgres uuid column — passing a non-UUID
-    // would cause a Postgres type error (500) rather than a controlled HttpsError.
+  it('rejects non-empty non-UUID characterId with permission-denied', async () => {
+    // A non-empty non-UUID string is rejected because Cloud SQL queries require
+    // a UUID column value. Local-only characters should omit characterId entirely.
     await assert.rejects(
       () =>
         documentExtractHandler(
@@ -149,6 +148,17 @@ describe('documentExtractHandler', () => {
         ),
       (e: unknown) => e instanceof HttpsError && e.code === 'permission-denied',
     );
+  });
+
+  it('succeeds for local-only character (no characterId provided)', async () => {
+    // Premium users with local-only characters omit characterId; the cloud ownership
+    // check is skipped and extraction proceeds with only the premium gate.
+    const result = await documentExtractHandler(
+      makeRequest({ filename: 'f.txt', content, contentHash }),
+      makeDeps() as never,
+    );
+    assert.ok(Array.isArray(result.facts));
+    assert.equal(result.truncated, false);
   });
 
   it('rejects empty content', async () => {
