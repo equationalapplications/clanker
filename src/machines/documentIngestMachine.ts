@@ -413,7 +413,12 @@ export const documentIngestMachine = createMachine(
           syncedToCloud: 0,
           cloudId: null,
         }
-        await appendMemoryEvents([event])
+        await appendMemoryEvents([event]).catch((err) => {
+          // Entries already committed in their own transaction; don't fail the
+          // whole ingest if the audit-log event append fails. Surface for
+          // diagnostics so the missing event is observable.
+          console.warn('[documentIngestMachine] appendMemoryEvents failed after entries committed', err)
+        })
       }),
     },
   },
