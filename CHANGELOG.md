@@ -1,3 +1,11 @@
+## [29.3.2](https://github.com/equationalapplications/clanker/compare/v29.3.1...v29.3.2) (2026-04-29)
+
+
+### Bug Fixes
+
+* restore mocks after each test + await pool end in migration script ([e13d821](https://github.com/equationalapplications/clanker/commit/e13d821e4266228a7b820a53bc331aa12aafcf08))
+* suppress warn in test + improve Cloud SQL migration safety ([9a7c0d7](https://github.com/equationalapplications/clanker/commit/9a7c0d71beb4def66b4a14dc47fa33cd78b58bde))
+
 ## [29.3.1](https://github.com/equationalapplications/clanker/compare/v29.3.0...v29.3.1) (2026-04-29)
 
 
