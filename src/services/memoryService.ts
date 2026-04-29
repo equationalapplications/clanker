@@ -310,8 +310,31 @@ export async function forgetMemory(
   const entryIds = target.entryIds ?? []
   const taskIds = target.taskIds ?? []
   const clearAll = target.clearAll ?? false
-  const sourceRef = target.sourceRef ?? null
-  const sourceHash = target.sourceHash ?? null
+
+  // Normalize sourceRef: mirror server sanitization (strip path separators and null bytes,
+  // trim, cap at 255). Treat whitespace-only or empty values as null so they don't trigger
+  // a local soft-delete that the cloud call would treat as a no-op.
+  const rawSourceRef = target.sourceRef
+  const sourceRef: string | null =
+    rawSourceRef !== undefined
+      ? (() => {
+          const cleaned = rawSourceRef
+            .replace(/[/\\]/g, '')
+            .split('\0').join('')
+            .trim()
+            .slice(0, 255)
+          return cleaned.length > 0 ? cleaned : null
+        })()
+      : null
+
+  // Normalize sourceHash: must be a valid 64-char hex SHA-256 string.
+  // Discard invalid values so local deletion isn't applied when the cloud
+  // call would reject the same input.
+  const rawSourceHash = target.sourceHash
+  const sourceHash: string | null =
+    rawSourceHash !== undefined && /^[0-9a-f]{64}$/i.test(rawSourceHash)
+      ? rawSourceHash.toLowerCase()
+      : null
 
   try {
     if (clearAll) {
