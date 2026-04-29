@@ -38,7 +38,8 @@
 - [LLM Wiki Memory](docs/LLM_WIKI_MEMORY.md) — Structured, queryable memory with facts, tasks, and episodic events for premium users; FTS5-based search with multi-layer query preprocessing and optional Cloud SQL sync.
 - [First-login credits](docs/FIRST_LOGIN_CREDITS.md) — How first-login users are provisioned to 50 free credits.
 - [Cloud character save + share](docs/CLOUD_CHARACTER_SAVE_SHARE.md) — Subscription-gated cloud save toggles, shareable character links, and deep-link import flow.
-- [Cloud SQL design](docs/CLOUD_SQL_DESIGN.md) — Current PostgreSQL schema and service-layer architecture for users, subscriptions, characters, and messages.
+- [Cloud SQL design](docs/CLOUD_SQL_DESIGN.md) — Current PostgreSQL schema and service-layer architecture for all 8 tables: users, subscriptions, characters, messages, credit_transactions, wiki_entries, agent_tasks, and memory_events.
+- [Cloud SQL migrations](docs/CLOUD_SQL_MIGRATIONS.md) — How to generate and apply schema migrations to production using the Cloud SQL Auth Proxy.
 
 ## Payments & Subscriptions
 
