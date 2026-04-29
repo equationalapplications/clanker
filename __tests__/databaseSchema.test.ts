@@ -54,6 +54,11 @@ describe('database schema migration guards', () => {
     )
     expect(CREATE_TABLES).toContain('source_hash TEXT')
     expect(CREATE_TABLES).toContain('source_ref TEXT')
+    // Fresh installs run CREATE_TABLES (skipping migrations when columns exist),
+    // so the partial index must live in CREATE_TABLES — not only in migration 15.
+    expect(CREATE_TABLES).toContain(
+      'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(source_hash) WHERE source_hash IS NOT NULL',
+    )
   })
 
   it('includes wiki memory tables in base schema', () => {

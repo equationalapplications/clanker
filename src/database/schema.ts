@@ -156,6 +156,7 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_user ON wiki_entries(character_id, user_id);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_updated_at ON wiki_entries(updated_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_deleted ON wiki_entries(character_id, deleted_at);
+  CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(source_hash) WHERE source_hash IS NOT NULL;
 
   -- Agent tasks table
   CREATE TABLE IF NOT EXISTS agent_tasks (

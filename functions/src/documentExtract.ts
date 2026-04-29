@@ -441,7 +441,16 @@ export async function documentExtractHandler(
     throw new HttpsError('invalid-argument', 'Document is empty.');
   }
 
-  // 8. Character ownership
+  // 8. Character ownership — characterId must be a cloud UUID because the
+  // Cloud SQL `characters.id` column is typed uuid; passing a non-UUID (e.g.
+  // a local `char_…` ID) would cause Postgres to throw
+  // "invalid input syntax for type uuid" and return a 500 instead of a
+  // controlled HttpsError.  The client is responsible for resolving the
+  // cloud_id before invoking this callable.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(characterId)) {
+    throw new HttpsError('permission-denied', 'Character not found or not owned by user.');
+  }
   const db = await deps.getDb();
   const charRows = await db
     .select({ id: characters.id })

@@ -137,15 +137,18 @@ describe('documentExtractHandler', () => {
     );
   });
 
-  it('accepts non-UUID characterId', async () => {
-    // parseInput no longer enforces UUID format — the client always sends the
-    // cloud_id, but the server imposes no syntactic restriction so local IDs
-    // don't break the callable at the parse stage.
-    const result = await documentExtractHandler(
-      makeRequest({ characterId: 'not-a-uuid', filename: 'f.txt', content, contentHash }),
-      makeDeps() as never,
+  it('rejects non-UUID characterId with permission-denied', async () => {
+    // documentExtractHandler validates UUID format before the Cloud SQL query
+    // because characters.id is a Postgres uuid column — passing a non-UUID
+    // would cause a Postgres type error (500) rather than a controlled HttpsError.
+    await assert.rejects(
+      () =>
+        documentExtractHandler(
+          makeRequest({ characterId: 'not-a-uuid', filename: 'f.txt', content, contentHash }),
+          makeDeps() as never,
+        ),
+      (e: unknown) => e instanceof HttpsError && e.code === 'permission-denied',
     );
-    assert.ok(Array.isArray(result.facts));
   });
 
   it('rejects empty content', async () => {
