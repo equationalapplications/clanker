@@ -346,7 +346,7 @@ export const documentIngestMachine = createMachine(
 
       checkDuplicate: fromPromise(async ({ input }: { input: CheckDupInput }): Promise<number> => {
         const entries = await findEntriesByRef(input.characterId, input.userId, input.sourceRef)
-        return entries.filter((e) => e.deleted_at === null).length
+        return entries.length
       }),
 
       purgeDocument: fromPromise(async ({ input }: { input: PurgeInput }): Promise<void> => {
@@ -444,12 +444,6 @@ export function dispatchDocumentIngest(characterId: string, userId: string): voi
       input: { characterId, userId },
     })
     activeIngestJobs.set(characterId, actor)
-
-    actor.subscribe((state) => {
-      if (state.matches('idle') || state.status === 'done') {
-        // Keep actor in map for UI access (progress bar reads from it)
-      }
-    })
 
     actor.start()
   } else {
