@@ -145,7 +145,7 @@ function buildGenerateContent(): (prompt: string) => Promise<string> {
 
 // ─── Input parsing ────────────────────────────────────────────────────────────
 function parseInput(data: unknown): {
-  characterId: string;
+  characterId: string | null;
   filename: string;
   content: string;
   contentHash: string;
@@ -155,15 +155,20 @@ function parseInput(data: unknown): {
   }
   const payload = data as DocumentExtractInput;
 
-  // characterId
-  if (typeof payload.characterId !== 'string' || !payload.characterId.trim()) {
-    throw new HttpsError('invalid-argument', 'characterId is required.');
+  // characterId — optional. Provide a Cloud SQL UUID for cloud-synced characters;
+  // omit (or pass null/empty) for local-only characters. A non-empty non-UUID
+  // string is rejected because Cloud SQL queries require a UUID column value.
+  const rawCharacterId = payload.characterId;
+  let characterId: string | null;
+  if (rawCharacterId == null) {
+    characterId = null;
+  } else if (typeof rawCharacterId === 'string') {
+    const trimmedCharacterId = rawCharacterId.trim();
+    characterId = trimmedCharacterId || null;
+  } else {
+    throw new HttpsError('invalid-argument', 'characterId must be a string, null, or undefined.');
   }
-  const characterId = payload.characterId.trim();
 
-  // characterId must be the Cloud SQL character UUID used for database lookup.
-  // Client-local IDs (for example `char_<...>`) are not accepted here because
-  // downstream queries require a UUID-compatible value.
   // filename sanitization: allow only [A-Za-z0-9._\- ], strip everything else.
   if (typeof payload.filename !== 'string' || !payload.filename.trim()) {
     throw new HttpsError('invalid-argument', 'filename is required.');
@@ -456,24 +461,31 @@ export async function documentExtractHandler(
     throw new HttpsError('invalid-argument', 'Document is empty.');
   }
 
-  // 8. Character ownership — characterId must be a cloud UUID because the
-  // Cloud SQL `characters.id` column is typed uuid; passing a non-UUID (e.g.
-  // a local `char_…` ID) would cause Postgres to throw
-  // "invalid input syntax for type uuid" and return a 500 instead of a
-  // controlled HttpsError.  The client is responsible for resolving the
-  // cloud_id before invoking this callable.
+  // 8. Character ownership — only verified when the caller provides a cloud UUID.
+  // Local-only characters (no cloud_id) omit characterId; the premium gate at
+  // step 3 is sufficient for those users.
+  // A non-empty non-UUID value is still rejected because Cloud SQL queries use a
+  // uuid column and passing a non-UUID would cause a Postgres type error.
+  // UUID format validation is intentionally performed before deps.getDb() so that
+  // malformed inputs fail without incurring a Cloud SQL connection. The ownership
+  // query follows in a second block after the connection is established (which is
+  // required unconditionally at step 11 for rate limiting).
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!UUID_RE.test(characterId)) {
+  if (characterId !== null && !UUID_RE.test(characterId)) {
     throw new HttpsError('permission-denied', 'Character not found or not owned by user.');
   }
+
   const db = await deps.getDb();
-  const charRows = await db
-    .select({ id: characters.id })
-    .from(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.userId, user.id)))
-    .limit(1);
-  if (charRows.length === 0) {
-    throw new HttpsError('permission-denied', 'Character not found or not owned by user.');
+
+  if (characterId !== null) {
+    const charRows = await db
+      .select({ id: characters.id })
+      .from(characters)
+      .where(and(eq(characters.id, characterId), eq(characters.userId, user.id)))
+      .limit(1);
+    if (charRows.length === 0) {
+      throw new HttpsError('permission-denied', 'Character not found or not owned by user.');
+    }
   }
 
   // 9. Entropy / binary check — must run before rate-limit increment so a bad document
