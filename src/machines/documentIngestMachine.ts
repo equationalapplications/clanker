@@ -393,7 +393,11 @@ export const documentIngestMachine = createMachine(
       validateCharacter: fromPromise(async ({ input }: { input: { characterId: string; userId: string } }): Promise<string | null> => {
         const character = await getCharacter(input.characterId, input.userId)
         if (!character) {
-          throw new Error(`Character not found for user: characterId=${input.characterId}, userId=${input.userId}`)
+          console.warn('[documentIngestMachine] Character lookup failed during document ingest', {
+            characterId: input.characterId,
+            userId: input.userId,
+          })
+          throw new Error('Character not found')
         }
         return character.cloud_id ?? null
       }),
