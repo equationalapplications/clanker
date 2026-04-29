@@ -45,6 +45,18 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
 }
 
 /**
+ * Partial indexes on wiki_entries that reference columns added in migrations 13/14.
+ * These must be applied AFTER migrations, not inside CREATE_TABLES, because
+ * CREATE TABLE IF NOT EXISTS is a no-op on existing databases, and attempting to
+ * create an index on a column that doesn't yet exist in an old table crashes
+ * the entire CREATE_TABLES execAsync call before migrations can run.
+ */
+export const CREATE_WIKI_ENTRY_SOURCE_INDEXES = `
+  CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL;
+`
+
+/**
  * FTS5 virtual table and triggers (platform-specific)
  * Note: On web, SQLite is provided via wa-sqlite through expo-sqlite, and
  * these statements are applied during initialization only when FTS5 support
@@ -156,8 +168,6 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_user ON wiki_entries(character_id, user_id);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_updated_at ON wiki_entries(updated_at DESC);
   CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_deleted ON wiki_entries(character_id, deleted_at);
-  CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL;
-  CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL;
 
   -- Agent tasks table
   CREATE TABLE IF NOT EXISTS agent_tasks (

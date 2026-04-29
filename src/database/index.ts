@@ -7,6 +7,7 @@ import * as SQLite from 'expo-sqlite'
 import {
     CREATE_TABLES,
     CREATE_WIKI_FTS,
+    CREATE_WIKI_ENTRY_SOURCE_INDEXES,
     SCHEMA_VERSION,
     MIGRATIONS,
     LATEST_SCHEMA_REQUIRED_COLUMNS,
@@ -199,6 +200,9 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
                 'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
                 [SCHEMA_VERSION, Date.now()],
             )
+            // Create partial indexes that depend on columns added in migrations 13/14.
+            // Not in CREATE_TABLES to avoid breaking existing DBs during the migration path.
+            await executor.execAsync(CREATE_WIKI_ENTRY_SOURCE_INDEXES)
             return
         }
 
@@ -242,6 +246,7 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
             inferredVersion = 7
         }
         await runMigrations(executor, inferredVersion)
+        await executor.execAsync(CREATE_WIKI_ENTRY_SOURCE_INDEXES)
         return
     }
 
@@ -249,6 +254,9 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // Existing DB that needs upgrading
         await runMigrations(executor, result.version)
     }
+    // Ensure partial indexes on source_hash/source_ref exist. CREATE INDEX IF NOT EXISTS
+    // is a no-op when already present, so this is safe on every startup.
+    await executor.execAsync(CREATE_WIKI_ENTRY_SOURCE_INDEXES)
 }
 
 /**
