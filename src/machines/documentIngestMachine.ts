@@ -303,9 +303,7 @@ export const documentIngestMachine = createMachine(
         const asset = result.assets[0]
         if (!asset) return null
         const sanitized = asset.name
-          .replace(/[/\\]/g, '')
-          .replace(/\u0000/g, '')
-          .replace(/[\x00-\x1f\x7f]/g, '')
+          .replace(/[^A-Za-z0-9._\- ]/g, '')
           .trim()
           .slice(0, 255)
         return { filename: sanitized || 'document.txt', uri: asset.uri }

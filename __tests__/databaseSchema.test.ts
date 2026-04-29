@@ -57,7 +57,7 @@ describe('database schema migration guards', () => {
     // Fresh installs run CREATE_TABLES (skipping migrations when columns exist),
     // so the partial index must live in CREATE_TABLES — not only in migration 15.
     expect(CREATE_TABLES).toContain(
-      'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(source_hash) WHERE source_hash IS NOT NULL',
+      'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL',
     )
   })
 
