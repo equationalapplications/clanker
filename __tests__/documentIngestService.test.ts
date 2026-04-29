@@ -13,6 +13,10 @@ describe('extractDocument', () => {
     jest.clearAllMocks()
   })
 
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
   it('returns parsed facts from callable response', async () => {
     mockDocumentExtractFn.mockResolvedValue({
       data: {

@@ -120,7 +120,7 @@ const MIGRATIONS = [
   } catch (err) {
     console.error('❌', err.message, err.detail || '');
     process.exitCode = 1;
-  } finally { if (client) client.release(); p.end(); }
+  } finally { if (client) client.release(); await p.end(); }
 })();
 "
 ```
