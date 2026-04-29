@@ -62,8 +62,10 @@ Before running any commands, set these shell variables to match your target envi
 
 ```bash
 # Set these to the target environment before proceeding
-export CLOUD_SQL_CONNECTION_NAME="clanker-prod:us-central1:clanker-prod"  # staging: change accordingly
-export GCP_PROJECT="clanker-prod"                                          # staging: change accordingly
+# Example (staging): clanker-staging:us-central1:clanker-staging
+# Example (prod):    clanker-prod:us-central1:clanker-prod   ← confirm before use
+export CLOUD_SQL_CONNECTION_NAME="<project>:<region>:<instance>"
+export GCP_PROJECT="<project>"
 ```
 
 > **Warning:** Double-check `CLOUD_SQL_CONNECTION_NAME` and `GCP_PROJECT` before continuing — running against the wrong instance may corrupt production data.
@@ -98,8 +100,9 @@ const MIGRATIONS = [
   // '0008_my_new_migration.sql',
 ];
 (async () => {
-  const client = await p.connect();
+  let client;
   try {
+    client = await p.connect();
     for (const file of MIGRATIONS) {
       const stmts = fs.readFileSync('drizzle/' + file, 'utf8')
         .split('--> statement-breakpoint').map(s => s.trim()).filter(Boolean);
@@ -117,7 +120,7 @@ const MIGRATIONS = [
   } catch (err) {
     console.error('❌', err.message, err.detail || '');
     process.exitCode = 1;
-  } finally { client.release(); p.end(); }
+  } finally { if (client) client.release(); p.end(); }
 })();
 "
 ```

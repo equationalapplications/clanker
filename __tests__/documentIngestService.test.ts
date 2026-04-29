@@ -38,6 +38,7 @@ describe('extractDocument', () => {
   })
 
   it('drops facts with invalid confidence', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {})
     mockDocumentExtractFn.mockResolvedValue({
       data: {
         facts: [
