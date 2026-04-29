@@ -1,3 +1,15 @@
+## [29.3.3](https://github.com/equationalapplications/clanker/compare/v29.3.2...v29.3.3) (2026-04-29)
+
+
+### Bug Fixes
+
+* **document-ingest:** move UUID_REGEX/isUuid to module scope, fix syntax error ([2f317dc](https://github.com/equationalapplications/clanker/commit/2f317dce6a60d805b05c23324caf6899dfc980db))
+* **document-ingest:** remove cloud-sync gate from premium button ([753e9c5](https://github.com/equationalapplications/clanker/commit/753e9c5dfc98e4b66f4fce297d855dfb935d3e6d))
+* **document-ingest:** support local-only characters in document ingest flow ([c8be7f9](https://github.com/equationalapplications/clanker/commit/c8be7f92eda4a69c5abed0ed2e6638e85399a223))
+* **documentExtract:** consolidate UUID guard and explain two-block split ([cc35c37](https://github.com/equationalapplications/clanker/commit/cc35c379ca319bf43dc589c40e6f3f27cd9ba91d))
+* **documentExtract:** validate UUID before getDb() to avoid unnecessary connection ([700f7b6](https://github.com/equationalapplications/clanker/commit/700f7b644d21b2578e9faf06abdd9eab910da90e))
+* **documentIngestMachine:** use permissive UUID regex matching rest of codebase ([19c4f9f](https://github.com/equationalapplications/clanker/commit/19c4f9f9beecaa01b63939b5ee432ef2c8c1d006))
+
 ## [29.3.2](https://github.com/equationalapplications/clanker/compare/v29.3.1...v29.3.2) (2026-04-29)
 
 
