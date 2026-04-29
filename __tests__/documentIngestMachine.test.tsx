@@ -241,6 +241,20 @@ describe('documentIngestMachine', () => {
     actor.stop()
   })
 
+  it('goes to error state when character is not found', async () => {
+    mockGetCharacter.mockResolvedValue(null)
+
+    const actor = createTestActor()
+    actor.send({ type: 'INGEST', characterId: 'char-1', userId: 'user-1' })
+
+    await waitForState(actor, 'idle') // error → idle after 0ms
+
+    // Validation fails before file picking — user never sees the document picker
+    expect(mockGetDocumentAsync).not.toHaveBeenCalled()
+    expect(mockExtractDocument).not.toHaveBeenCalled()
+    actor.stop()
+  })
+
   it('progress increases monotonically through states', async () => {
     const progressValues: number[] = []
 
