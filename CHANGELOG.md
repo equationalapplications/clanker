@@ -1,3 +1,45 @@
+# [29.3.0](https://github.com/equationalapplications/clanker/compare/v29.2.1...v29.3.0) (2026-04-29)
+
+
+### Bug Fixes
+
+* **database:** bootstrap check validates all LATEST_SCHEMA_REQUIRED_COLUMNS tables; add sourceHash tests ([26f7244](https://github.com/equationalapplications/clanker/commit/26f72444c8c894f1ffa53eb034c95119b81260d1))
+* **document-ingest:** address code review findings ([4402261](https://github.com/equationalapplications/clanker/commit/4402261b3c9f083f791bcb773036d2a22789aab3))
+* **document-ingest:** address PR 330 code review findings ([0da410a](https://github.com/equationalapplications/clanker/commit/0da410a5edd351e026c7450aacb6417cbe061637))
+* **document-ingest:** address remaining code review findings ([9c0923c](https://github.com/equationalapplications/clanker/commit/9c0923c1e20f2abd41d2d325d183d51d0e91a334))
+* **document-ingest:** address review findings ([0d42419](https://github.com/equationalapplications/clanker/commit/0d4241995c16b89ca1937d6eadd8b468057db3e3))
+* **document-ingest:** check response.ok before reading fetch response text on web ([4d2bf21](https://github.com/equationalapplications/clanker/commit/4d2bf2130fdbdba8a6cd2b91511378d7c378bed7))
+* **document-ingest:** composite partial index in CREATE_TABLES, spec hash clarification, client filename allowlist ([b29305b](https://github.com/equationalapplications/clanker/commit/b29305b1f76fca28b75f4003a7c0a13c4c7bd2a1))
+* **document-ingest:** deduplicate bulkInsertEntries SQL and fix memoryBundle query key ([fac5bbf](https://github.com/equationalapplications/clanker/commit/fac5bbf43bed0a7ac308104470b172907801120a))
+* **document-ingest:** enforce raw content length cap in parseInput before normalization/hashing ([19d0a66](https://github.com/equationalapplications/clanker/commit/19d0a6674e9bffb77a28a082cbd9aa87dae65420))
+* **document-ingest:** hash, guards, purge by hash, dup alert, web ([b267c4d](https://github.com/equationalapplications/clanker/commit/b267c4dadda3441e5c5a4524dd8090dc420b085b))
+* **document-ingest:** match server ID convention for entries and events ([39fdc43](https://github.com/equationalapplications/clanker/commit/39fdc433faa73d943712a10c1c439957e27a3f02))
+* **document-ingest:** merge duplicate xstate import; update non-UUID characterId test ([ea64d33](https://github.com/equationalapplications/clanker/commit/ea64d337947269881a5546d36e21b390f9f70f4c))
+* **document-ingest:** migration retry safety and trailing whitespace ([08edf22](https://github.com/equationalapplications/clanker/commit/08edf2216e8f6f1774dc932f4a4ec326b065ce94))
+* **document-ingest:** remove redundant deleted_at filter and empty subscription handler ([5df29a1](https://github.com/equationalapplications/clanker/commit/5df29a17e8b0fcd18bff5820f6bf0239f1c5ecc3))
+* **document-ingest:** resolve cloud_id in extractDocumentActor; grammar fix in migration log ([1321c43](https://github.com/equationalapplications/clanker/commit/1321c438b7c1aa9759481895558ef9200983ec00))
+* **document-ingest:** standardize warn prefix and add factIndex to parseExtractedFact logs ([36df1d1](https://github.com/equationalapplications/clanker/commit/36df1d1ed481aaaaf2f6402924ef14273e8a17ab))
+* **document-ingest:** UUID validation before Cloud SQL query, partial index in CREATE_TABLES ([54edd09](https://github.com/equationalapplications/clanker/commit/54edd095ee1bd7c99bc4fd02943558465e05b0d3))
+* **ingest:** construct extractDocument payload explicitly instead of spreading input ([8204032](https://github.com/equationalapplications/clanker/commit/8204032aaaf67d2a4ec449bbdb3b37d55697ccfb))
+* **ingest:** make memory event append non-fatal in applyFacts ([93996dc](https://github.com/equationalapplications/clanker/commit/93996dc4936f9b7cc2b2ef7a9e92a1ffb1c6e161))
+* **memory:** add snake_case fallbacks for sourceHash/sourceRef in toWikiEntryUpserts ([5a8314d](https://github.com/equationalapplications/clanker/commit/5a8314d539da27aaaef650a418bc572400b211d7))
+* **memory:** normalize sourceRef/sourceHash in forgetMemory before local/cloud ops ([01dbc28](https://github.com/equationalapplications/clanker/commit/01dbc28d374352c6eb21ea8e8e8c50d2abd8b702))
+* **schema:** add missing source_ref partial index migration for Cloud SQL ([69d6d10](https://github.com/equationalapplications/clanker/commit/69d6d1008b19b98e1b0af83ebfcbaf974229a9c1))
+* **test:** add mocks for documentIngestMachine imports in chatComposer test ([b7e76d6](https://github.com/equationalapplications/clanker/commit/b7e76d6acd0a365eaaedb72b9dfcb43c63b7df7d))
+* **wiki-db:** preserve source_hash/source_ref on upsert with COALESCE ([6e57ab5](https://github.com/equationalapplications/clanker/commit/6e57ab5bb3e0a7cf43641737974d0945ce8c9c1a))
+
+
+### Features
+
+* **db:** add source_hash/source_ref to Cloud SQL wiki_entries, update source_type constraint ([d830978](https://github.com/equationalapplications/clanker/commit/d830978d977e4a4ea08e44449994a3ed13225c4a))
+* **db:** extend wikiDatabase with source_hash/source_ref, add bulk insert and find-by-hash/ref ([0a8605c](https://github.com/equationalapplications/clanker/commit/0a8605c3459e967b6942da48ecb3c7957a461da4))
+* **document-ingest:** add ChatComposer + button, progress bar, toast, IngestProgressBar ([82320eb](https://github.com/equationalapplications/clanker/commit/82320eb7f52518196dfd1298f78c87b7f64f1d2c))
+* **document-ingest:** add documentExtract Firebase callable with LLM extraction ([7e20760](https://github.com/equationalapplications/clanker/commit/7e207600c35dab75394473f8ba89381d805461c7))
+* **document-ingest:** add documentIngestMachine XState v5 machine with tests ([b36180b](https://github.com/equationalapplications/clanker/commit/b36180b075a859143d742ceb546863169804309f))
+* **document-ingest:** extend forgetMemory with sourceRef; add documentIngestService ([3c8c066](https://github.com/equationalapplications/clanker/commit/3c8c066edc69ec524ee1cb3f3962feb6b8247035))
+* **memory:** extend forgetMemory with sourceRef target; heal skips user_document entries ([b101f00](https://github.com/equationalapplications/clanker/commit/b101f000ca8b34433c8eb99dd16d27f598304939))
+* **schema:** bump SCHEMA_VERSION to 13, add source_hash/source_ref to wiki_entries ([e53743d](https://github.com/equationalapplications/clanker/commit/e53743dc08b630c8ca3f44c19f09cb9041482bb2))
+
 ## [29.2.1](https://github.com/equationalapplications/clanker/compare/v29.2.0...v29.2.1) (2026-04-28)
 
 
