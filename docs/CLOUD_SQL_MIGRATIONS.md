@@ -5,14 +5,14 @@ How to generate and apply schema migrations to the production Cloud SQL (Postgre
 ## Architecture
 
 - **ORM**: Drizzle ORM (TypeScript)
-- **Database**: PostgreSQL 18 (Cloud SQL — set `INSTANCE_CONNECTION_NAME` and `GCP_PROJECT` for the target environment)
+- **Database**: PostgreSQL 18 (Cloud SQL)
 - **Schema definition**: `functions/src/db/schema.ts`
 - **Migrations folder**: `functions/drizzle/`
-- **Config**: `functions/drizzle.config.ts` (should reference `INSTANCE_CONNECTION_NAME` / `GCP_PROJECT` instead of hard-coded prod values)
+- **Config**: `functions/drizzle.config.ts` (uses `DATABASE_URL`; do not hard-code production values)
 
 > **Note:** There is no `__drizzle_migrations` tracking table in production. Migrations must be applied manually via the node script below. Keep the "Applied Migrations" list in this file up to date.
 >
-> **Warning:** Before generating or applying migrations, verify that `GCP_PROJECT` and `INSTANCE_CONNECTION_NAME` point to the intended Cloud SQL instance (e.g. staging vs production). Do **not** run migration commands until you have confirmed the target.
+> **Warning:** Before generating or applying migrations, verify that `DATABASE_URL` points to the intended Cloud SQL instance (for example, staging vs production). In Cloud Functions runtime configuration, use `CLOUD_SQL_CONNECTION_NAME` for the Cloud SQL connector settings. Do **not** run migration commands until you have confirmed the target.
 
 ---
 
