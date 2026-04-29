@@ -459,11 +459,13 @@ export async function documentExtractHandler(
   // step 3 is sufficient for those users.
   // A non-empty non-UUID value is still rejected because Cloud SQL queries use a
   // uuid column and passing a non-UUID would cause a Postgres type error.
+  // UUID format validation is intentionally performed before deps.getDb() so that
+  // malformed inputs fail without incurring a Cloud SQL connection. The ownership
+  // query follows in a second block after the connection is established (which is
+  // required unconditionally at step 11 for rate limiting).
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (characterId !== null) {
-    if (!UUID_RE.test(characterId)) {
-      throw new HttpsError('permission-denied', 'Character not found or not owned by user.');
-    }
+  if (characterId !== null && !UUID_RE.test(characterId)) {
+    throw new HttpsError('permission-denied', 'Character not found or not owned by user.');
   }
 
   const db = await deps.getDb();
