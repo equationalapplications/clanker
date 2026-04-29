@@ -184,7 +184,16 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
             (requiredColumn) => hasCharacterColumn(requiredColumn),
         )
 
-        if (hasLatestCharacterSchema) {
+        // Also verify wiki_entries has its required columns (source_hash, source_ref added in
+        // migrations 13/14). A fresh install creates these via CREATE_TABLES, so both must
+        // be present before we can declare the DB is already at the latest schema.
+        const wikiCols = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(wiki_entries)')
+        const wikiColNames = new Set(wikiCols.map((c) => c.name))
+        const hasLatestWikiSchema = LATEST_SCHEMA_REQUIRED_COLUMNS.wiki_entries.every(
+            (requiredColumn) => wikiColNames.has(requiredColumn),
+        )
+
+        if (hasLatestCharacterSchema && hasLatestWikiSchema) {
             // Fresh DB already at latest schema: just record the current schema version
             await executor.runAsync(
                 'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',

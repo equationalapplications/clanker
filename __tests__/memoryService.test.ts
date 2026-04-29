@@ -10,6 +10,7 @@ const mockUpsertWikiEntries = jest.fn()
 const mockSoftDeleteWikiEntries = jest.fn()
 const mockSoftDeleteAllWikiEntries = jest.fn()
 const mockSoftDeleteWikiEntriesBySourceRef = jest.fn()
+const mockSoftDeleteWikiEntriesBySourceHash = jest.fn()
 const mockUpsertAgentTasks = jest.fn()
 const mockSoftDeleteAgentTasks = jest.fn()
 const mockSoftDeleteAllAgentTasks = jest.fn()
@@ -33,6 +34,7 @@ jest.mock('~/database/wikiDatabase', () => ({
   softDeleteWikiEntries: (...args: unknown[]) => mockSoftDeleteWikiEntries(...args),
   softDeleteAllWikiEntries: (...args: unknown[]) => mockSoftDeleteAllWikiEntries(...args),
   softDeleteWikiEntriesBySourceRef: (...args: unknown[]) => mockSoftDeleteWikiEntriesBySourceRef(...args),
+  softDeleteWikiEntriesBySourceHash: (...args: unknown[]) => mockSoftDeleteWikiEntriesBySourceHash(...args),
   getEntriesForHeal: (...args: unknown[]) => mockGetEntriesForHeal(...args),
 }), { virtual: true })
 
@@ -338,6 +340,34 @@ describe('forgetMemory', () => {
     expect(mockSoftDeleteBySourceRef).toHaveBeenCalledWith('local-1', 'user-1', 'notes.md')
     expect(mockMemoryForgetFn).toHaveBeenCalledWith(
       expect.objectContaining({ characterId: '550e8400-e29b-41d4-a716-446655440001', sourceRef: 'notes.md' }),
+    )
+  })
+
+  it('soft-deletes by sourceHash locally and passes sourceHash to cloud callable', async () => {
+    mockSoftDeleteWikiEntriesBySourceHash.mockResolvedValue(undefined)
+    mockMemoryForgetFn.mockResolvedValue({ data: {} })
+    const validHash = 'a'.repeat(64)
+
+    const character: Character = { id: 'local-1', cloud_id: '550e8400-e29b-41d4-a716-446655440001', name: 'TestChar' } as any
+
+    await forgetMemory(character, 'user-1', { sourceHash: validHash })
+
+    expect(mockSoftDeleteWikiEntriesBySourceHash).toHaveBeenCalledWith('local-1', 'user-1', validHash)
+    expect(mockMemoryForgetFn).toHaveBeenCalledWith(
+      expect.objectContaining({ characterId: '550e8400-e29b-41d4-a716-446655440001', sourceHash: validHash }),
+    )
+  })
+
+  it('ignores invalid sourceHash (not 64-char hex) and omits it from cloud callable', async () => {
+    mockMemoryForgetFn.mockResolvedValue({ data: {} })
+
+    const character: Character = { id: 'local-1', cloud_id: '550e8400-e29b-41d4-a716-446655440001', name: 'TestChar' } as any
+
+    await forgetMemory(character, 'user-1', { sourceHash: 'not-a-valid-hash' })
+
+    expect(mockSoftDeleteWikiEntriesBySourceHash).not.toHaveBeenCalled()
+    expect(mockMemoryForgetFn).toHaveBeenCalledWith(
+      expect.not.objectContaining({ sourceHash: expect.anything() }),
     )
   })
 })
