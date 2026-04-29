@@ -58,10 +58,20 @@ Run this if you see `invalid_grant` / RAPT errors from the proxy. `gcloud auth l
 
 ## Step-by-Step: Apply Migrations
 
+Before running any commands, set these shell variables to match your target environment:
+
+```bash
+# Set these to the target environment before proceeding
+export CLOUD_SQL_CONNECTION_NAME="clanker-prod:us-central1:clanker-prod"  # staging: change accordingly
+export GCP_PROJECT="clanker-prod"                                          # staging: change accordingly
+```
+
+> **Warning:** Double-check `CLOUD_SQL_CONNECTION_NAME` and `GCP_PROJECT` before continuing — running against the wrong instance may corrupt production data.
+
 ### 1. Start the proxy
 
 ```bash
-/tmp/cloud-sql-proxy clanker-prod:us-central1:clanker-prod --port 5433 &
+/tmp/cloud-sql-proxy "${CLOUD_SQL_CONNECTION_NAME}" --port 5433 &
 ```
 
 ### 2. Build DATABASE_URL
@@ -69,7 +79,7 @@ Run this if you see `invalid_grant` / RAPT errors from the proxy. `gcloud auth l
 The DB password contains special characters and must be URL-encoded:
 
 ```bash
-DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project=clanker-prod)
+DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project="${GCP_PROJECT}")
 ENCODED_PASS=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASS")
 export DATABASE_URL="postgresql://clanker_app:${ENCODED_PASS}@127.0.0.1:5433/clanker"
 ```
