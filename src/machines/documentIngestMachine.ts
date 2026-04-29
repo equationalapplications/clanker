@@ -317,6 +317,9 @@ export const documentIngestMachine = createMachine(
             // expo-file-system does not support web; blob URIs from the document
             // picker are readable via fetch on web.
             const response = await fetch(input.fileUri)
+            if (!response.ok) {
+              throw new Error(`Failed to read document: ${response.status} ${response.statusText}`)
+            }
             raw = await response.text()
           } else {
             raw = await FileSystem.readAsStringAsync(input.fileUri, {
