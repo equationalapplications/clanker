@@ -3,7 +3,11 @@ import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
 import { Platform } from 'react-native'
-import { findEntriesByRef, bulkInsertEntries, type WikiEntryUpsertInput } from '~/database/wikiDatabase'
+import {
+  findEntriesByRef,
+  bulkInsertEntries,
+  type WikiEntryUpsertInput,
+} from '~/database/wikiDatabase'
 import { appendMemoryEvents, type MemoryEventUpsertInput } from '~/database/memoryEventDatabase'
 import { forgetMemory } from '~/services/memoryService'
 import { getCharacter } from '~/database/characterDatabase'
@@ -15,6 +19,7 @@ import { INGEST_STATE_PROGRESS } from '~/constants/documentIngestProgress'
 export interface DocumentIngestContext {
   characterId: string
   userId: string
+  cloudId: string | null
   filename: string | null
   fileUri: string | null
   contentHash: string | null
@@ -32,10 +37,31 @@ export type DocumentIngestEvent =
   | { type: 'CANCEL' }
 
 // ─── Actor inputs ─────────────────────────────────────────────────────────────
-interface CheckDupInput { characterId: string; userId: string; sourceRef: string }
-interface PurgeInput { characterId: string; userId: string; filename: string }
-interface ExtractInput { characterId: string; userId: string; filename: string; content: string; contentHash: string }
-interface ApplyInput { characterId: string; userId: string; filename: string; contentHash: string; facts: ExtractedFact[] }
+interface CheckDupInput {
+  characterId: string
+  userId: string
+  sourceRef: string
+}
+interface PurgeInput {
+  characterId: string
+  userId: string
+  cloudId: string | null
+  filename: string
+}
+interface ExtractInput {
+  cloudId: string | null
+  userId: string
+  filename: string
+  content: string
+  contentHash: string
+}
+interface ApplyInput {
+  characterId: string
+  userId: string
+  filename: string
+  contentHash: string
+  facts: ExtractedFact[]
+}
 
 // ─── Unique ID helpers (match server convention in functions/src/memoryFunctions.ts) ──
 // Server uses `entry_${now}_${index}_${random9}` and `event_${now}_${random9}`.
@@ -55,7 +81,19 @@ function generateEventId(now: number): string {
 
 // ─── Normalize text (mirror server normalization) ─────────────────────────────
 function normalizeContent(raw: string): string {
-  return raw.replace(/^\uFEFF/, '').replace(/\u0000/g, '').normalize('NFC')
+  return raw
+    .replace(/^\uFEFF/, '')
+    .replace(/\u0000/g, '')
+    .normalize('NFC')
+}
+
+// ─── UUID validation helper ───────────────────────────────────────────────────
+// Matches any UUID-shaped value (permissive — no version/variant restriction),
+// consistent with the pattern used in memoryService, wikiHealMachine, and
+// the documentExtract Cloud Function.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+function isUuid(value: string | null | undefined): value is string {
+  return typeof value === 'string' && UUID_REGEX.test(value)
 }
 
 // ─── Machine definition ───────────────────────────────────────────────────────
@@ -71,6 +109,7 @@ export const documentIngestMachine = createMachine(
     context: ({ input }) => ({
       characterId: input.characterId,
       userId: input.userId,
+      cloudId: null,
       filename: null,
       fileUri: null,
       contentHash: null,
@@ -84,10 +123,11 @@ export const documentIngestMachine = createMachine(
       idle: {
         on: {
           INGEST: {
-            target: 'picking',
+            target: 'validating',
             actions: assign({
               characterId: ({ event }) => event.characterId,
               userId: ({ event }) => event.userId,
+              cloudId: null,
               filename: null,
               fileUri: null,
               contentHash: null,
@@ -96,6 +136,30 @@ export const documentIngestMachine = createMachine(
               duplicateEntryCount: 0,
               errorMessage: null,
               progress: 0,
+            }),
+          },
+        },
+      },
+
+      validating: {
+        entry: assign({ progress: INGEST_STATE_PROGRESS.validating }),
+        invoke: {
+          id: 'validateCharacter',
+          src: 'validateCharacter',
+          input: ({ context }) => ({ characterId: context.characterId, userId: context.userId }),
+          onDone: {
+            target: 'picking',
+            actions: assign({
+              cloudId: ({ event }) => event.output,
+            }),
+          },
+          onError: {
+            target: 'error',
+            actions: assign({
+              errorMessage: ({ event }) =>
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Failed to validate character.',
             }),
           },
         },
@@ -114,7 +178,8 @@ export const documentIngestMachine = createMachine(
             {
               target: 'reading',
               actions: assign({
-                filename: ({ event }) => (event.output as { filename: string; uri: string }).filename,
+                filename: ({ event }) =>
+                  (event.output as { filename: string; uri: string }).filename,
                 fileUri: ({ event }) => (event.output as { filename: string; uri: string }).uri,
               }),
             },
@@ -138,8 +203,10 @@ export const documentIngestMachine = createMachine(
           onDone: {
             target: 'checkingDuplicate',
             actions: assign({
-              content: ({ event }) => (event.output as { content: string; contentHash: string }).content,
-              contentHash: ({ event }) => (event.output as { content: string; contentHash: string }).contentHash,
+              content: ({ event }) =>
+                (event.output as { content: string; contentHash: string }).content,
+              contentHash: ({ event }) =>
+                (event.output as { content: string; contentHash: string }).contentHash,
             }),
           },
           onError: {
@@ -204,6 +271,7 @@ export const documentIngestMachine = createMachine(
           input: ({ context }): PurgeInput => ({
             characterId: context.characterId,
             userId: context.userId,
+            cloudId: context.cloudId,
             filename: context.filename ?? '',
           }),
           onDone: 'extracting',
@@ -211,7 +279,9 @@ export const documentIngestMachine = createMachine(
             target: 'error',
             actions: assign({
               errorMessage: ({ event }) =>
-                event.error instanceof Error ? event.error.message : 'Failed to purge prior document entries.',
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Failed to purge prior document entries.',
             }),
           },
         },
@@ -223,7 +293,7 @@ export const documentIngestMachine = createMachine(
           id: 'extractDocument',
           src: 'extractDocumentActor',
           input: ({ context }): ExtractInput => ({
-            characterId: context.characterId,
+            cloudId: context.cloudId,
             userId: context.userId,
             filename: context.filename ?? '',
             content: context.content ?? '',
@@ -240,7 +310,9 @@ export const documentIngestMachine = createMachine(
             target: 'error',
             actions: assign({
               errorMessage: ({ event }) =>
-                event.error instanceof Error ? event.error.message : 'Failed to extract document facts.',
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Failed to extract document facts.',
             }),
           },
         },
@@ -269,7 +341,9 @@ export const documentIngestMachine = createMachine(
             target: 'error',
             actions: assign({
               errorMessage: ({ event }) =>
-                event.error instanceof Error ? event.error.message : 'Failed to save facts to memory.',
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Failed to save facts to memory.',
             }),
           },
         },
@@ -279,7 +353,9 @@ export const documentIngestMachine = createMachine(
         entry: [
           assign({ progress: INGEST_STATE_PROGRESS.success }),
           ({ context }) => {
-            queryClient.invalidateQueries({ queryKey: ['memoryBundle', context.characterId, context.userId] })
+            queryClient.invalidateQueries({
+              queryKey: ['memoryBundle', context.characterId, context.userId],
+            })
           },
         ],
         after: {
@@ -292,7 +368,9 @@ export const documentIngestMachine = createMachine(
           assign({ progress: 0 }),
           ({ context }: { context: DocumentIngestContext }) => {
             if (context.errorMessage) {
-              console.error('[documentIngestMachine] ingest failed', { errorMessage: context.errorMessage })
+              console.error('[documentIngestMachine] ingest failed', {
+                errorMessage: context.errorMessage,
+              })
             }
           },
         ],
@@ -321,7 +399,11 @@ export const documentIngestMachine = createMachine(
       }),
 
       readDocument: fromPromise(
-        async ({ input }: { input: { fileUri: string | null } }): Promise<{ content: string; contentHash: string }> => {
+        async ({
+          input,
+        }: {
+          input: { fileUri: string | null }
+        }): Promise<{ content: string; contentHash: string }> => {
           if (!input.fileUri) throw new Error('No file URI available.')
           let raw: string
           if (Platform.OS === 'web') {
@@ -339,7 +421,10 @@ export const documentIngestMachine = createMachine(
           }
           const content = normalizeContent(raw)
           if (!content.trim()) throw new Error('Document is empty.')
-          const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, content)
+          const digest = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256,
+            content,
+          )
           return { content, contentHash: digest }
         },
       ),
@@ -350,34 +435,39 @@ export const documentIngestMachine = createMachine(
       }),
 
       purgeDocument: fromPromise(async ({ input }: { input: PurgeInput }): Promise<void> => {
-        // Look up the character to get the real cloud_id so forgetMemory can
-        // propagate the purge to Cloud SQL (avoids re-sync of stale entries).
-        const character = await getCharacter(input.characterId, input.userId)
-        const charForPurge = character
-          ? { id: character.id, cloud_id: character.cloud_id }
-          : { id: input.characterId, cloud_id: null }
-        // Purge by filename (sourceRef) so the user's mental model matches:
-        // "Replace" removes entries from this named document, not from any
-        // document that happens to share the same content hash.
+        const charForPurge = { id: input.characterId, cloud_id: input.cloudId }
         await forgetMemory(charForPurge, input.userId, { sourceRef: input.filename })
       }),
 
-      extractDocumentActor: fromPromise(async ({ input }: { input: ExtractInput }): Promise<ExtractedFact[]> => {
-        // Resolve the Cloud SQL UUID: the callable's ownership check queries
-        // the characters table by UUID, so passing a local "char_..." ID would
-        // always fail with permission-denied.
-        const character = await getCharacter(input.characterId, input.userId)
-        if (!character?.cloud_id) {
-          throw new Error('Character must be synced to cloud to ingest documents. Please try again after the character syncs.')
-        }
-        const result = await extractDocument({
-          characterId: character.cloud_id,
-          filename: input.filename,
-          content: input.content,
-          contentHash: input.contentHash,
-        })
-        return result.facts
-      }),
+      extractDocumentActor: fromPromise(
+        async ({ input }: { input: ExtractInput }): Promise<ExtractedFact[]> => {
+          const result = await extractDocument({
+            characterId: input.cloudId,
+            filename: input.filename,
+            content: input.content,
+            contentHash: input.contentHash,
+          })
+          return result.facts
+        },
+      ),
+
+      validateCharacter: fromPromise(
+        async ({
+          input,
+        }: {
+          input: { characterId: string; userId: string }
+        }): Promise<string | null> => {
+          const character = await getCharacter(input.characterId, input.userId)
+          if (!character) {
+            console.warn('[documentIngestMachine] Character lookup failed during document ingest', {
+              characterId: input.characterId,
+              userId: input.userId,
+            })
+            throw new Error('Character not found')
+          }
+          return isUuid(character.cloud_id) ? character.cloud_id : null
+        },
+      ),
 
       applyFacts: fromPromise(async ({ input }: { input: ApplyInput }): Promise<void> => {
         const now = Date.now()
@@ -417,7 +507,10 @@ export const documentIngestMachine = createMachine(
           // Entries already committed in their own transaction; don't fail the
           // whole ingest if the audit-log event append fails. Surface for
           // diagnostics so the missing event is observable.
-          console.warn('[documentIngestMachine] appendMemoryEvents failed after entries committed', err)
+          console.warn(
+            '[documentIngestMachine] appendMemoryEvents failed after entries committed',
+            err,
+          )
         })
       }),
     },
@@ -437,7 +530,9 @@ const activeIngestJobs = new Map<string, DocumentIngestMachineActor>()
 /**
  * Returns the active actor for `characterId`, or undefined if none is running.
  */
-export function getDocumentIngestMachineActor(characterId: string): DocumentIngestMachineActor | undefined {
+export function getDocumentIngestMachineActor(
+  characterId: string,
+): DocumentIngestMachineActor | undefined {
   return activeIngestJobs.get(characterId)
 }
 

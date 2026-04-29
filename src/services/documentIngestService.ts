@@ -8,7 +8,7 @@ export interface ExtractedFact {
 }
 
 export interface DocumentExtractInput {
-  characterId: string
+  characterId: string | null
   filename: string
   content: string
   contentHash: string
@@ -78,12 +78,16 @@ function parseExtractedFact(raw: unknown, factIndex: number): ExtractedFact | nu
 export async function extractDocument(input: DocumentExtractInput): Promise<DocumentExtractOutput> {
   await appCheckReady
 
-  const result = await documentExtractFn({
-    characterId: input.characterId,
+  const payload: Record<string, unknown> = {
     filename: input.filename,
     content: input.content,
     contentHash: input.contentHash,
-  })
+  }
+  if (input.characterId !== null) {
+    payload.characterId = input.characterId
+  }
+
+  const result = await documentExtractFn(payload)
 
   const data = result.data as DocumentExtractCallableResponse
 
