@@ -765,7 +765,7 @@ function buildWriteDiffHeuristic(
       body: clip(piece, 200),
       tags: inferTags(piece),
       confidence: sourceType === 'user_document' ? 'certain' : 'inferred',
-      sourceType: sourceType === 'user_document' ? 'user_stated' : 'agent_inferred',
+      sourceType: sourceType === 'user_document' ? 'user_document' : 'agent_inferred',
       sourceHash: null,
       sourceRef: null,
       createdAt: now,
