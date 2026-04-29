@@ -370,7 +370,12 @@ export const documentIngestMachine = createMachine(
         if (!character?.cloud_id) {
           throw new Error('Character must be synced to cloud to ingest documents. Please try again after the character syncs.')
         }
-        const result = await extractDocument({ ...input, characterId: character.cloud_id })
+        const result = await extractDocument({
+          characterId: character.cloud_id,
+          filename: input.filename,
+          content: input.content,
+          contentHash: input.contentHash,
+        })
         return result.facts
       }),
 
