@@ -155,7 +155,7 @@ describe('searchEntries', () => {
 
     const [sql, params] = mockGetAllAsync.mock.calls[0] as [string, unknown[]]
     expect(sql).not.toContain('wiki_fts')
-    expect(sql).toContain("LIKE ? ESCAPE '\\\'")
+    expect(sql).toContain("LIKE ? ESCAPE '\\'")
     expect(params).toContain('%run%')
   })
 
