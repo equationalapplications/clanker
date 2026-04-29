@@ -232,8 +232,8 @@ export async function upsertWikiEntries(entries: WikiEntryUpsertInput[]): Promis
           synced_to_cloud = excluded.synced_to_cloud,
           cloud_id = excluded.cloud_id,
           deleted_at = excluded.deleted_at,
-          source_hash = excluded.source_hash,
-          source_ref = excluded.source_ref`,
+          source_hash = COALESCE(excluded.source_hash, wiki_entries.source_hash),
+          source_ref = COALESCE(excluded.source_ref, wiki_entries.source_ref)`,
 
         [
           entry.id,
