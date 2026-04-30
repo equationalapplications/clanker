@@ -274,7 +274,7 @@ with:
 ```tsx
   const accessibilityLabel =
     creditsLoading || planLoading
-      ? 'Loading subscription status'
+      ? 'Subscription status loading'
       : isSubscriber
         ? 'Premium subscriber, unlimited credits'
         : `${credits?.totalCredits ?? 0} credits remaining`
