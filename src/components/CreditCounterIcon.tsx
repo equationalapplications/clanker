@@ -11,7 +11,7 @@ export function CreditCounterIcon() {
 
   const accessibilityLabel =
     creditsLoading || planLoading
-      ? 'Credits loading'
+      ? 'Subscription status loading'
       : isSubscriber
         ? 'Premium subscriber, unlimited credits'
         : `${credits?.totalCredits ?? 0} credits remaining`
