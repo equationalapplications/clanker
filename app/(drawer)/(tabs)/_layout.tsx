@@ -22,6 +22,7 @@ export default function TabLayout() {
         name="chat"
         options={{
           title: 'Chat',
+          tabBarAccessibilityLabel: 'Chat',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <TabBarIcon name={focused ? 'chatbubble' : 'chatbubble-outline'} color={color} />
           ),
@@ -31,6 +32,7 @@ export default function TabLayout() {
         name="talk"
         options={{
           title: 'Talk',
+          tabBarAccessibilityLabel: 'Talk',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <TabBarIcon name={focused ? 'mic' : 'mic-outline'} color={color} />
           ),
@@ -40,6 +42,7 @@ export default function TabLayout() {
         name="characters"
         options={{
           title: 'Characters',
+          tabBarAccessibilityLabel: 'Characters',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} />
           ),

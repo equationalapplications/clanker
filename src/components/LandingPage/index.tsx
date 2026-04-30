@@ -1,11 +1,32 @@
-import { ScrollView, StyleSheet } from 'react-native'
+import React, { useState } from 'react'
+import { ScrollView, StyleSheet, View, Platform } from 'react-native'
 import { useTheme } from 'react-native-paper'
 import HeroSection from './HeroSection'
 import FeaturesSection from './FeaturesSection'
 import LandingFooter from './LandingFooter'
 
+const SKIP_LINK_HIDDEN: React.CSSProperties = {
+  position: 'absolute',
+  top: '-9999px',
+  left: 0,
+}
+
+const SKIP_LINK_VISIBLE: React.CSSProperties = {
+  position: 'absolute',
+  top: 8,
+  left: 8,
+  zIndex: 9999,
+  padding: '8px 16px',
+  background: '#fff',
+  color: '#000',
+  fontWeight: 'bold',
+  textDecoration: 'none',
+  borderRadius: '4px',
+}
+
 export default function LandingPage() {
   const { colors } = useTheme()
+  const [skipFocused, setSkipFocused] = useState(false)
 
   return (
     <ScrollView
@@ -13,9 +34,21 @@ export default function LandingPage() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <HeroSection />
-      <FeaturesSection />
-      <LandingFooter />
+      {Platform.OS === 'web' && (
+        <a
+          href="#main-content"
+          onFocus={() => setSkipFocused(true)}
+          onBlur={() => setSkipFocused(false)}
+          style={skipFocused ? SKIP_LINK_VISIBLE : SKIP_LINK_HIDDEN}
+        >
+          Skip to main content
+        </a>
+      )}
+      <View nativeID="main-content">
+        <HeroSection />
+        <FeaturesSection />
+        <LandingFooter />
+      </View>
     </ScrollView>
   )
 }

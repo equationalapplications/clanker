@@ -127,7 +127,10 @@ function TalkView({ characterId }: { characterId: string }) {
           />
         </View>
 
-        <View style={styles.statusWrap}>
+        <View
+          style={styles.statusWrap}
+          accessibilityLiveRegion="polite"
+        >
           {showSpinner ? <ActivityIndicator size="small" style={styles.spinner} /> : null}
           <Text style={[styles.statusText, error ? styles.errorText : null]}>{statusText}</Text>
         </View>
