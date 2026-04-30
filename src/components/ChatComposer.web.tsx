@@ -105,7 +105,13 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       <View style={styles.row}>
         {showPlusButton && (
           isProcessing ? (
-            <View style={styles.spinnerContainer}>
+            <View
+              style={styles.spinnerContainer}
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel="Adding document to memory"
+              accessibilityState={{ busy: true }}
+            >
               <ActivityIndicator size={20} />
             </View>
           ) : (
