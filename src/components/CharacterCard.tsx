@@ -46,7 +46,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         onPress={handlePress}
         style={styles.touchable}
         accessibilityRole="button"
-        accessibilityLabel={`${name}, ${appearance ?? 'No description available'}`}
+        accessibilityLabel={`${name || 'Unnamed Character'}, ${appearance ?? 'No description available'}`}
         accessibilityHint="Opens chat with this character"
       >
         <Card.Content style={styles.content}>
