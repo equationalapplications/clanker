@@ -29,7 +29,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const actorRef = useRef<DocumentIngestMachineActor | undefined>(undefined)
   const subscriptionRef = useRef<{ unsubscribe: () => void } | undefined>(undefined)
   const progressResetTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const [progress, setProgress] = useState(0)
+  const [, setProgress] = useState(0)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
