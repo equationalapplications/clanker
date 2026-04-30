@@ -87,7 +87,6 @@ describe('CreditCounterIcon with useCurrentPlan', () => {
       tree = create(<CreditCounterIcon />)
     })
 
-    const pressable = tree.root.findAll((node: any) => node.type === 'View' || node.props.onPress)[0]
     // Find the root Pressable (has onPress)
     const allWithOnPress = tree.root.findAll((node: any) => !!node.props.onPress)
     expect(allWithOnPress[0].props.accessibilityRole).toBe('button')
