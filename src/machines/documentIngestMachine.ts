@@ -123,7 +123,7 @@ export const documentIngestMachine = createMachine(
       idle: {
         on: {
           INGEST: {
-            target: 'validating',
+            target: 'picking',
             actions: assign({
               characterId: ({ event }) => event.characterId,
               userId: ({ event }) => event.userId,
@@ -148,7 +148,7 @@ export const documentIngestMachine = createMachine(
           src: 'validateCharacter',
           input: ({ context }) => ({ characterId: context.characterId, userId: context.userId }),
           onDone: {
-            target: 'picking',
+            target: 'reading',
             actions: assign({
               cloudId: ({ event }) => event.output,
             }),
@@ -176,7 +176,7 @@ export const documentIngestMachine = createMachine(
               target: 'idle',
             },
             {
-              target: 'reading',
+              target: 'validating',
               actions: assign({
                 filename: ({ event }) =>
                   (event.output as { filename: string; uri: string }).filename,

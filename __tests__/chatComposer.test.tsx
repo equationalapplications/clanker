@@ -22,6 +22,9 @@ jest.mock('react-native-paper', () => ({
   IconButton: () => null,
   Snackbar: () => null,
   Portal: ({ children }: any) => children,
+  Dialog: ({ children }: any) => children,
+  Button: () => null,
+  Paragraph: () => null,
   useTheme: () => ({ colors: { primary: '#6200ee' } }),
 }))
 
