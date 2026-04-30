@@ -71,7 +71,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               style={styles.editButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
-              accessibilityLabel={`Edit ${name}`}
+              accessibilityLabel={`Edit ${name || 'Unnamed Character'}`}
               accessibilityHint="Opens character editor"
             >
               <Icon source="pencil" size={20} />
