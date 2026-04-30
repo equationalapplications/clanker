@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router'
-import { Pressable } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { Badge, Text } from 'react-native-paper'
 import { useCurrentPlan } from '../hooks/useCurrentPlan'
 import { useUserCredits } from '../hooks/useUserCredits'
@@ -30,10 +30,14 @@ export function CreditCounterIcon() {
       })}
     >
       {isSubscriber ? (
-        <>
+        <View
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden={true}
+          style={styles.subscriberRow}
+        >
           <Text>👑</Text>
-          <Text style={{ fontSize: 12, marginLeft: 4 }}>∞</Text>
-        </>
+          <Text style={styles.infinityText}>∞</Text>
+        </View>
       ) : (
         <>
           <Text>Credits </Text>
@@ -43,3 +47,14 @@ export function CreditCounterIcon() {
     </Pressable>
   )
 }
+
+const styles = StyleSheet.create({
+  subscriberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infinityText: {
+    fontSize: 12,
+    marginLeft: 4,
+  },
+})

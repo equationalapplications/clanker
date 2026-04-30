@@ -109,13 +109,4 @@ describe('Talk screen status region', () => {
     const liveRegionView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
     expect(liveRegionView).toBeDefined()
   })
-
-  it('statusWrap View has accessibilityRole "status"', () => {
-    let tree: any
-    act(() => { tree = create(<TalkTabScreen />) })
-
-    const allViews = tree.root.findAll((node: any) => node.type === 'View')
-    const statusView = allViews.find((v: any) => v.props.accessibilityRole === 'status')
-    expect(statusView).toBeDefined()
-  })
 })

@@ -59,7 +59,7 @@ Also in this commit:
 | # | File | Change |
 |---|------|--------|
 | 4 | `src/components/CharacterCard.tsx` | Edit button: add `accessibilityRole="button"`, `accessibilityLabel={\`Edit ${name}\`}`, `accessibilityHint="Opens character editor"`. |
-| 5 | `src/components/CharacterCard.tsx` | Outer card `TouchableOpacity`: add `accessible`, `accessibilityRole="button"`, `accessibilityLabel={\`${name}, ${appearance ?? 'No description'}\`}`, `accessibilityHint="Opens chat with this character"`. |
+| 5 | `src/components/CharacterCard.tsx` | Outer card `TouchableOpacity`: add `accessibilityRole="button"`, `accessibilityLabel={\`${name}, ${appearance ?? 'No description'}\`}`, `accessibilityHint="Opens chat with this character"`. **Do not** add `accessible` — that would collapse the element tree and prevent the nested edit button from being reachable by screen readers. |
 | 6 | `src/components/CharacterAvatar.tsx` | All three avatar variants (`Avatar.Image`, `Avatar.Text`, `Avatar.Icon`): add `accessible` and `accessibilityLabel={\`${characterName} avatar\`}` (fallback `"Character avatar"` when name missing). |
 | 7 | `src/components/LandingPage/FeaturesSection.tsx` | Feature icons: add `accessible`, `accessibilityRole="image"`, `accessibilityLabel={feat.title}`. |
 | 8 | `src/components/admin/UserActionPanel.tsx` | Renewal date `TextInput`: add `accessibilityHint="Enter date in UTC ISO 8601 format (e.g., 2026-12-31T23:59:59Z). Leave blank to keep the current renewal date."` |

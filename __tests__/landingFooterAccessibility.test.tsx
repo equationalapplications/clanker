@@ -44,5 +44,6 @@ describe('LandingFooter accessibility', () => {
     const externalLink = pressables.find((p: any) => p.props.accessibilityRole === 'link' && p.props.accessibilityLabel)
     expect(externalLink).toBeDefined()
     expect(externalLink!.props.accessibilityLabel).toContain('Equational Applications')
+    expect(externalLink!.props.accessibilityLabel).toContain('opens external website')
   })
 })
