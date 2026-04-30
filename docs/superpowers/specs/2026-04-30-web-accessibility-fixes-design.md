@@ -34,7 +34,7 @@ No new modules. Each fix is a localized prop addition. The conventions below are
 - `accessibilityRole` matches semantic role: `"button"`, `"image"`, `"link"`, `"progressbar"`, `"status"`, `"header"`.
 - For dynamic state, use `accessibilityState={{ busy, disabled, selected, expanded }}`.
 - Decorative icons paired with visible labels (e.g., emoji inside a labeled `Pressable`) get `aria-hidden` on web or `importantForAccessibility="no-hide-descendants"` on native.
-- For Android live announcements, pair `accessibilityRole="status"` with `accessibilityLiveRegion="polite"`. iOS handles status changes via VoiceOver detection of the same `role="status"`.
+- For live announcements on native, use `accessibilityLiveRegion="polite"` on Android when content updates should be announced; do not rely on `accessibilityRole="status"` on native. Reserve `role="status"`/status semantics for web-only usage where applicable.
 
 **Cross-platform handling**
 
