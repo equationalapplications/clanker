@@ -77,6 +77,9 @@ function FeatureCard({
             size={36}
             color={colors.primary}
             style={styles.icon}
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={feat.title}
           />
           <Text variant="titleMedium" style={[styles.cardTitle, { color: colors.onSurface }]}>
             {feat.title}

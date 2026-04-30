@@ -147,6 +147,7 @@ export function UserActionPanel({
             onChangeText={setRenewalDate}
             placeholder="YYYY-MM-DDTHH:mm:ssZ or YYYY-MM-DDTHH:mm:ss.SSSZ"
             error={!renewalDateIsValid}
+            accessibilityHint="Enter date in UTC ISO 8601 format (e.g., 2026-12-31T23:59:59Z). Leave blank to keep the current renewal date."
           />
           {!renewalDateIsValid ? (
             <Text style={styles.errorText}>

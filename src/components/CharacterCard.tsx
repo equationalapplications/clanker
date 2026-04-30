@@ -42,7 +42,13 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
 
   return (
     <Card style={styles.card} mode="elevated">
-      <TouchableOpacity onPress={handlePress} style={styles.touchable}>
+      <TouchableOpacity
+        onPress={handlePress}
+        style={styles.touchable}
+        accessibilityRole="button"
+        accessibilityLabel={`${name || 'Unnamed Character'}, ${appearance ?? 'No description available'}`}
+        accessibilityHint="Opens chat with this character"
+      >
         <Card.Content style={styles.content}>
           <View style={styles.header}>
             <View style={styles.avatarContainer}>
@@ -64,6 +70,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               onPress={handleEdit}
               style={styles.editButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${name || 'Unnamed Character'}`}
+              accessibilityHint="Opens character editor"
             >
               <Icon source="pencil" size={20} />
             </TouchableOpacity>
