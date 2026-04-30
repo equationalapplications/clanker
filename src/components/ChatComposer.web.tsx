@@ -28,23 +28,17 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
   const actorRef = useRef<DocumentIngestMachineActor | undefined>(undefined)
   const subscriptionRef = useRef<{ unsubscribe: () => void } | undefined>(undefined)
-  const progressResetTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const [, setProgress] = useState(0)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
     return () => {
       subscriptionRef.current?.unsubscribe()
-      clearTimeout(progressResetTimerRef.current)
     }
   }, [])
 
   const handleDocumentIngest = useCallback(() => {
     if (!characterId || !userId) return
-
-    // Cancel any pending progress reset before starting a new ingest
-    clearTimeout(progressResetTimerRef.current)
 
     dispatchDocumentIngest(characterId, userId)
     const actor = getDocumentIngestMachineActor(characterId)
@@ -55,7 +49,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       actorRef.current = actor
 
       subscriptionRef.current = actor.subscribe((state) => {
-        setProgress(state.context.progress)
         setIsProcessing(!state.matches('idle'))
 
         if (state.matches('success')) {
@@ -77,10 +70,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
               { text: 'Cancel', style: 'cancel', onPress: () => targetActor.send({ type: 'CANCEL' }) },
             ],
           )
-        } else if (state.matches('idle') && actorRef.current != null) {
-          // Reset progress bar after returning to idle; store ID so it can be
-          // cancelled if a new ingest starts within the animation window.
-          progressResetTimerRef.current = setTimeout(() => setProgress(0), 400)
         }
       })
     }
