@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from 'react'
-import { Alert, View, StyleSheet } from 'react-native'
+import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Snackbar, Portal } from 'react-native-paper'
@@ -8,7 +8,6 @@ import {
   getDocumentIngestMachineActor,
   type DocumentIngestMachineActor,
 } from '~/machines/documentIngestMachine'
-import IngestProgressBar from '~/components/composer/IngestProgressBar'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -30,8 +29,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const actorRef = useRef<DocumentIngestMachineActor | undefined>(undefined)
   const subscriptionRef = useRef<{ unsubscribe: () => void } | undefined>(undefined)
   const progressResetTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const [progress, setProgress] = useState(0)
+  const [, setProgress] = useState(0)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -56,6 +56,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
       subscriptionRef.current = actor.subscribe((state) => {
         setProgress(state.context.progress)
+        setIsProcessing(!state.matches('idle'))
 
         if (state.matches('success')) {
           const factCount = state.context.facts.length
@@ -86,20 +87,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   }, [characterId, userId])
 
   const handlePlusPress = useCallback(() => {
-    Alert.alert(
-      'Add to Memory',
-      'Document text is sent to our AI provider for processing. Only UTF-8 encoded files are supported.',
-      [
-        {
-          text: 'Add document to memory',
-          onPress: handleDocumentIngest,
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-    )
+    handleDocumentIngest()
   }, [handleDocumentIngest])
 
   const sendCurrentText = useCallback(() => {
@@ -114,17 +102,22 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
   return (
     <View style={styles.container}>
-      <IngestProgressBar progress={progress} />
       <View style={styles.row}>
         {showPlusButton && (
-          <IconButton
-            icon="plus"
-            size={20}
-            onPress={handlePlusPress}
-            style={styles.plusButton}
-            accessibilityLabel="Add document to memory"
-            accessibilityHint="Opens a menu to add a document to this character's memory"
-          />
+          isProcessing ? (
+            <View style={styles.spinnerContainer}>
+              <ActivityIndicator size={20} />
+            </View>
+          ) : (
+            <IconButton
+              icon="plus"
+              size={20}
+              onPress={handlePlusPress}
+              style={styles.plusButton}
+              accessibilityLabel="Add document to memory"
+              accessibilityHint="Opens file picker to add a document to this character's memory"
+            />
+          )
         )}
         <View style={styles.composerWrapper}>
           <Composer
@@ -172,6 +165,13 @@ const styles = StyleSheet.create({
   },
   plusButton: {
     margin: 0,
+    marginBottom: 2,
+  },
+  spinnerContainer: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 2,
   },
   composerWrapper: {

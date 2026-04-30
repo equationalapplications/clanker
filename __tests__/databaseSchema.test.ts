@@ -1,5 +1,6 @@
 import {
   CREATE_TABLES,
+  CREATE_WIKI_ENTRY_SOURCE_INDEXES,
   CREATE_WIKI_FTS,
   LATEST_SCHEMA_REQUIRED_COLUMNS,
   MIGRATIONS,
@@ -58,12 +59,19 @@ describe('database schema migration guards', () => {
     )
     expect(CREATE_TABLES).toContain('source_hash TEXT')
     expect(CREATE_TABLES).toContain('source_ref TEXT')
-    // Fresh installs run CREATE_TABLES (skipping migrations when columns exist),
-    // so both partial indexes must live in CREATE_TABLES — not only in migrations.
-    expect(CREATE_TABLES).toContain(
+    // Partial indexes on source_hash/source_ref must NOT be in CREATE_TABLES — placing them there
+    // crashes existing databases when CREATE TABLE IF NOT EXISTS is a no-op but the columns don't
+    // yet exist. Instead they live in CREATE_WIKI_ENTRY_SOURCE_INDEXES and are applied after migrations.
+    expect(CREATE_TABLES).not.toContain(
       'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL',
     )
-    expect(CREATE_TABLES).toContain(
+    expect(CREATE_TABLES).not.toContain(
+      'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL',
+    )
+    expect(CREATE_WIKI_ENTRY_SOURCE_INDEXES).toContain(
+      'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL',
+    )
+    expect(CREATE_WIKI_ENTRY_SOURCE_INDEXES).toContain(
       'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL',
     )
   })
