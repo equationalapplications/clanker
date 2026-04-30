@@ -1,3 +1,12 @@
+## [29.3.4](https://github.com/equationalapplications/clanker/compare/v29.3.3...v29.3.4) (2026-04-30)
+
+
+### Bug Fixes
+
+* **db:** move wiki partial indexes from CREATE_TABLES to post-migration ([5ee10b3](https://github.com/equationalapplications/clanker/commit/5ee10b3d5db4906737a2cad5d82cd6822eee1157))
+* **ui:** remove Dialog/Alert confirmation from ChatComposer plus button ([855e9e5](https://github.com/equationalapplications/clanker/commit/855e9e5e4fb7b46e8ce9372c3b95ad2f32d22a6e))
+* **web:** enable document ingest with improved UI and Firebase export ([a2ce936](https://github.com/equationalapplications/clanker/commit/a2ce936885ae6118810e9e5ddfe8ab1d9edaffc2))
+
 ## [29.3.3](https://github.com/equationalapplications/clanker/compare/v29.3.2...v29.3.3) (2026-04-29)
 
 
