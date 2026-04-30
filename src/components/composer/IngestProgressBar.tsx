@@ -4,12 +4,13 @@ import { useTheme } from 'react-native-paper'
 interface IngestProgressBarProps {
   // 0..1 progress value; source of truth is INGEST_STATE_PROGRESS in ~/constants/documentIngestProgress
   progress: number
+  visible?: boolean
 }
 
-export default function IngestProgressBar({ progress }: IngestProgressBarProps) {
+export default function IngestProgressBar({ progress, visible = progress > 0 }: IngestProgressBarProps) {
   const { colors } = useTheme()
 
-  if (progress <= 0) return null
+  if (!visible) return null
 
   return (
     <View style={styles.track}>

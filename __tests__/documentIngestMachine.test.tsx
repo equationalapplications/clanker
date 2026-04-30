@@ -103,7 +103,7 @@ describe('documentIngestMachine', () => {
     actor.stop()
   })
 
-  it('transitions idle → validating → picking → reading → checkingDuplicate → extracting → applying → success → idle on happy path', async () => {
+  it('transitions idle → picking → validating → reading → checkingDuplicate → extracting → applying → success → idle on happy path', async () => {
     const actor = createTestActor()
 
     actor.send({ type: 'INGEST', characterId: 'char-1', userId: 'user-1' })
@@ -249,8 +249,8 @@ describe('documentIngestMachine', () => {
 
     await waitForState(actor, 'idle') // error → idle after 0ms
 
-    // Validation fails before file picking — user never sees the document picker
-    expect(mockGetDocumentAsync).not.toHaveBeenCalled()
+    // File is picked before validation runs; validation then fails
+    expect(mockGetDocumentAsync).toHaveBeenCalledTimes(1)
     expect(mockExtractDocument).not.toHaveBeenCalled()
     actor.stop()
   })

@@ -135,6 +135,7 @@ const memoryWriteFn = httpsCallable(functionsInstance, 'memoryWrite')
 const memoryHealFn = httpsCallable(functionsInstance, 'memoryHeal')
 const memoryForgetFn = httpsCallable(functionsInstance, 'memoryForget')
 const syncCharacterMemoryFn = httpsCallable(functionsInstance, 'syncCharacterMemory')
+const documentExtractFn = httpsCallable(functionsInstance, 'documentExtract')
 
 export type FirebaseUser = User
 export { appCheckReady }
@@ -170,4 +171,5 @@ export {
   memoryHealFn,
   memoryForgetFn,
   syncCharacterMemoryFn,
+  documentExtractFn,
 }

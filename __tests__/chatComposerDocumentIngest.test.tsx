@@ -1,6 +1,5 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
-import { Alert } from 'react-native'
 
 const mockDispatchDocumentIngest = jest.fn()
 const mockGetDocumentIngestMachineActor = jest.fn()
@@ -40,7 +39,6 @@ import ChatComposer from '~/components/ChatComposer'
 describe('ChatComposer with document ingest', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    jest.spyOn(Alert, 'alert')
   })
 
   afterEach(() => {
@@ -75,30 +73,7 @@ describe('ChatComposer with document ingest', () => {
     expect(tree.root.findAllByProps({ testID: 'plus-button' })).toHaveLength(0)
   })
 
-  it('pressing plus button shows Alert with "Add document to memory" option', () => {
-    let tree!: ReturnType<typeof create>
-    act(() => {
-      tree = create(
-        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" hasUnlimited={true} />,
-      )
-    })
-    const button = tree.root.findByProps({ testID: 'plus-button' })
-    act(() => { button.props.onPress() })
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'Add to Memory',
-      expect.any(String),
-      expect.arrayContaining([
-        expect.objectContaining({ text: 'Add document to memory' }),
-        expect.objectContaining({ text: 'Cancel' }),
-      ]),
-    )
-  })
-
-  it('dispatches ingest when "Add document to memory" is pressed', () => {
-    jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
-      const addBtn = (buttons as any[])?.find((b) => b.text === 'Add document to memory')
-      addBtn?.onPress?.()
-    })
+  it('pressing plus button directly dispatches document ingest', () => {
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(
