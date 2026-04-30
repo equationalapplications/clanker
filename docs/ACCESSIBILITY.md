@@ -57,8 +57,9 @@ On iOS, VoiceOver detects text changes automatically when the text is inside a v
 
 ## Skip Link (web only)
 
-The landing page includes a web-only skip link as the first focusable element, allowing keyboard users to bypass navigation and jump to `#main-content`.
+The landing page currently includes a web-only skip-link affordance as the first focusable element to support keyboard navigation.
 
+Do not assume it performs browser-style navigation to `#main-content` unless the implementation provides a real link target and moves focus or scroll position accordingly.
 ## Testing
 
 Every accessible component should have a test asserting:
