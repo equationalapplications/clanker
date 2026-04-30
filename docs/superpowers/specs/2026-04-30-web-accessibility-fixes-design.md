@@ -71,7 +71,7 @@ Also in this commit:
 | 9 | `app/(drawer)/(tabs)/_layout.tsx` | For each `Tabs.Screen`, add `tabBarAccessibilityLabel` derived from the tab title. |
 | 10 | `app/(drawer)/(tabs)/talk/index.tsx` | Wrap voice status text in a `<View accessibilityRole="status" accessibilityLiveRegion="polite">` so state changes (Ready/Listening/Processing) announce to screen readers. |
 | 11 | `src/components/ConfirmationModal.tsx` and `src/components/admin/ConfirmationModal.tsx` | Verify Paper `Dialog` props for accessibility; add explicit `accessibilityLabel` to dialog title where missing; document any gaps. No focus-trapping JS — rely on Paper. |
-| 12 | `src/components/LandingPage/LandingFooter.tsx` | External link: enhance `accessibilityLabel` to include destination and `"opens in new window"`. |
+| 12 | `src/components/LandingPage/LandingFooter.tsx` | External link: enhance `accessibilityLabel` to include destination and `"opens external website"`. |
 | 13 | Landing root component | Add a web-only "Skip to main content" link as the first focusable element, anchored to the main content `nativeID="main-content"`. Hidden offscreen until focused. Web-only via `Platform.OS === 'web'`. |
 
 ## Testing & Verification
