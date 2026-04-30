@@ -139,6 +139,8 @@ export default function HeroSection() {
             source={require('../../../assets/logo.png')}
             style={styles.logo}
             contentFit="contain"
+            accessibilityLabel="Clanker application logo"
+            accessibilityRole="image"
           />
         </Animated.View>
 

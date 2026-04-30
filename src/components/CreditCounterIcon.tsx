@@ -9,9 +9,19 @@ export function CreditCounterIcon() {
   const { data: credits, isLoading: creditsLoading } = useUserCredits()
   const { isSubscriber, isLoading: planLoading } = useCurrentPlan()
 
+  const accessibilityLabel =
+    creditsLoading || planLoading
+      ? 'Credits loading'
+      : isSubscriber
+        ? 'Premium subscriber, unlimited credits'
+        : `${credits?.totalCredits ?? 0} credits remaining`
+
   return (
     <Pressable
       onPress={() => router.push('./subscribe')}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint="Opens subscription management"
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
