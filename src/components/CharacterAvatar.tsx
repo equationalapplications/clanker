@@ -20,7 +20,13 @@ export default function CharacterAvatar({
   // Use the provided image if available and no error occurred
   if (imageUrl && !imageError) {
     return (
-      <Avatar.Image size={size} source={{ uri: imageUrl }} onError={() => setImageError(true)} />
+      <Avatar.Image
+        size={size}
+        source={{ uri: imageUrl }}
+        onError={() => setImageError(true)}
+        accessible
+        accessibilityLabel={`${characterName} avatar`}
+      />
     )
   }
 
@@ -34,15 +40,15 @@ export default function CharacterAvatar({
       .toUpperCase()
 
     if (initials) {
-      return <Avatar.Text size={size} label={initials} />
+      return <Avatar.Text size={size} label={initials} accessible accessibilityLabel={`${characterName} avatar`} />
     }
   }
 
   // Show icon placeholder as final fallback
   if (showFallback) {
-    return <Avatar.Icon size={size} icon="account" />
+    return <Avatar.Icon size={size} icon="account" accessible accessibilityLabel="Character avatar" />
   }
 
   // Use default gravatar if no other options
-  return <Avatar.Image size={size} source={{ uri: defaultAvatarUrl }} />
+  return <Avatar.Image size={size} source={{ uri: defaultAvatarUrl }} accessible accessibilityLabel="Character avatar" />
 }
