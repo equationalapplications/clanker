@@ -5,13 +5,13 @@ import HeroSection from './HeroSection'
 import FeaturesSection from './FeaturesSection'
 import LandingFooter from './LandingFooter'
 
-const skipLinkHidden: Record<string, unknown> = {
+const SKIP_LINK_HIDDEN: Record<string, unknown> = {
   position: 'absolute',
   top: -9999,
   left: 0,
 }
 
-const skipLinkVisible: Record<string, unknown> = {
+const SKIP_LINK_VISIBLE: Record<string, unknown> = {
   position: 'absolute',
   top: 8,
   left: 8,
@@ -39,7 +39,7 @@ export default function LandingPage() {
           href="#main-content"
           onFocus={() => setSkipFocused(true)}
           onBlur={() => setSkipFocused(false)}
-          style={skipFocused ? skipLinkVisible : skipLinkHidden}
+          style={skipFocused ? SKIP_LINK_VISIBLE : SKIP_LINK_HIDDEN}
         >
           Skip to main content
         </a>
