@@ -39,12 +39,22 @@ export default function LandingPage() {
           href="#main-content"
           onFocus={() => setSkipFocused(true)}
           onBlur={() => setSkipFocused(false)}
+          onClick={(e) => {
+            const target = document.getElementById('main-content')
+            if (target) {
+              e.preventDefault()
+              target.focus()
+            }
+          }}
           style={skipFocused ? SKIP_LINK_VISIBLE : SKIP_LINK_HIDDEN}
         >
           Skip to main content
         </a>
       )}
-      <View nativeID="main-content">
+      <View
+        nativeID="main-content"
+        tabIndex={-1}
+      >
         <HeroSection />
         <FeaturesSection />
         <LandingFooter />

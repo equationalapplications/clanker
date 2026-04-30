@@ -58,7 +58,7 @@ Do not rely on `accessibilityRole="status"` for native, because support is not c
 
 ## Skip Link (web only)
 
-The landing page renders a web-only skip link as the first focusable element using a native `<a href="#main-content">` anchor. It is visually hidden off-screen by default (`top: -9999`) and slides into view when keyboard-focused, following the standard skip-link pattern. Activating it moves browser focus to the `#main-content` target.
+The landing page renders a web-only skip link as the first focusable element using a native `<a href="#main-content">` anchor. It is visually hidden off-screen by default (`top: -9999`) and slides into view when keyboard-focused, following the standard skip-link pattern. Activating it programmatically moves keyboard focus to the `#main-content` target via `element.focus()`. The target `View` has `tabIndex={-1}` so it is not in the natural tab order but can receive programmatic focus.
 
 ## Testing
 
