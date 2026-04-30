@@ -1,3 +1,24 @@
+# [29.4.0](https://github.com/equationalapplications/clanker/compare/v29.3.4...v29.4.0) (2026-04-30)
+
+
+### Bug Fixes
+
+* **a11y:** add labels and hints for character cards, avatars, features, admin renewal ([328a8da](https://github.com/equationalapplications/clanker/commit/328a8da7152b08daa01e250b0ba4dc492d808fb5))
+* **a11y:** add labels and roles for critical images and credit counter ([db2ca1c](https://github.com/equationalapplications/clanker/commit/db2ca1cd6662fb4752e8802e760f855a829ed337))
+* **a11y:** address PR 342 review feedback ([df4ad9c](https://github.com/equationalapplications/clanker/commit/df4ad9c916bae41a5dc731b640ce05d3ca7507c1))
+* **a11y:** address PR review comments — skip link, CharacterCard, CharacterAvatar ([5bf668e](https://github.com/equationalapplications/clanker/commit/5bf668e1f2eee84821f238338e40683df735eb99))
+* **a11y:** align native status region guidance ([4750df0](https://github.com/equationalapplications/clanker/commit/4750df09b68eddb9100977b7b32116738cd4cc5d))
+* **a11y:** apply second round of PR review feedback ([81f20c5](https://github.com/equationalapplications/clanker/commit/81f20c5564516c391b67a2497273018f592504e1))
+* **a11y:** apply third round of PR review feedback ([79657dd](https://github.com/equationalapplications/clanker/commit/79657ddff3f6b76254ec1583b1ca1fd072f23a86))
+* **a11y:** replace non-functional skip-link View with <a href="#main-content"> ([7f1c3c1](https://github.com/equationalapplications/clanker/commit/7f1c3c13bc86bf4ab7ccbb11c20179fa25ef2820))
+* **chat-composer:** remove unused progress state and add spinner accessibility ([1ee40bf](https://github.com/equationalapplications/clanker/commit/1ee40bf059e2115e6dd2b99f913f3c2963f88441))
+* remove progress state, setProgress calls, and progressResetTimer entirely ([23ac090](https://github.com/equationalapplications/clanker/commit/23ac0900ce2ae3e77d12692ab9083913a860082e))
+
+
+### Features
+
+* **a11y:** add tab labels, status live region, footer label, skip link ([931f289](https://github.com/equationalapplications/clanker/commit/931f28939a314d57bbf72149f3c11e8d793ba7c2))
+
 ## [29.3.4](https://github.com/equationalapplications/clanker/compare/v29.3.3...v29.3.4) (2026-04-30)
 
 
