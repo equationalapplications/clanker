@@ -1,7 +1,6 @@
 import { Stack, router, useFocusEffect } from 'expo-router'
 import React, { useCallback, useEffect, useRef } from 'react'
-import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native'
-import type { AccessibilityRole } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Text } from 'react-native-paper'
 import { useSelector } from '@xstate/react'
@@ -130,7 +129,6 @@ function TalkView({ characterId }: { characterId: string }) {
 
         <View
           style={styles.statusWrap}
-          accessibilityRole={Platform.OS !== 'ios' ? ('status' as AccessibilityRole) : undefined}
           accessibilityLiveRegion="polite"
         >
           {showSpinner ? <ActivityIndicator size="small" style={styles.spinner} /> : null}

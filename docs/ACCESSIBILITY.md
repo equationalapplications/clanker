@@ -23,7 +23,7 @@ This document defines the accessibility conventions used in Clanker for both web
 | `"link"` | Navigation to another screen or URL |
 | `"progressbar"` | Loading spinners, progress indicators |
 | `"header"` | Section headings |
-| `"status"` | Dynamic status text regions (voice state, ingest progress) |
+| `"status"` | Web/ARIA status regions only. On native, use `accessibilityLiveRegion` for dynamic announcements. |
 
 ## Label Conventions
 
@@ -54,6 +54,7 @@ For dynamic status text that should be announced when it changes (e.g., voice ch
 ```
 
 On iOS, VoiceOver detects text changes automatically when the text is inside a visible view.
+Do not rely on `accessibilityRole="status"` for native, because support is not consistent across React Native versions.
 
 ## Skip Link (web only)
 
