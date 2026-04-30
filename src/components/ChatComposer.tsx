@@ -91,20 +91,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   }, [characterId, userId])
 
   const handlePlusPress = useCallback(() => {
-    Alert.alert(
-      'Add to Memory',
-      'Document text is sent to our AI provider for processing. Only UTF-8 encoded files are supported.',
-      [
-        {
-          text: 'Add document to memory',
-          onPress: handleDocumentIngest,
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-    )
+    handleDocumentIngest()
   }, [handleDocumentIngest])
 
   const sendCurrentText = useCallback(() => {
@@ -134,7 +121,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
               onPress={handlePlusPress}
               style={styles.plusButton}
               accessibilityLabel="Add document to memory"
-              accessibilityHint="Opens a menu to add a document to this character's memory"
+              accessibilityHint="Opens file picker to add a document to this character's memory"
             />
           )
         )}

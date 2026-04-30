@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, useEffect } from 'react'
 import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
-import { IconButton, Snackbar, Portal, Dialog, Button, Paragraph } from 'react-native-paper'
+import { IconButton, Snackbar, Portal } from 'react-native-paper'
 import {
   dispatchDocumentIngest,
   getDocumentIngestMachineActor,
@@ -31,7 +31,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const progressResetTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [progress, setProgress] = useState(0)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
-  const [showDialog, setShowDialog] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
@@ -88,8 +87,8 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   }, [characterId, userId])
 
   const handlePlusPress = useCallback(() => {
-    setShowDialog(true)
-  }, [])
+    handleDocumentIngest()
+  }, [handleDocumentIngest])
 
   const sendCurrentText = useCallback(() => {
     const trimmedText = text?.trim()
@@ -116,7 +115,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
               onPress={handlePlusPress}
               style={styles.plusButton}
               accessibilityLabel="Add document to memory"
-              accessibilityHint="Opens a menu to add a document to this character's memory"
+              accessibilityHint="Opens file picker to add a document to this character's memory"
             />
           )
         )}
@@ -144,26 +143,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         </View>
       </View>
       <Portal>
-        <Dialog visible={showDialog} onDismiss={() => setShowDialog(false)}>
-          <Dialog.Title>Add to Memory</Dialog.Title>
-          <Dialog.Content>
-            <Paragraph>
-              Document text is sent to our AI provider for processing. Only UTF-8 encoded files are
-              supported.
-            </Paragraph>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowDialog(false)}>Cancel</Button>
-            <Button
-              onPress={() => {
-                setShowDialog(false)
-                handleDocumentIngest()
-              }}
-            >
-              Add document to memory
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
         <Snackbar
           visible={toastMessage !== null}
           onDismiss={() => setToastMessage(null)}
