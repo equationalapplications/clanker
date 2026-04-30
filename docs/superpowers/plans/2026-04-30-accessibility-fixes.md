@@ -1282,7 +1282,7 @@ describe('LandingFooter accessibility', () => {
         p.props.accessibilityLabel?.includes('Equational Applications')
     )
     expect(externalLink).toBeDefined()
-    expect(externalLink.props.accessibilityLabel).toContain('opens in new window')
+    expect(externalLink.props.accessibilityLabel).toContain('opens external website')
   })
 })
 ```
@@ -1480,14 +1480,13 @@ export default function LandingPage() {
       showsVerticalScrollIndicator={false}
     >
       {Platform.OS === 'web' && (
-        <View
-          style={styles.skipLink}
+        <a
+          href="#main-content"
           // @ts-ignore – web-only focusStyle is applied via StyleSheet for keyboard nav
-          accessibilityRole="link"
-          accessibilityLabel="Skip to main content"
+          style={skipFocused ? SKIP_LINK_VISIBLE : SKIP_LINK_HIDDEN}
         >
-          <Text style={styles.skipLinkText}>Skip to main content</Text>
-        </View>
+          Skip to main content
+        </a>
       )}
       <View nativeID="main-content">
         <HeroSection />

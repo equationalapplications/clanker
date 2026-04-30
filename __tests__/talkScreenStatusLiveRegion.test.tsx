@@ -73,6 +73,7 @@ jest.mock('react-native', () => {
   const React = require('react')
   return {
     StyleSheet: { create: (s: any) => s },
+    Platform: { OS: 'android' },
     View: ({ children, style, accessibilityRole, accessibilityLiveRegion }: any) =>
       React.createElement('View', { style, accessibilityRole, accessibilityLiveRegion }, children),
     Pressable: ({ children, onPress, disabled, style, accessibilityRole, accessibilityLabel, accessibilityState }: any) =>
