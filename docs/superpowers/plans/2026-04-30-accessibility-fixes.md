@@ -1446,7 +1446,7 @@ to:
 ```tsx
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel="Equational Applications LLC website, opens in new window"
+        accessibilityLabel="Equational Applications LLC website, opens external website"
         onPress={() => {
           void Linking.openURL('https://equationalapplications.com/').catch((error) => {
             console.warn('Failed to open Equational Applications website', error)
