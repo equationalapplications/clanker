@@ -25,7 +25,7 @@ export default function CharacterAvatar({
         source={{ uri: imageUrl }}
         onError={() => setImageError(true)}
         accessible
-        accessibilityLabel={`${characterName} avatar`}
+        accessibilityLabel={characterName ? `${characterName} avatar` : 'Character avatar'}
       />
     )
   }

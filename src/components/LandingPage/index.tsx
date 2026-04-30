@@ -1,11 +1,32 @@
-import { ScrollView, StyleSheet, View, Platform, Text } from 'react-native'
+import React, { useState } from 'react'
+import { ScrollView, StyleSheet, View, Platform } from 'react-native'
 import { useTheme } from 'react-native-paper'
 import HeroSection from './HeroSection'
 import FeaturesSection from './FeaturesSection'
 import LandingFooter from './LandingFooter'
 
+const skipLinkHidden: Record<string, unknown> = {
+  position: 'absolute',
+  top: -9999,
+  left: 0,
+}
+
+const skipLinkVisible: Record<string, unknown> = {
+  position: 'absolute',
+  top: 8,
+  left: 8,
+  zIndex: 9999,
+  padding: '8px 16px',
+  background: '#fff',
+  color: '#000',
+  fontWeight: 'bold',
+  textDecoration: 'none',
+  borderRadius: 4,
+}
+
 export default function LandingPage() {
   const { colors } = useTheme()
+  const [skipFocused, setSkipFocused] = useState(false)
 
   return (
     <ScrollView
@@ -14,14 +35,14 @@ export default function LandingPage() {
       showsVerticalScrollIndicator={false}
     >
       {Platform.OS === 'web' && (
-        <Text
-          accessibilityRole="link"
-          style={styles.skipLink}
-          // @ts-ignore — web-only href prop
+        <a
           href="#main-content"
+          onFocus={() => setSkipFocused(true)}
+          onBlur={() => setSkipFocused(false)}
+          style={skipFocused ? skipLinkVisible : skipLinkHidden}
         >
           Skip to main content
-        </Text>
+        </a>
       )}
       <View nativeID="main-content">
         <HeroSection />
@@ -38,10 +59,5 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-  },
-  skipLink: {
-    position: 'absolute',
-    top: -9999,
-    left: 0,
   },
 })

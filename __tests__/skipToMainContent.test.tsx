@@ -10,10 +10,7 @@ jest.mock('react-native', () => {
       React.createElement('ScrollView', { style, contentContainerStyle }, children),
     View: ({ children, style, nativeID }: any) =>
       React.createElement('View', { style, nativeID }, children),
-    Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
     Platform: { OS: 'web' },
-    Pressable: ({ children, onPress, style, accessibilityRole }: any) =>
-      React.createElement('Pressable', { onPress, style, accessibilityRole }, children),
   }
 })
 
@@ -28,13 +25,25 @@ jest.mock('~/components/LandingPage/LandingFooter', () => () => null)
 import LandingPage from '~/components/LandingPage'
 
 describe('LandingPage skip link (web)', () => {
-  it('renders a skip-to-main-content link', () => {
+  it('renders a skip link <a> element with href="#main-content"', () => {
     let tree: any
     act(() => { tree = create(<LandingPage />) })
 
-    // Skip link should be a Pressable or Text with specific props, or a View with nativeID="main-content"
-    const allViews = tree.root.findAll((node: any) => node.props.nativeID === 'main-content')
-    expect(allViews.length).toBeGreaterThan(0)
+    const skipLinks = tree.root.findAll(
+      (node: any) => node.type === 'a' && node.props.href === '#main-content',
+    )
+    expect(skipLinks.length).toBe(1)
+    expect(skipLinks[0].props.href).toBe('#main-content')
+  })
+
+  it('skip link text is "Skip to main content"', () => {
+    let tree: any
+    act(() => { tree = create(<LandingPage />) })
+
+    const skipLinks = tree.root.findAll(
+      (node: any) => node.type === 'a' && node.props.href === '#main-content',
+    )
+    expect(skipLinks[0].props.children).toBe('Skip to main content')
   })
 
   it('main content area has nativeID="main-content"', () => {
