@@ -127,7 +127,7 @@ One pass with VoiceOver on macOS Safari against the deployed staging build to co
 
 - React Native Paper components (`Avatar.Image`, `Dialog`, `IconButton`) may forward accessibility props to a wrapping `View` rather than the visible element. Mitigation: tests query by accessible name; if a prop doesn't surface, wrap the Paper component in a `View` with the props.
 - The skip-link pattern on React Native Web requires careful focus styling. Mitigation: minimal `position: absolute; top: -9999px;` with focus style that brings it on-screen. Web-only.
-- `accessibilityLiveRegion` is Android-only; on iOS the equivalent comes from `accessibilityRole="status"` plus content updates being detected by VoiceOver. Set both.
+- Live announcement behavior differs by platform. Follow `docs/ACCESSIBILITY.md` and rely on `accessibilityLiveRegion`; do not depend on `accessibilityRole="status"` for iOS because native support is inconsistent.
 
 **Open questions (none blocking)**
 
