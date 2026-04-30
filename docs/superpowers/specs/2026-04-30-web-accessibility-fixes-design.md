@@ -90,8 +90,8 @@ Pattern: render component, query by `accessibilityLabel`/`accessibilityRole`, as
 | `__tests__/featuresSectionAccessibility.test.tsx` (new) | Each feature icon has `accessibilityRole="image"` + label matching feature title. |
 | `__tests__/userActionPanelAccessibility.test.tsx` (new) | Renewal date input has `accessibilityHint` containing the format example. |
 | `__tests__/tabsLayoutAccessibility.test.tsx` (new) | Each tab screen passes a `tabBarAccessibilityLabel`. |
-| `__tests__/talkScreenStatusLiveRegion.test.tsx` (new) | Voice-status container has `accessibilityRole="status"` and `accessibilityLiveRegion="polite"`. |
-| `__tests__/landingFooterAccessibility.test.tsx` (new) | External link label includes `"opens in new window"`. |
+| `__tests__/talkScreenStatusLiveRegion.test.tsx` (new) | Voice-status container has `accessibilityLiveRegion="polite"`. |
+| `__tests__/landingFooterAccessibility.test.tsx` (new) | External link label includes `"opens external website"`. |
 | `__tests__/skipToMainContent.test.tsx` (new) | Web-only: skip link rendered as first focusable element on landing page when `Platform.OS === 'web'`. |
 
 ConfirmationModal coverage: rely on existing tests; the change is verification + minor prop addition.
