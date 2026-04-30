@@ -5,13 +5,13 @@ import HeroSection from './HeroSection'
 import FeaturesSection from './FeaturesSection'
 import LandingFooter from './LandingFooter'
 
-const SKIP_LINK_HIDDEN: Record<string, unknown> = {
+const SKIP_LINK_HIDDEN: React.CSSProperties = {
   position: 'absolute',
   top: -9999,
   left: 0,
 }
 
-const SKIP_LINK_VISIBLE: Record<string, unknown> = {
+const SKIP_LINK_VISIBLE: React.CSSProperties = {
   position: 'absolute',
   top: 8,
   left: 8,
