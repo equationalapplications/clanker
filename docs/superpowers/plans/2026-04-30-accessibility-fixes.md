@@ -1574,5 +1574,5 @@ git push -u origin kv/a11y-fixes
 - [ ] **Step 2: Open PR against staging using the PR template**
 
 Use `.github/pull_request_template.md`. Body should reference:
-- [ACCESSIBILITY_AUDIT.md](ACCESSIBILITY_AUDIT.md) as source of the 13 issues
-- [docs/superpowers/specs/2026-04-30-web-accessibility-fixes-design.md](superpowers/specs/2026-04-30-web-accessibility-fixes-design.md) as the design spec
+- `ACCESSIBILITY_AUDIT.md` (external/untracked source document) as source of the 13 issues
+- [docs/superpowers/specs/2026-04-30-web-accessibility-fixes-design.md](../specs/2026-04-30-web-accessibility-fixes-design.md) as the design spec

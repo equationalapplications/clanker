@@ -25,7 +25,7 @@ export default function LandingFooter() {
       <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel="Equational Applications LLC, opens in new window"
+        accessibilityLabel="Equational Applications LLC, opens external website"
         onPress={() => {
           void Linking.openURL('https://equationalapplications.com/').catch((error) => {
             console.warn('Failed to open Equational Applications website', error)

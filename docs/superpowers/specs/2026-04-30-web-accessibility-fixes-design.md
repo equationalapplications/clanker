@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-30
 **Status:** Approved
-**Source audit:** [ACCESSIBILITY_AUDIT.md](../../../ACCESSIBILITY_AUDIT.md)
+**Source audit:** `ACCESSIBILITY_AUDIT.md` (external/untracked source document)
 
 ## Goal & Scope
 
