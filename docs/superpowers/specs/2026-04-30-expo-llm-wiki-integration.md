@@ -37,10 +37,11 @@ This spec replaces all of the above with `expo-llm-wiki` used as-is, adding only
 - All premium users get wiki memory (local SQLite via package).
 - Cloud sync only for `save_to_cloud=1` premium characters.
 - Schema version bump covers the package table setup; no manual migration SQL needed for the wiki tables (package owns them via `wiki.setup()`).
+- Existing wiki memory data in old schema tables (`wiki_entries`, `agent_tasks`, `memory_events`, `derived_synonyms`) is dropped by migration; **no data migration or backfill is required** — acceptable product decision.
 - Document ingest via the + button: skip unchanged files via `hasChanged`; surface `WikiBusyError` on concurrent upload.
 - Inline chat UI indicators for `ingesting` and `librarian` states via `getEntityStatus`.
 - `runPrune` called post-sync in `characterSyncService` to hard-delete aged soft-deleted rows and old events.
-- `useWikiExport` hook drives the user-initiated cloud sync button for correct fresh-snapshot LWW semantics.
+- `useWikiExport` hook drives the user-initiated cloud sync button for correct fresh-snapshot LWW semantics — **this is a firm requirement, not deferred**.
 - `npm run typecheck && npm run lint && npm run test` green after migration.
 
 ## Non-Goals
@@ -348,7 +349,7 @@ async function handleSyncPress() {
 }
 ```
 
-`useWikiExport` ensures the snapshot reflects all local writes completed before the button press, and its `isPending` state drives the button's disabled/loading state.
+`useWikiExport` ensures the snapshot reflects all local writes completed before the button press, and its `isPending` state drives the button's disabled/loading state. This hook-based flow is **required** for user-initiated sync (not delegated to `syncAllToCloud`).
 
 **Non-premium or `save_to_cloud=0` characters:** skip wiki sync entirely (both background and user-initiated).
 
