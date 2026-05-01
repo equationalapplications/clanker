@@ -39,7 +39,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
     if (!hasUnlimited) return
     const interval = setInterval(() => {
       setWikiStatus(getWiki().getEntityStatus(characterId))
-    }, 2000)
+    }, 5000)
     return () => clearInterval(interval)
   }, [characterId, hasUnlimited])
 

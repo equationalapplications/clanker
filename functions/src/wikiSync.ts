@@ -6,9 +6,9 @@ import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {getDb} from "./db/cloudSql.js";
 import {wikiEntries, wikiTasks, wikiEvents} from "./db/schema.js";
+import {PREMIUM_TIERS} from "./constants/plans.js";
 
 const DEFAULT_REGION = "us-central1";
-const PREMIUM_TIERS = new Set(["monthly_20", "monthly_50"]);
 
 interface WikiFact {
   id: string;
