@@ -10,6 +10,7 @@ import {
     MIGRATIONS,
     LATEST_SCHEMA_REQUIRED_COLUMNS,
     MIGRATION_SKIP_GUARDS,
+    type MigrationSkipGuard,
 } from './schema'
 
 import { initWiki } from '~/services/wikiService'
@@ -222,13 +223,24 @@ async function applyMigrations(executor: DatabaseExecutor, fromVersion: number):
         if (migration) {
             const skipGuards = MIGRATION_SKIP_GUARDS[version]
             if (skipGuards && skipGuards.length > 0) {
-                // Skip migration if ALL guard columns already exist
-                const allColumnsExist = await Promise.all(
-                    skipGuards.map((guard) => hasColumn(executor, guard.table, guard.column))
+                // Skip migration if ANY guard is satisfied:
+                //   - column guard: the column already exists (migration already applied)
+                //   - skipIfTableMissing guard: the table doesn't exist (migration is not applicable)
+                const guardResults = await Promise.all(
+                    skipGuards.map((guard: MigrationSkipGuard) => {
+                        if (isSkipIfTableMissingGuard(guard)) {
+                            return hasTable(executor, guard.table).then((exists) => !exists)
+                        }
+                        return hasColumn(executor, guard.table, guard.column)
+                    })
                 )
-                if (allColumnsExist.every((exists) => exists)) {
-                    const guardDescr = skipGuards.map((g) => `${g.table}.${g.column}`).join(', ')
-                    console.log(`Skipping migration ${version}: ${guardDescr} already exists`)
+                if (guardResults.some((satisfied) => satisfied)) {
+                    const guardDescr = skipGuards
+                        .map((g: MigrationSkipGuard) =>
+                            isSkipIfTableMissingGuard(g) ? `${g.table} (table missing)` : `${g.table}.${g.column}`
+                        )
+                        .join(', ')
+                    console.log(`Skipping migration ${version}: ${guardDescr}`)
                     continue
                 }
             }
@@ -243,6 +255,23 @@ async function applyMigrations(executor: DatabaseExecutor, fromVersion: number):
         'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
         [SCHEMA_VERSION, Date.now()],
     )
+}
+
+async function hasTable(
+    database: DatabaseExecutor,
+    tableName: string,
+): Promise<boolean> {
+    const result = await database.getFirstAsync<{ count: number }>(
+        `SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name=?`,
+        [tableName],
+    )
+    return (result?.count ?? 0) > 0
+}
+
+function isSkipIfTableMissingGuard(
+    guard: MigrationSkipGuard,
+): guard is { table: string; skipIfTableMissing: true } {
+    return 'skipIfTableMissing' in guard
 }
 
 async function hasColumn(

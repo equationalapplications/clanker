@@ -58,7 +58,11 @@ interface WikiSyncOptions {
   upsertEntries?: (entries: WikiFact[], userId: string) => Promise<void>;
   validateEntityOwnership?: (entityIds: string[], userId: string) => Promise<void>;
   fetchMergedDump?: (entityIds: string[], userId: string) => Promise<MemoryDump>;
+  getUser?: typeof userRepository.getOrCreateUserByFirebaseIdentity;
+  getSubscription?: typeof subscriptionService.getSubscription;
 }
+
+const MAX_ENTITIES = 50;
 
 function parseInput(data: unknown): MemoryDump {
   if (!data || typeof data !== "object") {
@@ -70,59 +74,99 @@ function parseInput(data: unknown): MemoryDump {
     throw new HttpsError("invalid-argument", "dump is required.");
   }
 
-  const dump = d.dump as MemoryDump;
-  if (!dump.entities || typeof dump.entities !== "object") {
-    throw new HttpsError("invalid-argument", "dump.entities is required.");
+  const rawDump = d.dump as Record<string, unknown>;
+  if (!rawDump.entities || typeof rawDump.entities !== "object" || Array.isArray(rawDump.entities)) {
+    throw new HttpsError("invalid-argument", "dump.entities must be an object.");
   }
 
-  return dump;
+  const entities = rawDump.entities as Record<string, unknown>;
+  const entityIds = Object.keys(entities);
+  if (entityIds.length > MAX_ENTITIES) {
+    throw new HttpsError(
+      "invalid-argument",
+      `dump.entities may not contain more than ${MAX_ENTITIES} entities.`
+    );
+  }
+
+  for (const [entityId, bundle] of Object.entries(entities)) {
+    if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)) {
+      throw new HttpsError("invalid-argument", `Entity "${entityId}" must be an object.`);
+    }
+    const b = bundle as Record<string, unknown>;
+    if (!Array.isArray(b.facts)) {
+      throw new HttpsError("invalid-argument", `Entity "${entityId}".facts must be an array.`);
+    }
+    if (!Array.isArray(b.tasks)) {
+      throw new HttpsError("invalid-argument", `Entity "${entityId}".tasks must be an array.`);
+    }
+    if (!Array.isArray(b.events)) {
+      throw new HttpsError("invalid-argument", `Entity "${entityId}".events must be an array.`);
+    }
+  }
+
+  return d.dump as unknown as MemoryDump;
 }
 
 async function fetchMergedDump(entityIds: string[], userId: string): Promise<MemoryDump> {
+  if (entityIds.length === 0) {
+    return {generatedAt: Date.now(), entities: {}};
+  }
   const db = await getDb();
-  const entities: Record<string, MemoryBundle> = {};
 
+  const [allFacts, allTasks, allEvents] = await Promise.all([
+    db.select().from(wikiEntries).where(
+      and(inArray(wikiEntries.entityId, entityIds), eq(wikiEntries.userId, userId))
+    ),
+    db.select().from(wikiTasks).where(
+      and(inArray(wikiTasks.entityId, entityIds), eq(wikiTasks.userId, userId))
+    ),
+    db.select().from(wikiEvents).where(
+      and(inArray(wikiEvents.entityId, entityIds), eq(wikiEvents.userId, userId))
+    ),
+  ]);
+
+  const entities: Record<string, MemoryBundle> = {};
   for (const entityId of entityIds) {
-    const filter = and(eq(wikiEntries.entityId, entityId), eq(wikiEntries.userId, userId));
-    const [facts, tasks, events] = await Promise.all([
-      db.select().from(wikiEntries).where(filter),
-      db.select().from(wikiTasks).where(and(eq(wikiTasks.entityId, entityId), eq(wikiTasks.userId, userId))),
-      db.select().from(wikiEvents).where(and(eq(wikiEvents.entityId, entityId), eq(wikiEvents.userId, userId))),
-    ]);
     entities[entityId] = {
-      facts: facts.map((r) => ({
-        id: r.id,
-        entity_id: r.entityId,
-        title: r.title,
-        body: r.body,
-        confidence: r.confidence,
-        tags: r.tags as string[],
-        source_ref: r.sourceRef ?? null,
-        source_hash: r.sourceHash ?? null,
-        created_at: r.createdAt,
-        updated_at: r.updatedAt,
-      })),
-      tasks: tasks.map((r) => ({
-        id: r.id,
-        entity_id: r.entityId,
-        description: r.description,
-        status: r.status,
-        priority: r.priority,
-        created_at: r.createdAt,
-        updated_at: r.updatedAt,
-        resolved_at: r.resolvedAt ?? null,
-      })),
-      events: events.map((r) => ({
-        id: r.id,
-        entity_id: r.entityId,
-        event_type: r.eventType,
-        summary: r.summary,
-        created_at: r.createdAt,
-      })),
+      facts: allFacts
+        .filter((r) => r.entityId === entityId)
+        .map((r) => ({
+          id: r.id,
+          entity_id: r.entityId,
+          title: r.title,
+          body: r.body,
+          confidence: r.confidence,
+          tags: r.tags as string[],
+          source_ref: r.sourceRef ?? null,
+          source_hash: r.sourceHash ?? null,
+          created_at: r.createdAt,
+          updated_at: r.updatedAt,
+        })),
+      tasks: allTasks
+        .filter((r) => r.entityId === entityId)
+        .map((r) => ({
+          id: r.id,
+          entity_id: r.entityId,
+          description: r.description,
+          status: r.status,
+          priority: r.priority,
+          created_at: r.createdAt,
+          updated_at: r.updatedAt,
+          resolved_at: r.resolvedAt ?? null,
+        })),
+      events: allEvents
+        .filter((r) => r.entityId === entityId)
+        .map((r) => ({
+          id: r.id,
+          entity_id: r.entityId,
+          event_type: r.eventType,
+          summary: r.summary,
+          created_at: r.createdAt,
+        })),
     };
   }
 
-  return { generatedAt: Date.now(), entities };
+  return {generatedAt: Date.now(), entities};
 }
 
 async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
@@ -231,9 +275,12 @@ export const wikiSyncHandler = async (
 
   const dump = parseInput(request.data);
 
+  const getUser = options.getUser ?? ((args) => userRepository.getOrCreateUserByFirebaseIdentity(args));
+  const getSubscription = options.getSubscription ?? ((userId) => subscriptionService.getSubscription(userId));
+
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
-    user = await userRepository.getOrCreateUserByFirebaseIdentity({
+    user = await getUser({
       firebaseUid: request.auth.uid,
       email,
       displayName: decoded.name || null,
@@ -244,7 +291,7 @@ export const wikiSyncHandler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const subscription = await subscriptionService.getSubscription(user.id);
+  const subscription = await getSubscription(user.id);
   const isUnlimited =
     PREMIUM_TIERS.has(subscription?.planTier ?? "") && subscription?.planStatus === "active";
 

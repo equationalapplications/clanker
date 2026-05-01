@@ -9,9 +9,6 @@ import {subscriptionService} from "./services/subscriptionService.js";
 type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
 type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionService.getSubscription>>>;
 
-const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity;
-const originalGetSubscription = subscriptionService.getSubscription;
-
 let authCounter = 0;
 
 function buildAuth() {
@@ -78,54 +75,50 @@ test("wikiLlm: rejects unauthenticated requests", async () => {
 test("wikiLlm: rejects missing systemPrompt", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
-  userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-  subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20");
 
   const request = {auth, data: {systemPrompt: "", userPrompt: "hi"}};
   await assert.rejects(
-    () => wikiLlmHandler(request as unknown as CallableRequest),
+    () => wikiLlmHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
       return true;
     }
   );
-
-  userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
-  subscriptionService.getSubscription = originalGetSubscription;
 });
 
 test("wikiLlm: rejects non-premium users", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
-  userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-  subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg");
 
   const request = {auth, data: {systemPrompt: "sys", userPrompt: "hi"}};
   await assert.rejects(
-    () => wikiLlmHandler(request as unknown as CallableRequest),
+    () => wikiLlmHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "payg"),
+    }),
     (err: HttpsError) => {
       assert.equal(err.code, "permission-denied");
       return true;
     }
   );
-
-  userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
-  subscriptionService.getSubscription = originalGetSubscription;
 });
 
 test("wikiLlm: returns generated text for premium users", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
-  userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-  subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20");
 
   const mockGenerateText = async (_sys: string, _user: string) => "Generated wiki response";
 
   const request = {auth, data: {systemPrompt: "You are an assistant.", userPrompt: "Tell me facts."}};
-  const result = await wikiLlmHandler(request as CallableRequest, {generateText: mockGenerateText});
+  const result = await wikiLlmHandler(request as CallableRequest, {
+    generateText: mockGenerateText,
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+  });
 
   assert.equal(result.text, "Generated wiki response");
-
-  userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
-  subscriptionService.getSubscription = originalGetSubscription;
 });
+

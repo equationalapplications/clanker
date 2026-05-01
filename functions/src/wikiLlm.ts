@@ -42,6 +42,8 @@ function parseInput(data: unknown): WikiLlmRequest {
 interface VertexGenerateOptions {
   model?: string;
   generateText?: (systemPrompt: string, userPrompt: string) => Promise<string>;
+  getUser?: typeof userRepository.getOrCreateUserByFirebaseIdentity;
+  getSubscription?: typeof subscriptionService.getSubscription;
 }
 
 function getTextGenerator(model = DEFAULT_MODEL) {
@@ -94,9 +96,12 @@ export const wikiLlmHandler = async (
 
   const {systemPrompt, userPrompt} = parseInput(request.data);
 
+  const getUser = options.getUser ?? ((args) => userRepository.getOrCreateUserByFirebaseIdentity(args));
+  const getSubscription = options.getSubscription ?? ((userId) => subscriptionService.getSubscription(userId));
+
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
-    user = await userRepository.getOrCreateUserByFirebaseIdentity({
+    user = await getUser({
       firebaseUid: request.auth.uid,
       email,
       displayName: decoded.name || null,
@@ -107,7 +112,7 @@ export const wikiLlmHandler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const subscription = await subscriptionService.getSubscription(user.id);
+  const subscription = await getSubscription(user.id);
   const isUnlimited =
     PREMIUM_TIERS.has(subscription?.planTier ?? "") && subscription?.planStatus === "active";
 

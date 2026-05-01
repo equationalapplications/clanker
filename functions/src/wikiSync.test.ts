@@ -9,9 +9,6 @@ import {subscriptionService} from "./services/subscriptionService.js";
 type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
 type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionService.getSubscription>>>;
 
-const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity;
-const originalGetSubscription = subscriptionService.getSubscription;
-
 let authCounter = 0;
 
 function buildAuth() {
@@ -123,46 +120,40 @@ test("wikiSync: rejects unauthenticated requests", async () => {
 test("wikiSync: rejects missing dump", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
-  userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-  subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20");
 
   const request = {auth, data: {}};
   await assert.rejects(
-    () => wikiSyncHandler(request as unknown as CallableRequest),
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
       return true;
     }
   );
-
-  userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
-  subscriptionService.getSubscription = originalGetSubscription;
 });
 
 test("wikiSync: rejects non-premium users", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
-  userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-  subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg");
 
   const request = {auth, data: {dump: buildDump()}};
   await assert.rejects(
-    () => wikiSyncHandler(request as unknown as CallableRequest),
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "payg"),
+    }),
     (err: HttpsError) => {
       assert.equal(err.code, "permission-denied");
       return true;
     }
   );
-
-  userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
-  subscriptionService.getSubscription = originalGetSubscription;
 });
 
 test("wikiSync: accepts valid dump for premium user", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
-  userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-  subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20");
 
   const upserted: unknown[] = [];
   const upsertEntries = async (entries: unknown[]) => {
@@ -172,31 +163,32 @@ test("wikiSync: accepts valid dump for premium user", async () => {
   const fetchMergedDump = async () => ({ generatedAt: Date.now(), entities: {} });
 
   const request = {auth, data: {dump: buildDump()}};
-  const result = await wikiSyncHandler(request as CallableRequest, {upsertEntries, validateEntityOwnership, fetchMergedDump});
+  const result = await wikiSyncHandler(request as CallableRequest, {
+    upsertEntries,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+  });
 
   assert.ok(result.remoteDump, "should return remoteDump");
   assert.equal(upserted.length, 1);
-
-  userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
-  subscriptionService.getSubscription = originalGetSubscription;
 });
 
 test("wikiSync: rejects cancelled subscription", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
-  userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-  subscriptionService.getSubscription = async () =>
-    buildSubscription(user.id, "monthly_20", "cancelled");
 
   const request = {auth, data: {dump: buildDump()}};
   await assert.rejects(
-    () => wikiSyncHandler(request as unknown as CallableRequest),
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20", "cancelled"),
+    }),
     (err: HttpsError) => {
       assert.equal(err.code, "permission-denied");
       return true;
     }
   );
-
-  userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
-  subscriptionService.getSubscription = originalGetSubscription;
 });
+

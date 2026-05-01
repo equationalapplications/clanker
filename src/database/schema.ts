@@ -29,8 +29,18 @@ export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
 /**
  * Column-presence guards that can be used to skip migrations when upgrading
  * legacy databases that may already contain the target column.
+ *
+ * Each guard is satisfied when:
+ * - `{ table, column }` — the named column already exists in the table
+ * - `{ table, skipIfTableMissing: true }` — the table does not exist at all
+ *
+ * A migration is skipped when ANY of its guards is satisfied.
  */
-export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: string }[]> = {
+export type MigrationSkipGuard =
+  | { table: string; column: string }
+  | { table: string; skipIfTableMissing: true }
+
+export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   2: [{ table: 'characters', column: 'deleted_at' }],
   3: [{ table: 'characters', column: 'avatar_data' }],
   4: [{ table: 'characters', column: 'avatar_mime_type' }],
@@ -40,8 +50,12 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
   9: [{ table: 'characters', column: 'voice' }],
   11: [{ table: 'characters', column: 'heal_checkpoint' }],
   12: [{ table: 'characters', column: 'memory_checkpoint' }],
-  13: [{ table: 'wiki_entries', column: 'source_hash' }],
-  14: [{ table: 'wiki_entries', column: 'source_ref' }],
+  // wiki_entries may not exist on legacy DBs that never had the wiki feature;
+  // skip column/index migrations when the table is absent (migration 17 drops it anyway).
+  13: [{ table: 'wiki_entries', column: 'source_hash' }, { table: 'wiki_entries', skipIfTableMissing: true }],
+  14: [{ table: 'wiki_entries', column: 'source_ref' }, { table: 'wiki_entries', skipIfTableMissing: true }],
+  15: [{ table: 'wiki_entries', skipIfTableMissing: true }],
+  16: [{ table: 'wiki_entries', skipIfTableMissing: true }],
 }
 
 /**

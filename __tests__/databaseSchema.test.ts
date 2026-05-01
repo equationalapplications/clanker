@@ -36,20 +36,30 @@ describe('database schema migration guards', () => {
 
   it('bumps schema to v17 for wiki cleanup migration', () => {
     expect(SCHEMA_VERSION).toBe(17)
-    // Migration 13: adds source_hash (one guard, retry-safe)
-    expect(MIGRATION_SKIP_GUARDS[13]).toEqual([{ table: 'wiki_entries', column: 'source_hash' }])
+    // Migration 13: adds source_hash — skipped if column exists OR wiki_entries table is missing
+    expect(MIGRATION_SKIP_GUARDS[13]).toEqual([
+      { table: 'wiki_entries', column: 'source_hash' },
+      { table: 'wiki_entries', skipIfTableMissing: true },
+    ])
     expect(MIGRATIONS[13]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT')
     expect(MIGRATIONS[13]).not.toContain('source_ref')
-    // Migration 14: adds source_ref column only (one guard, retry-safe; index handled by migration 15)
-    expect(MIGRATION_SKIP_GUARDS[14]).toEqual([{ table: 'wiki_entries', column: 'source_ref' }])
+    // Migration 14: adds source_ref column — skipped if column exists OR wiki_entries table is missing
+    expect(MIGRATION_SKIP_GUARDS[14]).toEqual([
+      { table: 'wiki_entries', column: 'source_ref' },
+      { table: 'wiki_entries', skipIfTableMissing: true },
+    ])
     expect(MIGRATIONS[14]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT')
     expect(MIGRATIONS[14]).not.toContain('idx_wiki_entries_source_hash')
-    // Migration 15: swaps to partial index (no guard needed, idempotent)
-    expect(MIGRATION_SKIP_GUARDS[15]).toBeUndefined()
+    // Migration 15: swaps to partial index — skipped if wiki_entries table is missing
+    expect(MIGRATION_SKIP_GUARDS[15]).toEqual([
+      { table: 'wiki_entries', skipIfTableMissing: true },
+    ])
     expect(MIGRATIONS[15]).toContain('DROP INDEX IF EXISTS idx_wiki_entries_source_hash')
     expect(MIGRATIONS[15]).toContain('WHERE source_hash IS NOT NULL')
-    // Migration 16: adds partial index on source_ref (no guard needed, idempotent)
-    expect(MIGRATION_SKIP_GUARDS[16]).toBeUndefined()
+    // Migration 16: adds partial index on source_ref — skipped if wiki_entries table is missing
+    expect(MIGRATION_SKIP_GUARDS[16]).toEqual([
+      { table: 'wiki_entries', skipIfTableMissing: true },
+    ])
     expect(MIGRATIONS[16]).toContain('CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref')
     expect(MIGRATIONS[16]).toContain('WHERE source_ref IS NOT NULL')
     // Migration 17: drops old wiki tables
