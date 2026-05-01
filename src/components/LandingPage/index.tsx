@@ -5,6 +5,8 @@ import HeroSection from './HeroSection'
 import FeaturesSection from './FeaturesSection'
 import LandingFooter from './LandingFooter'
 
+const MAIN_CONTENT_ID = 'main-content'
+
 const SKIP_LINK_HIDDEN: React.CSSProperties = {
   position: 'absolute',
   top: '-9999px',
@@ -36,11 +38,11 @@ export default function LandingPage() {
     >
       {Platform.OS === 'web' && (
         <a
-          href="#main-content"
+          href={`#${MAIN_CONTENT_ID}`}
           onFocus={() => setSkipFocused(true)}
           onBlur={() => setSkipFocused(false)}
           onClick={(e) => {
-            const target = document.getElementById('main-content')
+            const target = document.getElementById(MAIN_CONTENT_ID)
             if (target) {
               e.preventDefault()
               target.focus()
@@ -52,7 +54,7 @@ export default function LandingPage() {
         </a>
       )}
       <View
-        nativeID="main-content"
+        nativeID={MAIN_CONTENT_ID}
         tabIndex={-1}
       >
         <HeroSection />
