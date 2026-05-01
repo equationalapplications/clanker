@@ -3,7 +3,7 @@
 **Date:** 2026-04-30
 **Status:** Ready
 **Branch:** feature branch off `staging`
-**Depends on:** [expo-llm-wiki v1.x + agent-memory-features](https://github.com/equationalapplications/expo-llm-wiki/docs/superpowers/specs/2026-04-30-agent-memory-features.md) (porter stemmer + resolution_note + synonymMap — must ship first)
+**Depends on:** [expo-llm-wiki v1.x agent-memory-features](https://github.com/equationalapplications/expo-llm-wiki/docs/superpowers/specs/2026-04-30-agent-memory-features.md) (porter stemmer + synonymMap — must ship first; see that repo for the full agent memory spec)
 **Replaces:** [2026-04-24-llm-wiki-memory.md](./2026-04-24-llm-wiki-memory.md) (original wiki memory design)
 
 ---
@@ -20,7 +20,7 @@ The original wiki memory spec ([2026-04-24-llm-wiki-memory.md](./2026-04-24-llm-
 - 162 handler tests in `functions/src/memoryFunctions.test.js`
 - `compromise` dependency (lemmatizer) — package porter stemmer makes it redundant
 
-This spec replaces all of the above with `expo-llm-wiki` used as-is, adding only what the package cannot provide: a cloud sync callable and a curated synonym map.
+This spec replaces all of the above with `expo-llm-wiki` used as-is, adding only what the package cannot provide: a cloud sync callable and a curated synonym map. The agent-memory-features spec (porter stemmer, synonymMap, LWW merge) is maintained in the expo-llm-wiki repo and referenced here.
 
 ---
 
@@ -143,6 +143,7 @@ getWiki().write(character.id, {
 
 The package auto-triggers `runLibrarian` (via `wikiLlm` callable) when event count hits `autoLibrarianThreshold`. No `wikiHealMachine` state machine. No explicit checkpoint management. The package owns the checkpoint in `{prefix}checkpoints`.
 
+
 ### Cloud Sync
 
 New `wikiSync` callable in `functions/src/wikiSync.ts`:
@@ -153,14 +154,14 @@ Where `MemoryDump = { generatedAt: number, entities: Record<string, MemoryBundle
 
 **Server logic:**
 1. Auth check + premium check + `save_to_cloud=1` check (character lookup).
-2. Upsert `dump.entities[characterId]` entries, tasks, events to Cloud SQL wiki tables (last-write-wins by `updated_at`).
+2. Upsert `dump.entities[characterId]` entries, tasks, events to Cloud SQL wiki tables using last-write-wins (LWW) by `updated_at` for all entities. This means that if an incoming row has a newer `updated_at` than the existing row, it overwrites; otherwise, it is skipped. This applies to all imported bundles, not just new IDs.
 3. Fetch full bundle for character from Cloud SQL.
 4. Return `{ remoteDump: MemoryDump }`.
 
 **Client:**
 ```ts
 const { data } = await wikiSyncFn({ characterId, dump: await wiki.exportDump([characterId]) });
-await wiki.importDump(data.remoteDump, { merge: true });
+await wiki.importDump(data.remoteDump, { merge: true }); // merge uses LWW by updated_at
 ```
 
 Triggered from `characterSyncService` on same cadence as `syncAllToCloud`. Non-premium or `save_to_cloud=0` characters skip this call.
@@ -172,12 +173,13 @@ Triggered from `characterSyncService` on same cadence as `syncAllToCloud`. Non-p
 ### Package tables (owned by expo-llm-wiki, created by `wiki.setup()`)
 
 - `llm_wiki_entries` — facts
-- `llm_wiki_tasks` — tasks (includes `resolution_note` from agent-memory-features)
+- `llm_wiki_tasks` — tasks
 - `llm_wiki_events` — episodic events
 - `llm_wiki_checkpoints` — librarian + heal checkpoint per entity
 - `llm_wiki_entries_fts` — FTS5 virtual table (porter unicode61 tokenizer)
 
-No `MIGRATIONS` entries needed in clanker's `schema.ts` for these — package manages them.
+No `MIGRATIONS` entries needed in clanker's `schema.ts` for these — package manages them. The `resolution_note` field is not present; task resolution notes are deferred/cancelled for now (see agent-memory-features spec in expo-llm-wiki repo).
+
 
 ### Cloud SQL (Drizzle, `functions/src/db/schema.ts`)
 
@@ -213,7 +215,7 @@ export const wikiTasks = pgTable('wiki_tasks', {
   description: text('description').notNull(),
   status: text('status').notNull().default('pending'),
   priority: integer('priority').notNull().default(0),
-  resolution_note: text('resolution_note'),
+  // resolution_note field removed; see agent-memory-features spec for future plans
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
   updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
   resolved_at: bigint('resolved_at', { mode: 'number' }),
@@ -237,6 +239,7 @@ Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate 
 
 ## Files Touched
 
+
 ### Deleted
 - `src/database/wikiDatabase.ts`
 - `src/database/agentTaskDatabase.ts`
@@ -245,9 +248,10 @@ Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate 
 - `src/database/ftsQueryBuilder.ts`
 - `src/services/memoryService.ts`
 - `src/machines/wikiHealMachine.ts`
-- `functions/src/memoryFunctions.ts` (or split files: `memoryRead.ts`, `memoryWrite.ts`, `memoryHeal.ts`, `memoryForget.ts`, `syncCharacterMemory.ts`)
+- `functions/src/memoryFunctions.ts` (and split files: `memoryRead.ts`, `memoryWrite.ts`, `memoryHeal.ts`, `memoryForget.ts`, `syncCharacterMemory.ts`)
 - `__tests__/wikiDatabase.test.ts`, `__tests__/ftsQueryBuilder.test.ts`, `__tests__/wikiHealMachine.test.ts`
 - `functions/lib/memoryFunctions.test.js` (162 handler tests — covered by new `wikiLlm`/`wikiSync` tests)
+
 
 ### New
 - `src/services/wikiService.ts` — wiki singleton + `setupWiki()`
@@ -259,16 +263,18 @@ Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate 
 - `functions/src/wikiLlm.test.ts` — auth gate, premium gate, Vertex proxy
 - `functions/src/wikiSync.test.ts` — upsert, fetch, merge, auth guards
 
+
 ### Modified
 - `src/database/synonymMapBase.ts` — change export to `Record<string, string[]>` (same terms, new shape)
 - `src/database/schema.ts` — remove `wiki_entries`, `agent_tasks`, `memory_events`, `derived_synonyms` from `CREATE_TABLES`, `MIGRATIONS`, `MIGRATION_SKIP_GUARDS`, `LATEST_SCHEMA_REQUIRED_COLUMNS`. Remove `heal_checkpoint`/`memory_checkpoint` columns from `characters` additions (package owns checkpoints in `llm_wiki_checkpoints`). Bump `SCHEMA_VERSION` to next integer (e.g. `12`); add `MIGRATIONS[12]` that `DROP TABLE IF EXISTS`es `wiki_entries`, `agent_tasks`, `memory_events`, `derived_synonyms` and runs `ALTER TABLE characters DROP COLUMN IF EXISTS heal_checkpoint, DROP COLUMN IF EXISTS memory_checkpoint` (SQLite does not support `DROP COLUMN` prior to 3.35 — use `PRAGMA table_info` + recreate pattern if needed, or simply leave the columns as harmless dead weight and skip the ALTER). Add `MIGRATION_SKIP_GUARDS[12]` checking `wiki_entries` does not exist.
 - `src/database/index.ts` — call `setupWiki()` in `bootstrapSession` after existing DB setup.
 - `src/services/aiChatService.ts` — replace `fetchMemoryBundle` + `wikiHealMachine WRITE` with `wiki.read()` + `wiki.write()`.
 - `src/services/characterSyncService.ts` — add `wikiSync` callable invocation alongside existing character sync.
-- `src/config/firebaseConfig.ts` — remove 4 old callables (`memoryRead`, `memoryWrite`, `memoryHeal`, `memoryForget`, `syncCharacterMemory`); add `wikiLlm`, `wikiSync`.
+- `src/config/firebaseConfig.ts` — remove 4 old callables (`memoryRead`, `memoryWrite`, `memoryHeal`, `memoryForget`, `syncCharacterMemory`); add `wikiLlm`, `wikiSync` (only these two callables are required for wiki memory).
 - `functions/src/index.ts` — export `wikiLlm`, `wikiSync`; remove old memory exports.
 - `functions/src/db/schema.ts` — add `wikiEntries`, `wikiTasks`, `wikiEvents` Drizzle tables.
 - `package.json` — add `expo-llm-wiki`; remove `compromise`.
+
 
 ### Unchanged
 - `src/services/aiChatService.ts` `triggerConversationSummary` path — runs for all users, untouched.
@@ -278,10 +284,12 @@ Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate 
 
 ---
 
+
 ## Wire-up: `aiChatService.sendMessageWithAIResponse`
 
 ```
 Pre-turn  (premium only):
+
   bundle = await getWiki().read(character.id, userMessage)
   → build [MEMORY] block via buildChatPrompt (unchanged format from original spec)
 
@@ -292,6 +300,7 @@ Post-turn (all users):
   triggerConversationSummary(character, userId)   ← unchanged
 
 Post-turn (premium only, fire-and-forget):
+
   getWiki().write(character.id, {
     event_type: 'observation',
     summary: `${userMessage}\n${assistantReply}`,
@@ -300,6 +309,7 @@ Post-turn (premium only, fire-and-forget):
 ```
 
 ---
+
 
 ## Tests
 
@@ -320,6 +330,7 @@ Node `node:test` pattern (see `/memories/repo/clanker-functions-notes.md`). Mock
 - Premium user → calls Vertex with provided prompts; returns `{ text: string }`.
 - No credits deducted.
 
+
 ### `functions/src/wikiSync.test.ts`
 
 Assert:
@@ -327,7 +338,7 @@ Assert:
 - Non-premium → error.
 - `save_to_cloud=0` character → skips Cloud SQL write, returns empty remoteDump.
 - Premium + `save_to_cloud=1` → upserts entries/tasks/events; returns full bundle.
-- `importDump` merge: existing local facts not overwritten by older remote `updated_at`.
+- `importDump` merge: last-write-wins (LWW) by `updated_at` for all entities; existing local facts are only overwritten if remote has newer `updated_at`.
 
 ---
 
