@@ -69,17 +69,19 @@ describe('LandingPage skip link (web)', () => {
       .spyOn(document, 'getElementById')
       .mockReturnValue({ focus: mockFocus } as unknown as HTMLElement)
 
-    const skipLink = tree.root.find(
-      (node: any) => node.type === 'a' && node.props.href === `#${MAIN_CONTENT_ID}`,
-    )
+    try {
+      const skipLink = tree.root.find(
+        (node: any) => node.type === 'a' && node.props.href === `#${MAIN_CONTENT_ID}`,
+      )
 
-    const mockEvent = { preventDefault: jest.fn() }
-    act(() => { skipLink.props.onClick(mockEvent) })
+      const mockEvent = { preventDefault: jest.fn() }
+      act(() => { skipLink.props.onClick(mockEvent) })
 
-    expect(mockGetElementById).toHaveBeenCalledWith(MAIN_CONTENT_ID)
-    expect(mockEvent.preventDefault).toHaveBeenCalled()
-    expect(mockFocus).toHaveBeenCalled()
-
-    mockGetElementById.mockRestore()
+      expect(mockGetElementById).toHaveBeenCalledWith(MAIN_CONTENT_ID)
+      expect(mockEvent.preventDefault).toHaveBeenCalled()
+      expect(mockFocus).toHaveBeenCalled()
+    } finally {
+      mockGetElementById.mockRestore()
+    }
   })
 })
