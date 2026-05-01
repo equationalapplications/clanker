@@ -437,9 +437,9 @@ Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate 
 - `src/services/memoryService.ts`
 - `src/machines/wikiHealMachine.ts`
 - `src/machines/documentIngestMachine.ts` (replaced by `useWikiIngest` + `useWikiHasChanged` directly in `ChatComposer`)
-- `functions/src/memoryFunctions.ts` (and split files: `memoryRead.ts`, `memoryWrite.ts`, `memoryHeal.ts`, `memoryForget.ts`, `syncCharacterMemory.ts`, `memoryIngest.ts` if present)
 - `__tests__/wikiDatabase.test.ts`, `__tests__/ftsQueryBuilder.test.ts`, `__tests__/wikiHealMachine.test.ts`, `__tests__/documentIngestMachine.test.tsx`
-- `functions/lib/memoryFunctions.test.js` (162 handler tests — covered by new `wikiLlm`/`wikiSync` tests)
+
+> **No cloud function files are deleted as part of this spec.** `functions/src/memoryFunctions.ts`, its split files (`memoryRead.ts`, `memoryWrite.ts`, `memoryHeal.ts`, `memoryForget.ts`, `syncCharacterMemory.ts`, `memoryIngest.ts`), and `functions/lib/memoryFunctions.test.js` are intentionally left in place. Removal of those files is deferred to a separate cleanup step after the old callables have been fully retired from all clients.
 
 
 ### New

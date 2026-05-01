@@ -31,7 +31,8 @@
 | `src/database/index.ts` | Remove `isWikiFtsAvailable`, `tryInitializeWikiFts`; call `setupWiki(database)` |
 | `src/hooks/useCachedResources.ts` | `await getDatabase()` to warm up wiki before first render |
 | `app/_layout.tsx` | Mount `WikiProvider` around the app tree |
-| `src/config/firebaseConfig.ts` | Remove 5 old memory callables; add `wikiLlmFn`, `wikiSyncFn` |
+| `src/config/firebaseConfig.ts` | Remove old memory + documentExtract callables; add `wikiLlmFn`, `wikiSyncFn` |
+| `src/config/firebaseConfig.web.ts` | Same callable swap as native config (parallel web entry point) |
 | `src/services/aiChatService.ts` | Replace `fetchMemoryBundle`/`dispatchWikiWrite` with `wiki.read()`/`wiki.write()`; replace `buildMemoryBlock` with `formatContext()` |
 | `src/components/ChatComposer.tsx` | Replace `documentIngestMachine` with `useWikiHasChanged` + `useWikiIngest`; `WikiBusyError` toast |
 | `src/components/ChatView.tsx` | 2-second status poll; inline `ingesting`/`librarian` indicators |
@@ -39,9 +40,12 @@
 | `functions/src/db/schema.ts` | Remove old `wikiEntries`/`agentTasks`/`memoryEvents`; add new tables with bigint timestamps |
 | `functions/src/index.ts` | Remove old memory exports; add `wikiLlm`, `wikiSync` |
 | `__tests__/aiChatService.test.ts` | Swap mocks from `memoryService`/`wikiHealMachine` to `wikiService` |
+| `__tests__/chatComposer.test.tsx` | Replace `documentIngestMachine` mock with `useWikiIngest`/`useWikiHasChanged` mocks |
 
 ### Deleted
-`src/database/wikiDatabase.ts`, `src/database/agentTaskDatabase.ts`, `src/database/memoryEventDatabase.ts`, `src/database/derivedSynonymDatabase.ts`, `src/database/ftsQueryBuilder.ts`, `src/services/memoryService.ts`, `src/services/documentIngestService.ts`, `src/machines/wikiHealMachine.ts`, `src/machines/documentIngestMachine.ts`, `functions/src/memoryFunctions.ts`, `functions/src/memoryFunctions.test.ts`, `__tests__/memoryService.test.ts`, `__tests__/wikiDatabase.test.ts`, `__tests__/ftsQueryBuilder.test.ts`, `__tests__/wikiHealMachine.test.ts`, `__tests__/documentIngestMachine.test.tsx`, `__tests__/documentIngestService.test.ts`
+`src/database/wikiDatabase.ts`, `src/database/agentTaskDatabase.ts`, `src/database/memoryEventDatabase.ts`, `src/database/derivedSynonymDatabase.ts`, `src/database/ftsQueryBuilder.ts`, `src/services/memoryService.ts`, `src/services/documentIngestService.ts`, `src/machines/wikiHealMachine.ts`, `src/machines/documentIngestMachine.ts`, `__tests__/memoryService.test.ts`, `__tests__/wikiDatabase.test.ts`, `__tests__/ftsQueryBuilder.test.ts`, `__tests__/wikiHealMachine.test.ts`, `__tests__/documentIngestMachine.test.tsx`, `__tests__/documentIngestService.test.ts`, `__tests__/chatComposerDocumentIngest.test.tsx`
+
+> **No cloud functions are deleted at this stage.** `functions/src/memoryFunctions.ts` and its test are left in place; they will be removed in a separate cleanup step after the old callables have been fully retired from all clients.
 
 ---
 
@@ -295,19 +299,36 @@ Remove:
 
 - [ ] **Step 3: Warm up DB in useCachedResources so WikiProvider has a valid wiki before first render**
 
-In `src/hooks/useCachedResources.ts`, add `getDatabase` import and call it during font loading:
+In `src/hooks/useCachedResources.ts`, add `getDatabase` import and restructure `loadResourcesAndDataAsync` so the DB warm-up completes **before** `setLoadingComplete(true)` is called. The current code calls `setLoadingComplete(true)` inside the font-loading `finally` block — the DB call must be added before that point.
 
 ```ts
 import { getDatabase } from '~/database'  // add this import
 
-// Inside loadResourcesAndDataAsync, after the font loading try/catch block, add:
-try {
-  await getDatabase()
-  console.log('✅ Database ready')
-} catch (e) {
-  console.warn('❌ Error warming up database:', e)
+// Restructure loadResourcesAndDataAsync:
+async function loadResourcesAndDataAsync() {
+  try {
+    SplashScreen.preventAutoHideAsync()
+    await Font.loadAsync({ /* existing fonts */ })
+    console.log('✅ Fonts loaded successfully')
+  } catch (e) {
+    console.warn('❌ Error loading fonts:', e)
+  }
+
+  // DB warm-up must complete BEFORE setLoadingComplete so WikiProvider
+  // receives a valid wiki instance on first render.
+  try {
+    await getDatabase()
+    console.log('✅ Database ready')
+  } catch (e) {
+    console.warn('❌ Error warming up database:', e)
+  }
+
+  setLoadingComplete(true)
+  SplashScreen.hideAsync()
 }
 ```
+
+> **Note:** `setLoadingComplete(true)` and `SplashScreen.hideAsync()` are moved out of the font `finally` block into the main function body so they run only after both font loading and DB setup finish.
 
 - [ ] **Step 4: Verify no remaining references to isWikiFtsAvailable**
 
@@ -366,23 +387,30 @@ Expected: no errors.
 
 ---
 
-## Task 6: Update firebaseConfig.ts — Swap Callables
+## Task 6: Update firebaseConfig.ts + firebaseConfig.web.ts — Swap Callables
+
+> **⚠️ Both files must be updated.** The codebase has two platform-specific configs that both declare the old callables:
+> - `src/config/firebaseConfig.ts` — React Native (uses `@react-native-firebase/functions`)
+> - `src/config/firebaseConfig.web.ts` — Web (uses Firebase Web SDK `firebase/functions`)
+>
+> Apply the same callable changes to **both files**. The declarations have identical callable names so the diff is identical.
 
 **Files:**
 - Modify: `src/config/firebaseConfig.ts`
+- Modify: `src/config/firebaseConfig.web.ts`
 
-- [ ] **Step 1: Add wikiLlm and wikiSync callable declarations**
+- [ ] **Step 1: Add wikiLlm and wikiSync callable declarations (both files)**
 
-After the existing callable declarations, add:
+In both configs, after the existing callable declarations, add:
 
 ```ts
 const wikiLlmFn = httpsCallable(functionsInstance, 'wikiLlm')
 const wikiSyncFn = httpsCallable(functionsInstance, 'wikiSync')
 ```
 
-- [ ] **Step 2: Remove old memory callable declarations**
+- [ ] **Step 2: Remove old memory + documentExtract callable declarations (both files)**
 
-Remove these five lines:
+Remove these six lines from both configs:
 ```ts
 const memoryReadFn = httpsCallable(functionsInstance, 'memoryRead')
 const memoryWriteFn = httpsCallable(functionsInstance, 'memoryWrite')
@@ -392,11 +420,13 @@ const syncCharacterMemoryFn = httpsCallable(functionsInstance, 'syncCharacterMem
 const documentExtractFn = httpsCallable(functionsInstance, 'documentExtract')
 ```
 
-- [ ] **Step 3: Update the export block**
+> **Note:** `documentExtractFn` is removed from the app configs because `documentIngestService.ts` (its only consumer) is deleted. The `documentExtract` cloud function in `functions/src/` is **not** deleted at this stage — only the client-side declaration is removed.
 
-Remove `memoryReadFn, memoryWriteFn, memoryHealFn, memoryForgetFn, syncCharacterMemoryFn, documentExtractFn` from the export block.
+- [ ] **Step 3: Update the export block (both files)**
 
-Add `wikiLlmFn, wikiSyncFn` to the export block:
+Remove `memoryReadFn, memoryWriteFn, memoryHealFn, memoryForgetFn, syncCharacterMemoryFn, documentExtractFn` from the export block of both files.
+
+Add `wikiLlmFn, wikiSyncFn` to the export block of both files:
 ```ts
 export {
   // ... existing exports ...
@@ -710,7 +740,29 @@ In the JSX, change `isProcessing` to `isIngesting` in the conditional render of 
 
 Remove the now-unused `useEffect` that had the subscription cleanup.
 
-- [ ] **Step 5: Typecheck**
+- [ ] **Step 5: Update chatComposer.test.tsx mocks**
+
+In `__tests__/chatComposer.test.tsx`, the existing mock for `documentIngestMachine` must be replaced with mocks for the new hooks. The test file uses:
+```ts
+jest.mock('~/machines/documentIngestMachine', () => ({
+  getDocumentIngestMachineActor: jest.fn(() => undefined),
+}))
+```
+
+Replace it with:
+```ts
+jest.mock('@equationalapplications/expo-llm-wiki/react', () => ({
+  useWikiIngest: jest.fn(() => ({ execute: jest.fn(), isPending: false, error: null, lastResult: null })),
+  useWikiHasChanged: jest.fn(() => ({ execute: jest.fn().mockResolvedValue(true), isPending: false, error: null, lastResult: null })),
+}))
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  WikiBusyError: class WikiBusyError extends Error { constructor(public operation: string, public entityId: string) { super() } },
+}))
+```
+
+Remove any assertions in the test that reference `getDocumentIngestMachineActor` or `dispatchDocumentIngest`.
+
+- [ ] **Step 6: Typecheck**
 
 ```bash
 npm run typecheck
@@ -1900,12 +1952,9 @@ rm src/machines/wikiHealMachine.ts
 rm src/machines/documentIngestMachine.ts
 ```
 
-- [ ] **Step 3: Delete functions files**
+- [ ] **Step 3: Leave all cloud functions files in place**
 
-```bash
-rm functions/src/memoryFunctions.ts
-rm functions/src/memoryFunctions.test.ts
-```
+> **Do not delete any files under `functions/src/` at this stage.** `functions/src/memoryFunctions.ts`, `functions/src/memoryFunctions.test.ts`, `functions/src/documentExtract.ts` (if present), and any other existing cloud function files are intentionally retained. They will be removed in a separate cleanup step after the old callables have been fully retired from all clients.
 
 - [ ] **Step 4: Delete test files**
 
@@ -1916,6 +1965,7 @@ rm __tests__/ftsQueryBuilder.test.ts
 rm __tests__/wikiHealMachine.test.ts
 rm __tests__/documentIngestMachine.test.tsx
 rm __tests__/documentIngestService.test.ts
+rm __tests__/chatComposerDocumentIngest.test.tsx
 ```
 
 ---
@@ -1982,7 +2032,7 @@ When all checks pass, run `git diff --stat` to see all changed files, then do a 
 | `wikiSync` callable: LWW upsert + return remoteDump | Task 14 |
 | Background sync: `wikiSync` called from `syncAllToCloud` | Task 10 |
 | User-initiated sync: `useWikiExport` hook on character edit screen | Task 10b |
-| All 5 old memory callables removed from `firebaseConfig.ts` | Task 6 |
+| Old memory + documentExtract callables removed from both `firebaseConfig.ts` and `firebaseConfig.web.ts` | Task 6 |
 | `wikiHealMachine`, `documentIngestMachine`, old DB files deleted | Task 16 |
 | Cloud SQL migration generated and applied | Task 13 |
 | + button: `useWikiHasChanged` + `useWikiIngest`; unchanged → notified; `WikiBusyError` surfaced | Task 8 |
@@ -1995,5 +2045,5 @@ When all checks pass, run `git diff --stat` to see all changed files, then do a 
 
 ### Notes
 
-- `documentExtract` callable in `functions/src/`: not deleted (spec doesn't require it). Its client-side declaration `documentExtractFn` is removed from `firebaseConfig.ts` in Task 6 since `documentIngestService.ts` is deleted.
+- **No cloud functions are deleted at this stage.** All files under `functions/src/` that exist before this integration — including `memoryFunctions.ts`, `memoryFunctions.test.ts`, `documentExtract` (if present), and any other callables — are intentionally left in place. Only client-side callable *declarations* (`documentExtractFn`, old memory callables) are removed from the app configs, since their app-side consumers are deleted. The cloud functions themselves will be cleaned up in a separate step after retirement.
 - No commits are made during implementation. After Task 17 passes, review the full diff locally and commit.
