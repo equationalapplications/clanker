@@ -102,7 +102,7 @@ export const wikiEntries = pgTable('llm_wiki_entries', {
 }));
 
 export const wikiTasks = pgTable('llm_wiki_tasks', {
-  id: text('id').primaryKey(),
+  id: text('id').notNull(),
   entityId: text('entity_id').notNull(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   description: text('description').notNull(),
@@ -115,7 +115,7 @@ export const wikiTasks = pgTable('llm_wiki_tasks', {
 }));
 
 export const wikiEvents = pgTable('llm_wiki_events', {
-  id: text('id').primaryKey(),
+  id: text('id').notNull(),
   entityId: text('entity_id').notNull(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   eventType: text('event_type').notNull(),
