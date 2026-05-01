@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, bigint, check, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, bigint, check, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { DEFAULT_VOICE } from '../constants/voiceDefaults.js';
 
@@ -84,7 +84,7 @@ export const messages = pgTable('messages', {
 }));
 
 export const wikiEntries = pgTable('llm_wiki_entries', {
-  id: text('id').primaryKey(),
+  id: text('id').notNull(),
   entityId: text('entity_id').notNull(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
@@ -96,6 +96,7 @@ export const wikiEntries = pgTable('llm_wiki_entries', {
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 }, (table) => ({
+  pk: primaryKey({ columns: [table.id, table.userId] }),
   entityUserIdx: index('llm_wiki_entries_entity_user_idx').on(table.entityId, table.userId),
   updatedAtIdx: index('llm_wiki_entries_updated_at_idx').on(table.updatedAt),
 }));
@@ -110,8 +111,7 @@ export const wikiTasks = pgTable('llm_wiki_tasks', {
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   resolvedAt: bigint('resolved_at', { mode: 'number' }),
-}, (table) => ({
-  entityStatusIdx: index('llm_wiki_tasks_entity_status_idx').on(table.entityId, table.userId, table.status),
+}, (table) => ({  pk: primaryKey({ columns: [table.id, table.userId] }),  entityStatusIdx: index('llm_wiki_tasks_entity_status_idx').on(table.entityId, table.userId, table.status),
 }));
 
 export const wikiEvents = pgTable('llm_wiki_events', {
@@ -121,6 +121,5 @@ export const wikiEvents = pgTable('llm_wiki_events', {
   eventType: text('event_type').notNull(),
   summary: text('summary').notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-}, (table) => ({
-  entityCreatedIdx: index('llm_wiki_events_entity_created_idx').on(table.entityId, table.userId, table.createdAt),
+}, (table) => ({  pk: primaryKey({ columns: [table.id, table.userId] }),  entityCreatedIdx: index('llm_wiki_events_entity_created_idx').on(table.entityId, table.userId, table.createdAt),
 }));

@@ -39,7 +39,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
     if (!hasUnlimited) return
     const interval = setInterval(() => {
       setWikiStatus(getWiki().getEntityStatus(characterId))
-    }, 5000)
+    }, 2000)
     return () => clearInterval(interval)
   }, [characterId, hasUnlimited])
 
@@ -152,11 +152,15 @@ export default function ChatView({ characterId }: ChatViewProps) {
         }}
       />
       <View style={styles.container}>
-        {wikiStatus.ingesting && (
-          <Text style={styles.statusText}>⏳ Ingesting document…</Text>
-        )}
-        {wikiStatus.librarian && (
-          <Text style={styles.statusText}>🧠 Updating memory…</Text>
+        {(wikiStatus.ingesting || wikiStatus.librarian) && (
+          <View accessibilityLiveRegion="polite" accessible={false}>
+            {wikiStatus.ingesting && (
+              <Text style={styles.statusText} accessibilityLabel="Ingesting document">⏳ Ingesting document…</Text>
+            )}
+            {wikiStatus.librarian && (
+              <Text style={styles.statusText} accessibilityLabel="Updating memory">🧠 Updating memory…</Text>
+            )}
+          </View>
         )}
         <GiftedChat
           messages={messages}

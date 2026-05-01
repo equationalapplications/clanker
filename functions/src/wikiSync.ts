@@ -1,11 +1,12 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
+import {inArray, and, eq, sql} from "drizzle-orm";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {getDb} from "./db/cloudSql.js";
-import {wikiEntries, wikiTasks, wikiEvents} from "./db/schema.js";
+import {wikiEntries, wikiTasks, wikiEvents, characters} from "./db/schema.js";
 import {PREMIUM_TIERS} from "./constants/plans.js";
 
 const DEFAULT_REGION = "us-central1";
@@ -55,6 +56,8 @@ interface MemoryDump {
 
 interface WikiSyncOptions {
   upsertEntries?: (entries: WikiFact[], userId: string) => Promise<void>;
+  validateEntityOwnership?: (entityIds: string[], userId: string) => Promise<void>;
+  fetchMergedDump?: (entityIds: string[], userId: string) => Promise<MemoryDump>;
 }
 
 function parseInput(data: unknown): MemoryDump {
@@ -73,6 +76,53 @@ function parseInput(data: unknown): MemoryDump {
   }
 
   return dump;
+}
+
+async function fetchMergedDump(entityIds: string[], userId: string): Promise<MemoryDump> {
+  const db = await getDb();
+  const entities: Record<string, MemoryBundle> = {};
+
+  for (const entityId of entityIds) {
+    const filter = and(eq(wikiEntries.entityId, entityId), eq(wikiEntries.userId, userId));
+    const [facts, tasks, events] = await Promise.all([
+      db.select().from(wikiEntries).where(filter),
+      db.select().from(wikiTasks).where(and(eq(wikiTasks.entityId, entityId), eq(wikiTasks.userId, userId))),
+      db.select().from(wikiEvents).where(and(eq(wikiEvents.entityId, entityId), eq(wikiEvents.userId, userId))),
+    ]);
+    entities[entityId] = {
+      facts: facts.map((r) => ({
+        id: r.id,
+        entity_id: r.entityId,
+        title: r.title,
+        body: r.body,
+        confidence: r.confidence,
+        tags: r.tags as string[],
+        source_ref: r.sourceRef ?? null,
+        source_hash: r.sourceHash ?? null,
+        created_at: r.createdAt,
+        updated_at: r.updatedAt,
+      })),
+      tasks: tasks.map((r) => ({
+        id: r.id,
+        entity_id: r.entityId,
+        description: r.description,
+        status: r.status,
+        priority: r.priority,
+        created_at: r.createdAt,
+        updated_at: r.updatedAt,
+        resolved_at: r.resolvedAt ?? null,
+      })),
+      events: events.map((r) => ({
+        id: r.id,
+        entity_id: r.entityId,
+        event_type: r.eventType,
+        summary: r.summary,
+        created_at: r.createdAt,
+      })),
+    };
+  }
+
+  return { generatedAt: Date.now(), entities };
 }
 
 async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
@@ -98,7 +148,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
           .insert(wikiEntries)
           .values(row)
           .onConflictDoUpdate({
-            target: wikiEntries.id,
+            target: [wikiEntries.id, wikiEntries.userId],
             set: {
               title: row.title,
               body: row.body,
@@ -108,6 +158,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               sourceHash: row.sourceHash,
               updatedAt: row.updatedAt,
             },
+            where: sql`excluded.updated_at > ${wikiEntries.updatedAt}`,
           });
       }
     }
@@ -128,7 +179,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
             resolvedAt: t.resolved_at ?? null,
           })
           .onConflictDoUpdate({
-            target: wikiTasks.id,
+            target: [wikiTasks.id, wikiTasks.userId],
             set: {
               description: t.description,
               status: t.status,
@@ -136,6 +187,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               updatedAt: t.updated_at,
               resolvedAt: t.resolved_at ?? null,
             },
+            where: sql`excluded.updated_at > ${wikiTasks.updatedAt}`,
           });
       }
     }
@@ -161,7 +213,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
 export const wikiSyncHandler = async (
   request: CallableRequest,
   options: WikiSyncOptions = {}
-): Promise<{ok: boolean}> => {
+): Promise<{remoteDump: MemoryDump}> => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
@@ -199,6 +251,30 @@ export const wikiSyncHandler = async (
     throw new HttpsError("permission-denied", "Wiki sync requires an active unlimited subscription.");
   }
 
+  // Validate that every entity in the dump belongs to this user and is saved to cloud.
+  const entityIds = Object.keys(dump.entities);
+  if (entityIds.length > 0) {
+    if (options.validateEntityOwnership) {
+      await options.validateEntityOwnership(entityIds, user.id);
+    } else {
+      const db = await getDb();
+      const ownedChars = await db
+        .select({ id: characters.id })
+        .from(characters)
+        .where(and(
+          inArray(characters.id, entityIds),
+          eq(characters.userId, user.id),
+          eq(characters.saveToCloud, true),
+        ));
+      const ownedIds = new Set(ownedChars.map((c) => c.id));
+      for (const entityId of entityIds) {
+        if (!ownedIds.has(entityId)) {
+          throw new HttpsError("permission-denied", "One or more entities do not belong to this user.");
+        }
+      }
+    }
+  }
+
   try {
     if (options.upsertEntries) {
       const allFacts = Object.values(dump.entities).flatMap((b) => b.facts ?? []);
@@ -212,7 +288,13 @@ export const wikiSyncHandler = async (
     throw new HttpsError("internal", "Failed to sync wiki data.");
   }
 
-  return {ok: true};
+  const remoteDump = options.fetchMergedDump
+    ? await options.fetchMergedDump(entityIds, user.id)
+    : entityIds.length > 0
+      ? await fetchMergedDump(entityIds, user.id)
+      : {generatedAt: Date.now(), entities: {}};
+
+  return {remoteDump};
 };
 
 export const wikiSync = onCall(

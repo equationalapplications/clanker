@@ -402,7 +402,7 @@ export const sendMessageWithAIResponse = async (
       void getWiki().write(character.id, {
         event_type: 'observation',
         summary: chunk || userMessage.text,
-      })
+      }).catch((err: unknown) => console.warn('[wiki] write failed:', err))
     }
     return { usageSnapshot: toUsageSnapshot(aiResponse) }
   } catch (error) {

@@ -30,7 +30,9 @@ import {
 } from '~/utilities/characterShare'
 import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
 import { useWikiExport } from '@equationalapplications/expo-llm-wiki/react'
-import { wikiSyncFn } from '~/config/firebaseConfig'
+import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
+import { wikiSyncFn, appCheckReady } from '~/config/firebaseConfig'
+import { getWiki } from '~/services/wikiService'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -237,10 +239,33 @@ export default function EditCharacterScreen() {
   }
 
   const handleWikiSync = async () => {
-    if (!character?.id) return
+    if (!cloudCharacterId) {
+      setToastState({
+        message: 'Save this character to cloud and sync it first, then try again.',
+        requiresSubscription: false,
+      })
+      return
+    }
     try {
-      const dump = await exportWiki([character.id])
-      await wikiSyncFn({ dump })
+      const localDump = await exportWiki([id])
+      const cloudDump: MemoryDump = {
+        generatedAt: localDump.generatedAt,
+        entities: {
+          [cloudCharacterId]: localDump.entities[id] ?? { facts: [], tasks: [], events: [] },
+        },
+      }
+      await appCheckReady
+      const result = await wikiSyncFn({ dump: cloudDump })
+      const remoteDump = (result.data as { remoteDump: MemoryDump }).remoteDump
+      if (remoteDump) {
+        const remappedDump: MemoryDump = {
+          generatedAt: remoteDump.generatedAt,
+          entities: {
+            [id]: remoteDump.entities[cloudCharacterId] ?? { facts: [], tasks: [], events: [] },
+          },
+        }
+        await getWiki().importDump(remappedDump, { merge: true })
+      }
       setToastState({ message: 'Memory synced to cloud.', requiresSubscription: false })
     } catch {
       setToastState({ message: 'Failed to sync memory.', requiresSubscription: false })

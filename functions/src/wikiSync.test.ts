@@ -168,11 +168,13 @@ test("wikiSync: accepts valid dump for premium user", async () => {
   const upsertEntries = async (entries: unknown[]) => {
     upserted.push(...entries);
   };
+  const validateEntityOwnership = async () => { /* ownership validated by test setup */ };
+  const fetchMergedDump = async () => ({ generatedAt: Date.now(), entities: {} });
 
   const request = {auth, data: {dump: buildDump()}};
-  const result = await wikiSyncHandler(request as CallableRequest, {upsertEntries});
+  const result = await wikiSyncHandler(request as CallableRequest, {upsertEntries, validateEntityOwnership, fetchMergedDump});
 
-  assert.deepEqual(result, {ok: true});
+  assert.ok(result.remoteDump, "should return remoteDump");
   assert.equal(upserted.length, 1);
 
   userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;

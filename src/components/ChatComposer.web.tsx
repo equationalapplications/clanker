@@ -4,7 +4,6 @@ import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Snackbar, Portal } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
-import * as FileSystem from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
 import { useWikiIngest, useWikiHasChanged } from '@equationalapplications/expo-llm-wiki/react'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
@@ -38,10 +37,15 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
     const asset = result.assets[0]
     const uri = asset.uri
-    const sourceRef = asset.name ?? uri
+    // Sanitize filename: strip control chars, cap length for stable sourceRef
+    const rawRef = asset.name ?? uri
+    const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
 
     try {
-      const documentChunk = await FileSystem.readAsStringAsync(uri)
+      // expo-file-system doesn't support blob/object URLs on web; use fetch instead.
+      // Normalize line-endings for consistent cross-platform hashing.
+      const raw = await fetch(uri).then((r) => r.text())
+      const documentChunk = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
       const sourceHash = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         documentChunk,

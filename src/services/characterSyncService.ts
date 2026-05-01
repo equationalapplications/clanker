@@ -12,7 +12,7 @@
 
 import { Storage } from '~/utilities/kvStorage'
 import { normalizeVoice } from '~/constants/voiceDefaults'
-import { getCurrentUser , wikiSyncFn } from '~/config/firebaseConfig'
+import { getCurrentUser, wikiSyncFn, appCheckReady } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn } from './apiClient'
 import type { CharacterSnapshot } from './apiClient'
@@ -28,6 +28,7 @@ import {
     LocalCharacter,
 } from '../database/characterDatabase'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
+import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { getWiki } from '~/services/wikiService'
 
 const LAST_SYNC_KEY = 'character-last-sync'
@@ -68,17 +69,56 @@ async function setLastSyncTime(): Promise<void> {
  * Export local wiki memory for cloud characters and sync to cloud.
  */
 async function syncWikiForCloud(localUserId: string): Promise<void> {
-    try {
-        const localChars = await getAllCharactersIncludingDeleted(localUserId)
-        const cloudCharIds = localChars
-            .filter((c) => c.save_to_cloud && c.cloud_id && UUID_REGEX.test(c.cloud_id))
-            .map((c) => c.id)
-        if (cloudCharIds.length === 0) return
+    const localChars = await getAllCharactersIncludingDeleted(localUserId)
+    const cloudChars = localChars.filter(
+        (c) => c.save_to_cloud && c.cloud_id && UUID_REGEX.test(c.cloud_id)
+    )
+    if (cloudChars.length === 0) return
 
-        const dump: MemoryDump = await getWiki().exportDump(cloudCharIds)
-        await wikiSyncFn({ dump })
-    } catch (error) {
-        console.warn('Wiki sync to cloud failed:', error)
+    await appCheckReady
+
+    for (const char of cloudChars) {
+        const cloudId = char.cloud_id!
+        let syncSucceeded = false
+
+        try {
+            const localDump = await getWiki().exportDump([char.id])
+            const cloudDump: MemoryDump = {
+                generatedAt: localDump.generatedAt,
+                entities: {
+                    [cloudId]: localDump.entities[char.id] ?? { facts: [], tasks: [], events: [] },
+                },
+            }
+            const result = await wikiSyncFn({ dump: cloudDump })
+            const remoteDump = (result.data as { remoteDump: MemoryDump }).remoteDump
+            if (remoteDump) {
+                const remappedDump: MemoryDump = {
+                    generatedAt: remoteDump.generatedAt,
+                    entities: {
+                        [char.id]: remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [] },
+                    },
+                }
+                await getWiki().importDump(remappedDump, { merge: true })
+                syncSucceeded = true
+            }
+        } catch (error) {
+            console.warn('Wiki sync to cloud failed for character', char.id, error)
+        }
+
+        if (syncSucceeded) {
+            try {
+                await getWiki().runPrune(char.id, {
+                    retainSoftDeletedFor: 7,
+                    retainEventsFor: 30,
+                    vacuum: false,
+                })
+            } catch (e) {
+                if (!(e instanceof WikiBusyError)) {
+                    console.warn('[wikiPrune] Failed for character', char.id, e)
+                }
+                // WikiBusyError: defer to next sync cycle
+            }
+        }
     }
 }
 

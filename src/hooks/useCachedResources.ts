@@ -6,6 +6,7 @@ import { getDatabase } from '~/database'
 
 export default function useCachedResources() {
   const [isLoadingComplete, setLoadingComplete] = useState(false)
+  const [dbInitFailed, setDbInitFailed] = useState(false)
 
   // Load any resources or data that we need prior to rendering the app
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function useCachedResources() {
         console.log('✅ Database ready')
       } catch (e) {
         console.warn('❌ Error warming up database:', e)
+        setDbInitFailed(true)
       }
 
       setLoadingComplete(true)
@@ -44,5 +46,5 @@ export default function useCachedResources() {
     loadResourcesAndDataAsync()
   }, [])
 
-  return isLoadingComplete
+  return { isLoadingComplete, dbInitFailed }
 }

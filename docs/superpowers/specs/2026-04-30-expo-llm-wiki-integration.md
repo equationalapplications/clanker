@@ -1,7 +1,7 @@
 # Spec: expo-llm-wiki Integration — Replace Custom Wiki Memory
 
 **Date:** 2026-04-30
-**Status:** Ready
+**Status:** Implemented
 **Branch:** feature branch off `staging`
 **Depends on:**
 - [expo-llm-wiki: agent-memory-features](https://github.com/equationalapplications/expo-llm-wiki/docs/superpowers/specs/2026-04-30-agent-memory-features.md) — porter stemmer + synonymMap + LWW merge — **Status: Ready**
