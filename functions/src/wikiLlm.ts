@@ -1,7 +1,6 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {PREMIUM_TIERS} from "./constants/plans.js";
@@ -142,7 +141,6 @@ export const wikiLlm = onCall(
     region: DEFAULT_REGION,
     enforceAppCheck: true,
     invoker: "public",
-    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => wikiLlmHandler(request)
 );
