@@ -88,6 +88,13 @@ function parseInput(data: unknown): MemoryDump {
     );
   }
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  for (const entityId of entityIds) {
+    if (!UUID_RE.test(entityId)) {
+      throw new HttpsError("invalid-argument", `Entity key "${entityId}" is not a valid UUID.`);
+    }
+  }
+
   for (const [entityId, bundle] of Object.entries(entities)) {
     if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)) {
       throw new HttpsError("invalid-argument", `Entity "${entityId}" must be an object.`);

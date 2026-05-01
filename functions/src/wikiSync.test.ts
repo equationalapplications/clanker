@@ -61,15 +61,17 @@ function buildSubscription(
   };
 }
 
+const TEST_ENTITY_UUID = "00000000-0000-0000-0000-000000000001";
+
 function buildDump() {
   return {
     generatedAt: Date.now(),
     entities: {
-      "char-1": {
+      [TEST_ENTITY_UUID]: {
         facts: [
           {
             id: "fact-1",
-            entity_id: "char-1",
+            entity_id: TEST_ENTITY_UUID,
             title: "Test Fact",
             body: "Some body",
             confidence: "inferred",
@@ -83,7 +85,7 @@ function buildDump() {
         tasks: [
           {
             id: "task-1",
-            entity_id: "char-1",
+            entity_id: TEST_ENTITY_UUID,
             description: "Do something",
             status: "pending",
             priority: 1,
@@ -95,7 +97,7 @@ function buildDump() {
         events: [
           {
             id: "event-1",
-            entity_id: "char-1",
+            entity_id: TEST_ENTITY_UUID,
             event_type: "observation",
             summary: "Something happened",
             created_at: 1000000,
@@ -129,6 +131,30 @@ test("wikiSync: rejects missing dump", async () => {
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
+      return true;
+    }
+  );
+});
+
+test("wikiSync: rejects non-UUID entity keys", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      "not-a-uuid": {facts: [], tasks: [], events: []},
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.ok(err.message.includes("not-a-uuid"), `expected key in message, got: ${err.message}`);
       return true;
     }
   );
