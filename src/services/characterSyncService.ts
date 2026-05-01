@@ -98,7 +98,14 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                         [char.id]: remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [] },
                     },
                 }
-                await getWiki().importDump(remappedDump, { merge: true })
+                try {
+                    await getWiki().importDump(remappedDump, { merge: true })
+                } catch (importErr) {
+                    if (!(importErr instanceof WikiBusyError)) {
+                        throw importErr
+                    }
+                    // WikiBusyError: wiki is busy but the cloud sync succeeded — still prune
+                }
                 syncSucceeded = true
             }
         } catch (error) {

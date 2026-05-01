@@ -31,6 +31,7 @@ import {
 import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
 import { useWikiExport } from '@equationalapplications/expo-llm-wiki/react'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
+import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { wikiSyncFn, appCheckReady } from '~/config/firebaseConfig'
 import { getWiki } from '~/services/wikiService'
 
@@ -265,10 +266,18 @@ export default function EditCharacterScreen() {
           },
         }
         await getWiki().importDump(remappedDump, { merge: true })
+        try {
+          await getWiki().runPrune(id, { retainSoftDeletedFor: 7, retainEventsFor: 30, vacuum: false })
+        } catch (pruneErr) {
+          if (!(pruneErr instanceof WikiBusyError)) {
+            console.warn('runPrune failed after wiki sync', pruneErr)
+          }
+        }
       }
       setToastState({ message: 'Memory synced to cloud.', requiresSubscription: false })
-    } catch {
-      setToastState({ message: 'Failed to sync memory.', requiresSubscription: false })
+    } catch (syncErr) {
+      console.warn('handleWikiSync failed', syncErr)
+      setToastState({ message: 'Failed to sync memory. Check your connection and try again.', requiresSubscription: false })
     }
   }
 

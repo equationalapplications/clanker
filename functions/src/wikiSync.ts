@@ -283,7 +283,7 @@ export const wikiSyncHandler = async (
       await upsertWikiData(dump, user.id);
     }
   } catch (error) {
-    logger.error("wikiSync upsert failed", {userId: user.id, error});
+    logger.error("wikiSync upsert failed", {userId: user.id, entityIds, error});
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", "Failed to sync wiki data.");
   }

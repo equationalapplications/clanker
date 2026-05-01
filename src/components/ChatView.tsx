@@ -38,7 +38,11 @@ export default function ChatView({ characterId }: ChatViewProps) {
   useEffect(() => {
     if (!hasUnlimited) return
     const interval = setInterval(() => {
-      setWikiStatus(getWiki().getEntityStatus(characterId))
+      try {
+        setWikiStatus(getWiki().getEntityStatus(characterId))
+      } catch {
+        // wiki not yet initialized — skip this tick
+      }
     }, 2000)
     return () => clearInterval(interval)
   }, [characterId, hasUnlimited])
