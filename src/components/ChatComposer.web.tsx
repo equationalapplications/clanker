@@ -32,7 +32,10 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
 
-    const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true })
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      type: ['text/plain', 'text/markdown'],
+    })
     if (result.canceled || !result.assets?.[0]) return
 
     const asset = result.assets[0]

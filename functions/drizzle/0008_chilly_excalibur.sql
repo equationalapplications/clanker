@@ -1,5 +1,5 @@
 CREATE TABLE "llm_wiki_entries" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" text NOT NULL,
 	"entity_id" text NOT NULL,
 	"user_id" uuid NOT NULL,
 	"title" text NOT NULL,
@@ -9,20 +9,22 @@ CREATE TABLE "llm_wiki_entries" (
 	"source_ref" text,
 	"source_hash" text,
 	"created_at" bigint NOT NULL,
-	"updated_at" bigint NOT NULL
+	"updated_at" bigint NOT NULL,
+	CONSTRAINT "llm_wiki_entries_id_user_id_pk" PRIMARY KEY("id","user_id")
 );
 --> statement-breakpoint
 CREATE TABLE "llm_wiki_events" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" text NOT NULL,
 	"entity_id" text NOT NULL,
 	"user_id" uuid NOT NULL,
 	"event_type" text NOT NULL,
 	"summary" text NOT NULL,
-	"created_at" bigint NOT NULL
+	"created_at" bigint NOT NULL,
+	CONSTRAINT "llm_wiki_events_id_user_id_pk" PRIMARY KEY("id","user_id")
 );
 --> statement-breakpoint
 CREATE TABLE "llm_wiki_tasks" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" text NOT NULL,
 	"entity_id" text NOT NULL,
 	"user_id" uuid NOT NULL,
 	"description" text NOT NULL,
@@ -30,7 +32,8 @@ CREATE TABLE "llm_wiki_tasks" (
 	"priority" integer DEFAULT 0 NOT NULL,
 	"created_at" bigint NOT NULL,
 	"updated_at" bigint NOT NULL,
-	"resolved_at" bigint
+	"resolved_at" bigint,
+	CONSTRAINT "llm_wiki_tasks_id_user_id_pk" PRIMARY KEY("id","user_id")
 );
 --> statement-breakpoint
 DROP TABLE "agent_tasks" CASCADE;--> statement-breakpoint

@@ -1,6 +1,6 @@
 {
-  "id": "bb265115-f20e-4e71-b02f-4287188a80ac",
-  "prevId": "a1c5e8b2-3d4f-4a9c-7e1b-2f8d0c6e9a5b",
+  "id": "66babf6b-a994-4571-a4e8-000bd6c598c8",
+  "prevId": "bb265115-f20e-4e71-b02f-4287188a80ac",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -623,7 +623,7 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "entity_id": {
@@ -742,7 +742,15 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "llm_wiki_entries_id_user_id_pk": {
+          "name": "llm_wiki_entries_id_user_id_pk",
+          "columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -755,7 +763,7 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "entity_id": {
@@ -833,7 +841,15 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "llm_wiki_events_id_user_id_pk": {
+          "name": "llm_wiki_events_id_user_id_pk",
+          "columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -846,7 +862,7 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "entity_id": {
@@ -944,7 +960,15 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "llm_wiki_tasks_id_user_id_pk": {
+          "name": "llm_wiki_tasks_id_user_id_pk",
+          "columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
