@@ -1,3 +1,11 @@
+## [29.4.1](https://github.com/equationalapplications/clanker/compare/v29.4.0...v29.4.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* **a11y:** extract MAIN_CONTENT_ID constant and add onClick handler test ([977f919](https://github.com/equationalapplications/clanker/commit/977f919164986ca2039c1afff859ef7ab1169b6b))
+* **a11y:** skip link programmatically focuses target with tabIndex=-1 ([4d82292](https://github.com/equationalapplications/clanker/commit/4d82292509953b84107284c2013db8c4ddfcfc05))
+
 # [29.4.0](https://github.com/equationalapplications/clanker/compare/v29.3.4...v29.4.0) (2026-04-30)
 
 
