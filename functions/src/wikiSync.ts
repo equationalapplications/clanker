@@ -88,9 +88,9 @@ function parseInput(data: unknown): MemoryDump {
     );
   }
 
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   for (const entityId of entityIds) {
-    if (!UUID_RE.test(entityId)) {
+    if (!UUID_PATTERN.test(entityId)) {
       throw new HttpsError("invalid-argument", `Entity key "${entityId}" is not a valid UUID.`);
     }
   }

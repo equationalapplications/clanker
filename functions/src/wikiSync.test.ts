@@ -154,7 +154,7 @@ test("wikiSync: rejects non-UUID entity keys", async () => {
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
-      assert.ok(err.message.includes("not-a-uuid"), `expected key in message, got: ${err.message}`);
+      assert.equal(err.message, `Entity key "not-a-uuid" is not a valid UUID.`);
       return true;
     }
   );
