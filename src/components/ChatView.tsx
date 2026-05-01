@@ -2,7 +2,7 @@ import { router, Stack } from 'expo-router'
 import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
 import { GiftedChat, Bubble } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps } from 'react-native-gifted-chat'
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
@@ -13,6 +13,7 @@ import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import ChatComposer from '~/components/ChatComposer'
+import { getWiki } from '~/services/wikiService'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
@@ -32,6 +33,15 @@ export default function ChatView({ characterId }: ChatViewProps) {
   const credits = creditsData?.totalCredits || 0
   const hasUnlimited = creditsData?.hasUnlimited || false
   const { colors, roundness } = useTheme()
+
+  const [wikiStatus, setWikiStatus] = useState({ ingesting: false, librarian: false })
+  useEffect(() => {
+    if (!hasUnlimited) return
+    const interval = setInterval(() => {
+      setWikiStatus(getWiki().getEntityStatus(characterId))
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [characterId, hasUnlimited])
 
   const { sendMessage } = useAIChat({
     characterId,
@@ -142,6 +152,12 @@ export default function ChatView({ characterId }: ChatViewProps) {
         }}
       />
       <View style={styles.container}>
+        {wikiStatus.ingesting && (
+          <Text style={styles.statusText}>⏳ Ingesting document…</Text>
+        )}
+        {wikiStatus.librarian && (
+          <Text style={styles.statusText}>🧠 Updating memory…</Text>
+        )}
         <GiftedChat
           messages={messages}
           onSend={handleSend}
@@ -175,6 +191,12 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
+  },
+  statusText: {
+    textAlign: 'center',
+    paddingVertical: 4,
+    fontSize: 12,
+    opacity: 0.7,
   },
   headerTitle: {
     flexDirection: 'row',

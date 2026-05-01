@@ -6,27 +6,16 @@ import { Platform } from 'react-native'
 import * as SQLite from 'expo-sqlite'
 import {
     CREATE_TABLES,
-    CREATE_WIKI_FTS,
-    CREATE_WIKI_ENTRY_SOURCE_INDEXES,
     SCHEMA_VERSION,
     MIGRATIONS,
     LATEST_SCHEMA_REQUIRED_COLUMNS,
     MIGRATION_SKIP_GUARDS,
 } from './schema'
 
+import { initWiki } from '~/services/wikiService'
+
 let db: SQLite.SQLiteDatabase | null = null
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null
-let wikiFtsAvailable = false
-
-/**
- * Returns true if the SQLite build has FTS5 available and the wiki_fts virtual
- * table was successfully created during initialization. On web (wa-sqlite via
- * expo-sqlite) FTS5 is not bundled, so this returns false and callers should
- * fall back to a LIKE-based scan.
- */
-export function isWikiFtsAvailable(): boolean {
-    return wikiFtsAvailable
-}
 
 type DatabaseExecutor = Pick<
     SQLite.SQLiteDatabase,
@@ -128,37 +117,12 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
         }
 
         await applyInitializationPlan(database)
-        await tryInitializeWikiFts(database)
+        await initWiki(database)
 
         console.log('✅ Database initialized successfully')
     } catch (error) {
         console.error('Failed to initialize database:', error)
         throw error
-    }
-}
-
-/**
- * Attempt to initialize FTS5 tables for wiki memory
- * On web (wa-sqlite via expo-sqlite), FTS5 may not be available, so this fails gracefully
- */
-async function tryInitializeWikiFts(executor: DatabaseExecutor): Promise<void> {
-    try {
-        await executor.execAsync(CREATE_WIKI_FTS)
-        wikiFtsAvailable = true
-        console.log('✅ Wiki FTS5 tables initialized successfully')
-    } catch (error) {
-        wikiFtsAvailable = false
-        // FTS5 is not available on web (wa-sqlite). Fail gracefully.
-        // The wiki_entries table exists (created in CREATE_TABLES); searchEntries
-        // falls back to a LIKE-based scan when this flag is false.
-        if (Platform.OS === 'web') {
-            console.warn(
-                '[DB] FTS5 module not available on web platform. Wiki memory will use LIKE-based search fallback.',
-            )
-        } else {
-            // On native platforms, FTS5 should be available. Log the actual error.
-            console.error('Failed to initialize FTS5 tables:', error)
-        }
     }
 }
 
@@ -185,24 +149,12 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
             (requiredColumn) => hasCharacterColumn(requiredColumn),
         )
 
-        // Also verify wiki_entries has its required columns (source_hash, source_ref added in
-        // migrations 13/14). A fresh install creates these via CREATE_TABLES, so both must
-        // be present before we can declare the DB is already at the latest schema.
-        const wikiCols = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(wiki_entries)')
-        const wikiColNames = new Set(wikiCols.map((c) => c.name))
-        const hasLatestWikiSchema = LATEST_SCHEMA_REQUIRED_COLUMNS.wiki_entries.every(
-            (requiredColumn) => wikiColNames.has(requiredColumn),
-        )
-
-        if (hasLatestCharacterSchema && hasLatestWikiSchema) {
+        if (hasLatestCharacterSchema) {
             // Fresh DB already at latest schema: just record the current schema version
             await executor.runAsync(
                 'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
                 [SCHEMA_VERSION, Date.now()],
             )
-            // Create partial indexes that depend on columns added in migrations 13/14.
-            // Not in CREATE_TABLES to avoid breaking existing DBs during the migration path.
-            await executor.execAsync(CREATE_WIKI_ENTRY_SOURCE_INDEXES)
             return
         }
 
@@ -246,7 +198,6 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
             inferredVersion = 7
         }
         await runMigrations(executor, inferredVersion)
-        await executor.execAsync(CREATE_WIKI_ENTRY_SOURCE_INDEXES)
         return
     }
 
@@ -254,9 +205,6 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // Existing DB that needs upgrading
         await runMigrations(executor, result.version)
     }
-    // Ensure partial indexes on source_hash/source_ref exist. CREATE INDEX IF NOT EXISTS
-    // is a no-op when already present, so this is safe on every startup.
-    await executor.execAsync(CREATE_WIKI_ENTRY_SOURCE_INDEXES)
 }
 
 /**

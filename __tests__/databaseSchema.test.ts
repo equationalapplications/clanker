@@ -1,7 +1,5 @@
 import {
   CREATE_TABLES,
-  CREATE_WIKI_ENTRY_SOURCE_INDEXES,
-  CREATE_WIKI_FTS,
   LATEST_SCHEMA_REQUIRED_COLUMNS,
   MIGRATIONS,
   MIGRATION_SKIP_GUARDS,
@@ -36,8 +34,8 @@ describe('database schema migration guards', () => {
     )
   })
 
-  it('bumps schema to v16 for wiki_entries source columns with one guard per migration', () => {
-    expect(SCHEMA_VERSION).toBe(16)
+  it('bumps schema to v17 for wiki cleanup migration', () => {
+    expect(SCHEMA_VERSION).toBe(17)
     // Migration 13: adds source_hash (one guard, retry-safe)
     expect(MIGRATION_SKIP_GUARDS[13]).toEqual([{ table: 'wiki_entries', column: 'source_hash' }])
     expect(MIGRATIONS[13]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_hash TEXT')
@@ -54,34 +52,19 @@ describe('database schema migration guards', () => {
     expect(MIGRATION_SKIP_GUARDS[16]).toBeUndefined()
     expect(MIGRATIONS[16]).toContain('CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref')
     expect(MIGRATIONS[16]).toContain('WHERE source_ref IS NOT NULL')
-    expect(LATEST_SCHEMA_REQUIRED_COLUMNS.wiki_entries).toEqual(
-      expect.arrayContaining(['source_hash', 'source_ref']),
-    )
-    expect(CREATE_TABLES).toContain('source_hash TEXT')
-    expect(CREATE_TABLES).toContain('source_ref TEXT')
-    // Partial indexes on source_hash/source_ref must NOT be in CREATE_TABLES — placing them there
-    // crashes existing databases when CREATE TABLE IF NOT EXISTS is a no-op but the columns don't
-    // yet exist. Instead they live in CREATE_WIKI_ENTRY_SOURCE_INDEXES and are applied after migrations.
-    expect(CREATE_TABLES).not.toContain(
-      'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL',
-    )
-    expect(CREATE_TABLES).not.toContain(
-      'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL',
-    )
-    expect(CREATE_WIKI_ENTRY_SOURCE_INDEXES).toContain(
-      'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL',
-    )
-    expect(CREATE_WIKI_ENTRY_SOURCE_INDEXES).toContain(
-      'CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL',
-    )
+    // Migration 17: drops old wiki tables
+    expect(MIGRATION_SKIP_GUARDS[17]).toBeUndefined()
+    expect(MIGRATIONS[17]).toContain('DROP TABLE IF EXISTS wiki_entries')
+    expect(MIGRATIONS[17]).toContain('DROP TABLE IF EXISTS agent_tasks')
+    expect(MIGRATIONS[17]).toContain('DROP TABLE IF EXISTS memory_events')
+    expect(MIGRATIONS[17]).toContain('DROP TABLE IF EXISTS derived_synonyms')
   })
 
-  it('includes wiki memory tables in base schema', () => {
-    expect(CREATE_TABLES).toContain('CREATE TABLE IF NOT EXISTS wiki_entries')
-    expect(CREATE_WIKI_FTS).toContain('CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts')
-    expect(CREATE_TABLES).toContain('CREATE TABLE IF NOT EXISTS agent_tasks')
-    expect(CREATE_TABLES).toContain('CREATE TABLE IF NOT EXISTS memory_events')
-    expect(CREATE_TABLES).toContain('CREATE TABLE IF NOT EXISTS derived_synonyms')
+  it('does not include old wiki memory tables in base schema', () => {
+    expect(CREATE_TABLES).not.toContain('CREATE TABLE IF NOT EXISTS wiki_entries')
+    expect(CREATE_TABLES).not.toContain('CREATE TABLE IF NOT EXISTS agent_tasks')
+    expect(CREATE_TABLES).not.toContain('CREATE TABLE IF NOT EXISTS memory_events')
+    expect(CREATE_TABLES).not.toContain('CREATE TABLE IF NOT EXISTS derived_synonyms')
     expect(CREATE_TABLES).toContain('heal_checkpoint INTEGER NOT NULL DEFAULT 0')
     expect(CREATE_TABLES).toContain('memory_checkpoint INTEGER NOT NULL DEFAULT 0')
   })

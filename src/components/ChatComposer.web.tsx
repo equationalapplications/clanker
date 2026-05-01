@@ -1,13 +1,13 @@
-import { useCallback, useRef, useState, useEffect } from 'react'
+import { useCallback, useState } from 'react'
 import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Snackbar, Portal } from 'react-native-paper'
-import {
-  dispatchDocumentIngest,
-  getDocumentIngestMachineActor,
-  type DocumentIngestMachineActor,
-} from '~/machines/documentIngestMachine'
+import * as DocumentPicker from 'expo-document-picker'
+import * as FileSystem from 'expo-file-system'
+import * as Crypto from 'expo-crypto'
+import { useWikiIngest, useWikiHasChanged } from '@equationalapplications/expo-llm-wiki/react'
+import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -25,59 +25,59 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   hasUnlimited,
   ...props
 }: ChatComposerProps<TMessage>) {
-
-  const actorRef = useRef<DocumentIngestMachineActor | undefined>(undefined)
-  const subscriptionRef = useRef<{ unsubscribe: () => void } | undefined>(undefined)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
 
-  useEffect(() => {
-    return () => {
-      subscriptionRef.current?.unsubscribe()
-    }
-  }, [])
+  const { execute: ingestDocument, isPending: isIngesting } = useWikiIngest()
+  const { execute: hasChanged } = useWikiHasChanged()
 
-  const handleDocumentIngest = useCallback(() => {
+  const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
 
-    dispatchDocumentIngest(characterId, userId)
-    const actor = getDocumentIngestMachineActor(characterId)
-    if (!actor) return
+    const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true })
+    if (result.canceled || !result.assets?.[0]) return
 
-    if (actorRef.current !== actor) {
-      subscriptionRef.current?.unsubscribe()
-      actorRef.current = actor
+    const asset = result.assets[0]
+    const uri = asset.uri
+    const sourceRef = asset.name ?? uri
 
-      subscriptionRef.current = actor.subscribe((state) => {
-        setIsProcessing(!state.matches('idle'))
+    try {
+      const documentChunk = await FileSystem.readAsStringAsync(uri)
+      const sourceHash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        documentChunk,
+      )
 
-        if (state.matches('success')) {
-          const factCount = state.context.facts.length
-          const filename = state.context.filename ?? 'document'
-          setToastMessage(`Added ${factCount} ${factCount === 1 ? 'memory' : 'memories'} from ${filename}`)
-        } else if (state.matches('error')) {
-          setToastMessage(state.context.errorMessage ?? 'Failed to ingest document.')
-        } else if (state.matches('confirmingDuplicate')) {
-          const count = state.context.duplicateEntryCount
-          const filename = state.context.filename ?? 'document'
-          const targetActor = actor
+      const changed = await hasChanged(characterId, sourceRef, sourceHash)
+      if (!changed) {
+        const proceed = await new Promise<boolean>((resolve) => {
           Alert.alert(
             'Document Already Added',
-            `${count} ${count === 1 ? 'memory' : 'memories'} from "${filename}" already exist.`,
+            `"${sourceRef}" has already been ingested. Add it again?`,
             [
-              { text: 'Replace', onPress: () => targetActor.send({ type: 'REPLACE' }) },
-              { text: 'Add Anyway', onPress: () => targetActor.send({ type: 'ADD' }) },
-              { text: 'Cancel', style: 'cancel', onPress: () => targetActor.send({ type: 'CANCEL' }) },
+              { text: 'Add Anyway', onPress: () => resolve(true) },
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
             ],
           )
-        }
-      })
-    }
-  }, [characterId, userId])
+        })
+        if (!proceed) return
+      }
 
-  const handlePlusPress = useCallback(() => {
-    handleDocumentIngest()
-  }, [handleDocumentIngest])
+      const ingestResult = await ingestDocument(characterId, {
+        sourceRef,
+        sourceHash,
+        documentChunk,
+      })
+      setToastMessage(
+        `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
+      )
+    } catch (error) {
+      if (error instanceof WikiBusyError) {
+        setToastMessage('Memory is busy. Please try again shortly.')
+      } else {
+        setToastMessage('Failed to ingest document.')
+      }
+    }
+  }, [characterId, userId, ingestDocument, hasChanged])
 
   const sendCurrentText = useCallback(() => {
     const trimmedText = text?.trim()
@@ -93,7 +93,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     <View style={styles.container}>
       <View style={styles.row}>
         {showPlusButton && (
-          isProcessing ? (
+          isIngesting ? (
             <View
               style={styles.spinnerContainer}
               accessible
@@ -173,3 +173,4 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 })
+

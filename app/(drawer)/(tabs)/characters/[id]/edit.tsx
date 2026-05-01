@@ -29,6 +29,8 @@ import {
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
 import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
+import { useWikiExport } from '@equationalapplications/expo-llm-wiki/react'
+import { wikiSyncFn } from '~/config/firebaseConfig'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -46,6 +48,7 @@ export default function EditCharacterScreen() {
   } = useUpdateCharacter()
   const { isCloudUnsyncing, error: unsyncError } = useUnsyncCharacter()
   const { isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
+  const { execute: exportWiki, isPending: isWikiSyncing } = useWikiExport()
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -230,6 +233,17 @@ export default function EditCharacterScreen() {
     setSaveToCloud(nextValue)
     if (!nextValue) {
       setIsCharacterShareable(false)
+    }
+  }
+
+  const handleWikiSync = async () => {
+    if (!character?.id) return
+    try {
+      const dump = await exportWiki([character.id])
+      await wikiSyncFn({ dump })
+      setToastState({ message: 'Memory synced to cloud.', requiresSubscription: false })
+    } catch {
+      setToastState({ message: 'Failed to sync memory.', requiresSubscription: false })
     }
   }
 
@@ -476,6 +490,19 @@ export default function EditCharacterScreen() {
           {isCharacterShareable ? (
             <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton} disabled={!canEdit}>
               Share Character
+            </Button>
+          ) : null}
+
+          {isSubscriber && character?.save_to_cloud && character?.cloud_id ? (
+            <Button
+              mode="outlined"
+              icon="brain"
+              onPress={handleWikiSync}
+              disabled={isWikiSyncing}
+              loading={isWikiSyncing}
+              style={styles.shareButton}
+            >
+              Sync Memory
             </Button>
           ) : null}
 

@@ -57,6 +57,13 @@
       "when": 1777420800000,
       "tag": "0007_source_ref_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1777664530603,
+      "tag": "0008_chilly_excalibur",
+      "breakpoints": true
     }
   ]
 }

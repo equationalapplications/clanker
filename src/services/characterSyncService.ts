@@ -12,7 +12,7 @@
 
 import { Storage } from '~/utilities/kvStorage'
 import { normalizeVoice } from '~/constants/voiceDefaults'
-import { getCurrentUser } from '~/config/firebaseConfig'
+import { getCurrentUser , wikiSyncFn } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn } from './apiClient'
 import type { CharacterSnapshot } from './apiClient'
@@ -27,6 +27,8 @@ import {
     getCharacter,
     LocalCharacter,
 } from '../database/characterDatabase'
+import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
+import { getWiki } from '~/services/wikiService'
 
 const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -63,6 +65,24 @@ async function setLastSyncTime(): Promise<void> {
 }
 
 /**
+ * Export local wiki memory for cloud characters and sync to cloud.
+ */
+async function syncWikiForCloud(localUserId: string): Promise<void> {
+    try {
+        const localChars = await getAllCharactersIncludingDeleted(localUserId)
+        const cloudCharIds = localChars
+            .filter((c) => c.save_to_cloud && c.cloud_id && UUID_REGEX.test(c.cloud_id))
+            .map((c) => c.id)
+        if (cloudCharIds.length === 0) return
+
+        const dump: MemoryDump = await getWiki().exportDump(cloudCharIds)
+        await wikiSyncFn({ dump })
+    } catch (error) {
+        console.warn('Wiki sync to cloud failed:', error)
+    }
+}
+
+/**
  * Sync all pending local changes to cloud.
  * Safe to call at any time — returns early if user is not authenticated.
  */
@@ -75,6 +95,7 @@ export async function syncAllToCloud(userId?: string): Promise<void> {
             syncUnsyncedToCloud(localUserId),
             syncDeletionsToCloud(localUserId),
         ])
+        await syncWikiForCloud(localUserId)
         await setLastSyncTime()
     } catch (error) {
         reportError(error, 'characterSync')

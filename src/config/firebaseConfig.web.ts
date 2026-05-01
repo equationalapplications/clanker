@@ -130,12 +130,8 @@ const syncCharacterFn = httpsCallable(functionsInstance, 'syncCharacter')
 const deleteCharacterFn = httpsCallable(functionsInstance, 'deleteCharacter')
 const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters')
 const getPublicCharacterFn = httpsCallable(functionsInstance, 'getPublicCharacter')
-const memoryReadFn = httpsCallable(functionsInstance, 'memoryRead')
-const memoryWriteFn = httpsCallable(functionsInstance, 'memoryWrite')
-const memoryHealFn = httpsCallable(functionsInstance, 'memoryHeal')
-const memoryForgetFn = httpsCallable(functionsInstance, 'memoryForget')
-const syncCharacterMemoryFn = httpsCallable(functionsInstance, 'syncCharacterMemory')
-const documentExtractFn = httpsCallable(functionsInstance, 'documentExtract')
+const wikiLlmFn = httpsCallable(functionsInstance, 'wikiLlm')
+const wikiSyncFn = httpsCallable(functionsInstance, 'wikiSync')
 
 export type FirebaseUser = User
 export { appCheckReady }
@@ -166,10 +162,6 @@ export {
   deleteCharacterFn,
   getUserCharactersFn,
   getPublicCharacterFn,
-  memoryReadFn,
-  memoryWriteFn,
-  memoryHealFn,
-  memoryForgetFn,
-  syncCharacterMemoryFn,
-  documentExtractFn,
+  wikiLlmFn,
+  wikiSyncFn,
 }

@@ -47,12 +47,12 @@ export {
 } from "./characterFunctions.js";
 
 export {
-  memoryRead,
-  memoryWrite,
-  memoryHeal,
-  memoryForget,
-  syncCharacterMemory,
-} from "./memoryFunctions.js";
+  wikiLlm,
+} from "./wikiLlm.js";
+
+export {
+  wikiSync,
+} from "./wikiSync.js";
 
 export {
   adminListUsers,
