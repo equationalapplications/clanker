@@ -153,7 +153,11 @@ export default function ChatView({ characterId }: ChatViewProps) {
       />
       <View style={styles.container}>
         {(wikiStatus.ingesting || wikiStatus.librarian) && (
-          <View accessibilityLiveRegion="polite" accessible={false}>
+          <View
+            accessibilityLiveRegion="polite"
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
+          >
             {wikiStatus.ingesting && (
               <Text style={styles.statusText} accessibilityLabel="Ingesting document">⏳ Ingesting document…</Text>
             )}
