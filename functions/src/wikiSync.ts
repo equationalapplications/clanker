@@ -128,86 +128,87 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
 async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
   const db = await getDb();
 
-  for (const [entityId, bundle] of Object.entries(dump.entities)) {
-    if (bundle.facts && bundle.facts.length > 0) {
-      for (const f of bundle.facts) {
-        const row = {
-          id: f.id,
-          entityId,
-          userId,
-          title: f.title,
-          body: f.body,
-          confidence: f.confidence,
-          tags: f.tags,
-          sourceRef: f.source_ref ?? null,
-          sourceHash: f.source_hash ?? null,
-          createdAt: f.created_at,
-          updatedAt: f.updated_at,
-        };
-        await db
+  await db.transaction(async (tx) => {
+    for (const [entityId, bundle] of Object.entries(dump.entities)) {
+      if (bundle.facts && bundle.facts.length > 0) {
+        await tx
           .insert(wikiEntries)
-          .values(row)
+          .values(
+            bundle.facts.map((f) => ({
+              id: f.id,
+              entityId,
+              userId,
+              title: f.title,
+              body: f.body,
+              confidence: f.confidence,
+              tags: f.tags,
+              sourceRef: f.source_ref ?? null,
+              sourceHash: f.source_hash ?? null,
+              createdAt: f.created_at,
+              updatedAt: f.updated_at,
+            }))
+          )
           .onConflictDoUpdate({
             target: [wikiEntries.id, wikiEntries.userId],
             set: {
-              title: row.title,
-              body: row.body,
-              confidence: row.confidence,
-              tags: row.tags,
-              sourceRef: row.sourceRef,
-              sourceHash: row.sourceHash,
-              updatedAt: row.updatedAt,
+              title: sql`excluded.title`,
+              body: sql`excluded.body`,
+              confidence: sql`excluded.confidence`,
+              tags: sql`excluded.tags`,
+              sourceRef: sql`excluded.source_ref`,
+              sourceHash: sql`excluded.source_hash`,
+              updatedAt: sql`excluded.updated_at`,
             },
             where: sql`excluded.updated_at > ${wikiEntries.updatedAt}`,
           });
       }
-    }
 
-    if (bundle.tasks && bundle.tasks.length > 0) {
-      for (const t of bundle.tasks) {
-        await db
+      if (bundle.tasks && bundle.tasks.length > 0) {
+        await tx
           .insert(wikiTasks)
-          .values({
-            id: t.id,
-            entityId,
-            userId,
-            description: t.description,
-            status: t.status,
-            priority: t.priority,
-            createdAt: t.created_at,
-            updatedAt: t.updated_at,
-            resolvedAt: t.resolved_at ?? null,
-          })
-          .onConflictDoUpdate({
-            target: [wikiTasks.id, wikiTasks.userId],
-            set: {
+          .values(
+            bundle.tasks.map((t) => ({
+              id: t.id,
+              entityId,
+              userId,
               description: t.description,
               status: t.status,
               priority: t.priority,
+              createdAt: t.created_at,
               updatedAt: t.updated_at,
               resolvedAt: t.resolved_at ?? null,
+            }))
+          )
+          .onConflictDoUpdate({
+            target: [wikiTasks.id, wikiTasks.userId],
+            set: {
+              description: sql`excluded.description`,
+              status: sql`excluded.status`,
+              priority: sql`excluded.priority`,
+              updatedAt: sql`excluded.updated_at`,
+              resolvedAt: sql`excluded.resolved_at`,
             },
             where: sql`excluded.updated_at > ${wikiTasks.updatedAt}`,
           });
       }
-    }
 
-    if (bundle.events && bundle.events.length > 0) {
-      for (const e of bundle.events) {
-        await db
+      if (bundle.events && bundle.events.length > 0) {
+        await tx
           .insert(wikiEvents)
-          .values({
-            id: e.id,
-            entityId,
-            userId,
-            eventType: e.event_type,
-            summary: e.summary,
-            createdAt: e.created_at,
-          })
+          .values(
+            bundle.events.map((e) => ({
+              id: e.id,
+              entityId,
+              userId,
+              eventType: e.event_type,
+              summary: e.summary,
+              createdAt: e.created_at,
+            }))
+          )
           .onConflictDoNothing();
       }
     }
-  }
+  });
 }
 
 export const wikiSyncHandler = async (

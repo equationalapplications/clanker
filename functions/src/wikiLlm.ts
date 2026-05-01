@@ -49,7 +49,7 @@ function getTextGenerator(model = DEFAULT_MODEL) {
     // Dynamic import to allow mocking in tests
     const {VertexAI} = await import("@google-cloud/vertexai");
     const project = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || "";
-    const vertexAI = new VertexAI({project, location: "us-central1"});
+    const vertexAI = new VertexAI({project, location: DEFAULT_REGION});
     const generativeModel = vertexAI.getGenerativeModel({
       model,
       generationConfig: {maxOutputTokens: MAX_OUTPUT_TOKENS},
