@@ -289,12 +289,13 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   const entities: Record<string, MemoryBundle> = {};
 
   // Process entities in batches to bound the DB connection fan-out.
-  // Each batch runs at most 3 * ENTITY_BATCH_SIZE queries concurrently.
+  // Each batch runs 3 queries concurrently: one batch-wide query each for facts,
+  // tasks, and events for the entity IDs in `batch`.
   //
-  // Within each per-entity query, tombstones (rows with deleted_at IS NOT NULL) are
-  // ordered before live rows (deleted_at DESC NULLS LAST). This ensures that when an
-  // entity approaches MAX_*_PER_ENTITY the LIMIT never drops a tombstone in favour of a
-  // live row, so cross-device deletions are always included in the remoteDump.
+  // Facts and tasks are ordered with tombstones (rows with deleted_at IS NOT NULL)
+  // before live rows (deleted_at DESC NULLS LAST). If a later in-memory per-entity
+  // cap is applied while building `entities`, this ordering ensures deletions are
+  // retained ahead of live rows for entities near MAX_*_PER_ENTITY.
   for (let batchStart = 0; batchStart < entityIds.length; batchStart += ENTITY_BATCH_SIZE) {
     const batch = entityIds.slice(batchStart, batchStart + ENTITY_BATCH_SIZE);
 
