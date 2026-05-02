@@ -85,7 +85,7 @@ export const messages = pgTable('messages', {
 
 export const wikiEntries = pgTable('llm_wiki_entries', {
   id: text('id').notNull(),
-  entityId: text('entity_id').notNull(),
+  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   body: text('body').notNull(),
@@ -103,7 +103,7 @@ export const wikiEntries = pgTable('llm_wiki_entries', {
 
 export const wikiTasks = pgTable('llm_wiki_tasks', {
   id: text('id').notNull(),
-  entityId: text('entity_id').notNull(),
+  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   description: text('description').notNull(),
   status: text('status').notNull().default('pending'),
@@ -116,7 +116,7 @@ export const wikiTasks = pgTable('llm_wiki_tasks', {
 
 export const wikiEvents = pgTable('llm_wiki_events', {
   id: text('id').notNull(),
-  entityId: text('entity_id').notNull(),
+  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   eventType: text('event_type').notNull(),
   summary: text('summary').notNull(),
