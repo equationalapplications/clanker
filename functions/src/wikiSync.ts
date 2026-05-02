@@ -74,6 +74,8 @@ const MAX_ENTITIES = 50;
 const MAX_FACTS_PER_ENTITY = 500;
 const MAX_TASKS_PER_ENTITY = 200;
 const MAX_EVENTS_PER_ENTITY = 500;
+/** 30-day event retention window in milliseconds — matches runPrune retainEventsFor policy. */
+const WIKI_EVENTS_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function assertString(value: unknown, label: string): void {
@@ -265,7 +267,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       and(
         inArray(llmWikiEvents.entityId, entityIds),
         eq(llmWikiEvents.userId, userId),
-        gte(llmWikiEvents.createdAt, Date.now() - 30 * 24 * 60 * 60 * 1000),
+        gte(llmWikiEvents.createdAt, Date.now() - WIKI_EVENTS_RETENTION_MS),
       )
     ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY),
   ]);
