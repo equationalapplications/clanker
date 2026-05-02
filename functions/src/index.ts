@@ -47,6 +47,14 @@ export {
 } from "./characterFunctions.js";
 
 export {
+  memoryRead,
+  memoryWrite,
+  memoryHeal,
+  memoryForget,
+  syncCharacterMemory,
+} from "./memoryFunctions.js";
+
+export {
   wikiLlm,
 } from "./wikiLlm.js";
 
