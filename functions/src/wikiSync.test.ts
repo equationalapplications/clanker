@@ -914,5 +914,3 @@ test("wikiSync: fetchMergedDump is called with all entity ids from the dump", as
   assert.ok(passedIds.includes(ENTITY_A), "entity A must be passed to fetchMergedDump");
   assert.ok(passedIds.includes(ENTITY_B), "entity B must be passed to fetchMergedDump");
 });
-
-

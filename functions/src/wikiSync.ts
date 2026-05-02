@@ -382,7 +382,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       title: r.title,
       body: r.body,
       confidence: r.confidence,
-      tags: (r.tags as string[]) ?? [],
+      tags: (r.tags ?? []) as string[],
       source_type: r.source_type ?? null,
       source_ref: r.source_ref ?? null,
       source_hash: r.source_hash ?? null,
