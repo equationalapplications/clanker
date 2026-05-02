@@ -1,3 +1,17 @@
+# [29.5.0](https://github.com/equationalapplications/clanker/compare/v29.4.1...v29.5.0) (2026-05-02)
+
+
+### Bug Fixes
+
+* **landing:** add accessibilityRole="text" to Coming Soon badge and assert in test ([3e2eb68](https://github.com/equationalapplications/clanker/commit/3e2eb684bd786253baa348c89ca48815d835439c))
+* **landing:** fix dark mode card visibility and chip vertical centering ([62c1cb2](https://github.com/equationalapplications/clanker/commit/62c1cb2857d3ddb1a75fd030fea7125b2f696427))
+* **landing:** fix dark mode tile visibility and Coming Soon chip alignment ([389430f](https://github.com/equationalapplications/clanker/commit/389430f875ebab39f51b14f95555d53105920735))
+
+
+### Features
+
+* **landing:** add Coming Soon section and revise feature copy ([1bc782a](https://github.com/equationalapplications/clanker/commit/1bc782aaf2b3ee852627eff2901c062974cd2c3f))
+
 ## [29.4.1](https://github.com/equationalapplications/clanker/compare/v29.4.0...v29.4.1) (2026-05-01)
 
 

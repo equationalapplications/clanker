@@ -7,8 +7,9 @@ const mockGetCharacter = jest.fn()
 const mockUpdateCharacter = jest.fn()
 const mockGenerateChatReply = jest.fn()
 const mockSummarizeText = jest.fn()
-const mockFetchMemoryBundle = jest.fn()
-const mockDispatchWikiWrite = jest.fn()
+const mockWikiRead = jest.fn()
+const mockWikiWrite = jest.fn()
+const mockFormatContext = jest.fn()
 
 jest.mock('~/services/messageService', () => ({
   sendMessage: (...args: unknown[]) => mockSendMessage(...args),
@@ -34,13 +35,16 @@ jest.mock('~/services/summarizeTextService', () => ({
   summarizeText: (...args: unknown[]) => mockSummarizeText(...args),
 }))
 
-jest.mock('~/services/memoryService', () => ({
-  fetchMemoryBundle: (...args: unknown[]) => mockFetchMemoryBundle(...args),
-}), { virtual: true })
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  formatContext: (...args: unknown[]) => mockFormatContext(...args),
+}))
 
-jest.mock('~/machines/wikiHealMachine', () => ({
-  dispatchWikiWrite: (...args: unknown[]) => mockDispatchWikiWrite(...args),
-}), { virtual: true })
+jest.mock('~/services/wikiService', () => ({
+  getWiki: () => ({
+    read: (...args: unknown[]) => mockWikiRead(...args),
+    write: (...args: unknown[]) => mockWikiWrite(...args),
+  }),
+}))
 
 import { buildChatPrompt, sendMessageWithAIResponse } from '~/services/aiChatService'
 
@@ -52,7 +56,8 @@ describe('buildChatPrompt', () => {
     mockGetMessagesForContextSummary.mockResolvedValue([])
   })
 
-  it('prepends memory block before conversation history when bundle provided', () => {
+  it('prepends memory block before conversation history when memoryBlock provided', () => {
+    const memoryBlock = '[MEMORY]\nFacts:\n  - [certain] User prefers morning workouts.\n[/MEMORY]'
     const prompt = buildChatPrompt(
       'How am I doing?',
       {
@@ -65,42 +70,12 @@ describe('buildChatPrompt', () => {
             content: 'We talked about training yesterday.',
           },
         ],
-        memoryBundle: {
-          facts: [
-            {
-              id: 'fact-1',
-              title: 'Morning workouts',
-              body: 'User prefers morning workouts.',
-              confidence: 'certain',
-              tags: ['health', 'schedule'],
-            },
-          ],
-          openTasks: [
-            {
-              id: 'task-1',
-              description: 'Ask how interval run went',
-              priorityLabel: 'high',
-            },
-          ],
-          recentEvents: [
-            {
-              id: 'event-1',
-              eventType: 'observation',
-              summary: 'User mentioned race-day nerves.',
-            },
-          ],
-        },
-      } as any,
+        memoryBlock,
+      },
     )
 
     expect(prompt).toContain('[MEMORY]')
-    expect(prompt).toContain('Facts:')
-    expect(prompt).toContain('- [certain] User prefers morning workouts. | tags: health, schedule')
-    expect(prompt).toContain('Open tasks:')
-    expect(prompt).toContain('- [high] Ask how interval run went')
-    expect(prompt).toContain('Recent episodic context:')
-    expect(prompt).toContain('- [observation] User mentioned race-day nerves.')
-
+    expect(prompt).toContain('User prefers morning workouts.')
     expect(prompt.indexOf('[MEMORY]')).toBeLessThan(prompt.indexOf('Conversation history:'))
   })
 
@@ -111,7 +86,7 @@ describe('buildChatPrompt', () => {
       characterPersonality: 'Friendly coach',
       characterTraits: 'calm',
       conversationHistory: [],
-    } as any)
+    })
     expect(prompt.length).toBeLessThanOrEqual(12_000)
     expect(prompt.endsWith('\nNova:')).toBe(true)
   })
@@ -124,19 +99,8 @@ describe('buildChatPrompt', () => {
       planStatus: 'active',
       verifiedAt: '2026-04-27T00:00:00.000Z',
     })
-    mockFetchMemoryBundle.mockResolvedValue({
-      facts: [
-        {
-          id: 'fact-1',
-          title: 'Morning workouts',
-          body: 'User prefers morning workouts.',
-          confidence: 'certain',
-          tags: ['health'],
-        },
-      ],
-      openTasks: [],
-      recentEvents: [],
-    })
+    mockWikiRead.mockResolvedValue({ facts: [], tasks: [], events: [] })
+    mockFormatContext.mockReturnValue('[MEMORY]\nFacts:\n  - [certain] User prefers morning.\n[/MEMORY]')
 
     await sendMessageWithAIResponse(
       {
@@ -165,17 +129,16 @@ describe('buildChatPrompt', () => {
       { hasUnlimited: true },
     )
 
-    expect(mockFetchMemoryBundle).toHaveBeenCalledWith('user-1', 'char-1', 'How am I doing?')
+    expect(mockWikiRead).toHaveBeenCalledWith('char-1', 'How am I doing?')
     expect(mockGenerateChatReply).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining('[MEMORY]'),
       }),
     )
-    expect(mockDispatchWikiWrite).toHaveBeenCalledWith({
-      character: expect.objectContaining({ id: 'char-1' }),
-      userId: 'user-1',
-      chunk: 'User: Yesterday I trained.\nUser: How am I doing?',
-    })
+    expect(mockWikiWrite).toHaveBeenCalledWith(
+      'char-1',
+      expect.objectContaining({ event_type: 'observation' }),
+    )
     expect(mockSaveAIMessage).toHaveBeenCalledWith(
       'char-1',
       'user-1',

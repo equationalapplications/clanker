@@ -55,6 +55,14 @@ export {
 } from "./memoryFunctions.js";
 
 export {
+  wikiLlm,
+} from "./wikiLlm.js";
+
+export {
+  wikiSync,
+} from "./wikiSync.js";
+
+export {
   adminListUsers,
   adminSetUserCredits,
   adminSetUserSubscription,

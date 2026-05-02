@@ -187,6 +187,7 @@ export const syncCharacterHandler = async (
       context,
       voice,
       isPublic,
+      saveToCloud: true,
       createdAt: undefined,
       updatedAt: undefined,
     }, user.id);

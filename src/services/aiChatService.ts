@@ -9,8 +9,8 @@ import { getCharacter as getLocalCharacter, updateCharacter } from '~/database/c
 import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
 import { summarizeText } from '~/services/summarizeTextService'
 import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
-import { fetchMemoryBundle } from '~/services/memoryService'
-import { dispatchWikiWrite } from '~/machines/wikiHealMachine'
+import { formatContext } from '@equationalapplications/expo-llm-wiki'
+import { getWiki } from '~/services/wikiService'
 import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
 
@@ -43,33 +43,7 @@ interface ChatContext {
     role: 'user' | 'assistant'
     content: string
   }[]
-  memoryBundle?: MemoryBundle | null
-}
-
-export interface MemoryFact {
-  id: string
-  title: string
-  body: string
-  confidence: 'certain' | 'inferred' | 'tentative'
-  tags: string[]
-}
-
-export interface MemoryTask {
-  id: string
-  description: string
-  priorityLabel: string
-}
-
-export interface MemoryEvent {
-  id: string
-  eventType: string
-  summary: string
-}
-
-export interface MemoryBundle {
-  facts: MemoryFact[]
-  openTasks: MemoryTask[]
-  recentEvents: MemoryEvent[]
+  memoryBlock?: string
 }
 
 const MAX_CHAT_PROMPT_LENGTH = 12_000
@@ -77,7 +51,6 @@ const MAX_CHARACTER_NAME_LENGTH = 100
 const MAX_CHARACTER_PERSONALITY_LENGTH = 1_500
 const MAX_CHARACTER_TRAITS_LENGTH = 1_000
 const MAX_USER_MESSAGE_LENGTH = 3_000
-const MAX_MEMORY_BLOCK_CHARS = 1_500
 const MAX_REFERENCE_ID_LENGTH = 128
 const SUMMARY_TRIGGER_MESSAGE_COUNT = 20
 const SUMMARY_KEEP_RECENT_MESSAGE_COUNT = 20
@@ -143,96 +116,6 @@ function buildReferenceId(value: unknown): string | undefined {
 
   const referenceId = truncateText(String(value), MAX_REFERENCE_ID_LENGTH)
   return referenceId.length > 0 ? referenceId : undefined
-}
-
-function buildMemoryFactLine(fact: MemoryFact): string {
-  const tagText = fact.tags.length > 0 ? ` | tags: ${fact.tags.join(', ')}` : ''
-  return `  - [${fact.confidence}] ${truncateText(fact.body, 200)}${tagText}`
-}
-
-function buildMemoryTaskLine(task: MemoryTask): string {
-  return `  - [${task.priorityLabel}] ${task.description.trim()}`
-}
-
-function buildMemoryEventLine(event: MemoryEvent): string {
-  return `  - [${event.eventType}] ${event.summary.trim()}`
-}
-
-function fitMemorySection(
-  heading: string,
-  lines: string[],
-  budget: number,
-): { text: string; remainingBudget: number } {
-  if (budget <= 0 || lines.length === 0) {
-    return { text: '', remainingBudget: budget }
-  }
-
-  const keptLines: string[] = []
-  let used = heading.length + 1 // +1 for the \n between heading and first line
-
-  for (const line of lines) {
-    const addition = `\n${line}`
-    if (used + addition.length > budget) {
-      break
-    }
-
-    keptLines.push(line)
-    used += addition.length
-  }
-
-  if (keptLines.length === 0) {
-    return { text: '', remainingBudget: budget }
-  }
-
-  const text = `${heading}\n${keptLines.join('\n')}`
-  return {
-    text,
-    remainingBudget: budget - text.length,
-  }
-}
-
-function buildMemoryBlock(memoryBundle?: MemoryBundle | null): string {
-  if (!memoryBundle) {
-    return ''
-  }
-
-  const sections: string[] = []
-  let remainingBudget = MAX_MEMORY_BLOCK_CHARS - '[MEMORY]\n\n[/MEMORY]'.length
-
-  const factSection = fitMemorySection(
-    'Facts:',
-    memoryBundle.facts.slice(0, 10).map(buildMemoryFactLine),
-    remainingBudget,
-  )
-  if (factSection.text) {
-    sections.push(factSection.text)
-    remainingBudget = factSection.remainingBudget - 2 // account for \n\n separator
-  }
-
-  const taskSection = fitMemorySection(
-    'Open tasks:',
-    memoryBundle.openTasks.slice(0, 5).map(buildMemoryTaskLine),
-    remainingBudget,
-  )
-  if (taskSection.text) {
-    sections.push(taskSection.text)
-    remainingBudget = taskSection.remainingBudget - 2 // account for \n\n separator
-  }
-
-  const eventSection = fitMemorySection(
-    'Recent episodic context:',
-    memoryBundle.recentEvents.slice(0, 3).map(buildMemoryEventLine),
-    remainingBudget,
-  )
-  if (eventSection.text) {
-    sections.push(eventSection.text)
-  }
-
-  if (sections.length === 0) {
-    return ''
-  }
-
-  return `[MEMORY]\n${sections.join('\n\n')}\n[/MEMORY]`
 }
 
 export function getRecentConversationHistory(messages: IMessage[], limit: number): IMessage[] {
@@ -358,7 +241,7 @@ export function buildChatPrompt(userMessage: string, context: ChatContext): stri
   )
   const characterTraits = truncateText(context.characterTraits, MAX_CHARACTER_TRAITS_LENGTH)
   const boundedUserMessage = truncateText(userMessage, MAX_USER_MESSAGE_LENGTH)
-  const memoryBlock = buildMemoryBlock(context.memoryBundle)
+  const memoryBlock = context.memoryBlock ?? ''
 
   // Start with full conversation history, then trim iteratively if prompt exceeds budget
   let conversationHistory = buildConversationHistory(
@@ -469,10 +352,11 @@ export const sendMessageWithAIResponse = async (
     }
     const effectiveContext = dbCharacter?.context ?? character.context
 
-    let memoryBundle: MemoryBundle | null = null
+    let memoryBlock: string | undefined
     if (options?.hasUnlimited) {
       try {
-        memoryBundle = await fetchMemoryBundle(userId, character.id, userMessage.text)
+        const bundle = await getWiki().read(character.id, userMessage.text)
+        memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
       } catch (error) {
         console.warn('Failed to fetch memory bundle:', error)
       }
@@ -487,7 +371,7 @@ export const sendMessageWithAIResponse = async (
         role: msg.user._id === userId ? 'user' : 'assistant',
         content: msg.text,
       })),
-      memoryBundle,
+      memoryBlock,
     }
 
     // 3. Create AI response message ID
@@ -515,11 +399,10 @@ export const sendMessageWithAIResponse = async (
       const chunk = recentMessages
         .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
         .join('\n')
-      void dispatchWikiWrite({
-        character,
-        userId,
-        chunk: chunk || userMessage.text,
-      })
+      void getWiki().write(character.id, {
+        event_type: 'observation',
+        summary: chunk || userMessage.text,
+      }).catch((err: unknown) => console.warn('[wiki] write failed:', err))
     }
     return { usageSnapshot: toUsageSnapshot(aiResponse) }
   } catch (error) {
