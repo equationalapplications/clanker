@@ -270,7 +270,8 @@ export default function EditCharacterScreen() {
         } catch (importErr) {
           if (importErr instanceof WikiBusyError) {
             importSucceeded = false
-            // Cloud sync succeeded; local merge skipped because wiki is busy. Will apply on next sync.
+            // Cloud sync succeeded; local merge skipped because wiki is busy.
+            // The remote dump will be merged on the next manual or automatic sync.
           } else {
             throw importErr
           }
