@@ -6,7 +6,7 @@ import { View, StyleSheet, Pressable, AppState, Text } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { Stack, router } from 'expo-router'
-import { WikiProvider } from '@equationalapplications/expo-llm-wiki/react'
+import { WikiProvider } from '@equationalapplications/expo-llm-wiki'
 import { getWiki } from '~/services/wikiService'
 
 import { KeyboardProvider } from 'react-native-keyboard-controller'

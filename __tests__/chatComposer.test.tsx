@@ -9,13 +9,10 @@ jest.mock('react-native-gifted-chat', () => {
   }
 })
 
-jest.mock('@equationalapplications/expo-llm-wiki/react', () => ({
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   useWikiIngest: () => ({ execute: jest.fn().mockResolvedValue({ chunks: 1 }), isPending: false }),
   useWikiHasChanged: () => ({ execute: jest.fn().mockResolvedValue(true) }),
   useWikiForget: () => ({ execute: jest.fn().mockResolvedValue({ deleted: { entries: 0, tasks: 0 } }), lastResult: null }),
-}))
-
-jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
 }))
 
