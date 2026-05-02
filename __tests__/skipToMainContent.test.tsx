@@ -23,6 +23,7 @@ jest.mock('react-native-paper', () => ({
 
 jest.mock('~/components/LandingPage/HeroSection', () => () => null)
 jest.mock('~/components/LandingPage/FeaturesSection', () => () => null)
+jest.mock('~/components/LandingPage/ComingSoonSection', () => () => null)
 jest.mock('~/components/LandingPage/LandingFooter', () => () => null)
 
 import LandingPage from '~/components/LandingPage'
