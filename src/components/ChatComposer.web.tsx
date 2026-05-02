@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native'
+import { ActivityIndicator, View, StyleSheet } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Snackbar, Portal } from 'react-native-paper'
@@ -46,13 +46,18 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
     try {
       // expo-file-system doesn't support blob/object URLs on web; use fetch instead.
-      // Normalize line-endings for consistent cross-platform hashing.
+      // Strip BOM/null bytes and normalize to NFC for consistent cross-platform hashing
+      // regardless of editor/OS encoding quirks, then normalize line endings.
       const response = await fetch(uri)
       if (!response.ok) {
         throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`)
       }
       const raw = await response.text()
-      const documentChunk = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+      const documentChunk = raw
+        .replace(/^\uFEFF/, '')   // strip UTF-8 BOM
+        .replace(/\0/g, '')       // strip null bytes
+        .normalize('NFC')         // canonical Unicode form
+        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')  // normalize line endings
       const sourceHash = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         documentChunk,
@@ -60,17 +65,8 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
       const changed = await hasChanged(characterId, sourceRef, sourceHash)
       if (!changed) {
-        const proceed = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            'Document Already Added',
-            `"${sourceRef}" has already been ingested. Add it again?`,
-            [
-              { text: 'Add Anyway', onPress: () => resolve(true) },
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-            ],
-          )
-        })
-        if (!proceed) return
+        setToastMessage(`"${sourceRef}" has already been added. Remove and re-add to update.`)
+        return
       }
 
       const ingestResult = await ingestDocument(characterId, {
