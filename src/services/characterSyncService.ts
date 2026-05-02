@@ -71,7 +71,7 @@ async function setLastSyncTime(): Promise<void> {
 async function syncWikiForCloud(localUserId: string): Promise<void> {
     const localChars = await getAllCharactersIncludingDeleted(localUserId)
     const cloudChars = localChars.filter(
-        (c) => c.save_to_cloud && c.cloud_id && UUID_REGEX.test(c.cloud_id)
+        (c) => c.save_to_cloud && c.cloud_id && UUID_REGEX.test(c.cloud_id) && !c.deleted_at
     )
     if (cloudChars.length === 0) return
 
@@ -212,7 +212,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
             // After insert, pull wiki memory for cloud-linked characters on this device.
             // syncWikiForCloud re-queries the DB so it picks up the newly inserted rows.
             const cloudLinked = cloudChars.filter(
-                (c) => c.save_to_cloud && c.cloud_id && UUID_REGEX.test(c.cloud_id)
+                (c) => c.save_to_cloud && c.cloud_id && UUID_REGEX.test(c.cloud_id) && !c.deleted_at
             )
             if (cloudLinked.length > 0) {
                 try {

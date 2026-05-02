@@ -6,7 +6,7 @@ import { IconButton, Snackbar, Portal } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
-import { useWikiIngest, useWikiHasChanged } from '@equationalapplications/expo-llm-wiki/react'
+import { useWikiIngest, useWikiHasChanged, useWikiForget } from '@equationalapplications/expo-llm-wiki/react'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
@@ -32,6 +32,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
   const { execute: ingestDocument, isPending: isIngesting } = useWikiIngest()
   const { execute: hasChanged } = useWikiHasChanged()
+  const { execute: forgetBySource } = useWikiForget()
 
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
@@ -64,9 +65,12 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
       const changed = await hasChanged(characterId, sourceRef, sourceHash)
       if (!changed) {
-        setToastMessage(`"${sourceRef}" has already been added. Remove and re-add to update.`)
+        setToastMessage(`"${sourceRef}" is already up to date.`)
         return
       }
+
+      // Remove stale facts from a previous version of this document before re-ingesting.
+      await forgetBySource(characterId, { sourceRef })
 
       const ingestResult = await ingestDocument(characterId, {
         sourceRef,
@@ -83,7 +87,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         setToastMessage('Failed to ingest document.')
       }
     }
-  }, [characterId, userId, ingestDocument, hasChanged])
+  }, [characterId, userId, ingestDocument, hasChanged, forgetBySource])
 
   const sendCurrentText = useCallback(() => {
     const trimmedText = text?.trim()

@@ -169,6 +169,8 @@ export const llmWikiEntries = pgTable('llm_wiki_entries', {
   pk: primaryKey({ columns: [table.id, table.userId] }),
   entityUserIdx: index('llm_wiki_entries_entity_user_idx').on(table.entityId, table.userId),
   updatedAtIdx: index('llm_wiki_entries_updated_at_idx').on(table.updatedAt),
+  confidenceCheck: check('llm_wiki_entries_confidence_check', sql`${table.confidence} IN ('certain', 'inferred', 'tentative')`),
+  sourceTypeCheck: check('llm_wiki_entries_source_type_check', sql`${table.sourceType} IN ('user_stated', 'agent_inferred', 'user_confirmed', 'user_document')`),
 }));
 
 export const llmWikiTasks = pgTable('llm_wiki_tasks', {
@@ -185,6 +187,7 @@ export const llmWikiTasks = pgTable('llm_wiki_tasks', {
 }, (table) => ({
   pk: primaryKey({ columns: [table.id, table.userId] }),
   entityStatusIdx: index('llm_wiki_tasks_entity_status_idx').on(table.entityId, table.userId, table.status),
+  statusCheck: check('llm_wiki_tasks_status_check', sql`${table.status} IN ('pending', 'in_progress', 'done', 'abandoned')`),
 }));
 
 export const llmWikiEvents = pgTable('llm_wiki_events', {
@@ -197,4 +200,5 @@ export const llmWikiEvents = pgTable('llm_wiki_events', {
 }, (table) => ({
   pk: primaryKey({ columns: [table.id, table.userId] }),
   entityCreatedIdx: index('llm_wiki_events_entity_created_idx').on(table.entityId, table.userId, table.createdAt),
+  eventTypeCheck: check('llm_wiki_events_event_type_check', sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`),
 }));
