@@ -26,9 +26,7 @@ export function buildCharacterUpdateValues(character: CharacterUpdateInput) {
     updatedAt: character.updatedAt ?? new Date(),
   };
 
-  const withSaveToCloud = character.saveToCloud === undefined
-    ? updateValues
-    : { ...updateValues, saveToCloud: character.saveToCloud };
+  const withSaveToCloud = { ...updateValues, ...(character.saveToCloud !== undefined && { saveToCloud: character.saveToCloud }) };
 
   if (character.isPublic === undefined) {
     return withSaveToCloud;
