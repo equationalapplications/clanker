@@ -209,6 +209,18 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
 
         if (cloudChars.length > 0) {
             await batchInsertCharacters(cloudChars)
+            // After insert, pull wiki memory for cloud-linked characters on this device.
+            // syncWikiForCloud re-queries the DB so it picks up the newly inserted rows.
+            const cloudLinked = cloudChars.filter(
+                (c) => c.save_to_cloud && c.cloud_id && UUID_REGEX.test(c.cloud_id)
+            )
+            if (cloudLinked.length > 0) {
+                try {
+                    await syncWikiForCloud(localUserId)
+                } catch (error) {
+                    console.warn('[restoreFromCloud] Wiki sync for restored characters failed:', error)
+                }
+            }
         }
     } catch (error) {
         reportError(error, 'restoreFromCloud')

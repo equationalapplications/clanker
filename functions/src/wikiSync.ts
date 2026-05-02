@@ -18,10 +18,14 @@ interface WikiFact {
   body: string;
   confidence: string;
   tags: string[];
+  source_type?: string | null;
   source_ref?: string | null;
   source_hash?: string | null;
+  last_accessed_at?: number | null;
+  access_count?: number | null;
   created_at: number;
   updated_at: number;
+  deleted_at?: number | null;
 }
 
 interface WikiTask {
@@ -33,6 +37,7 @@ interface WikiTask {
   created_at: number;
   updated_at: number;
   resolved_at?: number | null;
+  deleted_at?: number | null;
 }
 
 interface WikiEvent {
@@ -109,6 +114,9 @@ function validateFact(fact: unknown, entityId: string, label: string): void {
   if (f.source_hash !== undefined && f.source_hash !== null && typeof f.source_hash !== "string") {
     throw new HttpsError("invalid-argument", `${label}.source_hash must be a string or null.`);
   }
+  if (f.deleted_at !== undefined && f.deleted_at !== null && typeof f.deleted_at !== "number") {
+    throw new HttpsError("invalid-argument", `${label}.deleted_at must be a number or null.`);
+  }
   assertNumber(f.created_at, `${label}.created_at`);
   assertNumber(f.updated_at, `${label}.updated_at`);
 }
@@ -130,6 +138,9 @@ function validateTask(task: unknown, entityId: string, label: string): void {
   assertNumber(t.priority, `${label}.priority`);
   assertNumber(t.created_at, `${label}.created_at`);
   assertNumber(t.updated_at, `${label}.updated_at`);
+  if (t.deleted_at !== undefined && t.deleted_at !== null && typeof t.deleted_at !== "number") {
+    throw new HttpsError("invalid-argument", `${label}.deleted_at must be a number or null.`);
+  }
 }
 
 function validateEvent(event: unknown, entityId: string, label: string): void {
@@ -270,10 +281,14 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
           body: r.body,
           confidence: r.confidence,
           tags: r.tags as string[],
+          source_type: r.sourceType ?? null,
           source_ref: r.sourceRef ?? null,
           source_hash: r.sourceHash ?? null,
+          last_accessed_at: r.lastAccessedAt ?? null,
+          access_count: r.accessCount ?? 0,
           created_at: r.createdAt,
           updated_at: r.updatedAt,
+          deleted_at: r.deletedAt ?? null,
         })),
       tasks: (tasksByEntity.get(entityId) ?? []).map((r) => ({
           id: r.id,
@@ -284,6 +299,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
           created_at: r.createdAt,
           updated_at: r.updatedAt,
           resolved_at: r.resolvedAt ?? null,
+          deleted_at: r.deletedAt ?? null,
         })),
       events: (eventsByEntity.get(entityId) ?? []).map((r) => ({
           id: r.id,
@@ -317,8 +333,12 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               tags: f.tags,
               sourceRef: f.source_ref ?? null,
               sourceHash: f.source_hash ?? null,
+              sourceType: f.source_type ?? "agent_inferred",
+              lastAccessedAt: f.last_accessed_at ?? null,
+              accessCount: f.access_count ?? 0,
               createdAt: f.created_at,
               updatedAt: f.updated_at,
+              deletedAt: f.deleted_at ?? null,
             }))
           )
           .onConflictDoUpdate({
@@ -330,7 +350,11 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               tags: sql`excluded.tags`,
               sourceRef: sql`excluded.source_ref`,
               sourceHash: sql`excluded.source_hash`,
+              sourceType: sql`excluded.source_type`,
+              lastAccessedAt: sql`excluded.last_accessed_at`,
+              accessCount: sql`excluded.access_count`,
               updatedAt: sql`excluded.updated_at`,
+              deletedAt: sql`excluded.deleted_at`,
             },
             where: sql`excluded.updated_at > ${llmWikiEntries.updatedAt}`,
           });
@@ -350,6 +374,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               createdAt: t.created_at,
               updatedAt: t.updated_at,
               resolvedAt: t.resolved_at ?? null,
+              deletedAt: t.deleted_at ?? null,
             }))
           )
           .onConflictDoUpdate({
@@ -360,6 +385,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               priority: sql`excluded.priority`,
               updatedAt: sql`excluded.updated_at`,
               resolvedAt: sql`excluded.resolved_at`,
+              deletedAt: sql`excluded.deleted_at`,
             },
             where: sql`excluded.updated_at > ${llmWikiTasks.updatedAt}`,
           });

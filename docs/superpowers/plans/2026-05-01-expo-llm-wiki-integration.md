@@ -837,7 +837,7 @@ Expected: no errors.
 
 ---
 
-## Task 10: Update characterSyncService.ts — Wiki Sync + Prune
+## Task 10: Update characterSyncService.ts — Wiki Sync + Prune + Restore
 
 **Files:**
 - Modify: `src/services/characterSyncService.ts`
@@ -925,7 +925,28 @@ try {
 }
 ```
 
-- [ ] **Step 4: Typecheck**
+- [ ] **Step 4: After restoreFromCloud() imports cloud characters, pull wiki for restored cloud-linked chars**
+
+Locate `restoreFromCloud()` function. After the `batchInsertCharacters(cloudChars)` call, add:
+
+```ts
+if (cloudChars.length > 0) {
+  // Reuse syncWikiForCloud helper for restored cloud-linked characters only
+  const cloudLinked = cloudChars.filter((c) => c.save_to_cloud && c.cloud_id && UUID_REGEX.test(c.cloud_id))
+  if (cloudLinked.length > 0) {
+    try {
+      await syncWikiForCloud(localUserId)  // Helper filters to save_to_cloud=1 only
+    } catch (error) {
+      console.warn('[restoreFromCloud] Wiki sync for restored characters failed:', error)
+      // Non-fatal: characters restored even if wiki sync fails
+    }
+  }
+}
+```
+
+**Rationale:** On a fresh device, `syncAllToCloud()` runs early and calls `syncWikiForCloud()`, which finds no local cloud-linked characters and returns early. `restoreFromCloud()` then imports cloud characters. By calling the helper after restore completes, the client now has local character IDs and can export empty dumps, receive remote wiki bundles, and import them locally under the correct character IDs. This ensures wiki memories are available immediately after character restore.
+
+- [ ] **Step 5: Typecheck**
 
 ```bash
 npm run typecheck
@@ -1114,7 +1135,244 @@ Expected: all 5 tests pass.
 
 ---
 
-## Task 12: Create functions/src/wikiLlm.ts + Test
+## Task 12: Update functions/src/wikiSync.ts — Types + Deletion Handling
+
+**Files:**
+- Modify: `functions/src/db/schema.ts` (schema columns)
+- Modify: `functions/src/wikiSync.ts` (types, validation, upsert, fetch)
+
+**Scope:** Add `deletedAt` (and missing package mirror fields) to the `llmWikiEntries` and `llmWikiTasks` Drizzle schema first, then update the server-side types, validators, upsert logic, and dump-fetch logic to include and propagate `deleted_at` tombstones for last-write-wins (LWW) delete conflict resolution.
+
+> **Dependency note:** Schema columns must be added before the TypeScript type changes in Steps 2–5. Running `npm run typecheck` after Step 1 and before Step 2 should still pass. After Step 2 onwards, typecheck validates the new field references against the extended schema.
+
+- [ ] **Step 0: Add missing columns to `llmWikiEntries` and `llmWikiTasks` in schema.ts**
+
+In `functions/src/db/schema.ts`, extend the `llmWikiEntries` table definition with:
+
+```ts
+export const llmWikiEntries = pgTable('llm_wiki_entries', {
+  // ... existing columns ...
+  sourceType: text('source_type').notNull().default('agent_inferred'),  // ADD
+  lastAccessedAt: bigint('last_accessed_at', { mode: 'number' }),       // ADD
+  accessCount: integer('access_count').notNull().default(0),            // ADD
+  deletedAt: bigint('deleted_at', { mode: 'number' }),                  // ADD: tombstone
+  // ... existing indexes ...
+})
+```
+
+Extend `llmWikiTasks` with:
+
+```ts
+export const llmWikiTasks = pgTable('llm_wiki_tasks', {
+  // ... existing columns ...
+  deletedAt: bigint('deleted_at', { mode: 'number' }),  // ADD: tombstone
+})
+```
+
+Then generate the migration:
+
+```bash
+cd functions && npm run drizzle:generate
+```
+
+Verify a new migration file is created in `functions/drizzle/` containing `ALTER TABLE llm_wiki_entries ADD COLUMN ...` and `ALTER TABLE llm_wiki_tasks ADD COLUMN ...`.
+
+- [ ] **Step 1: Update WikiFact and WikiTask interface definitions**
+
+Locate the `interface WikiFact { ... }` and `interface WikiTask { ... }` definitions near the top. Add `deleted_at` field:
+
+```ts
+interface WikiFact {
+  id: string;
+  entity_id: string;
+  title: string;
+  body: string;
+  confidence: string;
+  tags: string[];
+  source_type: string;              // ADD if missing
+  source_ref?: string | null;
+  source_hash?: string | null;
+  created_at: number;
+  updated_at: number;
+  last_accessed_at?: number | null; // ADD if missing
+  access_count?: number;            // ADD if missing
+  deleted_at?: number | null;       // ADD: tombstone marker
+}
+
+interface WikiTask {
+  id: string;
+  entity_id: string;
+  description: string;
+  status: string;
+  priority: number;
+  created_at: number;
+  updated_at: number;
+  resolved_at?: number | null;
+  deleted_at?: number | null;       // ADD: tombstone marker
+}
+```
+
+- [ ] **Step 2: Update validators to accept deleted_at**
+
+In `validateFact()`, add a check after `updated_at`:
+
+```ts
+function validateFact(fact: unknown, entityId: string, label: string): void {
+  // ... existing checks ...
+  assertNumber(f.updated_at, `${label}.updated_at`);
+  // ADD:
+  if (f.deleted_at !== undefined && f.deleted_at !== null && typeof f.deleted_at !== 'number') {
+    throw new HttpsError('invalid-argument', `${label}.deleted_at must be a number or null.`);
+  }
+}
+```
+
+Same for `validateTask()`:
+
+```ts
+function validateTask(task: unknown, entityId: string, label: string): void {
+  // ... existing checks ...
+  assertNumber(t.updated_at, `${label}.updated_at`);
+  // ADD:
+  if (t.deleted_at !== undefined && t.deleted_at !== null && typeof t.deleted_at !== 'number') {
+    throw new HttpsError('invalid-argument', `${label}.deleted_at must be a number or null.`);
+  }
+}
+```
+
+- [ ] **Step 3: Update upsertWikiData() to include deletedAt in inserts/updates**
+
+Locate the `upsertWikiData()` function. Update the insert and onConflictDoUpdate blocks:
+
+```ts
+await tx
+  .insert(llmWikiEntries)
+  .values(
+    bundle.facts.map((f) => ({
+      id: f.id,
+      entityId,
+      userId,
+      title: f.title,
+      body: f.body,
+      confidence: f.confidence,
+      tags: f.tags,
+      sourceType: f.source_type,           // ADD if missing
+      sourceRef: f.source_ref ?? null,
+      sourceHash: f.source_hash ?? null,
+      createdAt: f.created_at,
+      updatedAt: f.updated_at,
+      lastAccessedAt: f.last_accessed_at ?? null,  // ADD if missing
+      accessCount: f.access_count ?? 0,   // ADD if missing
+      deletedAt: f.deleted_at ?? null,    // ADD: include tombstone from incoming dump
+    }))
+  )
+  .onConflictDoUpdate({
+    target: [llmWikiEntries.id, llmWikiEntries.userId],
+    set: {
+      title: sql`excluded.title`,
+      body: sql`excluded.body`,
+      confidence: sql`excluded.confidence`,
+      tags: sql`excluded.tags`,
+      sourceType: sql`excluded.source_type`,         // ADD if missing
+      sourceRef: sql`excluded.source_ref`,
+      sourceHash: sql`excluded.source_hash`,
+      updatedAt: sql`excluded.updated_at`,
+      lastAccessedAt: sql`excluded.last_accessed_at`,  // ADD if missing
+      accessCount: sql`excluded.access_count`,      // ADD if missing
+      deletedAt: sql`excluded.deleted_at`,          // ADD: LWW includes tombstone
+    },
+    where: sql`excluded.updated_at > ${llmWikiEntries.updatedAt}`,  // LWW: newer timestamp wins
+  });
+```
+
+Same for `llmWikiTasks`:
+
+```ts
+await tx
+  .insert(llmWikiTasks)
+  .values(
+    bundle.tasks.map((t) => ({
+      id: t.id,
+      entityId,
+      userId,
+      description: t.description,
+      status: t.status,
+      priority: t.priority,
+      createdAt: t.created_at,
+      updatedAt: t.updated_at,
+      resolvedAt: t.resolved_at ?? null,
+      deletedAt: t.deleted_at ?? null,  // ADD: include tombstone from incoming dump
+    }))
+  )
+  .onConflictDoUpdate({
+    target: [llmWikiTasks.id, llmWikiTasks.userId],
+    set: {
+      description: sql`excluded.description`,
+      status: sql`excluded.status`,
+      priority: sql`excluded.priority`,
+      updatedAt: sql`excluded.updated_at`,
+      resolvedAt: sql`excluded.resolved_at`,
+      deletedAt: sql`excluded.deleted_at`,  // ADD: LWW includes tombstone
+    },
+    where: sql`excluded.updated_at > ${llmWikiTasks.updatedAt}`,  // LWW: newer timestamp wins
+  });
+```
+
+- [ ] **Step 4: Update fetchMergedDump() to include all rows (including deleted) and map deleted_at**
+
+In `fetchMergedDump()`, the query already fetches all rows. Update the mapping to include `deleted_at`:
+
+```ts
+for (const entityId of entityIds) {
+  entities[entityId] = {
+    facts: (factsByEntity.get(entityId) ?? []).map((r) => ({
+      id: r.id,
+      entity_id: r.entityId,
+      title: r.title,
+      body: r.body,
+      confidence: r.confidence,
+      tags: r.tags as string[],
+      source_type: r.sourceType,           // ADD if missing
+      source_ref: r.sourceRef ?? null,
+      source_hash: r.sourceHash ?? null,
+      created_at: r.createdAt,
+      updated_at: r.updatedAt,
+      last_accessed_at: r.lastAccessedAt ?? null,  // ADD if missing
+      access_count: r.accessCount ?? 0,   // ADD if missing
+      deleted_at: r.deletedAt ?? null,    // ADD: include tombstone for LWW on client
+    })),
+    tasks: (tasksByEntity.get(entityId) ?? []).map((r) => ({
+      id: r.id,
+      entity_id: r.entityId,
+      description: r.description,
+      status: r.status,
+      priority: r.priority,
+      created_at: r.createdAt,
+      updated_at: r.updatedAt,
+      resolved_at: r.resolvedAt ?? null,
+      deleted_at: r.deletedAt ?? null,    // ADD: include tombstone for LWW on client
+    })),
+    events: (eventsByEntity.get(entityId) ?? []).map((r) => ({
+      id: r.id,
+      entity_id: r.entityId,
+      event_type: r.eventType,
+      summary: r.summary,
+      created_at: r.createdAt,
+    })),
+  };
+}
+```
+
+- [ ] **Step 5: Typecheck**
+
+```bash
+npm run typecheck
+```
+Expected: no errors.
+
+---
+
+## Task 13: Create functions/src/wikiLlm.ts + Test
 
 **Files:**
 - Create: `functions/src/wikiLlm.ts`
@@ -1343,13 +1601,13 @@ Expected: 3 tests pass.
 
 ---
 
-## Task 13: Update functions/src/db/schema.ts + Cloud SQL Migration
+## Task 14: Update functions/src/db/schema.ts + Cloud SQL Migration
 
 **Files:**
 - Modify: `functions/src/db/schema.ts`
 - Create: `functions/drizzle/XXXX_wiki_sync_tables.sql` (generated)
 
-The old `wikiEntries` (timestamp-based), `agentTasks`, and `memoryEvents` tables are dropped. New `wikiEntries`, `wikiTasks`, `wikiEvents` are created with bigint unix-ms timestamps for LWW by `updated_at`. The old exported symbols are removed since `memoryFunctions.ts` (the only consumer) is being deleted.
+The old `wikiEntries` (timestamp-based), `agentTasks`, and `memoryEvents` tables are dropped. New `wikiEntries`, `wikiTasks`, `wikiEvents` are created with bigint unix-ms timestamps for LWW by `updated_at`, with `deleted_at` for tombstone-based deletion propagation. The old exported symbols are removed since `memoryFunctions.ts` (the only consumer) is being deleted.
 
 - [ ] **Step 1: Remove old table definitions, add new ones in functions/src/db/schema.ts**
 
@@ -1367,11 +1625,14 @@ saveToCloud: boolean('save_to_cloud').notNull().default(false),
 
 This column gates wiki sync on the server. The client sets it when the user enables cloud sync for a character.
 
-Add these new wiki tables at the bottom:
+**Add these new wiki tables with `deleted_at` column for tombstone support:**
 
 ```ts
 import { bigint } from 'drizzle-orm/pg-core'  // add to existing import if not present
 
+Add at the end of `functions/src/db/schema.ts`:
+
+```ts
 export const wikiEntries = pgTable('wiki_entries', {
   id: text('id').primaryKey(),
   characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
@@ -1387,7 +1648,7 @@ export const wikiEntries = pgTable('wiki_entries', {
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   lastAccessedAt: bigint('last_accessed_at', { mode: 'number' }),
   accessCount: integer('access_count').notNull().default(0),
-  deletedAt: bigint('deleted_at', { mode: 'number' }),
+  deletedAt: bigint('deleted_at', { mode: 'number' }),  // Tombstone: null = active, number = soft-deleted at timestamp
 }, (table) => ({
   characterIdIdx: index('wiki_entries_character_id_idx').on(table.characterId),
   updatedAtIdx: index('wiki_entries_updated_at_idx').on(table.updatedAt.desc()),
@@ -1486,408 +1747,6 @@ Expected: `[ 'wiki_entries', 'wiki_events', 'wiki_tasks' ]`
 
 ---
 
-## Task 14: Create functions/src/wikiSync.ts + Test
-
-**Files:**
-- Create: `functions/src/wikiSync.ts`
-- Create: `functions/src/wikiSync.test.ts`
-
-Implements LWW upsert logic. For entries and tasks: INSERT if not exists; UPDATE if incoming `updated_at > existing.updated_at`. For events: INSERT if not exists (append-only, no `updated_at`).
-
-- [ ] **Step 1: Write the failing test**
-
-```ts
-// functions/src/wikiSync.test.ts
-import { describe, it, beforeEach } from 'node:test'
-import assert from 'node:assert/strict'
-
-const mockGetUserByFirebaseUid = () => Promise.resolve({ id: 'user-uuid-1' })
-const mockGetSubscription = () =>
-  Promise.resolve({ planTier: 'monthly_20', planStatus: 'active', hasUnlimited: true })
-const mockGetSubscriptionFree = () =>
-  Promise.resolve({ planTier: 'free', planStatus: 'active', hasUnlimited: false })
-
-// Track DB operations
-const insertedEntries: Record<string, any>[] = []
-const insertedTasks: Record<string, any>[] = []
-const insertedEvents: Record<string, any>[] = []
-
-const mockGetCharacter = async (characterId: string) => ({
-  id: characterId,
-  userId: 'user-uuid-1',
-  saveToCloud: true,
-})
-
-describe('wikiSync', () => {
-  beforeEach(() => {
-    insertedEntries.length = 0
-    insertedTasks.length = 0
-    insertedEvents.length = 0
-  })
-
-  it('throws unauthenticated for missing auth', async () => {
-    const { wikiSyncHandler } = await import('./wikiSync.js')
-    await assert.rejects(
-      () =>
-        wikiSyncHandler({ characterId: 'char-1', dump: { generatedAt: 1, entities: {} } }, {
-          auth: null,
-          userRepository: { getOrCreateUserByFirebaseIdentity: mockGetUserByFirebaseUid },
-          subscriptionService: { getSubscription: mockGetSubscription },
-          getCharacter: mockGetCharacter,
-          upsertEntries: async () => {},
-          upsertTasks: async () => {},
-          appendEvents: async () => {},
-          fetchBundle: async () => ({ facts: [], tasks: [], events: [] }),
-        }),
-      (err: any) => { assert.equal(err.code, 'unauthenticated'); return true },
-    )
-  })
-
-  it('throws permission-denied for non-premium', async () => {
-    const { wikiSyncHandler } = await import('./wikiSync.js')
-    await assert.rejects(
-      () =>
-        wikiSyncHandler({ characterId: 'char-1', dump: { generatedAt: 1, entities: {} } }, {
-          auth: { uid: 'fb-1' },
-          userRepository: { getOrCreateUserByFirebaseIdentity: mockGetUserByFirebaseUid },
-          subscriptionService: { getSubscription: mockGetSubscriptionFree },
-          getCharacter: mockGetCharacter,
-          upsertEntries: async () => {},
-          upsertTasks: async () => {},
-          appendEvents: async () => {},
-          fetchBundle: async () => ({ facts: [], tasks: [], events: [] }),
-        }),
-      (err: any) => { assert.equal(err.code, 'permission-denied'); return true },
-    )
-  })
-
-  it('throws permission-denied when save_to_cloud is false', async () => {
-    const { wikiSyncHandler } = await import('./wikiSync.js')
-    await assert.rejects(
-      () =>
-        wikiSyncHandler({ characterId: 'char-uuid-1', dump: { generatedAt: 1, entities: {} } }, {
-          auth: { uid: 'fb-1' },
-          userRepository: { getOrCreateUserByFirebaseIdentity: mockGetUserByFirebaseUid },
-          subscriptionService: { getSubscription: mockGetSubscription },
-          getCharacter: async () => ({ id: 'char-uuid-1', userId: 'user-uuid-1', saveToCloud: false }),
-          upsertEntries: async () => {},
-          upsertTasks: async () => {},
-          appendEvents: async () => {},
-          fetchBundle: async () => ({ facts: [], tasks: [], events: [] }),
-        }),
-      (err: any) => { assert.equal(err.code, 'permission-denied'); return true },
-    )
-  })
-
-  it('LWW: newer incoming entry overwrites cloud; older does not', async () => {
-    let upsertCalled = false
-    const { wikiSyncHandler } = await import('./wikiSync.js')
-    await wikiSyncHandler(
-      {
-        characterId: 'char-uuid-1',
-        dump: {
-          generatedAt: Date.now(),
-          entities: {
-            'char-local-1': {
-              facts: [
-                { id: 'entry-1', entity_id: 'char-local-1', title: 'Fact', body: 'Body', tags: [], confidence: 'certain',
-                  source_type: 'agent_inferred', source_hash: null, source_ref: null,
-                  created_at: 1000, updated_at: 2000, last_accessed_at: null, access_count: 0,
-                  deleted_at: null },
-              ],
-              tasks: [],
-              events: [],
-            },
-          },
-        },
-      },
-      {
-        auth: { uid: 'fb-1' },
-        userRepository: { getOrCreateUserByFirebaseIdentity: mockGetUserByFirebaseUid },
-        subscriptionService: { getSubscription: mockGetSubscription },
-        getCharacter: async () => ({ id: 'char-uuid-1', userId: 'user-uuid-1', saveToCloud: true }),
-        upsertEntries: async (entries: any[]) => { upsertCalled = true; insertedEntries.push(...entries) },
-        upsertTasks: async () => {},
-        appendEvents: async () => {},
-        fetchBundle: async () => ({ facts: [], tasks: [], events: [] }),
-      },
-    )
-    assert.ok(upsertCalled, 'upsertEntries should have been called')
-    assert.equal(insertedEntries.length, 1)
-    assert.equal(insertedEntries[0].id, 'entry-1')
-  })
-})
-```
-
-- [ ] **Step 2: Implement functions/src/wikiSync.ts**
-
-```ts
-// functions/src/wikiSync.ts
-import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https'
-import * as logger from 'firebase-functions/logger'
-import { eq, sql } from 'drizzle-orm'
-import type { DecodedIdToken } from 'firebase-admin/auth'
-
-import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
-import { PREMIUM_TIERS } from './constants/plans.js'
-import { userRepository } from './services/userRepository.js'
-import { subscriptionService } from './services/subscriptionService.js'
-import { getDb } from './db/cloudSql.js'
-import { characters, wikiEntries, wikiTasks, wikiEvents } from './db/schema.js'
-
-const DEFAULT_REGION = 'us-central1'
-
-// ----- Local types matching package MemoryDump shape -----
-interface WikiFact {
-  id: string; entity_id: string; title: string; body: string; tags: string[]
-  confidence: string; source_type: string; source_hash: string | null; source_ref: string | null
-  created_at: number; updated_at: number; last_accessed_at: number | null
-  access_count: number; deleted_at: number | null
-}
-interface WikiTask {
-  id: string; entity_id: string; description: string; status: string; priority: number
-  created_at: number; updated_at: number; resolved_at: number | null; deleted_at: number | null
-}
-interface WikiEvent {
-  id: string; entity_id: string; event_type: string; summary: string; related_entry_id?: string | null
-  created_at: number
-}
-interface MemoryBundle { facts: WikiFact[]; tasks: WikiTask[]; events: WikiEvent[] }
-interface MemoryDump { generatedAt: number; entities: Record<string, MemoryBundle> }
-
-interface WikiSyncPayload { characterId?: unknown; dump?: unknown }
-
-interface WikiSyncDeps {
-  auth: DecodedIdToken | null
-  userRepository: Pick<typeof userRepository, 'getOrCreateUserByFirebaseIdentity'>
-  subscriptionService: Pick<typeof subscriptionService, 'getSubscription'>
-  getCharacter: (id: string) => Promise<{ id: string; userId: string; saveToCloud: boolean } | null>
-  upsertEntries: (entries: WikiFact[], characterId: string, userId: string) => Promise<void>
-  upsertTasks: (tasks: WikiTask[], characterId: string, userId: string) => Promise<void>
-  appendEvents: (events: WikiEvent[], characterId: string, userId: string) => Promise<void>
-  fetchBundle: (characterId: string) => Promise<{ facts: WikiFact[]; tasks: WikiTask[]; events: WikiEvent[] }>
-}
-
-export async function wikiSyncHandler(
-  data: WikiSyncPayload,
-  deps: WikiSyncDeps,
-): Promise<{ remoteDump: MemoryDump }> {
-  if (!deps.auth) throw new HttpsError('unauthenticated', 'Authentication required.')
-
-  const characterId = typeof data.characterId === 'string' && data.characterId.trim()
-    ? data.characterId.trim()
-    : null
-  if (!characterId) throw new HttpsError('invalid-argument', 'characterId must be a non-empty string.')
-
-  const user = await deps.userRepository.getOrCreateUserByFirebaseIdentity({
-    firebaseUid: deps.auth.uid,
-    email: (deps.auth as any).email ?? '',
-    displayName: (deps.auth as any).name ?? null,
-    avatarUrl: (deps.auth as any).picture ?? null,
-  })
-
-  const subscription = await deps.subscriptionService.getSubscription(user.id)
-  const hasUnlimited =
-    PREMIUM_TIERS.has(subscription?.planTier ?? '') && subscription?.planStatus === 'active'
-  if (!hasUnlimited) throw new HttpsError('permission-denied', 'Wiki sync requires a premium subscription.')
-
-  const char = await deps.getCharacter(characterId)
-  if (!char || char.userId !== user.id) throw new HttpsError('not-found', 'Character not found.')
-  if (!char.saveToCloud) throw new HttpsError('permission-denied', 'Character is not enabled for cloud sync.')
-
-  const dump = data.dump as MemoryDump | undefined
-  if (dump?.entities) {
-    for (const entityBundle of Object.values(dump.entities)) {
-      if (entityBundle.facts?.length) {
-        await deps.upsertEntries(entityBundle.facts, characterId, user.id)
-      }
-      if (entityBundle.tasks?.length) {
-        await deps.upsertTasks(entityBundle.tasks, characterId, user.id)
-      }
-      if (entityBundle.events?.length) {
-        await deps.appendEvents(entityBundle.events, characterId, user.id)
-      }
-    }
-  }
-
-  const merged = await deps.fetchBundle(characterId)
-  const remoteDump: MemoryDump = {
-    generatedAt: Date.now(),
-    entities: { [characterId]: merged },
-  }
-
-  logger.info('wikiSync: synced', { characterId, userId: user.id })
-  return { remoteDump }
-}
-
-// --- Default DB implementations ---
-async function defaultUpsertEntries(
-  facts: WikiFact[],
-  characterId: string,
-  userId: string,
-): Promise<void> {
-  const db = await getDb()
-  for (const fact of facts) {
-    await db.insert(wikiEntries).values({
-      id: fact.id,
-      characterId,
-      userId,
-      title: fact.title,
-      body: fact.body,
-      tags: fact.tags,
-      confidence: fact.confidence,
-      sourceType: fact.source_type,
-      sourceHash: fact.source_hash,
-      sourceRef: fact.source_ref,
-      createdAt: fact.created_at,
-      updatedAt: fact.updated_at,
-      lastAccessedAt: fact.last_accessed_at,
-      accessCount: fact.access_count,
-      deletedAt: fact.deleted_at,
-    }).onConflictDoUpdate({
-      target: wikiEntries.id,
-      set: {
-        title: sql`EXCLUDED.title`,
-        body: sql`EXCLUDED.body`,
-        tags: sql`EXCLUDED.tags`,
-        confidence: sql`EXCLUDED.confidence`,
-        sourceType: sql`EXCLUDED.source_type`,
-        sourceHash: sql`EXCLUDED.source_hash`,
-        sourceRef: sql`EXCLUDED.source_ref`,
-        updatedAt: sql`EXCLUDED.updated_at`,
-        lastAccessedAt: sql`EXCLUDED.last_accessed_at`,
-        accessCount: sql`EXCLUDED.access_count`,
-        deletedAt: sql`EXCLUDED.deleted_at`,
-      },
-      setWhere: sql`${wikiEntries.updatedAt} < EXCLUDED.updated_at`,
-    })
-  }
-}
-
-async function defaultUpsertTasks(
-  tasks: WikiTask[],
-  characterId: string,
-  userId: string,
-): Promise<void> {
-  const db = await getDb()
-  for (const task of tasks) {
-    await db.insert(wikiTasks).values({
-      id: task.id,
-      characterId,
-      userId,
-      description: task.description,
-      status: task.status,
-      priority: task.priority,
-      createdAt: task.created_at,
-      updatedAt: task.updated_at,
-      resolvedAt: task.resolved_at,
-      deletedAt: task.deleted_at,
-    }).onConflictDoUpdate({
-      target: wikiTasks.id,
-      set: {
-        description: sql`EXCLUDED.description`,
-        status: sql`EXCLUDED.status`,
-        priority: sql`EXCLUDED.priority`,
-        updatedAt: sql`EXCLUDED.updated_at`,
-        resolvedAt: sql`EXCLUDED.resolved_at`,
-        deletedAt: sql`EXCLUDED.deleted_at`,
-      },
-      setWhere: sql`${wikiTasks.updatedAt} < EXCLUDED.updated_at`,
-    })
-  }
-}
-
-async function defaultAppendEvents(
-  events: WikiEvent[],
-  characterId: string,
-  userId: string,
-): Promise<void> {
-  const db = await getDb()
-  for (const event of events) {
-    await db.insert(wikiEvents).values({
-      id: event.id,
-      characterId,
-      userId,
-      eventType: event.event_type,
-      summary: event.summary,
-      relatedEntryId: event.related_entry_id,
-      createdAt: event.created_at,
-    }).onConflictDoNothing()
-  }
-}
-
-async function defaultFetchBundle(characterId: string) {
-  const db = await getDb()
-  const [facts, tasks, events] = await Promise.all([
-    db.select().from(wikiEntries).where(eq(wikiEntries.characterId, characterId)),
-    db.select().from(wikiTasks).where(eq(wikiTasks.characterId, characterId)),
-    db.select().from(wikiEvents).where(eq(wikiEvents.characterId, characterId)),
-  ])
-  return {
-    facts: facts.map((f) => ({
-      id: f.id, entity_id: f.characterId, title: f.title, body: f.body,
-      tags: (f.tags as string[]) ?? [],
-      confidence: f.confidence, source_type: f.sourceType,
-      source_hash: f.sourceHash, source_ref: f.sourceRef,
-      created_at: f.createdAt, updated_at: f.updatedAt,
-      last_accessed_at: f.lastAccessedAt, access_count: f.accessCount,
-      deleted_at: f.deletedAt,
-    })),
-    tasks: tasks.map((t) => ({
-      id: t.id, entity_id: t.characterId, description: t.description, status: t.status, priority: t.priority,
-      created_at: t.createdAt, updated_at: t.updatedAt,
-      resolved_at: t.resolvedAt, deleted_at: t.deletedAt,
-    })),
-    events: events.map((e) => ({
-      id: e.id, entity_id: e.characterId, event_type: e.eventType, summary: e.summary,
-      related_entry_id: e.relatedEntryId, created_at: e.createdAt,
-    })),
-    // Note: entity_id here is the cloud characterId (UUID). The client remaps via
-    // remappedDump so importDump uses char.id (local UUID) as the outer key — it
-    // ignores fact.entity_id at write time but the field must be present for type-safety.
-  }
-}
-
-async function defaultGetCharacter(characterId: string) {
-  const db = await getDb()
-  const char = await db.select({ id: characters.id, userId: characters.userId, saveToCloud: characters.saveToCloud })
-    .from(characters)
-    .where(eq(characters.id, characterId))
-    .limit(1)
-  return char[0] ? { id: char[0].id, userId: char[0].userId, saveToCloud: char[0].saveToCloud } : null
-}
-
-const defaultDeps = {
-  userRepository,
-  subscriptionService,
-  getCharacter: defaultGetCharacter,
-  upsertEntries: defaultUpsertEntries,
-  upsertTasks: defaultUpsertTasks,
-  appendEvents: defaultAppendEvents,
-  fetchBundle: defaultFetchBundle,
-}
-
-export const wikiSync = onCall(
-  { region: DEFAULT_REGION, secrets: CLOUD_SQL_SECRETS },
-  async (request: CallableRequest<WikiSyncPayload>) => {
-    return wikiSyncHandler(request.data, {
-      ...defaultDeps,
-      // Mirror generateReply.ts pattern: request.auth.token is the DecodedIdToken
-      auth: request.auth ? (request.auth.token as DecodedIdToken) : null,
-    })
-  },
-)
-```
-
-- [ ] **Step 3: Build and run wikiSync tests**
-
-```bash
-cd functions && npm run build && node --test lib/wikiSync.test.js
-```
-Expected: 3 tests pass.
-
----
-
 ## Task 15: Update functions/src/index.ts + Exports
 
 **Files:**
@@ -1970,7 +1829,281 @@ rm __tests__/chatComposerDocumentIngest.test.tsx
 
 ---
 
-## Task 17: Final Verification
+## Task 17: Add Deletion Propagation Tests (functions/src/wikiSync.test.ts)
+
+**Files:**
+- Modify: `functions/src/wikiSync.test.ts`
+
+**Scope:** Add tests to verify that `deleted_at` tombstones are accepted in incoming dumps, that LWW conflict resolution works for delete vs active states, and that tombstones are included in the `remoteDump` response.
+
+> **Test file uses `node:test` + `node:assert/strict`.** All tests in this file use plain `async` functions and dependency-injected options (no Vitest, no Jest). Follow the same pattern as the existing tests in `functions/src/wikiSync.test.ts`.
+
+- [ ] **Step 1: Add test for deleted_at field acceptance**
+
+Add after the existing validation tests (use the same `buildDump()` + `buildAuth()` + `buildUser()` + `buildSubscription()` helpers that already exist in the file):
+
+```ts
+test('wikiSync: accepts fact with deleted_at tombstone', async () => {
+  const auth = buildAuth()
+  const user = buildUser(auth)
+
+  const dump = buildDump()
+  // Add deleted_at to the existing fact
+  dump.entities[TEST_ENTITY_UUID].facts[0] = {
+    ...dump.entities[TEST_ENTITY_UUID].facts[0],
+    deleted_at: 1_700_000_000_000,
+  }
+
+  // Should not throw during validation
+  const request = { auth, data: { dump } }
+  let upsertCalledWith: unknown[] = []
+  await wikiSyncHandler(request as unknown as CallableRequest, {
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, 'monthly_20'),
+    validateEntityOwnership: async () => {},
+    upsertEntries: async (entries: unknown[]) => { upsertCalledWith = entries },
+    fetchMergedDump: async () => ({ generatedAt: Date.now(), entities: {} }),
+  })
+
+  const upserted = upsertCalledWith[0] as Record<string, unknown>
+  assert.equal(upserted.deletedAt, 1_700_000_000_000,
+    'deletedAt should be passed through to upsertEntries')
+})
+```
+
+- [ ] **Step 2: Add test that deleted_at null (active) is accepted**
+
+```ts
+test('wikiSync: accepts fact with deleted_at null (active row)', async () => {
+  const auth = buildAuth()
+  const user = buildUser(auth)
+
+  const dump = buildDump()
+  dump.entities[TEST_ENTITY_UUID].facts[0] = {
+    ...dump.entities[TEST_ENTITY_UUID].facts[0],
+    deleted_at: null,
+  }
+
+  const request = { auth, data: { dump } }
+  let upsertCalledWith: unknown[] = []
+  await wikiSyncHandler(request as unknown as CallableRequest, {
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, 'monthly_20'),
+    validateEntityOwnership: async () => {},
+    upsertEntries: async (entries: unknown[]) => { upsertCalledWith = entries },
+    fetchMergedDump: async () => ({ generatedAt: Date.now(), entities: {} }),
+  })
+
+  const upserted = upsertCalledWith[0] as Record<string, unknown>
+  assert.equal(upserted.deletedAt, null,
+    'deletedAt null should be passed through to upsertEntries')
+})
+```
+
+- [ ] **Step 3: Add test that invalid deleted_at is rejected**
+
+```ts
+test('wikiSync: rejects fact with non-numeric deleted_at', async () => {
+  const auth = buildAuth()
+  const user = buildUser(auth)
+
+  const dump = buildDump()
+  // Inject invalid deleted_at
+  ;(dump.entities[TEST_ENTITY_UUID].facts[0] as Record<string, unknown>).deleted_at = 'not-a-number'
+
+  const request = { auth, data: { dump } }
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, 'monthly_20'),
+      validateEntityOwnership: async () => {},
+      upsertEntries: async () => {},
+      fetchMergedDump: async () => ({ generatedAt: Date.now(), entities: {} }),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, 'invalid-argument')
+      assert.match(err.message, /deleted_at must be a number or null/)
+      return true
+    }
+  )
+})
+```
+
+- [ ] **Step 4: Add test that fetchMergedDump propagates tombstones in remoteDump response**
+
+```ts
+test('wikiSync: remoteDump includes tombstoned facts from fetchMergedDump', async () => {
+  const auth = buildAuth()
+  const user = buildUser(auth)
+
+  const tombstonedFact = {
+    id: 'fact-deleted',
+    entity_id: TEST_ENTITY_UUID,
+    title: 'Old Fact',
+    body: 'Deleted body',
+    confidence: 'certain',
+    tags: [],
+    source_ref: null,
+    source_hash: null,
+    created_at: 1_000_000,
+    updated_at: 1_000_500,
+    deleted_at: 1_000_500,  // tombstone
+  }
+
+  const request = { auth, data: { dump: buildDump() } }
+  const result = await wikiSyncHandler(request as unknown as CallableRequest, {
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, 'monthly_20'),
+    validateEntityOwnership: async () => {},
+    upsertEntries: async () => {},
+    fetchMergedDump: async () => ({
+      generatedAt: Date.now(),
+      entities: {
+        [TEST_ENTITY_UUID]: { facts: [tombstonedFact], tasks: [], events: [] },
+      },
+    }),
+  })
+
+  const returnedFact = result.remoteDump.entities[TEST_ENTITY_UUID].facts[0]
+  assert.equal(returnedFact.deleted_at, 1_000_500,
+    'remoteDump should include tombstoned fact with deleted_at set')
+})
+```
+
+- [ ] **Step 5: Build and test**
+
+```bash
+cd functions && npm run build && node --test lib/wikiSync.test.js
+```
+Expected: all deletion-related tests pass.
+
+---
+
+## Task 18: Add Restore + Wiki Integration Tests (characterSyncWiki.test.ts)
+
+**Files:**
+- Modify: `__tests__/characterSyncWiki.test.ts`
+
+**Scope:** Add tests to verify that fresh device restore calls wiki sync for restored cloud-linked characters, that local character IDs are used for import, and that non-cloud-linked characters are skipped.
+
+> **Test file uses Jest** (`jest.fn()`, `mockResolvedValue()`, etc.). Follow the same mocking patterns as the existing tests in `__tests__/characterSyncWiki.test.ts` — see the top of that file for `mockExportDump`, `mockImportDump`, `mockWikiSyncFn`, and character database mocks.
+
+> **Note on `syncWikiForCloud` visibility:** The function `syncWikiForCloud` in `characterSyncService.ts` is a private module-level function. Tests should drive it indirectly through the exported `restoreFromCloud` or `syncAllToCloud` functions, then assert on mock call counts, not call the private helper directly.
+
+- [ ] **Step 1: Add test for restore calling wiki sync for cloud-linked chars**
+
+```ts
+it('restoreFromCloud calls wiki sync for cloud-linked characters after insert', async () => {
+  const CLOUD_UUID = '00000000-0000-0000-0000-000000000001'
+  const cloudChars = [
+    { id: 'local-c1', cloud_id: CLOUD_UUID, name: 'Cloud Char', save_to_cloud: 1, deleted_at: null },
+  ]
+
+  // restoreFromCloud fetches cloud chars then inserts them
+  mockGetUserCharactersFn.mockResolvedValueOnce({ data: cloudChars })
+  mockGetAllCharactersIncludingDeleted.mockResolvedValue(cloudChars)
+
+  mockExportDump.mockResolvedValue({ generatedAt: Date.now(), entities: { 'local-c1': { facts: [], tasks: [], events: [] } } })
+  mockWikiSyncFn.mockResolvedValue({ data: { remoteDump: { generatedAt: Date.now(), entities: {} } } })
+  mockImportDump.mockResolvedValue(undefined)
+  mockRunPrune.mockResolvedValue(undefined)
+
+  await restoreFromCloud('user-1')
+
+  expect(mockWikiSyncFn).toHaveBeenCalledWith(
+    expect.objectContaining({ characterId: CLOUD_UUID })
+  )
+})
+```
+
+- [ ] **Step 2: Add test that fresh device receives remote facts and imports under local char id**
+
+```ts
+it('restoreFromCloud: empty local export receives remote facts and imports with local char id', async () => {
+  const CLOUD_UUID = '00000000-0000-0000-0000-000000000002'
+  const LOCAL_CHAR_ID = 'local-c2'
+  const cloudChars = [
+    { id: LOCAL_CHAR_ID, cloud_id: CLOUD_UUID, name: 'Char', save_to_cloud: 1, deleted_at: null },
+  ]
+
+  mockGetUserCharactersFn.mockResolvedValueOnce({ data: cloudChars })
+  mockGetAllCharactersIncludingDeleted.mockResolvedValue(cloudChars)
+
+  // Fresh device: local export is empty
+  mockExportDump.mockResolvedValue({ generatedAt: 1, entities: { [LOCAL_CHAR_ID]: { facts: [], tasks: [], events: [] } } })
+
+  const remoteFact = { id: 'f1', entity_id: CLOUD_UUID, title: 'Cloud Fact', body: 'body',
+    confidence: 'certain', tags: [], source_ref: null, source_hash: null,
+    created_at: 1000, updated_at: 2000, deleted_at: null }
+  mockWikiSyncFn.mockResolvedValue({
+    data: {
+      remoteDump: {
+        generatedAt: 2,
+        entities: { [CLOUD_UUID]: { facts: [remoteFact], tasks: [], events: [] } },
+      },
+    },
+  })
+  mockImportDump.mockResolvedValue(undefined)
+  mockRunPrune.mockResolvedValue(undefined)
+
+  await restoreFromCloud('user-1')
+
+  // importDump should be called with entities keyed by LOCAL_CHAR_ID (remapped from CLOUD_UUID)
+  expect(mockImportDump).toHaveBeenCalledWith(
+    expect.objectContaining({
+      entities: expect.objectContaining({ [LOCAL_CHAR_ID]: expect.anything() }),
+    }),
+    expect.objectContaining({ merge: true })
+  )
+})
+```
+
+- [ ] **Step 3: Add test that non-cloud-linked chars don't trigger wiki sync**
+
+```ts
+it('restoreFromCloud does not call wiki sync for characters without save_to_cloud', async () => {
+  const cloudChars = [
+    { id: 'local-c3', cloud_id: null, name: 'Local Only', save_to_cloud: 0, deleted_at: null },
+  ]
+
+  mockGetUserCharactersFn.mockResolvedValueOnce({ data: cloudChars })
+  mockGetAllCharactersIncludingDeleted.mockResolvedValue(cloudChars)
+
+  await restoreFromCloud('user-1')
+
+  expect(mockWikiSyncFn).not.toHaveBeenCalled()
+})
+```
+
+- [ ] **Step 4: Add test that wiki sync failure does not abort character restore**
+
+```ts
+it('restoreFromCloud: wiki sync failure does not prevent character insert', async () => {
+  const CLOUD_UUID = '00000000-0000-0000-0000-000000000003'
+  const cloudChars = [
+    { id: 'local-c4', cloud_id: CLOUD_UUID, name: 'Char', save_to_cloud: 1, deleted_at: null },
+  ]
+
+  mockGetUserCharactersFn.mockResolvedValueOnce({ data: cloudChars })
+  mockGetAllCharactersIncludingDeleted.mockResolvedValue(cloudChars)
+  mockExportDump.mockResolvedValue({ generatedAt: 1, entities: {} })
+  mockWikiSyncFn.mockRejectedValue(new Error('network error'))
+
+  // Should not throw; characters were already inserted before wiki sync
+  await expect(restoreFromCloud('user-1')).resolves.not.toThrow()
+})
+```
+
+- [ ] **Step 5: Run tests**
+
+```bash
+npm run test -- __tests__/characterSyncWiki.test.ts
+```
+Expected: all restore+wiki tests pass.
+
+---
+
+## Task 19: Final Verification
 
 **Files:**
 - No changes
@@ -2028,22 +2161,25 @@ When all checks pass, run `git diff --stat` to see all changed files, then do a 
 | `synonymMapBase.ts` passed as `WikiConfig.synonymMap` | Task 2 |
 | `wiki.read()` pre-turn, `formatContext()` for [MEMORY] block | Task 7 |
 | `wiki.write()` fire-and-forget post-turn | Task 7 |
-| `wikiLlm` callable: auth + premium + Vertex proxy, no credits | Task 12 |
-| `wikiSync` callable: LWW upsert + return remoteDump | Task 14 |
+| `wikiLlm` callable: auth + premium + Vertex proxy, no credits | Task 13 |
+| `wikiSync` callable: LWW upsert + return remoteDump; includes `deleted_at` in merge | Task 14 |
 | Background sync: `wikiSync` called from `syncAllToCloud` | Task 10 |
+| Wiki sync for fresh device restore: after `restoreFromCloud` | Task 10 |
 | User-initiated sync: `useWikiExport` hook on character edit screen | Task 10b |
 | Old memory + documentExtract callables removed from both `firebaseConfig.ts` and `firebaseConfig.web.ts` | Task 6 |
 | `wikiHealMachine`, `documentIngestMachine`, old DB files deleted | Task 16 |
-| Cloud SQL migration generated and applied | Task 13 |
+| Cloud SQL migration with `deleted_at` columns for tombstone support | Task 14 |
 | + button: `useWikiHasChanged` + `useWikiIngest`; unchanged → notified; `WikiBusyError` surfaced | Task 8 |
 | Chat screen inline `ingesting` / `librarian` indicators | Task 9 |
 | `runPrune` after successful sync only; `WikiBusyError` caught | Task 10 |
 | Schema v17: drop old SQLite tables | Task 3 |
-| `saveToCloud` column on Cloud SQL `characters`; server gate in `wikiSync` | Task 13 + Task 14 |
-| `npm run typecheck && npm run lint && npm run test` green | Task 17 |
-| `cd functions && npm run typecheck && npm run lint && npm run build && node --test` green | Task 17 |
+| `saveToCloud` column on Cloud SQL `characters`; server gate in `wikiSync` | Task 14 |
+| Deletion propagation: `deleted_at` accepted + LWW + included in remoteDump | Task 12 + Task 17 |
+| Fresh device restore: empty local export → server remote bundle → import with local char id | Task 18 |
+| `npm run typecheck && npm run lint && npm run test` green | Task 19 |
+| `cd functions && npm run typecheck && npm run lint && npm run build && node --test` green | Task 19 |
 
 ### Notes
 
 - **No cloud functions are deleted at this stage.** All files under `functions/src/` that exist before this integration — including `memoryFunctions.ts`, `memoryFunctions.test.ts`, `documentExtract` (if present), and any other callables — are intentionally left in place. Only client-side callable *declarations* (`documentExtractFn`, old memory callables) are removed from the app configs, since their app-side consumers are deleted. The cloud functions themselves will be cleaned up in a separate step after retirement.
-- No commits are made during implementation. After Task 17 passes, review the full diff locally and commit.
+- No commits are made during implementation. After Task 19 passes, review the full diff locally and commit.
