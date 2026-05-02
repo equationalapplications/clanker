@@ -549,3 +549,72 @@ test("wikiSync: last-write-wins semantics via upsertData injection", async () =>
   assert.equal(store.get("lww-fact")?.body, "newer body", "stale update must not overwrite newer version");
 });
 
+test("wikiSync: propagates tombstones (deleted_at) for cross-device deletion", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const baseFact = {
+    id: "deletion-fact",
+    entity_id: TEST_ENTITY_UUID,
+    title: "T",
+    body: "content",
+    confidence: "inferred",
+    tags: [],
+    source_ref: null,
+    source_hash: null,
+    created_at: 100,
+  };
+
+  // Client imports a normal (non-deleted) fact.
+  const importDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [{...baseFact, updated_at: 100}],
+        tasks: [],
+        events: [],
+      },
+    },
+  };
+
+  // Cloud SQL state: the same fact but with deleted_at set on another device.
+  // fetchMergedDump returns this tombstone so deletion propagates.
+  const remoteDumpWithTombstone = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [{...baseFact, updated_at: 200, deleted_at: 200}],
+        tasks: [],
+        events: [],
+      },
+    },
+  };
+
+  let upsertCalled = false;
+  const upsertData = async (dump: MemoryDump) => {
+    upsertCalled = true;
+    // Verify that upsertData receives the client's importDump (non-deleted).
+    const fact = dump.entities[TEST_ENTITY_UUID]?.facts?.[0];
+    assert(fact, "importDump must be passed to upsertData");
+  };
+
+  const validateEntityOwnership = async () => {};
+  const fetchMergedDump = async () => remoteDumpWithTombstone;
+
+  const result = await wikiSyncHandler({auth, data: {dump: importDump}} as unknown as CallableRequest, {
+    upsertData,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+  });
+
+  assert(upsertCalled, "upsertData must be called");
+
+  // Verify that remoteDump includes the tombstone for client merge.
+  const remoteFact = result.remoteDump.entities[TEST_ENTITY_UUID]?.facts?.[0];
+  assert(remoteFact, "remoteDump must include the fact");
+  assert.equal(remoteFact.deleted_at, 200, "tombstone deleted_at must be included in remoteDump");
+  assert.equal(remoteFact.updated_at, 200, "tombstone updated_at must be included in remoteDump");
+});
+

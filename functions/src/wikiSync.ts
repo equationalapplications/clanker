@@ -1,7 +1,7 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {inArray, and, eq, sql, isNull, gte, desc} from "drizzle-orm";
+import {inArray, and, eq, sql, gte, desc} from "drizzle-orm";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
@@ -246,21 +246,20 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   }
   const db = await getDb();
 
-  // Only return non-deleted rows; tombstoned entries are kept in cloud SQL for LWW
-  // conflict resolution but should not be re-imported to client devices.
+  // Return all rows including tombstones (rows with deleted_at set). Tombstoned entries
+  // are preserved in cloud SQL for LWW conflict resolution and must be re-imported to
+  // client devices so deletions made on one device propagate to others.
   const [allFacts, allTasks, allEvents] = await Promise.all([
     db.select().from(llmWikiEntries).where(
       and(
         inArray(llmWikiEntries.entityId, entityIds),
         eq(llmWikiEntries.userId, userId),
-        isNull(llmWikiEntries.deletedAt),
       )
     ),
     db.select().from(llmWikiTasks).where(
       and(
         inArray(llmWikiTasks.entityId, entityIds),
         eq(llmWikiTasks.userId, userId),
-        isNull(llmWikiTasks.deletedAt),
       )
     ),
     db.select().from(llmWikiEvents).where(
