@@ -282,64 +282,41 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
     return {generatedAt: Date.now(), entities: {}};
   }
   const db = await getDb();
+  const retentionCutoff = Date.now() - WIKI_EVENTS_RETENTION_MS;
 
+  // Run per-entity queries in parallel so each entity is independently capped at
+  // MAX_*_PER_ENTITY rows. A single inArray query with a global LIMIT cannot guarantee
+  // per-entity bounds: one busy entity could fill the limit and starve others.
   // Return all rows including tombstones (rows with deleted_at set). Tombstoned entries
   // are preserved in cloud SQL for LWW conflict resolution and must be re-imported to
   // client devices so deletions made on one device propagate to others.
-  const [allFacts, allTasks, allEvents] = await Promise.all([
-    db.select().from(llmWikiEntries).where(
-      and(
-        inArray(llmWikiEntries.entityId, entityIds),
-        eq(llmWikiEntries.userId, userId),
-      )
-    ).orderBy(desc(llmWikiEntries.updatedAt)).limit(MAX_FACTS_PER_ENTITY * entityIds.length),
-    db.select().from(llmWikiTasks).where(
-      and(
-        inArray(llmWikiTasks.entityId, entityIds),
-        eq(llmWikiTasks.userId, userId),
-      )
-    ).orderBy(desc(llmWikiTasks.updatedAt)).limit(MAX_TASKS_PER_ENTITY * entityIds.length),
-    db.select().from(llmWikiEvents).where(
-      and(
-        inArray(llmWikiEvents.entityId, entityIds),
-        eq(llmWikiEvents.userId, userId),
-        gte(llmWikiEvents.createdAt, Date.now() - WIKI_EVENTS_RETENTION_MS),
-      )
-    ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY * entityIds.length),
+  const [factArrays, taskArrays, eventArrays] = await Promise.all([
+    Promise.all(entityIds.map((entityId) =>
+      db.select().from(llmWikiEntries).where(
+        and(eq(llmWikiEntries.entityId, entityId), eq(llmWikiEntries.userId, userId))
+      ).orderBy(desc(llmWikiEntries.updatedAt)).limit(MAX_FACTS_PER_ENTITY)
+    )),
+    Promise.all(entityIds.map((entityId) =>
+      db.select().from(llmWikiTasks).where(
+        and(eq(llmWikiTasks.entityId, entityId), eq(llmWikiTasks.userId, userId))
+      ).orderBy(desc(llmWikiTasks.updatedAt)).limit(MAX_TASKS_PER_ENTITY)
+    )),
+    Promise.all(entityIds.map((entityId) =>
+      db.select().from(llmWikiEvents).where(
+        and(
+          eq(llmWikiEvents.entityId, entityId),
+          eq(llmWikiEvents.userId, userId),
+          gte(llmWikiEvents.createdAt, retentionCutoff),
+        )
+      ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY)
+    )),
   ]);
 
   const entities: Record<string, MemoryBundle> = {};
-
-  // Group DB rows by entityId once (O(n)) to avoid repeated linear scans.
-  // Per-entity caps are applied during grouping to keep response size bounded.
-  const factsByEntity = new Map<string, typeof allFacts>();
-  for (const r of allFacts) {
-    const arr = factsByEntity.get(r.entityId) ?? [];
-    if (arr.length < MAX_FACTS_PER_ENTITY) {
-      arr.push(r);
-      factsByEntity.set(r.entityId, arr);
-    }
-  }
-  const tasksByEntity = new Map<string, typeof allTasks>();
-  for (const r of allTasks) {
-    const arr = tasksByEntity.get(r.entityId) ?? [];
-    if (arr.length < MAX_TASKS_PER_ENTITY) {
-      arr.push(r);
-      tasksByEntity.set(r.entityId, arr);
-    }
-  }
-  const eventsByEntity = new Map<string, typeof allEvents>();
-  for (const r of allEvents) {
-    const arr = eventsByEntity.get(r.entityId) ?? [];
-    if (arr.length < MAX_EVENTS_PER_ENTITY) {
-      arr.push(r);
-      eventsByEntity.set(r.entityId, arr);
-    }
-  }
-
-  for (const entityId of entityIds) {
+  for (let i = 0; i < entityIds.length; i++) {
+    const entityId = entityIds[i];
     entities[entityId] = {
-      facts: (factsByEntity.get(entityId) ?? []).map((r) => ({
+      facts: factArrays[i].map((r) => ({
           id: r.id,
           entity_id: r.entityId,
           title: r.title,
@@ -355,7 +332,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
           updated_at: r.updatedAt,
           deleted_at: r.deletedAt ?? null,
         })),
-      tasks: (tasksByEntity.get(entityId) ?? []).map((r) => ({
+      tasks: taskArrays[i].map((r) => ({
           id: r.id,
           entity_id: r.entityId,
           description: r.description,
@@ -366,7 +343,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
           resolved_at: r.resolvedAt ?? null,
           deleted_at: r.deletedAt ?? null,
         })),
-      events: (eventsByEntity.get(entityId) ?? []).map((r) => ({
+      events: eventArrays[i].map((r) => ({
           id: r.id,
           entity_id: r.entityId,
           event_type: r.eventType,

@@ -618,3 +618,136 @@ test("wikiSync: propagates tombstones (deleted_at) for cross-device deletion", a
   assert.equal(remoteFact.updated_at, 200, "tombstone updated_at must be included in remoteDump");
 });
 
+/** Helper: build a minimal valid fact for a given entityId. */
+function buildFact(entityId: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "f1",
+    entity_id: entityId,
+    title: "T",
+    body: "B",
+    confidence: "inferred",
+    tags: [],
+    source_ref: null,
+    source_hash: null,
+    created_at: 1000,
+    updated_at: 1001,
+    ...overrides,
+  };
+}
+
+function buildDumpWithFact(fact: Record<string, unknown>): object {
+  return {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {facts: [fact], tasks: [], events: []},
+    },
+  };
+}
+
+async function rejectsFact(
+  user: ReturnType<typeof buildUser>,
+  auth: ReturnType<typeof buildAuth>,
+  fact: Record<string, unknown>,
+  messagePattern: RegExp
+): Promise<void> {
+  const request = {auth, data: {dump: buildDumpWithFact(fact)}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, messagePattern);
+      return true;
+    }
+  );
+}
+
+test("wikiSync: rejects invalid confidence value", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  await rejectsFact(user, auth, buildFact(TEST_ENTITY_UUID, {confidence: "unknown"}), /confidence must be one of/);
+});
+
+test("wikiSync: rejects invalid source_type value", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  await rejectsFact(user, auth, buildFact(TEST_ENTITY_UUID, {source_type: "bad_type"}), /source_type must be one of/);
+});
+
+test("wikiSync: rejects float last_accessed_at", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  await rejectsFact(user, auth, buildFact(TEST_ENTITY_UUID, {last_accessed_at: 1.5}), /last_accessed_at must be an integer/);
+});
+
+test("wikiSync: rejects NaN last_accessed_at", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  await rejectsFact(user, auth, buildFact(TEST_ENTITY_UUID, {last_accessed_at: NaN}), /last_accessed_at must be an integer/);
+});
+
+test("wikiSync: rejects Infinity last_accessed_at", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  await rejectsFact(user, auth, buildFact(TEST_ENTITY_UUID, {last_accessed_at: Infinity}), /last_accessed_at must be an integer/);
+});
+
+test("wikiSync: rejects float access_count", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  await rejectsFact(user, auth, buildFact(TEST_ENTITY_UUID, {access_count: 1.5}), /access_count must be a non-negative integer/);
+});
+
+test("wikiSync: rejects negative access_count", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  await rejectsFact(user, auth, buildFact(TEST_ENTITY_UUID, {access_count: -1}), /access_count must be a non-negative integer/);
+});
+
+test("wikiSync: accepts fact with null optional fields", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  const fact = buildFact(TEST_ENTITY_UUID, {
+    source_type: null,
+    last_accessed_at: null,
+    access_count: null,
+    deleted_at: null,
+  });
+  const request = {auth, data: {dump: buildDumpWithFact(fact)}};
+  const validateEntityOwnership = async () => {};
+  const fetchMergedDump = async () => ({generatedAt: Date.now(), entities: {}});
+  const upsertData = async () => {};
+  const result = await wikiSyncHandler(request as unknown as CallableRequest, {
+    upsertData,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+  });
+  assert.ok(result.remoteDump, "should return remoteDump");
+});
+
+test("wikiSync: accepts fact with valid optional fields set", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  const fact = buildFact(TEST_ENTITY_UUID, {
+    source_type: "user_stated",
+    last_accessed_at: 1000000,
+    access_count: 5,
+  });
+  const request = {auth, data: {dump: buildDumpWithFact(fact)}};
+  const validateEntityOwnership = async () => {};
+  const fetchMergedDump = async () => ({generatedAt: Date.now(), entities: {}});
+  const upsertData = async () => {};
+  const result = await wikiSyncHandler(request as unknown as CallableRequest, {
+    upsertData,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+  });
+  assert.ok(result.remoteDump, "should return remoteDump");
+});
+
