@@ -92,6 +92,17 @@ function validateFact(fact: unknown, label: string): void {
   if (!Array.isArray(f.tags)) {
     throw new HttpsError("invalid-argument", `${label}.tags must be an array.`);
   }
+  f.tags.forEach((tag: unknown, i: number) => {
+    if (typeof tag !== "string") {
+      throw new HttpsError("invalid-argument", `${label}.tags[${i}] must be a string.`);
+    }
+  });
+  if (f.source_ref !== undefined && f.source_ref !== null && typeof f.source_ref !== "string") {
+    throw new HttpsError("invalid-argument", `${label}.source_ref must be a string or null.`);
+  }
+  if (f.source_hash !== undefined && f.source_hash !== null && typeof f.source_hash !== "string") {
+    throw new HttpsError("invalid-argument", `${label}.source_hash must be a string or null.`);
+  }
   assertNumber(f.created_at, `${label}.created_at`);
   assertNumber(f.updated_at, `${label}.updated_at`);
 }

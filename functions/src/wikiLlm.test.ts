@@ -89,6 +89,43 @@ test("wikiLlm: rejects missing systemPrompt", async () => {
   );
 });
 
+test("wikiLlm: rejects oversized systemPrompt", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const request = {auth, data: {systemPrompt: "x".repeat(12_001), userPrompt: "hi"}};
+  await assert.rejects(
+    () => wikiLlmHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /systemPrompt must be at most/);
+      return true;
+    }
+  );
+});
+
+test("wikiLlm: rejects oversized userPrompt", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const request = {auth, data: {systemPrompt: "sys", userPrompt: "y".repeat(12_001)}};
+  await assert.rejects(
+    () => wikiLlmHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /userPrompt must be at most/);
+      return true;
+    }
+  );
+});
+
+
 test("wikiLlm: rejects non-premium users", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);

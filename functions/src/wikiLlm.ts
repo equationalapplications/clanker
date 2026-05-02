@@ -8,6 +8,7 @@ import {PREMIUM_TIERS} from "./constants/plans.js";
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
 const MAX_OUTPUT_TOKENS = 2_048;
+const MAX_PROMPT_LENGTH = 12_000;
 
 interface WikiLlmRequest {
   systemPrompt: string;
@@ -30,9 +31,15 @@ function parseInput(data: unknown): WikiLlmRequest {
   if (typeof systemPrompt !== "string" || systemPrompt.trim().length === 0) {
     throw new HttpsError("invalid-argument", "systemPrompt is required.");
   }
+  if (systemPrompt.trim().length > MAX_PROMPT_LENGTH) {
+    throw new HttpsError("invalid-argument", `systemPrompt must be at most ${MAX_PROMPT_LENGTH} characters.`);
+  }
 
   if (typeof userPrompt !== "string" || userPrompt.trim().length === 0) {
     throw new HttpsError("invalid-argument", "userPrompt is required.");
+  }
+  if (userPrompt.trim().length > MAX_PROMPT_LENGTH) {
+    throw new HttpsError("invalid-argument", `userPrompt must be at most ${MAX_PROMPT_LENGTH} characters.`);
   }
 
   return {systemPrompt: systemPrompt.trim(), userPrompt: userPrompt.trim()};
@@ -49,7 +56,10 @@ function getTextGenerator(model = DEFAULT_MODEL) {
   return async (systemPrompt: string, userPrompt: string): Promise<string> => {
     // Dynamic import to allow mocking in tests
     const {VertexAI} = await import("@google-cloud/vertexai");
-    const project = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || "";
+    const project = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
+    if (!project) {
+      throw new HttpsError("failed-precondition", "Missing GCLOUD_PROJECT for Vertex AI.");
+    }
     const vertexAI = new VertexAI({project, location: DEFAULT_REGION});
     const generativeModel = vertexAI.getGenerativeModel({
       model,

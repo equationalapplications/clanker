@@ -136,6 +136,85 @@ test("wikiSync: rejects missing dump", async () => {
   );
 });
 
+test("wikiSync: rejects non-string tag element", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [{
+          id: "f1",
+          entity_id: TEST_ENTITY_UUID,
+          title: "T",
+          body: "B",
+          confidence: "inferred",
+          tags: ["ok", 42], // 42 is not a string
+          source_ref: null,
+          source_hash: null,
+          created_at: 1000,
+          updated_at: 1001,
+        }],
+        tasks: [],
+        events: [],
+      },
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /tags\[1\] must be a string/);
+      return true;
+    }
+  );
+});
+
+test("wikiSync: rejects non-string source_ref", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [{
+          id: "f1",
+          entity_id: TEST_ENTITY_UUID,
+          title: "T",
+          body: "B",
+          confidence: "inferred",
+          tags: [],
+          source_ref: 123, // should be string or null
+          source_hash: null,
+          created_at: 1000,
+          updated_at: 1001,
+        }],
+        tasks: [],
+        events: [],
+      },
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /source_ref must be a string or null/);
+      return true;
+    }
+  );
+});
+
+
 test("wikiSync: rejects non-UUID entity keys", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
