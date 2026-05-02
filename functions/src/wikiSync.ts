@@ -6,7 +6,7 @@ import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {getDb} from "./db/cloudSql.js";
-import {wikiEntries, wikiTasks, wikiEvents, characters} from "./db/schema.js";
+import {llmWikiEntries, llmWikiTasks, llmWikiEvents, characters} from "./db/schema.js";
 import {PREMIUM_TIERS} from "./constants/plans.js";
 
 const DEFAULT_REGION = "us-central1";
@@ -199,14 +199,14 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   const db = await getDb();
 
   const [allFacts, allTasks, allEvents] = await Promise.all([
-    db.select().from(wikiEntries).where(
-      and(inArray(wikiEntries.entityId, entityIds), eq(wikiEntries.userId, userId))
+    db.select().from(llmWikiEntries).where(
+      and(inArray(llmWikiEntries.entityId, entityIds), eq(llmWikiEntries.userId, userId))
     ),
-    db.select().from(wikiTasks).where(
-      and(inArray(wikiTasks.entityId, entityIds), eq(wikiTasks.userId, userId))
+    db.select().from(llmWikiTasks).where(
+      and(inArray(llmWikiTasks.entityId, entityIds), eq(llmWikiTasks.userId, userId))
     ),
-    db.select().from(wikiEvents).where(
-      and(inArray(wikiEvents.entityId, entityIds), eq(wikiEvents.userId, userId))
+    db.select().from(llmWikiEvents).where(
+      and(inArray(llmWikiEvents.entityId, entityIds), eq(llmWikiEvents.userId, userId))
     ),
   ]);
 
@@ -261,7 +261,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
     for (const [entityId, bundle] of Object.entries(dump.entities)) {
       if (bundle.facts && bundle.facts.length > 0) {
         await tx
-          .insert(wikiEntries)
+          .insert(llmWikiEntries)
           .values(
             bundle.facts.map((f) => ({
               id: f.id,
@@ -278,7 +278,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
             }))
           )
           .onConflictDoUpdate({
-            target: [wikiEntries.id, wikiEntries.userId],
+            target: [llmWikiEntries.id, llmWikiEntries.userId],
             set: {
               title: sql`excluded.title`,
               body: sql`excluded.body`,
@@ -288,13 +288,13 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               sourceHash: sql`excluded.source_hash`,
               updatedAt: sql`excluded.updated_at`,
             },
-            where: sql`excluded.updated_at > ${wikiEntries.updatedAt}`,
+            where: sql`excluded.updated_at > ${llmWikiEntries.updatedAt}`,
           });
       }
 
       if (bundle.tasks && bundle.tasks.length > 0) {
         await tx
-          .insert(wikiTasks)
+          .insert(llmWikiTasks)
           .values(
             bundle.tasks.map((t) => ({
               id: t.id,
@@ -309,7 +309,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
             }))
           )
           .onConflictDoUpdate({
-            target: [wikiTasks.id, wikiTasks.userId],
+            target: [llmWikiTasks.id, llmWikiTasks.userId],
             set: {
               description: sql`excluded.description`,
               status: sql`excluded.status`,
@@ -317,13 +317,13 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               updatedAt: sql`excluded.updated_at`,
               resolvedAt: sql`excluded.resolved_at`,
             },
-            where: sql`excluded.updated_at > ${wikiTasks.updatedAt}`,
+            where: sql`excluded.updated_at > ${llmWikiTasks.updatedAt}`,
           });
       }
 
       if (bundle.events && bundle.events.length > 0) {
         await tx
-          .insert(wikiEvents)
+          .insert(llmWikiEvents)
           .values(
             bundle.events.map((e) => ({
               id: e.id,

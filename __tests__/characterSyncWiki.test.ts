@@ -23,7 +23,7 @@ const mockGetWiki = jest.fn(() => ({
 }))
 
 jest.mock('~/services/wikiService', () => ({
-  getWiki: (...args: unknown[]) => mockGetWiki(...args),
+  getWiki: () => mockGetWiki(),
 }))
 
 const mockWikiSyncFn = jest.fn()
@@ -182,7 +182,7 @@ describe('syncWikiForCloud key remapping', () => {
     mockWikiSyncFn.mockResolvedValue({
       data: { remoteDump: { generatedAt: 1001, entities: { [CLOUD_ID]: { facts: [], tasks: [], events: [] } } } },
     })
-    mockImportDump.mockRejectedValue(new WikiBusyError('busy'))
+    mockImportDump.mockRejectedValue(new WikiBusyError('ingest', LOCAL_ID))
     mockRunPrune.mockResolvedValue(undefined)
 
     await syncAllToCloud('user-1')

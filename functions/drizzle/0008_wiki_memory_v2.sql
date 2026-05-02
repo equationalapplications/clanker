@@ -36,9 +36,6 @@ CREATE TABLE "llm_wiki_tasks" (
 	CONSTRAINT "llm_wiki_tasks_id_user_id_pk" PRIMARY KEY("id","user_id")
 );
 --> statement-breakpoint
-DROP TABLE "agent_tasks" CASCADE;--> statement-breakpoint
-DROP TABLE "memory_events" CASCADE;--> statement-breakpoint
-DROP TABLE "wiki_entries" CASCADE;--> statement-breakpoint
 ALTER TABLE "characters" ADD COLUMN "save_to_cloud" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "llm_wiki_entries" ADD CONSTRAINT "llm_wiki_entries_entity_id_characters_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."characters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "llm_wiki_entries" ADD CONSTRAINT "llm_wiki_entries_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
