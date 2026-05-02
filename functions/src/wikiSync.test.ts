@@ -802,3 +802,117 @@ test("wikiSync: accepts fact with valid optional fields set", async () => {
   assert.ok(result.remoteDump, "should return remoteDump");
 });
 
+const ENTITY_A = "00000000-0000-0000-0000-000000000010";
+const ENTITY_B = "00000000-0000-0000-0000-000000000011";
+
+// These tests verify that wikiSyncHandler correctly passes through multi-entity
+// fetchMergedDump results (including tombstones) in the remoteDump.  The injected
+// fetchMergedDump simulates what the real window-function SQL queries would return.
+test("wikiSync: remoteDump includes tombstones from multiple entities", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const multiEntityDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [ENTITY_A]: {
+        facts: [{
+          id: "fa1",
+          entity_id: ENTITY_A,
+          title: "Deleted Fact",
+          body: "was here",
+          confidence: "inferred",
+          tags: [],
+          source_ref: null,
+          source_hash: null,
+          created_at: 100,
+          updated_at: 200,
+          deleted_at: 200,  // tombstone
+        }],
+        tasks: [],
+        events: [],
+      },
+      [ENTITY_B]: {
+        facts: [{
+          id: "fb1",
+          entity_id: ENTITY_B,
+          title: "Live Fact",
+          body: "still here",
+          confidence: "certain",
+          tags: [],
+          source_ref: null,
+          source_hash: null,
+          created_at: 100,
+          updated_at: 150,
+          deleted_at: null,
+        }],
+        tasks: [],
+        events: [],
+      },
+    },
+  };
+
+  const importDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [ENTITY_A]: {facts: [], tasks: [], events: []},
+      [ENTITY_B]: {facts: [], tasks: [], events: []},
+    },
+  };
+
+  const result = await wikiSyncHandler({auth, data: {dump: importDump}} as unknown as CallableRequest, {
+    upsertData: async () => {},
+    validateEntityOwnership: async () => {},
+    fetchMergedDump: async () => multiEntityDump,
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+  });
+
+  // Both entities must be in remoteDump
+  assert.ok(result.remoteDump.entities[ENTITY_A], "entity A must be in remoteDump");
+  assert.ok(result.remoteDump.entities[ENTITY_B], "entity B must be in remoteDump");
+
+  // Tombstone must be propagated for entity A
+  const tombstone = result.remoteDump.entities[ENTITY_A]?.facts?.[0];
+  assert.ok(tombstone, "tombstone fact must be included");
+  assert.equal(tombstone.deleted_at, 200, "tombstone deleted_at must be preserved");
+
+  // Live fact from entity B must be present
+  const liveFact = result.remoteDump.entities[ENTITY_B]?.facts?.[0];
+  assert.ok(liveFact, "live fact must be included");
+  assert.equal(liveFact.deleted_at, null, "live fact must not be deleted");
+});
+
+test("wikiSync: fetchMergedDump is called with all entity ids from the dump", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const calledWith: string[][] = [];
+  const fakeFetchMergedDump = async (entityIds: string[]) => {
+    calledWith.push([...entityIds]);
+    return {generatedAt: Date.now(), entities: {}};
+  };
+
+  const importDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [ENTITY_A]: {facts: [], tasks: [], events: []},
+      [ENTITY_B]: {facts: [], tasks: [], events: []},
+    },
+  };
+
+  await wikiSyncHandler({auth, data: {dump: importDump}} as unknown as CallableRequest, {
+    upsertData: async () => {},
+    validateEntityOwnership: async () => {},
+    fetchMergedDump: fakeFetchMergedDump,
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+  });
+
+  assert.equal(calledWith.length, 1, "fetchMergedDump must be called exactly once");
+  const passedIds = calledWith[0];
+  assert.ok(passedIds.includes(ENTITY_A), "entity A must be passed to fetchMergedDump");
+  assert.ok(passedIds.includes(ENTITY_B), "entity B must be passed to fetchMergedDump");
+});
+
+

@@ -1,7 +1,7 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {inArray, and, eq, sql, gte, desc} from "drizzle-orm";
+import {inArray, and, eq, sql} from "drizzle-orm";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
@@ -74,8 +74,6 @@ const MAX_ENTITIES = 50;
 const MAX_FACTS_PER_ENTITY = 500;
 const MAX_TASKS_PER_ENTITY = 200;
 const MAX_EVENTS_PER_ENTITY = 500;
-/** Max entities fetched in a single concurrent batch to bound DB connection fan-out. */
-const ENTITY_BATCH_SIZE = 10;
 /** 30-day event retention window in milliseconds — matches runPrune retainEventsFor policy. */
 const WIKI_EVENTS_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -286,99 +284,122 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   const db = await getDb();
   const retentionCutoff = Date.now() - WIKI_EVENTS_RETENTION_MS;
 
+  // Use SQL window functions (ROW_NUMBER OVER PARTITION BY entity_id) to enforce
+  // per-entity caps directly in the database with a single query per table.
+  // Each entity gets its own row-number sequence so no "hot" entity can starve
+  // others. Tombstones (deleted_at NOT NULL) sort first within each partition so
+  // cross-device deletions are always included within the per-entity cap —
+  // matching the LWW deletion propagation requirement from the spec.
+  type FactRow = {
+    id: string; entity_id: string; title: string; body: string; confidence: string;
+    tags: unknown; source_ref: string | null; source_hash: string | null;
+    source_type: string; last_accessed_at: string | null; access_count: string | number;
+    created_at: string; updated_at: string; deleted_at: string | null;
+  };
+  type TaskRow = {
+    id: string; entity_id: string; description: string; status: string;
+    priority: string | number; created_at: string; updated_at: string;
+    resolved_at: string | null; deleted_at: string | null;
+  };
+  type EventRow = {
+    id: string; entity_id: string; event_type: string; summary: string; created_at: string;
+  };
+
+  const [factResult, taskResult, eventResult] = await Promise.all([
+    db.execute<FactRow>(sql`
+      WITH ranked AS (
+        SELECT *,
+          ROW_NUMBER() OVER (
+            PARTITION BY entity_id
+            ORDER BY deleted_at DESC NULLS LAST, updated_at DESC
+          ) AS rn
+        FROM llm_wiki_entries
+        WHERE entity_id = ANY(${entityIds}::uuid[])
+          AND user_id = ${userId}::uuid
+      )
+      SELECT * FROM ranked WHERE rn <= ${MAX_FACTS_PER_ENTITY}
+    `),
+    db.execute<TaskRow>(sql`
+      WITH ranked AS (
+        SELECT *,
+          ROW_NUMBER() OVER (
+            PARTITION BY entity_id
+            ORDER BY deleted_at DESC NULLS LAST, updated_at DESC
+          ) AS rn
+        FROM llm_wiki_tasks
+        WHERE entity_id = ANY(${entityIds}::uuid[])
+          AND user_id = ${userId}::uuid
+      )
+      SELECT * FROM ranked WHERE rn <= ${MAX_TASKS_PER_ENTITY}
+    `),
+    db.execute<EventRow>(sql`
+      WITH ranked AS (
+        SELECT *,
+          ROW_NUMBER() OVER (
+            PARTITION BY entity_id
+            ORDER BY created_at DESC
+          ) AS rn
+        FROM llm_wiki_events
+        WHERE entity_id = ANY(${entityIds}::uuid[])
+          AND user_id = ${userId}::uuid
+          AND created_at >= ${retentionCutoff}
+      )
+      SELECT * FROM ranked WHERE rn <= ${MAX_EVENTS_PER_ENTITY}
+    `),
+  ]);
+
   const entities: Record<string, MemoryBundle> = {};
+  for (const entityId of entityIds) {
+    entities[entityId] = {facts: [], tasks: [], events: []};
+  }
 
-  // Process entities in batches to bound the DB connection fan-out.
-  // Each batch runs 3 queries concurrently: one batch-wide query each for facts,
-  // tasks, and events for the entity IDs in `batch`.
-  //
-  // Facts and tasks are ordered with tombstones (rows with deleted_at IS NOT NULL)
-  // before live rows (deleted_at DESC NULLS LAST, updated_at DESC). This ensures
-  // the SQL LIMIT retains tombstones ahead of live rows so cross-device deletions
-  // are never dropped by the cap. An in-memory per-entity cap then clips each
-  // entity's results to MAX_*_PER_ENTITY before returning.
-  for (let batchStart = 0; batchStart < entityIds.length; batchStart += ENTITY_BATCH_SIZE) {
-    const batch = entityIds.slice(batchStart, batchStart + ENTITY_BATCH_SIZE);
+  for (const r of factResult.rows) {
+    const entity = entities[r.entity_id];
+    if (!entity) continue;
+    entity.facts.push({
+      id: r.id,
+      entity_id: r.entity_id,
+      title: r.title,
+      body: r.body,
+      confidence: r.confidence,
+      tags: (r.tags as string[]) ?? [],
+      source_type: r.source_type ?? null,
+      source_ref: r.source_ref ?? null,
+      source_hash: r.source_hash ?? null,
+      last_accessed_at: r.last_accessed_at != null ? Number(r.last_accessed_at) : null,
+      access_count: Number(r.access_count) ?? 0,
+      created_at: Number(r.created_at),
+      updated_at: Number(r.updated_at),
+      deleted_at: r.deleted_at != null ? Number(r.deleted_at) : null,
+    });
+  }
 
-    // eslint-disable-next-line no-await-in-loop
-    const [factRows, taskRows, eventRows] = await Promise.all([
-      db.select().from(llmWikiEntries).where(
-        and(inArray(llmWikiEntries.entityId, batch), eq(llmWikiEntries.userId, userId))
-      ).orderBy(
-        sql`${llmWikiEntries.deletedAt} DESC NULLS LAST`,
-        desc(llmWikiEntries.updatedAt),
-      ).limit(MAX_FACTS_PER_ENTITY * batch.length),
-      db.select().from(llmWikiTasks).where(
-        and(inArray(llmWikiTasks.entityId, batch), eq(llmWikiTasks.userId, userId))
-      ).orderBy(
-        sql`${llmWikiTasks.deletedAt} DESC NULLS LAST`,
-        desc(llmWikiTasks.updatedAt),
-      ).limit(MAX_TASKS_PER_ENTITY * batch.length),
-      db.select().from(llmWikiEvents).where(
-        and(
-          inArray(llmWikiEvents.entityId, batch),
-          eq(llmWikiEvents.userId, userId),
-          gte(llmWikiEvents.createdAt, retentionCutoff),
-        )
-      ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY * batch.length),
-    ]);
+  for (const r of taskResult.rows) {
+    const entity = entities[r.entity_id];
+    if (!entity) continue;
+    entity.tasks.push({
+      id: r.id,
+      entity_id: r.entity_id,
+      description: r.description,
+      status: r.status,
+      priority: Number(r.priority),
+      created_at: Number(r.created_at),
+      updated_at: Number(r.updated_at),
+      resolved_at: r.resolved_at != null ? Number(r.resolved_at) : null,
+      deleted_at: r.deleted_at != null ? Number(r.deleted_at) : null,
+    });
+  }
 
-    for (const entityId of batch) {
-      entities[entityId] = {
-        facts: [],
-        tasks: [],
-        events: [],
-      };
-    }
-
-    for (const r of factRows) {
-      const entity = entities[r.entityId];
-      if (!entity || entity.facts.length >= MAX_FACTS_PER_ENTITY) continue;
-      entity.facts.push({
-        id: r.id,
-        entity_id: r.entityId,
-        title: r.title,
-        body: r.body,
-        confidence: r.confidence,
-        tags: r.tags as string[],
-        source_type: r.sourceType ?? null,
-        source_ref: r.sourceRef ?? null,
-        source_hash: r.sourceHash ?? null,
-        last_accessed_at: r.lastAccessedAt ?? null,
-        access_count: r.accessCount ?? 0,
-        created_at: r.createdAt,
-        updated_at: r.updatedAt,
-        deleted_at: r.deletedAt ?? null,
-      });
-    }
-
-    for (const r of taskRows) {
-      const entity = entities[r.entityId];
-      if (!entity || entity.tasks.length >= MAX_TASKS_PER_ENTITY) continue;
-      entity.tasks.push({
-        id: r.id,
-        entity_id: r.entityId,
-        description: r.description,
-        status: r.status,
-        priority: r.priority,
-        created_at: r.createdAt,
-        updated_at: r.updatedAt,
-        resolved_at: r.resolvedAt ?? null,
-        deleted_at: r.deletedAt ?? null,
-      });
-    }
-
-    for (const r of eventRows) {
-      const entity = entities[r.entityId];
-      if (!entity || entity.events.length >= MAX_EVENTS_PER_ENTITY) continue;
-      entity.events.push({
-        id: r.id,
-        entity_id: r.entityId,
-        event_type: r.eventType,
-        summary: r.summary,
-        created_at: r.createdAt,
-      });
-    }
+  for (const r of eventResult.rows) {
+    const entity = entities[r.entity_id];
+    if (!entity) continue;
+    entity.events.push({
+      id: r.id,
+      entity_id: r.entity_id,
+      event_type: r.event_type,
+      summary: r.summary,
+      created_at: Number(r.created_at),
+    });
   }
 
   return {generatedAt: Date.now(), entities};
