@@ -441,4 +441,20 @@ describe('EditCharacterScreen - Sync Memory button', () => {
     expect(snackbars.length).toBeGreaterThan(0)
     expect(snackbars[0].props.children).toContain('Failed to sync memory')
   })
+
+  it('hides Sync Memory button for non-owner (canEdit=false)', () => {
+    const character = makeCharacter({ owner_user_id: 'other-user' })
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+    setupSelectors({ uid: 'user-1' }) // current user is user-1, owner is other-user
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const syncButton = tree.root
+      .findAll((node) => String(node.type) === 'Button')
+      .find((b) => b.props.children === 'Sync Memory')
+    expect(syncButton).toBeUndefined()
+  })
 })

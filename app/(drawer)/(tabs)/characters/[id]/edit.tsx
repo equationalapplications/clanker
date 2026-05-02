@@ -539,7 +539,7 @@ export default function EditCharacterScreen() {
             </Button>
           ) : null}
 
-          {isSubscriber && character?.save_to_cloud && character?.cloud_id ? (
+          {isSubscriber && canEdit && character?.save_to_cloud && character?.cloud_id ? (
             <Button
               mode="outlined"
               icon="brain"
