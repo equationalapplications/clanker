@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native'
-import { Text, Card, Chip, useTheme } from 'react-native-paper'
+import { Text, Card, useTheme } from 'react-native-paper'
 import { useEffect } from 'react'
 import Animated, {
   FadeInDown,
@@ -59,16 +59,17 @@ function ComingSoonCard({
       entering={FadeInDown.delay(index * 150).duration(500)}
       style={[styles.cardWrap, cardAnimStyle]}
     >
-      <Card style={[styles.card, { backgroundColor: colors.surface }]} elevation={1}>
+      <Card style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.outlineVariant }]} elevation={1}>
         <View style={styles.badgeRow}>
-          <Chip
-            compact
+          <View
             style={[styles.badge, { backgroundColor: colors.secondaryContainer }]}
-            textStyle={[styles.badgeText, { color: colors.onSecondaryContainer }]}
             accessibilityLabel="Coming soon"
+            accessible
           >
-            Coming Soon
-          </Chip>
+            <Text style={[styles.badgeText, { color: colors.onSecondaryContainer }]}>
+              Coming Soon
+            </Text>
+          </View>
         </View>
         <Card.Content style={styles.cardContent}>
           <MaterialCommunityIcons
@@ -138,6 +139,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 16,
+    borderWidth: 1,
   },
   badgeRow: {
     position: 'absolute',
@@ -146,11 +148,16 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   badge: {
-    alignSelf: 'flex-start',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   badgeText: {
     fontSize: 11,
     fontWeight: '600',
+    lineHeight: 14,
   },
   cardContent: {
     alignItems: 'center',

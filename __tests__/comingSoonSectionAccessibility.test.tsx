@@ -36,8 +36,6 @@ jest.mock('react-native-paper', () => {
         Content: ({ children, style }: any) => React.createElement('View', { style }, children),
       }
     ),
-    Chip: ({ children, accessibilityLabel, ...props }: any) =>
-      React.createElement('Chip', { accessibilityLabel, ...props }, children),
     useTheme: () => ({
       colors: {
         primary: '#000',
@@ -48,6 +46,7 @@ jest.mock('react-native-paper', () => {
         background: '#fff',
         secondaryContainer: '#eee',
         onSecondaryContainer: '#000',
+        outlineVariant: '#ccc',
       },
     }),
   }
@@ -100,11 +99,11 @@ describe('ComingSoonSection accessibility', () => {
     })
   })
 
-  it('each Coming Soon chip has accessibilityLabel "Coming soon"', () => {
-    const chips = tree.root.findAllByType('Chip')
-    expect(chips.length).toBe(2)
-    chips.forEach((chip: any) => {
-      expect(chip.props.accessibilityLabel).toBe('Coming soon')
+  it('each Coming Soon badge has accessibilityLabel "Coming soon"', () => {
+    const badges = tree.root.findAll((node: any) => node.props.accessibilityLabel === 'Coming soon')
+    expect(badges.length).toBe(2)
+    badges.forEach((badge: any) => {
+      expect(badge.props.accessibilityLabel).toBe('Coming soon')
     })
   })
 })
