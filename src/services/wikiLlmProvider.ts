@@ -1,21 +1,16 @@
 // src/services/wikiLlmProvider.ts
-import { wikiLlmFn } from '~/config/firebaseConfig'
+import { wikiLlm } from './apiClient'
 
 interface WikiLlmRequest {
   systemPrompt: string
   userPrompt: string
 }
 
-interface WikiLlmResponse {
-  text: string
-}
-
-export function createWikiLlmProvider(appCheck: Promise<void>) {
+export function createWikiLlmProvider() {
   return {
     generateText: async ({ systemPrompt, userPrompt }: WikiLlmRequest): Promise<string> => {
-      await appCheck
-      const result = await wikiLlmFn({ systemPrompt, userPrompt })
-      return (result.data as WikiLlmResponse).text
+      const result = await wikiLlm({ systemPrompt, userPrompt })
+      return result.data.text
     },
   }
 }

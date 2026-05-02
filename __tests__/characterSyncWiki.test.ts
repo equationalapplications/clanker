@@ -29,7 +29,6 @@ jest.mock('~/services/wikiService', () => ({
 const mockWikiSyncFn = jest.fn()
 jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(() => ({ uid: 'user-1' })),
-  wikiSyncFn: (...args: unknown[]) => mockWikiSyncFn(...args),
   appCheckReady: Promise.resolve(),
 }))
 
@@ -59,6 +58,7 @@ jest.mock('~/services/apiClient', () => ({
   deleteCharacterFn: jest.fn(),
   getUserCharactersFn: jest.fn(),
   getPublicCharacterFn: jest.fn(),
+  wikiSync: (...args: unknown[]) => mockWikiSyncFn(...args),
 }))
 
 // WikiBusyError is loaded via jest.requireActual in the

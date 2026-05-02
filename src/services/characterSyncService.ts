@@ -12,9 +12,9 @@
 
 import { Storage } from '~/utilities/kvStorage'
 import { normalizeVoice } from '~/constants/voiceDefaults'
-import { getCurrentUser, wikiSyncFn, appCheckReady } from '~/config/firebaseConfig'
+import { getCurrentUser } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'
-import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn } from './apiClient'
+import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn, wikiSync } from './apiClient'
 import type { CharacterSnapshot } from './apiClient'
 import {
     getUnsyncedCharacters,
@@ -75,8 +75,6 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
     )
     if (cloudChars.length === 0) return
 
-    await appCheckReady
-
     for (const char of cloudChars) {
         const cloudId = char.cloud_id!
         let syncSucceeded = false
@@ -89,8 +87,8 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                     [cloudId]: localDump.entities[char.id] ?? { facts: [], tasks: [], events: [] },
                 },
             }
-            const result = await wikiSyncFn({ dump: cloudDump })
-            const remoteDump = (result.data as { remoteDump: MemoryDump }).remoteDump
+            const result = await wikiSync({ dump: cloudDump })
+            const remoteDump = result.data.remoteDump
             if (remoteDump) {
                 const remappedDump: MemoryDump = {
                     generatedAt: remoteDump.generatedAt,

@@ -2,10 +2,8 @@
 import { createWiki } from '@equationalapplications/expo-llm-wiki'
 import type { SQLiteDatabase } from 'expo-sqlite'
 import { createWikiLlmProvider } from './wikiLlmProvider'
-import { appCheckReady } from '~/config/firebaseConfig'
 import { SYNONYM_MAP_BASE } from '~/database/synonymMapBase'
 
- 
 type Wiki = ReturnType<typeof createWiki>
 
 let _wiki: Wiki | null = null
@@ -13,7 +11,7 @@ let _wiki: Wiki | null = null
 export function setupWiki(db: SQLiteDatabase): Wiki {
   if (_wiki) return _wiki
   _wiki = createWiki(db, {
-    llmProvider: createWikiLlmProvider(appCheckReady),
+    llmProvider: createWikiLlmProvider(),
     config: {
       tablePrefix: 'llm_wiki_',
       autoLibrarianThreshold: 20,

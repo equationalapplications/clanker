@@ -8,7 +8,10 @@ import {
   getUserCharactersFn as getUserCharactersCallable,
   syncCharacterFn as syncCharacterCallable,
   updateUserProfileFn as updateUserProfileCallable,
+  wikiLlmFn as wikiLlmCallable,
+  wikiSyncFn as wikiSyncCallable,
 } from '~/config/firebaseConfig'
+import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 
 type Callable<Req, Res> = (payload: Req) => Promise<{ data: Res }>
 type OptionalCallable<Req, Res> = (payload?: Req) => Promise<{ data: Res }>
@@ -119,4 +122,29 @@ export const getUserCharactersFn = withAppCheckOptional(
 
 export const getPublicCharacterFn = withAppCheck(
   getPublicCharacterCallable as Callable<GetPublicCharacterRequest, CharacterSnapshot>,
+)
+
+export interface WikiLlmRequest {
+  systemPrompt: string
+  userPrompt: string
+}
+
+export interface WikiLlmResponse {
+  text: string
+}
+
+export interface WikiSyncRequest {
+  dump: MemoryDump
+}
+
+export interface WikiSyncResponse {
+  remoteDump: MemoryDump
+}
+
+export const wikiLlm = withAppCheck(
+  wikiLlmCallable as Callable<WikiLlmRequest, WikiLlmResponse>,
+)
+
+export const wikiSync = withAppCheck(
+  wikiSyncCallable as Callable<WikiSyncRequest, WikiSyncResponse>,
 )

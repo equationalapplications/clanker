@@ -17,12 +17,6 @@ jest.mock('~/services/wikiLlmProvider', () => ({
   createWikiLlmProvider: jest.fn().mockReturnValue({ generateText: jest.fn() }),
 }))
 
-jest.mock('~/config/firebaseConfig', () => ({
-  appCheckReady: Promise.resolve(),
-  wikiLlmFn: jest.fn(),
-  wikiSyncFn: jest.fn(),
-}))
-
 import { setupWiki, getWiki, initWiki, _resetWikiForTests } from '~/services/wikiService'
 
 describe('wikiService', () => {

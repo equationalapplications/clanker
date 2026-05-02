@@ -32,7 +32,7 @@ import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
 import { useWikiExport } from '@equationalapplications/expo-llm-wiki/react'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
-import { wikiSyncFn, appCheckReady } from '~/config/firebaseConfig'
+import { wikiSync } from '~/services/apiClient'
 import { getWiki } from '~/services/wikiService'
 
 export default function EditCharacterScreen() {
@@ -255,9 +255,8 @@ export default function EditCharacterScreen() {
           [cloudCharacterId]: localDump.entities[id] ?? { facts: [], tasks: [], events: [] },
         },
       }
-      await appCheckReady
-      const result = await wikiSyncFn({ dump: cloudDump })
-      const remoteDump = (result.data as { remoteDump: MemoryDump }).remoteDump
+      const result = await wikiSync({ dump: cloudDump })
+      const remoteDump = result.data.remoteDump
       if (remoteDump) {
         const remappedDump: MemoryDump = {
           generatedAt: remoteDump.generatedAt,

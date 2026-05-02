@@ -145,8 +145,8 @@ jest.mock('~/components/CharacterAvatar', () => () => null)
 jest.mock('@equationalapplications/expo-llm-wiki/react', () => ({
   useWikiExport: () => ({ execute: jest.fn().mockResolvedValue({ generatedAt: Date.now(), entities: {} }), isPending: false }),
 }))
-jest.mock('~/config/firebaseConfig', () => ({
-  wikiSyncFn: jest.fn().mockResolvedValue({}),
+jest.mock('~/services/apiClient', () => ({
+  wikiSync: jest.fn().mockResolvedValue({ data: {} }),
 }))
 
 import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
