@@ -136,6 +136,57 @@ test("wikiSync: rejects missing dump", async () => {
   );
 });
 
+test("wikiSync: rejects missing dump.generatedAt", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  const request = {auth, data: {dump: {entities: {}}}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /dump\.generatedAt must be a finite number/);
+      return true;
+    }
+  );
+});
+
+test("wikiSync: rejects NaN dump.generatedAt", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  const request = {auth, data: {dump: {generatedAt: NaN, entities: {}}}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /dump\.generatedAt must be a finite number/);
+      return true;
+    }
+  );
+});
+
+test("wikiSync: rejects Infinity dump.generatedAt", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  const request = {auth, data: {dump: {generatedAt: Infinity, entities: {}}}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /dump\.generatedAt must be a finite number/);
+      return true;
+    }
+  );
+});
+
 test("wikiSync: rejects non-string tag element", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);

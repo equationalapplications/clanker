@@ -74,6 +74,8 @@ const MAX_ENTITIES = 50;
 const MAX_FACTS_PER_ENTITY = 500;
 const MAX_TASKS_PER_ENTITY = 200;
 const MAX_EVENTS_PER_ENTITY = 500;
+/** Max entities fetched in a single concurrent batch to bound DB connection fan-out. */
+const ENTITY_BATCH_SIZE = 10;
 /** 30-day event retention window in milliseconds — matches runPrune retainEventsFor policy. */
 const WIKI_EVENTS_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -284,73 +286,86 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   const db = await getDb();
   const retentionCutoff = Date.now() - WIKI_EVENTS_RETENTION_MS;
 
-  // Run per-entity queries in parallel so each entity is independently capped at
-  // MAX_*_PER_ENTITY rows. A single inArray query with a global LIMIT cannot guarantee
-  // per-entity bounds: one busy entity could fill the limit and starve others.
-  // Return all rows including tombstones (rows with deleted_at set). Tombstoned entries
-  // are preserved in cloud SQL for LWW conflict resolution and must be re-imported to
-  // client devices so deletions made on one device propagate to others.
-  const [factArrays, taskArrays, eventArrays] = await Promise.all([
-    Promise.all(entityIds.map((entityId) =>
-      db.select().from(llmWikiEntries).where(
-        and(eq(llmWikiEntries.entityId, entityId), eq(llmWikiEntries.userId, userId))
-      ).orderBy(desc(llmWikiEntries.updatedAt)).limit(MAX_FACTS_PER_ENTITY)
-    )),
-    Promise.all(entityIds.map((entityId) =>
-      db.select().from(llmWikiTasks).where(
-        and(eq(llmWikiTasks.entityId, entityId), eq(llmWikiTasks.userId, userId))
-      ).orderBy(desc(llmWikiTasks.updatedAt)).limit(MAX_TASKS_PER_ENTITY)
-    )),
-    Promise.all(entityIds.map((entityId) =>
-      db.select().from(llmWikiEvents).where(
-        and(
-          eq(llmWikiEvents.entityId, entityId),
-          eq(llmWikiEvents.userId, userId),
-          gte(llmWikiEvents.createdAt, retentionCutoff),
-        )
-      ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY)
-    )),
-  ]);
-
   const entities: Record<string, MemoryBundle> = {};
-  for (let i = 0; i < entityIds.length; i++) {
-    const entityId = entityIds[i];
-    entities[entityId] = {
-      facts: factArrays[i].map((r) => ({
-          id: r.id,
-          entity_id: r.entityId,
-          title: r.title,
-          body: r.body,
-          confidence: r.confidence,
-          tags: r.tags as string[],
-          source_type: r.sourceType ?? null,
-          source_ref: r.sourceRef ?? null,
-          source_hash: r.sourceHash ?? null,
-          last_accessed_at: r.lastAccessedAt ?? null,
-          access_count: r.accessCount ?? 0,
-          created_at: r.createdAt,
-          updated_at: r.updatedAt,
-          deleted_at: r.deletedAt ?? null,
-        })),
-      tasks: taskArrays[i].map((r) => ({
-          id: r.id,
-          entity_id: r.entityId,
-          description: r.description,
-          status: r.status,
-          priority: r.priority,
-          created_at: r.createdAt,
-          updated_at: r.updatedAt,
-          resolved_at: r.resolvedAt ?? null,
-          deleted_at: r.deletedAt ?? null,
-        })),
-      events: eventArrays[i].map((r) => ({
-          id: r.id,
-          entity_id: r.entityId,
-          event_type: r.eventType,
-          summary: r.summary,
-          created_at: r.createdAt,
-        })),
-    };
+
+  // Process entities in batches to bound the DB connection fan-out.
+  // Each batch runs at most 3 * ENTITY_BATCH_SIZE queries concurrently.
+  //
+  // Within each per-entity query, tombstones (rows with deleted_at IS NOT NULL) are
+  // ordered before live rows (deleted_at DESC NULLS LAST). This ensures that when an
+  // entity approaches MAX_*_PER_ENTITY the LIMIT never drops a tombstone in favour of a
+  // live row, so cross-device deletions are always included in the remoteDump.
+  for (let batchStart = 0; batchStart < entityIds.length; batchStart += ENTITY_BATCH_SIZE) {
+    const batch = entityIds.slice(batchStart, batchStart + ENTITY_BATCH_SIZE);
+
+    // eslint-disable-next-line no-await-in-loop
+    const [factArrays, taskArrays, eventArrays] = await Promise.all([
+      Promise.all(batch.map((entityId) =>
+        db.select().from(llmWikiEntries).where(
+          and(eq(llmWikiEntries.entityId, entityId), eq(llmWikiEntries.userId, userId))
+        ).orderBy(
+          sql`${llmWikiEntries.deletedAt} DESC NULLS LAST`,
+          desc(llmWikiEntries.updatedAt),
+        ).limit(MAX_FACTS_PER_ENTITY)
+      )),
+      Promise.all(batch.map((entityId) =>
+        db.select().from(llmWikiTasks).where(
+          and(eq(llmWikiTasks.entityId, entityId), eq(llmWikiTasks.userId, userId))
+        ).orderBy(
+          sql`${llmWikiTasks.deletedAt} DESC NULLS LAST`,
+          desc(llmWikiTasks.updatedAt),
+        ).limit(MAX_TASKS_PER_ENTITY)
+      )),
+      Promise.all(batch.map((entityId) =>
+        db.select().from(llmWikiEvents).where(
+          and(
+            eq(llmWikiEvents.entityId, entityId),
+            eq(llmWikiEvents.userId, userId),
+            gte(llmWikiEvents.createdAt, retentionCutoff),
+          )
+        ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY)
+      )),
+    ]);
+
+    for (let i = 0; i < batch.length; i++) {
+      const entityId = batch[i];
+      entities[entityId] = {
+        facts: factArrays[i].map((r) => ({
+            id: r.id,
+            entity_id: r.entityId,
+            title: r.title,
+            body: r.body,
+            confidence: r.confidence,
+            tags: r.tags as string[],
+            source_type: r.sourceType ?? null,
+            source_ref: r.sourceRef ?? null,
+            source_hash: r.sourceHash ?? null,
+            last_accessed_at: r.lastAccessedAt ?? null,
+            access_count: r.accessCount ?? 0,
+            created_at: r.createdAt,
+            updated_at: r.updatedAt,
+            deleted_at: r.deletedAt ?? null,
+          })),
+        tasks: taskArrays[i].map((r) => ({
+            id: r.id,
+            entity_id: r.entityId,
+            description: r.description,
+            status: r.status,
+            priority: r.priority,
+            created_at: r.createdAt,
+            updated_at: r.updatedAt,
+            resolved_at: r.resolvedAt ?? null,
+            deleted_at: r.deletedAt ?? null,
+          })),
+        events: eventArrays[i].map((r) => ({
+            id: r.id,
+            entity_id: r.entityId,
+            event_type: r.eventType,
+            summary: r.summary,
+            created_at: r.createdAt,
+          })),
+      };
+    }
   }
 
   return {generatedAt: Date.now(), entities};
