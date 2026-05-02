@@ -159,7 +159,6 @@ export default function ChatView({ characterId }: ChatViewProps) {
         {(wikiStatus.ingesting || wikiStatus.librarian) && (
           <View
             accessibilityLiveRegion="polite"
-             
             accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
           >
             {wikiStatus.ingesting && (

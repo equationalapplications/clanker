@@ -260,7 +260,6 @@ test("wikiSync: rejects too many facts per entity", async () => {
   );
 });
 
-
 test("wikiSync: rejects non-premium users", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
