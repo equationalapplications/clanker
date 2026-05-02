@@ -299,72 +299,83 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
     const batch = entityIds.slice(batchStart, batchStart + ENTITY_BATCH_SIZE);
 
     // eslint-disable-next-line no-await-in-loop
-    const [factArrays, taskArrays, eventArrays] = await Promise.all([
-      Promise.all(batch.map((entityId) =>
-        db.select().from(llmWikiEntries).where(
-          and(eq(llmWikiEntries.entityId, entityId), eq(llmWikiEntries.userId, userId))
-        ).orderBy(
-          sql`${llmWikiEntries.deletedAt} DESC NULLS LAST`,
-          desc(llmWikiEntries.updatedAt),
-        ).limit(MAX_FACTS_PER_ENTITY)
-      )),
-      Promise.all(batch.map((entityId) =>
-        db.select().from(llmWikiTasks).where(
-          and(eq(llmWikiTasks.entityId, entityId), eq(llmWikiTasks.userId, userId))
-        ).orderBy(
-          sql`${llmWikiTasks.deletedAt} DESC NULLS LAST`,
-          desc(llmWikiTasks.updatedAt),
-        ).limit(MAX_TASKS_PER_ENTITY)
-      )),
-      Promise.all(batch.map((entityId) =>
-        db.select().from(llmWikiEvents).where(
-          and(
-            eq(llmWikiEvents.entityId, entityId),
-            eq(llmWikiEvents.userId, userId),
-            gte(llmWikiEvents.createdAt, retentionCutoff),
-          )
-        ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY)
-      )),
+    const [factRows, taskRows, eventRows] = await Promise.all([
+      db.select().from(llmWikiEntries).where(
+        and(inArray(llmWikiEntries.entityId, batch), eq(llmWikiEntries.userId, userId))
+      ).orderBy(
+        sql`${llmWikiEntries.deletedAt} DESC NULLS LAST`,
+        desc(llmWikiEntries.updatedAt),
+      ),
+      db.select().from(llmWikiTasks).where(
+        and(inArray(llmWikiTasks.entityId, batch), eq(llmWikiTasks.userId, userId))
+      ).orderBy(
+        sql`${llmWikiTasks.deletedAt} DESC NULLS LAST`,
+        desc(llmWikiTasks.updatedAt),
+      ),
+      db.select().from(llmWikiEvents).where(
+        and(
+          inArray(llmWikiEvents.entityId, batch),
+          eq(llmWikiEvents.userId, userId),
+          gte(llmWikiEvents.createdAt, retentionCutoff),
+        )
+      ).orderBy(desc(llmWikiEvents.createdAt)),
     ]);
 
-    for (let i = 0; i < batch.length; i++) {
-      const entityId = batch[i];
+    for (const entityId of batch) {
       entities[entityId] = {
-        facts: factArrays[i].map((r) => ({
-            id: r.id,
-            entity_id: r.entityId,
-            title: r.title,
-            body: r.body,
-            confidence: r.confidence,
-            tags: r.tags as string[],
-            source_type: r.sourceType ?? null,
-            source_ref: r.sourceRef ?? null,
-            source_hash: r.sourceHash ?? null,
-            last_accessed_at: r.lastAccessedAt ?? null,
-            access_count: r.accessCount ?? 0,
-            created_at: r.createdAt,
-            updated_at: r.updatedAt,
-            deleted_at: r.deletedAt ?? null,
-          })),
-        tasks: taskArrays[i].map((r) => ({
-            id: r.id,
-            entity_id: r.entityId,
-            description: r.description,
-            status: r.status,
-            priority: r.priority,
-            created_at: r.createdAt,
-            updated_at: r.updatedAt,
-            resolved_at: r.resolvedAt ?? null,
-            deleted_at: r.deletedAt ?? null,
-          })),
-        events: eventArrays[i].map((r) => ({
-            id: r.id,
-            entity_id: r.entityId,
-            event_type: r.eventType,
-            summary: r.summary,
-            created_at: r.createdAt,
-          })),
+        facts: [],
+        tasks: [],
+        events: [],
       };
+    }
+
+    for (const r of factRows) {
+      const entity = entities[r.entityId];
+      if (!entity || entity.facts.length >= MAX_FACTS_PER_ENTITY) continue;
+      entity.facts.push({
+        id: r.id,
+        entity_id: r.entityId,
+        title: r.title,
+        body: r.body,
+        confidence: r.confidence,
+        tags: r.tags as string[],
+        source_type: r.sourceType ?? null,
+        source_ref: r.sourceRef ?? null,
+        source_hash: r.sourceHash ?? null,
+        last_accessed_at: r.lastAccessedAt ?? null,
+        access_count: r.accessCount ?? 0,
+        created_at: r.createdAt,
+        updated_at: r.updatedAt,
+        deleted_at: r.deletedAt ?? null,
+      });
+    }
+
+    for (const r of taskRows) {
+      const entity = entities[r.entityId];
+      if (!entity || entity.tasks.length >= MAX_TASKS_PER_ENTITY) continue;
+      entity.tasks.push({
+        id: r.id,
+        entity_id: r.entityId,
+        description: r.description,
+        status: r.status,
+        priority: r.priority,
+        created_at: r.createdAt,
+        updated_at: r.updatedAt,
+        resolved_at: r.resolvedAt ?? null,
+        deleted_at: r.deletedAt ?? null,
+      });
+    }
+
+    for (const r of eventRows) {
+      const entity = entities[r.entityId];
+      if (!entity || entity.events.length >= MAX_EVENTS_PER_ENTITY) continue;
+      entity.events.push({
+        id: r.id,
+        entity_id: r.entityId,
+        event_type: r.eventType,
+        summary: r.summary,
+        created_at: r.createdAt,
+      });
     }
   }
 
