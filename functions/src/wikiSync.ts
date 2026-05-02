@@ -1,7 +1,7 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {inArray, and, eq, sql} from "drizzle-orm";
+import {inArray, and, eq, sql, isNull} from "drizzle-orm";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
@@ -22,6 +22,7 @@ interface WikiFact {
   source_hash?: string | null;
   created_at: number;
   updated_at: number;
+  deleted_at?: number | null;
 }
 
 interface WikiTask {
@@ -33,6 +34,7 @@ interface WikiTask {
   created_at: number;
   updated_at: number;
   resolved_at?: number | null;
+  deleted_at?: number | null;
 }
 
 interface WikiEvent {
@@ -55,6 +57,7 @@ interface MemoryDump {
 }
 
 interface WikiSyncOptions {
+  upsertData?: (dump: MemoryDump, userId: string) => Promise<void>;
   upsertEntries?: (entries: WikiFact[], userId: string) => Promise<void>;
   validateEntityOwnership?: (entityIds: string[], userId: string) => Promise<void>;
   fetchMergedDump?: (entityIds: string[], userId: string) => Promise<MemoryDump>;
@@ -111,6 +114,9 @@ function validateFact(fact: unknown, entityId: string, label: string): void {
   }
   assertNumber(f.created_at, `${label}.created_at`);
   assertNumber(f.updated_at, `${label}.updated_at`);
+  if (f.deleted_at !== undefined && f.deleted_at !== null && typeof f.deleted_at !== "number") {
+    throw new HttpsError("invalid-argument", `${label}.deleted_at must be a number or null.`);
+  }
 }
 
 function validateTask(task: unknown, entityId: string, label: string): void {
@@ -130,6 +136,12 @@ function validateTask(task: unknown, entityId: string, label: string): void {
   assertNumber(t.priority, `${label}.priority`);
   assertNumber(t.created_at, `${label}.created_at`);
   assertNumber(t.updated_at, `${label}.updated_at`);
+  if (t.resolved_at !== undefined && t.resolved_at !== null && typeof t.resolved_at !== "number") {
+    throw new HttpsError("invalid-argument", `${label}.resolved_at must be a number or null.`);
+  }
+  if (t.deleted_at !== undefined && t.deleted_at !== null && typeof t.deleted_at !== "number") {
+    throw new HttpsError("invalid-argument", `${label}.deleted_at must be a number or null.`);
+  }
 }
 
 function validateEvent(event: unknown, entityId: string, label: string): void {
@@ -227,12 +239,22 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   }
   const db = await getDb();
 
+  // Only return non-deleted rows; tombstoned entries are kept in cloud SQL for LWW
+  // conflict resolution but should not be re-imported to client devices.
   const [allFacts, allTasks, allEvents] = await Promise.all([
     db.select().from(llmWikiEntries).where(
-      and(inArray(llmWikiEntries.entityId, entityIds), eq(llmWikiEntries.userId, userId))
+      and(
+        inArray(llmWikiEntries.entityId, entityIds),
+        eq(llmWikiEntries.userId, userId),
+        isNull(llmWikiEntries.deletedAt),
+      )
     ),
     db.select().from(llmWikiTasks).where(
-      and(inArray(llmWikiTasks.entityId, entityIds), eq(llmWikiTasks.userId, userId))
+      and(
+        inArray(llmWikiTasks.entityId, entityIds),
+        eq(llmWikiTasks.userId, userId),
+        isNull(llmWikiTasks.deletedAt),
+      )
     ),
     db.select().from(llmWikiEvents).where(
       and(inArray(llmWikiEvents.entityId, entityIds), eq(llmWikiEvents.userId, userId))
@@ -319,6 +341,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               sourceHash: f.source_hash ?? null,
               createdAt: f.created_at,
               updatedAt: f.updated_at,
+              deletedAt: f.deleted_at ?? null,
             }))
           )
           .onConflictDoUpdate({
@@ -331,6 +354,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               sourceRef: sql`excluded.source_ref`,
               sourceHash: sql`excluded.source_hash`,
               updatedAt: sql`excluded.updated_at`,
+              deletedAt: sql`excluded.deleted_at`,
             },
             where: sql`excluded.updated_at > ${llmWikiEntries.updatedAt}`,
           });
@@ -350,6 +374,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               createdAt: t.created_at,
               updatedAt: t.updated_at,
               resolvedAt: t.resolved_at ?? null,
+              deletedAt: t.deleted_at ?? null,
             }))
           )
           .onConflictDoUpdate({
@@ -360,6 +385,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               priority: sql`excluded.priority`,
               updatedAt: sql`excluded.updated_at`,
               resolvedAt: sql`excluded.resolved_at`,
+              deletedAt: sql`excluded.deleted_at`,
             },
             where: sql`excluded.updated_at > ${llmWikiTasks.updatedAt}`,
           });
@@ -453,7 +479,9 @@ export const wikiSyncHandler = async (
   }
 
   try {
-    if (options.upsertEntries) {
+    if (options.upsertData) {
+      await options.upsertData(dump, user.id);
+    } else if (options.upsertEntries) {
       const allFacts = Object.values(dump.entities).flatMap((b) => b.facts ?? []);
       await options.upsertEntries(allFacts, user.id);
     } else {

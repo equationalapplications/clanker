@@ -161,6 +161,7 @@ export const llmWikiEntries = pgTable('llm_wiki_entries', {
   sourceHash: text('source_hash'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  deletedAt: bigint('deleted_at', { mode: 'number' }),
 }, (table) => ({
   pk: primaryKey({ columns: [table.id, table.userId] }),
   entityUserIdx: index('llm_wiki_entries_entity_user_idx').on(table.entityId, table.userId),
@@ -177,6 +178,7 @@ export const llmWikiTasks = pgTable('llm_wiki_tasks', {
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   resolvedAt: bigint('resolved_at', { mode: 'number' }),
+  deletedAt: bigint('deleted_at', { mode: 'number' }),
 }, (table) => ({
   pk: primaryKey({ columns: [table.id, table.userId] }),
   entityStatusIdx: index('llm_wiki_tasks_entity_status_idx').on(table.entityId, table.userId, table.status),

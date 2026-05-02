@@ -46,13 +46,18 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
     try {
       // expo-file-system doesn't support blob/object URLs on web; use fetch instead.
-      // Normalize line-endings for consistent cross-platform hashing.
+      // Strip BOM/null bytes and normalize to NFC for consistent cross-platform hashing
+      // regardless of editor/OS encoding quirks, then normalize line endings.
       const response = await fetch(uri)
       if (!response.ok) {
         throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`)
       }
       const raw = await response.text()
-      const documentChunk = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+      const documentChunk = raw
+        .replace(/^\uFEFF/, '')   // strip UTF-8 BOM
+        .replace(/\0/g, '')       // strip null bytes
+        .normalize('NFC')         // canonical Unicode form
+        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')  // normalize line endings
       const sourceHash = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         documentChunk,

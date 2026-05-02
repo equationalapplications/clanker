@@ -49,9 +49,14 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
 
     try {
-      // Read as UTF-8 (the default); normalize line-endings for consistent cross-platform hashing
+      // Read as UTF-8 (the default); strip BOM/null bytes and normalize to NFC for
+      // consistent cross-platform hashing regardless of editor/OS encoding quirks.
       const raw = await FileSystem.readAsStringAsync(uri)
-      const documentChunk = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+      const documentChunk = raw
+        .replace(/^\uFEFF/, '')   // strip UTF-8 BOM
+        .replace(/\0/g, '')       // strip null bytes
+        .normalize('NFC')         // canonical Unicode form
+        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')  // normalize line endings
       const sourceHash = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         documentChunk,

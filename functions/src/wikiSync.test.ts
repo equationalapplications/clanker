@@ -437,3 +437,115 @@ test("wikiSync: rejects cancelled subscription", async () => {
   );
 });
 
+test("wikiSync: rejects non-numeric resolved_at on task", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [],
+        tasks: [{
+          id: "t1",
+          entity_id: TEST_ENTITY_UUID,
+          description: "Do it",
+          status: "done",
+          priority: 0,
+          created_at: 1000,
+          updated_at: 1001,
+          resolved_at: "not-a-number", // must be number or null
+        }],
+        events: [],
+      },
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /resolved_at must be a number or null/);
+      return true;
+    }
+  );
+});
+
+// LWW: verify that the upsertData injection receives the full dump and that an
+// in-memory implementation correctly keeps the newer version of a conflicting fact.
+test("wikiSync: last-write-wins semantics via upsertData injection", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  // In-memory store keyed by fact id — simulates the cloud SQL LWW behaviour.
+  const store = new Map<string, {body: string; updated_at: number}>();
+
+  const upsertData = async (dump: {entities: Record<string, {facts?: Array<{id: string; body: string; updated_at: number}>}>}) => {
+    for (const bundle of Object.values(dump.entities)) {
+      for (const fact of bundle.facts ?? []) {
+        const existing = store.get(fact.id);
+        // Only overwrite if incoming updated_at is strictly newer (LWW rule).
+        if (!existing || fact.updated_at > existing.updated_at) {
+          store.set(fact.id, {body: fact.body, updated_at: fact.updated_at});
+        }
+      }
+    }
+  };
+  const validateEntityOwnership = async () => {};
+  const fetchMergedDump = async () => ({generatedAt: Date.now(), entities: {}});
+
+  const baseFact = {
+    id: "lww-fact",
+    entity_id: TEST_ENTITY_UUID,
+    title: "T",
+    confidence: "inferred",
+    tags: [],
+    source_ref: null,
+    source_hash: null,
+  };
+
+  // First sync: newer version (updated_at=200).
+  const newerDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [{...baseFact, body: "newer body", created_at: 100, updated_at: 200}],
+        tasks: [],
+        events: [],
+      },
+    },
+  };
+  await wikiSyncHandler({auth, data: {dump: newerDump}} as unknown as CallableRequest, {
+    upsertData: upsertData as never,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+  });
+  assert.equal(store.get("lww-fact")?.body, "newer body");
+
+  // Second sync: older version (updated_at=50) — should NOT overwrite.
+  const olderDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [{...baseFact, body: "older body", created_at: 100, updated_at: 50}],
+        tasks: [],
+        events: [],
+      },
+    },
+  };
+  await wikiSyncHandler({auth, data: {dump: olderDump}} as unknown as CallableRequest, {
+    upsertData: upsertData as never,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+  });
+  // LWW: newer version (body="newer body") must survive the stale update.
+  assert.equal(store.get("lww-fact")?.body, "newer body", "stale update must not overwrite newer version");
+});
+
