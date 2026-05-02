@@ -580,7 +580,12 @@
       },
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "llm_wiki_entries_source_type_check": {
+          "name": "llm_wiki_entries_source_type_check",
+          "value": "\"source_type\" IN ('user_stated', 'agent_inferred', 'user_confirmed', 'user_document')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.llm_wiki_events": {
