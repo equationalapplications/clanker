@@ -4,6 +4,12 @@ import * as characterDatabase from '../src/database/characterDatabase'
 import * as characterSyncService from '../src/services/characterSyncService'
 
 jest.mock('../src/database/characterDatabase')
+jest.mock('../src/services/wikiService', () => ({
+  setupWiki: jest.fn(),
+  getWiki: jest.fn(),
+  initWiki: jest.fn().mockResolvedValue(undefined),
+  _resetWikiForTests: jest.fn(),
+}))
 jest.mock('../src/services/defaultAvatarService', () => ({
   loadDefaultAvatarBase64: jest.fn().mockResolvedValue('default-avatar'),
 }))

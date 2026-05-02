@@ -29,6 +29,11 @@ import {
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
 import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
+import { useWikiExport } from '@equationalapplications/expo-llm-wiki/react'
+import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
+import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { wikiSync } from '~/services/apiClient'
+import { getWiki } from '~/services/wikiService'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -46,6 +51,7 @@ export default function EditCharacterScreen() {
   } = useUpdateCharacter()
   const { isCloudUnsyncing, error: unsyncError } = useUnsyncCharacter()
   const { isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
+  const { execute: exportWiki, isPending: isWikiSyncing } = useWikiExport()
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -230,6 +236,60 @@ export default function EditCharacterScreen() {
     setSaveToCloud(nextValue)
     if (!nextValue) {
       setIsCharacterShareable(false)
+    }
+  }
+
+  const handleWikiSync = async () => {
+    if (!cloudCharacterId) {
+      setToastState({
+        message: 'Save this character to cloud and sync it first, then try again.',
+        requiresSubscription: false,
+      })
+      return
+    }
+    try {
+      const localDump = await exportWiki([id])
+      const cloudDump: MemoryDump = {
+        generatedAt: localDump.generatedAt,
+        entities: {
+          [cloudCharacterId]: localDump.entities[id] ?? { facts: [], tasks: [], events: [] },
+        },
+      }
+      const result = await wikiSync({ dump: cloudDump })
+      const remoteDump = result.data.remoteDump
+      if (remoteDump) {
+        const remappedDump: MemoryDump = {
+          generatedAt: remoteDump.generatedAt,
+          entities: {
+            [id]: remoteDump.entities[cloudCharacterId] ?? { facts: [], tasks: [], events: [] },
+          },
+        }
+        let importSucceeded = true
+        try {
+          await getWiki().importDump(remappedDump, { merge: true })
+        } catch (importErr) {
+          if (importErr instanceof WikiBusyError) {
+            importSucceeded = false
+            // Cloud sync succeeded; local merge skipped because wiki is busy.
+            // The remote dump will be merged on the next manual or automatic sync.
+          } else {
+            throw importErr
+          }
+        }
+        if (importSucceeded) {
+          try {
+            await getWiki().runPrune(id, { retainSoftDeletedFor: 7, retainEventsFor: 30, vacuum: false })
+          } catch (pruneErr) {
+            if (!(pruneErr instanceof WikiBusyError)) {
+              console.warn('runPrune failed after wiki sync', pruneErr)
+            }
+          }
+        }
+      }
+      setToastState({ message: 'Memory synced to cloud.', requiresSubscription: false })
+    } catch (syncErr) {
+      console.warn('handleWikiSync failed', syncErr)
+      setToastState({ message: 'Failed to sync memory. Check your connection and try again.', requiresSubscription: false })
     }
   }
 
@@ -476,6 +536,19 @@ export default function EditCharacterScreen() {
           {isCharacterShareable ? (
             <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton} disabled={!canEdit}>
               Share Character
+            </Button>
+          ) : null}
+
+          {isSubscriber && character?.save_to_cloud && character?.cloud_id ? (
+            <Button
+              mode="outlined"
+              icon="brain"
+              onPress={handleWikiSync}
+              disabled={isWikiSyncing}
+              loading={isWikiSyncing}
+              style={styles.shareButton}
+            >
+              Sync Memory
             </Button>
           ) : null}
 
