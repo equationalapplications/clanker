@@ -5,7 +5,7 @@ import { DEFAULT_VOICE } from '../constants/voiceDefaults.js';
 
 type CharacterUpdateInput = Pick<
   typeof characters.$inferInsert,
-  'name' | 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context' | 'voice' | 'isPublic' | 'updatedAt'
+  'name' | 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context' | 'voice' | 'isPublic' | 'saveToCloud' | 'updatedAt'
 >;
 
 export function buildCharacterUpdateValues(character: CharacterUpdateInput) {
@@ -26,12 +26,16 @@ export function buildCharacterUpdateValues(character: CharacterUpdateInput) {
     updatedAt: character.updatedAt ?? new Date(),
   };
 
+  const withSaveToCloud = character.saveToCloud === undefined
+    ? updateValues
+    : { ...updateValues, saveToCloud: character.saveToCloud };
+
   if (character.isPublic === undefined) {
-    return updateValues;
+    return withSaveToCloud;
   }
 
   return {
-    ...updateValues,
+    ...withSaveToCloud,
     isPublic: character.isPublic,
   };
 }
