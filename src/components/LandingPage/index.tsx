@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View, Platform } from 'react-native'
 import { useTheme } from 'react-native-paper'
 import HeroSection from './HeroSection'
 import FeaturesSection from './FeaturesSection'
+import ComingSoonSection from './ComingSoonSection'
 import LandingFooter from './LandingFooter'
 
 const MAIN_CONTENT_ID = 'main-content'
@@ -59,6 +60,7 @@ export default function LandingPage() {
       >
         <HeroSection />
         <FeaturesSection />
+        <ComingSoonSection />
         <LandingFooter />
       </View>
     </ScrollView>
