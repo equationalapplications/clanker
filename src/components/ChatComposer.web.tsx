@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { ActivityIndicator, Alert, View, StyleSheet } from 'react-native'
+import { ActivityIndicator, View, StyleSheet } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Snackbar, Portal } from 'react-native-paper'
@@ -60,17 +60,8 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
       const changed = await hasChanged(characterId, sourceRef, sourceHash)
       if (!changed) {
-        const proceed = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            'Document Already Added',
-            `"${sourceRef}" has already been ingested. Add it again?`,
-            [
-              { text: 'Add Anyway', onPress: () => resolve(true) },
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-            ],
-          )
-        })
-        if (!proceed) return
+        setToastMessage(`"${sourceRef}" has already been added. Remove and re-add to update.`)
+        return
       }
 
       const ingestResult = await ingestDocument(characterId, {

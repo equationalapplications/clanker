@@ -264,12 +264,24 @@ export default function EditCharacterScreen() {
             [id]: remoteDump.entities[cloudCharacterId] ?? { facts: [], tasks: [], events: [] },
           },
         }
-        await getWiki().importDump(remappedDump, { merge: true })
+        let importSucceeded = true
         try {
-          await getWiki().runPrune(id, { retainSoftDeletedFor: 7, retainEventsFor: 30, vacuum: false })
-        } catch (pruneErr) {
-          if (!(pruneErr instanceof WikiBusyError)) {
-            console.warn('runPrune failed after wiki sync', pruneErr)
+          await getWiki().importDump(remappedDump, { merge: true })
+        } catch (importErr) {
+          if (importErr instanceof WikiBusyError) {
+            importSucceeded = false
+            // Cloud sync succeeded; local merge skipped because wiki is busy. Will apply on next sync.
+          } else {
+            throw importErr
+          }
+        }
+        if (importSucceeded) {
+          try {
+            await getWiki().runPrune(id, { retainSoftDeletedFor: 7, retainEventsFor: 30, vacuum: false })
+          } catch (pruneErr) {
+            if (!(pruneErr instanceof WikiBusyError)) {
+              console.warn('runPrune failed after wiki sync', pruneErr)
+            }
           }
         }
       }
