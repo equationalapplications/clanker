@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: legacy callable — remove after old clients are fully migrated to wikiLlm/wikiSync.
 import * as logger from 'firebase-functions/logger';
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
