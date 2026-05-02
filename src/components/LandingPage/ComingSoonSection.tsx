@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native'
-import { Text, Card, useTheme } from 'react-native-paper'
+import { Text, Card, Chip, useTheme } from 'react-native-paper'
 import { useEffect } from 'react'
 import Animated, {
   FadeInDown,
@@ -12,39 +12,28 @@ import Animated, {
 } from 'react-native-reanimated'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 
-const FEATURES = [
+const COMING_SOON_FEATURES = [
   {
-    icon: 'robot-outline' as const,
-    title: 'Build Your Character',
-    body: 'Give your AI a name, appearance, personality traits, emotional range, and backstory. Generate a unique portrait avatar with AI. No art skills needed.',
+    icon: 'account-cog-outline' as const,
+    title: 'Personal Assistant',
+    body: 'Upload documents and your personal assistant builds knowledge from them. Share it with others and watch it evolve as you all add to its understanding.',
   },
   {
-    icon: 'chat-outline' as const,
-    title: 'Real AI Conversations',
-    body: 'Chat with characters that actually remember their personality. Long conversation memory is automatically summarized so your Clanker stays in character.',
-  },
-  {
-    icon: 'microphone-outline' as const,
-    title: 'Talk to Your Character',
-    body: 'Tap the mic and speak. Your character replies in their own voice. Monthly subscribers talk for free. Others use 2 credits per reply.',
-  },
-  {
-    icon: 'cloud-sync-outline' as const,
-    title: 'Share & Sync',
-    body: 'Save characters to the cloud and sync across all your devices. Share any character via link. Anyone can open it instantly.',
+    icon: 'brain' as const,
+    title: 'Wiki-Based Memory',
+    body: 'As your assistant learns more, it automatically reconciles conflicting information to stay consistent and accurate.',
   },
 ]
 
-function FeatureCard({
+function ComingSoonCard({
   feat,
   index,
 }: {
-  feat: (typeof FEATURES)[0]
+  feat: (typeof COMING_SOON_FEATURES)[0]
   index: number
 }) {
   const { colors } = useTheme()
 
-  // Idle float: gentle vertical bob, phase-offset by index so cards drift independently
   const floatY = useSharedValue(0)
 
   useEffect(() => {
@@ -71,6 +60,16 @@ function FeatureCard({
       style={[styles.cardWrap, cardAnimStyle]}
     >
       <Card style={[styles.card, { backgroundColor: colors.surface }]} elevation={1}>
+        <View style={styles.badgeRow}>
+          <Chip
+            compact
+            style={[styles.badge, { backgroundColor: colors.secondaryContainer }]}
+            textStyle={[styles.badgeText, { color: colors.onSecondaryContainer }]}
+            accessibilityLabel="Coming soon"
+          >
+            Coming Soon
+          </Chip>
+        </View>
         <Card.Content style={styles.cardContent}>
           <MaterialCommunityIcons
             name={feat.icon}
@@ -93,20 +92,20 @@ function FeatureCard({
   )
 }
 
-export default function FeaturesSection() {
+export default function ComingSoonSection() {
   const { colors } = useTheme()
 
   return (
-    <View style={[styles.section, { backgroundColor: colors.surfaceVariant }]}>
+    <View style={[styles.section, { backgroundColor: colors.background }]}>
       <Text
         variant="headlineMedium"
         style={[styles.sectionTitle, { color: colors.onSurface }]}
       >
-        Your characters. Your conversations.
+        What&apos;s Coming Next
       </Text>
       <View style={styles.grid}>
-        {FEATURES.map((feat, i) => (
-          <FeatureCard key={feat.title} feat={feat} index={i} />
+        {COMING_SOON_FEATURES.map((feat, i) => (
+          <ComingSoonCard key={feat.title} feat={feat} index={i} />
         ))}
       </View>
     </View>
@@ -140,17 +139,31 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
   },
+  badgeRow: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 1,
+  },
+  badge: {
+    height: 24,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   cardContent: {
     alignItems: 'center',
     paddingVertical: 28,
     paddingHorizontal: 20,
+    paddingTop: 44,
     gap: 12,
   },
   icon: {
     marginBottom: 4,
   },
   cardTitle: {
-    fontWeight: '700',
     textAlign: 'center',
+    fontWeight: '600',
   },
 })
