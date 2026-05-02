@@ -6,8 +6,7 @@ import { IconButton, Snackbar, Portal } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
-import { useWikiIngest, useWikiHasChanged, useWikiForget } from '@equationalapplications/expo-llm-wiki/react'
-import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { useWikiIngest, useWikiHasChanged, useWikiForget, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
