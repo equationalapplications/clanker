@@ -291,18 +291,38 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   // cross-device deletions are always included within the per-entity cap —
   // matching the LWW deletion propagation requirement from the spec.
   type FactRow = {
-    id: string; entity_id: string; title: string; body: string; confidence: string;
-    tags: unknown; source_ref: string | null; source_hash: string | null;
-    source_type: string; last_accessed_at: string | null; access_count: string | number;
-    created_at: string; updated_at: string; deleted_at: string | null;
+    id: string;
+    entity_id: string;
+    title: string;
+    body: string;
+    confidence: string;
+    tags: unknown;
+    source_ref: string | null;
+    source_hash: string | null;
+    source_type: string;
+    last_accessed_at: string | null;
+    access_count: string | number | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
   };
   type TaskRow = {
-    id: string; entity_id: string; description: string; status: string;
-    priority: string | number; created_at: string; updated_at: string;
-    resolved_at: string | null; deleted_at: string | null;
+    id: string;
+    entity_id: string;
+    description: string;
+    status: string;
+    priority: string | number;
+    created_at: string;
+    updated_at: string;
+    resolved_at: string | null;
+    deleted_at: string | null;
   };
   type EventRow = {
-    id: string; entity_id: string; event_type: string; summary: string; created_at: string;
+    id: string;
+    entity_id: string;
+    event_type: string;
+    summary: string;
+    created_at: string;
   };
 
   const [factResult, taskResult, eventResult] = await Promise.all([
@@ -367,7 +387,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       source_ref: r.source_ref ?? null,
       source_hash: r.source_hash ?? null,
       last_accessed_at: r.last_accessed_at != null ? Number(r.last_accessed_at) : null,
-      access_count: Number(r.access_count) ?? 0,
+      access_count: r.access_count != null ? Number(r.access_count) : 0,
       created_at: Number(r.created_at),
       updated_at: Number(r.updated_at),
       deleted_at: r.deleted_at != null ? Number(r.deleted_at) : null,
