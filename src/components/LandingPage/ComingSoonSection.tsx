@@ -96,7 +96,7 @@ export default function ComingSoonSection() {
   const { colors } = useTheme()
 
   return (
-    <View style={[styles.section, { backgroundColor: colors.background }]}>
+    <View style={[styles.section, { backgroundColor: colors.surfaceVariant }]}>
       <Text
         variant="headlineMedium"
         style={[styles.sectionTitle, { color: colors.onSurface }]}
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   badge: {
-    height: 24,
+    alignSelf: 'flex-start',
   },
   badgeText: {
     fontSize: 11,
