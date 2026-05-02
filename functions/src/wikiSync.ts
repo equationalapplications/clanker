@@ -136,12 +136,23 @@ function validateFact(fact: unknown, entityId: string, label: string): void {
       );
     }
   }
-  if (f.last_accessed_at !== undefined && f.last_accessed_at !== null && typeof f.last_accessed_at !== "number") {
-    throw new HttpsError("invalid-argument", `${label}.last_accessed_at must be a number or null.`);
+  if (f.last_accessed_at !== undefined && f.last_accessed_at !== null) {
+    if (
+      typeof f.last_accessed_at !== "number" ||
+      !isFinite(f.last_accessed_at as number) ||
+      !Number.isInteger(f.last_accessed_at as number)
+    ) {
+      throw new HttpsError("invalid-argument", `${label}.last_accessed_at must be an integer or null.`);
+    }
   }
   if (f.access_count !== undefined && f.access_count !== null) {
-    if (typeof f.access_count !== "number" || !isFinite(f.access_count as number) || (f.access_count as number) < 0) {
-      throw new HttpsError("invalid-argument", `${label}.access_count must be a non-negative number or null.`);
+    if (
+      typeof f.access_count !== "number" ||
+      !isFinite(f.access_count as number) ||
+      !Number.isInteger(f.access_count as number) ||
+      (f.access_count as number) < 0
+    ) {
+      throw new HttpsError("invalid-argument", `${label}.access_count must be a non-negative integer or null.`);
     }
   }
   if (f.deleted_at !== undefined && f.deleted_at !== null && typeof f.deleted_at !== "number") {
@@ -281,13 +292,13 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
         inArray(llmWikiEntries.entityId, entityIds),
         eq(llmWikiEntries.userId, userId),
       )
-    ),
+    ).orderBy(desc(llmWikiEntries.updatedAt)).limit(MAX_FACTS_PER_ENTITY * entityIds.length),
     db.select().from(llmWikiTasks).where(
       and(
         inArray(llmWikiTasks.entityId, entityIds),
         eq(llmWikiTasks.userId, userId),
       )
-    ),
+    ).orderBy(desc(llmWikiTasks.updatedAt)).limit(MAX_TASKS_PER_ENTITY * entityIds.length),
     db.select().from(llmWikiEvents).where(
       and(
         inArray(llmWikiEvents.entityId, entityIds),
