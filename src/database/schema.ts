@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 16
+export const SCHEMA_VERSION = 17
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -23,14 +23,24 @@ export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
     'heal_checkpoint',
     'memory_checkpoint',
   ],
-  wiki_entries: ['source_hash', 'source_ref'],
+  // wiki_entries removed — table no longer exists on fresh installs (package owns llm_wiki_* tables)
 }
 
 /**
  * Column-presence guards that can be used to skip migrations when upgrading
  * legacy databases that may already contain the target column.
+ *
+ * Each guard is satisfied when:
+ * - `{ table, column }` — the named column already exists in the table
+ * - `{ table, skipIfTableMissing: true }` — the table does not exist at all
+ *
+ * A migration is skipped when ANY of its guards is satisfied.
  */
-export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: string }[]> = {
+export type MigrationSkipGuard =
+  | { table: string; column: string }
+  | { table: string; skipIfTableMissing: true }
+
+export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   2: [{ table: 'characters', column: 'deleted_at' }],
   3: [{ table: 'characters', column: 'avatar_data' }],
   4: [{ table: 'characters', column: 'avatar_mime_type' }],
@@ -40,54 +50,13 @@ export const MIGRATION_SKIP_GUARDS: Record<number, { table: string; column: stri
   9: [{ table: 'characters', column: 'voice' }],
   11: [{ table: 'characters', column: 'heal_checkpoint' }],
   12: [{ table: 'characters', column: 'memory_checkpoint' }],
-  13: [{ table: 'wiki_entries', column: 'source_hash' }],
-  14: [{ table: 'wiki_entries', column: 'source_ref' }],
+  // wiki_entries may not exist on legacy DBs that never had the wiki feature;
+  // skip column/index migrations when the table is absent (migration 17 drops it anyway).
+  13: [{ table: 'wiki_entries', column: 'source_hash' }, { table: 'wiki_entries', skipIfTableMissing: true }],
+  14: [{ table: 'wiki_entries', column: 'source_ref' }, { table: 'wiki_entries', skipIfTableMissing: true }],
+  15: [{ table: 'wiki_entries', skipIfTableMissing: true }],
+  16: [{ table: 'wiki_entries', skipIfTableMissing: true }],
 }
-
-/**
- * Partial indexes on wiki_entries that reference columns added in migrations 13/14.
- * These must be applied AFTER migrations, not inside CREATE_TABLES, because
- * CREATE TABLE IF NOT EXISTS is a no-op on existing databases, and attempting to
- * create an index on a column that doesn't yet exist in an old table crashes
- * the entire CREATE_TABLES execAsync call before migrations can run.
- */
-export const CREATE_WIKI_ENTRY_SOURCE_INDEXES = `
-  CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL;
-  CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL;
-`
-
-/**
- * FTS5 virtual table and triggers (platform-specific)
- * Note: On web, SQLite is provided via wa-sqlite through expo-sqlite, and
- * these statements are applied during initialization only when FTS5 support
- * is available there or on native platforms.
- */
-export const CREATE_WIKI_FTS = `
-  CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts USING fts5(
-    title,
-    body,
-    tags,
-    content='wiki_entries',
-    content_rowid='rowid'
-  );
-
-  CREATE TRIGGER IF NOT EXISTS wiki_entries_ai AFTER INSERT ON wiki_entries BEGIN
-    INSERT INTO wiki_fts(rowid, title, body, tags)
-    VALUES (new.rowid, new.title, new.body, new.tags);
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS wiki_entries_au AFTER UPDATE OF title, body, tags ON wiki_entries BEGIN
-    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
-    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
-    INSERT INTO wiki_fts(rowid, title, body, tags)
-    VALUES (new.rowid, new.title, new.body, new.tags);
-  END;
-
-  CREATE TRIGGER IF NOT EXISTS wiki_entries_ad AFTER DELETE ON wiki_entries BEGIN
-    INSERT INTO wiki_fts(wiki_fts, rowid, title, body, tags)
-    VALUES ('delete', old.rowid, old.title, old.body, old.tags);
-  END;
-`
 
 /**
  * SQL statements to create tables
@@ -144,80 +113,6 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(character_id, sender_user_id, recipient_user_id);
   CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
 
-  -- Wiki entries table
-  CREATE TABLE IF NOT EXISTS wiki_entries (
-    id TEXT PRIMARY KEY NOT NULL,
-    character_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    body TEXT NOT NULL,
-    tags TEXT NOT NULL DEFAULT '[]',
-    confidence TEXT NOT NULL DEFAULT 'inferred',
-    source_type TEXT NOT NULL DEFAULT 'agent_inferred',
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    last_accessed_at INTEGER,
-    access_count INTEGER NOT NULL DEFAULT 0,
-    synced_to_cloud INTEGER NOT NULL DEFAULT 0,
-    cloud_id TEXT,
-    deleted_at INTEGER,
-    source_hash TEXT,
-    source_ref TEXT
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_user ON wiki_entries(character_id, user_id);
-  CREATE INDEX IF NOT EXISTS idx_wiki_entries_updated_at ON wiki_entries(updated_at DESC);
-  CREATE INDEX IF NOT EXISTS idx_wiki_entries_character_deleted ON wiki_entries(character_id, deleted_at);
-
-  -- Agent tasks table
-  CREATE TABLE IF NOT EXISTS agent_tasks (
-    id TEXT PRIMARY KEY NOT NULL,
-    character_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    description TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    priority INTEGER NOT NULL DEFAULT 0,
-    due_context TEXT,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    resolved_at INTEGER,
-    resolution_note TEXT,
-    synced_to_cloud INTEGER NOT NULL DEFAULT 0,
-    cloud_id TEXT,
-    deleted_at INTEGER
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_agent_tasks_character_status ON agent_tasks(character_id, user_id, status);
-  CREATE INDEX IF NOT EXISTS idx_agent_tasks_priority ON agent_tasks(priority DESC);
-
-  -- Memory events table
-  CREATE TABLE IF NOT EXISTS memory_events (
-    id TEXT PRIMARY KEY NOT NULL,
-    character_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    summary TEXT NOT NULL,
-    related_entry_id TEXT,
-    related_task_id TEXT,
-    source_ref TEXT,
-    created_at INTEGER NOT NULL,
-    synced_to_cloud INTEGER NOT NULL DEFAULT 0,
-    cloud_id TEXT
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_memory_events_character_created ON memory_events(character_id, user_id, created_at DESC);
-
-  -- Derived synonym table
-  CREATE TABLE IF NOT EXISTS derived_synonyms (
-    term TEXT NOT NULL,
-    character_id TEXT NOT NULL,
-    synonyms TEXT NOT NULL DEFAULT '[]',
-    updated_at INTEGER NOT NULL,
-    PRIMARY KEY (term, character_id)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_derived_synonyms_character ON derived_synonyms(character_id);
-
   -- Schema version tracking
   CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY,
@@ -245,4 +140,12 @@ export const MIGRATIONS: Record<number, string> = {
   15: `DROP INDEX IF EXISTS idx_wiki_entries_source_hash;
 CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_hash ON wiki_entries(character_id, source_hash) WHERE source_hash IS NOT NULL`,
   16: `CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref ON wiki_entries(character_id, source_ref) WHERE source_ref IS NOT NULL`,
+  17: `DROP TRIGGER IF EXISTS wiki_entries_ai;
+DROP TRIGGER IF EXISTS wiki_entries_au;
+DROP TRIGGER IF EXISTS wiki_entries_ad;
+DROP TABLE IF EXISTS wiki_fts;
+DROP TABLE IF EXISTS wiki_entries;
+DROP TABLE IF EXISTS agent_tasks;
+DROP TABLE IF EXISTS memory_events;
+DROP TABLE IF EXISTS derived_synonyms`.trim(),
 }

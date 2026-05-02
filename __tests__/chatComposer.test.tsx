@@ -9,9 +9,27 @@ jest.mock('react-native-gifted-chat', () => {
   }
 })
 
-jest.mock('~/machines/documentIngestMachine', () => ({
-  dispatchDocumentIngest: jest.fn(),
-  getDocumentIngestMachineActor: jest.fn(() => undefined),
+jest.mock('@equationalapplications/expo-llm-wiki/react', () => ({
+  useWikiIngest: () => ({ execute: jest.fn().mockResolvedValue({ chunks: 1 }), isPending: false }),
+  useWikiHasChanged: () => ({ execute: jest.fn().mockResolvedValue(true) }),
+  useWikiForget: () => ({ execute: jest.fn().mockResolvedValue({ deleted: { entries: 0, tasks: 0 } }), lastResult: null }),
+}))
+
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  WikiBusyError: class WikiBusyError extends Error {},
+}))
+
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn().mockResolvedValue({ canceled: true }),
+}))
+
+jest.mock('expo-file-system', () => ({
+  readAsStringAsync: jest.fn().mockResolvedValue(''),
+}))
+
+jest.mock('expo-crypto', () => ({
+  digestStringAsync: jest.fn().mockResolvedValue('abc123'),
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
 }))
 
 jest.mock('~/hooks/useCurrentPlan', () => ({

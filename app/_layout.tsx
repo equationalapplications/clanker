@@ -2,10 +2,12 @@
 import 'expo-dev-client'
 import { StatusBar } from 'expo-status-bar'
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context'
-import { View, StyleSheet, Pressable, AppState } from 'react-native'
+import { View, StyleSheet, Pressable, AppState, Text } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { Stack, router } from 'expo-router'
+import { WikiProvider } from '@equationalapplications/expo-llm-wiki/react'
+import { getWiki } from '~/services/wikiService'
 
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 
@@ -208,92 +210,102 @@ function RootLayoutNav() {
   }
 
   return (
-    <Stack>
-      {/* Landing page - always accessible, no header */}
-      <Stack.Screen name="index" options={{ headerShown: false }} />
+    <WikiProvider wiki={getWiki()}>
+      <Stack>
+        {/* Landing page - always accessible, no header */}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
 
-      {/* Protected routes - only available when logged in */}
-      <Stack.Protected guard={!!user}>
-        <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-        <Stack.Screen name="admin" options={{ headerShown: false }} />
-      </Stack.Protected>
+        {/* Protected routes - only available when logged in */}
+        <Stack.Protected guard={!!user}>
+          <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+          <Stack.Screen name="admin" options={{ headerShown: false }} />
+        </Stack.Protected>
 
-      {/* Public routes - only available when NOT logged in */}
-      <Stack.Protected guard={!user}>
-        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-      </Stack.Protected>
+        {/* Public routes - only available when NOT logged in */}
+        <Stack.Protected guard={!user}>
+          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+        </Stack.Protected>
 
-      {/* Info pages - always available */}
-      <Stack.Screen
-        name="privacy"
-        options={({ navigation }) => ({
-          presentation: 'modal',
-          title: 'Privacy Policy',
-          headerBackButtonDisplayMode: 'minimal',
-          headerLeft: () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-              hitSlop={8}
-              style={styles.headerBackButton}
-              onPress={() => {
-                if (navigation.canGoBack()) {
-                  navigation.goBack()
-                  return
-                }
-                router.replace('/')
-              }}
-            >
-              <Icon source="arrow-left" size={24} color={colors.onSurface} />
-            </Pressable>
-          ),
-        })}
-      />
-      <Stack.Screen
-        name="terms"
-        options={({ navigation }) => ({
-          presentation: 'modal',
-          title: 'Terms and Conditions',
-          headerBackButtonDisplayMode: 'minimal',
-          headerLeft: () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-              hitSlop={8}
-              style={styles.headerBackButton}
-              onPress={() => {
-                if (navigation.canGoBack()) {
-                  navigation.goBack()
-                  return
-                }
-                router.replace('/')
-              }}
-            >
-              <Icon source="arrow-left" size={24} color={colors.onSurface} />
-            </Pressable>
-          ),
-        })}
-      />
-      <Stack.Screen
-        name="support"
-        options={{
-          title: 'Support',
-          headerBackTitle: 'Back',
-        }}
-      />
-      <Stack.Screen name="checkout/success" options={{ headerShown: false }} />
-      <Stack.Screen name="checkout/cancel" options={{ headerShown: false }} />
-    </Stack>
+        {/* Info pages - always available */}
+        <Stack.Screen
+          name="privacy"
+          options={({ navigation }) => ({
+            presentation: 'modal',
+            title: 'Privacy Policy',
+            headerBackButtonDisplayMode: 'minimal',
+            headerLeft: () => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+                hitSlop={8}
+                style={styles.headerBackButton}
+                onPress={() => {
+                  if (navigation.canGoBack()) {
+                    navigation.goBack()
+                    return
+                  }
+                  router.replace('/')
+                }}
+              >
+                <Icon source="arrow-left" size={24} color={colors.onSurface} />
+              </Pressable>
+            ),
+          })}
+        />
+        <Stack.Screen
+          name="terms"
+          options={({ navigation }) => ({
+            presentation: 'modal',
+            title: 'Terms and Conditions',
+            headerBackButtonDisplayMode: 'minimal',
+            headerLeft: () => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+                hitSlop={8}
+                style={styles.headerBackButton}
+                onPress={() => {
+                  if (navigation.canGoBack()) {
+                    navigation.goBack()
+                    return
+                  }
+                  router.replace('/')
+                }}
+              >
+                <Icon source="arrow-left" size={24} color={colors.onSurface} />
+              </Pressable>
+            ),
+          })}
+        />
+        <Stack.Screen
+          name="support"
+          options={{
+            title: 'Support',
+            headerBackTitle: 'Back',
+          }}
+        />
+        <Stack.Screen name="checkout/success" options={{ headerShown: false }} />
+        <Stack.Screen name="checkout/cancel" options={{ headerShown: false }} />
+      </Stack>
+    </WikiProvider>
   )
 }
 
 export default function RootLayout() {
-  const isLoadingComplete = useCachedResources()
+  const { isLoadingComplete, dbInitFailed } = useCachedResources()
 
   if (!isLoadingComplete) {
     return (
       <View style={styles.loadingContainer}>
         <LoadingIndicator disabled={false} />
+      </View>
+    )
+  }
+
+  if (dbInitFailed) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Failed to start the app. Please restart.</Text>
       </View>
     )
   }

@@ -142,9 +142,17 @@ jest.mock('~/utils/buildImagePrompt', () => ({
   buildImagePrompt: jest.fn(() => 'prompt'),
 }))
 jest.mock('~/components/CharacterAvatar', () => () => null)
+jest.mock('@equationalapplications/expo-llm-wiki/react', () => ({
+  useWikiExport: () => ({ execute: jest.fn().mockResolvedValue({ generatedAt: Date.now(), entities: {} }), isPending: false }),
+}))
+jest.mock('~/services/apiClient', () => ({
+  wikiSync: jest.fn().mockResolvedValue({ data: {} }),
+}))
 
 import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
 import EditCharacterScreen from '../app/(drawer)/(tabs)/characters/[id]/edit'
+
+const mockWikiSync = jest.requireMock('~/services/apiClient').wikiSync as jest.Mock
 
 const mockUseCharacter = jest.mocked(useCharacter)
 const mockUseUpdateCharacter = jest.mocked(useUpdateCharacter)
@@ -182,6 +190,8 @@ function setupSelectors(user: { uid: string } | null = { uid: 'user-1' }) {
 beforeEach(() => {
   mockAlertAlert.mockReset()
   mockUpdate.mockReset()
+  mockWikiSync.mockReset()
+  mockWikiSync.mockResolvedValue({ data: {} })
   mockUseSelector.mockReset()
   mockUseUpdateCharacter.mockReturnValue({ update: mockUpdate, isPending: false, error: null } as any)
   setupSelectors()
@@ -381,5 +391,54 @@ describe('EditCharacterScreen - voice selector', () => {
       'char-1',
       expect.objectContaining({ voice: 'Kore' }),
     )
+  })
+})
+
+describe('EditCharacterScreen - Sync Memory button', () => {
+  it('shows success toast after a successful wiki sync', async () => {
+    const character = makeCharacter()
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const syncButton = tree.root
+      .findAll((node) => String(node.type) === 'Button')
+      .find((b) => b.props.children === 'Sync Memory')
+    expect(syncButton).toBeDefined()
+
+    await act(async () => {
+      await syncButton!.props.onPress()
+    })
+
+    const snackbars = tree.root.findAll((node) => String(node.type) === 'Snackbar')
+    expect(snackbars.length).toBeGreaterThan(0)
+    expect(snackbars[0].props.children).toBe('Memory synced to cloud.')
+  })
+
+  it('shows failure toast when wiki sync throws', async () => {
+    mockWikiSync.mockRejectedValue(new Error('network error'))
+    const character = makeCharacter()
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const syncButton = tree.root
+      .findAll((node) => String(node.type) === 'Button')
+      .find((b) => b.props.children === 'Sync Memory')
+    expect(syncButton).toBeDefined()
+
+    await act(async () => {
+      await syncButton!.props.onPress()
+    })
+
+    const snackbars = tree.root.findAll((node) => String(node.type) === 'Snackbar')
+    expect(snackbars.length).toBeGreaterThan(0)
+    expect(snackbars[0].props.children).toContain('Failed to sync memory')
   })
 })

@@ -1,6 +1,10 @@
-import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, check, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, bigint, check, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { DEFAULT_VOICE } from '../constants/voiceDefaults.js';
+
+// NOTE: The legacy table exports (wikiEntries → wiki_entries, agentTasks, memoryEvents) are kept
+// unchanged so that memoryFunctions.ts continues to compile. They will be removed alongside
+// memoryFunctions.ts in a separate cleanup step after old clients are fully retired.
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -60,6 +64,7 @@ export const characters = pgTable('characters', {
   context: text('context'),
   voice: text('voice').notNull().default(DEFAULT_VOICE),
   isPublic: boolean('is_public').notNull().default(false),
+  saveToCloud: boolean('save_to_cloud').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
@@ -82,6 +87,7 @@ export const messages = pgTable('messages', {
   characterIdCreatedAtIdx: index('messages_character_id_created_at_idx').on(table.characterId, table.createdAt.desc()),
 }));
 
+// Legacy tables — used by memoryFunctions.ts; kept until old callables are retired.
 export const wikiEntries = pgTable('wiki_entries', {
   id: text('id').primaryKey(),
   characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
@@ -140,4 +146,59 @@ export const memoryEvents = pgTable('memory_events', {
 }, (table) => ({
   characterCreatedIdx: index('memory_events_character_created_idx').on(table.characterId, table.userId, table.createdAt.desc()),
   eventTypeCheck: check('memory_events_event_type_check', sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`),
+}));
+
+// New LWW wiki tables — used by wikiSync callable.
+export const llmWikiEntries = pgTable('llm_wiki_entries', {
+  id: text('id').notNull(),
+  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  tags: jsonb('tags').notNull().default([]),
+  confidence: text('confidence').notNull().default('inferred'),
+  sourceRef: text('source_ref'),
+  sourceHash: text('source_hash'),
+  sourceType: text('source_type').notNull().default('agent_inferred'),
+  lastAccessedAt: bigint('last_accessed_at', { mode: 'number' }),
+  accessCount: integer('access_count').notNull().default(0),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  deletedAt: bigint('deleted_at', { mode: 'number' }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.id, table.userId] }),
+  entityUserIdx: index('llm_wiki_entries_entity_user_idx').on(table.entityId, table.userId),
+  updatedAtIdx: index('llm_wiki_entries_updated_at_idx').on(table.updatedAt),
+  confidenceCheck: check('llm_wiki_entries_confidence_check', sql`${table.confidence} IN ('certain', 'inferred', 'tentative')`),
+  sourceTypeCheck: check('llm_wiki_entries_source_type_check', sql`${table.sourceType} IN ('user_stated', 'agent_inferred', 'user_confirmed', 'user_document')`),
+}));
+
+export const llmWikiTasks = pgTable('llm_wiki_tasks', {
+  id: text('id').notNull(),
+  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  description: text('description').notNull(),
+  status: text('status').notNull().default('pending'),
+  priority: integer('priority').notNull().default(0),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  resolvedAt: bigint('resolved_at', { mode: 'number' }),
+  deletedAt: bigint('deleted_at', { mode: 'number' }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.id, table.userId] }),
+  entityStatusIdx: index('llm_wiki_tasks_entity_status_idx').on(table.entityId, table.userId, table.status),
+  statusCheck: check('llm_wiki_tasks_status_check', sql`${table.status} IN ('pending', 'in_progress', 'done', 'abandoned')`),
+}));
+
+export const llmWikiEvents = pgTable('llm_wiki_events', {
+  id: text('id').notNull(),
+  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  eventType: text('event_type').notNull(),
+  summary: text('summary').notNull(),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.id, table.userId] }),
+  entityCreatedIdx: index('llm_wiki_events_entity_created_idx').on(table.entityId, table.userId, table.createdAt),
+  eventTypeCheck: check('llm_wiki_events_event_type_check', sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`),
 }));

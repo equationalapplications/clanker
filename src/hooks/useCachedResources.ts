@@ -2,9 +2,11 @@ import { FontAwesome, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@e
 import * as Font from 'expo-font'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect, useState } from 'react'
+import { getDatabase } from '~/database'
 
 export default function useCachedResources() {
   const [isLoadingComplete, setLoadingComplete] = useState(false)
+  const [dbInitFailed, setDbInitFailed] = useState(false)
 
   // Load any resources or data that we need prior to rendering the app
   useEffect(() => {
@@ -25,14 +27,24 @@ export default function useCachedResources() {
       } catch (e) {
         // We might want to provide this error information to an error reporting service
         console.warn('❌ Error loading fonts:', e)
-      } finally {
-        setLoadingComplete(true)
-        SplashScreen.hideAsync()
       }
+
+      // DB warm-up must complete BEFORE setLoadingComplete so WikiProvider
+      // receives a valid wiki instance on first render.
+      try {
+        await getDatabase()
+        console.log('✅ Database ready')
+      } catch (e) {
+        console.warn('❌ Error warming up database:', e)
+        setDbInitFailed(true)
+      }
+
+      setLoadingComplete(true)
+      SplashScreen.hideAsync()
     }
 
     loadResourcesAndDataAsync()
   }, [])
 
-  return isLoadingComplete
+  return { isLoadingComplete, dbInitFailed }
 }
