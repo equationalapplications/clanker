@@ -80,12 +80,18 @@ function assertNumber(value: unknown, label: string): void {
   }
 }
 
-function validateFact(fact: unknown, label: string): void {
+function validateFact(fact: unknown, entityId: string, label: string): void {
   if (!fact || typeof fact !== "object" || Array.isArray(fact)) {
     throw new HttpsError("invalid-argument", `${label} must be an object.`);
   }
   const f = fact as Record<string, unknown>;
   assertString(f.id, `${label}.id`);
+  if (f.entity_id !== entityId) {
+    throw new HttpsError(
+      "invalid-argument",
+      `${label}.entity_id must match the entity key "${entityId}".`
+    );
+  }
   assertString(f.title, `${label}.title`);
   assertString(f.body, `${label}.body`);
   assertString(f.confidence, `${label}.confidence`);
@@ -107,12 +113,18 @@ function validateFact(fact: unknown, label: string): void {
   assertNumber(f.updated_at, `${label}.updated_at`);
 }
 
-function validateTask(task: unknown, label: string): void {
+function validateTask(task: unknown, entityId: string, label: string): void {
   if (!task || typeof task !== "object" || Array.isArray(task)) {
     throw new HttpsError("invalid-argument", `${label} must be an object.`);
   }
   const t = task as Record<string, unknown>;
   assertString(t.id, `${label}.id`);
+  if (t.entity_id !== entityId) {
+    throw new HttpsError(
+      "invalid-argument",
+      `${label}.entity_id must match the entity key "${entityId}".`
+    );
+  }
   assertString(t.description, `${label}.description`);
   assertString(t.status, `${label}.status`);
   assertNumber(t.priority, `${label}.priority`);
@@ -120,12 +132,18 @@ function validateTask(task: unknown, label: string): void {
   assertNumber(t.updated_at, `${label}.updated_at`);
 }
 
-function validateEvent(event: unknown, label: string): void {
+function validateEvent(event: unknown, entityId: string, label: string): void {
   if (!event || typeof event !== "object" || Array.isArray(event)) {
     throw new HttpsError("invalid-argument", `${label} must be an object.`);
   }
   const e = event as Record<string, unknown>;
   assertString(e.id, `${label}.id`);
+  if (e.entity_id !== entityId) {
+    throw new HttpsError(
+      "invalid-argument",
+      `${label}.entity_id must match the entity key "${entityId}".`
+    );
+  }
   assertString(e.event_type, `${label}.event_type`);
   assertString(e.summary, `${label}.summary`);
   assertNumber(e.created_at, `${label}.created_at`);
@@ -195,9 +213,9 @@ function parseInput(data: unknown): MemoryDump {
       );
     }
 
-    b.facts.forEach((f: unknown, i: number) => validateFact(f, `Entity "${entityId}".facts[${i}]`));
-    b.tasks.forEach((t: unknown, i: number) => validateTask(t, `Entity "${entityId}".tasks[${i}]`));
-    b.events.forEach((e: unknown, i: number) => validateEvent(e, `Entity "${entityId}".events[${i}]`));
+    b.facts.forEach((f: unknown, i: number) => validateFact(f, entityId, `Entity "${entityId}".facts[${i}]`));
+    b.tasks.forEach((t: unknown, i: number) => validateTask(t, entityId, `Entity "${entityId}".tasks[${i}]`));
+    b.events.forEach((e: unknown, i: number) => validateEvent(e, entityId, `Entity "${entityId}".events[${i}]`));
   }
 
   return d.dump as unknown as MemoryDump;
@@ -222,11 +240,30 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   ]);
 
   const entities: Record<string, MemoryBundle> = {};
+
+  // Group DB rows by entityId once (O(n)) to avoid repeated linear scans.
+  const factsByEntity = new Map<string, typeof allFacts>();
+  for (const r of allFacts) {
+    const arr = factsByEntity.get(r.entityId) ?? [];
+    arr.push(r);
+    factsByEntity.set(r.entityId, arr);
+  }
+  const tasksByEntity = new Map<string, typeof allTasks>();
+  for (const r of allTasks) {
+    const arr = tasksByEntity.get(r.entityId) ?? [];
+    arr.push(r);
+    tasksByEntity.set(r.entityId, arr);
+  }
+  const eventsByEntity = new Map<string, typeof allEvents>();
+  for (const r of allEvents) {
+    const arr = eventsByEntity.get(r.entityId) ?? [];
+    arr.push(r);
+    eventsByEntity.set(r.entityId, arr);
+  }
+
   for (const entityId of entityIds) {
     entities[entityId] = {
-      facts: allFacts
-        .filter((r) => r.entityId === entityId)
-        .map((r) => ({
+      facts: (factsByEntity.get(entityId) ?? []).map((r) => ({
           id: r.id,
           entity_id: r.entityId,
           title: r.title,
@@ -238,9 +275,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
           created_at: r.createdAt,
           updated_at: r.updatedAt,
         })),
-      tasks: allTasks
-        .filter((r) => r.entityId === entityId)
-        .map((r) => ({
+      tasks: (tasksByEntity.get(entityId) ?? []).map((r) => ({
           id: r.id,
           entity_id: r.entityId,
           description: r.description,
@@ -250,9 +285,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
           updated_at: r.updatedAt,
           resolved_at: r.resolvedAt ?? null,
         })),
-      events: allEvents
-        .filter((r) => r.entityId === entityId)
-        .map((r) => ({
+      events: (eventsByEntity.get(entityId) ?? []).map((r) => ({
           id: r.id,
           entity_id: r.entityId,
           event_type: r.eventType,

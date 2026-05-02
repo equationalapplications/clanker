@@ -47,7 +47,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     try {
       // expo-file-system doesn't support blob/object URLs on web; use fetch instead.
       // Normalize line-endings for consistent cross-platform hashing.
-      const raw = await fetch(uri).then((r) => r.text())
+      const response = await fetch(uri)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`)
+      }
+      const raw = await response.text()
       const documentChunk = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
       const sourceHash = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,

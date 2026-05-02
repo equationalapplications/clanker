@@ -380,6 +380,46 @@ test("wikiSync: accepts valid dump for premium user", async () => {
   assert.equal(upserted.length, 1);
 });
 
+test("wikiSync: rejects fact with mismatched entity_id", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const OTHER_UUID = "00000000-0000-0000-0000-000000000002";
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [{
+          id: "f1",
+          entity_id: OTHER_UUID, // doesn't match entity key
+          title: "T",
+          body: "B",
+          confidence: "inferred",
+          tags: [],
+          source_ref: null,
+          source_hash: null,
+          created_at: 1000,
+          updated_at: 1001,
+        }],
+        tasks: [],
+        events: [],
+      },
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /entity_id must match the entity key/);
+      return true;
+    }
+  );
+});
+
 test("wikiSync: rejects cancelled subscription", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
