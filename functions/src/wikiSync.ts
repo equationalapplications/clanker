@@ -269,7 +269,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
         eq(llmWikiEvents.userId, userId),
         gte(llmWikiEvents.createdAt, Date.now() - WIKI_EVENTS_RETENTION_MS),
       )
-    ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY),
+    ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY * entityIds.length),
   ]);
 
   const entities: Record<string, MemoryBundle> = {};
@@ -290,8 +290,10 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   const eventsByEntity = new Map<string, typeof allEvents>();
   for (const r of allEvents) {
     const arr = eventsByEntity.get(r.entityId) ?? [];
-    arr.push(r);
-    eventsByEntity.set(r.entityId, arr);
+    if (arr.length < MAX_EVENTS_PER_ENTITY) {
+      arr.push(r);
+      eventsByEntity.set(r.entityId, arr);
+    }
   }
 
   for (const entityId of entityIds) {

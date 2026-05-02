@@ -36,19 +36,19 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
 
-    const result = await DocumentPicker.getDocumentAsync({
-      copyToCacheDirectory: true,
-      type: ['text/plain', 'text/markdown'],
-    })
-    if (result.canceled || !result.assets?.[0]) return
-
-    const asset = result.assets[0]
-    const uri = asset.uri
-    // Sanitize filename: strip control chars, cap length for stable sourceRef
-    const rawRef = asset.name ?? uri
-    const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
-
     try {
+      const result = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+        type: ['text/plain', 'text/markdown'],
+      })
+      if (result.canceled || !result.assets?.[0]) return
+
+      const asset = result.assets[0]
+      const uri = asset.uri
+      // Sanitize filename: strip control chars, cap length for stable sourceRef
+      const rawRef = asset.name ?? uri
+      const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
+
       // Read as UTF-8 (the default); strip BOM/null bytes and normalize to NFC for
       // consistent cross-platform hashing regardless of editor/OS encoding quirks.
       const raw = await FileSystem.readAsStringAsync(uri)
