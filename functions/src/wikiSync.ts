@@ -63,6 +63,62 @@ interface WikiSyncOptions {
 }
 
 const MAX_ENTITIES = 50;
+const MAX_FACTS_PER_ENTITY = 500;
+const MAX_TASKS_PER_ENTITY = 200;
+const MAX_EVENTS_PER_ENTITY = 500;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function assertString(value: unknown, label: string): void {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new HttpsError("invalid-argument", `${label} must be a non-empty string.`);
+  }
+}
+
+function assertNumber(value: unknown, label: string): void {
+  if (typeof value !== "number" || !isFinite(value)) {
+    throw new HttpsError("invalid-argument", `${label} must be a finite number.`);
+  }
+}
+
+function validateFact(fact: unknown, label: string): void {
+  if (!fact || typeof fact !== "object" || Array.isArray(fact)) {
+    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  }
+  const f = fact as Record<string, unknown>;
+  assertString(f.id, `${label}.id`);
+  assertString(f.title, `${label}.title`);
+  assertString(f.body, `${label}.body`);
+  assertString(f.confidence, `${label}.confidence`);
+  if (!Array.isArray(f.tags)) {
+    throw new HttpsError("invalid-argument", `${label}.tags must be an array.`);
+  }
+  assertNumber(f.created_at, `${label}.created_at`);
+  assertNumber(f.updated_at, `${label}.updated_at`);
+}
+
+function validateTask(task: unknown, label: string): void {
+  if (!task || typeof task !== "object" || Array.isArray(task)) {
+    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  }
+  const t = task as Record<string, unknown>;
+  assertString(t.id, `${label}.id`);
+  assertString(t.description, `${label}.description`);
+  assertString(t.status, `${label}.status`);
+  assertNumber(t.priority, `${label}.priority`);
+  assertNumber(t.created_at, `${label}.created_at`);
+  assertNumber(t.updated_at, `${label}.updated_at`);
+}
+
+function validateEvent(event: unknown, label: string): void {
+  if (!event || typeof event !== "object" || Array.isArray(event)) {
+    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  }
+  const e = event as Record<string, unknown>;
+  assertString(e.id, `${label}.id`);
+  assertString(e.event_type, `${label}.event_type`);
+  assertString(e.summary, `${label}.summary`);
+  assertNumber(e.created_at, `${label}.created_at`);
+}
 
 function parseInput(data: unknown): MemoryDump {
   if (!data || typeof data !== "object") {
@@ -88,7 +144,6 @@ function parseInput(data: unknown): MemoryDump {
     );
   }
 
-  const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   for (const entityId of entityIds) {
     if (!UUID_PATTERN.test(entityId)) {
       throw new HttpsError("invalid-argument", `Entity key "${entityId}" is not a valid UUID.`);
@@ -109,6 +164,29 @@ function parseInput(data: unknown): MemoryDump {
     if (!Array.isArray(b.events)) {
       throw new HttpsError("invalid-argument", `Entity "${entityId}".events must be an array.`);
     }
+
+    if (b.facts.length > MAX_FACTS_PER_ENTITY) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Entity "${entityId}" may not contain more than ${MAX_FACTS_PER_ENTITY} facts.`
+      );
+    }
+    if (b.tasks.length > MAX_TASKS_PER_ENTITY) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Entity "${entityId}" may not contain more than ${MAX_TASKS_PER_ENTITY} tasks.`
+      );
+    }
+    if (b.events.length > MAX_EVENTS_PER_ENTITY) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Entity "${entityId}" may not contain more than ${MAX_EVENTS_PER_ENTITY} events.`
+      );
+    }
+
+    b.facts.forEach((f: unknown, i: number) => validateFact(f, `Entity "${entityId}".facts[${i}]`));
+    b.tasks.forEach((t: unknown, i: number) => validateTask(t, `Entity "${entityId}".tasks[${i}]`));
+    b.events.forEach((e: unknown, i: number) => validateEvent(e, `Entity "${entityId}".events[${i}]`));
   }
 
   return d.dump as unknown as MemoryDump;

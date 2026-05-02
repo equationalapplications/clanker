@@ -356,7 +356,7 @@ export const sendMessageWithAIResponse = async (
     if (options?.hasUnlimited) {
       try {
         const bundle = await getWiki().read(character.id, userMessage.text)
-        memoryBlock = formatContext(bundle)
+        memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
       } catch (error) {
         console.warn('Failed to fetch memory bundle:', error)
       }

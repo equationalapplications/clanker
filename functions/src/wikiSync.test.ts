@@ -160,6 +160,107 @@ test("wikiSync: rejects non-UUID entity keys", async () => {
   );
 });
 
+test("wikiSync: rejects malformed fact (missing required field)", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [{ id: "f1", entity_id: TEST_ENTITY_UUID /* missing title, body, etc */ }],
+        tasks: [],
+        events: [],
+      },
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /facts\[0\]\.title must be a non-empty string/);
+      return true;
+    }
+  );
+});
+
+test("wikiSync: rejects malformed task (non-numeric priority)", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [],
+        tasks: [{
+          id: "t1",
+          entity_id: TEST_ENTITY_UUID,
+          description: "Do it",
+          status: "pending",
+          priority: "high", // should be number
+          created_at: 1000,
+          updated_at: 1001,
+        }],
+        events: [],
+      },
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /tasks\[0\]\.priority must be a finite number/);
+      return true;
+    }
+  );
+});
+
+test("wikiSync: rejects too many facts per entity", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const tooManyFacts = Array.from({length: 501}, (_, i) => ({
+    id: `fact-${i}`,
+    entity_id: TEST_ENTITY_UUID,
+    title: `Fact ${i}`,
+    body: "body",
+    confidence: "inferred",
+    tags: [],
+    source_ref: null,
+    source_hash: null,
+    created_at: 1000,
+    updated_at: 1001,
+  }));
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {facts: tooManyFacts, tasks: [], events: []},
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /more than 500 facts/);
+      return true;
+    }
+  );
+});
+
+
 test("wikiSync: rejects non-premium users", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
