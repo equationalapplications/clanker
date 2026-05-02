@@ -1,0 +1,2 @@
+ALTER TABLE "llm_wiki_entries" DROP CONSTRAINT "llm_wiki_entries_source_type_check";--> statement-breakpoint
+ALTER TABLE "llm_wiki_entries" ADD CONSTRAINT "llm_wiki_entries_source_type_check" CHECK ("source_type" IN ('user_stated', 'agent_inferred', 'user_confirmed', 'user_document'));
