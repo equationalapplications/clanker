@@ -59,3 +59,5 @@ firebase-debug.log
 
 # Git worktrees
 .worktrees/
+.codegraph/
+.github/instructions/codegraph-mcp.instructions.md
