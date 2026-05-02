@@ -143,6 +143,7 @@ jest.mock('~/utils/buildImagePrompt', () => ({
 }))
 jest.mock('~/components/CharacterAvatar', () => () => null)
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  WikiBusyError: class WikiBusyError extends Error {},
   useWikiExport: () => ({ execute: jest.fn().mockResolvedValue({ generatedAt: Date.now(), entities: {} }), isPending: false }),
 }))
 jest.mock('~/services/apiClient', () => ({
