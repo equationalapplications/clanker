@@ -293,9 +293,10 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   // tasks, and events for the entity IDs in `batch`.
   //
   // Facts and tasks are ordered with tombstones (rows with deleted_at IS NOT NULL)
-  // before live rows (deleted_at DESC NULLS LAST). If a later in-memory per-entity
-  // cap is applied while building `entities`, this ordering ensures deletions are
-  // retained ahead of live rows for entities near MAX_*_PER_ENTITY.
+  // before live rows (deleted_at DESC NULLS LAST, updated_at DESC). This ensures
+  // the SQL LIMIT retains tombstones ahead of live rows so cross-device deletions
+  // are never dropped by the cap. An in-memory per-entity cap then clips each
+  // entity's results to MAX_*_PER_ENTITY before returning.
   for (let batchStart = 0; batchStart < entityIds.length; batchStart += ENTITY_BATCH_SIZE) {
     const batch = entityIds.slice(batchStart, batchStart + ENTITY_BATCH_SIZE);
 
@@ -306,20 +307,20 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       ).orderBy(
         sql`${llmWikiEntries.deletedAt} DESC NULLS LAST`,
         desc(llmWikiEntries.updatedAt),
-      ),
+      ).limit(MAX_FACTS_PER_ENTITY * batch.length),
       db.select().from(llmWikiTasks).where(
         and(inArray(llmWikiTasks.entityId, batch), eq(llmWikiTasks.userId, userId))
       ).orderBy(
         sql`${llmWikiTasks.deletedAt} DESC NULLS LAST`,
         desc(llmWikiTasks.updatedAt),
-      ),
+      ).limit(MAX_TASKS_PER_ENTITY * batch.length),
       db.select().from(llmWikiEvents).where(
         and(
           inArray(llmWikiEvents.entityId, batch),
           eq(llmWikiEvents.userId, userId),
           gte(llmWikiEvents.createdAt, retentionCutoff),
         )
-      ).orderBy(desc(llmWikiEvents.createdAt)),
+      ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY * batch.length),
     ]);
 
     for (const entityId of batch) {
