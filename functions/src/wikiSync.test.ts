@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {HttpsError, CallableRequest} from "firebase-functions/v2/https";
 
-import {wikiSyncHandler} from "./wikiSync.js";
+import {wikiSyncHandler, MemoryDump} from "./wikiSync.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 
@@ -483,7 +483,7 @@ test("wikiSync: last-write-wins semantics via upsertData injection", async () =>
   // In-memory store keyed by fact id — simulates the cloud SQL LWW behaviour.
   const store = new Map<string, {body: string; updated_at: number}>();
 
-  const upsertData = async (dump: {entities: Record<string, {facts?: Array<{id: string; body: string; updated_at: number}>}>}) => {
+  const upsertData = async (dump: MemoryDump) => {
     for (const bundle of Object.values(dump.entities)) {
       for (const fact of bundle.facts ?? []) {
         const existing = store.get(fact.id);
@@ -519,7 +519,7 @@ test("wikiSync: last-write-wins semantics via upsertData injection", async () =>
     },
   };
   await wikiSyncHandler({auth, data: {dump: newerDump}} as unknown as CallableRequest, {
-    upsertData: upsertData as never,
+    upsertData,
     validateEntityOwnership,
     fetchMergedDump,
     getUser: async () => user,
@@ -539,7 +539,7 @@ test("wikiSync: last-write-wins semantics via upsertData injection", async () =>
     },
   };
   await wikiSyncHandler({auth, data: {dump: olderDump}} as unknown as CallableRequest, {
-    upsertData: upsertData as never,
+    upsertData,
     validateEntityOwnership,
     fetchMergedDump,
     getUser: async () => user,

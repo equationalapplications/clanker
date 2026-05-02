@@ -51,13 +51,15 @@ interface MemoryBundle {
   events: WikiEvent[];
 }
 
-interface MemoryDump {
+export interface MemoryDump {
   generatedAt: number;
   entities: Record<string, MemoryBundle>;
 }
 
 interface WikiSyncOptions {
+  /** Full-dump upsert override (preferred for tests; supersedes upsertEntries). */
   upsertData?: (dump: MemoryDump, userId: string) => Promise<void>;
+  /** Legacy fact-only upsert override; ignored when upsertData is provided. */
   upsertEntries?: (entries: WikiFact[], userId: string) => Promise<void>;
   validateEntityOwnership?: (entityIds: string[], userId: string) => Promise<void>;
   fetchMergedDump?: (entityIds: string[], userId: string) => Promise<MemoryDump>;
