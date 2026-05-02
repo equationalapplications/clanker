@@ -1,3 +1,42 @@
+# [29.6.0](https://github.com/equationalapplications/clanker/compare/v29.5.0...v29.6.0) (2026-05-02)
+
+
+### Bug Fixes
+
+* **a11y:** remove accessible={false} from wiki status live region; add accessibilityRole=status on web ([7439443](https://github.com/equationalapplications/clanker/commit/7439443473571ff68a2ee39f55f939764287a78a))
+* add picker error handling and fix event limit ([589aa88](https://github.com/equationalapplications/clanker/commit/589aa887d4b072c147cf74a794a0f8e6f6f13788))
+* add type filter to document picker; fix composite PK in wiki tables schema/migration ([74c7955](https://github.com/equationalapplications/clanker/commit/74c79553df7ea244c163c3a2a8acb9bc2372ef6c))
+* add type filter to document picker; fix stray whitespace in ChatView live region ([122e70b](https://github.com/equationalapplications/clanker/commit/122e70bf4894ac245e4aafbe50150818a6c0e87e))
+* **db:** change entity_id to uuid with FK to characters.id on wiki tables ([83c1b4a](https://github.com/equationalapplications/clanker/commit/83c1b4a466b0f92415b7444302a3c1b19672857f))
+* **db:** composite PK on wiki tables matches upsert target ([df25a68](https://github.com/equationalapplications/clanker/commit/df25a681bb090e1bf450a6fb2365a795befb3a53))
+* **functions:** add prompt length limits, GCLOUD_PROJECT guard, and tag/source field validation ([628680c](https://github.com/equationalapplications/clanker/commit/628680cf21c21f1a515c4c1531e0a232f325382b))
+* **functions:** restore memoryRead/Write/Heal/Forget/syncCharacterMemory exports per spec ([b8c1971](https://github.com/equationalapplications/clanker/commit/b8c1971ec01fe2915c81698d35da8b053b8c7241))
+* **functions:** restore old schema exports; keep memoryFunctions.ts unchanged ([8f5ec31](https://github.com/equationalapplications/clanker/commit/8f5ec31b4e48cba2fd9ce676a255fe9def2a57cf))
+* include tombstones in remoteDump for deletion propagation ([01bfd8b](https://github.com/equationalapplications/clanker/commit/01bfd8ba37e3bbf044669d74e2f08f34e6cb1160))
+* regenerate package-lock.json to include missing transitive dependencies ([a2f779e](https://github.com/equationalapplications/clanker/commit/a2f779e8f37d384b90cb9d9757eabb01895d3e54))
+* **wiki:** 2s poll interval, fix duplicate deleted_at check, bound events query, add Sync Memory tests ([4d4a033](https://github.com/equationalapplications/clanker/commit/4d4a033b87fa8a7731542a739e23b9574fb1b47b))
+* **wiki:** add formatContext limits, row-level validation in parseInput, restore memoryFunctions.ts ([966fb93](https://github.com/equationalapplications/clanker/commit/966fb9382991a41a30eaf4690145eedc9e24fc29))
+* **wiki:** address PR review - response.ok, entity_id validation, fetchMergedDump O(n*m) ([62c81a7](https://github.com/equationalapplications/clanker/commit/62c81a79e461ffa059c570338ed595fa7e7e1ae0))
+* **wiki:** address review thread 4214155814 - tombstones, validation, LWW test, BOM/NFC, backfill ([9b02a38](https://github.com/equationalapplications/clanker/commit/9b02a380cc074e03dfcdcb1dbfcd30b44dfa8232))
+* **wiki:** batch upserts in db.transaction, use DEFAULT_REGION, restore 5s poll interval ([4fab71d](https://github.com/equationalapplications/clanker/commit/4fab71d774511cfe1ea2606a4c64175f42d933f0))
+* **wiki:** clarify comment on deferred importDump after WikiBusyError ([551b44a](https://github.com/equationalapplications/clanker/commit/551b44ac03dbeb98e64743be1f310d6cd185161d))
+* **wiki:** DI for test mocks, migration skip guards for missing wiki_entries, input validation, batch fetchMergedDump ([5ea46b7](https://github.com/equationalapplications/clanker/commit/5ea46b71c37b673974d64d5ddccfe5c606b7a786))
+* **wiki:** exclude deleted, add enum checks, enable refresh ([44c9258](https://github.com/equationalapplications/clanker/commit/44c9258f5ba4b4bf648394b6a4bda98a762d6d1f))
+* **wiki:** export MemoryDump type, clean up LWW test typing, document upsertData vs upsertEntries ([138de8b](https://github.com/equationalapplications/clanker/commit/138de8b958eec862cdf69a21934786d8f3a9f227))
+* **wiki:** handle WikiBusyError in importDump, clear wiki status on premium loss, remove dedupe bypass ([363a199](https://github.com/equationalapplications/clanker/commit/363a199f2e9491cc87b059ea7d3bee039e81e541))
+* **wikiLlm:** remove CLOUD_SQL_SECRETS from wikiLlm onCall config ([a1278d8](https://github.com/equationalapplications/clanker/commit/a1278d834a7e0675a3dc8718f34607891624314c))
+* **wiki:** return remoteDump and complete sync merge ([8660bb1](https://github.com/equationalapplications/clanker/commit/8660bb1ea7bb1f3415c2ba6e0d535e530c7eccd4))
+* **wikiSync:** rename UUID_RE to UUID_PATTERN; tighten non-UUID test assertion ([cf0d02b](https://github.com/equationalapplications/clanker/commit/cf0d02b955c4b18f41933ed426d4486196ce4a18))
+* **wikiSync:** validate entity IDs are UUIDs before ownership/inArray queries ([205f767](https://github.com/equationalapplications/clanker/commit/205f7676dae4b7b658c323f82ecc596a0d21e251))
+* **wikiSync:** write saveToCloud=true in syncCharacterHandler to unblock ownership gate ([6a27293](https://github.com/equationalapplications/clanker/commit/6a27293bd24a572e545716857bcc824d5df52b2a))
+* **wiki:** WikiBusyError handling, runPrune in edit.tsx, type cast safety, ChatView try-catch, log context ([f626436](https://github.com/equationalapplications/clanker/commit/f626436587fedec773ec15ec2b9a4b963e084c45))
+
+
+### Features
+
+* **wiki:** replace custom wiki infrastructure with expo-llm-wiki v2.3.0 ([7df7365](https://github.com/equationalapplications/clanker/commit/7df7365666680e86f705db453c3361bd5b60d87e))
+* **wikiSync:** add deleted_at propagation + fresh restore sync ([2997171](https://github.com/equationalapplications/clanker/commit/29971717eb8b0a65469fcd9f212a8f36464f3272))
+
 # [29.5.0](https://github.com/equationalapplications/clanker/compare/v29.4.1...v29.5.0) (2026-05-02)
 
 
