@@ -46,7 +46,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
       } catch {
         // wiki not yet initialized — skip this tick
       }
-    }, 5000)
+    }, 2000)
     return () => clearInterval(interval)
   }, [characterId, hasUnlimited])
 

@@ -1,7 +1,7 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import {inArray, and, eq, sql, isNull} from "drizzle-orm";
+import {inArray, and, eq, sql, isNull, gte, desc} from "drizzle-orm";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
@@ -122,9 +122,6 @@ function validateFact(fact: unknown, entityId: string, label: string): void {
   }
   assertNumber(f.created_at, `${label}.created_at`);
   assertNumber(f.updated_at, `${label}.updated_at`);
-  if (f.deleted_at !== undefined && f.deleted_at !== null && typeof f.deleted_at !== "number") {
-    throw new HttpsError("invalid-argument", `${label}.deleted_at must be a number or null.`);
-  }
 }
 
 function validateTask(task: unknown, entityId: string, label: string): void {
@@ -265,8 +262,12 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       )
     ),
     db.select().from(llmWikiEvents).where(
-      and(inArray(llmWikiEvents.entityId, entityIds), eq(llmWikiEvents.userId, userId))
-    ),
+      and(
+        inArray(llmWikiEvents.entityId, entityIds),
+        eq(llmWikiEvents.userId, userId),
+        gte(llmWikiEvents.createdAt, Date.now() - 30 * 24 * 60 * 60 * 1000),
+      )
+    ).orderBy(desc(llmWikiEvents.createdAt)).limit(MAX_EVENTS_PER_ENTITY),
   ]);
 
   const entities: Record<string, MemoryBundle> = {};
