@@ -1,16 +1,8 @@
 import { View, StyleSheet } from 'react-native'
 import { Text, Card, useTheme } from 'react-native-paper'
-import { useEffect } from 'react'
-import Animated, {
-  FadeInDown,
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withSequence,
-  withTiming,
-  withDelay,
-} from 'react-native-reanimated'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { useFloatingCardAnimation } from '~/hooks/useFloatingCardAnimation'
 
 const COMING_SOON_FEATURES = [
   {
@@ -33,26 +25,7 @@ function ComingSoonCard({
   index: number
 }) {
   const { colors } = useTheme()
-
-  const floatY = useSharedValue(0)
-
-  useEffect(() => {
-    floatY.value = withDelay(
-      index * 550,
-      withRepeat(
-        withSequence(
-          withTiming(-7, { duration: 2600 }),
-          withTiming(0, { duration: 2600 })
-        ),
-        -1,
-        true
-      )
-    )
-  }, [floatY, index])
-
-  const cardAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: floatY.value }],
-  }))
+  const cardAnimStyle = useFloatingCardAnimation(index)
 
   return (
     <Animated.View
