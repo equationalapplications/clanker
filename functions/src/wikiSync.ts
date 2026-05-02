@@ -78,6 +78,9 @@ const MAX_EVENTS_PER_ENTITY = 500;
 const WIKI_EVENTS_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const VALID_CONFIDENCE = new Set(["certain", "inferred", "tentative"]);
+const VALID_SOURCE_TYPE = new Set(["user_stated", "agent_inferred", "user_confirmed", "user_document"]);
+
 function assertString(value: unknown, label: string): void {
   if (typeof value !== "string" || value.length === 0) {
     throw new HttpsError("invalid-argument", `${label} must be a non-empty string.`);
@@ -105,6 +108,12 @@ function validateFact(fact: unknown, entityId: string, label: string): void {
   assertString(f.title, `${label}.title`);
   assertString(f.body, `${label}.body`);
   assertString(f.confidence, `${label}.confidence`);
+  if (!VALID_CONFIDENCE.has(f.confidence as string)) {
+    throw new HttpsError(
+      "invalid-argument",
+      `${label}.confidence must be one of: certain, inferred, tentative.`
+    );
+  }
   if (!Array.isArray(f.tags)) {
     throw new HttpsError("invalid-argument", `${label}.tags must be an array.`);
   }
@@ -118,6 +127,22 @@ function validateFact(fact: unknown, entityId: string, label: string): void {
   }
   if (f.source_hash !== undefined && f.source_hash !== null && typeof f.source_hash !== "string") {
     throw new HttpsError("invalid-argument", `${label}.source_hash must be a string or null.`);
+  }
+  if (f.source_type !== undefined && f.source_type !== null) {
+    if (typeof f.source_type !== "string" || !VALID_SOURCE_TYPE.has(f.source_type as string)) {
+      throw new HttpsError(
+        "invalid-argument",
+        `${label}.source_type must be one of: user_stated, agent_inferred, user_confirmed, user_document.`
+      );
+    }
+  }
+  if (f.last_accessed_at !== undefined && f.last_accessed_at !== null && typeof f.last_accessed_at !== "number") {
+    throw new HttpsError("invalid-argument", `${label}.last_accessed_at must be a number or null.`);
+  }
+  if (f.access_count !== undefined && f.access_count !== null) {
+    if (typeof f.access_count !== "number" || !isFinite(f.access_count as number) || (f.access_count as number) < 0) {
+      throw new HttpsError("invalid-argument", `${label}.access_count must be a non-negative number or null.`);
+    }
   }
   if (f.deleted_at !== undefined && f.deleted_at !== null && typeof f.deleted_at !== "number") {
     throw new HttpsError("invalid-argument", `${label}.deleted_at must be a number or null.`);
@@ -179,6 +204,7 @@ function parseInput(data: unknown): MemoryDump {
   }
 
   const rawDump = d.dump as Record<string, unknown>;
+  assertNumber(rawDump.generatedAt, "dump.generatedAt");
   if (!rawDump.entities || typeof rawDump.entities !== "object" || Array.isArray(rawDump.entities)) {
     throw new HttpsError("invalid-argument", "dump.entities must be an object.");
   }
@@ -274,17 +300,22 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   const entities: Record<string, MemoryBundle> = {};
 
   // Group DB rows by entityId once (O(n)) to avoid repeated linear scans.
+  // Per-entity caps are applied during grouping to keep response size bounded.
   const factsByEntity = new Map<string, typeof allFacts>();
   for (const r of allFacts) {
     const arr = factsByEntity.get(r.entityId) ?? [];
-    arr.push(r);
-    factsByEntity.set(r.entityId, arr);
+    if (arr.length < MAX_FACTS_PER_ENTITY) {
+      arr.push(r);
+      factsByEntity.set(r.entityId, arr);
+    }
   }
   const tasksByEntity = new Map<string, typeof allTasks>();
   for (const r of allTasks) {
     const arr = tasksByEntity.get(r.entityId) ?? [];
-    arr.push(r);
-    tasksByEntity.set(r.entityId, arr);
+    if (arr.length < MAX_TASKS_PER_ENTITY) {
+      arr.push(r);
+      tasksByEntity.set(r.entityId, arr);
+    }
   }
   const eventsByEntity = new Map<string, typeof allEvents>();
   for (const r of allEvents) {

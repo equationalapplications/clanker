@@ -75,6 +75,8 @@ export default function ComingSoonSection() {
       <Text
         variant="headlineMedium"
         style={[styles.sectionTitle, { color: colors.onSurface }]}
+        accessibilityRole="header"
+        accessibilityLabel="What's Coming Next"
       >
         What&apos;s Coming Next
       </Text>

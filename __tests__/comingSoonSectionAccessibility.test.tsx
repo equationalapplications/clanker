@@ -114,4 +114,12 @@ describe('ComingSoonSection accessibility', () => {
       expect(badge.props.accessibilityRole).toBe('text')
     })
   })
+
+  it('section heading has accessibilityRole "header" and correct label', () => {
+    const heading = tree.root.find(
+      (node: any) => node.props.accessibilityRole === 'header'
+    )
+    expect(heading).toBeTruthy()
+    expect(heading.props.accessibilityLabel).toBe("What's Coming Next")
+  })
 })
