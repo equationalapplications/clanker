@@ -106,4 +106,12 @@ describe('ComingSoonSection accessibility', () => {
       expect(badge.props.accessibilityLabel).toBe('Coming soon')
     })
   })
+
+  it('each Coming Soon badge has accessibilityRole "text"', () => {
+    const badges = tree.root.findAll((node: any) => node.props.accessibilityLabel === 'Coming soon')
+    expect(badges.length).toBe(2)
+    badges.forEach((badge: any) => {
+      expect(badge.props.accessibilityRole).toBe('text')
+    })
+  })
 })

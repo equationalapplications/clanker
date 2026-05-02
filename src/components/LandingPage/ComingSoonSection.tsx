@@ -36,6 +36,7 @@ function ComingSoonCard({
         <View style={styles.badgeRow}>
           <View
             style={[styles.badge, { backgroundColor: colors.secondaryContainer }]}
+            accessibilityRole="text"
             accessibilityLabel="Coming soon"
             accessible
           >
