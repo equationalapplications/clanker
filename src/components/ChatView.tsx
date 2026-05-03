@@ -186,7 +186,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
         accessible
         accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
         accessibilityLiveRegion="polite"
-        accessibilityLabel="Sign in required"
+        accessibilityLabel="Please sign in to chat"
       >
         <Text>Please sign in to chat</Text>
       </View>
