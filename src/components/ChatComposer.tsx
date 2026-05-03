@@ -126,19 +126,22 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
             />
           )
         )}
-        <View style={styles.composerWrapper}>
+        <View style={[styles.composerWrapper, {
+          backgroundColor: colors.surfaceVariant,
+          borderRadius: roundness * 4,
+          marginVertical: 4,
+          overflow: 'hidden',
+        }]}>
           <Composer
             {...props}
             text={text}
             onInputSizeChanged={onInputSizeChanged}
             onTextChanged={onTextChanged}
             textInputStyle={{
-              backgroundColor: colors.surfaceVariant,
-              borderRadius: roundness * 4,
+              backgroundColor: 'transparent',
               paddingHorizontal: 12,
               paddingVertical: 10,
               color: colors.onSurfaceVariant,
-              marginVertical: 4,
               textAlignVertical: 'center',
             }}
             textInputProps={{
