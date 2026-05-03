@@ -79,7 +79,13 @@ describe('queryModuleEdges', () => {
       { source_name: 'getDatabase', source_file: 'src/database/index.ts', target_name: 'openDatabaseAsyncWithRetry', target_file: 'src/database/index.ts' },
     ]
     const mockDb = {
-      prepare: () => ({ all: () => mockRows }),
+      prepare: () => ({
+        all: (glob, depth) => {
+          expect(glob).toBe('src/database/%')
+          expect(depth).toBe(3)
+          return mockRows
+        },
+      }),
     }
     const result = queryModuleEdges(mockDb, 'src/database/%', 3)
     expect(result).toEqual(mockRows)

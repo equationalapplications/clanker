@@ -102,6 +102,10 @@ function queryModuleEdges(db, moduleGlob, maxDepth) {
     JOIN nodes nt ON bfs.target_id = nt.id
     WHERE nt.file_path LIKE 'src/%'
   `
+  // UNION deduplicates on (source_id, target_id, depth) — not just the pair.
+  // SQLite does not support self-referential NOT EXISTS in recursive CTEs,
+  // so we cannot deduplicate on the pair alone. The depth cap ensures termination.
+  // SELECT DISTINCT in the outer query produces deduplicated output rows.
   return db.prepare(sql).all(moduleGlob, maxDepth)
 }
 
