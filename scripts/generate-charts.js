@@ -2,6 +2,7 @@
 'use strict'
 
 const path = require('path')
+const fs = require('fs')
 
 // --- Pure functions ---
 
@@ -110,3 +111,43 @@ function queryModuleEdges(db, moduleGlob, maxDepth) {
 }
 
 module.exports = { sanitizeName, makeNodeId, makeNodeLabel, buildEdgeSet, renderMermaid, queryModuleEdges }
+
+const MODULES = [
+  { name: 'database',   glob: 'src/database/%' },
+  { name: 'services',   glob: 'src/services/%' },
+  { name: 'hooks',      glob: 'src/hooks/%' },
+  { name: 'machines',   glob: 'src/machines/%' },
+  { name: 'components', glob: 'src/components/%' },
+]
+
+const MAX_DEPTH = 3
+const OUT_DIR = 'docs/flowcharts'
+
+function main() {
+  const dbPath = '.codegraph/codegraph.db'
+  if (!fs.existsSync(dbPath)) {
+    console.error('CodeGraph not initialized. Run: codegraph index')
+    process.exit(1)
+  }
+
+  const Database = require('better-sqlite3')
+  const db = new Database(dbPath, { readonly: true })
+
+  fs.mkdirSync(OUT_DIR, { recursive: true })
+
+  for (const mod of MODULES) {
+    const rows = queryModuleEdges(db, mod.glob, MAX_DEPTH)
+    const edges = buildEdgeSet(rows)
+    const content = renderMermaid(mod.name, edges)
+    const outPath = `${OUT_DIR}/${mod.name}.md`
+    fs.writeFileSync(outPath, content, 'utf8')
+    console.log(`  wrote ${outPath} (${edges.length} edges)`)
+  }
+
+  db.close()
+  console.log('Done.')
+}
+
+if (require.main === module) {
+  main()
+}

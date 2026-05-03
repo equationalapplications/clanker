@@ -24,6 +24,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
+    "docs:charts": "node scripts/generate-charts.js",
     "adb": "adb reverse tcp:8081 tcp:8081",
     "predeploy": "npx expo export --platform web --clear",
     "deploy-hosting": "npm run predeploy && firebase deploy --only hosting",
