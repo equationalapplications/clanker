@@ -399,10 +399,13 @@ export const sendMessageWithAIResponse = async (
       const chunk = recentMessages
         .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
         .join('\n')
-      void getWiki()?.write(character.id, {
-        event_type: 'observation',
-        summary: chunk || userMessage.text,
-      }).catch((err: unknown) => console.warn('[wiki] write failed:', err))
+      const wiki = getWiki()
+      if (wiki) {
+        void wiki.write(character.id, {
+          event_type: 'observation',
+          summary: chunk || userMessage.text,
+        }).catch((err: unknown) => console.warn('[wiki] write failed:', err))
+      }
     }
     return { usageSnapshot: toUsageSnapshot(aiResponse) }
   } catch (error) {
