@@ -1,3 +1,19 @@
+## [29.6.1](https://github.com/equationalapplications/clanker/compare/v29.6.0...v29.6.1) (2026-05-03)
+
+
+### Bug Fixes
+
+* correct tags null coalescing order and remove trailing blank lines ([d8bbf1b](https://github.com/equationalapplications/clanker/commit/d8bbf1b2fce0c8ea398b8cf9c521bfca927d9a1f))
+* expand FactRow/TaskRow/EventRow type formatting and fix access_count nullish check ([73c6104](https://github.com/equationalapplications/clanker/commit/73c61045b076d06188b95d36b3f9fce12b07f526))
+* **functions:** add missing source_type_check constraint to drizzle snapshot ([96ecf19](https://github.com/equationalapplications/clanker/commit/96ecf1926d8d45c79ddfb729d4c115703f0af772))
+* **migrations:** revert 0009 in-place edit; add 0010 migration to fix source_type CHECK constraint ([5eebcf8](https://github.com/equationalapplications/clanker/commit/5eebcf8b6010da7b07515a9a6aea5be1244a8f31))
+* replace batch queries with SQL window functions for true per-entity caps ([82ccb41](https://github.com/equationalapplications/clanker/commit/82ccb411b905b7ff47f04f575a36461d4846c2f4))
+* **wikiSync:** add SQL LIMIT bounds per batch in fetchMergedDump ([93deb47](https://github.com/equationalapplications/clanker/commit/93deb47b34fcbdf983309dfc50460efea3a4e334))
+* **wikiSync:** tighten integer validation and bound DB queries with orderBy+limit ([618e42d](https://github.com/equationalapplications/clanker/commit/618e42dd67cdb82c4c55a9f51d1ce2038f1a5a9e))
+* **wikiSync:** tombstone-priority ordering, batched queries, generatedAt tests ([99f1a90](https://github.com/equationalapplications/clanker/commit/99f1a9045cfef8c7b4bfcba8f42f773c3b4c77a2))
+* **wikiSync:** true per-entity caps via per-entity queries; add validation unit tests ([cfa4ce2](https://github.com/equationalapplications/clanker/commit/cfa4ce2ced2cfa338c98592a5309ad9ab48458b0))
+* **wikiSync:** validate generatedAt, confidence, source_type, last_accessed_at, access_count ([8539ca9](https://github.com/equationalapplications/clanker/commit/8539ca9199c24fc54b5df2e522937da438d2bba8))
+
 # [29.6.0](https://github.com/equationalapplications/clanker/compare/v29.5.0...v29.6.0) (2026-05-02)
 
 
