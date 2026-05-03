@@ -185,7 +185,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           visible={toastMessage !== null}
           onDismiss={() => setToastMessage(null)}
           duration={3000}
+          accessibilityRole="alert"
           accessibilityLiveRegion="polite"
+          accessibilityLabel={toastMessage ?? ''}
         >
           {toastMessage ?? ''}
         </Snackbar>
