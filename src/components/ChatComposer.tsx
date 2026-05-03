@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { ActivityIndicator, View, StyleSheet } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
-import { IconButton, Snackbar, Portal } from 'react-native-paper'
+import { IconButton, Snackbar, Portal, useTheme } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
@@ -28,6 +28,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 }: ChatComposerProps<TMessage>) {
   const skipNextSubmitRef = useRef(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const { colors, roundness } = useTheme()
 
   const { execute: ingestDocument, isPending: isIngesting } = useWikiIngest()
   const { execute: hasChanged } = useWikiHasChanged()
@@ -131,6 +132,15 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
             text={text}
             onInputSizeChanged={onInputSizeChanged}
             onTextChanged={onTextChanged}
+            textInputStyle={{
+              backgroundColor: colors.surfaceVariant,
+              borderRadius: roundness * 4,
+              paddingHorizontal: 12,
+              paddingTop: 10,
+              paddingBottom: 10,
+              color: colors.onSurfaceVariant,
+              marginVertical: 4,
+            }}
             textInputProps={{
               ...textInputProps,
               blurOnSubmit: false,

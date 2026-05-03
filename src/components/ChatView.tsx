@@ -1,9 +1,8 @@
 import { router, Stack } from 'expo-router'
 import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
-import { GiftedChat, Bubble } from 'react-native-gifted-chat'
-import type { IMessage, User, ComposerProps, SendProps } from 'react-native-gifted-chat'
+import { GiftedChat, Bubble, InputToolbar } from 'react-native-gifted-chat'
+import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps } from 'react-native-gifted-chat'
 import { useCallback, useEffect, useState } from 'react'
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useChatMessages } from '~/hooks/useMessages'
@@ -99,6 +98,22 @@ export default function ChatView({ characterId }: ChatViewProps) {
     [colors, roundness],
   )
 
+  const renderInputToolbar = useCallback(
+    (props: InputToolbarProps<IMessage>) => (
+      <InputToolbar
+        {...props}
+        containerStyle={{
+          backgroundColor: colors.surface,
+          borderTopColor: colors.outlineVariant,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+        }}
+      />
+    ),
+    [colors],
+  )
+
   const renderComposer = useCallback(
     // GiftedChat currently passes full internal input toolbar props to renderComposer,
     // including onSend from SendProps in addition to ComposerProps.
@@ -178,8 +193,10 @@ export default function ChatView({ characterId }: ChatViewProps) {
           user={chatUser}
           renderComposer={renderComposer}
           renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
           renderAvatarOnTop
           messagesContainerStyle={styles.messagesContainer}
+          minInputToolbarHeight={56}
           renderAvatar={(props) => {
             const avatarUri =
               props.currentMessage?.user._id === currentUserId
@@ -188,7 +205,6 @@ export default function ChatView({ characterId }: ChatViewProps) {
             return <Avatar.Image size={36} source={{ uri: avatarUri }} />
           }}
         />
-        {Platform.OS === 'android' && <KeyboardAvoidingView behavior="padding" />}
       </View>
     </>
   )
