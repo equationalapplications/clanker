@@ -173,7 +173,7 @@ const MODULES = [
   { name: 'components', glob: 'src/components/%' },
 ]
 
-const MAX_DEPTH = 3
+const MAX_DEPTH = 2
 const OUT_DIR = 'docs/flowcharts'
 
 function main() {

@@ -171,7 +171,4 @@ graph LR
   initWiki__src_services_wikiService_ts["initWiki
 (wikiService.ts)"] --> setupWiki__src_services_wikiService_ts["setupWiki
 (wikiService.ts)"]
-  setupWiki__src_services_wikiService_ts["setupWiki
-(wikiService.ts)"] --> createWikiLlmProvider__src_services_wikiLlmProvider_ts["createWikiLlmProvider
-(wikiLlmProvider.ts)"]
 ```

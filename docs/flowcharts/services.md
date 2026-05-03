@@ -501,22 +501,4 @@ graph LR
   getMostRecentMessage__src_database_messageDatabase_ts["getMostRecentMessage
 (messageDatabase.ts)"] --> toGiftedChatMessage__src_database_messageDatabase_ts["toGiftedChatMessage
 (messageDatabase.ts)"]
-  toAppFormat__src_database_characterDatabase_ts["toAppFormat
-(characterDatabase.ts)"] --> sanitizeImageMimeType__src_utilities_imageMimeType_ts["sanitizeImageMimeType
-(imageMimeType.ts)"]
-  runBootstrapSession__src_auth_bootstrapSession_ts["runBootstrapSession
-(bootstrapSession.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
-  runBootstrapSession__src_auth_bootstrapSession_ts["runBootstrapSession
-(bootstrapSession.ts)"] --> exchangeToken__src_config_firebaseConfig_ts["exchangeToken
-(firebaseConfig.ts)"]
-  openDatabaseAsyncWithRetry__src_database_index_ts["openDatabaseAsyncWithRetry
-(index.ts)"] --> isOPFSLockError__src_database_index_ts["isOPFSLockError
-(index.ts)"]
-  initializeDatabase__src_database_index_ts["initializeDatabase
-(index.ts)"] --> applyInitializationPlan__src_database_index_ts["applyInitializationPlan
-(index.ts)"]
-  initializeDatabase__src_database_index_ts["initializeDatabase
-(index.ts)"] --> initWiki__src_services_wikiService_ts["initWiki
-(wikiService.ts)"]
 ```
