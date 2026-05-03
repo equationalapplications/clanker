@@ -60,7 +60,7 @@ function renderMermaid(moduleName, edges, title) {
     (e) => `  ${e.sourceId}["${e.sourceLabel}"] --> ${e.targetId}["${e.targetLabel}"]`,
   )
 
-  return header + '```mermaid\ngraph TD\n' + lines.join('\n') + '\n```\n'
+  return header + '```mermaid\ngraph LR\n' + lines.join('\n') + '\n```\n'
 }
 
 /**

@@ -2,7 +2,7 @@
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
-graph TD
+graph LR
   useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> useChatMessages__src_hooks_useMessages_ts["useChatMessages
 (useMessages.ts)"]

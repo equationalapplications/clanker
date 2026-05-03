@@ -2,7 +2,7 @@
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
-graph TD
+graph LR
   toAppFormat__src_database_characterDatabase_ts["toAppFormat
 (characterDatabase.ts)"] --> sanitizeImageMimeType__src_utilities_imageMimeType_ts["sanitizeImageMimeType
 (imageMimeType.ts)"]

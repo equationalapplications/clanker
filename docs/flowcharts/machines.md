@@ -2,7 +2,7 @@
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
-graph TD
+graph LR
   authMachine__src_machines_authMachine_ts["authMachine
 (authMachine.ts)"] --> __config_firebaseConfig["firebaseConfig
 (config)"]

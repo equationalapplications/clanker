@@ -2,7 +2,7 @@
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
-graph TD
+graph LR
   ChatView__src_components_ChatView_tsx["ChatView
 (ChatView.tsx)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]

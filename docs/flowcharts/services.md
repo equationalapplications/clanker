@@ -2,7 +2,7 @@
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
-graph TD
+graph LR
   callAdmin__src_services_adminService_ts["callAdmin
 (adminService.ts)"] --> ensureAppCheckConfigured__src_services_adminService_ts["ensureAppCheckConfigured
 (adminService.ts)"]

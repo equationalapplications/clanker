@@ -65,7 +65,7 @@ describe('renderMermaid', () => {
     ]
     const result = renderMermaid('database', edges)
     expect(result).toContain('# database call graph')
-    expect(result).toContain('graph TD')
+    expect(result).toContain('graph LR')
     expect(result).toContain('a_x["a\n(x.ts)"] --> b_y["b\n(y.ts)"]')
   })
   it('returns empty-graph notice when no edges', () => {
