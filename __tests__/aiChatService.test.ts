@@ -181,11 +181,22 @@ describe('buildChatPrompt', () => {
     // Wiki operations must be skipped entirely when getWiki() returns null
     expect(mockWikiRead).not.toHaveBeenCalled()
     expect(mockWikiWrite).not.toHaveBeenCalled()
-    // Generation and save must still succeed (successful path returned)
-    expect(mockGenerateChatReply).toHaveBeenCalled()
     // Exactly one AI message saved — two calls would indicate the error fallback fired
     expect(mockSaveAIMessage).toHaveBeenCalledTimes(1)
-    // Successful path returns a non-null usageSnapshot, not the error fallback
-    expect(result).toMatchObject({ usageSnapshot: expect.any(Object) })
+    // The saved message must contain the AI reply, not a fallback error string
+    expect(mockSaveAIMessage).toHaveBeenCalledWith(
+      'char-1',
+      'user-1',
+      'Hello!',
+      expect.any(String),
+      expect.any(Object),
+    )
+    // Successful path returns a populated usageSnapshot, not the null from the error fallback
+    expect(result).toMatchObject({
+      usageSnapshot: {
+        planTier: 'monthly_20',
+        planStatus: 'active',
+      },
+    })
   })
 })

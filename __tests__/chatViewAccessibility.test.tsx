@@ -10,6 +10,9 @@
 import React from 'react'
 import { create, act } from 'react-test-renderer'
 
+/** Matches the setInterval period used by ChatView's wiki-status poller. */
+const WIKI_STATUS_POLL_INTERVAL_MS = 5000
+
 // ── Gifted-Chat ─────────────────────────────────────────────────────────────
 let capturedGiftedChatProps: any = null
 
@@ -234,7 +237,7 @@ describe('ChatView accessibility', () => {
     let tree: any
     act(() => { tree = create(<ChatView characterId="char-1" />) })
     // Advance past the 5 s interval so wikiStatus state updates
-    act(() => { jest.advanceTimersByTime(5000) })
+    act(() => { jest.advanceTimersByTime(WIKI_STATUS_POLL_INTERVAL_MS) })
 
     const allViews = tree.root.findAll((n: any) => n.type === 'View')
     const wikiRegion = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
