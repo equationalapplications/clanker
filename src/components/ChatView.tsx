@@ -1,5 +1,5 @@
 import { router, Stack } from 'expo-router'
-import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
+import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps } from 'react-native-gifted-chat'
 import { useCallback, useEffect, useState } from 'react'
@@ -117,27 +117,27 @@ export default function ChatView({ characterId }: ChatViewProps) {
     (props: SendProps<IMessage>) => (
       <Send
         {...props}
-        containerStyle={{
-          justifyContent: 'center',
-          paddingHorizontal: 8,
-          paddingRight: 4,
-          marginRight: 4,
-        }}
-        textStyle={{
-          color: colors.primary,
-          fontWeight: '600',
-          fontSize: 15,
-          paddingHorizontal: 12,
-          paddingVertical: 8,
-          borderRadius: roundness * 4,
-          overflow: 'hidden',
-          backgroundColor: colors.primaryContainer,
-        }}
+        containerStyle={{ justifyContent: 'center', alignSelf: 'center', marginRight: 4 }}
         sendButtonProps={{
           accessibilityLabel: 'Send message',
           accessibilityRole: 'button',
         }}
-      />
+      >
+        <View
+          style={{
+            backgroundColor: colors.primaryContainer,
+            borderRadius: roundness * 4,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <RNText style={{ color: colors.primary, fontWeight: '600', fontSize: 15 }}>
+            Send
+          </RNText>
+        </View>
+      </Send>
     ),
     [colors, roundness],
   )

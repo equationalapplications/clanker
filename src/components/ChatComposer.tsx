@@ -136,10 +136,10 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
               backgroundColor: colors.surfaceVariant,
               borderRadius: roundness * 4,
               paddingHorizontal: 12,
-              paddingTop: 10,
-              paddingBottom: 10,
+              paddingVertical: 10,
               color: colors.onSurfaceVariant,
               marginVertical: 4,
+              textAlignVertical: 'center',
             }}
             textInputProps={{
               ...textInputProps,
