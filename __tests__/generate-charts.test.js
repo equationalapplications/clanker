@@ -28,6 +28,9 @@ describe('makeNodeLabel', () => {
   it('returns name and basename', () => {
     expect(makeNodeLabel('getDatabase', 'src/database/index.ts')).toBe('getDatabase\n(index.ts)')
   })
+  it('escapes double-quotes in name', () => {
+    expect(makeNodeLabel('get"Value', 'src/x.ts')).toBe("get'Value\n(x.ts)")
+  })
 })
 
 describe('buildEdgeSet', () => {

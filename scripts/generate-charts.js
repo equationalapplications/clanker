@@ -15,7 +15,8 @@ function makeNodeId(name, filePath) {
 }
 
 function makeNodeLabel(name, filePath) {
-  return name.replace(/"/g, "'") + '\n(' + path.basename(filePath) + ')'
+  const raw = name + '\n(' + path.basename(filePath) + ')'
+  return raw.replace(/"/g, "'")
 }
 
 /**
