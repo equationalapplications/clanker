@@ -279,4 +279,14 @@ describe('ChatComposer', () => {
         expect(capturedSnackbarProps.accessibilityRole).toBe('alert')
         expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
     })
+
+    it('web snackbar is initially hidden (no pending toast)', () => {
+        const ChatComposer = require('~/components/ChatComposer.web').default
+        act(() => {
+            create(<ChatComposer text="" onSend={jest.fn()} />)
+        })
+
+        expect(capturedSnackbarProps).not.toBeNull()
+        expect(capturedSnackbarProps.visible).toBe(false)
+    })
 })
