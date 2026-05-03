@@ -44,6 +44,8 @@ jest.mock('expo-router', () => ({
 }))
 
 // ── react-native ─────────────────────────────────────────────────────────────
+let mockPlatformOS = 'android'
+
 jest.mock('react-native', () => {
   const React = require('react')
   const View = (props: any) => React.createElement('View', props)
@@ -51,7 +53,7 @@ jest.mock('react-native', () => {
   const TouchableOpacity = (props: any) => React.createElement('TouchableOpacity', props)
   return {
     StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
-    Platform: { OS: 'android' },
+    Platform: { get OS() { return mockPlatformOS } },
     View,
     Text,
     TouchableOpacity,
@@ -76,8 +78,8 @@ jest.mock('react-native-paper', () => {
       roundness: 4,
     }),
     Avatar: {
-      Image: ({ accessible, ...props }: any) =>
-        React.createElement('View', { testID: 'avatar-img', accessible }),
+      Image: ({ accessibilityLabel, ...props }: any) =>
+        React.createElement('View', { testID: 'avatar-img', accessibilityLabel }),
     },
   }
 })
@@ -153,6 +155,7 @@ describe('ChatView accessibility', () => {
     jest.clearAllMocks()
     capturedGiftedChatProps = null
     mockGetWiki.mockReturnValue(null)
+    mockPlatformOS = 'android'
     withLoggedInUser()
   })
 
@@ -193,7 +196,7 @@ describe('ChatView accessibility', () => {
   })
 
   // ── sign in required ──────────────────────────────────────────────────────
-  it('sign in required: accessible with polite live region and "Sign in required" label', () => {
+  it('sign in required: accessible with polite live region and actionable label', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
     withNoUser()
 
@@ -205,7 +208,7 @@ describe('ChatView accessibility', () => {
 
     expect(liveView).toBeDefined()
     expect(liveView.props.accessible).toBe(true)
-    expect(liveView.props.accessibilityLabel).toBe('Sign in required')
+    expect(liveView.props.accessibilityLabel).toBe('Please sign in to chat')
   })
 
   // ── send button ───────────────────────────────────────────────────────────
@@ -248,5 +251,71 @@ describe('ChatView accessibility', () => {
     // remaining timers before afterEach restores real timers.
     act(() => { tree.unmount() })
     jest.clearAllTimers()
+  })
+
+  // ── web platform: status role on loading states ────────────────────────────
+  it('web: loading state uses accessibilityRole "status"', () => {
+    mockPlatformOS = 'web'
+    mockUseCharacter.mockReturnValue({ data: null, isLoading: true })
+
+    let tree: any
+    act(() => { tree = create(<ChatView characterId="char-1" />) })
+
+    const allViews = tree.root.findAll((n: any) => n.type === 'View')
+    const liveView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
+
+    expect(liveView).toBeDefined()
+    expect(liveView.props.accessibilityRole).toBe('status')
+  })
+
+  it('web: character-not-found state uses accessibilityRole "status"', () => {
+    mockPlatformOS = 'web'
+    mockUseCharacter.mockReturnValue({ data: null, isLoading: false })
+
+    let tree: any
+    act(() => { tree = create(<ChatView characterId="char-1" />) })
+
+    const allViews = tree.root.findAll((n: any) => n.type === 'View')
+    const liveView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
+
+    expect(liveView).toBeDefined()
+    expect(liveView.props.accessibilityRole).toBe('status')
+  })
+
+  // ── avatar speaker identification ─────────────────────────────────────────
+  it('renderAvatar: character avatar carries character name as accessibility label', () => {
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+
+    act(() => { create(<ChatView characterId="char-1" />) })
+
+    expect(capturedGiftedChatProps).not.toBeNull()
+    // Simulate a message from the character (not the current user)
+    const avatarEl = capturedGiftedChatProps.renderAvatar({
+      currentMessage: { user: { _id: 'char-1' } },
+    })
+
+    let avatarTree: any
+    act(() => { avatarTree = create(avatarEl) })
+
+    const avatarImg = avatarTree.root.find((n: any) => n.props.testID === 'avatar-img')
+    expect(avatarImg.props.accessibilityLabel).toContain('Nova')
+  })
+
+  it('renderAvatar: user avatar carries the user display name as accessibility label', () => {
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+
+    act(() => { create(<ChatView characterId="char-1" />) })
+
+    expect(capturedGiftedChatProps).not.toBeNull()
+    // Simulate a message from the current user
+    const avatarEl = capturedGiftedChatProps.renderAvatar({
+      currentMessage: { user: { _id: 'user-1' } },
+    })
+
+    let avatarTree: any
+    act(() => { avatarTree = create(avatarEl) })
+
+    const avatarImg = avatarTree.root.find((n: any) => n.props.testID === 'avatar-img')
+    expect(avatarImg.props.accessibilityLabel).toContain('Test')
   })
 })

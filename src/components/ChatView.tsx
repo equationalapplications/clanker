@@ -245,11 +245,16 @@ export default function ChatView({ characterId }: ChatViewProps) {
           messagesContainerStyle={styles.messagesContainer}
           minInputToolbarHeight={56}
           renderAvatar={(props) => {
-            const avatarUri =
-              props.currentMessage?.user._id === currentUserId
-                ? (chatUser.avatar as string)
-                : (characterAvatar as string)
-            return <Avatar.Image size={36} source={{ uri: avatarUri }} accessible={false} />
+            const isUser = props.currentMessage?.user._id === currentUserId
+            const avatarUri = isUser ? (chatUser.avatar as string) : (characterAvatar as string)
+            const speakerName = isUser ? (user?.displayName ?? 'You') : characterName
+            return (
+              <Avatar.Image
+                size={36}
+                source={{ uri: avatarUri }}
+                accessibilityLabel={`${speakerName}'s avatar`}
+              />
+            )
           }}
         />
       </View>
