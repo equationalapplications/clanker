@@ -133,18 +133,21 @@ function main() {
   const Database = require('better-sqlite3')
   const db = new Database(dbPath, { readonly: true })
 
-  fs.mkdirSync(OUT_DIR, { recursive: true })
+  try {
+    fs.mkdirSync(OUT_DIR, { recursive: true })
 
-  for (const mod of MODULES) {
-    const rows = queryModuleEdges(db, mod.glob, MAX_DEPTH)
-    const edges = buildEdgeSet(rows)
-    const content = renderMermaid(mod.name, edges)
-    const outPath = `${OUT_DIR}/${mod.name}.md`
-    fs.writeFileSync(outPath, content, 'utf8')
-    console.log(`  wrote ${outPath} (${edges.length} edges)`)
+    for (const mod of MODULES) {
+      const rows = queryModuleEdges(db, mod.glob, MAX_DEPTH)
+      const edges = buildEdgeSet(rows)
+      const content = renderMermaid(mod.name, edges)
+      const outPath = `${OUT_DIR}/${mod.name}.md`
+      fs.writeFileSync(outPath, content, 'utf8')
+      console.log(`  wrote ${outPath} (${edges.length} edges)`)
+    }
+  } finally {
+    db.close()
   }
 
-  db.close()
   console.log('Done.')
 }
 
