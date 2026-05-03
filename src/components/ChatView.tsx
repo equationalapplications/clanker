@@ -133,6 +133,10 @@ export default function ChatView({ characterId }: ChatViewProps) {
           overflow: 'hidden',
           backgroundColor: colors.primaryContainer,
         }}
+        sendButtonProps={{
+          accessibilityLabel: 'Send message',
+          accessibilityRole: 'button',
+        }}
       />
     ),
     [colors, roundness],
@@ -149,7 +153,13 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   if (characterLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View
+        style={styles.loadingContainer}
+        accessible
+        accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
+        accessibilityLiveRegion="polite"
+        accessibilityLabel="Loading character"
+      >
         <Text>Loading character...</Text>
       </View>
     )
@@ -157,7 +167,12 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   if (!character) {
     return (
-      <View style={styles.loadingContainer}>
+      <View
+        style={styles.loadingContainer}
+        accessible
+        accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
+        accessibilityLabel="Character not found"
+      >
         <Text>Character not found.</Text>
       </View>
     )
@@ -165,7 +180,12 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   if (!currentUserId) {
     return (
-      <View style={styles.loadingContainer}>
+      <View
+        style={styles.loadingContainer}
+        accessible
+        accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
+        accessibilityLabel="Sign in required"
+      >
         <Text>Please sign in to chat</Text>
       </View>
     )
@@ -227,7 +247,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
               props.currentMessage?.user._id === currentUserId
                 ? (chatUser.avatar as string)
                 : (characterAvatar as string)
-            return <Avatar.Image size={36} source={{ uri: avatarUri }} />
+            return <Avatar.Image size={36} source={{ uri: avatarUri }} accessible={false} />
           }}
         />
       </View>
