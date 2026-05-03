@@ -39,11 +39,13 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   formatContext: (...args: unknown[]) => mockFormatContext(...args),
 }))
 
+const mockGetWiki = jest.fn(() => ({
+  read: (...args: unknown[]) => mockWikiRead(...args),
+  write: (...args: unknown[]) => mockWikiWrite(...args),
+}))
+
 jest.mock('~/services/wikiService', () => ({
-  getWiki: () => ({
-    read: (...args: unknown[]) => mockWikiRead(...args),
-    write: (...args: unknown[]) => mockWikiWrite(...args),
-  }),
+  getWiki: () => mockGetWiki(),
 }))
 
 import { buildChatPrompt, sendMessageWithAIResponse } from '~/services/aiChatService'
@@ -146,5 +148,37 @@ describe('buildChatPrompt', () => {
       expect.any(String),
       expect.any(Object),
     )
+  })
+
+  it('proceeds without memory when wiki is unavailable (web/uninitialized)', async () => {
+    mockGetWiki.mockReturnValue(null as any)
+    mockGetCharacter.mockResolvedValue({ id: 'char-1', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' })
+    mockGetMessageCount.mockResolvedValue(0)
+    mockGetMessagesForContextSummary.mockResolvedValue([])
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'Hello!',
+      remainingCredits: null,
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-04-27T00:00:00.000Z',
+    })
+
+    await sendMessageWithAIResponse(
+      {
+        _id: 'msg-2',
+        text: 'Hi',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any,
+      { id: 'char-1', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' },
+      'user-1',
+      [] as any,
+      { hasUnlimited: true },
+    )
+
+    expect(mockWikiRead).not.toHaveBeenCalled()
+    expect(mockWikiWrite).not.toHaveBeenCalled()
+    expect(mockGenerateChatReply).toHaveBeenCalled()
+    expect(mockSaveAIMessage).toHaveBeenCalled()
   })
 })

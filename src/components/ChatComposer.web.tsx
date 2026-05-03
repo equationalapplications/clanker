@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
-import { Snackbar, Portal, useTheme } from 'react-native-paper'
+import { useTheme } from 'react-native-paper'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -17,7 +17,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   textInputProps,
   ...props
 }: ChatComposerProps<TMessage>) {
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const { colors, roundness } = useTheme()
 
   const sendCurrentText = useCallback(() => {
@@ -64,16 +63,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           />
         </View>
       </View>
-      <Portal>
-        <Snackbar
-          visible={toastMessage !== null}
-          onDismiss={() => setToastMessage(null)}
-          duration={3000}
-          accessibilityLiveRegion="polite"
-        >
-          {toastMessage ?? ''}
-        </Snackbar>
-      </Portal>
     </View>
   )
 }

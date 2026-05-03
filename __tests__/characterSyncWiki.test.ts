@@ -204,4 +204,17 @@ describe('syncWikiForCloud key remapping', () => {
 
     expect(mockRunPrune).not.toHaveBeenCalled()
   })
+
+  it('skips character entirely when wiki is unavailable (web/uninitialized)', async () => {
+    mockGetWiki.mockReturnValueOnce(null)
+    const char = makeCloudChar()
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockExportDump).not.toHaveBeenCalled()
+    expect(mockImportDump).not.toHaveBeenCalled()
+    expect(mockRunPrune).not.toHaveBeenCalled()
+    expect(mockWikiSyncFn).not.toHaveBeenCalled()
+  })
 })

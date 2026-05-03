@@ -227,4 +227,28 @@ describe('ChatComposer', () => {
 
         expect(onSend).not.toHaveBeenCalled()
     })
+
+    it('sets accessibilityLabel on input for native', () => {
+        const ChatComposer = require('~/components/ChatComposer').default
+        let tree!: ReturnType<typeof create>
+
+        act(() => {
+            tree = create(<ChatComposer text="" onSend={jest.fn()} />)
+        })
+
+        const composer = tree.root.findByProps({ __chatComposerMock: true })
+        expect(composer.props.textInputProps.accessibilityLabel).toBe('Message input')
+    })
+
+    it('sets accessibilityLabel on input for web', () => {
+        const ChatComposer = require('~/components/ChatComposer.web').default
+        let tree!: ReturnType<typeof create>
+
+        act(() => {
+            tree = create(<ChatComposer text="" onSend={jest.fn()} />)
+        })
+
+        const composer = tree.root.findByProps({ __chatComposerMock: true })
+        expect(composer.props.textInputProps.accessibilityLabel).toBe('Message input')
+    })
 })
