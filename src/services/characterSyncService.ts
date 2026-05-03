@@ -79,8 +79,11 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
         const cloudId = char.cloud_id!
         let syncSucceeded = false
 
+        const wiki = getWiki()
+        if (!wiki) continue
+
         try {
-            const localDump = await getWiki().exportDump([char.id])
+            const localDump = await wiki.exportDump([char.id])
             const cloudDump: MemoryDump = {
                 generatedAt: localDump.generatedAt,
                 entities: {
@@ -97,7 +100,7 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                     },
                 }
                 try {
-                    await getWiki().importDump(remappedDump, { merge: true })
+                    await wiki.importDump(remappedDump, { merge: true })
                 } catch (importErr) {
                     if (!(importErr instanceof WikiBusyError)) {
                         throw importErr
@@ -112,7 +115,7 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
 
         if (syncSucceeded) {
             try {
-                await getWiki().runPrune(char.id, {
+                await wiki.runPrune(char.id, {
                     retainSoftDeletedFor: 7,
                     retainEventsFor: 30,
                     vacuum: false,
