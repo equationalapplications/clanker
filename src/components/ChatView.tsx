@@ -1,6 +1,6 @@
 import { router, Stack } from 'expo-router'
 import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
-import { GiftedChat, Bubble, InputToolbar } from 'react-native-gifted-chat'
+import { GiftedChat, Bubble, InputToolbar, Send } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps } from 'react-native-gifted-chat'
 import { useCallback, useEffect, useState } from 'react'
 import { useSelector } from '@xstate/react'
@@ -113,6 +113,31 @@ export default function ChatView({ characterId }: ChatViewProps) {
     [colors],
   )
 
+  const renderSend = useCallback(
+    (props: SendProps<IMessage>) => (
+      <Send
+        {...props}
+        containerStyle={{
+          justifyContent: 'center',
+          paddingHorizontal: 8,
+          paddingRight: 4,
+          marginRight: 4,
+        }}
+        textStyle={{
+          color: colors.primary,
+          fontWeight: '600',
+          fontSize: 15,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          borderRadius: roundness * 4,
+          overflow: 'hidden',
+          backgroundColor: colors.primaryContainer,
+        }}
+      />
+    ),
+    [colors, roundness],
+  )
+
   const renderComposer = useCallback(
     // GiftedChat currently passes full internal input toolbar props to renderComposer,
     // including onSend from SendProps in addition to ComposerProps.
@@ -193,6 +218,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
           renderComposer={renderComposer}
           renderBubble={renderBubble}
           renderInputToolbar={renderInputToolbar}
+          renderSend={renderSend}
           renderAvatarOnTop
           messagesContainerStyle={styles.messagesContainer}
           minInputToolbarHeight={56}
