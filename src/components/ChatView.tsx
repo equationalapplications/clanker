@@ -171,6 +171,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
         style={styles.loadingContainer}
         accessible
         accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
+        accessibilityLiveRegion="polite"
         accessibilityLabel="Character not found"
       >
         <Text>Character not found.</Text>
