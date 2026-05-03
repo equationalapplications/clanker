@@ -13,11 +13,14 @@ describe('sanitizeName', () => {
   it('leaves clean names unchanged', () => {
     expect(sanitizeName('fooBar')).toBe('fooBar')
   })
+  it('prefixes digit-leading names with underscore', () => {
+    expect(sanitizeName('123abc')).toBe('_123abc')
+  })
 })
 
 describe('makeNodeId', () => {
   it('combines sanitized name and file', () => {
-    expect(makeNodeId('getDatabase', 'src/database/index.ts')).toBe('getDatabase_src_database_index_ts')
+    expect(makeNodeId('getDatabase', 'src/database/index.ts')).toBe('getDatabase__src_database_index_ts')
   })
 })
 
@@ -35,9 +38,9 @@ describe('buildEdgeSet', () => {
     const edges = buildEdgeSet(rows)
     expect(edges).toEqual([
       {
-        sourceId: 'a_src_x_ts',
+        sourceId: 'a__src_x_ts',
         sourceLabel: 'a\n(x.ts)',
-        targetId: 'b_src_y_ts',
+        targetId: 'b__src_y_ts',
         targetLabel: 'b\n(y.ts)',
       },
     ])

@@ -6,15 +6,16 @@ const path = require('path')
 // --- Pure functions ---
 
 function sanitizeName(str) {
-  return str.replace(/[^A-Za-z0-9_]/g, '_')
+  const s = str.replace(/[^A-Za-z0-9_]/g, '_')
+  return /^[0-9]/.test(s) ? '_' + s : s
 }
 
 function makeNodeId(name, filePath) {
-  return sanitizeName(name) + '_' + sanitizeName(filePath)
+  return sanitizeName(name) + '__' + sanitizeName(filePath)
 }
 
 function makeNodeLabel(name, filePath) {
-  return name + '\n(' + path.basename(filePath) + ')'
+  return name.replace(/"/g, "'") + '\n(' + path.basename(filePath) + ')'
 }
 
 /**
