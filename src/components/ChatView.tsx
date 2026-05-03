@@ -217,7 +217,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
           ),
         }}
       />
-      <View style={styles.container}>
+      <View style={styles.container} accessibilityLabel={`Chat with ${characterName}`} accessibilityRole="none">
         {(wikiStatus.ingesting || wikiStatus.librarian) && (
           <View
             accessibilityLiveRegion="polite"

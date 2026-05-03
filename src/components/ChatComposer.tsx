@@ -143,6 +143,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
             }}
             textInputProps={{
               ...textInputProps,
+              accessibilityLabel: 'Message input',
               blurOnSubmit: false,
               returnKeyType: 'send',
               submitBehavior: 'submit',
@@ -181,6 +182,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           visible={toastMessage !== null}
           onDismiss={() => setToastMessage(null)}
           duration={3000}
+          accessibilityLiveRegion="polite"
         >
           {toastMessage ?? ''}
         </Snackbar>

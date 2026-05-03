@@ -46,6 +46,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
             }}
             textInputProps={{
               ...textInputProps,
+              accessibilityLabel: 'Message input',
               onKeyPress: (event) => {
                 const nativeEvent = event.nativeEvent as typeof event.nativeEvent & { shiftKey?: boolean }
 
@@ -68,6 +69,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           visible={toastMessage !== null}
           onDismiss={() => setToastMessage(null)}
           duration={3000}
+          accessibilityLiveRegion="polite"
         >
           {toastMessage ?? ''}
         </Snackbar>
