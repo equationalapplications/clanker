@@ -56,6 +56,8 @@ describe('buildChatPrompt', () => {
     mockGetCharacter.mockResolvedValue(null)
     mockGetMessageCount.mockResolvedValue(0)
     mockGetMessagesForContextSummary.mockResolvedValue([])
+    // wiki.write() must return a Promise so that .catch() can be chained without throwing
+    mockWikiWrite.mockResolvedValue(undefined)
   })
 
   it('prepends memory block before conversation history when memoryBlock provided', () => {
@@ -163,7 +165,7 @@ describe('buildChatPrompt', () => {
       verifiedAt: '2026-04-27T00:00:00.000Z',
     })
 
-    await sendMessageWithAIResponse(
+    const result = await sendMessageWithAIResponse(
       {
         _id: 'msg-2',
         text: 'Hi',
@@ -176,9 +178,14 @@ describe('buildChatPrompt', () => {
       { hasUnlimited: true },
     )
 
+    // Wiki operations must be skipped entirely when getWiki() returns null
     expect(mockWikiRead).not.toHaveBeenCalled()
     expect(mockWikiWrite).not.toHaveBeenCalled()
+    // Generation and save must still succeed (successful path returned)
     expect(mockGenerateChatReply).toHaveBeenCalled()
-    expect(mockSaveAIMessage).toHaveBeenCalled()
+    // Exactly one AI message saved — two calls would indicate the error fallback fired
+    expect(mockSaveAIMessage).toHaveBeenCalledTimes(1)
+    // Successful path returns a non-null usageSnapshot, not the error fallback
+    expect(result).toMatchObject({ usageSnapshot: expect.any(Object) })
   })
 })
