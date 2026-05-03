@@ -40,10 +40,9 @@ export default function ChatView({ characterId }: ChatViewProps) {
       return
     }
     const interval = setInterval(() => {
-      try {
-        setWikiStatus(getWiki().getEntityStatus(characterId))
-      } catch {
-        // wiki not yet initialized — skip this tick
+      const wiki = getWiki()
+      if (wiki) {
+        setWikiStatus(wiki.getEntityStatus(characterId))
       }
     }, 5000)
     return () => clearInterval(interval)

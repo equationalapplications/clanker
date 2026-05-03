@@ -6,6 +6,7 @@ import { View, StyleSheet, Pressable, AppState, Text } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { Stack, router } from 'expo-router'
+import { Platform } from 'react-native'
 import { WikiProvider } from '@equationalapplications/expo-llm-wiki'
 import { getWiki } from '~/services/wikiService'
 
@@ -209,9 +210,9 @@ function RootLayoutNav() {
     )
   }
 
-  return (
-    <WikiProvider wiki={getWiki()}>
-      <Stack>
+  const wiki = getWiki()
+  const stack = (
+    <Stack>
         {/* Landing page - always accessible, no header */}
         <Stack.Screen name="index" options={{ headerShown: false }} />
 
@@ -287,8 +288,8 @@ function RootLayoutNav() {
         <Stack.Screen name="checkout/success" options={{ headerShown: false }} />
         <Stack.Screen name="checkout/cancel" options={{ headerShown: false }} />
       </Stack>
-    </WikiProvider>
   )
+  return Platform.OS === 'web' || !wiki ? stack : <WikiProvider wiki={wiki}>{stack}</WikiProvider>
 }
 
 export default function RootLayout() {

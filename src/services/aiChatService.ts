@@ -355,8 +355,8 @@ export const sendMessageWithAIResponse = async (
     let memoryBlock: string | undefined
     if (options?.hasUnlimited) {
       try {
-        const bundle = await getWiki().read(character.id, userMessage.text)
-        memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
+        const bundle = await getWiki()?.read(character.id, userMessage.text)
+        if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
       } catch (error) {
         console.warn('Failed to fetch memory bundle:', error)
       }
@@ -399,7 +399,7 @@ export const sendMessageWithAIResponse = async (
       const chunk = recentMessages
         .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
         .join('\n')
-      void getWiki().write(character.id, {
+      void getWiki()?.write(character.id, {
         event_type: 'observation',
         summary: chunk || userMessage.text,
       }).catch((err: unknown) => console.warn('[wiki] write failed:', err))
