@@ -5,6 +5,8 @@ const {
   buildEdgeSet,
   renderMermaid,
   queryModuleEdges,
+  queryModuleImports,
+  buildImportEdgeSet,
 } = require('../scripts/generate-charts')
 
 describe('sanitizeName', () => {
@@ -69,6 +71,49 @@ describe('renderMermaid', () => {
   it('returns empty-graph notice when no edges', () => {
     const result = renderMermaid('machines', [])
     expect(result).toContain('_No call edges found')
+  })
+  it('uses custom title when provided', () => {
+    const edges = [
+      { sourceId: 'a_x', sourceLabel: 'a\n(x.ts)', targetId: 'b_y', targetLabel: 'b\n(y.ts)' },
+    ]
+    const result = renderMermaid('machines', edges, 'machines import dependencies')
+    expect(result).toContain('# machines import dependencies')
+    expect(result).not.toContain('call graph')
+  })
+})
+
+describe('queryModuleImports', () => {
+  it('returns rows with source_file and import_path', () => {
+    const mockRows = [
+      { source_file: 'src/machines/authMachine.ts', import_path: '~/services/crashlyticsService' },
+    ]
+    const mockDb = {
+      prepare: () => ({
+        all: (glob) => {
+          expect(glob).toBe('src/machines/%')
+          return mockRows
+        },
+      }),
+    }
+    const result = queryModuleImports(mockDb, 'src/machines/%')
+    expect(result).toEqual(mockRows)
+  })
+})
+
+describe('buildImportEdgeSet', () => {
+  it('builds edges from source file to imported module', () => {
+    const rows = [
+      { source_file: 'src/machines/authMachine.ts', import_path: '~/services/crashlyticsService' },
+    ]
+    const edges = buildImportEdgeSet(rows)
+    expect(edges).toHaveLength(1)
+    expect(edges[0].sourceLabel).toBe('authMachine\n(authMachine.ts)')
+    expect(edges[0].targetLabel).toBe('crashlyticsService\n(services)')
+  })
+  it('deduplicates identical import edges', () => {
+    const row = { source_file: 'src/machines/authMachine.ts', import_path: '~/services/crashlyticsService' }
+    const edges = buildImportEdgeSet([row, row])
+    expect(edges).toHaveLength(1)
   })
 })
 

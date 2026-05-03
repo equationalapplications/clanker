@@ -43,9 +43,10 @@ function buildEdgeSet(rows) {
   return edges
 }
 
-function renderMermaid(moduleName, edges) {
+function renderMermaid(moduleName, edges, title) {
+  const chartTitle = title != null ? title : `${moduleName} call graph`
   const header = [
-    `# ${moduleName} call graph`,
+    `# ${chartTitle}`,
     '',
     '_Auto-generated. Run `npm run docs:charts` to regenerate._',
     '',
@@ -110,7 +111,59 @@ function queryModuleEdges(db, moduleGlob, maxDepth) {
   return db.prepare(sql).all(moduleGlob, maxDepth)
 }
 
-module.exports = { sanitizeName, makeNodeId, makeNodeLabel, buildEdgeSet, renderMermaid, queryModuleEdges }
+/**
+ * Query project-local imports (~/...) for all files in a module.
+ * Used as fallback for modules with no call edges (e.g. XState machines).
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} moduleGlob e.g. 'src/machines/%'
+ * @returns {{ source_file: string, import_path: string }[]}
+ */
+function queryModuleImports(db, moduleGlob) {
+  const sql = `
+    SELECT DISTINCT
+      nf.file_path AS source_file,
+      ni.name      AS import_path
+    FROM edges e
+    JOIN nodes nf ON e.source = nf.id
+    JOIN nodes ni ON e.target = ni.id
+    WHERE nf.file_path LIKE ?
+      AND nf.kind = 'file'
+      AND e.kind  = 'contains'
+      AND ni.kind = 'import'
+      AND ni.name LIKE '~/%'
+  `
+  return db.prepare(sql).all(moduleGlob)
+}
+
+/**
+ * @param {{ source_file: string, import_path: string }[]} rows
+ * @returns {{ sourceId, sourceLabel, targetId, targetLabel }[]}
+ */
+function buildImportEdgeSet(rows) {
+  const seen = new Set()
+  const edges = []
+  for (const row of rows) {
+    const sourceName = path.basename(row.source_file, path.extname(row.source_file))
+    const segments = row.import_path.split('/')
+    const targetName = segments[segments.length - 1]
+    const targetDir = segments.slice(0, -1).join('/')
+    const sourceId = makeNodeId(sourceName, row.source_file)
+    const targetId = sanitizeName(row.import_path)
+    const key = sourceId + '->' + targetId
+    if (seen.has(key)) continue
+    seen.add(key)
+    edges.push({
+      sourceId,
+      sourceLabel: makeNodeLabel(sourceName, row.source_file),
+      targetId,
+      targetLabel: makeNodeLabel(targetName, targetDir),
+    })
+  }
+  return edges
+}
+
+module.exports = { sanitizeName, makeNodeId, makeNodeLabel, buildEdgeSet, renderMermaid, queryModuleEdges, queryModuleImports, buildImportEdgeSet }
 
 const MODULES = [
   { name: 'database',   glob: 'src/database/%' },
@@ -137,9 +190,13 @@ function main() {
     fs.mkdirSync(OUT_DIR, { recursive: true })
 
     for (const mod of MODULES) {
-      const rows = queryModuleEdges(db, mod.glob, MAX_DEPTH)
-      const edges = buildEdgeSet(rows)
-      const content = renderMermaid(mod.name, edges)
+      let edges = buildEdgeSet(queryModuleEdges(db, mod.glob, MAX_DEPTH))
+      let title
+      if (edges.length === 0) {
+        edges = buildImportEdgeSet(queryModuleImports(db, mod.glob))
+        title = `${mod.name} import dependencies`
+      }
+      const content = renderMermaid(mod.name, edges, title)
       const outPath = `${OUT_DIR}/${mod.name}.md`
       fs.writeFileSync(outPath, content, 'utf8')
       console.log(`  wrote ${outPath} (${edges.length} edges)`)
