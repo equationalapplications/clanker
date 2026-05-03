@@ -4,6 +4,7 @@ const {
   makeNodeLabel,
   buildEdgeSet,
   renderMermaid,
+  queryModuleEdges,
 } = require('../scripts/generate-charts')
 
 describe('sanitizeName', () => {
@@ -68,5 +69,19 @@ describe('renderMermaid', () => {
   it('returns empty-graph notice when no edges', () => {
     const result = renderMermaid('machines', [])
     expect(result).toContain('_No call edges found')
+  })
+})
+
+describe('queryModuleEdges', () => {
+  it('returns rows with source/target names and file paths', () => {
+    // mock db with .prepare().all() interface
+    const mockRows = [
+      { source_name: 'getDatabase', source_file: 'src/database/index.ts', target_name: 'openDatabaseAsyncWithRetry', target_file: 'src/database/index.ts' },
+    ]
+    const mockDb = {
+      prepare: () => ({ all: () => mockRows }),
+    }
+    const result = queryModuleEdges(mockDb, 'src/database/%', 3)
+    expect(result).toEqual(mockRows)
   })
 })
