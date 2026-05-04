@@ -78,8 +78,8 @@ jest.mock('react-native-paper', () => {
       roundness: 4,
     }),
     Avatar: {
-      Image: ({ accessibilityLabel, ...props }: any) =>
-        React.createElement('View', { testID: 'avatar-img', accessibilityLabel }),
+      Image: (props: any) =>
+        React.createElement('View', { testID: 'avatar-img', ...props }),
     },
   }
 })
