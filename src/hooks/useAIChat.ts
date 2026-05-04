@@ -58,7 +58,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           console.warn('[wiki] memory read failed:', err)
         }
       }
-      const onWriteObservation = hasUnlimited
+      const onWriteObservation = hasUnlimited && wiki
         ? (characterId: string, text: string) => {
             void writeObservation(characterId, { event_type: 'observation', summary: text })
               .catch((err: unknown) => console.warn('[wiki] write failed:', err))

@@ -59,7 +59,7 @@ jest.mock('~/services/usageSnapshot', () => ({
 
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
-  useWiki: jest.fn(() => null),
+  useWiki: jest.fn(() => ({ read: jest.fn().mockResolvedValue(null) })),
   useWikiWrite: jest.fn(() => ({ execute: jest.fn() })),
   formatContext: jest.fn((bundle) => '[MEMORY]\nFacts:\n[/MEMORY]'),
 }))
