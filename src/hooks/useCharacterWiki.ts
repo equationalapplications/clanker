@@ -114,10 +114,10 @@ export function useCharacterWikiSync() {
       return { success: true, message: 'Memory synced to cloud.' }
     } catch (error) {
       console.error('[wiki] sync failed:', error)
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to sync memory. Check your connection and try again.',
-      }
+      const message = error instanceof WikiBusyError
+        ? 'Memory is busy. Please try again shortly.'
+        : 'Failed to sync memory. Check your connection and try again.'
+      return { success: false, message }
     } finally {
       setIsSyncing(false)
     }

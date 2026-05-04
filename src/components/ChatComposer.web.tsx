@@ -45,7 +45,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       const rawRef = asset.name ?? uri
       const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
 
-      const raw = await fetch(uri).then((r) => r.text())
+      const response = await fetch(uri)
+      if (!response.ok) {
+        throw new Error(`Failed to read file (HTTP ${response.status})`)
+      }
+      const raw = await response.text()
       const documentChunk = raw
         .replace(/^\uFEFF/, '')
         .replace(/\0/g, '')

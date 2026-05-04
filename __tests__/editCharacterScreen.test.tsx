@@ -453,7 +453,7 @@ describe('EditCharacterScreen - Sync Memory button', () => {
 
     const snackbars = tree.root.findAll((node) => String(node.type) === 'Snackbar')
     expect(snackbars.length).toBeGreaterThan(0)
-    expect(snackbars[0].props.children).toContain('network error')
+    expect(snackbars[0].props.children).toContain('Failed to sync memory')
   })
 
   it('shows Sync Memory button on web and renders without crashing', () => {
