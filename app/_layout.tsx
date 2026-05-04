@@ -211,6 +211,16 @@ function RootLayoutNav() {
   }
 
   const wiki = getWiki()
+
+  if (Platform.OS !== 'web' && !wiki) {
+    return (
+      <View style={styles.loadingContainer}>
+        <LoadingIndicator disabled={false} />
+        <Text>Initializing wiki…</Text>
+      </View>
+    )
+  }
+
   const stack = (
     <Stack>
         {/* Landing page - always accessible, no header */}
