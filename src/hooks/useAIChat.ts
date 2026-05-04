@@ -65,7 +65,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           }
         : undefined
       return sendMessageWithAIResponse(message, character, userId, messages, {
-        hasUnlimited,
         memoryBlock,
         onWriteObservation,
       })

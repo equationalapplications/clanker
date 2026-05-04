@@ -112,7 +112,6 @@ describe('buildChatPrompt', () => {
         },
       ] as any,
       {
-        hasUnlimited: true,
         memoryBlock: '[MEMORY]\nFacts:\n  - [certain] User prefers morning.\n[/MEMORY]',
         onWriteObservation: mockOnWrite,
       },
@@ -155,7 +154,7 @@ describe('buildChatPrompt', () => {
       { id: 'char-1', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' },
       'user-1',
       [] as any,
-      { hasUnlimited: true },
+      {},
     )
 
     // Exactly one AI message saved — two calls would indicate the error fallback fired

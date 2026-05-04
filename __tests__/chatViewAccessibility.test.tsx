@@ -117,6 +117,12 @@ jest.mock('~/hooks/useUserCredits', () => ({
 jest.mock('~/components/CharacterAvatar', () => () => null)
 jest.mock('~/components/ChatComposer', () => () => null)
 
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  WikiBusyError: class WikiBusyError extends Error {},
+  useWiki: jest.fn(() => null),
+  useWikiWrite: jest.fn(() => ({ execute: jest.fn() })),
+}))
+
 const mockGetWiki = jest.fn()
 jest.mock('~/services/wikiService', () => ({
   getWiki: () => mockGetWiki(),
@@ -234,7 +240,8 @@ describe('ChatView accessibility', () => {
     const mockWikiInstance = {
       getEntityStatus: jest.fn().mockReturnValue({ ingesting: true, librarian: false }),
     }
-    mockGetWiki.mockReturnValue(mockWikiInstance)
+    const mockUseWiki = jest.requireMock('@equationalapplications/expo-llm-wiki').useWiki
+    mockUseWiki.mockReturnValue(mockWikiInstance)
 
     jest.useFakeTimers()
     let tree: any
