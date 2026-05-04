@@ -334,4 +334,19 @@ describe('ChatView accessibility', () => {
     expect(liveView).toBeDefined()
     expect(liveView.props.accessibilityRole).toBe('status')
   })
+
+  // ── chat container label ──────────────────────────────────────────────────
+  it('chat container: has accessibilityLabel "Chat conversation"', () => {
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+
+    let tree: any
+    act(() => { tree = create(<ChatView characterId="char-1" />) })
+
+    const allViews = tree.root.findAll((n: any) => n.type === 'View')
+    const containerView = allViews.find(
+      (v: any) => v.props.accessibilityLabel === 'Chat conversation'
+    )
+
+    expect(containerView).toBeDefined()
+  })
 })

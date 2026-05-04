@@ -13,6 +13,7 @@ jest.mock('react-native', () => {
     ScrollView: ({ children, ...props }: any) => React.createElement('ScrollView', props, children),
     StyleSheet: { create: (s: any) => s },
     Share: { share: jest.fn() },
+    Platform: { OS: 'ios', select: (opts: any) => opts.ios ?? opts.default },
   }
 })
 

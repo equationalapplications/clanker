@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { Alert, View, StyleSheet, ScrollView, Share } from 'react-native'
+import { Alert, View, StyleSheet, ScrollView, Share, Platform } from 'react-native'
 import {
   Text,
   TextInput,
@@ -240,6 +240,7 @@ export default function EditCharacterScreen() {
   }
 
   const handleWikiSync = async () => {
+    if (Platform.OS === 'web') return
     if (!cloudCharacterId) {
       setToastState({
         message: 'Save this character to cloud and sync it first, then try again.',
@@ -539,7 +540,7 @@ export default function EditCharacterScreen() {
             </Button>
           ) : null}
 
-          {isSubscriber && character?.save_to_cloud && character?.cloud_id ? (
+          {isSubscriber && character?.save_to_cloud && character?.cloud_id && Platform.OS !== 'web' ? (
             <Button
               mode="outlined"
               icon="brain"
