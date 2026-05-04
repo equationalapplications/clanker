@@ -303,7 +303,7 @@ function RootLayoutNav() {
     return stack
   }
 
-  return <WikiProvider wiki={wiki}>{stack}</WikiProvider>
+  return <WikiProvider wiki={wiki!}>{stack}</WikiProvider>
 }
 
 export default function RootLayout() {

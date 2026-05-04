@@ -28,7 +28,7 @@
 
 ## Phase 3 — TypeScript Fixes
 
-- [ ] **Fix `app/_layout.tsx` line 306 — non-null assertion**
+- [x] **Fix `app/_layout.tsx` line 306 — non-null assertion**
 
   The guard at line ~215 already ensures `wiki` is non-null before reaching the return. Add `!` to suppress the `WikiMemory | null` error.
 
@@ -39,7 +39,7 @@
   +  return <WikiProvider wiki={wiki!}>{stack}</WikiProvider>
   ```
 
-- [ ] **Fix `__tests__/characterSyncWiki.test.ts` line 209 — mock type allows null**
+- [x] **Fix `__tests__/characterSyncWiki.test.ts` line 209 — mock type allows null**
 
   TypeScript infers `mockGetWiki` return type as non-nullable from its initializer. Add an explicit generic so `.mockReturnValue(null)` is valid.
 
@@ -56,7 +56,7 @@
    }))
   ```
 
-- [ ] **Remove unused imports from `app/(drawer)/(tabs)/characters/[id]/edit.tsx`**
+- [x] **Remove unused imports from `app/(drawer)/(tabs)/characters/[id]/edit.tsx`**
 
   After the Phase 2 refactor, `MemoryDump` (type import) and the destructured `exportWiki`/`isWikiExporting` from `useWikiExport()` are assigned but never referenced.
 
@@ -259,19 +259,19 @@
 
 ## Phase 8 — Verification
 
-- [ ] Run `npm run typecheck` — expect **0 errors**
-- [ ] Run focused tests:
+- [x] Run `npm run typecheck` — expect **0 errors**
+- [x] Run focused tests:
   ```bash
   npm test -- --testPathPattern="aiChatService|characterSyncWiki|chatComposer|editCharacterScreen" --runInBand
   ```
-- [ ] Run `npm run lint` — expect 0 errors (leave any auto-fixes in place)
+- [x] Run `npm run lint` — expect 0 errors (leave any auto-fixes in place)
 
 ---
 
 ## Phase 9 — Wrap Up
 
-- [ ] Update `docs/superpowers/specs/2026-05-04-expo-llm-wiki-upgrade.md` — change status from **Draft** to **Implemented**
-- [ ] Commit:
+- [x] Update `docs/superpowers/specs/2026-05-04-expo-llm-wiki-upgrade.md` — change status from **Draft** to **Implemented**
+- [x] Commit:
   ```
   feat(wiki): complete hooks-first refactor for expo-llm-wiki v2.5.0 upgrade
 

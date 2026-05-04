@@ -3,10 +3,9 @@
  * Wraps expo-llm-wiki hooks with character-specific logic and error handling.
  */
 
-import { useMemoryRead, useWikiWrite, useWikiExport, useWikiMaintenance, useWiki } from '@equationalapplications/expo-llm-wiki'
+import { useMemoryRead, useWikiWrite, useWikiExport, useWikiMaintenance, useWiki , WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { wikiSync } from '~/services/apiClient'
-import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 
 /**
  * Read memory facts/tasks/events for a character based on a query.

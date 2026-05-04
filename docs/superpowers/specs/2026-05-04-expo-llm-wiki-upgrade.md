@@ -1,7 +1,7 @@
 # Spec: Upgrade @equationalapplications/expo-llm-wiki + Hooks-First Refactor
 
 **Date:** 2026-05-04
-**Status:** Draft
+**Status:** Implemented
 **Branch:** feature/upgrade-expo-llm-wiki
 
 ---

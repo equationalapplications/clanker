@@ -7,6 +7,7 @@ import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usageSnapshotFromError } from '~/services/usageSnapshot'
 import { PLAN_TIERS, SUBSCRIPTION_TIERS, type PlanTier } from '~/config/constants'
+import { useWiki, useWikiWrite, formatContext } from '@equationalapplications/expo-llm-wiki'
 
 interface UseAIChatProps {
   characterId: string
@@ -42,10 +43,32 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     isPlanTier(subscription.planTier) &&
     SUBSCRIPTION_TIERS.includes(subscription.planTier)
 
+  const wiki = useWiki()
+  const { execute: writeObservation } = useWikiWrite()
+
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
     mutationFn: async (message: IMessage) => {
-      return sendMessageWithAIResponse(message, character, userId, messages, { hasUnlimited })
+      let memoryBlock: string | undefined
+      if (hasUnlimited && wiki) {
+        try {
+          const bundle = await wiki.read(character.id, message.text)
+          if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
+        } catch (err) {
+          console.warn('[wiki] memory read failed:', err)
+        }
+      }
+      const onWriteObservation = hasUnlimited
+        ? (characterId: string, text: string) => {
+            void writeObservation(characterId, { event_type: 'observation', summary: text })
+              .catch((err: unknown) => console.warn('[wiki] write failed:', err))
+          }
+        : undefined
+      return sendMessageWithAIResponse(message, character, userId, messages, {
+        hasUnlimited,
+        memoryBlock,
+        onWriteObservation,
+      })
     },
 
     // Optimistic update: Add user message immediately

@@ -29,9 +29,7 @@ import {
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
 import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
-import { useWikiExport } from '~/hooks/useWikiExport'
 import { useCharacterWikiSync } from '~/hooks/useCharacterWiki'
-import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -49,7 +47,6 @@ export default function EditCharacterScreen() {
   } = useUpdateCharacter()
   const { isCloudUnsyncing, error: unsyncError } = useUnsyncCharacter()
   const { isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
-  const { execute: exportWiki, isPending: isWikiExporting } = useWikiExport()
   const { sync: wikiSyncHandler, isPending: isWikiSyncingToCloud } = useCharacterWikiSync()
 
   const [name, setName] = useState('')

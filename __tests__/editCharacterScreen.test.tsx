@@ -146,7 +146,9 @@ jest.mock('~/utils/buildImagePrompt', () => ({
 jest.mock('~/components/CharacterAvatar', () => () => null)
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
-  useWikiExport: () => ({ execute: jest.fn().mockResolvedValue({ generatedAt: Date.now(), entities: {} }), isPending: false }),
+  useWiki: jest.fn(() => null),
+  useWikiMaintenance: jest.fn(() => ({ execute: jest.fn().mockResolvedValue(undefined), isPending: false })),
+  useWikiExport: jest.fn(() => ({ execute: jest.fn().mockResolvedValue({ generatedAt: Date.now(), entities: { 'char-1': { facts: [], tasks: [], events: [] } } }), isPending: false })),
 }))
 jest.mock('~/services/apiClient', () => ({
   wikiSync: jest.fn().mockResolvedValue({ data: {} }),
@@ -165,6 +167,7 @@ import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
 import EditCharacterScreen from '../app/(drawer)/(tabs)/characters/[id]/edit'
 
 const mockWikiSync = jest.requireMock('~/services/apiClient').wikiSync as jest.Mock
+const mockUseWiki = jest.requireMock('@equationalapplications/expo-llm-wiki').useWiki as jest.Mock
 
 const mockUseCharacter = jest.mocked(useCharacter)
 const mockUseUpdateCharacter = jest.mocked(useUpdateCharacter)
@@ -204,8 +207,9 @@ beforeEach(() => {
   mockAlertAlert.mockReset()
   mockUpdate.mockReset()
   mockWikiSync.mockReset()
-  mockWikiSync.mockResolvedValue({ data: {} })
+  mockWikiSync.mockResolvedValue({ data: { remoteDump: { generatedAt: Date.now(), entities: { 'cloud-id-1': { facts: [], tasks: [], events: [] } } } } })
   mockGetWiki.mockReturnValue(mockWikiInstance)
+  mockUseWiki.mockReturnValue(mockWikiInstance)
   mockWikiInstance.importDump.mockResolvedValue(undefined)
   mockWikiInstance.runPrune.mockResolvedValue(undefined)
   mockUseSelector.mockReset()
@@ -455,7 +459,7 @@ describe('EditCharacterScreen - Sync Memory button', () => {
 
     const snackbars = tree.root.findAll((node) => String(node.type) === 'Snackbar')
     expect(snackbars.length).toBeGreaterThan(0)
-    expect(snackbars[0].props.children).toContain('Failed to sync memory')
+    expect(snackbars[0].props.children).toContain('network error')
   })
 
   it('hides Sync Memory button on web and renders without crashing (exercises web-safe wiki hook)', () => {
@@ -473,6 +477,13 @@ describe('EditCharacterScreen - Sync Memory button', () => {
       // Also unmock the wiki package itself so the screen's runtime import of
       // WikiBusyError is resolved from the real module in this isolated run.
       jest.dontMock('@equationalapplications/expo-llm-wiki')
+      // Keep useCharacterWikiSync safe on web — useWiki() from the real package
+      // requires WikiProvider which is not mounted in this test environment.
+      jest.doMock('~/hooks/useCharacterWiki', () => ({
+        useCharacterMemoryRead: jest.fn(),
+        useCharacterMemoryWrite: jest.fn(),
+        useCharacterWikiSync: jest.fn(() => ({ sync: jest.fn().mockResolvedValue({ success: true, message: '' }), isPending: false })),
+      }))
 
       // Reconfigure the character hooks for the fresh module instances created
       // inside the isolated registry.
