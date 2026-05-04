@@ -463,6 +463,20 @@ describe('EditCharacterScreen - Sync Memory button', () => {
     const character = makeCharacter()
     mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
 
+    const useWikiExportWebModule = jest.requireActual('~/hooks/useWikiExport.web')
+    const useWikiExportWeb =
+      useWikiExportWebModule.useWikiExport ?? useWikiExportWebModule.default
+    const HookProbe = () => {
+      useWikiExportWeb()
+      return React.createElement('View')
+    }
+
+    expect(() => {
+      act(() => {
+        renderer.create(React.createElement(HookProbe))
+      })
+    }).not.toThrow()
+
     let tree!: renderer.ReactTestRenderer
     act(() => {
       tree = renderer.create(React.createElement(EditCharacterScreen))
