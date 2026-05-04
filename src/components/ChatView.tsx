@@ -247,7 +247,8 @@ export default function ChatView({ characterId }: ChatViewProps) {
           renderAvatar={(props) => {
             const isUser = props.currentMessage?.user._id === currentUserId
             const avatarUri = isUser ? (chatUser.avatar as string) : (characterAvatar as string)
-            const speakerName = isUser ? (user?.displayName ?? 'You') : characterName
+            const userDisplayName = user?.displayName?.trim()
+            const speakerName = isUser ? (userDisplayName || 'You') : characterName
             return (
               <Avatar.Image
                 size={36}
