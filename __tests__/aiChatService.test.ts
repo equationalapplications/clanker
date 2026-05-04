@@ -39,11 +39,13 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   formatContext: (...args: unknown[]) => mockFormatContext(...args),
 }))
 
+const mockGetWiki = jest.fn(() => ({
+  read: (...args: unknown[]) => mockWikiRead(...args),
+  write: (...args: unknown[]) => mockWikiWrite(...args),
+}))
+
 jest.mock('~/services/wikiService', () => ({
-  getWiki: () => ({
-    read: (...args: unknown[]) => mockWikiRead(...args),
-    write: (...args: unknown[]) => mockWikiWrite(...args),
-  }),
+  getWiki: () => mockGetWiki(),
 }))
 
 import { buildChatPrompt, sendMessageWithAIResponse } from '~/services/aiChatService'
@@ -54,6 +56,8 @@ describe('buildChatPrompt', () => {
     mockGetCharacter.mockResolvedValue(null)
     mockGetMessageCount.mockResolvedValue(0)
     mockGetMessagesForContextSummary.mockResolvedValue([])
+    // wiki.write() must return a Promise so that .catch() can be chained without throwing
+    mockWikiWrite.mockResolvedValue(undefined)
   })
 
   it('prepends memory block before conversation history when memoryBlock provided', () => {
@@ -146,5 +150,53 @@ describe('buildChatPrompt', () => {
       expect.any(String),
       expect.any(Object),
     )
+  })
+
+  it('proceeds without memory when wiki is unavailable (web/uninitialized)', async () => {
+    mockGetWiki.mockReturnValue(null as any)
+    mockGetCharacter.mockResolvedValue({ id: 'char-1', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' })
+    mockGetMessageCount.mockResolvedValue(0)
+    mockGetMessagesForContextSummary.mockResolvedValue([])
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'Hello!',
+      remainingCredits: null,
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-04-27T00:00:00.000Z',
+    })
+
+    const result = await sendMessageWithAIResponse(
+      {
+        _id: 'msg-2',
+        text: 'Hi',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any,
+      { id: 'char-1', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' },
+      'user-1',
+      [] as any,
+      { hasUnlimited: true },
+    )
+
+    // Wiki operations must be skipped entirely when getWiki() returns null
+    expect(mockWikiRead).not.toHaveBeenCalled()
+    expect(mockWikiWrite).not.toHaveBeenCalled()
+    // Exactly one AI message saved — two calls would indicate the error fallback fired
+    expect(mockSaveAIMessage).toHaveBeenCalledTimes(1)
+    // The saved message must contain the AI reply, not a fallback error string
+    expect(mockSaveAIMessage).toHaveBeenCalledWith(
+      'char-1',
+      'user-1',
+      'Hello!',
+      expect.any(String),
+      expect.any(Object),
+    )
+    // Successful path returns a populated usageSnapshot, not the null from the error fallback
+    expect(result).toMatchObject({
+      usageSnapshot: {
+        planTier: 'monthly_20',
+        planStatus: 'active',
+      },
+    })
   })
 })

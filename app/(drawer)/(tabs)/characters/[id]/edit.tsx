@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { Alert, View, StyleSheet, ScrollView, Share } from 'react-native'
+import { Alert, View, StyleSheet, ScrollView, Share, Platform } from 'react-native'
 import {
   Text,
   TextInput,
@@ -29,7 +29,7 @@ import {
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
 import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
-import { useWikiExport } from '@equationalapplications/expo-llm-wiki'
+import { useWikiExport } from '~/hooks/useWikiExport'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { wikiSync } from '~/services/apiClient'
@@ -240,6 +240,12 @@ export default function EditCharacterScreen() {
   }
 
   const handleWikiSync = async () => {
+    if (Platform.OS === 'web') return
+    const wiki = getWiki()
+    if (!wiki) {
+      setToastState({ message: 'Memory sync is not available right now. Please try again later.', requiresSubscription: false })
+      return
+    }
     if (!cloudCharacterId) {
       setToastState({
         message: 'Save this character to cloud and sync it first, then try again.',
@@ -266,7 +272,7 @@ export default function EditCharacterScreen() {
         }
         let importSucceeded = true
         try {
-          await getWiki().importDump(remappedDump, { merge: true })
+          await wiki.importDump(remappedDump, { merge: true })
         } catch (importErr) {
           if (importErr instanceof WikiBusyError) {
             importSucceeded = false
@@ -278,7 +284,7 @@ export default function EditCharacterScreen() {
         }
         if (importSucceeded) {
           try {
-            await getWiki().runPrune(id, { retainSoftDeletedFor: 7, retainEventsFor: 30, vacuum: false })
+            await wiki.runPrune(id, { retainSoftDeletedFor: 7, retainEventsFor: 30, vacuum: false })
           } catch (pruneErr) {
             if (!(pruneErr instanceof WikiBusyError)) {
               console.warn('runPrune failed after wiki sync', pruneErr)
@@ -539,7 +545,7 @@ export default function EditCharacterScreen() {
             </Button>
           ) : null}
 
-          {isSubscriber && character?.save_to_cloud && character?.cloud_id ? (
+          {isSubscriber && character?.save_to_cloud && character?.cloud_id && Platform.OS !== 'web' ? (
             <Button
               mode="outlined"
               icon="brain"

@@ -21,8 +21,7 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
   return _wiki
 }
 
-export function getWiki(): Wiki {
-  if (!_wiki) throw new Error('[wikiService] Wiki not initialized. Call setupWiki() first.')
+export function getWiki(): Wiki | null {
   return _wiki
 }
 

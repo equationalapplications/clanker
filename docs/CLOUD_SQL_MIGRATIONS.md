@@ -31,6 +31,9 @@ This list covers the initial schema plus all subsequent migration files. Files a
 | 6 | `0005_subscriptions_document_counter.sql` | `subscriptions.documents_ingested_count/date` |
 | 7 | `0006_partial_source_hash_index.sql` | Partial index on `wiki_entries.source_hash` |
 | 8 | `0007_source_ref_idx.sql` | Index on `wiki_entries.source_ref` |
+| 9 | `0008_wiki_memory_v2.sql` | `llm_wiki_entries`, `llm_wiki_events`, `llm_wiki_tasks` tables + `characters.save_to_cloud` *(applied 2026-05-02)* |
+| 10 | `0009_odd_sandman.sql` | `llm_wiki_entries`: `source_type`, `last_accessed_at`, `access_count` columns *(applied 2026-05-02)* |
+| 11 | `0010_fix_source_type_check.sql` | Fix `source_type` CHECK constraint on `llm_wiki_entries` *(applied 2026-05-02)* |
 
 ---
 

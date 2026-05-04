@@ -1,9 +1,8 @@
 import { router, Stack } from 'expo-router'
-import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
-import { GiftedChat, Bubble } from 'react-native-gifted-chat'
-import type { IMessage, User, ComposerProps, SendProps } from 'react-native-gifted-chat'
+import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity } from 'react-native'
+import { GiftedChat, Bubble, InputToolbar, Send } from 'react-native-gifted-chat'
+import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps } from 'react-native-gifted-chat'
 import { useCallback, useEffect, useState } from 'react'
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useChatMessages } from '~/hooks/useMessages'
@@ -40,11 +39,11 @@ export default function ChatView({ characterId }: ChatViewProps) {
       setWikiStatus({ ingesting: false, librarian: false })
       return
     }
+    if (!getWiki()) return
     const interval = setInterval(() => {
-      try {
-        setWikiStatus(getWiki().getEntityStatus(characterId))
-      } catch {
-        // wiki not yet initialized — skip this tick
+      const wiki = getWiki()
+      if (wiki) {
+        setWikiStatus(wiki.getEntityStatus(characterId))
       }
     }, 5000)
     return () => clearInterval(interval)
@@ -99,6 +98,51 @@ export default function ChatView({ characterId }: ChatViewProps) {
     [colors, roundness],
   )
 
+  const renderInputToolbar = useCallback(
+    (props: InputToolbarProps<IMessage>) => (
+      <InputToolbar
+        {...props}
+        containerStyle={{
+          backgroundColor: colors.surface,
+          borderTopColor: colors.outlineVariant,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+        }}
+      />
+    ),
+    [colors],
+  )
+
+  const renderSend = useCallback(
+    (props: SendProps<IMessage>) => (
+      <Send
+        {...props}
+        containerStyle={{ justifyContent: 'center', alignSelf: 'center', marginRight: 4 }}
+        sendButtonProps={{
+          accessibilityLabel: 'Send message',
+          accessibilityRole: 'button',
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: colors.primaryContainer,
+            borderRadius: roundness * 4,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <RNText style={{ color: colors.onPrimaryContainer, fontWeight: '600', fontSize: 15 }}>
+            Send
+          </RNText>
+        </View>
+      </Send>
+    ),
+    [colors, roundness],
+  )
+
   const renderComposer = useCallback(
     // GiftedChat currently passes full internal input toolbar props to renderComposer,
     // including onSend from SendProps in addition to ComposerProps.
@@ -110,7 +154,13 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   if (characterLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View
+        style={styles.loadingContainer}
+        accessible
+        accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
+        accessibilityLiveRegion="polite"
+        accessibilityLabel="Loading character"
+      >
         <Text>Loading character...</Text>
       </View>
     )
@@ -118,7 +168,13 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   if (!character) {
     return (
-      <View style={styles.loadingContainer}>
+      <View
+        style={styles.loadingContainer}
+        accessible
+        accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
+        accessibilityLiveRegion="polite"
+        accessibilityLabel="Character not found"
+      >
         <Text>Character not found.</Text>
       </View>
     )
@@ -126,7 +182,13 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   if (!currentUserId) {
     return (
-      <View style={styles.loadingContainer}>
+      <View
+        style={styles.loadingContainer}
+        accessible
+        accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
+        accessibilityLiveRegion="polite"
+        accessibilityLabel="Please sign in to chat"
+      >
         <Text>Please sign in to chat</Text>
       </View>
     )
@@ -178,17 +240,29 @@ export default function ChatView({ characterId }: ChatViewProps) {
           user={chatUser}
           renderComposer={renderComposer}
           renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
+          renderSend={renderSend}
           renderAvatarOnTop
           messagesContainerStyle={styles.messagesContainer}
+          minInputToolbarHeight={56}
           renderAvatar={(props) => {
-            const avatarUri =
-              props.currentMessage?.user._id === currentUserId
-                ? (chatUser.avatar as string)
-                : (characterAvatar as string)
-            return <Avatar.Image size={36} source={{ uri: avatarUri }} />
+            const isUser = props.currentMessage?.user._id === currentUserId
+            const avatarUri = isUser ? (chatUser.avatar as string) : (characterAvatar as string)
+            const userDisplayName = user?.displayName?.trim()
+            const accessibilityLabel = isUser
+              ? (userDisplayName ? `${userDisplayName}'s avatar` : 'Your avatar')
+              : `${characterName}'s avatar`
+            return (
+              <Avatar.Image
+                accessible
+                accessibilityRole="image"
+                size={36}
+                source={{ uri: avatarUri }}
+                accessibilityLabel={accessibilityLabel}
+              />
+            )
           }}
         />
-        {Platform.OS === 'android' && <KeyboardAvoidingView behavior="padding" />}
       </View>
     </>
   )

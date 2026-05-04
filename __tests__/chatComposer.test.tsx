@@ -33,11 +33,16 @@ jest.mock('~/hooks/useCurrentPlan', () => ({
   useCurrentPlan: () => ({ isSubscriber: false }),
 }))
 
+let capturedSnackbarProps: any = null
+
 jest.mock('react-native-paper', () => ({
   IconButton: () => null,
-  Snackbar: () => null,
+  Snackbar: (props: any) => {
+    capturedSnackbarProps = props
+    return null
+  },
   Portal: ({ children }: any) => children,
-  useTheme: () => ({ colors: { primary: '#6200ee' } }),
+  useTheme: () => ({ colors: { primary: '#6200ee', surfaceVariant: '#333', onSurfaceVariant: '#fff' }, roundness: 4 }),
 }))
 
 jest.mock('~/components/composer/IngestProgressBar', () => () => null)
@@ -45,6 +50,7 @@ jest.mock('~/components/composer/IngestProgressBar', () => () => null)
 describe('ChatComposer', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    capturedSnackbarProps = null
     jest.useRealTimers()
   })
 
@@ -226,5 +232,51 @@ describe('ChatComposer', () => {
         })
 
         expect(onSend).not.toHaveBeenCalled()
+    })
+
+    it('sets accessibilityLabel on input for native', () => {
+        const ChatComposer = require('~/components/ChatComposer').default
+        let tree!: ReturnType<typeof create>
+
+        act(() => {
+            tree = create(<ChatComposer text="" onSend={jest.fn()} />)
+        })
+
+        const composer = tree.root.findByProps({ __chatComposerMock: true })
+        expect(composer.props.textInputProps.accessibilityLabel).toBe('Message input')
+    })
+
+    it('sets accessibilityLabel on input for web', () => {
+        const ChatComposer = require('~/components/ChatComposer.web').default
+        let tree!: ReturnType<typeof create>
+
+        act(() => {
+            tree = create(<ChatComposer text="" onSend={jest.fn()} />)
+        })
+
+        const composer = tree.root.findByProps({ __chatComposerMock: true })
+        expect(composer.props.textInputProps.accessibilityLabel).toBe('Message input')
+    })
+
+    it('native snackbar has accessibilityRole "alert" and polite live region', () => {
+        const ChatComposer = require('~/components/ChatComposer').default
+        act(() => {
+            create(<ChatComposer text="" onSend={jest.fn()} />)
+        })
+
+        expect(capturedSnackbarProps).not.toBeNull()
+        expect(capturedSnackbarProps.accessibilityRole).toBe('alert')
+        expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
+    })
+
+    it('web snackbar has accessibilityRole "alert" and polite live region', () => {
+        const ChatComposer = require('~/components/ChatComposer.web').default
+        act(() => {
+            create(<ChatComposer text="" onSend={jest.fn()} />)
+        })
+
+        expect(capturedSnackbarProps).not.toBeNull()
+        expect(capturedSnackbarProps.accessibilityRole).toBe('alert')
+        expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
     })
 })
