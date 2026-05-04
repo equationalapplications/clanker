@@ -2,7 +2,6 @@
 import { createWiki } from '@equationalapplications/expo-llm-wiki'
 import type { SQLiteDatabase } from 'expo-sqlite'
 import { createWikiLlmProvider } from './wikiLlmProvider'
-import { SYNONYM_MAP_BASE } from '~/database/synonymMapBase'
 
 type Wiki = ReturnType<typeof createWiki>
 
@@ -15,7 +14,6 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
     config: {
       tablePrefix: 'llm_wiki_',
       autoLibrarianThreshold: 20,
-      synonymMap: SYNONYM_MAP_BASE,
     },
   })
   return _wiki
