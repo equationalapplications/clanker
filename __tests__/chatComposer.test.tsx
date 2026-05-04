@@ -269,12 +269,14 @@ describe('ChatComposer', () => {
         expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
     })
 
-    it('web composer renders no Snackbar (toast will be restored when wiki is re-enabled)', () => {
+    it('web snackbar has accessibilityRole "alert" and polite live region', () => {
         const ChatComposer = require('~/components/ChatComposer.web').default
         act(() => {
             create(<ChatComposer text="" onSend={jest.fn()} />)
         })
 
-        expect(capturedSnackbarProps).toBeNull()
+        expect(capturedSnackbarProps).not.toBeNull()
+        expect(capturedSnackbarProps.accessibilityRole).toBe('alert')
+        expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
     })
 })
