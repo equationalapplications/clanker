@@ -252,6 +252,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
             return (
               <Avatar.Image
                 accessible
+                accessibilityRole="image"
                 size={36}
                 source={{ uri: avatarUri }}
                 accessibilityLabel={`${speakerName}'s avatar`}
