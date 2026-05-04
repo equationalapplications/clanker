@@ -392,7 +392,15 @@ export const sendMessageWithAIResponse = async (
       const chunk = recentMessages
         .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
         .join('\n')
-      options.onWriteObservation(character.id, chunk || userMessage.text)
+      try {
+        void Promise.resolve(
+          options.onWriteObservation(character.id, chunk || userMessage.text),
+        ).catch((observationError) => {
+          console.warn('Failed to write observation:', observationError)
+        })
+      } catch (observationError) {
+        console.warn('Failed to write observation:', observationError)
+      }
     }
     return { usageSnapshot: toUsageSnapshot(aiResponse) }
   } catch (error) {
