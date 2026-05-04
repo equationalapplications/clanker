@@ -2,11 +2,10 @@
 import 'expo-dev-client'
 import { StatusBar } from 'expo-status-bar'
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context'
-import { View, StyleSheet, Pressable, AppState, Text } from 'react-native'
+import { View, StyleSheet, Pressable, AppState, Text , Platform } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { Stack, router } from 'expo-router'
-import { Platform } from 'react-native'
 import { WikiProvider } from '@equationalapplications/expo-llm-wiki'
 import { getWiki } from '~/services/wikiService'
 

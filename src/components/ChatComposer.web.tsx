@@ -15,6 +15,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   onSend,
   text,
   textInputProps,
+  characterId: _characterId,
+  userId: _userId,
+  hasUnlimited: _hasUnlimited,
   ...props
 }: ChatComposerProps<TMessage>) {
   const { colors, roundness } = useTheme()

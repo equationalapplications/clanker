@@ -458,33 +458,54 @@ describe('EditCharacterScreen - Sync Memory button', () => {
     expect(snackbars[0].props.children).toContain('Failed to sync memory')
   })
 
-  it('hides Sync Memory button on web', () => {
+  it('hides Sync Memory button on web and renders without crashing (exercises web-safe wiki hook)', () => {
     mockPlatformOS = 'web'
     const character = makeCharacter()
-    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
 
-    const useWikiExportWebModule = jest.requireActual('~/hooks/useWikiExport.web')
-    const useWikiExportWeb =
-      useWikiExportWebModule.useWikiExport ?? useWikiExportWebModule.default
-    const HookProbe = () => {
-      useWikiExportWeb()
-      return React.createElement('View')
-    }
+    let syncButtonPresent: boolean | null = null
+    let renderError: unknown = null
 
-    expect(() => {
-      act(() => {
-        renderer.create(React.createElement(HookProbe))
-      })
-    }).not.toThrow()
+    jest.isolateModules(() => {
+      // Explicitly load the actual web-safe hook implementation so a regression
+      // (e.g. deleting useWikiExport.web.ts or changing the screen's import) is
+      // caught here rather than silently passing via the native mock.
+      jest.doMock('~/hooks/useWikiExport', () => jest.requireActual('~/hooks/useWikiExport.web'))
 
-    let tree!: renderer.ReactTestRenderer
-    act(() => {
-      tree = renderer.create(React.createElement(EditCharacterScreen))
+      // Reconfigure the character hooks for the fresh module instances created
+      // inside the isolated registry.
+      const freshHooks = require('~/hooks/useCharacters') as any
+      freshHooks.useCharacter.mockReturnValue({ character, isLoading: false })
+      freshHooks.useUpdateCharacter.mockReturnValue({ update: jest.fn(), isPending: false, error: null })
+      freshHooks.useUnsyncCharacter.mockReturnValue({ unsync: jest.fn(), isCloudUnsyncing: false, error: null })
+      freshHooks.useSyncCharacters.mockReturnValue({ sync: jest.fn(), isCloudSyncing: false, error: null })
+
+      // mockUseSelector is closure-captured in the @xstate/react mock factory,
+      // so setupSelectors() still configures it correctly here.
+      setupSelectors()
+
+      // Load react-test-renderer and react from the same isolated scope as the
+      // Screen so they share a single React instance (avoids hook-context errors).
+      const isolatedRenderer = require('react-test-renderer')
+      const isolatedReact = require('react')
+      const Screen = require('../app/(drawer)/(tabs)/characters/[id]/edit').default
+
+      try {
+        let tree: any
+        isolatedRenderer.act(() => {
+          tree = isolatedRenderer.create(isolatedReact.createElement(Screen))
+        })
+        const syncButton = tree.root
+          .findAll((node: any) => String(node.type) === 'Button')
+          .find((b: any) => b.props.children === 'Sync Memory')
+        syncButtonPresent = syncButton !== undefined
+      } catch (e) {
+        renderError = e
+      }
     })
 
-    const syncButton = tree.root
-      .findAll((node) => String(node.type) === 'Button')
-      .find((b) => b.props.children === 'Sync Memory')
-    expect(syncButton).toBeUndefined()
+    jest.dontMock('~/hooks/useWikiExport')
+
+    expect(renderError).toBeNull()
+    expect(syncButtonPresent).toBe(false)
   })
 })
