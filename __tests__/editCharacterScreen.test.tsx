@@ -470,6 +470,9 @@ describe('EditCharacterScreen - Sync Memory button', () => {
       // (e.g. deleting useWikiExport.web.ts or changing the screen's import) is
       // caught here rather than silently passing via the native mock.
       jest.doMock('~/hooks/useWikiExport', () => jest.requireActual('~/hooks/useWikiExport.web'))
+      // Also unmock the wiki package itself so the screen's runtime import of
+      // WikiBusyError is resolved from the real module in this isolated run.
+      jest.dontMock('@equationalapplications/expo-llm-wiki')
 
       // Reconfigure the character hooks for the fresh module instances created
       // inside the isolated registry.
