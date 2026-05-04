@@ -123,11 +123,6 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   useWikiWrite: jest.fn(() => ({ execute: jest.fn() })),
 }))
 
-const mockGetWiki = jest.fn()
-jest.mock('~/services/wikiService', () => ({
-  getWiki: () => mockGetWiki(),
-}))
-
 // ── SUT ───────────────────────────────────────────────────────────────────────
 import ChatView from '~/components/ChatView'
 
@@ -160,7 +155,6 @@ describe('ChatView accessibility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     capturedGiftedChatProps = null
-    mockGetWiki.mockReturnValue(null)
     mockPlatformOS = 'android'
     withLoggedInUser()
   })

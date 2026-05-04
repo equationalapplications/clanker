@@ -16,8 +16,8 @@ This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *e
 
 - Bump `@equationalapplications/expo-llm-wiki` from `^2.4.0` to `^2.5.0`.
 - **Architectural shift:** Prefer React hooks over raw `wiki.*()` method calls in all components and UI logic.
-- Replace `getWiki()?.read(...)` with `useMemoryRead()` in chat UI.
-- Replace `wiki.write()` post-turn calls with `useWikiWrite()`.
+- Move memory reads out of `aiChatService.ts` into `useAIChat.ts`: call `wiki.read()` via `useWiki()` pre-turn, format with `formatContext()`, pass the resulting `memoryBlock` string down to the service.
+- Move memory writes out of `aiChatService.ts`: pass an `onWriteObservation` callback from `useAIChat.ts` (backed by `useWikiWrite()`) so the service triggers the write without importing wiki hooks.
 - Replace `wiki.runPrune()` / `wiki.runLibrarian()` / `wiki.runHeal()` with `useWikiMaintenance()`.
 - Refactor cloud sync flows (`characterSyncService.ts`, edit screen) to use `useWikiExport()` and `useWikiMaintenance()` where UI-driven or extract to custom hooks.
 - Keep `createWiki(...)` and `wiki.setup()` in the service layer (non-React context; raw methods acceptable here).
@@ -28,8 +28,8 @@ This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *e
 ### Included
 
 - Dependency bump to v2.5.0.
-- Refactor chat message context reading: `aiChatService.ts` `useMemoryRead()` instead of `getWiki()?.read()`.
-- Refactor post-turn memory writes: `useWikiWrite()` instead of `wiki.write()`.
+- Refactor chat message context reading: `useAIChat.ts` calls `wiki.read()` via `useWiki()` pre-turn and passes the formatted `memoryBlock` to `aiChatService.ts` (which no longer reads memory directly).
+- Refactor post-turn memory writes: `useAIChat.ts` passes an `onWriteObservation` callback (backed by `useWikiWrite()`) to `aiChatService.ts` so the service never imports wiki hooks.
 - Refactor sync operations: `useWikiMaintenance().runPrune()` in appropriate contexts.
 - Use `useWikiExport()` for cloud sync flows where architecturally sound.
 - Ensure all component memory access uses hooks from `WikiProvider` context.
@@ -54,13 +54,15 @@ This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *e
 ### UI layer (hooks required)
 
 - `src/services/aiChatService.ts`
-  - **Currently:** `getWiki()?.read(character.id, userMessage.text)` → **Refactor to:** Extract into a custom hook or move memory read into the component that renders the chat context.
-  - **Currently:** `wiki.write(character.id, { event_type: 'observation', summary: ... })` → **Refactor to:** Use `useWikiWrite()` in a component effect or custom hook wrapping chat submission.
+  - **Refactored:** No longer reads or writes wiki directly. Accepts `memoryBlock?: string` (pre-formatted by caller) and `onWriteObservation?` callback (supplied by caller) via the options argument.
+  
+- `src/hooks/useAIChat.ts` (React context — hooks used here)
+  - Pre-turn: calls `wiki.read(characterId, userMessage.text)` via `useWiki()`, formats result with `formatContext()`, passes `memoryBlock` to `sendMessageWithAIResponse`.
+  - Post-turn: passes `onWriteObservation` callback backed by `useWikiWrite()` to `sendMessageWithAIResponse` for fire-and-forget observation writes.
 
 - `src/components/ChatView.tsx` (or caller)
-  - Add memory read via `useMemoryRead(characterId, userMessage)` to fetch bundle inline.
-  - Format with `formatContext(bundle, ...)` for LLM injection.
-  - Bind formatting result into the chat prompt.
+  - Memory reading is done in `useAIChat.ts` (via `useWiki()` + `wiki.read()`), not in `ChatView` directly.
+  - `ChatView` uses `useWiki()` for entity-status polling (ingesting/librarian indicators).
   
 - `src/services/characterSyncService.ts` (background sync)
   - **Currently:** `wiki.exportDump([char.id])` + `wiki.importDump(...)` + `wiki.runPrune(...)` → Extract sync logic into a custom hook or refactor to use `useWikiExport()` + `useWikiMaintenance()` when called from a React context. For non-React background intervals, raw methods acceptable.
@@ -79,21 +81,22 @@ This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *e
 ### Hook availability check
 
 **Always available in components under `WikiProvider`:**
-- `useWiki()` — access wiki instance directly if needed
-- `useMemoryRead(entityId, query)` — fetch facts/tasks/events for LLM context
-- `useWikiWrite()` — fire-and-forget or awaited memory writes
+- `useWiki()` — access wiki instance directly (used in `useAIChat.ts` for `wiki.read()` pre-turn and in `ChatView` for entity-status polling)
+- `useWikiWrite()` — fire-and-forget or awaited memory writes (used in `useAIChat.ts` for post-turn observation writes)
 - `useWikiMaintenance()` — `runLibrarian()`, `runHeal()`, `runPrune()` with shared loading/error state
 - `useWikiIngest()` — document ingestion (already in use)
 - `useWikiHasChanged()` — skip-unchanged-file check (already in use)
 - `useWikiForget()` — forget specific facts/tasks (already in use)
-- `useWikiExport()` — export dumps for cloud sync (replace direct `exportWiki` calls)
+- `useWikiExport()` — export dumps for cloud sync (used in `useCharacterWikiSync`)
+
+Note: `useMemoryRead()` is available from the package but not used in this implementation; `useWiki()` + `wiki.read()` is used directly in `useAIChat.ts` for fine-grained error handling and format control.
 
 ## Risk areas
 
 - Package API surface changed between `2.4.0` and `2.5.0`.
 - Hook signatures or context behavior changed.
 - `WikiProvider` mount point or context depth affects hook availability.
-- `useMemoryRead`, `useWikiWrite`, `useWikiMaintenance` error handling or loading state semantics differ.
+- `useWiki()`, `useWikiWrite()`, `useWikiMaintenance()` error handling or loading state semantics differ.
 - Service-layer `wiki.setup()` or `getWiki()` singleton pattern altered.
 
 ## Implementation decision: Hooks vs. raw methods by context
@@ -108,15 +111,13 @@ This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *e
 - Run `npm install` and `npm run typecheck`.
 - Confirm no import or API signature breakage.
 
-**Phase 2: Move memory reads into UI**
-- Identify where `aiChatService.ts` calls `getWiki()?.read(...)`.
-- If called during message send or chat render, move into a component hook or custom effect.
-- Use `useMemoryRead(characterId, userMessage)` to fetch bundle with proper loading/error states.
+**Phase 2: Move memory reads into hooks**
+- Moved `getWiki()?.read(...)` from `aiChatService.ts` into `useAIChat.ts`.
+- `useAIChat.ts` calls `wiki.read(characterId, userMessage.text)` via `useWiki()`, wraps in try/catch, formats with `formatContext()`, and passes `memoryBlock` string to the service.
 
-**Phase 3: Move memory writes into UI**
-- Replace `wiki.write()` post-turn fire-and-forget with `useWikiWrite()`.
-- Wrap in a `useEffect` that runs after AI response is saved.
-- Handle `isPending` and `error` states gracefully.
+**Phase 3: Move memory writes into hooks**
+- Moved `wiki.write()` post-turn call from `aiChatService.ts` into `useAIChat.ts`.
+- `useAIChat.ts` passes an `onWriteObservation` callback backed by `useWikiWrite()` to the service; the service invokes it fire-and-forget (wrapped in try/catch) without needing to import wiki hooks.
 
 **Phase 4: Refactor sync operations**
 - Extract `characterSyncService.ts` sync logic into a custom hook if called from React (or leave raw if background-only).
@@ -152,8 +153,8 @@ This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *e
 2. Run `npm install`.
 3. Check `node_modules/@equationalapplications/expo-llm-wiki/CHANGELOG.md` for breaking changes between `2.4.0` and `2.5.0`.
 4. Run `npm run typecheck` — verify no import or signature mismatches.
-5. Refactor memory reads: Move `getWiki()?.read(...)` calls from service to component hooks using `useMemoryRead()`.
-6. Refactor memory writes: Replace `wiki.write(...)` with `useWikiWrite()` in effects/hooks.
+5. Refactor memory reads: Moved `getWiki()?.read(...)` calls from `aiChatService.ts` into `useAIChat.ts` using `useWiki()` + `wiki.read()` + `formatContext()`.
+6. Refactor memory writes: Moved `wiki.write(...)` from `aiChatService.ts` into `useAIChat.ts` via `useWikiWrite()` callback.
 7. Refactor maintenance: Replace `wiki.runPrune()` with `useWikiMaintenance().runPrune()` in sync flows.
 8. Refactor cloud sync: Use `useWikiExport()` + `useWikiMaintenance()` in edit screen and auto-sync.
 9. Run `npm run lint` — verify code style.
@@ -165,7 +166,7 @@ This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *e
 ## Notes
 
 - **Hooks-first principle:** All UI code must use React hooks from `WikiProvider` context. Raw `wiki.*()` method calls only acceptable in non-React service-layer code (setup, singletons).
-- The package provides `useWiki()` as an escape hatch if hooks are insufficient, but prefer specialized hooks (`useMemoryRead`, `useWikiWrite`, etc.) for clarity and better state management.
-- `formatContext(...)` utility function remains the same — used to format bundle output for LLM injection. Call from a component after `useMemoryRead()` fetches the bundle.
+- The implementation uses `useWiki()` + `wiki.read()` in `useAIChat.ts` for pre-turn memory reads (rather than `useMemoryRead`) to retain fine-grained error handling and format control. Both approaches are valid — `useMemoryRead` is an alternative if caller-controlled error/loading state is preferred.
+- `formatContext(...)` utility function is a pure helper — called in `useAIChat.ts` after `wiki.read()` to convert the bundle to a string for LLM injection.
 - `characters.context` rolling summary is separate from wiki memory; no changes to that flow.
 - Custom hooks (e.g., `useWikiMemoryContext`, `useCharacterWikiSync`) may be created to encapsulate repeated patterns, but they must themselves use the exported package hooks.
