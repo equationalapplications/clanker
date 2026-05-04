@@ -334,7 +334,6 @@ export const sendMessageWithAIResponse = async (
   userId: string,
   conversationHistory: IMessage[] = [],
   options?: {
-    hasUnlimited?: boolean
     memoryBlock?: string
     onWriteObservation?: (characterId: string, text: string) => void
   },
