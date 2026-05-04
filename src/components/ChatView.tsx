@@ -133,7 +133,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
             alignItems: 'center',
           }}
         >
-          <RNText style={{ color: colors.primary, fontWeight: '600', fontSize: 15 }}>
+          <RNText style={{ color: colors.onPrimaryContainer, fontWeight: '600', fontSize: 15 }}>
             Send
           </RNText>
         </View>
