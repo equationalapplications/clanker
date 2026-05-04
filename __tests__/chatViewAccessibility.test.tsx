@@ -299,6 +299,7 @@ describe('ChatView accessibility', () => {
 
     const avatarImg = avatarTree.root.find((n: any) => n.props.testID === 'avatar-img')
     expect(avatarImg.props.accessibilityLabel).toContain('Nova')
+    expect(avatarImg.props.accessibilityRole).toBe('image')
   })
 
   it('renderAvatar: user avatar carries the user display name as accessibility label', () => {
@@ -317,6 +318,7 @@ describe('ChatView accessibility', () => {
 
     const avatarImg = avatarTree.root.find((n: any) => n.props.testID === 'avatar-img')
     expect(avatarImg.props.accessibilityLabel).toContain('Test')
+    expect(avatarImg.props.accessibilityRole).toBe('image')
   })
 
   // ── web platform: status role on sign-in-required state ───────────────────
