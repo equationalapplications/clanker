@@ -3,7 +3,7 @@
  * Wraps expo-llm-wiki hooks with character-specific logic and error handling.
  */
 
-import { useMemoryRead, useWikiWrite, useWikiExport, useWikiMaintenance, useWiki , WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { useMemoryRead, useWikiWrite, useWikiExport, useWikiMaintenance, useWiki, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { wikiSync } from '~/services/apiClient'
 
