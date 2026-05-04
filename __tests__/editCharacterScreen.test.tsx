@@ -3,6 +3,7 @@ import renderer, { act } from 'react-test-renderer'
 
 // Mock Alert
 const mockAlertAlert = jest.fn()
+let mockPlatformOS = 'ios'
 jest.mock('react-native', () => {
   const React = require('react')
   return {
@@ -13,7 +14,7 @@ jest.mock('react-native', () => {
     ScrollView: ({ children, ...props }: any) => React.createElement('ScrollView', props, children),
     StyleSheet: { create: (s: any) => s },
     Share: { share: jest.fn() },
-    Platform: { OS: 'ios', select: (opts: any) => opts.ios ?? opts.default },
+    Platform: { get OS() { return mockPlatformOS }, select: (opts: any) => opts[mockPlatformOS] ?? opts.default },
   }
 })
 
@@ -190,6 +191,7 @@ function setupSelectors(user: { uid: string } | null = { uid: 'user-1' }) {
 }
 
 beforeEach(() => {
+  mockPlatformOS = 'ios'
   mockAlertAlert.mockReset()
   mockUpdate.mockReset()
   mockWikiSync.mockReset()
@@ -442,5 +444,21 @@ describe('EditCharacterScreen - Sync Memory button', () => {
     const snackbars = tree.root.findAll((node) => String(node.type) === 'Snackbar')
     expect(snackbars.length).toBeGreaterThan(0)
     expect(snackbars[0].props.children).toContain('Failed to sync memory')
+  })
+
+  it('hides Sync Memory button on web', () => {
+    mockPlatformOS = 'web'
+    const character = makeCharacter()
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const syncButton = tree.root
+      .findAll((node) => String(node.type) === 'Button')
+      .find((b) => b.props.children === 'Sync Memory')
+    expect(syncButton).toBeUndefined()
   })
 })

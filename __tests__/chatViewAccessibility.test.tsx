@@ -336,7 +336,7 @@ describe('ChatView accessibility', () => {
   })
 
   // ── chat container label ──────────────────────────────────────────────────
-  it('chat container: has accessibilityLabel "Chat conversation" and accessible={true}', () => {
+  it('chat container: has accessibilityLabel "Chat conversation"', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
 
     let tree: any
@@ -348,6 +348,9 @@ describe('ChatView accessibility', () => {
     )
 
     expect(containerView).toBeDefined()
-    expect(containerView.props.accessible).toBe(true)
+    // accessible={true} is intentionally omitted on the chat container to avoid
+    // collapsing the nested message list, avatars, and send button into a single
+    // accessibility element (which would break VoiceOver/TalkBack navigation).
+    expect(containerView.props.accessible).toBeUndefined()
   })
 })
