@@ -147,7 +147,11 @@ jest.mock('~/components/CharacterAvatar', () => () => null)
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
   useWiki: jest.fn(() => null),
-  useWikiMaintenance: jest.fn(() => ({ execute: jest.fn().mockResolvedValue(undefined), isPending: false })),
+  useWikiMaintenance: jest.fn(() => ({
+    execute: jest.fn().mockResolvedValue(undefined),
+    runPrune: jest.fn().mockResolvedValue(undefined),
+    isPending: false,
+  })),
   useWikiExport: jest.fn(() => ({ execute: jest.fn().mockResolvedValue({ generatedAt: Date.now(), entities: { 'char-1': { facts: [], tasks: [], events: [] } } }), isPending: false })),
 }))
 jest.mock('~/services/apiClient', () => ({
