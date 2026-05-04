@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, StyleSheet , ActivityIndicator } from 'react-native'
+import { View, StyleSheet, ActivityIndicator } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Portal, Snackbar, useTheme } from 'react-native-paper'
