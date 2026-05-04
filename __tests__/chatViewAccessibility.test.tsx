@@ -318,4 +318,20 @@ describe('ChatView accessibility', () => {
     const avatarImg = avatarTree.root.find((n: any) => n.props.testID === 'avatar-img')
     expect(avatarImg.props.accessibilityLabel).toContain('Test')
   })
+
+  // ── web platform: status role on sign-in-required state ───────────────────
+  it('web: sign-in-required state uses accessibilityRole "status"', () => {
+    mockPlatformOS = 'web'
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+    withNoUser()
+
+    let tree: any
+    act(() => { tree = create(<ChatView characterId="char-1" />) })
+
+    const allViews = tree.root.findAll((n: any) => n.type === 'View')
+    const liveView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
+
+    expect(liveView).toBeDefined()
+    expect(liveView.props.accessibilityRole).toBe('status')
+  })
 })
