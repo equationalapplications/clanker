@@ -77,7 +77,7 @@ describe('buildChatPrompt', () => {
     expect(prompt.endsWith('\nNova:')).toBe(true)
   })
 
-  it('fetches and injects memory for premium chat flow, then dispatches write post-turn', async () => {
+  it('injects provided memoryBlock into prompt and dispatches write observation post-turn', async () => {
     const mockOnWrite = jest.fn()
     mockGenerateChatReply.mockResolvedValue({
       reply: 'You are doing well.',
@@ -132,7 +132,7 @@ describe('buildChatPrompt', () => {
     )
   })
 
-  it('proceeds without memory when wiki is unavailable (web/uninitialized)', async () => {
+  it('proceeds without memory when no memoryBlock or onWriteObservation provided', async () => {
     mockGetCharacter.mockResolvedValue({ id: 'char-1', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' })
     mockGetMessageCount.mockResolvedValue(0)
     mockGetMessagesForContextSummary.mockResolvedValue([])
