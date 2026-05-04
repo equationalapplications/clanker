@@ -1,3 +1,41 @@
+# [29.7.0](https://github.com/equationalapplications/clanker/compare/v29.6.1...v29.7.0) (2026-05-04)
+
+
+### Bug Fixes
+
+* add missing accessibility labels, roles, and live regions to chat screen ([e973dcc](https://github.com/equationalapplications/clanker/commit/e973dcc3b2e5583d113924226d103505918c8025))
+* address PR review — dead snackbar, broken a11y role, missing tests ([26ec332](https://github.com/equationalapplications/clanker/commit/26ec33246b14f07c2ec883c64bcc5d002682132a))
+* apply themed rounded input to web composer, cherry-pick FTS5 web guard ([90bd824](https://github.com/equationalapplications/clanker/commit/90bd824d04f93f0b13518d0ee2a0b82c3f8c0a6f))
+* **chat:** fix send button pill and input text vertical alignment on Android ([470929c](https://github.com/equationalapplications/clanker/commit/470929c9dda539108e20c0a4fca48a909e486066))
+* disable wiki on web platform due to FTS5 unavailability in expo-sqlite ([3a269ec](https://github.com/equationalapplications/clanker/commit/3a269ec43f7e970b35e66f2675031636249ebf97))
+* document CTE deduplication behavior and tighten queryModuleEdges test ([3a56f62](https://github.com/equationalapplications/clanker/commit/3a56f627e79b0aefa9792e14afc0b6bac75219f2))
+* ensure db handle is closed on error path in main() ([0beb4ed](https://github.com/equationalapplications/clanker/commit/0beb4ed7961a78dca46fb1e6d428458c13eeba21))
+* escape full mermaid label string not just function name ([37cd5ee](https://github.com/equationalapplications/clanker/commit/37cd5ee11fb87bfe0ac61281922855cdade805b4))
+* fix chat screen layout on mobile — keyboard whitespace, input padding, rounded corners ([7b583c9](https://github.com/equationalapplications/clanker/commit/7b583c9b3da5e68974ef59e2ccb43512e53dad2a))
+* guard wiki sync behind Platform.OS check and label chat container ([79fcdc6](https://github.com/equationalapplications/clanker/commit/79fcdc6fc37ab6e966d1cdba52be74173be9f5d1))
+* harden node ID generation and label escaping in chart generator ([68d3132](https://github.com/equationalapplications/clanker/commit/68d3132c91ddfcec69427eba7ad85cf09ff0e80b))
+* reduce call graph depth to 2 for cleaner charts ([0cdb343](https://github.com/equationalapplications/clanker/commit/0cdb3432744c4407815d50b21e83f941237be00e))
+* remove dead web Snackbar, fix accessible container, add web Sync Memory test ([2687129](https://github.com/equationalapplications/clanker/commit/2687129b35ccf90b4c868f30c7243fba3cc7fabe))
+* remove extra whitespace before comma in _layout.tsx import ([2560171](https://github.com/equationalapplications/clanker/commit/256017114599170da87b9107ae33926f39b2e775))
+* remove wiki hooks from ChatComposer.web.tsx to fix WikiProvider crash on web ([7882071](https://github.com/equationalapplications/clanker/commit/78820713b8f050df8fab1c26d1554e603bc86094))
+* restore web Snackbar, fix avatar a11y, add web-mode and snackbar tests ([9cfa46a](https://github.com/equationalapplications/clanker/commit/9cfa46a9ead9263787195eb9e4ca48a5dc7ee6c5))
+* restore web Snackbar/toast state, remove ineffective container label ([cb14f94](https://github.com/equationalapplications/clanker/commit/cb14f94e57739fd8c9bde332fbe73156fb2b293b))
+* strengthen container test and guard useWikiExport against web ([f3dc4df](https://github.com/equationalapplications/clanker/commit/f3dc4df5d7b2d9f892520b213055f459dda04c41))
+* strip custom props in ChatComposer.web, improve web hook test coverage ([ddc2ede](https://github.com/equationalapplications/clanker/commit/ddc2ede61f1f21be395b96039cf5fd732e147efb))
+* style send button with rounded corners, padding, and theme colors ([7ec6a68](https://github.com/equationalapplications/clanker/commit/7ec6a68aff8cc2c3e4dc34c0efb756d24dd1cae6))
+* surface wiki unavailability explicitly, guard poller, add GiftedChat layout tests ([8e0d2e7](https://github.com/equationalapplications/clanker/commit/8e0d2e724ef9421584d66ad270ef411c77a40dc5))
+* switch mermaid layout to graph LR for vertical node stacking ([0e41419](https://github.com/equationalapplications/clanker/commit/0e414192acc9361ec3fba615d9e9d4de77dfae15))
+* **ui:** refine ChatComposer wrapper styling for surface variant and rounded input ([547b8a6](https://github.com/equationalapplications/clanker/commit/547b8a6ef681cd330ef3ca79c402df7a11c0e962))
+
+
+### Features
+
+* add BFS query for module call edges via recursive CTE ([7e98317](https://github.com/equationalapplications/clanker/commit/7e98317588d6da14968b98abe600ba0517786b93))
+* add main() entrypoint and docs:charts npm script ([b399d49](https://github.com/equationalapplications/clanker/commit/b399d491c1fc5a2e691ed93dfa67e537a96a5d70))
+* add pure functions for mermaid chart generation with tests ([cf175ab](https://github.com/equationalapplications/clanker/commit/cf175aba008c84fdb64e5abbe88dfdb544c3021d))
+* **ChatView:** improve accessibility ([d79565d](https://github.com/equationalapplications/clanker/commit/d79565dae71baf39fd873c62737d7714797f9b6e))
+* fallback to import-dependency graph for modules with no call edges ([64e8dd0](https://github.com/equationalapplications/clanker/commit/64e8dd01d9bdc4a966705dd63dde562e27d17d5f))
+
 ## [29.6.1](https://github.com/equationalapplications/clanker/compare/v29.6.0...v29.6.1) (2026-05-03)
 
 

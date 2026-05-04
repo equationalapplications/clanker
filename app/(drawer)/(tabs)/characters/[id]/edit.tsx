@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router'
-import { Alert, View, StyleSheet, ScrollView, Share, Platform } from 'react-native'
+import { Alert, View, StyleSheet, ScrollView, Share } from 'react-native'
 import {
   Text,
   TextInput,
@@ -29,11 +29,7 @@ import {
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
 import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
-import { useWikiExport } from '~/hooks/useWikiExport'
-import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
-import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
-import { wikiSync } from '~/services/apiClient'
-import { getWiki } from '~/services/wikiService'
+import { useCharacterWikiSync } from '~/hooks/useCharacterWiki'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -51,7 +47,7 @@ export default function EditCharacterScreen() {
   } = useUpdateCharacter()
   const { isCloudUnsyncing, error: unsyncError } = useUnsyncCharacter()
   const { isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
-  const { execute: exportWiki, isPending: isWikiSyncing } = useWikiExport()
+  const { sync: wikiSyncHandler, isPending: isWikiSyncingToCloud } = useCharacterWikiSync()
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -240,12 +236,6 @@ export default function EditCharacterScreen() {
   }
 
   const handleWikiSync = async () => {
-    if (Platform.OS === 'web') return
-    const wiki = getWiki()
-    if (!wiki) {
-      setToastState({ message: 'Memory sync is not available right now. Please try again later.', requiresSubscription: false })
-      return
-    }
     if (!cloudCharacterId) {
       setToastState({
         message: 'Save this character to cloud and sync it first, then try again.',
@@ -253,50 +243,11 @@ export default function EditCharacterScreen() {
       })
       return
     }
-    try {
-      const localDump = await exportWiki([id])
-      const cloudDump: MemoryDump = {
-        generatedAt: localDump.generatedAt,
-        entities: {
-          [cloudCharacterId]: localDump.entities[id] ?? { facts: [], tasks: [], events: [] },
-        },
-      }
-      const result = await wikiSync({ dump: cloudDump })
-      const remoteDump = result.data.remoteDump
-      if (remoteDump) {
-        const remappedDump: MemoryDump = {
-          generatedAt: remoteDump.generatedAt,
-          entities: {
-            [id]: remoteDump.entities[cloudCharacterId] ?? { facts: [], tasks: [], events: [] },
-          },
-        }
-        let importSucceeded = true
-        try {
-          await wiki.importDump(remappedDump, { merge: true })
-        } catch (importErr) {
-          if (importErr instanceof WikiBusyError) {
-            importSucceeded = false
-            // Cloud sync succeeded; local merge skipped because wiki is busy.
-            // The remote dump will be merged on the next manual or automatic sync.
-          } else {
-            throw importErr
-          }
-        }
-        if (importSucceeded) {
-          try {
-            await wiki.runPrune(id, { retainSoftDeletedFor: 7, retainEventsFor: 30, vacuum: false })
-          } catch (pruneErr) {
-            if (!(pruneErr instanceof WikiBusyError)) {
-              console.warn('runPrune failed after wiki sync', pruneErr)
-            }
-          }
-        }
-      }
-      setToastState({ message: 'Memory synced to cloud.', requiresSubscription: false })
-    } catch (syncErr) {
-      console.warn('handleWikiSync failed', syncErr)
-      setToastState({ message: 'Failed to sync memory. Check your connection and try again.', requiresSubscription: false })
-    }
+    const result = await wikiSyncHandler(id, cloudCharacterId)
+    setToastState({
+      message: result.message,
+      requiresSubscription: false,
+    })
   }
 
   const handleOpenShareCard = () => {
@@ -545,13 +496,13 @@ export default function EditCharacterScreen() {
             </Button>
           ) : null}
 
-          {isSubscriber && character?.save_to_cloud && character?.cloud_id && Platform.OS !== 'web' ? (
+          {isSubscriber && character?.save_to_cloud && character?.cloud_id ? (
             <Button
               mode="outlined"
               icon="brain"
               onPress={handleWikiSync}
-              disabled={isWikiSyncing}
-              loading={isWikiSyncing}
+              disabled={isWikiSyncingToCloud}
+              loading={isWikiSyncingToCloud}
               style={styles.shareButton}
             >
               Sync Memory

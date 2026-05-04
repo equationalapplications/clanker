@@ -15,7 +15,8 @@ const mockImportDump = jest.fn()
 const mockRunPrune = jest.fn()
 const mockGetEntityStatus = jest.fn().mockReturnValue({ ingesting: false, librarian: false })
 
-const mockGetWiki = jest.fn(() => ({
+type MockWiki = { exportDump: jest.Mock; importDump: jest.Mock; runPrune: jest.Mock; getEntityStatus: jest.Mock }
+const mockGetWiki = jest.fn<MockWiki | null, []>(() => ({
   exportDump: mockExportDump,
   importDump: mockImportDump,
   runPrune: mockRunPrune,

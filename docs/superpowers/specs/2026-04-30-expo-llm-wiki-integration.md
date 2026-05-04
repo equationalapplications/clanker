@@ -4,7 +4,7 @@
 **Status:** Implemented
 **Branch:** feature branch off `staging`
 **Depends on:**
-- [expo-llm-wiki: agent-memory-features](https://github.com/equationalapplications/expo-llm-wiki/docs/superpowers/specs/2026-04-30-agent-memory-features.md) — porter stemmer + synonymMap + LWW merge — **Status: Ready**
+- [expo-llm-wiki: agent-memory-features](https://github.com/equationalapplications/expo-llm-wiki/docs/superpowers/specs/2026-04-30-agent-memory-features.md) — porter stemmer + LWW merge — **Status: Ready** _(Note: `synonymMap` config option was removed in v2.5.0; query expansion is handled internally by the package)_
 - [expo-llm-wiki: ingest-perf-and-export](https://github.com/equationalapplications/expo-llm-wiki/docs/superpowers/specs/2026-04-30-ingest-perf-and-export.md) — exportDump / importDump / WikiBusyError / getEntityStatus — **Status: Implemented**
 - [expo-llm-wiki: next-version-improvements](https://github.com/equationalapplications/expo-llm-wiki/docs/superpowers/specs/2026-05-01-next-version-improvements.md) — formatContext / hasChanged / runPrune / schema versioning — **Status: Ready**
 
@@ -24,7 +24,7 @@ The original wiki memory spec ([2026-04-24-llm-wiki-memory.md](./2026-04-24-llm-
 - 162 handler tests in `functions/src/memoryFunctions.test.js`
 - `compromise` dependency (lemmatizer) — package porter stemmer makes it redundant
 
-This spec replaces all of the above with `expo-llm-wiki` used as-is, adding only what the package cannot provide: a cloud sync callable and a curated synonym map. The agent-memory-features spec (porter stemmer, synonymMap, LWW merge) is maintained in the expo-llm-wiki repo and referenced here.
+This spec replaces all of the above with `expo-llm-wiki` used as-is, adding only what the package cannot provide: a cloud sync callable.
 
 ---
 
@@ -97,7 +97,6 @@ import { createWiki } from '@equationalapplications/expo-llm-wiki';
 import { createWikiLlmProvider } from './wikiLlmProvider';
 import { appCheckReady } from '~/config/firebaseConfig';
 import { getDatabase } from '~/database';
-import { synonymMapBase } from '~/database/synonymMapBase';  // kept (hand-curated map)
 
 let _wiki: ReturnType<typeof createWiki> | null = null;
 
@@ -109,7 +108,8 @@ export function getWiki() {
         tablePrefix: 'llm_wiki_',
         autoLibrarianThreshold: 20,   // matches original MEMORY_WRITE_TRIGGER_MESSAGE_COUNT
         autoHealThreshold: 100,
-        synonymMap: synonymMapBase,
+        // Note: synonymMap was removed in expo-llm-wiki v2.5.0; query expansion
+        // is handled internally by the package's porter-stemmer pipeline.
         // chunkConcurrency: 1 (default — sequential; raise for providers with higher rate limits)
         // maxChunkLength: 12000 (package default — up from 6000 in prior versions)
         // chunkOverlap: 400 (package default)
@@ -144,9 +144,7 @@ All subsequent hook examples in this spec assume the provider is mounted.
 
 ### `synonymMapBase.ts`
 
-**Kept** — the hand-curated ~150-entry map (health, relationships, work, emotions, goals) is still valuable for day-1 recall before any facts exist. It is now passed as `WikiConfig.synonymMap` instead of being used in the custom `buildFtsQuery` pipeline.
-
-File path: `src/database/synonymMapBase.ts` → no rename needed. Export changes from the original ftsQueryBuilder shape to a plain `Record<string, string[]>`.
+**Removed in v2.5.0** — `WikiConfig.synonymMap` was removed from the package API in v2.5.0. The hand-curated synonym map (`src/database/synonymMapBase.ts`) is no longer passed to `createWiki` and has been deleted. Query expansion is handled internally by the package's porter-stemmer pipeline.
 
 ### Read Path
 
@@ -166,7 +164,7 @@ const memoryBlock = formatContext(bundle, {
 // Pass memoryBlock string to buildChatPrompt as the [MEMORY] block
 ```
 
-`read()` is fully local FTS5 + porter stemmer + synonymMap expansion. <50ms. Works offline. No callable.
+`read()` is fully local FTS5 + porter stemmer expansion. <50ms. Works offline. No callable.
 
 `formatContext` is a pure function (no DB) from the package. It ranks facts by confidence × recency × access count, tasks by priority, events newest-first. Replaces the hand-rolled bundle formatter in `buildChatPrompt`.
 
@@ -454,7 +452,7 @@ Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate 
 
 
 ### Modified
-- `src/database/synonymMapBase.ts` — change export to `Record<string, string[]>` (same terms, new shape)
+- ~~`src/database/synonymMapBase.ts` — change export to `Record<string, string[]>` (same terms, new shape)~~ _(deleted — `synonymMap` removed in v2.5.0)_
 - `src/services/aiChatService.ts` — replace `fetchMemoryBundle` + `wikiHealMachine WRITE` with `wiki.read()` + `wiki.write()`; import `formatContext` from `@equationalapplications/expo-llm-wiki` and replace manual bundle formatting in `buildChatPrompt` with `formatContext(bundle)`.
 - `src/database/schema.ts` — remove `wiki_entries`, `agent_tasks`, `memory_events`, `derived_synonyms` from `CREATE_TABLES`, `MIGRATIONS`, `MIGRATION_SKIP_GUARDS`, `LATEST_SCHEMA_REQUIRED_COLUMNS`. Remove `heal_checkpoint`/`memory_checkpoint` columns from `characters` additions (package owns checkpoints in `llm_wiki_checkpoints`). Bump `SCHEMA_VERSION` to next integer (e.g. `12`); add `MIGRATIONS[12]` that `DROP TABLE IF EXISTS`es `wiki_entries`, `agent_tasks`, `memory_events`, `derived_synonyms` and runs `ALTER TABLE characters DROP COLUMN IF EXISTS heal_checkpoint, DROP COLUMN IF EXISTS memory_checkpoint` (SQLite does not support `DROP COLUMN` prior to 3.35 — use `PRAGMA table_info` + recreate pattern if needed, or simply leave the columns as harmless dead weight and skip the ALTER). Add `MIGRATION_SKIP_GUARDS[12]` checking `wiki_entries` does not exist.
 - `src/database/index.ts` — call `setupWiki()` in `bootstrapSession` after existing DB setup.
@@ -547,7 +545,7 @@ Assert:
 - [ ] `@equationalapplications/expo-llm-wiki` installed; `compromise` removed from `package.json`
 - [ ] `WikiProvider` mounted once near app root from `@equationalapplications/expo-llm-wiki/react`
 - [ ] `wiki.setup()` called in `bootstrapSession`; package tables created idempotently (including `llm_wiki_meta`)
-- [ ] `synonymMapBase.ts` exports `Record<string, string[]>`; passed as `WikiConfig.synonymMap`
+- ~~[ ] `synonymMapBase.ts` exports `Record<string, string[]>`; passed as `WikiConfig.synonymMap`~~ _(N/A — `synonymMap` removed in v2.5.0; `synonymMapBase.ts` deleted)_
 - [ ] `wiki.read()` used pre-turn for premium users; `bundle` formatted via `formatContext()` and injected as [MEMORY] block
 - [ ] `wiki.write()` called fire-and-forget post-turn for premium users; auto-trigger never throws (`WikiBusyError` only surfaces on explicit `runLibrarian()`/`runHeal()` calls)
 - [ ] `wikiLlm` callable: auth + premium gated; proxies prompts to Vertex; no credits deducted

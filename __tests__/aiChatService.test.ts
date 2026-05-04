@@ -7,9 +7,6 @@ const mockGetCharacter = jest.fn()
 const mockUpdateCharacter = jest.fn()
 const mockGenerateChatReply = jest.fn()
 const mockSummarizeText = jest.fn()
-const mockWikiRead = jest.fn()
-const mockWikiWrite = jest.fn()
-const mockFormatContext = jest.fn()
 
 jest.mock('~/services/messageService', () => ({
   sendMessage: (...args: unknown[]) => mockSendMessage(...args),
@@ -35,19 +32,6 @@ jest.mock('~/services/summarizeTextService', () => ({
   summarizeText: (...args: unknown[]) => mockSummarizeText(...args),
 }))
 
-jest.mock('@equationalapplications/expo-llm-wiki', () => ({
-  formatContext: (...args: unknown[]) => mockFormatContext(...args),
-}))
-
-const mockGetWiki = jest.fn(() => ({
-  read: (...args: unknown[]) => mockWikiRead(...args),
-  write: (...args: unknown[]) => mockWikiWrite(...args),
-}))
-
-jest.mock('~/services/wikiService', () => ({
-  getWiki: () => mockGetWiki(),
-}))
-
 import { buildChatPrompt, sendMessageWithAIResponse } from '~/services/aiChatService'
 
 describe('buildChatPrompt', () => {
@@ -56,8 +40,6 @@ describe('buildChatPrompt', () => {
     mockGetCharacter.mockResolvedValue(null)
     mockGetMessageCount.mockResolvedValue(0)
     mockGetMessagesForContextSummary.mockResolvedValue([])
-    // wiki.write() must return a Promise so that .catch() can be chained without throwing
-    mockWikiWrite.mockResolvedValue(undefined)
   })
 
   it('prepends memory block before conversation history when memoryBlock provided', () => {
@@ -95,7 +77,8 @@ describe('buildChatPrompt', () => {
     expect(prompt.endsWith('\nNova:')).toBe(true)
   })
 
-  it('fetches and injects memory for premium chat flow, then dispatches write post-turn', async () => {
+  it('injects provided memoryBlock into prompt and dispatches write observation post-turn', async () => {
+    const mockOnWrite = jest.fn()
     mockGenerateChatReply.mockResolvedValue({
       reply: 'You are doing well.',
       remainingCredits: null,
@@ -103,8 +86,6 @@ describe('buildChatPrompt', () => {
       planStatus: 'active',
       verifiedAt: '2026-04-27T00:00:00.000Z',
     })
-    mockWikiRead.mockResolvedValue({ facts: [], tasks: [], events: [] })
-    mockFormatContext.mockReturnValue('[MEMORY]\nFacts:\n  - [certain] User prefers morning.\n[/MEMORY]')
 
     await sendMessageWithAIResponse(
       {
@@ -130,19 +111,18 @@ describe('buildChatPrompt', () => {
           user: { _id: 'user-1' },
         },
       ] as any,
-      { hasUnlimited: true },
+      {
+        memoryBlock: '[MEMORY]\nFacts:\n  - [certain] User prefers morning.\n[/MEMORY]',
+        onWriteObservation: mockOnWrite,
+      },
     )
 
-    expect(mockWikiRead).toHaveBeenCalledWith('char-1', 'How am I doing?')
     expect(mockGenerateChatReply).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining('[MEMORY]'),
       }),
     )
-    expect(mockWikiWrite).toHaveBeenCalledWith(
-      'char-1',
-      expect.objectContaining({ event_type: 'observation' }),
-    )
+    expect(mockOnWrite).toHaveBeenCalledWith('char-1', expect.any(String))
     expect(mockSaveAIMessage).toHaveBeenCalledWith(
       'char-1',
       'user-1',
@@ -152,8 +132,7 @@ describe('buildChatPrompt', () => {
     )
   })
 
-  it('proceeds without memory when wiki is unavailable (web/uninitialized)', async () => {
-    mockGetWiki.mockReturnValue(null as any)
+  it('proceeds without memory when no memoryBlock or onWriteObservation provided', async () => {
     mockGetCharacter.mockResolvedValue({ id: 'char-1', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' })
     mockGetMessageCount.mockResolvedValue(0)
     mockGetMessagesForContextSummary.mockResolvedValue([])
@@ -175,12 +154,9 @@ describe('buildChatPrompt', () => {
       { id: 'char-1', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' },
       'user-1',
       [] as any,
-      { hasUnlimited: true },
+      {},
     )
 
-    // Wiki operations must be skipped entirely when getWiki() returns null
-    expect(mockWikiRead).not.toHaveBeenCalled()
-    expect(mockWikiWrite).not.toHaveBeenCalled()
     // Exactly one AI message saved — two calls would indicate the error fallback fired
     expect(mockSaveAIMessage).toHaveBeenCalledTimes(1)
     // The saved message must contain the AI reply, not a fallback error string

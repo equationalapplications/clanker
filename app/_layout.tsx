@@ -2,7 +2,7 @@
 import 'expo-dev-client'
 import { StatusBar } from 'expo-status-bar'
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context'
-import { View, StyleSheet, Pressable, AppState, Text, Platform } from 'react-native'
+import { View, StyleSheet, Pressable, AppState, Text } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { Stack, router } from 'expo-router'
@@ -211,7 +211,7 @@ function RootLayoutNav() {
 
   const wiki = getWiki()
 
-  if (Platform.OS !== 'web' && !wiki) {
+  if (!wiki) {
     return (
       <View style={styles.loadingContainer}>
         <LoadingIndicator disabled={false} />
@@ -299,11 +299,7 @@ function RootLayoutNav() {
       </Stack>
   )
 
-  if (Platform.OS === 'web') {
-    return stack
-  }
-
-  return <WikiProvider wiki={wiki}>{stack}</WikiProvider>
+  return <WikiProvider wiki={wiki!}>{stack}</WikiProvider>
 }
 
 export default function RootLayout() {

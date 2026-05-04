@@ -117,9 +117,10 @@ jest.mock('~/hooks/useUserCredits', () => ({
 jest.mock('~/components/CharacterAvatar', () => () => null)
 jest.mock('~/components/ChatComposer', () => () => null)
 
-const mockGetWiki = jest.fn()
-jest.mock('~/services/wikiService', () => ({
-  getWiki: () => mockGetWiki(),
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  WikiBusyError: class WikiBusyError extends Error {},
+  useWiki: jest.fn(() => null),
+  useWikiWrite: jest.fn(() => ({ execute: jest.fn() })),
 }))
 
 // ── SUT ───────────────────────────────────────────────────────────────────────
@@ -154,7 +155,6 @@ describe('ChatView accessibility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     capturedGiftedChatProps = null
-    mockGetWiki.mockReturnValue(null)
     mockPlatformOS = 'android'
     withLoggedInUser()
   })
@@ -234,7 +234,8 @@ describe('ChatView accessibility', () => {
     const mockWikiInstance = {
       getEntityStatus: jest.fn().mockReturnValue({ ingesting: true, librarian: false }),
     }
-    mockGetWiki.mockReturnValue(mockWikiInstance)
+    const mockUseWiki = jest.requireMock('@equationalapplications/expo-llm-wiki').useWiki
+    mockUseWiki.mockReturnValue(mockWikiInstance)
 
     jest.useFakeTimers()
     let tree: any
