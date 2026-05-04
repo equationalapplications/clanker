@@ -304,15 +304,6 @@ function RootLayoutNav() {
     return stack
   }
 
-  if (!wiki) {
-    return (
-      <View style={styles.loadingContainer}>
-        <LoadingIndicator disabled={false} />
-        <Text>Starting wiki…</Text>
-      </View>
-    )
-  }
-
   return <WikiProvider wiki={wiki}>{stack}</WikiProvider>
 }
 
