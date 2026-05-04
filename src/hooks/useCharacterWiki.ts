@@ -3,6 +3,7 @@
  * Wraps expo-llm-wiki hooks with character-specific logic and error handling.
  */
 
+import { useState } from 'react'
 import { useMemoryRead, useWikiWrite, useWikiExport, useWikiMaintenance, useWiki, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { wikiSync } from '~/services/apiClient'
@@ -43,11 +44,13 @@ export function useCharacterWikiSync() {
   const wiki = useWiki()
   const exportWiki = useWikiExport()
   const maintenance = useWikiMaintenance()
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const sync = async (
     characterId: string,
     cloudCharacterId: string,
   ): Promise<{ success: boolean; message: string }> => {
+    setIsSyncing(true)
     try {
       if (!wiki) {
         return { success: false, message: 'Wiki not available. Ensure WikiProvider is mounted.' }
@@ -80,8 +83,10 @@ export function useCharacterWikiSync() {
       }
 
       // Import (handle WikiBusyError gracefully)
+      let importSucceeded = false
       try {
         await wiki.importDump(remappedDump, { merge: true })
+        importSucceeded = true
       } catch (importErr) {
         if (!(importErr instanceof WikiBusyError)) {
           throw importErr
@@ -90,18 +95,20 @@ export function useCharacterWikiSync() {
         console.warn('[wiki] import deferred due to busy state; will merge on next sync')
       }
 
-      // 4. Prune after successful import
-      try {
-        await maintenance.runPrune(characterId, {
-          retainSoftDeletedFor: 7,
-          retainEventsFor: 30,
-          vacuum: false,
-        })
-      } catch (pruneErr) {
-        if (!(pruneErr instanceof WikiBusyError)) {
-          console.warn('[wiki] prune failed after sync:', pruneErr)
+      // 4. Prune only after a successful import (skip when import was deferred)
+      if (importSucceeded) {
+        try {
+          await maintenance.runPrune(characterId, {
+            retainSoftDeletedFor: 7,
+            retainEventsFor: 30,
+            vacuum: false,
+          })
+        } catch (pruneErr) {
+          if (!(pruneErr instanceof WikiBusyError)) {
+            console.warn('[wiki] prune failed after sync:', pruneErr)
+          }
+          // WikiBusyError: defer to next sync cycle
         }
-        // WikiBusyError: defer to next sync cycle
       }
 
       return { success: true, message: 'Memory synced to cloud.' }
@@ -111,12 +118,14 @@ export function useCharacterWikiSync() {
         success: false,
         message: error instanceof Error ? error.message : 'Failed to sync memory. Check your connection and try again.',
       }
+    } finally {
+      setIsSyncing(false)
     }
   }
 
   return {
     sync,
-    isPending: exportWiki.isPending || maintenance.isPending,
+    isPending: isSyncing || exportWiki.isPending || maintenance.isPending,
     error: exportWiki.error || maintenance.error,
   }
 }
