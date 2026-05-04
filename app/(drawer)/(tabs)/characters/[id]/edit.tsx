@@ -241,6 +241,11 @@ export default function EditCharacterScreen() {
 
   const handleWikiSync = async () => {
     if (Platform.OS === 'web') return
+    const wiki = getWiki()
+    if (!wiki) {
+      setToastState({ message: 'Memory sync is not available right now. Please try again later.', requiresSubscription: false })
+      return
+    }
     if (!cloudCharacterId) {
       setToastState({
         message: 'Save this character to cloud and sync it first, then try again.',
@@ -267,7 +272,7 @@ export default function EditCharacterScreen() {
         }
         let importSucceeded = true
         try {
-          await getWiki()?.importDump(remappedDump, { merge: true })
+          await wiki.importDump(remappedDump, { merge: true })
         } catch (importErr) {
           if (importErr instanceof WikiBusyError) {
             importSucceeded = false
@@ -279,7 +284,7 @@ export default function EditCharacterScreen() {
         }
         if (importSucceeded) {
           try {
-            await getWiki()?.runPrune(id, { retainSoftDeletedFor: 7, retainEventsFor: 30, vacuum: false })
+            await wiki.runPrune(id, { retainSoftDeletedFor: 7, retainEventsFor: 30, vacuum: false })
           } catch (pruneErr) {
             if (!(pruneErr instanceof WikiBusyError)) {
               console.warn('runPrune failed after wiki sync', pruneErr)

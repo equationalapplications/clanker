@@ -39,6 +39,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
       setWikiStatus({ ingesting: false, librarian: false })
       return
     }
+    if (!getWiki()) return
     const interval = setInterval(() => {
       const wiki = getWiki()
       if (wiki) {

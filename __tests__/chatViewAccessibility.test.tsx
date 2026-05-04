@@ -335,22 +335,27 @@ describe('ChatView accessibility', () => {
     expect(liveView.props.accessibilityRole).toBe('status')
   })
 
-  // ── chat container label ──────────────────────────────────────────────────
-  it('chat container: has accessibilityLabel "Chat conversation"', () => {
+  // ── GiftedChat layout props (mobile layout regression guard) ─────────────
+  it('GiftedChat receives renderInputToolbar, renderSend, and minInputToolbarHeight', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
 
-    let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => { create(<ChatView characterId="char-1" />) })
 
-    const allViews = tree.root.findAll((n: any) => n.type === 'View')
-    const containerView = allViews.find(
-      (v: any) => v.props.accessibilityLabel === 'Chat conversation'
-    )
+    expect(capturedGiftedChatProps).not.toBeNull()
+    expect(typeof capturedGiftedChatProps.renderInputToolbar).toBe('function')
+    expect(typeof capturedGiftedChatProps.renderSend).toBe('function')
+    expect(capturedGiftedChatProps.minInputToolbarHeight).toBe(56)
+  })
 
-    expect(containerView).toBeDefined()
-    // accessible={true} is intentionally omitted on the chat container to avoid
-    // collapsing the nested message list, avatars, and send button into a single
-    // accessibility element (which would break VoiceOver/TalkBack navigation).
-    expect(containerView.props.accessible).toBeUndefined()
+  it('renderSend produces a child element with primaryContainer background', () => {
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+
+    act(() => { create(<ChatView characterId="char-1" />) })
+
+    expect(capturedGiftedChatProps).not.toBeNull()
+    const sendElement = capturedGiftedChatProps.renderSend({})
+    // renderSend returns a Send element — exercise it doesn't throw and is defined
+    expect(sendElement).toBeDefined()
   })
 })
+

@@ -152,6 +152,15 @@ jest.mock('~/services/apiClient', () => ({
   wikiSync: jest.fn().mockResolvedValue({ data: {} }),
 }))
 
+const mockWikiInstance = {
+  importDump: jest.fn().mockResolvedValue(undefined),
+  runPrune: jest.fn().mockResolvedValue(undefined),
+}
+const mockGetWiki = jest.fn(() => mockWikiInstance)
+jest.mock('~/services/wikiService', () => ({
+  getWiki: () => mockGetWiki(),
+}))
+
 import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
 import EditCharacterScreen from '../app/(drawer)/(tabs)/characters/[id]/edit'
 
@@ -196,6 +205,9 @@ beforeEach(() => {
   mockUpdate.mockReset()
   mockWikiSync.mockReset()
   mockWikiSync.mockResolvedValue({ data: {} })
+  mockGetWiki.mockReturnValue(mockWikiInstance)
+  mockWikiInstance.importDump.mockResolvedValue(undefined)
+  mockWikiInstance.runPrune.mockResolvedValue(undefined)
   mockUseSelector.mockReset()
   mockUseUpdateCharacter.mockReturnValue({ update: mockUpdate, isPending: false, error: null } as any)
   setupSelectors()

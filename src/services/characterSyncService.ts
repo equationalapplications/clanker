@@ -75,12 +75,15 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
     )
     if (cloudChars.length === 0) return
 
+    const wiki = getWiki()
+    if (!wiki) {
+        console.warn('[syncWikiForCloud] wiki unavailable — skipping wiki sync for all characters')
+        return
+    }
+
     for (const char of cloudChars) {
         const cloudId = char.cloud_id!
         let syncSucceeded = false
-
-        const wiki = getWiki()
-        if (!wiki) continue
 
         try {
             const localDump = await wiki.exportDump([char.id])
