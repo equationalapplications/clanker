@@ -29,7 +29,7 @@ import {
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
 import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
-import { useWikiExport } from '@equationalapplications/expo-llm-wiki'
+import { useWikiExport } from '~/hooks/useWikiExport'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { wikiSync } from '~/services/apiClient'

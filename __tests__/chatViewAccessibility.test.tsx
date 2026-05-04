@@ -336,7 +336,7 @@ describe('ChatView accessibility', () => {
   })
 
   // ── chat container label ──────────────────────────────────────────────────
-  it('chat container: has accessibilityLabel "Chat conversation"', () => {
+  it('chat container: has accessibilityLabel "Chat conversation" and accessible={true}', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
 
     let tree: any
@@ -348,5 +348,6 @@ describe('ChatView accessibility', () => {
     )
 
     expect(containerView).toBeDefined()
+    expect(containerView.props.accessible).toBe(true)
   })
 })
