@@ -299,7 +299,21 @@ function RootLayoutNav() {
         <Stack.Screen name="checkout/cancel" options={{ headerShown: false }} />
       </Stack>
   )
-  return Platform.OS === 'web' || !wiki ? stack : <WikiProvider wiki={wiki}>{stack}</WikiProvider>
+
+  if (Platform.OS === 'web') {
+    return stack
+  }
+
+  if (!wiki) {
+    return (
+      <View style={styles.loadingContainer}>
+        <LoadingIndicator disabled={false} />
+        <Text>Starting wiki…</Text>
+      </View>
+    )
+  }
+
+  return <WikiProvider wiki={wiki}>{stack}</WikiProvider>
 }
 
 export default function RootLayout() {
