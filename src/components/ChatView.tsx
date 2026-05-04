@@ -248,14 +248,16 @@ export default function ChatView({ characterId }: ChatViewProps) {
             const isUser = props.currentMessage?.user._id === currentUserId
             const avatarUri = isUser ? (chatUser.avatar as string) : (characterAvatar as string)
             const userDisplayName = user?.displayName?.trim()
-            const speakerName = isUser ? (userDisplayName || 'You') : characterName
+            const accessibilityLabel = isUser
+              ? (userDisplayName ? `${userDisplayName}'s avatar` : 'Your avatar')
+              : `${characterName}'s avatar`
             return (
               <Avatar.Image
                 accessible
                 accessibilityRole="image"
                 size={36}
                 source={{ uri: avatarUri }}
-                accessibilityLabel={`${speakerName}'s avatar`}
+                accessibilityLabel={accessibilityLabel}
               />
             )
           }}
