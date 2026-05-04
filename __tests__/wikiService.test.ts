@@ -36,11 +36,11 @@ describe('wikiService', () => {
     setupWiki(db)
     const wiki = getWiki()
     expect(wiki).toBeDefined()
-    expect(wiki.setup).toBe(mockSetup)
+    expect(wiki!.setup).toBe(mockSetup)
   })
 
-  it('getWiki throws if not initialized', () => {
-    expect(() => getWiki()).toThrow()
+  it('getWiki returns null if not initialized', () => {
+    expect(getWiki()).toBeNull()
   })
 
   it('initWiki calls setup() on the wiki', async () => {

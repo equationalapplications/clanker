@@ -118,7 +118,10 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
         }
 
         await applyInitializationPlan(database)
-        await initWiki(database)
+        // FTS5 is not available in the WASM SQLite build used on web
+        if (Platform.OS !== 'web') {
+            await initWiki(database)
+        }
 
         console.log('✅ Database initialized successfully')
     } catch (error) {
