@@ -1,3 +1,28 @@
+# [29.8.0](https://github.com/equationalapplications/clanker/compare/v29.7.0...v29.8.0) (2026-05-06)
+
+
+### Bug Fixes
+
+* **firebase-config:** register documentExtract callable function ([462965d](https://github.com/equationalapplications/clanker/commit/462965d0b1a232e54606bd956469a0fd5755582f))
+* resolve navigation trap and wikiSync PostgreSQL array error ([0cb7d75](https://github.com/equationalapplications/clanker/commit/0cb7d7563c5a0b7f1d099a4edc395a203382a84d))
+* **tabs:** guard list navigation with usePathname to prevent redundant navigation ([f16fe1e](https://github.com/equationalapplications/clanker/commit/f16fe1e0ae6fd1394518cbedf646a80ce37e6d72))
+* **test:** add usePathname mock to tabsHeaderTitle test ([f6016c9](https://github.com/equationalapplications/clanker/commit/f6016c9dbc32321fc5b3f1712beefd585b6f0fbe))
+* **wiki-llm:** add Cloud SQL secrets to wikiLlm onCall config ([d6d118a](https://github.com/equationalapplications/clanker/commit/d6d118a679d985f93f53f3da25ea7c55f0749f56))
+* **wiki:** gate onWriteObservation on wiki non-null to match read-path guard ([edeb4af](https://github.com/equationalapplications/clanker/commit/edeb4afc1184eaab74a64c4345c539f98abb9a72))
+* **wiki:** gate runPrune on import success, add isSyncing state, remove dead wikiService mock ([b0f34e9](https://github.com/equationalapplications/clanker/commit/b0f34e98ba6d3500eb57b30a55210eb7c1685c73))
+* **wiki:** guard fetch response.ok, user-friendly error messages, remove unused synonymMapBase ([713b21e](https://github.com/equationalapplications/clanker/commit/713b21e35f577761c6c75d2dca9ebc0edb7bd316))
+* **wiki:** remove deprecated synonymMap from v2.5.0 WikiConfig ([0114de9](https://github.com/equationalapplications/clanker/commit/0114de9a02f56f8d81231d0871315297c387174f))
+* **wiki:** restore web wiki support ([0d0fca6](https://github.com/equationalapplications/clanker/commit/0d0fca6ca9e540499501812e022e93137ef2f1ab))
+* **wiki:** update package-lock.json for expo-llm-wiki@2.5.0 and rename misleading test descriptions ([20e6a0f](https://github.com/equationalapplications/clanker/commit/20e6a0f08f4a9088deb92c23b2eaf5377f4c7353))
+
+
+### Features
+
+* **sync:** remap entity IDs for cloud-linked character wiki ([4988cee](https://github.com/equationalapplications/clanker/commit/4988ceefb617c52df85bc558b16d56f4d11979ea))
+* **wiki:** add retrieval tuning configuration ([bf15b4e](https://github.com/equationalapplications/clanker/commit/bf15b4e6c861c5eea75120b9021db8080e3a9b28))
+* **wiki:** complete hooks-first refactor for expo-llm-wiki v2.5.0 upgrade ([169e207](https://github.com/equationalapplications/clanker/commit/169e2072cfd74d5a42da8f47f541a0fedda02900))
+* **wiki:** create hooks-first refactor for character wiki sync ([4c787e4](https://github.com/equationalapplications/clanker/commit/4c787e4a035787991194bbd0746594f335fa88bf))
+
 # [29.7.0](https://github.com/equationalapplications/clanker/compare/v29.6.1...v29.7.0) (2026-05-04)
 
 
