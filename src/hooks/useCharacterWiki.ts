@@ -60,10 +60,15 @@ export function useCharacterWikiSync() {
       const localDump = await exportWiki.execute([characterId])
 
       // 2. Remap to cloud entity ID and sync to cloud
+      const localBundle = localDump.entities[characterId] ?? { facts: [], tasks: [], events: [] }
       const cloudDump: MemoryDump = {
         generatedAt: localDump.generatedAt,
         entities: {
-          [cloudCharacterId]: localDump.entities[characterId] ?? { facts: [], tasks: [], events: [] },
+          [cloudCharacterId]: {
+            facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudCharacterId })),
+            tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudCharacterId })),
+            events: localBundle.events.map((e) => ({ ...e, entity_id: cloudCharacterId })),
+          },
         },
       }
 

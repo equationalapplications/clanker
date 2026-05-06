@@ -1,4 +1,4 @@
-import { Tabs, router, useNavigation } from 'expo-router'
+import { Tabs, router, useNavigation, usePathname } from 'expo-router'
 import React from 'react'
 import { Alert } from 'react-native'
 import { TabBarIcon } from '~/components/navigation/TabBarIcon'
@@ -6,6 +6,7 @@ import { editDirtyRef, setEditDirty } from '~/hooks/useEditDirtyState'
 
 export default function TabLayout() {
   const parentNavigation = useNavigation()
+  const pathname = usePathname()
 
   // Override the drawer header title so the route-group name "(tabs)" never leaks through
   React.useLayoutEffect(() => {
@@ -62,6 +63,9 @@ export default function TabLayout() {
                   },
                 },
               ])
+            } else if (pathname !== '/characters/list') {
+              e.preventDefault()
+              router.navigate('/characters/list')
             }
           },
         }}

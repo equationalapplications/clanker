@@ -16,6 +16,7 @@ jest.mock('expo-router', () => {
       }
     ),
     useNavigation: () => ({ setOptions: jest.fn() }),
+    usePathname: () => '/characters/list',
     router: { navigate: jest.fn() },
   }
 })

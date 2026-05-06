@@ -31,8 +31,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
     }
   }
 
-  const handleEdit = (e: any) => {
-    e.stopPropagation()
+  const handleEdit = () => {
     if (onEdit) {
       onEdit()
     } else {
@@ -42,43 +41,45 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
 
   return (
     <Card style={styles.card} mode="elevated">
-      <TouchableOpacity
-        onPress={handlePress}
-        style={styles.touchable}
-        accessibilityRole="button"
-        accessibilityLabel={`${name || 'Unnamed Character'}, ${appearance ?? 'No description available'}`}
-        accessibilityHint="Opens chat with this character"
-      >
-        <Card.Content style={styles.content}>
-          <View style={styles.header}>
-            <View style={styles.avatarContainer}>
-              <CharacterAvatar size={48} imageUrl={avatar} characterName={name} />
+      <View style={styles.cardWrapper}>
+        <TouchableOpacity
+          onPress={handlePress}
+          style={styles.touchable}
+          accessibilityRole="button"
+          accessibilityLabel={`${name || 'Unnamed Character'}, ${appearance ?? 'No description available'}`}
+          accessibilityHint="Opens chat with this character"
+        >
+          <Card.Content style={styles.content}>
+            <View style={styles.header}>
+              <View style={styles.avatarContainer}>
+                <CharacterAvatar size={48} imageUrl={avatar} characterName={name} />
+              </View>
+              <View style={styles.info}>
+                <Text variant="titleMedium" style={styles.name}>
+                  {name || 'Unnamed Character'}
+                </Text>
+                <Text
+                  variant="bodySmall"
+                  style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
+                  numberOfLines={2}
+                >
+                  {appearance || 'No description available'}
+                </Text>
+              </View>
             </View>
-            <View style={styles.info}>
-              <Text variant="titleMedium" style={styles.name}>
-                {name || 'Unnamed Character'}
-              </Text>
-              <Text
-                variant="bodySmall"
-                style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
-                numberOfLines={2}
-              >
-                {appearance || 'No description available'}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={handleEdit}
-              style={styles.editButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityRole="button"
-              accessibilityLabel={`Edit ${name || 'Unnamed Character'}`}
-              accessibilityHint="Opens character editor"
-            >
-              <Icon source="pencil" size={20} />
-            </TouchableOpacity>
-          </View>
-        </Card.Content>
-      </TouchableOpacity>
+          </Card.Content>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleEdit}
+          style={styles.editButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${name || 'Unnamed Character'}`}
+          accessibilityHint="Opens character editor"
+        >
+          <Icon source="pencil" size={20} />
+        </TouchableOpacity>
+      </View>
     </Card>
   )
 }
@@ -88,7 +89,12 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     marginHorizontal: 16,
   },
+  cardWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   touchable: {
+    flex: 1,
     borderRadius: 12,
   },
   content: {
