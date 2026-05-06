@@ -328,6 +328,9 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   // Format entity IDs as PostgreSQL array literal for ANY() operator.
   // Build the SQL dynamically to avoid parameterization issues with array casts.
   // e.g. ['id1', 'id2'] becomes ARRAY['id1'::uuid,'id2'::uuid]
+  // Entity IDs are pre-validated against UUID_PATTERN at the call boundary before
+  // fetchMergedDump is ever invoked, so sql.raw() is safe — no unvalidated input
+  // can reach this point.
   const arrayLiteral = sql.raw(
     `ARRAY[${entityIds.map((id) => `'${id}'::uuid`).join(',')}]`
   );
