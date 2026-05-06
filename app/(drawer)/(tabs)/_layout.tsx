@@ -62,6 +62,11 @@ export default function TabLayout() {
                   },
                 },
               ])
+            } else {
+              // Always navigate to list when characters tab is pressed, even if no unsaved changes
+              // This ensures the stack is reset and we return to the list view from nested screens
+              e.preventDefault()
+              router.navigate('/characters/list')
             }
           },
         }}

@@ -325,6 +325,13 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
     created_at: string;
   };
 
+  // Format entity IDs as PostgreSQL array literal for ANY() operator.
+  // Build the SQL dynamically to avoid parameterization issues with array casts.
+  // e.g. ['id1', 'id2'] becomes ARRAY['id1'::uuid,'id2'::uuid]
+  const arrayLiteral = sql.raw(
+    `ARRAY[${entityIds.map((id) => `'${id}'::uuid`).join(',')}]`
+  );
+
   const [factResult, taskResult, eventResult] = await Promise.all([
     db.execute<FactRow>(sql`
       WITH ranked AS (
@@ -334,7 +341,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
             ORDER BY deleted_at DESC NULLS LAST, updated_at DESC
           ) AS rn
         FROM llm_wiki_entries
-        WHERE entity_id = ANY(${entityIds}::uuid[])
+        WHERE entity_id = ANY(${arrayLiteral})
           AND user_id = ${userId}::uuid
       )
       SELECT * FROM ranked WHERE rn <= ${MAX_FACTS_PER_ENTITY}
@@ -347,7 +354,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
             ORDER BY deleted_at DESC NULLS LAST, updated_at DESC
           ) AS rn
         FROM llm_wiki_tasks
-        WHERE entity_id = ANY(${entityIds}::uuid[])
+        WHERE entity_id = ANY(${arrayLiteral})
           AND user_id = ${userId}::uuid
       )
       SELECT * FROM ranked WHERE rn <= ${MAX_TASKS_PER_ENTITY}
@@ -360,7 +367,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
             ORDER BY created_at DESC
           ) AS rn
         FROM llm_wiki_events
-        WHERE entity_id = ANY(${entityIds}::uuid[])
+        WHERE entity_id = ANY(${arrayLiteral})
           AND user_id = ${userId}::uuid
           AND created_at >= ${retentionCutoff}
       )
