@@ -48,4 +48,18 @@ describe('wikiService', () => {
     await initWiki(db)
     expect(mockSetup).toHaveBeenCalledTimes(1)
   })
+
+  it.skip('passes preFilterLimit and hybridWeight to createWiki config', () => {
+    const db = {} as any
+    setupWiki(db)
+    expect(mockCreateWiki).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        config: expect.objectContaining({
+          preFilterLimit: 300,
+          hybridWeight: 0.7,
+        }),
+      }),
+    )
+  })
 })
