@@ -57,6 +57,13 @@ jest.mock('~/services/usageSnapshot', () => ({
   usageSnapshotFromError: jest.fn(() => null),
 }))
 
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  WikiBusyError: class WikiBusyError extends Error {},
+  useWiki: jest.fn(() => ({ read: jest.fn().mockResolvedValue(null) })),
+  useWikiWrite: jest.fn(() => ({ execute: jest.fn() })),
+  formatContext: jest.fn((bundle) => '[MEMORY]\nFacts:\n[/MEMORY]'),
+}))
+
 type HookValue = ReturnType<typeof useAIChat>
 
 const mockUseSelector = useSelector as jest.Mock
@@ -128,7 +135,9 @@ describe('useAIChat', () => {
       expect.objectContaining({ id: 'char-1' }),
       'user-1',
       [],
-      { hasUnlimited: true },
+      expect.objectContaining({
+        onWriteObservation: expect.any(Function),
+      }),
     )
   })
 })

@@ -15,7 +15,8 @@ const mockImportDump = jest.fn()
 const mockRunPrune = jest.fn()
 const mockGetEntityStatus = jest.fn().mockReturnValue({ ingesting: false, librarian: false })
 
-const mockGetWiki = jest.fn(() => ({
+type MockWiki = { exportDump: jest.Mock; importDump: jest.Mock; runPrune: jest.Mock; getEntityStatus: jest.Mock }
+const mockGetWiki = jest.fn<MockWiki | null, []>(() => ({
   exportDump: mockExportDump,
   importDump: mockImportDump,
   runPrune: mockRunPrune,
@@ -110,7 +111,43 @@ describe('syncWikiForCloud key remapping', () => {
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
     mockExportDump.mockResolvedValue({
       generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [{ id: 'f1', title: 'fact', body: 'b' }], tasks: [], events: [] } },
+      entities: {
+        [LOCAL_ID]: {
+          facts: [
+            {
+              id: 'f1',
+              entity_id: LOCAL_ID,
+              title: 'fact',
+              body: 'b',
+              confidence: 'inferred',
+              tags: [],
+              source_type: 'agent_inferred',
+              created_at: 1000,
+              updated_at: 1000,
+            },
+          ],
+          tasks: [
+            {
+              id: 't1',
+              entity_id: LOCAL_ID,
+              description: 'task',
+              status: 'pending',
+              priority: 1,
+              created_at: 1000,
+              updated_at: 1000,
+            },
+          ],
+          events: [
+            {
+              id: 'e1',
+              entity_id: LOCAL_ID,
+              event_type: 'observation',
+              summary: 'event',
+              created_at: 1000,
+            },
+          ],
+        },
+      },
     })
     mockWikiSyncFn.mockResolvedValue({
       data: {
@@ -132,6 +169,11 @@ describe('syncWikiForCloud key remapping', () => {
     const syncArg = mockWikiSyncFn.mock.calls[0][0]
     expect(Object.keys(syncArg.dump.entities)).toEqual([CLOUD_ID])
     expect(Object.keys(syncArg.dump.entities)).not.toContain(LOCAL_ID)
+    expect(syncArg.dump.entities[CLOUD_ID]).toEqual({
+      facts: [expect.objectContaining({ id: 'f1', entity_id: CLOUD_ID })],
+      tasks: [expect.objectContaining({ id: 't1', entity_id: CLOUD_ID })],
+      events: [expect.objectContaining({ id: 'e1', entity_id: CLOUD_ID })],
+    })
   })
 
   it('remaps remoteDump back to local id before importDump', async () => {

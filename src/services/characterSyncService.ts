@@ -87,10 +87,15 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
 
         try {
             const localDump = await wiki.exportDump([char.id])
+            const localBundle = localDump.entities[char.id] ?? { facts: [], tasks: [], events: [] }
             const cloudDump: MemoryDump = {
                 generatedAt: localDump.generatedAt,
                 entities: {
-                    [cloudId]: localDump.entities[char.id] ?? { facts: [], tasks: [], events: [] },
+                    [cloudId]: {
+                        facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudId })),
+                        tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudId })),
+                        events: localBundle.events.map((e) => ({ ...e, entity_id: cloudId })),
+                    },
                 },
             }
             const result = await wikiSync({ dump: cloudDump })

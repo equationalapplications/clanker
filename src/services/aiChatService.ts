@@ -9,8 +9,6 @@ import { getCharacter as getLocalCharacter, updateCharacter } from '~/database/c
 import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
 import { summarizeText } from '~/services/summarizeTextService'
 import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
-import { formatContext } from '@equationalapplications/expo-llm-wiki'
-import { getWiki } from '~/services/wikiService'
 import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
 
@@ -335,7 +333,10 @@ export const sendMessageWithAIResponse = async (
   character: Character,
   userId: string,
   conversationHistory: IMessage[] = [],
-  options?: { hasUnlimited?: boolean },
+  options?: {
+    memoryBlock?: string
+    onWriteObservation?: (characterId: string, text: string) => void
+  },
 ): Promise<{ usageSnapshot: UsageSnapshot | null }> => {
   try {
     // 1. Send the user's message to local database
@@ -352,15 +353,7 @@ export const sendMessageWithAIResponse = async (
     }
     const effectiveContext = dbCharacter?.context ?? character.context
 
-    let memoryBlock: string | undefined
-    if (options?.hasUnlimited) {
-      try {
-        const bundle = await getWiki()?.read(character.id, userMessage.text)
-        if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
-      } catch (error) {
-        console.warn('Failed to fetch memory bundle:', error)
-      }
-    }
+    const memoryBlock = options?.memoryBlock
 
     // 2. Prepare context for AI generation
     const chatContext: ChatContext = {
@@ -394,17 +387,19 @@ export const sendMessageWithAIResponse = async (
     })
 
     void triggerConversationSummary(character, userId)
-    if (options?.hasUnlimited) {
+    if (options?.onWriteObservation) {
       const recentMessages = getRecentConversationHistory([...conversationHistory, userMessage], 20)
       const chunk = recentMessages
         .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
         .join('\n')
-      const wiki = getWiki()
-      if (wiki) {
-        void wiki.write(character.id, {
-          event_type: 'observation',
-          summary: chunk || userMessage.text,
-        }).catch((err: unknown) => console.warn('[wiki] write failed:', err))
+      try {
+        void Promise.resolve(
+          options.onWriteObservation(character.id, chunk || userMessage.text),
+        ).catch((observationError) => {
+          console.warn('Failed to write observation:', observationError)
+        })
+      } catch (observationError) {
+        console.warn('Failed to write observation:', observationError)
       }
     }
     return { usageSnapshot: toUsageSnapshot(aiResponse) }

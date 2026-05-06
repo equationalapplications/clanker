@@ -132,6 +132,7 @@ const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters'
 const getPublicCharacterFn = httpsCallable(functionsInstance, 'getPublicCharacter')
 const wikiLlmFn = httpsCallable(functionsInstance, 'wikiLlm')
 const wikiSyncFn = httpsCallable(functionsInstance, 'wikiSync')
+const documentExtractFn = httpsCallable(functionsInstance, 'documentExtract')
 
 export type FirebaseUser = User
 export { appCheckReady }
@@ -164,4 +165,5 @@ export {
   getPublicCharacterFn,
   wikiLlmFn,
   wikiSyncFn,
+  documentExtractFn,
 }

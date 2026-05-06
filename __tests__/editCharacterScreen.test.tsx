@@ -146,25 +146,24 @@ jest.mock('~/utils/buildImagePrompt', () => ({
 jest.mock('~/components/CharacterAvatar', () => () => null)
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
-  useWikiExport: () => ({ execute: jest.fn().mockResolvedValue({ generatedAt: Date.now(), entities: {} }), isPending: false }),
+  useWiki: jest.fn(() => null),
+  useWikiMaintenance: jest.fn(() => ({
+    execute: jest.fn().mockResolvedValue(undefined),
+    runPrune: jest.fn().mockResolvedValue(undefined),
+    isPending: false,
+  })),
+  useWikiExport: jest.fn(() => ({ execute: jest.fn().mockResolvedValue({ generatedAt: Date.now(), entities: { 'char-1': { facts: [], tasks: [], events: [] } } }), isPending: false })),
 }))
 jest.mock('~/services/apiClient', () => ({
   wikiSync: jest.fn().mockResolvedValue({ data: {} }),
-}))
-
-const mockWikiInstance = {
-  importDump: jest.fn().mockResolvedValue(undefined),
-  runPrune: jest.fn().mockResolvedValue(undefined),
-}
-const mockGetWiki = jest.fn(() => mockWikiInstance)
-jest.mock('~/services/wikiService', () => ({
-  getWiki: () => mockGetWiki(),
 }))
 
 import { useCharacter, useUpdateCharacter } from '~/hooks/useCharacters'
 import EditCharacterScreen from '../app/(drawer)/(tabs)/characters/[id]/edit'
 
 const mockWikiSync = jest.requireMock('~/services/apiClient').wikiSync as jest.Mock
+const mockUseWiki = jest.requireMock('@equationalapplications/expo-llm-wiki').useWiki as jest.Mock
+const mockWikiInstance = { importDump: jest.fn().mockResolvedValue(undefined) }
 
 const mockUseCharacter = jest.mocked(useCharacter)
 const mockUseUpdateCharacter = jest.mocked(useUpdateCharacter)
@@ -204,10 +203,9 @@ beforeEach(() => {
   mockAlertAlert.mockReset()
   mockUpdate.mockReset()
   mockWikiSync.mockReset()
-  mockWikiSync.mockResolvedValue({ data: {} })
-  mockGetWiki.mockReturnValue(mockWikiInstance)
+  mockWikiSync.mockResolvedValue({ data: { remoteDump: { generatedAt: Date.now(), entities: { 'cloud-id-1': { facts: [], tasks: [], events: [] } } } } })
+  mockUseWiki.mockReturnValue(mockWikiInstance)
   mockWikiInstance.importDump.mockResolvedValue(undefined)
-  mockWikiInstance.runPrune.mockResolvedValue(undefined)
   mockUseSelector.mockReset()
   mockUseUpdateCharacter.mockReturnValue({ update: mockUpdate, isPending: false, error: null } as any)
   setupSelectors()
@@ -458,57 +456,20 @@ describe('EditCharacterScreen - Sync Memory button', () => {
     expect(snackbars[0].props.children).toContain('Failed to sync memory')
   })
 
-  it('hides Sync Memory button on web and renders without crashing (exercises web-safe wiki hook)', () => {
+  it('shows Sync Memory button on web and renders without crashing', () => {
     mockPlatformOS = 'web'
     const character = makeCharacter()
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
 
-    let syncButtonPresent: boolean | null = null
-    let renderError: unknown = null
-
-    jest.isolateModules(() => {
-      // Explicitly load the actual web-safe hook implementation so a regression
-      // (e.g. deleting useWikiExport.web.ts or changing the screen's import) is
-      // caught here rather than silently passing via the native mock.
-      jest.doMock('~/hooks/useWikiExport', () => jest.requireActual('~/hooks/useWikiExport.web'))
-      // Also unmock the wiki package itself so the screen's runtime import of
-      // WikiBusyError is resolved from the real module in this isolated run.
-      jest.dontMock('@equationalapplications/expo-llm-wiki')
-
-      // Reconfigure the character hooks for the fresh module instances created
-      // inside the isolated registry.
-      const freshHooks = require('~/hooks/useCharacters') as any
-      freshHooks.useCharacter.mockReturnValue({ character, isLoading: false })
-      freshHooks.useUpdateCharacter.mockReturnValue({ update: jest.fn(), isPending: false, error: null })
-      freshHooks.useUnsyncCharacter.mockReturnValue({ unsync: jest.fn(), isCloudUnsyncing: false, error: null })
-      freshHooks.useSyncCharacters.mockReturnValue({ sync: jest.fn(), isCloudSyncing: false, error: null })
-
-      // mockUseSelector is closure-captured in the @xstate/react mock factory,
-      // so setupSelectors() still configures it correctly here.
-      setupSelectors()
-
-      // Load react-test-renderer and react from the same isolated scope as the
-      // Screen so they share a single React instance (avoids hook-context errors).
-      const isolatedRenderer = require('react-test-renderer')
-      const isolatedReact = require('react')
-      const Screen = require('../app/(drawer)/(tabs)/characters/[id]/edit').default
-
-      try {
-        let tree: any
-        isolatedRenderer.act(() => {
-          tree = isolatedRenderer.create(isolatedReact.createElement(Screen))
-        })
-        const syncButton = tree.root
-          .findAll((node: any) => String(node.type) === 'Button')
-          .find((b: any) => b.props.children === 'Sync Memory')
-        syncButtonPresent = syncButton !== undefined
-      } catch (e) {
-        renderError = e
-      }
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
     })
 
-    jest.dontMock('~/hooks/useWikiExport')
+    const syncButton = tree.root
+      .findAll((node) => String(node.type) === 'Button')
+      .find((b) => b.props.children === 'Sync Memory')
 
-    expect(renderError).toBeNull()
-    expect(syncButtonPresent).toBe(false)
+    expect(syncButton).toBeDefined()
   })
 })
