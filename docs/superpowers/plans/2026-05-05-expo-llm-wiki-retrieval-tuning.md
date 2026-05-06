@@ -1,10 +1,14 @@
-# expo-llm-wiki v2.6.0 Retrieval Tuning Implementation Plan
+# expo-llm-wiki Retrieval Tuning Implementation Plan
+
+> **⚠️ BLOCKED:** `feat/retrieval-tuning` PR in expo-llm-wiki is still in code review. v2.6.0 is
+> already published (CI fixes only — no retrieval-tuning features). Confirm actual published version
+> before executing Task 1. Version references below use `<TBD>` as a placeholder.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Bump `@equationalapplications/expo-llm-wiki` to v2.6.0 and add `preFilterLimit: 300` + `hybridWeight: 0.7` to the `WikiConfig` in `wikiService.ts`.
+**Goal:** Bump `@equationalapplications/expo-llm-wiki` to `^<TBD>` (next published version after retrieval-tuning merges) and add `preFilterLimit: 300` + `hybridWeight: 0.7` to the `WikiConfig` in `wikiService.ts`.
 
-**Architecture:** Two isolated changes — a dependency version bump and two new optional fields in an existing config object. The v2.6.0 package ships a lazy SQLite migration (adds `embedding_blob BLOB` column) that runs automatically on `wiki.setup()`. No call-site changes needed; `WikiConfig` defaults apply to the single `wiki.read()` call in `useAIChat.ts`.
+**Architecture:** Two isolated changes — a dependency version bump and two new optional fields in an existing config object. The new package ships a lazy SQLite migration (adds `embedding_blob BLOB` column) that runs automatically on `wiki.setup()`. No call-site changes needed; `WikiConfig` defaults apply to the single `wiki.read()` call in `useAIChat.ts`.
 
 **Tech Stack:** TypeScript, Expo, `@equationalapplications/expo-llm-wiki`, Jest
 
@@ -14,7 +18,7 @@
 
 | Action | File | Change |
 |--------|------|--------|
-| Modify | `package.json` | `^2.5.0` → `^2.6.0` |
+| Modify | `package.json` | `^2.5.0` → `^<TBD>` (confirm version after PR publishes) |
 | Modify | `src/services/wikiService.ts` | Add `preFilterLimit: 300`, `hybridWeight: 0.7` to `config` |
 | No change | `src/hooks/useAIChat.ts` | `wiki.read()` call unaffected; config defaults apply automatically |
 | No change | `package-lock.json` | Updated by `npm install` |
@@ -26,6 +30,16 @@
 **Files:**
 - Modify: `package.json` (line 35)
 
+- [ ] **Step 0: Confirm published version**
+
+```bash
+npm view @equationalapplications/expo-llm-wiki versions --json | tail -5
+```
+
+Expected: a version newer than `2.6.0` that contains the retrieval-tuning features.
+Use that version for steps below (`<TBD>`). If only `2.6.0` is listed, the PR has not
+published yet — stop and wait.
+
 - [ ] **Step 1: Edit `package.json`**
 
 Change:
@@ -34,7 +48,7 @@ Change:
 ```
 To:
 ```json
-"@equationalapplications/expo-llm-wiki": "^2.6.0",
+"@equationalapplications/expo-llm-wiki": "^<TBD>",
 ```
 
 - [ ] **Step 2: Install**
@@ -45,19 +59,19 @@ npm install
 
 Expected: installs cleanly, `package-lock.json` updated, no peer-dep errors.
 
-- [ ] **Step 3: Verify CHANGELOG for breaking changes**
+- [ ] **Step 3: Verify CHANGELOG for retrieval-tuning features**
 
 ```bash
-cat node_modules/@equationalapplications/expo-llm-wiki/CHANGELOG.md | head -60
+cat node_modules/@equationalapplications/expo-llm-wiki/CHANGELOG.md | head -80
 ```
 
-Expected: `2.6.0` entry shows only additive changes (`embedding_blob`, `ReadOptions`, `preFilterLimit`, `hybridWeight`). No breaking changes.
+Expected: the new version entry shows retrieval-tuning features (`embedding_blob`, `ReadOptions`, `preFilterLimit`, `hybridWeight`). Note: `packages/core` was bumped to v3.0.0 internally (`WikiBusyOperation` union extended) — no Clanker code changes needed since all `WikiBusyError` usage is `instanceof`-only.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add package.json package-lock.json
-git commit -m "chore(deps): bump expo-llm-wiki to ^2.6.0"
+git commit -m "chore(deps): bump expo-llm-wiki to ^<TBD>"
 ```
 
 ---

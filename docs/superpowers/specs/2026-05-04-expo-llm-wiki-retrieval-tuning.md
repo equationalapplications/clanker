@@ -1,9 +1,15 @@
 # Spec: Upgrade @equationalapplications/expo-llm-wiki — Retrieval Tuning (v2.6.0)
 
 **Date:** 2026-05-04
-**Status:** Draft
+**Status:** Draft — blocked on expo-llm-wiki retrieval-tuning PR merge + publish
 **Follows:** `2026-05-04-expo-llm-wiki-upgrade.md` (v2.5.0 hooks-first refactor)
 **Package spec:** `expo-llm-wiki/docs/superpowers/specs/2026-05-04-retrieval-tuning.md`
+
+> **Version note (2026-05-05):** `^2.6.0` in this spec is a placeholder. v2.6.0 of
+> `@equationalapplications/expo-llm-wiki` was already published (CI fixes + integration
+> tests only; no retrieval-tuning features). The retrieval-tuning branch (`feat/retrieval-tuning`)
+> is still in code review. When merged, the expo/react packages will publish as the next
+> minor (likely `^2.7.0`). Update all version references below once the actual version is known.
 
 ---
 
@@ -141,15 +147,19 @@ launch after the upgrade. The migration is additive — `ALTER TABLE ... ADD COL
 - **`hybridWeight` on characters without embeddings:** When `embed` is absent or throws,
   `hybridWeight` is ignored and MiniSearch fallback runs unchanged (existing behavior). The
   `onRetrievalFallback` callback fires if configured.
-- **Backward compatibility:** `^2.6.0` is a minor version bump — semver guarantees no breaking
-  changes. Verified in the package spec: `read()` third param is optional, `WikiConfig` fields
-  are optional, migration is additive-only.
+- **Backward compatibility:** The retrieval-tuning release is additive from Clanker's perspective —
+  `read()` third param is optional, `WikiConfig` fields are optional, migration is additive-only.
+  Note: `packages/core` was bumped to v3.0.0 internally (breaking: `WikiBusyOperation` union
+  extended with `'import'` and `'forget'`), but Clanker uses only `instanceof WikiBusyError` checks
+  — no exhaustive switches on `.operation` exist in the codebase. No code changes required.
+- **Version number:** v2.6.0 is already published (CI fixes only). Confirm actual published version
+  before executing and update `package.json` reference accordingly.
 
 ---
 
 ## Acceptance criteria
 
-- `package.json` references `^2.6.0`; `npm install` succeeds.
+- `package.json` references `^<actual-version>`; `npm install` succeeds.
 - `npm run typecheck` passes.
 - `npm run lint` passes.
 - `npm test` passes with no regressions in `wikiService`, `characterSyncWiki`, `aiChatService`,
@@ -162,15 +172,19 @@ launch after the upgrade. The migration is additive — `ALTER TABLE ... ADD COL
 
 ## Verification steps
 
-1. Bump `@equationalapplications/expo-llm-wiki` in `package.json` from `^2.5.0` to `^2.6.0`.
-2. Run `npm install`.
-3. Check `node_modules/@equationalapplications/expo-llm-wiki/CHANGELOG.md` for any breaking
-   changes between `2.5.0` and `2.6.0` (expected: none per package spec).
-4. Run `npm run typecheck` — verify `WikiConfig` accepts `preFilterLimit` and `hybridWeight`.
-5. Add `preFilterLimit: 300` and `hybridWeight: 0.7` to `WikiConfig` in `wikiService.ts`.
-6. Run `npm run lint`.
-7. Run `npm test -- --testPathPattern="wikiService|characterSyncWiki|aiChatService|chatComposer" --runInBand`.
-8. Manual: fresh simulator run → confirm `llm_wiki_entries` has `embedding_blob` column after
+1. Confirm published version: `npm view @equationalapplications/expo-llm-wiki versions --json | tail -5`.
+   Use the version that contains the retrieval-tuning features (will be newer than `2.6.0`).
+2. Bump `@equationalapplications/expo-llm-wiki` in `package.json` from `^2.5.0` to `^<actual-version>`.
+3. Run `npm install`.
+4. Check `node_modules/@equationalapplications/expo-llm-wiki/CHANGELOG.md` for retrieval-tuning
+   features (`embedding_blob`, `ReadOptions`, `preFilterLimit`, `hybridWeight`). Note: `packages/core`
+   bumped to v3.0.0 internally; no Clanker code changes needed (all `WikiBusyError` usage is
+   `instanceof`-only, no exhaustive switches on `.operation`).
+5. Run `npm run typecheck` — verify `WikiConfig` accepts `preFilterLimit` and `hybridWeight`.
+6. Add `preFilterLimit: 300` and `hybridWeight: 0.7` to `WikiConfig` in `wikiService.ts`.
+7. Run `npm run lint`.
+8. Run `npm test -- --testPathPattern="wikiService|characterSyncWiki|aiChatService|chatComposer" --runInBand`.
+9. Manual: fresh simulator run → confirm `llm_wiki_entries` has `embedding_blob` column after
    first launch (inspect via DB browser or add a debug log to confirm migration ran).
 
 ---
