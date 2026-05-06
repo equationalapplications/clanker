@@ -1,10 +1,4 @@
-# expo-llm-wiki Retrieval Tuning Implementation Plan [SUPERSEDED]
-
-> **Superseded by:**
-> - Part 1 (now): `2026-05-05-expo-llm-wiki-retrieval-tuning-part-1.md`
-> - Part 2 (after release): `2026-05-05-expo-llm-wiki-retrieval-tuning-part-2.md`
-
----
+# expo-llm-wiki Retrieval Tuning — Part 2: Upgrade (implement after package releases)
 
 > **⚠️ BLOCKED:** `feat/retrieval-tuning` PR in expo-llm-wiki is still in code review. v2.6.0 is
 > already published (CI fixes only — no retrieval-tuning features). Confirm actual published version
@@ -12,9 +6,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Bump `@equationalapplications/expo-llm-wiki` to `^<TBD>` (next published version after retrieval-tuning merges) and add `preFilterLimit: 300` + `hybridWeight: 0.7` to the `WikiConfig` in `wikiService.ts`.
+**Goal:** Bump `@equationalapplications/expo-llm-wiki` to `^<TBD>` and add `preFilterLimit: 300`
++ `hybridWeight: 0.7` to `WikiConfig` in `wikiService.ts`. The TDD test from Part 1 drives the
+implementation — enable it first, make it green.
 
-**Architecture:** Two isolated changes — a dependency version bump and two new optional fields in an existing config object. The new package ships a lazy SQLite migration (adds `embedding_blob BLOB` column) that runs automatically on `wiki.setup()`. No call-site changes needed; `WikiConfig` defaults apply to the single `wiki.read()` call in `useAIChat.ts`.
+**Prerequisite:** Part 1 must be complete (skipped test exists in `wikiService.test.ts`).
+
+**Architecture:** Two isolated changes — a dependency version bump and two new optional fields in
+an existing config object. The new package ships a lazy SQLite migration (adds `embedding_blob BLOB`
+column) that runs automatically on `wiki.setup()`. No call-site changes needed; `WikiConfig`
+defaults apply to the single `wiki.read()` call in `useAIChat.ts`.
 
 **Tech Stack:** TypeScript, Expo, `@equationalapplications/expo-llm-wiki`, Jest
 
@@ -25,6 +26,7 @@
 | Action | File | Change |
 |--------|------|--------|
 | Modify | `package.json` | `^2.5.0` → `^<TBD>` (confirm version after PR publishes) |
+| Modify | `__tests__/wikiService.test.ts` | Enable `.skip` → `it` (remove `.skip`) |
 | Modify | `src/services/wikiService.ts` | Add `preFilterLimit: 300`, `hybridWeight: 0.7` to `config` |
 | No change | `src/hooks/useAIChat.ts` | `wiki.read()` call unaffected; config defaults apply automatically |
 | No change | `package-lock.json` | Updated by `npm install` |
@@ -34,7 +36,7 @@
 ## Task 1: Bump the dependency
 
 **Files:**
-- Modify: `package.json` (line 35)
+- Modify: `package.json`
 
 - [ ] **Step 0: Confirm published version**
 
@@ -71,7 +73,10 @@ Expected: installs cleanly, `package-lock.json` updated, no peer-dep errors.
 cat node_modules/@equationalapplications/expo-llm-wiki/CHANGELOG.md | head -80
 ```
 
-Expected: the new version entry shows retrieval-tuning features (`embedding_blob`, `ReadOptions`, `preFilterLimit`, `hybridWeight`). Note: `packages/core` was bumped to v3.0.0 internally (`WikiBusyOperation` union extended) — no Clanker code changes needed since all `WikiBusyError` usage is `instanceof`-only.
+Expected: the new version entry shows retrieval-tuning features (`embedding_blob`, `ReadOptions`,
+`preFilterLimit`, `hybridWeight`). Note: `packages/core` was bumped to v3.0.0 internally
+(`WikiBusyOperation` union extended with `'import'` and `'forget'`) — no Clanker code changes
+needed since all `WikiBusyError` usage is `instanceof`-only, no exhaustive switches on `.operation`.
 
 - [ ] **Step 4: Commit**
 
@@ -82,44 +87,34 @@ git commit -m "chore(deps): bump expo-llm-wiki to ^<TBD>"
 
 ---
 
-## Task 2: Add retrieval tuning config
+## Task 2: Enable test and implement config
 
 **Files:**
-- Modify: `src/services/wikiService.ts` (lines 11–19)
+- Modify: `__tests__/wikiService.test.ts`
+- Modify: `src/services/wikiService.ts`
 
-- [ ] **Step 1: Write the test first**
+- [ ] **Step 1: Enable the skipped test**
 
-In `__tests__/wikiService.test.ts` (already exists — add this test case inside the `setupWiki` / `createWiki` describe block, or create a new describe if none exists):
-
+In `__tests__/wikiService.test.ts`, change:
+```typescript
+it.skip('passes preFilterLimit and hybridWeight to createWiki config', () => {
+```
+To:
 ```typescript
 it('passes preFilterLimit and hybridWeight to createWiki config', () => {
-  const mockDb = {} as SQLiteDatabase
-  setupWiki(mockDb)
-  expect(mockCreateWiki).toHaveBeenCalledWith(
-    mockDb,
-    expect.objectContaining({
-      config: expect.objectContaining({
-        preFilterLimit: 300,
-        hybridWeight: 0.7,
-      }),
-    }),
-  )
-})
 ```
 
-> **Note:** If `__tests__/wikiService.test.ts` does not mock `createWiki`, check how the file sets up mocks before adding. The existing pattern in `characterSyncWiki.test.ts` mocks `wikiService` at the module level — `wikiService.test.ts` should mock `createWiki` from `@equationalapplications/expo-llm-wiki` directly.
-
-- [ ] **Step 2: Run the test to confirm it fails**
+- [ ] **Step 2: Run test — confirm it fails (red)**
 
 ```bash
 npm test -- --testPathPattern="wikiService" --runInBand
 ```
 
-Expected: FAIL — assertion `preFilterLimit: 300` not present in call args.
+Expected: FAIL — `preFilterLimit: 300` not present in `mockCreateWiki` call args.
 
 - [ ] **Step 3: Implement — add config fields in `src/services/wikiService.ts`**
 
-Current block (lines 11–19):
+Current block:
 ```typescript
   _wiki = createWiki(db, {
     llmProvider: createWikiLlmProvider(),
@@ -143,13 +138,13 @@ Replace with:
   })
 ```
 
-- [ ] **Step 4: Run the test to confirm it passes**
+- [ ] **Step 4: Run test — confirm it passes (green)**
 
 ```bash
 npm test -- --testPathPattern="wikiService" --runInBand
 ```
 
-Expected: PASS.
+Expected: 5 PASS, 0 SKIP.
 
 - [ ] **Step 5: Typecheck**
 
@@ -157,7 +152,8 @@ Expected: PASS.
 npm run typecheck
 ```
 
-Expected: no errors. The new `WikiConfig` fields (`preFilterLimit: number`, `hybridWeight: number`) are valid in v2.6.0.
+Expected: no errors. The new `WikiConfig` fields (`preFilterLimit`, `hybridWeight`) are valid in
+the new package version.
 
 - [ ] **Step 6: Lint**
 
@@ -178,7 +174,7 @@ Expected: all PASS, no regressions.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/services/wikiService.ts
+git add __tests__/wikiService.test.ts src/services/wikiService.ts
 git commit -m "feat(wiki): add preFilterLimit and hybridWeight to WikiConfig
 
 preFilterLimit: 300 caps cosine scan to top-300 keyword candidates,
@@ -199,7 +195,7 @@ npm test
 
 Expected: all suites pass. No regressions in any wiki, chat, or character tests.
 
-- [ ] **Step 2: Typecheck one more time**
+- [ ] **Step 2: Typecheck**
 
 ```bash
 npm run typecheck
@@ -207,7 +203,7 @@ npm run typecheck
 
 Expected: clean.
 
-- [ ] **Step 3: Lint one more time**
+- [ ] **Step 3: Lint**
 
 ```bash
 npm run lint
@@ -217,12 +213,13 @@ Expected: clean.
 
 - [ ] **Step 4: Manual simulator check (human step)**
 
-Launch on an iOS/Android simulator that has existing app data. After first launch:
+Launch on an iOS/Android simulator with existing app data. After first launch:
 
-1. Open a DB browser (e.g. DB Browser for SQLite) and inspect the `llm_wiki_entries` table.
+1. Open a DB browser and inspect the `llm_wiki_entries` table.
 2. Confirm `embedding_blob BLOB` column is present.
 3. Confirm no crash on startup.
-4. Send a chat message to a character with existing wiki facts — confirm the response is coherent (wiki context loaded).
+4. Send a chat message to a character with existing wiki facts — confirm the response is coherent
+   (wiki context loaded).
 
 ---
 
