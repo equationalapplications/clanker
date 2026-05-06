@@ -14,6 +14,8 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
     config: {
       tablePrefix: 'llm_wiki_',
       autoLibrarianThreshold: 20,
+      preFilterLimit: 300,
+      hybridWeight: 0.7,
     },
   })
   return _wiki
