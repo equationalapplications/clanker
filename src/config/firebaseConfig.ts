@@ -76,6 +76,7 @@ const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters'
 const getPublicCharacterFn = httpsCallable(functionsInstance, 'getPublicCharacter')
 const wikiLlmFn = httpsCallable(functionsInstance, 'wikiLlm')
 const wikiSyncFn = httpsCallable(functionsInstance, 'wikiSync')
+const documentExtractFn = httpsCallable(functionsInstance, 'documentExtract')
 
 export type FirebaseUser = FirebaseAuthTypes.User
 
@@ -98,6 +99,7 @@ export {
   adminClearTermsAcceptanceFn,
   adminResetUserStateFn,
   adminDeleteUserFn,
+  documentExtractFn,
   deleteMyAccountFn,
   updateUserProfileFn,
   acceptTermsFn,
