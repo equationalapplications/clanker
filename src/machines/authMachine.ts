@@ -467,16 +467,18 @@ export const authMachine = createMachine(
         return bootstrapSession()
       }),
       signOut: fromPromise(async () => {
+        try {
+          await logoutRevenueCat()
+        } catch (err) {
+          console.error('RevenueCat logout failed (continuing sign-out):', err)
+        }
         await firebaseSignOut()
         await setCrashlyticsUserId(null)
-        await logoutRevenueCat()
         await kvStorePersister.removeClient()
         clearSettings()
         if (Platform.OS === 'ios') {
           await signOutFromApple()
         } else if (Platform.OS === 'android') {
-          await signOutFromGoogle()
-        } else {
           await signOutFromGoogle()
         }
         queryClient.clear()
