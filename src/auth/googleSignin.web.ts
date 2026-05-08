@@ -63,7 +63,12 @@ const exchangeCredential = async (idToken: string): Promise<GoogleSignInResult> 
   try {
     const cred = GoogleAuthProvider.credential(idToken, null)
     const userCredential = await signInWithCredential(auth, cred)
-    await syncDisplayNameFromCredential(userCredential.user)
+    try {
+      await syncDisplayNameFromCredential(userCredential.user)
+    } catch (syncError: any) {
+      // Session is already established; a failed profile sync should not surface as sign-in failure.
+      console.error('Google Sign-In display name sync failed:', syncError)
+    }
     return { success: true }
   } catch (error: any) {
     console.error('Google Sign-In credential exchange failed:', error)

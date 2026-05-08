@@ -2,6 +2,7 @@
 
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
 import { resetGoogleSignInWebForTests, signInWithGoogle } from '../googleSignin.web'
+import { syncDisplayNameFromCredential } from '../syncDisplayName.web'
 
 jest.mock('firebase/auth', () => {
   const signInWithCredential = jest.fn().mockResolvedValue({
@@ -66,6 +67,12 @@ describe('googleSignin.web', () => {
     expect(result.success).toBe(true)
     expect(GoogleAuthProvider.credential).toHaveBeenCalledWith('fake-id-token', null)
     expect(signInWithCredential).toHaveBeenCalled()
+  })
+
+  it('still succeeds when display name sync fails after credential exchange', async () => {
+    jest.mocked(syncDisplayNameFromCredential).mockRejectedValueOnce(new Error('sync failed'))
+    const result = await signInWithGoogle()
+    expect(result.success).toBe(true)
   })
 
   it('returns error when client id missing', async () => {

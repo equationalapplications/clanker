@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 
-import { signInWithCredential, OAuthProvider } from 'firebase/auth'
+import { signInWithCredential, OAuthProvider, updateProfile } from 'firebase/auth'
 import { generateNonce, sha256 } from '../nonce.web'
 import { resetAppleSignInWebForTests, signInWithApple } from '../appleSignin.web'
 
@@ -73,6 +73,12 @@ describe('appleSignin.web', () => {
     const credentialArg = (signInWithCredential as jest.Mock).mock.calls[0][1]
     expect(credentialArg.idToken).toBe('APPLE_ID_TOKEN')
     expect(credentialArg.rawNonce).toBe('RAW_NONCE')
+  })
+
+  it('still succeeds when display name sync fails after credential exchange', async () => {
+    jest.mocked(updateProfile).mockRejectedValueOnce(new Error('profile update failed'))
+    const result = await signInWithApple()
+    expect(result.success).toBe(true)
   })
 
   it('returns error when client id or redirect URI missing', async () => {

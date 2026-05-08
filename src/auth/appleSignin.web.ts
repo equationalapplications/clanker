@@ -106,7 +106,12 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
     const userCredential = await signInWithCredential(auth, credential)
 
     const fallbackName = buildDisplayNameFromAppleUser(data?.user)
-    await syncDisplayNameFromCredential(userCredential.user, fallbackName)
+    try {
+      await syncDisplayNameFromCredential(userCredential.user, fallbackName)
+    } catch (syncError: any) {
+      // Session is already established; a failed profile sync should not surface as sign-in failure.
+      console.error('Apple Sign-In display name sync failed:', syncError)
+    }
 
     return { success: true }
   } catch (error: any) {
