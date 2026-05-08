@@ -20,7 +20,11 @@ let scriptPromise: Promise<void> | null = null
 const loadGoogleScript = (): Promise<void> => {
   if (scriptPromise) return scriptPromise
   const p = new Promise<void>((resolve, reject) => {
-    if (window.google?.accounts) {
+    // Short-circuit only when the GIS `id` API is fully available. Other scripts
+    // may populate `google.accounts` partially (e.g. analytics tags, or a
+    // half-initialized GIS load), and the sign-in flow below depends on
+    // `google.accounts.id`. Falling through ensures the GIS client is loaded.
+    if (window.google?.accounts?.id) {
       resolve()
       return
     }
