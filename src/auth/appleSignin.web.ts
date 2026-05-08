@@ -66,8 +66,18 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
     return { success: false, error: 'Apple Sign-In unavailable' }
   }
 
-  const rawNonce = generateNonce()
-  const hashedNonce = await sha256(rawNonce)
+  let rawNonce: string
+  let hashedNonce: string
+  try {
+    rawNonce = generateNonce()
+    hashedNonce = await sha256(rawNonce)
+  } catch (error: any) {
+    console.error('Apple Sign-In nonce generation failed:', error)
+    return {
+      success: false,
+      error: error?.message || 'Apple Sign-In unavailable',
+    }
+  }
 
   try {
     window.AppleID.auth.init({

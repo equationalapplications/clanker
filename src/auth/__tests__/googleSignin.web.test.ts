@@ -1,3 +1,6 @@
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
+import { signInWithGoogle } from '../googleSignin.web'
+
 jest.mock('firebase/auth', () => {
   const signInWithCredential = jest.fn().mockResolvedValue({
     user: { displayName: null, providerData: [], updateProfile: jest.fn() },
@@ -20,9 +23,6 @@ jest.mock('../syncDisplayName', () => ({
   syncDisplayNameFromCredential: jest.fn(),
 }))
 
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
-import { signInWithGoogle } from '../googleSignin.web'
-
 describe('googleSignin.web', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -35,7 +35,11 @@ describe('googleSignin.web', () => {
           }),
           prompt: jest.fn((listener) => {
             ;(window as any).__gisCallback({ credential: 'fake-id-token' })
-            listener?.({ isNotDisplayed: () => false, isSkippedMoment: () => false })
+            listener?.({
+              isNotDisplayed: () => false,
+              isSkippedMoment: () => false,
+              isDismissedMoment: () => false,
+            })
           }),
           renderButton: jest.fn(),
           disableAutoSelect: jest.fn(),
@@ -75,11 +79,29 @@ describe('googleSignin.web', () => {
 
   it('handles prompt notification failure', async () => {
     ;(window as any).google.accounts.id.prompt = jest.fn((listener) => {
-      listener?.({ isNotDisplayed: () => true, isSkippedMoment: () => false })
+      listener?.({
+        isNotDisplayed: () => true,
+        isSkippedMoment: () => false,
+        isDismissedMoment: () => false,
+      })
     })
 
     const result = await signInWithGoogle()
     expect(result.success).toBe(false)
     expect(result.error).toMatch(/unavailable/)
+  })
+
+  it('resolves when One Tap is dismissed', async () => {
+    ;(window as any).google.accounts.id.prompt = jest.fn((listener) => {
+      listener?.({
+        isNotDisplayed: () => false,
+        isSkippedMoment: () => false,
+        isDismissedMoment: () => true,
+      })
+    })
+
+    const result = await signInWithGoogle()
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/cancelled/)
   })
 })

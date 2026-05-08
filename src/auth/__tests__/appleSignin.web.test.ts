@@ -1,3 +1,11 @@
+import { signInWithCredential, OAuthProvider } from 'firebase/auth'
+import { generateNonce, sha256 } from '../nonce.web'
+import { signInWithApple } from '../appleSignin.web'
+
+jest.mock('@react-native-firebase/auth', () => ({
+  updateProfile: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('firebase/auth', () => {
   const mockSignInWithCredential = jest.fn().mockResolvedValue({
     user: { displayName: null, providerData: [], updateProfile: jest.fn() },
@@ -19,6 +27,7 @@ jest.mock('firebase/auth', () => {
     OAuthProvider: MockOAuthProvider,
     getAuth: jest.fn(() => ({})),
     signInWithCredential: mockSignInWithCredential,
+    updateProfile: jest.fn().mockResolvedValue(undefined),
   }
 })
 jest.mock('~/config/firebaseConfig.web', () => ({ firebaseApp: {} }))
@@ -26,10 +35,6 @@ jest.mock('../nonce.web', () => ({
   generateNonce: jest.fn(() => 'RAW_NONCE'),
   sha256: jest.fn(async () => 'HASHED_NONCE'),
 }))
-
-import { signInWithCredential, OAuthProvider } from 'firebase/auth'
-import { generateNonce, sha256 } from '../nonce.web'
-import { signInWithApple } from '../appleSignin.web'
 
 describe('appleSignin.web', () => {
   const originalClientId = process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID
@@ -109,5 +114,12 @@ describe('appleSignin.web', () => {
     const result = await signInWithApple()
     expect(result.success).toBe(false)
     expect(result.error).toBe('Sign-in cancelled')
+  })
+
+  it('returns structured error when nonce hashing fails', async () => {
+    ;(sha256 as jest.Mock).mockRejectedValueOnce(new Error('digest failed'))
+    const result = await signInWithApple()
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('digest failed')
   })
 })

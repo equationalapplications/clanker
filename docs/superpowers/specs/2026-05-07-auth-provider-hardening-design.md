@@ -45,9 +45,9 @@ Sign-out adds an explicit RevenueCat logout step before Firebase `signOut`, on e
 
 - Existing native variant uses `expo-crypto` for random bytes + SHA256.
 - New web variant exposes the same API using `crypto.getRandomValues` and `crypto.subtle.digest('SHA-256')`.
-- Exported API (both):
-  - `generateRawNonce(): string` — 32 random bytes, hex-encoded
-  - `hashNonce(raw: string): Promise<string>` — SHA256 hex
+- Exported API (both platforms use these names in code):
+  - `generateNonce(length?: number): string` — cryptographically random string (default length 32)
+  - `sha256(input: string): Promise<string>` — SHA-256 hex digest
 
 ### `src/auth/googleSignin.web.ts` (rewrite)
 
@@ -55,8 +55,8 @@ Sign-out adds an explicit RevenueCat logout step before Firebase `signOut`, on e
 - Initialize `google.accounts.id` with `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
 - Render the GIS button inline; surface One Tap as enhancement.
 - GIS callback receives `{ credential: idToken }` → `GoogleAuthProvider.credential(idToken, null)` → `signInWithCredential(auth, cred)`.
-- Drop: `signInWithPopup`, `oauth2.initTokenClient` access-token fallback, `signOutFromGoogle()` web stub.
-- Exports: `signInWithGoogleWeb()`, `renderGoogleButton(elRef)`.
+- Drop: `signInWithPopup`, `oauth2.initTokenClient` access-token fallback.
+- Exports: `signInWithGoogle()`, `renderGoogleButton(el)`, plus `initializeGoogleSignIn()` for script warmup.
 
 ### `src/auth/googleSignin.ts` (mobile)
 
@@ -71,7 +71,7 @@ Sign-out adds an explicit RevenueCat logout step before Firebase `signOut`, on e
 - `AppleID.auth.signIn()` → `{ authorization.id_token, user? }`.
 - `new OAuthProvider('apple.com').credential({ idToken, rawNonce })` → `signInWithCredential(auth, cred)`.
 - Drop Firebase popup/redirect path entirely.
-- Remove `handleAppleRedirectResult` from `src/app/(auth)/sign-in.tsx`.
+- Remove `handleAppleRedirectResult` from `app/sign-in.tsx`.
 
 ### `src/auth/appleSignin.ts` (mobile)
 
@@ -90,7 +90,7 @@ export async function syncDisplayNameFromCredential(
 Behavior:
 - If `user.displayName` is non-empty, return.
 - Derive display name from `fallbackName ?? user.providerData[0]?.displayName`.
-- If derived name is non-empty, call `updateProfile(user, { displayName })`.
+- If derived name is non-empty, call modular `updateProfile(user, { displayName })` (web: `firebase/auth`; native: `@react-native-firebase/auth`).
 
 Called by all four sign-in paths after `signInWithCredential` resolves.
 
@@ -101,10 +101,10 @@ Called by all four sign-in paths after `signInWithCredential` resolves.
 - Remove web call to deleted `signOutFromGoogle()`.
 - Keep `signOutFromGoogle()` (Android native) and `signOutFromApple()` (iOS no-op, with comment explaining why no SDK sign-out exists).
 
-### `src/app/(auth)/sign-in.tsx`
+### `app/sign-in.tsx`
 
 - Web Google: render the GIS button via `renderGoogleButton(ref)` instead of the custom button. Sign-in is callback-driven.
-- Web Apple: keep the custom button; on click invoke `signInWithAppleWeb()`.
+- Web Apple: keep the custom button; on click invoke `signInWithApple()`.
 - Remove the `handleAppleRedirectResult` mount effect.
 
 ## Data Flow
@@ -121,7 +121,7 @@ Called by all four sign-in paths after `signInWithCredential` resolves.
 ### Web Apple sign-in
 
 1. User clicks Apple button.
-2. `rawNonce = generateRawNonce()`; `hashedNonce = await hashNonce(rawNonce)`.
+2. `rawNonce = generateNonce()`; `hashedNonce = await sha256(rawNonce)`.
 3. Lazy-load AppleID JS; `AppleID.auth.init({ ..., nonce: hashedNonce, usePopup: true })`.
 4. `await AppleID.auth.signIn()` → popup → `{ authorization.id_token, user.name? }`.
 5. `OAuthProvider('apple.com').credential({ idToken, rawNonce })` → `signInWithCredential`.
@@ -146,7 +146,7 @@ Unchanged shape. Inline `updateProfile` replaced with `syncDisplayNameFromCreden
 ## Error Handling
 
 - **GIS script load failure (web Google):** throw `ProviderUnavailableError`. UI shows "Google sign-in unavailable, try Apple or email."
-- **One Tap dismissed / not displayed:** GIS button remains as primary CTA; no user-facing error.
+- **One Tap dismissed / not displayed:** Prompt notification settles the sign-in promise (`isDismissedMoment` → user-cancelled; skipped/not displayed → unavailable). A long timeout covers FedCM cases where the listener never runs so the auth machine cannot hang indefinitely.
 - **Apple JS load failure:** same `ProviderUnavailableError` pattern.
 - **Apple popup blocked / closed:** `AppleID.auth.signIn()` reject codes — `popup_closed_by_user` is silent (user-cancelled); other codes surface as toast.
 - **Nonce mismatch / invalid ID token:** Firebase `signInWithCredential` rejects → log + toast "Sign-in failed, try again." No automatic retry.

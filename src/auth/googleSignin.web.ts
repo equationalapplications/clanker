@@ -73,13 +73,25 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     return { success: false, error: 'Google Sign-In unavailable' }
   }
 
+  /** FedCM / some browsers may not invoke the prompt listener; avoid hanging the auth machine. */
+  const PROMPT_SETTLE_TIMEOUT_MS = 180_000
+
   return new Promise<GoogleSignInResult>((resolve) => {
     let settled = false
     const settle = (r: GoogleSignInResult) => {
       if (settled) return
       settled = true
+      clearTimeout(promptTimeout)
       resolve(r)
     }
+
+    const promptTimeout = setTimeout(() => {
+      settle({
+        success: false,
+        error: 'Google Sign-In timed out',
+      })
+    }, PROMPT_SETTLE_TIMEOUT_MS)
+    ;(promptTimeout as ReturnType<typeof setTimeout> & { unref?: () => void }).unref?.()
 
     window.google.accounts.id.initialize({
       client_id: clientId,
@@ -94,6 +106,10 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     })
 
     window.google.accounts.id.prompt((notification: any) => {
+      if (notification?.isDismissedMoment?.()) {
+        settle({ success: false, error: 'Sign-in cancelled' })
+        return
+      }
       if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
         settle({
           success: false,
