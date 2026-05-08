@@ -70,8 +70,7 @@ Sign-out adds an explicit RevenueCat logout step before Firebase `signOut`, on e
 - `AppleID.auth.init({ clientId, scope: 'name email', redirectURI, usePopup: true, nonce: hashedNonce })`.
 - `AppleID.auth.signIn()` → `{ authorization.id_token, user? }`.
 - `new OAuthProvider('apple.com').credential({ idToken, rawNonce })` → `signInWithCredential(auth, cred)`.
-- Drop Firebase popup/redirect path entirely.
-- Remove `handleAppleRedirectResult` from `app/sign-in.tsx`.
+- Drop Firebase popup/redirect path entirely; remove the old `handleAppleRedirectResult` mount effect from `app/sign-in.tsx` and delete the stub export from `appleSignin` / `appleSignin.web`.
 
 ### `src/auth/appleSignin.ts` (mobile)
 
@@ -89,12 +88,12 @@ export async function syncDisplayNameFromCredential(
 
 Behavior:
 - If `user.displayName` is non-empty, return.
-- Derive display name from `fallbackName ?? user.providerData[0]?.displayName`.
+- Derive display name from `fallbackName` or the first non-empty `displayName` in `user.providerData` (scan in order; do not assume index `0` is the only useful entry).
 - If derived name is non-empty, call modular `updateProfile(user, { displayName })` (web: `firebase/auth`; native: `@react-native-firebase/auth`).
 
 Called by all four sign-in paths after `signInWithCredential` resolves.
 
-### `src/auth/authMachine.ts` (sign-out action)
+### `src/machines/authMachine.ts` (sign-out actor)
 
 - Add `await logoutRevenueCat()` BEFORE `signOut(auth)`, on all platforms.
 - Wrap RevenueCat call in try/catch; log failure; continue sign-out regardless.
@@ -105,7 +104,7 @@ Called by all four sign-in paths after `signInWithCredential` resolves.
 
 - Web Google: the existing **Google** button sends `SIGN_IN` to the auth machine, which calls `signInWithGoogle()` (GIS + Firebase credential exchange).
 - Web Apple: keep the custom button; on click invoke `signInWithApple()`.
-- Remove the `handleAppleRedirectResult` mount effect.
+- Remove the obsolete `handleAppleRedirectResult` mount effect; the stub helper export was deleted from platform modules once callers were gone.
 
 ## Data Flow
 
@@ -134,20 +133,23 @@ Unchanged shape. Inline `updateProfile` replaced with `syncDisplayNameFromCreden
 
 ### Sign-out (all platforms)
 
-1. authMachine sign-out action fires.
-2. `await logoutRevenueCat()` (try/catch).
-3. Platform branch:
-   - iOS: `signOutFromApple()` no-op (commented).
+1. authMachine `signOut` actor runs.
+2. `await logoutRevenueCat()` (try/catch; failures are logged, sign-out continues).
+3. `await signOut(auth)` (Firebase modular `signOut`).
+4. Crashlytics user cleared, KV/query persister client removed, local settings cleared.
+5. Platform branch (after Firebase session ends):
+   - iOS: `signOutFromApple()` no-op (documented in code — no Apple SDK sign-out).
    - Android: `signOutFromGoogle()` native.
-   - Web: skip provider sign-out (deleted).
-4. `await signOut(auth)`.
-5. authMachine transitions to unauthenticated.
+   - Web: no native Google sign-out call (stub removed earlier in this effort).
+6. `queryClient.clear()`; transition to signed-out via `NO_USER_FOUND` / machine state.
+
+Order note: RevenueCat logout is intentionally **before** Firebase sign-out so subscription APIs still see an authenticated Firebase user during teardown. Native provider sign-out runs **after** Firebase clears the session because it only applies on iOS/Android and is separate from Firebase state.
 
 ## Error Handling
 
-- **GIS script load failure (web Google):** throw `ProviderUnavailableError`. UI shows "Google sign-in unavailable, try Apple or email."
+- **GIS script load failure (web Google):** `signInWithGoogle()` resolves to `{ success: false, error: string }`. The auth machine throws `new Error(result.error)`, which surfaces via the signing-in actor’s error path (toast / UI messaging).
 - **One Tap dismissed / not displayed:** Prompt notification settles the sign-in promise (`isDismissedMoment` → user-cancelled; skipped/not displayed → unavailable). A long timeout covers FedCM cases where the listener never runs so the auth machine cannot hang indefinitely.
-- **Apple JS load failure:** same `ProviderUnavailableError` pattern.
+- **Apple JS load failure:** `signInWithApple()` returns `{ success: false, error }` (load errors, missing globals, or nonce failures); same machine behavior as Google when `success` is false.
 - **Apple popup blocked / closed:** `AppleID.auth.signIn()` reject codes — `popup_closed_by_user` is silent (user-cancelled); other codes surface as toast.
 - **Nonce mismatch / invalid ID token:** Firebase `signInWithCredential` rejects → log + toast "Sign-in failed, try again." No automatic retry.
 - **RevenueCat logout failure:** caught, logged, sign-out proceeds. Auth state must clear regardless.
@@ -158,7 +160,7 @@ Unchanged shape. Inline `updateProfile` replaced with `syncDisplayNameFromCreden
 
 ### Unit (jest)
 
-- `nonce.web.ts`: random length is 32 bytes, hex format, SHA256 hash matches expected output for a known input.
+- `nonce.web.ts`: default nonce length matches implementation (random `[A-Za-z0-9]` string; not a hex-encoded nonce); `sha256` returns a lowercase hex digest; known-input digest matches vectors.
 - `syncDisplayName`:
   - empty `displayName` + `fallbackName` → `updateProfile` called.
   - non-empty `displayName` → skip.

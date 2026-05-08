@@ -71,8 +71,3 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
 export const signOutFromApple = async (): Promise<void> => {
   // no-op
 }
-
-// no-op on native — redirect result handling is web-only
-export const handleAppleRedirectResult = async (): Promise<AppleSignInResult> => {
-  return { success: true }
-}

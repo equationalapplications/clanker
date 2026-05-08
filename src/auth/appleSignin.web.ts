@@ -123,12 +123,6 @@ export const signOutFromApple = async (): Promise<void> => {
   // no-op
 }
 
-// Redirect-result handler kept as a no-op so existing imports do not break during the
-// transition. Safe to delete once Task 7 removes all callers.
-export const handleAppleRedirectResult = async (): Promise<AppleSignInResult> => {
-  return { success: true }
-}
-
 /** Clears Apple JS script load cache between tests (Jest). */
 export const resetAppleSignInWebForTests = (): void => {
   scriptPromise = null

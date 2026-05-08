@@ -34,6 +34,14 @@ describe('syncDisplayNameFromCredential', () => {
     expect(updateProfile).toHaveBeenCalledWith(user, { displayName: 'From Provider' })
   })
 
+  it('uses first non-empty providerData displayName when earlier entries are empty', async () => {
+    const user = makeUser({
+      providerData: [{ displayName: null }, { displayName: 'Linked Name' }],
+    })
+    await syncDisplayNameFromCredential(user as any)
+    expect(updateProfile).toHaveBeenCalledWith(user, { displayName: 'Linked Name' })
+  })
+
   it('skips when no displayName, no fallback, and no providerData name', async () => {
     const user = makeUser()
     await syncDisplayNameFromCredential(user as any)

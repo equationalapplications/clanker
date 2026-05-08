@@ -14,7 +14,14 @@ export const resolveDisplayNameToSync = (
   if (current) return null
 
   const fallback = fallbackName?.trim()
-  const providerName = user.providerData?.[0]?.displayName?.trim() || ''
+  let providerName = ''
+  for (const p of user.providerData ?? []) {
+    const trimmed = p.displayName?.trim()
+    if (trimmed) {
+      providerName = trimmed
+      break
+    }
+  }
   const next = fallback || providerName
   if (!next) return null
   return next
