@@ -467,19 +467,47 @@ export const authMachine = createMachine(
         return bootstrapSession()
       }),
       signOut: fromPromise(async () => {
-        await firebaseSignOut()
-        await setCrashlyticsUserId(null)
-        await logoutRevenueCat()
-        await kvStorePersister.removeClient()
-        clearSettings()
-        if (Platform.OS === 'ios') {
-          await signOutFromApple()
-        } else if (Platform.OS === 'android') {
-          await signOutFromGoogle()
-        } else {
-          await signOutFromGoogle()
+        try {
+          await logoutRevenueCat()
+        } catch (err) {
+          console.error('RevenueCat logout failed (continuing sign-out):', err)
         }
-        queryClient.clear()
+
+        let firebaseSignOutError: unknown
+        try {
+          await firebaseSignOut()
+        } catch (err) {
+          firebaseSignOutError = err
+          console.error('Firebase sign-out failed (continuing local cleanup):', err)
+        }
+
+        const runCleanupStep = async (label: string, step: () => unknown) => {
+          try {
+            await Promise.resolve(step())
+          } catch (err) {
+            console.error(`Sign-out cleanup step "${label}" failed (continuing):`, err)
+          }
+        }
+
+        await runCleanupStep('setCrashlyticsUserId', () => setCrashlyticsUserId(null))
+        await runCleanupStep('kvStorePersister.removeClient', () => kvStorePersister.removeClient())
+        await runCleanupStep('clearSettings', () => {
+          clearSettings()
+        })
+        if (Platform.OS === 'ios') {
+          await runCleanupStep('signOutFromApple', () => signOutFromApple())
+        } else if (Platform.OS === 'android') {
+          await runCleanupStep('signOutFromGoogle', () => signOutFromGoogle())
+        }
+        await runCleanupStep('queryClient.clear', () => {
+          queryClient.clear()
+        })
+
+        if (firebaseSignOutError) {
+          throw firebaseSignOutError instanceof Error
+            ? firebaseSignOutError
+            : new Error(String(firebaseSignOutError))
+        }
       }),
     },
   },
