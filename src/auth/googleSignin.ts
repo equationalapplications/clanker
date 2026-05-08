@@ -65,7 +65,12 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     const googleDisplayName =
       response.data?.user?.name?.trim() || `${givenName} ${familyName}`.trim()
 
-    await syncDisplayNameFromCredential(userCredential.user, googleDisplayName)
+    try {
+      await syncDisplayNameFromCredential(userCredential.user, googleDisplayName)
+    } catch (syncError: any) {
+      // Session is already established; a failed profile sync should not surface as sign-in failure.
+      console.error('Google Sign-In display name sync failed:', syncError)
+    }
 
     console.log('✅ Firebase sign-in successful')
     return { success: true }

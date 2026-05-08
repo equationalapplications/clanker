@@ -50,7 +50,12 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
     const appleDisplayName = `${givenName} ${familyName}`.trim()
 
     // Apple only shares full name on first authorization. Persist via shared helper.
-    await syncDisplayNameFromCredential(userCredential.user, appleDisplayName)
+    try {
+      await syncDisplayNameFromCredential(userCredential.user, appleDisplayName)
+    } catch (syncError: any) {
+      // Session is already established; a failed profile sync should not surface as sign-in failure.
+      console.error('Apple Sign-In display name sync failed:', syncError)
+    }
 
     console.log('✅ Apple Sign-In successful')
     return { success: true }
