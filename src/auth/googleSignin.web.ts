@@ -50,6 +50,9 @@ export const initializeGoogleSignIn = async (): Promise<void> => {
     throw new Error('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set')
   }
   await loadGoogleScript()
+  if (!window.google?.accounts?.id) {
+    throw new Error('Google Identity Services did not load (google.accounts.id unavailable)')
+  }
 }
 
 const exchangeCredential = async (idToken: string): Promise<GoogleSignInResult> => {

@@ -183,6 +183,10 @@ describe('authMachine', () => {
     await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
     expect(mockFirebaseSignOut).toHaveBeenCalledTimes(1)
     expect(actor.getSnapshot().context.error).toBe(signOutError)
+    expect(mockSetCrashlyticsUserId).toHaveBeenCalledWith(null)
+    expect(mockKvStorePersisterRemoveClient).toHaveBeenCalled()
+    expect(mockClearSettings).toHaveBeenCalledTimes(1)
+    expect(mockQueryClientClear).toHaveBeenCalled()
     actor.stop()
   })
 

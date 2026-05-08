@@ -472,16 +472,34 @@ export const authMachine = createMachine(
         } catch (err) {
           console.error('RevenueCat logout failed (continuing sign-out):', err)
         }
-        await firebaseSignOut()
-        await setCrashlyticsUserId(null)
-        await kvStorePersister.removeClient()
-        clearSettings()
-        if (Platform.OS === 'ios') {
-          await signOutFromApple()
-        } else if (Platform.OS === 'android') {
-          await signOutFromGoogle()
+
+        let firebaseSignOutError: unknown
+        try {
+          await firebaseSignOut()
+        } catch (err) {
+          firebaseSignOutError = err
+          console.error('Firebase sign-out failed (continuing local cleanup):', err)
         }
-        queryClient.clear()
+
+        try {
+          await setCrashlyticsUserId(null)
+          await kvStorePersister.removeClient()
+          clearSettings()
+          if (Platform.OS === 'ios') {
+            await signOutFromApple()
+          } else if (Platform.OS === 'android') {
+            await signOutFromGoogle()
+          }
+          queryClient.clear()
+        } catch (err) {
+          console.error('Sign-out local cleanup failed:', err)
+        }
+
+        if (firebaseSignOutError) {
+          throw firebaseSignOutError instanceof Error
+            ? firebaseSignOutError
+            : new Error(String(firebaseSignOutError))
+        }
       }),
     },
   },
