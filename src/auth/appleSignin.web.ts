@@ -1,13 +1,14 @@
-// Web-specific Apple Sign-In implementation
-import {
-  OAuthProvider,
-  getAuth,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  updateProfile,
-} from 'firebase/auth'
+// src/auth/appleSignin.web.ts
+import { OAuthProvider, getAuth, signInWithCredential } from 'firebase/auth'
 import { firebaseApp } from '~/config/firebaseConfig.web'
+import { generateNonce, sha256 } from './nonce.web'
+import { syncDisplayNameFromCredential } from './syncDisplayName'
+
+declare global {
+  interface Window {
+    AppleID?: any
+  }
+}
 
 export interface AppleSignInResult {
   success: boolean
@@ -15,87 +16,98 @@ export interface AppleSignInResult {
 }
 
 const auth = getAuth(firebaseApp)
-const appleProvider = new OAuthProvider('apple.com')
-appleProvider.addScope('email')
-appleProvider.addScope('name')
+let scriptPromise: Promise<void> | null = null
 
-const extractAppleDisplayName = (profile: any): string | null => {
-  const firstName =
-    profile?.name?.firstName || profile?.given_name || profile?.first_name || profile?.firstName || ''
-  const lastName =
-    profile?.name?.lastName || profile?.family_name || profile?.last_name || profile?.lastName || ''
+const APPLE_JS_SRC =
+  'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js'
 
-  const fullName = `${String(firstName).trim()} ${String(lastName).trim()}`.trim()
-  if (fullName) {
-    return fullName
-  }
-
-  const flatName = typeof profile?.name === 'string' ? profile.name.trim() : ''
-  return flatName || null
+const loadAppleScript = (): Promise<void> => {
+  if (scriptPromise) return scriptPromise
+  scriptPromise = new Promise((resolve, reject) => {
+    if (window.AppleID?.auth) {
+      resolve()
+      return
+    }
+    const script = document.createElement('script')
+    script.src = APPLE_JS_SRC
+    script.async = true
+    script.defer = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load Apple Sign In JS'))
+    document.body.appendChild(script)
+  })
+  return scriptPromise
 }
 
-const persistAppleNameToFirebaseUser = async (result: any): Promise<void> => {
-  const currentName = result?.user?.displayName?.trim()
-  if (currentName) {
-    return
-  }
-
-  const profile = result?.additionalUserInfo?.profile
-  const appleDisplayName = extractAppleDisplayName(profile)
-  if (!appleDisplayName) {
-    return
-  }
-
-  await updateProfile(result.user, { displayName: appleDisplayName })
+const buildDisplayNameFromAppleUser = (user: any): string | undefined => {
+  const first = user?.name?.firstName?.trim?.() || ''
+  const last = user?.name?.lastName?.trim?.() || ''
+  const combined = `${first} ${last}`.trim()
+  return combined || undefined
 }
 
 export const signInWithApple = async (): Promise<AppleSignInResult> => {
-  try {
-    console.log('🔐 Attempting Apple Sign-In via Firebase popup...')
-    const result = await signInWithPopup(auth, appleProvider)
-    await persistAppleNameToFirebaseUser(result)
-    console.log('✅ Apple Sign-In successful via popup')
-    return { success: true }
-  } catch (popupError: any) {
-    console.log('⚠️ Apple popup sign-in failed:', popupError.code)
+  const clientId = process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID
+  const redirectURI = process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI
+  if (!clientId || !redirectURI) {
+    return {
+      success: false,
+      error: 'Apple Sign-In not configured (missing client id or redirect URI)',
+    }
+  }
 
-    if (popupError.code === 'auth/popup-closed-by-user') {
+  try {
+    await loadAppleScript()
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Apple Sign-In unavailable' }
+  }
+
+  if (!window.AppleID?.auth) {
+    return { success: false, error: 'Apple Sign-In unavailable' }
+  }
+
+  const rawNonce = generateNonce()
+  const hashedNonce = await sha256(rawNonce)
+
+  try {
+    window.AppleID.auth.init({
+      clientId,
+      scope: 'name email',
+      redirectURI,
+      usePopup: true,
+      nonce: hashedNonce,
+    })
+
+    const data = await window.AppleID.auth.signIn()
+    const idToken = data?.authorization?.id_token
+    if (!idToken) {
+      return { success: false, error: 'No identity token received from Apple' }
+    }
+
+    const provider = new OAuthProvider('apple.com')
+    const credential = provider.credential({ idToken, rawNonce })
+    const userCredential = await signInWithCredential(auth, credential)
+
+    const fallbackName = buildDisplayNameFromAppleUser(data?.user)
+    await syncDisplayNameFromCredential(userCredential.user as any, fallbackName)
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.error === 'popup_closed_by_user') {
       return { success: false, error: 'Sign-in cancelled' }
     }
-
-    if (popupError.code === 'auth/popup-blocked') {
-      console.log('🔄 Popup blocked, falling back to redirect...')
-      try {
-        await signInWithRedirect(auth, appleProvider)
-        // signInWithRedirect navigates away; result is handled on return via getRedirectResult
-        return { success: true }
-      } catch (redirectError: any) {
-        console.error('Apple redirect sign-in failed:', redirectError)
-        return { success: false, error: redirectError.message || 'Redirect sign-in failed' }
-      }
-    }
-
-    return { success: false, error: popupError.message || 'Apple Sign-In failed' }
+    console.error('Apple Sign-In failed:', error)
+    return { success: false, error: error?.error || error?.message || 'Apple Sign-In failed' }
   }
 }
 
-// No-op on web — Firebase auth handles sign-out
+// Apple has no SDK-level sign-out on web. Firebase signOut clears the session.
 export const signOutFromApple = async (): Promise<void> => {
   // no-op
 }
 
-// Finalizes a pending Apple redirect sign-in. Call on sign-in screen mount
-// so that auth/popup-blocked redirect flows reliably complete and errors surface.
+// Redirect-result handler kept as a no-op so existing imports do not break during the
+// transition. Safe to delete once Task 7 removes all callers.
 export const handleAppleRedirectResult = async (): Promise<AppleSignInResult> => {
-  try {
-    const result = await getRedirectResult(auth)
-    if (result) {
-      await persistAppleNameToFirebaseUser(result)
-      console.log('✅ Apple Sign-In redirect completed successfully')
-    }
-    return { success: true }
-  } catch (error: any) {
-    console.error('Apple redirect sign-in failed:', error)
-    return { success: false, error: error.message || 'Apple Sign-In redirect failed' }
-  }
+  return { success: true }
 }
