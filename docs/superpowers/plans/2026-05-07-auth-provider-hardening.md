@@ -508,6 +508,13 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     })
 
     window.google.accounts.id.prompt((notification: any) => {
+      if (notification?.isDismissedMoment?.()) {
+        if (notification.getDismissedReason?.() === 'credential_returned') {
+          return
+        }
+        settle({ success: false, error: 'Sign-in cancelled' })
+        return
+      }
       if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
         settle({
           success: false,
@@ -516,21 +523,6 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
       }
     })
   })
-}
-
-// Stub kept for the GoogleSignInButton component if added later. Not used by authMachine.
-export const renderGoogleButton = (el: HTMLElement, onSignedIn?: () => void): void => {
-  const clientId = getClientId()
-  if (!clientId || !window.google?.accounts?.id) return
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    callback: async (response: any) => {
-      if (!response?.credential) return
-      const result = await exchangeCredential(response.credential)
-      if (result.success) onSignedIn?.()
-    },
-  })
-  window.google.accounts.id.renderButton(el, { theme: 'outline', size: 'large' })
 }
 
 export const getCurrentUser = async () => null

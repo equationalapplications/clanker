@@ -23,7 +23,7 @@ const APPLE_JS_SRC =
 
 const loadAppleScript = (): Promise<void> => {
   if (scriptPromise) return scriptPromise
-  scriptPromise = new Promise((resolve, reject) => {
+  const p = new Promise<void>((resolve, reject) => {
     if (window.AppleID?.auth) {
       resolve()
       return
@@ -33,10 +33,17 @@ const loadAppleScript = (): Promise<void> => {
     script.async = true
     script.defer = true
     script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Failed to load Apple Sign In JS'))
+    script.onerror = () => {
+      script.remove()
+      reject(new Error('Failed to load Apple Sign In JS'))
+    }
     document.body.appendChild(script)
   })
-  return scriptPromise
+  scriptPromise = p
+  void p.catch(() => {
+    scriptPromise = null
+  })
+  return p
 }
 
 const buildDisplayNameFromAppleUser = (user: any): string | undefined => {

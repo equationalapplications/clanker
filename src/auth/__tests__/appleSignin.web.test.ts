@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+
 import { signInWithCredential, OAuthProvider } from 'firebase/auth'
 import { generateNonce, sha256 } from '../nonce.web'
 import { signInWithApple } from '../appleSignin.web'
@@ -85,9 +87,21 @@ describe('appleSignin.web', () => {
 
   it('returns error when Apple script unavailable', async () => {
     delete (window as any).AppleID
-    const result = await signInWithApple()
-    expect(result.success).toBe(false)
-    expect(result.error).toMatch(/unavailable/)
+    const orig = document.createElement.bind(document)
+    jest.spyOn(document, 'createElement').mockImplementation((tagName: any, options?: any) => {
+      const el = orig(tagName, options)
+      if (String(tagName).toLowerCase() === 'script') {
+        queueMicrotask(() => (el as HTMLScriptElement).onerror?.(new Event('error')))
+      }
+      return el
+    })
+    try {
+      const result = await signInWithApple()
+      expect(result.success).toBe(false)
+      expect(result.error).toMatch(/unavailable|Failed to load/)
+    } finally {
+      jest.restoreAllMocks()
+    }
   })
 
   it('returns error when no id_token in response', async () => {

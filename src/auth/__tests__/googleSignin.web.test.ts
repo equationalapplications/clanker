@@ -1,3 +1,5 @@
+/** @jest-environment jsdom */
+
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
 import { signInWithGoogle } from '../googleSignin.web'
 
@@ -34,7 +36,7 @@ describe('googleSignin.web', () => {
             ;(window as any).__gisCallback = callback
           }),
           prompt: jest.fn((listener) => {
-            ;(window as any).__gisCallback({ credential: 'fake-id-token' })
+            void (window as any).__gisCallback({ credential: 'fake-id-token' })
             listener?.({
               isNotDisplayed: () => false,
               isSkippedMoment: () => false,
@@ -64,10 +66,21 @@ describe('googleSignin.web', () => {
 
   it('returns error when GIS script fails to load', async () => {
     delete (window as any).google
-    // Simulate script loading by not having google available
-    const result = await signInWithGoogle()
-    expect(result.success).toBe(false)
-    expect(result.error).toMatch(/unavailable/)
+    const orig = document.createElement.bind(document)
+    jest.spyOn(document, 'createElement').mockImplementation((tagName: any, options?: any) => {
+      const el = orig(tagName, options)
+      if (String(tagName).toLowerCase() === 'script') {
+        queueMicrotask(() => (el as HTMLScriptElement).onerror?.(new Event('error')))
+      }
+      return el
+    })
+    try {
+      const result = await signInWithGoogle()
+      expect(result.success).toBe(false)
+      expect(result.error).toMatch(/unavailable|Failed to load/)
+    } finally {
+      jest.restoreAllMocks()
+    }
   })
 
   it('returns error when credential exchange fails', async () => {
@@ -97,11 +110,27 @@ describe('googleSignin.web', () => {
         isNotDisplayed: () => false,
         isSkippedMoment: () => false,
         isDismissedMoment: () => true,
+        getDismissedReason: () => 'cancel_called',
       })
     })
 
     const result = await signInWithGoogle()
     expect(result.success).toBe(false)
     expect(result.error).toMatch(/cancelled/)
+  })
+
+  it('does not treat credential_returned dismissal as user cancel during token exchange', async () => {
+    ;(window as any).google.accounts.id.prompt = jest.fn((listener) => {
+      void (window as any).__gisCallback({ credential: 'fake-id-token' })
+      listener?.({
+        isNotDisplayed: () => false,
+        isSkippedMoment: () => false,
+        isDismissedMoment: () => true,
+        getDismissedReason: () => 'credential_returned',
+      })
+    })
+
+    const result = await signInWithGoogle()
+    expect(result.success).toBe(true)
   })
 })

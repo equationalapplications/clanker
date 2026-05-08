@@ -19,7 +19,7 @@ let scriptPromise: Promise<void> | null = null
 
 const loadGoogleScript = (): Promise<void> => {
   if (scriptPromise) return scriptPromise
-  scriptPromise = new Promise((resolve, reject) => {
+  const p = new Promise<void>((resolve, reject) => {
     if (window.google?.accounts) {
       resolve()
       return
@@ -29,10 +29,17 @@ const loadGoogleScript = (): Promise<void> => {
     script.async = true
     script.defer = true
     script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Failed to load Google Identity Services'))
+    script.onerror = () => {
+      script.remove()
+      reject(new Error('Failed to load Google Identity Services'))
+    }
     document.body.appendChild(script)
   })
-  return scriptPromise
+  scriptPromise = p
+  void p.catch(() => {
+    scriptPromise = null
+  })
+  return p
 }
 
 const getClientId = (): string | null => process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || null
@@ -107,6 +114,13 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
 
     window.google.accounts.id.prompt((notification: any) => {
       if (notification?.isDismissedMoment?.()) {
+        // GIS reports `credential_returned` when the prompt closes after account
+        // selection while the async credential callback is still exchanging the ID
+        // token. Treating that as "cancelled" races with `exchangeCredential` and
+        // surfaces a false failure while sign-in succeeds.
+        if (notification.getDismissedReason?.() === 'credential_returned') {
+          return
+        }
         settle({ success: false, error: 'Sign-in cancelled' })
         return
       }
@@ -120,23 +134,8 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
   })
 }
 
-// Stub kept for the GoogleSignInButton component if added later. Not used by authMachine.
-export const renderGoogleButton = (el: HTMLElement, onSignedIn?: () => void): void => {
-  const clientId = getClientId()
-  if (!clientId || !window.google?.accounts?.id) return
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    callback: async (response: any) => {
-      if (!response?.credential) return
-      const result = await exchangeCredential(response.credential)
-      if (result.success) onSignedIn?.()
-    },
-  })
-  window.google.accounts.id.renderButton(el, { theme: 'outline', size: 'large' })
-}
-
 export const getCurrentUser = async () => null
 
 export const signOutFromGoogle = async (): Promise<void> => {
-  // No-op on web. Firebase signOut is sufficient. authMachine will stop calling this in Task 8.
+  // No-op on web. Firebase signOut is sufficient; authMachine no longer depends on GIS sign-out.
 }

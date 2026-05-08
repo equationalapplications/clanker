@@ -53,10 +53,10 @@ Sign-out adds an explicit RevenueCat logout step before Firebase `signOut`, on e
 
 - Lazy-load Google Identity Services script (`https://accounts.google.com/gsi/client`).
 - Initialize `google.accounts.id` with `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
-- Render the GIS button inline; surface One Tap as enhancement.
+- One Tap / programmatic prompt via `signInWithGoogle()` (used by the auth machine on web).
 - GIS callback receives `{ credential: idToken }` → `GoogleAuthProvider.credential(idToken, null)` → `signInWithCredential(auth, cred)`.
 - Drop: `signInWithPopup`, `oauth2.initTokenClient` access-token fallback.
-- Exports: `signInWithGoogle()`, `renderGoogleButton(el)`, plus `initializeGoogleSignIn()` for script warmup.
+- Exports: `signInWithGoogle()`, plus `initializeGoogleSignIn()` for script warmup.
 
 ### `src/auth/googleSignin.ts` (mobile)
 
@@ -103,7 +103,7 @@ Called by all four sign-in paths after `signInWithCredential` resolves.
 
 ### `app/sign-in.tsx`
 
-- Web Google: render the GIS button via `renderGoogleButton(ref)` instead of the custom button. Sign-in is callback-driven.
+- Web Google: the existing **Google** button sends `SIGN_IN` to the auth machine, which calls `signInWithGoogle()` (GIS + Firebase credential exchange).
 - Web Apple: keep the custom button; on click invoke `signInWithApple()`.
 - Remove the `handleAppleRedirectResult` mount effect.
 
@@ -111,7 +111,7 @@ Called by all four sign-in paths after `signInWithCredential` resolves.
 
 ### Web Google sign-in
 
-1. Sign-in screen mounts → GIS script loads → `renderGoogleButton(ref)` mounts the button.
+1. User taps **Google** → auth machine runs → GIS script loads if needed → `signInWithGoogle()` shows One Tap / account chooser.
 2. User clicks (or accepts One Tap).
 3. GIS callback fires with `{ credential: idToken }`.
 4. `GoogleAuthProvider.credential(idToken, null)` → `signInWithCredential(auth, cred)`.
