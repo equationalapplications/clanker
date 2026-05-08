@@ -32,7 +32,14 @@ const loadAppleScript = (): Promise<void> => {
     script.src = APPLE_JS_SRC
     script.async = true
     script.defer = true
-    script.onload = () => resolve()
+    script.onload = () => {
+      if (window.AppleID?.auth) {
+        resolve()
+        return
+      }
+      script.remove()
+      reject(new Error('Apple Sign In JS loaded but AppleID.auth is unavailable'))
+    }
     script.onerror = () => {
       script.remove()
       reject(new Error('Failed to load Apple Sign In JS'))

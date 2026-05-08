@@ -32,7 +32,14 @@ const loadGoogleScript = (): Promise<void> => {
     script.src = 'https://accounts.google.com/gsi/client'
     script.async = true
     script.defer = true
-    script.onload = () => resolve()
+    script.onload = () => {
+      if (window.google?.accounts?.id) {
+        resolve()
+        return
+      }
+      script.remove()
+      reject(new Error('Google Identity Services loaded but google.accounts.id is unavailable'))
+    }
     script.onerror = () => {
       script.remove()
       reject(new Error('Failed to load Google Identity Services'))

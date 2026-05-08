@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
 
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
-import { resetGoogleSignInWebForTests, signInWithGoogle } from '../googleSignin.web'
+import { initializeGoogleSignIn, resetGoogleSignInWebForTests, signInWithGoogle } from '../googleSignin.web'
 import { syncDisplayNameFromCredential } from '../syncDisplayName.web'
 
 jest.mock('firebase/auth', () => {
@@ -96,6 +96,23 @@ describe('googleSignin.web', () => {
       const result = await signInWithGoogle()
       expect(result.success).toBe(false)
       expect(result.error).toMatch(/unavailable|Failed to load/)
+    } finally {
+      jest.restoreAllMocks()
+    }
+  })
+
+  it('rejects when script loads but google.accounts.id never appears', async () => {
+    delete (window as any).google
+    const orig = document.createElement.bind(document)
+    jest.spyOn(document, 'createElement').mockImplementation((tagName: any, options?: any) => {
+      const el = orig(tagName, options)
+      if (String(tagName).toLowerCase() === 'script') {
+        queueMicrotask(() => (el as HTMLScriptElement).onload?.(new Event('load')))
+      }
+      return el
+    })
+    try {
+      await expect(initializeGoogleSignIn()).rejects.toThrow(/google\.accounts\.id is unavailable/)
     } finally {
       jest.restoreAllMocks()
     }

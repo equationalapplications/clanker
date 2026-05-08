@@ -107,6 +107,25 @@ describe('appleSignin.web', () => {
     }
   })
 
+  it('returns error when script loads but AppleID.auth never appears', async () => {
+    delete (window as any).AppleID
+    const orig = document.createElement.bind(document)
+    jest.spyOn(document, 'createElement').mockImplementation((tagName: any, options?: any) => {
+      const el = orig(tagName, options)
+      if (String(tagName).toLowerCase() === 'script') {
+        queueMicrotask(() => (el as HTMLScriptElement).onload?.(new Event('load')))
+      }
+      return el
+    })
+    try {
+      const result = await signInWithApple()
+      expect(result.success).toBe(false)
+      expect(result.error).toMatch(/AppleID\.auth is unavailable/)
+    } finally {
+      jest.restoreAllMocks()
+    }
+  })
+
   it('returns error when no id_token in response', async () => {
     ;(window as any).AppleID.auth.signIn.mockResolvedValueOnce({
       authorization: {}
