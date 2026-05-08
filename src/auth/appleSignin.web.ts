@@ -2,7 +2,7 @@
 import { OAuthProvider, getAuth, signInWithCredential } from 'firebase/auth'
 import { firebaseApp } from '~/config/firebaseConfig.web'
 import { generateNonce, sha256 } from './nonce.web'
-import { syncDisplayNameFromCredential } from './syncDisplayName'
+import { syncDisplayNameFromCredential } from './syncDisplayName.web'
 
 declare global {
   interface Window {
@@ -106,7 +106,7 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
     const userCredential = await signInWithCredential(auth, credential)
 
     const fallbackName = buildDisplayNameFromAppleUser(data?.user)
-    await syncDisplayNameFromCredential(userCredential.user as any, fallbackName)
+    await syncDisplayNameFromCredential(userCredential.user, fallbackName)
 
     return { success: true }
   } catch (error: any) {
@@ -127,4 +127,9 @@ export const signOutFromApple = async (): Promise<void> => {
 // transition. Safe to delete once Task 7 removes all callers.
 export const handleAppleRedirectResult = async (): Promise<AppleSignInResult> => {
   return { success: true }
+}
+
+/** Clears Apple JS script load cache between tests (Jest). */
+export const resetAppleSignInWebForTests = (): void => {
+  scriptPromise = null
 }

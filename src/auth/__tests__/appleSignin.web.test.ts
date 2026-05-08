@@ -2,7 +2,7 @@
 
 import { signInWithCredential, OAuthProvider } from 'firebase/auth'
 import { generateNonce, sha256 } from '../nonce.web'
-import { signInWithApple } from '../appleSignin.web'
+import { resetAppleSignInWebForTests, signInWithApple } from '../appleSignin.web'
 
 jest.mock('@react-native-firebase/auth', () => ({
   updateProfile: jest.fn().mockResolvedValue(undefined),
@@ -44,6 +44,7 @@ describe('appleSignin.web', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    resetAppleSignInWebForTests()
     process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID = 'com.example.app.web'
     process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI = 'https://example.com/auth/apple'
     ;(window as any).AppleID = {

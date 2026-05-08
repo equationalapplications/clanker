@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
 
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
-import { signInWithGoogle } from '../googleSignin.web'
+import { resetGoogleSignInWebForTests, signInWithGoogle } from '../googleSignin.web'
 
 jest.mock('firebase/auth', () => {
   const signInWithCredential = jest.fn().mockResolvedValue({
@@ -21,13 +21,14 @@ jest.mock('firebase/auth', () => {
   }
 })
 jest.mock('~/config/firebaseConfig.web', () => ({ firebaseApp: {} }))
-jest.mock('../syncDisplayName', () => ({
+jest.mock('../syncDisplayName.web', () => ({
   syncDisplayNameFromCredential: jest.fn(),
 }))
 
 describe('googleSignin.web', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    resetGoogleSignInWebForTests()
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'test-client'
     ;(window as any).google = {
       accounts: {

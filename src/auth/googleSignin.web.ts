@@ -1,7 +1,7 @@
 // Web-specific Google Sign-In implementation
 import { GoogleAuthProvider, getAuth, signInWithCredential } from 'firebase/auth'
 import { firebaseApp } from '~/config/firebaseConfig.web'
-import { syncDisplayNameFromCredential } from './syncDisplayName'
+import { syncDisplayNameFromCredential } from './syncDisplayName.web'
 
 declare global {
   interface Window {
@@ -56,7 +56,7 @@ const exchangeCredential = async (idToken: string): Promise<GoogleSignInResult> 
   try {
     const cred = GoogleAuthProvider.credential(idToken, null)
     const userCredential = await signInWithCredential(auth, cred)
-    await syncDisplayNameFromCredential(userCredential.user as any)
+    await syncDisplayNameFromCredential(userCredential.user)
     return { success: true }
   } catch (error: any) {
     console.error('Google Sign-In credential exchange failed:', error)
@@ -138,4 +138,9 @@ export const getCurrentUser = async () => null
 
 export const signOutFromGoogle = async (): Promise<void> => {
   // No-op on web. Firebase signOut is sufficient; authMachine no longer depends on GIS sign-out.
+}
+
+/** Clears GIS script load cache between tests (Jest). */
+export const resetGoogleSignInWebForTests = (): void => {
+  scriptPromise = null
 }
