@@ -14,8 +14,18 @@ const cryptoMock = {
   },
 }
 
+const originalCrypto = globalThis.crypto
+
 beforeAll(() => {
   Object.defineProperty(globalThis, 'crypto', { value: cryptoMock, configurable: true })
+})
+
+afterAll(() => {
+  Object.defineProperty(globalThis, 'crypto', {
+    value: originalCrypto,
+    configurable: true,
+    writable: true,
+  })
 })
 
 describe('nonce.web', () => {

@@ -481,19 +481,27 @@ export const authMachine = createMachine(
           console.error('Firebase sign-out failed (continuing local cleanup):', err)
         }
 
-        try {
-          await setCrashlyticsUserId(null)
-          await kvStorePersister.removeClient()
-          clearSettings()
-          if (Platform.OS === 'ios') {
-            await signOutFromApple()
-          } else if (Platform.OS === 'android') {
-            await signOutFromGoogle()
+        const runCleanupStep = async (label: string, step: () => unknown) => {
+          try {
+            await Promise.resolve(step())
+          } catch (err) {
+            console.error(`Sign-out cleanup step "${label}" failed (continuing):`, err)
           }
-          queryClient.clear()
-        } catch (err) {
-          console.error('Sign-out local cleanup failed:', err)
         }
+
+        await runCleanupStep('setCrashlyticsUserId', () => setCrashlyticsUserId(null))
+        await runCleanupStep('kvStorePersister.removeClient', () => kvStorePersister.removeClient())
+        await runCleanupStep('clearSettings', () => {
+          clearSettings()
+        })
+        if (Platform.OS === 'ios') {
+          await runCleanupStep('signOutFromApple', () => signOutFromApple())
+        } else if (Platform.OS === 'android') {
+          await runCleanupStep('signOutFromGoogle', () => signOutFromGoogle())
+        }
+        await runCleanupStep('queryClient.clear', () => {
+          queryClient.clear()
+        })
 
         if (firebaseSignOutError) {
           throw firebaseSignOutError instanceof Error

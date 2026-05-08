@@ -4,10 +4,6 @@ import { signInWithCredential, OAuthProvider } from 'firebase/auth'
 import { generateNonce, sha256 } from '../nonce.web'
 import { resetAppleSignInWebForTests, signInWithApple } from '../appleSignin.web'
 
-jest.mock('@react-native-firebase/auth', () => ({
-  updateProfile: jest.fn().mockResolvedValue(undefined),
-}))
-
 jest.mock('firebase/auth', () => {
   const mockSignInWithCredential = jest.fn().mockResolvedValue({
     user: { displayName: null, providerData: [], updateProfile: jest.fn() },

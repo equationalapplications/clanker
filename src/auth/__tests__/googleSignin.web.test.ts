@@ -25,7 +25,17 @@ jest.mock('../syncDisplayName.web', () => ({
   syncDisplayNameFromCredential: jest.fn(),
 }))
 
+const originalGoogleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+
 describe('googleSignin.web', () => {
+  afterEach(() => {
+    if (originalGoogleWebClientId === undefined) {
+      delete process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+    } else {
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = originalGoogleWebClientId
+    }
+  })
+
   beforeEach(() => {
     jest.clearAllMocks()
     resetGoogleSignInWebForTests()
