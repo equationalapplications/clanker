@@ -55,8 +55,16 @@ describe('appleSignin.web', () => {
   })
 
   afterEach(() => {
-    process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID = originalClientId
-    process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI = originalRedirectUri
+    if (originalClientId === undefined) {
+      delete process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID
+    } else {
+      process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID = originalClientId
+    }
+    if (originalRedirectUri === undefined) {
+      delete process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI
+    } else {
+      process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI = originalRedirectUri
+    }
   })
 
   it('hashes the nonce, calls AppleID.auth.signIn, and exchanges via signInWithCredential', async () => {

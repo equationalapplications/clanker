@@ -126,6 +126,9 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
           settle({ success: false, error: 'No credential received' })
           return
         }
+        // Prompt-settle timeout only covers the FedCM / prompt phase; once we have
+        // an ID token, slow `signInWithCredential` must not lose a race to that timer.
+        clearTimeout(promptTimeout)
         const exchanged = await exchangeCredential(response.credential)
         settle(exchanged)
       },
