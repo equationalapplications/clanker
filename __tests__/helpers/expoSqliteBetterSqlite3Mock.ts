@@ -39,17 +39,36 @@ export function createExpoSqliteBetterSqlite3Mock() {
           return stmt.all(...(params || [])) as T[]
         },
         closeAsync: async () => betterDb.close(),
-        withTransactionAsync: async <T,>(callback: () => Promise<T>): Promise<T> => {
-          try {
-            betterDb.exec('BEGIN')
-            const result = await callback()
-            betterDb.exec('COMMIT')
-            return result
-          } catch (error) {
-            betterDb.exec('ROLLBACK')
-            throw error
+        withTransactionAsync: (() => {
+          let transactionDepth = 0
+          return async <T,>(callback: () => Promise<T>): Promise<T> => {
+            const isOutermost = transactionDepth === 0
+            try {
+              if (isOutermost) {
+                betterDb.exec('BEGIN')
+              } else {
+                betterDb.exec(`SAVEPOINT sp_${transactionDepth}`)
+              }
+              transactionDepth++
+              const result = await callback()
+              transactionDepth--
+              if (isOutermost) {
+                betterDb.exec('COMMIT')
+              } else {
+                betterDb.exec(`RELEASE sp_${transactionDepth}`)
+              }
+              return result
+            } catch (error) {
+              transactionDepth--
+              if (isOutermost) {
+                betterDb.exec('ROLLBACK')
+              } else {
+                betterDb.exec(`ROLLBACK TO sp_${transactionDepth}`)
+              }
+              throw error
+            }
           }
-        },
+        })(),
       }
     }),
   }
