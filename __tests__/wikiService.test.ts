@@ -48,9 +48,62 @@ describe('wikiService', () => {
       withTransactionAsync: jest.fn().mockImplementation(async (cb) => {
         await cb()
       }),
-      getFirstSync: jest.fn().mockReturnValue(null), // No old enums
+      getFirstAsync: jest.fn().mockResolvedValue(null), // No table exists (fresh install)
     } as any
     await initWiki(db)
+    expect(mockSetup).toHaveBeenCalledTimes(1)
+  })
+
+  it('initWiki runs enum migration when old v3 enum values exist', async () => {
+    const execAsync = jest.fn().mockResolvedValue(undefined)
+    const db = {
+      withTransactionAsync: jest.fn().mockImplementation(async (cb) => {
+        await cb()
+      }),
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce({ exists: 1 }) // Table exists
+        .mockResolvedValueOnce({ exists: 1 }), // Old enums found
+      execAsync,
+    } as any
+    await initWiki(db)
+    expect(execAsync).toHaveBeenCalledWith(
+      expect.stringContaining("SET source_type = 'immutable_document'"),
+    )
+    expect(execAsync).toHaveBeenCalledWith(
+      expect.stringContaining("SET source_type = 'librarian_inferred'"),
+    )
+    expect(mockSetup).toHaveBeenCalledTimes(1)
+  })
+
+  it('initWiki skips migration when table exists but no old enums', async () => {
+    const execAsync = jest.fn()
+    const db = {
+      withTransactionAsync: jest.fn().mockImplementation(async (cb) => {
+        await cb()
+      }),
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce({ exists: 1 }) // Table exists
+        .mockResolvedValueOnce(null), // No old enums
+      execAsync,
+    } as any
+    await initWiki(db)
+    expect(execAsync).not.toHaveBeenCalled()
+    expect(mockSetup).toHaveBeenCalledTimes(1)
+  })
+
+  it('initWiki skips migration on fresh install (no table)', async () => {
+    const execAsync = jest.fn()
+    const db = {
+      withTransactionAsync: jest.fn().mockImplementation(async (cb) => {
+        await cb()
+      }),
+      getFirstAsync: jest.fn().mockResolvedValue(null), // No table exists
+      execAsync,
+    } as any
+    await initWiki(db)
+    expect(execAsync).not.toHaveBeenCalled()
     expect(mockSetup).toHaveBeenCalledTimes(1)
   })
 

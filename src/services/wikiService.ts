@@ -37,18 +37,18 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
   // This idempotent migration runs the documented manual SQL per v4.0.0 release notes.
   await db.withTransactionAsync(async () => {
     // Check if entries table exists (fresh install vs upgrade from v3)
-    const tableExists = db.getFirstSync<{ exists: number }>(
+    const tableExists = await db.getFirstAsync<{ exists: number }>(
       `SELECT 1 as exists FROM sqlite_master WHERE type='table' AND name='${TABLE_PREFIX}entries'`,
     )
     if (tableExists) {
-      const hasOldEnums = db.getFirstSync(
+      const hasOldEnums = await db.getFirstAsync(
         `SELECT 1 FROM ${TABLE_PREFIX}entries WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
       )
       if (hasOldEnums) {
-        db.execSync(
+        await db.execAsync(
           `UPDATE ${TABLE_PREFIX}entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`,
         )
-        db.execSync(
+        await db.execAsync(
           `UPDATE ${TABLE_PREFIX}entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`,
         )
       }
