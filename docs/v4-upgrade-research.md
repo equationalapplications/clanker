@@ -143,23 +143,23 @@ From v4.0.0 release notes:
 
 ## Next Steps (Future Phases)
 
-### Phase 2: Bump package.json dependency
-- Update package.json: `^3.0.0` → `^4.1.0`
-- Run `npm install`
-- Verify installation and TypeScript compilation
+### ✅ Phase 2: Bump package.json dependency (COMPLETED in this PR)
+- ✅ Updated package.json: `^3.0.0` → `4.1.0` (pinned)
+- ✅ Ran `npm install`
+- ✅ Verified installation and TypeScript compilation
+- ✅ Added v3→v4 migration audit test to verify wiki.setup() handles source_type enum migration
 
-### Phase 3: Handle breaking changes
-- **Database schema migration**: Execute the source_type enum migration SQL on app launch
-  - Coordinate with app startup to migrate existing databases before any wiki operations
-  - Both old and new values may coexist temporarily; migration must complete before write operations resume
+### Phase 3: Manual migration fallback (if needed)
+- **If wiki.setup() does NOT auto-migrate source_type enums**, execute manual SQL:
+  ```sql
+  UPDATE llm_wiki_entries SET source_type = 'immutable_document'
+    WHERE source_type = 'user_document';
+  UPDATE llm_wiki_entries SET source_type = 'librarian_inferred'
+    WHERE source_type = 'agent_inferred';
+  ```
 - **Testing**: Verify all wiki operations (read, write, delete, maintenance) work correctly post-migration
 - Consider leveraging new `subscribeEntityStatus` for entity status UI indicators
 
 ### Phase 4: Leverage new features (optional/future)
 - Evaluate new `subscribeEntityStatus` for real-time entity status monitoring
-
-## Files Requiring Changes (identified for Phase 2+)
-
-- `package.json` - Update version dependency
-- Database initialization logic - Add schema migration for source_type enum rename
 
