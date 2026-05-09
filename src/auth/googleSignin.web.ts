@@ -58,7 +58,9 @@ const getClientId = (): string | null => process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIE
 export const initializeGoogleSignIn = async (): Promise<void> => {
   const clientId = getClientId()
   if (!clientId) {
-    throw new Error('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set')
+    throw new Error(
+      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Configure it in .env or EAS secrets.',
+    )
   }
   await loadGoogleScript()
   if (!window.google?.accounts?.id) {
@@ -122,15 +124,19 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     window.google.accounts.id.initialize({
       client_id: clientId,
       callback: async (response: any) => {
-        if (!response?.credential) {
-          settle({ success: false, error: 'No credential received' })
-          return
+        try {
+          if (!response?.credential) {
+            settle({ success: false, error: 'No credential received' })
+            return
+          }
+          // Prompt-settle timeout only covers the FedCM / prompt phase; once we have
+          // an ID token, slow `signInWithCredential` must not lose a race to that timer.
+          clearTimeout(promptTimeout)
+          const exchanged = await exchangeCredential(response.credential)
+          settle(exchanged)
+        } catch (error: any) {
+          settle({ success: false, error: error?.message || 'Sign-in callback failed' })
         }
-        // Prompt-settle timeout only covers the FedCM / prompt phase; once we have
-        // an ID token, slow `signInWithCredential` must not lose a race to that timer.
-        clearTimeout(promptTimeout)
-        const exchanged = await exchangeCredential(response.credential)
-        settle(exchanged)
       },
     })
 
