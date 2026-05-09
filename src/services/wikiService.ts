@@ -49,10 +49,10 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
       // Only wrap UPDATE statements in transaction when migration needed
       await db.withTransactionAsync(async () => {
         await db.execAsync(
-          `UPDATE ${TABLE_PREFIX}entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`,
+          `UPDATE "${TABLE_PREFIX}entries" SET source_type = 'immutable_document' WHERE source_type = 'user_document'`,
         )
         await db.execAsync(
-          `UPDATE ${TABLE_PREFIX}entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`,
+          `UPDATE "${TABLE_PREFIX}entries" SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`,
         )
       })
     }
