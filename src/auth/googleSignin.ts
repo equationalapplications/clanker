@@ -1,6 +1,7 @@
 // todo: use one-tap https://react-native-google-signin.github.io/docs/one-tap
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
 import { getAuth, signInWithCredential, GoogleAuthProvider } from '@react-native-firebase/auth'
+import { syncDisplayNameFromCredential } from './syncDisplayName'
 
 // Configure Google Sign-In
 export const initializeGoogleSignIn = () => {
@@ -64,9 +65,11 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     const googleDisplayName =
       response.data?.user?.name?.trim() || `${givenName} ${familyName}`.trim()
 
-    // Ensure display name is available for profile rendering and Cloud SQL profile sync.
-    if (googleDisplayName && !userCredential.user.displayName) {
-      await userCredential.user.updateProfile({ displayName: googleDisplayName })
+    try {
+      await syncDisplayNameFromCredential(userCredential.user, googleDisplayName)
+    } catch (syncError: any) {
+      // Session is already established; a failed profile sync should not surface as sign-in failure.
+      console.error('Google Sign-In display name sync failed:', syncError)
     }
 
     console.log('✅ Firebase sign-in successful')

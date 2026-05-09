@@ -183,6 +183,10 @@ describe('authMachine', () => {
     await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
     expect(mockFirebaseSignOut).toHaveBeenCalledTimes(1)
     expect(actor.getSnapshot().context.error).toBe(signOutError)
+    expect(mockSetCrashlyticsUserId).toHaveBeenCalledWith(null)
+    expect(mockKvStorePersisterRemoveClient).toHaveBeenCalled()
+    expect(mockClearSettings).toHaveBeenCalledTimes(1)
+    expect(mockQueryClientClear).toHaveBeenCalled()
     actor.stop()
   })
 
@@ -302,6 +306,36 @@ describe('authMachine', () => {
     await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
 
     expect(mockClearSettings).toHaveBeenCalledTimes(1)
+    actor.stop()
+  })
+
+  it('calls logoutRevenueCat before firebaseSignOut on SIGN_OUT', async () => {
+    const user = makeUser()
+    const bootstrapData = {
+      user: { id: 'user-1' },
+      subscription: { planTier: 'free' },
+    }
+    mockBootstrapSession.mockResolvedValue(bootstrapData)
+
+    const callOrder: string[] = []
+    mockLogoutRevenueCat.mockImplementation(() => {
+      callOrder.push('logoutRevenueCat')
+      return Promise.resolve()
+    })
+    mockFirebaseSignOut.mockImplementation(() => {
+      callOrder.push('firebaseSignOut')
+      return Promise.resolve()
+    })
+
+    const actor = createActor(authMachine)
+    actor.start()
+    actor.send({ type: 'USER_FOUND', user: user as any } as any)
+    await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
+
+    actor.send({ type: 'SIGN_OUT' })
+    await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+
+    expect(callOrder).toEqual(['logoutRevenueCat', 'firebaseSignOut'])
     actor.stop()
   })
 })
