@@ -40,9 +40,9 @@ describe('wiki v3 → v4 migration audit', () => {
   it('v3 DB with manual enum migration upgrades to v4', async () => {
     // This test validates the documented v3→v4 manual migration path per the PR description:
     // users must run manual SQL to update source_type enum values BEFORE calling wiki.setup().
-    // While it would be ideal to test initWiki()'s automatic migration with v3 data, that
-    // requires a complete v3 schema fixture (our minimal schema is insufficient because
-    // expo-llm-wiki@4.1.0's setup() expects columns/indexes that don't exist in minimal v3).
+    // The minimal v3 schema below is sufficient for this specific audit test (wiki.setup()
+    // successfully creates any missing columns/indexes), but is not a complete v3 fixture
+    // and wouldn't fully validate an initWiki()-driven migration against real v3 production data.
     // The real app migration path (initWiki) is tested separately in wikiService.test.ts with
     // unit tests that mock the DB queries and verify the conditional migration logic.
 

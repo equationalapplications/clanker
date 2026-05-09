@@ -1,6 +1,8 @@
 /**
  * Test helper: Mocks expo-sqlite to use better-sqlite3 for in-memory testing.
  * Implements both sync and async expo-sqlite APIs using better-sqlite3 as the backend.
+ *
+ * @requires better-sqlite3 - Must be declared in devDependencies (currently ^12.9.0)
  */
 export function createExpoSqliteBetterSqlite3Mock() {
   return {

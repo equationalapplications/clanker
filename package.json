@@ -144,7 +144,8 @@
       "<rootDir>/jest.setup.js"
     ],
     "testMatch": [
-      "**/__tests__/**/*.test.[jt]s?(x)"
+      "**/__tests__/**/*.(test|spec).[jt]s?(x)",
+      "**/*.(test|spec).[jt]s?(x)"
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
