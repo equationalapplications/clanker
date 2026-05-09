@@ -64,6 +64,7 @@ export function createExpoSqliteBetterSqlite3Mock() {
                 betterDb.exec('ROLLBACK')
               } else {
                 betterDb.exec(`ROLLBACK TO sp_${transactionDepth}`)
+                betterDb.exec(`RELEASE sp_${transactionDepth}`)
               }
               throw error
             }

@@ -37,6 +37,15 @@ describe('wiki v3 → v4 migration audit', () => {
 
   it('v3 DB upgrades to v4 after manual enum migration', async () => {
     // 1. Seed minimal v3 schema
+    // NOTE: This is a minimal v3-compatible schema focused on testing the documented
+    // v4.0.0 breaking change (source_type enum migration). It includes the core tables
+    // (entities, entries, facts) and columns needed to validate that:
+    // - The manual enum migration SQL works
+    // - wiki.setup() runs without error against a v3-shaped DB
+    // - Pre-existing rows are preserved
+    // A full v3 schema export would be more robust but is beyond the scope of this
+    // migration audit, which focuses on the specific enum migration path documented
+    // in the v4.0.0 release notes.
     db.execSync(`
       CREATE TABLE llm_wiki_entities (
         id TEXT PRIMARY KEY,
