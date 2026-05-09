@@ -71,63 +71,85 @@ jest.mock('~/services/wikiLlmProvider', () => ({
 describe('wiki v3 → v4 migration audit', () => {
   let db: any
 
-  beforeEach(async () => {
+  beforeEach(() => {
     const { openDatabaseSync } = require('expo-sqlite')
     db = openDatabaseSync(':memory:')
-
-    // Let wiki.setup() create the full v4 schema
-    const { createWiki } = require('@equationalapplications/expo-llm-wiki')
-    const wiki = createWiki(db, {
-      llmProvider: { generateText: jest.fn() } as any,
-      config: { tablePrefix: 'llm_wiki_' },
-    })
-    await wiki.setup()
   })
 
   afterEach(() => {
     db.closeSync()
   })
 
-  it('setup() completes without error on fresh DB', () => {
-    // Already ran in beforeEach
-    expect(db).toBeDefined()
-  })
+  it('v3 DB upgrades to v4 after manual enum migration', async () => {
+    // 1. Seed minimal v3 schema
+    db.execSync(`
+      CREATE TABLE llm_wiki_entities (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE llm_wiki_entries (
+        id TEXT PRIMARY KEY,
+        entity_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        source_type TEXT NOT NULL,
+        source_ref TEXT,
+        source_hash TEXT,
+        tags TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        deleted_at INTEGER,
+        FOREIGN KEY (entity_id) REFERENCES llm_wiki_entities(id)
+      );
+      CREATE TABLE llm_wiki_facts (
+        id TEXT PRIMARY KEY,
+        entity_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (entity_id) REFERENCES llm_wiki_entities(id)
+      );
+    `)
 
-  it('manual migration path: v3 user_document → v4 immutable_document', () => {
-    // Seed a row with v3 enum value (simulating pre-migration state)
+    // 2. Insert test data with v3 enum values
+    const now = Date.now()
+    db.runSync(
+      `INSERT INTO llm_wiki_entities (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+      ['ent-1', 'Test Entity', now, now],
+    )
     db.runSync(
       `INSERT INTO llm_wiki_entries (id, entity_id, title, body, source_type, source_ref, source_hash, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['entry-1', 'ent-1', 'Test Entry', 'Test body', 'user_document', 'doc-123', '', Date.now(), Date.now()],
+      ['entry-1', 'ent-1', 'User Doc Entry', 'Body 1', 'user_document', 'doc-123', '', now, now],
+    )
+    db.runSync(
+      `INSERT INTO llm_wiki_entries (id, entity_id, title, body, source_type, source_ref, source_hash, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['entry-2', 'ent-1', 'Agent Entry', 'Body 2', 'agent_inferred', null, '', now, now],
     )
 
-    // Run manual migration SQL per v4.0.0 breaking change notes
+    // 3. Run manual migration SQL per v4.0.0 breaking change notes
     db.execSync(`UPDATE llm_wiki_entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`)
-
-    // Verify migration succeeded
-    const row = db.getFirstSync<{ id: string; source_type: string }>(
-      `SELECT id, source_type FROM llm_wiki_entries WHERE id = ?`,
-      ['entry-1'],
-    )
-    expect(row).toEqual({ id: 'entry-1', source_type: 'immutable_document' })
-  })
-
-  it('manual migration path: v3 agent_inferred → v4 librarian_inferred', () => {
-    // Seed a row with v3 enum value (simulating pre-migration state)
-    db.runSync(
-      `INSERT INTO llm_wiki_entries (id, entity_id, title, body, source_type, source_ref, source_hash, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['entry-2', 'ent-2', 'Test Entry 2', 'Test body 2', 'agent_inferred', null, '', Date.now(), Date.now()],
-    )
-
-    // Run manual migration SQL per v4.0.0 breaking change notes
     db.execSync(`UPDATE llm_wiki_entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`)
 
-    // Verify migration succeeded
-    const row = db.getFirstSync<{ id: string; source_type: string }>(
-      `SELECT id, source_type FROM llm_wiki_entries WHERE id = ?`,
-      ['entry-2'],
-    )
-    expect(row).toEqual({ id: 'entry-2', source_type: 'librarian_inferred' })
+    // 4. Run wiki.setup() to upgrade schema to v4
+    const { createWiki } = require('@equationalapplications/expo-llm-wiki')
+    const wiki = createWiki(db, {
+      llmProvider: { generateText: jest.fn() } as any,
+      config: { tablePrefix: 'llm_wiki_' },
+    })
+    await wiki.setup()
+
+    // 5. Verify rows preserved with correct v4 enum values
+    const rows = db.getAllSync(`SELECT id, source_type FROM llm_wiki_entries ORDER BY id`)
+    expect(rows).toEqual([
+      { id: 'entry-1', source_type: 'immutable_document' },
+      { id: 'entry-2', source_type: 'librarian_inferred' },
+    ])
+
+    // Verify entity also preserved
+    const entity = db.getFirstSync(`SELECT id, name FROM llm_wiki_entities`)
+    expect(entity).toEqual({ id: 'ent-1', name: 'Test Entity' })
   })
 })
