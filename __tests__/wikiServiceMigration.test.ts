@@ -7,62 +7,17 @@
  * Note: v4.0.0 introduced a BREAKING CHANGE requiring manual SQL migration for
  * source_type enum values (user_document→immutable_document, agent_inferred→librarian_inferred).
  * Since the library doesn't auto-migrate these enums, this test verifies the manual
- * migration path works by: 1) letting setup() create v4 schema, 2) inserting rows with
- * v3 enum values to simulate pre-migration state, 3) running the manual migration SQL,
- * 4) verifying the migrated values are correct.
+ * migration path works by: 1) seeding minimal v3 schema (entities, entries, facts tables),
+ * 2) inserting rows with v3 enum values, 3) running the manual migration SQL to update
+ * enum values, 4) running setup() to upgrade to v4 schema, 5) verifying the migrated rows
+ * are preserved with correct v4 enum values.
  */
 
 // Mock expo-sqlite to use better-sqlite3 for testing
-jest.mock('expo-sqlite', () => ({
-  openDatabaseSync: jest.fn(() => {
-    const BetterSqlite3 = require('better-sqlite3')
-    const betterDb = new BetterSqlite3(':memory:')
-
-    return {
-      execSync: (sql: string) => betterDb.exec(sql),
-      runSync: (sql: string, params?: unknown[]) => {
-        const stmt = betterDb.prepare(sql)
-        const result = stmt.run(...(params || []))
-        return { changes: result.changes, lastInsertRowId: result.lastInsertRowid }
-      },
-      getFirstSync: <T,>(sql: string, params?: unknown[]): T | null => {
-        const stmt = betterDb.prepare(sql)
-        return (stmt.get(...(params || [])) as T) || null
-      },
-      getAllSync: <T,>(sql: string, params?: unknown[]): T[] => {
-        const stmt = betterDb.prepare(sql)
-        return stmt.all(...(params || [])) as T[]
-      },
-      closeSync: () => betterDb.close(),
-      execAsync: async (sql: string) => betterDb.exec(sql),
-      runAsync: async (sql: string, params?: unknown[]) => {
-        const stmt = betterDb.prepare(sql)
-        const result = stmt.run(...(params || []))
-        return { changes: result.changes, lastInsertRowId: result.lastInsertRowid }
-      },
-      getFirstAsync: async <T,>(sql: string, params?: unknown[]): Promise<T | null> => {
-        const stmt = betterDb.prepare(sql)
-        return (stmt.get(...(params || [])) as T) || null
-      },
-      getAllAsync: async <T,>(sql: string, params?: unknown[]): Promise<T[]> => {
-        const stmt = betterDb.prepare(sql)
-        return stmt.all(...(params || [])) as T[]
-      },
-      closeAsync: async () => betterDb.close(),
-      withTransactionAsync: async <T,>(callback: () => Promise<T>): Promise<T> => {
-        try {
-          betterDb.exec('BEGIN')
-          const result = await callback()
-          betterDb.exec('COMMIT')
-          return result
-        } catch (error) {
-          betterDb.exec('ROLLBACK')
-          throw error
-        }
-      },
-    }
-  }),
-}))
+jest.mock('expo-sqlite', () => {
+  const { createExpoSqliteBetterSqlite3Mock } = require('./helpers/expoSqliteBetterSqlite3Mock')
+  return createExpoSqliteBetterSqlite3Mock()
+})
 
 jest.mock('~/services/wikiLlmProvider', () => ({
   createWikiLlmProvider: () => ({ generateText: jest.fn() }),
