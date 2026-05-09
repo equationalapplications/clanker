@@ -68,7 +68,7 @@ describe('wikiService', () => {
       }),
       getFirstAsync: jest
         .fn()
-        .mockResolvedValueOnce({ exists: 1 }) // Table exists
+        .mockResolvedValueOnce({ has_table: 1 }) // Table exists
         .mockResolvedValueOnce({ exists: 1 }), // Old enums found
       execAsync,
     } as any
@@ -90,7 +90,7 @@ describe('wikiService', () => {
       }),
       getFirstAsync: jest
         .fn()
-        .mockResolvedValueOnce({ exists: 1 }) // Table exists
+        .mockResolvedValueOnce({ has_table: 1 }) // Table exists
         .mockResolvedValueOnce(null), // No old enums
       execAsync,
     } as any

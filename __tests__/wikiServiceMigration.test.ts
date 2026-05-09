@@ -14,6 +14,12 @@
  */
 
 import type { SQLiteDatabase } from 'expo-sqlite'
+import {
+  getSourceTypeEnumMigrationSql,
+  initWiki,
+  TABLE_PREFIX,
+  _resetWikiForTests,
+} from '~/services/wikiService'
 
 // Mock expo-sqlite to use better-sqlite3 for testing
 jest.mock('expo-sqlite', () => {
@@ -29,12 +35,14 @@ describe('wiki v3 → v4 migration audit', () => {
   let db: SQLiteDatabase
 
   beforeEach(() => {
+    _resetWikiForTests()
     const { openDatabaseSync } = require('expo-sqlite')
     db = openDatabaseSync(':memory:')
   })
 
   afterEach(() => {
     db.closeSync()
+    _resetWikiForTests()
   })
 
   it('v3 DB with manual enum migration upgrades to v4', async () => {
@@ -105,8 +113,9 @@ describe('wiki v3 → v4 migration audit', () => {
 
     // 3. Run manual migration SQL per v4.0.0 breaking change notes (in transaction for atomicity)
     await db.withTransactionAsync(async () => {
-      await db.execAsync(`UPDATE llm_wiki_entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`)
-      await db.execAsync(`UPDATE llm_wiki_entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`)
+      for (const statement of getSourceTypeEnumMigrationSql(TABLE_PREFIX)) {
+        await db.execAsync(statement)
+      }
     })
 
     // 4. Run wiki.setup() to upgrade schema to v4
@@ -130,5 +139,56 @@ describe('wiki v3 → v4 migration audit', () => {
     // Verify entity also preserved
     const entity = db.getFirstSync(`SELECT id, name FROM llm_wiki_entities WHERE id = ?`, ['ent-1'])
     expect(entity).toEqual({ id: 'ent-1', name: 'Test Entity' })
+  })
+
+  it('initWiki migrates v3 enums and completes setup', async () => {
+    db.execSync(`
+      CREATE TABLE llm_wiki_entities (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE llm_wiki_entries (
+        id TEXT PRIMARY KEY,
+        entity_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        source_type TEXT NOT NULL,
+        source_ref TEXT,
+        source_hash TEXT,
+        tags TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        deleted_at INTEGER,
+        FOREIGN KEY (entity_id) REFERENCES llm_wiki_entities(id)
+      );
+      CREATE TABLE llm_wiki_facts (
+        id TEXT PRIMARY KEY,
+        entity_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (entity_id) REFERENCES llm_wiki_entities(id)
+      );
+    `)
+
+    const now = Date.now()
+    db.runSync(
+      `INSERT INTO llm_wiki_entities (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+      ['ent-2', 'Init Entity', now, now],
+    )
+    db.runSync(
+      `INSERT INTO llm_wiki_entries (id, entity_id, title, body, source_type, source_ref, source_hash, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['entry-3', 'ent-2', 'Legacy Doc Entry', 'Body 3', 'user_document', 'doc-456', '', now, now],
+    )
+
+    await initWiki(db)
+
+    const migrated = db.getFirstSync<{ source_type: string }>(
+      `SELECT source_type FROM llm_wiki_entries WHERE id = ?`,
+      ['entry-3'],
+    )
+    expect(migrated).toEqual({ source_type: 'immutable_document' })
   })
 })

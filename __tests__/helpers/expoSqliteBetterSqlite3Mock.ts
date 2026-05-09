@@ -25,7 +25,7 @@ export function createExpoSqliteBetterSqlite3Mock() {
         },
         getFirstSync: <T,>(sql: string, params?: unknown[]): T | null => {
           const stmt = betterDb.prepare(sql)
-          return (stmt.get(...(params || [])) as T) || null
+          return ((stmt.get(...(params || [])) as T | undefined) ?? null)
         },
         getAllSync: <T,>(sql: string, params?: unknown[]): T[] => {
           const stmt = betterDb.prepare(sql)
@@ -45,7 +45,7 @@ export function createExpoSqliteBetterSqlite3Mock() {
         },
         getFirstAsync: async <T,>(sql: string, params?: unknown[]): Promise<T | null> => {
           const stmt = betterDb.prepare(sql)
-          return (stmt.get(...(params || [])) as T) || null
+          return ((stmt.get(...(params || [])) as T | undefined) ?? null)
         },
         getAllAsync: async <T,>(sql: string, params?: unknown[]): Promise<T[]> => {
           const stmt = betterDb.prepare(sql)

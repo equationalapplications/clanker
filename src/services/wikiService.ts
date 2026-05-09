@@ -8,6 +8,14 @@ type Wiki = ReturnType<typeof createWiki>
 export const TABLE_PREFIX = 'llm_wiki_'
 let _wiki: Wiki | null = null
 
+export function getSourceTypeEnumMigrationSql(tablePrefix: string = TABLE_PREFIX): string[] {
+  const entriesTable = `"${tablePrefix}entries"`
+  return [
+    `UPDATE ${entriesTable} SET source_type = 'immutable_document' WHERE source_type = 'user_document'`,
+    `UPDATE ${entriesTable} SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`,
+  ]
+}
+
 export function setupWiki(db: SQLiteDatabase): Wiki {
   if (_wiki) return _wiki
   _wiki = createWiki(db, {
@@ -37,23 +45,20 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
   // This idempotent migration runs the documented manual SQL per v4.0.0 release notes.
 
   // Read-only checks outside transaction to minimize lock time
-  const tableExists = await db.getFirstAsync<{ exists: number }>(
-    `SELECT 1 as exists FROM sqlite_master WHERE type='table' AND name=?`,
+  const tableExists = await db.getFirstAsync<{ has_table: number }>(
+    `SELECT 1 as has_table FROM sqlite_master WHERE type='table' AND name=?`,
     [`${TABLE_PREFIX}entries`],
   )
-  if (tableExists?.exists === 1) {
+  if (tableExists?.has_table === 1) {
     const hasOldEnums = await db.getFirstAsync(
       `SELECT 1 FROM "${TABLE_PREFIX}entries" WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
     )
     if (hasOldEnums) {
       // Only wrap UPDATE statements in transaction when migration needed
       await db.withTransactionAsync(async () => {
-        await db.execAsync(
-          `UPDATE "${TABLE_PREFIX}entries" SET source_type = 'immutable_document' WHERE source_type = 'user_document'`,
-        )
-        await db.execAsync(
-          `UPDATE "${TABLE_PREFIX}entries" SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`,
-        )
+        for (const statement of getSourceTypeEnumMigrationSql(TABLE_PREFIX)) {
+          await db.execAsync(statement)
+        }
       })
     }
   }
