@@ -5,6 +5,7 @@ import { createWikiLlmProvider } from './wikiLlmProvider'
 
 type Wiki = ReturnType<typeof createWiki>
 
+const TABLE_PREFIX = 'llm_wiki_'
 let _wiki: Wiki | null = null
 
 export function setupWiki(db: SQLiteDatabase): Wiki {
@@ -12,7 +13,7 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
   _wiki = createWiki(db, {
     llmProvider: createWikiLlmProvider(),
     config: {
-      tablePrefix: 'llm_wiki_',
+      tablePrefix: TABLE_PREFIX,
       autoLibrarianThreshold: 5, // entries: trigger auto-librarian
       autoHealThreshold: 100, // entries: trigger auto-heal
       pruneRetainSoftDeletedFor: 3, // days: keep soft-deleted entries
@@ -35,16 +36,22 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
   // expo-llm-wiki@4.0.0 renamed enum values but does NOT auto-migrate.
   // This idempotent migration runs the documented manual SQL per v4.0.0 release notes.
   await db.withTransactionAsync(async () => {
-    const hasOldEnums = db.getFirstSync(
-      `SELECT 1 FROM llm_wiki_entries WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
+    // Check if entries table exists (fresh install vs upgrade from v3)
+    const tableExists = db.getFirstSync<{ exists: number }>(
+      `SELECT 1 as exists FROM sqlite_master WHERE type='table' AND name='${TABLE_PREFIX}entries'`,
     )
-    if (hasOldEnums) {
-      db.execSync(
-        `UPDATE llm_wiki_entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`,
+    if (tableExists) {
+      const hasOldEnums = db.getFirstSync(
+        `SELECT 1 FROM ${TABLE_PREFIX}entries WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
       )
-      db.execSync(
-        `UPDATE llm_wiki_entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`,
-      )
+      if (hasOldEnums) {
+        db.execSync(
+          `UPDATE ${TABLE_PREFIX}entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`,
+        )
+        db.execSync(
+          `UPDATE ${TABLE_PREFIX}entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`,
+        )
+      }
     }
   })
 
