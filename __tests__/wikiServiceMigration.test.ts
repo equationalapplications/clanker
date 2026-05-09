@@ -135,7 +135,7 @@ describe('wiki v3 → v4 migration audit', () => {
       llmProvider: { generateText: jest.fn() } as any,
       config: { tablePrefix: 'llm_wiki_' },
     })
-    await expect(wiki.setup()).resolves.not.toThrow()
+    await wiki.setup()
   })
 
   it('preserves pre-existing entity row after migration', async () => {
