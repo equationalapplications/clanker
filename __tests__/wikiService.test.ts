@@ -62,4 +62,25 @@ describe('wikiService', () => {
       }),
     )
   })
+
+  it('passes mobile-first defaults to createWiki config', () => {
+    const db = {} as any
+    setupWiki(db)
+    expect(mockCreateWiki).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        config: expect.objectContaining({
+          tablePrefix: 'llm_wiki_',
+          autoLibrarianThreshold: 5,
+          autoHealThreshold: 100,
+          pruneRetainSoftDeletedFor: 3,
+          pruneEventsAfter: 14,
+          orphanAfterDays: 14,
+          staleInferredAfterDays: 30,
+          preFilterLimit: 300,
+          hybridWeight: 0.7,
+        }),
+      }),
+    )
+  })
 })

@@ -13,7 +13,12 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
     llmProvider: createWikiLlmProvider(),
     config: {
       tablePrefix: 'llm_wiki_',
-      autoLibrarianThreshold: 20,
+      autoLibrarianThreshold: 5,
+      autoHealThreshold: 100,
+      pruneRetainSoftDeletedFor: 3,
+      pruneEventsAfter: 14,
+      orphanAfterDays: 14,
+      staleInferredAfterDays: 30,
       preFilterLimit: 300,
       hybridWeight: 0.7,
     },
