@@ -2,6 +2,7 @@ import { Platform } from 'react-native'
 import { getAuth, signInWithCredential, AppleAuthProvider } from '@react-native-firebase/auth'
 
 import { generateNonce, sha256 } from './nonce'
+import { syncDisplayNameFromCredential } from './syncDisplayName'
 
 export interface AppleSignInResult {
   success: boolean
@@ -48,10 +49,12 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
     const familyName = fullName?.familyName?.trim() || ''
     const appleDisplayName = `${givenName} ${familyName}`.trim()
 
-    // Apple only shares full name on first authorization. Persist it to Firebase profile
-    // so it is available for downstream profile sync and subsequent logins.
-    if (appleDisplayName && !userCredential.user.displayName) {
-      await userCredential.user.updateProfile({ displayName: appleDisplayName })
+    // Apple only shares full name on first authorization. Persist via shared helper.
+    try {
+      await syncDisplayNameFromCredential(userCredential.user, appleDisplayName)
+    } catch (syncError: any) {
+      // Session is already established; a failed profile sync should not surface as sign-in failure.
+      console.error('Apple Sign-In display name sync failed:', syncError)
     }
 
     console.log('✅ Apple Sign-In successful')
@@ -72,9 +75,4 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
 // handled separately by the auth context.
 export const signOutFromApple = async (): Promise<void> => {
   // no-op
-}
-
-// no-op on native — redirect result handling is web-only
-export const handleAppleRedirectResult = async (): Promise<AppleSignInResult> => {
-  return { success: true }
 }
