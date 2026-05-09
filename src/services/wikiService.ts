@@ -41,7 +41,7 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
     `SELECT 1 as exists FROM sqlite_master WHERE type='table' AND name=?`,
     [`${TABLE_PREFIX}entries`],
   )
-  if (tableExists) {
+  if (tableExists?.exists === 1) {
     const hasOldEnums = await db.getFirstAsync(
       `SELECT 1 FROM ${TABLE_PREFIX}entries WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
     )

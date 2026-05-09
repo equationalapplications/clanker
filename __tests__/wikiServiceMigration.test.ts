@@ -37,7 +37,15 @@ describe('wiki v3 → v4 migration audit', () => {
     db.closeSync()
   })
 
-  it('v3 DB upgrades to v4 after manual enum migration', async () => {
+  it('v3 DB with manual enum migration upgrades to v4', async () => {
+    // This test validates the documented v3→v4 manual migration path per the PR description:
+    // users must run manual SQL to update source_type enum values BEFORE calling wiki.setup().
+    // While it would be ideal to test initWiki()'s automatic migration with v3 data, that
+    // requires a complete v3 schema fixture (our minimal schema is insufficient because
+    // expo-llm-wiki@4.1.0's setup() expects columns/indexes that don't exist in minimal v3).
+    // The real app migration path (initWiki) is tested separately in wikiService.test.ts with
+    // unit tests that mock the DB queries and verify the conditional migration logic.
+
     // 1. Seed minimal v3 schema
     // NOTE: This is a minimal v3-compatible schema focused on testing the documented
     // v4.0.0 breaking change (source_type enum migration). It includes the core tables
@@ -97,8 +105,8 @@ describe('wiki v3 → v4 migration audit', () => {
 
     // 3. Run manual migration SQL per v4.0.0 breaking change notes (in transaction for atomicity)
     await db.withTransactionAsync(async () => {
-      db.execSync(`UPDATE llm_wiki_entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`)
-      db.execSync(`UPDATE llm_wiki_entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`)
+      await db.execAsync(`UPDATE llm_wiki_entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`)
+      await db.execAsync(`UPDATE llm_wiki_entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`)
     })
 
     // 4. Run wiki.setup() to upgrade schema to v4
