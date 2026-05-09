@@ -1,3 +1,29 @@
+# [29.9.0](https://github.com/equationalapplications/clanker/compare/v29.8.0...v29.9.0) (2026-05-09)
+
+
+### Bug Fixes
+
+* **auth:** best-effort sign-out cleanup and isolate web auth tests ([48edd8f](https://github.com/equationalapplications/clanker/commit/48edd8f8377a2ba5f153a479d4ef5ded9f3a2e42)), closes [#364](https://github.com/equationalapplications/clanker/issues/364)
+* **auth:** clear GIS prompt timeout on credential; fix Apple test env teardown ([e81cfa1](https://github.com/equationalapplications/clanker/commit/e81cfa19d1d239c8f9a35ebec18fd96d5c63ba14))
+* **auth:** fail GIS/Apple script load when globals missing ([e6d2828](https://github.com/equationalapplications/clanker/commit/e6d2828ca545ceb784b4543fc9836b5091f54b8d))
+* **auth:** finish sign-out cleanup if Firebase fails ([993b247](https://github.com/equationalapplications/clanker/commit/993b247a72bec6f5fe5f748a76d2b06525eaf01a))
+* **auth:** gis dismiss race, script retry, and web test isolation ([f3e9288](https://github.com/equationalapplications/clanker/commit/f3e92882059ad3afc40a1d7de63a299f7b589756))
+* **auth:** isolate mobile display name sync errors post-credential ([29c68b9](https://github.com/equationalapplications/clanker/commit/29c68b99f900feb32b9bd6476c5aea1f933311a6))
+* **auth:** order RevenueCat logout before Firebase sign-out; drop web provider sign-out ([64c9b62](https://github.com/equationalapplications/clanker/commit/64c9b62f0a3f552357038acc31b09214b3f8eaae))
+* **auth:** require google.accounts.id before skipping GIS script load ([b51ad6d](https://github.com/equationalapplications/clanker/commit/b51ad6dee74b898b11d7ffc354b6eebf49590194))
+* **auth:** resolve PR 364 review threads ([177b7af](https://github.com/equationalapplications/clanker/commit/177b7af857c2b7072221a246bba9fb1c53152a9b))
+* **auth:** settle GIS prompt on dismiss and harden web display sync ([4a79edf](https://github.com/equationalapplications/clanker/commit/4a79edfdac785fcc0b966db92040e111939c0567)), closes [#364](https://github.com/equationalapplications/clanker/issues/364)
+* **auth:** treat web display name sync as best-effort ([b972895](https://github.com/equationalapplications/clanker/commit/b9728959f747a2077fd9181c7e45e75bc1c42e00))
+* **auth:** type-safe web display sync and test script cache reset ([32ee613](https://github.com/equationalapplications/clanker/commit/32ee61380d20dab0ab4e5b5ce1527c2da5c4bd69))
+
+
+### Features
+
+* **auth:** add syncDisplayNameFromCredential helper ([ba7ac26](https://github.com/equationalapplications/clanker/commit/ba7ac26dbe4f8f546862a1860715619a2d28ee59))
+* **auth:** add web nonce helper using Web Crypto ([fe0bb23](https://github.com/equationalapplications/clanker/commit/fe0bb233b0c22455db061dbf58774bec2943f2e1))
+* **auth:** rewrite web Apple sign-in to AppleID JS with nonce ([dc66c0a](https://github.com/equationalapplications/clanker/commit/dc66c0a9740890cc82f8e2ff90ba57433b9dc1a0))
+* **auth:** rewrite web Google sign-in to GIS-only ID token flow ([b9f4d85](https://github.com/equationalapplications/clanker/commit/b9f4d85e06c2d6058e830582e46fe5c7e314ee18))
+
 # [29.8.0](https://github.com/equationalapplications/clanker/compare/v29.7.0...v29.8.0) (2026-05-06)
 
 
