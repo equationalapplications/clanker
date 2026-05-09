@@ -69,7 +69,7 @@ describe('wikiService', () => {
       getFirstAsync: jest
         .fn()
         .mockResolvedValueOnce({ has_table: 1 }) // Table exists
-        .mockResolvedValueOnce({ exists: 1 }), // Old enums found
+        .mockResolvedValueOnce({ has_old_enums: 1 }), // Old enums found
       execAsync,
     } as any
     await initWiki(db)

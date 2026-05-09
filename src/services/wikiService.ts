@@ -9,6 +9,10 @@ export const TABLE_PREFIX = 'llm_wiki_'
 let _wiki: Wiki | null = null
 
 export function getSourceTypeEnumMigrationSql(tablePrefix: string = TABLE_PREFIX): string[] {
+  // Validate tablePrefix to prevent SQL injection (identifiers can't be parameterized)
+  if (!/^[A-Za-z0-9_]+$/.test(tablePrefix)) {
+    throw new Error(`Invalid tablePrefix: must match ^[A-Za-z0-9_]+$ (got: ${tablePrefix})`)
+  }
   const entriesTable = `"${tablePrefix}entries"`
   return [
     `UPDATE ${entriesTable} SET source_type = 'immutable_document' WHERE source_type = 'user_document'`,
@@ -50,10 +54,10 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
     [`${TABLE_PREFIX}entries`],
   )
   if (tableExists?.has_table === 1) {
-    const hasOldEnums = await db.getFirstAsync(
-      `SELECT 1 FROM "${TABLE_PREFIX}entries" WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
+    const hasOldEnums = await db.getFirstAsync<{ has_old_enums: number }>(
+      `SELECT 1 AS has_old_enums FROM "${TABLE_PREFIX}entries" WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
     )
-    if (hasOldEnums) {
+    if (hasOldEnums?.has_old_enums === 1) {
       // Only wrap UPDATE statements in transaction when migration needed
       await db.withTransactionAsync(async () => {
         for (const statement of getSourceTypeEnumMigrationSql(TABLE_PREFIX)) {
