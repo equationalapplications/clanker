@@ -106,14 +106,17 @@ describe('wiki v3 → v4 migration audit', () => {
     await wiki.setup()
 
     // 5. Verify rows preserved with correct v4 enum values
-    const rows = db.getAllSync(`SELECT id, source_type FROM llm_wiki_entries ORDER BY id`)
+    const rows = db.getAllSync(
+      `SELECT id, source_type FROM llm_wiki_entries WHERE id IN (?, ?) ORDER BY id`,
+      ['entry-1', 'entry-2'],
+    )
     expect(rows).toEqual([
       { id: 'entry-1', source_type: 'immutable_document' },
       { id: 'entry-2', source_type: 'librarian_inferred' },
     ])
 
     // Verify entity also preserved
-    const entity = db.getFirstSync(`SELECT id, name FROM llm_wiki_entities`)
+    const entity = db.getFirstSync(`SELECT id, name FROM llm_wiki_entities WHERE id = ?`, ['ent-1'])
     expect(entity).toEqual({ id: 'ent-1', name: 'Test Entity' })
   })
 })

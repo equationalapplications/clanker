@@ -140,16 +140,14 @@ From v4.0.0 release notes:
 - [x] Verified no export renames affecting Clanker (13 symbols confirmed)
 - [x] Consulted package README (no v3→v4 migration guidance found)
 - [x] Removed unverifiable v3.x internal change claims
+- [x] Updated package.json: `^3.0.0` → `4.1.0` (pinned)
+- [x] Ran `npm install`
+- [x] Verified installation and TypeScript compilation
+- [x] Added v3→v4 migration audit test to verify wiki.setup() handles source_type enum migration
 
 ## Next Steps (Future Phases)
 
-### ✅ Phase 2: Bump package.json dependency (COMPLETED in this PR)
-- ✅ Updated package.json: `^3.0.0` → `4.1.0` (pinned)
-- ✅ Ran `npm install`
-- ✅ Verified installation and TypeScript compilation
-- ✅ Added v3→v4 migration audit test to verify wiki.setup() handles source_type enum migration
-
-### Phase 3: Manual migration fallback (if needed)
+### Phase 2: Manual migration fallback (if needed)
 - **If wiki.setup() does NOT auto-migrate source_type enums**, execute manual SQL:
   ```sql
   UPDATE llm_wiki_entries SET source_type = 'immutable_document'
@@ -160,6 +158,6 @@ From v4.0.0 release notes:
 - **Testing**: Verify all wiki operations (read, write, delete, maintenance) work correctly post-migration
 - Consider leveraging new `subscribeEntityStatus` for entity status UI indicators
 
-### Phase 4: Leverage new features (optional/future)
+### Phase 3: Leverage new features (optional/future)
 - Evaluate new `subscribeEntityStatus` for real-time entity status monitoring
 

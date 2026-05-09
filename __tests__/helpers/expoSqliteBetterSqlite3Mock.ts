@@ -4,16 +4,22 @@
  */
 export function createExpoSqliteBetterSqlite3Mock() {
   return {
-    openDatabaseSync: jest.fn(() => {
+    openDatabaseSync: jest.fn((databaseName?: string) => {
       const BetterSqlite3 = require('better-sqlite3')
-      const betterDb = new BetterSqlite3(':memory:')
+      const betterDb = new BetterSqlite3(databaseName || ':memory:')
+      betterDb.exec('PRAGMA foreign_keys = ON')
 
       return {
         execSync: (sql: string) => betterDb.exec(sql),
         runSync: (sql: string, params?: unknown[]) => {
           const stmt = betterDb.prepare(sql)
           const result = stmt.run(...(params || []))
-          return { changes: result.changes, lastInsertRowId: result.lastInsertRowid }
+          return {
+            changes: result.changes,
+            lastInsertRowId: typeof result.lastInsertRowid === 'bigint'
+              ? Number(result.lastInsertRowid)
+              : result.lastInsertRowid,
+          }
         },
         getFirstSync: <T,>(sql: string, params?: unknown[]): T | null => {
           const stmt = betterDb.prepare(sql)
@@ -28,7 +34,12 @@ export function createExpoSqliteBetterSqlite3Mock() {
         runAsync: async (sql: string, params?: unknown[]) => {
           const stmt = betterDb.prepare(sql)
           const result = stmt.run(...(params || []))
-          return { changes: result.changes, lastInsertRowId: result.lastInsertRowid }
+          return {
+            changes: result.changes,
+            lastInsertRowId: typeof result.lastInsertRowid === 'bigint'
+              ? Number(result.lastInsertRowid)
+              : result.lastInsertRowid,
+          }
         },
         getFirstAsync: async <T,>(sql: string, params?: unknown[]): Promise<T | null> => {
           const stmt = betterDb.prepare(sql)

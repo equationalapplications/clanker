@@ -59,7 +59,7 @@ export const initializeGoogleSignIn = async (): Promise<void> => {
   const clientId = getClientId()
   if (!clientId) {
     throw new Error(
-      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Configure it in .env or EAS secrets.',
+      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Configure it in .env locally or set it as a build-time environment variable in eas.json (see: https://docs.expo.dev/build-reference/variables/).',
     )
   }
   await loadGoogleScript()
