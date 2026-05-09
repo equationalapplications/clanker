@@ -124,6 +124,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     window.google.accounts.id.initialize({
       client_id: clientId,
       callback: async (response: any) => {
+        if (settled) return
         try {
           if (!response?.credential) {
             settle({ success: false, error: 'No credential received' })

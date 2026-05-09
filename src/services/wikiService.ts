@@ -43,7 +43,7 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
   )
   if (tableExists?.exists === 1) {
     const hasOldEnums = await db.getFirstAsync(
-      `SELECT 1 FROM ${TABLE_PREFIX}entries WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
+      `SELECT 1 FROM "${TABLE_PREFIX}entries" WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
     )
     if (hasOldEnums) {
       // Only wrap UPDATE statements in transaction when migration needed
