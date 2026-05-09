@@ -44,7 +44,12 @@ describe('wikiService', () => {
   })
 
   it('initWiki calls setup() on the wiki', async () => {
-    const db = {} as any
+    const db = {
+      withTransactionAsync: jest.fn().mockImplementation(async (cb) => {
+        await cb()
+      }),
+      getFirstSync: jest.fn().mockReturnValue(null), // No old enums
+    } as any
     await initWiki(db)
     expect(mockSetup).toHaveBeenCalledTimes(1)
   })

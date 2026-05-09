@@ -13,6 +13,8 @@
  * are preserved with correct v4 enum values.
  */
 
+import type { SQLiteDatabase } from 'expo-sqlite'
+
 // Mock expo-sqlite to use better-sqlite3 for testing
 jest.mock('expo-sqlite', () => {
   const { createExpoSqliteBetterSqlite3Mock } = require('./helpers/expoSqliteBetterSqlite3Mock')
@@ -24,7 +26,7 @@ jest.mock('~/services/wikiLlmProvider', () => ({
 }))
 
 describe('wiki v3 → v4 migration audit', () => {
-  let db: any
+  let db: SQLiteDatabase
 
   beforeEach(() => {
     const { openDatabaseSync } = require('expo-sqlite')
@@ -93,9 +95,11 @@ describe('wiki v3 → v4 migration audit', () => {
       ['entry-2', 'ent-1', 'Agent Entry', 'Body 2', 'agent_inferred', null, '', now, now],
     )
 
-    // 3. Run manual migration SQL per v4.0.0 breaking change notes
-    db.execSync(`UPDATE llm_wiki_entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`)
-    db.execSync(`UPDATE llm_wiki_entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`)
+    // 3. Run manual migration SQL per v4.0.0 breaking change notes (in transaction for atomicity)
+    await db.withTransactionAsync(async () => {
+      db.execSync(`UPDATE llm_wiki_entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`)
+      db.execSync(`UPDATE llm_wiki_entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`)
+    })
 
     // 4. Run wiki.setup() to upgrade schema to v4
     const { createWiki } = require('@equationalapplications/expo-llm-wiki')

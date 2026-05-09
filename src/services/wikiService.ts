@@ -13,14 +13,14 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
     llmProvider: createWikiLlmProvider(),
     config: {
       tablePrefix: 'llm_wiki_',
-      autoLibrarianThreshold: 5,
-      autoHealThreshold: 100,
-      pruneRetainSoftDeletedFor: 3,
-      pruneEventsAfter: 14,
-      orphanAfterDays: 14,
-      staleInferredAfterDays: 30,
-      preFilterLimit: 300,
-      hybridWeight: 0.7,
+      autoLibrarianThreshold: 5, // entries: trigger auto-librarian
+      autoHealThreshold: 100, // entries: trigger auto-heal
+      pruneRetainSoftDeletedFor: 3, // days: keep soft-deleted entries
+      pruneEventsAfter: 14, // days: delete old events
+      orphanAfterDays: 14, // days: mark unlinked entities as orphan
+      staleInferredAfterDays: 30, // days: mark old librarian entries as stale
+      preFilterLimit: 300, // FTS pre-filter limit for retrieval
+      hybridWeight: 0.7, // hybrid search weight (0=FTS, 1=vector)
     },
   })
   return _wiki
@@ -31,6 +31,23 @@ export function getWiki(): Wiki | null {
 }
 
 export async function initWiki(db: SQLiteDatabase): Promise<void> {
+  // v3→v4 migration: Update source_type enum values before setup()
+  // expo-llm-wiki@4.0.0 renamed enum values but does NOT auto-migrate.
+  // This idempotent migration runs the documented manual SQL per v4.0.0 release notes.
+  await db.withTransactionAsync(async () => {
+    const hasOldEnums = db.getFirstSync(
+      `SELECT 1 FROM llm_wiki_entries WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
+    )
+    if (hasOldEnums) {
+      db.execSync(
+        `UPDATE llm_wiki_entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`,
+      )
+      db.execSync(
+        `UPDATE llm_wiki_entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`,
+      )
+    }
+  })
+
   const wiki = setupWiki(db)
   await wiki.setup()
 }

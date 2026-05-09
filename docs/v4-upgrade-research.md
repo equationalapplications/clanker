@@ -147,14 +147,8 @@ From v4.0.0 release notes:
 
 ## Next Steps (Future Phases)
 
-### Phase 2: Manual migration fallback (if needed)
-- **If wiki.setup() does NOT auto-migrate source_type enums**, execute manual SQL:
-  ```sql
-  UPDATE llm_wiki_entries SET source_type = 'immutable_document'
-    WHERE source_type = 'user_document';
-  UPDATE llm_wiki_entries SET source_type = 'librarian_inferred'
-    WHERE source_type = 'agent_inferred';
-  ```
+### Phase 2: Production upgrade validation
+- **Runtime migration**: `initWiki()` now automatically applies the v3→v4 source_type enum migration before calling `wiki.setup()` (idempotent check for old enum values, then runs UPDATE SQL in transaction)
 - **Testing**: Verify all wiki operations (read, write, delete, maintenance) work correctly post-migration
 - Consider leveraging new `subscribeEntityStatus` for entity status UI indicators
 

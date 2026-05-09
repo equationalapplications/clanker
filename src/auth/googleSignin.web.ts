@@ -135,6 +135,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
           const exchanged = await exchangeCredential(response.credential)
           settle(exchanged)
         } catch (error: any) {
+          console.error('Google Sign-In callback exception:', error)
           settle({ success: false, error: error?.message || 'Sign-in callback failed' })
         }
       },
