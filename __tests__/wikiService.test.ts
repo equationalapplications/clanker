@@ -17,7 +17,13 @@ jest.mock('~/services/wikiLlmProvider', () => ({
   createWikiLlmProvider: jest.fn().mockReturnValue({ generateText: jest.fn() }),
 }))
 
-import { setupWiki, getWiki, initWiki, _resetWikiForTests } from '~/services/wikiService'
+import {
+  setupWiki,
+  getWiki,
+  initWiki,
+  _resetWikiForTests,
+  TABLE_PREFIX,
+} from '~/services/wikiService'
 
 describe('wikiService', () => {
   beforeEach(() => {
@@ -114,7 +120,7 @@ describe('wikiService', () => {
       db,
       expect.objectContaining({
         config: expect.objectContaining({
-          tablePrefix: 'llm_wiki_',
+          tablePrefix: TABLE_PREFIX,
           autoLibrarianThreshold: 5,
           autoHealThreshold: 100,
           pruneRetainSoftDeletedFor: 3,

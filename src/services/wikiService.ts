@@ -5,7 +5,7 @@ import { createWikiLlmProvider } from './wikiLlmProvider'
 
 type Wiki = ReturnType<typeof createWiki>
 
-const TABLE_PREFIX = 'llm_wiki_'
+export const TABLE_PREFIX = 'llm_wiki_'
 let _wiki: Wiki | null = null
 
 export function setupWiki(db: SQLiteDatabase): Wiki {
@@ -35,25 +35,28 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
   // v3→v4 migration: Update source_type enum values before setup()
   // expo-llm-wiki@4.0.0 renamed enum values but does NOT auto-migrate.
   // This idempotent migration runs the documented manual SQL per v4.0.0 release notes.
-  await db.withTransactionAsync(async () => {
-    // Check if entries table exists (fresh install vs upgrade from v3)
-    const tableExists = await db.getFirstAsync<{ exists: number }>(
-      `SELECT 1 as exists FROM sqlite_master WHERE type='table' AND name='${TABLE_PREFIX}entries'`,
+
+  // Read-only checks outside transaction to minimize lock time
+  const tableExists = await db.getFirstAsync<{ exists: number }>(
+    `SELECT 1 as exists FROM sqlite_master WHERE type='table' AND name=?`,
+    [`${TABLE_PREFIX}entries`],
+  )
+  if (tableExists) {
+    const hasOldEnums = await db.getFirstAsync(
+      `SELECT 1 FROM ${TABLE_PREFIX}entries WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
     )
-    if (tableExists) {
-      const hasOldEnums = await db.getFirstAsync(
-        `SELECT 1 FROM ${TABLE_PREFIX}entries WHERE source_type IN ('user_document', 'agent_inferred') LIMIT 1`,
-      )
-      if (hasOldEnums) {
+    if (hasOldEnums) {
+      // Only wrap UPDATE statements in transaction when migration needed
+      await db.withTransactionAsync(async () => {
         await db.execAsync(
           `UPDATE ${TABLE_PREFIX}entries SET source_type = 'immutable_document' WHERE source_type = 'user_document'`,
         )
         await db.execAsync(
           `UPDATE ${TABLE_PREFIX}entries SET source_type = 'librarian_inferred' WHERE source_type = 'agent_inferred'`,
         )
-      }
+      })
     }
-  })
+  }
 
   const wiki = setupWiki(db)
   await wiki.setup()
