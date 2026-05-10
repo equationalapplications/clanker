@@ -287,6 +287,42 @@ describe('syncWikiForCloud key remapping', () => {
     expect(reportError).toHaveBeenCalledWith(syncErr, 'wiki:sync')
   })
 
+  it('reports non-busy export errors with wiki:export context and skips WikiBusyError', async () => {
+    const { WikiBusyError } = jest.requireActual<typeof import('@equationalapplications/expo-llm-wiki')>(
+      '@equationalapplications/expo-llm-wiki',
+    )
+    const char = makeCloudChar()
+    const exportErr = new Error('export failed')
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
+    mockExportDump.mockRejectedValueOnce(exportErr).mockRejectedValueOnce(new WikiBusyError('ingest', LOCAL_ID))
+
+    await syncAllToCloud('user-1')
+    await syncAllToCloud('user-1')
+
+    expect(reportError).toHaveBeenCalledWith(exportErr, 'wiki:export')
+    expect(reportError).not.toHaveBeenCalledWith(expect.any(WikiBusyError), expect.any(String))
+    expect(mockWikiSyncFn).not.toHaveBeenCalled()
+  })
+
+  it('reports non-busy import errors with wiki:import context', async () => {
+    const char = makeCloudChar()
+    const importErr = new Error('import failed')
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
+    mockExportDump.mockResolvedValue({
+      generatedAt: 1000,
+      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
+    })
+    mockWikiSyncFn.mockResolvedValue({
+      data: { remoteDump: { generatedAt: 1001, entities: { [CLOUD_ID]: { facts: [], tasks: [], events: [] } } } },
+    })
+    mockImportDump.mockRejectedValue(importErr)
+
+    await syncAllToCloud('user-1')
+
+    expect(reportError).toHaveBeenCalledWith(importErr, 'wiki:import')
+    expect(mockRunPrune).not.toHaveBeenCalled()
+  })
+
   it('reports non-busy prune errors with wiki:prune context and skips WikiBusyError', async () => {
     const { WikiBusyError } = jest.requireActual<typeof import('@equationalapplications/expo-llm-wiki')>(
       '@equationalapplications/expo-llm-wiki',

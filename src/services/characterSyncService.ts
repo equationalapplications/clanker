@@ -98,7 +98,16 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                     },
                 },
             }
-            const result = await wikiSync({ dump: cloudDump })
+            let result
+            try {
+                result = await wikiSync({ dump: cloudDump })
+            } catch (syncErr) {
+                if (!(syncErr instanceof WikiBusyError)) {
+                    reportError(syncErr, 'wiki:sync')
+                }
+                continue
+            }
+
             const remoteDump = result.data.remoteDump
             if (remoteDump) {
                 const remappedDump: MemoryDump = {
@@ -111,14 +120,17 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                     await wiki.importDump(remappedDump, { merge: true })
                 } catch (importErr) {
                     if (!(importErr instanceof WikiBusyError)) {
-                        throw importErr
+                        reportError(importErr, 'wiki:import')
+                        continue
                     }
                     // WikiBusyError: wiki is busy but the cloud sync succeeded — still prune
                 }
                 syncSucceeded = true
             }
-        } catch (error) {
-            reportError(error, 'wiki:sync')
+        } catch (exportErr) {
+            if (!(exportErr instanceof WikiBusyError)) {
+                reportError(exportErr, 'wiki:export')
+            }
         }
 
         if (syncSucceeded) {
