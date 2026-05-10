@@ -210,7 +210,10 @@ describe('useAIChat', () => {
     expect(opts.onWriteObservation).toEqual(expect.any(Function))
 
     await act(async () => {
-      await opts.onWriteObservation!('char-1', 'observation text')
+      opts.onWriteObservation!('char-1', 'observation text')
+      // onWriteObservation returns void and attaches .catch on a microtask; flush so reportError runs
+      await Promise.resolve()
+      await Promise.resolve()
     })
 
     expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:write')
@@ -236,7 +239,9 @@ describe('useAIChat', () => {
     const sendCall = mockSendMessageWithAIResponse.mock.calls[0]
     const opts = sendCall[4] as { onWriteObservation?: (id: string, text: string) => void }
     await act(async () => {
-      await opts.onWriteObservation!('char-1', 'observation text')
+      opts.onWriteObservation!('char-1', 'observation text')
+      await Promise.resolve()
+      await Promise.resolve()
     })
 
     expect(mockReportError).not.toHaveBeenCalled()
