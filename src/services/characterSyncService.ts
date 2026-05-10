@@ -118,7 +118,7 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                 syncSucceeded = true
             }
         } catch (error) {
-            console.warn('Wiki sync to cloud failed for character', char.id, error)
+            reportError(error, 'wiki:sync')
         }
 
         if (syncSucceeded) {
@@ -130,7 +130,7 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                 })
             } catch (e) {
                 if (!(e instanceof WikiBusyError)) {
-                    console.warn('[wikiPrune] Failed for character', char.id, e)
+                    reportError(e, 'wiki:prune')
                 }
                 // WikiBusyError: defer to next sync cycle
             }

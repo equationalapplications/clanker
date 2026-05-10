@@ -67,6 +67,7 @@ jest.mock('~/services/apiClient', () => ({
 
 // Import after mocks
 import { syncAllToCloud } from '../src/services/characterSyncService'
+import { reportError } from '~/utilities/reportError'
 
 // --- Helpers ---
 
@@ -104,6 +105,12 @@ const LOCAL_ID = 'char-local-1'
 describe('syncWikiForCloud key remapping', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockGetWiki.mockImplementation(() => ({
+      exportDump: mockExportDump,
+      importDump: mockImportDump,
+      runPrune: mockRunPrune,
+      getEntityStatus: mockGetEntityStatus,
+    }))
   })
 
   it('exports with local id and sends cloud UUID as entity key', async () => {
@@ -231,6 +238,7 @@ describe('syncWikiForCloud key remapping', () => {
 
     // WikiBusyError from importDump should not prevent runPrune
     expect(mockRunPrune).toHaveBeenCalledWith(LOCAL_ID, expect.any(Object))
+    expect(reportError).not.toHaveBeenCalled()
   })
 
   it('does NOT run runPrune when wikiSyncFn throws', async () => {
@@ -258,5 +266,48 @@ describe('syncWikiForCloud key remapping', () => {
     expect(mockImportDump).not.toHaveBeenCalled()
     expect(mockRunPrune).not.toHaveBeenCalled()
     expect(mockWikiSyncFn).not.toHaveBeenCalled()
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('wiki unavailable') }),
+      'wiki:syncAll',
+    )
+  })
+
+  it('reports non-busy sync errors with wiki:sync context', async () => {
+    const char = makeCloudChar()
+    const syncErr = new Error('network error')
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
+    mockExportDump.mockResolvedValue({
+      generatedAt: 1000,
+      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
+    })
+    mockWikiSyncFn.mockRejectedValue(syncErr)
+
+    await syncAllToCloud('user-1')
+
+    expect(reportError).toHaveBeenCalledWith(syncErr, 'wiki:sync')
+  })
+
+  it('reports non-busy prune errors with wiki:prune context and skips WikiBusyError', async () => {
+    const { WikiBusyError } = jest.requireActual<typeof import('@equationalapplications/expo-llm-wiki')>(
+      '@equationalapplications/expo-llm-wiki',
+    )
+    const char = makeCloudChar()
+    const pruneErr = new Error('prune failed')
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
+    mockExportDump.mockResolvedValue({
+      generatedAt: 1000,
+      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
+    })
+    mockWikiSyncFn.mockResolvedValue({
+      data: { remoteDump: { generatedAt: 1001, entities: { [CLOUD_ID]: { facts: [], tasks: [], events: [] } } } },
+    })
+    mockImportDump.mockResolvedValue(undefined)
+    mockRunPrune.mockRejectedValueOnce(pruneErr).mockRejectedValueOnce(new WikiBusyError('ingest', LOCAL_ID))
+
+    await syncAllToCloud('user-1')
+    await syncAllToCloud('user-1')
+
+    expect(reportError).toHaveBeenCalledWith(pruneErr, 'wiki:prune')
+    expect(reportError).not.toHaveBeenCalledWith(expect.any(WikiBusyError), 'wiki:prune')
   })
 })
