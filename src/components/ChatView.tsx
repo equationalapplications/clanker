@@ -36,16 +36,12 @@ export default function ChatView({ characterId }: ChatViewProps) {
   const [wikiStatus, setWikiStatus] = useState({ ingesting: false, librarian: false })
   const wiki = useWiki()
   useEffect(() => {
-    if (!hasUnlimited) {
-      setWikiStatus({ ingesting: false, librarian: false })
-      return
-    }
     if (!wiki) return
     const interval = setInterval(() => {
       setWikiStatus(wiki.getEntityStatus(characterId))
     }, 5000)
     return () => clearInterval(interval)
-  }, [characterId, hasUnlimited, wiki])
+  }, [characterId, wiki])
 
   const { sendMessage } = useAIChat({
     characterId,
