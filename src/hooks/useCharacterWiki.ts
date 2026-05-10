@@ -87,7 +87,7 @@ export function useCharacterWikiSync() {
       let remoteDump: MemoryDump | undefined
       try {
         const result = await wikiSync({ dump: cloudDump })
-        remoteDump = result.data.remoteDump
+        remoteDump = result.data?.remoteDump
       } catch (error) {
         if (error instanceof WikiBusyError) {
           return { success: false, message: busyMessage }
@@ -97,6 +97,7 @@ export function useCharacterWikiSync() {
       }
 
       if (!remoteDump) {
+        reportError(new Error('wikiSync returned without remoteDump in response data'), 'wiki:sync')
         return { success: false, message: 'No remote dump returned from cloud sync.' }
       }
 

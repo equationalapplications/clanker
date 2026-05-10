@@ -312,6 +312,31 @@ describe('syncWikiForCloud key remapping', () => {
     expect(reportError).not.toHaveBeenCalled()
   })
 
+  it('reports wiki:sync when wikiSyncFn resolves without remoteDump', async () => {
+    const char = makeCloudChar()
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
+    mockExportDump.mockResolvedValue({
+      generatedAt: 1000,
+      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
+    })
+    mockWikiSyncFn.mockResolvedValue({ data: {} })
+
+    await syncAllToCloud('user-1')
+
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringMatching(
+          new RegExp(
+            `Wiki cloud sync \\(character ${LOCAL_ID}\\): wikiSync returned without remoteDump`,
+          ),
+        ),
+      }),
+      'wiki:sync',
+    )
+    expect(mockImportDump).not.toHaveBeenCalled()
+    expect(mockRunPrune).not.toHaveBeenCalled()
+  })
+
   it('reports non-busy export errors with wiki:export context and skips WikiBusyError', async () => {
     const { WikiBusyError } = jest.requireActual<typeof import('@equationalapplications/expo-llm-wiki')>(
       '@equationalapplications/expo-llm-wiki',
