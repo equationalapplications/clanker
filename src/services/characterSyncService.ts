@@ -97,68 +97,65 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
 
     for (const char of cloudChars) {
         const cloudId = char.cloud_id!
-        let syncSucceeded = false
-
-        let localDump: MemoryDump
         try {
-            localDump = await wiki.exportDump([char.id])
-        } catch (exportErr) {
-            if (!(exportErr instanceof WikiBusyError)) {
-                reportWikiOpForCharacter(exportErr, 'wiki:export', char.id, 'Wiki export')
-            }
-            continue
-        }
-
-        const localBundle = localDump.entities[char.id] ?? { facts: [], tasks: [], events: [] }
-        const cloudDump: MemoryDump = {
-            generatedAt: localDump.generatedAt,
-            entities: {
-                [cloudId]: {
-                    facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudId })),
-                    tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudId })),
-                    events: localBundle.events.map((e) => ({ ...e, entity_id: cloudId })),
-                },
-            },
-        }
-        let result: Awaited<ReturnType<typeof wikiSync>>
-        try {
-            result = await wikiSync({ dump: cloudDump })
-        } catch (syncErr) {
-            if (!(syncErr instanceof WikiBusyError)) {
-                reportWikiOpForCharacter(syncErr, 'wiki:sync', char.id, 'Wiki cloud sync')
-            }
-            continue
-        }
-
-        const remoteDump = result.data?.remoteDump
-        if (!remoteDump) {
-            reportWikiOpForCharacter(
-                new Error('wikiSync returned without remoteDump in response data'),
-                'wiki:sync',
-                char.id,
-                'Wiki cloud sync',
-            )
-            continue
-        }
-
-        const remappedDump: MemoryDump = {
-            generatedAt: remoteDump.generatedAt,
-            entities: {
-                [char.id]: remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [] },
-            },
-        }
-        try {
-            await wiki.importDump(remappedDump, { merge: true })
-        } catch (importErr) {
-            if (!(importErr instanceof WikiBusyError)) {
-                reportWikiOpForCharacter(importErr, 'wiki:import', char.id, 'Wiki import')
+            let localDump: MemoryDump
+            try {
+                localDump = await wiki.exportDump([char.id])
+            } catch (exportErr) {
+                if (!(exportErr instanceof WikiBusyError)) {
+                    reportWikiOpForCharacter(exportErr, 'wiki:export', char.id, 'Wiki export')
+                }
                 continue
             }
-            // WikiBusyError: wiki is busy but the cloud sync succeeded — still prune
-        }
-        syncSucceeded = true
 
-        if (syncSucceeded) {
+            const localBundle = localDump.entities[char.id] ?? { facts: [], tasks: [], events: [] }
+            const cloudDump: MemoryDump = {
+                generatedAt: localDump.generatedAt,
+                entities: {
+                    [cloudId]: {
+                        facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudId })),
+                        tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudId })),
+                        events: localBundle.events.map((e) => ({ ...e, entity_id: cloudId })),
+                    },
+                },
+            }
+            let result: Awaited<ReturnType<typeof wikiSync>>
+            try {
+                result = await wikiSync({ dump: cloudDump })
+            } catch (syncErr) {
+                if (!(syncErr instanceof WikiBusyError)) {
+                    reportWikiOpForCharacter(syncErr, 'wiki:sync', char.id, 'Wiki cloud sync')
+                }
+                continue
+            }
+
+            const remoteDump = result.data?.remoteDump
+            if (!remoteDump) {
+                reportWikiOpForCharacter(
+                    new Error('wikiSync returned without remoteDump in response data'),
+                    'wiki:sync',
+                    char.id,
+                    'Wiki cloud sync',
+                )
+                continue
+            }
+
+            const remappedDump: MemoryDump = {
+                generatedAt: remoteDump.generatedAt,
+                entities: {
+                    [char.id]: remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [] },
+                },
+            }
+            try {
+                await wiki.importDump(remappedDump, { merge: true })
+            } catch (importErr) {
+                if (!(importErr instanceof WikiBusyError)) {
+                    reportWikiOpForCharacter(importErr, 'wiki:import', char.id, 'Wiki import')
+                    continue
+                }
+                // WikiBusyError: wiki is busy but the cloud sync succeeded — still prune
+            }
+
             try {
                 await wiki.runPrune(char.id, {
                     retainSoftDeletedFor: 7,
@@ -171,6 +168,11 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                 }
                 // WikiBusyError: defer to next sync cycle
             }
+        } catch (pipelineErr) {
+            if (!(pipelineErr instanceof WikiBusyError)) {
+                reportWikiOpForCharacter(pipelineErr, 'wiki:sync', char.id, 'Wiki cloud sync')
+            }
+            continue
         }
     }
 }
