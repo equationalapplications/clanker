@@ -63,4 +63,29 @@ describe('wikiOrchestrator', () => {
     expect(maxObserved).toBeLessThanOrEqual(2)
     expect(wiki.exportDump).toHaveBeenCalledTimes(5)
   })
+
+  test('syncAll resolves when a second item shares an actor already syncing', async () => {
+    const wiki = makeWikiMock()
+    let releaseExport: (() => void) | undefined
+    const exportGate = new Promise<void>((resolve) => {
+      releaseExport = resolve
+    })
+    wiki.exportDump.mockImplementation(async () => {
+      await exportGate
+      return { generatedAt: 0, entities: {} }
+    })
+    const runRemoteSync = jest.fn(async (d: unknown) => d)
+    const done = wikiOrchestrator.syncAll(
+      [
+        { entityId: 'shared', runRemoteSync: runRemoteSync as never },
+        { entityId: 'shared', runRemoteSync: runRemoteSync as never },
+      ],
+      wiki as never,
+      2,
+    )
+    await new Promise((r) => setTimeout(r, 30))
+    releaseExport!()
+    await expect(done).resolves.toBeUndefined()
+    expect(wiki.exportDump).toHaveBeenCalledTimes(1)
+  })
 })

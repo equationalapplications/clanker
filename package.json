@@ -150,6 +150,7 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "<rootDir>/functions/",
+      "<rootDir>/.claude/",
       "<rootDir>/.worktrees/",
       "<rootDir>/build/",
       "<rootDir>/dist/",

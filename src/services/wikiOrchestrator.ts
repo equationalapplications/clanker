@@ -60,7 +60,9 @@ async function syncAll(
         // If actor is already syncing, wait for that cycle to finish and do not
         // enqueue another SYNC that could resolve against the wrong cycle.
         const wasAlreadySyncing = actor.getSnapshot().matches('syncing')
-        let seenSyncing = false
+        // If already syncing, subscribe() won't replay the current state; treat as seen so we
+        // still resolve when the in-flight cycle reaches idle/error.
+        let seenSyncing = wasAlreadySyncing
         let timeoutId: ReturnType<typeof setTimeout> | undefined
         
         const cleanup = () => {
