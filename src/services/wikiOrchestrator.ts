@@ -74,8 +74,9 @@ async function syncAll(
             seenSyncing = true
           }
 
-          // Only resolve once we've seen syncing and then returned to idle/error.
-          if (seenSyncing && (snap.matches('idle') || snap.matches('error'))) {
+          // Resolve after a successful cycle (syncing → idle), or on error even if we never
+          // observed syncing (e.g. failure before the invoke starts).
+          if (snap.matches('error') || (seenSyncing && snap.matches('idle'))) {
             sub.unsubscribe()
             cleanup()
             resolve()
