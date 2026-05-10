@@ -42,11 +42,14 @@ async function syncAll(items: SyncAllItem[], wiki: Wiki, concurrency = 2): Promi
       }
       
       await new Promise<void>((resolve) => {
+        let seenSyncing = false
         const sub = actor.subscribe((snap) => {
-          if (snap.matches('idle')) {
-            sub.unsubscribe()
-            resolve()
-          } else if (snap.matches('error')) {
+          // Track that we've entered the syncing state
+          if (snap.matches('syncing')) {
+            seenSyncing = true
+          }
+          // Only resolve once we've seen syncing and then returned to idle/error
+          if (seenSyncing && (snap.matches('idle') || snap.matches('error'))) {
             sub.unsubscribe()
             resolve()
           }
