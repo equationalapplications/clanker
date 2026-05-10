@@ -79,6 +79,8 @@ export interface WikiMachineContext {
   currentEvent: WikiSerializedEvent | null
   busyRetryDelayMs: number
   statusPollIntervalMs: number
+  lastReadResult: Awaited<ReturnType<Wiki['read']>> | null
+  lastIngestResult: Awaited<ReturnType<Wiki['ingestDocument']>> | null
 }
 
 export type WikiMachineEvents =
@@ -124,6 +126,8 @@ export const wikiMachine = createMachine(
       currentEvent: null,
       busyRetryDelayMs: input.busyRetryDelayMs ?? 1000,
       statusPollIntervalMs: input.statusPollIntervalMs ?? 5000,
+      lastReadResult: null,
+      lastIngestResult: null,
     }),
     invoke: {
       id: 'subscribeStatus',
@@ -166,6 +170,7 @@ export const wikiMachine = createMachine(
           onDone: {
             target: 'idle',
             actions: assign({
+              lastReadResult: ({ event }) => event.output,
               lastReadAt: () => Date.now(),
               lastError: () => null,
               currentEvent: () => null,
@@ -194,7 +199,10 @@ export const wikiMachine = createMachine(
           }),
           onDone: {
             target: 'idle',
-            actions: assign({ lastError: () => null, currentEvent: () => null }),
+            actions: assign({
+              lastError: () => null,
+              currentEvent: () => null,
+            }),
           },
           onError: [
             {
@@ -219,7 +227,11 @@ export const wikiMachine = createMachine(
           }),
           onDone: {
             target: 'idle',
-            actions: assign({ lastError: () => null, currentEvent: () => null }),
+            actions: assign({
+              lastIngestResult: ({ event }) => event.output,
+              lastError: () => null,
+              currentEvent: () => null,
+            }),
           },
           onError: [
             {
@@ -414,7 +426,7 @@ export const wikiMachine = createMachine(
         }: {
           input: { wiki: Wiki; entityId: string; doc: IngestArgs }
         }) => {
-          await input.wiki.ingestDocument(input.entityId, input.doc)
+          return input.wiki.ingestDocument(input.entityId, input.doc)
         },
       ),
       forgetActor: fromPromise(

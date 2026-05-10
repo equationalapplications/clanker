@@ -10,6 +10,8 @@ const mockGetQueryData = jest.fn()
 const mockSetQueryData = jest.fn()
 const mockSend = jest.fn()
 const mockReportError = jest.fn()
+const mockCharacterWikiRead = jest.fn().mockResolvedValue(null)
+const mockCharacterWikiWrite = jest.fn().mockResolvedValue(undefined)
 
 jest.mock('@tanstack/react-query', () => ({
   useMutation: ({ mutationFn, onSuccess, onError }: any) => ({
@@ -53,14 +55,23 @@ jest.mock('~/services/usageSnapshot', () => ({
   usageSnapshotFromError: jest.fn(() => null),
 }))
 
-const mockWikiRead = jest.fn().mockResolvedValue(null)
-const mockWikiWriteExecute = jest.fn().mockResolvedValue(undefined)
-
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
-  useWiki: jest.fn(() => ({ read: mockWikiRead })),
-  useWikiWrite: jest.fn(() => ({ execute: mockWikiWriteExecute })),
   formatContext: jest.fn((bundle) => '[MEMORY]\nFacts:\n[/MEMORY]'),
+}))
+
+jest.mock('~/hooks/useCharacterWiki', () => ({
+  useCharacterWiki: jest.fn(() => ({
+    status: { ingesting: false, librarian: false, heal: false },
+    isBusy: false,
+    error: null,
+    read: (...args: unknown[]) => mockCharacterWikiRead(...args),
+    write: (...args: unknown[]) => mockCharacterWikiWrite(...args),
+    ingest: jest.fn(),
+    forget: jest.fn(),
+    sync: jest.fn(),
+    hasChanged: jest.fn(),
+  })),
 }))
 
 jest.mock('~/utilities/reportError', () => ({
@@ -104,8 +115,8 @@ describe('useAIChat', () => {
     jest.clearAllMocks()
     mockUseChatMessages.mockReturnValue([])
     mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null })
-    mockWikiRead.mockResolvedValue(null)
-    mockWikiWriteExecute.mockResolvedValue(undefined)
+    mockCharacterWikiRead.mockResolvedValue(null)
+    mockCharacterWikiWrite.mockResolvedValue(undefined)
   })
 
   it('reads wiki memory and provides write callback for free-tier users', async () => {
@@ -120,7 +131,7 @@ describe('useAIChat', () => {
       } as any)
     })
 
-    expect(mockWikiRead).toHaveBeenCalledWith('char-1', 'Hi there')
+    expect(mockCharacterWikiRead).toHaveBeenCalledWith('Hi there')
     expect(mockSendMessageWithAIResponse).toHaveBeenCalledWith(
       expect.objectContaining({ _id: 'msg-free' }),
       expect.objectContaining({ id: 'char-1' }),
@@ -155,7 +166,7 @@ describe('useAIChat', () => {
     )
   })
   it('reports non-busy wiki read errors with wiki:read context', async () => {
-    mockWikiRead.mockRejectedValue(new Error('read failed'))
+    mockCharacterWikiRead.mockRejectedValue(new Error('read failed'))
     const hook = renderUseAIChat()
 
     await act(async () => {
@@ -167,12 +178,12 @@ describe('useAIChat', () => {
       } as any)
     })
 
-    expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:read')
+    expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:char-1:read')
   })
 
   it('does not report WikiBusyError from wiki read', async () => {
     const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
-    mockWikiRead.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
+    mockCharacterWikiRead.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
     const hook = renderUseAIChat()
 
     await act(async () => {
@@ -188,7 +199,8 @@ describe('useAIChat', () => {
   })
 
   it('reports non-busy wiki observation write errors with wiki:write context', async () => {
-    mockWikiWriteExecute.mockRejectedValue(new Error('write failed'))
+    const writeError = new Error('write failed')
+    mockCharacterWikiWrite.mockRejectedValue(writeError)
     const hook = renderUseAIChat()
 
     await act(async () => {
@@ -211,12 +223,12 @@ describe('useAIChat', () => {
       await Promise.resolve()
     })
 
-    expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:write')
+    expect(mockReportError).toHaveBeenCalledWith(writeError, 'wiki:char-1:write')
   })
 
   it('does not report WikiBusyError from wiki observation write', async () => {
     const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
-    mockWikiWriteExecute.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
+    mockCharacterWikiWrite.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
     const hook = renderUseAIChat()
 
     await act(async () => {

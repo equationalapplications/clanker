@@ -1,41 +1,24 @@
-/**
- * Unit tests for syncWikiForCloud entity key remapping in characterSyncService.
- *
- * Tests that:
- * - The local char.id is used when exporting from the local wiki
- * - The cloud UUID (cloud_id) is used as the entity key when calling wikiSyncFn
- * - The response is remapped back to char.id before importDump
- * - WikiBusyError from importDump does NOT prevent runPrune
- */
-
-// --- Mocks ---
-
-const mockExportDump = jest.fn()
-const mockImportDump = jest.fn()
-const mockRunPrune = jest.fn()
-const mockGetEntityStatus = jest.fn().mockReturnValue({ ingesting: false, librarian: false })
-
-type MockWiki = { exportDump: jest.Mock; importDump: jest.Mock; runPrune: jest.Mock; getEntityStatus: jest.Mock }
-const mockGetWiki = jest.fn<MockWiki | null, []>(() => ({
-  exportDump: mockExportDump,
-  importDump: mockImportDump,
-  runPrune: mockRunPrune,
-  getEntityStatus: mockGetEntityStatus,
-}))
+const mockGetWiki = jest.fn(() => ({}))
+const mockWikiSyncFn = jest.fn()
+const mockSyncAll = jest.fn()
+const mockGetAllCharactersIncludingDeleted = jest.fn()
+const mockGetUnsyncedCharacters = jest.fn().mockResolvedValue([])
+const mockGetSoftDeletedCharacters = jest.fn().mockResolvedValue([])
 
 jest.mock('~/services/wikiService', () => ({
   getWiki: () => mockGetWiki(),
 }))
 
-const mockWikiSyncFn = jest.fn()
+jest.mock('~/services/wikiOrchestrator', () => ({
+  wikiOrchestrator: {
+    syncAll: (...args: unknown[]) => mockSyncAll(...args),
+  },
+}))
+
 jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(() => ({ uid: 'user-1' })),
   appCheckReady: Promise.resolve(),
 }))
-
-const mockGetAllCharactersIncludingDeleted = jest.fn()
-const mockGetUnsyncedCharacters = jest.fn().mockResolvedValue([])
-const mockGetSoftDeletedCharacters = jest.fn().mockResolvedValue([])
 
 jest.mock('../src/database/characterDatabase', () => ({
   getAllCharactersIncludingDeleted: (...args: unknown[]) =>
@@ -53,7 +36,6 @@ jest.mock('~/utilities/kvStorage', () => ({
   Storage: { getItem: jest.fn(), setItem: jest.fn() },
 }))
 jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
-jest.mock('./apiClient', () => ({}), { virtual: true })
 jest.mock('~/services/apiClient', () => ({
   syncCharacterFn: jest.fn(),
   deleteCharacterFn: jest.fn(),
@@ -61,15 +43,22 @@ jest.mock('~/services/apiClient', () => ({
   getPublicCharacterFn: jest.fn(),
   wikiSync: (...args: unknown[]) => mockWikiSyncFn(...args),
 }))
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  WikiBusyError: class WikiBusyError extends Error {
+    operation: string
+    entityId: string
+    constructor(op: string, eid: string) {
+      super(`Wiki busy: ${op} on ${eid}`)
+      this.name = 'WikiBusyError'
+      this.operation = op
+      this.entityId = eid
+    }
+  },
+}))
 
-// WikiBusyError is loaded via jest.requireActual in the
-// 'still runs runPrune when importDump throws WikiBusyError' test.
-
-// Import after mocks
-import { syncAllToCloud } from '../src/services/characterSyncService'
+import { syncAllToCloud, restoreFromCloud } from '../src/services/characterSyncService'
 import { reportError } from '~/utilities/reportError'
-
-// --- Helpers ---
+import { getUserCharactersFn } from '~/services/apiClient'
 
 function makeCloudChar(overrides: Record<string, unknown> = {}) {
   return {
@@ -100,318 +89,161 @@ function makeCloudChar(overrides: Record<string, unknown> = {}) {
 const CLOUD_ID = '550e8400-e29b-41d4-a716-446655440000'
 const LOCAL_ID = 'char-local-1'
 
-// --- Tests ---
-
-describe('syncWikiForCloud key remapping', () => {
+describe('syncWikiForCloud orchestration path', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockGetWiki.mockImplementation(() => ({
-      exportDump: mockExportDump,
-      importDump: mockImportDump,
-      runPrune: mockRunPrune,
-      getEntityStatus: mockGetEntityStatus,
-    }))
+    mockGetWiki.mockReturnValue({})
+    mockSyncAll.mockResolvedValue(undefined)
   })
 
-  it('exports with local id and sends cloud UUID as entity key', async () => {
-    const char = makeCloudChar()
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-    mockExportDump.mockResolvedValue({
-      generatedAt: 1000,
-      entities: {
-        [LOCAL_ID]: {
-          facts: [
-            {
-              id: 'f1',
-              entity_id: LOCAL_ID,
-              title: 'fact',
-              body: 'b',
-              confidence: 'inferred',
-              tags: [],
-              source_type: 'agent_inferred',
-              created_at: 1000,
-              updated_at: 1000,
-            },
-          ],
-          tasks: [
-            {
-              id: 't1',
-              entity_id: LOCAL_ID,
-              description: 'task',
-              status: 'pending',
-              priority: 1,
-              created_at: 1000,
-              updated_at: 1000,
-            },
-          ],
-          events: [
-            {
-              id: 'e1',
-              entity_id: LOCAL_ID,
-              event_type: 'observation',
-              summary: 'event',
-              created_at: 1000,
-            },
-          ],
-        },
-      },
-    })
+  it('routes sync through wikiOrchestrator.syncAll', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockSyncAll).toHaveBeenCalledTimes(1)
+    const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
+    expect(wikiArg).toEqual({})
+    expect(concurrencyArg).toBe(1)
+    expect(itemsArg).toHaveLength(1)
+    expect(itemsArg[0].entityId).toBe(LOCAL_ID)
+  })
+
+  it('batches all cloud-linked characters into one syncAll call', async () => {
+    const secondLocalId = 'char-local-2'
+    const secondCloudId = '550e8400-e29b-41d4-a716-446655440001'
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar(),
+      makeCloudChar({ id: secondLocalId, cloud_id: secondCloudId }),
+    ])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockSyncAll).toHaveBeenCalledTimes(1)
+    const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
+    expect(wikiArg).toEqual({})
+    expect(concurrencyArg).toBe(1)
+    expect(itemsArg).toHaveLength(2)
+    expect(itemsArg.map((item: { entityId: string }) => item.entityId)).toEqual([LOCAL_ID, secondLocalId])
+  })
+
+  it('remaps local->cloud and cloud->local within runRemoteSync callback', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+    await syncAllToCloud('user-1')
+
+    const [itemsArg] = mockSyncAll.mock.calls[0]
+    const runRemoteSync = itemsArg[0].runRemoteSync as (dump: any) => Promise<any>
     mockWikiSyncFn.mockResolvedValue({
       data: {
         remoteDump: {
           generatedAt: 1001,
-          entities: { [CLOUD_ID]: { facts: [], tasks: [], events: [] } },
+          entities: { [CLOUD_ID]: { facts: [{ id: 'rf1' }], tasks: [], events: [] } },
         },
       },
     })
-    mockImportDump.mockResolvedValue(undefined)
-    mockRunPrune.mockResolvedValue(undefined)
 
-    await syncAllToCloud('user-1')
+    const remapped = await runRemoteSync({
+      generatedAt: 1000,
+      entities: { [LOCAL_ID]: { facts: [{ id: 'f1', entity_id: LOCAL_ID }], tasks: [], events: [] } },
+    })
 
-    // exportDump called with local id
-    expect(mockExportDump).toHaveBeenCalledWith([LOCAL_ID])
-
-    // wikiSyncFn called with cloud UUID as entity key
     const syncArg = mockWikiSyncFn.mock.calls[0][0]
     expect(Object.keys(syncArg.dump.entities)).toEqual([CLOUD_ID])
-    expect(Object.keys(syncArg.dump.entities)).not.toContain(LOCAL_ID)
-    expect(syncArg.dump.entities[CLOUD_ID]).toEqual({
-      facts: [expect.objectContaining({ id: 'f1', entity_id: CLOUD_ID })],
-      tasks: [expect.objectContaining({ id: 't1', entity_id: CLOUD_ID })],
-      events: [expect.objectContaining({ id: 'e1', entity_id: CLOUD_ID })],
-    })
+    expect(Object.keys(remapped.entities)).toEqual([LOCAL_ID])
+    expect(remapped.entities[LOCAL_ID].facts).toEqual([{ id: 'rf1' }])
   })
 
-  it('remaps remoteDump back to local id before importDump', async () => {
-    const char = makeCloudChar()
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-    mockExportDump.mockResolvedValue({
+  it('continues fail-soft when orchestrator sync throws', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+    mockSyncAll.mockRejectedValue(new Error('network error'))
+
+    await syncAllToCloud('user-1')
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      'wiki:sync:batch',
+    )
+  })
+
+  it('short-circuits when syncAll throws WikiBusyError', async () => {
+    const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+    mockSyncAll.mockRejectedValue(new WikiBusyError('sync', LOCAL_ID))
+
+    await syncAllToCloud('user-1')
+    expect(reportError).not.toHaveBeenCalled()
+  })
+
+  it('isolates per-character runRemoteSync failures in batched mode', async () => {
+    const secondLocalId = 'char-local-2'
+    const secondCloudId = '550e8400-e29b-41d4-a716-446655440001'
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar(),
+      makeCloudChar({ id: secondLocalId, cloud_id: secondCloudId }),
+    ])
+
+    await syncAllToCloud('user-1')
+
+    const [itemsArg] = mockSyncAll.mock.calls[0]
+    const firstRunRemoteSync = itemsArg[0].runRemoteSync as (dump: any) => Promise<any>
+    const secondRunRemoteSync = itemsArg[1].runRemoteSync as (dump: any) => Promise<any>
+
+    mockWikiSyncFn.mockRejectedValueOnce(new Error('first character sync failed'))
+    await expect(firstRunRemoteSync({
       generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
-    })
-    const remoteFacts = [{ id: 'rf1', title: 'remote', body: 'rb' }]
-    mockWikiSyncFn.mockResolvedValue({
+      entities: { [LOCAL_ID]: { facts: [{ id: 'f1', entity_id: LOCAL_ID }], tasks: [], events: [] } },
+    })).rejects.toThrow('first character sync failed')
+
+    // Error reporting now happens in the wiki machine's recordError action, not in runRemoteSync
+
+    mockWikiSyncFn.mockResolvedValueOnce({
       data: {
         remoteDump: {
-          generatedAt: 1001,
-          entities: { [CLOUD_ID]: { facts: remoteFacts, tasks: [], events: [] } },
+          generatedAt: 1002,
+          entities: { [secondCloudId]: { facts: [{ id: 'rf2' }], tasks: [], events: [] } },
         },
       },
     })
-    mockImportDump.mockResolvedValue(undefined)
-    mockRunPrune.mockResolvedValue(undefined)
+    const secondResult = await secondRunRemoteSync({
+      generatedAt: 1001,
+      entities: { [secondLocalId]: { facts: [{ id: 'f2', entity_id: secondLocalId }], tasks: [], events: [] } },
+    })
 
-    await syncAllToCloud('user-1')
+    expect(secondResult.entities[secondLocalId].facts).toEqual([{ id: 'rf2' }])
+  })
+})
 
-    // importDump called with local id as entity key
-    expect(mockImportDump).toHaveBeenCalledWith(
-      expect.objectContaining({
-        entities: expect.objectContaining({
-          [LOCAL_ID]: expect.objectContaining({ facts: remoteFacts }),
-        }),
-      }),
-      { merge: true },
-    )
-    // cloud UUID must NOT appear as entity key
-    const importArg = mockImportDump.mock.calls[0][0]
-    expect(Object.keys(importArg.entities)).not.toContain(CLOUD_ID)
+describe('restoreFromCloud wiki sync reporting', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockGetWiki.mockReturnValue({})
   })
 
-  it('still runs runPrune when importDump throws WikiBusyError', async () => {
-    const { WikiBusyError } = jest.requireActual<typeof import('@equationalapplications/expo-llm-wiki')>(
-      '@equationalapplications/expo-llm-wiki',
-    )
-    const char = makeCloudChar()
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-    mockExportDump.mockResolvedValue({
-      generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
+  it('reports restore wiki sync failures via reportError', async () => {
+    ;(getUserCharactersFn as jest.Mock).mockResolvedValue({
+      data: {
+        characters: [
+          {
+            id: CLOUD_ID,
+            name: 'Restored',
+            avatar: null,
+            appearance: null,
+            traits: null,
+            emotions: null,
+            context: null,
+            isPublic: false,
+            createdAt: new Date(1000).toISOString(),
+            updatedAt: new Date(2000).toISOString(),
+            voice: null,
+          },
+        ],
+      },
     })
-    mockWikiSyncFn.mockResolvedValue({
-      data: { remoteDump: { generatedAt: 1001, entities: { [CLOUD_ID]: { facts: [], tasks: [], events: [] } } } },
-    })
-    mockImportDump.mockRejectedValue(new WikiBusyError('ingest', LOCAL_ID))
-    mockRunPrune.mockResolvedValue(undefined)
+    mockGetAllCharactersIncludingDeleted
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error('wiki restore sync failed'))
 
-    await syncAllToCloud('user-1')
+    await expect(restoreFromCloud('user-1')).resolves.toBeUndefined()
 
-    // WikiBusyError from importDump should not prevent runPrune
-    expect(mockRunPrune).toHaveBeenCalledWith(LOCAL_ID, expect.any(Object))
-    expect(reportError).not.toHaveBeenCalled()
-  })
-
-  it('does NOT run runPrune when wikiSyncFn throws', async () => {
-    const char = makeCloudChar()
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-    mockExportDump.mockResolvedValue({
-      generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
-    })
-    mockWikiSyncFn.mockRejectedValue(new Error('network error'))
-
-    await syncAllToCloud('user-1')
-
-    expect(mockRunPrune).not.toHaveBeenCalled()
-  })
-
-  it('skips all characters when wiki is unavailable (web/uninitialized)', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
-    mockGetWiki.mockReturnValue(null)
-    const char = makeCloudChar()
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-
-    await syncAllToCloud('user-1')
-
-    expect(mockExportDump).not.toHaveBeenCalled()
-    expect(mockImportDump).not.toHaveBeenCalled()
-    expect(mockRunPrune).not.toHaveBeenCalled()
-    expect(mockWikiSyncFn).not.toHaveBeenCalled()
-    expect(reportError).not.toHaveBeenCalled()
-    expect(warnSpy).toHaveBeenCalledWith(
-      '[syncWikiForCloud] wiki unavailable — skipping wiki sync for all characters',
-    )
-    warnSpy.mockRestore()
-  })
-
-  it('reports non-busy sync errors with wiki:sync context', async () => {
-    const char = makeCloudChar()
-    const syncErr = new Error('network error')
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-    mockExportDump.mockResolvedValue({
-      generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
-    })
-    mockWikiSyncFn.mockRejectedValue(syncErr)
-
-    await syncAllToCloud('user-1')
-
-    expect(reportError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: expect.stringContaining(`Wiki cloud sync (character ${LOCAL_ID})`),
-        cause: syncErr,
-      }),
-      'wiki:sync',
-    )
-  })
-
-  it('does not call reportError when wikiSyncFn rejects with WikiBusyError', async () => {
-    const { WikiBusyError } = jest.requireActual<typeof import('@equationalapplications/expo-llm-wiki')>(
-      '@equationalapplications/expo-llm-wiki',
-    )
-    const char = makeCloudChar()
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-    mockExportDump.mockResolvedValue({
-      generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
-    })
-    mockWikiSyncFn.mockRejectedValue(new WikiBusyError('ingest', LOCAL_ID))
-
-    await syncAllToCloud('user-1')
-
-    expect(reportError).not.toHaveBeenCalled()
-  })
-
-  it('reports wiki:sync when wikiSyncFn resolves without remoteDump', async () => {
-    const char = makeCloudChar()
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-    mockExportDump.mockResolvedValue({
-      generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
-    })
-    mockWikiSyncFn.mockResolvedValue({ data: {} })
-
-    await syncAllToCloud('user-1')
-
-    expect(reportError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: expect.stringMatching(
-          new RegExp(
-            `Wiki cloud sync \\(character ${LOCAL_ID}\\): wikiSync returned without remoteDump`,
-          ),
-        ),
-      }),
-      'wiki:sync',
-    )
-    expect(mockImportDump).not.toHaveBeenCalled()
-    expect(mockRunPrune).not.toHaveBeenCalled()
-  })
-
-  it('reports non-busy export errors with wiki:export context and skips WikiBusyError', async () => {
-    const { WikiBusyError } = jest.requireActual<typeof import('@equationalapplications/expo-llm-wiki')>(
-      '@equationalapplications/expo-llm-wiki',
-    )
-    const char = makeCloudChar()
-    const exportErr = new Error('export failed')
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-    mockExportDump.mockRejectedValueOnce(exportErr).mockRejectedValueOnce(new WikiBusyError('ingest', LOCAL_ID))
-
-    await syncAllToCloud('user-1')
-    await syncAllToCloud('user-1')
-
-    expect(reportError).toHaveBeenCalledTimes(1)
-    expect(reportError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: expect.stringContaining(`Wiki export (character ${LOCAL_ID})`),
-        cause: exportErr,
-      }),
-      'wiki:export',
-    )
-    expect(mockWikiSyncFn).not.toHaveBeenCalled()
-  })
-
-  it('reports non-busy import errors with wiki:import context', async () => {
-    const char = makeCloudChar()
-    const importErr = new Error('import failed')
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-    mockExportDump.mockResolvedValue({
-      generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
-    })
-    mockWikiSyncFn.mockResolvedValue({
-      data: { remoteDump: { generatedAt: 1001, entities: { [CLOUD_ID]: { facts: [], tasks: [], events: [] } } } },
-    })
-    mockImportDump.mockRejectedValue(importErr)
-
-    await syncAllToCloud('user-1')
-
-    expect(reportError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: expect.stringContaining(`Wiki import (character ${LOCAL_ID})`),
-        cause: importErr,
-      }),
-      'wiki:import',
-    )
-    expect(mockRunPrune).not.toHaveBeenCalled()
-  })
-
-  it('reports non-busy prune errors with wiki:prune context and skips WikiBusyError', async () => {
-    const { WikiBusyError } = jest.requireActual<typeof import('@equationalapplications/expo-llm-wiki')>(
-      '@equationalapplications/expo-llm-wiki',
-    )
-    const char = makeCloudChar()
-    const pruneErr = new Error('prune failed')
-    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
-    mockExportDump.mockResolvedValue({
-      generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
-    })
-    mockWikiSyncFn.mockResolvedValue({
-      data: { remoteDump: { generatedAt: 1001, entities: { [CLOUD_ID]: { facts: [], tasks: [], events: [] } } } },
-    })
-    mockImportDump.mockResolvedValue(undefined)
-    mockRunPrune.mockRejectedValueOnce(pruneErr).mockRejectedValueOnce(new WikiBusyError('ingest', LOCAL_ID))
-
-    await syncAllToCloud('user-1')
-    await syncAllToCloud('user-1')
-
-    expect(reportError).toHaveBeenCalledTimes(1)
-    expect(reportError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: expect.stringContaining(`Wiki prune (character ${LOCAL_ID})`),
-        cause: pruneErr,
-      }),
-      'wiki:prune',
-    )
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:sync:restore')
   })
 })

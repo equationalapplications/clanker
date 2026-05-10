@@ -9,11 +9,24 @@ jest.mock('react-native-gifted-chat', () => {
   }
 })
 
+const mockHasChanged = jest.fn().mockResolvedValue(true)
+const mockForget = jest.fn().mockResolvedValue(undefined)
+const mockIngest = jest.fn().mockResolvedValue({ chunks: 1 })
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
-  useWikiIngest: () => ({ execute: jest.fn().mockResolvedValue({ chunks: 1 }), isPending: false }),
-  useWikiHasChanged: () => ({ execute: jest.fn().mockResolvedValue(true) }),
-  useWikiForget: () => ({ execute: jest.fn().mockResolvedValue({ deleted: { entries: 0, tasks: 0 } }), lastResult: null }),
   WikiBusyError: class WikiBusyError extends Error {},
+}))
+jest.mock('~/hooks/useCharacterWiki', () => ({
+  useCharacterWiki: () => ({
+    status: { ingesting: false, librarian: false, heal: false },
+    isBusy: false,
+    error: null,
+    read: jest.fn(),
+    write: jest.fn(),
+    ingest: (...args: unknown[]) => mockIngest(...args),
+    forget: (...args: unknown[]) => mockForget(...args),
+    sync: jest.fn(),
+    hasChanged: (...args: unknown[]) => mockHasChanged(...args),
+  }),
 }))
 
 jest.mock('expo-document-picker', () => ({
@@ -53,6 +66,9 @@ jest.mock('~/components/composer/IngestProgressBar', () => () => null)
 describe('ChatComposer', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockHasChanged.mockResolvedValue(true)
+    mockForget.mockResolvedValue(undefined)
+    mockIngest.mockResolvedValue({ chunks: 1 })
     capturedSnackbarProps = null
     jest.useRealTimers()
   })
@@ -321,5 +337,41 @@ describe('ChatComposer', () => {
     const plusButton = tree.root.findAll((n: any) => n.props?.__iconButtonMock === true)
     expect(plusButton.length).toBeGreaterThan(0)
     expect(plusButton[0].props.icon).toBe('plus')
+  })
+
+  it('delegates ingest flow through useCharacterWiki methods', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystem = require('expo-file-system')
+    const Crypto = require('expo-crypto')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
+    })
+    FileSystem.readAsStringAsync.mockResolvedValue('hello world')
+    Crypto.digestStringAsync.mockResolvedValue('hash123')
+
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(mockHasChanged).toHaveBeenCalledWith('doc.txt', 'hash123')
+    expect(mockForget).toHaveBeenCalledWith({ sourceRef: 'doc.txt' })
+    expect(mockIngest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceRef: 'doc.txt',
+        sourceHash: 'hash123',
+        documentChunk: 'hello world',
+      }),
+    )
   })
 })
