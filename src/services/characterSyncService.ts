@@ -77,7 +77,7 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
 
     const wiki = getWiki()
     if (!wiki) {
-        console.warn('[syncWikiForCloud] wiki unavailable — skipping wiki sync for all characters')
+        reportError(new Error('wiki unavailable — skipping wiki sync for all characters'), 'wiki:syncAll')
         return
     }
 
