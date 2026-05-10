@@ -26,7 +26,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const characterWiki = useCharacterWiki(characterId ?? '')
-  const isIngesting = characterWiki.isIngesting
+  const { hasChanged, forget, ingest, isIngesting } = characterWiki
 
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
@@ -58,15 +58,15 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         documentChunk,
       )
 
-      const changed = await characterWiki.hasChanged(sourceRef, sourceHash)
+      const changed = await hasChanged(sourceRef, sourceHash)
       if (!changed) {
         setToastMessage(`"${sourceRef}" is already up to date.`)
         return
       }
 
-      await characterWiki.forget({ sourceRef })
+      await forget({ sourceRef })
 
-      const ingestResult = await characterWiki.ingest({
+      const ingestResult = await ingest({
         sourceRef,
         sourceHash,
         documentChunk,
@@ -81,7 +81,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         setToastMessage('Failed to ingest document.')
       }
     }
-  }, [characterId, userId, characterWiki])
+  }, [characterId, userId, hasChanged, forget, ingest])
 
   const sendCurrentText = useCallback(() => {
     const trimmedText = text?.trim()
