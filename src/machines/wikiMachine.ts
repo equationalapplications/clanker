@@ -18,6 +18,34 @@ function normalizeError(error: unknown): Error {
   return new Error(String(error))
 }
 
+function abortErrorFromSignal(signal: AbortSignal): Error {
+  const reason = signal.reason
+  if (reason instanceof Error) {
+    return reason
+  }
+  if (reason !== undefined && reason !== null) {
+    return new Error(String(reason))
+  }
+  return new DOMException('This operation was aborted', 'AbortError')
+}
+
+function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(abortErrorFromSignal(signal))
+  }
+  return new Promise((resolve, reject) => {
+    const id = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    const onAbort = () => {
+      clearTimeout(id)
+      reject(abortErrorFromSignal(signal))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
 /**
  * Argument shape accepted by `Wiki.ingestDocument`. The package does not
  * export this as a named type, so we derive it from the method signature.
@@ -401,6 +429,7 @@ export const wikiMachine = createMachine(
       syncActor: fromPromise(
         async ({
           input,
+          signal,
         }: {
           input: {
             wiki: Wiki
@@ -408,18 +437,21 @@ export const wikiMachine = createMachine(
             busyRetryDelayMs: number
             runRemoteSync: (d: MemoryDump) => Promise<MemoryDump | null>
           }
+          signal: AbortSignal
         }) => {
-          const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
           const local = await input.wiki.exportDump([input.entityId])
           const remote = await input.runRemoteSync(local)
           if (remote) {
             for (;;) {
+              if (signal.aborted) {
+                throw abortErrorFromSignal(signal)
+              }
               try {
                 await input.wiki.importDump(remote, { merge: true })
                 break
               } catch (e) {
                 if (e instanceof WikiBusyError) {
-                  await sleep(input.busyRetryDelayMs)
+                  await abortableSleep(input.busyRetryDelayMs, signal)
                   continue
                 }
                 throw e
@@ -427,12 +459,15 @@ export const wikiMachine = createMachine(
             }
           }
           for (;;) {
+            if (signal.aborted) {
+              throw abortErrorFromSignal(signal)
+            }
             try {
               await input.wiki.runPrune(input.entityId, { vacuum: false })
               return
             } catch (e) {
               if (e instanceof WikiBusyError) {
-                await sleep(input.busyRetryDelayMs)
+                await abortableSleep(input.busyRetryDelayMs, signal)
                 continue
               }
               throw e

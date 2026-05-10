@@ -1,7 +1,7 @@
 # LLM Wiki State Machine + v4 Upgrade Design
 
 **Date:** 2026-05-09
-**Status:** Draft
+**Status:** Draft (phased rollout; Phase 2a is implemented — see § Phase 2a Implementation Notes)
 **Owner:** equationalapplications
 
 ## Problem
