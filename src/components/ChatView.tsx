@@ -141,9 +141,9 @@ export default function ChatView({ characterId }: ChatViewProps) {
     // GiftedChat currently passes full internal input toolbar props to renderComposer,
     // including onSend from SendProps in addition to ComposerProps.
     (props: ComposerProps & Pick<SendProps<IMessage>, 'onSend'>) => (
-      <ChatComposer {...props} characterId={characterId} userId={currentUserId ?? undefined} hasUnlimited={hasUnlimited} />
+      <ChatComposer {...props} characterId={characterId} userId={currentUserId ?? undefined} />
     ),
-    [characterId, currentUserId, hasUnlimited],
+    [characterId, currentUserId],
   )
 
   if (characterLoading) {

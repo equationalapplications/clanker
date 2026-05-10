@@ -11,7 +11,6 @@ type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
     userId?: string
-    hasUnlimited?: boolean
   }
 
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
@@ -20,7 +19,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   textInputProps,
   characterId,
   userId,
-  hasUnlimited,
   ...props
 }: ChatComposerProps<TMessage>) {
   const { colors, roundness } = useTheme()
@@ -93,7 +91,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [onSend, text])
 
-  const showPlusButton = hasUnlimited && Boolean(characterId) && Boolean(userId)
+  const showPlusButton = Boolean(characterId) && Boolean(userId)
 
   return (
     <View style={styles.container}>

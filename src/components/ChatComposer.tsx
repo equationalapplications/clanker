@@ -12,7 +12,6 @@ type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
     userId?: string
-    hasUnlimited?: boolean
   }
 
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
@@ -23,7 +22,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   textInputProps,
   characterId,
   userId,
-  hasUnlimited,
   ...props
 }: ChatComposerProps<TMessage>) {
   const skipNextSubmitRef = useRef(false)
@@ -97,9 +95,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [onSend, text])
 
-  // Show the + button for any premium user with an active character session,
+  // Show the + button whenever an active character session exists,
   // regardless of whether the character is cloud-synced.
-  const showPlusButton = hasUnlimited && Boolean(characterId) && Boolean(userId)
+  const showPlusButton = Boolean(characterId) && Boolean(userId)
 
   return (
     <View style={styles.container}>
