@@ -155,6 +155,9 @@ function withNoUser() {
 describe('ChatView accessibility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    const mockUseWiki = jest.requireMock('@equationalapplications/expo-llm-wiki').useWiki
+    mockUseWiki.mockReset()
+    mockUseWiki.mockReturnValue(null)
     capturedGiftedChatProps = null
     mockPlatformOS = 'android'
     mockCreditsData = { totalCredits: 10, hasUnlimited: true }
@@ -388,4 +391,3 @@ describe('ChatView accessibility', () => {
     expect(sendElement).toBeDefined()
   })
 })
-

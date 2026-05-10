@@ -1,6 +1,5 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
-import { useSelector } from '@xstate/react'
 import { useAIChat } from '~/hooks/useAIChat'
 
 const mockSendMessageWithAIResponse = jest.fn()
@@ -10,10 +9,6 @@ const mockCancelQueries = jest.fn()
 const mockGetQueryData = jest.fn()
 const mockSetQueryData = jest.fn()
 const mockSend = jest.fn()
-
-jest.mock('@xstate/react', () => ({
-  useSelector: jest.fn(),
-}))
 
 jest.mock('@tanstack/react-query', () => ({
   useMutation: ({ mutationFn, onSuccess, onError }: any) => ({
@@ -69,19 +64,7 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
 
 type HookValue = ReturnType<typeof useAIChat>
 
-const mockUseSelector = useSelector as jest.Mock
-
-function renderUseAIChat(
-  subscription: { planTier: string | null; planStatus: string | null },
-): HookValue {
-  mockUseSelector.mockImplementation((_service: unknown, selector: (state: any) => unknown) =>
-    selector({
-      context: {
-        subscription,
-      },
-    }),
-  )
-
+function renderUseAIChat(): HookValue {
   let hookValue: HookValue | null = null
 
   function Probe() {
@@ -119,10 +102,7 @@ describe('useAIChat', () => {
   })
 
   it('reads wiki memory and provides write callback for free-tier users', async () => {
-    const hook = renderUseAIChat({
-      planTier: null,
-      planStatus: 'expired',
-    })
+    const hook = renderUseAIChat()
 
     await act(async () => {
       await hook.sendMessage({
@@ -145,11 +125,8 @@ describe('useAIChat', () => {
     )
   })
 
-  it('passes hasUnlimited=true for active monthly subscribers', async () => {
-    const hook = renderUseAIChat({
-      planTier: 'monthly_20',
-      planStatus: 'active',
-    })
+  it('provides write callback when sending a message', async () => {
+    const hook = renderUseAIChat()
 
     await act(async () => {
       await hook.sendMessage({

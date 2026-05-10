@@ -237,89 +237,89 @@ describe('ChatComposer', () => {
         expect(onSend).not.toHaveBeenCalled()
     })
 
-    it('sets accessibilityLabel on input for native', () => {
-        const ChatComposer = require('~/components/ChatComposer').default
-        let tree!: ReturnType<typeof create>
+  it('sets accessibilityLabel on input for native', () => {
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
 
-        act(() => {
-            tree = create(<ChatComposer text="" onSend={jest.fn()} />)
-        })
-
-        const composer = tree.root.findByProps({ __chatComposerMock: true })
-        expect(composer.props.textInputProps.accessibilityLabel).toBe('Message input')
+    act(() => {
+      tree = create(<ChatComposer text="" onSend={jest.fn()} />)
     })
 
-    it('sets accessibilityLabel on input for web', () => {
-        const ChatComposer = require('~/components/ChatComposer.web').default
-        let tree!: ReturnType<typeof create>
+    const composer = tree.root.findByProps({ __chatComposerMock: true })
+    expect(composer.props.textInputProps.accessibilityLabel).toBe('Message input')
+  })
 
-        act(() => {
-            tree = create(<ChatComposer text="" onSend={jest.fn()} />)
-        })
+  it('sets accessibilityLabel on input for web', () => {
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
 
-        const composer = tree.root.findByProps({ __chatComposerMock: true })
-        expect(composer.props.textInputProps.accessibilityLabel).toBe('Message input')
+    act(() => {
+      tree = create(<ChatComposer text="" onSend={jest.fn()} />)
     })
 
-    it('native snackbar has accessibilityRole "alert" and polite live region', () => {
-        const ChatComposer = require('~/components/ChatComposer').default
-        act(() => {
-            create(<ChatComposer text="" onSend={jest.fn()} />)
-        })
+    const composer = tree.root.findByProps({ __chatComposerMock: true })
+    expect(composer.props.textInputProps.accessibilityLabel).toBe('Message input')
+  })
 
-        expect(capturedSnackbarProps).not.toBeNull()
-        expect(capturedSnackbarProps.accessibilityRole).toBe('alert')
-        expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
+  it('native snackbar has accessibilityRole "alert" and polite live region', () => {
+    const ChatComposer = require('~/components/ChatComposer').default
+    act(() => {
+      create(<ChatComposer text="" onSend={jest.fn()} />)
     })
 
-    it('web snackbar has accessibilityRole "alert" and polite live region', () => {
-        const ChatComposer = require('~/components/ChatComposer.web').default
-        act(() => {
-            create(<ChatComposer text="" onSend={jest.fn()} />)
-        })
+    expect(capturedSnackbarProps).not.toBeNull()
+    expect(capturedSnackbarProps.accessibilityRole).toBe('alert')
+    expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
+  })
 
-        expect(capturedSnackbarProps).not.toBeNull()
-        expect(capturedSnackbarProps.accessibilityRole).toBe('alert')
-        expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
+  it('web snackbar has accessibilityRole "alert" and polite live region', () => {
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    act(() => {
+      create(<ChatComposer text="" onSend={jest.fn()} />)
     })
 
-    it('renders + ingest button for free-tier users (native) when characterId and userId are provided', () => {
-        const ChatComposer = require('~/components/ChatComposer').default
-        let tree!: ReturnType<typeof create>
+    expect(capturedSnackbarProps).not.toBeNull()
+    expect(capturedSnackbarProps.accessibilityRole).toBe('alert')
+    expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
+  })
 
-        act(() => {
-            tree = create(
-                <ChatComposer
-                    text=""
-                    onSend={jest.fn()}
-                    characterId="char-1"
-                    userId="user-1"
-                />,
-            )
-        })
+  it('renders + ingest button for free-tier users (native) when characterId and userId are provided', () => {
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
 
-        const plusButton = tree.root.findAll((n: any) => n.props?.__iconButtonMock === true)
-        expect(plusButton.length).toBeGreaterThan(0)
-        expect(plusButton[0].props.icon).toBe('plus')
+    act(() => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
+      )
     })
 
-    it('renders + ingest button for free-tier users (web) when characterId and userId are provided', () => {
-        const ChatComposer = require('~/components/ChatComposer.web').default
-        let tree!: ReturnType<typeof create>
+    const plusButton = tree.root.findAll((n: any) => n.props?.__iconButtonMock === true)
+    expect(plusButton.length).toBeGreaterThan(0)
+    expect(plusButton[0].props.icon).toBe('plus')
+  })
 
-        act(() => {
-            tree = create(
-                <ChatComposer
-                    text=""
-                    onSend={jest.fn()}
-                    characterId="char-1"
-                    userId="user-1"
-                />,
-            )
-        })
+  it('renders + ingest button for free-tier users (web) when characterId and userId are provided', () => {
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
 
-        const plusButton = tree.root.findAll((n: any) => n.props?.__iconButtonMock === true)
-        expect(plusButton.length).toBeGreaterThan(0)
-        expect(plusButton[0].props.icon).toBe('plus')
+    act(() => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
+      )
     })
+
+    const plusButton = tree.root.findAll((n: any) => n.props?.__iconButtonMock === true)
+    expect(plusButton.length).toBeGreaterThan(0)
+    expect(plusButton[0].props.icon).toBe('plus')
+  })
 })
