@@ -102,30 +102,26 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
             entityId: char.id,
             runRemoteSync: async (localDump: MemoryDump): Promise<MemoryDump> => {
                 const localBundle = localDump.entities[char.id] ?? { facts: [], tasks: [], events: [] }
-                try {
-                    const cloudDump: MemoryDump = {
-                        generatedAt: localDump.generatedAt,
-                        entities: {
-                            [cloudId]: {
-                                facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudId })),
-                                tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudId })),
-                                events: localBundle.events.map((e) => ({ ...e, entity_id: cloudId })),
-                            },
+                const cloudDump: MemoryDump = {
+                    generatedAt: localDump.generatedAt,
+                    entities: {
+                        [cloudId]: {
+                            facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudId })),
+                            tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudId })),
+                            events: localBundle.events.map((e) => ({ ...e, entity_id: cloudId })),
                         },
-                    }
-                    const result = await wikiSync({ dump: cloudDump })
-                    const remoteDump = result.data?.remoteDump
-                    if (!remoteDump) {
-                        throw new Error('wikiSync returned without remoteDump in response data')
-                    }
-                    return {
-                        generatedAt: remoteDump.generatedAt,
-                        entities: {
-                            [char.id]: remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [] },
-                        },
-                    }
-                } catch (error) {
-                    throw error
+                    },
+                }
+                const result = await wikiSync({ dump: cloudDump })
+                const remoteDump = result.data?.remoteDump
+                if (!remoteDump) {
+                    throw new Error('wikiSync returned without remoteDump in response data')
+                }
+                return {
+                    generatedAt: remoteDump.generatedAt,
+                    entities: {
+                        [char.id]: remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [] },
+                    },
                 }
             },
         }
