@@ -307,6 +307,7 @@ describe('syncWikiForCloud key remapping', () => {
     await syncAllToCloud('user-1')
     await syncAllToCloud('user-1')
 
+    expect(reportError).toHaveBeenCalledTimes(1)
     expect(reportError).toHaveBeenCalledWith(
       expect.objectContaining({
         message: expect.stringContaining(`Wiki export (character ${LOCAL_ID})`),
@@ -314,7 +315,6 @@ describe('syncWikiForCloud key remapping', () => {
       }),
       'wiki:export',
     )
-    expect(reportError).not.toHaveBeenCalledWith(expect.any(WikiBusyError), expect.any(String))
     expect(mockWikiSyncFn).not.toHaveBeenCalled()
   })
 
@@ -363,6 +363,7 @@ describe('syncWikiForCloud key remapping', () => {
     await syncAllToCloud('user-1')
     await syncAllToCloud('user-1')
 
+    expect(reportError).toHaveBeenCalledTimes(1)
     expect(reportError).toHaveBeenCalledWith(
       expect.objectContaining({
         message: expect.stringContaining(`Wiki prune (character ${LOCAL_ID})`),
@@ -370,6 +371,5 @@ describe('syncWikiForCloud key remapping', () => {
       }),
       'wiki:prune',
     )
-    expect(reportError).not.toHaveBeenCalledWith(expect.any(WikiBusyError), 'wiki:prune')
   })
 })
