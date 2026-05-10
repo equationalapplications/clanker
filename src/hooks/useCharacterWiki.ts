@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { useMemoryRead, useWikiWrite, useWikiExport, useWikiMaintenance, useWiki, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { wikiSync } from '~/services/apiClient'
+import { reportError } from '~/utilities/reportError'
 
 /**
  * Read memory facts/tasks/events for a character based on a query.
@@ -96,8 +97,7 @@ export function useCharacterWikiSync() {
         if (!(importErr instanceof WikiBusyError)) {
           throw importErr
         }
-        // WikiBusyError: cloud sync succeeded but local merge deferred
-        console.warn('[wiki] import deferred due to busy state; will merge on next sync')
+        // WikiBusyError: cloud sync succeeded but local merge deferred — caller will retry on next sync cycle
       }
 
       // 4. Prune only after a successful import (skip when import was deferred)
@@ -110,7 +110,7 @@ export function useCharacterWikiSync() {
           })
         } catch (pruneErr) {
           if (!(pruneErr instanceof WikiBusyError)) {
-            console.warn('[wiki] prune failed after sync:', pruneErr)
+            reportError(pruneErr, 'wiki:prune')
           }
           // WikiBusyError: defer to next sync cycle
         }
@@ -118,7 +118,7 @@ export function useCharacterWikiSync() {
 
       return { success: true, message: 'Memory synced to cloud.' }
     } catch (error) {
-      console.error('[wiki] sync failed:', error)
+      if (!(error instanceof WikiBusyError)) reportError(error, 'wiki:sync')
       const message = error instanceof WikiBusyError
         ? 'Memory is busy. Please try again shortly.'
         : 'Failed to sync memory. Check your connection and try again.'
