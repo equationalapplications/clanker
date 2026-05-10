@@ -7,6 +7,7 @@ const mockGetCharacter = jest.fn()
 const mockUpdateCharacter = jest.fn()
 const mockGenerateChatReply = jest.fn()
 const mockSummarizeText = jest.fn()
+const mockReportError = jest.fn()
 
 jest.mock('~/services/messageService', () => ({
   sendMessage: (...args: unknown[]) => mockSendMessage(...args),
@@ -32,6 +33,10 @@ jest.mock('~/services/summarizeTextService', () => ({
   summarizeText: (...args: unknown[]) => mockSummarizeText(...args),
 }))
 
+jest.mock('~/utilities/reportError', () => ({
+  reportError: (...args: unknown[]) => mockReportError(...args),
+}))
+
 import { buildChatPrompt, sendMessageWithAIResponse } from '~/services/aiChatService'
 
 describe('buildChatPrompt', () => {
@@ -40,6 +45,44 @@ describe('buildChatPrompt', () => {
     mockGetCharacter.mockResolvedValue(null)
     mockGetMessageCount.mockResolvedValue(0)
     mockGetMessagesForContextSummary.mockResolvedValue([])
+  })
+
+  it('reports observation write failures from service callback with wiki:write:observation context', async () => {
+    const writeError = new Error('observation write failed')
+    const mockOnWrite = jest.fn().mockRejectedValue(writeError)
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'All good.',
+      remainingCredits: null,
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-04-27T00:00:00.000Z',
+    })
+
+    await sendMessageWithAIResponse(
+      {
+        _id: 'msg-observation',
+        text: 'Remember this detail',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any,
+      {
+        id: 'char-1',
+        name: 'Nova',
+        appearance: 'avatar',
+        traits: 'calm',
+        emotions: 'encouraging',
+        context: 'friendly coach',
+      },
+      'user-1',
+      [] as any,
+      { onWriteObservation: mockOnWrite },
+    )
+
+    // Flush microtasks so Promise.resolve(...).catch(...) executes.
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(mockReportError).toHaveBeenCalledWith(writeError, 'wiki:write:observation')
   })
 
   it('prepends memory block before conversation history when memoryBlock provided', () => {

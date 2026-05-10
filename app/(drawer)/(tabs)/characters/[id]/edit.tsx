@@ -29,17 +29,18 @@ import {
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
 import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
-import { useCharacterWikiSync } from '~/hooks/useCharacterWiki'
+import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
+  const characterId = typeof id === 'string' ? id : ''
   const theme = useTheme()
   const authService = useAuthMachine()
   const { isSubscriber } = useCurrentPlan()
   const { user } = useSelector(authService, (state) => ({
     user: state.context.user,
   }))
-  const { character, isLoading } = useCharacter(id)
+  const { character, isLoading } = useCharacter(characterId)
   const {
     update,
     isPending: isUpdating,
@@ -47,7 +48,7 @@ export default function EditCharacterScreen() {
   } = useUpdateCharacter()
   const { isCloudUnsyncing, error: unsyncError } = useUnsyncCharacter()
   const { isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
-  const { sync: wikiSyncHandler, isPending: isWikiSyncingToCloud } = useCharacterWikiSync()
+  const { sync: wikiSyncHandler } = useCharacterWiki(characterId)
 
   const [name, setName] = useState('')
   const [appearance, setAppearance] = useState('')
@@ -66,6 +67,7 @@ export default function EditCharacterScreen() {
     requiresSubscription: boolean
   } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [isWikiSyncPending, setIsWikiSyncPending] = useState(false)
   const prevIsUpdatingRef = useRef(false)
   const prevIsCloudUnsyncingRef = useRef(false)
   const prevIsCloudSyncingRef = useRef(false)
@@ -236,6 +238,13 @@ export default function EditCharacterScreen() {
   }
 
   const handleWikiSync = async () => {
+    if (!characterId) {
+      setToastState({
+        message: 'Character ID is missing. Please reopen this screen and try again.',
+        requiresSubscription: false,
+      })
+      return
+    }
     if (!cloudCharacterId) {
       setToastState({
         message: 'Save this character to cloud and sync it first, then try again.',
@@ -243,11 +252,16 @@ export default function EditCharacterScreen() {
       })
       return
     }
-    const result = await wikiSyncHandler(id, cloudCharacterId)
-    setToastState({
-      message: result.message,
-      requiresSubscription: false,
-    })
+    setIsWikiSyncPending(true)
+    try {
+      const result = await wikiSyncHandler(cloudCharacterId)
+      setToastState({
+        message: result.message,
+        requiresSubscription: false,
+      })
+    } finally {
+      setIsWikiSyncPending(false)
+    }
   }
 
   const handleOpenShareCard = () => {
@@ -501,8 +515,8 @@ export default function EditCharacterScreen() {
               mode="outlined"
               icon="brain"
               onPress={handleWikiSync}
-              disabled={isWikiSyncingToCloud}
-              loading={isWikiSyncingToCloud}
+              disabled={isWikiSyncPending}
+              loading={isWikiSyncPending}
               style={styles.shareButton}
             >
               Sync Memory

@@ -44,8 +44,9 @@ jest.mock('~/services/apiClient', () => ({
   wikiSync: (...args: unknown[]) => mockWikiSyncFn(...args),
 }))
 
-import { syncAllToCloud } from '../src/services/characterSyncService'
+import { syncAllToCloud, restoreFromCloud } from '../src/services/characterSyncService'
 import { reportError } from '~/utilities/reportError'
+import { getUserCharactersFn } from '~/services/apiClient'
 
 function makeCloudChar(overrides: Record<string, unknown> = {}) {
   return {
@@ -96,6 +97,24 @@ describe('syncWikiForCloud orchestration path', () => {
     expect(itemsArg[0].entityId).toBe(LOCAL_ID)
   })
 
+  it('batches all cloud-linked characters into one syncAll call', async () => {
+    const secondLocalId = 'char-local-2'
+    const secondCloudId = '550e8400-e29b-41d4-a716-446655440001'
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar(),
+      makeCloudChar({ id: secondLocalId, cloud_id: secondCloudId }),
+    ])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockSyncAll).toHaveBeenCalledTimes(1)
+    const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
+    expect(wikiArg).toEqual({})
+    expect(concurrencyArg).toBe(1)
+    expect(itemsArg).toHaveLength(2)
+    expect(itemsArg.map((item: { entityId: string }) => item.entityId)).toEqual([LOCAL_ID, secondLocalId])
+  })
+
   it('remaps local->cloud and cloud->local within runRemoteSync callback', async () => {
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
     await syncAllToCloud('user-1')
@@ -131,5 +150,82 @@ describe('syncWikiForCloud orchestration path', () => {
       expect.objectContaining({ message: expect.stringContaining(`Wiki cloud sync (character ${LOCAL_ID})`) }),
       'wiki:sync',
     )
+  })
+
+  it('isolates per-character runRemoteSync failures in batched mode', async () => {
+    const secondLocalId = 'char-local-2'
+    const secondCloudId = '550e8400-e29b-41d4-a716-446655440001'
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar(),
+      makeCloudChar({ id: secondLocalId, cloud_id: secondCloudId }),
+    ])
+
+    await syncAllToCloud('user-1')
+
+    const [itemsArg] = mockSyncAll.mock.calls[0]
+    const firstRunRemoteSync = itemsArg[0].runRemoteSync as (dump: any) => Promise<any>
+    const secondRunRemoteSync = itemsArg[1].runRemoteSync as (dump: any) => Promise<any>
+
+    mockWikiSyncFn.mockRejectedValueOnce(new Error('first character sync failed'))
+    const firstResult = await firstRunRemoteSync({
+      generatedAt: 1000,
+      entities: { [LOCAL_ID]: { facts: [{ id: 'f1', entity_id: LOCAL_ID }], tasks: [], events: [] } },
+    })
+
+    mockWikiSyncFn.mockResolvedValueOnce({
+      data: {
+        remoteDump: {
+          generatedAt: 1002,
+          entities: { [secondCloudId]: { facts: [{ id: 'rf2' }], tasks: [], events: [] } },
+        },
+      },
+    })
+    const secondResult = await secondRunRemoteSync({
+      generatedAt: 1001,
+      entities: { [secondLocalId]: { facts: [{ id: 'f2', entity_id: secondLocalId }], tasks: [], events: [] } },
+    })
+
+    expect(firstResult.entities[LOCAL_ID].facts).toEqual([{ id: 'f1', entity_id: LOCAL_ID }])
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining(`Wiki cloud sync (character ${LOCAL_ID})`) }),
+      'wiki:sync',
+    )
+    expect(secondResult.entities[secondLocalId].facts).toEqual([{ id: 'rf2' }])
+  })
+})
+
+describe('restoreFromCloud wiki sync reporting', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockGetWiki.mockReturnValue({})
+  })
+
+  it('reports restore wiki sync failures via reportError', async () => {
+    ;(getUserCharactersFn as jest.Mock).mockResolvedValue({
+      data: {
+        characters: [
+          {
+            id: CLOUD_ID,
+            name: 'Restored',
+            avatar: null,
+            appearance: null,
+            traits: null,
+            emotions: null,
+            context: null,
+            isPublic: false,
+            createdAt: new Date(1000).toISOString(),
+            updatedAt: new Date(2000).toISOString(),
+            voice: null,
+          },
+        ],
+      },
+    })
+    mockGetAllCharactersIncludingDeleted
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error('wiki restore sync failed'))
+
+    await expect(restoreFromCloud('user-1')).resolves.toBeUndefined()
+
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:sync:restore')
   })
 })

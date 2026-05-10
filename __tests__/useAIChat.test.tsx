@@ -199,7 +199,8 @@ describe('useAIChat', () => {
   })
 
   it('reports non-busy wiki observation write errors with wiki:write context', async () => {
-    mockCharacterWikiWrite.mockRejectedValue(new Error('write failed'))
+    const writeError = new Error('write failed')
+    mockCharacterWikiWrite.mockRejectedValue(writeError)
     const hook = renderUseAIChat()
 
     await act(async () => {
@@ -222,7 +223,7 @@ describe('useAIChat', () => {
       await Promise.resolve()
     })
 
-    expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:write')
+    expect(mockReportError).toHaveBeenCalledWith(writeError, 'wiki:write')
   })
 
   it('does not report WikiBusyError from wiki observation write', async () => {

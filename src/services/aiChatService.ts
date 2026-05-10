@@ -11,6 +11,8 @@ import { summarizeText } from '~/services/summarizeTextService'
 import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
 import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
+import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { reportError } from '~/utilities/reportError'
 
 export interface Character {
   id: string
@@ -396,10 +398,14 @@ export const sendMessageWithAIResponse = async (
         void Promise.resolve(
           options.onWriteObservation(character.id, chunk || userMessage.text),
         ).catch((observationError) => {
-          console.warn('Failed to write observation:', observationError)
+          if (!(observationError instanceof WikiBusyError)) {
+            reportError(observationError, 'wiki:write:observation')
+          }
         })
       } catch (observationError) {
-        console.warn('Failed to write observation:', observationError)
+        if (!(observationError instanceof WikiBusyError)) {
+          reportError(observationError, 'wiki:write:observation')
+        }
       }
     }
     return { usageSnapshot: toUsageSnapshot(aiResponse) }
