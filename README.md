@@ -36,6 +36,7 @@
 - [Avatar gallery upload](docs/AVATAR_GALLERY_UPLOAD.md) — Photo-library avatar upload flow with local WebP conversion and SQLite-only storage.
 - [Chat memory summarization](docs/CHAT_MEMORY_SUMMARIZATION.md) — Background conversation summarization every 20 messages with SQLite pruning and context compaction.
 - [LLM Wiki Memory](docs/LLM_WIKI_MEMORY.md) — Structured, queryable memory with facts, tasks, and episodic events for premium users; FTS5-based search with multi-layer query preprocessing and optional Cloud SQL sync.
+- [Wiki state machine architecture](docs/WIKI_ARCHITECTURE.md) — XState-based per-character wiki orchestration: state machine design, orchestrator API, data flow, and key design decisions.
 - [First-login credits](docs/FIRST_LOGIN_CREDITS.md) — How first-login users are provisioned to 50 free credits.
 - [Cloud character save + share](docs/CLOUD_CHARACTER_SAVE_SHARE.md) — Subscription-gated cloud save toggles, shareable character links, and deep-link import flow.
 - [Cloud SQL design](docs/CLOUD_SQL_DESIGN.md) — Current PostgreSQL schema and service-layer architecture for all 8 tables: users, subscriptions, characters, messages, credit_transactions, wiki_entries, agent_tasks, and memory_events.
