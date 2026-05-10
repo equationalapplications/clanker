@@ -5,7 +5,8 @@ import { sendMessageWithAIResponse, Character } from '~/services/aiChatService'
 import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usageSnapshotFromError } from '~/services/usageSnapshot'
-import { useWiki, useWikiWrite, formatContext, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { formatContext, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { reportError } from '~/utilities/reportError'
 
 interface UseAIChatProps {
@@ -31,29 +32,23 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const authService = useAuthMachine()
   const [error, setError] = useState<string | null>(null)
 
-  const wiki = useWiki()
-  const { execute: writeObservation } = useWikiWrite()
+  const characterWiki = useCharacterWiki(character.id)
 
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
     mutationFn: async (message: IMessage) => {
       let memoryBlock: string | undefined
-      if (wiki) {
-        try {
-          const bundle = await wiki.read(character.id, message.text)
-          if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
-        } catch (err) {
-          if (!(err instanceof WikiBusyError)) reportError(err, 'wiki:read')
-        }
+      try {
+        const bundle = await characterWiki.read(message.text)
+        if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
+      } catch (err) {
+        if (!(err instanceof WikiBusyError)) reportError(err, 'wiki:read')
       }
-      const onWriteObservation = wiki
-        ? (characterId: string, text: string) => {
-            void writeObservation(characterId, { event_type: 'observation', summary: text })
-              .catch((err: unknown) => {
-                if (!(err instanceof WikiBusyError)) reportError(err, 'wiki:write')
-              })
-          }
-        : undefined
+      const onWriteObservation = (_characterId: string, text: string) => {
+        void characterWiki.write(text).catch((err: unknown) => {
+          if (!(err instanceof WikiBusyError)) reportError(err, 'wiki:write')
+        })
+      }
       return sendMessageWithAIResponse(message, character, userId, messages, {
         memoryBlock,
         onWriteObservation,

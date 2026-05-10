@@ -6,7 +6,8 @@ import { IconButton, Snackbar, Portal, useTheme } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
 import * as FileSystem from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
-import { useWikiIngest, useWikiHasChanged, useWikiForget, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -28,9 +29,8 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const { colors, roundness } = useTheme()
 
-  const { execute: ingestDocument, isPending: isIngesting } = useWikiIngest()
-  const { execute: hasChanged } = useWikiHasChanged()
-  const { execute: forgetBySource } = useWikiForget()
+  const characterWiki = useCharacterWiki(characterId ?? '')
+  const isIngesting = characterWiki.isBusy && characterWiki.status.ingesting
 
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
@@ -61,16 +61,16 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         documentChunk,
       )
 
-      const changed = await hasChanged(characterId, sourceRef, sourceHash)
+      const changed = await characterWiki.hasChanged(sourceRef, sourceHash)
       if (!changed) {
         setToastMessage(`"${sourceRef}" is already up to date.`)
         return
       }
 
       // Remove stale facts from a previous version of this document before re-ingesting.
-      await forgetBySource(characterId, { sourceRef })
+      await characterWiki.forget({ sourceRef })
 
-      const ingestResult = await ingestDocument(characterId, {
+      const ingestResult = await characterWiki.ingest({
         sourceRef,
         sourceHash,
         documentChunk,
@@ -85,7 +85,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         setToastMessage('Failed to ingest document.')
       }
     }
-  }, [characterId, userId, ingestDocument, hasChanged, forgetBySource])
+  }, [characterId, userId, characterWiki])
 
   const sendCurrentText = useCallback(() => {
     const trimmedText = text?.trim()

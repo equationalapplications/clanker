@@ -1,157 +1,141 @@
-/**
- * Custom hooks for character wiki operations.
- * Wraps expo-llm-wiki hooks with character-specific logic and error handling.
- */
-
-import { useState } from 'react'
-import { useMemoryRead, useWikiWrite, useWikiExport, useWikiMaintenance, useWiki, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useWiki, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
+import type { IngestArgs, ForgetArgs } from '~/machines/wikiMachine'
+import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import { wikiSync } from '~/services/apiClient'
 import { reportError } from '~/utilities/reportError'
 
-/**
- * Read memory facts/tasks/events for a character based on a query.
- * Wrapper around useMemoryRead with character ID binding.
- */
-export function useCharacterMemoryRead(characterId: string, query: string) {
-  return useMemoryRead(characterId, query)
+type WikiStatus = { ingesting: boolean; librarian: boolean; heal: boolean }
+
+type CharacterWikiOperation = 'reading' | 'writing' | 'ingesting' | 'forgetting' | 'syncing'
+
+function waitForActorOperation(
+  actor: ReturnType<typeof wikiOrchestrator.getOrSpawn>,
+  operation: CharacterWikiOperation,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let seenOperation = false
+    const sub = actor.subscribe((snap) => {
+      if (snap.matches(operation)) {
+        seenOperation = true
+      }
+      if (seenOperation && snap.matches('idle')) {
+        sub.unsubscribe()
+        resolve()
+        return
+      }
+      if (seenOperation && snap.matches('error')) {
+        sub.unsubscribe()
+        reject(snap.context.lastError ?? new Error(`Wiki ${operation} failed`))
+      }
+    })
+  })
 }
 
-/**
- * Write an observation event to a character's memory.
- * Wrapper around useWikiWrite that formats the event properly for observations.
- */
-export function useCharacterMemoryWrite() {
-  const wikiWrite = useWikiWrite()
-
-  return {
-    write: async (characterId: string, summary: string) => {
-      return wikiWrite.execute(characterId, {
-        event_type: 'observation',
-        summary,
-      })
-    },
-    isPending: wikiWrite.isPending,
-    error: wikiWrite.error,
-    lastResult: wikiWrite.lastResult,
-  }
-}
-
-/**
- * Sync a character's memory to cloud and back.
- * Combines export → wikiSync → import → prune with proper error handling.
- */
-export function useCharacterWikiSync() {
+export function useCharacterWiki(entityId: string) {
   const wiki = useWiki()
-  const exportWiki = useWikiExport()
-  const maintenance = useWikiMaintenance()
-  const [isSyncing, setIsSyncing] = useState(false)
+  const actor = useMemo(
+    () => (wiki ? wikiOrchestrator.getOrSpawn(entityId, wiki) : null),
+    [entityId, wiki],
+  )
+  const [snapshot, setSnapshot] = useState(() => actor?.getSnapshot() ?? null)
 
-  const sync = async (
-    characterId: string,
-    cloudCharacterId: string,
-  ): Promise<{ success: boolean; message: string }> => {
+  useEffect(() => {
+    setSnapshot(actor?.getSnapshot() ?? null)
+    if (!actor) return
+    const sub = actor.subscribe((next) => setSnapshot(next))
+    return () => sub.unsubscribe()
+  }, [actor])
+
+  const read = useCallback(async (query: string) => {
+    if (!actor) return null
+    actor.send({ type: 'READ', query })
+    await waitForActorOperation(actor, 'reading')
+    return actor.getSnapshot().context.lastReadResult
+  }, [actor])
+
+  const write = useCallback(async (summary: string) => {
+    if (!actor) return
+    actor.send({ type: 'WRITE', summary })
+    await waitForActorOperation(actor, 'writing')
+  }, [actor])
+
+  const hasChanged = useCallback(async (sourceRef: string, sourceHash: string) => {
+    if (!wiki || !wiki.hasChanged) return true
+    return wiki.hasChanged(entityId, sourceRef, sourceHash)
+  }, [entityId, wiki])
+
+  const forget = useCallback(async (args: ForgetArgs) => {
+    if (!actor) return
+    actor.send({ type: 'FORGET', args })
+    await waitForActorOperation(actor, 'forgetting')
+  }, [actor])
+
+  const ingest = useCallback(async (doc: IngestArgs) => {
+    if (!actor) {
+      return { chunks: 0 }
+    }
+    actor.send({ type: 'INGEST', doc })
+    await waitForActorOperation(actor, 'ingesting')
+    return actor.getSnapshot().context.lastIngestResult ?? { chunks: 0 }
+  }, [actor])
+
+  const sync = useCallback(async (cloudEntityId: string) => {
+    if (!actor) {
+      return { success: false, message: 'Wiki not available. Ensure WikiProvider is mounted.' }
+    }
     const busyMessage = 'Memory is busy. Please try again shortly.'
     const failureMessage = 'Failed to sync memory. Check your connection and try again.'
-    setIsSyncing(true)
     try {
-      if (!wiki) {
-        return { success: false, message: 'Wiki not available. Ensure WikiProvider is mounted.' }
-      }
-
-      // 1. Export local wiki dump
-      let localDump: MemoryDump
-      try {
-        localDump = await exportWiki.execute([characterId])
-      } catch (error) {
-        if (error instanceof WikiBusyError) {
-          return { success: false, message: busyMessage }
-        }
-        reportError(error, 'wiki:export')
-        return { success: false, message: failureMessage }
-      }
-
-      // 2. Remap to cloud entity ID and sync to cloud
-      const localBundle = localDump.entities[characterId] ?? { facts: [], tasks: [], events: [] }
-      const cloudDump: MemoryDump = {
-        generatedAt: localDump.generatedAt,
-        entities: {
-          [cloudCharacterId]: {
-            facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudCharacterId })),
-            tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudCharacterId })),
-            events: localBundle.events.map((e) => ({ ...e, entity_id: cloudCharacterId })),
-          },
-        },
-      }
-
-      let remoteDump: MemoryDump | undefined
-      try {
-        const result = await wikiSync({ dump: cloudDump })
-        remoteDump = result.data?.remoteDump
-      } catch (error) {
-        if (error instanceof WikiBusyError) {
-          return { success: false, message: busyMessage }
-        }
-        reportError(error, 'wiki:sync')
-        return { success: false, message: failureMessage }
-      }
-
-      if (!remoteDump) {
-        reportError(new Error('wikiSync returned without remoteDump in response data'), 'wiki:sync')
-        return { success: false, message: 'No remote dump returned from cloud sync.' }
-      }
-
-      // 3. Remap remote dump back to local entity ID and import
-      const remappedDump: MemoryDump = {
-        generatedAt: remoteDump.generatedAt,
-        entities: {
-          [characterId]: remoteDump.entities[cloudCharacterId] ?? { facts: [], tasks: [], events: [] },
-        },
-      }
-
-      let importSucceeded = false
-      try {
-        await wiki.importDump(remappedDump, { merge: true })
-        importSucceeded = true
-      } catch (importErr) {
-        if (importErr instanceof WikiBusyError) {
-          // Cloud sync succeeded but local merge deferred — caller will retry on next sync cycle
-        } else {
-          reportError(importErr, 'wiki:import')
-          return { success: false, message: failureMessage }
-        }
-      }
-
-      // 4. Prune only after a successful import (skip when import was deferred)
-      if (importSucceeded) {
-        try {
-          await maintenance.runPrune(characterId, {
-            retainSoftDeletedFor: 7,
-            retainEventsFor: 30,
-            vacuum: false,
-          })
-        } catch (pruneErr) {
-          if (!(pruneErr instanceof WikiBusyError)) {
-            reportError(pruneErr, 'wiki:prune')
+      actor.send({
+        type: 'SYNC',
+        runRemoteSync: async (localDump) => {
+          const localBundle = localDump.entities[entityId] ?? { facts: [], tasks: [], events: [] }
+          const cloudDump: MemoryDump = {
+            generatedAt: localDump.generatedAt,
+            entities: {
+              [cloudEntityId]: {
+                facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudEntityId })),
+                tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudEntityId })),
+                events: localBundle.events.map((e) => ({ ...e, entity_id: cloudEntityId })),
+              },
+            },
           }
-        }
-      }
-
+          const result = await wikiSync({ dump: cloudDump })
+          const remoteDump = result.data?.remoteDump
+          if (!remoteDump) {
+            throw new Error('wikiSync returned without remoteDump in response data')
+          }
+          const remappedDump: MemoryDump = {
+            generatedAt: remoteDump.generatedAt,
+            entities: {
+              [entityId]: remoteDump.entities[cloudEntityId] ?? { facts: [], tasks: [], events: [] },
+            },
+          }
+          return remappedDump
+        },
+      })
+      await waitForActorOperation(actor, 'syncing')
       return { success: true, message: 'Memory synced to cloud.' }
     } catch (err: unknown) {
-      if (err instanceof WikiBusyError) {
-        return { success: false, message: busyMessage }
+      const message = err instanceof WikiBusyError ? busyMessage : failureMessage
+      if (message === failureMessage) {
+        reportError(err, 'wiki:sync')
       }
-      reportError(err, 'wiki:sync')
-      return { success: false, message: failureMessage }
-    } finally {
-      setIsSyncing(false)
+      return { success: false, message }
     }
-  }
+  }, [actor, entityId])
 
   return {
+    status: (snapshot?.context.status as WikiStatus | undefined) ?? { ingesting: false, librarian: false, heal: false },
+    isBusy: snapshot ? !snapshot.matches('idle') : false,
+    error: snapshot?.context.lastError ?? null,
+    read,
+    write,
+    ingest,
+    forget,
     sync,
-    isPending: isSyncing || exportWiki.isPending || maintenance.isPending,
-    error: exportWiki.error || maintenance.error,
+    hasChanged,
   }
 }
