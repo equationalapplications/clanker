@@ -8,6 +8,17 @@ import type { Wiki } from '~/services/wikiService'
 import { reportError } from '~/utilities/reportError'
 
 /**
+ * Normalizes unknown error values from XState promise rejections into Error instances.
+ * XState promise errors are typed as `unknown` and may not be Error objects.
+ */
+function normalizeError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error
+  }
+  return new Error(String(error))
+}
+
+/**
  * Argument shape accepted by `Wiki.ingestDocument`. The package does not
  * export this as a named type, so we derive it from the method signature.
  */
@@ -150,7 +161,7 @@ export const wikiMachine = createMachine(
             },
             {
               target: 'error',
-              actions: assign({ lastError: ({ event }) => event.error as Error }),
+              actions: assign({ lastError: ({ event }) => normalizeError(event.error) }),
             },
           ],
         },
@@ -175,7 +186,7 @@ export const wikiMachine = createMachine(
             },
             {
               target: 'error',
-              actions: assign({ lastError: ({ event }) => event.error as Error }),
+              actions: assign({ lastError: ({ event }) => normalizeError(event.error) }),
             },
           ],
         },
@@ -200,7 +211,7 @@ export const wikiMachine = createMachine(
             },
             {
               target: 'error',
-              actions: assign({ lastError: ({ event }) => event.error as Error }),
+              actions: assign({ lastError: ({ event }) => normalizeError(event.error) }),
             },
           ],
         },
@@ -225,7 +236,7 @@ export const wikiMachine = createMachine(
             },
             {
               target: 'error',
-              actions: assign({ lastError: ({ event }) => event.error as Error }),
+              actions: assign({ lastError: ({ event }) => normalizeError(event.error) }),
             },
           ],
         },

@@ -281,7 +281,7 @@ export type Wiki = BaseWiki & {
 
 ### Implementation Deviations from Design
 
-1. **IngestArgs/ForgetArgs:** Not exported by package v3.0.0 (design assumed v4.1.0). Derived locally as `Parameters<Wiki['ingestDocument']>[1]` and `Parameters<Wiki['forget']>[1]`.
+1. **IngestArgs/ForgetArgs:** Not exported by `@equationalapplications/expo-llm-wiki@4.1.0`. Derived locally as `Parameters<Wiki['ingestDocument']>[1]` and `Parameters<Wiki['forget']>[1]`.
 
 2. **WikiBusyError constructor:** Signature is `(operation: WikiBusyOperation, entityId: string)`, not `(message: string)`.
 
@@ -291,7 +291,7 @@ export type Wiki = BaseWiki & {
 
 5. **cloudId parameter:** Removed from SYNC event as unused in implementation.
 
-6. **subscribeEntityStatus:** Not available in package v3.0.0. Added polling fallback and forward-compatible type extension.
+6. **subscribeEntityStatus:** Not yet available in `@equationalapplications/expo-llm-wiki@4.1.0`. Added polling fallback (5s interval) and forward-compatible type extension.
 
 ### Test Coverage
 
