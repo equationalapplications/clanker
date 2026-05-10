@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWiki, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import type { IngestArgs, ForgetArgs } from '~/machines/wikiMachine'
@@ -54,6 +54,13 @@ export function useCharacterWiki(entityId: string) {
     () => (wiki ? wikiOrchestrator.getOrSpawn(entityId, wiki) : null),
     [entityId, wiki],
   )
+  const operationQueues = useRef<Record<CharacterWikiOperation, Promise<void>>>({
+    reading: Promise.resolve(),
+    writing: Promise.resolve(),
+    ingesting: Promise.resolve(),
+    forgetting: Promise.resolve(),
+    syncing: Promise.resolve(),
+  })
   const [snapshot, setSnapshot] = useState(() => actor?.getSnapshot() ?? null)
 
   useEffect(() => {
@@ -63,18 +70,35 @@ export function useCharacterWiki(entityId: string) {
     return () => sub.unsubscribe()
   }, [actor])
 
+  const runSerialized = useCallback(
+    <T,>(operation: CharacterWikiOperation, run: () => Promise<T>): Promise<T> => {
+      const previous = operationQueues.current[operation]
+      const next = previous.then(run, run)
+      operationQueues.current[operation] = next.then(
+        () => undefined,
+        () => undefined,
+      )
+      return next
+    },
+    [],
+  )
+
   const read = useCallback(async (query: string) => {
     if (!actor) return null
-    actor.send({ type: 'READ', query })
-    await waitForActorOperation(actor, 'reading')
-    return actor.getSnapshot().context.lastReadResult
-  }, [actor])
+    return runSerialized('reading', async () => {
+      actor.send({ type: 'READ', query })
+      await waitForActorOperation(actor, 'reading')
+      return actor.getSnapshot().context.lastReadResult
+    })
+  }, [actor, runSerialized])
 
   const write = useCallback(async (summary: string) => {
     if (!actor) return
-    actor.send({ type: 'WRITE', summary })
-    await waitForActorOperation(actor, 'writing')
-  }, [actor])
+    await runSerialized('writing', async () => {
+      actor.send({ type: 'WRITE', summary })
+      await waitForActorOperation(actor, 'writing')
+    })
+  }, [actor, runSerialized])
 
   const hasChanged = useCallback(async (sourceRef: string, sourceHash: string) => {
     if (!wiki || !wiki.hasChanged) return true
@@ -83,18 +107,22 @@ export function useCharacterWiki(entityId: string) {
 
   const forget = useCallback(async (args: ForgetArgs) => {
     if (!actor) return
-    actor.send({ type: 'FORGET', args })
-    await waitForActorOperation(actor, 'forgetting')
-  }, [actor])
+    await runSerialized('forgetting', async () => {
+      actor.send({ type: 'FORGET', args })
+      await waitForActorOperation(actor, 'forgetting')
+    })
+  }, [actor, runSerialized])
 
   const ingest = useCallback(async (doc: IngestArgs) => {
     if (!actor) {
       return { chunks: 0 }
     }
-    actor.send({ type: 'INGEST', doc })
-    await waitForActorOperation(actor, 'ingesting')
-    return actor.getSnapshot().context.lastIngestResult ?? { chunks: 0 }
-  }, [actor])
+    return runSerialized('ingesting', async () => {
+      actor.send({ type: 'INGEST', doc })
+      await waitForActorOperation(actor, 'ingesting')
+      return actor.getSnapshot().context.lastIngestResult ?? { chunks: 0 }
+    })
+  }, [actor, runSerialized])
 
   const sync = useCallback(async (cloudEntityId: string) => {
     if (!actor) {
@@ -103,35 +131,37 @@ export function useCharacterWiki(entityId: string) {
     const busyMessage = 'Memory is busy. Please try again shortly.'
     const failureMessage = 'Failed to sync memory. Check your connection and try again.'
     try {
-      actor.send({
-        type: 'SYNC',
-        runRemoteSync: async (localDump) => {
-          const localBundle = localDump.entities[entityId] ?? { facts: [], tasks: [], events: [] }
-          const cloudDump: MemoryDump = {
-            generatedAt: localDump.generatedAt,
-            entities: {
-              [cloudEntityId]: {
-                facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudEntityId })),
-                tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudEntityId })),
-                events: localBundle.events.map((e) => ({ ...e, entity_id: cloudEntityId })),
+      await runSerialized('syncing', async () => {
+        actor.send({
+          type: 'SYNC',
+          runRemoteSync: async (localDump) => {
+            const localBundle = localDump.entities[entityId] ?? { facts: [], tasks: [], events: [] }
+            const cloudDump: MemoryDump = {
+              generatedAt: localDump.generatedAt,
+              entities: {
+                [cloudEntityId]: {
+                  facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudEntityId })),
+                  tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudEntityId })),
+                  events: localBundle.events.map((e) => ({ ...e, entity_id: cloudEntityId })),
+                },
               },
-            },
-          }
-          const result = await wikiSync({ dump: cloudDump })
-          const remoteDump = result.data?.remoteDump
-          if (!remoteDump) {
-            throw new Error('wikiSync returned without remoteDump in response data')
-          }
-          const remappedDump: MemoryDump = {
-            generatedAt: remoteDump.generatedAt,
-            entities: {
-              [entityId]: remoteDump.entities[cloudEntityId] ?? { facts: [], tasks: [], events: [] },
-            },
-          }
-          return remappedDump
-        },
+            }
+            const result = await wikiSync({ dump: cloudDump })
+            const remoteDump = result.data?.remoteDump
+            if (!remoteDump) {
+              throw new Error('wikiSync returned without remoteDump in response data')
+            }
+            const remappedDump: MemoryDump = {
+              generatedAt: remoteDump.generatedAt,
+              entities: {
+                [entityId]: remoteDump.entities[cloudEntityId] ?? { facts: [], tasks: [], events: [] },
+              },
+            }
+            return remappedDump
+          },
+        })
+        await waitForActorOperation(actor, 'syncing')
       })
-      await waitForActorOperation(actor, 'syncing')
       return { success: true, message: 'Memory synced to cloud.' }
     } catch (err: unknown) {
       const message = err instanceof WikiBusyError ? busyMessage : failureMessage
@@ -140,7 +170,7 @@ export function useCharacterWiki(entityId: string) {
       }
       return { success: false, message }
     }
-  }, [actor, entityId])
+  }, [actor, entityId, runSerialized])
 
   return {
     status: (snapshot?.context.status as WikiStatus | undefined) ?? { ingesting: false, librarian: false, heal: false },
