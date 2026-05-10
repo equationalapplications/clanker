@@ -88,6 +88,14 @@ export function useCharacterWiki(entityId: string) {
   const [snapshot, setSnapshot] = useState(() => actor?.getSnapshot() ?? null)
 
   useEffect(() => {
+    // Reset operation queues when actor changes to avoid cross-entity serialization
+    operationQueues.current = {
+      reading: Promise.resolve(),
+      writing: Promise.resolve(),
+      ingesting: Promise.resolve(),
+      forgetting: Promise.resolve(),
+      syncing: Promise.resolve(),
+    }
     setSnapshot(actor?.getSnapshot() ?? null)
     if (!actor) return
     const sub = actor.subscribe((next) => setSnapshot(next))
