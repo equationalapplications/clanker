@@ -16,6 +16,16 @@ function waitForActorOperation(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let seenOperation = false
+    const current = actor.getSnapshot()
+    if (current.matches(operation)) {
+      seenOperation = true
+    } else if (current.matches('idle')) {
+      resolve()
+      return
+    } else if (current.matches('error')) {
+      reject(current.context.lastError ?? new Error(`Wiki ${operation} failed`))
+      return
+    }
     const sub = actor.subscribe((snap) => {
       if (snap.matches(operation)) {
         seenOperation = true
@@ -130,6 +140,7 @@ export function useCharacterWiki(entityId: string) {
   return {
     status: (snapshot?.context.status as WikiStatus | undefined) ?? { ingesting: false, librarian: false, heal: false },
     isBusy: snapshot ? !snapshot.matches('idle') : false,
+    isIngesting: snapshot?.matches('ingesting') ?? false,
     error: snapshot?.context.lastError ?? null,
     read,
     write,
@@ -138,4 +149,63 @@ export function useCharacterWiki(entityId: string) {
     sync,
     hasChanged,
   }
+}
+
+export function useCharacterWikiSync() {
+  const wiki = useWiki()
+  const [isPending, setIsPending] = useState(false)
+
+  const sync = useCallback(async (entityId: string, cloudEntityId: string) => {
+    if (!wiki) {
+      return { success: false, message: 'Wiki not available. Ensure WikiProvider is mounted.' }
+    }
+
+    const busyMessage = 'Memory is busy. Please try again shortly.'
+    const failureMessage = 'Failed to sync memory. Check your connection and try again.'
+
+    setIsPending(true)
+    try {
+      const exportDump = (wiki as { exportDump?: () => Promise<MemoryDump> }).exportDump
+      const importDump = (wiki as { importDump?: (dump: MemoryDump) => Promise<void> }).importDump
+      const localDump = exportDump
+        ? await exportDump()
+        : { generatedAt: Date.now(), entities: { [entityId]: { facts: [], tasks: [], events: [] } } }
+      const localBundle = localDump.entities[entityId] ?? { facts: [], tasks: [], events: [] }
+      const cloudDump: MemoryDump = {
+        generatedAt: localDump.generatedAt,
+        entities: {
+          [cloudEntityId]: {
+            facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudEntityId })),
+            tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudEntityId })),
+            events: localBundle.events.map((e) => ({ ...e, entity_id: cloudEntityId })),
+          },
+        },
+      }
+      const result = await wikiSync({ dump: cloudDump })
+      const remoteDump = result.data?.remoteDump
+      if (!remoteDump) {
+        throw new Error('wikiSync returned without remoteDump in response data')
+      }
+      if (importDump) {
+        const remappedDump: MemoryDump = {
+          generatedAt: remoteDump.generatedAt,
+          entities: {
+            [entityId]: remoteDump.entities[cloudEntityId] ?? { facts: [], tasks: [], events: [] },
+          },
+        }
+        await importDump(remappedDump)
+      }
+      return { success: true, message: 'Memory synced to cloud.' }
+    } catch (err: unknown) {
+      const message = err instanceof WikiBusyError ? busyMessage : failureMessage
+      if (message === failureMessage) {
+        reportError(err, 'wiki:sync')
+      }
+      return { success: false, message }
+    } finally {
+      setIsPending(false)
+    }
+  }, [wiki])
+
+  return { sync, isPending }
 }

@@ -26,7 +26,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const characterWiki = useCharacterWiki(characterId ?? '')
-  const isIngesting = characterWiki.isBusy && characterWiki.status.ingesting
+  const isIngesting = characterWiki.isIngesting
 
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
