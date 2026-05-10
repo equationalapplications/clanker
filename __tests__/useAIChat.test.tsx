@@ -57,10 +57,13 @@ jest.mock('~/services/usageSnapshot', () => ({
   usageSnapshotFromError: jest.fn(() => null),
 }))
 
+const mockWikiRead = jest.fn().mockResolvedValue(null)
+const mockWikiWriteExecute = jest.fn().mockResolvedValue(undefined)
+
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
-  useWiki: jest.fn(() => ({ read: jest.fn().mockResolvedValue(null) })),
-  useWikiWrite: jest.fn(() => ({ execute: jest.fn() })),
+  useWiki: jest.fn(() => ({ read: mockWikiRead })),
+  useWikiWrite: jest.fn(() => ({ execute: mockWikiWriteExecute })),
   formatContext: jest.fn((bundle) => '[MEMORY]\nFacts:\n[/MEMORY]'),
 }))
 
@@ -113,6 +116,33 @@ describe('useAIChat', () => {
     jest.clearAllMocks()
     mockUseChatMessages.mockReturnValue([])
     mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null })
+  })
+
+  it('reads wiki memory and provides write callback for free-tier users', async () => {
+    const hook = renderUseAIChat({
+      planTier: null,
+      planStatus: 'expired',
+    })
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-free',
+        text: 'Hi there',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    expect(mockWikiRead).toHaveBeenCalledWith('char-1', 'Hi there')
+    expect(mockSendMessageWithAIResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: 'msg-free' }),
+      expect.objectContaining({ id: 'char-1' }),
+      'user-1',
+      [],
+      expect.objectContaining({
+        onWriteObservation: expect.any(Function),
+      }),
+    )
   })
 
   it('passes hasUnlimited=true for active monthly subscribers', async () => {
