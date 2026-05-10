@@ -75,8 +75,8 @@ wikiMachine (XState v5, one actor per character)
   guards:
     isBusyError: WikiBusyError → defer + retry next tick
   serialization:
-    mutations (write/ingest/sync/forget) wait for current mutation to settle
-    READ events run concurrent (no state change for read; spawned read child actor)
+    all operations (read/write/ingest/sync/forget) are serialized via queue
+    READ events are queued when actor is busy and processed in order
 ```
 
 ### Hooks
@@ -147,7 +147,7 @@ Unchanged user flow (`+` button → `DocumentPicker`). Goes through `useCharacte
 
 ## Invariants
 
-- One mutation per entity at a time. Reads concurrent.
+- One operation per entity at a time (READ, WRITE, INGEST, SYNC, FORGET).
 - `WikiBusyError` from package = retry next event; never user-facing crash.
 - Memory writes/reads/ingest never gated on subscription state.
 - Cloud sync gated on `save_to_cloud + cloud_id` UUID.

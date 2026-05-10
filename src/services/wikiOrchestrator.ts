@@ -57,21 +57,22 @@ async function syncAll(
       }
       
       await new Promise<void>((resolve, reject) => {
-        // Check if already syncing before we send the event
+        // If actor is already syncing, wait for that cycle to finish and do not
+        // enqueue another SYNC that could resolve against the wrong cycle.
         const wasAlreadySyncing = actor.getSnapshot().matches('syncing')
-        let seenSyncing = wasAlreadySyncing
-        let timeoutId: NodeJS.Timeout | undefined
+        let seenSyncing = false
+        let timeoutId: ReturnType<typeof setTimeout> | undefined
         
         const cleanup = () => {
           if (timeoutId) clearTimeout(timeoutId)
         }
         
         const sub = actor.subscribe((snap) => {
-          // Track that we've entered the syncing state (after we sent the event)
-          if (!wasAlreadySyncing && snap.matches('syncing')) {
+          if (snap.matches('syncing')) {
             seenSyncing = true
           }
-          // Only resolve once we've seen syncing and then returned to idle/error
+
+          // Only resolve once we've seen syncing and then returned to idle/error.
           if (seenSyncing && (snap.matches('idle') || snap.matches('error'))) {
             sub.unsubscribe()
             cleanup()
@@ -84,11 +85,13 @@ async function syncAll(
           sub.unsubscribe()
           reject(new Error(`Sync timeout for entity ${item.entityId} after ${timeoutMs}ms`))
         }, timeoutMs)
-        
-        actor.send({
-          type: 'SYNC',
-          runRemoteSync: item.runRemoteSync,
-        })
+
+        if (!wasAlreadySyncing) {
+          actor.send({
+            type: 'SYNC',
+            runRemoteSync: item.runRemoteSync,
+          })
+        }
       })
     }
   })
