@@ -256,6 +256,7 @@ describe('syncWikiForCloud key remapping', () => {
   })
 
   it('skips all characters when wiki is unavailable (web/uninitialized)', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
     mockGetWiki.mockReturnValue(null)
     const char = makeCloudChar()
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
@@ -266,10 +267,11 @@ describe('syncWikiForCloud key remapping', () => {
     expect(mockImportDump).not.toHaveBeenCalled()
     expect(mockRunPrune).not.toHaveBeenCalled()
     expect(mockWikiSyncFn).not.toHaveBeenCalled()
-    expect(reportError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining('wiki unavailable') }),
-      'wiki:syncAll',
+    expect(reportError).not.toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[syncWikiForCloud] wiki unavailable — skipping wiki sync for all characters',
     )
+    warnSpy.mockRestore()
   })
 
   it('reports non-busy sync errors with wiki:sync context', async () => {

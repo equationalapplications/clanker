@@ -188,4 +188,57 @@ describe('useAIChat', () => {
 
     expect(mockReportError).not.toHaveBeenCalledWith(expect.any(WikiBusyError), 'wiki:read')
   })
+
+  it('reports non-busy wiki observation write errors with wiki:write context', async () => {
+    mockWriteObservation.mockRejectedValue(new Error('write failed'))
+    const hook = renderUseAIChat({
+      planTier: 'monthly_20',
+      planStatus: 'active',
+    })
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-write-1',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    const sendCall = mockSendMessageWithAIResponse.mock.calls[0]
+    const opts = sendCall[4] as { onWriteObservation?: (id: string, text: string) => void }
+    expect(opts.onWriteObservation).toEqual(expect.any(Function))
+
+    await act(async () => {
+      await opts.onWriteObservation!('char-1', 'observation text')
+    })
+
+    expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:write')
+  })
+
+  it('does not report WikiBusyError from wiki observation write', async () => {
+    const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
+    mockWriteObservation.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
+    const hook = renderUseAIChat({
+      planTier: 'monthly_20',
+      planStatus: 'active',
+    })
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-write-2',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    const sendCall = mockSendMessageWithAIResponse.mock.calls[0]
+    const opts = sendCall[4] as { onWriteObservation?: (id: string, text: string) => void }
+    await act(async () => {
+      await opts.onWriteObservation!('char-1', 'observation text')
+    })
+
+    expect(mockReportError).not.toHaveBeenCalled()
+  })
 })
