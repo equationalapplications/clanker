@@ -126,6 +126,29 @@ describe('wikiOrchestrator', () => {
     ).rejects.toThrow(/idle after RETRY/)
   })
 
+  test('syncAll rejects fast when actor errors before SYNC runs (queued SYNC)', async () => {
+    const wiki = makeWikiMock()
+    const actor = wikiOrchestrator.getOrSpawn('e', wiki as never)
+    wiki.write.mockImplementation(
+      () =>
+        new Promise<void>((_, reject) => {
+          setTimeout(() => reject(new Error('write fail')), 25)
+        }),
+    )
+    actor.send({ type: 'WRITE', summary: 'x' })
+    await waitFor(actor, (s) => s.matches('writing'), { timeout: 2000 })
+
+    await expect(
+      wikiOrchestrator.syncAll(
+        [{ entityId: 'e', runRemoteSync: async (d) => d as never }],
+        wiki as never,
+        1,
+        8000,
+      ),
+    ).rejects.toThrow(/did not run: actor entered error before syncing/)
+    expect(wiki.exportDump).not.toHaveBeenCalled()
+  })
+
   test('syncAll runs SYNC after RETRY drains queued writes', async () => {
     const wiki = makeWikiMock()
     const actor = wikiOrchestrator.getOrSpawn('e', wiki as never)

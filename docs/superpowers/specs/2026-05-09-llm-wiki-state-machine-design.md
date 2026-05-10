@@ -264,6 +264,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - `syncAll` uses work-queue pattern to limit concurrent syncs
 - Sends `RETRY` before `SYNC` for actors in error state, then `waitFor` `idle` so queued work is drained before the SYNC waiter runs
 - Waits for each actor to complete a `syncing` snapshot for this cycle (`idle` or `error`) before resolving
+- If a new `SYNC` was sent and the actor hits `error` before ever entering `syncing` (e.g. in-flight or queued non-sync work fails first), rejects immediately instead of waiting for the full timeout
 - Optional batch cleanup: `stopActorsSpawnedForBatch` removes only actors absent from the map at `syncAll` entry (safe with duplicate `entityId`s in the batch)
 
 ### Type Extensions
@@ -292,7 +293,7 @@ export type Wiki = BaseWiki & {
 
 5. **cloudId parameter:** Removed from SYNC event as unused in implementation.
 
-6. **subscribeEntityStatus:** Not yet available in `@equationalapplications/expo-llm-wiki@4.1.0`. Polling fallback uses `getEntityStatus` on `statusPollIntervalMs` (default 5000ms; `0` = initial sample only). Missing both APIs is reported via `reportError`. Forward-compatible `Wiki` type extension for subscribe.
+6. **subscribeEntityStatus:** Shipped in `@equationalapplications/expo-llm-wiki@4.1.0` (see above). Clanker still types it as optional on `Wiki` and `wikiMachine` falls back to `getEntityStatus` polling on `statusPollIntervalMs` (default 5000ms; `0` = initial sample only) when the runtime wiki instance does not expose it (tests, older bundles, or partial upgrades). Missing both subscription and `getEntityStatus` is reported via `reportError`.
 
 ### Test Coverage
 
@@ -310,7 +311,7 @@ export type Wiki = BaseWiki & {
 - Status fallback with neither API calls `reportError` with `wiki:<id>:statusSubscription`
 - `statusPollIntervalMs: 0` polls `getEntityStatus` only once (no interval)
 
-**wikiOrchestrator.test.ts (9 tests):**
+**wikiOrchestrator.test.ts (10 tests):**
 - getOrSpawn returns same actor for repeat entityId
 - getOrSpawn returns distinct actors for distinct entityIds
 - stop removes the actor and unsubscribes status
@@ -319,6 +320,7 @@ export type Wiki = BaseWiki & {
 - `stopActorsSpawnedForBatch` does not stop actors that existed before `syncAll`
 - `syncAll` waits for `idle` after `RETRY` before subscribing for the SYNC cycle (avoids resolving on unrelated queued-work errors)
 - `syncAll` rejects when queued work after `RETRY` never returns to `idle`
+- `syncAll` rejects fast when the actor errors before `syncing` while a new `SYNC` is queued
 
 State-transition assertions use `waitFor` from XState for deterministic behavior; the orchestrator concurrency coverage may still use a short `setTimeout` helper where appropriate.
 

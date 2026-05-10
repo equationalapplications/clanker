@@ -96,15 +96,42 @@ async function syncAll(
         // If already syncing, subscribe() won't replay the current state; treat as seen so we
         // still resolve when the in-flight cycle reaches idle/error.
         let seenSyncing = wasAlreadySyncing
+        let settled = false
         let timeoutId: ReturnType<typeof setTimeout> | undefined
-        
+
+        const finish = (fn: () => void) => {
+          if (settled) return
+          settled = true
+          fn()
+        }
+
         const cleanup = () => {
           if (timeoutId) clearTimeout(timeoutId)
         }
-        
+
         const sub = actor.subscribe((snap) => {
           if (snap.matches('syncing')) {
             seenSyncing = true
+          }
+
+          // If we enqueued a new SYNC but the actor hits `error` before ever entering
+          // `syncing` (e.g. in-flight or queued non-sync work fails first), fail fast
+          // instead of waiting for the full timeout with seenSyncing still false.
+          if (
+            !wasAlreadySyncing &&
+            !seenSyncing &&
+            snap.matches('error')
+          ) {
+            sub.unsubscribe()
+            cleanup()
+            finish(() =>
+              reject(
+                new Error(
+                  `Sync for entity ${item.entityId} did not run: actor entered error before syncing (queued work may have failed first).`,
+                ),
+              ),
+            )
+            return
           }
 
           // Require a syncing snapshot for this cycle so an unrelated `error` (e.g. from
@@ -112,14 +139,16 @@ async function syncAll(
           if (seenSyncing && (snap.matches('idle') || snap.matches('error'))) {
             sub.unsubscribe()
             cleanup()
-            resolve()
+            finish(() => resolve())
           }
         })
         
         // Set timeout for this sync operation
         timeoutId = setTimeout(() => {
           sub.unsubscribe()
-          reject(new Error(`Sync timeout for entity ${item.entityId} after ${timeoutMs}ms`))
+          finish(() =>
+            reject(new Error(`Sync timeout for entity ${item.entityId} after ${timeoutMs}ms`)),
+          )
         }, timeoutMs)
 
         if (!wasAlreadySyncing) {
