@@ -262,8 +262,8 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 **Key Behaviors:**
 - Actors cached by `entityId` in a Map
 - `syncAll` uses work-queue pattern to limit concurrent syncs
-- Sends `RETRY` before `SYNC` for actors in error state
-- Waits for each actor to reach `idle` or `error` before resolving
+- Sends `RETRY` before `SYNC` for actors in error state, then `waitFor` `idle` so queued work is drained before the SYNC waiter runs
+- Waits for each actor to complete a `syncing` snapshot for this cycle (`idle` or `error`) before resolving
 - Optional batch cleanup: `stopActorsSpawnedForBatch` removes only actors absent from the map at `syncAll` entry (safe with duplicate `entityId`s in the batch)
 
 ### Type Extensions
@@ -310,13 +310,15 @@ export type Wiki = BaseWiki & {
 - Status fallback with neither API calls `reportError` with `wiki:<id>:statusSubscription`
 - `statusPollIntervalMs: 0` polls `getEntityStatus` only once (no interval)
 
-**wikiOrchestrator.test.ts (7 tests):**
+**wikiOrchestrator.test.ts (9 tests):**
 - getOrSpawn returns same actor for repeat entityId
 - getOrSpawn returns distinct actors for distinct entityIds
 - stop removes the actor and unsubscribes status
 - syncAll runs at most `concurrency` syncs in flight
 - `stopActorsSpawnedForBatch` stops actors created for the batch only
 - `stopActorsSpawnedForBatch` does not stop actors that existed before `syncAll`
+- `syncAll` waits for `idle` after `RETRY` before subscribing for the SYNC cycle (avoids resolving on unrelated queued-work errors)
+- `syncAll` rejects when queued work after `RETRY` never returns to `idle`
 
 State-transition assertions use `waitFor` from XState for deterministic behavior; the orchestrator concurrency coverage may still use a short `setTimeout` helper where appropriate.
 

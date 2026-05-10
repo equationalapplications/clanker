@@ -1,4 +1,4 @@
-import { createActor, type ActorRefFrom } from 'xstate'
+import { createActor, type ActorRefFrom, waitFor } from 'xstate'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { wikiMachine, type WikiMachineInput } from '~/machines/wikiMachine'
 import type { Wiki } from '~/services/wikiService'
@@ -74,12 +74,21 @@ async function syncAll(
       const item = items[index]
       if (!item) return
       const actor = getOrSpawn(item.entityId, wiki, options?.machineOptions)
-      
-      // If actor is in error state, send RETRY first to recover
+
+      // Drain error recovery before we subscribe for this SYNC: otherwise RETRY
+      // can flush queued work that fails and hits `error` before our SYNC runs,
+      // and a naive subscriber would treat that unrelated error as sync completion.
       if (actor.getSnapshot().matches('error')) {
         actor.send({ type: 'RETRY' })
+        try {
+          await waitFor(actor, (s) => s.matches('idle'), { timeout: timeoutMs })
+        } catch {
+          throw new Error(
+            `Actor for entity ${item.entityId} did not return to idle after RETRY (queued work may still be failing).`,
+          )
+        }
       }
-      
+
       await new Promise<void>((resolve, reject) => {
         // If actor is already syncing, wait for that cycle to finish and do not
         // enqueue another SYNC that could resolve against the wrong cycle.
@@ -98,9 +107,9 @@ async function syncAll(
             seenSyncing = true
           }
 
-          // Resolve after a successful cycle (syncing → idle), or on error even if we never
-          // observed syncing (e.g. failure before the invoke starts).
-          if (snap.matches('error') || (seenSyncing && snap.matches('idle'))) {
+          // Require a syncing snapshot for this cycle so an unrelated `error` (e.g. from
+          // queued work) cannot resolve the promise before our SYNC is processed.
+          if (seenSyncing && (snap.matches('idle') || snap.matches('error'))) {
             sub.unsubscribe()
             cleanup()
             resolve()

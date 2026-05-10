@@ -1,3 +1,6 @@
+jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
+
+import { waitFor } from 'xstate'
 import { wikiOrchestrator, _resetWikiOrchestratorForTests } from '~/services/wikiOrchestrator'
 
 const makeWikiMock = () => ({
@@ -102,6 +105,41 @@ describe('wikiOrchestrator', () => {
     subscribe.mockClear()
     wikiOrchestrator.getOrSpawn('batch-only', wiki as never)
     expect(subscribe).toHaveBeenCalledTimes(1)
+  })
+
+  test('syncAll rejects when RETRY cannot drain queued work before SYNC', async () => {
+    const wiki = makeWikiMock()
+    const actor = wikiOrchestrator.getOrSpawn('e', wiki as never)
+    wiki.write.mockRejectedValueOnce(new Error('bad'))
+    actor.send({ type: 'WRITE', summary: 'bad' })
+    await waitFor(actor, (s) => s.matches('error'), { timeout: 2000 })
+    wiki.write.mockRejectedValueOnce(new Error('still bad'))
+    actor.send({ type: 'WRITE', summary: 'queued' })
+
+    await expect(
+      wikiOrchestrator.syncAll(
+        [{ entityId: 'e', runRemoteSync: async (d) => d as never }],
+        wiki as never,
+        1,
+        800,
+      ),
+    ).rejects.toThrow(/idle after RETRY/)
+  })
+
+  test('syncAll runs SYNC after RETRY drains queued writes', async () => {
+    const wiki = makeWikiMock()
+    const actor = wikiOrchestrator.getOrSpawn('e', wiki as never)
+    wiki.write.mockRejectedValueOnce(new Error('bad'))
+    actor.send({ type: 'WRITE', summary: 'bad' })
+    await waitFor(actor, (s) => s.matches('error'), { timeout: 2000 })
+    wiki.write.mockResolvedValueOnce(undefined)
+    actor.send({ type: 'WRITE', summary: 'ok' })
+
+    await wikiOrchestrator.syncAll(
+      [{ entityId: 'e', runRemoteSync: async (d) => d as never }],
+      wiki as never,
+    )
+    expect(wiki.exportDump).toHaveBeenCalled()
   })
 
   test('stopActorsSpawnedForBatch does not stop actors that existed before syncAll', async () => {
