@@ -104,7 +104,7 @@ describe('syncWikiForCloud orchestration path', () => {
     expect(mockSyncAll).toHaveBeenCalledTimes(1)
     const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
     expect(wikiArg).toEqual({})
-    expect(concurrencyArg).toBe(1)
+    expect(concurrencyArg).toBe(2)
     expect(itemsArg).toHaveLength(1)
     expect(itemsArg[0].entityId).toBe(LOCAL_ID)
   })
@@ -122,7 +122,7 @@ describe('syncWikiForCloud orchestration path', () => {
     expect(mockSyncAll).toHaveBeenCalledTimes(1)
     const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
     expect(wikiArg).toEqual({})
-    expect(concurrencyArg).toBe(1)
+    expect(concurrencyArg).toBe(2)
     expect(itemsArg).toHaveLength(2)
     expect(itemsArg.map((item: { entityId: string }) => item.entityId)).toEqual([LOCAL_ID, secondLocalId])
   })
