@@ -3,7 +3,7 @@ import { createWiki } from '@equationalapplications/expo-llm-wiki'
 import type { SQLiteDatabase } from 'expo-sqlite'
 import { createWikiLlmProvider } from './wikiLlmProvider'
 
-type Wiki = ReturnType<typeof createWiki>
+export type Wiki = ReturnType<typeof createWiki>
 
 let _wiki: Wiki | null = null
 
