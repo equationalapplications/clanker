@@ -313,7 +313,7 @@ export type Wiki = BaseWiki & {
 - stop removes the actor and unsubscribes status
 - syncAll runs at most `concurrency` syncs in flight
 
-All tests use `waitFor` from XState for deterministic state transitions (no flaky `setTimeout` calls).
+State-transition assertions use `waitFor` from XState for deterministic behavior; the orchestrator concurrency coverage may still use a short `setTimeout` helper where appropriate.
 
 ### Next Steps (Phase 2b+)
 
