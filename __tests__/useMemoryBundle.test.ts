@@ -48,6 +48,27 @@ describe('useMemoryBundle', () => {
     expect(getMemoryBundle).toHaveBeenCalledTimes(2)
   })
 
+  test('clears bundle and shows loading immediately when entityId changes after load', async () => {
+    const getMemoryBundle = jest.fn().mockResolvedValue(BUNDLE)
+    jest.mocked(useWiki).mockReturnValue({ getMemoryBundle } as never)
+
+    const { result, rerender } = renderHook(({ id }: { id: string }) => useMemoryBundle(id), {
+      initialProps: { id: 'char1' },
+    })
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.bundle).toEqual(BUNDLE)
+
+    rerender({ id: 'char2' })
+
+    expect(result.current.bundle).toBeNull()
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.error).toBeNull()
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(getMemoryBundle).toHaveBeenLastCalledWith('char2')
+  })
+
   test('does not apply stale bundle when entityId changes before first fetch completes', async () => {
     let releaseGate!: () => void
     const gate = new Promise<void>((resolve) => {

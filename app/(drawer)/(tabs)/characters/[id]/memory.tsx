@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router'
 import { ScrollView, StyleSheet, View, Alert } from 'react-native'
 import { Text, List, IconButton, Divider, ActivityIndicator, useTheme } from 'react-native-paper'
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { useMemoryBundle } from '~/hooks/useMemoryBundle'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import type { WikiFact, WikiTask, WikiEvent } from '@equationalapplications/expo-llm-wiki'
@@ -69,8 +69,6 @@ export default function MemoryInspectorScreen() {
   const theme = useTheme()
   const { bundle, isLoading, error, refetch } = useMemoryBundle(entityId)
   const { forget } = useCharacterWiki(entityId)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- deletingId reserved for in-flight UI (plan)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleDeleteFact = useCallback(
     (entryId: string) => {
@@ -80,13 +78,8 @@ export default function MemoryInspectorScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            setDeletingId(entryId)
-            try {
-              await forget({ entryId })
-              await refetch()
-            } finally {
-              setDeletingId(null)
-            }
+            await forget({ entryId })
+            await refetch()
           },
         },
       ])
@@ -102,13 +95,8 @@ export default function MemoryInspectorScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            setDeletingId(taskId)
-            try {
-              await forget({ taskId })
-              await refetch()
-            } finally {
-              setDeletingId(null)
-            }
+            await forget({ taskId })
+            await refetch()
           },
         },
       ])
