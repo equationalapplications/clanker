@@ -109,8 +109,9 @@ jest.mock('~/hooks/useAIChat', () => ({
   useAIChat: () => ({ sendMessage: jest.fn() }),
 }))
 
+let mockCreditsData: { totalCredits: number; hasUnlimited: boolean } = { totalCredits: 10, hasUnlimited: true }
 jest.mock('~/hooks/useUserCredits', () => ({
-  useUserCredits: () => ({ data: { totalCredits: 10, hasUnlimited: true } }),
+  useUserCredits: () => ({ data: mockCreditsData }),
 }))
 
 // ── Child components / services ───────────────────────────────────────────────
@@ -154,8 +155,12 @@ function withNoUser() {
 describe('ChatView accessibility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    const mockUseWiki = jest.requireMock('@equationalapplications/expo-llm-wiki').useWiki
+    mockUseWiki.mockReset()
+    mockUseWiki.mockReturnValue(null)
     capturedGiftedChatProps = null
     mockPlatformOS = 'android'
+    mockCreditsData = { totalCredits: 10, hasUnlimited: true }
     withLoggedInUser()
   })
 
@@ -250,6 +255,31 @@ describe('ChatView accessibility', () => {
 
     // Unmount inside act to flush cleanup effects (clearInterval), then drain
     // remaining timers before afterEach restores real timers.
+    act(() => { tree.unmount() })
+    jest.clearAllTimers()
+  })
+
+  // ── wiki status region (free tier) ────────────────────────────────────────
+  it('wiki status region: polls and renders status banner for free-tier users', () => {
+    mockCreditsData = { totalCredits: 0, hasUnlimited: false }
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+    const mockWikiInstance = {
+      getEntityStatus: jest.fn().mockReturnValue({ ingesting: true, librarian: false }),
+    }
+    const mockUseWiki = jest.requireMock('@equationalapplications/expo-llm-wiki').useWiki
+    mockUseWiki.mockReturnValue(mockWikiInstance)
+
+    jest.useFakeTimers()
+    let tree: any
+    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => { jest.advanceTimersByTime(WIKI_STATUS_POLL_INTERVAL_MS) })
+
+    expect(mockWikiInstance.getEntityStatus).toHaveBeenCalledWith('char-1')
+
+    const allTexts = tree.root.findAll((n: any) => n.type === 'Text')
+    const ingestingText = allTexts.find((t: any) => t.props.accessibilityLabel === 'Ingesting document')
+    expect(ingestingText).toBeDefined()
+
     act(() => { tree.unmount() })
     jest.clearAllTimers()
   })
@@ -361,4 +391,3 @@ describe('ChatView accessibility', () => {
     expect(sendElement).toBeDefined()
   })
 })
-

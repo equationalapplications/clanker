@@ -36,16 +36,12 @@ export default function ChatView({ characterId }: ChatViewProps) {
   const [wikiStatus, setWikiStatus] = useState({ ingesting: false, librarian: false })
   const wiki = useWiki()
   useEffect(() => {
-    if (!hasUnlimited) {
-      setWikiStatus({ ingesting: false, librarian: false })
-      return
-    }
     if (!wiki) return
     const interval = setInterval(() => {
       setWikiStatus(wiki.getEntityStatus(characterId))
     }, 5000)
     return () => clearInterval(interval)
-  }, [characterId, hasUnlimited, wiki])
+  }, [characterId, wiki])
 
   const { sendMessage } = useAIChat({
     characterId,
@@ -145,9 +141,9 @@ export default function ChatView({ characterId }: ChatViewProps) {
     // GiftedChat currently passes full internal input toolbar props to renderComposer,
     // including onSend from SendProps in addition to ComposerProps.
     (props: ComposerProps & Pick<SendProps<IMessage>, 'onSend'>) => (
-      <ChatComposer {...props} characterId={characterId} userId={currentUserId ?? undefined} hasUnlimited={hasUnlimited} />
+      <ChatComposer {...props} characterId={characterId} userId={currentUserId ?? undefined} />
     ),
-    [characterId, currentUserId, hasUnlimited],
+    [characterId, currentUserId],
   )
 
   if (characterLoading) {

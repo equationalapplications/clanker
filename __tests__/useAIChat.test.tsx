@@ -1,6 +1,5 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
-import { useSelector } from '@xstate/react'
 import { useAIChat } from '~/hooks/useAIChat'
 
 const mockSendMessageWithAIResponse = jest.fn()
@@ -10,13 +9,7 @@ const mockCancelQueries = jest.fn()
 const mockGetQueryData = jest.fn()
 const mockSetQueryData = jest.fn()
 const mockSend = jest.fn()
-const mockWikiRead = jest.fn()
-const mockWriteObservation = jest.fn()
 const mockReportError = jest.fn()
-
-jest.mock('@xstate/react', () => ({
-  useSelector: jest.fn(),
-}))
 
 jest.mock('@tanstack/react-query', () => ({
   useMutation: ({ mutationFn, onSuccess, onError }: any) => ({
@@ -60,10 +53,13 @@ jest.mock('~/services/usageSnapshot', () => ({
   usageSnapshotFromError: jest.fn(() => null),
 }))
 
+const mockWikiRead = jest.fn().mockResolvedValue(null)
+const mockWikiWriteExecute = jest.fn().mockResolvedValue(undefined)
+
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
-  useWiki: jest.fn(() => ({ read: (...args: unknown[]) => mockWikiRead(...args) })),
-  useWikiWrite: jest.fn(() => ({ execute: (...args: unknown[]) => mockWriteObservation(...args) })),
+  useWiki: jest.fn(() => ({ read: mockWikiRead })),
+  useWikiWrite: jest.fn(() => ({ execute: mockWikiWriteExecute })),
   formatContext: jest.fn((bundle) => '[MEMORY]\nFacts:\n[/MEMORY]'),
 }))
 
@@ -73,19 +69,7 @@ jest.mock('~/utilities/reportError', () => ({
 
 type HookValue = ReturnType<typeof useAIChat>
 
-const mockUseSelector = useSelector as jest.Mock
-
-function renderUseAIChat(
-  subscription: { planTier: string | null; planStatus: string | null },
-): HookValue {
-  mockUseSelector.mockImplementation((_service: unknown, selector: (state: any) => unknown) =>
-    selector({
-      context: {
-        subscription,
-      },
-    }),
-  )
-
+function renderUseAIChat(): HookValue {
   let hookValue: HookValue | null = null
 
   function Probe() {
@@ -121,14 +105,35 @@ describe('useAIChat', () => {
     mockUseChatMessages.mockReturnValue([])
     mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null })
     mockWikiRead.mockResolvedValue(null)
-    mockWriteObservation.mockResolvedValue(undefined)
+    mockWikiWriteExecute.mockResolvedValue(undefined)
   })
 
-  it('passes hasUnlimited=true for active monthly subscribers', async () => {
-    const hook = renderUseAIChat({
-      planTier: 'monthly_20',
-      planStatus: 'active',
+  it('reads wiki memory and provides write callback for free-tier users', async () => {
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-free',
+        text: 'Hi there',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
     })
+
+    expect(mockWikiRead).toHaveBeenCalledWith('char-1', 'Hi there')
+    expect(mockSendMessageWithAIResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: 'msg-free' }),
+      expect.objectContaining({ id: 'char-1' }),
+      'user-1',
+      [],
+      expect.objectContaining({
+        onWriteObservation: expect.any(Function),
+      }),
+    )
+  })
+
+  it('provides write callback when sending a message', async () => {
+    const hook = renderUseAIChat()
 
     await act(async () => {
       await hook.sendMessage({
@@ -149,13 +154,9 @@ describe('useAIChat', () => {
       }),
     )
   })
-
   it('reports non-busy wiki read errors with wiki:read context', async () => {
     mockWikiRead.mockRejectedValue(new Error('read failed'))
-    const hook = renderUseAIChat({
-      planTier: 'monthly_20',
-      planStatus: 'active',
-    })
+    const hook = renderUseAIChat()
 
     await act(async () => {
       await hook.sendMessage({
@@ -172,10 +173,7 @@ describe('useAIChat', () => {
   it('does not report WikiBusyError from wiki read', async () => {
     const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
     mockWikiRead.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
-    const hook = renderUseAIChat({
-      planTier: 'monthly_20',
-      planStatus: 'active',
-    })
+    const hook = renderUseAIChat()
 
     await act(async () => {
       await hook.sendMessage({
@@ -190,11 +188,8 @@ describe('useAIChat', () => {
   })
 
   it('reports non-busy wiki observation write errors with wiki:write context', async () => {
-    mockWriteObservation.mockRejectedValue(new Error('write failed'))
-    const hook = renderUseAIChat({
-      planTier: 'monthly_20',
-      planStatus: 'active',
-    })
+    mockWikiWriteExecute.mockRejectedValue(new Error('write failed'))
+    const hook = renderUseAIChat()
 
     await act(async () => {
       await hook.sendMessage({
@@ -221,11 +216,8 @@ describe('useAIChat', () => {
 
   it('does not report WikiBusyError from wiki observation write', async () => {
     const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
-    mockWriteObservation.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
-    const hook = renderUseAIChat({
-      planTier: 'monthly_20',
-      planStatus: 'active',
-    })
+    mockWikiWriteExecute.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
+    const hook = renderUseAIChat()
 
     await act(async () => {
       await hook.sendMessage({
