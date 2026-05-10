@@ -7,7 +7,8 @@ import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usageSnapshotFromError } from '~/services/usageSnapshot'
 import { PLAN_TIERS, SUBSCRIPTION_TIERS, type PlanTier } from '~/config/constants'
-import { useWiki, useWikiWrite, formatContext } from '@equationalapplications/expo-llm-wiki'
+import { useWiki, useWikiWrite, formatContext, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { reportError } from '~/utilities/reportError'
 
 interface UseAIChatProps {
   characterId: string
@@ -55,13 +56,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           const bundle = await wiki.read(character.id, message.text)
           if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
         } catch (err) {
-          console.warn('[wiki] memory read failed:', err)
+          if (!(err instanceof WikiBusyError)) reportError(err, 'wiki:read')
         }
       }
       const onWriteObservation = hasUnlimited && wiki
         ? (characterId: string, text: string) => {
             void writeObservation(characterId, { event_type: 'observation', summary: text })
-              .catch((err: unknown) => console.warn('[wiki] write failed:', err))
+              .catch((err: unknown) => {
+                if (!(err instanceof WikiBusyError)) reportError(err, 'wiki:write')
+              })
           }
         : undefined
       return sendMessageWithAIResponse(message, character, userId, messages, {
