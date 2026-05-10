@@ -45,11 +45,83 @@ export interface WikiMachineInput {
   wiki: Wiki
 }
 
-// Re-export to silence unused-import warnings until P2a-2/P2a-3 use them.
-export type { Wiki }
-void createMachine
-void assign
 void fromPromise
-void fromCallback
-void WikiBusyError
-void reportError
+
+export const wikiMachine = createMachine(
+  {
+    id: 'wikiMachine',
+    types: {} as {
+      context: WikiMachineContext
+      events: WikiMachineEvents
+      input: WikiMachineInput
+    },
+    initial: 'idle',
+    context: ({ input }) => ({
+      entityId: input.entityId,
+      wiki: input.wiki,
+      status: { ingesting: false, librarian: false, heal: false } as EntityStatus,
+      lastError: null,
+      lastReadAt: null,
+    }),
+    invoke: {
+      id: 'subscribeStatus',
+      src: 'subscribeStatus',
+      input: ({ context }) => ({ wiki: context.wiki, entityId: context.entityId }),
+    },
+    on: {
+      STATUS: {
+        actions: assign({ status: ({ event }) => event.status }),
+      },
+    },
+    states: {
+      idle: {
+        on: {
+          READ: 'reading',
+          WRITE: 'writing',
+          INGEST: 'ingesting',
+          SYNC: 'syncing',
+          FORGET: 'forgetting',
+        },
+      },
+      reading: {
+        /* filled in P2a-3 */
+      },
+      writing: {
+        /* filled in P2a-3 */
+      },
+      ingesting: {
+        /* filled in P2a-3 */
+      },
+      syncing: {
+        /* filled in P2a-3 */
+      },
+      forgetting: {
+        /* filled in P2a-3 */
+      },
+      error: {
+        entry: ['recordError'],
+        on: { RETRY: 'idle' },
+        after: { 30000: 'idle' },
+      },
+    },
+  },
+  {
+    actions: {
+      recordError: ({ context }) => {
+        if (context.lastError && !(context.lastError instanceof WikiBusyError)) {
+          reportError(context.lastError, `wiki:${context.entityId}`)
+        }
+      },
+    },
+    actors: {
+      subscribeStatus: fromCallback<WikiMachineEvents, { wiki: Wiki; entityId: string }>(
+        ({ sendBack, input }) => {
+          const unsubscribe = input.wiki.subscribeEntityStatus(input.entityId, (status) => {
+            sendBack({ type: 'STATUS', status })
+          })
+          return unsubscribe
+        },
+      ),
+    },
+  },
+)
