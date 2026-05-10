@@ -20,9 +20,10 @@ export type IngestArgs = Parameters<Wiki['ingestDocument']>[1]
 export type ForgetArgs = Parameters<Wiki['forget']>[1]
 
 /**
- * Mutation events that get serialized: only one in-flight at a time. If a new
+ * Events that get serialized: only one in-flight at a time. If a new
  * one arrives while a state is busy, it is appended to `pendingEvents` and
- * replayed when the machine returns to `idle`.
+ * replayed when the machine returns to `idle`. Includes READ to ensure
+ * consistent ordering with mutations.
  */
 export type WikiMutationEvent = Extract<
   WikiMachineEvents,
@@ -117,7 +118,11 @@ export const wikiMachine = createMachine(
             }),
           },
           onError: [
-            { guard: 'isBusyError', target: 'idle', actions: 'requeueCurrentEvent' },
+            {
+              guard: 'isBusyError',
+              target: 'busyRetry',
+              actions: 'requeueCurrentEvent',
+            },
             {
               target: 'error',
               actions: assign({ lastError: ({ event }) => event.error as Error }),
@@ -138,7 +143,11 @@ export const wikiMachine = createMachine(
             actions: assign({ lastError: () => null, currentEvent: () => null }),
           },
           onError: [
-            { guard: 'isBusyError', target: 'idle', actions: 'requeueCurrentEvent' },
+            {
+              guard: 'isBusyError',
+              target: 'busyRetry',
+              actions: 'requeueCurrentEvent',
+            },
             {
               target: 'error',
               actions: assign({ lastError: ({ event }) => event.error as Error }),
@@ -159,7 +168,11 @@ export const wikiMachine = createMachine(
             actions: assign({ lastError: () => null, currentEvent: () => null }),
           },
           onError: [
-            { guard: 'isBusyError', target: 'idle', actions: 'requeueCurrentEvent' },
+            {
+              guard: 'isBusyError',
+              target: 'busyRetry',
+              actions: 'requeueCurrentEvent',
+            },
             {
               target: 'error',
               actions: assign({ lastError: ({ event }) => event.error as Error }),
@@ -180,7 +193,11 @@ export const wikiMachine = createMachine(
             actions: assign({ lastError: () => null, currentEvent: () => null }),
           },
           onError: [
-            { guard: 'isBusyError', target: 'idle', actions: 'requeueCurrentEvent' },
+            {
+              guard: 'isBusyError',
+              target: 'busyRetry',
+              actions: 'requeueCurrentEvent',
+            },
             {
               target: 'error',
               actions: assign({ lastError: ({ event }) => event.error as Error }),
@@ -201,12 +218,23 @@ export const wikiMachine = createMachine(
             actions: assign({ lastError: () => null, currentEvent: () => null }),
           },
           onError: [
-            { guard: 'isBusyError', target: 'idle', actions: 'requeueCurrentEvent' },
+            {
+              guard: 'isBusyError',
+              target: 'busyRetry',
+              actions: 'requeueCurrentEvent',
+            },
             {
               target: 'error',
               actions: assign({ lastError: ({ event }) => event.error as Error }),
             },
           ],
+        },
+      },
+      busyRetry: {
+        after: {
+          1000: {
+            target: 'idle',
+          },
         },
       },
       error: {
@@ -230,7 +258,8 @@ export const wikiMachine = createMachine(
     actions: {
       recordError: ({ context }) => {
         if (context.lastError && !(context.lastError instanceof WikiBusyError)) {
-          reportError(context.lastError, `wiki:${context.entityId}`)
+          const operation = context.currentEvent?.type || 'unknown'
+          reportError(context.lastError, `wiki:${context.entityId}:${operation}`)
         }
       },
       storeCurrentEvent: assign({
@@ -263,7 +292,7 @@ export const wikiMachine = createMachine(
         ({ sendBack, input }) => {
           // If subscribeEntityStatus is not available, use getEntityStatus with polling
           if (!input.wiki.subscribeEntityStatus) {
-            // Fallback: poll getEntityStatus every 500ms
+            // Fallback: poll getEntityStatus every 5s (matching existing ChatView polling)
             if (!input.wiki.getEntityStatus) {
               console.warn(
                 `[wikiMachine] Neither subscribeEntityStatus nor getEntityStatus available for entity ${input.entityId}`,
@@ -273,7 +302,7 @@ export const wikiMachine = createMachine(
             const interval = setInterval(() => {
               const status = input.wiki.getEntityStatus(input.entityId)
               sendBack({ type: 'STATUS', status })
-            }, 500)
+            }, 5000)
             return () => clearInterval(interval)
           }
           
