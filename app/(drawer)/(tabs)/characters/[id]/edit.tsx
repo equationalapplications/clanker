@@ -1,4 +1,4 @@
-import { useLocalSearchParams, router } from 'expo-router'
+import { useLocalSearchParams, router, type Href } from 'expo-router'
 import { Alert, View, StyleSheet, ScrollView, Share } from 'react-native'
 import {
   Text,
@@ -522,6 +522,15 @@ export default function EditCharacterScreen() {
               Sync Memory
             </Button>
           ) : null}
+
+          <Button
+            mode="outlined"
+            icon="database-eye-outline"
+            onPress={() => router.push(`/characters/${characterId}/memory` as Href)}
+            style={styles.shareButton}
+          >
+            View Memory
+          </Button>
 
           <Divider style={styles.divider} />
 

@@ -96,6 +96,16 @@ describe('syncWikiForCloud orchestration path', () => {
     mockSyncAll.mockResolvedValue(undefined)
   })
 
+  it('skips syncAll when no cloud-linked characters exist', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar({ save_to_cloud: 0, cloud_id: null }),
+    ])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockSyncAll).not.toHaveBeenCalled()
+  })
+
   it('routes sync through wikiOrchestrator.syncAll', async () => {
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
 
@@ -104,7 +114,7 @@ describe('syncWikiForCloud orchestration path', () => {
     expect(mockSyncAll).toHaveBeenCalledTimes(1)
     const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
     expect(wikiArg).toEqual({})
-    expect(concurrencyArg).toBe(1)
+    expect(concurrencyArg).toBe(2)
     expect(itemsArg).toHaveLength(1)
     expect(itemsArg[0].entityId).toBe(LOCAL_ID)
   })
@@ -122,7 +132,7 @@ describe('syncWikiForCloud orchestration path', () => {
     expect(mockSyncAll).toHaveBeenCalledTimes(1)
     const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
     expect(wikiArg).toEqual({})
-    expect(concurrencyArg).toBe(1)
+    expect(concurrencyArg).toBe(2)
     expect(itemsArg).toHaveLength(2)
     expect(itemsArg.map((item: { entityId: string }) => item.entityId)).toEqual([LOCAL_ID, secondLocalId])
   })

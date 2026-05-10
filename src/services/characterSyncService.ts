@@ -128,7 +128,7 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
     })
 
     try {
-        await wikiOrchestrator.syncAll(items, wiki, 1)
+        await wikiOrchestrator.syncAll(items, wiki, 2)
     } catch (pipelineErr) {
         if (pipelineErr instanceof WikiBusyError) {
             return
