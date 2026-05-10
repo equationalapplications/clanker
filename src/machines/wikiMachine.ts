@@ -1,4 +1,4 @@
-import { createMachine, assign, fromPromise, fromCallback } from 'xstate'
+import { createMachine, assign, fromPromise, fromCallback, enqueueActions } from 'xstate'
 import {
   WikiBusyError,
   type EntityStatus,
@@ -19,12 +19,23 @@ export type IngestArgs = Parameters<Wiki['ingestDocument']>[1]
  */
 export type ForgetArgs = Parameters<Wiki['forget']>[1]
 
+/**
+ * Mutation events that get serialized: only one in-flight at a time. If a new
+ * one arrives while a state is busy, it is appended to `pendingEvents` and
+ * replayed when the machine returns to `idle`.
+ */
+export type WikiMutationEvent = Extract<
+  WikiMachineEvents,
+  { type: 'READ' | 'WRITE' | 'INGEST' | 'SYNC' | 'FORGET' }
+>
+
 export interface WikiMachineContext {
   entityId: string
   wiki: Wiki
   status: EntityStatus
   lastError: Error | null
   lastReadAt: number | null
+  pendingEvents: WikiMutationEvent[]
 }
 
 export type WikiMachineEvents =
@@ -45,8 +56,6 @@ export interface WikiMachineInput {
   wiki: Wiki
 }
 
-void fromPromise
-
 export const wikiMachine = createMachine(
   {
     id: 'wikiMachine',
@@ -62,6 +71,7 @@ export const wikiMachine = createMachine(
       status: { ingesting: false, librarian: false, heal: false } as EntityStatus,
       lastError: null,
       lastReadAt: null,
+      pendingEvents: [],
     }),
     invoke: {
       id: 'subscribeStatus',
@@ -72,9 +82,15 @@ export const wikiMachine = createMachine(
       STATUS: {
         actions: assign({ status: ({ event }) => event.status }),
       },
+      READ: { actions: 'enqueueEvent' },
+      WRITE: { actions: 'enqueueEvent' },
+      INGEST: { actions: 'enqueueEvent' },
+      SYNC: { actions: 'enqueueEvent' },
+      FORGET: { actions: 'enqueueEvent' },
     },
     states: {
       idle: {
+        entry: 'flushPending',
         on: {
           READ: 'reading',
           WRITE: 'writing',
@@ -84,19 +100,95 @@ export const wikiMachine = createMachine(
         },
       },
       reading: {
-        /* filled in P2a-3 */
+        invoke: {
+          src: 'readActor',
+          input: ({ context, event }) => ({
+            wiki: context.wiki,
+            entityId: context.entityId,
+            query: (event as Extract<WikiMachineEvents, { type: 'READ' }>).query,
+          }),
+          onDone: { target: 'idle', actions: assign({ lastReadAt: () => Date.now() }) },
+          onError: [
+            { guard: 'isBusyError', target: 'idle' },
+            {
+              target: 'error',
+              actions: assign({ lastError: ({ event }) => event.error as Error }),
+            },
+          ],
+        },
       },
       writing: {
-        /* filled in P2a-3 */
+        invoke: {
+          src: 'writeActor',
+          input: ({ context, event }) => ({
+            wiki: context.wiki,
+            entityId: context.entityId,
+            summary: (event as Extract<WikiMachineEvents, { type: 'WRITE' }>).summary,
+          }),
+          onDone: 'idle',
+          onError: [
+            { guard: 'isBusyError', target: 'idle' },
+            {
+              target: 'error',
+              actions: assign({ lastError: ({ event }) => event.error as Error }),
+            },
+          ],
+        },
       },
       ingesting: {
-        /* filled in P2a-3 */
+        invoke: {
+          src: 'ingestActor',
+          input: ({ context, event }) => ({
+            wiki: context.wiki,
+            entityId: context.entityId,
+            doc: (event as Extract<WikiMachineEvents, { type: 'INGEST' }>).doc,
+          }),
+          onDone: 'idle',
+          onError: [
+            { guard: 'isBusyError', target: 'idle' },
+            {
+              target: 'error',
+              actions: assign({ lastError: ({ event }) => event.error as Error }),
+            },
+          ],
+        },
       },
       syncing: {
-        /* filled in P2a-3 */
+        invoke: {
+          src: 'syncActor',
+          input: ({ context, event }) => ({
+            wiki: context.wiki,
+            entityId: context.entityId,
+            cloudId: (event as Extract<WikiMachineEvents, { type: 'SYNC' }>).cloudId,
+            runRemoteSync: (event as Extract<WikiMachineEvents, { type: 'SYNC' }>).runRemoteSync,
+          }),
+          onDone: 'idle',
+          onError: [
+            { guard: 'isBusyError', target: 'idle' },
+            {
+              target: 'error',
+              actions: assign({ lastError: ({ event }) => event.error as Error }),
+            },
+          ],
+        },
       },
       forgetting: {
-        /* filled in P2a-3 */
+        invoke: {
+          src: 'forgetActor',
+          input: ({ context, event }) => ({
+            wiki: context.wiki,
+            entityId: context.entityId,
+            args: (event as Extract<WikiMachineEvents, { type: 'FORGET' }>).args,
+          }),
+          onDone: 'idle',
+          onError: [
+            { guard: 'isBusyError', target: 'idle' },
+            {
+              target: 'error',
+              actions: assign({ lastError: ({ event }) => event.error as Error }),
+            },
+          ],
+        },
       },
       error: {
         entry: ['recordError'],
@@ -112,6 +204,22 @@ export const wikiMachine = createMachine(
           reportError(context.lastError, `wiki:${context.entityId}`)
         }
       },
+      enqueueEvent: assign({
+        pendingEvents: ({ context, event }) => [
+          ...context.pendingEvents,
+          event as WikiMutationEvent,
+        ],
+      }),
+      flushPending: enqueueActions(({ context, enqueue }) => {
+        if (context.pendingEvents.length === 0) return
+        const [next, ...rest] = context.pendingEvents
+        enqueue.assign({ pendingEvents: rest })
+        enqueue.raise(next)
+      }),
+    },
+    guards: {
+      isBusyError: ({ event }) =>
+        (event as { error?: unknown }).error instanceof WikiBusyError,
     },
     actors: {
       subscribeStatus: fromCallback<WikiMachineEvents, { wiki: Wiki; entityId: string }>(
@@ -120,6 +228,64 @@ export const wikiMachine = createMachine(
             sendBack({ type: 'STATUS', status })
           })
           return unsubscribe
+        },
+      ),
+      readActor: fromPromise(
+        async ({
+          input,
+        }: {
+          input: { wiki: Wiki; entityId: string; query: string }
+        }) => {
+          return input.wiki.read(input.entityId, input.query)
+        },
+      ),
+      writeActor: fromPromise(
+        async ({
+          input,
+        }: {
+          input: { wiki: Wiki; entityId: string; summary: string }
+        }) => {
+          await input.wiki.write(input.entityId, {
+            event_type: 'observation',
+            summary: input.summary,
+          })
+        },
+      ),
+      ingestActor: fromPromise(
+        async ({
+          input,
+        }: {
+          input: { wiki: Wiki; entityId: string; doc: IngestArgs }
+        }) => {
+          await input.wiki.ingestDocument(input.entityId, input.doc)
+        },
+      ),
+      forgetActor: fromPromise(
+        async ({
+          input,
+        }: {
+          input: { wiki: Wiki; entityId: string; args: ForgetArgs }
+        }) => {
+          await input.wiki.forget(input.entityId, input.args)
+        },
+      ),
+      syncActor: fromPromise(
+        async ({
+          input,
+        }: {
+          input: {
+            wiki: Wiki
+            entityId: string
+            cloudId: string
+            runRemoteSync: (d: MemoryDump) => Promise<MemoryDump | null>
+          }
+        }) => {
+          const local = await input.wiki.exportDump([input.entityId])
+          const remote = await input.runRemoteSync(local)
+          if (remote) {
+            await input.wiki.importDump(remote, { merge: true })
+          }
+          await input.wiki.runPrune(input.entityId, { vacuum: false })
         },
       ),
     },
