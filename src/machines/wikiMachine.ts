@@ -50,6 +50,7 @@ export interface WikiMachineContext {
   pendingEvents: WikiMutationEvent[]
   currentEvent: WikiMutationEvent | null
   busyRetryDelayMs: number
+  statusPollIntervalMs: number
 }
 
 export type WikiMachineEvents =
@@ -69,6 +70,11 @@ export interface WikiMachineInput {
   wiki: Wiki
   /** Delay in ms before retrying after WikiBusyError. Default: 1000ms */
   busyRetryDelayMs?: number
+  /**
+   * When `subscribeEntityStatus` is missing, poll `getEntityStatus` at this interval (ms).
+   * Default 5000. Set to 0 to emit the initial status only (no repeating timer).
+   */
+  statusPollIntervalMs?: number
 }
 
 export const wikiMachine = createMachine(
@@ -89,11 +95,16 @@ export const wikiMachine = createMachine(
       pendingEvents: [],
       currentEvent: null,
       busyRetryDelayMs: input.busyRetryDelayMs ?? 1000,
+      statusPollIntervalMs: input.statusPollIntervalMs ?? 5000,
     }),
     invoke: {
       id: 'subscribeStatus',
       src: 'subscribeStatus',
-      input: ({ context }) => ({ wiki: context.wiki, entityId: context.entityId }),
+      input: ({ context }) => ({
+        wiki: context.wiki,
+        entityId: context.entityId,
+        statusPollIntervalMs: context.statusPollIntervalMs,
+      }),
     },
     on: {
       STATUS: {
@@ -306,26 +317,35 @@ export const wikiMachine = createMachine(
       BUSY_RETRY_DELAY: ({ context }) => context.busyRetryDelayMs,
     },
     actors: {
-      subscribeStatus: fromCallback<WikiMachineEvents, { wiki: Wiki; entityId: string }>(
-        ({ sendBack, input }) => {
+      subscribeStatus: fromCallback<
+        WikiMachineEvents,
+        { wiki: Wiki; entityId: string; statusPollIntervalMs: number }
+      >(({ sendBack, input }) => {
           // If subscribeEntityStatus is not available, use getEntityStatus with polling
           if (!input.wiki.subscribeEntityStatus) {
-            // Fallback: poll getEntityStatus every 5s (matching existing ChatView polling)
+            // Fallback: poll getEntityStatus (interval from context; 0 = initial only)
             if (!input.wiki.getEntityStatus) {
-              console.warn(
-                `[wikiMachine] Neither subscribeEntityStatus nor getEntityStatus available for entity ${input.entityId}`,
+              reportError(
+                new Error(
+                  `Neither subscribeEntityStatus nor getEntityStatus available for entity ${input.entityId}`,
+                ),
+                `wiki:${input.entityId}:statusSubscription`,
               )
               return () => {}
             }
             // Send initial status immediately
             const initialStatus = input.wiki.getEntityStatus(input.entityId)
             sendBack({ type: 'STATUS', status: initialStatus })
-            
-            // Then poll every 5s
+
+            const intervalMs = input.statusPollIntervalMs
+            if (intervalMs <= 0) {
+              return () => {}
+            }
+            const getStatus = input.wiki.getEntityStatus
             const interval = setInterval(() => {
-              const status = input.wiki.getEntityStatus(input.entityId)
+              const status = getStatus(input.entityId)
               sendBack({ type: 'STATUS', status })
-            }, 5000)
+            }, intervalMs)
             return () => clearInterval(interval)
           }
           

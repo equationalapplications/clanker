@@ -88,4 +88,35 @@ describe('wikiOrchestrator', () => {
     await expect(done).resolves.toBeUndefined()
     expect(wiki.exportDump).toHaveBeenCalledTimes(1)
   })
+
+  test('stopActorsSpawnedForBatch stops actors created only for the batch', async () => {
+    const wiki = makeWikiMock()
+    const subscribe = wiki.subscribeEntityStatus as jest.Mock
+    await wikiOrchestrator.syncAll(
+      [{ entityId: 'batch-only', runRemoteSync: async (d) => d as never }],
+      wiki as never,
+      2,
+      60_000,
+      { stopActorsSpawnedForBatch: true },
+    )
+    subscribe.mockClear()
+    wikiOrchestrator.getOrSpawn('batch-only', wiki as never)
+    expect(subscribe).toHaveBeenCalledTimes(1)
+  })
+
+  test('stopActorsSpawnedForBatch does not stop actors that existed before syncAll', async () => {
+    const wiki = makeWikiMock()
+    wikiOrchestrator.getOrSpawn('kept', wiki as never)
+    const subscribe = wiki.subscribeEntityStatus as jest.Mock
+    await wikiOrchestrator.syncAll(
+      [{ entityId: 'kept', runRemoteSync: async (d) => d as never }],
+      wiki as never,
+      2,
+      60_000,
+      { stopActorsSpawnedForBatch: true },
+    )
+    subscribe.mockClear()
+    wikiOrchestrator.getOrSpawn('kept', wiki as never)
+    expect(subscribe).not.toHaveBeenCalled()
+  })
 })

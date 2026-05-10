@@ -214,7 +214,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - `status: EntityStatus` - Current entity status (ingesting, librarian, heal)
 - `lastError: Error | null` - Last error encountered (cleared on recovery/success)
 - `lastReadAt: number | null` - Timestamp of last successful read
-- `pendingEvents: WikiMutationEvent[]` - Queue for serializing mutations
+- `pendingEvents: WikiMutationEvent[]` - Queue for serializing operations (READ, WRITE, INGEST, SYNC, FORGET)
 - `currentEvent: WikiMutationEvent | null` - Currently processing event (for re-enqueue on busy)
 
 **States:**
@@ -239,7 +239,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - **Serialization:** All operations (READ, WRITE, INGEST, SYNC, FORGET) are queued via `pendingEvents` and flushed on `idle` entry to ensure consistent ordering
 - **WikiBusyError handling:** Re-enqueues operation via `requeueCurrentEvent` action for automatic retry
 - **Error recovery:** `lastError` cleared on successful operations and recovery transitions
-- **Status subscription:** Uses `subscribeEntityStatus` if available, falls back to polling `getEntityStatus` every 5000ms (5s)
+- **Status subscription:** Uses `subscribeEntityStatus` if available; else polls `getEntityStatus` on `statusPollIntervalMs` (default 5000ms, `0` = initial only)
 - **Cleanup:** Unsubscribes from status on actor stop
 
 ### wikiOrchestrator Implementation
@@ -247,9 +247,9 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 **File:** `src/services/wikiOrchestrator.ts`
 
 **API:**
-- `getOrSpawn(entityId, wiki): WikiActor` - Get or create actor for entity (cached)
+- `getOrSpawn(entityId, wiki, machineOptions?): WikiActor` - Get or create actor for entity (cached); optional `busyRetryDelayMs` / `statusPollIntervalMs` apply only on first spawn
 - `stop(entityId): void` - Stop and remove actor from cache
-- `syncAll(items, wiki, concurrency=2): Promise<void>` - Sync multiple entities with bounded parallelism
+- `syncAll(items, wiki, concurrency=2, timeoutMs=60000, options?): Promise<void>` - Sync multiple entities with bounded parallelism; `options.stopActorsSpawnedForBatch` stops actors that did not exist before the batch; `options.machineOptions` forwarded on spawn
 
 **SyncAllItem Interface:**
 ```typescript
@@ -264,6 +264,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - `syncAll` uses work-queue pattern to limit concurrent syncs
 - Sends `RETRY` before `SYNC` for actors in error state
 - Waits for each actor to reach `idle` or `error` before resolving
+- Optional batch cleanup: `stopActorsSpawnedForBatch` removes only actors absent from the map at `syncAll` entry (safe with duplicate `entityId`s in the batch)
 
 ### Type Extensions
 
@@ -291,11 +292,11 @@ export type Wiki = BaseWiki & {
 
 5. **cloudId parameter:** Removed from SYNC event as unused in implementation.
 
-6. **subscribeEntityStatus:** Not yet available in `@equationalapplications/expo-llm-wiki@4.1.0`. Added polling fallback (5s interval) and forward-compatible type extension.
+6. **subscribeEntityStatus:** Not yet available in `@equationalapplications/expo-llm-wiki@4.1.0`. Polling fallback uses `getEntityStatus` on `statusPollIntervalMs` (default 5000ms; `0` = initial sample only). Missing both APIs is reported via `reportError`. Forward-compatible `Wiki` type extension for subscribe.
 
 ### Test Coverage
 
-**wikiMachine.test.ts (10 tests):**
+**wikiMachine.test.ts (12 tests):**
 - READ → reading → idle and calls wiki.read
 - WRITE → writing → idle and calls wiki.write
 - INGEST → ingesting → idle and calls wiki.ingestDocument
@@ -306,12 +307,16 @@ export type Wiki = BaseWiki & {
 - Non-busy error → error state with assigned lastError
 - STATUS event updates context.status
 - Actor stop unsubscribes from status
+- Status fallback with neither API calls `reportError` with `wiki:<id>:statusSubscription`
+- `statusPollIntervalMs: 0` polls `getEntityStatus` only once (no interval)
 
-**wikiOrchestrator.test.ts (4 tests):**
+**wikiOrchestrator.test.ts (7 tests):**
 - getOrSpawn returns same actor for repeat entityId
 - getOrSpawn returns distinct actors for distinct entityIds
 - stop removes the actor and unsubscribes status
 - syncAll runs at most `concurrency` syncs in flight
+- `stopActorsSpawnedForBatch` stops actors created for the batch only
+- `stopActorsSpawnedForBatch` does not stop actors that existed before `syncAll`
 
 State-transition assertions use `waitFor` from XState for deterministic behavior; the orchestrator concurrency coverage may still use a short `setTimeout` helper where appropriate.
 
@@ -319,5 +324,4 @@ State-transition assertions use `waitFor` from XState for deterministic behavior
 
 Phase 2a is complete and ready for integration. Next phases:
 - **P2b:** Drop `hasUnlimited` gate on memory operations
-- **P2c:** Replace `console.warn` with `reportError` for wiki errors
 - **P3:** Wire call-sites to use `wikiMachine` via updated hooks

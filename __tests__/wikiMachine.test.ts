@@ -1,6 +1,9 @@
+jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
+
 import { createActor, waitFor } from 'xstate'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { wikiMachine } from '~/machines/wikiMachine'
+import { reportError } from '~/utilities/reportError'
 
 const WAIT_OPTS = { timeout: 2000 }
 
@@ -25,7 +28,11 @@ const spawn = (wiki: unknown) =>
 
 describe('wikiMachine', () => {
   const actors: Array<ReturnType<typeof spawn>> = []
-  
+
+  beforeEach(() => {
+    jest.mocked(reportError).mockClear()
+  })
+
   afterEach(() => {
     // Stop all actors to clean up intervals/subscriptions
     actors.forEach((actor) => actor.stop())
@@ -183,5 +190,40 @@ describe('wikiMachine', () => {
     const actor = spawnAndTrack(wiki)
     actor.stop()
     expect(unsubscribe).toHaveBeenCalled()
+  })
+
+  test('status subscription fallback reports missing APIs via reportError', () => {
+    const wiki = makeWikiMock({
+      subscribeEntityStatus: undefined,
+      getEntityStatus: undefined,
+    })
+    spawnAndTrack(wiki)
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      'wiki:char1:statusSubscription',
+    )
+  })
+
+  test('statusPollIntervalMs 0 polls getEntityStatus only once (initial)', () => {
+    jest.useFakeTimers()
+    try {
+      const getEntityStatus = jest.fn(() => ({
+        ingesting: false,
+        librarian: false,
+        heal: false,
+      }))
+      const wiki = makeWikiMock({
+        subscribeEntityStatus: undefined,
+        getEntityStatus,
+      })
+      const actor = createActor(wikiMachine, {
+        input: { entityId: 'char1', wiki: wiki as never, statusPollIntervalMs: 0 },
+      }).start()
+      actors.push(actor)
+      jest.advanceTimersByTime(60_000)
+      expect(getEntityStatus).toHaveBeenCalledTimes(1)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 })

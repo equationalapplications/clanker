@@ -1,15 +1,31 @@
 import { createActor, type ActorRefFrom } from 'xstate'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
-import { wikiMachine } from '~/machines/wikiMachine'
+import { wikiMachine, type WikiMachineInput } from '~/machines/wikiMachine'
 import type { Wiki } from '~/services/wikiService'
 
 type WikiActor = ActorRefFrom<typeof wikiMachine>
+
+/** Optional settings forwarded when spawning a new `wikiMachine` actor. */
+export type WikiOrchestratorMachineOptions = Partial<
+  Pick<WikiMachineInput, 'busyRetryDelayMs' | 'statusPollIntervalMs'>
+>
 
 const actors = new Map<string, WikiActor>()
 
 export interface SyncAllItem {
   entityId: string
   runRemoteSync: (dump: MemoryDump) => Promise<MemoryDump | null>
+}
+
+export interface SyncAllOptions {
+  /**
+   * After the batch finishes, stop actors for entity IDs that were not in the
+   * orchestrator map when `syncAll` started (avoids leaving status timers from
+   * batch-only spawns). Pre-existing actors are never stopped.
+   */
+  stopActorsSpawnedForBatch?: boolean
+  /** Applied only when this call creates the actor (same entityId as existing actor unchanged). */
+  machineOptions?: WikiOrchestratorMachineOptions
 }
 
 /**
@@ -21,10 +37,16 @@ export interface SyncAllItem {
  * is not an issue. For tests, use _resetWikiOrchestratorForTests() between
  * test cases that use different wiki instances.
  */
-function getOrSpawn(entityId: string, wiki: Wiki): WikiActor {
+function getOrSpawn(
+  entityId: string,
+  wiki: Wiki,
+  machineOptions?: WikiOrchestratorMachineOptions,
+): WikiActor {
   const existing = actors.get(entityId)
   if (existing) return existing
-  const actor = createActor(wikiMachine, { input: { entityId, wiki } })
+  const actor = createActor(wikiMachine, {
+    input: { entityId, wiki, ...machineOptions },
+  })
   actor.start()
   actors.set(entityId, actor)
   return actor
@@ -42,14 +64,16 @@ async function syncAll(
   wiki: Wiki,
   concurrency = 2,
   timeoutMs = 60000,
+  options?: SyncAllOptions,
 ): Promise<void> {
+  const entityIdsBefore = new Set(actors.keys())
   let nextIndex = 0
   const workers = Array.from({ length: Math.max(1, concurrency) }, async () => {
     while (nextIndex < items.length) {
       const index = nextIndex++
       const item = items[index]
       if (!item) return
-      const actor = getOrSpawn(item.entityId, wiki)
+      const actor = getOrSpawn(item.entityId, wiki, options?.machineOptions)
       
       // If actor is in error state, send RETRY first to recover
       if (actor.getSnapshot().matches('error')) {
@@ -99,6 +123,15 @@ async function syncAll(
     }
   })
   await Promise.all(workers)
+
+  if (options?.stopActorsSpawnedForBatch) {
+    const touched = new Set(items.map((i) => i.entityId))
+    for (const entityId of touched) {
+      if (!entityIdsBefore.has(entityId) && actors.has(entityId)) {
+        stop(entityId)
+      }
+    }
+  }
 }
 
 export const wikiOrchestrator = { getOrSpawn, stop, syncAll }
