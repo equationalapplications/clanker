@@ -214,8 +214,8 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - `status: EntityStatus` - Current entity status (ingesting, librarian, heal)
 - `lastError: Error | null` - Last error encountered (cleared on recovery/success)
 - `lastReadAt: number | null` - Timestamp of last successful read
-- `pendingEvents: WikiMutationEvent[]` - Queue for serializing operations (READ, WRITE, INGEST, SYNC, FORGET)
-- `currentEvent: WikiMutationEvent | null` - Currently processing event (for re-enqueue on busy)
+- `pendingEvents: WikiSerializedEvent[]` - Queue for serializing operations (READ, WRITE, INGEST, SYNC, FORGET)
+- `currentEvent: WikiSerializedEvent | null` - Currently processing event (for re-enqueue on busy)
 
 **States:**
 - `idle` - Ready to accept operations; flushes pending events on entry

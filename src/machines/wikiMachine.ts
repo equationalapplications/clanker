@@ -36,7 +36,7 @@ export type ForgetArgs = Parameters<Wiki['forget']>[1]
  * replayed when the machine returns to `idle`. Includes READ to ensure
  * consistent ordering with mutations.
  */
-export type WikiMutationEvent = Extract<
+export type WikiSerializedEvent = Extract<
   WikiMachineEvents,
   { type: 'READ' | 'WRITE' | 'INGEST' | 'SYNC' | 'FORGET' }
 >
@@ -47,8 +47,8 @@ export interface WikiMachineContext {
   status: EntityStatus
   lastError: Error | null
   lastReadAt: number | null
-  pendingEvents: WikiMutationEvent[]
-  currentEvent: WikiMutationEvent | null
+  pendingEvents: WikiSerializedEvent[]
+  currentEvent: WikiSerializedEvent | null
   busyRetryDelayMs: number
   statusPollIntervalMs: number
 }
@@ -212,6 +212,7 @@ export const wikiMachine = createMachine(
           input: ({ context, event }) => ({
             wiki: context.wiki,
             entityId: context.entityId,
+            busyRetryDelayMs: context.busyRetryDelayMs,
             runRemoteSync: (event as Extract<WikiMachineEvents, { type: 'SYNC' }>).runRemoteSync,
           }),
           onDone: {
@@ -289,7 +290,7 @@ export const wikiMachine = createMachine(
         }
       },
       storeCurrentEvent: assign({
-        currentEvent: ({ event }) => event as WikiMutationEvent,
+        currentEvent: ({ event }) => event as WikiSerializedEvent,
       }),
       requeueCurrentEvent: assign({
         pendingEvents: ({ context }) =>
@@ -299,7 +300,7 @@ export const wikiMachine = createMachine(
       enqueueEvent: assign({
         pendingEvents: ({ context, event }) => [
           ...context.pendingEvents,
-          event as WikiMutationEvent,
+          event as WikiSerializedEvent,
         ],
       }),
       flushPending: enqueueActions(({ context, enqueue }) => {
@@ -404,15 +405,28 @@ export const wikiMachine = createMachine(
           input: {
             wiki: Wiki
             entityId: string
+            busyRetryDelayMs: number
             runRemoteSync: (d: MemoryDump) => Promise<MemoryDump | null>
           }
         }) => {
+          const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
           const local = await input.wiki.exportDump([input.entityId])
           const remote = await input.runRemoteSync(local)
-          if (remote) {
-            await input.wiki.importDump(remote, { merge: true })
+          for (;;) {
+            try {
+              if (remote) {
+                await input.wiki.importDump(remote, { merge: true })
+              }
+              await input.wiki.runPrune(input.entityId, { vacuum: false })
+              return
+            } catch (e) {
+              if (e instanceof WikiBusyError) {
+                await sleep(input.busyRetryDelayMs)
+                continue
+              }
+              throw e
+            }
           }
-          await input.wiki.runPrune(input.entityId, { vacuum: false })
         },
       ),
     },

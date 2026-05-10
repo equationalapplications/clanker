@@ -22,9 +22,11 @@ const makeWikiMock = (overrides: Partial<Record<string, unknown>> = {}) => ({
   ...overrides,
 })
 
-const spawn = (wiki: unknown) =>
+const spawn = (wiki: unknown, inputOverrides: Record<string, unknown> = {}) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createActor(wikiMachine, { input: { entityId: 'char1', wiki: wiki as any } }).start()
+  createActor(wikiMachine, {
+    input: { entityId: 'char1', wiki: wiki as any, ...inputOverrides },
+  }).start()
 
 describe('wikiMachine', () => {
   const actors: Array<ReturnType<typeof spawn>> = []
@@ -39,8 +41,8 @@ describe('wikiMachine', () => {
     actors.length = 0
   })
   
-  const spawnAndTrack = (wiki: unknown) => {
-    const actor = spawn(wiki)
+  const spawnAndTrack = (wiki: unknown, inputOverrides: Record<string, unknown> = {}) => {
+    const actor = spawn(wiki, inputOverrides)
     actors.push(actor)
     return actor
   }
@@ -107,6 +109,21 @@ describe('wikiMachine', () => {
     await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
     expect(order).toEqual(['export', 'remote', 'import', 'prune'])
     expect(actor.getSnapshot().value).toBe('idle')
+  })
+
+  test('SYNC WikiBusyError on import retries import without re-running export/remote', async () => {
+    const wiki = makeWikiMock()
+    wiki.importDump
+      .mockRejectedValueOnce(new WikiBusyError('librarian', 'char1'))
+      .mockResolvedValueOnce(undefined)
+    const runRemoteSync = jest.fn(async (dump: unknown) => dump)
+    const actor = spawnAndTrack(wiki, { busyRetryDelayMs: 5 })
+    actor.send({ type: 'SYNC', runRemoteSync: runRemoteSync as never })
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
+    expect(wiki.exportDump).toHaveBeenCalledTimes(1)
+    expect(runRemoteSync).toHaveBeenCalledTimes(1)
+    expect(wiki.importDump).toHaveBeenCalledTimes(2)
+    expect(wiki.runPrune).toHaveBeenCalledTimes(1)
   })
 
   test('mutation while in flight is queued (serialized)', async () => {
