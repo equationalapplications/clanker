@@ -1,7 +1,11 @@
 jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
 
 import { waitFor } from 'xstate'
-import { wikiOrchestrator, _resetWikiOrchestratorForTests } from '~/services/wikiOrchestrator'
+import {
+  wikiOrchestrator,
+  _resetWikiOrchestratorForTests,
+  type SyncAllItem,
+} from '~/services/wikiOrchestrator'
 
 const makeWikiMock = () => ({
   read: jest.fn().mockResolvedValue(null),
@@ -43,6 +47,18 @@ describe('wikiOrchestrator', () => {
     const fresh = wikiOrchestrator.getOrSpawn('e1', wiki as never)
     expect(wiki.subscribeEntityStatus).toHaveBeenCalledTimes(2)
     expect(fresh).toBeDefined()
+  })
+
+  test('syncAll skips holes in a sparse items array without stopping workers early', async () => {
+    const wiki = makeWikiMock()
+    const runRemoteSync = jest.fn(async (d: unknown) => d)
+    const items = [
+      { entityId: 'a', runRemoteSync: runRemoteSync as never },
+      ,
+      { entityId: 'c', runRemoteSync: runRemoteSync as never },
+    ] as unknown as SyncAllItem[]
+    await wikiOrchestrator.syncAll(items, wiki as never, 2)
+    expect(wiki.exportDump).toHaveBeenCalledTimes(2)
   })
 
   test('syncAll runs at most `concurrency` syncs in flight', async () => {

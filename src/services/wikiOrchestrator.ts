@@ -72,7 +72,7 @@ async function syncAll(
     while (nextIndex < items.length) {
       const index = nextIndex++
       const item = items[index]
-      if (!item) return
+      if (item == null) continue
       const actor = getOrSpawn(item.entityId, wiki, options?.machineOptions)
 
       // Drain error recovery before we subscribe for this SYNC: otherwise RETRY
@@ -164,7 +164,9 @@ async function syncAll(
     await Promise.all(workers)
   } finally {
     if (options?.stopActorsSpawnedForBatch) {
-      const touched = new Set(items.map((i) => i.entityId))
+      const touched = new Set(
+        items.filter((i): i is SyncAllItem => i != null).map((i) => i.entityId),
+      )
       for (const entityId of touched) {
         if (!entityIdsBefore.has(entityId) && actors.has(entityId)) {
           stop(entityId)
