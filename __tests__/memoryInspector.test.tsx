@@ -10,6 +10,7 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
 jest.mock('~/hooks/useMemoryBundle', () => ({
   useMemoryBundle: jest.fn(),
 }))
+jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
 jest.mock('~/hooks/useCharacterWiki', () => ({
   useCharacterWiki: jest.fn().mockReturnValue({
     forget: jest.fn().mockResolvedValue(undefined),
@@ -36,6 +37,7 @@ import { PaperProvider } from 'react-native-paper'
 import MemoryInspectorScreen from '../app/(drawer)/(tabs)/characters/[id]/memory'
 import { useMemoryBundle } from '~/hooks/useMemoryBundle'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { reportError } from '~/utilities/reportError'
 
 const BUNDLE = {
   facts: [
@@ -187,5 +189,42 @@ describe('MemoryInspectorScreen', () => {
       expect(forgetMock).toHaveBeenCalledWith({ taskId: 't1' })
       expect(refetchMock).toHaveBeenCalled()
     })
+  })
+
+  test('reports error and skips refetch when forget rejects on fact delete', async () => {
+    const forgetMock = jest.fn().mockRejectedValue(new Error('Wiki forgetting timed out'))
+    const refetchMock = jest.fn()
+    jest.mocked(useCharacterWiki).mockReturnValue({
+      forget: forgetMock,
+      status: { ingesting: false, librarian: false, heal: false },
+      isBusy: false,
+      isIngesting: false,
+      error: null,
+      read: jest.fn(),
+      write: jest.fn(),
+      ingest: jest.fn(),
+      sync: jest.fn(),
+      hasChanged: jest.fn(),
+    } as never)
+    jest.mocked(useMemoryBundle).mockReturnValue({
+      bundle: BUNDLE,
+      isLoading: false,
+      error: null,
+      refetch: refetchMock,
+    })
+
+    render(<MemoryInspectorScreen />, { wrapper })
+
+    const deleteButtons = screen.getAllByLabelText('Delete')
+    fireEvent.press(deleteButtons[0])
+
+    await waitFor(() => {
+      expect(reportError).toHaveBeenCalledWith(
+        expect.any(Error),
+        'wiki:char1:memory-forget-fact',
+      )
+      expect(Alert.alert).toHaveBeenCalledWith('Delete failed', 'Wiki forgetting timed out')
+    })
+    expect(refetchMock).not.toHaveBeenCalled()
   })
 })

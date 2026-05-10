@@ -4,6 +4,7 @@ import { Text, List, IconButton, Divider, ActivityIndicator, useTheme } from 're
 import { useCallback } from 'react'
 import { useMemoryBundle } from '~/hooks/useMemoryBundle'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { reportError } from '~/utilities/reportError'
 import type { WikiFact, WikiTask, WikiEvent } from '@equationalapplications/expo-llm-wiki'
 
 function formatDate(timestamp: number): string {
@@ -78,13 +79,19 @@ export default function MemoryInspectorScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await forget({ entryId })
-            await refetch()
+            try {
+              await forget({ entryId })
+              await refetch()
+            } catch (err) {
+              reportError(err, `wiki:${entityId}:memory-forget-fact`)
+              const message = err instanceof Error ? err.message : String(err)
+              Alert.alert('Delete failed', message)
+            }
           },
         },
       ])
     },
-    [forget, refetch],
+    [entityId, forget, refetch],
   )
 
   const handleDeleteTask = useCallback(
@@ -95,13 +102,19 @@ export default function MemoryInspectorScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await forget({ taskId })
-            await refetch()
+            try {
+              await forget({ taskId })
+              await refetch()
+            } catch (err) {
+              reportError(err, `wiki:${entityId}:memory-forget-task`)
+              const message = err instanceof Error ? err.message : String(err)
+              Alert.alert('Delete failed', message)
+            }
           },
         },
       ])
     },
-    [forget, refetch],
+    [entityId, forget, refetch],
   )
 
   if (isLoading) {
