@@ -96,6 +96,16 @@ describe('syncWikiForCloud orchestration path', () => {
     mockSyncAll.mockResolvedValue(undefined)
   })
 
+  it('skips syncAll when no cloud-linked characters exist', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar({ save_to_cloud: 0, cloud_id: null }),
+    ])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockSyncAll).not.toHaveBeenCalled()
+  })
+
   it('routes sync through wikiOrchestrator.syncAll', async () => {
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
 

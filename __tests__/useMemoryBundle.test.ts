@@ -47,4 +47,41 @@ describe('useMemoryBundle', () => {
 
     expect(getMemoryBundle).toHaveBeenCalledTimes(2)
   })
+
+  test('does not apply stale bundle when entityId changes before first fetch completes', async () => {
+    let releaseGate!: () => void
+    const gate = new Promise<void>((resolve) => {
+      releaseGate = resolve
+    })
+
+    const bundleForChar1 = { ...BUNDLE, facts: [{ ...BUNDLE.facts[0], title: 'from char1' }] }
+    const bundleForChar2 = { ...BUNDLE, facts: [{ ...BUNDLE.facts[0], title: 'from char2' }] }
+
+    const getMemoryBundle = jest
+      .fn()
+      .mockImplementationOnce(async (id: string) => {
+        expect(id).toBe('char1')
+        await gate
+        return bundleForChar1
+      })
+      .mockResolvedValueOnce(bundleForChar2)
+
+    jest.mocked(useWiki).mockReturnValue({ getMemoryBundle } as never)
+
+    const { result, rerender } = renderHook(({ id }: { id: string }) => useMemoryBundle(id), {
+      initialProps: { id: 'char1' },
+    })
+
+    await waitFor(() => expect(getMemoryBundle).toHaveBeenCalledTimes(1))
+
+    rerender({ id: 'char2' })
+
+    await waitFor(() => expect(getMemoryBundle).toHaveBeenCalledTimes(2))
+
+    releaseGate()
+
+    await waitFor(() => {
+      expect(result.current.bundle).toEqual(bundleForChar2)
+    })
+  })
 })
