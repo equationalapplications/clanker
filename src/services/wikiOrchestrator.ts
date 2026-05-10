@@ -12,6 +12,15 @@ export interface SyncAllItem {
   runRemoteSync: (dump: MemoryDump) => Promise<MemoryDump | null>
 }
 
+/**
+ * Get or spawn an actor for the given entityId.
+ * 
+ * Note: Actors are cached by entityId only. If a different Wiki instance
+ * is passed for the same entityId, the existing actor will continue using
+ * the original wiki reference. In production, wiki is a singleton, so this
+ * is not an issue. For tests, use _resetWikiOrchestratorForTests() between
+ * test cases that use different wiki instances.
+ */
 function getOrSpawn(entityId: string, wiki: Wiki): WikiActor {
   const existing = actors.get(entityId)
   if (existing) return existing
@@ -42,10 +51,12 @@ async function syncAll(items: SyncAllItem[], wiki: Wiki, concurrency = 2): Promi
       }
       
       await new Promise<void>((resolve) => {
-        let seenSyncing = false
+        // Check if already syncing before we send the event
+        const wasAlreadySyncing = actor.getSnapshot().matches('syncing')
+        let seenSyncing = wasAlreadySyncing
         const sub = actor.subscribe((snap) => {
-          // Track that we've entered the syncing state
-          if (snap.matches('syncing')) {
+          // Track that we've entered the syncing state (after we sent the event)
+          if (!wasAlreadySyncing && snap.matches('syncing')) {
             seenSyncing = true
           }
           // Only resolve once we've seen syncing and then returned to idle/error

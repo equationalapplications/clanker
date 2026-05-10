@@ -125,16 +125,29 @@ describe('wikiMachine', () => {
   })
 
   test('WikiBusyError → re-enqueues and retries automatically', async () => {
-    const wiki = makeWikiMock()
-    wiki.write.mockRejectedValueOnce(new WikiBusyError('librarian', 'char1'))
-    wiki.write.mockResolvedValueOnce(undefined)
-    const actor = spawnAndTrack(wiki)
-    actor.send({ type: 'WRITE', summary: 'x' })
-    // Wait for both attempts to complete
-    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
-    // Should have been called twice: once failed with busy, once succeeded
-    expect(wiki.write).toHaveBeenCalledTimes(2)
-    expect(actor.getSnapshot().context.lastError).toBeNull()
+    jest.useFakeTimers()
+    try {
+      const wiki = makeWikiMock()
+      wiki.write.mockRejectedValueOnce(new WikiBusyError('librarian', 'char1'))
+      wiki.write.mockResolvedValueOnce(undefined)
+      const actor = spawnAndTrack(wiki)
+      actor.send({ type: 'WRITE', summary: 'x' })
+      
+      // Wait for first attempt to fail and enter busyRetry
+      await waitFor(actor, (state) => state.matches('busyRetry'), WAIT_OPTS)
+      
+      // Advance timers past the 1000ms delay
+      jest.advanceTimersByTime(1000)
+      
+      // Wait for retry to complete
+      await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
+      
+      // Should have been called twice: once failed with busy, once succeeded
+      expect(wiki.write).toHaveBeenCalledTimes(2)
+      expect(actor.getSnapshot().context.lastError).toBeNull()
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   test('non-busy error → error state with assigned lastError', async () => {

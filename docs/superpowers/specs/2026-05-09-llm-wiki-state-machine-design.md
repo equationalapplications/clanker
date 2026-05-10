@@ -236,7 +236,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - `RETRY` - Manually retry from error state
 
 **Key Behaviors:**
-- **Serialization:** Mutations queued via `pendingEvents`; flushed on `idle` entry
+- **Serialization:** All operations (READ, WRITE, INGEST, SYNC, FORGET) are queued via `pendingEvents` and flushed on `idle` entry to ensure consistent ordering
 - **WikiBusyError handling:** Re-enqueues operation via `requeueCurrentEvent` action for automatic retry
 - **Error recovery:** `lastError` cleared on successful operations and recovery transitions
 - **Status subscription:** Uses `subscribeEntityStatus` if available, falls back to polling `getEntityStatus` every 5000ms (5s)

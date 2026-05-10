@@ -49,6 +49,7 @@ export interface WikiMachineContext {
   lastReadAt: number | null
   pendingEvents: WikiMutationEvent[]
   currentEvent: WikiMutationEvent | null
+  busyRetryDelayMs: number
 }
 
 export type WikiMachineEvents =
@@ -66,6 +67,8 @@ export type WikiMachineEvents =
 export interface WikiMachineInput {
   entityId: string
   wiki: Wiki
+  /** Delay in ms before retrying after WikiBusyError. Default: 1000ms */
+  busyRetryDelayMs?: number
 }
 
 export const wikiMachine = createMachine(
@@ -85,6 +88,7 @@ export const wikiMachine = createMachine(
       lastReadAt: null,
       pendingEvents: [],
       currentEvent: null,
+      busyRetryDelayMs: input.busyRetryDelayMs ?? 1000,
     }),
     invoke: {
       id: 'subscribeStatus',
@@ -243,7 +247,7 @@ export const wikiMachine = createMachine(
       },
       busyRetry: {
         after: {
-          1000: {
+          BUSY_RETRY_DELAY: {
             target: 'idle',
           },
         },
@@ -253,13 +257,13 @@ export const wikiMachine = createMachine(
         on: {
           RETRY: {
             target: 'idle',
-            actions: assign({ lastError: () => null }),
+            actions: assign({ lastError: () => null, currentEvent: () => null }),
           },
         },
         after: {
           30000: {
             target: 'idle',
-            actions: assign({ lastError: () => null }),
+            actions: assign({ lastError: () => null, currentEvent: () => null }),
           },
         },
       },
@@ -297,6 +301,9 @@ export const wikiMachine = createMachine(
     guards: {
       isBusyError: ({ event }) =>
         (event as { error?: unknown }).error instanceof WikiBusyError,
+    },
+    delays: {
+      BUSY_RETRY_DELAY: ({ context }) => context.busyRetryDelayMs,
     },
     actors: {
       subscribeStatus: fromCallback<WikiMachineEvents, { wiki: Wiki; entityId: string }>(
