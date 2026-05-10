@@ -125,7 +125,6 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                         },
                     }
                 } catch (error) {
-                    reportWikiOpForCharacter(error, 'wiki:sync', char.id, 'Wiki cloud sync')
                     throw error
                 }
             },

@@ -193,10 +193,7 @@ describe('syncWikiForCloud orchestration path', () => {
       entities: { [LOCAL_ID]: { facts: [{ id: 'f1', entity_id: LOCAL_ID }], tasks: [], events: [] } },
     })).rejects.toThrow('first character sync failed')
 
-    expect(reportError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining(`Wiki cloud sync (character ${LOCAL_ID})`) }),
-      'wiki:sync',
-    )
+    // Error reporting now happens in the wiki machine's recordError action, not in runRemoteSync
 
     mockWikiSyncFn.mockResolvedValueOnce({
       data: {
