@@ -92,6 +92,24 @@ describe('wikiOrchestrator', () => {
     expect(wiki.exportDump).toHaveBeenCalledTimes(1)
   })
 
+  test('stopActorsSpawnedForBatch runs when syncAll rejects (e.g. timeout)', async () => {
+    const wiki = makeWikiMock()
+    wiki.exportDump.mockImplementation(() => new Promise(() => {}))
+    await expect(
+      wikiOrchestrator.syncAll(
+        [{ entityId: 'timeout-entity', runRemoteSync: async (d) => d as never }],
+        wiki as never,
+        1,
+        80,
+        { stopActorsSpawnedForBatch: true },
+      ),
+    ).rejects.toThrow(/timeout/)
+    const sub = wiki.subscribeEntityStatus as jest.Mock
+    sub.mockClear()
+    wikiOrchestrator.getOrSpawn('timeout-entity', wiki as never)
+    expect(sub).toHaveBeenCalledTimes(1)
+  })
+
   test('stopActorsSpawnedForBatch stops actors created only for the batch', async () => {
     const wiki = makeWikiMock()
     const subscribe = wiki.subscribeEntityStatus as jest.Mock

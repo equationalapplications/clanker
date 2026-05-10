@@ -160,13 +160,15 @@ async function syncAll(
       })
     }
   })
-  await Promise.all(workers)
-
-  if (options?.stopActorsSpawnedForBatch) {
-    const touched = new Set(items.map((i) => i.entityId))
-    for (const entityId of touched) {
-      if (!entityIdsBefore.has(entityId) && actors.has(entityId)) {
-        stop(entityId)
+  try {
+    await Promise.all(workers)
+  } finally {
+    if (options?.stopActorsSpawnedForBatch) {
+      const touched = new Set(items.map((i) => i.entityId))
+      for (const entityId of touched) {
+        if (!entityIdsBefore.has(entityId) && actors.has(entityId)) {
+          stop(entityId)
+        }
       }
     }
   }
