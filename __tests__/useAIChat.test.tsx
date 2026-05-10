@@ -9,6 +9,7 @@ const mockCancelQueries = jest.fn()
 const mockGetQueryData = jest.fn()
 const mockSetQueryData = jest.fn()
 const mockSend = jest.fn()
+const mockReportError = jest.fn()
 
 jest.mock('@tanstack/react-query', () => ({
   useMutation: ({ mutationFn, onSuccess, onError }: any) => ({
@@ -62,6 +63,10 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   formatContext: jest.fn((bundle) => '[MEMORY]\nFacts:\n[/MEMORY]'),
 }))
 
+jest.mock('~/utilities/reportError', () => ({
+  reportError: (...args: unknown[]) => mockReportError(...args),
+}))
+
 type HookValue = ReturnType<typeof useAIChat>
 
 function renderUseAIChat(): HookValue {
@@ -99,6 +104,8 @@ describe('useAIChat', () => {
     jest.clearAllMocks()
     mockUseChatMessages.mockReturnValue([])
     mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null })
+    mockWikiRead.mockResolvedValue(null)
+    mockWikiWriteExecute.mockResolvedValue(undefined)
   })
 
   it('reads wiki memory and provides write callback for free-tier users', async () => {
@@ -146,5 +153,89 @@ describe('useAIChat', () => {
         onWriteObservation: expect.any(Function),
       }),
     )
+  })
+  it('reports non-busy wiki read errors with wiki:read context', async () => {
+    mockWikiRead.mockRejectedValue(new Error('read failed'))
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-read-1',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:read')
+  })
+
+  it('does not report WikiBusyError from wiki read', async () => {
+    const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
+    mockWikiRead.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-read-2',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    expect(mockReportError).not.toHaveBeenCalled()
+  })
+
+  it('reports non-busy wiki observation write errors with wiki:write context', async () => {
+    mockWikiWriteExecute.mockRejectedValue(new Error('write failed'))
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-write-1',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    const sendCall = mockSendMessageWithAIResponse.mock.calls[0]
+    const opts = sendCall[4] as { onWriteObservation?: (id: string, text: string) => void }
+    expect(opts.onWriteObservation).toEqual(expect.any(Function))
+
+    await act(async () => {
+      opts.onWriteObservation!('char-1', 'observation text')
+      // onWriteObservation returns void and attaches .catch on a microtask; flush so reportError runs
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:write')
+  })
+
+  it('does not report WikiBusyError from wiki observation write', async () => {
+    const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
+    mockWikiWriteExecute.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-write-2',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    const sendCall = mockSendMessageWithAIResponse.mock.calls[0]
+    const opts = sendCall[4] as { onWriteObservation?: (id: string, text: string) => void }
+    await act(async () => {
+      opts.onWriteObservation!('char-1', 'observation text')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockReportError).not.toHaveBeenCalled()
   })
 })

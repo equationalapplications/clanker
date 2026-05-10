@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { useMemoryRead, useWikiWrite, useWikiExport, useWikiMaintenance, useWiki, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { wikiSync } from '~/services/apiClient'
+import { reportError } from '~/utilities/reportError'
 
 /**
  * Read memory facts/tasks/events for a character based on a query.
@@ -50,6 +51,8 @@ export function useCharacterWikiSync() {
     characterId: string,
     cloudCharacterId: string,
   ): Promise<{ success: boolean; message: string }> => {
+    const busyMessage = 'Memory is busy. Please try again shortly.'
+    const failureMessage = 'Failed to sync memory. Check your connection and try again.'
     setIsSyncing(true)
     try {
       if (!wiki) {
@@ -57,7 +60,16 @@ export function useCharacterWikiSync() {
       }
 
       // 1. Export local wiki dump
-      const localDump = await exportWiki.execute([characterId])
+      let localDump: MemoryDump
+      try {
+        localDump = await exportWiki.execute([characterId])
+      } catch (error) {
+        if (error instanceof WikiBusyError) {
+          return { success: false, message: busyMessage }
+        }
+        reportError(error, 'wiki:export')
+        return { success: false, message: failureMessage }
+      }
 
       // 2. Remap to cloud entity ID and sync to cloud
       const localBundle = localDump.entities[characterId] ?? { facts: [], tasks: [], events: [] }
@@ -72,10 +84,20 @@ export function useCharacterWikiSync() {
         },
       }
 
-      const result = await wikiSync({ dump: cloudDump })
-      const remoteDump = result.data.remoteDump
+      let remoteDump: MemoryDump | undefined
+      try {
+        const result = await wikiSync({ dump: cloudDump })
+        remoteDump = result.data?.remoteDump
+      } catch (error) {
+        if (error instanceof WikiBusyError) {
+          return { success: false, message: busyMessage }
+        }
+        reportError(error, 'wiki:sync')
+        return { success: false, message: failureMessage }
+      }
 
       if (!remoteDump) {
+        reportError(new Error('wikiSync returned without remoteDump in response data'), 'wiki:sync')
         return { success: false, message: 'No remote dump returned from cloud sync.' }
       }
 
@@ -87,17 +109,17 @@ export function useCharacterWikiSync() {
         },
       }
 
-      // Import (handle WikiBusyError gracefully)
       let importSucceeded = false
       try {
         await wiki.importDump(remappedDump, { merge: true })
         importSucceeded = true
       } catch (importErr) {
-        if (!(importErr instanceof WikiBusyError)) {
-          throw importErr
+        if (importErr instanceof WikiBusyError) {
+          // Cloud sync succeeded but local merge deferred — caller will retry on next sync cycle
+        } else {
+          reportError(importErr, 'wiki:import')
+          return { success: false, message: failureMessage }
         }
-        // WikiBusyError: cloud sync succeeded but local merge deferred
-        console.warn('[wiki] import deferred due to busy state; will merge on next sync')
       }
 
       // 4. Prune only after a successful import (skip when import was deferred)
@@ -110,19 +132,18 @@ export function useCharacterWikiSync() {
           })
         } catch (pruneErr) {
           if (!(pruneErr instanceof WikiBusyError)) {
-            console.warn('[wiki] prune failed after sync:', pruneErr)
+            reportError(pruneErr, 'wiki:prune')
           }
-          // WikiBusyError: defer to next sync cycle
         }
       }
 
       return { success: true, message: 'Memory synced to cloud.' }
-    } catch (error) {
-      console.error('[wiki] sync failed:', error)
-      const message = error instanceof WikiBusyError
-        ? 'Memory is busy. Please try again shortly.'
-        : 'Failed to sync memory. Check your connection and try again.'
-      return { success: false, message }
+    } catch (err: unknown) {
+      if (err instanceof WikiBusyError) {
+        return { success: false, message: busyMessage }
+      }
+      reportError(err, 'wiki:sync')
+      return { success: false, message: failureMessage }
     } finally {
       setIsSyncing(false)
     }
