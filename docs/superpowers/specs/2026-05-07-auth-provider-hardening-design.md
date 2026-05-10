@@ -1,7 +1,7 @@
 # Auth Provider Hardening — Design
 
 **Date:** 2026-05-07
-**Status:** Approved
+**Status:** Implemented
 
 ## Problem
 

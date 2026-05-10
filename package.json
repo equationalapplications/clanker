@@ -32,7 +32,7 @@
     "update": "npm run deploy-hosting && npm run ota"
   },
   "dependencies": {
-    "@equationalapplications/expo-llm-wiki": "^3.0.0",
+    "@equationalapplications/expo-llm-wiki": "4.1.0",
     "@expo/metro-runtime": "~55.0.7",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-community/netinfo": "11.5.2",
@@ -143,10 +143,18 @@
     "setupFiles": [
       "<rootDir>/jest.setup.js"
     ],
+    "testMatch": [
+      "**/__tests__/**/*.{test,spec}.[jt]s?(x)",
+      "**/?(*.)+(spec|test).[jt]s?(x)"
+    ],
     "testPathIgnorePatterns": [
       "/node_modules/",
       "<rootDir>/functions/",
-      "<rootDir>/.worktrees/"
+      "<rootDir>/.worktrees/",
+      "<rootDir>/build/",
+      "<rootDir>/dist/",
+      "<rootDir>/coverage/",
+      "<rootDir>/__tests__/helpers/"
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)"
