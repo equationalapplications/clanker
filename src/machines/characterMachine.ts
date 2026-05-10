@@ -17,6 +17,7 @@ import {
 } from '~/services/characterSyncService'
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 import { loadDefaultAvatarBase64 } from '~/services/defaultAvatarService'
+import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 
 // Events
 type CharacterEvent =
@@ -493,6 +494,7 @@ export const characterMachine = createMachine(
         async ({ input }: { input: { userId: string | null; id: string } }) => {
           if (!input.userId) throw new Error('User not logged in')
           await deleteCharacterDb(input.id, input.userId)
+          wikiOrchestrator.stop(input.id)
         },
       ),
       cloudSyncActor: fromPromise(
