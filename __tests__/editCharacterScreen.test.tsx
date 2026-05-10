@@ -152,7 +152,6 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
     runPrune: jest.fn().mockResolvedValue(undefined),
     isPending: false,
   })),
-  useWikiExport: jest.fn(() => ({ execute: jest.fn().mockResolvedValue({ generatedAt: Date.now(), entities: { 'char-1': { facts: [], tasks: [], events: [] } } }), isPending: false })),
 }))
 jest.mock('~/services/apiClient', () => ({
   wikiSync: jest.fn().mockResolvedValue({ data: {} }),
