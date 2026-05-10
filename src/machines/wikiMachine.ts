@@ -136,7 +136,7 @@ export const wikiMachine = createMachine(
             },
             {
               target: 'error',
-              actions: assign({ lastError: ({ event }) => event.error as Error }),
+              actions: assign({ lastError: ({ event }) => normalizeError(event.error) }),
             },
           ],
         },
