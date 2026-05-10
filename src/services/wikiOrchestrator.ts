@@ -136,10 +136,20 @@ async function syncAll(
 
           // Require a syncing snapshot for this cycle so an unrelated `error` (e.g. from
           // queued work) cannot resolve the promise before our SYNC is processed.
-          if (seenSyncing && (snap.matches('idle') || snap.matches('error'))) {
+          if (seenSyncing && snap.matches('idle')) {
             sub.unsubscribe()
             cleanup()
             finish(() => resolve())
+            return
+          }
+          if (seenSyncing && snap.matches('error')) {
+            sub.unsubscribe()
+            cleanup()
+            const err =
+              snap.context.lastError ??
+              new Error(`Sync failed for entity ${item.entityId}`)
+            finish(() => reject(err))
+            return
           }
         })
         

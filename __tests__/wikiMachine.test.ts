@@ -126,6 +126,19 @@ describe('wikiMachine', () => {
     expect(wiki.runPrune).toHaveBeenCalledTimes(1)
   })
 
+  test('SYNC WikiBusyError on prune retries prune without re-calling importDump', async () => {
+    const wiki = makeWikiMock()
+    wiki.runPrune
+      .mockRejectedValueOnce(new WikiBusyError('librarian', 'char1'))
+      .mockResolvedValueOnce(undefined)
+    const runRemoteSync = jest.fn(async (dump: unknown) => dump)
+    const actor = spawnAndTrack(wiki, { busyRetryDelayMs: 5 })
+    actor.send({ type: 'SYNC', runRemoteSync: runRemoteSync as never })
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
+    expect(wiki.importDump).toHaveBeenCalledTimes(1)
+    expect(wiki.runPrune).toHaveBeenCalledTimes(2)
+  })
+
   test('mutation while in flight is queued (serialized)', async () => {
     const wiki = makeWikiMock()
     const resolvers: Array<() => void> = []

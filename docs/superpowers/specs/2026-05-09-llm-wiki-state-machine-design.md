@@ -297,13 +297,14 @@ export type Wiki = BaseWiki & {
 
 ### Test Coverage
 
-**wikiMachine.test.ts (13 tests):**
+**wikiMachine.test.ts (14 tests):**
 - READ → reading → idle and calls wiki.read
 - WRITE → writing → idle and calls wiki.write
 - INGEST → ingesting → idle and calls wiki.ingestDocument
 - FORGET → forgetting → idle and calls wiki.forget
 - SYNC runs export → runRemoteSync → import → prune in order
 - SYNC WikiBusyError on import retries import without re-running export/remote
+- SYNC WikiBusyError on prune retries prune without re-calling importDump
 - Mutation while in flight is queued (serialized)
 - WikiBusyError → re-enqueues and retries automatically
 - Non-busy error → error state with assigned lastError
@@ -312,7 +313,7 @@ export type Wiki = BaseWiki & {
 - Status fallback with neither API calls `reportError` with `wiki:<id>:statusSubscription`
 - `statusPollIntervalMs: 0` polls `getEntityStatus` only once (no interval)
 
-**wikiOrchestrator.test.ts (12 tests):**
+**wikiOrchestrator.test.ts (13 tests):**
 - getOrSpawn returns same actor for repeat entityId
 - getOrSpawn returns distinct actors for distinct entityIds
 - stop removes the actor and unsubscribes status
@@ -325,6 +326,7 @@ export type Wiki = BaseWiki & {
 - `syncAll` rejects fast when the actor errors before `SYNC` runs (queued `SYNC`)
 - `syncAll` runs `SYNC` after `RETRY` drains queued writes
 - `stopActorsSpawnedForBatch` does not stop actors that existed before `syncAll`
+- `syncAll` rejects when the sync invoke fails (e.g. `exportDump` rejects)
 
 State-transition assertions use `waitFor` from XState for deterministic behavior; the orchestrator concurrency coverage may still use a short `setTimeout` helper where appropriate.
 

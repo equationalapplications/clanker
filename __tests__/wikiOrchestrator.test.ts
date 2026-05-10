@@ -214,4 +214,17 @@ describe('wikiOrchestrator', () => {
     wikiOrchestrator.getOrSpawn('kept', wiki as never)
     expect(subscribe).not.toHaveBeenCalled()
   })
+
+  test('syncAll rejects when the sync invoke fails (e.g. exportDump)', async () => {
+    const wiki = makeWikiMock()
+    wiki.exportDump.mockRejectedValueOnce(new Error('export failed'))
+    await expect(
+      wikiOrchestrator.syncAll(
+        [{ entityId: 'e', runRemoteSync: async (d) => d as never }],
+        wiki as never,
+        1,
+        5000,
+      ),
+    ).rejects.toThrow('export failed')
+  })
 })

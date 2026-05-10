@@ -412,11 +412,22 @@ export const wikiMachine = createMachine(
           const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
           const local = await input.wiki.exportDump([input.entityId])
           const remote = await input.runRemoteSync(local)
+          if (remote) {
+            for (;;) {
+              try {
+                await input.wiki.importDump(remote, { merge: true })
+                break
+              } catch (e) {
+                if (e instanceof WikiBusyError) {
+                  await sleep(input.busyRetryDelayMs)
+                  continue
+                }
+                throw e
+              }
+            }
+          }
           for (;;) {
             try {
-              if (remote) {
-                await input.wiki.importDump(remote, { merge: true })
-              }
               await input.wiki.runPrune(input.entityId, { vacuum: false })
               return
             } catch (e) {
