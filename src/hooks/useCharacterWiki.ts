@@ -57,8 +57,20 @@ export function useCharacterWikiSync() {
         return { success: false, message: 'Wiki not available. Ensure WikiProvider is mounted.' }
       }
 
+      const busyMessage = 'Memory is busy. Please try again shortly.'
+      const failureMessage = 'Failed to sync memory. Check your connection and try again.'
+
       // 1. Export local wiki dump
-      const localDump = await exportWiki.execute([characterId])
+      let localDump: MemoryDump
+      try {
+        localDump = await exportWiki.execute([characterId])
+      } catch (error) {
+        if (error instanceof WikiBusyError) {
+          return { success: false, message: busyMessage }
+        }
+        reportError(error, 'wiki:export')
+        return { success: false, message: failureMessage }
+      }
 
       // 2. Remap to cloud entity ID and sync to cloud
       const localBundle = localDump.entities[characterId] ?? { facts: [], tasks: [], events: [] }
@@ -73,8 +85,17 @@ export function useCharacterWikiSync() {
         },
       }
 
-      const result = await wikiSync({ dump: cloudDump })
-      const remoteDump = result.data.remoteDump
+      let remoteDump: MemoryDump | undefined
+      try {
+        const result = await wikiSync({ dump: cloudDump })
+        remoteDump = result.data.remoteDump
+      } catch (error) {
+        if (error instanceof WikiBusyError) {
+          return { success: false, message: busyMessage }
+        }
+        reportError(error, 'wiki:sync')
+        return { success: false, message: failureMessage }
+      }
 
       if (!remoteDump) {
         return { success: false, message: 'No remote dump returned from cloud sync.' }
@@ -88,16 +109,17 @@ export function useCharacterWikiSync() {
         },
       }
 
-      // Import (handle WikiBusyError gracefully)
       let importSucceeded = false
       try {
         await wiki.importDump(remappedDump, { merge: true })
         importSucceeded = true
       } catch (importErr) {
-        if (!(importErr instanceof WikiBusyError)) {
-          throw importErr
+        if (importErr instanceof WikiBusyError) {
+          // Cloud sync succeeded but local merge deferred — caller will retry on next sync cycle
+        } else {
+          reportError(importErr, 'wiki:import')
+          return { success: false, message: failureMessage }
         }
-        // WikiBusyError: cloud sync succeeded but local merge deferred — caller will retry on next sync cycle
       }
 
       // 4. Prune only after a successful import (skip when import was deferred)
@@ -112,17 +134,10 @@ export function useCharacterWikiSync() {
           if (!(pruneErr instanceof WikiBusyError)) {
             reportError(pruneErr, 'wiki:prune')
           }
-          // WikiBusyError: defer to next sync cycle
         }
       }
 
       return { success: true, message: 'Memory synced to cloud.' }
-    } catch (error) {
-      if (!(error instanceof WikiBusyError)) reportError(error, 'wiki:sync')
-      const message = error instanceof WikiBusyError
-        ? 'Memory is busy. Please try again shortly.'
-        : 'Failed to sync memory. Check your connection and try again.'
-      return { success: false, message }
     } finally {
       setIsSyncing(false)
     }

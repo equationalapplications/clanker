@@ -295,6 +295,23 @@ describe('syncWikiForCloud key remapping', () => {
     )
   })
 
+  it('does not call reportError when wikiSyncFn rejects with WikiBusyError', async () => {
+    const { WikiBusyError } = jest.requireActual<typeof import('@equationalapplications/expo-llm-wiki')>(
+      '@equationalapplications/expo-llm-wiki',
+    )
+    const char = makeCloudChar()
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([char])
+    mockExportDump.mockResolvedValue({
+      generatedAt: 1000,
+      entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [] } },
+    })
+    mockWikiSyncFn.mockRejectedValue(new WikiBusyError('ingest', LOCAL_ID))
+
+    await syncAllToCloud('user-1')
+
+    expect(reportError).not.toHaveBeenCalled()
+  })
+
   it('reports non-busy export errors with wiki:export context and skips WikiBusyError', async () => {
     const { WikiBusyError } = jest.requireActual<typeof import('@equationalapplications/expo-llm-wiki')>(
       '@equationalapplications/expo-llm-wiki',
