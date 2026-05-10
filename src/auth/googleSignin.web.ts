@@ -58,7 +58,9 @@ const getClientId = (): string | null => process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIE
 export const initializeGoogleSignIn = async (): Promise<void> => {
   const clientId = getClientId()
   if (!clientId) {
-    throw new Error('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set')
+    throw new Error(
+      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Configure it in .env locally or set it as a build-time environment variable in eas.json (see: https://docs.expo.dev/build-reference/variables/).',
+    )
   }
   await loadGoogleScript()
   if (!window.google?.accounts?.id) {
@@ -122,15 +124,38 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     window.google.accounts.id.initialize({
       client_id: clientId,
       callback: async (response: any) => {
-        if (!response?.credential) {
-          settle({ success: false, error: 'No credential received' })
-          return
+        if (settled) return
+        try {
+          if (!response?.credential) {
+            settle({ success: false, error: 'No credential received' })
+            return
+          }
+          // Prompt-settle timeout only covers the FedCM / prompt phase; once we have
+          // an ID token, slow `signInWithCredential` must not lose a race to that timer.
+          clearTimeout(promptTimeout)
+
+          // Wrap exchangeCredential in Promise.race with 30s timeout for network operations
+          const EXCHANGE_TIMEOUT_MS = 30_000
+          const exchanged = await Promise.race([
+            exchangeCredential(response.credential),
+            new Promise<GoogleSignInResult>((resolve) =>
+              setTimeout(() => resolve({ success: false, error: 'Credential exchange timed out' }), EXCHANGE_TIMEOUT_MS)
+            ),
+          ])
+          settle(exchanged)
+        } catch (error: any) {
+          console.error('Google Sign-In callback exception:', error)
+          let errorMessage = error?.message
+          if (!errorMessage && error && typeof error === 'object') {
+            try {
+              errorMessage = JSON.stringify(error)
+            } catch {
+              errorMessage = String(error)
+            }
+          }
+          errorMessage = errorMessage || String(error) || 'Sign-in callback failed'
+          settle({ success: false, error: errorMessage })
         }
-        // Prompt-settle timeout only covers the FedCM / prompt phase; once we have
-        // an ID token, slow `signInWithCredential` must not lose a race to that timer.
-        clearTimeout(promptTimeout)
-        const exchanged = await exchangeCredential(response.credential)
-        settle(exchanged)
       },
     })
 
