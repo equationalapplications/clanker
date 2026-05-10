@@ -56,7 +56,7 @@ describe('wikiOrchestrator', () => {
     const ids = ['a', 'b', 'c', 'd', 'e']
     const runRemoteSync = jest.fn(async (d: unknown) => d)
     await wikiOrchestrator.syncAll(
-      ids.map((id) => ({ entityId: id, cloudId: id, runRemoteSync: runRemoteSync as never })),
+      ids.map((id) => ({ entityId: id, runRemoteSync: runRemoteSync as never })),
       wiki as never,
       2,
     )

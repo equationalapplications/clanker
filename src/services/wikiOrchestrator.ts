@@ -9,7 +9,6 @@ const actors = new Map<string, WikiActor>()
 
 export interface SyncAllItem {
   entityId: string
-  cloudId: string
   runRemoteSync: (dump: MemoryDump) => Promise<MemoryDump | null>
 }
 
@@ -36,6 +35,12 @@ async function syncAll(items: SyncAllItem[], wiki: Wiki, concurrency = 2): Promi
       const item = queue.shift()
       if (!item) return
       const actor = getOrSpawn(item.entityId, wiki)
+      
+      // If actor is in error state, send RETRY first to recover
+      if (actor.getSnapshot().matches('error')) {
+        actor.send({ type: 'RETRY' })
+      }
+      
       await new Promise<void>((resolve) => {
         const sub = actor.subscribe((snap) => {
           if (snap.matches('idle')) {
@@ -48,7 +53,6 @@ async function syncAll(items: SyncAllItem[], wiki: Wiki, concurrency = 2): Promi
         })
         actor.send({
           type: 'SYNC',
-          cloudId: item.cloudId,
           runRemoteSync: item.runRemoteSync,
         })
       })

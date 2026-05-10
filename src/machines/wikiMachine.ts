@@ -36,6 +36,7 @@ export interface WikiMachineContext {
   lastError: Error | null
   lastReadAt: number | null
   pendingEvents: WikiMutationEvent[]
+  currentEvent: WikiMutationEvent | null
 }
 
 export type WikiMachineEvents =
@@ -44,7 +45,6 @@ export type WikiMachineEvents =
   | { type: 'INGEST'; doc: IngestArgs }
   | {
       type: 'SYNC'
-      cloudId: string
       runRemoteSync: (dump: MemoryDump) => Promise<MemoryDump | null>
     }
   | { type: 'FORGET'; args: ForgetArgs }
@@ -72,6 +72,7 @@ export const wikiMachine = createMachine(
       lastError: null,
       lastReadAt: null,
       pendingEvents: [],
+      currentEvent: null,
     }),
     invoke: {
       id: 'subscribeStatus',
@@ -92,11 +93,11 @@ export const wikiMachine = createMachine(
       idle: {
         entry: 'flushPending',
         on: {
-          READ: 'reading',
-          WRITE: 'writing',
-          INGEST: 'ingesting',
-          SYNC: 'syncing',
-          FORGET: 'forgetting',
+          READ: { target: 'reading', actions: 'storeCurrentEvent' },
+          WRITE: { target: 'writing', actions: 'storeCurrentEvent' },
+          INGEST: { target: 'ingesting', actions: 'storeCurrentEvent' },
+          SYNC: { target: 'syncing', actions: 'storeCurrentEvent' },
+          FORGET: { target: 'forgetting', actions: 'storeCurrentEvent' },
         },
       },
       reading: {
@@ -107,9 +108,16 @@ export const wikiMachine = createMachine(
             entityId: context.entityId,
             query: (event as Extract<WikiMachineEvents, { type: 'READ' }>).query,
           }),
-          onDone: { target: 'idle', actions: assign({ lastReadAt: () => Date.now() }) },
+          onDone: {
+            target: 'idle',
+            actions: assign({
+              lastReadAt: () => Date.now(),
+              lastError: () => null,
+              currentEvent: () => null,
+            }),
+          },
           onError: [
-            { guard: 'isBusyError', target: 'idle' },
+            { guard: 'isBusyError', target: 'idle', actions: 'requeueCurrentEvent' },
             {
               target: 'error',
               actions: assign({ lastError: ({ event }) => event.error as Error }),
@@ -125,9 +133,12 @@ export const wikiMachine = createMachine(
             entityId: context.entityId,
             summary: (event as Extract<WikiMachineEvents, { type: 'WRITE' }>).summary,
           }),
-          onDone: 'idle',
+          onDone: {
+            target: 'idle',
+            actions: assign({ lastError: () => null, currentEvent: () => null }),
+          },
           onError: [
-            { guard: 'isBusyError', target: 'idle' },
+            { guard: 'isBusyError', target: 'idle', actions: 'requeueCurrentEvent' },
             {
               target: 'error',
               actions: assign({ lastError: ({ event }) => event.error as Error }),
@@ -143,9 +154,12 @@ export const wikiMachine = createMachine(
             entityId: context.entityId,
             doc: (event as Extract<WikiMachineEvents, { type: 'INGEST' }>).doc,
           }),
-          onDone: 'idle',
+          onDone: {
+            target: 'idle',
+            actions: assign({ lastError: () => null, currentEvent: () => null }),
+          },
           onError: [
-            { guard: 'isBusyError', target: 'idle' },
+            { guard: 'isBusyError', target: 'idle', actions: 'requeueCurrentEvent' },
             {
               target: 'error',
               actions: assign({ lastError: ({ event }) => event.error as Error }),
@@ -159,12 +173,14 @@ export const wikiMachine = createMachine(
           input: ({ context, event }) => ({
             wiki: context.wiki,
             entityId: context.entityId,
-            cloudId: (event as Extract<WikiMachineEvents, { type: 'SYNC' }>).cloudId,
             runRemoteSync: (event as Extract<WikiMachineEvents, { type: 'SYNC' }>).runRemoteSync,
           }),
-          onDone: 'idle',
+          onDone: {
+            target: 'idle',
+            actions: assign({ lastError: () => null, currentEvent: () => null }),
+          },
           onError: [
-            { guard: 'isBusyError', target: 'idle' },
+            { guard: 'isBusyError', target: 'idle', actions: 'requeueCurrentEvent' },
             {
               target: 'error',
               actions: assign({ lastError: ({ event }) => event.error as Error }),
@@ -180,9 +196,12 @@ export const wikiMachine = createMachine(
             entityId: context.entityId,
             args: (event as Extract<WikiMachineEvents, { type: 'FORGET' }>).args,
           }),
-          onDone: 'idle',
+          onDone: {
+            target: 'idle',
+            actions: assign({ lastError: () => null, currentEvent: () => null }),
+          },
           onError: [
-            { guard: 'isBusyError', target: 'idle' },
+            { guard: 'isBusyError', target: 'idle', actions: 'requeueCurrentEvent' },
             {
               target: 'error',
               actions: assign({ lastError: ({ event }) => event.error as Error }),
@@ -192,8 +211,18 @@ export const wikiMachine = createMachine(
       },
       error: {
         entry: ['recordError'],
-        on: { RETRY: 'idle' },
-        after: { 30000: 'idle' },
+        on: {
+          RETRY: {
+            target: 'idle',
+            actions: assign({ lastError: () => null }),
+          },
+        },
+        after: {
+          30000: {
+            target: 'idle',
+            actions: assign({ lastError: () => null }),
+          },
+        },
       },
     },
   },
@@ -204,6 +233,14 @@ export const wikiMachine = createMachine(
           reportError(context.lastError, `wiki:${context.entityId}`)
         }
       },
+      storeCurrentEvent: assign({
+        currentEvent: ({ event }) => event as WikiMutationEvent,
+      }),
+      requeueCurrentEvent: assign({
+        pendingEvents: ({ context }) =>
+          context.currentEvent ? [context.currentEvent, ...context.pendingEvents] : context.pendingEvents,
+        currentEvent: () => null,
+      }),
       enqueueEvent: assign({
         pendingEvents: ({ context, event }) => [
           ...context.pendingEvents,
@@ -224,9 +261,22 @@ export const wikiMachine = createMachine(
     actors: {
       subscribeStatus: fromCallback<WikiMachineEvents, { wiki: Wiki; entityId: string }>(
         ({ sendBack, input }) => {
-          const unsubscribe = input.wiki.subscribeEntityStatus(input.entityId, (status) => {
-            sendBack({ type: 'STATUS', status })
-          })
+          // If subscribeEntityStatus is not available, use getEntityStatus with polling
+          if (!input.wiki.subscribeEntityStatus) {
+            // Fallback: poll getEntityStatus every 500ms
+            const interval = setInterval(() => {
+              const status = input.wiki.getEntityStatus(input.entityId)
+              sendBack({ type: 'STATUS', status })
+            }, 500)
+            return () => clearInterval(interval)
+          }
+          
+          const unsubscribe = input.wiki.subscribeEntityStatus(
+            input.entityId,
+            (status: EntityStatus) => {
+              sendBack({ type: 'STATUS', status })
+            },
+          )
           return unsubscribe
         },
       ),
@@ -276,7 +326,6 @@ export const wikiMachine = createMachine(
           input: {
             wiki: Wiki
             entityId: string
-            cloudId: string
             runRemoteSync: (d: MemoryDump) => Promise<MemoryDump | null>
           }
         }) => {

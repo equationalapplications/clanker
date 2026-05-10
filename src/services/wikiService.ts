@@ -1,9 +1,19 @@
 // src/services/wikiService.ts
 import { createWiki } from '@equationalapplications/expo-llm-wiki'
+import type { EntityStatus } from '@equationalapplications/expo-llm-wiki'
 import type { SQLiteDatabase } from 'expo-sqlite'
 import { createWikiLlmProvider } from './wikiLlmProvider'
 
-export type Wiki = ReturnType<typeof createWiki>
+// Base Wiki type from the package
+type BaseWiki = ReturnType<typeof createWiki>
+
+// Extended Wiki type with future methods (for forward compatibility)
+export type Wiki = BaseWiki & {
+  subscribeEntityStatus?: (
+    entityId: string,
+    callback: (status: EntityStatus) => void,
+  ) => () => void
+}
 
 let _wiki: Wiki | null = null
 

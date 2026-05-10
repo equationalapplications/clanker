@@ -1,6 +1,8 @@
-import { createActor } from 'xstate'
+import { createActor, waitFor } from 'xstate'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { wikiMachine } from '~/machines/wikiMachine'
+
+const WAIT_OPTS = { timeout: 2000 }
 
 const makeWikiMock = (overrides: Partial<Record<string, unknown>> = {}) => ({
   read: jest.fn().mockResolvedValue({ facts: [], tasks: [], events: [] }),
@@ -22,20 +24,34 @@ const spawn = (wiki: unknown) =>
   createActor(wikiMachine, { input: { entityId: 'char1', wiki: wiki as any } }).start()
 
 describe('wikiMachine', () => {
+  const actors: Array<ReturnType<typeof spawn>> = []
+  
+  afterEach(() => {
+    // Stop all actors to clean up intervals/subscriptions
+    actors.forEach((actor) => actor.stop())
+    actors.length = 0
+  })
+  
+  const spawnAndTrack = (wiki: unknown) => {
+    const actor = spawn(wiki)
+    actors.push(actor)
+    return actor
+  }
+
   test('READ → reading → idle and calls wiki.read', async () => {
     const wiki = makeWikiMock()
-    const actor = spawn(wiki)
+    const actor = spawnAndTrack(wiki)
     actor.send({ type: 'READ', query: 'hello' })
-    await new Promise((r) => setTimeout(r, 0))
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
     expect(wiki.read).toHaveBeenCalledWith('char1', 'hello')
     expect(actor.getSnapshot().value).toBe('idle')
   })
 
   test('WRITE → writing → idle and calls wiki.write', async () => {
     const wiki = makeWikiMock()
-    const actor = spawn(wiki)
+    const actor = spawnAndTrack(wiki)
     actor.send({ type: 'WRITE', summary: 'note' })
-    await new Promise((r) => setTimeout(r, 0))
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
     expect(wiki.write).toHaveBeenCalledWith('char1', {
       event_type: 'observation',
       summary: 'note',
@@ -45,19 +61,19 @@ describe('wikiMachine', () => {
 
   test('INGEST → ingesting → idle and calls wiki.ingestDocument', async () => {
     const wiki = makeWikiMock()
-    const actor = spawn(wiki)
+    const actor = spawnAndTrack(wiki)
     const doc = { sourceRef: 's', sourceHash: 'h', documentChunk: 'c' }
     actor.send({ type: 'INGEST', doc })
-    await new Promise((r) => setTimeout(r, 0))
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
     expect(wiki.ingestDocument).toHaveBeenCalledWith('char1', doc)
     expect(actor.getSnapshot().value).toBe('idle')
   })
 
   test('FORGET → forgetting → idle and calls wiki.forget', async () => {
     const wiki = makeWikiMock()
-    const actor = spawn(wiki)
+    const actor = spawnAndTrack(wiki)
     actor.send({ type: 'FORGET', args: { sourceRef: 's' } })
-    await new Promise((r) => setTimeout(r, 0))
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
     expect(wiki.forget).toHaveBeenCalledWith('char1', { sourceRef: 's' })
     expect(actor.getSnapshot().value).toBe('idle')
   })
@@ -79,41 +95,44 @@ describe('wikiMachine', () => {
       order.push('remote')
       return dump
     })
-    const actor = spawn(wiki)
-    actor.send({ type: 'SYNC', cloudId: 'cloud-1', runRemoteSync: runRemoteSync as never })
-    await new Promise((r) => setTimeout(r, 10))
+    const actor = spawnAndTrack(wiki)
+    actor.send({ type: 'SYNC', runRemoteSync: runRemoteSync as never })
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
     expect(order).toEqual(['export', 'remote', 'import', 'prune'])
     expect(actor.getSnapshot().value).toBe('idle')
   })
 
   test('mutation while in flight is queued (serialized)', async () => {
     const wiki = makeWikiMock()
-    let resolveWrite: () => void = () => {}
+    const resolvers: Array<() => void> = []
     wiki.write.mockImplementation(
       () =>
         new Promise<void>((r) => {
-          resolveWrite = r
+          resolvers.push(r)
         }),
     )
-    const actor = spawn(wiki)
+    const actor = spawnAndTrack(wiki)
     actor.send({ type: 'WRITE', summary: 'a' })
     actor.send({ type: 'WRITE', summary: 'b' })
-    await new Promise((r) => setTimeout(r, 0))
+    await waitFor(actor, (state) => state.matches('writing'), WAIT_OPTS)
     expect(wiki.write).toHaveBeenCalledTimes(1)
-    resolveWrite()
-    await new Promise((r) => setTimeout(r, 0))
+    resolvers[0]() // Resolve first write
+    // After first write completes, machine goes to idle, flushes pending, and starts second write
+    await waitFor(actor, (state) => wiki.write.mock.calls.length === 2, WAIT_OPTS)
     expect(wiki.write).toHaveBeenCalledTimes(2)
+    resolvers[1]() // Resolve second write
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
   })
 
-  test('WikiBusyError → defers + retries on next event without reportError', async () => {
+  test('WikiBusyError → re-enqueues and retries automatically', async () => {
     const wiki = makeWikiMock()
     wiki.write.mockRejectedValueOnce(new WikiBusyError('librarian', 'char1'))
     wiki.write.mockResolvedValueOnce(undefined)
-    const actor = spawn(wiki)
+    const actor = spawnAndTrack(wiki)
     actor.send({ type: 'WRITE', summary: 'x' })
-    await new Promise((r) => setTimeout(r, 0))
-    actor.send({ type: 'WRITE', summary: 'x' })
-    await new Promise((r) => setTimeout(r, 0))
+    // Wait for both attempts to complete
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
+    // Should have been called twice: once failed with busy, once succeeded
     expect(wiki.write).toHaveBeenCalledTimes(2)
     expect(actor.getSnapshot().context.lastError).toBeNull()
   })
@@ -122,9 +141,9 @@ describe('wikiMachine', () => {
     const wiki = makeWikiMock()
     const fault = new Error('disk full')
     wiki.write.mockRejectedValueOnce(fault)
-    const actor = spawn(wiki)
+    const actor = spawnAndTrack(wiki)
     actor.send({ type: 'WRITE', summary: 'x' })
-    await new Promise((r) => setTimeout(r, 0))
+    await waitFor(actor, (state) => state.matches('error'), WAIT_OPTS)
     expect(actor.getSnapshot().value).toBe('error')
     expect(actor.getSnapshot().context.lastError).toBe(fault)
   })
@@ -137,10 +156,11 @@ describe('wikiMachine', () => {
         return () => {}
       }),
     })
-    const actor = spawn(wiki)
+    const actor = spawnAndTrack(wiki)
     cb!({ ingesting: true, librarian: false, heal: false })
-    await new Promise((r) => setTimeout(r, 0))
+    await waitFor(actor, (state) => state.context.status.ingesting === true, WAIT_OPTS)
     expect(actor.getSnapshot().context.status.ingesting).toBe(true)
+    actor.stop() // Clean up
   })
 
   test('actor stop unsubscribes from status', async () => {
@@ -148,7 +168,7 @@ describe('wikiMachine', () => {
     const wiki = makeWikiMock({
       subscribeEntityStatus: jest.fn(() => unsubscribe),
     })
-    const actor = spawn(wiki)
+    const actor = spawnAndTrack(wiki)
     actor.stop()
     expect(unsubscribe).toHaveBeenCalled()
   })
