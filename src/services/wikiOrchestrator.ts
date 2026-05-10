@@ -7,7 +7,7 @@ type WikiActor = ActorRefFrom<typeof wikiMachine>
 
 /** Optional settings forwarded when spawning a new `wikiMachine` actor. */
 export type WikiOrchestratorMachineOptions = Partial<
-  Pick<WikiMachineInput, 'busyRetryDelayMs' | 'statusPollIntervalMs'>
+  Pick<WikiMachineInput, 'busyRetryDelayMs'>
 >
 
 const actors = new Map<string, WikiActor>()

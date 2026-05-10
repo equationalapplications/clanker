@@ -222,10 +222,9 @@ describe('wikiMachine', () => {
     expect(unsubscribe).toHaveBeenCalled()
   })
 
-  test('status subscription fallback reports missing APIs via reportError', () => {
+  test('subscribeEntityStatus missing at runtime calls reportError', () => {
     const wiki = makeWikiMock({
       subscribeEntityStatus: undefined,
-      getEntityStatus: undefined,
     })
     spawnAndTrack(wiki)
     expect(reportError).toHaveBeenCalledWith(
@@ -234,27 +233,15 @@ describe('wikiMachine', () => {
     )
   })
 
-  test('statusPollIntervalMs 0 polls getEntityStatus only once (initial)', () => {
-    jest.useFakeTimers()
-    try {
-      const getEntityStatus = jest.fn(() => ({
-        ingesting: false,
-        librarian: false,
-        heal: false,
-      }))
-      const wiki = makeWikiMock({
-        subscribeEntityStatus: undefined,
-        getEntityStatus,
-      })
-      const actor = createActor(wikiMachine, {
-        input: { entityId: 'char1', wiki: wiki as never, statusPollIntervalMs: 0 },
-      }).start()
-      actors.push(actor)
-      jest.advanceTimersByTime(60_000)
-      expect(getEntityStatus).toHaveBeenCalledTimes(1)
-    } finally {
-      jest.useRealTimers()
-    }
+  test('subscribeEntityStatus non-function at runtime calls reportError', () => {
+    const wiki = makeWikiMock({
+      subscribeEntityStatus: 'not-a-function' as unknown,
+    })
+    spawnAndTrack(wiki)
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      'wiki:char1:statusSubscription',
+    )
   })
 
   test('READ stores result in context.lastReadResult', async () => {
