@@ -297,12 +297,13 @@ export type Wiki = BaseWiki & {
 
 ### Test Coverage
 
-**wikiMachine.test.ts (12 tests):**
+**wikiMachine.test.ts (13 tests):**
 - READ → reading → idle and calls wiki.read
 - WRITE → writing → idle and calls wiki.write
 - INGEST → ingesting → idle and calls wiki.ingestDocument
 - FORGET → forgetting → idle and calls wiki.forget
 - SYNC runs export → runRemoteSync → import → prune in order
+- SYNC WikiBusyError on import retries import without re-running export/remote
 - Mutation while in flight is queued (serialized)
 - WikiBusyError → re-enqueues and retries automatically
 - Non-busy error → error state with assigned lastError
@@ -311,17 +312,19 @@ export type Wiki = BaseWiki & {
 - Status fallback with neither API calls `reportError` with `wiki:<id>:statusSubscription`
 - `statusPollIntervalMs: 0` polls `getEntityStatus` only once (no interval)
 
-**wikiOrchestrator.test.ts (11 tests):**
+**wikiOrchestrator.test.ts (12 tests):**
 - getOrSpawn returns same actor for repeat entityId
 - getOrSpawn returns distinct actors for distinct entityIds
 - stop removes the actor and unsubscribes status
-- syncAll runs at most `concurrency` syncs in flight
+- `syncAll` skips holes in a sparse `items` array without stopping workers early
+- `syncAll` runs at most `concurrency` syncs in flight
+- `syncAll` resolves when a second item shares an actor already syncing
+- `stopActorsSpawnedForBatch` still stops batch-only actors when `syncAll` rejects (e.g. timeout)
 - `stopActorsSpawnedForBatch` stops actors created for the batch only
-- `stopActorsSpawnedForBatch` still stops batch-only actors when `syncAll` rejects (timeout)
+- `syncAll` rejects when `RETRY` cannot drain queued work before `SYNC`
+- `syncAll` rejects fast when the actor errors before `SYNC` runs (queued `SYNC`)
+- `syncAll` runs `SYNC` after `RETRY` drains queued writes
 - `stopActorsSpawnedForBatch` does not stop actors that existed before `syncAll`
-- `syncAll` waits for `idle` after `RETRY` before subscribing for the SYNC cycle (avoids resolving on unrelated queued-work errors)
-- `syncAll` rejects when queued work after `RETRY` never returns to `idle`
-- `syncAll` rejects fast when the actor errors before `syncing` while a new `SYNC` is queued
 
 State-transition assertions use `waitFor` from XState for deterministic behavior; the orchestrator concurrency coverage may still use a short `setTimeout` helper where appropriate.
 
