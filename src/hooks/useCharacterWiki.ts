@@ -51,14 +51,13 @@ export function useCharacterWikiSync() {
     characterId: string,
     cloudCharacterId: string,
   ): Promise<{ success: boolean; message: string }> => {
+    const busyMessage = 'Memory is busy. Please try again shortly.'
+    const failureMessage = 'Failed to sync memory. Check your connection and try again.'
     setIsSyncing(true)
     try {
       if (!wiki) {
         return { success: false, message: 'Wiki not available. Ensure WikiProvider is mounted.' }
       }
-
-      const busyMessage = 'Memory is busy. Please try again shortly.'
-      const failureMessage = 'Failed to sync memory. Check your connection and try again.'
 
       // 1. Export local wiki dump
       let localDump: MemoryDump
@@ -138,6 +137,12 @@ export function useCharacterWikiSync() {
       }
 
       return { success: true, message: 'Memory synced to cloud.' }
+    } catch (err: unknown) {
+      if (err instanceof WikiBusyError) {
+        return { success: false, message: busyMessage }
+      }
+      reportError(err, 'wiki:sync')
+      return { success: false, message: failureMessage }
     } finally {
       setIsSyncing(false)
     }

@@ -186,7 +186,7 @@ describe('useAIChat', () => {
       } as any)
     })
 
-    expect(mockReportError).not.toHaveBeenCalledWith(expect.any(WikiBusyError), 'wiki:read')
+    expect(mockReportError).not.toHaveBeenCalled()
   })
 
   it('reports non-busy wiki observation write errors with wiki:write context', async () => {
