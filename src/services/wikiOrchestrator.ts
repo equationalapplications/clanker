@@ -37,11 +37,17 @@ function stop(entityId: string): void {
   actors.delete(entityId)
 }
 
-async function syncAll(items: SyncAllItem[], wiki: Wiki, concurrency = 2): Promise<void> {
-  const queue = [...items]
+async function syncAll(
+  items: SyncAllItem[],
+  wiki: Wiki,
+  concurrency = 2,
+  timeoutMs = 60000,
+): Promise<void> {
+  let nextIndex = 0
   const workers = Array.from({ length: Math.max(1, concurrency) }, async () => {
-    while (queue.length > 0) {
-      const item = queue.shift()
+    while (nextIndex < items.length) {
+      const index = nextIndex++
+      const item = items[index]
       if (!item) return
       const actor = getOrSpawn(item.entityId, wiki)
       
@@ -50,10 +56,16 @@ async function syncAll(items: SyncAllItem[], wiki: Wiki, concurrency = 2): Promi
         actor.send({ type: 'RETRY' })
       }
       
-      await new Promise<void>((resolve) => {
+      await new Promise<void>((resolve, reject) => {
         // Check if already syncing before we send the event
         const wasAlreadySyncing = actor.getSnapshot().matches('syncing')
         let seenSyncing = wasAlreadySyncing
+        let timeoutId: NodeJS.Timeout | undefined
+        
+        const cleanup = () => {
+          if (timeoutId) clearTimeout(timeoutId)
+        }
+        
         const sub = actor.subscribe((snap) => {
           // Track that we've entered the syncing state (after we sent the event)
           if (!wasAlreadySyncing && snap.matches('syncing')) {
@@ -62,9 +74,17 @@ async function syncAll(items: SyncAllItem[], wiki: Wiki, concurrency = 2): Promi
           // Only resolve once we've seen syncing and then returned to idle/error
           if (seenSyncing && (snap.matches('idle') || snap.matches('error'))) {
             sub.unsubscribe()
+            cleanup()
             resolve()
           }
         })
+        
+        // Set timeout for this sync operation
+        timeoutId = setTimeout(() => {
+          sub.unsubscribe()
+          reject(new Error(`Sync timeout for entity ${item.entityId} after ${timeoutMs}ms`))
+        }, timeoutMs)
+        
         actor.send({
           type: 'SYNC',
           runRemoteSync: item.runRemoteSync,

@@ -317,6 +317,11 @@ export const wikiMachine = createMachine(
               )
               return () => {}
             }
+            // Send initial status immediately
+            const initialStatus = input.wiki.getEntityStatus(input.entityId)
+            sendBack({ type: 'STATUS', status: initialStatus })
+            
+            // Then poll every 5s
             const interval = setInterval(() => {
               const status = input.wiki.getEntityStatus(input.entityId)
               sendBack({ type: 'STATUS', status })
