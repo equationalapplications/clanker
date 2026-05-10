@@ -200,7 +200,6 @@ export const wikiMachine = createMachine(
           onDone: {
             target: 'idle',
             actions: assign({
-              lastIngestResult: ({ event }) => event.output,
               lastError: () => null,
               currentEvent: () => null,
             }),
@@ -228,7 +227,11 @@ export const wikiMachine = createMachine(
           }),
           onDone: {
             target: 'idle',
-            actions: assign({ lastError: () => null, currentEvent: () => null }),
+            actions: assign({
+              lastIngestResult: ({ event }) => event.output,
+              lastError: () => null,
+              currentEvent: () => null,
+            }),
           },
           onError: [
             {
@@ -423,7 +426,7 @@ export const wikiMachine = createMachine(
         }: {
           input: { wiki: Wiki; entityId: string; doc: IngestArgs }
         }) => {
-          await input.wiki.ingestDocument(input.entityId, input.doc)
+          return input.wiki.ingestDocument(input.entityId, input.doc)
         },
       ),
       forgetActor: fromPromise(
