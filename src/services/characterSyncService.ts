@@ -35,11 +35,16 @@ const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function reportWikiOpForCharacter(err: unknown, context: string, characterId: string, summary: string): void {
-    const wrapped =
-        err instanceof Error
-            ? new Error(`${summary} (character ${characterId}): ${err.message}`, { cause: err })
-            : new Error(`${summary} (character ${characterId}): ${String(err)}`, { cause: err })
-    reportError(wrapped, context)
+    const detail = `${summary} (character ${characterId})`
+    if (err instanceof Error) {
+        // Augment message for Crashlytics searchability; keep original stack/cause so
+        // diagnostics still point at the failing call site (reportError forwards the Error as-is).
+        const augmented = new Error(`${detail}: ${err.message}`, { cause: err })
+        augmented.stack = err.stack
+        reportError(augmented, context)
+        return
+    }
+    reportError(new Error(`${detail}: ${String(err)}`), context)
 }
 
 function generateLocalCharacterId() {
@@ -94,7 +99,7 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
         const cloudId = char.cloud_id!
         let syncSucceeded = false
 
-        let localDump
+        let localDump: MemoryDump
         try {
             localDump = await wiki.exportDump([char.id])
         } catch (exportErr) {
