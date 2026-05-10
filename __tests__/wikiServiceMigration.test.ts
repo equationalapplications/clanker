@@ -113,7 +113,7 @@ describe('wiki v3 → v4 migration audit', () => {
 
     // 3. Run manual migration SQL per v4.0.0 breaking change notes (in transaction for atomicity)
     await db.withTransactionAsync(async () => {
-      for (const statement of getSourceTypeEnumMigrationSql(TABLE_PREFIX)) {
+      for (const statement of getSourceTypeEnumMigrationSql()) {
         await db.execAsync(statement)
       }
     })

@@ -133,7 +133,15 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
           // Prompt-settle timeout only covers the FedCM / prompt phase; once we have
           // an ID token, slow `signInWithCredential` must not lose a race to that timer.
           clearTimeout(promptTimeout)
-          const exchanged = await exchangeCredential(response.credential)
+
+          // Wrap exchangeCredential in Promise.race with 30s timeout for network operations
+          const EXCHANGE_TIMEOUT_MS = 30_000
+          const exchanged = await Promise.race([
+            exchangeCredential(response.credential),
+            new Promise<GoogleSignInResult>((resolve) =>
+              setTimeout(() => resolve({ success: false, error: 'Credential exchange timed out' }), EXCHANGE_TIMEOUT_MS)
+            ),
+          ])
           settle(exchanged)
         } catch (error: any) {
           console.error('Google Sign-In callback exception:', error)
