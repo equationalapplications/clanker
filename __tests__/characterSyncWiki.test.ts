@@ -284,7 +284,13 @@ describe('syncWikiForCloud key remapping', () => {
 
     await syncAllToCloud('user-1')
 
-    expect(reportError).toHaveBeenCalledWith(syncErr, 'wiki:sync')
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(`Wiki cloud sync (character ${LOCAL_ID})`),
+        cause: syncErr,
+      }),
+      'wiki:sync',
+    )
   })
 
   it('reports non-busy export errors with wiki:export context and skips WikiBusyError', async () => {
@@ -299,7 +305,13 @@ describe('syncWikiForCloud key remapping', () => {
     await syncAllToCloud('user-1')
     await syncAllToCloud('user-1')
 
-    expect(reportError).toHaveBeenCalledWith(exportErr, 'wiki:export')
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(`Wiki export (character ${LOCAL_ID})`),
+        cause: exportErr,
+      }),
+      'wiki:export',
+    )
     expect(reportError).not.toHaveBeenCalledWith(expect.any(WikiBusyError), expect.any(String))
     expect(mockWikiSyncFn).not.toHaveBeenCalled()
   })
@@ -319,7 +331,13 @@ describe('syncWikiForCloud key remapping', () => {
 
     await syncAllToCloud('user-1')
 
-    expect(reportError).toHaveBeenCalledWith(importErr, 'wiki:import')
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(`Wiki import (character ${LOCAL_ID})`),
+        cause: importErr,
+      }),
+      'wiki:import',
+    )
     expect(mockRunPrune).not.toHaveBeenCalled()
   })
 
@@ -343,7 +361,13 @@ describe('syncWikiForCloud key remapping', () => {
     await syncAllToCloud('user-1')
     await syncAllToCloud('user-1')
 
-    expect(reportError).toHaveBeenCalledWith(pruneErr, 'wiki:prune')
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(`Wiki prune (character ${LOCAL_ID})`),
+        cause: pruneErr,
+      }),
+      'wiki:prune',
+    )
     expect(reportError).not.toHaveBeenCalledWith(expect.any(WikiBusyError), 'wiki:prune')
   })
 })

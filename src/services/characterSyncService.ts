@@ -34,6 +34,14 @@ import { getWiki } from '~/services/wikiService'
 const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
+function reportWikiOpForCharacter(err: unknown, context: string, characterId: string, summary: string): void {
+    const wrapped =
+        err instanceof Error
+            ? new Error(`${summary} (character ${characterId}): ${err.message}`, { cause: err })
+            : new Error(`${summary} (character ${characterId}): ${String(err)}`, { cause: err })
+    reportError(wrapped, context)
+}
+
 function generateLocalCharacterId() {
     const uuid = globalThis.crypto?.randomUUID?.()
     if (uuid) {
@@ -98,12 +106,12 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                     },
                 },
             }
-            let result
+            let result: Awaited<ReturnType<typeof wikiSync>>
             try {
                 result = await wikiSync({ dump: cloudDump })
             } catch (syncErr) {
                 if (!(syncErr instanceof WikiBusyError)) {
-                    reportError(syncErr, 'wiki:sync')
+                    reportWikiOpForCharacter(syncErr, 'wiki:sync', char.id, 'Wiki cloud sync')
                 }
                 continue
             }
@@ -120,7 +128,7 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                     await wiki.importDump(remappedDump, { merge: true })
                 } catch (importErr) {
                     if (!(importErr instanceof WikiBusyError)) {
-                        reportError(importErr, 'wiki:import')
+                        reportWikiOpForCharacter(importErr, 'wiki:import', char.id, 'Wiki import')
                         continue
                     }
                     // WikiBusyError: wiki is busy but the cloud sync succeeded — still prune
@@ -129,7 +137,7 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
             }
         } catch (exportErr) {
             if (!(exportErr instanceof WikiBusyError)) {
-                reportError(exportErr, 'wiki:export')
+                reportWikiOpForCharacter(exportErr, 'wiki:export', char.id, 'Wiki export')
             }
         }
 
@@ -142,7 +150,7 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
                 })
             } catch (e) {
                 if (!(e instanceof WikiBusyError)) {
-                    reportError(e, 'wiki:prune')
+                    reportWikiOpForCharacter(e, 'wiki:prune', char.id, 'Wiki prune')
                 }
                 // WikiBusyError: defer to next sync cycle
             }
