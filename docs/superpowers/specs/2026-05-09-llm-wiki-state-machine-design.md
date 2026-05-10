@@ -191,3 +191,133 @@ Unchanged user flow (`+` button → `DocumentPicker`). Goes through `useCharacte
 ## Open Questions
 
 None at spec sign-off. Re-open if `wiki@4.1.0` changelog reveals migration blockers during P1.
+
+---
+
+## Phase 2a Implementation Notes
+
+**Status:** Implemented  
+**PR:** #369  
+**Commits:** 33f2013, dbc5c73, f94164c, 8fcd394, 3615cd2, 3e0197d, 322f307
+
+### Implementation Summary
+
+Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code with no existing call-site changes. All tests passing.
+
+### wikiMachine Implementation
+
+**File:** `src/machines/wikiMachine.ts`
+
+**Context:**
+- `entityId: string` - Entity identifier
+- `wiki: Wiki` - Wiki instance
+- `status: EntityStatus` - Current entity status (ingesting, librarian, heal)
+- `lastError: Error | null` - Last error encountered (cleared on recovery/success)
+- `lastReadAt: number | null` - Timestamp of last successful read
+- `pendingEvents: WikiMutationEvent[]` - Queue for serializing mutations
+- `currentEvent: WikiMutationEvent | null` - Currently processing event (for re-enqueue on busy)
+
+**States:**
+- `idle` - Ready to accept operations; flushes pending events on entry
+- `reading` - Executing READ operation
+- `writing` - Executing WRITE operation
+- `ingesting` - Executing INGEST operation
+- `syncing` - Executing SYNC operation (export → runRemoteSync → import → prune)
+- `forgetting` - Executing FORGET operation
+- `error` - Error state with auto-recovery (RETRY event or after 30s)
+
+**Events:**
+- `READ` - Query wiki for entity
+- `WRITE` - Write observation to wiki
+- `INGEST` - Ingest document into wiki
+- `SYNC` - Sync entity with remote (no cloudId parameter - removed as unused)
+- `FORGET` - Remove document from wiki
+- `STATUS` - Update entity status (from subscription)
+- `RETRY` - Manually retry from error state
+
+**Key Behaviors:**
+- **Serialization:** Mutations queued via `pendingEvents`; flushed on `idle` entry
+- **WikiBusyError handling:** Re-enqueues operation via `requeueCurrentEvent` action for automatic retry
+- **Error recovery:** `lastError` cleared on successful operations and recovery transitions
+- **Status subscription:** Uses `subscribeEntityStatus` if available, falls back to polling `getEntityStatus` every 500ms
+- **Cleanup:** Unsubscribes from status on actor stop
+
+### wikiOrchestrator Implementation
+
+**File:** `src/services/wikiOrchestrator.ts`
+
+**API:**
+- `getOrSpawn(entityId, wiki): WikiActor` - Get or create actor for entity (cached)
+- `stop(entityId): void` - Stop and remove actor from cache
+- `syncAll(items, wiki, concurrency=2): Promise<void>` - Sync multiple entities with bounded parallelism
+
+**SyncAllItem Interface:**
+```typescript
+{
+  entityId: string
+  runRemoteSync: (dump: MemoryDump) => Promise<MemoryDump | null>
+}
+```
+
+**Key Behaviors:**
+- Actors cached by `entityId` in a Map
+- `syncAll` uses work-queue pattern to limit concurrent syncs
+- Sends `RETRY` before `SYNC` for actors in error state
+- Waits for each actor to reach `idle` or `error` before resolving
+
+### Type Extensions
+
+**File:** `src/services/wikiService.ts`
+
+Extended `Wiki` type for forward compatibility:
+```typescript
+export type Wiki = BaseWiki & {
+  subscribeEntityStatus?: (
+    entityId: string,
+    callback: (status: EntityStatus) => void,
+  ) => () => void
+}
+```
+
+### Implementation Deviations from Design
+
+1. **IngestArgs/ForgetArgs:** Not exported by package v3.0.0 (design assumed v4.1.0). Derived locally as `Parameters<Wiki['ingestDocument']>[1]` and `Parameters<Wiki['forget']>[1]`.
+
+2. **WikiBusyError constructor:** Signature is `(operation: WikiBusyOperation, entityId: string)`, not `(message: string)`.
+
+3. **Wiki.write API:** Two-argument signature `write(entityId, event)`, not single-object `write({ entity_id, ...event })`.
+
+4. **Event queuing:** XState v5 doesn't buffer unhandled events automatically. Implemented manual `pendingEvents` queue with `enqueueActions(flushPending)` on idle entry.
+
+5. **cloudId parameter:** Removed from SYNC event as unused in implementation.
+
+6. **subscribeEntityStatus:** Not available in package v3.0.0. Added polling fallback and forward-compatible type extension.
+
+### Test Coverage
+
+**wikiMachine.test.ts (10 tests):**
+- READ → reading → idle and calls wiki.read
+- WRITE → writing → idle and calls wiki.write
+- INGEST → ingesting → idle and calls wiki.ingestDocument
+- FORGET → forgetting → idle and calls wiki.forget
+- SYNC runs export → runRemoteSync → import → prune in order
+- Mutation while in flight is queued (serialized)
+- WikiBusyError → re-enqueues and retries automatically
+- Non-busy error → error state with assigned lastError
+- STATUS event updates context.status
+- Actor stop unsubscribes from status
+
+**wikiOrchestrator.test.ts (4 tests):**
+- getOrSpawn returns same actor for repeat entityId
+- getOrSpawn returns distinct actors for distinct entityIds
+- stop removes the actor and unsubscribes status
+- syncAll runs at most `concurrency` syncs in flight
+
+All tests use `waitFor` from XState for deterministic state transitions (no flaky `setTimeout` calls).
+
+### Next Steps (Phase 2b+)
+
+Phase 2a is complete and ready for integration. Next phases:
+- **P2b:** Drop `hasUnlimited` gate on memory operations
+- **P2c:** Replace `console.warn` with `reportError` for wiki errors
+- **P3:** Wire call-sites to use `wikiMachine` via updated hooks
