@@ -188,10 +188,15 @@ describe('syncWikiForCloud orchestration path', () => {
     const secondRunRemoteSync = itemsArg[1].runRemoteSync as (dump: any) => Promise<any>
 
     mockWikiSyncFn.mockRejectedValueOnce(new Error('first character sync failed'))
-    const firstResult = await firstRunRemoteSync({
+    await expect(firstRunRemoteSync({
       generatedAt: 1000,
       entities: { [LOCAL_ID]: { facts: [{ id: 'f1', entity_id: LOCAL_ID }], tasks: [], events: [] } },
-    })
+    })).rejects.toThrow('first character sync failed')
+
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining(`Wiki cloud sync (character ${LOCAL_ID})`) }),
+      'wiki:sync',
+    )
 
     mockWikiSyncFn.mockResolvedValueOnce({
       data: {
@@ -206,11 +211,6 @@ describe('syncWikiForCloud orchestration path', () => {
       entities: { [secondLocalId]: { facts: [{ id: 'f2', entity_id: secondLocalId }], tasks: [], events: [] } },
     })
 
-    expect(firstResult.entities[LOCAL_ID].facts).toEqual([{ id: 'f1', entity_id: LOCAL_ID }])
-    expect(reportError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining(`Wiki cloud sync (character ${LOCAL_ID})`) }),
-      'wiki:sync',
-    )
     expect(secondResult.entities[secondLocalId].facts).toEqual([{ id: 'rf2' }])
   })
 })
