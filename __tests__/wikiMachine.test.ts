@@ -160,7 +160,6 @@ describe('wikiMachine', () => {
     cb!({ ingesting: true, librarian: false, heal: false })
     await waitFor(actor, (state) => state.context.status.ingesting === true, WAIT_OPTS)
     expect(actor.getSnapshot().context.status.ingesting).toBe(true)
-    actor.stop() // Clean up
   })
 
   test('actor stop unsubscribes from status', async () => {

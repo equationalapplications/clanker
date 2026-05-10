@@ -264,6 +264,12 @@ export const wikiMachine = createMachine(
           // If subscribeEntityStatus is not available, use getEntityStatus with polling
           if (!input.wiki.subscribeEntityStatus) {
             // Fallback: poll getEntityStatus every 500ms
+            if (!input.wiki.getEntityStatus) {
+              console.warn(
+                `[wikiMachine] Neither subscribeEntityStatus nor getEntityStatus available for entity ${input.entityId}`,
+              )
+              return () => {}
+            }
             const interval = setInterval(() => {
               const status = input.wiki.getEntityStatus(input.entityId)
               sendBack({ type: 'STATUS', status })
