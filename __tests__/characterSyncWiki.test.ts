@@ -43,6 +43,18 @@ jest.mock('~/services/apiClient', () => ({
   getPublicCharacterFn: jest.fn(),
   wikiSync: (...args: unknown[]) => mockWikiSyncFn(...args),
 }))
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  WikiBusyError: class WikiBusyError extends Error {
+    operation: string
+    entityId: string
+    constructor(op: string, eid: string) {
+      super(`Wiki busy: ${op} on ${eid}`)
+      this.name = 'WikiBusyError'
+      this.operation = op
+      this.entityId = eid
+    }
+  },
+}))
 
 import { syncAllToCloud, restoreFromCloud } from '../src/services/characterSyncService'
 import { reportError } from '~/utilities/reportError'
@@ -145,11 +157,20 @@ describe('syncWikiForCloud orchestration path', () => {
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
     mockSyncAll.mockRejectedValue(new Error('network error'))
 
-    await expect(syncAllToCloud('user-1')).resolves.toBeUndefined()
+    await syncAllToCloud('user-1')
     expect(reportError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining(`Wiki cloud sync (character ${LOCAL_ID})`) }),
-      'wiki:sync',
+      expect.any(Error),
+      'wiki:sync:batch',
     )
+  })
+
+  it('short-circuits when syncAll throws WikiBusyError', async () => {
+    const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+    mockSyncAll.mockRejectedValue(new WikiBusyError('sync', LOCAL_ID))
+
+    await syncAllToCloud('user-1')
+    expect(reportError).not.toHaveBeenCalled()
   })
 
   it('isolates per-character runRemoteSync failures in batched mode', async () => {

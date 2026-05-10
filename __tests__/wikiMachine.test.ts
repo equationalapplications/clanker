@@ -256,4 +256,27 @@ describe('wikiMachine', () => {
       jest.useRealTimers()
     }
   })
+
+  test('READ stores result in context.lastReadResult', async () => {
+    const readResult = { facts: [{ id: 'f1', text: 'test fact' }], tasks: [], events: [] }
+    const wiki = makeWikiMock({
+      read: jest.fn().mockResolvedValue(readResult),
+    })
+    const actor = spawnAndTrack(wiki)
+    actor.send({ type: 'READ', query: 'test query' })
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.lastReadResult).toEqual(readResult)
+  })
+
+  test('INGEST stores result in context.lastIngestResult', async () => {
+    const ingestResult = { chunks: 5 }
+    const wiki = makeWikiMock({
+      ingestDocument: jest.fn().mockResolvedValue(ingestResult),
+    })
+    const actor = spawnAndTrack(wiki)
+    const doc = { sourceRef: 's', sourceHash: 'h', documentChunk: 'c' }
+    actor.send({ type: 'INGEST', doc })
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.lastIngestResult).toEqual(ingestResult)
+  })
 })

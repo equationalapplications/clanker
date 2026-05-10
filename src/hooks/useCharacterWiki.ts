@@ -1,22 +1,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useWiki, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
-import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
+import { useWiki, WikiBusyError, type EntityStatus , MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import type { IngestArgs, ForgetArgs } from '~/machines/wikiMachine'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import { wikiSync } from '~/services/apiClient'
 import { reportError } from '~/utilities/reportError'
 
-type WikiStatus = { ingesting: boolean; librarian: boolean; heal: boolean }
-
 type CharacterWikiOperation = 'reading' | 'writing' | 'ingesting' | 'forgetting' | 'syncing'
 
+const DEFAULT_OPERATION_TIMEOUT_MS = 60_000
+
+/**
+ * Waits for an actor to complete a specific operation. Rejects if the operation
+ * doesn't complete within the timeout.
+ *
+ * @param actor - Wiki machine actor
+ * @param operation - Operation state to wait for
+ * @param timeoutMs - Maximum time to wait before rejecting (default: 60s)
+ */
 function waitForActorOperation(
   actor: ReturnType<typeof wikiOrchestrator.getOrSpawn>,
   operation: CharacterWikiOperation,
+  timeoutMs: number = DEFAULT_OPERATION_TIMEOUT_MS,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let seenOperation = false
+    let timeoutId: NodeJS.Timeout | null = null
     const current = actor.getSnapshot()
+    
+    const cleanup = (sub: ReturnType<typeof actor.subscribe>) => {
+      if (timeoutId) clearTimeout(timeoutId)
+      sub.unsubscribe()
+    }
+    
     if (current.matches(operation)) {
       seenOperation = true
     } else if (current.matches('idle')) {
@@ -26,6 +41,7 @@ function waitForActorOperation(
       reject(current.context.lastError ?? new Error(`Wiki ${operation} failed`))
       return
     }
+    
     let previous = current
     const sub = actor.subscribe((snap) => {
       if (snap.matches(operation)) {
@@ -34,17 +50,22 @@ function waitForActorOperation(
       // Resolve/reject only when leaving the requested operation state.
       // This avoids resolving during busyRetry -> idle intermediate steps.
       if (seenOperation && previous.matches(operation) && snap.matches('idle')) {
-        sub.unsubscribe()
+        cleanup(sub)
         resolve()
         return
       }
       if (seenOperation && previous.matches(operation) && snap.matches('error')) {
-        sub.unsubscribe()
+        cleanup(sub)
         reject(snap.context.lastError ?? new Error(`Wiki ${operation} failed`))
         return
       }
       previous = snap
     })
+    
+    timeoutId = setTimeout(() => {
+      cleanup(sub)
+      reject(new Error(`Wiki ${operation} timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
   })
 }
 
@@ -54,6 +75,9 @@ export function useCharacterWiki(entityId: string) {
     () => (wiki ? wikiOrchestrator.getOrSpawn(entityId, wiki) : null),
     [entityId, wiki],
   )
+  
+  // Serialize operations of the same type (e.g., consecutive reads) to prevent
+  // out-of-order completion. The machine already serializes cross-type operations.
   const operationQueues = useRef<Record<CharacterWikiOperation, Promise<void>>>({
     reading: Promise.resolve(),
     writing: Promise.resolve(),
@@ -166,14 +190,14 @@ export function useCharacterWiki(entityId: string) {
     } catch (err: unknown) {
       const message = err instanceof WikiBusyError ? busyMessage : failureMessage
       if (message === failureMessage) {
-        reportError(err, 'wiki:sync')
+        reportError(err, `wiki:${entityId}:sync`)
       }
       return { success: false, message }
     }
   }, [actor, entityId, runSerialized])
 
   return {
-    status: (snapshot?.context.status as WikiStatus | undefined) ?? { ingesting: false, librarian: false, heal: false },
+    status: (snapshot?.context.status as EntityStatus | undefined) ?? { ingesting: false, librarian: false, heal: false },
     isBusy: snapshot ? !snapshot.matches('idle') : false,
     isIngesting: snapshot?.matches('ingesting') ?? false,
     error: snapshot?.context.lastError ?? null,

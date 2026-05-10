@@ -399,12 +399,12 @@ export const sendMessageWithAIResponse = async (
           options.onWriteObservation(character.id, chunk || userMessage.text),
         ).catch((observationError) => {
           if (!(observationError instanceof WikiBusyError)) {
-            reportError(observationError, 'wiki:write:observation')
+            reportError(observationError, `wiki:${character.id}:write:observation`)
           }
         })
       } catch (observationError) {
         if (!(observationError instanceof WikiBusyError)) {
-          reportError(observationError, 'wiki:write:observation')
+          reportError(observationError, `wiki:${character.id}:write:observation`)
         }
       }
     }

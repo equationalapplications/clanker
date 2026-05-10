@@ -143,9 +143,9 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
         if (pipelineErr instanceof WikiBusyError) {
             return
         }
-        for (const char of cloudChars) {
-            reportWikiOpForCharacter(pipelineErr, 'wiki:sync', char.id, 'Wiki cloud sync')
-        }
+        // Orchestrator-level error (e.g., timeout, internal failure).
+        // Per-character errors are already reported inside runRemoteSync.
+        reportError(pipelineErr, 'wiki:sync:batch')
     }
 }
 

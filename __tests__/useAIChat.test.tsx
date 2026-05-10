@@ -178,7 +178,7 @@ describe('useAIChat', () => {
       } as any)
     })
 
-    expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:read')
+    expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:char-1:read')
   })
 
   it('does not report WikiBusyError from wiki read', async () => {
@@ -223,7 +223,7 @@ describe('useAIChat', () => {
       await Promise.resolve()
     })
 
-    expect(mockReportError).toHaveBeenCalledWith(writeError, 'wiki:write')
+    expect(mockReportError).toHaveBeenCalledWith(writeError, 'wiki:char-1:write')
   })
 
   it('does not report WikiBusyError from wiki observation write', async () => {

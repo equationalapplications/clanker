@@ -42,11 +42,12 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         const bundle = await characterWiki.read(message.text)
         if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
       } catch (err) {
-        if (!(err instanceof WikiBusyError)) reportError(err, 'wiki:read')
+        if (!(err instanceof WikiBusyError)) reportError(err, `wiki:${character.id}:read`)
       }
+      // _characterId parameter maintained for aiChatService contract compatibility
       const onWriteObservation = (_characterId: string, text: string) => {
         void characterWiki.write(text).catch((err: unknown) => {
-          if (!(err instanceof WikiBusyError)) reportError(err, 'wiki:write')
+          if (!(err instanceof WikiBusyError)) reportError(err, `wiki:${character.id}:write`)
         })
       }
       return sendMessageWithAIResponse(message, character, userId, messages, {

@@ -82,7 +82,7 @@ describe('buildChatPrompt', () => {
     await Promise.resolve()
     await Promise.resolve()
 
-    expect(mockReportError).toHaveBeenCalledWith(writeError, 'wiki:write:observation')
+    expect(mockReportError).toHaveBeenCalledWith(writeError, 'wiki:char-1:write:observation')
   })
 
   it('prepends memory block before conversation history when memoryBlock provided', () => {
