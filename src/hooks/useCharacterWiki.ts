@@ -26,19 +26,24 @@ function waitForActorOperation(
       reject(current.context.lastError ?? new Error(`Wiki ${operation} failed`))
       return
     }
+    let previous = current
     const sub = actor.subscribe((snap) => {
       if (snap.matches(operation)) {
         seenOperation = true
       }
-      if (seenOperation && snap.matches('idle')) {
+      // Resolve/reject only when leaving the requested operation state.
+      // This avoids resolving during busyRetry -> idle intermediate steps.
+      if (seenOperation && previous.matches(operation) && snap.matches('idle')) {
         sub.unsubscribe()
         resolve()
         return
       }
-      if (seenOperation && snap.matches('error')) {
+      if (seenOperation && previous.matches(operation) && snap.matches('error')) {
         sub.unsubscribe()
         reject(snap.context.lastError ?? new Error(`Wiki ${operation} failed`))
+        return
       }
+      previous = snap
     })
   })
 }
