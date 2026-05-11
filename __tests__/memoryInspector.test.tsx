@@ -25,6 +25,20 @@ jest.mock('~/hooks/useCharacterWiki', () => ({
     hasChanged: jest.fn(),
   }),
 }))
+jest.mock('react-native-paper', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+  const actual = jest.requireActual('react-native-paper')
+  return {
+    ...actual,
+    IconButton: (props: any) => React.createElement(View, props),
+    List: {
+      ...actual.List,
+      Icon: (props: any) => React.createElement(View, props),
+    }
+  }
+})
+
 jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn().mockReturnValue({ id: 'char1' }),
   router: { back: jest.fn(), canGoBack: jest.fn(() => true), replace: jest.fn() },

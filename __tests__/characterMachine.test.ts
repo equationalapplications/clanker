@@ -2,6 +2,7 @@ import { createActor, waitFor } from 'xstate'
 import { characterMachine } from '../src/machines/characterMachine'
 import * as characterDatabase from '../src/database/characterDatabase'
 import * as characterSyncService from '../src/services/characterSyncService'
+import { wikiOrchestrator } from '../src/services/wikiOrchestrator'
 
 jest.mock('../src/database/characterDatabase')
 jest.mock('../src/services/wikiService', () => ({
@@ -17,6 +18,11 @@ jest.mock('../src/services/characterSyncService', () => ({
   syncAllToCloud: jest.fn().mockResolvedValue(undefined),
   restoreFromCloud: jest.fn().mockResolvedValue(undefined),
   removeCharacterFromCloud: jest.fn().mockResolvedValue(undefined),
+}))
+jest.mock('../src/services/wikiOrchestrator', () => ({
+  wikiOrchestrator: {
+    stop: jest.fn(),
+  },
 }))
 
 const mockDb = jest.mocked(characterDatabase)
@@ -332,6 +338,19 @@ describe('DELETE', () => {
     expect(snap.context.characters).toEqual([char])
     expect(snap.context.optimisticSnapshot).toBeNull()
     expect(snap.context.error).toBeInstanceOf(Error)
+    actor.stop()
+  })
+
+  it('stops the wiki actor when a character is deleted', async () => {
+    const char = makeCharacter({ id: 'char-1' })
+    const actor = await bootWithUser([char])
+
+    mockDb.deleteCharacter.mockResolvedValue(undefined)
+
+    actor.send({ type: 'DELETE', id: 'char-1' })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+
+    expect(wikiOrchestrator.stop).toHaveBeenCalledWith('char-1')
     actor.stop()
   })
 })

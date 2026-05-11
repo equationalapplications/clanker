@@ -9,7 +9,7 @@ type BaseWiki = ReturnType<typeof createWiki>
 
 // Extended Wiki type with future methods (for forward compatibility)
 export type Wiki = BaseWiki & {
-  subscribeEntityStatus?: (
+  subscribeEntityStatus: (
     entityId: string,
     callback: (status: EntityStatus) => void,
   ) => () => void

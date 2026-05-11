@@ -7,15 +7,17 @@ export function useMemoryBundle(entityId: string) {
   const [bundle, setBundle] = useState<MemoryBundle | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const [prevEntityId, setPrevEntityId] = useState(entityId)
   const fetchGenerationRef = useRef(0)
+  const prevEntityIdRef = useRef(entityId)
+  const prevWikiRef = useRef(wiki)
 
-  if (entityId !== prevEntityId) {
-    setPrevEntityId(entityId)
+  if (prevEntityIdRef.current !== entityId || prevWikiRef.current !== wiki) {
+    prevEntityIdRef.current = entityId
+    prevWikiRef.current = wiki
+    fetchGenerationRef.current += 1
     setBundle(null)
     setError(null)
     setIsLoading(true)
-    fetchGenerationRef.current += 1
   }
 
   const fetch = useCallback(async () => {
@@ -54,6 +56,9 @@ export function useMemoryBundle(entityId: string) {
   }, [wiki, entityId])
 
   useEffect(() => {
+    setBundle(null)
+    setError(null)
+    setIsLoading(true)
     void fetch()
   }, [fetch])
 
