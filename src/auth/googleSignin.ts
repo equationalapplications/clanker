@@ -59,7 +59,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
 
     const givenName = response.data.user?.givenName?.trim() ?? ''
     const familyName = response.data.user?.familyName?.trim() ?? ''
-    const googleDisplayName = response.data.user?.name?.trim() ?? `${givenName} ${familyName}`.trim()
+    const googleDisplayName = response.data.user?.name?.trim() || `${givenName} ${familyName}`.trim()
 
     try {
       await syncDisplayNameFromCredential(userCredential.user, googleDisplayName)

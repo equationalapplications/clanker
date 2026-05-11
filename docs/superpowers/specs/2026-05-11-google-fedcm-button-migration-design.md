@@ -36,7 +36,7 @@ A separate, related defect was discovered in native Google sign-in: in v16 of `@
 - One Tap on Android via `GoogleOneTapSignIn` (Credential Manager). Cancelled — `GoogleOneTapSignIn` requires the premium tier of `@react-native-google-signin/google-signin`; the open-source v16 package does not export it. Android continues to use `GoogleSignin.signIn()` with correct v16 response handling.
 - Server-side ID token verification.
 - Replacing `@react-native-google-signin/google-signin` with another SDK.
-- Any change to the Apple sign-in path (web or native).
+- Sign-in path restructuring for Apple (web or native). Exception: both `AppleSignInResult` types gain a `cancelled?: boolean` flag to align with the `cancelled: true` contract established for Google cancellations. This is a minimal additive change; no Apple sign-in logic is rewritten.
 - Sign-out flow changes.
 - Adopting passkeys.
 - Automated browser e2e harness.
@@ -112,7 +112,7 @@ iOS / Android Google (unchanged structure, fixed bugs):
   - Awaits `signInWithCredential(auth, GoogleAuthProvider.credential(response.credential, null))`.
   - Awaits `syncDisplayNameFromCredential(user)`; failures are caught and logged via `console.warn` (do not surface as sign-in failure).
   - Invokes `onCredentialSuccess()`. On any thrown error from `signInWithCredential`, invokes `onCredentialError(error)`.
-- Removed exports: `signInWithGoogle()`.
+- Kept exports (unreachable stub): `signInWithGoogle()` — returns `{ success: false, error: 'Use the Google sign-in button on web' }`. Retained so the auth machine can reference a consistent symbol across platforms without a platform conditional; the web Google path in the machine is unreachable and should never call it.
 - Removed code: `prompt()` invocation, the 180s prompt-settle timeout, `isDismissedMoment` + `getDismissedReason` + `credential_returned` race handling, `isNotDisplayed()` and `isSkippedMoment()` branches.
 - Kept exports: `resetGoogleSignInWebForTests()` for jest.
 
@@ -124,8 +124,8 @@ type GoogleSignInButtonProps = {
 }
 ```
 
-- Owns a `useRef<HTMLDivElement>` container and local state `'idle' | 'loading' | 'error'`.
-- On mount: `await initializeGoogleSignIn({ onCredentialStart, onCredentialSuccess, onCredentialError })`, then `renderGoogleSignInButton(ref.current!)`.
+- Owns a `useRef<View>(null)` container and local state `'idle' | 'loading' | 'error'`. The ref is cast to `HTMLElement` at render time (`containerRef.current as unknown as HTMLElement`) since `react-native-web` renders `<View>` to a DOM `<div>`.
+- On mount: `await initializeGoogleSignIn({ onCredentialStart, onCredentialSuccess, onCredentialError })`, then `renderGoogleSignInButton(domNode)` where `domNode` is the cast ref.
 - `onCredentialStart` → state `'loading'`, `onLoadingChange(true)`.
 - `onCredentialSuccess` → state `'idle'`, `onLoadingChange(false)`.
 - `onCredentialError(error)` → state `'error'`, `onLoadingChange(false)`, render an inline `<Text>` caption: `Sign-in failed. Please try again.`
@@ -187,7 +187,7 @@ type GoogleSignInButtonProps = {
 
 ### Web Apple (unchanged)
 
-User clicks Apple → `SIGN_IN` event → `signInProvider({ provider: 'apple' })` → `signInWithApple()` → AppleID popup → ID token + nonce → `signInWithCredential` → `syncDisplayNameFromCredential` → `USER_FOUND`. Cancellation: `signInWithApple()` returns `{ success: false, error: 'Sign-in cancelled' }` (no `cancelled` flag on `AppleSignInResult`); the `signInProvider` actor throws an error tagged with `__userCancelledSignIn = true`, which is caught by `signingIn.onError` and maps to `context.error = null` → `signedOut` with no visible error.
+User clicks Apple → `SIGN_IN` event → `signInProvider({ provider: 'apple' })` → `signInWithApple()` → AppleID popup → ID token + nonce → `signInWithCredential` → `syncDisplayNameFromCredential` → `USER_FOUND`. Cancellation (`popup_closed_by_user`): `signInWithApple()` returns `{ success: false, cancelled: true, error: 'Sign-in cancelled' }`; the `signInProvider` actor detects `cancelled: true` and throws an error tagged with `__userCancelledSignIn = true`, which is caught by `signingIn.onError` and maps to `context.error = null` → `signedOut` with no visible error.
 
 ### iOS Google (unchanged shape, fixed bugs)
 
@@ -219,7 +219,7 @@ No change.
 
 ### Web Apple (unchanged)
 
-- `popup_closed_by_user` → `{ success: false, error: 'Sign-in cancelled' }` → actor throws with `__userCancelledSignIn` → `signingIn.onError` sets `context.error = null` → `signedOut`, no alert.
+- `popup_closed_by_user` → `{ success: false, cancelled: true, error: 'Sign-in cancelled' }` → actor throws with `__userCancelledSignIn` → `signingIn.onError` sets `context.error = null` → `signedOut`, no alert.
 - Other errors → throw → `Alert.alert('Sign-in failed', error.message)`.
 
 ### Native Google (with bug fix)
