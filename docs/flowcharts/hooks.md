@@ -1,4 +1,4 @@
-# hooks call graph
+# hooks call graph + import fallback
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
@@ -420,4 +420,18 @@ graph LR
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
 (useMessages.ts)"]
+  useMachines__src_hooks_useMachines_ts["useMachines
+(useMachines.ts)"] --> __machines_authMachine["authMachine
+(machines)"]
+  useMachines__src_hooks_useMachines_ts["useMachines
+(useMachines.ts)"] --> __machines_termsMachine["termsMachine
+(machines)"]
+  useMachines__src_hooks_useMachines_ts["useMachines
+(useMachines.ts)"] --> __machines_characterMachine["characterMachine
+(machines)"]
 ```
+
+> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are
+> not captured here. Because callables are instantiated at module scope and invoked indirectly,
+> static analysis cannot trace them as call edges. Affected call sites include
+> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.

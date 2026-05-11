@@ -52,15 +52,23 @@ function renderMermaid(moduleName, edges, title) {
     '',
   ].join('\n')
 
+  const footer = [
+    '',
+    '> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are',
+    '> not captured here. Because callables are instantiated at module scope and invoked indirectly,',
+    '> static analysis cannot trace them as call edges. Affected call sites include',
+    '> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.',
+  ].join('\n')
+
   if (edges.length === 0) {
-    return header + '_No call edges found for this module._\n'
+    return header + '_No edges found for this module._\n' + footer + '\n'
   }
 
   const lines = edges.map(
     (e) => `  ${e.sourceId}["${e.sourceLabel}"] --> ${e.targetId}["${e.targetLabel}"]`,
   )
 
-  return header + '```mermaid\ngraph LR\n' + lines.join('\n') + '\n```\n'
+  return header + '```mermaid\ngraph LR\n' + lines.join('\n') + '\n```\n' + footer + '\n'
 }
 
 /**
@@ -163,7 +171,54 @@ function buildImportEdgeSet(rows) {
   return edges
 }
 
-module.exports = { sanitizeName, makeNodeId, makeNodeLabel, buildEdgeSet, renderMermaid, queryModuleEdges, queryModuleImports, buildImportEdgeSet }
+/**
+ * Per-file hybrid: module files that already appear as a call-edge source do not
+ * get import-fallback rows (static call edges take precedence for that file).
+ *
+ * @param {string} moduleGlob e.g. 'src/machines/%'
+ * @param {{ source_file: string }[]} callRows
+ * @param {{ source_file: string, import_path: string }[]} importRowsAll
+ * @returns {{ source_file: string, import_path: string }[]}
+ */
+function filterImportRowsForHybrid(moduleGlob, callRows, importRowsAll) {
+  const modulePrefix = moduleGlob.replace(/%$/, '')
+  const filesWithCalls = new Set(
+    callRows.map((r) => r.source_file).filter((f) => f.startsWith(modulePrefix)),
+  )
+  return importRowsAll.filter((r) => !filesWithCalls.has(r.source_file))
+}
+
+/**
+ * @param {string} modName e.g. 'machines'
+ * @param {number} callEdgeCount after {@link buildEdgeSet}
+ * @param {number} importEdgeCount after {@link buildImportEdgeSet}
+ */
+function chartTitleForHybrid(modName, callEdgeCount, importEdgeCount) {
+  const total = callEdgeCount + importEdgeCount
+  if (total === 0) {
+    return `${modName} (no edges)`
+  }
+  if (callEdgeCount === 0) {
+    return `${modName} import dependencies`
+  }
+  if (importEdgeCount === 0) {
+    return `${modName} call graph`
+  }
+  return `${modName} call graph + import fallback`
+}
+
+module.exports = {
+  sanitizeName,
+  makeNodeId,
+  makeNodeLabel,
+  buildEdgeSet,
+  renderMermaid,
+  queryModuleEdges,
+  queryModuleImports,
+  buildImportEdgeSet,
+  filterImportRowsForHybrid,
+  chartTitleForHybrid,
+}
 
 const MODULES = [
   { name: 'database',   glob: 'src/database/%' },
@@ -190,16 +245,20 @@ function main() {
     fs.mkdirSync(OUT_DIR, { recursive: true })
 
     for (const mod of MODULES) {
-      let edges = buildEdgeSet(queryModuleEdges(db, mod.glob, MAX_DEPTH))
-      let title
-      if (edges.length === 0) {
-        edges = buildImportEdgeSet(queryModuleImports(db, mod.glob))
-        title = `${mod.name} import dependencies`
-      }
+      const callRows = queryModuleEdges(db, mod.glob, MAX_DEPTH)
+      const callEdges = buildEdgeSet(callRows)
+      const importRowsAll = queryModuleImports(db, mod.glob)
+      const importRows = filterImportRowsForHybrid(mod.glob, callRows, importRowsAll)
+      const importEdges = buildImportEdgeSet(importRows)
+
+      const edges = [...callEdges, ...importEdges]
+      const title = chartTitleForHybrid(mod.name, callEdges.length, importEdges.length)
       const content = renderMermaid(mod.name, edges, title)
       const outPath = `${OUT_DIR}/${mod.name}.md`
       fs.writeFileSync(outPath, content, 'utf8')
-      console.log(`  wrote ${outPath} (${edges.length} edges)`)
+      console.log(
+        `  wrote ${outPath} (${callEdges.length} call edges, ${importEdges.length} import fallback edges)`,
+      )
     }
   } finally {
     db.close()

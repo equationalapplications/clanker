@@ -1,4 +1,4 @@
-# components call graph
+# components call graph + import fallback
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
@@ -201,4 +201,33 @@ graph LR
   makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
 (makePackagePurchase.ts)"] --> createCheckoutChannel__src_utilities_checkoutChannel_ts["createCheckoutChannel
 (checkoutChannel.ts)"]
+  AcceptTerms__src_components_AcceptTerms_tsx["AcceptTerms
+(AcceptTerms.tsx)"] --> __components_Button["Button
+(components)"]
+  AcceptTerms__src_components_AcceptTerms_tsx["AcceptTerms
+(AcceptTerms.tsx)"] --> __components_Logo["Logo
+(components)"]
+  AcceptTerms__src_components_AcceptTerms_tsx["AcceptTerms
+(AcceptTerms.tsx)"] --> __config_termsConfig["termsConfig
+(config)"]
+  CharacterAvatar__src_components_CharacterAvatar_tsx["CharacterAvatar
+(CharacterAvatar.tsx)"] --> __config_constants["constants
+(config)"]
+  CharacterCard__src_components_CharacterCard_tsx["CharacterCard
+(CharacterCard.tsx)"] --> __components_CharacterAvatar["CharacterAvatar
+(components)"]
+  SubscriptionInfoButton__src_components_SubscriptionInfoButton_tsx["SubscriptionInfoButton
+(SubscriptionInfoButton.tsx)"] --> __components_Button["Button
+(components)"]
+  SubscriptionInfoButton__src_components_SubscriptionInfoButton_tsx["SubscriptionInfoButton
+(SubscriptionInfoButton.tsx)"] --> __config_constants["constants
+(config)"]
+  UsersTable__src_components_admin_UsersTable_tsx["UsersTable
+(UsersTable.tsx)"] --> __types_admin["admin
+(types)"]
 ```
+
+> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are
+> not captured here. Because callables are instantiated at module scope and invoked indirectly,
+> static analysis cannot trace them as call edges. Affected call sites include
+> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.
