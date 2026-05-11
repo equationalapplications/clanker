@@ -26,10 +26,10 @@ describe('installGoogleIdentityConsoleFilter', () => {
     ;(globalThis as { __DEV__?: boolean }).__DEV__ = true
     originalError = console.error
     originalWarn = console.warn
+    resetGoogleIdentityConsoleFilterForTests()
     errorSink = jest.fn()
     console.error = errorSink
     console.warn = jest.fn()
-    resetGoogleIdentityConsoleFilterForTests()
     installGoogleIdentityConsoleFilter()
   })
 
@@ -57,10 +57,10 @@ describe('installGoogleIdentityConsoleFilter', () => {
   })
 
   it('is a no-op in production (__DEV__ === false)', () => {
+    resetGoogleIdentityConsoleFilterForTests()
     const sink = jest.fn()
     console.error = sink
     console.warn = jest.fn()
-    resetGoogleIdentityConsoleFilterForTests()
     ;(global as any).__DEV__ = false
     installGoogleIdentityConsoleFilter()
     console.error('[GSI_LOGGER]: should not be filtered in prod')

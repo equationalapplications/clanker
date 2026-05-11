@@ -1,8 +1,13 @@
 let installed = false
+let originalConsoleError: (typeof console)['error'] | null = null
 
 const GIS_PREFIXES = ['[GSI_LOGGER]', "Provider's accounts list is empty."]
 
 export const resetGoogleIdentityConsoleFilterForTests = (): void => {
+  if (originalConsoleError) {
+    console.error = originalConsoleError
+    originalConsoleError = null
+  }
   installed = false
 }
 
@@ -11,13 +16,13 @@ export const installGoogleIdentityConsoleFilter = (): void => {
   if (installed) return
   installed = true
 
-  const originalError = console.error.bind(console)
+  originalConsoleError = console.error.bind(console)
   console.error = (...args: unknown[]) => {
     const first = args[0]
     if (typeof first === 'string' && GIS_PREFIXES.some((p) => first.startsWith(p))) {
       console.warn(...args)
       return
     }
-    originalError(...args)
+    originalConsoleError!(...args)
   }
 }

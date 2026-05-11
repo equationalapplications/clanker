@@ -33,6 +33,8 @@ jest.mock('~/auth/syncDisplayName', () => ({
 }))
 
 describe('signInWithGoogle (native)', () => {
+  const originalClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+
   beforeEach(() => {
     jest.clearAllMocks()
     jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -41,6 +43,11 @@ describe('signInWithGoogle (native)', () => {
 
   afterEach(() => {
     jest.restoreAllMocks()
+    if (originalClientId === undefined) {
+      delete process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+    } else {
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = originalClientId
+    }
   })
 
   it('maps SIGN_IN_CANCELLED to { success: false, cancelled: true }', async () => {
