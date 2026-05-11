@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
 import * as ExpoLinking from 'expo-linking'
 import { useSelector } from '@xstate/react'
 
+import GoogleSignInButton from '~/auth/GoogleSignInButton'
 import ProviderButton from '~/auth/AuthProviderButton'
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
@@ -35,6 +36,7 @@ export default function SignIn() {
 
   const { redirect } = useLocalSearchParams<{ redirect?: string }>()
   const [initialRedirect, setInitialRedirect] = useState<Href | null>(null)
+  const [googleBusy, setGoogleBusy] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -85,15 +87,12 @@ export default function SignIn() {
     }
   }, [error])
 
-  const GoogleLoginOnPress = () => {
-    authService.send({ type: 'SIGN_IN', provider: 'google' })
-  }
-
   const onPressPrivacy = () => {
     router.push('/privacy')
   }
 
   const AppleLoginOnPress = () => {
+    if (isLoading || googleBusy) return
     authService.send({ type: 'SIGN_IN', provider: 'apple' })
   }
 
@@ -116,15 +115,12 @@ export default function SignIn() {
             <MonoText>Create Your Own AI Clanker</MonoText>
             <Logo />
             <View style={styles.authButtons}>
-              <ProviderButton
+              <GoogleSignInButton
                 style={styles.providerButton}
+                onLoadingChange={setGoogleBusy}
                 disabled={isLoading}
                 loading={isLoading}
-                onPress={GoogleLoginOnPress}
-                type="google"
-              >
-                Google
-              </ProviderButton>
+              />
               {Platform.OS === 'ios' && AppleAuthentication && (
                 <AppleAuthentication.AppleAuthenticationButton
                   buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
@@ -137,7 +133,7 @@ export default function SignIn() {
               {Platform.OS === 'web' && (
                 <ProviderButton
                   style={styles.providerButton}
-                  disabled={isLoading}
+                  disabled={isLoading || googleBusy}
                   loading={isLoading}
                   onPress={AppleLoginOnPress}
                   type="apple"

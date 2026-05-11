@@ -175,7 +175,13 @@ export const authMachine = createMachine(
           input: ({ event }) => ({ provider: (event as any).provider }),
           onError: {
             target: 'signedOut',
-            actions: assign({ error: ({ event }) => event.error as Error }),
+            actions: assign({
+              error: ({ event }) => {
+                const err = event.error as Error & { __userCancelledSignIn?: boolean }
+                if (err?.__userCancelledSignIn) return null
+                return err instanceof Error ? err : new Error(String(err))
+              },
+            }),
           },
         },
         // USER_FOUND from the top-level listener will drive the transition to bootstrapping
@@ -456,6 +462,11 @@ export const authMachine = createMachine(
         }
 
         if (!result.success) {
+          if (result.cancelled) {
+            const err = new Error(result.error || 'Sign-in was cancelled')
+            ;(err as Error & { __userCancelledSignIn?: boolean }).__userCancelledSignIn = true
+            throw err
+          }
           throw new Error(result.error || 'Sign-in failed')
         }
         // This relies on onAuthStateChanged to fire with the new user
