@@ -6,7 +6,7 @@ The character memory system uses `@equationalapplications/expo-llm-wiki@4.1.0` w
 
 - **`wikiMachine`** (`src/machines/wikiMachine.ts`) — One actor per character. States: `idle`, `reading`, `writing`, `ingesting`, `syncing`, `forgetting`, `busyRetry`, `error`. All operations are queued via `pendingEvents` and flushed sequentially from `idle`. `WikiBusyError` triggers automatic retry after a configurable delay.
 
-- **`wikiOrchestrator`** (`src/services/wikiOrchestrator.ts`) — Singleton that manages wiki machine actors. API: `getOrSpawn(entityId, wiki)`, `stop(entityId)`, `syncAll(items, wiki, concurrency)`. Actors are cached by entity ID.
+- **`wikiOrchestrator`** (`src/services/wikiOrchestrator.ts`) — Singleton that manages wiki machine actors. API: `getOrSpawn(entityId, wiki, machineOptions?)`, `stop(entityId)`, `syncAll(items, wiki, concurrency?, timeoutMs?, options?)` where `options` accepts `{ stopActorsSpawnedForBatch?, machineOptions? }`. Actors are cached by entity ID.
 
 - **`useCharacterWiki`** (`src/hooks/useCharacterWiki.ts`) — React hook wrapping the orchestrator. Returns `{ status, isBusy, isIngesting, error, read, write, ingest, forget, sync, hasChanged }`. All call sites (chat, sync service, edit screen) use this hook or the orchestrator directly.
 
