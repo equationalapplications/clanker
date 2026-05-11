@@ -165,7 +165,7 @@ type GoogleSignInButtonProps = {
 
 ### `src/utilities/devConsoleFilters.web.ts` (NEW)
 
-- Default export `installGoogleIdentityConsoleFilter(): void`.
+- Named export `installGoogleIdentityConsoleFilter(): void`.
 - In production (`__DEV__ === false`) it returns immediately.
 - In development it wraps `console.error` once: if the first argument is a string starting with `[GSI_LOGGER]` or equal to `Provider's accounts list is empty.`, the call is redirected to `console.warn` (so it still appears in the console for debugging but does not trigger Expo Router's `LogBox` modal). All other calls pass through unchanged.
 
