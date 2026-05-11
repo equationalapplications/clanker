@@ -528,4 +528,12 @@ graph LR
   getMostRecentMessage__src_database_messageDatabase_ts["getMostRecentMessage
 (messageDatabase.ts)"] --> toGiftedChatMessage__src_database_messageDatabase_ts["toGiftedChatMessage
 (messageDatabase.ts)"]
+  crashlyticsService__src_services_crashlyticsService_ts["crashlyticsService
+(crashlyticsService.ts)"] --> __utilities_kvStorage["kvStorage
+(utilities)"]
 ```
+
+> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are
+> not captured here. Because callables are instantiated at module scope and invoked indirectly,
+> static analysis cannot trace them as call edges. Affected call sites include
+> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.

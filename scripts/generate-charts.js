@@ -60,7 +60,15 @@ function renderMermaid(moduleName, edges, title) {
     (e) => `  ${e.sourceId}["${e.sourceLabel}"] --> ${e.targetId}["${e.targetLabel}"]`,
   )
 
-  return header + '```mermaid\ngraph LR\n' + lines.join('\n') + '\n```\n'
+  const footer = [
+    '',
+    '> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are',
+    '> not captured here. Because callables are instantiated at module scope and invoked indirectly,',
+    '> static analysis cannot trace them as call edges. Affected call sites include',
+    '> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.',
+  ].join('\n')
+
+  return header + '```mermaid\ngraph LR\n' + lines.join('\n') + '\n```\n' + footer + '\n'
 }
 
 /**
@@ -190,16 +198,28 @@ function main() {
     fs.mkdirSync(OUT_DIR, { recursive: true })
 
     for (const mod of MODULES) {
-      let edges = buildEdgeSet(queryModuleEdges(db, mod.glob, MAX_DEPTH))
-      let title
-      if (edges.length === 0) {
-        edges = buildImportEdgeSet(queryModuleImports(db, mod.glob))
-        title = `${mod.name} import dependencies`
-      }
-      const content = renderMermaid(mod.name, edges, title)
+      const modulePrefix = mod.glob.slice(0, -1) // 'src/machines/%' -> 'src/machines/'
+      const callRows = queryModuleEdges(db, mod.glob, MAX_DEPTH)
+      const callEdges = buildEdgeSet(callRows)
+
+      // Files in this module that already appear as a call source
+      const filesWithCalls = new Set(
+        callRows.map((r) => r.source_file).filter((f) => f.startsWith(modulePrefix)),
+      )
+
+      // Import fallback only for module files that produced no call edges
+      const importRows = queryModuleImports(db, mod.glob).filter(
+        (r) => !filesWithCalls.has(r.source_file),
+      )
+      const importEdges = buildImportEdgeSet(importRows)
+
+      const edges = [...callEdges, ...importEdges]
+      const content = renderMermaid(mod.name, edges)
       const outPath = `${OUT_DIR}/${mod.name}.md`
       fs.writeFileSync(outPath, content, 'utf8')
-      console.log(`  wrote ${outPath} (${edges.length} edges)`)
+      console.log(
+        `  wrote ${outPath} (${callEdges.length} call edges, ${importEdges.length} import fallback edges)`,
+      )
     }
   } finally {
     db.close()
