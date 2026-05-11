@@ -1,4 +1,4 @@
-# database call graph
+# database call graph + import fallback
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
@@ -169,6 +169,17 @@ graph LR
 (messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
   initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> getSourceTypeEnumMigrationSql__src_services_wikiService_ts["getSourceTypeEnumMigrationSql
+(wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
 (wikiService.ts)"] --> setupWiki__src_services_wikiService_ts["setupWiki
 (wikiService.ts)"]
+  schema__src_database_schema_ts["schema
+(schema.ts)"] --> __constants_voiceDefaults["voiceDefaults
+(constants)"]
 ```
+
+> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are
+> not captured here. Because callables are instantiated at module scope and invoked indirectly,
+> static analysis cannot trace them as call edges. Affected call sites include
+> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.

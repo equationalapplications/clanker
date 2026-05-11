@@ -1,4 +1,4 @@
-# hooks call graph
+# hooks call graph + import fallback
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
@@ -10,11 +10,11 @@ graph LR
 (useAIChat.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> isPlanTier__src_hooks_useAIChat_ts["isPlanTier
-(useAIChat.ts)"]
+(useAIChat.ts)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> SUBSCRIPTION_TIERS__src_config_constants_ts["SUBSCRIPTION_TIERS
-(constants.ts)"]
+(useAIChat.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"]
@@ -75,6 +75,24 @@ graph LR
   useCachedResources__src_hooks_useCachedResources_ts["useCachedResources
 (useCachedResources.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
+  tailForEntity__src_hooks_useCharacterWiki_ts["tailForEntity
+(useCharacterWiki.ts)"] --> emptyOperationTail__src_hooks_useCharacterWiki_ts["emptyOperationTail
+(useCharacterWiki.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> wikiOrchestrator__src_services_wikiOrchestrator_ts["wikiOrchestrator
+(wikiOrchestrator.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> tailForEntity__src_hooks_useCharacterWiki_ts["tailForEntity
+(useCharacterWiki.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> waitForActorOperation__src_hooks_useCharacterWiki_ts["waitForActorOperation
+(useCharacterWiki.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> wikiSync__src_services_apiClient_ts["wikiSync
+(apiClient.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
   useCharacters__src_hooks_useCharacters_ts["useCharacters
 (useCharacters.ts)"] --> useCharacterMachine__src_hooks_useMachines_ts["useCharacterMachine
 (useMachines.ts)"]
@@ -141,6 +159,9 @@ graph LR
   useIsPremium__src_hooks_useIsPremium_ts["useIsPremium
 (useIsPremium.ts)"] --> useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
 (useCurrentPlan.ts)"]
+  useMemoryBundle__src_hooks_useMemoryBundle_ts["useMemoryBundle
+(useMemoryBundle.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
   useMessages__src_hooks_useMessages_ts["useMessages
 (useMessages.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
@@ -252,12 +273,12 @@ graph LR
   useWebCheckoutSync__src_hooks_useWebCheckoutSync_web_ts["useWebCheckoutSync
 (useWebCheckoutSync.web.ts)"] --> expireStalePendingAttempts__src_utilities_checkoutStateStore_ts["expireStalePendingAttempts
 (checkoutStateStore.ts)"]
+  reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"] --> logCrashlyticsError__src_services_crashlyticsService_ts["logCrashlyticsError
+(crashlyticsService.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
 (messageService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> getWiki__src_services_wikiService_ts["getWiki
-(wikiService.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
 (aiChatService.ts)"]
@@ -276,6 +297,9 @@ graph LR
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
 (aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> toUsageSnapshot__src_services_aiChatService_ts["toUsageSnapshot
 (aiChatService.ts)"]
@@ -348,9 +372,6 @@ graph LR
   generateImageViaCallable__src_services_imageGenerationService_ts["generateImageViaCallable
 (imageGenerationService.ts)"] --> parseResponse__src_services_imageGenerationService_ts["parseResponse
 (imageGenerationService.ts)"]
-  reportError__src_utilities_reportError_ts["reportError
-(reportError.ts)"] --> logCrashlyticsError__src_services_crashlyticsService_ts["logCrashlyticsError
-(crashlyticsService.ts)"]
   getMessages__src_services_messageService_ts["getMessages
 (messageService.ts)"] --> getMessages__src_database_messageDatabase_ts["getMessages
 (messageDatabase.ts)"]
@@ -399,4 +420,18 @@ graph LR
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
 (useMessages.ts)"]
+  useMachines__src_hooks_useMachines_ts["useMachines
+(useMachines.ts)"] --> __machines_authMachine["authMachine
+(machines)"]
+  useMachines__src_hooks_useMachines_ts["useMachines
+(useMachines.ts)"] --> __machines_termsMachine["termsMachine
+(machines)"]
+  useMachines__src_hooks_useMachines_ts["useMachines
+(useMachines.ts)"] --> __machines_characterMachine["characterMachine
+(machines)"]
 ```
+
+> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are
+> not captured here. Because callables are instantiated at module scope and invoked indirectly,
+> static analysis cannot trace them as call edges. Affected call sites include
+> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.

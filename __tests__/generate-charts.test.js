@@ -7,6 +7,8 @@ const {
   queryModuleEdges,
   queryModuleImports,
   buildImportEdgeSet,
+  filterImportRowsForHybrid,
+  chartTitleForHybrid,
 } = require('../scripts/generate-charts')
 
 describe('sanitizeName', () => {
@@ -70,7 +72,8 @@ describe('renderMermaid', () => {
   })
   it('returns empty-graph notice when no edges', () => {
     const result = renderMermaid('machines', [])
-    expect(result).toContain('_No call edges found')
+    expect(result).toContain('_No edges found for this module._')
+    expect(result).toContain('httpsCallable()')
   })
   it('uses custom title when provided', () => {
     const edges = [
@@ -114,6 +117,65 @@ describe('buildImportEdgeSet', () => {
     const row = { source_file: 'src/machines/authMachine.ts', import_path: '~/services/crashlyticsService' }
     const edges = buildImportEdgeSet([row, row])
     expect(edges).toHaveLength(1)
+  })
+})
+
+describe('filterImportRowsForHybrid', () => {
+  const glob = 'src/machines/%'
+
+  it('drops import rows for module files that already have a call edge as source', () => {
+    const callRows = [
+      {
+        source_name: 'wiki',
+        source_file: 'src/machines/wikiMachine.ts',
+        target_name: 'x',
+        target_file: 'src/y.ts',
+      },
+    ]
+    const importRowsAll = [
+      { source_file: 'src/machines/authMachine.ts', import_path: '~/services/a' },
+      { source_file: 'src/machines/wikiMachine.ts', import_path: '~/services/b' },
+    ]
+    const filtered = filterImportRowsForHybrid(glob, callRows, importRowsAll)
+    expect(filtered).toEqual([importRowsAll[0]])
+  })
+
+  it('keeps all import rows when no call rows exist', () => {
+    const importRowsAll = [
+      { source_file: 'src/machines/authMachine.ts', import_path: '~/services/a' },
+      { source_file: 'src/machines/termsMachine.ts', import_path: '~/services/b' },
+    ]
+    expect(filterImportRowsForHybrid(glob, [], importRowsAll)).toEqual(importRowsAll)
+  })
+
+  it('keeps import rows for files with call targets but not as call source', () => {
+    const callRows = [
+      {
+        source_name: 'other',
+        source_file: 'src/services/foo.ts',
+        target_name: 'auth',
+        target_file: 'src/machines/authMachine.ts',
+      },
+    ]
+    const importRowsAll = [
+      { source_file: 'src/machines/authMachine.ts', import_path: '~/services/a' },
+    ]
+    expect(filterImportRowsForHybrid(glob, callRows, importRowsAll)).toEqual(importRowsAll)
+  })
+})
+
+describe('chartTitleForHybrid', () => {
+  it('uses (no edges) when both edge kinds are empty', () => {
+    expect(chartTitleForHybrid('machines', 0, 0)).toBe('machines (no edges)')
+  })
+  it('uses import dependencies when only import fallback edges exist', () => {
+    expect(chartTitleForHybrid('machines', 0, 3)).toBe('machines import dependencies')
+  })
+  it('uses call graph when only call edges exist', () => {
+    expect(chartTitleForHybrid('machines', 2, 0)).toBe('machines call graph')
+  })
+  it('mentions hybrid when both call and import fallback edges exist', () => {
+    expect(chartTitleForHybrid('machines', 1, 4)).toBe('machines call graph + import fallback')
   })
 })
 

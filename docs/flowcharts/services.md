@@ -1,4 +1,4 @@
-# services call graph
+# services call graph + import fallback
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
@@ -91,9 +91,6 @@ graph LR
 (aiChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
 (messageService.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> getWiki__src_services_wikiService_ts["getWiki
-(wikiService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
 (aiChatService.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
@@ -111,6 +108,9 @@ graph LR
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
 (aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> toUsageSnapshot__src_services_aiChatService_ts["toUsageSnapshot
 (aiChatService.ts)"]
@@ -165,6 +165,9 @@ graph LR
   createNewCharacter__src_services_characterService_ts["createNewCharacter
 (characterService.ts)"] --> createCharacter__src_services_characterService_ts["createCharacter
 (characterService.ts)"]
+  reportWikiOpForCharacter__src_services_characterSyncService_ts["reportWikiOpForCharacter
+(characterSyncService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
   syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
 (characterSyncService.ts)"] --> getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
 (characterDatabase.ts)"]
@@ -174,6 +177,12 @@ graph LR
   syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
 (characterSyncService.ts)"] --> wikiSync__src_services_apiClient_ts["wikiSync
 (apiClient.ts)"]
+  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"] --> wikiOrchestrator__src_services_wikiOrchestrator_ts["wikiOrchestrator
+(wikiOrchestrator.ts)"]
+  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
   syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
 (characterSyncService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
 (googleSignin.ts)"]
@@ -208,6 +217,9 @@ graph LR
 (characterSyncService.ts)"] --> batchInsertCharacters__src_database_characterDatabase_ts["batchInsertCharacters
 (characterDatabase.ts)"]
   restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
+(characterSyncService.ts)"] --> syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"]
+  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
 (characterSyncService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
 (reportError.ts)"]
   syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
@@ -219,6 +231,9 @@ graph LR
   syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
 (characterSyncService.ts)"] --> markCharacterSynced__src_database_characterDatabase_ts["markCharacterSynced
 (characterDatabase.ts)"]
+  syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
+(characterSyncService.ts)"] --> reportWikiOpForCharacter__src_services_characterSyncService_ts["reportWikiOpForCharacter
+(characterSyncService.ts)"]
   importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
 (characterSyncService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
 (googleSignin.ts)"]
@@ -255,6 +270,9 @@ graph LR
   syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
 (characterSyncService.ts)"] --> deleteCharacterFn__src_services_apiClient_ts["deleteCharacterFn
 (apiClient.ts)"]
+  syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
+(characterSyncService.ts)"] --> reportWikiOpForCharacter__src_services_characterSyncService_ts["reportWikiOpForCharacter
+(characterSyncService.ts)"]
   generateChatReply__src_services_chatReplyService_ts["generateChatReply
 (chatReplyService.ts)"] --> generateReplyFn__src_config_firebaseConfig_ts["generateReplyFn
 (firebaseConfig.ts)"]
@@ -369,9 +387,18 @@ graph LR
   createWikiLlmProvider__src_services_wikiLlmProvider_ts["createWikiLlmProvider
 (wikiLlmProvider.ts)"] --> wikiLlm__src_services_apiClient_ts["wikiLlm
 (apiClient.ts)"]
+  syncAll__src_services_wikiOrchestrator_ts["syncAll
+(wikiOrchestrator.ts)"] --> getOrSpawn__src_services_wikiOrchestrator_ts["getOrSpawn
+(wikiOrchestrator.ts)"]
+  syncAll__src_services_wikiOrchestrator_ts["syncAll
+(wikiOrchestrator.ts)"] --> stop__src_services_wikiOrchestrator_ts["stop
+(wikiOrchestrator.ts)"]
   setupWiki__src_services_wikiService_ts["setupWiki
 (wikiService.ts)"] --> createWikiLlmProvider__src_services_wikiLlmProvider_ts["createWikiLlmProvider
 (wikiLlmProvider.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> getSourceTypeEnumMigrationSql__src_services_wikiService_ts["getSourceTypeEnumMigrationSql
+(wikiService.ts)"]
   initWiki__src_services_wikiService_ts["initWiki
 (wikiService.ts)"] --> setupWiki__src_services_wikiService_ts["setupWiki
 (wikiService.ts)"]
@@ -399,6 +426,9 @@ graph LR
   saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
 (messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
+  reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"] --> logCrashlyticsError__src_services_crashlyticsService_ts["logCrashlyticsError
+(crashlyticsService.ts)"]
   bootstrapSession__src_auth_bootstrapSession_ts["bootstrapSession
 (bootstrapSession.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
 (googleSignin.ts)"]
@@ -435,9 +465,6 @@ graph LR
   getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
 (characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
-  reportError__src_utilities_reportError_ts["reportError
-(reportError.ts)"] --> logCrashlyticsError__src_services_crashlyticsService_ts["logCrashlyticsError
-(crashlyticsService.ts)"]
   batchInsertCharacters__src_database_characterDatabase_ts["batchInsertCharacters
 (characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
@@ -501,4 +528,12 @@ graph LR
   getMostRecentMessage__src_database_messageDatabase_ts["getMostRecentMessage
 (messageDatabase.ts)"] --> toGiftedChatMessage__src_database_messageDatabase_ts["toGiftedChatMessage
 (messageDatabase.ts)"]
+  crashlyticsService__src_services_crashlyticsService_ts["crashlyticsService
+(crashlyticsService.ts)"] --> __utilities_kvStorage["kvStorage
+(utilities)"]
 ```
+
+> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are
+> not captured here. Because callables are instantiated at module scope and invoked indirectly,
+> static analysis cannot trace them as call edges. Affected call sites include
+> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.

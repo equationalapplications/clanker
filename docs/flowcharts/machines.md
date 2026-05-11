@@ -1,8 +1,11 @@
-# machines import dependencies
+# machines call graph + import fallback
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
+  abortableSleep__src_machines_wikiMachine_ts["abortableSleep
+(wikiMachine.ts)"] --> abortErrorFromSignal__src_machines_wikiMachine_ts["abortErrorFromSignal
+(wikiMachine.ts)"]
   authMachine__src_machines_authMachine_ts["authMachine
 (authMachine.ts)"] --> __config_firebaseConfig["firebaseConfig
 (config)"]
@@ -45,6 +48,9 @@ graph LR
   characterMachine__src_machines_characterMachine_ts["characterMachine
 (characterMachine.ts)"] --> __services_defaultAvatarService["defaultAvatarService
 (services)"]
+  characterMachine__src_machines_characterMachine_ts["characterMachine
+(characterMachine.ts)"] --> __services_wikiOrchestrator["wikiOrchestrator
+(services)"]
   termsMachine__src_machines_termsMachine_ts["termsMachine
 (termsMachine.ts)"] --> __config_termsConfig["termsConfig
 (config)"]
@@ -55,3 +61,8 @@ graph LR
 (termsMachine.ts)"] --> __auth_bootstrapSession["bootstrapSession
 (auth)"]
 ```
+
+> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are
+> not captured here. Because callables are instantiated at module scope and invoked indirectly,
+> static analysis cannot trace them as call edges. Affected call sites include
+> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.
