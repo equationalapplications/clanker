@@ -52,14 +52,6 @@ function renderMermaid(moduleName, edges, title) {
     '',
   ].join('\n')
 
-  if (edges.length === 0) {
-    return header + '_No call edges found for this module._\n'
-  }
-
-  const lines = edges.map(
-    (e) => `  ${e.sourceId}["${e.sourceLabel}"] --> ${e.targetId}["${e.targetLabel}"]`,
-  )
-
   const footer = [
     '',
     '> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are',
@@ -67,6 +59,14 @@ function renderMermaid(moduleName, edges, title) {
     '> static analysis cannot trace them as call edges. Affected call sites include',
     '> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.',
   ].join('\n')
+
+  if (edges.length === 0) {
+    return header + '_No call edges found for this module._\n' + footer + '\n'
+  }
+
+  const lines = edges.map(
+    (e) => `  ${e.sourceId}["${e.sourceLabel}"] --> ${e.targetId}["${e.targetLabel}"]`,
+  )
 
   return header + '```mermaid\ngraph LR\n' + lines.join('\n') + '\n```\n' + footer + '\n'
 }
@@ -198,7 +198,7 @@ function main() {
     fs.mkdirSync(OUT_DIR, { recursive: true })
 
     for (const mod of MODULES) {
-      const modulePrefix = mod.glob.slice(0, -1) // 'src/machines/%' -> 'src/machines/'
+      const modulePrefix = mod.glob.replace(/%$/, '') // 'src/machines/%' -> 'src/machines/'
       const callRows = queryModuleEdges(db, mod.glob, MAX_DEPTH)
       const callEdges = buildEdgeSet(callRows)
 
@@ -214,7 +214,9 @@ function main() {
       const importEdges = buildImportEdgeSet(importRows)
 
       const edges = [...callEdges, ...importEdges]
-      const content = renderMermaid(mod.name, edges)
+      const title =
+        callEdges.length === 0 ? `${mod.name} import dependencies` : `${mod.name} call graph`
+      const content = renderMermaid(mod.name, edges, title)
       const outPath = `${OUT_DIR}/${mod.name}.md`
       fs.writeFileSync(outPath, content, 'utf8')
       console.log(
