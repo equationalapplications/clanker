@@ -17,7 +17,6 @@ import type { SQLiteDatabase } from 'expo-sqlite'
 import {
   getSourceTypeEnumMigrationSql,
   initWiki,
-  TABLE_PREFIX,
   _resetWikiForTests,
 } from '~/services/wikiService'
 

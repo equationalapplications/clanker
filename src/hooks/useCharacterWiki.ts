@@ -47,16 +47,22 @@ function waitForActorOperation(
       if (snap.matches(operation)) {
         seenOperation = true
       }
-      // Resolve/reject only when leaving the requested operation state.
-      // This avoids resolving during busyRetry -> idle intermediate steps.
-      if (seenOperation && previous.matches(operation) && snap.matches('idle')) {
+      // Resolve/reject when leaving the requested operation state.
+      // Do not resolve on reading→busyRetry: the same event is still in flight.
+      // Do resolve on reading→idle, reading→error, or reading→another op: XState may
+      // batch idle+flush so subscribers never see operation→idle when another event
+      // runs immediately (Bugbot: cross-type overlap timeouts).
+      if (seenOperation && previous.matches(operation) && !snap.matches(operation)) {
+        if (snap.matches('busyRetry')) {
+          previous = snap
+          return
+        }
         cleanup(sub)
-        resolve()
-        return
-      }
-      if (seenOperation && previous.matches(operation) && snap.matches('error')) {
-        cleanup(sub)
-        reject(snap.context.lastError ?? new Error(`Wiki ${operation} failed`))
+        if (snap.matches('error')) {
+          reject(snap.context.lastError ?? new Error(`Wiki ${operation} failed`))
+        } else {
+          resolve()
+        }
         return
       }
       previous = snap
