@@ -3,6 +3,12 @@
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
+  ChatComposer__src_components_ChatComposer_tsx["ChatComposer
+(ChatComposer.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
+  ChatComposer__src_components_ChatComposer_web_tsx["ChatComposer
+(ChatComposer.web.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
   ChatView__src_components_ChatView_tsx["ChatView
 (ChatView.tsx)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
@@ -16,8 +22,8 @@ graph LR
 (ChatView.tsx)"] --> useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
 (useUserCredits.ts)"]
   ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> getWiki__src_services_wikiService_ts["getWiki
-(wikiService.ts)"]
+(ChatView.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
   ChatView__src_components_ChatView_tsx["ChatView
 (ChatView.tsx)"] --> useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"]
@@ -66,6 +72,12 @@ graph LR
   CreditsDisplay__src_components_CreditsDisplay_tsx["CreditsDisplay
 (CreditsDisplay.tsx)"] --> makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
 (makePackagePurchase.ts)"]
+  ComingSoonCard__src_components_LandingPage_ComingSoonSection_tsx["ComingSoonCard
+(ComingSoonSection.tsx)"] --> useFloatingCardAnimation__src_hooks_useFloatingCardAnimation_ts["useFloatingCardAnimation
+(useFloatingCardAnimation.ts)"]
+  FeatureCard__src_components_LandingPage_FeaturesSection_tsx["FeatureCard
+(FeaturesSection.tsx)"] --> useFloatingCardAnimation__src_hooks_useFloatingCardAnimation_ts["useFloatingCardAnimation
+(useFloatingCardAnimation.ts)"]
   HeroSection__src_components_LandingPage_HeroSection_tsx["HeroSection
 (HeroSection.tsx)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
@@ -96,6 +108,21 @@ graph LR
   UserActionPanel__src_components_admin_UserActionPanel_tsx["UserActionPanel
 (UserActionPanel.tsx)"] --> normalizeRenewalDateInput__src_components_admin_renewalDateValidation_ts["normalizeRenewalDateInput
 (renewalDateValidation.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> wikiOrchestrator__src_services_wikiOrchestrator_ts["wikiOrchestrator
+(wikiOrchestrator.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> tailForEntity__src_hooks_useCharacterWiki_ts["tailForEntity
+(useCharacterWiki.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> waitForActorOperation__src_hooks_useCharacterWiki_ts["waitForActorOperation
+(useCharacterWiki.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> wikiSync__src_services_apiClient_ts["wikiSync
+(apiClient.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
   useCharacter__src_hooks_useCharacters_ts["useCharacter
 (useCharacters.ts)"] --> useCharacterMachine__src_hooks_useMachines_ts["useCharacterMachine
 (useMachines.ts)"]
@@ -118,11 +145,11 @@ graph LR
 (useAIChat.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> isPlanTier__src_hooks_useAIChat_ts["isPlanTier
-(useAIChat.ts)"]
+(useAIChat.ts)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> SUBSCRIPTION_TIERS__src_config_constants_ts["SUBSCRIPTION_TIERS
-(constants.ts)"]
+(useAIChat.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"]
