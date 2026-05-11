@@ -3,27 +3,6 @@
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> useChatMessages__src_hooks_useMessages_ts["useChatMessages
-(useMessages.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
-(useMachines.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> isPlanTier__src_hooks_useAIChat_ts["isPlanTier
-(useAIChat.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> SUBSCRIPTION_TIERS__src_config_constants_ts["SUBSCRIPTION_TIERS
-(constants.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
-(useMessages.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> usageSnapshotFromError__src_services_usageSnapshot_ts["usageSnapshotFromError
-(usageSnapshot.ts)"]
   useAdminUsers__src_hooks_useAdminDashboard_ts["useAdminUsers
 (useAdminDashboard.ts)"] --> adminUsersKey__src_hooks_useAdminDashboard_ts["adminUsersKey
 (useAdminDashboard.ts)"]
@@ -130,14 +109,8 @@ graph LR
 (useInitializeApp.ts)"] --> reportError__src_utilities_reportError_ts["reportError
 (reportError.ts)"]
   useInitializeApp__src_hooks_useInitializeApp_ts["useInitializeApp
-(useInitializeApp.ts)"] --> initializeGoogleSignIn__src_auth_googleSignin_ts["initializeGoogleSignIn
-(googleSignin.ts)"]
-  useInitializeApp__src_hooks_useInitializeApp_ts["useInitializeApp
 (useInitializeApp.ts)"] --> initializeRevenueCat__src_config_revenueCatConfig_ts["initializeRevenueCat
 (revenueCatConfig.ts)"]
-  useInitializeApp__src_hooks_useInitializeApp_web_ts["useInitializeApp
-(useInitializeApp.web.ts)"] --> initializeGoogleSignIn__src_auth_googleSignin_ts["initializeGoogleSignIn
-(googleSignin.ts)"]
   useIsPremium__src_hooks_useIsPremium_ts["useIsPremium
 (useIsPremium.ts)"] --> useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
 (useCurrentPlan.ts)"]
@@ -229,14 +202,8 @@ graph LR
 (useVoiceChat.ts)"] --> extractTranscript__src_hooks_useVoiceChat_ts["extractTranscript
 (useVoiceChat.ts)"]
   useWebCheckoutSync__src_hooks_useWebCheckoutSync_web_ts["useWebCheckoutSync
-(useWebCheckoutSync.web.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
-  useWebCheckoutSync__src_hooks_useWebCheckoutSync_web_ts["useWebCheckoutSync
 (useWebCheckoutSync.web.ts)"] --> isPaygProduct__src_hooks_useWebCheckoutSync_web_ts["isPaygProduct
 (useWebCheckoutSync.web.ts)"]
-  useWebCheckoutSync__src_hooks_useWebCheckoutSync_web_ts["useWebCheckoutSync
-(useWebCheckoutSync.web.ts)"] --> onAuthStateChanged__src_config_firebaseConfig_ts["onAuthStateChanged
-(firebaseConfig.ts)"]
   useWebCheckoutSync__src_hooks_useWebCheckoutSync_web_ts["useWebCheckoutSync
 (useWebCheckoutSync.web.ts)"] --> clearPendingCheckoutAttempts__src_utilities_checkoutStateStore_ts["clearPendingCheckoutAttempts
 (checkoutStateStore.ts)"]
@@ -252,35 +219,47 @@ graph LR
   useWebCheckoutSync__src_hooks_useWebCheckoutSync_web_ts["useWebCheckoutSync
 (useWebCheckoutSync.web.ts)"] --> expireStalePendingAttempts__src_utilities_checkoutStateStore_ts["expireStalePendingAttempts
 (checkoutStateStore.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
-(messageService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> getWiki__src_services_wikiService_ts["getWiki
-(wikiService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
+  useMemoryBundle__src_hooks_useMemoryBundle_ts["useMemoryBundle
+(useMemoryBundle.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  tailForEntity__src_hooks_useCharacterWiki_ts["tailForEntity
+(useCharacterWiki.ts)"] --> emptyOperationTail__src_hooks_useCharacterWiki_ts["emptyOperationTail
+(useCharacterWiki.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> wikiOrchestrator__src_services_wikiOrchestrator_ts["wikiOrchestrator
+(wikiOrchestrator.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> tailForEntity__src_hooks_useCharacterWiki_ts["tailForEntity
+(useCharacterWiki.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> waitForActorOperation__src_hooks_useCharacterWiki_ts["waitForActorOperation
+(useCharacterWiki.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> wikiSync__src_services_apiClient_ts["wikiSync
+(apiClient.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> useChatMessages__src_hooks_useMessages_ts["useChatMessages
+(useMessages.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
+(useMachines.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
-(aiChatService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> generateChatReply__src_services_chatReplyService_ts["generateChatReply
-(chatReplyService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> buildReferenceId__src_services_aiChatService_ts["buildReferenceId
-(aiChatService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
-(messageDatabase.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
-(aiChatService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> toUsageSnapshot__src_services_aiChatService_ts["toUsageSnapshot
-(aiChatService.ts)"]
-  usageSnapshotFromError__src_services_usageSnapshot_ts["usageSnapshotFromError
-(usageSnapshot.ts)"] --> toUsageSnapshotPayload__src_services_usageSnapshot_ts["toUsageSnapshotPayload
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
+(useMessages.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> usageSnapshotFromError__src_services_usageSnapshot_ts["usageSnapshotFromError
 (usageSnapshot.ts)"]
   listAdminUsers__src_services_adminService_ts["listAdminUsers
 (adminService.ts)"] --> callAdmin__src_services_adminService_ts["callAdmin
@@ -343,11 +322,11 @@ graph LR
 (index.ts)"] --> initializeDatabase__src_database_index_ts["initializeDatabase
 (index.ts)"]
   generateImageViaCallable__src_services_imageGenerationService_ts["generateImageViaCallable
-(imageGenerationService.ts)"] --> generateImageFn__src_config_firebaseConfig_ts["generateImageFn
-(firebaseConfig.ts)"]
-  generateImageViaCallable__src_services_imageGenerationService_ts["generateImageViaCallable
 (imageGenerationService.ts)"] --> parseResponse__src_services_imageGenerationService_ts["parseResponse
 (imageGenerationService.ts)"]
+  usageSnapshotFromError__src_services_usageSnapshot_ts["usageSnapshotFromError
+(usageSnapshot.ts)"] --> toUsageSnapshotPayload__src_services_usageSnapshot_ts["toUsageSnapshotPayload
+(usageSnapshot.ts)"]
   reportError__src_utilities_reportError_ts["reportError
 (reportError.ts)"] --> logCrashlyticsError__src_services_crashlyticsService_ts["logCrashlyticsError
 (crashlyticsService.ts)"]
@@ -369,21 +348,9 @@ graph LR
   upsertUserProfile__src_services_userService_ts["upsertUserProfile
 (userService.ts)"] --> updateUserProfile__src_services_apiClient_ts["updateUserProfile
 (apiClient.ts)"]
-  deductCredits__src_utilities_getUserCredits_ts["deductCredits
-(getUserCredits.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
-  deductCredits__src_utilities_getUserCredits_ts["deductCredits
-(getUserCredits.ts)"] --> spendCreditsFn__src_config_firebaseConfig_ts["spendCreditsFn
-(firebaseConfig.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
 (messageService.ts)"]
-  sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
-(voiceChatService.ts)"] --> buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
-(aiChatService.ts)"]
-  sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
-(voiceChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
-(aiChatService.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> generateVoiceReply__src_services_voiceReplyService_ts["generateVoiceReply
 (voiceReplyService.ts)"]
@@ -391,12 +358,36 @@ graph LR
 (voiceChatService.ts)"] --> saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
 (messageDatabase.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
-(voiceChatService.ts)"] --> triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
-(aiChatService.ts)"]
-  sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> queryClient__src_config_queryClient_ts["queryClient
 (queryClient.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
 (useMessages.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
+(messageService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
+(aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
+(aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> generateChatReply__src_services_chatReplyService_ts["generateChatReply
+(chatReplyService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> buildReferenceId__src_services_aiChatService_ts["buildReferenceId
+(aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
+(messageDatabase.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> toUsageSnapshot__src_services_aiChatService_ts["toUsageSnapshot
+(aiChatService.ts)"]
 ```

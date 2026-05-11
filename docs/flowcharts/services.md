@@ -54,93 +54,15 @@ graph LR
   deleteAdminUser__src_services_adminService_ts["deleteAdminUser
 (adminService.ts)"] --> makeRequestId__src_services_adminService_ts["makeRequestId
 (adminService.ts)"]
-  buildConversationHistory__src_services_aiChatService_ts["buildConversationHistory
-(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
-(aiChatService.ts)"]
-  buildReferenceId__src_services_aiChatService_ts["buildReferenceId
-(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
-(aiChatService.ts)"]
-  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
-(aiChatService.ts)"] --> getMessageCount__src_database_messageDatabase_ts["getMessageCount
-(messageDatabase.ts)"]
-  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
-(aiChatService.ts)"] --> updateCharacter__src_database_characterDatabase_ts["updateCharacter
-(characterDatabase.ts)"]
-  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
-(aiChatService.ts)"] --> getMessagesForContextSummary__src_database_messageDatabase_ts["getMessagesForContextSummary
-(messageDatabase.ts)"]
-  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
-(aiChatService.ts)"] --> buildSummaryInput__src_services_aiChatService_ts["buildSummaryInput
-(aiChatService.ts)"]
-  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
-(aiChatService.ts)"] --> summarizeText__src_services_summarizeTextService_ts["summarizeText
-(summarizeTextService.ts)"]
-  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
-(aiChatService.ts)"] --> pruneMessagesForCharacter__src_database_messageDatabase_ts["pruneMessagesForCharacter
-(messageDatabase.ts)"]
-  buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
-(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
-(aiChatService.ts)"]
-  buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
-(aiChatService.ts)"] --> buildConversationHistory__src_services_aiChatService_ts["buildConversationHistory
-(aiChatService.ts)"]
-  buildIntroductionPrompt__src_services_aiChatService_ts["buildIntroductionPrompt
-(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
-(aiChatService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
-(messageService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> getWiki__src_services_wikiService_ts["getWiki
-(wikiService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
-(aiChatService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
-(aiChatService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> generateChatReply__src_services_chatReplyService_ts["generateChatReply
-(chatReplyService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> buildReferenceId__src_services_aiChatService_ts["buildReferenceId
-(aiChatService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
-(messageDatabase.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
-(aiChatService.ts)"]
-  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> toUsageSnapshot__src_services_aiChatService_ts["toUsageSnapshot
-(aiChatService.ts)"]
-  sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
-(aiChatService.ts)"] --> buildIntroductionPrompt__src_services_aiChatService_ts["buildIntroductionPrompt
-(aiChatService.ts)"]
-  sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
-(aiChatService.ts)"] --> generateChatReply__src_services_chatReplyService_ts["generateChatReply
-(chatReplyService.ts)"]
-  sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
-(aiChatService.ts)"] --> buildReferenceId__src_services_aiChatService_ts["buildReferenceId
-(aiChatService.ts)"]
-  sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
-(aiChatService.ts)"] --> saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
-(messageDatabase.ts)"]
   getUserState__src_services_apiClient_ts["getUserState
 (apiClient.ts)"] --> bootstrapSession__src_auth_bootstrapSession_ts["bootstrapSession
 (bootstrapSession.ts)"]
-  getUserCharacters__src_services_characterService_ts["getUserCharacters
-(characterService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
   getUserCharacters__src_services_characterService_ts["getUserCharacters
 (characterService.ts)"] --> getUserCharacters__src_database_characterDatabase_ts["getUserCharacters
 (characterDatabase.ts)"]
   getCharacter__src_services_characterService_ts["getCharacter
 (characterService.ts)"] --> getCharacter__src_database_characterDatabase_ts["getCharacter
 (characterDatabase.ts)"]
-  createCharacter__src_services_characterService_ts["createCharacter
-(characterService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
   createCharacter__src_services_characterService_ts["createCharacter
 (characterService.ts)"] --> createCharacter__src_database_characterDatabase_ts["createCharacter
 (characterDatabase.ts)"]
@@ -157,116 +79,17 @@ graph LR
 (characterService.ts)"] --> searchCharacters__src_database_characterDatabase_ts["searchCharacters
 (characterDatabase.ts)"]
   createNewCharacter__src_services_characterService_ts["createNewCharacter
-(characterService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
-  createNewCharacter__src_services_characterService_ts["createNewCharacter
 (characterService.ts)"] --> loadDefaultAvatarBase64__src_services_defaultAvatarService_ts["loadDefaultAvatarBase64
 (defaultAvatarService.ts)"]
   createNewCharacter__src_services_characterService_ts["createNewCharacter
 (characterService.ts)"] --> createCharacter__src_services_characterService_ts["createCharacter
 (characterService.ts)"]
-  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
-(characterSyncService.ts)"] --> getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
-(characterDatabase.ts)"]
-  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
-(characterSyncService.ts)"] --> getWiki__src_services_wikiService_ts["getWiki
-(wikiService.ts)"]
-  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
-(characterSyncService.ts)"] --> wikiSync__src_services_apiClient_ts["wikiSync
-(apiClient.ts)"]
-  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
-(characterSyncService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
-  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
-(characterSyncService.ts)"] --> syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
-(characterSyncService.ts)"]
-  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
-(characterSyncService.ts)"] --> syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
-(characterSyncService.ts)"]
-  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
-(characterSyncService.ts)"] --> syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
-(characterSyncService.ts)"]
-  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
-(characterSyncService.ts)"] --> setLastSyncTime__src_services_characterSyncService_ts["setLastSyncTime
-(characterSyncService.ts)"]
-  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
-(characterSyncService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
-(reportError.ts)"]
-  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
-(characterSyncService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
-  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
-(characterSyncService.ts)"] --> getUserCharactersFn__src_services_apiClient_ts["getUserCharactersFn
-(apiClient.ts)"]
-  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
-(characterSyncService.ts)"] --> getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
-(characterDatabase.ts)"]
-  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
-(characterSyncService.ts)"] --> normalizeVoice__src_constants_voiceDefaults_ts["normalizeVoice
-(voiceDefaults.ts)"]
-  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
-(characterSyncService.ts)"] --> batchInsertCharacters__src_database_characterDatabase_ts["batchInsertCharacters
-(characterDatabase.ts)"]
-  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
-(characterSyncService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
-(reportError.ts)"]
-  syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
-(characterSyncService.ts)"] --> getUnsyncedCharacters__src_database_characterDatabase_ts["getUnsyncedCharacters
-(characterDatabase.ts)"]
-  syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
-(characterSyncService.ts)"] --> syncCharacterFn__src_services_apiClient_ts["syncCharacterFn
-(apiClient.ts)"]
-  syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
-(characterSyncService.ts)"] --> markCharacterSynced__src_database_characterDatabase_ts["markCharacterSynced
-(characterDatabase.ts)"]
-  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
-(characterSyncService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
-  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
-(characterSyncService.ts)"] --> getPublicCharacterFn__src_services_apiClient_ts["getPublicCharacterFn
-(apiClient.ts)"]
-  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
-(characterSyncService.ts)"] --> getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
-(characterDatabase.ts)"]
-  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
-(characterSyncService.ts)"] --> generateLocalCharacterId__src_services_characterSyncService_ts["generateLocalCharacterId
-(characterSyncService.ts)"]
-  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
-(characterSyncService.ts)"] --> batchInsertCharacters__src_database_characterDatabase_ts["batchInsertCharacters
-(characterDatabase.ts)"]
-  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
-(characterSyncService.ts)"] --> normalizeVoice__src_constants_voiceDefaults_ts["normalizeVoice
-(voiceDefaults.ts)"]
-  removeCharacterFromCloud__src_services_characterSyncService_ts["removeCharacterFromCloud
-(characterSyncService.ts)"] --> getCharacter__src_database_characterDatabase_ts["getCharacter
-(characterDatabase.ts)"]
-  removeCharacterFromCloud__src_services_characterSyncService_ts["removeCharacterFromCloud
-(characterSyncService.ts)"] --> clearCharacterCloudLink__src_database_characterDatabase_ts["clearCharacterCloudLink
-(characterDatabase.ts)"]
-  removeCharacterFromCloud__src_services_characterSyncService_ts["removeCharacterFromCloud
-(characterSyncService.ts)"] --> deleteCharacterFn__src_services_apiClient_ts["deleteCharacterFn
-(apiClient.ts)"]
-  syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
-(characterSyncService.ts)"] --> getSoftDeletedCharacters__src_database_characterDatabase_ts["getSoftDeletedCharacters
-(characterDatabase.ts)"]
-  syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
-(characterSyncService.ts)"] --> hardDeleteCharacterLocal__src_database_characterDatabase_ts["hardDeleteCharacterLocal
-(characterDatabase.ts)"]
-  syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
-(characterSyncService.ts)"] --> deleteCharacterFn__src_services_apiClient_ts["deleteCharacterFn
-(apiClient.ts)"]
-  generateChatReply__src_services_chatReplyService_ts["generateChatReply
-(chatReplyService.ts)"] --> generateReplyFn__src_config_firebaseConfig_ts["generateReplyFn
-(firebaseConfig.ts)"]
   loadDefaultAvatarBase64__src_services_defaultAvatarService_ts["loadDefaultAvatarBase64
 (defaultAvatarService.ts)"] --> loadDefaultCharacterAvatar__src_utilities_loadDefaultAvatar_ts["loadDefaultCharacterAvatar
 (loadDefaultAvatar.ts)"]
   parseResponse__src_services_imageGenerationService_ts["parseResponse
 (imageGenerationService.ts)"] --> normalizeBase64__src_services_imageGenerationService_ts["normalizeBase64
 (imageGenerationService.ts)"]
-  generateImageViaCallable__src_services_imageGenerationService_ts["generateImageViaCallable
-(imageGenerationService.ts)"] --> generateImageFn__src_config_firebaseConfig_ts["generateImageFn
-(firebaseConfig.ts)"]
   generateImageViaCallable__src_services_imageGenerationService_ts["generateImageViaCallable
 (imageGenerationService.ts)"] --> parseResponse__src_services_imageGenerationService_ts["parseResponse
 (imageGenerationService.ts)"]
@@ -312,9 +135,6 @@ graph LR
   getMostRecentMessage__src_services_messageService_ts["getMostRecentMessage
 (messageService.ts)"] --> getMostRecentMessage__src_database_messageDatabase_ts["getMostRecentMessage
 (messageDatabase.ts)"]
-  summarizeText__src_services_summarizeTextService_ts["summarizeText
-(summarizeTextService.ts)"] --> summarizeTextFn__src_config_firebaseConfig_ts["summarizeTextFn
-(firebaseConfig.ts)"]
   toUsageSnapshotPayload__src_services_usageSnapshot_ts["toUsageSnapshotPayload
 (usageSnapshot.ts)"] --> isPlanStatus__src_services_usageSnapshot_ts["isPlanStatus
 (usageSnapshot.ts)"]
@@ -343,29 +163,17 @@ graph LR
 (voiceChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
 (messageService.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
-(voiceChatService.ts)"] --> buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
-(aiChatService.ts)"]
-  sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
-(voiceChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
-(aiChatService.ts)"]
-  sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> generateVoiceReply__src_services_voiceReplyService_ts["generateVoiceReply
 (voiceReplyService.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
 (messageDatabase.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
-(voiceChatService.ts)"] --> triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
-(aiChatService.ts)"]
-  sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> queryClient__src_config_queryClient_ts["queryClient
 (queryClient.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
 (useMessages.ts)"]
-  generateVoiceReply__src_services_voiceReplyService_ts["generateVoiceReply
-(voiceReplyService.ts)"] --> generateVoiceReplyFn__src_config_firebaseConfig_ts["generateVoiceReplyFn
-(firebaseConfig.ts)"]
   createWikiLlmProvider__src_services_wikiLlmProvider_ts["createWikiLlmProvider
 (wikiLlmProvider.ts)"] --> wikiLlm__src_services_apiClient_ts["wikiLlm
 (apiClient.ts)"]
@@ -375,33 +183,195 @@ graph LR
   initWiki__src_services_wikiService_ts["initWiki
 (wikiService.ts)"] --> setupWiki__src_services_wikiService_ts["setupWiki
 (wikiService.ts)"]
-  getMessageCount__src_database_messageDatabase_ts["getMessageCount
-(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  updateCharacter__src_database_characterDatabase_ts["updateCharacter
-(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  updateCharacter__src_database_characterDatabase_ts["updateCharacter
-(characterDatabase.ts)"] --> normalizeVoice__src_constants_voiceDefaults_ts["normalizeVoice
-(voiceDefaults.ts)"]
-  updateCharacter__src_database_characterDatabase_ts["updateCharacter
-(characterDatabase.ts)"] --> toAppFormat__src_database_characterDatabase_ts["toAppFormat
+  syncAll__src_services_wikiOrchestrator_ts["syncAll
+(wikiOrchestrator.ts)"] --> getOrSpawn__src_services_wikiOrchestrator_ts["getOrSpawn
+(wikiOrchestrator.ts)"]
+  syncAll__src_services_wikiOrchestrator_ts["syncAll
+(wikiOrchestrator.ts)"] --> stop__src_services_wikiOrchestrator_ts["stop
+(wikiOrchestrator.ts)"]
+  reportWikiOpForCharacter__src_services_characterSyncService_ts["reportWikiOpForCharacter
+(characterSyncService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"] --> getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
 (characterDatabase.ts)"]
-  getMessagesForContextSummary__src_database_messageDatabase_ts["getMessagesForContextSummary
-(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  getMessagesForContextSummary__src_database_messageDatabase_ts["getMessagesForContextSummary
-(messageDatabase.ts)"] --> toGiftedChatMessage__src_database_messageDatabase_ts["toGiftedChatMessage
-(messageDatabase.ts)"]
-  pruneMessagesForCharacter__src_database_messageDatabase_ts["pruneMessagesForCharacter
-(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
-(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  bootstrapSession__src_auth_bootstrapSession_ts["bootstrapSession
-(bootstrapSession.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
+  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"] --> getWiki__src_services_wikiService_ts["getWiki
+(wikiService.ts)"]
+  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"] --> wikiSync__src_services_apiClient_ts["wikiSync
+(apiClient.ts)"]
+  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"] --> wikiOrchestrator__src_services_wikiOrchestrator_ts["wikiOrchestrator
+(wikiOrchestrator.ts)"]
+  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
+(characterSyncService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
 (googleSignin.ts)"]
+  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
+(characterSyncService.ts)"] --> syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
+(characterSyncService.ts)"]
+  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
+(characterSyncService.ts)"] --> syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
+(characterSyncService.ts)"]
+  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
+(characterSyncService.ts)"] --> syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"]
+  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
+(characterSyncService.ts)"] --> setLastSyncTime__src_services_characterSyncService_ts["setLastSyncTime
+(characterSyncService.ts)"]
+  syncAllToCloud__src_services_characterSyncService_ts["syncAllToCloud
+(characterSyncService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
+(characterSyncService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
+(googleSignin.ts)"]
+  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
+(characterSyncService.ts)"] --> getUserCharactersFn__src_services_apiClient_ts["getUserCharactersFn
+(apiClient.ts)"]
+  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
+(characterSyncService.ts)"] --> getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
+(characterDatabase.ts)"]
+  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
+(characterSyncService.ts)"] --> normalizeVoice__src_constants_voiceDefaults_ts["normalizeVoice
+(voiceDefaults.ts)"]
+  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
+(characterSyncService.ts)"] --> batchInsertCharacters__src_database_characterDatabase_ts["batchInsertCharacters
+(characterDatabase.ts)"]
+  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
+(characterSyncService.ts)"] --> syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"]
+  restoreFromCloud__src_services_characterSyncService_ts["restoreFromCloud
+(characterSyncService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
+(characterSyncService.ts)"] --> getUnsyncedCharacters__src_database_characterDatabase_ts["getUnsyncedCharacters
+(characterDatabase.ts)"]
+  syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
+(characterSyncService.ts)"] --> syncCharacterFn__src_services_apiClient_ts["syncCharacterFn
+(apiClient.ts)"]
+  syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
+(characterSyncService.ts)"] --> markCharacterSynced__src_database_characterDatabase_ts["markCharacterSynced
+(characterDatabase.ts)"]
+  syncUnsyncedToCloud__src_services_characterSyncService_ts["syncUnsyncedToCloud
+(characterSyncService.ts)"] --> reportWikiOpForCharacter__src_services_characterSyncService_ts["reportWikiOpForCharacter
+(characterSyncService.ts)"]
+  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
+(characterSyncService.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
+(googleSignin.ts)"]
+  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
+(characterSyncService.ts)"] --> getPublicCharacterFn__src_services_apiClient_ts["getPublicCharacterFn
+(apiClient.ts)"]
+  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
+(characterSyncService.ts)"] --> getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
+(characterDatabase.ts)"]
+  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
+(characterSyncService.ts)"] --> generateLocalCharacterId__src_services_characterSyncService_ts["generateLocalCharacterId
+(characterSyncService.ts)"]
+  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
+(characterSyncService.ts)"] --> batchInsertCharacters__src_database_characterDatabase_ts["batchInsertCharacters
+(characterDatabase.ts)"]
+  importSharedCharacterFromCloud__src_services_characterSyncService_ts["importSharedCharacterFromCloud
+(characterSyncService.ts)"] --> normalizeVoice__src_constants_voiceDefaults_ts["normalizeVoice
+(voiceDefaults.ts)"]
+  removeCharacterFromCloud__src_services_characterSyncService_ts["removeCharacterFromCloud
+(characterSyncService.ts)"] --> getCharacter__src_database_characterDatabase_ts["getCharacter
+(characterDatabase.ts)"]
+  removeCharacterFromCloud__src_services_characterSyncService_ts["removeCharacterFromCloud
+(characterSyncService.ts)"] --> clearCharacterCloudLink__src_database_characterDatabase_ts["clearCharacterCloudLink
+(characterDatabase.ts)"]
+  removeCharacterFromCloud__src_services_characterSyncService_ts["removeCharacterFromCloud
+(characterSyncService.ts)"] --> deleteCharacterFn__src_services_apiClient_ts["deleteCharacterFn
+(apiClient.ts)"]
+  syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
+(characterSyncService.ts)"] --> getSoftDeletedCharacters__src_database_characterDatabase_ts["getSoftDeletedCharacters
+(characterDatabase.ts)"]
+  syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
+(characterSyncService.ts)"] --> hardDeleteCharacterLocal__src_database_characterDatabase_ts["hardDeleteCharacterLocal
+(characterDatabase.ts)"]
+  syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
+(characterSyncService.ts)"] --> deleteCharacterFn__src_services_apiClient_ts["deleteCharacterFn
+(apiClient.ts)"]
+  syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
+(characterSyncService.ts)"] --> reportWikiOpForCharacter__src_services_characterSyncService_ts["reportWikiOpForCharacter
+(characterSyncService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> getSourceTypeEnumMigrationSql__src_services_wikiService_ts["getSourceTypeEnumMigrationSql
+(wikiService.ts)"]
+  buildConversationHistory__src_services_aiChatService_ts["buildConversationHistory
+(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
+(aiChatService.ts)"]
+  buildReferenceId__src_services_aiChatService_ts["buildReferenceId
+(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
+(aiChatService.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> getMessageCount__src_database_messageDatabase_ts["getMessageCount
+(messageDatabase.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> updateCharacter__src_database_characterDatabase_ts["updateCharacter
+(characterDatabase.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> getMessagesForContextSummary__src_database_messageDatabase_ts["getMessagesForContextSummary
+(messageDatabase.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> buildSummaryInput__src_services_aiChatService_ts["buildSummaryInput
+(aiChatService.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> summarizeText__src_services_summarizeTextService_ts["summarizeText
+(summarizeTextService.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> pruneMessagesForCharacter__src_database_messageDatabase_ts["pruneMessagesForCharacter
+(messageDatabase.ts)"]
+  buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
+(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
+(aiChatService.ts)"]
+  buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
+(aiChatService.ts)"] --> buildConversationHistory__src_services_aiChatService_ts["buildConversationHistory
+(aiChatService.ts)"]
+  buildIntroductionPrompt__src_services_aiChatService_ts["buildIntroductionPrompt
+(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
+(aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
+(messageService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
+(aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
+(aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> generateChatReply__src_services_chatReplyService_ts["generateChatReply
+(chatReplyService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> buildReferenceId__src_services_aiChatService_ts["buildReferenceId
+(aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
+(messageDatabase.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> toUsageSnapshot__src_services_aiChatService_ts["toUsageSnapshot
+(aiChatService.ts)"]
+  sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
+(aiChatService.ts)"] --> buildIntroductionPrompt__src_services_aiChatService_ts["buildIntroductionPrompt
+(aiChatService.ts)"]
+  sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
+(aiChatService.ts)"] --> generateChatReply__src_services_chatReplyService_ts["generateChatReply
+(chatReplyService.ts)"]
+  sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
+(aiChatService.ts)"] --> buildReferenceId__src_services_aiChatService_ts["buildReferenceId
+(aiChatService.ts)"]
+  sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
+(aiChatService.ts)"] --> saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
+(messageDatabase.ts)"]
   bootstrapSession__src_auth_bootstrapSession_ts["bootstrapSession
 (bootstrapSession.ts)"] --> runBootstrapSession__src_auth_bootstrapSession_ts["runBootstrapSession
 (bootstrapSession.ts)"]
@@ -423,6 +393,15 @@ graph LR
   createCharacter__src_database_characterDatabase_ts["createCharacter
 (characterDatabase.ts)"] --> toAppFormat__src_database_characterDatabase_ts["toAppFormat
 (characterDatabase.ts)"]
+  updateCharacter__src_database_characterDatabase_ts["updateCharacter
+(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  updateCharacter__src_database_characterDatabase_ts["updateCharacter
+(characterDatabase.ts)"] --> normalizeVoice__src_constants_voiceDefaults_ts["normalizeVoice
+(voiceDefaults.ts)"]
+  updateCharacter__src_database_characterDatabase_ts["updateCharacter
+(characterDatabase.ts)"] --> toAppFormat__src_database_characterDatabase_ts["toAppFormat
+(characterDatabase.ts)"]
   deleteCharacter__src_database_characterDatabase_ts["deleteCharacter
 (characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
@@ -430,33 +409,6 @@ graph LR
 (characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
   searchCharacters__src_database_characterDatabase_ts["searchCharacters
-(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
-(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  reportError__src_utilities_reportError_ts["reportError
-(reportError.ts)"] --> logCrashlyticsError__src_services_crashlyticsService_ts["logCrashlyticsError
-(crashlyticsService.ts)"]
-  batchInsertCharacters__src_database_characterDatabase_ts["batchInsertCharacters
-(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  batchInsertCharacters__src_database_characterDatabase_ts["batchInsertCharacters
-(characterDatabase.ts)"] --> normalizeVoice__src_constants_voiceDefaults_ts["normalizeVoice
-(voiceDefaults.ts)"]
-  getUnsyncedCharacters__src_database_characterDatabase_ts["getUnsyncedCharacters
-(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  markCharacterSynced__src_database_characterDatabase_ts["markCharacterSynced
-(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  clearCharacterCloudLink__src_database_characterDatabase_ts["clearCharacterCloudLink
-(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  getSoftDeletedCharacters__src_database_characterDatabase_ts["getSoftDeletedCharacters
-(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
-(index.ts)"]
-  hardDeleteCharacterLocal__src_database_characterDatabase_ts["hardDeleteCharacterLocal
 (characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
   getDatabase__src_database_index_ts["getDatabase
@@ -480,6 +432,9 @@ graph LR
   updateMessageText__src_database_messageDatabase_ts["updateMessageText
 (messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
+  getMessageCount__src_database_messageDatabase_ts["getMessageCount
+(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
   getLastMessage__src_database_messageDatabase_ts["getLastMessage
 (messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
@@ -501,4 +456,43 @@ graph LR
   getMostRecentMessage__src_database_messageDatabase_ts["getMostRecentMessage
 (messageDatabase.ts)"] --> toGiftedChatMessage__src_database_messageDatabase_ts["toGiftedChatMessage
 (messageDatabase.ts)"]
+  saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
+(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"] --> logCrashlyticsError__src_services_crashlyticsService_ts["logCrashlyticsError
+(crashlyticsService.ts)"]
+  getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
+(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  batchInsertCharacters__src_database_characterDatabase_ts["batchInsertCharacters
+(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  batchInsertCharacters__src_database_characterDatabase_ts["batchInsertCharacters
+(characterDatabase.ts)"] --> normalizeVoice__src_constants_voiceDefaults_ts["normalizeVoice
+(voiceDefaults.ts)"]
+  getUnsyncedCharacters__src_database_characterDatabase_ts["getUnsyncedCharacters
+(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  markCharacterSynced__src_database_characterDatabase_ts["markCharacterSynced
+(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  clearCharacterCloudLink__src_database_characterDatabase_ts["clearCharacterCloudLink
+(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  getSoftDeletedCharacters__src_database_characterDatabase_ts["getSoftDeletedCharacters
+(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  hardDeleteCharacterLocal__src_database_characterDatabase_ts["hardDeleteCharacterLocal
+(characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  getMessagesForContextSummary__src_database_messageDatabase_ts["getMessagesForContextSummary
+(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  getMessagesForContextSummary__src_database_messageDatabase_ts["getMessagesForContextSummary
+(messageDatabase.ts)"] --> toGiftedChatMessage__src_database_messageDatabase_ts["toGiftedChatMessage
+(messageDatabase.ts)"]
+  pruneMessagesForCharacter__src_database_messageDatabase_ts["pruneMessagesForCharacter
+(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
 ```

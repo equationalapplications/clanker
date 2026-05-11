@@ -3,24 +3,6 @@
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
-(useMachines.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useCharacter__src_hooks_useCharacters_ts["useCharacter
-(useCharacters.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useChatMessages__src_hooks_useMessages_ts["useChatMessages
-(useMessages.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
-(useUserCredits.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> getWiki__src_services_wikiService_ts["getWiki
-(wikiService.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"]
   CombinedSubscriptionButton__src_components_CombinedSubscriptionButton_tsx["CombinedSubscriptionButton
 (CombinedSubscriptionButton.tsx)"] --> useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
 (useCurrentPlan.ts)"]
@@ -96,42 +78,36 @@ graph LR
   UserActionPanel__src_components_admin_UserActionPanel_tsx["UserActionPanel
 (UserActionPanel.tsx)"] --> normalizeRenewalDateInput__src_components_admin_renewalDateValidation_ts["normalizeRenewalDateInput
 (renewalDateValidation.ts)"]
-  useCharacter__src_hooks_useCharacters_ts["useCharacter
-(useCharacters.ts)"] --> useCharacterMachine__src_hooks_useMachines_ts["useCharacterMachine
+  ChatComposer__src_components_ChatComposer_tsx["ChatComposer
+(ChatComposer.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
+  ChatComposer__src_components_ChatComposer_web_tsx["ChatComposer
+(ChatComposer.web.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
-  useChatMessages__src_hooks_useMessages_ts["useChatMessages
-(useMessages.ts)"] --> useMessages__src_hooks_useMessages_ts["useMessages
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useCharacter__src_hooks_useCharacters_ts["useCharacter
+(useCharacters.ts)"]
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useChatMessages__src_hooks_useMessages_ts["useChatMessages
 (useMessages.ts)"]
-  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
-(useUserCredits.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
-(useMachines.ts)"]
-  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
-(useUserCredits.ts)"] --> useAuthCredits__src_hooks_useAuthSnapshot_ts["useAuthCredits
-(useAuthSnapshot.ts)"]
-  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
-(useUserCredits.ts)"] --> requestBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["requestBootstrapRefresh
-(useBootstrapRefresh.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> useChatMessages__src_hooks_useMessages_ts["useChatMessages
-(useMessages.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
-(useMachines.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> isPlanTier__src_hooks_useAIChat_ts["isPlanTier
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
+(useUserCredits.ts)"]
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> SUBSCRIPTION_TIERS__src_config_constants_ts["SUBSCRIPTION_TIERS
-(constants.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
-(useMessages.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> usageSnapshotFromError__src_services_usageSnapshot_ts["usageSnapshotFromError
-(usageSnapshot.ts)"]
+  ComingSoonCard__src_components_LandingPage_ComingSoonSection_tsx["ComingSoonCard
+(ComingSoonSection.tsx)"] --> useFloatingCardAnimation__src_hooks_useFloatingCardAnimation_ts["useFloatingCardAnimation
+(useFloatingCardAnimation.ts)"]
+  FeatureCard__src_components_LandingPage_FeaturesSection_tsx["FeatureCard
+(FeaturesSection.tsx)"] --> useFloatingCardAnimation__src_hooks_useFloatingCardAnimation_ts["useFloatingCardAnimation
+(useFloatingCardAnimation.ts)"]
   useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
 (useCurrentPlan.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
@@ -150,6 +126,15 @@ graph LR
   writeConsent__src_utilities_cookieConsentStorage_web_ts["writeConsent
 (cookieConsentStorage.web.ts)"] --> getStorage__src_utilities_cookieConsentStorage_web_ts["getStorage
 (cookieConsentStorage.web.ts)"]
+  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
+(useUserCredits.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
+(useMachines.ts)"]
+  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
+(useUserCredits.ts)"] --> useAuthCredits__src_hooks_useAuthSnapshot_ts["useAuthCredits
+(useAuthSnapshot.ts)"]
+  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
+(useUserCredits.ts)"] --> requestBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["requestBootstrapRefresh
+(useBootstrapRefresh.ts)"]
   useBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["useBootstrapRefresh
 (useBootstrapRefresh.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
@@ -160,12 +145,6 @@ graph LR
 (makePackagePurchase.ts)"] --> purchaseProduct__src_config_revenueCatConfig_ts["purchaseProduct
 (revenueCatConfig.ts)"]
   makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
-(makePackagePurchase.ts)"] --> purchasePackageStripe__src_config_firebaseConfig_ts["purchasePackageStripe
-(firebaseConfig.ts)"]
-  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
-(makePackagePurchase.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
-  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
 (makePackagePurchase.ts)"] --> getCheckoutSourceTabId__src_utilities_makePackagePurchase_ts["getCheckoutSourceTabId
 (makePackagePurchase.ts)"]
   makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
@@ -174,4 +153,46 @@ graph LR
   makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
 (makePackagePurchase.ts)"] --> createCheckoutChannel__src_utilities_checkoutChannel_ts["createCheckoutChannel
 (checkoutChannel.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> wikiOrchestrator__src_services_wikiOrchestrator_ts["wikiOrchestrator
+(wikiOrchestrator.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> tailForEntity__src_hooks_useCharacterWiki_ts["tailForEntity
+(useCharacterWiki.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> waitForActorOperation__src_hooks_useCharacterWiki_ts["waitForActorOperation
+(useCharacterWiki.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> wikiSync__src_services_apiClient_ts["wikiSync
+(apiClient.ts)"]
+  useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  useCharacter__src_hooks_useCharacters_ts["useCharacter
+(useCharacters.ts)"] --> useCharacterMachine__src_hooks_useMachines_ts["useCharacterMachine
+(useMachines.ts)"]
+  useChatMessages__src_hooks_useMessages_ts["useChatMessages
+(useMessages.ts)"] --> useMessages__src_hooks_useMessages_ts["useMessages
+(useMessages.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> useChatMessages__src_hooks_useMessages_ts["useChatMessages
+(useMessages.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
+(useMachines.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> reportError__src_utilities_reportError_ts["reportError
+(reportError.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
+(useMessages.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> usageSnapshotFromError__src_services_usageSnapshot_ts["usageSnapshotFromError
+(usageSnapshot.ts)"]
 ```

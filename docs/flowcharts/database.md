@@ -78,9 +78,6 @@ graph LR
   initializeDatabase__src_database_index_ts["initializeDatabase
 (index.ts)"] --> applyInitializationPlan__src_database_index_ts["applyInitializationPlan
 (index.ts)"]
-  initializeDatabase__src_database_index_ts["initializeDatabase
-(index.ts)"] --> initWiki__src_services_wikiService_ts["initWiki
-(wikiService.ts)"]
   applyInitializationPlan__src_database_index_ts["applyInitializationPlan
 (index.ts)"] --> runMigrations__src_database_index_ts["runMigrations
 (index.ts)"]
@@ -168,7 +165,4 @@ graph LR
   pruneMessagesForCharacter__src_database_messageDatabase_ts["pruneMessagesForCharacter
 (messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
-  initWiki__src_services_wikiService_ts["initWiki
-(wikiService.ts)"] --> setupWiki__src_services_wikiService_ts["setupWiki
-(wikiService.ts)"]
 ```
