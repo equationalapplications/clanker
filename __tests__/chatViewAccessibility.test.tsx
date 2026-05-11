@@ -10,9 +10,6 @@
 import React from 'react'
 import { create, act } from 'react-test-renderer'
 
-/** Matches the setInterval period used by ChatView's wiki-status poller. */
-const WIKI_STATUS_POLL_INTERVAL_MS = 5000
-
 // ── Gifted-Chat ─────────────────────────────────────────────────────────────
 let capturedGiftedChatProps: any = null
 
@@ -109,18 +106,28 @@ jest.mock('~/hooks/useAIChat', () => ({
   useAIChat: () => ({ sendMessage: jest.fn() }),
 }))
 
+let mockCreditsData: { totalCredits: number; hasUnlimited: boolean } = { totalCredits: 10, hasUnlimited: true }
 jest.mock('~/hooks/useUserCredits', () => ({
-  useUserCredits: () => ({ data: { totalCredits: 10, hasUnlimited: true } }),
+  useUserCredits: () => ({ data: mockCreditsData }),
 }))
 
 // ── Child components / services ───────────────────────────────────────────────
 jest.mock('~/components/CharacterAvatar', () => () => null)
 jest.mock('~/components/ChatComposer', () => () => null)
 
-jest.mock('@equationalapplications/expo-llm-wiki', () => ({
-  WikiBusyError: class WikiBusyError extends Error {},
-  useWiki: jest.fn(() => null),
-  useWikiWrite: jest.fn(() => ({ execute: jest.fn() })),
+let mockWikiStatus = { ingesting: false, librarian: false, heal: false }
+jest.mock('~/hooks/useCharacterWiki', () => ({
+  useCharacterWiki: () => ({
+    status: mockWikiStatus,
+    isBusy: false,
+    error: null,
+    read: jest.fn(),
+    write: jest.fn(),
+    ingest: jest.fn(),
+    forget: jest.fn(),
+    sync: jest.fn(),
+    hasChanged: jest.fn(),
+  }),
 }))
 
 // ── SUT ───────────────────────────────────────────────────────────────────────
@@ -155,15 +162,12 @@ describe('ChatView accessibility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     capturedGiftedChatProps = null
+    mockWikiStatus = { ingesting: false, librarian: false, heal: false }
     mockPlatformOS = 'android'
+    mockCreditsData = { totalCredits: 10, hasUnlimited: true }
     withLoggedInUser()
   })
 
-  afterEach(() => {
-    // Ensure fake timers are always cleaned up if a test leaves them in place
-    jest.clearAllTimers()
-    jest.useRealTimers()
-  })
 
   // ── loading state ─────────────────────────────────────────────────────────
   it('loading state: accessible with polite live region and "Loading character" label', () => {
@@ -231,27 +235,30 @@ describe('ChatView accessibility', () => {
   // ── wiki status region ────────────────────────────────────────────────────
   it('wiki status region: has polite live region when ingestion is active', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
-    const mockWikiInstance = {
-      getEntityStatus: jest.fn().mockReturnValue({ ingesting: true, librarian: false }),
-    }
-    const mockUseWiki = jest.requireMock('@equationalapplications/expo-llm-wiki').useWiki
-    mockUseWiki.mockReturnValue(mockWikiInstance)
-
-    jest.useFakeTimers()
+    mockWikiStatus = { ingesting: true, librarian: false, heal: false }
     let tree: any
     act(() => { tree = create(<ChatView characterId="char-1" />) })
-    // Advance past the 5 s interval so wikiStatus state updates
-    act(() => { jest.advanceTimersByTime(WIKI_STATUS_POLL_INTERVAL_MS) })
 
     const allViews = tree.root.findAll((n: any) => n.type === 'View')
     const wikiRegion = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
 
     expect(wikiRegion).toBeDefined()
-
-    // Unmount inside act to flush cleanup effects (clearInterval), then drain
-    // remaining timers before afterEach restores real timers.
     act(() => { tree.unmount() })
-    jest.clearAllTimers()
+  })
+
+  // ── wiki status region (free tier) ────────────────────────────────────────
+  it('wiki status region: renders status banner for free-tier users', () => {
+    mockCreditsData = { totalCredits: 0, hasUnlimited: false }
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+    mockWikiStatus = { ingesting: true, librarian: false, heal: false }
+    let tree: any
+    act(() => { tree = create(<ChatView characterId="char-1" />) })
+
+    const allTexts = tree.root.findAll((n: any) => n.type === 'Text')
+    const ingestingText = allTexts.find((t: any) => t.props.accessibilityLabel === 'Ingesting document')
+    expect(ingestingText).toBeDefined()
+
+    act(() => { tree.unmount() })
   })
 
   // ── web platform: status role on loading states ────────────────────────────
@@ -350,6 +357,16 @@ describe('ChatView accessibility', () => {
     expect(capturedGiftedChatProps.minInputToolbarHeight).toBe(56)
   })
 
+  it('does not use interval polling for wiki status updates', () => {
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+    const setIntervalSpy = jest.spyOn(globalThis, 'setInterval')
+
+    act(() => { create(<ChatView characterId="char-1" />) })
+
+    expect(setIntervalSpy).not.toHaveBeenCalled()
+    setIntervalSpy.mockRestore()
+  })
+
   it('renderSend produces a child element with primaryContainer background', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
 
@@ -361,4 +378,3 @@ describe('ChatView accessibility', () => {
     expect(sendElement).toBeDefined()
   })
 })
-

@@ -152,7 +152,6 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
     runPrune: jest.fn().mockResolvedValue(undefined),
     isPending: false,
   })),
-  useWikiExport: jest.fn(() => ({ execute: jest.fn().mockResolvedValue({ generatedAt: Date.now(), entities: { 'char-1': { facts: [], tasks: [], events: [] } } }), isPending: false })),
 }))
 jest.mock('~/services/apiClient', () => ({
   wikiSync: jest.fn().mockResolvedValue({ data: {} }),
@@ -164,6 +163,29 @@ import EditCharacterScreen from '../app/(drawer)/(tabs)/characters/[id]/edit'
 const mockWikiSync = jest.requireMock('~/services/apiClient').wikiSync as jest.Mock
 const mockUseWiki = jest.requireMock('@equationalapplications/expo-llm-wiki').useWiki as jest.Mock
 const mockWikiInstance = { importDump: jest.fn().mockResolvedValue(undefined) }
+const mockCharacterWikiSync = jest.fn(async (...args: unknown[]) => {
+  try {
+    await mockWikiSync(...args)
+    return { success: true, message: 'Memory synced to cloud.' }
+  } catch {
+    return { success: false, message: 'Failed to sync memory. Check your connection and try again.' }
+  }
+})
+
+jest.mock('~/hooks/useCharacterWiki', () => ({
+  useCharacterWiki: jest.fn(() => ({
+    status: { ingesting: false, librarian: false, heal: false },
+    isBusy: false,
+    isIngesting: false,
+    error: null,
+    read: jest.fn(),
+    write: jest.fn(),
+    ingest: jest.fn(),
+    forget: jest.fn(),
+    sync: (...args: unknown[]) => mockCharacterWikiSync(...args),
+    hasChanged: jest.fn(),
+  })),
+}))
 
 const mockUseCharacter = jest.mocked(useCharacter)
 const mockUseUpdateCharacter = jest.mocked(useUpdateCharacter)
@@ -203,6 +225,7 @@ beforeEach(() => {
   mockAlertAlert.mockReset()
   mockUpdate.mockReset()
   mockWikiSync.mockReset()
+  mockCharacterWikiSync.mockClear()
   mockWikiSync.mockResolvedValue({ data: { remoteDump: { generatedAt: Date.now(), entities: { 'cloud-id-1': { facts: [], tasks: [], events: [] } } } } })
   mockUseWiki.mockReturnValue(mockWikiInstance)
   mockWikiInstance.importDump.mockResolvedValue(undefined)

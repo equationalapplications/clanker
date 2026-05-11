@@ -5,13 +5,13 @@ import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-cha
 import { IconButton, Portal, Snackbar, useTheme } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
 import * as Crypto from 'expo-crypto'
-import { useWikiIngest, useWikiHasChanged, useWikiForget, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
     userId?: string
-    hasUnlimited?: boolean
   }
 
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
@@ -20,15 +20,13 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   textInputProps,
   characterId,
   userId,
-  hasUnlimited,
   ...props
 }: ChatComposerProps<TMessage>) {
   const { colors, roundness } = useTheme()
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
-  const { execute: ingestDocument, isPending: isIngesting } = useWikiIngest()
-  const { execute: hasChanged } = useWikiHasChanged()
-  const { execute: forgetBySource } = useWikiForget()
+  const characterWiki = useCharacterWiki(characterId ?? '')
+  const { hasChanged, forget, ingest, isIngesting } = characterWiki
 
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
@@ -60,15 +58,15 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         documentChunk,
       )
 
-      const changed = await hasChanged(characterId, sourceRef, sourceHash)
+      const changed = await hasChanged(sourceRef, sourceHash)
       if (!changed) {
         setToastMessage(`"${sourceRef}" is already up to date.`)
         return
       }
 
-      await forgetBySource(characterId, { sourceRef })
+      await forget({ sourceRef })
 
-      const ingestResult = await ingestDocument(characterId, {
+      const ingestResult = await ingest({
         sourceRef,
         sourceHash,
         documentChunk,
@@ -83,7 +81,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         setToastMessage('Failed to ingest document.')
       }
     }
-  }, [characterId, userId, ingestDocument, hasChanged, forgetBySource])
+  }, [characterId, userId, hasChanged, forget, ingest])
 
   const sendCurrentText = useCallback(() => {
     const trimmedText = text?.trim()
@@ -93,7 +91,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [onSend, text])
 
-  const showPlusButton = hasUnlimited && Boolean(characterId) && Boolean(userId)
+  const showPlusButton = Boolean(characterId) && Boolean(userId)
 
   return (
     <View style={styles.container}>

@@ -1,13 +1,13 @@
 import { useCallback, useState } from 'react'
 import { IMessage } from 'react-native-gifted-chat'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSelector } from '@xstate/react'
 import { sendMessageWithAIResponse, Character } from '~/services/aiChatService'
 import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usageSnapshotFromError } from '~/services/usageSnapshot'
-import { PLAN_TIERS, SUBSCRIPTION_TIERS, type PlanTier } from '~/config/constants'
-import { useWiki, useWikiWrite, formatContext } from '@equationalapplications/expo-llm-wiki'
+import { formatContext, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { reportError } from '~/utilities/reportError'
 
 interface UseAIChatProps {
   characterId: string
@@ -22,12 +22,6 @@ interface UseAIChatReturn {
   error: string | null
 }
 
-const ALL_PLAN_TIERS = Object.values(PLAN_TIERS)
-
-const isPlanTier = (value: unknown): value is PlanTier => {
-  return typeof value === 'string' && ALL_PLAN_TIERS.includes(value as PlanTier)
-}
-
 /**
  * Hook for AI-powered chat with automatic response generation
  * Enhanced with React Query for offline support and optimistic updates
@@ -36,34 +30,26 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const messages = useChatMessages({ id: characterId, userId })
   const queryClient = useQueryClient()
   const authService = useAuthMachine()
-  const subscription = useSelector(authService, (state) => state.context.subscription)
   const [error, setError] = useState<string | null>(null)
-  const hasUnlimited =
-    subscription?.planStatus === 'active' &&
-    isPlanTier(subscription.planTier) &&
-    SUBSCRIPTION_TIERS.includes(subscription.planTier)
 
-  const wiki = useWiki()
-  const { execute: writeObservation } = useWikiWrite()
+  const characterWiki = useCharacterWiki(character.id)
 
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
     mutationFn: async (message: IMessage) => {
       let memoryBlock: string | undefined
-      if (hasUnlimited && wiki) {
-        try {
-          const bundle = await wiki.read(character.id, message.text)
-          if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
-        } catch (err) {
-          console.warn('[wiki] memory read failed:', err)
-        }
+      try {
+        const bundle = await characterWiki.read(message.text)
+        if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
+      } catch (err) {
+        if (!(err instanceof WikiBusyError)) reportError(err, `wiki:${character.id}:read`)
       }
-      const onWriteObservation = hasUnlimited && wiki
-        ? (characterId: string, text: string) => {
-            void writeObservation(characterId, { event_type: 'observation', summary: text })
-              .catch((err: unknown) => console.warn('[wiki] write failed:', err))
-          }
-        : undefined
+      // _characterId parameter maintained for aiChatService contract compatibility
+      const onWriteObservation = (_characterId: string, text: string) => {
+        void characterWiki.write(text).catch((err: unknown) => {
+          if (!(err instanceof WikiBusyError)) reportError(err, `wiki:${character.id}:write`)
+        })
+      }
       return sendMessageWithAIResponse(message, character, userId, messages, {
         memoryBlock,
         onWriteObservation,

@@ -1,6 +1,5 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
-import { useSelector } from '@xstate/react'
 import { useAIChat } from '~/hooks/useAIChat'
 
 const mockSendMessageWithAIResponse = jest.fn()
@@ -10,10 +9,9 @@ const mockCancelQueries = jest.fn()
 const mockGetQueryData = jest.fn()
 const mockSetQueryData = jest.fn()
 const mockSend = jest.fn()
-
-jest.mock('@xstate/react', () => ({
-  useSelector: jest.fn(),
-}))
+const mockReportError = jest.fn()
+const mockCharacterWikiRead = jest.fn().mockResolvedValue(null)
+const mockCharacterWikiWrite = jest.fn().mockResolvedValue(undefined)
 
 jest.mock('@tanstack/react-query', () => ({
   useMutation: ({ mutationFn, onSuccess, onError }: any) => ({
@@ -59,26 +57,30 @@ jest.mock('~/services/usageSnapshot', () => ({
 
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
-  useWiki: jest.fn(() => ({ read: jest.fn().mockResolvedValue(null) })),
-  useWikiWrite: jest.fn(() => ({ execute: jest.fn() })),
   formatContext: jest.fn((bundle) => '[MEMORY]\nFacts:\n[/MEMORY]'),
+}))
+
+jest.mock('~/hooks/useCharacterWiki', () => ({
+  useCharacterWiki: jest.fn(() => ({
+    status: { ingesting: false, librarian: false, heal: false },
+    isBusy: false,
+    error: null,
+    read: (...args: unknown[]) => mockCharacterWikiRead(...args),
+    write: (...args: unknown[]) => mockCharacterWikiWrite(...args),
+    ingest: jest.fn(),
+    forget: jest.fn(),
+    sync: jest.fn(),
+    hasChanged: jest.fn(),
+  })),
+}))
+
+jest.mock('~/utilities/reportError', () => ({
+  reportError: (...args: unknown[]) => mockReportError(...args),
 }))
 
 type HookValue = ReturnType<typeof useAIChat>
 
-const mockUseSelector = useSelector as jest.Mock
-
-function renderUseAIChat(
-  subscription: { planTier: string | null; planStatus: string | null },
-): HookValue {
-  mockUseSelector.mockImplementation((_service: unknown, selector: (state: any) => unknown) =>
-    selector({
-      context: {
-        subscription,
-      },
-    }),
-  )
-
+function renderUseAIChat(): HookValue {
   let hookValue: HookValue | null = null
 
   function Probe() {
@@ -113,13 +115,36 @@ describe('useAIChat', () => {
     jest.clearAllMocks()
     mockUseChatMessages.mockReturnValue([])
     mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null })
+    mockCharacterWikiRead.mockResolvedValue(null)
+    mockCharacterWikiWrite.mockResolvedValue(undefined)
   })
 
-  it('passes hasUnlimited=true for active monthly subscribers', async () => {
-    const hook = renderUseAIChat({
-      planTier: 'monthly_20',
-      planStatus: 'active',
+  it('reads wiki memory and provides write callback for free-tier users', async () => {
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-free',
+        text: 'Hi there',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
     })
+
+    expect(mockCharacterWikiRead).toHaveBeenCalledWith('Hi there')
+    expect(mockSendMessageWithAIResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: 'msg-free' }),
+      expect.objectContaining({ id: 'char-1' }),
+      'user-1',
+      [],
+      expect.objectContaining({
+        onWriteObservation: expect.any(Function),
+      }),
+    )
+  })
+
+  it('provides write callback when sending a message', async () => {
+    const hook = renderUseAIChat()
 
     await act(async () => {
       await hook.sendMessage({
@@ -139,5 +164,90 @@ describe('useAIChat', () => {
         onWriteObservation: expect.any(Function),
       }),
     )
+  })
+  it('reports non-busy wiki read errors with wiki:read context', async () => {
+    mockCharacterWikiRead.mockRejectedValue(new Error('read failed'))
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-read-1',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:char-1:read')
+  })
+
+  it('does not report WikiBusyError from wiki read', async () => {
+    const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
+    mockCharacterWikiRead.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-read-2',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    expect(mockReportError).not.toHaveBeenCalled()
+  })
+
+  it('reports non-busy wiki observation write errors with wiki:write context', async () => {
+    const writeError = new Error('write failed')
+    mockCharacterWikiWrite.mockRejectedValue(writeError)
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-write-1',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    const sendCall = mockSendMessageWithAIResponse.mock.calls[0]
+    const opts = sendCall[4] as { onWriteObservation?: (id: string, text: string) => void }
+    expect(opts.onWriteObservation).toEqual(expect.any(Function))
+
+    await act(async () => {
+      opts.onWriteObservation!('char-1', 'observation text')
+      // onWriteObservation returns void and attaches .catch on a microtask; flush so reportError runs
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockReportError).toHaveBeenCalledWith(writeError, 'wiki:char-1:write')
+  })
+
+  it('does not report WikiBusyError from wiki observation write', async () => {
+    const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
+    mockCharacterWikiWrite.mockRejectedValue(new WikiBusyError('ingest', 'char-1'))
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-write-2',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    const sendCall = mockSendMessageWithAIResponse.mock.calls[0]
+    const opts = sendCall[4] as { onWriteObservation?: (id: string, text: string) => void }
+    await act(async () => {
+      opts.onWriteObservation!('char-1', 'observation text')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockReportError).not.toHaveBeenCalled()
   })
 })

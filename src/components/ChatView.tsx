@@ -2,7 +2,7 @@ import { router, Stack } from 'expo-router'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps } from 'react-native-gifted-chat'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useChatMessages } from '~/hooks/useMessages'
@@ -12,7 +12,7 @@ import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import ChatComposer from '~/components/ChatComposer'
-import { useWiki } from '@equationalapplications/expo-llm-wiki'
+import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
@@ -33,19 +33,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
   const hasUnlimited = creditsData?.hasUnlimited || false
   const { colors, roundness } = useTheme()
 
-  const [wikiStatus, setWikiStatus] = useState({ ingesting: false, librarian: false })
-  const wiki = useWiki()
-  useEffect(() => {
-    if (!hasUnlimited) {
-      setWikiStatus({ ingesting: false, librarian: false })
-      return
-    }
-    if (!wiki) return
-    const interval = setInterval(() => {
-      setWikiStatus(wiki.getEntityStatus(characterId))
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [characterId, hasUnlimited, wiki])
+  const { status: wikiStatus } = useCharacterWiki(characterId)
 
   const { sendMessage } = useAIChat({
     characterId,
@@ -145,9 +133,9 @@ export default function ChatView({ characterId }: ChatViewProps) {
     // GiftedChat currently passes full internal input toolbar props to renderComposer,
     // including onSend from SendProps in addition to ComposerProps.
     (props: ComposerProps & Pick<SendProps<IMessage>, 'onSend'>) => (
-      <ChatComposer {...props} characterId={characterId} userId={currentUserId ?? undefined} hasUnlimited={hasUnlimited} />
+      <ChatComposer {...props} characterId={characterId} userId={currentUserId ?? undefined} />
     ),
-    [characterId, currentUserId, hasUnlimited],
+    [characterId, currentUserId],
   )
 
   if (characterLoading) {
