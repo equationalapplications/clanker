@@ -1,5 +1,5 @@
 // todo: use one-tap https://react-native-google-signin.github.io/docs/one-tap
-import { GoogleSignin } from '@react-native-google-signin/google-signin'
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin'
 import { getAuth, signInWithCredential, GoogleAuthProvider } from '@react-native-firebase/auth'
 import { syncDisplayNameFromCredential } from './syncDisplayName'
 
@@ -31,6 +31,7 @@ export const initializeGoogleSignIn = () => {
 
 export interface GoogleSignInResult {
   success: boolean
+  cancelled?: boolean
   error?: string
 }
 
@@ -42,7 +43,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     // Get the users ID token
     const response = await GoogleSignin.signIn()
 
-    console.log('🔍 Google Sign-In response:', JSON.stringify(response, null, 2))
+    console.log('🔍 Google Sign-In response received (idToken redacted)')
 
     // Extract ID token from the response - check different possible locations
     const idToken = response.data?.idToken || (response as any).idToken
@@ -78,13 +79,13 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     console.error('Google Sign-In Error:', error)
 
     // Handle specific error cases
-    if (error.code === 'statusCodes.SIGN_IN_CANCELLED') {
-      return { success: false, error: 'Sign in was cancelled' }
+    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      return { success: false, cancelled: true, error: 'Sign-in was cancelled' }
     }
-    if (error.code === 'statusCodes.IN_PROGRESS') {
+    if (error.code === statusCodes.IN_PROGRESS) {
       return { success: false, error: 'Sign in is already in progress' }
     }
-    if (error.code === 'statusCodes.PLAY_SERVICES_NOT_AVAILABLE') {
+    if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
       return { success: false, error: 'Play services not available or outdated' }
     }
 
