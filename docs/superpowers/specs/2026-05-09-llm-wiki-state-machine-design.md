@@ -1,7 +1,7 @@
 # LLM Wiki State Machine + v4 Upgrade Design
 
 **Date:** 2026-05-09
-**Status:** Phase 3 in PR review (#372). Phases 1, 2a, 2b, 2c merged to staging.
+**Status:** Implemented
 **Owner:** equationalapplications
 
 ## Problem
@@ -23,7 +23,7 @@ Package v4.1.0 introduces `subscribeEntityStatus` (issue #8, released), `runPrun
 
 - Upgrade to `@equationalapplications/expo-llm-wiki@4.1.0`.
 - Per-character XState `wikiMachine` actor managing all wiki operations for that entity.
-- Replace 5s status polling with `subscribeEntityStatus` where available; fall back to `getEntityStatus` polling for tests and partial-upgrade environments.
+- Replace 5s status polling with `subscribeEntityStatus` (required since Phase 5).
 - Drop the `hasUnlimited` gate on memory read/write/ingest. `hasUnlimited` continues to gate paid features (subscribe redirect, cloud sync); only memory operations are ungated.
 - Tight mobile-first prune defaults; lower librarian threshold; auto-heal via package threshold.
 - Centralized error reporting via `reportError`.
@@ -50,7 +50,7 @@ app/_layout.tsx
 SyncAllItem: { entityId, runRemoteSync: (dump: MemoryDump) => Promise<MemoryDump | null> }
 
 wikiMachine (XState v5, one actor per character)
-  input: { entityId, wiki, busyRetryDelayMs?, statusPollIntervalMs? }
+  input: { entityId, wiki, busyRetryDelayMs? }
   context: {
     entityId: string
     wiki: Wiki
@@ -62,12 +62,10 @@ wikiMachine (XState v5, one actor per character)
     pendingEvents: WikiSerializedEvent[]
     currentEvent: WikiSerializedEvent | null
     busyRetryDelayMs: number     // default 1000
-    statusPollIntervalMs: number // default 5000; 0 = initial only
   }
   root-level invoked actor: subscribeStatus (fromCallback)
-    → uses subscribeEntityStatus(entityId, cb) if available on wiki instance
-    → falls back to getEntityStatus polling at statusPollIntervalMs
-    → reports error if neither API is available
+    → uses subscribeEntityStatus(entityId, cb) (required on Wiki)
+    → reports error if subscribeEntityStatus is not a function at runtime
   root-level event handlers (queuing path):
     STATUS → assign context.status (always handled)
     READ/WRITE/INGEST/SYNC/FORGET → enqueue to pendingEvents when not idle
@@ -106,11 +104,11 @@ The `SYNC` event carries a `runRemoteSync` callback instead of a `cloudId` strin
 { type: 'SYNC', runRemoteSync: (dump: MemoryDump) => Promise<MemoryDump | null> }
 ```
 
-### Status subscription fallback
+### Status subscription
 
-`subscribeEntityStatus` shipped in `expo-llm-wiki@4.1.0`, but the `Wiki` type still marks it as optional for forward compatibility with tests, older bundles, and partial upgrades. When unavailable, the machine falls back to `getEntityStatus` polling at `statusPollIntervalMs` (default 5000ms; `0` = initial status only, no repeating timer). If neither API exists, the machine reports via `reportError` and runs without status updates.
+`subscribeEntityStatus` is required on the `Wiki` type since Phase 5 (`expo-llm-wiki@4.1.0` is the minimum version). The machine uses it directly via a `fromCallback` actor. If `subscribeEntityStatus` is not a function at runtime (e.g. a misconfigured test mock), the machine reports via `reportError` and runs without status updates.
 
-**Phase 5 cleanup:** Once `expo-llm-wiki` minimum is `>=4.1.0` in production, drop the optional typing and the polling fallback branch.
+> **Historical note:** Before Phase 5, `subscribeEntityStatus` was typed as optional and the machine included a `getEntityStatus` polling fallback at a configurable `statusPollIntervalMs`. That fallback and the associated input/context field were removed in PR #374.
 
 ### Hooks
 
@@ -139,7 +137,7 @@ export function useCharacterWiki(entityId: string) {
 }
 ```
 
-`useCharacterWikiSync` — standalone hook used by the character edit screen (`characters/[id]/edit.tsx`) for manual one-off sync. Bypasses the orchestrator and calls `wiki.exportDump`/`wiki.importDump` directly. **Phase 5 cleanup candidate:** migrate this to `useCharacterWiki.sync()` and delete the standalone hook.
+`useCharacterWikiSync` was removed in Phase 5. The character edit screen now uses `useCharacterWiki(entityId).sync(cloudEntityId)` for manual sync.
 
 ## Data Flow
 
@@ -155,15 +153,15 @@ useAIChat.sendMessage
 ```
 
 ### Status path
-`subscribeStatus` (fromCallback) invoked once at machine creation; dispatches `STATUS` events updating `context.status`. `ChatView` reads `useCharacterWiki(charId).status` for the banner. When `subscribeEntityStatus` is available: no polling, immediate updates. When falling back to `getEntityStatus`: polls at `statusPollIntervalMs`.
+`subscribeStatus` (fromCallback) invoked once at machine creation; uses `subscribeEntityStatus` to dispatch `STATUS` events updating `context.status`. `ChatView` reads `useCharacterWiki(charId).status` for the banner. No polling — immediate updates via subscription.
 
 ### Sync path (premium, cloud-linked)
 
 Two code paths use sync:
 
-1. **Background sync** (`characterSyncService.syncWikiForCloud`): Triggered by `syncAllToCloud` on startup and network reconnect. Iterates cloud-linked characters sequentially (concurrency=1), calling `wikiOrchestrator.syncAll` per character. The `runRemoteSync` callback remaps local↔cloud entity IDs and calls the `wikiSync` cloud function.
+1. **Background sync** (`characterSyncService.syncWikiForCloud`): Triggered by `syncAllToCloud` on startup and network reconnect. Batches all cloud-linked characters into a single `wikiOrchestrator.syncAll` call with concurrency=2. The `runRemoteSync` callback remaps local↔cloud entity IDs and calls the `wikiSync` cloud function.
 
-2. **Manual sync** (`useCharacterWikiSync` in character edit screen): Direct `exportDump`/`importDump` bypass, not orchestrator-based. Phase 5 cleanup candidate.
+2. **Manual sync** (`useCharacterWiki.sync()` in character edit screen): Routes through the orchestrator via the hook's `sync(cloudEntityId)` method. (Before Phase 5, a standalone `useCharacterWikiSync` hook bypassed the orchestrator with direct `exportDump`/`importDump` — now removed.)
 
 Cloud sync is gated on `save_to_cloud + cloud_id` UUID at the call site (`characterSyncService`), not in the orchestrator or machine.
 
@@ -197,8 +195,8 @@ Unchanged user flow (`+` button → `DocumentPicker`). Goes through `useCharacte
 - Memory writes/reads/ingest never gated on subscription state.
 - Cloud sync gated on `save_to_cloud + cloud_id` UUID — enforced at the call site in `characterSyncService.syncWikiForCloud`, not in the orchestrator or machine.
 - All errors flow through `reportError(err, 'wiki:<entityId>:<op>')` for non-WikiBusyError.
-- **TODO (no owning task yet):** Machine actor stopped when character soft-deleted (after `forget(clearAll)`). Needs wiring into the character soft-delete flow — track as Phase 5 or standalone issue.
-- `subscribeEntityStatus` / polling fallback unsubscribed on machine stop.
+- Machine actor stopped when character soft-deleted: `characterMachine`'s `deleteCharacterActor` calls `wikiOrchestrator.stop(entityId)` after DB soft-delete. Note: `forget(clearAll)` is not called — wiki entries are cleaned up by prune defaults (`orphanAfterDays: 14`, `pruneRetainSoftDeletedFor: 3`).
+- `subscribeEntityStatus` unsubscribed on machine stop.
 
 ## Phases & PRs
 
@@ -214,22 +212,22 @@ v3→v4 migration: `source_type` enum values renamed (`user_document` → `immut
 - **P2c:** Replace `console.warn('[wiki]…')` with `reportError`. `WikiBusyError` discrimination. No behavior change. **Status:** Merged (#368).
 
 ### Phase 3 — Wire call-sites (sequential, after P2a + P2b)
-**Status:** In PR review (#372).
-**1 PR.** Replace package-hook calls in `ChatView`, `ChatComposer`, `useAIChat`, `characterSyncService.syncWikiForCloud` to go through `useCharacterWiki(entityId)` / `wikiOrchestrator`. Delete 5s polling in `ChatView`. Route `syncWikiForCloud` through `wikiOrchestrator.syncAll` (sequential per-character, concurrency=1).
-
-**Scope note:** `useCharacterWikiSync` (used by character edit screen) is **not** migrated in Phase 3 — it remains a direct `exportDump`/`importDump` path. Migration to orchestrator is Phase 5 cleanup.
+**Status:** Merged (#372).
+**1 PR.** Replace package-hook calls in `ChatView`, `ChatComposer`, `useAIChat`, `characterSyncService.syncWikiForCloud` to go through `useCharacterWiki(entityId)` / `wikiOrchestrator`. Delete 5s polling in `ChatView`. Route `syncWikiForCloud` through `wikiOrchestrator.syncAll`.
 
 ### Phase 4 — Enhancements (parallel, after P3)
-- **P4a:** Batch sync concurrency — change `syncWikiForCloud` from sequential per-character `syncAll` calls (concurrency=1) to a single `syncAll` call with all cloud-linked characters and concurrency=2. Add network-reconnect and startup trigger wiring. Validate against `wikiSync` cloud function for race conditions.
-- **P4b:** Memory inspector UI — `/settings/memory/[characterId]` route listing facts/tasks/events with delete via `wiki.forget`.
+**Status:** Merged (#373).
+- **P4a:** Batch sync concurrency — single `syncAll` call with all cloud-linked characters and concurrency=2. Network-reconnect and startup trigger wiring.
+- **P4b:** Memory inspector UI — `/characters/[id]/memory` route listing facts/tasks/events with delete via `wiki.forget`. Includes `useMemoryBundle` hook and "View Memory" button on edit screen.
 
 ### Phase 5 — Cleanup (sequential, last)
+**Status:** Merged (#374).
 **1 PR.**
-- Remove `useCharacterWikiSync` standalone hook; migrate character edit screen to `useCharacterWiki.sync()`.
-- Wire `wikiOrchestrator.stop(entityId)` into character soft-delete flow.
-- Drop `subscribeEntityStatus` optional typing and polling fallback (once `expo-llm-wiki` minimum is `>=4.1.0`).
-- Remove any remaining unused hooks.
-- Update `AGENTS.md`, add architecture doc reference.
+- Removed `useCharacterWikiSync` standalone hook; edit screen uses `useCharacterWiki.sync()`.
+- Wired `wikiOrchestrator.stop(entityId)` into character soft-delete flow (`characterMachine`).
+- Made `subscribeEntityStatus` required on `Wiki` type; removed polling fallback.
+- Deleted unused `useWikiExport` hook.
+- Added `docs/WIKI_ARCHITECTURE.md` with README link.
 
 ## Testing
 
@@ -245,13 +243,13 @@ v3→v4 migration: `source_type` enum values renamed (`user_document` → `immut
 - **v3 → v4 migration:** Schema changes possible. P1 must verify `wiki.setup()` migrates existing on-device data without loss. Block landing P1 until validated on a populated test DB. **Resolution:** Idempotent SQL migration implemented; validated.
 - **Subscription leak:** `subscribeEntityStatus` must unsubscribe on actor stop. Test-cover this. **Resolution:** Covered in wikiMachine tests (actor stop unsubscribes).
 - **Free-tier load:** Memory ops now run for all users; LLM calls for librarian still cost credits. Confirm `wikiLlmProvider` accounting handles the increased volume, or scope librarian to premium if cost is prohibitive. **Status: Unresolved — needs validation after P2b lands in production.**
-- **Concurrent sync:** `syncWikiForCloud` previously serial; Phase 4a's concurrency=2 may surface race conditions in `wikiSync` cloud function. Validate before P4a lands.
+- **Concurrent sync:** `syncWikiForCloud` previously serial; Phase 4a's concurrency=2 may surface race conditions in `wikiSync` cloud function. **Resolution:** Validated and merged in PR #373.
 
 ## Open Questions
 
-1. **Free-tier librarian cost:** With `autoLibrarianThreshold: 5` and memory ungated, librarian LLM calls will increase significantly. Has `wikiLlmProvider` credit accounting been validated for the increased volume? If cost is prohibitive, should librarian be scoped to premium?
-2. **`useCharacterWikiSync` migration timing:** The standalone hook bypasses the orchestrator. Is Phase 5 the right time to migrate the character edit screen, or should it happen sooner?
-3. **Actor stop on character delete:** No phase currently wires `wikiOrchestrator.stop(entityId)` into the soft-delete flow. Assign to Phase 5 or track as a standalone issue?
+1. **Free-tier librarian cost:** With `autoLibrarianThreshold: 5` and memory ungated, librarian LLM calls will increase significantly. Has `wikiLlmProvider` credit accounting been validated for the increased volume? If cost is prohibitive, should librarian be scoped to premium? **Status: Unresolved — needs production validation.**
+2. ~~**`useCharacterWikiSync` migration timing:**~~ **Resolved in Phase 5 (PR #374).** Hook removed; edit screen uses `useCharacterWiki.sync()`.
+3. ~~**Actor stop on character delete:**~~ **Resolved in Phase 5 (PR #374).** `characterMachine`'s `deleteCharacterActor` calls `wikiOrchestrator.stop(entityId)` after DB soft-delete.
 
 ---
 
@@ -280,7 +278,6 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - `pendingEvents: WikiSerializedEvent[]` - Queue for serializing operations (READ, WRITE, INGEST, SYNC, FORGET)
 - `currentEvent: WikiSerializedEvent | null` - Currently processing event (for re-enqueue on busy)
 - `busyRetryDelayMs: number` - Delay before retrying after WikiBusyError (default 1000)
-- `statusPollIntervalMs: number` - Polling interval when subscribeEntityStatus unavailable (default 5000; 0 = initial only)
 
 **States:**
 - `idle` - Ready to accept operations; flushes pending events on entry
@@ -305,7 +302,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - **Serialization:** All operations (READ, WRITE, INGEST, SYNC, FORGET) are queued via `pendingEvents` and flushed on `idle` entry to ensure consistent ordering
 - **WikiBusyError handling:** Re-enqueues operation via `requeueCurrentEvent` action, transitions to `busyRetry` for automatic retry after delay
 - **Error recovery:** `lastError` cleared on successful operations and recovery transitions
-- **Status subscription:** Uses `subscribeEntityStatus` if available; else polls `getEntityStatus` on `statusPollIntervalMs` (default 5000ms, `0` = initial only)
+- **Status subscription:** Uses `subscribeEntityStatus` (required on `Wiki`); reports via `reportError` if not a function at runtime
 - **Cleanup:** Unsubscribes from status on actor stop
 
 ### wikiOrchestrator Implementation
@@ -313,7 +310,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 **File:** `src/services/wikiOrchestrator.ts`
 
 **API:**
-- `getOrSpawn(entityId, wiki, machineOptions?): WikiActor` - Get or create actor for entity (cached); optional `busyRetryDelayMs` / `statusPollIntervalMs` apply only on first spawn
+- `getOrSpawn(entityId, wiki, machineOptions?): WikiActor` - Get or create actor for entity (cached); optional `busyRetryDelayMs` applies only on first spawn
 - `stop(entityId): void` - Stop and remove actor from cache
 - `syncAll(items, wiki, concurrency=2, timeoutMs=60000, options?): Promise<void>` - Sync multiple entities with bounded parallelism; `options.stopActorsSpawnedForBatch` stops actors that did not exist before the batch; `options.machineOptions` forwarded on spawn
 
@@ -337,10 +334,10 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 
 **File:** `src/services/wikiService.ts`
 
-Extended `Wiki` type for forward compatibility:
+Extended `Wiki` type with `subscribeEntityStatus` (required since Phase 5):
 ```typescript
 export type Wiki = BaseWiki & {
-  subscribeEntityStatus?: (
+  subscribeEntityStatus: (
     entityId: string,
     callback: (status: EntityStatus) => void,
   ) => () => void
@@ -359,7 +356,7 @@ export type Wiki = BaseWiki & {
 
 5. **cloudId parameter:** Removed from SYNC event. SYNC carries `runRemoteSync` callback instead; caller handles cloud↔local entity-ID remap.
 
-6. **subscribeEntityStatus:** Shipped in `@equationalapplications/expo-llm-wiki@4.1.0`. Clanker still types it as optional on `Wiki` and `wikiMachine` falls back to `getEntityStatus` polling on `statusPollIntervalMs` (default 5000ms; `0` = initial sample only) when the runtime wiki instance does not expose it (tests, older bundles, or partial upgrades). Missing both subscription and `getEntityStatus` is reported via `reportError`.
+6. **subscribeEntityStatus:** Shipped in `@equationalapplications/expo-llm-wiki@4.1.0`. Phase 5 made it required on the `Wiki` type and removed the `getEntityStatus` polling fallback. The machine still includes a defensive runtime `typeof` check and reports via `reportError` if `subscribeEntityStatus` is not a function.
 
 7. **busyRetry state:** Spec originally showed WikiBusyError going to idle with "defer + retry next tick". Implementation adds an explicit `busyRetry` state with a configurable delay (`busyRetryDelayMs`, default 1000ms) before transitioning to idle to re-flush the requeued event.
 
@@ -378,8 +375,8 @@ export type Wiki = BaseWiki & {
 - Non-busy error → error state with assigned lastError
 - STATUS event updates context.status
 - Actor stop unsubscribes from status
-- Status fallback with neither API calls `reportError` with `wiki:<id>:statusSubscription`
-- `statusPollIntervalMs: 0` polls `getEntityStatus` only once (no interval)
+- `subscribeEntityStatus` missing at runtime calls `reportError` with `wiki:<id>:statusSubscription`
+- `subscribeEntityStatus` non-function at runtime calls `reportError`
 
 **wikiOrchestrator.test.ts:**
 - getOrSpawn returns same actor for repeat entityId
