@@ -25,7 +25,7 @@ jest.mock('~/services/apiClient', () => ({
 }))
 
 import { renderHook } from '@testing-library/react'
-import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { useCharacterWiki, _resetCharacterWikiEntityQueuesForTests } from '~/hooks/useCharacterWiki'
 import { useWiki } from '@equationalapplications/expo-llm-wiki'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 
@@ -35,6 +35,7 @@ const mockGetOrSpawn = jest.mocked(wikiOrchestrator.getOrSpawn)
 describe('useCharacterWiki', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    _resetCharacterWikiEntityQueuesForTests()
   })
 
   test('returns null operations when wiki is unavailable', async () => {

@@ -79,10 +79,21 @@ async function setLastSyncTime(): Promise<void> {
     }
 }
 
+type SyncWikiForCloudOptions = {
+  /**
+   * Tag for `reportError` when `wikiOrchestrator.syncAll` fails at the pipeline level
+   * (distinct from periodic background sync vs restore-from-cloud).
+   */
+  pipelineErrorReportTag?: string
+}
+
 /**
  * Export local wiki memory for cloud characters and sync to cloud.
  */
-async function syncWikiForCloud(localUserId: string): Promise<void> {
+async function syncWikiForCloud(
+  localUserId: string,
+  options?: SyncWikiForCloudOptions,
+): Promise<void> {
     const localChars = await getAllCharactersIncludingDeleted(localUserId)
     const cloudChars = localChars.filter(
         (c) => c.save_to_cloud && c.cloud_id && UUID_REGEX.test(c.cloud_id) && !c.deleted_at
@@ -127,6 +138,8 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
         }
     })
 
+    const pipelineTag = options?.pipelineErrorReportTag ?? 'wiki:sync:batch'
+
     try {
         await wikiOrchestrator.syncAll(items, wiki, 2)
     } catch (pipelineErr) {
@@ -134,8 +147,8 @@ async function syncWikiForCloud(localUserId: string): Promise<void> {
             return
         }
         // Orchestrator-level error (e.g., timeout, internal failure).
-        // Per-character errors are already reported inside runRemoteSync.
-        reportError(pipelineErr, 'wiki:sync:batch')
+        // Per-entity failures are surfaced via the wiki machine / actor error path.
+        reportError(pipelineErr, pipelineTag)
     }
 }
 
@@ -228,7 +241,9 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
             )
             if (cloudLinked.length > 0) {
                 try {
-                    await syncWikiForCloud(localUserId)
+                    await syncWikiForCloud(localUserId, {
+                        pipelineErrorReportTag: 'wiki:sync:restore',
+                    })
                 } catch (error) {
                     reportError(error, 'wiki:sync:restore')
                 }

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useWiki, WikiBusyError, type EntityStatus , MemoryDump } from '@equationalapplications/expo-llm-wiki'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useWiki, WikiBusyError, type EntityStatus, type MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import type { IngestArgs, ForgetArgs } from '~/machines/wikiMachine'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import { wikiSync } from '~/services/apiClient'
@@ -8,6 +8,31 @@ import { reportError } from '~/utilities/reportError'
 type CharacterWikiOperation = 'reading' | 'writing' | 'ingesting' | 'forgetting' | 'syncing'
 
 const DEFAULT_OPERATION_TIMEOUT_MS = 60_000
+
+const emptyOperationTail = (): Record<CharacterWikiOperation, Promise<void>> => ({
+  reading: Promise.resolve(),
+  writing: Promise.resolve(),
+  ingesting: Promise.resolve(),
+  forgetting: Promise.resolve(),
+  syncing: Promise.resolve(),
+})
+
+/** Per-entity queues so concurrent hook instances share one serialized chain per op. */
+const entityOperationQueues = new Map<string, Record<CharacterWikiOperation, Promise<void>>>()
+
+function tailForEntity(entityId: string) {
+  let tail = entityOperationQueues.get(entityId)
+  if (!tail) {
+    tail = emptyOperationTail()
+    entityOperationQueues.set(entityId, tail)
+  }
+  return tail
+}
+
+/** For tests only — clears cross-hook serialization state. */
+export function _resetCharacterWikiEntityQueuesForTests() {
+  entityOperationQueues.clear()
+}
 
 /**
  * Waits for an actor to complete a specific operation. Rejects if the operation
@@ -24,7 +49,7 @@ function waitForActorOperation(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let seenOperation = false
-    let timeoutId: NodeJS.Timeout | null = null
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
     const current = actor.getSnapshot()
     
     const cleanup = (sub: ReturnType<typeof actor.subscribe>) => {
@@ -82,26 +107,9 @@ export function useCharacterWiki(entityId: string) {
     [entityId, wiki],
   )
   
-  // Serialize operations of the same type (e.g., consecutive reads) to prevent
-  // out-of-order completion. The machine already serializes cross-type operations.
-  const operationQueues = useRef<Record<CharacterWikiOperation, Promise<void>>>({
-    reading: Promise.resolve(),
-    writing: Promise.resolve(),
-    ingesting: Promise.resolve(),
-    forgetting: Promise.resolve(),
-    syncing: Promise.resolve(),
-  })
   const [snapshot, setSnapshot] = useState(() => actor?.getSnapshot() ?? null)
 
   useEffect(() => {
-    // Reset operation queues when actor changes to avoid cross-entity serialization
-    operationQueues.current = {
-      reading: Promise.resolve(),
-      writing: Promise.resolve(),
-      ingesting: Promise.resolve(),
-      forgetting: Promise.resolve(),
-      syncing: Promise.resolve(),
-    }
     setSnapshot(actor?.getSnapshot() ?? null)
     if (!actor) return
     const sub = actor.subscribe((next) => setSnapshot(next))
@@ -110,15 +118,16 @@ export function useCharacterWiki(entityId: string) {
 
   const runSerialized = useCallback(
     <T,>(operation: CharacterWikiOperation, run: () => Promise<T>): Promise<T> => {
-      const previous = operationQueues.current[operation]
+      const tail = tailForEntity(entityId)
+      const previous = tail[operation]
       const next = previous.then(run, run)
-      operationQueues.current[operation] = next.then(
+      tail[operation] = next.then(
         () => undefined,
         () => undefined,
       )
       return next
     },
-    [],
+    [entityId],
   )
 
   const read = useCallback(async (query: string) => {
