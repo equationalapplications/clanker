@@ -8,6 +8,14 @@ export function useMemoryBundle(entityId: string) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const fetchGenerationRef = useRef(0)
+  const prevEntityIdRef = useRef(entityId)
+  const prevWikiRef = useRef(wiki)
+
+  if (prevEntityIdRef.current !== entityId || prevWikiRef.current !== wiki) {
+    prevEntityIdRef.current = entityId
+    prevWikiRef.current = wiki
+    fetchGenerationRef.current += 1
+  }
 
   const fetch = useCallback(async () => {
     const gen = ++fetchGenerationRef.current
