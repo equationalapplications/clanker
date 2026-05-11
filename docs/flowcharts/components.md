@@ -1,4 +1,4 @@
-# components call graph
+# components call graph + import fallback
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid

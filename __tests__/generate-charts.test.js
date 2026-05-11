@@ -70,7 +70,8 @@ describe('renderMermaid', () => {
   })
   it('returns empty-graph notice when no edges', () => {
     const result = renderMermaid('machines', [])
-    expect(result).toContain('_No call edges found')
+    expect(result).toContain('_No edges found for this module._')
+    expect(result).toContain('httpsCallable()')
   })
   it('uses custom title when provided', () => {
     const edges = [

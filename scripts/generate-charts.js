@@ -61,7 +61,7 @@ function renderMermaid(moduleName, edges, title) {
   ].join('\n')
 
   if (edges.length === 0) {
-    return header + '_No call edges found for this module._\n' + footer + '\n'
+    return header + '_No edges found for this module._\n' + footer + '\n'
   }
 
   const lines = edges.map(
@@ -214,8 +214,16 @@ function main() {
       const importEdges = buildImportEdgeSet(importRows)
 
       const edges = [...callEdges, ...importEdges]
-      const title =
-        callEdges.length === 0 ? `${mod.name} import dependencies` : `${mod.name} call graph`
+      let title
+      if (edges.length === 0) {
+        title = `${mod.name} (no edges)`
+      } else if (callEdges.length === 0) {
+        title = `${mod.name} import dependencies`
+      } else if (importEdges.length === 0) {
+        title = `${mod.name} call graph`
+      } else {
+        title = `${mod.name} call graph + import fallback`
+      }
       const content = renderMermaid(mod.name, edges, title)
       const outPath = `${OUT_DIR}/${mod.name}.md`
       fs.writeFileSync(outPath, content, 'utf8')
