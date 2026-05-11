@@ -3,6 +3,30 @@
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
+  ChatComposer__src_components_ChatComposer_tsx["ChatComposer
+(ChatComposer.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
+  ChatComposer__src_components_ChatComposer_web_tsx["ChatComposer
+(ChatComposer.web.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
+(useMachines.ts)"]
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useCharacter__src_hooks_useCharacters_ts["useCharacter
+(useCharacters.ts)"]
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useChatMessages__src_hooks_useMessages_ts["useChatMessages
+(useMessages.ts)"]
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
+(useUserCredits.ts)"]
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
+(useCharacterWiki.ts)"]
+  ChatView__src_components_ChatView_tsx["ChatView
+(ChatView.tsx)"] --> useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"]
   CombinedSubscriptionButton__src_components_CombinedSubscriptionButton_tsx["CombinedSubscriptionButton
 (CombinedSubscriptionButton.tsx)"] --> useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
 (useCurrentPlan.ts)"]
@@ -48,6 +72,12 @@ graph LR
   CreditsDisplay__src_components_CreditsDisplay_tsx["CreditsDisplay
 (CreditsDisplay.tsx)"] --> makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
 (makePackagePurchase.ts)"]
+  ComingSoonCard__src_components_LandingPage_ComingSoonSection_tsx["ComingSoonCard
+(ComingSoonSection.tsx)"] --> useFloatingCardAnimation__src_hooks_useFloatingCardAnimation_ts["useFloatingCardAnimation
+(useFloatingCardAnimation.ts)"]
+  FeatureCard__src_components_LandingPage_FeaturesSection_tsx["FeatureCard
+(FeaturesSection.tsx)"] --> useFloatingCardAnimation__src_hooks_useFloatingCardAnimation_ts["useFloatingCardAnimation
+(useFloatingCardAnimation.ts)"]
   HeroSection__src_components_LandingPage_HeroSection_tsx["HeroSection
 (HeroSection.tsx)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
@@ -78,81 +108,6 @@ graph LR
   UserActionPanel__src_components_admin_UserActionPanel_tsx["UserActionPanel
 (UserActionPanel.tsx)"] --> normalizeRenewalDateInput__src_components_admin_renewalDateValidation_ts["normalizeRenewalDateInput
 (renewalDateValidation.ts)"]
-  ChatComposer__src_components_ChatComposer_tsx["ChatComposer
-(ChatComposer.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
-(useCharacterWiki.ts)"]
-  ChatComposer__src_components_ChatComposer_web_tsx["ChatComposer
-(ChatComposer.web.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
-(useCharacterWiki.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
-(useMachines.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useCharacter__src_hooks_useCharacters_ts["useCharacter
-(useCharacters.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useChatMessages__src_hooks_useMessages_ts["useChatMessages
-(useMessages.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
-(useUserCredits.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
-(useCharacterWiki.ts)"]
-  ChatView__src_components_ChatView_tsx["ChatView
-(ChatView.tsx)"] --> useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"]
-  ComingSoonCard__src_components_LandingPage_ComingSoonSection_tsx["ComingSoonCard
-(ComingSoonSection.tsx)"] --> useFloatingCardAnimation__src_hooks_useFloatingCardAnimation_ts["useFloatingCardAnimation
-(useFloatingCardAnimation.ts)"]
-  FeatureCard__src_components_LandingPage_FeaturesSection_tsx["FeatureCard
-(FeaturesSection.tsx)"] --> useFloatingCardAnimation__src_hooks_useFloatingCardAnimation_ts["useFloatingCardAnimation
-(useFloatingCardAnimation.ts)"]
-  useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
-(useCurrentPlan.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
-(useMachines.ts)"]
-  useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
-(useCurrentPlan.ts)"] --> isPlanTier__src_hooks_useCurrentPlan_ts["isPlanTier
-(useCurrentPlan.ts)"]
-  useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
-(useCurrentPlan.ts)"] --> SUBSCRIPTION_TIERS__src_config_constants_ts["SUBSCRIPTION_TIERS
-(constants.ts)"]
-  readConsent__src_utilities_cookieConsentStorage_web_ts["readConsent
-(cookieConsentStorage.web.ts)"] --> getStorage__src_utilities_cookieConsentStorage_web_ts["getStorage
-(cookieConsentStorage.web.ts)"]
-  readConsent__src_utilities_cookieConsentStorage_web_ts["readConsent
-(cookieConsentStorage.web.ts)"] --> isRecord__src_utilities_cookieConsentStorage_web_ts["isRecord
-(cookieConsentStorage.web.ts)"]
-  writeConsent__src_utilities_cookieConsentStorage_web_ts["writeConsent
-(cookieConsentStorage.web.ts)"] --> getStorage__src_utilities_cookieConsentStorage_web_ts["getStorage
-(cookieConsentStorage.web.ts)"]
-  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
-(useUserCredits.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
-(useMachines.ts)"]
-  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
-(useUserCredits.ts)"] --> useAuthCredits__src_hooks_useAuthSnapshot_ts["useAuthCredits
-(useAuthSnapshot.ts)"]
-  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
-(useUserCredits.ts)"] --> requestBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["requestBootstrapRefresh
-(useBootstrapRefresh.ts)"]
-  useBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["useBootstrapRefresh
-(useBootstrapRefresh.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
-(useMachines.ts)"]
-  useBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["useBootstrapRefresh
-(useBootstrapRefresh.ts)"] --> requestBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["requestBootstrapRefresh
-(useBootstrapRefresh.ts)"]
-  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
-(makePackagePurchase.ts)"] --> purchaseProduct__src_config_revenueCatConfig_ts["purchaseProduct
-(revenueCatConfig.ts)"]
-  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
-(makePackagePurchase.ts)"] --> getCheckoutSourceTabId__src_utilities_makePackagePurchase_ts["getCheckoutSourceTabId
-(makePackagePurchase.ts)"]
-  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
-(makePackagePurchase.ts)"] --> upsertCheckoutAttempt__src_utilities_checkoutStateStore_ts["upsertCheckoutAttempt
-(checkoutStateStore.ts)"]
-  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
-(makePackagePurchase.ts)"] --> createCheckoutChannel__src_utilities_checkoutChannel_ts["createCheckoutChannel
-(checkoutChannel.ts)"]
   useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
 (useCharacterWiki.ts)"] --> wikiOrchestrator__src_services_wikiOrchestrator_ts["wikiOrchestrator
 (wikiOrchestrator.ts)"]
@@ -174,6 +129,15 @@ graph LR
   useChatMessages__src_hooks_useMessages_ts["useChatMessages
 (useMessages.ts)"] --> useMessages__src_hooks_useMessages_ts["useMessages
 (useMessages.ts)"]
+  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
+(useUserCredits.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
+(useMachines.ts)"]
+  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
+(useUserCredits.ts)"] --> useAuthCredits__src_hooks_useAuthSnapshot_ts["useAuthCredits
+(useAuthSnapshot.ts)"]
+  useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
+(useUserCredits.ts)"] --> requestBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["requestBootstrapRefresh
+(useBootstrapRefresh.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> useChatMessages__src_hooks_useMessages_ts["useChatMessages
 (useMessages.ts)"]
@@ -195,4 +159,46 @@ graph LR
   useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> usageSnapshotFromError__src_services_usageSnapshot_ts["usageSnapshotFromError
 (usageSnapshot.ts)"]
+  useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
+(useCurrentPlan.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
+(useMachines.ts)"]
+  useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
+(useCurrentPlan.ts)"] --> isPlanTier__src_hooks_useCurrentPlan_ts["isPlanTier
+(useCurrentPlan.ts)"]
+  useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
+(useCurrentPlan.ts)"] --> SUBSCRIPTION_TIERS__src_config_constants_ts["SUBSCRIPTION_TIERS
+(constants.ts)"]
+  readConsent__src_utilities_cookieConsentStorage_web_ts["readConsent
+(cookieConsentStorage.web.ts)"] --> getStorage__src_utilities_cookieConsentStorage_web_ts["getStorage
+(cookieConsentStorage.web.ts)"]
+  readConsent__src_utilities_cookieConsentStorage_web_ts["readConsent
+(cookieConsentStorage.web.ts)"] --> isRecord__src_utilities_cookieConsentStorage_web_ts["isRecord
+(cookieConsentStorage.web.ts)"]
+  writeConsent__src_utilities_cookieConsentStorage_web_ts["writeConsent
+(cookieConsentStorage.web.ts)"] --> getStorage__src_utilities_cookieConsentStorage_web_ts["getStorage
+(cookieConsentStorage.web.ts)"]
+  useBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["useBootstrapRefresh
+(useBootstrapRefresh.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
+(useMachines.ts)"]
+  useBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["useBootstrapRefresh
+(useBootstrapRefresh.ts)"] --> requestBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["requestBootstrapRefresh
+(useBootstrapRefresh.ts)"]
+  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
+(makePackagePurchase.ts)"] --> purchaseProduct__src_config_revenueCatConfig_ts["purchaseProduct
+(revenueCatConfig.ts)"]
+  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
+(makePackagePurchase.ts)"] --> purchasePackageStripe__src_config_firebaseConfig_ts["purchasePackageStripe
+(firebaseConfig.ts)"]
+  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
+(makePackagePurchase.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
+(googleSignin.ts)"]
+  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
+(makePackagePurchase.ts)"] --> getCheckoutSourceTabId__src_utilities_makePackagePurchase_ts["getCheckoutSourceTabId
+(makePackagePurchase.ts)"]
+  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
+(makePackagePurchase.ts)"] --> upsertCheckoutAttempt__src_utilities_checkoutStateStore_ts["upsertCheckoutAttempt
+(checkoutStateStore.ts)"]
+  makePackagePurchase__src_utilities_makePackagePurchase_ts["makePackagePurchase
+(makePackagePurchase.ts)"] --> createCheckoutChannel__src_utilities_checkoutChannel_ts["createCheckoutChannel
+(checkoutChannel.ts)"]
 ```
