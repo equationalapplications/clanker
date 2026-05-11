@@ -124,7 +124,13 @@ export const renderGoogleSignInButton = (
   container: HTMLElement,
   options?: RenderButtonOptions,
 ): void => {
-  window.google?.accounts?.id?.renderButton(container, {
+  const idApi = window.google?.accounts?.id
+  if (!idApi || typeof idApi.renderButton !== 'function') {
+    throw new Error(
+      'Google Identity Services renderButton is unavailable. GIS may be partially loaded; refresh the page.',
+    )
+  }
+  idApi.renderButton(container, {
     type: 'standard',
     theme: options?.theme ?? 'filled_blue',
     size: options?.size ?? 'large',

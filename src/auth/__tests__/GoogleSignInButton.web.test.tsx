@@ -82,4 +82,13 @@ describe('GoogleSignInButton (web)', () => {
     render(<GoogleSignInButton loading />)
     await waitFor(() => expect(screen.getByTestId('google-signin-loading-overlay')).toBeTruthy())
   })
+
+  it('shows loading overlay and blocks interaction during credential exchange (onCredentialStart)', async () => {
+    render(<GoogleSignInButton loading={false} />)
+    await waitFor(() => expect(capturedHandlers).not.toBeNull())
+    act(() => capturedHandlers!.onCredentialStart())
+    expect(screen.getByTestId('google-signin-loading-overlay')).toBeTruthy()
+    act(() => capturedHandlers!.onCredentialSuccess())
+    await waitFor(() => expect(screen.queryByTestId('google-signin-loading-overlay')).toBeNull())
+  })
 })

@@ -77,7 +77,9 @@ export default function GoogleSignInButton({ onLoadingChange, loading, disabled,
     )
   }
 
-  const busy = disabled || loading
+  const credentialBusy = buttonState === 'loading'
+  const busy = disabled || loading || credentialBusy
+  const showLoadingOverlay = loading || credentialBusy
 
   return (
     <View
@@ -85,7 +87,7 @@ export default function GoogleSignInButton({ onLoadingChange, loading, disabled,
       pointerEvents={busy ? 'none' : 'auto'}
     >
       <View ref={containerRef} style={styles.container} />
-      {loading ? (
+      {showLoadingOverlay ? (
         <View style={styles.loadingOverlay} pointerEvents="none" testID="google-signin-loading-overlay">
           <ActivityIndicator />
         </View>

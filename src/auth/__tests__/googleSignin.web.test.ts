@@ -175,6 +175,22 @@ describe('googleSignin.web — handler-based FedCM API', () => {
         }),
       )
     })
+
+    it('throws when renderButton is missing so the UI can fall back instead of a blank button', async () => {
+      ;(window as any).google = {
+        accounts: {
+          id: {
+            initialize: jest.fn(({ callback }: { callback: (r: unknown) => void }) => {
+              ;(window as any).__gisCallback = callback
+            }),
+          },
+        },
+      }
+      const handlers = makeHandlers()
+      await initializeGoogleSignIn(handlers)
+      const container = document.createElement('div')
+      expect(() => renderGoogleSignInButton(container)).toThrow(/renderButton is unavailable/)
+    })
   })
 
   describe('handleCredential (GIS callback)', () => {
