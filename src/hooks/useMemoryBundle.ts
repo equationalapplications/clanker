@@ -15,6 +15,9 @@ export function useMemoryBundle(entityId: string) {
     prevEntityIdRef.current = entityId
     prevWikiRef.current = wiki
     fetchGenerationRef.current += 1
+    setBundle(null)
+    setError(null)
+    setIsLoading(true)
   }
 
   const fetch = useCallback(async () => {

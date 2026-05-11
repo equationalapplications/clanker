@@ -27,7 +27,7 @@ jest.mock('~/hooks/useCharacterWiki', () => ({
 }))
 jest.mock('react-native-paper', () => {
   const React = require('react')
-  const { View, Text } = require('react-native')
+  const { View } = require('react-native')
   const actual = jest.requireActual('react-native-paper')
   return {
     ...actual,
