@@ -1,3 +1,12 @@
+## [29.10.1](https://github.com/equationalapplications/clanker/compare/v29.10.0...v29.10.1) (2026-05-11)
+
+
+### Bug Fixes
+
+* **charts:** address Copilot review comments on generator robustness ([50791e5](https://github.com/equationalapplications/clanker/commit/50791e5d1b8fc17280f44ffe9c08b51c46e5501b))
+* **charts:** hybrid call+import fallback per file in generator ([346f9ee](https://github.com/equationalapplications/clanker/commit/346f9eecf11bee5b78348726c6d0bb8603f5da04))
+* **charts:** hybrid titles and neutral empty-state copy ([b0e55b6](https://github.com/equationalapplications/clanker/commit/b0e55b6d6e32b8670b094f7913dd5cb0ebc2ea26))
+
 # [29.10.0](https://github.com/equationalapplications/clanker/compare/v29.9.0...v29.10.0) (2026-05-11)
 
 
