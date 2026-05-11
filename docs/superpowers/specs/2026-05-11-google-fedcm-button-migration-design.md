@@ -154,7 +154,7 @@ type GoogleSignInButtonProps = {
 ### `src/machines/authMachine.ts` (modified)
 
 - The `signInProvider` actor still accepts `'google' | 'apple'`, but on web it is invoked only for `'apple'`. The web Google branch in the actor is unreachable; the actor itself stays unchanged because removing the branch on web only would force a platform conditional inside the machine, which complicates testing. The actor remains symmetric across platforms.
-- The `cancelled` flag handling and the guarded `onDone` transition added on `fix/google-fedcm-cancel-handling` stay; they continue to apply to native Google and Apple cancellations.
+- Cancellation handling: when a sign-in result has `cancelled: true` (native Google) or indicates user dismissal (Apple), the `signInProvider` actor throws an error tagged with `__userCancelledSignIn = true`. The `signingIn.onError` handler checks this flag and sets `context.error = null`, so the machine transitions to `signedOut` without surfacing an error. This applies to native Google and Apple cancellations.
 
 ### `app/sign-in.tsx` (modified)
 
@@ -193,11 +193,11 @@ type GoogleSignInButtonProps = {
 
 ### Web Apple (unchanged)
 
-User clicks Apple → `SIGN_IN` event → `signInProvider({ provider: 'apple' })` → `signInWithApple()` → AppleID popup → ID token + nonce → `signInWithCredential` → `syncDisplayNameFromCredential` → `USER_FOUND`. Cancellation: actor returns `{ cancelled: true }` → guarded `onDone` → `signedOut` with no error.
+User clicks Apple → `SIGN_IN` event → `signInProvider({ provider: 'apple' })` → `signInWithApple()` → AppleID popup → ID token + nonce → `signInWithCredential` → `syncDisplayNameFromCredential` → `USER_FOUND`. Cancellation: `signInWithApple()` returns `{ success: false, error: 'Sign-in cancelled' }` (no `cancelled` flag on `AppleSignInResult`); the `signInProvider` actor throws an error tagged with `__userCancelledSignIn = true`, which is caught by `signingIn.onError` and maps to `context.error = null` → `signedOut` with no visible error.
 
 ### iOS Google (unchanged shape, fixed bugs)
 
-User clicks Google → `SIGN_IN` → `signInProvider({ provider: 'google' })` → `signInWithGoogle()` (native) → `GoogleSignin.signIn()` → Firebase credential. Cancellation now correctly maps via `statusCodes.SIGN_IN_CANCELLED` to `{ cancelled: true }` → guarded `onDone` → `signedOut` with no alert.
+User clicks Google → `SIGN_IN` → `signInProvider({ provider: 'google' })` → `signInWithGoogle()` (native) → `GoogleSignin.signIn()` → Firebase credential. Cancellation now correctly maps via `statusCodes.SIGN_IN_CANCELLED` to `{ success: false, cancelled: true }`; the `signInProvider` actor throws an error tagged with `__userCancelledSignIn = true`, which is caught by `signingIn.onError` and maps to `context.error = null` → `signedOut` with no alert.
 
 ### Android Google (unchanged shape, fixed bugs)
 
@@ -225,19 +225,19 @@ No change.
 
 ### Web Apple (unchanged)
 
-- `popup_closed_by_user` → `cancelled: true` → guarded `onDone` → `signedOut`, no alert.
+- `popup_closed_by_user` → `{ success: false, error: 'Sign-in cancelled' }` → actor throws with `__userCancelledSignIn` → `signingIn.onError` sets `context.error = null` → `signedOut`, no alert.
 - Other errors → throw → `Alert.alert('Sign-in failed', error.message)`.
 
 ### Native Google (with bug fix)
 
-- `statusCodes.SIGN_IN_CANCELLED` → `cancelled: true` → guarded `onDone` → `signedOut`, no alert.
+- `statusCodes.SIGN_IN_CANCELLED` → `{ success: false, cancelled: true }` → actor throws with `__userCancelledSignIn` → `signingIn.onError` sets `context.error = null` → `signedOut`, no alert.
 - `statusCodes.IN_PROGRESS` → throws → `Alert.alert`.
 - `statusCodes.PLAY_SERVICES_NOT_AVAILABLE` → throws → `Alert.alert`.
 - All other errors → throws → `Alert.alert`.
 
 ### iOS Apple (unchanged)
 
-- `ERR_REQUEST_CANCELED` → `cancelled: true` → guarded `onDone` → `signedOut`, no alert.
+- `ERR_REQUEST_CANCELED` → `{ success: false, error: 'Sign-in was cancelled' }` → actor throws with `__userCancelledSignIn` → `signingIn.onError` sets `context.error = null` → `signedOut`, no alert.
 - Other errors → throws → `Alert.alert`.
 
 ### Bootstrap / sign-out (unchanged)
