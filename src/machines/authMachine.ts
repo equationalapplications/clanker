@@ -462,7 +462,7 @@ export const authMachine = createMachine(
         }
 
         if (!result.success) {
-          if ('cancelled' in result && (result as GoogleSignInResult).cancelled) {
+          if (result.cancelled) {
             const err = new Error(result.error || 'Sign-in was cancelled')
             ;(err as Error & { __userCancelledSignIn?: boolean }).__userCancelledSignIn = true
             throw err

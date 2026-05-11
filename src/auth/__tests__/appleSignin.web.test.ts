@@ -157,6 +157,7 @@ describe('appleSignin.web', () => {
     })
     const result = await signInWithApple()
     expect(result.success).toBe(false)
+    expect(result.cancelled).toBe(true)
     expect(result.error).toBe('Sign-in cancelled')
   })
 
