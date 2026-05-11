@@ -81,15 +81,42 @@ describe('googleSignin.web — handler-based FedCM API', () => {
     })
 
     it('does not inject a second <script> on repeated calls', async () => {
+      delete (window as any).google
+      resetGoogleSignInWebForTests()
+
       const addSpy = jest.spyOn(document.body, 'appendChild')
+      const origCreateElement = document.createElement.bind(document)
+      jest.spyOn(document, 'createElement').mockImplementation((tag: any, opts?: any) => {
+        const el = origCreateElement(tag, opts)
+        if (String(tag).toLowerCase() === 'script') {
+          queueMicrotask(() => {
+            ;(window as any).google = {
+              accounts: {
+                id: {
+                  initialize: jest.fn(({ callback }: { callback: (r: unknown) => void }) => {
+                    ;(window as any).__gisCallback = callback
+                  }),
+                  renderButton: jest.fn(),
+                },
+              },
+            }
+            ;(el as HTMLScriptElement).onload?.(new Event('load'))
+          })
+        }
+        return el
+      })
+
       const handlers = makeHandlers()
       await initializeGoogleSignIn(handlers)
       await initializeGoogleSignIn(handlers)
+
       const scriptCalls = addSpy.mock.calls.filter(
         (args) => (args[0] as HTMLElement).tagName === 'SCRIPT',
       )
-      expect(scriptCalls.length).toBeLessThanOrEqual(1)
+      expect(scriptCalls.length).toBe(1)
+
       addSpy.mockRestore()
+      jest.restoreAllMocks()
     })
 
     it('rejects when EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is missing', async () => {

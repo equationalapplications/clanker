@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, type ViewStyle } from 'react-native'
+import { ActivityIndicator, View, Text, StyleSheet, type ViewStyle } from 'react-native'
 import ProviderButton from '~/auth/AuthProviderButton'
 import { initializeGoogleSignIn, renderGoogleSignInButton } from '~/auth/googleSignin.web'
 
@@ -7,12 +7,14 @@ type ButtonState = 'idle' | 'loading' | 'error'
 
 type Props = {
   onLoadingChange?: (loading: boolean) => void
+  /** Auth machine busy states (initializing / signingIn / bootstrapping); shows overlay on web. */
+  loading?: boolean
   /** Disables interaction while another provider sign-in is in flight (e.g. Apple). */
   disabled?: boolean
   style?: ViewStyle
 }
 
-export default function GoogleSignInButton({ onLoadingChange, disabled, style }: Props) {
+export default function GoogleSignInButton({ onLoadingChange, loading, disabled, style }: Props) {
   const containerRef = useRef<View>(null)
   const [buttonState, setButtonState] = useState<ButtonState>('idle')
   const [initFailed, setInitFailed] = useState(false)
@@ -75,12 +77,19 @@ export default function GoogleSignInButton({ onLoadingChange, disabled, style }:
     )
   }
 
+  const busy = disabled || loading
+
   return (
     <View
-      style={[styles.wrap, disabled && styles.wrapDisabled, style]}
-      pointerEvents={disabled ? 'none' : 'auto'}
+      style={[styles.wrap, busy && styles.wrapDisabled, style]}
+      pointerEvents={busy ? 'none' : 'auto'}
     >
       <View ref={containerRef} style={styles.container} />
+      {loading ? (
+        <View style={styles.loadingOverlay} pointerEvents="none" testID="google-signin-loading-overlay">
+          <ActivityIndicator />
+        </View>
+      ) : null}
       {buttonState === 'error' && (
         <Text style={styles.caption}>Sign-in failed. Please try again.</Text>
       )}
@@ -91,9 +100,16 @@ export default function GoogleSignInButton({ onLoadingChange, disabled, style }:
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
+    position: 'relative',
   },
   wrapDisabled: {
     opacity: 0.55,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
   },
   container: {
     minHeight: 44,

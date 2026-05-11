@@ -119,6 +119,7 @@ export default function SignIn() {
                 style={styles.providerButton}
                 onLoadingChange={setGoogleBusy}
                 disabled={isLoading}
+                loading={isLoading}
               />
               {Platform.OS === 'ios' && AppleAuthentication && (
                 <AppleAuthentication.AppleAuthenticationButton

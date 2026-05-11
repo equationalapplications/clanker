@@ -1,19 +1,29 @@
 /** @jest-environment jsdom */
 
-// __DEV__ is a React Native global. Jest does not define it, so we set it here.
+// __DEV__ is a React Native global. Jest does not define it; tests set it in beforeEach.
 import {
   installGoogleIdentityConsoleFilter,
   resetGoogleIdentityConsoleFilterForTests,
 } from '../devConsoleFilters.web'
 
-;(global as any).__DEV__ = true
-
 describe('installGoogleIdentityConsoleFilter', () => {
+  const hadOriginalDev = Object.prototype.hasOwnProperty.call(globalThis, '__DEV__')
+  const originalDev = (globalThis as { __DEV__?: boolean }).__DEV__
+
+  afterAll(() => {
+    if (hadOriginalDev) {
+      ;(globalThis as { __DEV__?: boolean }).__DEV__ = originalDev
+      return
+    }
+    delete (globalThis as { __DEV__?: boolean }).__DEV__
+  })
+
   let originalError: typeof console.error
   let originalWarn: typeof console.warn
   let errorSink: jest.Mock
 
   beforeEach(() => {
+    ;(globalThis as { __DEV__?: boolean }).__DEV__ = true
     originalError = console.error
     originalWarn = console.warn
     errorSink = jest.fn()

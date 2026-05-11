@@ -4,13 +4,15 @@ import ProviderButton from '~/auth/AuthProviderButton'
 import { useAuthMachine } from '~/hooks/useMachines'
 
 type Props = {
-  /** Web-only; ignored on native (use auth machine `signingIn` for loading). */
+  /** FedCM credential exchange (web only); native ignores. */
   onLoadingChange?: (loading: boolean) => void
+  /** Auth machine busy states (initializing / signingIn / bootstrapping). */
+  loading?: boolean
   disabled?: boolean
   style?: ViewStyle
 }
 
-export default function GoogleSignInButton({ disabled, style }: Props) {
+export default function GoogleSignInButton({ disabled, loading, style }: Props) {
   const authService = useAuthMachine()
 
   const onPress = () => {
@@ -18,7 +20,13 @@ export default function GoogleSignInButton({ disabled, style }: Props) {
   }
 
   return (
-    <ProviderButton style={style} type="google" onPress={onPress} disabled={disabled}>
+    <ProviderButton
+      style={style}
+      type="google"
+      onPress={onPress}
+      disabled={disabled}
+      loading={loading}
+    >
       Google
     </ProviderButton>
   )

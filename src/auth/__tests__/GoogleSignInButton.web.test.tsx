@@ -77,4 +77,9 @@ describe('GoogleSignInButton (web)', () => {
       expect(screen.getByText(/Google Sign-In unavailable/)).toBeTruthy()
     })
   })
+
+  it('shows loading overlay when loading prop is true', async () => {
+    render(<GoogleSignInButton loading />)
+    await waitFor(() => expect(screen.getByTestId('google-signin-loading-overlay')).toBeTruthy())
+  })
 })
