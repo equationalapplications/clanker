@@ -82,7 +82,6 @@ const handleCredential = async (response: any): Promise<void> => {
 
     handlers.onCredentialSuccess()
   } catch (error: unknown) {
-    console.warn('Google Sign-In credential exchange failed:', error)
     handlers.onCredentialError(error instanceof Error ? error : new Error(String(error)))
   }
 }
