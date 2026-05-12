@@ -12,6 +12,7 @@ declare global {
 
 export interface AppleSignInResult {
   success: boolean
+  cancelled?: boolean
   error?: string
 }
 
@@ -123,7 +124,7 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
     return { success: true }
   } catch (error: any) {
     if (error?.error === 'popup_closed_by_user') {
-      return { success: false, error: 'Sign-in cancelled' }
+      return { success: false, cancelled: true, error: 'Sign-in cancelled' }
     }
     console.error('Apple Sign-In failed:', error)
     return { success: false, error: error?.error || error?.message || 'Apple Sign-In failed' }

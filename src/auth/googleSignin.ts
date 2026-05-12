@@ -1,5 +1,4 @@
-// todo: use one-tap https://react-native-google-signin.github.io/docs/one-tap
-import { GoogleSignin } from '@react-native-google-signin/google-signin'
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin'
 import { getAuth, signInWithCredential, GoogleAuthProvider } from '@react-native-firebase/auth'
 import { syncDisplayNameFromCredential } from './syncDisplayName'
 
@@ -31,6 +30,7 @@ export const initializeGoogleSignIn = () => {
 
 export interface GoogleSignInResult {
   success: boolean
+  cancelled?: boolean
   error?: string
 }
 
@@ -39,37 +39,32 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     // Check if your device supports Google Play
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true })
 
-    // Get the users ID token
     const response = await GoogleSignin.signIn()
 
-    console.log('🔍 Google Sign-In response:', JSON.stringify(response, null, 2))
+    if (response.type === 'cancelled') {
+      return { success: false, cancelled: true, error: 'Sign-in was cancelled' }
+    }
 
-    // Extract ID token from the response - check different possible locations
-    const idToken = response.data?.idToken || (response as any).idToken
+    console.log('🔍 Google Sign-In response received (idToken redacted)')
+
+    const idToken = response.data.idToken
 
     if (!idToken) {
-      console.error('❌ No ID token in response:', response)
+      console.error('❌ No ID token in response')
       return { success: false, error: 'No ID token received from Google' }
     }
 
-    console.log('✅ Got ID token, signing in with Firebase...')
-
-    // Create Google credential using React Native Firebase
     const googleCredential = GoogleAuthProvider.credential(idToken)
-
-    // Sign in to Firebase with the Google credential
     const userCredential = await signInWithCredential(getAuth(), googleCredential)
 
-    const givenName = response.data?.user?.givenName?.trim() || ''
-    const familyName = response.data?.user?.familyName?.trim() || ''
-    const googleDisplayName =
-      response.data?.user?.name?.trim() || `${givenName} ${familyName}`.trim()
+    const givenName = response.data.user?.givenName?.trim() ?? ''
+    const familyName = response.data.user?.familyName?.trim() ?? ''
+    const googleDisplayName = response.data.user?.name?.trim() || `${givenName} ${familyName}`.trim()
 
     try {
       await syncDisplayNameFromCredential(userCredential.user, googleDisplayName)
     } catch (syncError: any) {
-      // Session is already established; a failed profile sync should not surface as sign-in failure.
-      console.error('Google Sign-In display name sync failed:', syncError)
+      console.warn('Google Sign-In display name sync failed:', syncError)
     }
 
     console.log('✅ Firebase sign-in successful')
@@ -78,13 +73,13 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
     console.error('Google Sign-In Error:', error)
 
     // Handle specific error cases
-    if (error.code === 'statusCodes.SIGN_IN_CANCELLED') {
-      return { success: false, error: 'Sign in was cancelled' }
+    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      return { success: false, cancelled: true, error: 'Sign-in was cancelled' }
     }
-    if (error.code === 'statusCodes.IN_PROGRESS') {
+    if (error.code === statusCodes.IN_PROGRESS) {
       return { success: false, error: 'Sign in is already in progress' }
     }
-    if (error.code === 'statusCodes.PLAY_SERVICES_NOT_AVAILABLE') {
+    if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
       return { success: false, error: 'Play services not available or outdated' }
     }
 

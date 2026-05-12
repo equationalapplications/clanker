@@ -1,23 +1,15 @@
 import { useEffect } from 'react'
 
-import { initializeGoogleSignIn } from '~/auth/googleSignin'
+import { installGoogleIdentityConsoleFilter } from '~/utilities/devConsoleFilters.web'
 
 /**
- * Hook to initialize app services on mount (web platform)
- * - Google Sign-In (async on web)
- * - App Check for web is handled in firebaseConfig.web.ts via ReCaptchaEnterprise
+ * Hook to initialize app services on mount (web platform).
+ * - Installs the GIS console filter so GIS dev logs do not trigger Expo LogBox modals.
+ * - App Check for web is handled in firebaseConfig.web.ts via ReCaptchaEnterprise.
+ * - Google Sign-In script load + FedCM init runs in GoogleSignInButton.web on mount.
  */
 export function useInitializeApp() {
   useEffect(() => {
-    const initializeAppServices = async () => {
-      try {
-        await initializeGoogleSignIn()
-        console.log('✅ Google Sign-In initialized (Web).')
-      } catch (error) {
-        console.error('❌ Error initializing Google Sign-In (Web):', error)
-      }
-    }
-
-    initializeAppServices()
+    installGoogleIdentityConsoleFilter()
   }, [])
 }

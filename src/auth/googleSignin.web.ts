@@ -1,4 +1,4 @@
-// Web-specific Google Sign-In implementation
+// Web-specific Google Sign-In implementation — FedCM rendered button
 import { GoogleAuthProvider, getAuth, signInWithCredential } from 'firebase/auth'
 import { firebaseApp } from '~/config/firebaseConfig.web'
 import { syncDisplayNameFromCredential } from './syncDisplayName.web'
@@ -11,19 +11,17 @@ declare global {
 
 export interface GoogleSignInResult {
   success: boolean
+  cancelled?: boolean
   error?: string
 }
 
 const auth = getAuth(firebaseApp)
+
 let scriptPromise: Promise<void> | null = null
 
 const loadGoogleScript = (): Promise<void> => {
   if (scriptPromise) return scriptPromise
   const p = new Promise<void>((resolve, reject) => {
-    // Short-circuit only when the GIS `id` API is fully available. Other scripts
-    // may populate `google.accounts` partially (e.g. analytics tags, or a
-    // half-initialized GIS load), and the sign-in flow below depends on
-    // `google.accounts.id`. Falling through ensures the GIS client is loaded.
     if (window.google?.accounts?.id) {
       resolve()
       return
@@ -53,141 +51,113 @@ const loadGoogleScript = (): Promise<void> => {
   return p
 }
 
-const getClientId = (): string | null => process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || null
+export interface GoogleSignInHandlers {
+  onCredentialStart: () => void
+  onCredentialSuccess: () => void
+  onCredentialError: (error: Error) => void
+}
 
-export const initializeGoogleSignIn = async (): Promise<void> => {
-  const clientId = getClientId()
+let currentHandlers: GoogleSignInHandlers | null = null
+
+const handleCredential = async (response: any): Promise<void> => {
+  const handlers = currentHandlers
+  if (!handlers) return
+
+  if (!response?.credential) {
+    handlers.onCredentialError(new Error('No credential received from Google'))
+    return
+  }
+
+  handlers.onCredentialStart()
+
+  try {
+    const cred = GoogleAuthProvider.credential(response.credential, null)
+    const userCredential = await signInWithCredential(auth, cred)
+
+    try {
+      await syncDisplayNameFromCredential(userCredential.user)
+    } catch (syncError) {
+      console.warn('Google Sign-In display name sync failed:', syncError)
+    }
+
+    handlers.onCredentialSuccess()
+  } catch (error: unknown) {
+    handlers.onCredentialError(error instanceof Error ? error : new Error(String(error)))
+  }
+}
+
+export const initializeGoogleSignIn = async (handlers: GoogleSignInHandlers): Promise<void> => {
+  const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
   if (!clientId) {
     throw new Error(
-      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Configure it in .env locally or set it as a build-time environment variable in eas.json (see: https://docs.expo.dev/build-reference/variables/).',
+      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Configure it in .env locally or as a build-time variable in eas.json.',
     )
   }
+
   await loadGoogleScript()
+
   if (!window.google?.accounts?.id) {
     throw new Error('Google Identity Services did not load (google.accounts.id unavailable)')
   }
-}
 
-const exchangeCredential = async (idToken: string): Promise<GoogleSignInResult> => {
-  try {
-    const cred = GoogleAuthProvider.credential(idToken, null)
-    const userCredential = await signInWithCredential(auth, cred)
-    try {
-      await syncDisplayNameFromCredential(userCredential.user)
-    } catch (syncError: any) {
-      // Session is already established; a failed profile sync should not surface as sign-in failure.
-      console.error('Google Sign-In display name sync failed:', syncError)
-    }
-    return { success: true }
-  } catch (error: any) {
-    console.error('Google Sign-In credential exchange failed:', error)
-    return { success: false, error: error.message || 'Sign-in failed' }
-  }
-}
+  currentHandlers = handlers
 
-export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
-  const clientId = getClientId()
-  if (!clientId) {
-    return { success: false, error: 'Google Web Client ID not configured' }
-  }
-
-  try {
-    await loadGoogleScript()
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Google Sign-In unavailable' }
-  }
-
-  if (!window.google?.accounts?.id) {
-    return { success: false, error: 'Google Sign-In unavailable' }
-  }
-
-  /** FedCM / some browsers may not invoke the prompt listener; avoid hanging the auth machine. */
-  const PROMPT_SETTLE_TIMEOUT_MS = 180_000
-
-  return new Promise<GoogleSignInResult>((resolve) => {
-    let settled = false
-    const settle = (r: GoogleSignInResult) => {
-      if (settled) return
-      settled = true
-      clearTimeout(promptTimeout)
-      resolve(r)
-    }
-
-    const promptTimeout = setTimeout(() => {
-      settle({
-        success: false,
-        error: 'Google Sign-In timed out',
-      })
-    }, PROMPT_SETTLE_TIMEOUT_MS)
-    ;(promptTimeout as ReturnType<typeof setTimeout> & { unref?: () => void }).unref?.()
-
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response: any) => {
-        if (settled) return
-        try {
-          if (!response?.credential) {
-            settle({ success: false, error: 'No credential received' })
-            return
-          }
-          // Prompt-settle timeout only covers the FedCM / prompt phase; once we have
-          // an ID token, slow `signInWithCredential` must not lose a race to that timer.
-          clearTimeout(promptTimeout)
-
-          // Wrap exchangeCredential in Promise.race with 30s timeout for network operations
-          const EXCHANGE_TIMEOUT_MS = 30_000
-          const exchanged = await Promise.race([
-            exchangeCredential(response.credential),
-            new Promise<GoogleSignInResult>((resolve) =>
-              setTimeout(() => resolve({ success: false, error: 'Credential exchange timed out' }), EXCHANGE_TIMEOUT_MS)
-            ),
-          ])
-          settle(exchanged)
-        } catch (error: any) {
-          console.error('Google Sign-In callback exception:', error)
-          let errorMessage = error?.message
-          if (!errorMessage && error && typeof error === 'object') {
-            try {
-              errorMessage = JSON.stringify(error)
-            } catch {
-              errorMessage = String(error)
-            }
-          }
-          errorMessage = errorMessage || String(error) || 'Sign-in callback failed'
-          settle({ success: false, error: errorMessage })
-        }
-      },
-    })
-
-    window.google.accounts.id.prompt((notification: any) => {
-      if (notification?.isDismissedMoment?.()) {
-        // GIS reports `credential_returned` when the prompt closes after account
-        // selection while the async credential callback is still exchanging the ID
-        // token. Treating that as "cancelled" races with `exchangeCredential` and
-        // surfaces a false failure while sign-in succeeds.
-        if (notification.getDismissedReason?.() === 'credential_returned') {
-          return
-        }
-        settle({ success: false, error: 'Sign-in cancelled' })
-        return
-      }
-      if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
-        settle({
-          success: false,
-          error: 'Google Sign-In unavailable',
-        })
-      }
-    })
+  window.google.accounts.id.initialize({
+    client_id: clientId,
+    callback: handleCredential,
+    use_fedcm_for_button: true,
+    auto_select: false,
+    itp_support: true,
   })
 }
+
+export interface RenderButtonOptions {
+  theme?: string
+  size?: string
+  text?: string
+  shape?: string
+  width?: number
+}
+
+export const renderGoogleSignInButton = (
+  container: HTMLElement,
+  options?: RenderButtonOptions,
+): void => {
+  const idApi = window.google?.accounts?.id
+  if (!idApi || typeof idApi.renderButton !== 'function') {
+    throw new Error(
+      'Google Identity Services renderButton is unavailable. GIS may be partially loaded; refresh the page.',
+    )
+  }
+  idApi.renderButton(container, {
+    type: 'standard',
+    theme: options?.theme ?? 'filled_blue',
+    size: options?.size ?? 'large',
+    text: options?.text ?? 'signin_with',
+    shape: options?.shape ?? 'rectangular',
+    logo_alignment: 'left',
+    ...(options?.width !== undefined ? { width: options.width } : {}),
+  })
+}
+
+/**
+ * Web Google sign-in uses the FedCM GIS button (`GoogleSignInButton.web`).
+ * The auth machine still calls this symbol on web for symmetry; the UI path
+ * should not reach it.
+ */
+export const signInWithGoogle = async (): Promise<GoogleSignInResult> => ({
+  success: false,
+  error: 'Use the Google sign-in button on web',
+})
 
 export const getCurrentUser = async () => null
 
 export const signOutFromGoogle = async (): Promise<void> => {
-  // No-op on web. Firebase signOut is sufficient; authMachine no longer depends on GIS sign-out.
+  // No-op on web. Firebase signOut is sufficient.
 }
 
-/** Clears GIS script load cache between tests (Jest). */
+/** Resets script load cache and stored handlers between tests (Jest). */
 export const resetGoogleSignInWebForTests = (): void => {
   scriptPromise = null
+  currentHandlers = null
 }

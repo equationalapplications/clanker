@@ -6,6 +6,7 @@ import { syncDisplayNameFromCredential } from './syncDisplayName'
 
 export interface AppleSignInResult {
   success: boolean
+  cancelled?: boolean
   error?: string
 }
 
@@ -63,7 +64,7 @@ export const signInWithApple = async (): Promise<AppleSignInResult> => {
     console.error('Apple Sign-In Error:', error)
 
     if (error.code === 'ERR_REQUEST_CANCELED') {
-      return { success: false, error: 'Sign-in was cancelled' }
+      return { success: false, cancelled: true, error: 'Sign-in was cancelled' }
     }
 
     return { success: false, error: error.message || 'Unknown error occurred' }
