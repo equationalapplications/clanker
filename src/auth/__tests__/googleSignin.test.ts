@@ -50,7 +50,7 @@ describe('signInWithGoogle (native)', () => {
     }
   })
 
-  it('maps SIGN_IN_CANCELLED to { success: false, cancelled: true }', async () => {
+  it('maps v16 { type: "cancelled" } response to { success: false, cancelled: true }', async () => {
     ;(GoogleSignin.signIn as jest.Mock).mockResolvedValueOnce({ type: 'cancelled', data: null })
     const result = await signInWithGoogle()
     expect(result).toEqual({ success: false, cancelled: true, error: 'Sign-in was cancelled' })
