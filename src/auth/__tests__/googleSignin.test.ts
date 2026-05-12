@@ -50,9 +50,8 @@ describe('signInWithGoogle (native)', () => {
     }
   })
 
-  it('maps SIGN_IN_CANCELLED to { success: false, cancelled: true }', async () => {
-    const err = Object.assign(new Error('cancelled'), { code: '12501' })
-    ;(GoogleSignin.signIn as jest.Mock).mockRejectedValueOnce(err)
+  it('maps v16 { type: "cancelled" } response to { success: false, cancelled: true }', async () => {
+    ;(GoogleSignin.signIn as jest.Mock).mockResolvedValueOnce({ type: 'cancelled', data: null })
     const result = await signInWithGoogle()
     expect(result).toEqual({ success: false, cancelled: true, error: 'Sign-in was cancelled' })
   })
@@ -77,6 +76,7 @@ describe('signInWithGoogle (native)', () => {
 
   it('returns { success: true } on happy path, calls Firebase credential and syncs display name', async () => {
     ;(GoogleSignin.signIn as jest.Mock).mockResolvedValueOnce({
+      type: 'success',
       data: {
         idToken: 'valid-id-token',
         user: { givenName: 'Jo', familyName: 'Test', name: 'Jo Test' },
@@ -90,6 +90,7 @@ describe('signInWithGoogle (native)', () => {
 
   it('does not log the raw response payload', async () => {
     ;(GoogleSignin.signIn as jest.Mock).mockResolvedValueOnce({
+      type: 'success',
       data: {
         idToken: 'super-secret-token',
         user: { givenName: 'Jo', familyName: 'Test', name: 'Jo Test' },
