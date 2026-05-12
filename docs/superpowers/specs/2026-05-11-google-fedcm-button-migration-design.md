@@ -231,7 +231,7 @@ No change.
 
 ### iOS Apple (unchanged)
 
-- `ERR_REQUEST_CANCELED` → `{ success: false, error: 'Sign-in was cancelled' }` → actor throws with `__userCancelledSignIn` → `signingIn.onError` sets `context.error = null` → `signedOut`, no alert.
+- `ERR_REQUEST_CANCELED` → `{ success: false, cancelled: true, error: 'Sign-in was cancelled' }` → actor throws with `__userCancelledSignIn` → `signingIn.onError` sets `context.error = null` → `signedOut`, no alert.
 - Other errors → throws → `Alert.alert`.
 
 ### Bootstrap / sign-out (unchanged)

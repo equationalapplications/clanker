@@ -309,6 +309,24 @@ describe('authMachine', () => {
     actor.stop()
   })
 
+  it('transitions to signedOut with context.error null when sign-in is cancelled', async () => {
+    const { signInWithGoogle } = require('../src/auth/googleSignin')
+    signInWithGoogle.mockResolvedValue({ success: false, cancelled: true, error: 'Sign-in was cancelled' })
+
+    const actor = createActor(authMachine)
+    actor.start()
+
+    actor.send({ type: 'NO_USER_FOUND' } as any)
+    await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+
+    actor.send({ type: 'SIGN_IN', provider: 'google' } as any)
+    await waitFor(actor, (state) => state.matches('signingIn'), WAIT_OPTS)
+    await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+
+    expect(actor.getSnapshot().context.error).toBeNull()
+    actor.stop()
+  })
+
   it('calls logoutRevenueCat before firebaseSignOut on SIGN_OUT', async () => {
     const user = makeUser()
     const bootstrapData = {
