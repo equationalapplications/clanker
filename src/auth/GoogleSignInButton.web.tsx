@@ -66,8 +66,8 @@ export default function GoogleSignInButton({ onLoadingChange, loading, disabled,
 
   if (initFailed) {
     return (
-      <View style={style}>
-        <ProviderButton type="google" onPress={() => {}} disabled>
+      <View style={[styles.wrap, style]}>
+        <ProviderButton type="google" onPress={() => {}} disabled style={style}>
           Google
         </ProviderButton>
         <Text style={styles.caption}>
