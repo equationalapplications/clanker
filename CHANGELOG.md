@@ -1,3 +1,22 @@
+# [29.11.0](https://github.com/equationalapplications/clanker/compare/v29.10.1...v29.11.0) (2026-05-12)
+
+
+### Bug Fixes
+
+* **auth:** add cancelled flag to Apple sign-in results ([4d26891](https://github.com/equationalapplications/clanker/commit/4d2689180b5d1cdc384f1870b3c5d96589999faa))
+* **auth:** address Copilot review on FedCM Google sign-in PR ([4de80f1](https://github.com/equationalapplications/clanker/commit/4de80f1a4b0b5a033558890b25dac5005d894e58))
+* **auth:** handle v16 discriminated union response in GoogleSignin.signIn ([eb34d8b](https://github.com/equationalapplications/clanker/commit/eb34d8bbfcd79fba1d20445ffe6f850f3bd49abe))
+* **auth:** pass style to fallback ProviderButton in GoogleSignInButton.web ([f7b2252](https://github.com/equationalapplications/clanker/commit/f7b2252eb668bffbc26c14c7cb8e35fb21a885bb))
+* **auth:** remove duplicate console.warn from handleCredential ([175d5f4](https://github.com/equationalapplications/clanker/commit/175d5f47fb829e38acb60c59eaf8b3f208dca6c2))
+* **auth:** restore console.error in filter reset and snapshot env var ([33c3b04](https://github.com/equationalapplications/clanker/commit/33c3b04373bd14b23bdcb072fcc6beacb95e695f))
+* **auth:** use || for googleDisplayName fallback; sync spec with implementation ([c29ca8b](https://github.com/equationalapplications/clanker/commit/c29ca8bf2ff65d70c0b18b3ea839d46dfc0b74d3))
+* **auth:** web Google busy overlay and renderButton guard ([5c1fa26](https://github.com/equationalapplications/clanker/commit/5c1fa2622ddd89b6767d38771c67ffedbbccc13c))
+
+
+### Features
+
+* **auth:** fedcm gis button migration phase 1 ([e1eb76a](https://github.com/equationalapplications/clanker/commit/e1eb76a42a9289b5743ee36688781a3a94926130))
+
 ## [29.10.1](https://github.com/equationalapplications/clanker/compare/v29.10.0...v29.10.1) (2026-05-11)
 
 
