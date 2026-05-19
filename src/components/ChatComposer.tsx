@@ -81,6 +81,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     } catch (error) {
       if (error instanceof WikiBusyError) {
         setToastMessage('Memory is busy. Please try again shortly.')
+      } else if (
+        error instanceof SyntaxError ||
+        (error instanceof Error && error.message.includes('No JSON object/array found'))
+      ) {
+        setToastMessage('Failed to ingest document: AI response could not be parsed.')
       } else {
         setToastMessage('Failed to ingest document.')
       }
@@ -132,6 +137,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         }]}>
           <Composer
             {...props}
+            composerHeight={Math.max(props.composerHeight ?? 0, 72)}
             text={text}
             onInputSizeChanged={onInputSizeChanged}
             onTextChanged={onTextChanged}
@@ -215,5 +221,7 @@ const styles = StyleSheet.create({
   },
   composerWrapper: {
     flex: 1,
+    minHeight: 72,
+    marginRight: 8,
   },
 })

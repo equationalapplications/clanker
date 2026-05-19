@@ -1,5 +1,4 @@
-// src/services/wikiLlmProvider.ts
-import { wikiLlm } from './apiClient'
+import { wikiLlm, generateEmbedding } from './apiClient'
 
 interface WikiLlmRequest {
   systemPrompt: string
@@ -11,6 +10,10 @@ export function createWikiLlmProvider() {
     generateText: async ({ systemPrompt, userPrompt }: WikiLlmRequest): Promise<string> => {
       const result = await wikiLlm({ systemPrompt, userPrompt })
       return result.data.text
+    },
+    embed: async (text: string): Promise<number[]> => {
+      const result = await generateEmbedding({ text, taskType: 'RETRIEVAL_DOCUMENT' })
+      return result.data.embedding
     },
   }
 }

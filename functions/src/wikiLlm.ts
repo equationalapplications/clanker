@@ -64,7 +64,11 @@ function getTextGenerator(model = DEFAULT_MODEL) {
     const vertexAI = new VertexAI({project, location: DEFAULT_REGION});
     const generativeModel = vertexAI.getGenerativeModel({
       model,
-      generationConfig: {maxOutputTokens: MAX_OUTPUT_TOKENS},
+      generationConfig: {
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        temperature: 0,
+        responseMimeType: 'application/json',
+      },
     });
 
     const result = await generativeModel.generateContent({

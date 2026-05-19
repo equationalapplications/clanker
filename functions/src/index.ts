@@ -75,3 +75,7 @@ export {
 export {
   documentExtract,
 } from "./documentExtract.js";
+
+export {
+  generateEmbedding,
+} from "./generateEmbedding.js";
