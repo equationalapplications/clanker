@@ -2,7 +2,7 @@
 
 Date: 2026-05-19
 Status: Implemented
-Branch: fix/terms-accepted-local-not-dispatched-in-drawer-layout
+Branch: feat/wiki-embedding-provider
 PR: https://github.com/equationalapplications/clanker/pull/386
 
 **Goal:** Add vector embedding support to Clanker's wiki system via a new `generateEmbedding` Firebase callable function, enabling the `expo-llm-wiki` package's cosine similarity retrieval path.

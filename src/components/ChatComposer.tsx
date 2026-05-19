@@ -81,6 +81,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     } catch (error) {
       if (error instanceof WikiBusyError) {
         setToastMessage('Memory is busy. Please try again shortly.')
+      } else if (
+        error instanceof SyntaxError ||
+        (error instanceof Error && error.message.includes('No JSON object/array found'))
+      ) {
+        setToastMessage('Failed to ingest document: AI response could not be parsed.')
       } else {
         setToastMessage('Failed to ingest document.')
       }
