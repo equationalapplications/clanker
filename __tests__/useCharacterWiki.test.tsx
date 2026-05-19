@@ -27,7 +27,6 @@ jest.mock('~/services/apiClient', () => ({
 import { act, renderHook } from '@testing-library/react'
 import { useCharacterWiki, _resetCharacterWikiEntityQueuesForTests } from '~/hooks/useCharacterWiki'
 import { useWiki } from '@equationalapplications/expo-llm-wiki'
-import type { MemoryBundle } from '@equationalapplications/core-llm-wiki'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 
 const mockUseWiki = jest.mocked(useWiki)
@@ -48,7 +47,7 @@ describe('useCharacterWiki', () => {
   const createMockActor = ({
     lastReadResult = { facts: [], tasks: [], events: [] },
     lastIngestResult = { truncated: false, chunks: 7 },
-  }: { lastReadResult?: MemoryBundle; lastIngestResult?: { truncated: boolean; chunks: number } } = {}) => {
+  }: { lastReadResult?: { facts: unknown[]; tasks: unknown[]; events: unknown[] }; lastIngestResult?: { truncated: boolean; chunks: number } } = {}) => {
     let state = 'idle'
     let status = { ingesting: false, librarian: false, heal: false }
     let callback: ((snap: any) => void) | null = null
