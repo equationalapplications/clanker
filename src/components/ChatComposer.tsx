@@ -132,6 +132,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         }]}>
           <Composer
             {...props}
+            composerHeight={Math.max(props.composerHeight ?? 0, 72)}
             text={text}
             onInputSizeChanged={onInputSizeChanged}
             onTextChanged={onTextChanged}
@@ -215,5 +216,6 @@ const styles = StyleSheet.create({
   },
   composerWrapper: {
     flex: 1,
+    minHeight: 72,
   },
 })

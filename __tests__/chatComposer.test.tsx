@@ -12,21 +12,26 @@ jest.mock('react-native-gifted-chat', () => {
 const mockHasChanged = jest.fn().mockResolvedValue(true)
 const mockForget = jest.fn().mockResolvedValue(undefined)
 const mockIngest = jest.fn().mockResolvedValue({ chunks: 1 })
+const mockRead = jest.fn()
+const mockWrite = jest.fn()
+const mockSync = jest.fn()
+const mockUseCharacterWikiResult = {
+  status: { ingesting: false, librarian: false, heal: false },
+  isBusy: false,
+  isIngesting: false,
+  error: null,
+  read: mockRead,
+  write: mockWrite,
+  ingest: (...args: unknown[]) => mockIngest(...args),
+  forget: (...args: unknown[]) => mockForget(...args),
+  sync: mockSync,
+  hasChanged: (...args: unknown[]) => mockHasChanged(...args),
+}
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
 }))
 jest.mock('~/hooks/useCharacterWiki', () => ({
-  useCharacterWiki: () => ({
-    status: { ingesting: false, librarian: false, heal: false },
-    isBusy: false,
-    error: null,
-    read: jest.fn(),
-    write: jest.fn(),
-    ingest: (...args: unknown[]) => mockIngest(...args),
-    forget: (...args: unknown[]) => mockForget(...args),
-    sync: jest.fn(),
-    hasChanged: (...args: unknown[]) => mockHasChanged(...args),
-  }),
+  useCharacterWiki: () => mockUseCharacterWikiResult,
 }))
 
 jest.mock('expo-document-picker', () => ({
@@ -69,6 +74,13 @@ describe('ChatComposer', () => {
     mockHasChanged.mockResolvedValue(true)
     mockForget.mockResolvedValue(undefined)
     mockIngest.mockResolvedValue({ chunks: 1 })
+    mockRead.mockReset()
+    mockWrite.mockReset()
+    mockSync.mockReset()
+    mockUseCharacterWikiResult.status = { ingesting: false, librarian: false, heal: false }
+    mockUseCharacterWikiResult.isBusy = false
+    mockUseCharacterWikiResult.isIngesting = false
+    mockUseCharacterWikiResult.error = null
     capturedSnackbarProps = null
     jest.useRealTimers()
   })
@@ -265,6 +277,7 @@ describe('ChatComposer', () => {
     expect(composer.props.textInputProps.accessibilityLabel).toBe('Message input')
   })
 
+
   it('sets accessibilityLabel on input for web', () => {
     const ChatComposer = require('~/components/ChatComposer.web').default
     let tree!: ReturnType<typeof create>
@@ -337,6 +350,40 @@ describe('ChatComposer', () => {
     const plusButton = tree.root.findAll((n: any) => n.props?.__iconButtonMock === true)
     expect(plusButton.length).toBeGreaterThan(0)
     expect(plusButton[0].props.icon).toBe('plus')
+  })
+
+  it('shows an ingest spinner while memory ingest is in progress (native)', () => {
+    mockUseCharacterWikiResult.isIngesting = true
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    act(() => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const spinner = tree.root.findAll((n: any) => n.props?.accessibilityLabel === 'Adding document to memory')
+    expect(spinner.length).toBeGreaterThan(0)
+    const plusButton = tree.root.findAll((n: any) => n.props?.__iconButtonMock === true)
+    expect(plusButton.length).toBe(0)
+  })
+
+  it('shows an ingest spinner while memory ingest is in progress (web)', () => {
+    mockUseCharacterWikiResult.isIngesting = true
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    act(() => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const spinner = tree.root.findAll((n: any) => n.props?.accessibilityLabel === 'Adding document to memory')
+    expect(spinner.length).toBeGreaterThan(0)
+    const plusButton = tree.root.findAll((n: any) => n.props?.__iconButtonMock === true)
+    expect(plusButton.length).toBe(0)
   })
 
   it('delegates ingest flow through useCharacterWiki methods', async () => {

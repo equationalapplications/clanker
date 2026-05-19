@@ -79,6 +79,11 @@ export default function ChatView({ characterId }: ChatViewProps) {
           left: { color: colors.onSecondary },
           right: { color: colors.onPrimary },
         }}
+        renderMessageText={(msgProps) => (
+          <View style={{ paddingVertical: 10 }}>
+            <MessageText {...(msgProps as any)} />
+          </View>
+        )}
       />
     ),
     [colors, roundness],

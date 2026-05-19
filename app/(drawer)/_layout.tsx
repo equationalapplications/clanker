@@ -8,7 +8,8 @@ import { useSelector } from '@xstate/react'
 import { useAuthMachine, useTermsMachine } from '~/hooks/useMachines'
 import { AcceptTerms } from '~/components/AcceptTerms'
 import LoadingIndicator from '~/components/LoadingIndicator'
-import React from 'react'
+import { useEffect } from 'react'
+import { TERMS } from '~/config/termsConfig'
 
 const DRAWER_ROUTE_CONFIG: Record<string, { label: string; icon: string }> = {
   '(tabs)': { label: 'Chat', icon: 'chat' },
@@ -52,6 +53,16 @@ const AppLayout = () => {
       error: state.context.error,
     }),
   )
+
+  useEffect(() => {
+    if (termsAccepted) {
+      authService.send({
+        type: 'TERMS_ACCEPTED_LOCAL',
+        termsVersion: TERMS.version,
+        termsAcceptedAt: new Date().toISOString(),
+      })
+    }
+  }, [termsAccepted, authService])
 
   if (termsLoading) {
     return <LoadingIndicator disabled={false} />
