@@ -66,7 +66,12 @@ async function defaultEmbedder(text: string, taskType: string): Promise<number[]
   const data = await response.json() as { predictions?: [{ embeddings?: { values?: number[] } }] };
   const values = data?.predictions?.[0]?.embeddings?.values;
   if (!Array.isArray(values)) {
-    logger.error("Vertex AI returned unexpected shape", { data });
+    logger.error("Vertex AI returned unexpected shape", {
+      keys: Object.keys(data ?? {}),
+      predictionCount: Array.isArray(data?.predictions) ? data.predictions.length : undefined,
+      firstPredictionHasEmbeddings: Boolean(data?.predictions?.[0]?.embeddings),
+      firstPredictionKeys: data?.predictions?.[0] ? Object.keys(data.predictions[0] as Record<string, unknown>) : undefined,
+    });
     throw new HttpsError("internal", "Failed to generate embedding.");
   }
   return values;
