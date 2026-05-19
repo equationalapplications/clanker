@@ -93,6 +93,26 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
   const showPlusButton = Boolean(characterId) && Boolean(userId)
 
+  const mergedTextInputProps = {
+    ...textInputProps,
+    style: [
+      textInputProps?.style,
+      {
+        backgroundColor: 'transparent',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        color: colors.onSurfaceVariant,
+        outline: 'none',
+        outlineColor: 'transparent',
+        outlineWidth: 0,
+        outlineOffset: 0,
+        boxShadow: 'none',
+        borderWidth: 0,
+        borderColor: 'transparent',
+      },
+    ],
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.row}>
@@ -122,6 +142,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           backgroundColor: colors.surfaceVariant,
           borderRadius: roundness * 4,
           marginVertical: 4,
+          marginRight: 12,
           overflow: 'hidden',
         }]}>
           <Composer
@@ -134,7 +155,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
               color: colors.onSurfaceVariant,
             }}
             textInputProps={{
-              ...textInputProps,
+              ...mergedTextInputProps,
               accessibilityLabel: 'Message input',
               onKeyPress: (event) => {
                 const nativeEvent = event.nativeEvent as typeof event.nativeEvent & { shiftKey?: boolean }
