@@ -12,6 +12,7 @@ jest.mock('react-native-gifted-chat', () => {
 const mockHasChanged = jest.fn().mockResolvedValue(true)
 const mockForget = jest.fn().mockResolvedValue(undefined)
 const mockIngest = jest.fn().mockResolvedValue({ chunks: 1 })
+const mockText = jest.fn()
 const mockRead = jest.fn()
 const mockWrite = jest.fn()
 const mockSync = jest.fn()
@@ -39,6 +40,13 @@ jest.mock('expo-document-picker', () => ({
 }))
 
 jest.mock('expo-file-system', () => ({
+  File: class {
+    uri: string
+    constructor(uri: string) {
+      this.uri = uri
+    }
+    text = mockText
+  },
   readAsStringAsync: jest.fn().mockResolvedValue(''),
 }))
 
@@ -77,6 +85,7 @@ describe('ChatComposer', () => {
     mockRead.mockReset()
     mockWrite.mockReset()
     mockSync.mockReset()
+    mockText.mockReset()
     mockUseCharacterWikiResult.status = { ingesting: false, librarian: false, heal: false }
     mockUseCharacterWikiResult.isBusy = false
     mockUseCharacterWikiResult.isIngesting = false
@@ -394,7 +403,14 @@ describe('ChatComposer', () => {
       canceled: false,
       assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
     })
-    FileSystem.readAsStringAsync.mockResolvedValue('hello world')
+    FileSystem.File = class {
+      uri: string
+      constructor(uri: string) {
+        this.uri = uri
+      }
+      text = mockText
+    }
+    mockText.mockResolvedValue('hello world')
     Crypto.digestStringAsync.mockResolvedValue('hash123')
 
     const ChatComposer = require('~/components/ChatComposer').default
@@ -418,6 +434,7 @@ describe('ChatComposer', () => {
         sourceRef: 'doc.txt',
         sourceHash: 'hash123',
         documentChunk: 'hello world',
+        promptOverride: expect.any(String),
       }),
     )
   })

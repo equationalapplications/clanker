@@ -4,7 +4,7 @@ import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Snackbar, Portal, useTheme } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
-import * as FileSystem from 'expo-file-system'
+import { readAsStringAsync } from 'expo-file-system/legacy'
 import * as Crypto from 'expo-crypto'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
@@ -50,7 +50,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
       // Read as UTF-8 (the default); strip BOM/null bytes and normalize to NFC for
       // consistent cross-platform hashing regardless of editor/OS encoding quirks.
-      const raw = await FileSystem.readAsStringAsync(uri)
+      const raw = await readAsStringAsync(uri)
       const documentChunk = raw
         .replace(/^\uFEFF/, '')   // strip UTF-8 BOM
         .replace(/\0/g, '')       // strip null bytes
@@ -70,10 +70,13 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       // Remove stale facts from a previous version of this document before re-ingesting.
       await forget({ sourceRef })
 
+      const ingestPromptOverride = `You are a document ingestion assistant. Extract factual knowledge from the provided document chunk and return ONLY valid JSON with this shape:\n{\n  "facts": [\n    {\n      "title": "string (max 80 chars)",\n      "body": "string (max 800 chars)",\n      "tags": ["string"],\n      "confidence": "certain|inferred|tentative"\n    }\n  ]\n}\nDo not include any explanation, markdown, or text outside the JSON object. If there are no facts, return {"facts": []}.`
+
       const ingestResult = await ingest({
         sourceRef,
         sourceHash,
         documentChunk,
+        promptOverride: ingestPromptOverride,
       })
       setToastMessage(
         `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
