@@ -217,5 +217,6 @@ const styles = StyleSheet.create({
   composerWrapper: {
     flex: 1,
     minHeight: 72,
+    marginRight: 8,
   },
 })
