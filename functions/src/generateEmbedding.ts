@@ -11,6 +11,8 @@ const ALLOWED_TASK_TYPES = new Set([
   "SEMANTIC_SIMILARITY",
 ]);
 
+let _appCredential: ReturnType<typeof admin.credential.applicationDefault> | null = null;
+
 export interface GenerateEmbeddingRequest {
   text: string;
   taskType?: string;
@@ -20,7 +22,7 @@ export interface GenerateEmbeddingResponse {
   embedding: number[];
 }
 
-interface EmbeddingOptions {
+export interface EmbeddingOptions {
   embedder?: (text: string, taskType: string) => Promise<number[]>;
 }
 
@@ -30,8 +32,11 @@ async function defaultEmbedder(text: string, taskType: string): Promise<number[]
     throw new HttpsError("failed-precondition", "Missing GCLOUD_PROJECT for Vertex AI.");
   }
 
-  const credential = admin.credential.applicationDefault();
-  const token = await credential.getAccessToken();
+  // Initialize credential on first use (allows token caching across calls)
+  if (!_appCredential) {
+    _appCredential = admin.credential.applicationDefault();
+  }
+  const token = await _appCredential.getAccessToken();
 
   const endpoint = `https://${DEFAULT_REGION}-aiplatform.googleapis.com/v1/projects/${project}/locations/${DEFAULT_REGION}/publishers/google/models/${MODEL_ID}:predict`;
 
@@ -52,8 +57,13 @@ async function defaultEmbedder(text: string, taskType: string): Promise<number[]
     throw new HttpsError("internal", "Failed to generate embedding.");
   }
 
-  const data = await response.json() as { predictions: [{ embeddings: { values: number[] } }] };
-  return data.predictions[0].embeddings.values;
+  const data = await response.json() as { predictions?: [{ embeddings?: { values?: number[] } }] };
+  const values = data?.predictions?.[0]?.embeddings?.values;
+  if (!Array.isArray(values)) {
+    logger.error("Vertex AI returned unexpected shape", { data });
+    throw new HttpsError("internal", "Failed to generate embedding.");
+  }
+  return values;
 }
 
 export const generateEmbeddingHandler = async (

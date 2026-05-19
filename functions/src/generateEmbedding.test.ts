@@ -37,6 +37,19 @@ test("generateEmbedding: rejects empty text", async () => {
   );
 });
 
+test("generateEmbedding: rejects whitespace-only text", async () => {
+  const auth = buildAuth();
+  const request = { auth, data: { text: "   " } };
+  await assert.rejects(
+    () => generateEmbeddingHandler(request as unknown as CallableRequest, { embedder: mockEmbedder }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /text/i);
+      return true;
+    }
+  );
+});
+
 test("generateEmbedding: rejects text over max length", async () => {
   const auth = buildAuth();
   const request = { auth, data: { text: "x".repeat(8_001) } };
@@ -48,6 +61,16 @@ test("generateEmbedding: rejects text over max length", async () => {
       return true;
     }
   );
+});
+
+test("generateEmbedding: accepts text of exactly max length", async () => {
+  const auth = buildAuth();
+  const request = { auth, data: { text: "x".repeat(8_000) } };
+  const result = await generateEmbeddingHandler(
+    request as unknown as CallableRequest,
+    { embedder: mockEmbedder }
+  );
+  assert.deepEqual(result.embedding, MOCK_EMBEDDING);
 });
 
 test("generateEmbedding: rejects invalid taskType", async () => {
