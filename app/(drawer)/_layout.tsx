@@ -8,7 +8,7 @@ import { useSelector } from '@xstate/react'
 import { useAuthMachine, useTermsMachine } from '~/hooks/useMachines'
 import { AcceptTerms } from '~/components/AcceptTerms'
 import LoadingIndicator from '~/components/LoadingIndicator'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { TERMS } from '~/config/termsConfig'
 
 const DRAWER_ROUTE_CONFIG: Record<string, { label: string; icon: string }> = {
@@ -54,14 +54,17 @@ const AppLayout = () => {
     }),
   )
 
+  const previousTermsAccepted = useRef<boolean>(termsAccepted)
+
   useEffect(() => {
-    if (termsAccepted) {
+    if (!previousTermsAccepted.current && termsAccepted) {
       authService.send({
         type: 'TERMS_ACCEPTED_LOCAL',
         termsVersion: TERMS.version,
         termsAcceptedAt: new Date().toISOString(),
       })
     }
+    previousTermsAccepted.current = termsAccepted
   }, [termsAccepted, authService])
 
   if (termsLoading) {

@@ -24,6 +24,28 @@ test("generateEmbedding: rejects unauthenticated request", async () => {
   );
 });
 
+test("generateEmbedding: rejects missing or invalid request data", async () => {
+  const auth = buildAuth();
+  const invalidRequests = [
+    { auth, data: null },
+    { auth, data: undefined },
+    { auth, data: "not-an-object" },
+    { auth, data: 123 },
+    { auth, data: [] },
+  ] as Array<{ auth: unknown; data: unknown }>;
+
+  for (const request of invalidRequests) {
+    await assert.rejects(
+      () => generateEmbeddingHandler(request as unknown as CallableRequest, { embedder: mockEmbedder }),
+      (err: HttpsError) => {
+        assert.equal(err.code, "invalid-argument");
+        assert.match(err.message, /Request data must be an object/i);
+        return true;
+      }
+    );
+  }
+});
+
 test("generateEmbedding: rejects empty text", async () => {
   const auth = buildAuth();
   const request = { auth, data: { text: "" } };

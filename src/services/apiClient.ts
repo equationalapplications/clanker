@@ -142,9 +142,14 @@ export interface WikiSyncResponse {
   remoteDump: MemoryDump
 }
 
+export type GenerateEmbeddingTaskType =
+  | 'RETRIEVAL_DOCUMENT'
+  | 'RETRIEVAL_QUERY'
+  | 'SEMANTIC_SIMILARITY'
+
 export interface GenerateEmbeddingRequest {
   text: string
-  taskType?: string
+  taskType?: GenerateEmbeddingTaskType
 }
 
 export interface GenerateEmbeddingResponse {

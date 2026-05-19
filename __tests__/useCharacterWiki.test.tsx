@@ -47,7 +47,7 @@ describe('useCharacterWiki', () => {
   const createMockActor = ({
     lastReadResult = { facts: [], tasks: [], events: [] },
     lastIngestResult = { chunks: 7 },
-  } = {}) => {
+  }: { lastReadResult?: unknown; lastIngestResult?: unknown } = {}) => {
     let state = 'idle'
     let status = { ingesting: false, librarian: false, heal: false }
     let callback: ((snap: any) => void) | null = null
@@ -104,7 +104,10 @@ describe('useCharacterWiki', () => {
     const { result } = renderHook(() => useCharacterWiki('char1'))
     
     const doc = { sourceRef: 's', sourceHash: 'h', documentChunk: 'content' }
-    const ingestResultReturned = await act(async () => result.current.ingest(doc))
+    let ingestResultReturned: any
+    await act(async () => {
+      ingestResultReturned = await result.current.ingest(doc)
+    })
     
     expect(ingestResultReturned).toEqual({ chunks: 7 })
   })
@@ -155,7 +158,7 @@ describe('useCharacterWiki', () => {
     const { result } = renderHook(() => useCharacterWiki('char1'))
 
     const doc = { sourceRef: 's', sourceHash: 'h', documentChunk: 'content' }
-    let promise: Promise<any>
+    let promise: Promise<any> = Promise.resolve({}) as Promise<any>
 
     await act(async () => {
       promise = result.current.ingest(doc)
@@ -192,7 +195,10 @@ describe('useCharacterWiki', () => {
     
     const { result } = renderHook(() => useCharacterWiki('char1'))
     
-    const readResultReturned = await act(async () => result.current.read('test query'))
+    let readResultReturned: any
+    await act(async () => {
+      readResultReturned = await result.current.read('test query')
+    })
     
     expect(readResultReturned).toEqual(readResult)
   })

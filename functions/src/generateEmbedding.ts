@@ -5,7 +5,12 @@ import * as admin from "firebase-admin";
 const DEFAULT_REGION = "us-central1";
 const MODEL_ID = "text-embedding-004";
 const MAX_TEXT_LENGTH = 8_000;
-const ALLOWED_TASK_TYPES = new Set([
+export type GenerateEmbeddingTaskType =
+  | "RETRIEVAL_DOCUMENT"
+  | "RETRIEVAL_QUERY"
+  | "SEMANTIC_SIMILARITY";
+
+const ALLOWED_TASK_TYPES = new Set<GenerateEmbeddingTaskType>([
   "RETRIEVAL_DOCUMENT",
   "RETRIEVAL_QUERY",
   "SEMANTIC_SIMILARITY",
@@ -15,7 +20,7 @@ let _appCredential: ReturnType<typeof admin.credential.applicationDefault> | nul
 
 export interface GenerateEmbeddingRequest {
   text: string;
-  taskType?: string;
+  taskType?: GenerateEmbeddingTaskType;
 }
 
 export interface GenerateEmbeddingResponse {
@@ -74,9 +79,14 @@ export const generateEmbeddingHandler = async (
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
 
-  const data = request.data as Record<string, unknown>;
-  const text = data.text;
-  const rawTaskType = data.taskType;
+  const data = request.data;
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new HttpsError("invalid-argument", "Request data must be an object.");
+  }
+
+  const typedData = data as Record<string, unknown>;
+  const text = typedData.text;
+  const rawTaskType = typedData.taskType;
 
   if (typeof text !== "string" || text.trim().length === 0) {
     throw new HttpsError("invalid-argument", "text must be a non-empty string.");
@@ -85,17 +95,21 @@ export const generateEmbeddingHandler = async (
     throw new HttpsError("invalid-argument", `text must be at most ${MAX_TEXT_LENGTH} characters.`);
   }
 
-  const taskType =
+  const taskTypeCandidate =
     rawTaskType === undefined || rawTaskType === null
       ? "RETRIEVAL_DOCUMENT"
-      : String(rawTaskType);
+      : typeof rawTaskType === "string"
+      ? rawTaskType
+      : "";
 
-  if (!ALLOWED_TASK_TYPES.has(taskType)) {
+  if (!ALLOWED_TASK_TYPES.has(taskTypeCandidate as GenerateEmbeddingTaskType)) {
     throw new HttpsError(
       "invalid-argument",
       `taskType must be one of: ${[...ALLOWED_TASK_TYPES].join(", ")}.`
     );
   }
+
+  const taskType = taskTypeCandidate as GenerateEmbeddingTaskType;
 
   const embedder = options.embedder ?? defaultEmbedder;
   let embedding: number[];
