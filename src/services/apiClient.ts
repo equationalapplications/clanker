@@ -142,6 +142,7 @@ export interface WikiSyncResponse {
   remoteDump: MemoryDump
 }
 
+// Keep in sync with GenerateEmbeddingTaskType in functions/src/generateEmbedding.ts
 export type GenerateEmbeddingTaskType =
   | 'RETRIEVAL_DOCUMENT'
   | 'RETRIEVAL_QUERY'

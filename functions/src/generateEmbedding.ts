@@ -5,6 +5,7 @@ import * as admin from "firebase-admin";
 const DEFAULT_REGION = "us-central1";
 const MODEL_ID = "text-embedding-004";
 const MAX_TEXT_LENGTH = 8_000;
+// Keep in sync with GenerateEmbeddingTaskType in src/services/apiClient.ts
 export type GenerateEmbeddingTaskType =
   | "RETRIEVAL_DOCUMENT"
   | "RETRIEVAL_QUERY"
@@ -95,21 +96,19 @@ export const generateEmbeddingHandler = async (
     throw new HttpsError("invalid-argument", `text must be at most ${MAX_TEXT_LENGTH} characters.`);
   }
 
-  const taskTypeCandidate =
-    rawTaskType === undefined || rawTaskType === null
-      ? "RETRIEVAL_DOCUMENT"
-      : typeof rawTaskType === "string"
-      ? rawTaskType
-      : "";
-
-  if (!ALLOWED_TASK_TYPES.has(taskTypeCandidate as GenerateEmbeddingTaskType)) {
-    throw new HttpsError(
-      "invalid-argument",
-      `taskType must be one of: ${[...ALLOWED_TASK_TYPES].join(", ")}.`
-    );
+  let taskType: GenerateEmbeddingTaskType = "RETRIEVAL_DOCUMENT";
+  if (rawTaskType !== undefined && rawTaskType !== null) {
+    if (typeof rawTaskType !== "string") {
+      throw new HttpsError("invalid-argument", "taskType must be a string.");
+    }
+    if (!ALLOWED_TASK_TYPES.has(rawTaskType as GenerateEmbeddingTaskType)) {
+      throw new HttpsError(
+        "invalid-argument",
+        `taskType must be one of: ${[...ALLOWED_TASK_TYPES].join(", ")}.`
+      );
+    }
+    taskType = rawTaskType as GenerateEmbeddingTaskType;
   }
-
-  const taskType = taskTypeCandidate as GenerateEmbeddingTaskType;
 
   const embedder = options.embedder ?? defaultEmbedder;
   let embedding: number[];
