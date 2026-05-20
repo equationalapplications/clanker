@@ -57,7 +57,7 @@ interface VertexGenerateOptions {
 function getTextGenerator(model = DEFAULT_MODEL) {
   return async (systemPrompt: string, userPrompt: string): Promise<string> => {
     // Dynamic import to allow mocking in tests
-    const {VertexAI} = await import("@google-cloud/vertexai");
+    const {VertexAI, SchemaType} = await import("@google-cloud/vertexai");
     const project = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
     if (!project) {
       throw new HttpsError("failed-precondition", "Missing GCLOUD_PROJECT for Vertex AI.");
@@ -69,6 +69,7 @@ function getTextGenerator(model = DEFAULT_MODEL) {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         temperature: 0,
         responseMimeType: "application/json",
+        responseSchema: {type: SchemaType.OBJECT},
       },
     });
 
