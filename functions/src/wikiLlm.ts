@@ -68,6 +68,7 @@ function getTextGenerator(model = DEFAULT_MODEL) {
       generationConfig: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         temperature: 0,
+        responseMimeType: "application/json",
       },
     });
 
