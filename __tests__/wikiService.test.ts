@@ -234,6 +234,24 @@ describe('wikiService', () => {
     expect(result.facts).toHaveLength(1)
   })
 
+  it('clears cached no-result wiki queries for an empty-string entity id without clearing everything', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [{ id: 'fact-1' }], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, '', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(2)
+
+    clearWikiNoResultCache('')
+    const result = await readFromWiki(wiki, '', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(3)
+    expect(result.facts).toHaveLength(1)
+  })
+
   it('clears stale cached no-result wiki queries after successful embedding migration', async () => {
     const runReembed = jest.fn().mockResolvedValue({ embedded: 1, skipped: 0, failed: 0 })
     mockCreateWiki.mockReturnValueOnce({

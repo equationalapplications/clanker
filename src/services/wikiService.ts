@@ -49,7 +49,7 @@ function addWikiNoResultQuery(cache: string[], query: string): void {
 }
 
 export function clearWikiNoResultCache(entityId?: string): void {
-  if (entityId) {
+  if (entityId !== undefined) {
     wikiNoResultQueries.delete(entityId)
     return
   }
