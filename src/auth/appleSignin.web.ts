@@ -100,7 +100,6 @@ export const initializeAppleSignIn = async (
   const handleSuccess = async (event: Event): Promise<void> => {
     const storedHandlers = currentAppleHandlers
     const storedNonce = currentRawNonce
-    currentRawNonce = null
     if (!storedHandlers) return
 
     const data = (event as CustomEvent).detail
@@ -125,6 +124,7 @@ export const initializeAppleSignIn = async (
         console.warn('Apple Sign-In display name sync failed:', syncError)
       }
 
+      currentRawNonce = null
       storedHandlers.onCredentialSuccess()
     } catch (error: unknown) {
       storedHandlers.onCredentialError(error instanceof Error ? error : new Error(String(error)))

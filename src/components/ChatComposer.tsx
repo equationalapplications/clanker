@@ -8,6 +8,7 @@ import { readAsStringAsync } from 'expo-file-system/legacy'
 import * as Crypto from 'expo-crypto'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { ingestPromptOverride } from './ingestPromptOverride'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -69,8 +70,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
       // Remove stale facts from a previous version of this document before re-ingesting.
       await forget({ sourceRef })
-
-      const ingestPromptOverride = `You are a document ingestion assistant. Extract factual knowledge from the provided document chunk and return ONLY valid JSON with this shape:\n{\n  "facts": [\n    {\n      "title": "string (max 80 chars)",\n      "body": "string (max 800 chars)",\n      "tags": ["string"],\n      "confidence": "certain|inferred|tentative"\n    }\n  ]\n}\nDo not include any explanation, markdown, or text outside the JSON object. If there are no facts, return {"facts": []}.`
 
       const ingestResult = await ingest({
         sourceRef,

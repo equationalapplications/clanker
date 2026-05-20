@@ -50,6 +50,10 @@ jest.mock('expo-file-system', () => ({
   readAsStringAsync: jest.fn().mockResolvedValue(''),
 }))
 
+jest.mock('expo-file-system/legacy', () => ({
+  readAsStringAsync: jest.fn().mockResolvedValue(''),
+}))
+
 jest.mock('expo-crypto', () => ({
   digestStringAsync: jest.fn().mockResolvedValue('abc123'),
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
@@ -397,20 +401,13 @@ describe('ChatComposer', () => {
 
   it('delegates ingest flow through useCharacterWiki methods', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystem = require('expo-file-system')
+    const FileSystemLegacy = require('expo-file-system/legacy')
     const Crypto = require('expo-crypto')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
     })
-    FileSystem.File = class {
-      uri: string
-      constructor(uri: string) {
-        this.uri = uri
-      }
-      text = mockText
-    }
-    mockText.mockResolvedValue('hello world')
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
     Crypto.digestStringAsync.mockResolvedValue('hash123')
 
     const ChatComposer = require('~/components/ChatComposer').default
