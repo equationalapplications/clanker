@@ -150,6 +150,38 @@ describe('appleSignin.web', () => {
     }
   })
 
+  it('does not reinitialize Apple Sign-In after session is cleaned up during the success handler', async () => {
+    let resolveSignIn!: (value: any) => void
+    ;(signInWithCredential as jest.Mock).mockImplementationOnce(
+      () => new Promise((resolve) => { resolveSignIn = resolve }),
+    )
+
+    const cleanup = await initializeAppleSignIn({
+      onCredentialStart: jest.fn(),
+      onCredentialSuccess: jest.fn(),
+      onCredentialError: jest.fn(),
+    })
+
+    expect((window as any).AppleID.auth.init).toHaveBeenCalledTimes(1)
+
+    document.dispatchEvent(
+      new CustomEvent('AppleIDSignInOnSuccess', {
+        detail: {
+          authorization: { id_token: 'APPLE_ID_TOKEN' },
+          user: { name: { firstName: 'Jane', lastName: 'Doe' } },
+        },
+      }),
+    )
+    // handler has suspended at signInWithCredential; tear down the session now
+    cleanup()
+
+    resolveSignIn({ user: { displayName: null, providerData: [], updateProfile: jest.fn() } })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // reinit must not fire — appleSignInSessions no longer has the session
+    expect((window as any).AppleID.auth.init).toHaveBeenCalledTimes(1)
+  })
+
   it('reinitializes Apple web nonce after AppleIDSignInOnFailure and invokes error callback', async () => {
     const onCredentialStart = jest.fn()
     const onCredentialSuccess = jest.fn()
