@@ -6,7 +6,7 @@ import AppleSignInButton from '../AppleSignInButton.web'
 import * as appleSigninWeb from '../appleSignin.web'
 
 jest.mock('../appleSignin.web', () => ({
-  initializeAppleSignIn: jest.fn().mockResolvedValue(undefined),
+  initializeAppleSignIn: jest.fn().mockResolvedValue(() => {}),
 }))
 
 describe('AppleSignInButton (web)', () => {

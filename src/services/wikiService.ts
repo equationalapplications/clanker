@@ -29,6 +29,15 @@ function getWikiNoResultCache(entityId: string): Set<string> {
   return cache
 }
 
+export function clearWikiNoResultCache(entityId?: string): void {
+  if (entityId) {
+    wikiNoResultQueries.delete(entityId)
+    return
+  }
+
+  wikiNoResultQueries.clear()
+}
+
 export async function readFromWiki(
   wiki: Wiki,
   entityId: string,
@@ -162,7 +171,8 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-/** For tests only — reset the singleton between test runs. */
+/** For tests only — reset the singleton and query cache between test runs. */
 export function _resetWikiForTests(): void {
   _wiki = null
+  clearWikiNoResultCache()
 }

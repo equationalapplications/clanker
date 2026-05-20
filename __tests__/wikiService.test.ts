@@ -24,6 +24,7 @@ import {
   initWiki,
   _resetWikiForTests,
   readFromWiki,
+  clearWikiNoResultCache,
   TABLE_PREFIX,
 } from '~/services/wikiService'
 
@@ -182,6 +183,43 @@ describe('wikiService', () => {
 
     await readFromWiki(wiki, 'entity-id', 'some query')
     expect(mockRead).toHaveBeenCalledTimes(3)
+  })
+
+  it('clears cached no-result wiki queries for a specific entity', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [{ id: 'fact-1' }], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(2)
+
+    clearWikiNoResultCache('entity-id')
+    const result = await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(3)
+    expect(result.facts).toHaveLength(1)
+  })
+
+  it('clears cached no-result wiki queries when reset for tests', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [{ id: 'fact-1' }], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(2)
+
+    _resetWikiForTests()
+    setupWiki(db)
+    const result = await readFromWiki(getWiki()!, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(3)
+    expect(result.facts).toHaveLength(1)
   })
 
   it('starts wiki embedding migration in the background without blocking init', async () => {
