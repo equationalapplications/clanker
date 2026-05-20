@@ -197,6 +197,25 @@ describe('wikiService', () => {
     expect(mockRead).toHaveBeenCalledTimes(3)
   })
 
+  it('evicts the oldest no-result cache entry even when the oldest entity id is falsy', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead.mockResolvedValue({ facts: [], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, '', 'some query')
+
+    for (let i = 1; i < 500; i += 1) {
+      await readFromWiki(wiki, `entity-${i}`, 'some query')
+    }
+
+    await readFromWiki(wiki, 'entity-500', 'some query')
+    const callsBeforeReplay = mockRead.mock.calls.length
+
+    await readFromWiki(wiki, '', 'some query')
+    expect(mockRead.mock.calls.length).toBe(callsBeforeReplay + 2)
+  })
+
   it('clears cached no-result wiki queries for a specific entity', async () => {
     const db = {} as any
     setupWiki(db)

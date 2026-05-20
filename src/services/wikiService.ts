@@ -28,7 +28,7 @@ function getWikiNoResultCache(entityId: string): string[] {
     cache = []
     if (wikiNoResultQueries.size >= MAX_WIKI_NO_RESULT_ENTITIES) {
       const oldestEntityId = wikiNoResultQueries.keys().next().value
-      if (oldestEntityId) {
+      if (oldestEntityId !== undefined) {
         wikiNoResultQueries.delete(oldestEntityId)
       }
     }
