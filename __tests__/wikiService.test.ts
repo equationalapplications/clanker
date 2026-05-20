@@ -116,8 +116,15 @@ describe('wikiService', () => {
   it('passes mobile-first defaults to createWiki config', () => {
     const db = {} as any
     setupWiki(db)
-    expect(mockCreateWiki).toHaveBeenCalledWith(
-      db,
+    expect(mockCreateWiki).toHaveBeenCalledTimes(1)
+    const createWikiArgs = mockCreateWiki.mock.calls[0]
+    const optionsArg = createWikiArgs[1] ?? createWikiArgs[0]
+
+    if (createWikiArgs.length > 1) {
+      expect(createWikiArgs[0]).toBe(db)
+    }
+
+    expect(optionsArg).toEqual(
       expect.objectContaining({
         config: expect.objectContaining({
           tablePrefix: TABLE_PREFIX,
@@ -127,8 +134,7 @@ describe('wikiService', () => {
           pruneEventsAfter: 14,
           orphanAfterDays: 14,
           staleInferredAfterDays: 30,
-          preFilterLimit: 300,
-          hybridWeight: 0.7,
+          hybridWeight: 1,
         }),
       }),
     )

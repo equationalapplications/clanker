@@ -132,7 +132,7 @@ describe('wiki embedding integration', () => {
     expect(generateEmbedding).toHaveBeenCalledTimes(1)
     expect(generateEmbedding).toHaveBeenCalledWith({
       text: 'Tell me about red fruits',
-      taskType: 'RETRIEVAL_DOCUMENT',
+      taskType: 'SEMANTIC_SIMILARITY',
     })
 
     expect(bundle.facts.length).toBeGreaterThanOrEqual(2)
