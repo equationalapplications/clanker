@@ -12,7 +12,10 @@ export function createWikiLlmProvider() {
       return result.data.text
     },
     embed: async (text: string): Promise<number[]> => {
-      const result = await generateEmbedding({ text, taskType: 'RETRIEVAL_DOCUMENT' })
+      // SEMANTIC_SIMILARITY is symmetric — correct for both document storage (embedFact)
+      // and query retrieval (read). RETRIEVAL_DOCUMENT paired with itself produces
+      // lower cosine similarity for queries than the intended asymmetric pair.
+      const result = await generateEmbedding({ text, taskType: 'SEMANTIC_SIMILARITY' })
       return result.data.embedding
     },
   }

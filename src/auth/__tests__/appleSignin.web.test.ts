@@ -2,7 +2,7 @@
 
 import { signInWithCredential, OAuthProvider, updateProfile } from 'firebase/auth'
 import { generateNonce, sha256 } from '../nonce.web'
-import { resetAppleSignInWebForTests, signInWithApple } from '../appleSignin.web'
+import { initializeAppleSignIn, resetAppleSignInWebForTests, signInWithApple } from '../appleSignin.web'
 
 jest.mock('firebase/auth', () => {
   const mockSignInWithCredential = jest.fn().mockResolvedValue({
@@ -81,6 +81,99 @@ describe('appleSignin.web', () => {
     const credentialArg = (signInWithCredential as jest.Mock).mock.calls[0][1]
     expect(credentialArg.idToken).toBe('APPLE_ID_TOKEN')
     expect(credentialArg.rawNonce).toBe('RAW_NONCE')
+  })
+
+  it('initializes Apple web sign-in and handles AppleIDSignInOnSuccess through event callbacks', async () => {
+    const onCredentialStart = jest.fn()
+    const onCredentialSuccess = jest.fn()
+    const onCredentialError = jest.fn()
+
+    const cleanup = await initializeAppleSignIn({
+      onCredentialStart,
+      onCredentialSuccess,
+      onCredentialError,
+    })
+
+    expect((window as any).AppleID.auth.init).toHaveBeenCalledWith(
+      expect.objectContaining({ nonce: 'HASHED_NONCE', usePopup: true }),
+    )
+    expect((window as any).AppleID.auth.init).toHaveBeenCalledTimes(1)
+
+    document.dispatchEvent(
+      new CustomEvent('AppleIDSignInOnSuccess', {
+        detail: {
+          authorization: { id_token: 'APPLE_ID_TOKEN' },
+          user: { name: { firstName: 'Jane', lastName: 'Doe' } },
+        },
+      }),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(onCredentialStart).toHaveBeenCalledTimes(1)
+    expect(onCredentialSuccess).toHaveBeenCalledTimes(1)
+    expect(onCredentialError).not.toHaveBeenCalled()
+    expect(signInWithCredential).toHaveBeenCalledTimes(1)
+    expect((window as any).AppleID.auth.init).toHaveBeenCalledTimes(2)
+
+    cleanup()
+    document.dispatchEvent(
+      new CustomEvent('AppleIDSignInOnSuccess', {
+        detail: {
+          authorization: { id_token: 'APPLE_ID_TOKEN' },
+          user: { name: { firstName: 'Jane', lastName: 'Doe' } },
+        },
+      }),
+    )
+    await Promise.resolve()
+
+    expect(onCredentialStart).toHaveBeenCalledTimes(1)
+  })
+
+  it('creates an Apple sign-in session without failing when global crypto is unavailable', async () => {
+    const originalCrypto = (globalThis as any).crypto
+    delete (globalThis as any).crypto
+
+    try {
+      const cleanup = await initializeAppleSignIn({
+        onCredentialStart: jest.fn(),
+        onCredentialSuccess: jest.fn(),
+        onCredentialError: jest.fn(),
+      })
+
+      expect(cleanup).toBeInstanceOf(Function)
+    } finally {
+      if (originalCrypto === undefined) {
+        delete (globalThis as any).crypto
+      } else {
+        ;(globalThis as any).crypto = originalCrypto
+      }
+    }
+  })
+
+  it('reinitializes Apple web nonce after AppleIDSignInOnFailure and invokes error callback', async () => {
+    const onCredentialStart = jest.fn()
+    const onCredentialSuccess = jest.fn()
+    const onCredentialError = jest.fn()
+
+    const cleanup = await initializeAppleSignIn({
+      onCredentialStart,
+      onCredentialSuccess,
+      onCredentialError,
+    })
+
+    document.dispatchEvent(
+      new CustomEvent('AppleIDSignInOnFailure', {
+        detail: { error: 'test_failure' },
+      }),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(onCredentialError).toHaveBeenCalledTimes(1)
+    expect(onCredentialStart).not.toHaveBeenCalled()
+    expect(onCredentialSuccess).not.toHaveBeenCalled()
+    expect((window as any).AppleID.auth.init).toHaveBeenCalledTimes(2)
+
+    cleanup()
   })
 
   it('still succeeds when display name sync fails after credential exchange', async () => {

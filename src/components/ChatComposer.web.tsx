@@ -7,6 +7,7 @@ import * as DocumentPicker from 'expo-document-picker'
 import * as Crypto from 'expo-crypto'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { ingestPromptOverride } from './ingestPromptOverride'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -70,6 +71,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         sourceRef,
         sourceHash,
         documentChunk,
+        promptOverride: ingestPromptOverride,
       })
       setToastMessage(
         `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,

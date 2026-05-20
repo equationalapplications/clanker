@@ -28,6 +28,49 @@ jest.mock('@react-native-firebase/crashlytics', () => {
     recordError: jest.fn((instance, error) => instance.recordError(error)),
   }
 })
+
+jest.mock('@react-native-firebase/app', () => {
+  const mockApp = { name: 'mock-app' }
+  return {
+    __esModule: true,
+    default: mockApp,
+    getApp: jest.fn(() => mockApp),
+  }
+})
+
+jest.mock('@react-native-firebase/auth', () => {
+  const mockAuth = {
+    currentUser: null,
+  }
+  return {
+    __esModule: true,
+    default: mockAuth,
+    FirebaseAuthTypes: {
+      User: Object,
+    },
+    getAuth: jest.fn(() => mockAuth),
+    onAuthStateChanged: jest.fn((auth, callback) => {
+      callback(null)
+      return () => {}
+    }),
+    signOut: jest.fn(() => Promise.resolve()),
+  }
+})
+
+jest.mock('@react-native-firebase/functions', () => {
+  const callableStub = jest.fn(() => jest.fn().mockResolvedValue({ data: {} }))
+  return {
+    __esModule: true,
+    getFunctions: jest.fn(() => ({})),
+    httpsCallable: callableStub,
+  }
+})
+
+jest.mock('@react-native-firebase/app-check', () => ({
+  __esModule: true,
+  initializeAppCheck: jest.fn(() => Promise.resolve()),
+}))
+
 // Mock expo-sqlite to prevent native module initialization errors in Jest
 jest.mock('expo-sqlite', () => {
   return {
