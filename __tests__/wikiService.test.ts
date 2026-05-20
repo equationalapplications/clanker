@@ -274,6 +274,10 @@ describe('wikiService', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(runReembed).toHaveBeenCalledTimes(1)
-    expect(db.runAsync).not.toHaveBeenCalled()
+    expect(db.runAsync).toHaveBeenCalledTimes(1)
+    expect(db.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT OR REPLACE INTO "llm_wiki_meta"'),
+      expect.arrayContaining(['wiki_embedding_tasktype_migration_v1_failed', expect.any(String)]),
+    )
   })
 })
