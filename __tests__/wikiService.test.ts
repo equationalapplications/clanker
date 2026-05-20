@@ -99,6 +99,7 @@ describe('wikiService', () => {
       runAsync,
     } as any
     await initWiki(db)
+    await new Promise((resolve) => setTimeout(resolve, 0))
     expect(execAsync).toHaveBeenCalledWith(
       expect.stringContaining('CREATE TABLE IF NOT EXISTS "llm_wiki_meta"'),
     )
@@ -165,5 +166,76 @@ describe('wikiService', () => {
     expect(mockRead.mock.calls[0][2]).toBeUndefined()
     expect(mockRead.mock.calls[1][2]).toEqual({ preFilterLimit: null })
     expect(result.facts).toHaveLength(1)
+  })
+
+  it('caches no-result wiki queries to avoid repeated full-scan retries', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(2)
+
+    await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(3)
+  })
+
+  it('starts wiki embedding migration in the background without blocking init', async () => {
+    let resolveExec!: () => void
+    const dbExecAsync = jest.fn().mockImplementation(
+      () => new Promise<void>((resolve) => {
+        resolveExec = resolve
+      }),
+    )
+    const runReembed = jest.fn().mockResolvedValue({ embedded: 0, skipped: 0, failed: 0 })
+    mockCreateWiki.mockReturnValueOnce({
+      setup: mockSetup,
+      read: mockRead,
+      write: mockWrite,
+      exportDump: mockExportDump,
+      runReembed,
+    })
+
+    const db = {
+      getFirstAsync: jest.fn().mockResolvedValue({ has_table: 1 }),
+      execAsync: dbExecAsync,
+      runAsync: jest.fn().mockResolvedValue(undefined),
+    } as any
+
+    await initWiki(db)
+    expect(mockSetup).toHaveBeenCalledTimes(1)
+    expect(runReembed).not.toHaveBeenCalled()
+
+    resolveExec()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(runReembed).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not mark wiki embedding migration complete when the reembed reports failures', async () => {
+    const runReembed = jest.fn().mockResolvedValue({ embedded: 0, skipped: 0, failed: 1 })
+    mockCreateWiki.mockReturnValueOnce({
+      setup: mockSetup,
+      read: mockRead,
+      write: mockWrite,
+      exportDump: mockExportDump,
+      runReembed,
+    })
+
+    const db = {
+      getFirstAsync: jest.fn().mockResolvedValue({ has_table: 1 }),
+      execAsync: jest.fn().mockResolvedValue(undefined),
+      runAsync: jest.fn().mockResolvedValue(undefined),
+    } as any
+
+    await initWiki(db)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(runReembed).toHaveBeenCalledTimes(1)
+    expect(db.runAsync).not.toHaveBeenCalled()
   })
 })

@@ -17,21 +17,40 @@ export type Wiki = BaseWiki & {
 
 export const TABLE_PREFIX = 'llm_wiki_'
 const DEFAULT_WIKI_PREFILTER_LIMIT = 300
+const wikiNoResultQueries = new Map<string, Set<string>>()
 let _wiki: Wiki | null = null
+
+function getWikiNoResultCache(entityId: string): Set<string> {
+  let cache = wikiNoResultQueries.get(entityId)
+  if (!cache) {
+    cache = new Set<string>()
+    wikiNoResultQueries.set(entityId, cache)
+  }
+  return cache
+}
 
 export async function readFromWiki(
   wiki: Wiki,
   entityId: string,
   query: string,
 ): Promise<Awaited<ReturnType<Wiki['read']>>> {
+  const queryKey = `${entityId}:${query}`
+  const noResultCache = getWikiNoResultCache(entityId)
   const result = await wiki.read(entityId, query)
-  if (query.trim().length === 0 || result.facts.length > 0) {
+
+  if (query.trim().length === 0 || result.facts.length > 0 || noResultCache.has(queryKey)) {
     return result
   }
 
-  return wiki.read(entityId, query, {
+  const fullScanResult = await wiki.read(entityId, query, {
     preFilterLimit: null,
   })
+
+  if (fullScanResult.facts.length === 0) {
+    noResultCache.add(queryKey)
+  }
+
+  return fullScanResult
 }
 
 const WIKI_METADATA_TABLE = `"${TABLE_PREFIX}meta"`
@@ -67,7 +86,12 @@ async function ensureWikiEmbeddingMigration(
     return
   }
 
-  await runReembed.call(wiki, undefined, { force: true })
+  const migrationResult = await runReembed.call(wiki, undefined, { force: true })
+  if (migrationResult?.failed > 0) {
+    console.warn('[Wiki] Embedding migration completed with failures:', migrationResult)
+    return
+  }
+
   await dbRunAsync(
     `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
     [WIKI_EMBEDDING_MIGRATION_KEY, '1'],
@@ -95,7 +119,7 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
       orphanAfterDays: 14, // days: mark unlinked entities as orphan
       staleInferredAfterDays: 30, // days: mark old librarian entries as stale
       preFilterLimit: DEFAULT_WIKI_PREFILTER_LIMIT, // limit search candidates for speed
-      hybridWeight: 1, // pure vector search — no FTS gating on candidate selection
+      hybridWeight: 1, // prefer vector scoring while still prefiltering candidates for speed
     },
   })
   return _wiki
@@ -132,7 +156,9 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
   const wiki = setupWiki(db)
   await wiki.setup()
   if (tableExists?.has_table === 1) {
-    await ensureWikiEmbeddingMigration(db, wiki)
+    void ensureWikiEmbeddingMigration(db, wiki).catch((error) => {
+      console.error('[Wiki] Background embedding migration failed:', error)
+    })
   }
 }
 

@@ -100,8 +100,15 @@ export const initializeAppleSignIn = async (
     })
   }
 
+  try {
+    await initAppleIdAuth()
+  } catch (error: unknown) {
+    currentAppleHandlers = null
+    currentRawNonce = null
+    throw error
+  }
+
   currentAppleHandlers = handlers
-  await initAppleIdAuth()
 
   const handleSuccess = async (event: Event): Promise<void> => {
     const storedHandlers = currentAppleHandlers
