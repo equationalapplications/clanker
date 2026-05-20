@@ -1,7 +1,7 @@
 import { router, Stack } from 'expo-router'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity } from 'react-native'
-import { GiftedChat, Bubble, InputToolbar, Send } from 'react-native-gifted-chat'
-import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps } from 'react-native-gifted-chat'
+import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
+import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
 import { useCallback } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
@@ -79,6 +79,11 @@ export default function ChatView({ characterId }: ChatViewProps) {
           left: { color: colors.onSecondary },
           right: { color: colors.onPrimary },
         }}
+        renderMessageText={(msgProps: MessageTextProps<IMessage>) => (
+          <View style={{ paddingVertical: 10 }}>
+            <MessageText {...msgProps} />
+          </View>
+        )}
       />
     ),
     [colors, roundness],

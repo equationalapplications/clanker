@@ -1,6 +1,6 @@
 # Wiki State Machine Architecture
 
-The character memory system uses `@equationalapplications/expo-llm-wiki@4.1.0` with an XState v5 state machine per character to serialize all wiki operations.
+The character memory system uses `@equationalapplications/expo-llm-wiki@4.9.0` with an XState v5 state machine per character to serialize all wiki operations.
 
 ## Components
 

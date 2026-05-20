@@ -16,7 +16,182 @@ export type Wiki = BaseWiki & {
 }
 
 export const TABLE_PREFIX = 'llm_wiki_'
+const DEFAULT_WIKI_PREFILTER_LIMIT = 300
+const MAX_WIKI_NO_RESULT_QUERIES_PER_ENTITY = 100
+const MAX_WIKI_NO_RESULT_ENTITIES = 500
+const wikiNoResultQueries = new Map<string, string[]>()
 let _wiki: Wiki | null = null
+
+function getWikiNoResultCache(entityId: string): string[] {
+  let cache = wikiNoResultQueries.get(entityId)
+  if (!cache) {
+    cache = []
+    if (wikiNoResultQueries.size >= MAX_WIKI_NO_RESULT_ENTITIES) {
+      const oldestEntityId = wikiNoResultQueries.keys().next().value
+      if (oldestEntityId !== undefined) {
+        wikiNoResultQueries.delete(oldestEntityId)
+      }
+    }
+    wikiNoResultQueries.set(entityId, cache)
+  }
+  return cache
+}
+
+function addWikiNoResultQuery(cache: string[], query: string): void {
+  if (cache.includes(query)) {
+    return
+  }
+
+  cache.push(query)
+  if (cache.length > MAX_WIKI_NO_RESULT_QUERIES_PER_ENTITY) {
+    cache.shift()
+  }
+}
+
+export function clearWikiNoResultCache(entityId?: string): void {
+  if (entityId !== undefined) {
+    wikiNoResultQueries.delete(entityId)
+    return
+  }
+
+  wikiNoResultQueries.clear()
+}
+
+export async function readFromWiki(
+  wiki: Wiki,
+  entityId: string,
+  query: string,
+): Promise<Awaited<ReturnType<Wiki['read']>>> {
+  const normalizedQuery = query.trim()
+  if (normalizedQuery.length === 0) {
+    return {
+      facts: [],
+      tasks: [],
+      events: [],
+    } as Awaited<ReturnType<Wiki['read']>>
+  }
+
+  const noResultCache = getWikiNoResultCache(entityId)
+  const result = await wiki.read(entityId, normalizedQuery)
+
+  if (
+    result.facts.length > 0 ||
+    result.tasks.length > 0 ||
+    result.events.length > 0 ||
+    noResultCache.includes(normalizedQuery)
+  ) {
+    return result
+  }
+
+  const fullScanResult = await wiki.read(entityId, normalizedQuery, {
+    preFilterLimit: null,
+  })
+
+  if (
+    fullScanResult.facts.length === 0 &&
+    fullScanResult.tasks.length === 0 &&
+    fullScanResult.events.length === 0
+  ) {
+    addWikiNoResultQuery(noResultCache, normalizedQuery)
+  }
+
+  return fullScanResult
+}
+
+const WIKI_METADATA_TABLE = `"${TABLE_PREFIX}meta"`
+const WIKI_EMBEDDING_MIGRATION_KEY = 'wiki_embedding_tasktype_migration_v1'
+const WIKI_EMBEDDING_MIGRATION_FAILED_KEY = 'wiki_embedding_tasktype_migration_v1_failed'
+const WIKI_EMBEDDING_MIGRATION_BACKOFF_MS = 24 * 60 * 60 * 1000 // 24 hours
+
+async function ensureWikiEmbeddingMigration(
+  db: SQLiteDatabase,
+  wiki: Wiki,
+): Promise<void> {
+  const dbExecAsync =
+    typeof db.execAsync === 'function' ? db.execAsync.bind(db) : undefined
+  const dbRunAsync =
+    typeof db.runAsync === 'function' ? db.runAsync.bind(db) : undefined
+
+  if (!dbExecAsync || !dbRunAsync) {
+    return
+  }
+
+  await dbExecAsync(
+    `CREATE TABLE IF NOT EXISTS ${WIKI_METADATA_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+  )
+
+  const existing = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${WIKI_METADATA_TABLE} WHERE key = ?`,
+    [WIKI_EMBEDDING_MIGRATION_KEY],
+  )
+  if (existing?.value === '1') {
+    return
+  }
+
+  const failedAttempt = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${WIKI_METADATA_TABLE} WHERE key = ?`,
+    [WIKI_EMBEDDING_MIGRATION_FAILED_KEY],
+  )
+  const lastFailedAt = Number(failedAttempt?.value)
+  if (!Number.isNaN(lastFailedAt) && Date.now() - lastFailedAt < WIKI_EMBEDDING_MIGRATION_BACKOFF_MS) {
+    console.warn('[Wiki] Skipping embedding migration retry after recent failed attempt.')
+    return
+  }
+
+  const runReembed = (wiki as { runReembed?: (entityId?: string, opts?: { force?: boolean; skipExisting?: boolean }) => Promise<{ embedded: number; skipped: number; failed: number }> }).runReembed
+  if (typeof runReembed !== 'function') {
+    return
+  }
+
+  clearWikiNoResultCache()
+
+  let migrationResult: { embedded: number; skipped: number; failed: number } | undefined
+  try {
+    migrationResult = await runReembed.call(wiki, undefined, { force: true })
+  } catch (error) {
+    console.warn('[Wiki] Embedding migration failed to start:', error)
+    await dbRunAsync(
+      `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
+      [WIKI_EMBEDDING_MIGRATION_FAILED_KEY, String(Date.now())],
+    )
+    return
+  }
+
+  if (migrationResult?.failed > 0) {
+    console.warn('[Wiki] Embedding migration completed with failures:', migrationResult)
+    await dbRunAsync(
+      `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
+      [WIKI_EMBEDDING_MIGRATION_FAILED_KEY, String(Date.now())],
+    )
+    return
+  }
+
+  clearWikiNoResultCache()
+
+  await dbRunAsync(
+    `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
+    [WIKI_EMBEDDING_MIGRATION_KEY, '1'],
+  )
+}
+
+async function markWikiEmbeddingMigrationComplete(db: SQLiteDatabase): Promise<void> {
+  const dbExecAsync =
+    typeof db.execAsync === 'function' ? db.execAsync.bind(db) : undefined
+  const dbRunAsync =
+    typeof db.runAsync === 'function' ? db.runAsync.bind(db) : undefined
+
+  if (!dbExecAsync || !dbRunAsync) {
+    return
+  }
+
+  await dbExecAsync(
+    `CREATE TABLE IF NOT EXISTS ${WIKI_METADATA_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+  )
+  await dbRunAsync(
+    `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
+    [WIKI_EMBEDDING_MIGRATION_KEY, '1'],
+  )
+}
 
 export function getSourceTypeEnumMigrationSql(): string[] {
   const entriesTable = `"${TABLE_PREFIX}entries"`
@@ -38,8 +213,8 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
       pruneEventsAfter: 14, // days: delete old events
       orphanAfterDays: 14, // days: mark unlinked entities as orphan
       staleInferredAfterDays: 30, // days: mark old librarian entries as stale
-      preFilterLimit: 300, // FTS pre-filter limit for retrieval
-      hybridWeight: 0.7, // hybrid search weight (0=FTS, 1=vector)
+      preFilterLimit: DEFAULT_WIKI_PREFILTER_LIMIT, // limit search candidates for speed
+      hybridWeight: 1, // prefer vector scoring while still prefiltering candidates for speed
     },
   })
   return _wiki
@@ -75,9 +250,17 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
 
   const wiki = setupWiki(db)
   await wiki.setup()
+  if (tableExists?.has_table === 1) {
+    void ensureWikiEmbeddingMigration(db, wiki).catch((error) => {
+      console.error('[Wiki] Background embedding migration failed:', error)
+    })
+  } else {
+    await markWikiEmbeddingMigrationComplete(db)
+  }
 }
 
-/** For tests only — reset the singleton between test runs. */
+/** For tests only — reset the singleton and query cache between test runs. */
 export function _resetWikiForTests(): void {
   _wiki = null
+  clearWikiNoResultCache()
 }

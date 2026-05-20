@@ -1,5 +1,7 @@
 # LLM Wiki v3 → v4.1.0 Upgrade: Research Findings
 
+> **Note:** This document is a historical upgrade audit. The current repository now uses `@equationalapplications/expo-llm-wiki@4.9.0`.
+
 ## Current State
 - **Clanker current version**: @equationalapplications/expo-llm-wiki@^3.0.0
 - **Target version**: @equationalapplications/expo-llm-wiki@4.1.0

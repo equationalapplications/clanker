@@ -154,8 +154,8 @@ graph LR
 (useInitializeApp.ts)"] --> initializeRevenueCat__src_config_revenueCatConfig_ts["initializeRevenueCat
 (revenueCatConfig.ts)"]
   useInitializeApp__src_hooks_useInitializeApp_web_ts["useInitializeApp
-(useInitializeApp.web.ts)"] --> initializeGoogleSignIn__src_auth_googleSignin_ts["initializeGoogleSignIn
-(googleSignin.ts)"]
+(useInitializeApp.web.ts)"] --> installGoogleIdentityConsoleFilter__src_utilities_devConsoleFilters_web_ts["installGoogleIdentityConsoleFilter
+(devConsoleFilters.web.ts)"]
   useIsPremium__src_hooks_useIsPremium_ts["useIsPremium
 (useIsPremium.ts)"] --> useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
 (useCurrentPlan.ts)"]

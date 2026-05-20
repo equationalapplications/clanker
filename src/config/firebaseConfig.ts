@@ -76,6 +76,7 @@ const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters'
 const getPublicCharacterFn = httpsCallable(functionsInstance, 'getPublicCharacter')
 const wikiLlmFn = httpsCallable(functionsInstance, 'wikiLlm')
 const wikiSyncFn = httpsCallable(functionsInstance, 'wikiSync')
+const generateEmbeddingFn = httpsCallable(functionsInstance, 'generateEmbedding')
 const documentExtractFn = httpsCallable(functionsInstance, 'documentExtract')
 
 export type FirebaseUser = FirebaseAuthTypes.User
@@ -109,4 +110,5 @@ export {
   getPublicCharacterFn,
   wikiLlmFn,
   wikiSyncFn,
+  generateEmbeddingFn,
 }

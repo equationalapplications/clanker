@@ -24,7 +24,7 @@ jest.mock('~/services/apiClient', () => ({
   wikiSync: jest.fn(),
 }))
 
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { useCharacterWiki, _resetCharacterWikiEntityQueuesForTests } from '~/hooks/useCharacterWiki'
 import { useWiki } from '@equationalapplications/expo-llm-wiki'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
@@ -44,31 +44,145 @@ describe('useCharacterWiki', () => {
     await expect(result.current.read('test')).resolves.toBeNull()
   })
 
+  const createMockActor = ({
+    lastReadResult = { facts: [], tasks: [], events: [] },
+    lastIngestResult = { truncated: false, chunks: 7 },
+  }: { lastReadResult?: { facts: unknown[]; tasks: unknown[]; events: unknown[] }; lastIngestResult?: { truncated: boolean; chunks: number } } = {}) => {
+    let state = 'idle'
+    let status = { ingesting: false, librarian: false, heal: false }
+    let callback: ((snap: any) => void) | null = null
+
+    const snapshot = (currentState: string) => ({
+      matches: (matcher: string) => matcher === currentState,
+      context: {
+        status,
+        lastError: null,
+        lastReadResult,
+        lastIngestResult,
+      },
+    })
+
+    const mockActor = {
+      getSnapshot: jest.fn().mockImplementation(() => snapshot(state)),
+      subscribe: jest.fn().mockImplementation((cb) => {
+        callback = cb
+        cb(snapshot(state))
+        return { unsubscribe: jest.fn() }
+      }),
+      send: jest.fn().mockImplementation((event) => {
+        if (event.type === 'INGEST') {
+          state = 'ingesting'
+          status = { ingesting: true, librarian: false, heal: false }
+          callback?.(snapshot(state))
+          Promise.resolve().then(() => {
+            state = 'idle'
+            status = { ingesting: false, librarian: false, heal: false }
+            callback?.(snapshot(state))
+          })
+        }
+        if (event.type === 'READ') {
+          state = 'reading'
+          callback?.(snapshot(state))
+          Promise.resolve().then(() => {
+            state = 'idle'
+            callback?.(snapshot(state))
+          })
+        }
+      }),
+    }
+
+    return mockActor as any
+  }
+
   test('ingest returns lastIngestResult from context', async () => {
     const mockWiki = {} as any
     mockUseWiki.mockReturnValue(mockWiki)
     
-    const ingestResult = { chunks: 7 }
-    const mockActor = {
-      getSnapshot: jest.fn().mockReturnValue({
-        matches: jest.fn((state: string) => state === 'idle'),
-        context: {
-          status: { ingesting: false, librarian: false, heal: false },
-          lastError: null,
-          lastIngestResult: ingestResult,
-        },
-      }),
-      subscribe: jest.fn(() => ({ unsubscribe: jest.fn() })),
-      send: jest.fn(),
-    }
-    mockGetOrSpawn.mockReturnValue(mockActor as any)
+    const mockActor = createMockActor()
+    mockGetOrSpawn.mockReturnValue(mockActor)
     
     const { result } = renderHook(() => useCharacterWiki('char1'))
     
     const doc = { sourceRef: 's', sourceHash: 'h', documentChunk: 'content' }
-    const ingestResultReturned = await result.current.ingest(doc)
+    let ingestResultReturned: any
+    await act(async () => {
+      ingestResultReturned = await result.current.ingest(doc)
+    })
     
-    expect(ingestResultReturned).toEqual(ingestResult)
+    expect(ingestResultReturned).toEqual({ truncated: false, chunks: 7 })
+  })
+
+  test('ingest waits for the actor ingesting cycle before resolving', async () => {
+    const mockWiki = {} as any
+    mockUseWiki.mockReturnValue(mockWiki)
+
+    let state = 'idle'
+    let status = { ingesting: false, librarian: false, heal: false }
+    let callback: ((snap: any) => void) | null = null
+    let continueIngestion: () => void
+    const continuePromise = new Promise<void>((resolve) => {
+      continueIngestion = resolve
+    })
+
+    const snapshot = (currentState: string) => ({
+      matches: (matcher: string) => matcher === currentState,
+      context: {
+        status,
+        lastError: null,
+        lastIngestResult: { chunks: 7 },
+      },
+    })
+
+    const mockActor = {
+      getSnapshot: jest.fn().mockImplementation(() => snapshot(state)),
+      subscribe: jest.fn().mockImplementation((cb) => {
+        callback = cb
+        cb(snapshot(state))
+        return { unsubscribe: jest.fn() }
+      }),
+      send: jest.fn().mockImplementation((event) => {
+        if (event.type === 'INGEST') {
+          state = 'ingesting'
+          status = { ingesting: true, librarian: false, heal: false }
+          callback?.(snapshot(state))
+          continuePromise.then(() => {
+            state = 'idle'
+            status = { ingesting: false, librarian: false, heal: false }
+            callback?.(snapshot(state))
+          })
+        }
+      }),
+    }
+
+    mockGetOrSpawn.mockReturnValue(mockActor as any)
+    const { result } = renderHook(() => useCharacterWiki('char1'))
+
+    const doc = { sourceRef: 's', sourceHash: 'h', documentChunk: 'content' }
+    let promise!: Promise<any>
+
+    await act(async () => {
+      promise = result.current.ingest(doc)
+      await Promise.resolve()
+      expect(mockActor.send).toHaveBeenCalledWith({ type: 'INGEST', doc })
+      expect(promise).toBeInstanceOf(Promise)
+    })
+
+    const settled = { resolved: false, rejected: false }
+    promise.then(
+      () => {
+        settled.resolved = true
+      },
+      () => {
+        settled.rejected = true
+      },
+    )
+
+    expect(settled.resolved).toBe(false)
+
+    continueIngestion!()
+    await act(async () => {
+      await expect(promise).resolves.toEqual({ chunks: 7 })
+    })
   })
 
   test('read returns lastReadResult from context', async () => {
@@ -76,23 +190,15 @@ describe('useCharacterWiki', () => {
     mockUseWiki.mockReturnValue(mockWiki)
     
     const readResult = { facts: [{ id: 'f1' }], tasks: [], events: [] }
-    const mockActor = {
-      getSnapshot: jest.fn().mockReturnValue({
-        matches: jest.fn((state: string) => state === 'idle'),
-        context: {
-          status: { ingesting: false, librarian: false, heal: false },
-          lastError: null,
-          lastReadResult: readResult,
-        },
-      }),
-      subscribe: jest.fn(() => ({ unsubscribe: jest.fn() })),
-      send: jest.fn(),
-    }
-    mockGetOrSpawn.mockReturnValue(mockActor as any)
+    const mockActor = createMockActor({ lastReadResult: readResult })
+    mockGetOrSpawn.mockReturnValue(mockActor)
     
     const { result } = renderHook(() => useCharacterWiki('char1'))
     
-    const readResultReturned = await result.current.read('test query')
+    let readResultReturned: any
+    await act(async () => {
+      readResultReturned = await result.current.read('test query')
+    })
     
     expect(readResultReturned).toEqual(readResult)
   })
