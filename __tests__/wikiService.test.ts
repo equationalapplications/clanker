@@ -86,6 +86,7 @@ describe('wikiService', () => {
 
   it('initWiki skips enum migration when table exists but no old enums', async () => {
     const execAsync = jest.fn().mockResolvedValue(undefined)
+    const runAsync = jest.fn().mockResolvedValue(undefined)
     const db = {
       withTransactionAsync: jest.fn().mockImplementation(async (cb) => {
         await cb()
@@ -95,12 +96,13 @@ describe('wikiService', () => {
         .mockResolvedValueOnce({ has_table: 1 }) // Table exists
         .mockResolvedValueOnce(null), // No old enums
       execAsync,
+      runAsync,
     } as any
     await initWiki(db)
     expect(execAsync).toHaveBeenCalledWith(
       expect.stringContaining('CREATE TABLE IF NOT EXISTS "llm_wiki_meta"'),
     )
-    expect(execAsync).toHaveBeenCalledWith(
+    expect(runAsync).toHaveBeenCalledWith(
       expect.stringContaining('INSERT OR REPLACE INTO "llm_wiki_meta"'),
       expect.any(Array),
     )
