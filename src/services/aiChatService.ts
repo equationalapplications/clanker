@@ -380,14 +380,6 @@ export const sendMessageWithAIResponse = async (
 
     // 4. Generate AI response through secure cloud function
     const prompt = buildChatPrompt(userMessage.text, chatContext)
-    console.log('[aiChatService] ── PROMPT DEBUG ──────────────────────────────')
-    console.log('[aiChatService] userMessage._id:', userMessage._id)
-    console.log('[aiChatService] userMessage.text:', userMessage.text)
-    console.log('[aiChatService] conversationHistory length (raw):', conversationHistory.length)
-    console.log('[aiChatService] priorHistory length (filtered):', priorHistory.length)
-    console.log('[aiChatService] chatContext.conversationHistory:', JSON.stringify(chatContext.conversationHistory, null, 2))
-    console.log('[aiChatService] full prompt:\n', prompt)
-    console.log('[aiChatService] ─────────────────────────────────────────────')
     const aiResponse = await generateChatReply({
       prompt,
       referenceId: buildReferenceId(userMessage._id),
