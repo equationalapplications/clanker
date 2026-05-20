@@ -85,17 +85,23 @@ export const initializeAppleSignIn = async (
     throw new Error('Apple Sign-In unavailable (AppleID.auth unavailable)')
   }
 
-  let rawNonce: string
-  let hashedNonce: string
-  try {
-    rawNonce = generateNonce()
-    hashedNonce = await sha256(rawNonce)
-  } catch (error: unknown) {
-    throw error instanceof Error ? error : new Error(String(error))
+  const initAppleIdAuth = async (): Promise<void> => {
+    const rawNonce = generateNonce()
+    const hashedNonce = await sha256(rawNonce)
+
+    currentRawNonce = rawNonce
+
+    window.AppleID.auth.init({
+      clientId,
+      scope: 'name email',
+      redirectURI,
+      usePopup: true,
+      nonce: hashedNonce,
+    })
   }
 
   currentAppleHandlers = handlers
-  currentRawNonce = rawNonce
+  await initAppleIdAuth()
 
   const handleSuccess = async (event: Event): Promise<void> => {
     const storedHandlers = currentAppleHandlers
@@ -107,6 +113,12 @@ export const initializeAppleSignIn = async (
 
     if (!idToken || !storedNonce) {
       storedHandlers.onCredentialError(new Error('No identity token received from Apple'))
+      try {
+        await initAppleIdAuth()
+      } catch (error: unknown) {
+        currentRawNonce = null
+        console.warn('Apple Sign-In reinit failed:', error)
+      }
       return
     }
 
@@ -124,31 +136,44 @@ export const initializeAppleSignIn = async (
         console.warn('Apple Sign-In display name sync failed:', syncError)
       }
 
-      currentRawNonce = null
       storedHandlers.onCredentialSuccess()
     } catch (error: unknown) {
       storedHandlers.onCredentialError(error instanceof Error ? error : new Error(String(error)))
+    } finally {
+      try {
+        await initAppleIdAuth()
+      } catch (error: unknown) {
+        currentRawNonce = null
+        console.warn('Apple Sign-In reinit failed:', error)
+      }
     }
   }
 
-  const handleFailure = (event: Event): void => {
+  const handleFailure = async (event: Event): Promise<void> => {
     const storedHandlers = currentAppleHandlers
     if (!storedHandlers) return
     const detail = (event as CustomEvent).detail
-    if (detail?.error === 'popup_closed_by_user') return
+    if (detail?.error === 'popup_closed_by_user') {
+      try {
+        await initAppleIdAuth()
+      } catch (error: unknown) {
+        currentRawNonce = null
+        console.warn('Apple Sign-In reinit failed:', error)
+      }
+      return
+    }
+
     storedHandlers.onCredentialError(new Error(detail?.error || 'Apple Sign-In failed'))
+    try {
+      await initAppleIdAuth()
+    } catch (error: unknown) {
+      currentRawNonce = null
+      console.warn('Apple Sign-In reinit failed:', error)
+    }
   }
 
   document.addEventListener('AppleIDSignInOnSuccess', handleSuccess)
   document.addEventListener('AppleIDSignInOnFailure', handleFailure)
-
-  window.AppleID.auth.init({
-    clientId,
-    scope: 'name email',
-    redirectURI,
-    usePopup: true,
-    nonce: hashedNonce,
-  })
 
   return () => {
     document.removeEventListener('AppleIDSignInOnSuccess', handleSuccess)
