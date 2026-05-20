@@ -56,14 +56,22 @@ export async function readFromWiki(
   query: string,
 ): Promise<Awaited<ReturnType<Wiki['read']>>> {
   const normalizedQuery = query.trim()
-  const noResultCache = getWikiNoResultCache(entityId)
-  const result = await wiki.read(entityId, query)
+  if (normalizedQuery.length === 0) {
+    return {
+      facts: [],
+      tasks: [],
+      events: [],
+    } as Awaited<ReturnType<Wiki['read']>>
+  }
 
-  if (normalizedQuery.length === 0 || result.facts.length > 0 || noResultCache.includes(normalizedQuery)) {
+  const noResultCache = getWikiNoResultCache(entityId)
+  const result = await wiki.read(entityId, normalizedQuery)
+
+  if (result.facts.length > 0 || noResultCache.includes(normalizedQuery)) {
     return result
   }
 
-  const fullScanResult = await wiki.read(entityId, query, {
+  const fullScanResult = await wiki.read(entityId, normalizedQuery, {
     preFilterLimit: null,
   })
 

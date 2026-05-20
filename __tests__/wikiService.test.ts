@@ -169,6 +169,17 @@ describe('wikiService', () => {
     expect(result.facts).toHaveLength(1)
   })
 
+  it('returns empty results for whitespace-only queries without reading from the wiki', async () => {
+    const db = {} as any
+    setupWiki(db)
+
+    const wiki = getWiki()!
+    const result = await readFromWiki(wiki, 'entity-id', '   ')
+
+    expect(result.facts).toHaveLength(0)
+    expect(mockRead).not.toHaveBeenCalled()
+  })
+
   it('caches no-result wiki queries to avoid repeated full-scan retries', async () => {
     const db = {} as any
     setupWiki(db)
