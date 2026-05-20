@@ -9,7 +9,8 @@ import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
 const MAX_OUTPUT_TOKENS = 2_048;
-const MAX_PROMPT_LENGTH = 12_000;
+const MAX_SYSTEM_PROMPT_LENGTH = 32_000;
+const MAX_USER_PROMPT_LENGTH = 500_000;
 
 interface WikiLlmRequest {
   systemPrompt: string;
@@ -32,15 +33,15 @@ function parseInput(data: unknown): WikiLlmRequest {
   if (typeof systemPrompt !== "string" || systemPrompt.trim().length === 0) {
     throw new HttpsError("invalid-argument", "systemPrompt is required.");
   }
-  if (systemPrompt.trim().length > MAX_PROMPT_LENGTH) {
-    throw new HttpsError("invalid-argument", `systemPrompt must be at most ${MAX_PROMPT_LENGTH} characters.`);
+  if (systemPrompt.trim().length > MAX_SYSTEM_PROMPT_LENGTH) {
+    throw new HttpsError("invalid-argument", `systemPrompt must be at most ${MAX_SYSTEM_PROMPT_LENGTH} characters.`);
   }
 
   if (typeof userPrompt !== "string" || userPrompt.trim().length === 0) {
     throw new HttpsError("invalid-argument", "userPrompt is required.");
   }
-  if (userPrompt.trim().length > MAX_PROMPT_LENGTH) {
-    throw new HttpsError("invalid-argument", `userPrompt must be at most ${MAX_PROMPT_LENGTH} characters.`);
+  if (userPrompt.trim().length > MAX_USER_PROMPT_LENGTH) {
+    throw new HttpsError("invalid-argument", `userPrompt must be at most ${MAX_USER_PROMPT_LENGTH} characters.`);
   }
 
   return {systemPrompt: systemPrompt.trim(), userPrompt: userPrompt.trim()};
@@ -67,7 +68,6 @@ function getTextGenerator(model = DEFAULT_MODEL) {
       generationConfig: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         temperature: 0,
-        responseMimeType: 'application/json',
       },
     });
 
