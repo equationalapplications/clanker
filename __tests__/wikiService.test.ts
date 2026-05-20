@@ -290,5 +290,9 @@ describe('wikiService', () => {
       expect.stringContaining('INSERT OR REPLACE INTO "llm_wiki_meta"'),
       expect.arrayContaining(['wiki_embedding_tasktype_migration_v1_failed', expect.any(String)]),
     )
+    expect(db.runAsync).not.toHaveBeenCalledWith(
+      expect.stringContaining('INSERT OR REPLACE INTO "llm_wiki_meta"'),
+      expect.arrayContaining(['wiki_embedding_tasktype_migration_v1', '1']),
+    )
   })
 })
