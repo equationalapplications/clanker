@@ -5,6 +5,8 @@
 **Follows:** `2026-05-04-expo-llm-wiki-upgrade.md` (v2.5.0 hooks-first refactor)
 **Package spec:** `expo-llm-wiki/docs/superpowers/specs/2026-05-04-retrieval-tuning.md`
 
+> **Note:** This spec was written for an earlier upgrade plan. The current repository now uses `@equationalapplications/expo-llm-wiki@4.9.0`.
+
 > **Version note (2026-05-05):** `^2.6.0` in this spec is a placeholder. v2.6.0 of
 > `@equationalapplications/expo-llm-wiki` was already published (CI fixes + integration
 > tests only; no retrieval-tuning features). The retrieval-tuning branch (`feat/retrieval-tuning`)
