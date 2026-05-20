@@ -45,6 +45,17 @@ describe('buildChatPrompt', () => {
     mockGetCharacter.mockResolvedValue(null)
     mockGetMessageCount.mockResolvedValue(0)
     mockGetMessagesForContextSummary.mockResolvedValue([])
+    mockSaveAIMessage.mockImplementation(
+      (characterId: string, _userId: string, text: string, messageId: string) =>
+        Promise.resolve({
+          _id: messageId,
+          text,
+          createdAt: new Date(),
+          user: { _id: characterId, name: 'Character' },
+          sent: true,
+          pending: false,
+        }),
+    )
   })
 
   it('reports observation write failures from service callback with wiki:write:observation context', async () => {
@@ -173,6 +184,63 @@ describe('buildChatPrompt', () => {
       expect.any(String),
       expect.any(Object),
     )
+  })
+
+  it('filters current user message from conversationHistory to prevent optimistic-update duplicate in prompt', async () => {
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'Got it!',
+      remainingCredits: null,
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-04-27T00:00:00.000Z',
+    })
+
+    const userMessage = {
+      _id: 'msg-dup',
+      text: 'Hello duplicate test',
+      createdAt: new Date('2026-04-27T00:00:00.000Z'),
+      user: { _id: 'user-1' },
+    }
+
+    await sendMessageWithAIResponse(
+      userMessage as any,
+      { id: 'char-1', name: 'Nova', appearance: 'avatar', traits: 'calm', emotions: 'encouraging', context: 'coach' },
+      'user-1',
+      [userMessage] as any,
+      {},
+    )
+
+    const prompt: string = mockGenerateChatReply.mock.calls[0][0].prompt
+    expect((prompt.match(/Hello duplicate test/g) ?? []).length).toBe(1)
+  })
+
+  it('observation chunk ends with character reply, not just user message', async () => {
+    const mockOnWrite = jest.fn()
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'The AI response text.',
+      remainingCredits: null,
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-04-27T00:00:00.000Z',
+    })
+
+    await sendMessageWithAIResponse(
+      {
+        _id: 'msg-obs',
+        text: 'Tell me something.',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any,
+      { id: 'char-1', name: 'Nova', appearance: 'avatar', traits: 'calm', emotions: 'encouraging', context: 'coach' },
+      'user-1',
+      [] as any,
+      { onWriteObservation: mockOnWrite },
+    )
+
+    const chunk: string = mockOnWrite.mock.calls[0][1]
+    expect(chunk).toContain('User: Tell me something.')
+    expect(chunk).toContain('Nova: The AI response text.')
+    expect(chunk.endsWith('Nova: The AI response text.')).toBe(true)
   })
 
   it('proceeds without memory when no memoryBlock or onWriteObservation provided', async () => {

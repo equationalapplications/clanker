@@ -1,6 +1,7 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import * as admin from "firebase-admin";
+import {applicationDefault} from "firebase-admin/app";
+import type {Credential} from "firebase-admin/app";
 
 const DEFAULT_REGION = "us-central1";
 const MODEL_ID = "text-embedding-004";
@@ -17,7 +18,7 @@ const ALLOWED_TASK_TYPES = new Set<GenerateEmbeddingTaskType>([
   "SEMANTIC_SIMILARITY",
 ]);
 
-let _appCredential: ReturnType<typeof admin.credential.applicationDefault> | null = null;
+let _appCredential: Credential | null = null;
 
 export interface GenerateEmbeddingRequest {
   text: string;
@@ -38,9 +39,8 @@ async function defaultEmbedder(text: string, taskType: string): Promise<number[]
     throw new HttpsError("failed-precondition", "Missing GCLOUD_PROJECT for Vertex AI.");
   }
 
-  // Initialize credential on first use (allows token caching across calls)
   if (!_appCredential) {
-    _appCredential = admin.credential.applicationDefault();
+    _appCredential = applicationDefault();
   }
   const token = await _appCredential.getAccessToken();
 
@@ -120,7 +120,10 @@ export const generateEmbeddingHandler = async (
   try {
     embedding = await embedder(text.trim(), taskType);
   } catch (error) {
-    logger.error("generateEmbedding: embedder failed", { error });
+    logger.error("generateEmbedding: embedder failed", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", "Failed to generate embedding.");
   }

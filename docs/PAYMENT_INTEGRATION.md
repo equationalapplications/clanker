@@ -8,7 +8,6 @@ This guide covers integrating the payment system specifically in the Clanker Rea
 
 ```bash
 npm install @stripe/stripe-react-native @tanstack/react-query
-npx expo install react-native-purchases
 ```
 
 ## Cross Platform Considerations
@@ -197,8 +196,10 @@ Set via Firebase Functions secrets:
 | `STRIPE_MONTHLY_20_PRICE_ID` | Stripe price ID for $20/month tier |
 | `STRIPE_MONTHLY_50_PRICE_ID` | Stripe price ID for $50/month tier |
 | `STRIPE_CREDIT_PACK_PRICE_ID` | Stripe price ID for $10 credit pack |
-| `STRIPE_SUCCESS_URL` | Post-checkout success redirect (default: `https://yoursbrightly.ai/checkout/success`) |
-| `STRIPE_CANCEL_URL` | Post-checkout cancel redirect (default: `https://yoursbrightly.ai/checkout/cancel`) |
+| `STRIPE_SUCCESS_URL` | Post-checkout success redirect (default: `https://clanker-ai.com/checkout/success`) |
+| `STRIPE_CANCEL_URL` | Post-checkout cancel redirect (default: `https://clanker-ai.com/checkout/cancel`) |
+
+> Note: In the current codebase, `monthly_50` purchases are intentionally disabled in `src/utilities/makePackagePurchase.ts` until RevenueCat product setup is complete. The active web checkout flow only supports `monthly_20` and `payg` for now.
 
 ```bash
 firebase functions:secrets:set STRIPE_MONTHLY_20_PRICE_ID

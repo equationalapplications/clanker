@@ -1,5 +1,9 @@
 # LLM Wiki Memory — Structured Agent-Robust Memory
 
+> **Note:** This document describes the legacy custom wiki memory architecture and the earlier `memoryRead` / `memoryWrite` / `memoryHeal` / `memoryForget` / `syncCharacterMemory` callable flow.
+> 
+> The current Clanker codebase now uses `@equationalapplications/expo-llm-wiki@4.9.0` with `src/services/wikiService.ts`, `src/hooks/useCharacterWiki.ts`, and `src/machines/wikiMachine.ts`. Legacy callable support remains in `functions/src/memoryFunctions.ts` for compatibility, but it is not the active modern client path.
+
 **Status**: v1 Implementation Complete ✅  
 **Premium Feature**: Yes (gated on `usage.hasUnlimited` for monthly subscription)  
 **Architecture**: Local SQLite + Cloud SQL mirror (optional)  

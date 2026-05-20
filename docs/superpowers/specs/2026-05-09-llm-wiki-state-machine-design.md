@@ -4,6 +4,8 @@
 **Status:** Implemented
 **Owner:** equationalapplications
 
+> **Note:** This document captures an earlier v4 upgrade plan. The current repository now uses `@equationalapplications/expo-llm-wiki@4.9.0`.
+
 ## Problem
 
 Clanker's character memory uses `@equationalapplications/expo-llm-wiki@^3.0.0`. Symptoms and gaps:

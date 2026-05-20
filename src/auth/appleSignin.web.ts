@@ -162,11 +162,13 @@ const attachAppleSignInListeners = () => {
     } catch (error: unknown) {
       storedHandlers.onCredentialError(error instanceof Error ? error : new Error(String(error)))
     } finally {
-      try {
-        await initAppleIdAuthForSession(currentSessionId)
-      } catch (error: unknown) {
-        storedSession.rawNonce = null
-        console.warn('Apple Sign-In reinit failed:', error)
+      if (appleSignInSessions.has(currentSessionId)) {
+        try {
+          await initAppleIdAuthForSession(currentSessionId)
+        } catch (error: unknown) {
+          storedSession.rawNonce = null
+          console.warn('Apple Sign-In reinit failed:', error)
+        }
       }
     }
   }

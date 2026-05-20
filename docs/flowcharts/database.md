@@ -174,6 +174,12 @@ graph LR
   initWiki__src_services_wikiService_ts["initWiki
 (wikiService.ts)"] --> setupWiki__src_services_wikiService_ts["setupWiki
 (wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> ensureWikiEmbeddingMigration__src_services_wikiService_ts["ensureWikiEmbeddingMigration
+(wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> markWikiEmbeddingMigrationComplete__src_services_wikiService_ts["markWikiEmbeddingMigrationComplete
+(wikiService.ts)"]
   schema__src_database_schema_ts["schema
 (schema.ts)"] --> __constants_voiceDefaults["voiceDefaults
 (constants)"]

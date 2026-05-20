@@ -5,6 +5,8 @@ Status: Implemented
 Branch: feat/wiki-embedding-provider
 PR: https://github.com/equationalapplications/clanker/pull/386
 
+> **Note:** This document describes the embedding-provider architecture that was implemented on top of the existing `expo-llm-wiki` integration. The current repository uses `@equationalapplications/expo-llm-wiki@4.9.0`.
+
 **Goal:** Add vector embedding support to Clanker's wiki system via a new `generateEmbedding` Firebase callable function, enabling the `expo-llm-wiki` package's cosine similarity retrieval path.
 
 **Architecture:** A new lightweight `generateEmbedding` callable authenticates the Firebase user (auth check only — no DB user bootstrap, no subscription gate), then calls the Vertex AI `text-embedding-004` model via REST using Application Default Credentials obtained from `firebase-admin`. The client-side `wikiLlmProvider` adds an `embed` method that calls this function, which activates the vector ranking path inside `expo-llm-wiki`. The function follows the same auth-only pattern used by lightweight callables in this codebase.
