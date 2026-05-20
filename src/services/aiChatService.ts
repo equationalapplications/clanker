@@ -380,6 +380,14 @@ export const sendMessageWithAIResponse = async (
 
     // 4. Generate AI response through secure cloud function
     const prompt = buildChatPrompt(userMessage.text, chatContext)
+    console.log('[aiChatService] ── PROMPT DEBUG ──────────────────────────────')
+    console.log('[aiChatService] userMessage._id:', userMessage._id)
+    console.log('[aiChatService] userMessage.text:', userMessage.text)
+    console.log('[aiChatService] conversationHistory length (raw):', conversationHistory.length)
+    console.log('[aiChatService] priorHistory length (filtered):', priorHistory.length)
+    console.log('[aiChatService] chatContext.conversationHistory:', JSON.stringify(chatContext.conversationHistory, null, 2))
+    console.log('[aiChatService] full prompt:\n', prompt)
+    console.log('[aiChatService] ─────────────────────────────────────────────')
     const aiResponse = await generateChatReply({
       prompt,
       referenceId: buildReferenceId(userMessage._id),
@@ -396,7 +404,20 @@ export const sendMessageWithAIResponse = async (
 
     void triggerConversationSummary(character, userId)
     if (options?.onWriteObservation) {
-      const recentMessages = getRecentConversationHistory([...priorHistory, userMessage], 20)
+      // Include the AI response so the observation ends with a complete exchange.
+      // Without it the observation ends with "User: [message]" (no reply), and the LLM
+      // reads that unanswered line from memory and responds to it instead of the actual
+      // current prompt — causing every reply to lag one message behind.
+      const aiObservationMsg: IMessage = {
+        _id: aiResponseId,
+        text: aiResponse.reply,
+        createdAt: new Date(),
+        user: { _id: character.id, name: character.name },
+      }
+      const recentMessages = getRecentConversationHistory(
+        [...priorHistory, userMessage, aiObservationMsg],
+        20,
+      )
       const chunk = recentMessages
         .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
         .join('\n')
