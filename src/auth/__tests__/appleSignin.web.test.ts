@@ -129,6 +129,27 @@ describe('appleSignin.web', () => {
     expect(onCredentialStart).toHaveBeenCalledTimes(1)
   })
 
+  it('creates an Apple sign-in session without failing when global crypto is unavailable', async () => {
+    const originalCrypto = (globalThis as any).crypto
+    delete (globalThis as any).crypto
+
+    try {
+      const cleanup = await initializeAppleSignIn({
+        onCredentialStart: jest.fn(),
+        onCredentialSuccess: jest.fn(),
+        onCredentialError: jest.fn(),
+      })
+
+      expect(cleanup).toBeInstanceOf(Function)
+    } finally {
+      if (originalCrypto === undefined) {
+        delete (globalThis as any).crypto
+      } else {
+        ;(globalThis as any).crypto = originalCrypto
+      }
+    }
+  })
+
   it('reinitializes Apple web nonce after AppleIDSignInOnFailure and invokes error callback', async () => {
     const onCredentialStart = jest.fn()
     const onCredentialSuccess = jest.fn()

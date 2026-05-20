@@ -31,6 +31,7 @@ import {
 describe('wikiService', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockRead.mockReset()
     _resetWikiForTests()
   })
 
@@ -211,6 +212,48 @@ describe('wikiService', () => {
     clearWikiNoResultCache('entity-id')
     const result = await readFromWiki(wiki, 'entity-id', 'some query')
     expect(mockRead).toHaveBeenCalledTimes(3)
+    expect(result.facts).toHaveLength(1)
+  })
+
+  it('clears stale cached no-result wiki queries after successful embedding migration', async () => {
+    const runReembed = jest.fn().mockResolvedValue({ embedded: 1, skipped: 0, failed: 0 })
+    mockCreateWiki.mockReturnValueOnce({
+      setup: mockSetup,
+      read: mockRead,
+      write: mockWrite,
+      exportDump: mockExportDump,
+      runReembed,
+    })
+
+    const db = {
+      getFirstAsync: jest.fn().mockImplementation(async (sql: string) => {
+        if (sql.includes(`FROM sqlite_master`)) {
+          return { has_table: 1 }
+        }
+        return null
+      }),
+      execAsync: jest.fn().mockResolvedValue(undefined),
+      runAsync: jest.fn().mockResolvedValue(undefined),
+    } as any
+
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [{ id: 'fact-1' }], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(2)
+
+    await initWiki(db)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(runReembed).toHaveBeenCalledTimes(1)
+
+    const result = await readFromWiki(getWiki()!, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(4)
     expect(result.facts).toHaveLength(1)
   })
 

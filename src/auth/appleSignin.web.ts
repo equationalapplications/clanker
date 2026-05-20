@@ -216,8 +216,8 @@ const detachAppleSignInListeners = () => {
 }
 
 const createAppleSignInSessionId = (): string => {
-  if (typeof crypto?.randomUUID === 'function') {
-    return `apple-signin-session-${crypto.randomUUID()}`
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return `apple-signin-session-${globalThis.crypto.randomUUID()}`
   }
   return `apple-signin-session-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
 }

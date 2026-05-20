@@ -143,6 +143,8 @@ async function ensureWikiEmbeddingMigration(
     return
   }
 
+  clearWikiNoResultCache()
+
   let migrationResult: { embedded: number; skipped: number; failed: number } | undefined
   try {
     migrationResult = await runReembed.call(wiki, undefined, { force: true })
@@ -163,6 +165,8 @@ async function ensureWikiEmbeddingMigration(
     )
     return
   }
+
+  clearWikiNoResultCache()
 
   await dbRunAsync(
     `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
