@@ -358,11 +358,17 @@ export const sendMessageWithAIResponse = async (
     const memoryBlock = options?.memoryBlock
 
     // 2. Prepare context for AI generation
+    // Filter out the current user message from history — React Query's optimistic update
+    // can inject it into the messages array before mutationFn executes, causing the
+    // current message to appear twice (once in history, once as the explicit User: prompt).
+    const priorHistory = conversationHistory.filter(
+      (msg) => String(msg._id) !== String(userMessage._id),
+    )
     const chatContext: ChatContext = {
       characterName: character.name,
       characterPersonality: effectiveContext || character.appearance,
       characterTraits: `${character.traits} ${character.emotions}`.trim(),
-      conversationHistory: getRecentConversationHistory(conversationHistory, 10).map((msg) => ({
+      conversationHistory: getRecentConversationHistory(priorHistory, 10).map((msg) => ({
         role: msg.user._id === userId ? 'user' : 'assistant',
         content: msg.text,
       })),
@@ -390,7 +396,7 @@ export const sendMessageWithAIResponse = async (
 
     void triggerConversationSummary(character, userId)
     if (options?.onWriteObservation) {
-      const recentMessages = getRecentConversationHistory([...conversationHistory, userMessage], 20)
+      const recentMessages = getRecentConversationHistory([...priorHistory, userMessage], 20)
       const chunk = recentMessages
         .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
         .join('\n')
