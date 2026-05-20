@@ -38,8 +38,12 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
       pruneEventsAfter: 14, // days: delete old events
       orphanAfterDays: 14, // days: mark unlinked entities as orphan
       staleInferredAfterDays: 30, // days: mark old librarian entries as stale
-      preFilterLimit: 300, // FTS pre-filter limit for retrieval
-      hybridWeight: 0.7, // hybrid search weight (0=FTS, 1=vector)
+      // preFilterLimit intentionally omitted: with it active, if the user's message
+      // has no keyword overlap with ingested document facts, FTS returns 0 candidates
+      // and the embed path is skipped entirely — ingested facts are never recalled.
+      // Without it, read() scans all embeddings for the entity and ranks purely by
+      // vector similarity, which works across vocabulary boundaries.
+      hybridWeight: 1, // pure vector search — no FTS gating on candidate selection
     },
   })
   return _wiki
