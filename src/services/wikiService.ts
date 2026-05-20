@@ -42,13 +42,11 @@ async function ensureWikiEmbeddingMigration(
   wiki: Wiki,
 ): Promise<void> {
   const dbExecAsync =
-    typeof db.execAsync === 'function'
-      ? db.execAsync.bind(db)
-      : typeof db.runAsync === 'function'
-      ? db.runAsync.bind(db)
-      : undefined
+    typeof db.execAsync === 'function' ? db.execAsync.bind(db) : undefined
+  const dbRunAsync =
+    typeof db.runAsync === 'function' ? db.runAsync.bind(db) : undefined
 
-  if (!dbExecAsync) {
+  if (!dbExecAsync || !dbRunAsync) {
     return
   }
 
@@ -70,7 +68,7 @@ async function ensureWikiEmbeddingMigration(
   }
 
   await runReembed.call(wiki, undefined, { force: true })
-  await dbExecAsync(
+  await dbRunAsync(
     `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
     [WIKI_EMBEDDING_MIGRATION_KEY, '1'],
   )
