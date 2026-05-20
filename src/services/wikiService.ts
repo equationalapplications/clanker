@@ -30,7 +30,7 @@ function getWikiNoResultCache(entityId: string): string[] {
   return cache
 }
 
-function addedWikiNoResultQuery(cache: string[], query: string): void {
+function addWikiNoResultQuery(cache: string[], query: string): void {
   if (cache.includes(query)) {
     return
   }
@@ -67,7 +67,12 @@ export async function readFromWiki(
   const noResultCache = getWikiNoResultCache(entityId)
   const result = await wiki.read(entityId, normalizedQuery)
 
-  if (result.facts.length > 0 || noResultCache.includes(normalizedQuery)) {
+  if (
+    result.facts.length > 0 ||
+    result.tasks.length > 0 ||
+    result.events.length > 0 ||
+    noResultCache.includes(normalizedQuery)
+  ) {
     return result
   }
 
@@ -75,8 +80,12 @@ export async function readFromWiki(
     preFilterLimit: null,
   })
 
-  if (fullScanResult.facts.length === 0) {
-    addedWikiNoResultQuery(noResultCache, normalizedQuery)
+  if (
+    fullScanResult.facts.length === 0 &&
+    fullScanResult.tasks.length === 0 &&
+    fullScanResult.events.length === 0
+  ) {
+    addWikiNoResultQuery(noResultCache, normalizedQuery)
   }
 
   return fullScanResult

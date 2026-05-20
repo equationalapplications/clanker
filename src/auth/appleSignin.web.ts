@@ -67,54 +67,57 @@ export interface AppleSignInHandlers {
   onCredentialError: (error: Error) => void
 }
 
-let currentAppleHandlers: AppleSignInHandlers | null = null
-let currentRawNonce: string | null = null
+type AppleSignInSessionInfo = {
+  handlers: AppleSignInHandlers
+  rawNonce: string | null
+  clientId: string
+  redirectURI: string
+}
 
-export const initializeAppleSignIn = async (
-  handlers: AppleSignInHandlers,
-): Promise<() => void> => {
-  const clientId = process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID
-  const redirectURI = process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI
-  if (!clientId || !redirectURI) {
-    throw new Error('Apple Sign-In not configured (missing client id or redirect URI)')
+const appleSignInSessions = new Map<string, AppleSignInSessionInfo>()
+const appleSignInSessionStack: string[] = []
+let isAppleSignInListenersAttached = false
+let appleSignInHandleSuccess: ((event: Event) => Promise<void>) | null = null
+let appleSignInHandleFailure: ((event: Event) => Promise<void>) | null = null
+
+const getCurrentAppleSignInSession = (): AppleSignInSessionInfo | null => {
+  const currentSessionId = appleSignInSessionStack[appleSignInSessionStack.length - 1]
+  if (!currentSessionId) {
+    return null
+  }
+  return appleSignInSessions.get(currentSessionId) ?? null
+}
+
+const initAppleIdAuthForSession = async (sessionId: string): Promise<void> => {
+  const session = appleSignInSessions.get(sessionId)
+  if (!session) {
+    throw new Error('Apple Sign-In session missing')
   }
 
-  await loadAppleScript()
+  const rawNonce = generateNonce()
+  const hashedNonce = await sha256(rawNonce)
+  session.rawNonce = rawNonce
 
-  if (!window.AppleID?.auth) {
-    throw new Error('Apple Sign-In unavailable (AppleID.auth unavailable)')
+  window.AppleID.auth.init({
+    clientId: session.clientId,
+    scope: 'name email',
+    redirectURI: session.redirectURI,
+    usePopup: true,
+    nonce: hashedNonce,
+  })
+}
+
+const attachAppleSignInListeners = () => {
+  if (isAppleSignInListenersAttached) {
+    return
   }
 
-  const initAppleIdAuth = async (): Promise<void> => {
-    const rawNonce = generateNonce()
-    const hashedNonce = await sha256(rawNonce)
+  appleSignInHandleSuccess = async (event: Event): Promise<void> => {
+    const currentSessionId = appleSignInSessionStack[appleSignInSessionStack.length - 1]
+    const storedSession = currentSessionId ? appleSignInSessions.get(currentSessionId) : null
+    if (!storedSession || !currentSessionId) return
 
-    currentRawNonce = rawNonce
-
-    window.AppleID.auth.init({
-      clientId,
-      scope: 'name email',
-      redirectURI,
-      usePopup: true,
-      nonce: hashedNonce,
-    })
-  }
-
-  try {
-    await initAppleIdAuth()
-  } catch (error: unknown) {
-    currentAppleHandlers = null
-    currentRawNonce = null
-    throw error
-  }
-
-  currentAppleHandlers = handlers
-
-  const handleSuccess = async (event: Event): Promise<void> => {
-    const storedHandlers = currentAppleHandlers
-    const storedNonce = currentRawNonce
-    if (!storedHandlers) return
-
+    const { handlers: storedHandlers, rawNonce: storedNonce } = storedSession
     const data = (event as CustomEvent).detail
     const idToken = data?.authorization?.id_token
 
@@ -132,9 +135,9 @@ export const initializeAppleSignIn = async (
         ),
       )
       try {
-        await initAppleIdAuth()
+        await initAppleIdAuthForSession(currentSessionId)
       } catch (error: unknown) {
-        currentRawNonce = null
+        storedSession.rawNonce = null
         console.warn('Apple Sign-In reinit failed:', error)
       }
       return
@@ -159,45 +162,109 @@ export const initializeAppleSignIn = async (
       storedHandlers.onCredentialError(error instanceof Error ? error : new Error(String(error)))
     } finally {
       try {
-        await initAppleIdAuth()
+        await initAppleIdAuthForSession(currentSessionId)
       } catch (error: unknown) {
-        currentRawNonce = null
+        storedSession.rawNonce = null
         console.warn('Apple Sign-In reinit failed:', error)
       }
     }
   }
 
-  const handleFailure = async (event: Event): Promise<void> => {
-    const storedHandlers = currentAppleHandlers
-    if (!storedHandlers) return
+  appleSignInHandleFailure = async (event: Event): Promise<void> => {
+    const currentSessionId = appleSignInSessionStack[appleSignInSessionStack.length - 1]
+    const storedSession = currentSessionId ? appleSignInSessions.get(currentSessionId) : null
+    if (!storedSession || !currentSessionId) return
     const detail = (event as CustomEvent).detail
     if (detail?.error === 'popup_closed_by_user') {
       try {
-        await initAppleIdAuth()
+        await initAppleIdAuthForSession(currentSessionId)
       } catch (error: unknown) {
-        currentRawNonce = null
+        storedSession.rawNonce = null
         console.warn('Apple Sign-In reinit failed:', error)
       }
       return
     }
 
-    storedHandlers.onCredentialError(new Error(detail?.error || 'Apple Sign-In failed'))
+    storedSession.handlers.onCredentialError(new Error(detail?.error || 'Apple Sign-In failed'))
     try {
-      await initAppleIdAuth()
+      await initAppleIdAuthForSession(currentSessionId)
     } catch (error: unknown) {
-      currentRawNonce = null
+      storedSession.rawNonce = null
       console.warn('Apple Sign-In reinit failed:', error)
     }
   }
 
-  document.addEventListener('AppleIDSignInOnSuccess', handleSuccess)
-  document.addEventListener('AppleIDSignInOnFailure', handleFailure)
+  if (appleSignInHandleSuccess && appleSignInHandleFailure) {
+    document.addEventListener('AppleIDSignInOnSuccess', appleSignInHandleSuccess)
+    document.addEventListener('AppleIDSignInOnFailure', appleSignInHandleFailure)
+    isAppleSignInListenersAttached = true
+  }
+}
+
+const detachAppleSignInListeners = () => {
+  if (!isAppleSignInListenersAttached) {
+    return
+  }
+  if (appleSignInHandleSuccess) {
+    document.removeEventListener('AppleIDSignInOnSuccess', appleSignInHandleSuccess)
+  }
+  if (appleSignInHandleFailure) {
+    document.removeEventListener('AppleIDSignInOnFailure', appleSignInHandleFailure)
+  }
+  isAppleSignInListenersAttached = false
+}
+
+const createAppleSignInSessionId = (): string => `apple-signin-session-${Date.now()}-${Math.random()}`
+
+export const initializeAppleSignIn = async (
+  handlers: AppleSignInHandlers,
+): Promise<() => void> => {
+  const clientId = process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID
+  const redirectURI = process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI
+  if (!clientId || !redirectURI) {
+    throw new Error('Apple Sign-In not configured (missing client id or redirect URI)')
+  }
+
+  await loadAppleScript()
+
+  if (!window.AppleID?.auth) {
+    throw new Error('Apple Sign-In unavailable (AppleID.auth unavailable)')
+  }
+
+  const sessionId = createAppleSignInSessionId()
+  appleSignInSessions.set(sessionId, {
+    handlers,
+    rawNonce: null,
+    clientId,
+    redirectURI,
+  })
+  appleSignInSessionStack.push(sessionId)
+
+  attachAppleSignInListeners()
+
+  try {
+    await initAppleIdAuthForSession(sessionId)
+  } catch (error: unknown) {
+    appleSignInSessions.delete(sessionId)
+    const index = appleSignInSessionStack.indexOf(sessionId)
+    if (index !== -1) {
+      appleSignInSessionStack.splice(index, 1)
+    }
+    if (appleSignInSessionStack.length === 0) {
+      detachAppleSignInListeners()
+    }
+    throw error
+  }
 
   return () => {
-    document.removeEventListener('AppleIDSignInOnSuccess', handleSuccess)
-    document.removeEventListener('AppleIDSignInOnFailure', handleFailure)
-    currentAppleHandlers = null
-    currentRawNonce = null
+    const index = appleSignInSessionStack.indexOf(sessionId)
+    if (index !== -1) {
+      appleSignInSessionStack.splice(index, 1)
+    }
+    appleSignInSessions.delete(sessionId)
+    if (appleSignInSessionStack.length === 0) {
+      detachAppleSignInListeners()
+    }
   }
 }
 
@@ -279,6 +346,9 @@ export const signOutFromApple = async (): Promise<void> => {
 /** Resets script load cache and stored handlers between tests (Jest). */
 export const resetAppleSignInWebForTests = (): void => {
   scriptPromise = null
-  currentAppleHandlers = null
-  currentRawNonce = null
+  appleSignInSessions.clear()
+  appleSignInSessionStack.length = 0
+  if (isAppleSignInListenersAttached) {
+    detachAppleSignInListeners()
+  }
 }
