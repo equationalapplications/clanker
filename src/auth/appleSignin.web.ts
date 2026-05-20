@@ -1,5 +1,6 @@
 // src/auth/appleSignin.web.ts
 import { OAuthProvider, getAuth, signInWithCredential } from 'firebase/auth'
+import { randomUUID } from 'expo-crypto'
 import { firebaseApp } from '~/config/firebaseConfig.web'
 import { generateNonce, sha256 } from './nonce.web'
 import { syncDisplayNameFromCredential } from './syncDisplayName.web'
@@ -218,10 +219,7 @@ const detachAppleSignInListeners = () => {
 }
 
 const createAppleSignInSessionId = (): string => {
-  if (typeof globalThis.crypto?.randomUUID === 'function') {
-    return `apple-signin-session-${globalThis.crypto.randomUUID()}`
-  }
-  return `apple-signin-session-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
+  return `apple-signin-session-${randomUUID()}`
 }
 
 export const initializeAppleSignIn = async (

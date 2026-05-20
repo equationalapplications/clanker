@@ -37,9 +37,9 @@ PR: https://github.com/equationalapplications/clanker/pull/386
 1. **Fact storage** (`embedFact`) — called after every `ingestDocument` chunk; stores 768-float32 blob in SQLite
 2. **Search queries** (`read`) — embeds the query string; computes cosine similarity against stored blobs
 
-The same `embed` function is used for both contexts. Because the wiki package does not expose separate document/query embed hooks, this implementation defaults `taskType` to `RETRIEVAL_DOCUMENT` for all calls. This is acceptable for Clanker's use case — fact retrieval accuracy is strong with this task type, and search queries are typically short and benefit more from stored fact quality than query-side optimization.
+The same `embed` function is used for both contexts. Because the wiki package does not expose separate document/query embed hooks, this implementation uses `taskType: 'SEMANTIC_SIMILARITY'` for all calls. This is the correct choice here — `SEMANTIC_SIMILARITY` is symmetric and works well for both fact storage and search queries without needing separate document/query task types.
 
-The cloud function accepts an optional `taskType` parameter (valid values: `RETRIEVAL_DOCUMENT`, `RETRIEVAL_QUERY`, `SEMANTIC_SIMILARITY`) so future callers (e.g., a dedicated search path) can use `RETRIEVAL_QUERY` if needed.
+The cloud function accepts an optional `taskType` parameter (valid values: `RETRIEVAL_DOCUMENT`, `RETRIEVAL_QUERY`, `SEMANTIC_SIMILARITY`) so future callers can override if needed.
 
 ---
 
@@ -146,7 +146,7 @@ export function createWikiLlmProvider() {
       return result.data.text
     },
     embed: async (text: string): Promise<number[]> => {
-      const result = await generateEmbedding({ text, taskType: 'RETRIEVAL_DOCUMENT' })
+      const result = await generateEmbedding({ text, taskType: 'SEMANTIC_SIMILARITY' })
       return result.data.embedding
     },
   }
@@ -162,10 +162,10 @@ export function createWikiLlmProvider() {
 | Cloud function calls `text-embedding-004` via Vertex AI | `functions/src/generateEmbedding.ts` `defaultEmbedder` |
 | Auth check only — no user bootstrap, no subscription | `request.auth` check only |
 | App Check enforced | `onCall` config `enforceAppCheck: true` |
-| `taskType` support (RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY) | Input validation + embedder arg |
+| `taskType` support (RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY / SEMANTIC_SIMILARITY) | Input validation + embedder arg |
 | Returns 768-dim float array | Response shape |
 | Wire up `embed` in `wikiLlmProvider` for web + native | `firebaseConfig.ts`, `firebaseConfig.web.ts`, `apiClient.ts`, `wikiLlmProvider.ts` |
-| `RETRIEVAL_DOCUMENT` default for fact storage | `wikiLlmProvider.ts` `embed` closure |
+| `SEMANTIC_SIMILARITY` for all embeddings (fact storage + search queries) | `wikiLlmProvider.ts` `embed` closure |
 | No `@google-cloud/aiplatform` SDK — REST + firebase-admin ADC | `defaultEmbedder` |
 | 256MiB memory | `onCall` config |
 
@@ -173,4 +173,4 @@ export function createWikiLlmProvider() {
 
 ## Known Limitation
 
-The `expo-llm-wiki` package exposes a single `embed(text: string) => Promise<number[]>` interface — no separate document/query hook. Both fact storage and search queries use `RETRIEVAL_DOCUMENT`. To use `RETRIEVAL_QUERY` for search, a future update to the wiki package would be needed to expose a second embedding hook.
+The `expo-llm-wiki` package exposes a single `embed(text: string) => Promise<number[]>` interface — no separate document/query hook. Both fact storage and search queries use `SEMANTIC_SIMILARITY`, which is symmetric and appropriate for both contexts. To use task-type-optimized embeddings (e.g., `RETRIEVAL_QUERY` for search), a future update to the wiki package would be needed to expose separate embedding hooks.
