@@ -23,7 +23,7 @@ export async function readFromWiki(
   wiki: Wiki,
   entityId: string,
   query: string,
-): Promise<ReturnType<Wiki['read']>> {
+): Promise<Awaited<ReturnType<Wiki['read']>>> {
   const result = await wiki.read(entityId, query)
   if (query.trim().length === 0 || result.facts.length > 0) {
     return result
@@ -32,6 +32,48 @@ export async function readFromWiki(
   return wiki.read(entityId, query, {
     preFilterLimit: null,
   })
+}
+
+const WIKI_METADATA_TABLE = `"${TABLE_PREFIX}meta"`
+const WIKI_EMBEDDING_MIGRATION_KEY = 'wiki_embedding_tasktype_migration_v1'
+
+async function ensureWikiEmbeddingMigration(
+  db: SQLiteDatabase,
+  wiki: Wiki,
+): Promise<void> {
+  const dbExecAsync =
+    typeof db.execAsync === 'function'
+      ? db.execAsync.bind(db)
+      : typeof db.runAsync === 'function'
+      ? db.runAsync.bind(db)
+      : undefined
+
+  if (!dbExecAsync) {
+    return
+  }
+
+  await dbExecAsync(
+    `CREATE TABLE IF NOT EXISTS ${WIKI_METADATA_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+  )
+
+  const existing = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM ${WIKI_METADATA_TABLE} WHERE key = ?`,
+    [WIKI_EMBEDDING_MIGRATION_KEY],
+  )
+  if (existing?.value === '1') {
+    return
+  }
+
+  const runReembed = (wiki as { runReembed?: (entityId?: string, opts?: { force?: boolean; skipExisting?: boolean }) => Promise<{ embedded: number; skipped: number; failed: number }> }).runReembed
+  if (typeof runReembed !== 'function') {
+    return
+  }
+
+  await runReembed.call(wiki, undefined, { force: true })
+  await dbExecAsync(
+    `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
+    [WIKI_EMBEDDING_MIGRATION_KEY, '1'],
+  )
 }
 
 export function getSourceTypeEnumMigrationSql(): string[] {
@@ -91,6 +133,9 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
 
   const wiki = setupWiki(db)
   await wiki.setup()
+  if (tableExists?.has_table === 1) {
+    await ensureWikiEmbeddingMigration(db, wiki)
+  }
 }
 
 /** For tests only — reset the singleton between test runs. */

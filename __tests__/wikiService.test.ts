@@ -7,6 +7,7 @@ const mockCreateWiki = jest.fn().mockReturnValue({
   read: mockRead,
   write: mockWrite,
   exportDump: mockExportDump,
+  runReembed: jest.fn().mockResolvedValue({ embedded: 0, skipped: 0, failed: 0 }),
 })
 
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
@@ -83,8 +84,8 @@ describe('wikiService', () => {
     expect(mockSetup).toHaveBeenCalledTimes(1)
   })
 
-  it('initWiki skips migration when table exists but no old enums', async () => {
-    const execAsync = jest.fn()
+  it('initWiki skips enum migration when table exists but no old enums', async () => {
+    const execAsync = jest.fn().mockResolvedValue(undefined)
     const db = {
       withTransactionAsync: jest.fn().mockImplementation(async (cb) => {
         await cb()
@@ -96,7 +97,13 @@ describe('wikiService', () => {
       execAsync,
     } as any
     await initWiki(db)
-    expect(execAsync).not.toHaveBeenCalled()
+    expect(execAsync).toHaveBeenCalledWith(
+      expect.stringContaining('CREATE TABLE IF NOT EXISTS "llm_wiki_meta"'),
+    )
+    expect(execAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT OR REPLACE INTO "llm_wiki_meta"'),
+      expect.any(Array),
+    )
     expect(mockSetup).toHaveBeenCalledTimes(1)
   })
 
