@@ -4,6 +4,7 @@ import {
   type EntityStatus,
   type MemoryDump,
 } from '@equationalapplications/expo-llm-wiki'
+import { readFromWiki } from '~/services/wikiService'
 import type { Wiki } from '~/services/wikiService'
 import { reportError } from '~/utilities/reportError'
 
@@ -378,7 +379,7 @@ export const wikiMachine = createMachine(
         }: {
           input: { wiki: Wiki; entityId: string; query: string }
         }) => {
-          return input.wiki.read(input.entityId, input.query)
+          return readFromWiki(input.wiki, input.entityId, input.query)
         },
       ),
       writeActor: fromPromise(

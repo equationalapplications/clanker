@@ -16,7 +16,23 @@ export type Wiki = BaseWiki & {
 }
 
 export const TABLE_PREFIX = 'llm_wiki_'
+const DEFAULT_WIKI_PREFILTER_LIMIT = 300
 let _wiki: Wiki | null = null
+
+export async function readFromWiki(
+  wiki: Wiki,
+  entityId: string,
+  query: string,
+): Promise<ReturnType<Wiki['read']>> {
+  const result = await wiki.read(entityId, query)
+  if (query.trim().length === 0 || result.facts.length > 0) {
+    return result
+  }
+
+  return wiki.read(entityId, query, {
+    preFilterLimit: null,
+  })
+}
 
 export function getSourceTypeEnumMigrationSql(): string[] {
   const entriesTable = `"${TABLE_PREFIX}entries"`
@@ -38,11 +54,7 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
       pruneEventsAfter: 14, // days: delete old events
       orphanAfterDays: 14, // days: mark unlinked entities as orphan
       staleInferredAfterDays: 30, // days: mark old librarian entries as stale
-      // preFilterLimit intentionally omitted: with it active, if the user's message
-      // has no keyword overlap with ingested document facts, FTS returns 0 candidates
-      // and the embed path is skipped entirely — ingested facts are never recalled.
-      // Without it, read() scans all embeddings for the entity and ranks purely by
-      // vector similarity, which works across vocabulary boundaries.
+      preFilterLimit: DEFAULT_WIKI_PREFILTER_LIMIT, // limit search candidates for speed
       hybridWeight: 1, // pure vector search — no FTS gating on candidate selection
     },
   })

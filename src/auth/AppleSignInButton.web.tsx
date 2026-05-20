@@ -13,13 +13,10 @@ type Props = {
   style?: ViewStyle
 }
 
-const APPLE_WEB_CONFIGURED = !!(
-  process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID &&
-  process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI
-)
-
 export default function AppleSignInButton(props: Props) {
-  if (!APPLE_WEB_CONFIGURED) return null
+  if (!process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID || !process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI) {
+    return null
+  }
   return <AppleSignInButtonInner {...props} />
 }
 
@@ -37,7 +34,7 @@ function AppleSignInButtonInner({ onLoadingChange, loading, disabled, style }: P
     const init = async () => {
       try {
         const domNode = containerRef.current as unknown as HTMLElement | null
-        if (domNode) {
+        if (domNode && typeof domNode.setAttribute === 'function') {
           domNode.id = 'appleid-signin'
           domNode.setAttribute('data-color', 'black')
           domNode.setAttribute('data-border', 'false')
@@ -79,7 +76,17 @@ function AppleSignInButtonInner({ onLoadingChange, loading, disabled, style }: P
     }
   }, [])
 
-  if (initFailed) return null
+  if (initFailed) {
+    return (
+      <View style={[styles.wrap, styles.wrapDisabled, style]}>
+        <View style={styles.container}>
+          <Text style={styles.caption} testID="apple-signin-unavailable-caption">
+            Apple sign-in is unavailable right now. Please try again later.
+          </Text>
+        </View>
+      </View>
+    )
+  }
 
   const credentialBusy = buttonState === 'loading'
   const busy = disabled || loading || credentialBusy

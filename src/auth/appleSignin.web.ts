@@ -112,7 +112,18 @@ export const initializeAppleSignIn = async (
     const idToken = data?.authorization?.id_token
 
     if (!idToken || !storedNonce) {
-      storedHandlers.onCredentialError(new Error('No identity token received from Apple'))
+      const missingFields = [
+        !idToken ? 'identity token' : null,
+        !storedNonce ? 'nonce' : null,
+      ]
+        .filter(Boolean)
+        .join(' and ')
+      storedHandlers.onCredentialError(
+        new Error(
+          `Apple Sign-In failed: missing ${missingFields}. ` +
+            'The session may need to be reinitialized.',
+        ),
+      )
       try {
         await initAppleIdAuth()
       } catch (error: unknown) {

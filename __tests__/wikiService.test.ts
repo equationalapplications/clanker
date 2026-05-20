@@ -22,6 +22,7 @@ import {
   getWiki,
   initWiki,
   _resetWikiForTests,
+  readFromWiki,
   TABLE_PREFIX,
 } from '~/services/wikiService'
 
@@ -134,9 +135,26 @@ describe('wikiService', () => {
           pruneEventsAfter: 14,
           orphanAfterDays: 14,
           staleInferredAfterDays: 30,
+          preFilterLimit: 300,
           hybridWeight: 1,
         }),
       }),
     )
+  })
+
+  it('retries a full-scan read when the prefiltered read returns no facts', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [{ id: 'fact-1' }], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    const result = await readFromWiki(wiki, 'entity-id', 'some query')
+
+    expect(mockRead).toHaveBeenCalledTimes(2)
+    expect(mockRead.mock.calls[0][2]).toBeUndefined()
+    expect(mockRead.mock.calls[1][2]).toEqual({ preFilterLimit: null })
+    expect(result.facts).toHaveLength(1)
   })
 })
