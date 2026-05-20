@@ -45,6 +45,17 @@ describe('buildChatPrompt', () => {
     mockGetCharacter.mockResolvedValue(null)
     mockGetMessageCount.mockResolvedValue(0)
     mockGetMessagesForContextSummary.mockResolvedValue([])
+    mockSaveAIMessage.mockImplementation(
+      (characterId: string, _userId: string, text: string, messageId: string) =>
+        Promise.resolve({
+          _id: messageId,
+          text,
+          createdAt: new Date(),
+          user: { _id: characterId, name: 'Character' },
+          sent: true,
+          pending: false,
+        }),
+    )
   })
 
   it('reports observation write failures from service callback with wiki:write:observation context', async () => {

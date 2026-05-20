@@ -386,7 +386,7 @@ export const sendMessageWithAIResponse = async (
     })
 
     // 5. Save AI response to local database
-    await saveAIMessage(character.id, userId, aiResponse.reply, aiResponseId, {
+    const savedAIMessage = await saveAIMessage(character.id, userId, aiResponse.reply, aiResponseId, {
       user: {
         _id: character.id, // The character is responding
         name: character.name,
@@ -400,14 +400,8 @@ export const sendMessageWithAIResponse = async (
       // Without it the observation ends with "User: [message]" (no reply), and the LLM
       // reads that unanswered line from memory and responds to it instead of the actual
       // current prompt — causing every reply to lag one message behind.
-      const aiObservationMsg: IMessage = {
-        _id: aiResponseId,
-        text: aiResponse.reply,
-        createdAt: new Date(),
-        user: { _id: character.id, name: character.name },
-      }
       const recentMessages = getRecentConversationHistory(
-        [...priorHistory, userMessage, aiObservationMsg],
+        [...priorHistory, userMessage, savedAIMessage],
         20,
       )
       const chunk = recentMessages

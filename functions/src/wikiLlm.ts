@@ -30,21 +30,29 @@ function parseInput(data: unknown): WikiLlmRequest {
   const systemPrompt = d.systemPrompt;
   const userPrompt = d.userPrompt;
 
-  if (typeof systemPrompt !== "string" || systemPrompt.trim().length === 0) {
+  if (typeof systemPrompt !== "string") {
     throw new HttpsError("invalid-argument", "systemPrompt is required.");
   }
-  if (systemPrompt.trim().length > MAX_SYSTEM_PROMPT_LENGTH) {
+  const trimmedSystemPrompt = systemPrompt.trim();
+  if (trimmedSystemPrompt.length === 0) {
+    throw new HttpsError("invalid-argument", "systemPrompt is required.");
+  }
+  if (trimmedSystemPrompt.length > MAX_SYSTEM_PROMPT_LENGTH) {
     throw new HttpsError("invalid-argument", `systemPrompt must be at most ${MAX_SYSTEM_PROMPT_LENGTH} characters.`);
   }
 
-  if (typeof userPrompt !== "string" || userPrompt.trim().length === 0) {
+  if (typeof userPrompt !== "string") {
     throw new HttpsError("invalid-argument", "userPrompt is required.");
   }
-  if (userPrompt.trim().length > MAX_USER_PROMPT_LENGTH) {
+  const trimmedUserPrompt = userPrompt.trim();
+  if (trimmedUserPrompt.length === 0) {
+    throw new HttpsError("invalid-argument", "userPrompt is required.");
+  }
+  if (trimmedUserPrompt.length > MAX_USER_PROMPT_LENGTH) {
     throw new HttpsError("invalid-argument", `userPrompt must be at most ${MAX_USER_PROMPT_LENGTH} characters.`);
   }
 
-  return {systemPrompt: systemPrompt.trim(), userPrompt: userPrompt.trim()};
+  return {systemPrompt: trimmedSystemPrompt, userPrompt: trimmedUserPrompt};
 }
 
 interface VertexGenerateOptions {
