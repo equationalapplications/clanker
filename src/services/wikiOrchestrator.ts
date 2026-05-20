@@ -1,5 +1,6 @@
 import { createActor, type ActorRefFrom, waitFor } from 'xstate'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
+import { clearWikiNoResultCache } from '~/services/wikiService'
 import { wikiMachine, type WikiMachineInput } from '~/machines/wikiMachine'
 import type { Wiki } from '~/services/wikiService'
 
@@ -57,6 +58,7 @@ function stop(entityId: string): void {
   if (!actor) return
   actor.stop()
   actors.delete(entityId)
+  clearWikiNoResultCache(entityId)
 }
 
 async function syncAll(

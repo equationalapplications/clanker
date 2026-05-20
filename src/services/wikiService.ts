@@ -18,6 +18,7 @@ export type Wiki = BaseWiki & {
 export const TABLE_PREFIX = 'llm_wiki_'
 const DEFAULT_WIKI_PREFILTER_LIMIT = 300
 const MAX_WIKI_NO_RESULT_QUERIES_PER_ENTITY = 100
+const MAX_WIKI_NO_RESULT_ENTITIES = 500
 const wikiNoResultQueries = new Map<string, string[]>()
 let _wiki: Wiki | null = null
 
@@ -25,6 +26,12 @@ function getWikiNoResultCache(entityId: string): string[] {
   let cache = wikiNoResultQueries.get(entityId)
   if (!cache) {
     cache = []
+    if (wikiNoResultQueries.size >= MAX_WIKI_NO_RESULT_ENTITIES) {
+      const oldestEntityId = wikiNoResultQueries.keys().next().value
+      if (oldestEntityId) {
+        wikiNoResultQueries.delete(oldestEntityId)
+      }
+    }
     wikiNoResultQueries.set(entityId, cache)
   }
   return cache
@@ -163,6 +170,25 @@ async function ensureWikiEmbeddingMigration(
   )
 }
 
+async function markWikiEmbeddingMigrationComplete(db: SQLiteDatabase): Promise<void> {
+  const dbExecAsync =
+    typeof db.execAsync === 'function' ? db.execAsync.bind(db) : undefined
+  const dbRunAsync =
+    typeof db.runAsync === 'function' ? db.runAsync.bind(db) : undefined
+
+  if (!dbExecAsync || !dbRunAsync) {
+    return
+  }
+
+  await dbExecAsync(
+    `CREATE TABLE IF NOT EXISTS ${WIKI_METADATA_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+  )
+  await dbRunAsync(
+    `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
+    [WIKI_EMBEDDING_MIGRATION_KEY, '1'],
+  )
+}
+
 export function getSourceTypeEnumMigrationSql(): string[] {
   const entriesTable = `"${TABLE_PREFIX}entries"`
   return [
@@ -224,6 +250,8 @@ export async function initWiki(db: SQLiteDatabase): Promise<void> {
     void ensureWikiEmbeddingMigration(db, wiki).catch((error) => {
       console.error('[Wiki] Background embedding migration failed:', error)
     })
+  } else {
+    await markWikiEmbeddingMigrationComplete(db)
   }
 }
 

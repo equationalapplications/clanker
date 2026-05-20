@@ -80,12 +80,13 @@ let isAppleSignInListenersAttached = false
 let appleSignInHandleSuccess: ((event: Event) => Promise<void>) | null = null
 let appleSignInHandleFailure: ((event: Event) => Promise<void>) | null = null
 
-const getCurrentAppleSignInSession = (): AppleSignInSessionInfo | null => {
+const getCurrentAppleSignInSession = (): { id: string; session: AppleSignInSessionInfo } | null => {
   const currentSessionId = appleSignInSessionStack[appleSignInSessionStack.length - 1]
   if (!currentSessionId) {
     return null
   }
-  return appleSignInSessions.get(currentSessionId) ?? null
+  const session = appleSignInSessions.get(currentSessionId)
+  return session ? { id: currentSessionId, session } : null
 }
 
 const initAppleIdAuthForSession = async (sessionId: string): Promise<void> => {
@@ -113,9 +114,9 @@ const attachAppleSignInListeners = () => {
   }
 
   appleSignInHandleSuccess = async (event: Event): Promise<void> => {
-    const currentSessionId = appleSignInSessionStack[appleSignInSessionStack.length - 1]
-    const storedSession = currentSessionId ? appleSignInSessions.get(currentSessionId) : null
-    if (!storedSession || !currentSessionId) return
+    const current = getCurrentAppleSignInSession()
+    if (!current) return
+    const { id: currentSessionId, session: storedSession } = current
 
     const { handlers: storedHandlers, rawNonce: storedNonce } = storedSession
     const data = (event as CustomEvent).detail
@@ -171,9 +172,9 @@ const attachAppleSignInListeners = () => {
   }
 
   appleSignInHandleFailure = async (event: Event): Promise<void> => {
-    const currentSessionId = appleSignInSessionStack[appleSignInSessionStack.length - 1]
-    const storedSession = currentSessionId ? appleSignInSessions.get(currentSessionId) : null
-    if (!storedSession || !currentSessionId) return
+    const current = getCurrentAppleSignInSession()
+    if (!current) return
+    const { id: currentSessionId, session: storedSession } = current
     const detail = (event as CustomEvent).detail
     if (detail?.error === 'popup_closed_by_user') {
       try {
@@ -214,7 +215,12 @@ const detachAppleSignInListeners = () => {
   isAppleSignInListenersAttached = false
 }
 
-const createAppleSignInSessionId = (): string => `apple-signin-session-${Date.now()}-${Math.random()}`
+const createAppleSignInSessionId = (): string => {
+  if (typeof crypto?.randomUUID === 'function') {
+    return `apple-signin-session-${crypto.randomUUID()}`
+  }
+  return `apple-signin-session-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
+}
 
 export const initializeAppleSignIn = async (
   handlers: AppleSignInHandlers,
