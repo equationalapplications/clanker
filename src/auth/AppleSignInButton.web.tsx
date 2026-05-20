@@ -44,7 +44,7 @@ function AppleSignInButtonInner({ onLoadingChange, loading, disabled, style }: P
           domNode.setAttribute('data-border-radius', '4')
         }
 
-        cleanup = await initializeAppleSignIn({
+        const resultCleanup = await initializeAppleSignIn({
           onCredentialStart: () => {
             if (cancelled) return
             setButtonState('loading')
@@ -62,6 +62,13 @@ function AppleSignInButtonInner({ onLoadingChange, loading, disabled, style }: P
             onLoadingChangeRef.current?.(false)
           },
         })
+
+        if (cancelled) {
+          resultCleanup()
+          return
+        }
+
+        cleanup = resultCleanup
       } catch (err) {
         if (cancelled) return
         console.warn('Apple Sign-In initialization failed:', err)

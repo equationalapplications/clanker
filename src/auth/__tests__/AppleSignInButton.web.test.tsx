@@ -44,4 +44,24 @@ describe('AppleSignInButton (web)', () => {
       expect(screen.getByText(/Apple sign-in is unavailable right now/)).toBeTruthy()
     })
   })
+
+  it('cleans up Apple sign-in listeners when unmounted before initialization resolves', async () => {
+    const mockCleanup = jest.fn()
+    let resolveInit: (cleanup: () => void) => void = () => {}
+
+    ;(appleSigninWeb.initializeAppleSignIn as jest.Mock).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveInit = resolve
+        }),
+    )
+
+    const { unmount } = render(<AppleSignInButton />)
+    unmount()
+    resolveInit(mockCleanup)
+
+    await waitFor(() => {
+      expect(mockCleanup).toHaveBeenCalled()
+    })
+  })
 })
