@@ -71,6 +71,9 @@ type StripePriceIds = {
 
 type StripeWebhookRequest = Request & {rawBody: Buffer};
 
+// Stripe SDK v22 removed current_period_end from its types (present at runtime).
+type StripeSubRuntime = { deleted?: boolean; current_period_end?: number };
+
 function getStripeId(value: StripeExpandableId): string | null {
   if (!value) return null;
   if (typeof value === "string") return value;
@@ -314,11 +317,12 @@ async function handleCheckoutCompleted(
 
       if (subscriptionId) {
         const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-        if ((stripeSub as any).deleted === true) {
+        const stripeSubRuntime = stripeSub as unknown as StripeSubRuntime;
+        if (stripeSubRuntime.deleted === true) {
           logger.warn("checkout.session.completed: subscription already deleted", {subscriptionId});
         } else {
           // current_period_end is present at runtime but removed from Stripe SDK v22 types.
-          const periodEnd = (stripeSub as any).current_period_end as number | undefined;
+          const periodEnd = stripeSubRuntime.current_period_end;
           if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
             const cycleEnd = new Date(periodEnd * 1000);
             const referenceId = `sub_${subscriptionId}_${periodEnd}`;
@@ -409,7 +413,7 @@ export async function handleSubscriptionUpdated(
   // sub_id + period_end so invoice.payment_succeeded fallback stays idempotent.
   // current_period_end is present at runtime but removed from Stripe SDK v22 types.
   if (planStatus === 'active') {
-    const periodEnd = (sub as any).current_period_end as number | undefined;
+    const periodEnd = (sub as unknown as StripeSubRuntime).current_period_end;
     if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
       const cycleEnd = new Date(periodEnd * 1000);
       const referenceId = `sub_${sub.id}_${periodEnd}`;
@@ -473,8 +477,9 @@ export async function handleInvoicePaymentSucceeded(
     if (invoice.billing_reason === 'subscription_cycle') {
       // Retrieve the subscription directly for reliable period_end (invoice line order is not stable).
       const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-      if ((stripeSub as any).deleted !== true) {
-        const periodEnd = (stripeSub as any).current_period_end as number | undefined;
+      const stripeSubRuntime2 = stripeSub as unknown as StripeSubRuntime;
+      if (stripeSubRuntime2.deleted !== true) {
+        const periodEnd = stripeSubRuntime2.current_period_end;
         if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
           // Use sub_${id}_${periodEnd} so this is idempotent with customer.subscription.updated.
           const referenceId = `sub_${subscriptionId}_${periodEnd}`;

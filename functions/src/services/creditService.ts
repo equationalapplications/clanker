@@ -1,7 +1,11 @@
 import { eq, sql, and, or, isNull, gt, gte, ne } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { getDb } from '../db/cloudSql.js';
 import { subscriptions, creditTransactions } from '../db/schema.js';
 import type { TransactionType } from '../db/schema.js';
+import type * as schema from '../db/schema.js';
+
+type DbTx = NodePgDatabase<typeof schema>;
 
 const UNIQUE_VIOLATION_CODE = '23505';
 
@@ -40,7 +44,7 @@ export function assertIdempotentDeltaMatch(params: {
   }
 }
 
-async function syncSubscriptionCache(tx: any, userId: string): Promise<number> {
+async function syncSubscriptionCache(tx: DbTx, userId: string): Promise<number> {
   const totalResult = await tx
     .select({ total: sql<number>`GREATEST(COALESCE(SUM(${creditTransactions.remainingBalance}), 0), 0)` })
     .from(creditTransactions)
@@ -89,7 +93,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
   const service = {
     async getCredits(userId: string): Promise<number> {
       const db = await deps.getDb();
-      return await db.transaction(async (tx: any) => {
+      return await db.transaction(async (tx: DbTx) => {
         return syncSubscriptionCache(tx, userId);
       });
     },
@@ -97,7 +101,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
     async spendCredits(userId: string, amount: number, _reason?: string, _referenceId?: string): Promise<boolean> {
       const db = await deps.getDb();
       try {
-        return await db.transaction(async (tx: any) => {
+        return await db.transaction(async (tx: DbTx) => {
           // Check net active balance first — accounts for negative adjustCredits rows (e.g. Stripe refunds).
           const netResult = await tx
             .select({ total: sql<number>`GREATEST(COALESCE(SUM(${creditTransactions.remainingBalance}), 0), 0)` })
@@ -163,7 +167,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       referenceId?: string
     ): Promise<void> {
       const db = await deps.getDb();
-      await db.transaction(async (tx: any) => {
+      await db.transaction(async (tx: DbTx) => {
         if (referenceId) {
           try {
             await tx.insert(creditTransactions).values({
@@ -220,7 +224,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
 
     async refundCredit(userId: string, transactionId: string, amount: number): Promise<void> {
       const db = await deps.getDb();
-      await db.transaction(async (tx: any) => {
+      await db.transaction(async (tx: DbTx) => {
         // Check if the target row is still active using DB clock.
         // If a subscription renewal expired it between spend and refund, restore to a non-expiring pool.
         const activeRows = await tx
@@ -271,7 +275,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       referenceId: string
     ): Promise<boolean> {
       const db = await deps.getDb();
-      return await db.transaction(async (tx: any) => {
+      return await db.transaction(async (tx: DbTx) => {
         // Insert first — this is the atomic idempotency guard (spec: check before any writes).
         const inserted = await tx
           .insert(creditTransactions)
@@ -312,7 +316,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
 
     async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string): Promise<number> {
       const db = await deps.getDb();
-      return await db.transaction(async (tx: any) => {
+      return await db.transaction(async (tx: DbTx) => {
         if (referenceId) {
           try {
             await tx.insert(creditTransactions).values({

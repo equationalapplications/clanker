@@ -99,8 +99,8 @@ test('spendCredits returns true and decrements balance on qualifying row', async
       }),
     }),
     update: () => ({
-      set: (vals: unknown) => ({
-        where: async (cond: unknown) => {
+      set: (_vals: unknown) => ({
+        where: async (_cond: unknown) => {
           updatedId = 'tx-abc';
           cacheUpdated = true;
         },
@@ -147,10 +147,11 @@ test('addCredits inserts a row with initialAmount and remainingBalance', async (
   const service = createCreditService({ getDb: async () => fakeDb as never });
   await service.addCredits('user-1', 100, new Date('2026-06-21'), 'one_time', 'ref-123');
 
-  assert.equal((insertedValues as any)?.initialAmount, 100);
-  assert.equal((insertedValues as any)?.remainingBalance, 100);
-  assert.equal((insertedValues as any)?.transactionType, 'one_time');
-  assert.equal((insertedValues as any)?.referenceId, 'ref-123');
+  const iv = insertedValues as unknown as Record<string, unknown>;
+  assert.equal(iv?.initialAmount, 100);
+  assert.equal(iv?.remainingBalance, 100);
+  assert.equal(iv?.transactionType, 'one_time');
+  assert.equal(iv?.referenceId, 'ref-123');
 });
 
 // ---------------------------------------------------------------------------
