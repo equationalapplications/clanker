@@ -43,6 +43,7 @@ export const createSubscriptionService = (
           userId,
           planTier: 'free',
           planStatus: 'active',
+          // Credits are granted through credit_transactions (signup grant), then synchronized onto subscriptions.
           currentCredits: 0,
         })
         .onConflictDoNothing({ target: subscriptions.userId });

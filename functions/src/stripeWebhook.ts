@@ -313,6 +313,7 @@ async function handleCheckoutCompleted(
 
       if (subscriptionId) {
         const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+        // Stripe's type for `retrieve` is broad; the subscription payload includes `current_period_end`.
         const cycleEnd = new Date(((stripeSub as any).current_period_end as number) * 1000);
         await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, session.id);
       }

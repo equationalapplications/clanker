@@ -1,4 +1,4 @@
-import { eq, sql, and, or, isNull, gt } from 'drizzle-orm';
+import { eq, sql, and, or, isNull, gt, gte } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { subscriptions, creditTransactions } from '../db/schema.js';
 import type { TransactionType } from '../db/schema.js';
@@ -82,7 +82,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
             .where(
               and(
                 eq(creditTransactions.userId, userId),
-                gt(creditTransactions.remainingBalance, amount - 1),
+                gte(creditTransactions.remainingBalance, amount),
                 or(
                   isNull(creditTransactions.expiresAt),
                   gt(creditTransactions.expiresAt, sql`NOW()`)
