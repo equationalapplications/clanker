@@ -73,20 +73,34 @@ async function syncSubscriptionCache(tx: DbTx, userId: string): Promise<number> 
   const total = totalResult[0]?.total ?? 0;
   const nextExpiry = nextExpiryResult[0]?.minExpiry ?? null;
 
-  // Ensure the subscriptions row exists (e.g. webhook path ran before first login).
-  await tx
-    .insert(subscriptions)
-    .values({ userId })
-    .onConflictDoNothing({ target: subscriptions.userId });
+  const existingSubscription = await tx
+    .select({ currentCredits: subscriptions.currentCredits, nextExpiryDate: subscriptions.nextExpiryDate })
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .limit(1);
 
-  await tx
-    .update(subscriptions)
-    .set({
-      currentCredits: total,
-      nextExpiryDate: nextExpiry,
-      updatedAt: new Date(),
-    })
-    .where(eq(subscriptions.userId, userId));
+  const cached = existingSubscription[0] ?? null;
+  const expiryMatches =
+    (cached?.nextExpiryDate === null && nextExpiry === null) ||
+    (cached?.nextExpiryDate instanceof Date && nextExpiry instanceof Date && cached.nextExpiryDate.getTime() === nextExpiry.getTime());
+
+  if (!cached) {
+    await tx
+      .insert(subscriptions)
+      .values({ userId })
+      .onConflictDoNothing({ target: subscriptions.userId });
+  }
+
+  if (!cached || cached.currentCredits !== total || !expiryMatches) {
+    await tx
+      .update(subscriptions)
+      .set({
+        currentCredits: total,
+        nextExpiryDate: nextExpiry,
+        updatedAt: new Date(),
+      })
+      .where(eq(subscriptions.userId, userId));
+  }
 
   return total;
 }

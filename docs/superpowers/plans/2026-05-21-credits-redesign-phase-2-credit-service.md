@@ -365,11 +365,12 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
 
     /**
      * Spends `amount` credits from the earliest-expiring qualifying row.
-     * Signature intentionally kept compatible with Phase 2 callers (reason/referenceId
-     * are accepted but unused — Phase 3 removes them).
-     * Returns false if no row has sufficient remaining_balance.
+     * Signature is `spendCredits(userId, amount)` in Phase 2, returning the
+     * decremented row id on success or `null` when credits are insufficient.
+     * This matches the current implementation and avoids keeping unused
+     * `reason`/`referenceId` arguments in the staged API.
      */
-    async spendCredits(userId: string, amount: number, _reason?: string, _referenceId?: string): Promise<boolean> {
+    async spendCredits(userId: string, amount: number): Promise<string | null> {
       const db = await deps.getDb();
       try {
         return await db.transaction(async (tx) => {

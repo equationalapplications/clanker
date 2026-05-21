@@ -130,6 +130,7 @@ test('spendCredits returns transactionId and decrements balance on qualifying ro
     [{ id: 'tx-abc', remainingBalance: 10 }],
     [{ total: 9 }],
     [{ minExpiry: null }],
+    [],
   ];
   let selectIdx = 0;
 
@@ -155,6 +156,11 @@ test('spendCredits returns transactionId and decrements balance on qualifying ro
         },
       }),
     }),
+    insert: () => ({
+      values: (_vals: unknown) => ({
+        onConflictDoNothing: (_opts: unknown) => ({})
+      }),
+    }),
   };
   const fakeDb = {
     transaction: async (fn: (tx: typeof fakeTx) => Promise<string | null>, _opts?: unknown) => fn(fakeTx),
@@ -165,7 +171,7 @@ test('spendCredits returns transactionId and decrements balance on qualifying ro
   assert.equal(result, 'tx-abc');
   assert.equal(updatedId, 'tx-abc');
   assert.equal(cacheUpdated, true);
-  assert.equal(selectIdx, 5);
+  assert.equal(selectIdx, 6);
 });
 
 // ---------------------------------------------------------------------------
