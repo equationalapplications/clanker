@@ -1,4 +1,4 @@
-import { eq, sql, and, or, isNull, gt, gte } from 'drizzle-orm';
+import { eq, sql, and, or, isNull, gt, gte, ne } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { subscriptions, creditTransactions } from '../db/schema.js';
 import type { TransactionType } from '../db/schema.js';
@@ -42,7 +42,7 @@ export function assertIdempotentDeltaMatch(params: {
 
 async function syncSubscriptionCache(tx: any, userId: string): Promise<number> {
   const totalResult = await tx
-    .select({ total: sql<number>`COALESCE(SUM(${creditTransactions.remainingBalance}), 0)` })
+    .select({ total: sql<number>`GREATEST(COALESCE(SUM(${creditTransactions.remainingBalance}), 0), 0)` })
     .from(creditTransactions)
     .where(
       and(
@@ -89,9 +89,20 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
   const service = {
     async getCredits(userId: string): Promise<number> {
       const db = await deps.getDb();
-      return await db.transaction(async (tx: any) => {
-        return await syncSubscriptionCache(tx, userId);
-      });
+      const result = await db
+        .select({ total: sql<number>`GREATEST(COALESCE(SUM(${creditTransactions.remainingBalance}), 0), 0)` })
+        .from(creditTransactions)
+        .where(
+          and(
+            eq(creditTransactions.userId, userId),
+            or(
+              isNull(creditTransactions.expiresAt),
+              gt(creditTransactions.expiresAt, sql`NOW()`)
+            )
+          )
+        )
+        .limit(1);
+      return result[0]?.total ?? 0;
     },
 
     async spendCredits(userId: string, amount: number, _reason?: string, _referenceId?: string): Promise<boolean> {
@@ -219,38 +230,10 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
     ): Promise<boolean> {
       const db = await deps.getDb();
       return await db.transaction(async (tx: any) => {
-        const existing = await tx
-          .select({ id: creditTransactions.id })
-          .from(creditTransactions)
-          .where(
-            and(
-              eq(creditTransactions.userId, userId),
-              eq(creditTransactions.reason, 'subscription'),
-              eq(creditTransactions.referenceId, referenceId)
-            )
-          )
-          .limit(1);
-
-        if (existing.length > 0) {
-          return false;
-        }
-
-        await tx
-          .update(creditTransactions)
-          .set({ expiresAt: new Date() })
-          .where(
-            and(
-              eq(creditTransactions.userId, userId),
-              eq(creditTransactions.transactionType, 'subscription'),
-              or(
-                isNull(creditTransactions.expiresAt),
-                gt(creditTransactions.expiresAt, sql`NOW()`)
-              )
-            )
-          );
-
-        try {
-          await tx.insert(creditTransactions).values({
+        // Insert first — this is the atomic idempotency guard (spec: check before any writes).
+        const inserted = await tx
+          .insert(creditTransactions)
+          .values({
             userId,
             delta: amount,
             reason: 'subscription',
@@ -259,13 +242,26 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
             remainingBalance: amount,
             transactionType: 'subscription',
             expiresAt,
-          });
-        } catch (error) {
-          if (isUniqueViolation(error)) {
-            return false;
-          }
-          throw error;
+          })
+          .onConflictDoNothing()
+          .returning({ id: creditTransactions.id });
+
+        if (inserted.length === 0) {
+          return false;
         }
+
+        // Expire previous subscription credits using DB clock, excluding the row just inserted.
+        await tx
+          .update(creditTransactions)
+          .set({ expiresAt: sql`NOW()` })
+          .where(
+            and(
+              eq(creditTransactions.userId, userId),
+              eq(creditTransactions.transactionType, 'subscription'),
+              gt(creditTransactions.expiresAt, sql`NOW()`),
+              ne(creditTransactions.id, inserted[0].id)
+            )
+          );
 
         await syncSubscriptionCache(tx, userId);
         return true;

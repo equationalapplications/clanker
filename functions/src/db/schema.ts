@@ -54,9 +54,9 @@ export const creditTransactions = pgTable('credit_transactions', {
   delta: integer('delta').notNull(),
   reason: text('reason').notNull(),
   referenceId: text('reference_id'),
-  initialAmount: integer('initial_amount').notNull().default(0),
-  remainingBalance: integer('remaining_balance').notNull().default(0),
-  transactionType: text('transaction_type').notNull().default('legacy'),
+  initialAmount: integer('initial_amount').notNull(),
+  remainingBalance: integer('remaining_balance').notNull(),
+  transactionType: text('transaction_type').notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({

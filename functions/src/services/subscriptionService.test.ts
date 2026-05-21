@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSubscriptionService } from './subscriptionService.js';
-import { creditTransactions } from '../db/schema.js';
 
 test('upsertSubscription defaults first insert credits to 50 when omitted', async () => {
   let insertValues: Record<string, unknown> | null = null;
@@ -36,34 +35,29 @@ test('upsertSubscription defaults first insert credits to 50 when omitted', asyn
   assert.equal(upsertedCredits, 50);
 });
 
-test('getOrCreateDefaultSubscription grants signup credits when new user has no existing credits', async () => {
+test('getOrCreateDefaultSubscription grants signup credits for new user', async () => {
   let addedCreditArgs: unknown = null;
   const mockDeps = {
     getDb: async () => ({
       insert: () => ({
         values: () => ({
-          onConflictDoNothing: async () => {},
+          onConflictDoNothing: () => ({
+            returning: async () => [{ id: 'sub-new' }],
+          }),
         }),
       }),
       select: () => ({
-        from: (table: unknown) => ({
+        from: () => ({
           where: () => ({
-            limit: async () => {
-              if (table === creditTransactions) {
-                return [];
-              }
-
-              return [{
-                id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 0,
-                termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
-              }];
-            },
+            limit: async () => [{
+              id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 0,
+              termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
+            }],
           }),
         }),
       }),
     }),
     creditService: {
-      getCredits: async () => 0,
       addCredits: async (userId: string, amount: number, expiresAt: Date | null, transactionType: string, referenceId?: string) => {
         addedCreditArgs = { userId, amount, expiresAt, transactionType, referenceId };
       },
@@ -81,4 +75,36 @@ test('getOrCreateDefaultSubscription grants signup credits when new user has no 
     transactionType: 'signup',
     referenceId: 'signup',
   });
+});
+
+test('getOrCreateDefaultSubscription skips signup credits for existing user', async () => {
+  let addCreditsWasCalled = false;
+  const mockDeps = {
+    getDb: async () => ({
+      insert: () => ({
+        values: () => ({
+          onConflictDoNothing: () => ({
+            returning: async () => [],
+          }),
+        }),
+      }),
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => [{
+              id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 50,
+              termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
+            }],
+          }),
+        }),
+      }),
+    }),
+    creditService: {
+      addCredits: async () => { addCreditsWasCalled = true; },
+    },
+  } as const;
+
+  const service = createSubscriptionService(mockDeps as never);
+  await service.getOrCreateDefaultSubscription('user-1');
+  assert.equal(addCreditsWasCalled, false);
 });

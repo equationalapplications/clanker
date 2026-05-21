@@ -1,6 +1,6 @@
-import { eq, sql, and } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
-import { subscriptions, creditTransactions } from '../db/schema.js';
+import { subscriptions } from '../db/schema.js';
 import { createCreditService } from './creditService.js';
 
 const SIGNUP_CREDIT_REFERENCE_ID = 'signup';
@@ -39,7 +39,8 @@ export const createSubscriptionService = (
       const db = await deps.getDb();
       const creditService = deps.creditService ?? createCreditService();
 
-      await db
+      // .returning() lets us detect whether this is a new user (inserted) vs. returning user (conflict).
+      const inserted = await db
         .insert(subscriptions)
         .values({
           userId,
@@ -48,29 +49,17 @@ export const createSubscriptionService = (
           // Credits are granted through credit_transactions (signup grant), then synchronized onto subscriptions.
           currentCredits: 0,
         })
-        .onConflictDoNothing({ target: subscriptions.userId });
+        .onConflictDoNothing({ target: subscriptions.userId })
+        .returning({ id: subscriptions.id });
 
       const subscription = await service.getSubscription(userId);
       if (!subscription) {
         throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`);
       }
 
-      const signupRow = await db
-        .select({ id: creditTransactions.id })
-        .from(creditTransactions)
-        .where(
-          and(
-            eq(creditTransactions.userId, userId),
-            eq(creditTransactions.reason, 'signup'),
-            eq(creditTransactions.referenceId, SIGNUP_CREDIT_REFERENCE_ID)
-          )
-        )
-        .limit(1);
-
-      if (signupRow.length === 0) {
+      if (inserted.length > 0) {
+        // New subscription row — grant signup credits. addCredits is idempotent via referenceId.
         await creditService.addCredits(userId, 50, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
-      } else {
-        await creditService.getCredits(userId);
       }
 
       return await service.getSubscription(userId) ?? subscription;

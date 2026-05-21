@@ -40,7 +40,6 @@ test('getCredits returns sum of remaining_balance from non-expired rows', async 
         }),
       }),
     }),
-    update: () => ({ set: () => ({ where: async () => {} }) }),
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
@@ -57,7 +56,6 @@ test('getCredits returns 0 when no rows exist', async () => {
         }),
       }),
     }),
-    update: () => ({ set: () => ({ where: async () => {} }) }),
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
@@ -90,11 +88,13 @@ test('spendCredits returns true and decrements balance on qualifying row', async
     select: () => ({
       from: () => ({
         where: () => ({
+          // spendCredits uses .orderBy().limit().for(); syncSubscriptionCache uses .limit() directly.
           orderBy: () => ({
             limit: () => ({
               for: async () => [{ id: 'tx-abc', remainingBalance: 10 }],
             }),
           }),
+          limit: async () => [{ total: 10 }],
         }),
       }),
     }),
@@ -131,6 +131,13 @@ test('addCredits inserts a row with initialAmount and remainingBalance', async (
         insertedValues = vals;
       },
     }),
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ total: 100 }],
+        }),
+      }),
+    }),
     update: () => ({ set: () => ({ where: async () => {} }) }),
   };
   const fakeDb = {
@@ -159,6 +166,13 @@ test('refundCredit increments remaining_balance on the specified row', async () 
         where: async () => { updatedTransactionId = 'tx-abc'; },
       }),
     }),
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ total: 100 }],
+        }),
+      }),
+    }),
   };
   const fakeDb = {
     transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
@@ -175,10 +189,10 @@ test('refundCredit increments remaining_balance on the specified row', async () 
 
 test('renewSubscriptionCredits returns false when referenceId already processed', async () => {
   const fakeTx = {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: async () => [{ id: 'existing-row' }],
+    insert: () => ({
+      values: () => ({
+        onConflictDoNothing: () => ({
+          returning: async () => [],
         }),
       }),
     }),
@@ -192,25 +206,32 @@ test('renewSubscriptionCredits returns false when referenceId already processed'
   assert.equal(result, false);
 });
 
-test('renewSubscriptionCredits returns true and runs expiry + insert when new', async () => {
-  let expiredRows = false;
-  let insertedRow = false;
+test('renewSubscriptionCredits returns true, inserts credits first, then expires old rows', async () => {
+  let expiredOldCredits = false;
+  let grantedNewCredits = false;
 
   const fakeTx = {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: async () => [],
+    insert: () => ({
+      values: () => ({
+        onConflictDoNothing: () => ({
+          returning: async () => {
+            grantedNewCredits = true;
+            return [{ id: 'tx-new' }];
+          },
         }),
       }),
     }),
     update: () => ({
       set: () => ({
-        where: async () => { expiredRows = true; },
+        where: async () => { expiredOldCredits = true; },
       }),
     }),
-    insert: () => ({
-      values: async () => { insertedRow = true; },
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ total: 300 }],
+        }),
+      }),
     }),
   };
   const fakeDb = {
@@ -220,6 +241,6 @@ test('renewSubscriptionCredits returns true and runs expiry + insert when new', 
   const service = createCreditService({ getDb: async () => fakeDb as never });
   const result = await service.renewSubscriptionCredits('user-1', 300, new Date(), 'evt_new');
   assert.equal(result, true);
-  assert.equal(expiredRows, true);
-  assert.equal(insertedRow, true);
+  assert.equal(grantedNewCredits, true);
+  assert.equal(expiredOldCredits, true);
 });

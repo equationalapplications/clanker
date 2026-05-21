@@ -364,8 +364,11 @@ export const revenueCatWebhookHandler = async (
             renewalAt
           );
 
-          if (renewalAt && original_transaction_id) {
-            await deps.renewSubscriptionCredits(cloudUser.id, 300, renewalAt, original_transaction_id);
+          if (renewalAt && original_transaction_id && typeof expiration_at_ms === 'number') {
+            // Use a per-cycle key: original_transaction_id alone would block all future renewals
+            // since it is stable for the lifetime of the subscription.
+            const referenceId = `${original_transaction_id}_${expiration_at_ms}`;
+            await deps.renewSubscriptionCredits(cloudUser.id, 300, renewalAt, referenceId);
           }
 
           logger.info("RevenueCat: subscription upserted + credits renewed", {

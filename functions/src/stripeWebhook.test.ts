@@ -248,6 +248,6 @@ test("handleInvoicePaymentSucceeded renews subscription credits only on subscrip
     userId: "user-1",
     amount: 300,
     expiresAt: new Date(1710000000 * 1000),
-    referenceId: "inv_123",
+    referenceId: "sub_sub_123_1710000000",
   });
 });

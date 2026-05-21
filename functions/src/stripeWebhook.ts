@@ -313,9 +313,19 @@ async function handleCheckoutCompleted(
 
       if (subscriptionId) {
         const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-        // Stripe's type for `retrieve` is broad; the subscription payload includes `current_period_end`.
-        const cycleEnd = new Date(((stripeSub as any).current_period_end as number) * 1000);
-        await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, session.id);
+        if ((stripeSub as any).deleted === true) {
+          logger.warn("checkout.session.completed: subscription already deleted", {subscriptionId});
+        } else {
+          // current_period_end is present at runtime but removed from Stripe SDK v22 types.
+          const periodEnd = (stripeSub as any).current_period_end as number | undefined;
+          if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
+            const cycleEnd = new Date(periodEnd * 1000);
+            const referenceId = `sub_${subscriptionId}_${periodEnd}`;
+            await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, referenceId);
+          } else {
+            logger.warn("checkout.session.completed: missing or invalid current_period_end", {subscriptionId});
+          }
+        }
       }
 
       logger.info("checkout.session.completed: subscription upserted + credits granted", {
@@ -388,6 +398,22 @@ async function handleSubscriptionUpdated(
     tier,
     planStatus,
   });
+
+  // Grant credits only for active renewals. The referenceId is keyed on
+  // sub_id + period_end so invoice.payment_succeeded fallback stays idempotent.
+  // current_period_end is present at runtime but removed from Stripe SDK v22 types.
+  if (planStatus === 'active') {
+    const periodEnd = (sub as any).current_period_end as number | undefined;
+    if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
+      const cycleEnd = new Date(periodEnd * 1000);
+      const referenceId = `sub_${sub.id}_${periodEnd}`;
+      await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, referenceId);
+      logger.info("customer.subscription.updated: subscription credits renewed", {
+        email: customer.email,
+        tier,
+      });
+    }
+  }
 }
 
 async function handleSubscriptionDeleted(
@@ -439,7 +465,9 @@ export async function handleInvoicePaymentSucceeded(
     if (invoice.billing_reason === 'subscription_cycle') {
       const cycleEnd = invoice.lines.data[0]?.period?.end;
       if (typeof cycleEnd === 'number') {
-        await deps.renewSubscriptionCredits(user.id, 300, new Date(cycleEnd * 1000), invoice.id);
+        // Use sub_${id}_${periodEnd} so this is idempotent with customer.subscription.updated.
+        const referenceId = `sub_${subscriptionId}_${cycleEnd}`;
+        await deps.renewSubscriptionCredits(user.id, 300, new Date(cycleEnd * 1000), referenceId);
         logger.info('invoice.payment_succeeded: subscription credits renewed', {
           email: customerEmail,
           invoiceId: invoice.id,
