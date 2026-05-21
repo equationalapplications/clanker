@@ -222,7 +222,7 @@ export const stripeWebhookHandler = async (
     }
     case "customer.subscription.updated": {
       const sub = event.data.object as Stripe.Subscription;
-      await handleSubscriptionUpdated(sub, stripe, priceIds, deps, event.id);
+      await handleSubscriptionUpdated(sub, stripe, priceIds, deps);
       break;
     }
     case "customer.subscription.deleted": {
@@ -355,8 +355,7 @@ async function handleSubscriptionUpdated(
   sub: Stripe.Subscription,
   stripe: Stripe,
   priceIds: StripePriceIds,
-  deps: StripeWebhookDeps,
-  eventId: string
+  deps: StripeWebhookDeps
 ): Promise<void> {
   const customerId = getStripeId(sub.customer as StripeExpandableId);
   if (!customerId) {

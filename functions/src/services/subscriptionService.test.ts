@@ -41,9 +41,7 @@ test('getOrCreateDefaultSubscription grants signup credits for new user', async 
     getDb: async () => ({
       insert: () => ({
         values: () => ({
-          onConflictDoNothing: () => ({
-            returning: async () => [{ id: 'sub-new' }],
-          }),
+          onConflictDoNothing: () => ({}),
         }),
       }),
       select: () => ({
@@ -77,15 +75,15 @@ test('getOrCreateDefaultSubscription grants signup credits for new user', async 
   });
 });
 
-test('getOrCreateDefaultSubscription skips signup credits for existing user', async () => {
+test('getOrCreateDefaultSubscription calls addCredits idempotently for existing user', async () => {
+  // addCredits is always called — it is idempotent via referenceId (ON CONFLICT DO NOTHING).
+  // This ensures users whose subscription row was pre-created by the DB trigger still get credits.
   let addCreditsWasCalled = false;
   const mockDeps = {
     getDb: async () => ({
       insert: () => ({
         values: () => ({
-          onConflictDoNothing: () => ({
-            returning: async () => [],
-          }),
+          onConflictDoNothing: () => ({}),
         }),
       }),
       select: () => ({
@@ -106,5 +104,5 @@ test('getOrCreateDefaultSubscription skips signup credits for existing user', as
 
   const service = createSubscriptionService(mockDeps as never);
   await service.getOrCreateDefaultSubscription('user-1');
-  assert.equal(addCreditsWasCalled, false);
+  assert.equal(addCreditsWasCalled, true);
 });

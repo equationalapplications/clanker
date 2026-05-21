@@ -39,8 +39,7 @@ export const createSubscriptionService = (
       const db = await deps.getDb();
       const creditService = deps.creditService ?? createCreditService();
 
-      // .returning() lets us detect whether this is a new user (inserted) vs. returning user (conflict).
-      const inserted = await db
+      await db
         .insert(subscriptions)
         .values({
           userId,
@@ -49,18 +48,17 @@ export const createSubscriptionService = (
           // Credits are granted through credit_transactions (signup grant), then synchronized onto subscriptions.
           currentCredits: 0,
         })
-        .onConflictDoNothing({ target: subscriptions.userId })
-        .returning({ id: subscriptions.id });
+        .onConflictDoNothing({ target: subscriptions.userId });
 
       const subscription = await service.getSubscription(userId);
       if (!subscription) {
         throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`);
       }
 
-      if (inserted.length > 0) {
-        // New subscription row — grant signup credits. addCredits is idempotent via referenceId.
-        await creditService.addCredits(userId, 50, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
-      }
+      // Always call — addCredits is idempotent via referenceId, so duplicate calls are safe.
+      // Guards against the DB trigger handle_new_user() pre-creating the subscription row
+      // without a matching credit_transactions row.
+      await creditService.addCredits(userId, 50, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
 
       return await service.getSubscription(userId) ?? subscription;
     },

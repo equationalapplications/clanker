@@ -32,14 +32,14 @@ test('assertIdempotentDeltaMatch throws when transaction row missing', () => {
 // ---------------------------------------------------------------------------
 
 test('getCredits returns sum of remaining_balance from non-expired rows', async () => {
+  // syncSubscriptionCache makes two selects (total, nextExpiry) + one update.
+  // Second select (.where() awaited directly) returns an object; [0] is undefined → nextExpiry=null.
+  const fakeTx = {
+    select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ total: 75 }] }) }) }),
+    update: () => ({ set: () => ({ where: async () => {} }) }),
+  };
   const fakeDb = {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: async () => [{ total: 75 }],
-        }),
-      }),
-    }),
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<number>) => fn(fakeTx),
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
@@ -48,14 +48,12 @@ test('getCredits returns sum of remaining_balance from non-expired rows', async 
 });
 
 test('getCredits returns 0 when no rows exist', async () => {
+  const fakeTx = {
+    select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ total: null }] }) }) }),
+    update: () => ({ set: () => ({ where: async () => {} }) }),
+  };
   const fakeDb = {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: async () => [{ total: null }],
-        }),
-      }),
-    }),
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<number>) => fn(fakeTx),
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });

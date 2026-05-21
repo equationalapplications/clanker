@@ -89,20 +89,9 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
   const service = {
     async getCredits(userId: string): Promise<number> {
       const db = await deps.getDb();
-      const result = await db
-        .select({ total: sql<number>`GREATEST(COALESCE(SUM(${creditTransactions.remainingBalance}), 0), 0)` })
-        .from(creditTransactions)
-        .where(
-          and(
-            eq(creditTransactions.userId, userId),
-            or(
-              isNull(creditTransactions.expiresAt),
-              gt(creditTransactions.expiresAt, sql`NOW()`)
-            )
-          )
-        )
-        .limit(1);
-      return result[0]?.total ?? 0;
+      return await db.transaction(async (tx: any) => {
+        return syncSubscriptionCache(tx, userId);
+      });
     },
 
     async spendCredits(userId: string, amount: number, _reason?: string, _referenceId?: string): Promise<boolean> {
@@ -325,20 +314,14 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
           });
         }
 
+        // Ensure subscription row exists for new users, then sync both currentCredits and nextExpiryDate.
         const startingCredits = Math.max(0, delta);
-        const result = await tx
+        await tx
           .insert(subscriptions)
           .values({ userId, currentCredits: startingCredits })
-          .onConflictDoUpdate({
-            target: subscriptions.userId,
-            set: {
-              currentCredits: sql`GREATEST(${subscriptions.currentCredits} + ${delta}, 0)`,
-              updatedAt: new Date(),
-            },
-          })
-          .returning({ currentCredits: subscriptions.currentCredits });
+          .onConflictDoNothing({ target: subscriptions.userId });
 
-        return result[0].currentCredits;
+        return syncSubscriptionCache(tx, userId);
       });
     },
   };
