@@ -7,6 +7,8 @@
 
 Remove the concept of "unlimited" credits from Clanker. The `monthly_20` subscription plan now grants 300 credits per billing cycle instead of bypassing credit consumption entirely. All features previously gated to premium subscribers only are now open to any user with sufficient credits. Credits expire after 31 days (except free signup credits, which never expire).
 
+Credit consumption uses a **decrementing balance model**: each credit grant row tracks its own `remaining_balance`, and spending decrements that row directly. This keeps queries fast, expiration precise, and enables per-transaction refunds when downstream APIs fail.
+
 ---
 
 ## Credit Model Rules
@@ -22,17 +24,18 @@ Remove the concept of "unlimited" credits from Clanker. The `monthly_20` subscri
 
 - No unlimited bypass. Every server-side feature call costs ≥ 1 credit.
 - Free signup credits: `expires_at = NULL`. Never expire regardless of account activity.
-- Subscription renewal: grant 300 new credits with `expires_at = billing_cycle_end`. Previous subscription-cycle credits expire immediately (no rollover).
+- Subscription renewal: grant 300 new credits with `expires_at = billing_cycle_end`. Previous subscription-cycle credits expire immediately — targeted by `transaction_type = 'subscription'` so one-time credits are never touched.
 - One-time purchase: add 100 credits with `expires_at = NOW() + 31 days`.
-- Separate pools (subscription vs one-time) are tracked independently via `expires_at` per `credit_transactions` row.
-- Spend order: earliest-expiring first (`ORDER BY expires_at NULLS LAST ASC`). Free credits (NULL expiry) spent last.
-- Local inference (future feature): client handles AI call on-device and never calls `spendCredits`. No credits consumed. No code change required — credit deduction is already explicit/opt-in per callable.
+- Separate pools (subscription vs one-time) tracked independently via `transaction_type` and `expires_at` per `credit_transactions` row.
+- Spend order: earliest-expiring grant first (`ORDER BY expires_at NULLS LAST ASC`). Free credits (`expires_at = NULL`) spent last.
+- Credit cost per action is 1. Since all actions cost exactly 1 credit, `spendCredits` always finds a single row with `remaining_balance >= 1` — no cross-row splitting required.
+- Local inference (future feature): client handles AI call on-device and never calls `spendCredits`. No credits consumed. No code change required — credit deduction is explicit/opt-in per callable.
 
 ---
 
 ## Feature Gate Changes
 
-All features previously restricted to `monthly_20`/`monthly_50` plan tiers are now open to any user with `currentCredits >= 1`. Cost per use remains 1 credit.
+All features previously restricted to `monthly_20`/`monthly_50` plan tiers are now open to any user with `currentCredits >= 1`. Cost per use is 1 credit.
 
 | Feature | Previous gate | New gate |
 |---|---|---|
@@ -47,22 +50,35 @@ All features previously restricted to `monthly_20`/`monthly_50` plan tiers are n
 
 ## Database Schema Changes
 
-### `credit_transactions` — add column
+### `credit_transactions` — updated schema
 
 ```sql
-ALTER TABLE credit_transactions ADD COLUMN expires_at TIMESTAMPTZ;
--- NULL = never expires
--- Existing rows: backfill NULL (all current credits become non-expiring)
+ALTER TABLE credit_transactions
+  ADD COLUMN initial_amount     INT          NOT NULL,
+  ADD COLUMN remaining_balance  INT          NOT NULL,
+  ADD COLUMN transaction_type   VARCHAR(50)  NOT NULL,  -- 'signup' | 'subscription' | 'one_time' | 'legacy'
+  ADD COLUMN expires_at         TIMESTAMPTZ;
+
+-- Existing rows backfill:
+-- initial_amount = delta, remaining_balance = delta, transaction_type = 'legacy', expires_at = NULL
 ```
 
-### `subscriptions.currentCredits` — remains as denormalized cache
+`remaining_balance` is decremented in place when credits are spent. `initial_amount` is immutable — used for audit and partial-refund validation.
 
-Kept for fast reads. Must be synced by `creditService` on every write. Feature gate checks recompute from `credit_transactions` for accuracy.
+### `subscriptions` — add cache column
+
+```sql
+ALTER TABLE subscriptions ADD COLUMN next_expiry_date TIMESTAMPTZ;
+-- Set to the earliest expires_at across a user's non-expired credit_transactions rows.
+-- Allows frontend to display "your credits expire on X" without querying credit_transactions.
+```
+
+`currentCredits` remains as a fast-read cache, synced by `creditService` on every write.
 
 ### Migration at launch
 
-1. Deploy schema migration: add `expires_at` column (nullable), existing rows get `NULL`.
-2. For any active `monthly_20` subscribers: run admin script to expire old credits and grant 300 new credits with `expires_at = billing_cycle_end`.
+1. Deploy schema migration: add `initial_amount`, `remaining_balance`, `transaction_type`, `expires_at` columns. Backfill existing rows with `initial_amount = delta`, `remaining_balance = delta`, `transaction_type = 'legacy'`, `expires_at = NULL`.
+2. For any active `monthly_20` subscribers: run admin script to expire old credits (`UPDATE credit_transactions SET expires_at = NOW() WHERE user_id = ? AND transaction_type IN ('legacy','subscription') AND (expires_at IS NULL OR expires_at > NOW())`) and grant 300 new credits with `transaction_type = 'subscription'` and `expires_at = billing_cycle_end`.
 3. Deploy backend with `UNLIMITED_TIERS` / `PREMIUM_TIERS` gates removed.
 
 ---
@@ -71,35 +87,49 @@ Kept for fast reads. Must be synced by `creditService` on every write. Feature g
 
 ### `creditService` (`functions/src/services/creditService.ts`)
 
-- **`getCredits(userId)`**: query `SUM(delta)` from `credit_transactions` where `expires_at IS NULL OR expires_at > NOW()`. Sync result to `subscriptions.currentCredits`.
-- **`spendCredits(userId, amount)`**: within a DB transaction — verify effective balance ≥ amount; deduct from earliest-expiring rows first (`ORDER BY expires_at NULLS LAST ASC`); update `subscriptions.currentCredits` cache. Return `false` if insufficient.
-- **`addCredits(userId, amount, expiresAt?)`**: insert `credit_transactions` row with `expires_at`. Update `subscriptions.currentCredits` cache.
+- **`getCredits(userId)`**: `SUM(remaining_balance)` from `credit_transactions` where `expires_at IS NULL OR expires_at > NOW()`. Sync result to `subscriptions.currentCredits`.
+
+- **`addCredits(userId, amount, transactionType, expiresAt?)`**: insert row with `initial_amount = amount`, `remaining_balance = amount`, `transaction_type`, `expires_at`. Update `subscriptions.currentCredits` and `subscriptions.next_expiry_date` caches.
+
+- **`spendCredits(userId, amount)`**: within a DB transaction —
+  1. `SELECT ... FOR UPDATE` on the earliest-expiring row where `remaining_balance >= amount` and `(expires_at IS NULL OR expires_at > NOW())`.
+  2. Decrement `remaining_balance` by `amount`.
+  3. Update `subscriptions.currentCredits` cache.
+  4. **Return the `transactionId`** of the decremented row (callers use this for refunds).
+  5. Return `null` if no qualifying row found (insufficient credits).
+
+- **`refundCredit(userId, transactionId, amount)`** _(new)_: within a DB transaction —
+  1. Increment `remaining_balance` by `amount` for the given `transactionId`.
+  2. Update `subscriptions.currentCredits` cache.
+  3. Refunded credits retain their original `expires_at` — no extension granted.
 
 ### Callables
 
+Callables that invoke expensive external APIs (Vertex AI, etc.) must follow the **spend → execute → catch/refund** pattern. Credit is deducted before the API call; if the API fails, the credit is returned to the same grant row.
+
 | File | Change |
 |---|---|
-| `generateReply.ts` | Remove `UNLIMITED_TIERS`, `hasUnlimited`. Always spend 1 credit. |
-| `generateVoiceReply.ts` | Same. |
-| `generateImage.ts` | Same. |
-| `characterFunctions.ts` | Replace `CLOUD_CHARACTER_ALLOWED_PLANS` tier check with `currentCredits >= 1` check. Spend 1 credit on use. |
-| `documentExtract.ts` | Replace `PREMIUM_TIERS` tier check with `currentCredits >= 1` check. Spend 1 credit on use. |
-| `memoryFunctions.ts` | Remove `hasUnlimited` bypass. Always spend credits. |
-| `constants/plans.ts` | Delete file. `PREMIUM_TIERS` no longer referenced. |
+| `generateImage.ts` | 1. Call `spendCredits(userId, 1)`. If `null`, throw `resource-exhausted`. 2. Capture returned `txId`. 3. Call image generation API. 4. On API failure: call `refundCredit(userId, txId, 1)`, throw `internal` to client. |
+| `generateReply.ts` | Remove `UNLIMITED_TIERS`, `hasUnlimited`. Implement spend → execute → catch/refund pattern. |
+| `generateVoiceReply.ts` | Same spend → execute → catch/refund pattern. |
+| `characterFunctions.ts` | Replace `CLOUD_CHARACTER_ALLOWED_PLANS` tier check with `spendCredits` call. Refund on failure. |
+| `documentExtract.ts` | Replace `PREMIUM_TIERS` tier check with `spendCredits` call. Refund on failure. |
+| `memoryFunctions.ts` | Remove `hasUnlimited` bypass. Spend 1 credit per use. Refund on failure. |
+| `constants/plans.ts` | Delete file. `PREMIUM_TIERS` no longer referenced anywhere. |
 
 ### Webhooks
 
 **`stripeWebhook.ts`:**
-- `checkout.session.completed` (subscription): call `addCredits(userId, 300, billingCycleEnd)`.
-- `customer.subscription.updated` / `invoice.payment_succeeded` (renewal): expire existing subscription-cycle credits (set `expires_at = NOW()` on relevant rows), grant 300 new credits with `expires_at = new billing_cycle_end`.
-- `checkout.session.completed` (credit pack): call `addCredits(userId, 100, NOW() + 31 days)`.
+- `checkout.session.completed` (subscription): call `addCredits(userId, 300, 'subscription', billingCycleEnd)`.
+- `customer.subscription.updated` / `invoice.payment_succeeded` (renewal): expire previous subscription credits only — `UPDATE credit_transactions SET expires_at = NOW() WHERE user_id = ? AND transaction_type = 'subscription' AND (expires_at IS NULL OR expires_at > NOW())` — then call `addCredits(userId, 300, 'subscription', new_billing_cycle_end)`.
+- `checkout.session.completed` (credit pack): call `addCredits(userId, 100, 'one_time', NOW() + 31 days)`.
 - `charge.refunded`: deduct credits as before.
-- `customer.subscription.deleted`: no credit action — credits expire naturally at their `expires_at`.
+- `customer.subscription.deleted`: no credit action — subscription credits expire naturally at their `expires_at`.
 
 **`revenueCatWebhook.ts`:**
-- `INITIAL_PURCHASE` / `RENEWAL` (subscription): expire previous subscription-cycle credits, grant 300 with `expires_at = next_renewal_date`.
-- `NON_RENEWING_PURCHASE` (credit pack): grant 100 credits with `expires_at = NOW() + 31 days`.
-- `EXPIRATION`: no credit action needed — credits expire via their own `expires_at`.
+- `INITIAL_PURCHASE` / `RENEWAL` (subscription): expire previous subscription credits by `transaction_type = 'subscription'`, then call `addCredits(userId, 300, 'subscription', next_renewal_date)`.
+- `NON_RENEWING_PURCHASE` (credit pack): call `addCredits(userId, 100, 'one_time', NOW() + 31 days)`.
+- `EXPIRATION`: no credit action — credits expire via their own `expires_at`.
 - `CANCELLATION`: no credit action — credits remain until their `expires_at`.
 
 ---
@@ -115,7 +145,7 @@ Kept for fast reads. Must be synced by `creditService` on every write. Feature g
 | `ChatView.tsx` | Remove `hasUnlimited` guard. Gate only on `credits <= 0`. |
 | `useVoiceChat.ts` | Update low-credit message: remove "subscribe for unlimited" → "purchase more credits". |
 | `CreditCounterIcon.tsx` | Remove "Premium subscriber, unlimited credits" tooltip. |
-| `CreditsDisplay.tsx` | Remove `unlimitedContainer`, `unlimitedChip`, "You have unlimited credits" UI. Show credit balance + expiry date for active subscription users. |
+| `CreditsDisplay.tsx` | Remove `unlimitedContainer`, `unlimitedChip`, "You have unlimited credits" UI. Show credit balance + `next_expiry_date` from subscription cache. |
 | `constants.ts` | Remove `SUBSCRIPTION_TIERS`. Keep `PLAN_TIERS`. |
 
 ### Pages
@@ -138,7 +168,7 @@ All files in `docs/` must be updated to remove references to "unlimited credits"
 |---|---|
 | `PAYMENT_INTEGRATION.md` | Remove "unlimited credits at $20/month". Update webhook event→action mapping. Remove "credits not consumed if user has monthly subscription" and "credits never expire". |
 | `PAYMENT_API.md` | Update product descriptions. Remove unlimited language. |
-| `FIRST_LOGIN_CREDITS.md` | Note free credits have `expires_at = NULL` (never expire). |
+| `FIRST_LOGIN_CREDITS.md` | Note free credits have `expires_at = NULL` (never expire). Note `transaction_type = 'signup'`. |
 | All other docs | Grep for "unlimited", "premium only", "monthly subscription" — update each occurrence. |
 
 **In-app content:**
@@ -153,7 +183,7 @@ All files in `docs/` must be updated to remove references to "unlimited credits"
 ## What Does Not Change
 
 - `planTier` column and plan tier values (`free`, `monthly_20`, `monthly_50`, `payg`) remain in DB schema — used for billing/webhook routing.
-- `creditTransactions` idempotency logic remains unchanged.
-- Refund handling remains provider-side (Stripe, Apple, Google Play).
+- Idempotency logic on `creditTransactions` remains unchanged.
+- Provider-side refunds (Stripe, Apple, Google Play) remain handled by webhooks, not client.
 - `monthly_50` plan remains reserved and inactive.
 - Admin credit adjustment functions remain unchanged.
