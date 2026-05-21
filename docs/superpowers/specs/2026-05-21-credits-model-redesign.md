@@ -35,7 +35,7 @@ Credit consumption uses a **decrementing balance model**: each credit grant row 
 
 ## Feature Gate Changes
 
-All features previously restricted to `monthly_20`/`monthly_50` plan tiers are now open to any user with `currentCredits >= 1`. Cost per use is 1 credit.
+All features previously restricted to `monthly_20`/`monthly_50` plan tiers are now open to any user with sufficient credits. Cost is 1 credit per use except voice replies (2 credits).
 
 | Feature | Previous gate | New gate |
 |---|---|---|
@@ -101,7 +101,7 @@ ALTER TABLE subscriptions ADD COLUMN next_expiry_date TIMESTAMPTZ;
 - **`refundCredit(userId, transactionId, amount)`** _(new)_: within a DB transaction —
   1. Increment `remaining_balance` by `amount` for the given `transactionId`.
   2. Update `subscriptions.currentCredits` cache.
-  3. Refunded credits retain their original `expires_at` — no extension granted.
+  3. Credits are restored to their exact original pool — `expires_at` unchanged, no extension granted.
 
 ### Callables
 
@@ -109,9 +109,9 @@ Callables that invoke expensive external APIs (Vertex AI, etc.) must follow the 
 
 | File | Change |
 |---|---|
-| `generateImage.ts` | 1. Call `spendCredits(userId, 1)`. If `null`, throw `resource-exhausted`. 2. Capture returned `txId`. 3. Call image generation API. 4. On API failure: call `refundCredit(userId, txId, 1)`, throw `internal` to client. |
-| `generateReply.ts` | Remove `UNLIMITED_TIERS`, `hasUnlimited`. Implement spend → execute → catch/refund pattern. |
-| `generateVoiceReply.ts` | Same spend → execute → catch/refund pattern. Call `spendCredits(userId, 2)` — voice costs 2 credits. |
+| `generateImage.ts` | 1. Call `spendCredits(userId, 1)`. If `null`, throw `resource-exhausted`. 2. Capture `txId`. 3. Call image generation API. 4. On API failure: `refundCredit(userId, txId, 1)`, throw `internal` to client. |
+| `generateReply.ts` | Remove `UNLIMITED_TIERS`, `hasUnlimited`. 1. `spendCredits(userId, 1)`. If `null`, throw `resource-exhausted`. 2. Capture `txId`. 3. Call LLM API. 4. On failure: `refundCredit(userId, txId, 1)`, throw `internal`. |
+| `generateVoiceReply.ts` | 1. `spendCredits(userId, 2)`. If `null`, throw `resource-exhausted`. 2. Capture `txId`. 3. Call TTS API. 4. On failure: `refundCredit(userId, txId, 2)`, throw `internal`. |
 | `characterFunctions.ts` | Replace `CLOUD_CHARACTER_ALLOWED_PLANS` tier check with `spendCredits` call. Refund on failure. |
 | `documentExtract.ts` | Replace `PREMIUM_TIERS` tier check with `spendCredits` call. Refund on failure. |
 | `memoryFunctions.ts` | Remove `hasUnlimited` bypass. Spend 1 credit per use. Refund on failure. |
@@ -145,7 +145,7 @@ Callables that invoke expensive external APIs (Vertex AI, etc.) must follow the 
 | `ChatView.tsx` | Remove `hasUnlimited` guard. Gate only on `credits <= 0`. |
 | `useVoiceChat.ts` | Update low-credit message: remove "subscribe for unlimited" → "purchase more credits". Voice requires ≥ 2 credits; update insufficient-credits check accordingly. |
 | `CreditCounterIcon.tsx` | Remove "Premium subscriber, unlimited credits" tooltip. |
-| `CreditsDisplay.tsx` | Remove `unlimitedContainer`, `unlimitedChip`, "You have unlimited credits" UI. Show credit balance + `next_expiry_date` from subscription cache. |
+| `CreditsDisplay.tsx` | Remove `unlimitedContainer`, `unlimitedChip`, "You have unlimited credits" UI. Show credit balance + `next_expiry_date` sourced from the auth subscription snapshot (already available via `useAuthSnapshot`). |
 | `constants.ts` | Remove `SUBSCRIPTION_TIERS`. Keep `PLAN_TIERS`. |
 
 ### Pages
