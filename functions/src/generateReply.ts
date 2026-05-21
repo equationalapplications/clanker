@@ -282,12 +282,11 @@ async function spendOneCreditIfRequired(
   }
 
   try {
-    const success = await creditService.spendCredits(userId, 1);
-    if (!success) {
+    const txId = await creditService.spendCredits(userId, 1);
+    if (!txId) {
       throw new HttpsError("resource-exhausted", "Insufficient credits to complete the operation.");
     }
-    
-    // Get updated credits
+
     return await creditService.getCredits(userId);
   } catch (error) {
     if (error instanceof HttpsError) {

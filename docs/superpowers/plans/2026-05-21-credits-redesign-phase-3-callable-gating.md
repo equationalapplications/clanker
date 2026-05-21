@@ -730,7 +730,7 @@ git commit -m "feat(callable): memoryFunctions removes hasUnlimited bypass, spen
 - [ ] **Step 1: Confirm no remaining imports**
 
 ```bash
-grep -r "constants/plans" /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/functions/src/
+grep -r "constants/plans" ./functions/src/
 ```
 
 Expected: no output. If any file still imports from `constants/plans`, update it first.
@@ -738,19 +738,19 @@ Expected: no output. If any file still imports from `constants/plans`, update it
 - [ ] **Step 2: Delete the file**
 
 ```bash
-rm /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/functions/src/constants/plans.ts
+rm ./functions/src/constants/plans.ts
 ```
 
 - [ ] **Step 3: Check if constants directory is now empty**
 
 ```bash
-ls /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/functions/src/constants/
+ls ./functions/src/constants/
 ```
 
 If only `plans.ts` was in `constants/`, remove the directory too:
 
 ```bash
-rmdir /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/functions/src/constants/
+rmdir ./functions/src/constants/
 ```
 
 If other files exist (e.g., `voiceDefaults.ts`), leave the directory.
@@ -788,7 +788,7 @@ Expected: all tests pass. If any test still mocks `spendCredits` with 4 argument
 
 ```bash
 grep -r "UNLIMITED_TIERS\|PREMIUM_TIERS\|hasUnlimited\|CLOUD_CHARACTER_ALLOWED_PLANS" \
-  /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/functions/src/
+  ./functions/src/
 ```
 
 Expected: no output.

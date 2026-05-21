@@ -88,7 +88,7 @@ test("spendCreditsHandler calls credit service with floored amount", async () =>
       spendCalls += 1;
       assert.equal(userId, user.id);
       assert.equal(amount, 3);
-      return true;
+      return 'mock-tx-id';
     };
 
     const result = await spendCreditsHandler({
@@ -138,7 +138,7 @@ test("spendCreditsHandler throws resource-exhausted when spend fails", async () 
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    creditService.spendCredits = async () => false;
+    creditService.spendCredits = async () => null;
 
     await assert.rejects(
       async () =>
@@ -218,7 +218,7 @@ test("spendCreditsHandler bootstraps default subscription before spending", asyn
         updatedAt: new Date(),
       };
     };
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => 'mock-tx-id';
 
     const result = await spendCreditsHandler({
       auth: {

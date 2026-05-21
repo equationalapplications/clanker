@@ -86,7 +86,7 @@ test('getCredits returns 0 when no rows exist', async () => {
 // spendCredits — decrements remaining_balance on earliest-expiring row
 // ---------------------------------------------------------------------------
 
-test('spendCredits returns false when no qualifying creditTransactions row found', async () => {
+test('spendCredits returns null when no qualifying creditTransactions row found', async () => {
   // select() call order: (1) subscriptions lock, (2) net balance check → 0 → InsufficientCreditsError.
   const selectQueue: unknown[][] = [
     [{ userId: 'user-1' }],  // subscriptions FOR UPDATE lock
@@ -106,15 +106,15 @@ test('spendCredits returns false when no qualifying creditTransactions row found
     },
   };
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<boolean>, _opts?: unknown) => fn(fakeTx),
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<string | null>, _opts?: unknown) => fn(fakeTx),
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
   const result = await service.spendCredits('user-1', 1);
-  assert.equal(result, false);
+  assert.equal(result, null);
 });
 
-test('spendCredits returns true and decrements balance on qualifying row', async () => {
+test('spendCredits returns transactionId and decrements balance on qualifying row', async () => {
   let updatedId: string | null = null;
   let cacheUpdated = false;
 
@@ -157,12 +157,12 @@ test('spendCredits returns true and decrements balance on qualifying row', async
     }),
   };
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<boolean>, _opts?: unknown) => fn(fakeTx),
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<string | null>, _opts?: unknown) => fn(fakeTx),
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
   const result = await service.spendCredits('user-1', 1);
-  assert.equal(result, true);
+  assert.equal(result, 'tx-abc');
   assert.equal(updatedId, 'tx-abc');
   assert.equal(cacheUpdated, true);
   assert.equal(selectIdx, 5);

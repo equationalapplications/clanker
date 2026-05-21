@@ -115,9 +115,9 @@ const handler = async (request: CallableRequest) => {
     throw new HttpsError("internal", "Failed to bootstrap user subscription.");
   }
 
-  const success = await creditService.spendCredits(user.id, amount);
+  const txId = await creditService.spendCredits(user.id, amount);
 
-  if (!success) {
+  if (!txId) {
     logger.warn("spendCredits failed - insufficient credits or user subscription missing", {
       userId: user.id,
       amount,

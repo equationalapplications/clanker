@@ -74,7 +74,7 @@ Keep `PLAN_TIERS` and all other constants.
 - [ ] **Step 3: TypeScript check**
 
 ```bash
-cd /Users/equationalapplications/code/src/github.com/equationalapplications/clanker
+cd .
 npx tsc --noEmit
 ```
 
@@ -193,7 +193,7 @@ export const getUserCredits = async (): Promise<UserCredits> => {
 Remove `deductCredits` export if it is no longer called anywhere. Check:
 
 ```bash
-grep -r "deductCredits" /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/src/
+grep -r "deductCredits" ./src/
 ```
 
 If `deductCredits` is called from UI code (e.g., a "pay" button), keep it but update to remove `description` param (align with Phase 3's `spendCredits.ts` removal of description). If unused, delete it.
@@ -234,7 +234,7 @@ Update the component's props interface to remove `hasUnlimited` if it exists.
 - [ ] **Step 2: Check callers**
 
 ```bash
-grep -r "CreditCounterIcon" /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/src/
+grep -r "CreditCounterIcon" ./src/
 ```
 
 Remove any `hasUnlimited` prop passed from caller sites.
@@ -290,7 +290,7 @@ Update the subscribe/purchase messaging:
 - [ ] **Step 2: Update callers**
 
 ```bash
-grep -r "CreditsDisplay" /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/src/
+grep -r "CreditsDisplay" ./src/
 ```
 
 Update caller sites to pass `nextExpiryDate` instead of `hasUnlimited`.
@@ -315,7 +315,7 @@ git commit -m "feat(ui): CreditsDisplay removes unlimited UI, shows credit expir
 Search for `hasUnlimited` in the chat view:
 
 ```bash
-grep -rn "hasUnlimited" /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/src/
+grep -rn "hasUnlimited" ./src/
 ```
 
 For each occurrence in chat/message views:
@@ -449,8 +449,8 @@ Expected: no errors. Fix any remaining `hasUnlimited`, `isUnlimited`, or `SUBSCR
 
 ```bash
 grep -rn "hasUnlimited\|isUnlimited\|SUBSCRIPTION_TIERS\|unlimited credits\|unlimited access" \
-  /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/src/ \
-  /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/app/
+  ./src/ \
+  ./app/
 ```
 
 Address each occurrence. Marketing copy in landing page may intentionally retain value language — ensure it describes credits, not "unlimited".

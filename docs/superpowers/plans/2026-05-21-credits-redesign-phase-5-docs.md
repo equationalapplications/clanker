@@ -33,8 +33,8 @@ Phases 1–4 merged to staging.
 ```bash
 grep -rn \
   "unlimited\|premium only\|credits never expire\|credits not consumed\|UNLIMITED_TIERS\|PREMIUM_TIERS\|monthly subscription.*unlimited\|subscription.*unlimited" \
-  /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/docs/ \
-  /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/app/support.tsx \
+  ./docs/ \
+  ./app/support.tsx \
   2>/dev/null
 ```
 
@@ -269,8 +269,8 @@ git commit -m "docs(in-app): update FAQ for new credit model, remove unlimited r
 
 ```bash
 grep -rni "unlimited\|premium only\|credits not consumed\|credits never expire" \
-  /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/docs/ \
-  /Users/equationalapplications/code/src/github.com/equationalapplications/clanker/app/ \
+  ./docs/ \
+  ./app/ \
   2>/dev/null
 ```
 

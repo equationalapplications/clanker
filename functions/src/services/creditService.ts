@@ -98,7 +98,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       });
     },
 
-    async spendCredits(userId: string, amount: number): Promise<boolean> {
+    async spendCredits(userId: string, amount: number): Promise<string | null> {
       const db = await deps.getDb();
       try {
         return await db.transaction(async (tx: DbTx) => {
@@ -159,11 +159,11 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
 
           await syncSubscriptionCache(tx, userId);
 
-          return true;
+          return rows[0].id;
         }, { isolationLevel: 'read committed' });
       } catch (error) {
         if (error instanceof InsufficientCreditsError) {
-          return false;
+          return null;
         }
         throw error;
       }
