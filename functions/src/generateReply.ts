@@ -11,7 +11,6 @@ const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 12_000;
-const MAX_REFERENCE_ID_LENGTH = 128;
 const MAX_OUTPUT_TOKENS = 1_024;
 
 // Initialize the Admin SDK if not already initialized
@@ -21,7 +20,6 @@ if (!admin.apps.length) {
 
 interface GenerateReplyData {
   prompt: string;
-  referenceId?: string;
 }
 
 interface UsageState {
@@ -205,7 +203,7 @@ function getTextGenerator(): GenerateTextFn {
   return textGenerator;
 }
 
-function parseInput(data: unknown): {prompt: string; referenceId: string | null} {
+function parseInput(data: unknown): {prompt: string} {
   const payload = data as GenerateReplyData | undefined;
   const promptValue = payload?.prompt;
   const prompt = typeof promptValue === "string" ? promptValue.trim() : "";
@@ -221,18 +219,7 @@ function parseInput(data: unknown): {prompt: string; referenceId: string | null}
     );
   }
 
-  const reference = typeof payload?.referenceId === "string" ? payload.referenceId.trim() : "";
-  if (reference.length > MAX_REFERENCE_ID_LENGTH) {
-    throw new HttpsError(
-      "invalid-argument",
-      `referenceId must be at most ${MAX_REFERENCE_ID_LENGTH} characters.`
-    );
-  }
-
-  return {
-    prompt,
-    referenceId: reference.length > 0 ? reference : null,
-  };
+  return { prompt };
 }
 
 async function fetchUsageState(userId: string): Promise<UsageState> {
@@ -275,7 +262,6 @@ function assertUsageAuthorized(usage: UsageState): void {
 async function spendOneCreditIfRequired(
   userId: string,
   usage: UsageState,
-  referenceId: string | null
 ): Promise<number | null> {
   if (usage.hasUnlimited) {
     return null;
@@ -295,7 +281,6 @@ async function spendOneCreditIfRequired(
 
     logger.error("Failed to spend user credits", {
       userId,
-      referenceId,
       error,
     });
 
@@ -322,7 +307,7 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const {prompt, referenceId} = parseInput(request.data);
+  const {prompt} = parseInput(request.data);
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -374,7 +359,7 @@ const handler = async (
     throw new HttpsError("internal", "Model returned an empty chat response.");
   }
 
-  const remainingCredits = await spendOneCreditIfRequired(user.id, usage, referenceId);
+  const remainingCredits = await spendOneCreditIfRequired(user.id, usage);
 
   return {
     reply,

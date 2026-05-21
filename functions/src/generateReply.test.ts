@@ -139,7 +139,6 @@ test("generateReplyHandler spends one credit for payg users", async () => {
         auth,
         data: {
           prompt: "hello",
-          referenceId: "message-123",
         },
       } as never,
       {
@@ -215,7 +214,6 @@ test("generateReplyHandler allows cancelled plans to spend remaining credits", a
         auth,
         data: {
           prompt: "hello",
-          referenceId: "message-cancelled",
         },
       } as never,
       {
@@ -360,7 +358,6 @@ test("generateReplyHandler preserves HttpsError from model generation", async ()
             auth,
             data: {
               prompt: "hello",
-              referenceId: "message-123",
             },
           } as never,
           {
