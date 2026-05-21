@@ -43,8 +43,7 @@ function constantTimeEquals(provided: string | null, expected: string): boolean 
     return false;
   }
 }
-const CREDIT_PACK_AMOUNT = 100;
-const CREDIT_PACK_EXPIRY_MS = 31 * 24 * 60 * 60 * 1000;
+import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS} from "./constants/credits.js";
 
 interface RevenueCatDeps {
   findUserByFirebaseUid: (firebaseUid: string) => Promise<{id: string} | null>;

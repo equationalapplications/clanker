@@ -10,14 +10,12 @@ import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import type {UpsertSubscriptionParams} from "./services/subscriptionService.js";
+import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS} from "./constants/credits.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
   admin.initializeApp();
 }
-
-const CREDIT_PACK_AMOUNT = 100;
-const CREDIT_PACK_EXPIRY_MS = 31 * 24 * 60 * 60 * 1000;
 
 type UserLookup = {
   id: string;
