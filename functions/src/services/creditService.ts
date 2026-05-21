@@ -73,6 +73,12 @@ async function syncSubscriptionCache(tx: DbTx, userId: string): Promise<number> 
   const total = totalResult[0]?.total ?? 0;
   const nextExpiry = nextExpiryResult[0]?.minExpiry ?? null;
 
+  // Ensure the subscriptions row exists (e.g. webhook path ran before first login).
+  await tx
+    .insert(subscriptions)
+    .values({ userId })
+    .onConflictDoNothing({ target: subscriptions.userId });
+
   await tx
     .update(subscriptions)
     .set({

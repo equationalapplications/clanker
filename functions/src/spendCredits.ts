@@ -15,7 +15,6 @@ if (!admin.apps.length) {
 interface SpendCreditsData {
   amount: number;
   description: string;
-  referenceId?: string;
 }
 
 function toErrorMessage(error: unknown): string {

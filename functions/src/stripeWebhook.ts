@@ -296,6 +296,7 @@ async function handleCheckoutCompleted(
   // Expand line items to get price IDs
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {limit: 10});
 
+  let totalCreditPackQty = 0;
   for (const item of lineItems.data) {
     const priceId = item.price?.id;
     if (!priceId) continue;
@@ -342,21 +343,23 @@ async function handleCheckoutCompleted(
         tier,
       });
     } else if (isCreditPackPriceId(priceId, priceIds)) {
-      // Credit pack → add credits
-      const qty = item.quantity ?? 1;
-      const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
-      await deps.addCredits(
-        user.id,
-        CREDIT_PACK_AMOUNT * qty,
-        expiresAt,
-        'one_time',
-        session.id
-      );
-      logger.info("checkout.session.completed: credits added", {
-        email: customerEmail,
-        credits: CREDIT_PACK_AMOUNT * qty,
-      });
+      totalCreditPackQty += item.quantity ?? 1;
     }
+  }
+
+  if (totalCreditPackQty > 0) {
+    const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
+    await deps.addCredits(
+      user.id,
+      CREDIT_PACK_AMOUNT * totalCreditPackQty,
+      expiresAt,
+      'one_time',
+      session.id
+    );
+    logger.info("checkout.session.completed: credits added", {
+      email: customerEmail,
+      credits: CREDIT_PACK_AMOUNT * totalCreditPackQty,
+    });
   }
 }
 
@@ -494,24 +497,29 @@ export async function handleInvoicePaymentSucceeded(
     return;
   }
 
-  // Only handle non-subscription invoices (one-time PAYG credit pack purchases)
+  // Only handle non-subscription invoices (one-time PAYG credit pack purchases).
+  // Aggregate across all matching line items before calling addCredits to avoid
+  // hitting the idempotency unique constraint on a shared invoice.id referenceId.
+  let invoiceCreditPackQty = 0;
   for (const item of invoice.lines.data) {
     const priceId = getInvoiceLineItemPriceId(item);
     if (isCreditPackPriceId(priceId, priceIds)) {
-      const qty = item.quantity ?? 1;
-      const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
-      await deps.addCredits(
-        user.id,
-        CREDIT_PACK_AMOUNT * qty,
-        expiresAt,
-        'one_time',
-        invoice.id
-      );
-      logger.info('invoice.payment_succeeded: credits added', {
-        email: customerEmail,
-        credits: CREDIT_PACK_AMOUNT * qty,
-      });
+      invoiceCreditPackQty += item.quantity ?? 1;
     }
+  }
+  if (invoiceCreditPackQty > 0) {
+    const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
+    await deps.addCredits(
+      user.id,
+      CREDIT_PACK_AMOUNT * invoiceCreditPackQty,
+      expiresAt,
+      'one_time',
+      invoice.id
+    );
+    logger.info('invoice.payment_succeeded: credits added', {
+      email: customerEmail,
+      credits: CREDIT_PACK_AMOUNT * invoiceCreditPackQty,
+    });
   }
 }
 
