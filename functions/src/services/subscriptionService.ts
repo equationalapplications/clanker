@@ -1,7 +1,9 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
-import { subscriptions } from '../db/schema.js';
+import { subscriptions, creditTransactions } from '../db/schema.js';
 import { createCreditService } from './creditService.js';
+
+const SIGNUP_CREDIT_REFERENCE_ID = 'signup';
 
 export interface UpsertSubscriptionParams {
   userId: string;
@@ -53,13 +55,25 @@ export const createSubscriptionService = (
         throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`);
       }
 
-      const existingCredits = await creditService.getCredits(userId);
-      if (existingCredits === 0 && subscription.currentCredits === 0) {
-        await creditService.addCredits(userId, 50, null, 'signup');
-        return await service.getSubscription(userId) ?? subscription;
+      const signupRow = await db
+        .select({ id: creditTransactions.id })
+        .from(creditTransactions)
+        .where(
+          and(
+            eq(creditTransactions.userId, userId),
+            eq(creditTransactions.reason, 'signup'),
+            eq(creditTransactions.referenceId, SIGNUP_CREDIT_REFERENCE_ID)
+          )
+        )
+        .limit(1);
+
+      if (signupRow.length === 0) {
+        await creditService.addCredits(userId, 50, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
+      } else {
+        await creditService.getCredits(userId);
       }
 
-      return subscription;
+      return await service.getSubscription(userId) ?? subscription;
     },
 
     async upsertSubscription(params: UpsertSubscriptionParams) {

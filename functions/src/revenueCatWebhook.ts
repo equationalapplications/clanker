@@ -350,8 +350,7 @@ export const revenueCatWebhookHandler = async (
 
       switch (type) {
       case "INITIAL_PURCHASE":
-      case "RENEWAL":
-      case "PRODUCT_CHANGE": {
+      case "RENEWAL": {
         if (REVENUECAT_PRODUCT_TO_TIER[normalizedProductId]) {
           const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
           const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
@@ -384,6 +383,28 @@ export const revenueCatWebhookHandler = async (
             original_transaction_id ?? undefined
           );
           logger.info("RevenueCat: credits added", {app_user_id, credits: CREDIT_PACK_AMOUNT});
+        }
+        break;
+      }
+      case "PRODUCT_CHANGE": {
+        if (REVENUECAT_PRODUCT_TO_TIER[normalizedProductId]) {
+          const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
+          const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
+            new Date(expiration_at_ms) : null;
+          const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
+
+          await deps.upsertSubscription(
+            cloudUser.id,
+            tier,
+            "active",
+            renewalAt
+          );
+
+          logger.info("RevenueCat: subscription product change upserted", {
+            app_user_id,
+            tier,
+            type,
+          });
         }
         break;
       }

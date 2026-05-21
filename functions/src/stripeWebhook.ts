@@ -383,10 +383,7 @@ async function handleSubscriptionUpdated(
     stripeCustomerId: customerId,
   });
 
-  const cycleEnd = new Date(((sub as any).current_period_end as number) * 1000);
-  await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, eventId);
-
-  logger.info("customer.subscription.updated: subscription synced + credits renewed", {
+  logger.info("customer.subscription.updated: subscription synced", {
     email: customer.email,
     tier,
     planStatus,
@@ -425,20 +422,34 @@ async function handleSubscriptionDeleted(
   });
 }
 
-async function handleInvoicePaymentSucceeded(
+export async function handleInvoicePaymentSucceeded(
   stripe: Stripe,
   invoice: Stripe.Invoice,
   priceIds: StripePriceIds,
   deps: StripeWebhookDeps
 ): Promise<void> {
-  // Only handle non-subscription invoices (one-time PAYG credit pack purchases)
-  const subscriptionId = invoice.parent?.subscription_details?.subscription;
-  if (subscriptionId || !invoice.customer_email) return;
+  const customerEmail = invoice.customer_email;
+  if (!customerEmail) return;
 
-  const user = await deps.findUserByEmail(invoice.customer_email);
+  const user = await deps.findUserByEmail(customerEmail);
   if (!user) return;
 
-  // Check if any line item is a credit pack.
+  const subscriptionId = invoice.parent?.subscription_details?.subscription;
+  if (subscriptionId) {
+    if (invoice.billing_reason === 'subscription_cycle') {
+      const cycleEnd = invoice.lines.data[0]?.period?.end;
+      if (typeof cycleEnd === 'number') {
+        await deps.renewSubscriptionCredits(user.id, 300, new Date(cycleEnd * 1000), invoice.id);
+        logger.info('invoice.payment_succeeded: subscription credits renewed', {
+          email: customerEmail,
+          invoiceId: invoice.id,
+        });
+      }
+    }
+    return;
+  }
+
+  // Only handle non-subscription invoices (one-time PAYG credit pack purchases)
   for (const item of invoice.lines.data) {
     const priceId = getInvoiceLineItemPriceId(item);
     if (isCreditPackPriceId(priceId, priceIds)) {
@@ -451,8 +462,8 @@ async function handleInvoicePaymentSucceeded(
         'one_time',
         invoice.id
       );
-      logger.info("invoice.payment_succeeded: credits added", {
-        email: invoice.customer_email,
+      logger.info('invoice.payment_succeeded: credits added', {
+        email: customerEmail,
         credits: CREDIT_PACK_AMOUNT * qty,
       });
     }

@@ -152,6 +152,42 @@ test("parseRevenueCatEvent rejects invalid required fields", () => {
   );
 });
 
+test("revenueCatWebhookHandler does not renew credits on PRODUCT_CHANGE events", async () => {
+  const res = createResponseRecorder();
+  let renewCalls = 0;
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer rc-secret",
+      },
+      body: {
+        event: {
+          type: "PRODUCT_CHANGE",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+          original_transaction_id: "rc_txn_123",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      upsertSubscription: async () => {},
+      renewSubscriptionCredits: async () => {
+        renewCalls += 1;
+        return true;
+      },
+      addCredits: async () => undefined,
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(renewCalls, 0);
+});
+
 test("revenueCatWebhookHandler keeps paid tier active on cancellation until expiration", async () => {
   const res = createResponseRecorder();
   const upsertCalls: Array<{

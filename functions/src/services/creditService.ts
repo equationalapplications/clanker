@@ -40,6 +40,47 @@ export function assertIdempotentDeltaMatch(params: {
   }
 }
 
+async function syncSubscriptionCache(tx: any, userId: string): Promise<number> {
+  const totalResult = await tx
+    .select({ total: sql<number>`COALESCE(SUM(${creditTransactions.remainingBalance}), 0)` })
+    .from(creditTransactions)
+    .where(
+      and(
+        eq(creditTransactions.userId, userId),
+        or(
+          isNull(creditTransactions.expiresAt),
+          gt(creditTransactions.expiresAt, sql`NOW()`)
+        )
+      )
+    )
+    .limit(1);
+
+  const nextExpiryResult = await tx
+    .select({ minExpiry: sql<Date | null>`MIN(${creditTransactions.expiresAt})` })
+    .from(creditTransactions)
+    .where(
+      and(
+        eq(creditTransactions.userId, userId),
+        gt(creditTransactions.remainingBalance, 0),
+        gt(creditTransactions.expiresAt, sql`NOW()`)
+      )
+    );
+
+  const total = totalResult[0]?.total ?? 0;
+  const nextExpiry = nextExpiryResult[0]?.minExpiry ?? null;
+
+  await tx
+    .update(subscriptions)
+    .set({
+      currentCredits: total,
+      nextExpiryDate: nextExpiry,
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptions.userId, userId));
+
+  return total;
+}
+
 interface CreditServiceDeps {
   getDb: typeof getDb;
 }
@@ -48,28 +89,9 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
   const service = {
     async getCredits(userId: string): Promise<number> {
       const db = await deps.getDb();
-      const result = await db
-        .select({ total: sql<number>`COALESCE(SUM(${creditTransactions.remainingBalance}), 0)` })
-        .from(creditTransactions)
-        .where(
-          and(
-            eq(creditTransactions.userId, userId),
-            or(
-              isNull(creditTransactions.expiresAt),
-              gt(creditTransactions.expiresAt, sql`NOW()`)
-            )
-          )
-        )
-        .limit(1);
-
-      const total = result[0]?.total ?? 0;
-
-      await db
-        .update(subscriptions)
-        .set({ currentCredits: total, updatedAt: new Date() })
-        .where(eq(subscriptions.userId, userId));
-
-      return total;
+      return await db.transaction(async (tx: any) => {
+        return await syncSubscriptionCache(tx, userId);
+      });
     },
 
     async spendCredits(userId: string, amount: number, _reason?: string, _referenceId?: string): Promise<boolean> {
@@ -97,20 +119,12 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
             throw new InsufficientCreditsError();
           }
 
-          const row = rows[0];
-
           await tx
             .update(creditTransactions)
             .set({ remainingBalance: sql`${creditTransactions.remainingBalance} - ${amount}` })
-            .where(eq(creditTransactions.id, row.id));
+            .where(eq(creditTransactions.id, rows[0].id));
 
-          await tx
-            .update(subscriptions)
-            .set({
-              currentCredits: sql`GREATEST(${subscriptions.currentCredits} - ${amount}, 0)`,
-              updatedAt: new Date(),
-            })
-            .where(eq(subscriptions.userId, userId));
+          await syncSubscriptionCache(tx, userId);
 
           return true;
         }, { isolationLevel: 'read committed' });
@@ -145,6 +159,26 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
             });
           } catch (error) {
             if (isUniqueViolation(error)) {
+              const existing = await tx
+                .select({ delta: creditTransactions.delta })
+                .from(creditTransactions)
+                .where(
+                  and(
+                    eq(creditTransactions.userId, userId),
+                    eq(creditTransactions.reason, transactionType),
+                    eq(creditTransactions.referenceId, referenceId)
+                  )
+                )
+                .limit(1);
+
+              assertIdempotentDeltaMatch({
+                requestedDelta: amount,
+                existingDelta: existing[0]?.delta ?? null,
+                reason: transactionType,
+                referenceId,
+              });
+
+              await syncSubscriptionCache(tx, userId);
               return;
             }
             throw error;
@@ -161,20 +195,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
           });
         }
 
-        await tx
-          .update(subscriptions)
-          .set({
-            currentCredits: sql`${subscriptions.currentCredits} + ${amount}`,
-            nextExpiryDate: expiresAt
-              ? sql`CASE
-                  WHEN ${subscriptions.nextExpiryDate} IS NULL OR ${subscriptions.nextExpiryDate} > ${expiresAt}
-                  THEN ${expiresAt}
-                  ELSE ${subscriptions.nextExpiryDate}
-                END`
-              : sql`${subscriptions.nextExpiryDate}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(subscriptions.userId, userId));
+        await syncSubscriptionCache(tx, userId);
       });
     },
 
@@ -186,10 +207,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
           .set({ remainingBalance: sql`${creditTransactions.remainingBalance} + ${amount}` })
           .where(eq(creditTransactions.id, transactionId));
 
-        await tx
-          .update(subscriptions)
-          .set({ currentCredits: sql`${subscriptions.currentCredits} + ${amount}`, updatedAt: new Date() })
-          .where(eq(subscriptions.userId, userId));
+        await syncSubscriptionCache(tx, userId);
       });
     },
 
@@ -231,50 +249,25 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
             )
           );
 
-        await tx.insert(creditTransactions).values({
-          userId,
-          delta: amount,
-          reason: 'subscription',
-          referenceId,
-          initialAmount: amount,
-          remainingBalance: amount,
-          transactionType: 'subscription',
-          expiresAt,
-        });
+        try {
+          await tx.insert(creditTransactions).values({
+            userId,
+            delta: amount,
+            reason: 'subscription',
+            referenceId,
+            initialAmount: amount,
+            remainingBalance: amount,
+            transactionType: 'subscription',
+            expiresAt,
+          });
+        } catch (error) {
+          if (isUniqueViolation(error)) {
+            return false;
+          }
+          throw error;
+        }
 
-        const totalResult = await tx
-          .select({ total: sql<number>`COALESCE(SUM(${creditTransactions.remainingBalance}), 0)` })
-          .from(creditTransactions)
-          .where(
-            and(
-              eq(creditTransactions.userId, userId),
-              or(
-                isNull(creditTransactions.expiresAt),
-                gt(creditTransactions.expiresAt, sql`NOW()`)
-              )
-            )
-          );
-
-        const nextExpiryResult = await tx
-          .select({ minExpiry: sql<Date | null>`MIN(${creditTransactions.expiresAt})` })
-          .from(creditTransactions)
-          .where(
-            and(
-              eq(creditTransactions.userId, userId),
-              gt(creditTransactions.remainingBalance, 0),
-              gt(creditTransactions.expiresAt, sql`NOW()`)
-            )
-          );
-
-        await tx
-          .update(subscriptions)
-          .set({
-            currentCredits: totalResult[0]?.total ?? 0,
-            nextExpiryDate: nextExpiryResult[0]?.minExpiry ?? null,
-            updatedAt: new Date(),
-          })
-          .where(eq(subscriptions.userId, userId));
-
+        await syncSubscriptionCache(tx, userId);
         return true;
       });
     },

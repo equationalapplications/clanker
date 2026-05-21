@@ -81,13 +81,8 @@ const handler = async (
             avatarUrl: decoded.picture || null,
         });
 
-        // 2. Get or create subscription
-        let subscription = await deps.subscriptionService.getSubscription(user.id);
-        
-        if (!subscription) {
-            logger.info("Creating default subscription for new user", { userId: user.id });
-            subscription = await deps.subscriptionService.getOrCreateDefaultSubscription(user.id);
-        }
+        // 2. Get or create subscription and ensure onboarding credit_transactions exist
+        const subscription = await deps.subscriptionService.getOrCreateDefaultSubscription(user.id);
 
         logger.info("Token exchange/bootstrap successful", {
             email: normalizedEmail,

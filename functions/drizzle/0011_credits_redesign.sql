@@ -55,6 +55,14 @@ ALTER TABLE "credit_transactions" ALTER COLUMN "remaining_balance" SET NOT NULL;
 ALTER TABLE "credit_transactions" ALTER COLUMN "transaction_type" SET NOT NULL;
 --> statement-breakpoint
 
+-- Phase 4.1: Add DB defaults to match the Drizzle schema and prevent runtime inserts from failing when a field is omitted.
+ALTER TABLE "credit_transactions" ALTER COLUMN "initial_amount" SET DEFAULT 0;
+--> statement-breakpoint
+ALTER TABLE "credit_transactions" ALTER COLUMN "remaining_balance" SET DEFAULT 0;
+--> statement-breakpoint
+ALTER TABLE "credit_transactions" ALTER COLUMN "transaction_type" SET DEFAULT 'legacy';
+--> statement-breakpoint
+
 -- Phase 5: Add CHECK constraint on transaction_type
 ALTER TABLE "credit_transactions"
   ADD CONSTRAINT "credit_transactions_transaction_type_check"

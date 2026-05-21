@@ -13,6 +13,7 @@ import {
   getInvoiceLineItemPriceId,
   mapStripeSubscriptionStatus,
   stripeWebhookHandler,
+  handleInvoicePaymentSucceeded,
 } from "./stripeWebhook.js";
 
 type ResponseRecorder = {
@@ -200,4 +201,53 @@ test("getCreditPackQuantityFromInvoice counts only configured credit-pack lines"
   });
 
   assert.equal(quantity, 3);
+});
+
+test("handleInvoicePaymentSucceeded renews subscription credits only on subscription_cycle invoices", async () => {
+  let renewalArgs: unknown = null;
+
+  const invoice = {
+    id: "inv_123",
+    customer_email: "person@example.com",
+    billing_reason: "subscription_cycle",
+    parent: {
+      subscription_details: { subscription: "sub_123" },
+    },
+    lines: {
+      data: [
+        {
+          period: { end: 1710000000 },
+          pricing: {
+            price_details: { price: "price_monthly_20" },
+            type: "price_details",
+            unit_amount_decimal: null,
+          },
+          quantity: 1,
+        },
+      ],
+    },
+  } as unknown as Stripe.Invoice;
+
+  await handleInvoicePaymentSucceeded({} as Stripe, invoice, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email}),
+    findUserByFirebaseUid: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async (userId: string, amount: number, expiresAt: Date, referenceId: string) => {
+      renewalArgs = {userId, amount, expiresAt, referenceId};
+      return true;
+    },
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+  } as never);
+
+  assert.deepEqual(renewalArgs, {
+    userId: "user-1",
+    amount: 300,
+    expiresAt: new Date(1710000000 * 1000),
+    referenceId: "inv_123",
+  });
 });

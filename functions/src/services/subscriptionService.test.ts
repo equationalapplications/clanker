@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSubscriptionService } from './subscriptionService.js';
+import { creditTransactions } from '../db/schema.js';
 
 test('upsertSubscription defaults first insert credits to 50 when omitted', async () => {
   let insertValues: Record<string, unknown> | null = null;
@@ -45,20 +46,26 @@ test('getOrCreateDefaultSubscription grants signup credits when new user has no 
         }),
       }),
       select: () => ({
-        from: () => ({
+        from: (table: unknown) => ({
           where: () => ({
-            limit: async () => [{
-              id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 0,
-              termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
-            }],
+            limit: async () => {
+              if (table === creditTransactions) {
+                return [];
+              }
+
+              return [{
+                id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 0,
+                termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
+              }];
+            },
           }),
         }),
       }),
     }),
     creditService: {
       getCredits: async () => 0,
-      addCredits: async (userId: string, amount: number, expiresAt: Date | null, transactionType: string) => {
-        addedCreditArgs = { userId, amount, expiresAt, transactionType };
+      addCredits: async (userId: string, amount: number, expiresAt: Date | null, transactionType: string, referenceId?: string) => {
+        addedCreditArgs = { userId, amount, expiresAt, transactionType, referenceId };
       },
     },
   } as const;
@@ -72,5 +79,6 @@ test('getOrCreateDefaultSubscription grants signup credits when new user has no 
     amount: 50,
     expiresAt: null,
     transactionType: 'signup',
+    referenceId: 'signup',
   });
 });
