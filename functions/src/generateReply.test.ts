@@ -127,11 +127,9 @@ test("generateReplyHandler spends one credit for payg users", async () => {
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+    creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 1);
-      assert.equal(reason, "chat response");
-      assert.equal(referenceId, "message-123");
       return true;
     };
     creditService.getCredits = async () => 2;
@@ -205,11 +203,9 @@ test("generateReplyHandler allows cancelled plans to spend remaining credits", a
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3, "cancelled");
-    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+    creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 1);
-      assert.equal(reason, "chat response");
-      assert.equal(referenceId, "message-cancelled");
       return true;
     };
     creditService.getCredits = async () => 2;

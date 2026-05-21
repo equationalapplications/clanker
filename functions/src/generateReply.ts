@@ -282,7 +282,7 @@ async function spendOneCreditIfRequired(
   }
 
   try {
-    const success = await creditService.spendCredits(userId, 1, "chat response", referenceId ?? undefined);
+    const success = await creditService.spendCredits(userId, 1);
     if (!success) {
       throw new HttpsError("resource-exhausted", "Insufficient credits to complete the operation.");
     }

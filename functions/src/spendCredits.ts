@@ -79,10 +79,6 @@ const handler = async (request: CallableRequest) => {
     );
   }
   const description = data.description.trim();
-  const trimmedReferenceId = data.referenceId && typeof data.referenceId === "string"
-    ? data.referenceId.trim()
-    : "";
-  const referenceId = trimmedReferenceId.length > 0 ? trimmedReferenceId : null;
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -119,7 +115,7 @@ const handler = async (request: CallableRequest) => {
     throw new HttpsError("internal", "Failed to bootstrap user subscription.");
   }
 
-  const success = await creditService.spendCredits(user.id, amount, description, referenceId ?? undefined);
+  const success = await creditService.spendCredits(user.id, amount);
 
   if (!success) {
     logger.warn("spendCredits failed - insufficient credits or user subscription missing", {

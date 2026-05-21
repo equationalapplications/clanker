@@ -110,7 +110,7 @@ test('spendCredits returns false when no qualifying creditTransactions row found
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
-  const result = await service.spendCredits('user-1', 1, 'chat');
+  const result = await service.spendCredits('user-1', 1);
   assert.equal(result, false);
 });
 
@@ -161,7 +161,7 @@ test('spendCredits returns true and decrements balance on qualifying row', async
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
-  const result = await service.spendCredits('user-1', 1, 'chat');
+  const result = await service.spendCredits('user-1', 1);
   assert.equal(result, true);
   assert.equal(updatedId, 'tx-abc');
   assert.equal(cacheUpdated, true);

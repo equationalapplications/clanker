@@ -486,7 +486,7 @@ async function spendCreditsIfRequired(
   }
 
   try {
-    const success = await creditService.spendCredits(userId, 2, "voice reply", referenceId ?? undefined);
+    const success = await creditService.spendCredits(userId, 2);
     if (!success) {
       throw new HttpsError("resource-exhausted", "Insufficient credits to complete voice reply.");
     }

@@ -203,11 +203,9 @@ test("generateVoiceReplyHandler spends 2 credits for payg users", async () => {
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+    creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 2);
-      assert.equal(reason, "voice reply");
-      assert.equal(referenceId, "msg-ref-1");
       return true;
     };
     creditService.getCredits = async () => 3;

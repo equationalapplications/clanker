@@ -84,12 +84,10 @@ test("spendCreditsHandler calls credit service with floored amount", async () =>
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    creditService.spendCredits = async (userId, amount, description, referenceId) => {
+    creditService.spendCredits = async (userId, amount) => {
       spendCalls += 1;
       assert.equal(userId, user.id);
       assert.equal(amount, 3);
-      assert.equal(description, "chat response");
-      assert.equal(referenceId, "message-123");
       return true;
     };
 

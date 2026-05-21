@@ -98,7 +98,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       });
     },
 
-    async spendCredits(userId: string, amount: number, _reason?: string, _referenceId?: string): Promise<boolean> {
+    async spendCredits(userId: string, amount: number): Promise<boolean> {
       const db = await deps.getDb();
       try {
         return await db.transaction(async (tx: DbTx) => {

@@ -7,6 +7,7 @@ import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
+import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS} from "./constants/credits.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -43,7 +44,6 @@ function constantTimeEquals(provided: string | null, expected: string): boolean 
     return false;
   }
 }
-import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS} from "./constants/credits.js";
 
 interface RevenueCatDeps {
   findUserByFirebaseUid: (firebaseUid: string) => Promise<{id: string} | null>;
