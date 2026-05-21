@@ -27,7 +27,8 @@ interface StripeWebhookDeps {
   findUserByEmail: (email: string) => Promise<UserLookup | null>;
   findUserByFirebaseUid: (firebaseUid: string) => Promise<UserLookup | null>;
   upsertSubscription: (params: UpsertSubscriptionParams) => Promise<void>;
-  addCredits: (userId: string, amount: number, reason: string, referenceId?: string) => Promise<void>;
+  renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
+  addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
 }
 
@@ -49,8 +50,11 @@ const defaultDeps: StripeWebhookDeps = {
   async upsertSubscription(params: UpsertSubscriptionParams) {
     await subscriptionService.upsertSubscription(params);
   },
-  async addCredits(userId: string, amount: number, reason: string, referenceId?: string) {
-    await creditService.addCredits(userId, amount, reason, referenceId);
+  async renewSubscriptionCredits(userId: string, amount: number, expiresAt: Date, referenceId: string) {
+    return creditService.renewSubscriptionCredits(userId, amount, expiresAt, referenceId);
+  },
+  async addCredits(userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) {
+    await creditService.addCredits(userId, amount, expiresAt, transactionType, referenceId);
   },
   async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
     await creditService.adjustCredits(userId, delta, reason, referenceId);
@@ -218,7 +222,7 @@ export const stripeWebhookHandler = async (
     }
     case "customer.subscription.updated": {
       const sub = event.data.object as Stripe.Subscription;
-      await handleSubscriptionUpdated(sub, stripe, priceIds, deps);
+      await handleSubscriptionUpdated(sub, stripe, priceIds, deps, event.id);
       break;
     }
     case "customer.subscription.deleted": {
@@ -306,17 +310,26 @@ async function handleCheckoutCompleted(
         stripeSubscriptionId: subscriptionId,
         stripeCustomerId: customerId,
       });
-      logger.info("checkout.session.completed: subscription upserted", {
+
+      if (subscriptionId) {
+        const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+        const cycleEnd = new Date(((stripeSub as any).current_period_end as number) * 1000);
+        await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, session.id);
+      }
+
+      logger.info("checkout.session.completed: subscription upserted + credits granted", {
         email: customerEmail,
         tier,
       });
     } else if (isCreditPackPriceId(priceId, priceIds)) {
       // Credit pack → add credits
       const qty = item.quantity ?? 1;
+      const expiresAt = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
       await deps.addCredits(
         user.id,
         CREDIT_PACK_AMOUNT * qty,
-        "stripe_credit_pack_purchase",
+        expiresAt,
+        'one_time',
         session.id
       );
       logger.info("checkout.session.completed: credits added", {
@@ -331,7 +344,8 @@ async function handleSubscriptionUpdated(
   sub: Stripe.Subscription,
   stripe: Stripe,
   priceIds: StripePriceIds,
-  deps: StripeWebhookDeps
+  deps: StripeWebhookDeps,
+  eventId: string
 ): Promise<void> {
   const customerId = getStripeId(sub.customer as StripeExpandableId);
   if (!customerId) {
@@ -368,7 +382,10 @@ async function handleSubscriptionUpdated(
     stripeCustomerId: customerId,
   });
 
-  logger.info("customer.subscription.updated: subscription synced", {
+  const cycleEnd = new Date(((sub as any).current_period_end as number) * 1000);
+  await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, eventId);
+
+  logger.info("customer.subscription.updated: subscription synced + credits renewed", {
     email: customer.email,
     tier,
     planStatus,
@@ -425,10 +442,12 @@ async function handleInvoicePaymentSucceeded(
     const priceId = getInvoiceLineItemPriceId(item);
     if (isCreditPackPriceId(priceId, priceIds)) {
       const qty = item.quantity ?? 1;
+      const expiresAt = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
       await deps.addCredits(
         user.id,
         CREDIT_PACK_AMOUNT * qty,
-        "stripe_invoice_payment",
+        expiresAt,
+        'one_time',
         invoice.id
       );
       logger.info("invoice.payment_succeeded: credits added", {

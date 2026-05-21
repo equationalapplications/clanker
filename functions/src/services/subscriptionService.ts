@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { subscriptions } from '../db/schema.js';
+import { createCreditService } from './creditService.js';
 
 export interface UpsertSubscriptionParams {
   userId: string;
@@ -15,6 +16,7 @@ export interface UpsertSubscriptionParams {
 
 interface SubscriptionServiceDeps {
   getDb: typeof getDb;
+  creditService?: ReturnType<typeof createCreditService>;
 }
 
 export const createSubscriptionService = (
@@ -33,19 +35,27 @@ export const createSubscriptionService = (
 
     async getOrCreateDefaultSubscription(userId: string) {
       const db = await deps.getDb();
+      const creditService = deps.creditService ?? createCreditService();
+
       await db
         .insert(subscriptions)
         .values({
           userId,
           planTier: 'free',
           planStatus: 'active',
-          currentCredits: 50,
+          currentCredits: 0,
         })
         .onConflictDoNothing({ target: subscriptions.userId });
 
       const subscription = await service.getSubscription(userId);
       if (!subscription) {
         throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`);
+      }
+
+      const existingCredits = await creditService.getCredits(userId);
+      if (existingCredits === 0 && subscription.currentCredits === 0) {
+        await creditService.addCredits(userId, 50, null, 'signup');
+        return await service.getSubscription(userId) ?? subscription;
       }
 
       return subscription;

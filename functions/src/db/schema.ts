@@ -2,6 +2,9 @@ import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, bigint, check,
 import { sql } from 'drizzle-orm';
 import { DEFAULT_VOICE } from '../constants/voiceDefaults.js';
 
+export const TRANSACTION_TYPES = ['signup', 'subscription', 'one_time', 'legacy'] as const;
+export type TransactionType = typeof TRANSACTION_TYPES[number];
+
 // NOTE: The legacy table exports (wikiEntries → wiki_entries, agentTasks, memoryEvents) are kept
 // unchanged so that memoryFunctions.ts continues to compile. They will be removed alongside
 // memoryFunctions.ts in a separate cleanup step after old clients are fully retired.
@@ -18,6 +21,11 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// NOTE: The DB trigger handle_new_user() inserts into this table directly.
+// Phase 2 of credits-redesign updates subscriptionService.getOrCreateDefaultSubscription
+// to also insert a credit_transactions row for the 50-credit signup grant.
+// The trigger remains as-is (it seeds currentCredits=50 as a cache; the actual
+// credit row is created on first exchangeToken call via getOrCreateDefaultSubscription).
 export const subscriptions = pgTable('subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').unique().notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -30,6 +38,7 @@ export const subscriptions = pgTable('subscriptions', {
   stripeCustomerId: text('stripe_customer_id'),
   billingCycleStart: timestamp('billing_cycle_start', { withTimezone: true }),
   billingCycleEnd: timestamp('billing_cycle_end', { withTimezone: true }),
+  nextExpiryDate: timestamp('next_expiry_date', { withTimezone: true }).default(sql`NULL`),
   documentsIngestedCount: integer('documents_ingested_count').notNull().default(0),
   documentsIngestedDate: text('documents_ingested_date'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -45,12 +54,20 @@ export const creditTransactions = pgTable('credit_transactions', {
   delta: integer('delta').notNull(),
   reason: text('reason').notNull(),
   referenceId: text('reference_id'),
+  initialAmount: integer('initial_amount').notNull().default(0),
+  remainingBalance: integer('remaining_balance').notNull().default(0),
+  transactionType: text('transaction_type').notNull().default('legacy'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
   userIdIdx: index('credit_transactions_user_id_idx').on(table.userId),
   idempotencyIdx: uniqueIndex('credit_transactions_idempotency_idx')
     .on(table.userId, table.reason, table.referenceId)
     .where(sql`${table.referenceId} IS NOT NULL`),
+  transactionTypeCheck: check(
+    'credit_transactions_transaction_type_check',
+    sql`${table.transactionType} IN ('signup', 'subscription', 'one_time', 'legacy')`
+  ),
 }));
 
 export const characters = pgTable('characters', {

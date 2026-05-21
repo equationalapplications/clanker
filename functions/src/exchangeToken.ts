@@ -140,6 +140,7 @@ const handler = async (
                 currentCredits: subscription.currentCredits,
                 termsVersion: subscription.termsVersion,
                 termsAcceptedAt: toISO(subscription.termsAcceptedAt),
+                nextExpiryDate: toISO(subscription.nextExpiryDate),
             },
         };
     } catch (err: unknown) {

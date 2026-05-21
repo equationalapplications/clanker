@@ -61,8 +61,10 @@ function buildSubscription(
     stripeCustomerId: null,
     billingCycleStart: null,
     billingCycleEnd: null,
+    nextExpiryDate: null,
     documentsIngestedCount: 0,
     documentsIngestedDate: null,
+    nextExpiryDate: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
