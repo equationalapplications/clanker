@@ -41,7 +41,9 @@ test('getOrCreateDefaultSubscription grants signup credits for new user', async 
     getDb: async () => ({
       insert: () => ({
         values: () => ({
-          onConflictDoNothing: () => ({}),
+          onConflictDoNothing: () => ({
+            returning: async () => [{ id: 'sub-1' }],
+          }),
         }),
       }),
       select: () => ({
@@ -75,24 +77,81 @@ test('getOrCreateDefaultSubscription grants signup credits for new user', async 
   });
 });
 
-test('getOrCreateDefaultSubscription calls addCredits idempotently for existing user', async () => {
-  // addCredits is always called — it is idempotent via referenceId (ON CONFLICT DO NOTHING).
-  // This ensures users whose subscription row was pre-created by the DB trigger still get credits.
-  let addCreditsWasCalled = false;
+test('getOrCreateDefaultSubscription grants signup credits when subscription row was pre-created but no credit rows exist', async () => {
+  let addedCreditArgs: unknown = null;
+  let selectCalls = 0;
+
   const mockDeps = {
     getDb: async () => ({
       insert: () => ({
         values: () => ({
-          onConflictDoNothing: () => ({}),
+          onConflictDoNothing: () => ({
+            returning: async () => [],
+          }),
         }),
       }),
       select: () => ({
         from: () => ({
           where: () => ({
-            limit: async () => [{
-              id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 50,
-              termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
-            }],
+            limit: async () => {
+              selectCalls += 1;
+              if (selectCalls === 1) {
+                return [{
+                  id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 0,
+                  termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
+                }];
+              }
+              return [];
+            },
+          }),
+        }),
+      }),
+    }),
+    creditService: {
+      addCredits: async (userId: string, amount: number, expiresAt: Date | null, transactionType: string, referenceId?: string) => {
+        addedCreditArgs = { userId, amount, expiresAt, transactionType, referenceId };
+      },
+    },
+  } as const;
+
+  const service = createSubscriptionService(mockDeps as never);
+  await service.getOrCreateDefaultSubscription('user-1');
+
+  assert.deepEqual(addedCreditArgs, {
+    userId: 'user-1',
+    amount: 50,
+    expiresAt: null,
+    transactionType: 'signup',
+    referenceId: 'signup',
+  });
+});
+
+test('getOrCreateDefaultSubscription does not add signup credits when existing user already has credit rows', async () => {
+  let addCreditsWasCalled = false;
+  let selectCalls = 0;
+
+  const mockDeps = {
+    getDb: async () => ({
+      insert: () => ({
+        values: () => ({
+          onConflictDoNothing: () => ({
+            returning: async () => [],
+          }),
+        }),
+      }),
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => {
+              selectCalls += 1;
+              if (selectCalls === 1) {
+                return [{
+                  id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 50,
+                  termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
+                }];
+              }
+              return [{ id: 'tx-1' }];
+            },
           }),
         }),
       }),
@@ -104,5 +163,5 @@ test('getOrCreateDefaultSubscription calls addCredits idempotently for existing 
 
   const service = createSubscriptionService(mockDeps as never);
   await service.getOrCreateDefaultSubscription('user-1');
-  assert.equal(addCreditsWasCalled, true);
+  assert.equal(addCreditsWasCalled, false);
 });

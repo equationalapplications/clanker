@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
-import { subscriptions } from '../db/schema.js';
+import { subscriptions, creditTransactions } from '../db/schema.js';
 import { createCreditService } from './creditService.js';
 
 const SIGNUP_CREDIT_REFERENCE_ID = 'signup';
@@ -39,26 +39,33 @@ export const createSubscriptionService = (
       const db = await deps.getDb();
       const creditService = deps.creditService ?? createCreditService({ getDb: deps.getDb });
 
-      await db
+      const [insertedSubscription] = await db
         .insert(subscriptions)
         .values({
           userId,
           planTier: 'free',
           planStatus: 'active',
-          // Credits are granted through credit_transactions (signup grant), then synchronized onto subscriptions.
           currentCredits: 0,
         })
-        .onConflictDoNothing({ target: subscriptions.userId });
+        .onConflictDoNothing({ target: subscriptions.userId })
+        .returning();
 
       const subscription = await service.getSubscription(userId);
       if (!subscription) {
         throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`);
       }
 
-      // Always call — addCredits is idempotent via referenceId, so duplicate calls are safe.
-      // Guards against the DB trigger handle_new_user() pre-creating the subscription row
-      // without a matching credit_transactions row.
-      await creditService.addCredits(userId, 50, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
+      const hasAnyCreditRows = (await db
+        .select()
+        .from(creditTransactions)
+        .where(eq(creditTransactions.userId, userId))
+        .limit(1))
+        .length > 0;
+
+      const shouldGrantSignupCredits = Boolean(insertedSubscription) || !hasAnyCreditRows;
+      if (shouldGrantSignupCredits) {
+        await creditService.addCredits(userId, 50, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
+      }
 
       return await service.getSubscription(userId) ?? subscription;
     },
