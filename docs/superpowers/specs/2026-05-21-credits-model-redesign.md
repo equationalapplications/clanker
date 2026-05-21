@@ -22,13 +22,13 @@ Credit consumption uses a **decrementing balance model**: each credit grant row 
 
 **Key rules:**
 
-- No unlimited bypass. Every server-side feature call costs ≥ 1 credit.
+- No unlimited bypass. Every server-side feature call costs credits. Voice replies cost 2 credits; all other features cost 1 credit.
 - Free signup credits: `expires_at = NULL`. Never expire regardless of account activity.
 - Subscription renewal: grant 300 new credits with `expires_at = billing_cycle_end`. Previous subscription-cycle credits expire immediately — targeted by `transaction_type = 'subscription'` so one-time credits are never touched.
 - One-time purchase: add 100 credits with `expires_at = NOW() + 31 days`.
 - Separate pools (subscription vs one-time) tracked independently via `transaction_type` and `expires_at` per `credit_transactions` row.
 - Spend order: earliest-expiring grant first (`ORDER BY expires_at NULLS LAST ASC`). Free credits (`expires_at = NULL`) spent last.
-- Credit cost per action is 1. Since all actions cost exactly 1 credit, `spendCredits` always finds a single row with `remaining_balance >= 1` — no cross-row splitting required.
+- Credit costs: voice replies = 2 credits; all other features = 1 credit. Since the max cost per action is 2, `spendCredits` always finds a single row with sufficient `remaining_balance` — no cross-row splitting required.
 - Local inference (future feature): client handles AI call on-device and never calls `spendCredits`. No credits consumed. No code change required — credit deduction is explicit/opt-in per callable.
 
 ---
@@ -40,8 +40,8 @@ All features previously restricted to `monthly_20`/`monthly_50` plan tiers are n
 | Feature | Previous gate | New gate |
 |---|---|---|
 | Chat replies | Free for `UNLIMITED_TIERS`, 1 credit otherwise | 1 credit for all |
-| Voice replies | Same | Same |
-| Image generation | Same | Same |
+| Voice replies | Free for `UNLIMITED_TIERS`, 2 credits otherwise | 2 credits for all |
+| Image generation | Free for `UNLIMITED_TIERS`, 1 credit otherwise | 1 credit for all |
 | Cloud character save/sync | Blocked unless `CLOUD_CHARACTER_ALLOWED_PLANS` | 1 credit per use |
 | Document ingestion | Blocked unless `PREMIUM_TIERS` | 1 credit per use |
 | Memory / wiki | `hasUnlimited` bypass | 1 credit per use |
@@ -111,7 +111,7 @@ Callables that invoke expensive external APIs (Vertex AI, etc.) must follow the 
 |---|---|
 | `generateImage.ts` | 1. Call `spendCredits(userId, 1)`. If `null`, throw `resource-exhausted`. 2. Capture returned `txId`. 3. Call image generation API. 4. On API failure: call `refundCredit(userId, txId, 1)`, throw `internal` to client. |
 | `generateReply.ts` | Remove `UNLIMITED_TIERS`, `hasUnlimited`. Implement spend → execute → catch/refund pattern. |
-| `generateVoiceReply.ts` | Same spend → execute → catch/refund pattern. |
+| `generateVoiceReply.ts` | Same spend → execute → catch/refund pattern. Call `spendCredits(userId, 2)` — voice costs 2 credits. |
 | `characterFunctions.ts` | Replace `CLOUD_CHARACTER_ALLOWED_PLANS` tier check with `spendCredits` call. Refund on failure. |
 | `documentExtract.ts` | Replace `PREMIUM_TIERS` tier check with `spendCredits` call. Refund on failure. |
 | `memoryFunctions.ts` | Remove `hasUnlimited` bypass. Spend 1 credit per use. Refund on failure. |
@@ -143,7 +143,7 @@ Callables that invoke expensive external APIs (Vertex AI, etc.) must follow the 
 | `getUserCredits.ts` | Remove `hasUnlimited`, `isUnlimited`, `SUBSCRIPTION_TIERS`. Return only `totalCredits`. |
 | `useAuthSnapshot.ts` | Remove `hasUnlimited` field. |
 | `ChatView.tsx` | Remove `hasUnlimited` guard. Gate only on `credits <= 0`. |
-| `useVoiceChat.ts` | Update low-credit message: remove "subscribe for unlimited" → "purchase more credits". |
+| `useVoiceChat.ts` | Update low-credit message: remove "subscribe for unlimited" → "purchase more credits". Voice requires ≥ 2 credits; update insufficient-credits check accordingly. |
 | `CreditCounterIcon.tsx` | Remove "Premium subscriber, unlimited credits" tooltip. |
 | `CreditsDisplay.tsx` | Remove `unlimitedContainer`, `unlimitedChip`, "You have unlimited credits" UI. Show credit balance + `next_expiry_date` from subscription cache. |
 | `constants.ts` | Remove `SUBSCRIPTION_TIERS`. Keep `PLAN_TIERS`. |
