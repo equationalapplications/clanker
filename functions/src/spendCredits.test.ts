@@ -207,7 +207,7 @@ test("spendCreditsHandler bootstraps default subscription before spending", asyn
         planTier: "payg",
         planStatus: "active",
         currentCredits: 50,
-      nextExpiryDate: null,
+        nextExpiryDate: null,
         termsVersion: null,
         termsAcceptedAt: null,
         stripeSubscriptionId: null,
