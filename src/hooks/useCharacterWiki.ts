@@ -59,9 +59,6 @@ function waitForActorOperation(
     
     if (current.matches(operation)) {
       seenOperation = true
-    } else if (current.matches('idle')) {
-      resolve()
-      return
     } else if (current.matches('error')) {
       reject(current.context.lastError ?? new Error(`Wiki ${operation} failed`))
       return

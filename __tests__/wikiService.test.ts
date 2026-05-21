@@ -7,6 +7,7 @@ const mockCreateWiki = jest.fn().mockReturnValue({
   read: mockRead,
   write: mockWrite,
   exportDump: mockExportDump,
+  runReembed: jest.fn().mockResolvedValue({ embedded: 0, skipped: 0, failed: 0 }),
 })
 
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
@@ -22,12 +23,15 @@ import {
   getWiki,
   initWiki,
   _resetWikiForTests,
+  readFromWiki,
+  clearWikiNoResultCache,
   TABLE_PREFIX,
 } from '~/services/wikiService'
 
 describe('wikiService', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockRead.mockReset()
     _resetWikiForTests()
   })
 
@@ -82,8 +86,9 @@ describe('wikiService', () => {
     expect(mockSetup).toHaveBeenCalledTimes(1)
   })
 
-  it('initWiki skips migration when table exists but no old enums', async () => {
-    const execAsync = jest.fn()
+  it('initWiki skips enum migration when table exists but no old enums', async () => {
+    const execAsync = jest.fn().mockResolvedValue(undefined)
+    const runAsync = jest.fn().mockResolvedValue(undefined)
     const db = {
       withTransactionAsync: jest.fn().mockImplementation(async (cb) => {
         await cb()
@@ -93,9 +98,17 @@ describe('wikiService', () => {
         .mockResolvedValueOnce({ has_table: 1 }) // Table exists
         .mockResolvedValueOnce(null), // No old enums
       execAsync,
+      runAsync,
     } as any
     await initWiki(db)
-    expect(execAsync).not.toHaveBeenCalled()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(execAsync).toHaveBeenCalledWith(
+      expect.stringContaining('CREATE TABLE IF NOT EXISTS "llm_wiki_meta"'),
+    )
+    expect(runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT OR REPLACE INTO "llm_wiki_meta"'),
+      expect.any(Array),
+    )
     expect(mockSetup).toHaveBeenCalledTimes(1)
   })
 
@@ -116,8 +129,15 @@ describe('wikiService', () => {
   it('passes mobile-first defaults to createWiki config', () => {
     const db = {} as any
     setupWiki(db)
-    expect(mockCreateWiki).toHaveBeenCalledWith(
-      db,
+    expect(mockCreateWiki).toHaveBeenCalledTimes(1)
+    const createWikiArgs = mockCreateWiki.mock.calls[0]
+    const optionsArg = createWikiArgs[1] ?? createWikiArgs[0]
+
+    if (createWikiArgs.length > 1) {
+      expect(createWikiArgs[0]).toBe(db)
+    }
+
+    expect(optionsArg).toEqual(
       expect.objectContaining({
         config: expect.objectContaining({
           tablePrefix: TABLE_PREFIX,
@@ -128,9 +148,231 @@ describe('wikiService', () => {
           orphanAfterDays: 14,
           staleInferredAfterDays: 30,
           preFilterLimit: 300,
-          hybridWeight: 0.7,
+          hybridWeight: 1,
         }),
       }),
+    )
+  })
+
+  it('retries a full-scan read when the prefiltered read returns no facts', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [{ id: 'fact-1' }], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    const result = await readFromWiki(wiki, 'entity-id', 'some query')
+
+    expect(mockRead).toHaveBeenCalledTimes(2)
+    expect(mockRead.mock.calls[0][2]).toBeUndefined()
+    expect(mockRead.mock.calls[1][2]).toEqual({ preFilterLimit: null })
+    expect(result.facts).toHaveLength(1)
+  })
+
+  it('returns empty results for whitespace-only queries without reading from the wiki', async () => {
+    const db = {} as any
+    setupWiki(db)
+
+    const wiki = getWiki()!
+    const result = await readFromWiki(wiki, 'entity-id', '   ')
+
+    expect(result.facts).toHaveLength(0)
+    expect(mockRead).not.toHaveBeenCalled()
+  })
+
+  it('caches no-result wiki queries to avoid repeated full-scan retries', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(2)
+
+    await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(3)
+  })
+
+  it('evicts the oldest no-result cache entry even when the oldest entity id is falsy', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead.mockResolvedValue({ facts: [], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, '', 'some query')
+
+    for (let i = 1; i < 500; i += 1) {
+      await readFromWiki(wiki, `entity-${i}`, 'some query')
+    }
+
+    await readFromWiki(wiki, 'entity-500', 'some query')
+    const callsBeforeReplay = mockRead.mock.calls.length
+
+    await readFromWiki(wiki, '', 'some query')
+    expect(mockRead.mock.calls.length).toBe(callsBeforeReplay + 2)
+  })
+
+  it('clears cached no-result wiki queries for a specific entity', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [{ id: 'fact-1' }], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(2)
+
+    clearWikiNoResultCache('entity-id')
+    const result = await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(3)
+    expect(result.facts).toHaveLength(1)
+  })
+
+  it('clears cached no-result wiki queries for an empty-string entity id without clearing everything', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [{ id: 'fact-1' }], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, '', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(2)
+
+    clearWikiNoResultCache('')
+    const result = await readFromWiki(wiki, '', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(3)
+    expect(result.facts).toHaveLength(1)
+  })
+
+  it('clears stale cached no-result wiki queries after successful embedding migration', async () => {
+    const runReembed = jest.fn().mockResolvedValue({ embedded: 1, skipped: 0, failed: 0 })
+    mockCreateWiki.mockReturnValueOnce({
+      setup: mockSetup,
+      read: mockRead,
+      write: mockWrite,
+      exportDump: mockExportDump,
+      runReembed,
+    })
+
+    const db = {
+      getFirstAsync: jest.fn().mockImplementation(async (sql: string) => {
+        if (sql.includes(`FROM sqlite_master`)) {
+          return { has_table: 1 }
+        }
+        return null
+      }),
+      execAsync: jest.fn().mockResolvedValue(undefined),
+      runAsync: jest.fn().mockResolvedValue(undefined),
+    } as any
+
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [{ id: 'fact-1' }], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(2)
+
+    await initWiki(db)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(runReembed).toHaveBeenCalledTimes(1)
+
+    const result = await readFromWiki(getWiki()!, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(4)
+    expect(result.facts).toHaveLength(1)
+  })
+
+  it('clears cached no-result wiki queries when reset for tests', async () => {
+    const db = {} as any
+    setupWiki(db)
+    mockRead
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [], tasks: [], events: [] })
+      .mockResolvedValueOnce({ facts: [{ id: 'fact-1' }], tasks: [], events: [] })
+
+    const wiki = getWiki()!
+    await readFromWiki(wiki, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(2)
+
+    _resetWikiForTests()
+    setupWiki(db)
+    const result = await readFromWiki(getWiki()!, 'entity-id', 'some query')
+    expect(mockRead).toHaveBeenCalledTimes(3)
+    expect(result.facts).toHaveLength(1)
+  })
+
+  it('starts wiki embedding migration in the background without blocking init', async () => {
+    let resolveExec!: () => void
+    const dbExecAsync = jest.fn().mockImplementation(
+      () => new Promise<void>((resolve) => {
+        resolveExec = resolve
+      }),
+    )
+    const runReembed = jest.fn().mockResolvedValue({ embedded: 0, skipped: 0, failed: 0 })
+    mockCreateWiki.mockReturnValueOnce({
+      setup: mockSetup,
+      read: mockRead,
+      write: mockWrite,
+      exportDump: mockExportDump,
+      runReembed,
+    })
+
+    const db = {
+      getFirstAsync: jest.fn().mockResolvedValue({ has_table: 1 }),
+      execAsync: dbExecAsync,
+      runAsync: jest.fn().mockResolvedValue(undefined),
+    } as any
+
+    await initWiki(db)
+    expect(mockSetup).toHaveBeenCalledTimes(1)
+    expect(runReembed).not.toHaveBeenCalled()
+
+    resolveExec()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(runReembed).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not mark wiki embedding migration complete when the reembed reports failures', async () => {
+    const runReembed = jest.fn().mockResolvedValue({ embedded: 0, skipped: 0, failed: 1 })
+    mockCreateWiki.mockReturnValueOnce({
+      setup: mockSetup,
+      read: mockRead,
+      write: mockWrite,
+      exportDump: mockExportDump,
+      runReembed,
+    })
+
+    const db = {
+      getFirstAsync: jest.fn().mockResolvedValue({ has_table: 1 }),
+      execAsync: jest.fn().mockResolvedValue(undefined),
+      runAsync: jest.fn().mockResolvedValue(undefined),
+    } as any
+
+    await initWiki(db)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(runReembed).toHaveBeenCalledTimes(1)
+    expect(db.runAsync).toHaveBeenCalledTimes(1)
+    expect(db.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT OR REPLACE INTO "llm_wiki_meta"'),
+      expect.arrayContaining(['wiki_embedding_tasktype_migration_v1_failed', expect.any(String)]),
+    )
+    expect(db.runAsync).not.toHaveBeenCalledWith(
+      expect.stringContaining('INSERT OR REPLACE INTO "llm_wiki_meta"'),
+      expect.arrayContaining(['wiki_embedding_tasktype_migration_v1', '1']),
     )
   })
 })

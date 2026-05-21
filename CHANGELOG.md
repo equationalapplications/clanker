@@ -1,3 +1,54 @@
+# [29.12.0](https://github.com/equationalapplications/clanker/compare/v29.11.0...v29.12.0) (2026-05-20)
+
+
+### Bug Fixes
+
+* **aiChatService:** apply latest update ([8b744f7](https://github.com/equationalapplications/clanker/commit/8b744f79854ca5412225f77d4883b0576acb7176))
+* **aiChatService:** include AI response in observation history for correct memory ordering ([5a92902](https://github.com/equationalapplications/clanker/commit/5a92902085b764a92b34ec0de74ba36331658af5))
+* **auth/wiki:** improve Apple web sign-in error handling and wiki read fallback ([0ee4673](https://github.com/equationalapplications/clanker/commit/0ee467366ebaf9ce01f5bd6981ed1e0bea5627f5))
+* **auth:** cleanup Apple web init on unmount and improve wiki migration/cache behavior ([9471391](https://github.com/equationalapplications/clanker/commit/9471391d4c28c1a850c37ddb2b7dc7b99391f25e))
+* **auth:** regenerate Apple web nonce per event and add init tests ([c4c8b28](https://github.com/equationalapplications/clanker/commit/c4c8b28285929b1807f0d3f161bab2834b6c55a0))
+* **auth:** skip Apple Sign-In reinit when session no longer exists ([7a9b7d1](https://github.com/equationalapplications/clanker/commit/7a9b7d1047c0f46033bdcf7a81a23054ba78071d))
+* **auth:** use expo-crypto randomUUID for Apple Sign-In session IDs ([b641142](https://github.com/equationalapplications/clanker/commit/b641142780869429f94dce7f95c41721d0966016))
+* **chat-composer:** update composer behavior and tests ([41b7fe2](https://github.com/equationalapplications/clanker/commit/41b7fe28b842ecfc9b315dca891b843d863096ef))
+* **chat/native:** add gap between text input bubble and send button ([d12f0f9](https://github.com/equationalapplications/clanker/commit/d12f0f94b146305a9d6dd857a6c65145bda341e0))
+* **chat/web:** remove web text input focus rectangle and balance composer margin ([cd7ea27](https://github.com/equationalapplications/clanker/commit/cd7ea2752429d4c43754029c3ec14e75ca42c08c))
+* **chat:** restore native mule composer multiline view and preserve composer wrapper layout ([1402cb0](https://github.com/equationalapplications/clanker/commit/1402cb0f7102cc4b7c3ef3476799fcf590280f97))
+* **ci:** mock RN Firebase modules in Jest and support Firebase ESM in tests ([403e548](https://github.com/equationalapplications/clanker/commit/403e548b3373ae0adf139c8625f2852335596de6))
+* **functions:** address code quality issues in generateEmbedding ([8536d39](https://github.com/equationalapplications/clanker/commit/8536d39c7019c5c291caeccf4e60532e49fd0969))
+* **functions:** reduce Vertex AI unexpected-shape log payload ([ee10547](https://github.com/equationalapplications/clanker/commit/ee105475b30ceb31c1cd23474ef88d4218f779ca))
+* **functions:** update wiki LLM integration ([36c9100](https://github.com/equationalapplications/clanker/commit/36c910056cd9b6f7174bc3bcbe3efdb2df131f8f))
+* **functions:** update wikiLlm.ts ([fa74807](https://github.com/equationalapplications/clanker/commit/fa748077d2435a3cb5c3e54f6851423e3048cd13))
+* **ingest/signin:** invalidate wiki no-result cache on writes and fix Apple sign-in cleanup mock ([2080f47](https://github.com/equationalapplications/clanker/commit/2080f47a73960785755d28a80f6ff0db4e10af78))
+* **ingest/signin:** preserve Apple web nonce and unify ChatComposer ingest prompt ([9e1315a](https://github.com/equationalapplications/clanker/commit/9e1315a82234fe7454a36524d94df4ec4c2220f8))
+* **ingest/wiki:** preserve cache eviction for falsy entity ids ([80d2a3e](https://github.com/equationalapplications/clanker/commit/80d2a3ea540bc49794268cc047fd887ad709c203))
+* **pr:** resolve wiki embedding provider and related review feedback ([84add85](https://github.com/equationalapplications/clanker/commit/84add85fee3b957cd39a6903440b26d1ea5343c3))
+* **review:** remove debug logs and update wikiLlm test thresholds ([8cc867b](https://github.com/equationalapplications/clanker/commit/8cc867ba54966a280ea54709c682ab8cdf3e964d))
+* **review:** reuse saveAIMessage return, trim prompts once, fix test mock ([1f9654b](https://github.com/equationalapplications/clanker/commit/1f9654b6d4cbff5e0854e7bc0fefab6b200ac72a))
+* **wiki,apple-signin:** correct wiki no-result cache and make web Apple init session-safe ([7fb52a9](https://github.com/equationalapplications/clanker/commit/7fb52a9ca7546c1db901dc75abced5869baaeb75))
+* **wiki,apple:** avoid stale migration and strengthen session IDs ([f3d7d54](https://github.com/equationalapplications/clanker/commit/f3d7d5453e29e6292308cf1e1d78162511bcdea8))
+* **wiki/apple-signin:** background wiki embedding migration and harden Apple web init ([684a24e](https://github.com/equationalapplications/clanker/commit/684a24e3c3b11dce1c9f61255bb93d613423da84))
+* **wiki:** clear stale no-result cache during embedding migration and harden Apple session id ([33ad91a](https://github.com/equationalapplications/clanker/commit/33ad91a03b3c4095562e471d34f397abd28805e8))
+* **wiki:** normalize readFromWiki return type and add one-time embedding migration ([bc15f33](https://github.com/equationalapplications/clanker/commit/bc15f33150fed170980cf3e56ce7c975134ffe03))
+* **wiki:** normalize whitespace-only wiki queries and avoid unnecessary reads ([53f43d9](https://github.com/equationalapplications/clanker/commit/53f43d95079f7cabfacc1fdce52bac7b3c597218))
+* **wiki:** preserve empty-string entity ids when clearing no-result cache ([d8689a0](https://github.com/equationalapplications/clanker/commit/d8689a02836123aca5cde857b00d2fa8c33a67a5))
+* **wiki:** update initWiki test to assert metadata runAsync insert ([c10988f](https://github.com/equationalapplications/clanker/commit/c10988f4cecdc075c2c51e643d802d025d837b37))
+* **wiki:** update wiki embedding migration failure test expectation ([c617b96](https://github.com/equationalapplications/clanker/commit/c617b962e7f608409455abc7ffa3a5807a74cbb5))
+* **wiki:** use runAsync for migration marker insert in initWiki ([1badd0f](https://github.com/equationalapplications/clanker/commit/1badd0f7c9b676a782d006b31425fa68ac46c693))
+* **wiki:** use semantic similarity embeddings and pure vector retrieval ([0604885](https://github.com/equationalapplications/clanker/commit/06048850b2c2ce85c1f87b501da29df5c89f7154))
+
+
+### Features
+
+* **apiClient:** add generateEmbedding callable with AppCheck wrapper ([41310d4](https://github.com/equationalapplications/clanker/commit/41310d4f5f6072b40775714ae58e2b40cc966113))
+* **auth:** add Apple sign-in web support and update sign-in flow ([7aa7a85](https://github.com/equationalapplications/clanker/commit/7aa7a85deec61bd7bd5577a0d67b9684590f5a4f))
+* **config:** add generateEmbeddingFn httpsCallable to firebase config ([9891fc2](https://github.com/equationalapplications/clanker/commit/9891fc2871547697af92dec851409e74c5a9d11b))
+* **functions:** add generateEmbedding callable using text-embedding-004 ([643d821](https://github.com/equationalapplications/clanker/commit/643d821293fd2995a610b23e7cf16125d4e666c8))
+* **functions:** export generateEmbedding from index ([3a91496](https://github.com/equationalapplications/clanker/commit/3a914965270e8e6b851760f7ddb5ee3b0c9598e2))
+* **wiki:** add embed to wikiLlmProvider using generateEmbedding callable ([46827cc](https://github.com/equationalapplications/clanker/commit/46827cc92efef54a8b9ada49966695b2291913ab))
+* **wiki:** add wiki embedding provider support and related tests ([180ff6d](https://github.com/equationalapplications/clanker/commit/180ff6d864637eb92a481748de74b3322189344d))
+* **wiki:** add wiki embedding provider support and related tests ([0409ae9](https://github.com/equationalapplications/clanker/commit/0409ae940f15ae5a542e6a73540da2e064a8f7ce))
+
 # [29.11.0](https://github.com/equationalapplications/clanker/compare/v29.10.1...v29.11.0) (2026-05-12)
 
 

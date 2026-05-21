@@ -387,12 +387,27 @@ graph LR
   createWikiLlmProvider__src_services_wikiLlmProvider_ts["createWikiLlmProvider
 (wikiLlmProvider.ts)"] --> wikiLlm__src_services_apiClient_ts["wikiLlm
 (apiClient.ts)"]
+  createWikiLlmProvider__src_services_wikiLlmProvider_ts["createWikiLlmProvider
+(wikiLlmProvider.ts)"] --> generateEmbedding__src_services_apiClient_ts["generateEmbedding
+(apiClient.ts)"]
+  stop__src_services_wikiOrchestrator_ts["stop
+(wikiOrchestrator.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
+(wikiService.ts)"]
   syncAll__src_services_wikiOrchestrator_ts["syncAll
 (wikiOrchestrator.ts)"] --> getOrSpawn__src_services_wikiOrchestrator_ts["getOrSpawn
 (wikiOrchestrator.ts)"]
   syncAll__src_services_wikiOrchestrator_ts["syncAll
 (wikiOrchestrator.ts)"] --> stop__src_services_wikiOrchestrator_ts["stop
 (wikiOrchestrator.ts)"]
+  readFromWiki__src_services_wikiService_ts["readFromWiki
+(wikiService.ts)"] --> getWikiNoResultCache__src_services_wikiService_ts["getWikiNoResultCache
+(wikiService.ts)"]
+  readFromWiki__src_services_wikiService_ts["readFromWiki
+(wikiService.ts)"] --> addWikiNoResultQuery__src_services_wikiService_ts["addWikiNoResultQuery
+(wikiService.ts)"]
+  ensureWikiEmbeddingMigration__src_services_wikiService_ts["ensureWikiEmbeddingMigration
+(wikiService.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
+(wikiService.ts)"]
   setupWiki__src_services_wikiService_ts["setupWiki
 (wikiService.ts)"] --> createWikiLlmProvider__src_services_wikiLlmProvider_ts["createWikiLlmProvider
 (wikiLlmProvider.ts)"]
@@ -401,6 +416,15 @@ graph LR
 (wikiService.ts)"]
   initWiki__src_services_wikiService_ts["initWiki
 (wikiService.ts)"] --> setupWiki__src_services_wikiService_ts["setupWiki
+(wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> ensureWikiEmbeddingMigration__src_services_wikiService_ts["ensureWikiEmbeddingMigration
+(wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> markWikiEmbeddingMigrationComplete__src_services_wikiService_ts["markWikiEmbeddingMigrationComplete
+(wikiService.ts)"]
+  _resetWikiForTests__src_services_wikiService_ts["_resetWikiForTests
+(wikiService.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
 (wikiService.ts)"]
   getMessageCount__src_database_messageDatabase_ts["getMessageCount
 (messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase

@@ -10,6 +10,7 @@ import {
   updateUserProfileFn as updateUserProfileCallable,
   wikiLlmFn as wikiLlmCallable,
   wikiSyncFn as wikiSyncCallable,
+  generateEmbeddingFn as generateEmbeddingCallable,
 } from '~/config/firebaseConfig'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 
@@ -141,10 +142,29 @@ export interface WikiSyncResponse {
   remoteDump: MemoryDump
 }
 
+// Keep in sync with GenerateEmbeddingTaskType in functions/src/generateEmbedding.ts
+export type GenerateEmbeddingTaskType =
+  | 'RETRIEVAL_DOCUMENT'
+  | 'RETRIEVAL_QUERY'
+  | 'SEMANTIC_SIMILARITY'
+
+export interface GenerateEmbeddingRequest {
+  text: string
+  taskType?: GenerateEmbeddingTaskType
+}
+
+export interface GenerateEmbeddingResponse {
+  embedding: number[]
+}
+
 export const wikiLlm = withAppCheck(
   wikiLlmCallable as Callable<WikiLlmRequest, WikiLlmResponse>,
 )
 
 export const wikiSync = withAppCheck(
   wikiSyncCallable as Callable<WikiSyncRequest, WikiSyncResponse>,
+)
+
+export const generateEmbedding = withAppCheck(
+  generateEmbeddingCallable as Callable<GenerateEmbeddingRequest, GenerateEmbeddingResponse>,
 )

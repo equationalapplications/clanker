@@ -4,6 +4,7 @@ import {
   type EntityStatus,
   type MemoryDump,
 } from '@equationalapplications/expo-llm-wiki'
+import { clearWikiNoResultCache, readFromWiki } from '~/services/wikiService'
 import type { Wiki } from '~/services/wikiService'
 import { reportError } from '~/utilities/reportError'
 
@@ -378,7 +379,7 @@ export const wikiMachine = createMachine(
         }: {
           input: { wiki: Wiki; entityId: string; query: string }
         }) => {
-          return input.wiki.read(input.entityId, input.query)
+          return readFromWiki(input.wiki, input.entityId, input.query)
         },
       ),
       writeActor: fromPromise(
@@ -391,6 +392,7 @@ export const wikiMachine = createMachine(
             event_type: 'observation',
             summary: input.summary,
           })
+          clearWikiNoResultCache(input.entityId)
         },
       ),
       ingestActor: fromPromise(
@@ -399,7 +401,9 @@ export const wikiMachine = createMachine(
         }: {
           input: { wiki: Wiki; entityId: string; doc: IngestArgs }
         }) => {
-          return input.wiki.ingestDocument(input.entityId, input.doc)
+          const result = await input.wiki.ingestDocument(input.entityId, input.doc)
+          clearWikiNoResultCache(input.entityId)
+          return result
         },
       ),
       forgetActor: fromPromise(
@@ -409,6 +413,7 @@ export const wikiMachine = createMachine(
           input: { wiki: Wiki; entityId: string; args: ForgetArgs }
         }) => {
           await input.wiki.forget(input.entityId, input.args)
+          clearWikiNoResultCache(input.entityId)
         },
       ),
       syncActor: fromPromise(
@@ -433,6 +438,7 @@ export const wikiMachine = createMachine(
               }
               try {
                 await input.wiki.importDump(remote, { merge: true })
+                clearWikiNoResultCache(input.entityId)
                 break
               } catch (e) {
                 if (e instanceof WikiBusyError) {

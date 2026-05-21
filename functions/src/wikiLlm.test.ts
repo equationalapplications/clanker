@@ -93,7 +93,7 @@ test("wikiLlm: rejects oversized systemPrompt", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
 
-  const request = {auth, data: {systemPrompt: "x".repeat(12_001), userPrompt: "hi"}};
+  const request = {auth, data: {systemPrompt: "x".repeat(32_001), userPrompt: "hi"}};
   await assert.rejects(
     () => wikiLlmHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
@@ -111,7 +111,7 @@ test("wikiLlm: rejects oversized userPrompt", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
 
-  const request = {auth, data: {systemPrompt: "sys", userPrompt: "y".repeat(12_001)}};
+  const request = {auth, data: {systemPrompt: "sys", userPrompt: "y".repeat(500_001)}};
   await assert.rejects(
     () => wikiLlmHandler(request as unknown as CallableRequest, {
       getUser: async () => user,

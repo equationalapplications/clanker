@@ -4,6 +4,8 @@
 **Status:** Implemented
 **Branch:** feature/upgrade-expo-llm-wiki
 
+> **Note:** This spec documents the earlier `expo-llm-wiki` upgrade path. The current repository code now uses `@equationalapplications/expo-llm-wiki@4.9.0` and may have evolved beyond this initial hook-first refactor.
+
 ---
 
 ## Background

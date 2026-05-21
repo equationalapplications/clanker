@@ -9,7 +9,8 @@ import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
 const MAX_OUTPUT_TOKENS = 2_048;
-const MAX_PROMPT_LENGTH = 12_000;
+const MAX_SYSTEM_PROMPT_LENGTH = 32_000;
+const MAX_USER_PROMPT_LENGTH = 500_000;
 
 interface WikiLlmRequest {
   systemPrompt: string;
@@ -29,21 +30,29 @@ function parseInput(data: unknown): WikiLlmRequest {
   const systemPrompt = d.systemPrompt;
   const userPrompt = d.userPrompt;
 
-  if (typeof systemPrompt !== "string" || systemPrompt.trim().length === 0) {
+  if (typeof systemPrompt !== "string") {
     throw new HttpsError("invalid-argument", "systemPrompt is required.");
   }
-  if (systemPrompt.trim().length > MAX_PROMPT_LENGTH) {
-    throw new HttpsError("invalid-argument", `systemPrompt must be at most ${MAX_PROMPT_LENGTH} characters.`);
+  const trimmedSystemPrompt = systemPrompt.trim();
+  if (trimmedSystemPrompt.length === 0) {
+    throw new HttpsError("invalid-argument", "systemPrompt is required.");
+  }
+  if (trimmedSystemPrompt.length > MAX_SYSTEM_PROMPT_LENGTH) {
+    throw new HttpsError("invalid-argument", `systemPrompt must be at most ${MAX_SYSTEM_PROMPT_LENGTH} characters.`);
   }
 
-  if (typeof userPrompt !== "string" || userPrompt.trim().length === 0) {
+  if (typeof userPrompt !== "string") {
     throw new HttpsError("invalid-argument", "userPrompt is required.");
   }
-  if (userPrompt.trim().length > MAX_PROMPT_LENGTH) {
-    throw new HttpsError("invalid-argument", `userPrompt must be at most ${MAX_PROMPT_LENGTH} characters.`);
+  const trimmedUserPrompt = userPrompt.trim();
+  if (trimmedUserPrompt.length === 0) {
+    throw new HttpsError("invalid-argument", "userPrompt is required.");
+  }
+  if (trimmedUserPrompt.length > MAX_USER_PROMPT_LENGTH) {
+    throw new HttpsError("invalid-argument", `userPrompt must be at most ${MAX_USER_PROMPT_LENGTH} characters.`);
   }
 
-  return {systemPrompt: systemPrompt.trim(), userPrompt: userPrompt.trim()};
+  return {systemPrompt: trimmedSystemPrompt, userPrompt: trimmedUserPrompt};
 }
 
 interface VertexGenerateOptions {
@@ -56,7 +65,7 @@ interface VertexGenerateOptions {
 function getTextGenerator(model = DEFAULT_MODEL) {
   return async (systemPrompt: string, userPrompt: string): Promise<string> => {
     // Dynamic import to allow mocking in tests
-    const {VertexAI} = await import("@google-cloud/vertexai");
+    const {VertexAI, SchemaType} = await import("@google-cloud/vertexai");
     const project = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
     if (!project) {
       throw new HttpsError("failed-precondition", "Missing GCLOUD_PROJECT for Vertex AI.");
@@ -64,7 +73,12 @@ function getTextGenerator(model = DEFAULT_MODEL) {
     const vertexAI = new VertexAI({project, location: DEFAULT_REGION});
     const generativeModel = vertexAI.getGenerativeModel({
       model,
-      generationConfig: {maxOutputTokens: MAX_OUTPUT_TOKENS},
+      generationConfig: {
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        temperature: 0,
+        responseMimeType: "application/json",
+        responseSchema: {type: SchemaType.OBJECT},
+      },
     });
 
     const result = await generativeModel.generateContent({

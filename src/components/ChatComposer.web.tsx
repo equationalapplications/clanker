@@ -7,6 +7,7 @@ import * as DocumentPicker from 'expo-document-picker'
 import * as Crypto from 'expo-crypto'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { ingestPromptOverride } from './ingestPromptOverride'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -70,6 +71,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         sourceRef,
         sourceHash,
         documentChunk,
+        promptOverride: ingestPromptOverride,
       })
       setToastMessage(
         `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
@@ -77,6 +79,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     } catch (error) {
       if (error instanceof WikiBusyError) {
         setToastMessage('Memory is busy. Please try again shortly.')
+      } else if (
+        error instanceof SyntaxError ||
+        (error instanceof Error && error.message.includes('No JSON object/array found'))
+      ) {
+        setToastMessage('Failed to ingest document: AI response could not be parsed.')
       } else {
         setToastMessage('Failed to ingest document.')
       }
@@ -92,6 +99,26 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   }, [onSend, text])
 
   const showPlusButton = Boolean(characterId) && Boolean(userId)
+
+  const mergedTextInputProps = {
+    ...textInputProps,
+    style: [
+      textInputProps?.style,
+      {
+        backgroundColor: 'transparent',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        color: colors.onSurfaceVariant,
+        outline: 'none',
+        outlineColor: 'transparent',
+        outlineWidth: 0,
+        outlineOffset: 0,
+        boxShadow: 'none',
+        borderWidth: 0,
+        borderColor: 'transparent',
+      },
+    ],
+  }
 
   return (
     <View style={styles.container}>
@@ -122,6 +149,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           backgroundColor: colors.surfaceVariant,
           borderRadius: roundness * 4,
           marginVertical: 4,
+          marginRight: 12,
           overflow: 'hidden',
         }]}>
           <Composer
@@ -134,7 +162,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
               color: colors.onSurfaceVariant,
             }}
             textInputProps={{
-              ...textInputProps,
+              ...mergedTextInputProps,
               accessibilityLabel: 'Message input',
               onKeyPress: (event) => {
                 const nativeEvent = event.nativeEvent as typeof event.nativeEvent & { shiftKey?: boolean }

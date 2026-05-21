@@ -5,7 +5,7 @@ import * as ExpoLinking from 'expo-linking'
 import { useSelector } from '@xstate/react'
 
 import GoogleSignInButton from '~/auth/GoogleSignInButton'
-import ProviderButton from '~/auth/AuthProviderButton'
+import AppleSignInButton from '~/auth/AppleSignInButton'
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
 import { MonoText, TitleText } from '~/components/StyledText'
@@ -37,6 +37,7 @@ export default function SignIn() {
   const { redirect } = useLocalSearchParams<{ redirect?: string }>()
   const [initialRedirect, setInitialRedirect] = useState<Href | null>(null)
   const [googleBusy, setGoogleBusy] = useState(false)
+  const [appleBusy, setAppleBusy] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -118,7 +119,7 @@ export default function SignIn() {
               <GoogleSignInButton
                 style={styles.providerButton}
                 onLoadingChange={setGoogleBusy}
-                disabled={isLoading}
+                disabled={isLoading || appleBusy}
                 loading={isLoading}
               />
               {Platform.OS === 'ios' && AppleAuthentication && (
@@ -131,15 +132,12 @@ export default function SignIn() {
                 />
               )}
               {Platform.OS === 'web' && (
-                <ProviderButton
+                <AppleSignInButton
                   style={styles.providerButton}
+                  onLoadingChange={setAppleBusy}
                   disabled={isLoading || googleBusy}
                   loading={isLoading}
-                  onPress={AppleLoginOnPress}
-                  type="apple"
-                >
-                  Apple
-                </ProviderButton>
+                />
               )}
             </View>
             <View style={[styles.footer, isNarrowScreen && styles.footerNarrow]}>

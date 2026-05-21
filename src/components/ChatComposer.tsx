@@ -4,10 +4,11 @@ import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Snackbar, Portal, useTheme } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
-import * as FileSystem from 'expo-file-system'
+import { readAsStringAsync } from 'expo-file-system/legacy'
 import * as Crypto from 'expo-crypto'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { ingestPromptOverride } from './ingestPromptOverride'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -50,7 +51,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
       // Read as UTF-8 (the default); strip BOM/null bytes and normalize to NFC for
       // consistent cross-platform hashing regardless of editor/OS encoding quirks.
-      const raw = await FileSystem.readAsStringAsync(uri)
+      const raw = await readAsStringAsync(uri)
       const documentChunk = raw
         .replace(/^\uFEFF/, '')   // strip UTF-8 BOM
         .replace(/\0/g, '')       // strip null bytes
@@ -74,6 +75,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         sourceRef,
         sourceHash,
         documentChunk,
+        promptOverride: ingestPromptOverride,
       })
       setToastMessage(
         `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
@@ -81,6 +83,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     } catch (error) {
       if (error instanceof WikiBusyError) {
         setToastMessage('Memory is busy. Please try again shortly.')
+      } else if (
+        error instanceof SyntaxError ||
+        (error instanceof Error && error.message.includes('No JSON object/array found'))
+      ) {
+        setToastMessage('Failed to ingest document: AI response could not be parsed.')
       } else {
         setToastMessage('Failed to ingest document.')
       }
@@ -132,6 +139,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         }]}>
           <Composer
             {...props}
+            composerHeight={Math.max(props.composerHeight ?? 0, 72)}
             text={text}
             onInputSizeChanged={onInputSizeChanged}
             onTextChanged={onTextChanged}
@@ -215,5 +223,7 @@ const styles = StyleSheet.create({
   },
   composerWrapper: {
     flex: 1,
+    minHeight: 72,
+    marginRight: 8,
   },
 })
