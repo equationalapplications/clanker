@@ -24,6 +24,7 @@ export const subscriptions = pgTable('subscriptions', {
   planTier: text('plan_tier').notNull().default('free'),
   planStatus: text('plan_status').notNull().default('active'),
   currentCredits: integer('current_credits').notNull().default(0),
+  nextExpiryDate: timestamp('next_expiry_date', { withTimezone: true }),
   termsVersion: text('terms_version'),
   termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
   stripeSubscriptionId: text('stripe_subscription_id'),
@@ -39,12 +40,18 @@ export const subscriptions = pgTable('subscriptions', {
   planStatusCheck: check('plan_status_check', sql`${table.planStatus} IN ('active', 'cancelled', 'expired')`),
 }));
 
+export type TransactionType = 'one_time' | 'subscription' | 'signup' | 'legacy';
+
 export const creditTransactions = pgTable('credit_transactions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   delta: integer('delta').notNull(),
   reason: text('reason').notNull(),
   referenceId: text('reference_id'),
+  initialAmount: integer('initial_amount').notNull().default(0),
+  remainingBalance: integer('remaining_balance').notNull().default(0),
+  transactionType: text('transaction_type').notNull().default('legacy'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
   userIdIdx: index('credit_transactions_user_id_idx').on(table.userId),
