@@ -98,6 +98,25 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       const db = await deps.getDb();
       try {
         return await db.transaction(async (tx: any) => {
+          // Check net active balance first — accounts for negative adjustCredits rows (e.g. Stripe refunds).
+          const netResult = await tx
+            .select({ total: sql<number>`GREATEST(COALESCE(SUM(${creditTransactions.remainingBalance}), 0), 0)` })
+            .from(creditTransactions)
+            .where(
+              and(
+                eq(creditTransactions.userId, userId),
+                or(
+                  isNull(creditTransactions.expiresAt),
+                  gt(creditTransactions.expiresAt, sql`NOW()`)
+                )
+              )
+            )
+            .limit(1);
+
+          if ((netResult[0]?.total ?? 0) < amount) {
+            throw new InsufficientCreditsError();
+          }
+
           const rows = await tx
             .select({ id: creditTransactions.id, remainingBalance: creditTransactions.remainingBalance })
             .from(creditTransactions)
@@ -210,6 +229,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
           .where(
             and(
               eq(creditTransactions.id, transactionId),
+              eq(creditTransactions.userId, userId),
               or(
                 isNull(creditTransactions.expiresAt),
                 gt(creditTransactions.expiresAt, sql`NOW()`)
@@ -222,7 +242,12 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
           await tx
             .update(creditTransactions)
             .set({ remainingBalance: sql`${creditTransactions.remainingBalance} + ${amount}` })
-            .where(eq(creditTransactions.id, transactionId));
+            .where(
+              and(
+                eq(creditTransactions.id, transactionId),
+                eq(creditTransactions.userId, userId)
+              )
+            );
         } else {
           await tx.insert(creditTransactions).values({
             userId,

@@ -322,14 +322,20 @@ async function handleCheckoutCompleted(
           if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
             const cycleEnd = new Date(periodEnd * 1000);
             const referenceId = `sub_${subscriptionId}_${periodEnd}`;
-            await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, referenceId);
+            const granted = await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, referenceId);
+            logger.info(
+              granted
+                ? "checkout.session.completed: subscription credits granted"
+                : "checkout.session.completed: subscription credits already granted (idempotent)",
+              { subscriptionId }
+            );
           } else {
             logger.warn("checkout.session.completed: missing or invalid current_period_end", {subscriptionId});
           }
         }
       }
 
-      logger.info("checkout.session.completed: subscription upserted + credits granted", {
+      logger.info("checkout.session.completed: subscription upserted", {
         email: customerEmail,
         tier,
       });
@@ -407,11 +413,13 @@ export async function handleSubscriptionUpdated(
     if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
       const cycleEnd = new Date(periodEnd * 1000);
       const referenceId = `sub_${sub.id}_${periodEnd}`;
-      await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, referenceId);
-      logger.info("customer.subscription.updated: subscription credits renewed", {
-        email: customer.email,
-        tier,
-      });
+      const renewed = await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, referenceId);
+      logger.info(
+        renewed
+          ? "customer.subscription.updated: subscription credits renewed"
+          : "customer.subscription.updated: subscription credits already granted (idempotent)",
+        { email: customer.email, tier }
+      );
     }
   }
 }
@@ -470,11 +478,13 @@ export async function handleInvoicePaymentSucceeded(
         if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
           // Use sub_${id}_${periodEnd} so this is idempotent with customer.subscription.updated.
           const referenceId = `sub_${subscriptionId}_${periodEnd}`;
-          await deps.renewSubscriptionCredits(user.id, 300, new Date(periodEnd * 1000), referenceId);
-          logger.info('invoice.payment_succeeded: subscription credits renewed', {
-            email: customerEmail,
-            invoiceId: invoice.id,
-          });
+          const renewed = await deps.renewSubscriptionCredits(user.id, 300, new Date(periodEnd * 1000), referenceId);
+          logger.info(
+            renewed
+              ? 'invoice.payment_succeeded: subscription credits renewed'
+              : 'invoice.payment_succeeded: subscription credits already granted (idempotent)',
+            { email: customerEmail, invoiceId: invoice.id }
+          );
         }
       }
     }

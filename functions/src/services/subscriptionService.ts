@@ -37,7 +37,7 @@ export const createSubscriptionService = (
 
     async getOrCreateDefaultSubscription(userId: string) {
       const db = await deps.getDb();
-      const creditService = deps.creditService ?? createCreditService();
+      const creditService = deps.creditService ?? createCreditService({ getDb: deps.getDb });
 
       await db
         .insert(subscriptions)

@@ -66,8 +66,9 @@ test('getCredits returns 0 when no rows exist', async () => {
 // ---------------------------------------------------------------------------
 
 test('spendCredits returns false when no qualifying creditTransactions row found', async () => {
+  // Net balance check returns total=0, so InsufficientCreditsError is thrown before row-level query.
   const fakeTx = {
-    select: () => ({ from: () => ({ where: () => ({ orderBy: () => ({ limit: () => ({ for: async () => [] }) }) }) }) }),
+    select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ total: 0 }] }) }) }),
   };
   const fakeDb = {
     transaction: async (fn: (tx: typeof fakeTx) => Promise<boolean>) => fn(fakeTx),
@@ -86,13 +87,14 @@ test('spendCredits returns true and decrements balance on qualifying row', async
     select: () => ({
       from: () => ({
         where: () => ({
-          // spendCredits uses .orderBy().limit().for(); syncSubscriptionCache uses .limit() directly.
+          // Net balance check and syncSubscriptionCache total both use .limit().
+          limit: async () => [{ total: 10 }],
+          // Row-level FOR UPDATE uses .orderBy().limit().for().
           orderBy: () => ({
             limit: () => ({
               for: async () => [{ id: 'tx-abc', remainingBalance: 10 }],
             }),
           }),
-          limit: async () => [{ total: 10 }],
         }),
       }),
     }),
