@@ -79,7 +79,8 @@ ALTER TABLE subscriptions ADD COLUMN next_expiry_date TIMESTAMPTZ;
 
 1. Deploy schema migration: add `initial_amount`, `remaining_balance`, `transaction_type`, `expires_at` columns. Backfill existing rows with `initial_amount = delta`, `remaining_balance = delta`, `transaction_type = 'legacy'`, `expires_at = NULL`.
 2. For any active `monthly_20` subscribers: run admin script to expire old credits (`UPDATE credit_transactions SET expires_at = NOW() WHERE user_id = ? AND transaction_type IN ('legacy','subscription') AND expires_at > NOW()`) and call `addCredits(userId, 300, billing_cycle_end, 'subscription')`.
-3. Deploy backend with `UNLIMITED_TIERS` / `PREMIUM_TIERS` gates removed.
+3. For existing users with `currentCredits > 0` but no matching `credit_transactions` rows (i.e., credits seeded via the old direct-INSERT path): backfill one `credit_transactions` row per user with `initial_amount = currentCredits`, `remaining_balance = currentCredits`, `transaction_type = 'legacy'`, `expires_at = NULL`.
+4. Deploy backend with `UNLIMITED_TIERS` / `PREMIUM_TIERS` gates removed.
 
 ---
 
@@ -89,7 +90,9 @@ ALTER TABLE subscriptions ADD COLUMN next_expiry_date TIMESTAMPTZ;
 
 - **`getCredits(userId)`**: `SUM(remaining_balance)` from `credit_transactions` where `expires_at IS NULL OR expires_at > NOW()`. Sync result to `subscriptions.currentCredits`.
 
-- **`addCredits(userId, amount, expiresAt, transactionType)`**: insert row with `initial_amount = amount`, `remaining_balance = amount`, `expires_at`, `transaction_type`. Update `subscriptions.currentCredits` and `subscriptions.next_expiry_date` caches.
+- **`addCredits(userId, amount, expiresAt, transactionType)`**: insert row with `initial_amount = amount`, `remaining_balance = amount`, `expires_at`, `transaction_type`. Update `subscriptions.currentCredits` and `subscriptions.next_expiry_date` caches. `expiresAt = null` means never expires (used for signup grants).
+
+- **Signup credit seeding**: `subscriptionService.getOrCreateDefaultSubscription()` currently sets `subscriptions.currentCredits = 50` via direct INSERT with no `credit_transactions` row. This path must be updated to also call `addCredits(userId, 50, null, 'signup')` after the subscription row is created. The DB trigger `handle_new_user()` has the same gap and must be updated to insert a matching `credit_transactions` row (`initial_amount = 50`, `remaining_balance = 50`, `transaction_type = 'signup'`, `expires_at = NULL`).
 
 - **`spendCredits(userId, amount)`**: within a DB transaction —
   1. `SELECT ... FOR UPDATE` on the earliest-expiring row where `remaining_balance >= amount` and `(expires_at IS NULL OR expires_at > NOW())`.
@@ -120,15 +123,16 @@ Callables that invoke expensive external APIs (Vertex AI, etc.) must follow the 
 ### Webhooks
 
 **`stripeWebhook.ts`:**
-- `checkout.session.completed` (subscription): call `addCredits(userId, 300, billingCycleEnd, 'subscription')`.
-- `customer.subscription.updated` / `invoice.payment_succeeded` (renewal): expire previous subscription credits only — `UPDATE credit_transactions SET expires_at = NOW() WHERE user_id = ? AND transaction_type = 'subscription' AND expires_at > NOW()` — then call `addCredits(userId, 300, new_billing_cycle_end, 'subscription')`.
-- `checkout.session.completed` (credit pack): call `addCredits(userId, 100, NOW() + 31 days, 'one_time')`.
+- `checkout.session.completed` (subscription): the session object does not expose `current_period_end` — must call `await stripe.subscriptions.retrieve(subscriptionId)` to get `sub.current_period_end` (Unix timestamp). Then call `addCredits(userId, 300, new Date(sub.current_period_end * 1000), 'subscription')`.
+- `customer.subscription.updated` (renewal): `sub.current_period_end` is already on the Stripe `Subscription` object in scope. Expire previous subscription credits — `UPDATE credit_transactions SET expires_at = NOW() WHERE user_id = ? AND transaction_type = 'subscription' AND expires_at > NOW()` — then call `addCredits(userId, 300, new Date(sub.current_period_end * 1000), 'subscription')`.
+- `invoice.payment_succeeded` (renewal fallback): if used for renewal credit grants, retrieve the associated subscription via `invoice.subscription` and read `current_period_end` from it.
+- `checkout.session.completed` (credit pack): call `addCredits(userId, 100, new Date(Date.now() + 31 * 24 * 60 * 60 * 1000), 'one_time')`.
 - `charge.refunded`: deduct credits as before.
 - `customer.subscription.deleted`: no credit action — subscription credits expire naturally at their `expires_at`.
 
 **`revenueCatWebhook.ts`:**
-- `INITIAL_PURCHASE` / `RENEWAL` (subscription): expire previous subscription credits — `UPDATE credit_transactions SET expires_at = NOW() WHERE user_id = ? AND transaction_type = 'subscription' AND expires_at > NOW()` — then call `addCredits(userId, 300, next_renewal_date, 'subscription')`.
-- `NON_RENEWING_PURCHASE` (credit pack): call `addCredits(userId, 100, NOW() + 31 days, 'one_time')`.
+- `INITIAL_PURCHASE` / `RENEWAL` (subscription): `next_renewal_date` is available as `event.next_renewal_date` (ISO string) in the RevenueCat webhook payload. Expire previous subscription credits — `UPDATE credit_transactions SET expires_at = NOW() WHERE user_id = ? AND transaction_type = 'subscription' AND expires_at > NOW()` — then call `addCredits(userId, 300, new Date(event.next_renewal_date), 'subscription')`.
+- `NON_RENEWING_PURCHASE` (credit pack): call `addCredits(userId, 100, new Date(Date.now() + 31 * 24 * 60 * 60 * 1000), 'one_time')`.
 - `EXPIRATION`: no credit action — credits expire via their own `expires_at`.
 - `CANCELLATION`: no credit action — credits remain until their `expires_at`.
 
