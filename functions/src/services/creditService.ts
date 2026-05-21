@@ -202,10 +202,38 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
     async refundCredit(userId: string, transactionId: string, amount: number): Promise<void> {
       const db = await deps.getDb();
       await db.transaction(async (tx: any) => {
-        await tx
-          .update(creditTransactions)
-          .set({ remainingBalance: sql`${creditTransactions.remainingBalance} + ${amount}` })
-          .where(eq(creditTransactions.id, transactionId));
+        // Check if the target row is still active using DB clock.
+        // If a subscription renewal expired it between spend and refund, restore to a non-expiring pool.
+        const activeRows = await tx
+          .select({ id: creditTransactions.id })
+          .from(creditTransactions)
+          .where(
+            and(
+              eq(creditTransactions.id, transactionId),
+              or(
+                isNull(creditTransactions.expiresAt),
+                gt(creditTransactions.expiresAt, sql`NOW()`)
+              )
+            )
+          )
+          .limit(1);
+
+        if (activeRows.length > 0) {
+          await tx
+            .update(creditTransactions)
+            .set({ remainingBalance: sql`${creditTransactions.remainingBalance} + ${amount}` })
+            .where(eq(creditTransactions.id, transactionId));
+        } else {
+          await tx.insert(creditTransactions).values({
+            userId,
+            delta: amount,
+            reason: 'refund_compensation',
+            initialAmount: amount,
+            remainingBalance: amount,
+            transactionType: 'legacy',
+            expiresAt: null,
+          });
+        }
 
         await syncSubscriptionCache(tx, userId);
       });

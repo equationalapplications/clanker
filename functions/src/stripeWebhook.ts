@@ -17,6 +17,7 @@ if (!admin.apps.length) {
 }
 
 const CREDIT_PACK_AMOUNT = 100;
+const CREDIT_PACK_EXPIRY_MS = 31 * 24 * 60 * 60 * 1000;
 
 type UserLookup = {
   id: string;
@@ -335,7 +336,7 @@ async function handleCheckoutCompleted(
     } else if (isCreditPackPriceId(priceId, priceIds)) {
       // Credit pack → add credits
       const qty = item.quantity ?? 1;
-      const expiresAt = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+      const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
       await deps.addCredits(
         user.id,
         CREDIT_PACK_AMOUNT * qty,
@@ -351,7 +352,7 @@ async function handleCheckoutCompleted(
   }
 }
 
-async function handleSubscriptionUpdated(
+export async function handleSubscriptionUpdated(
   sub: Stripe.Subscription,
   stripe: Stripe,
   priceIds: StripePriceIds,
@@ -459,18 +460,22 @@ export async function handleInvoicePaymentSucceeded(
   const user = await deps.findUserByEmail(customerEmail);
   if (!user) return;
 
-  const subscriptionId = invoice.parent?.subscription_details?.subscription;
+  const subscriptionId = getStripeId(invoice.parent?.subscription_details?.subscription as StripeExpandableId);
   if (subscriptionId) {
     if (invoice.billing_reason === 'subscription_cycle') {
-      const cycleEnd = invoice.lines.data[0]?.period?.end;
-      if (typeof cycleEnd === 'number') {
-        // Use sub_${id}_${periodEnd} so this is idempotent with customer.subscription.updated.
-        const referenceId = `sub_${subscriptionId}_${cycleEnd}`;
-        await deps.renewSubscriptionCredits(user.id, 300, new Date(cycleEnd * 1000), referenceId);
-        logger.info('invoice.payment_succeeded: subscription credits renewed', {
-          email: customerEmail,
-          invoiceId: invoice.id,
-        });
+      // Retrieve the subscription directly for reliable period_end (invoice line order is not stable).
+      const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+      if ((stripeSub as any).deleted !== true) {
+        const periodEnd = (stripeSub as any).current_period_end as number | undefined;
+        if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
+          // Use sub_${id}_${periodEnd} so this is idempotent with customer.subscription.updated.
+          const referenceId = `sub_${subscriptionId}_${periodEnd}`;
+          await deps.renewSubscriptionCredits(user.id, 300, new Date(periodEnd * 1000), referenceId);
+          logger.info('invoice.payment_succeeded: subscription credits renewed', {
+            email: customerEmail,
+            invoiceId: invoice.id,
+          });
+        }
       }
     }
     return;
@@ -481,7 +486,7 @@ export async function handleInvoicePaymentSucceeded(
     const priceId = getInvoiceLineItemPriceId(item);
     if (isCreditPackPriceId(priceId, priceIds)) {
       const qty = item.quantity ?? 1;
-      const expiresAt = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+      const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
       await deps.addCredits(
         user.id,
         CREDIT_PACK_AMOUNT * qty,

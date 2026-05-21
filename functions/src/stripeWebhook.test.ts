@@ -14,6 +14,7 @@ import {
   mapStripeSubscriptionStatus,
   stripeWebhookHandler,
   handleInvoicePaymentSucceeded,
+  handleSubscriptionUpdated,
 } from "./stripeWebhook.js";
 
 type ResponseRecorder = {
@@ -213,22 +214,16 @@ test("handleInvoicePaymentSucceeded renews subscription credits only on subscrip
     parent: {
       subscription_details: { subscription: "sub_123" },
     },
-    lines: {
-      data: [
-        {
-          period: { end: 1710000000 },
-          pricing: {
-            price_details: { price: "price_monthly_20" },
-            type: "price_details",
-            unit_amount_decimal: null,
-          },
-          quantity: 1,
-        },
-      ],
-    },
+    lines: { data: [] },
   } as unknown as Stripe.Invoice;
 
-  await handleInvoicePaymentSucceeded({} as Stripe, invoice, {
+  const mockStripe = {
+    subscriptions: {
+      retrieve: async (_id: string) => ({ current_period_end: 1710000000 }),
+    },
+  } as unknown as Stripe;
+
+  await handleInvoicePaymentSucceeded(mockStripe, invoice, {
     monthly20: "price_monthly_20",
     monthly50: "price_monthly_50",
     creditPack: "price_credit_pack",
@@ -250,4 +245,78 @@ test("handleInvoicePaymentSucceeded renews subscription credits only on subscrip
     expiresAt: new Date(1710000000 * 1000),
     referenceId: "sub_sub_123_1710000000",
   });
+});
+
+test("handleSubscriptionUpdated renews credits when planStatus is active", async () => {
+  let renewalArgs: unknown = null;
+
+  const sub = {
+    id: "sub_abc",
+    status: "active",
+    current_period_end: 1720000000,
+    items: { data: [{ price: { id: "price_monthly_20" } }] },
+    customer: "cus_123",
+  } as unknown as Stripe.Subscription;
+
+  const mockStripe = {
+    customers: {
+      retrieve: async (_id: string) => ({ deleted: false, email: "user@example.com" }),
+    },
+  } as unknown as Stripe;
+
+  await handleSubscriptionUpdated(sub, mockStripe, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email}),
+    findUserByFirebaseUid: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async (userId: string, amount: number, expiresAt: Date, referenceId: string) => {
+      renewalArgs = {userId, amount, expiresAt, referenceId};
+      return true;
+    },
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+  } as never);
+
+  assert.deepEqual(renewalArgs, {
+    userId: "user-1",
+    amount: 300,
+    expiresAt: new Date(1720000000 * 1000),
+    referenceId: "sub_sub_abc_1720000000",
+  });
+});
+
+test("handleSubscriptionUpdated does not renew credits when planStatus is not active", async () => {
+  let renewalCalled = false;
+
+  const sub = {
+    id: "sub_abc",
+    status: "canceled",
+    current_period_end: 1720000000,
+    items: { data: [{ price: { id: "price_monthly_20" } }] },
+    customer: "cus_123",
+  } as unknown as Stripe.Subscription;
+
+  const mockStripe = {
+    customers: {
+      retrieve: async (_id: string) => ({ deleted: false, email: "user@example.com" }),
+    },
+  } as unknown as Stripe;
+
+  await handleSubscriptionUpdated(sub, mockStripe, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email}),
+    findUserByFirebaseUid: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => { renewalCalled = true; return true; },
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+  } as never);
+
+  assert.equal(renewalCalled, false);
 });

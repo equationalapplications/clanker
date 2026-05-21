@@ -44,6 +44,7 @@ function constantTimeEquals(provided: string | null, expected: string): boolean 
   }
 }
 const CREDIT_PACK_AMOUNT = 100;
+const CREDIT_PACK_EXPIRY_MS = 31 * 24 * 60 * 60 * 1000;
 
 interface RevenueCatDeps {
   findUserByFirebaseUid: (firebaseUid: string) => Promise<{id: string} | null>;
@@ -377,7 +378,7 @@ export const revenueCatWebhookHandler = async (
             type,
           });
         } else if (isRevenueCatCreditPackProduct(product_id)) {
-          const expiresAt = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+          const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
           await deps.addCredits(
             cloudUser.id,
             CREDIT_PACK_AMOUNT,
@@ -413,7 +414,7 @@ export const revenueCatWebhookHandler = async (
       }
       case "NON_RENEWING_PURCHASE": {
         if (isRevenueCatCreditPackProduct(product_id)) {
-          const expiresAt = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+          const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
           await deps.addCredits(
             cloudUser.id,
             CREDIT_PACK_AMOUNT,
