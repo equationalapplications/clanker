@@ -15,6 +15,24 @@ function isUniqueViolation(error: unknown): error is { code: string } {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === UNIQUE_VIOLATION_CODE;
 }
 
+function buildLegacyTransactionValues(params: {
+  userId: string;
+  delta: number;
+  reason: string;
+  referenceId?: string;
+}) {
+  return {
+    userId: params.userId,
+    delta: params.delta,
+    reason: params.reason,
+    referenceId: params.referenceId,
+    initialAmount: Math.abs(params.delta),
+    remainingBalance: params.delta,
+    transactionType: 'legacy' as const,
+    expiresAt: null,
+  };
+}
+
 export function assertIdempotentDeltaMatch(params: {
   requestedDelta: number;
   existingDelta: number | null;
@@ -61,12 +79,12 @@ export const createCreditService = (
         return await db.transaction(async (tx) => {
           if (referenceId) {
             try {
-              await tx.insert(creditTransactions).values({
+              await tx.insert(creditTransactions).values(buildLegacyTransactionValues({
                 userId,
                 delta: -amount,
                 reason,
                 referenceId,
-              });
+              }));
             } catch (error) {
               if (isUniqueViolation(error)) {
                 const existing = await tx
@@ -114,12 +132,12 @@ export const createCreditService = (
           }
 
           if (!referenceId) {
-            await tx.insert(creditTransactions).values({
+            await tx.insert(creditTransactions).values(buildLegacyTransactionValues({
               userId,
               delta: -amount,
               reason,
               referenceId,
-            });
+            }));
           }
 
           return true;
@@ -139,12 +157,12 @@ export const createCreditService = (
       return await db.transaction(async (tx) => {
         if (referenceId) {
           try {
-            await tx.insert(creditTransactions).values({
+            await tx.insert(creditTransactions).values(buildLegacyTransactionValues({
               userId,
               delta: amount,
               reason,
               referenceId,
-            });
+            }));
           } catch (error) {
             if (isUniqueViolation(error)) {
               const existing = await tx
@@ -195,12 +213,12 @@ export const createCreditService = (
         const updatedCredits = result[0].currentCredits;
 
         if (!referenceId) {
-          await tx.insert(creditTransactions).values({
+          await tx.insert(creditTransactions).values(buildLegacyTransactionValues({
             userId,
             delta: amount,
             reason,
             referenceId,
-          });
+          }));
         }
 
         return updatedCredits;
@@ -212,12 +230,12 @@ export const createCreditService = (
       return await db.transaction(async (tx) => {
         if (referenceId) {
           try {
-            await tx.insert(creditTransactions).values({
+            await tx.insert(creditTransactions).values(buildLegacyTransactionValues({
               userId,
               delta,
               reason,
               referenceId,
-            });
+            }));
           } catch (error) {
             if (isUniqueViolation(error)) {
               const existing = await tx
@@ -269,12 +287,12 @@ export const createCreditService = (
         const updatedCredits = result[0].currentCredits;
 
         if (!referenceId) {
-          await tx.insert(creditTransactions).values({
+          await tx.insert(creditTransactions).values(buildLegacyTransactionValues({
             userId,
             delta,
             reason,
             referenceId,
-          });
+          }));
         }
 
         return updatedCredits;
