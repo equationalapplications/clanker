@@ -32,10 +32,20 @@ test('assertIdempotentDeltaMatch throws when transaction row missing', () => {
 // ---------------------------------------------------------------------------
 
 test('getCredits returns sum of remaining_balance from non-expired rows', async () => {
-  // syncSubscriptionCache makes two selects (total, nextExpiry) + one update.
-  // Second select (.where() awaited directly) returns an object; [0] is undefined → nextExpiry=null.
+  // syncSubscriptionCache makes two selects: (1) total with .limit(), (2) nextExpiry awaited directly.
+  let selectCount = 0;
   const fakeTx = {
-    select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ total: 75 }] }) }) }),
+    select: () => {
+      selectCount++;
+      return {
+        from: () => ({
+          where: () => {
+            const rows = selectCount % 2 !== 0 ? [{ total: 75 }] : [{ minExpiry: null }];
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+          },
+        }),
+      };
+    },
     update: () => ({ set: () => ({ where: async () => {} }) }),
   };
   const fakeDb = {
@@ -48,8 +58,19 @@ test('getCredits returns sum of remaining_balance from non-expired rows', async 
 });
 
 test('getCredits returns 0 when no rows exist', async () => {
+  let selectCount = 0;
   const fakeTx = {
-    select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ total: null }] }) }) }),
+    select: () => {
+      selectCount++;
+      return {
+        from: () => ({
+          where: () => {
+            const rows = selectCount % 2 !== 0 ? [{ total: null }] : [{ minExpiry: null }];
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+          },
+        }),
+      };
+    },
     update: () => ({ set: () => ({ where: async () => {} }) }),
   };
   const fakeDb = {
@@ -66,12 +87,26 @@ test('getCredits returns 0 when no rows exist', async () => {
 // ---------------------------------------------------------------------------
 
 test('spendCredits returns false when no qualifying creditTransactions row found', async () => {
-  // Net balance check returns total=0, so InsufficientCreditsError is thrown before row-level query.
+  // select() call order: (1) subscriptions lock, (2) net balance check → 0 → InsufficientCreditsError.
+  const selectQueue: unknown[][] = [
+    [{ userId: 'user-1' }],  // subscriptions FOR UPDATE lock
+    [{ total: 0 }],           // net balance → insufficient
+  ];
+  let selectIdx = 0;
   const fakeTx = {
-    select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ total: 0 }] }) }) }),
+    select: () => {
+      const rows = selectQueue[selectIdx++] ?? [];
+      return {
+        from: () => ({
+          where: () => Object.assign(Promise.resolve(rows), {
+            limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
+          }),
+        }),
+      };
+    },
   };
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<boolean>) => fn(fakeTx),
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<boolean>, _opts?: unknown) => fn(fakeTx),
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
@@ -83,21 +118,35 @@ test('spendCredits returns true and decrements balance on qualifying row', async
   let updatedId: string | null = null;
   let cacheUpdated = false;
 
+  // select() call order:
+  // 1. subscriptions FOR UPDATE lock
+  // 2. net balance check → 10
+  // 3. credit_transactions row FOR UPDATE lock → tx-abc
+  // 4. syncSubscriptionCache total
+  // 5. syncSubscriptionCache nextExpiry
+  const selectQueue: unknown[][] = [
+    [{ userId: 'user-1' }],
+    [{ total: 10 }],
+    [{ id: 'tx-abc', remainingBalance: 10 }],
+    [{ total: 9 }],
+    [{ minExpiry: null }],
+  ];
+  let selectIdx = 0;
+
   const fakeTx = {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          // Net balance check and syncSubscriptionCache total both use .limit().
-          limit: async () => [{ total: 10 }],
-          // Row-level FOR UPDATE uses .orderBy().limit().for().
-          orderBy: () => ({
-            limit: () => ({
-              for: async () => [{ id: 'tx-abc', remainingBalance: 10 }],
+    select: () => {
+      const rows = selectQueue[selectIdx++] ?? [];
+      return {
+        from: () => ({
+          where: () => Object.assign(Promise.resolve(rows), {
+            limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
+            orderBy: () => ({
+              limit: () => ({ for: async () => rows }),
             }),
           }),
         }),
-      }),
-    }),
+      };
+    },
     update: () => ({
       set: (_vals: unknown) => ({
         where: async (_cond: unknown) => {
@@ -108,7 +157,7 @@ test('spendCredits returns true and decrements balance on qualifying row', async
     }),
   };
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<boolean>) => fn(fakeTx),
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<boolean>, _opts?: unknown) => fn(fakeTx),
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
@@ -116,6 +165,7 @@ test('spendCredits returns true and decrements balance on qualifying row', async
   assert.equal(result, true);
   assert.equal(updatedId, 'tx-abc');
   assert.equal(cacheUpdated, true);
+  assert.equal(selectIdx, 5);
 });
 
 // ---------------------------------------------------------------------------
@@ -155,25 +205,34 @@ test('addCredits inserts a row with initialAmount and remainingBalance', async (
 });
 
 // ---------------------------------------------------------------------------
-// refundCredit — increments remaining_balance atomically
+// refundCredit — increments remaining_balance atomically (UPDATE+RETURNING)
 // ---------------------------------------------------------------------------
 
 test('refundCredit increments remaining_balance on the specified row', async () => {
-  let updatedTransactionId: string | null = null;
+  let returningCalled = false;
 
+  // select() calls come from syncSubscriptionCache: (1) total, (2) nextExpiry.
+  let selectCount = 0;
   const fakeTx = {
     update: () => ({
       set: () => ({
-        where: async () => { updatedTransactionId = 'tx-abc'; },
-      }),
-    }),
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: async () => [{ total: 100 }],
+        where: () => Object.assign(Promise.resolve(undefined), {
+          returning: async () => { returningCalled = true; return [{ id: 'tx-abc' }]; },
         }),
       }),
     }),
+    insert: () => ({ values: async () => {} }),
+    select: () => {
+      selectCount++;
+      return {
+        from: () => ({
+          where: () => {
+            const rows = selectCount % 2 !== 0 ? [{ total: 100 }] : [{ minExpiry: null }];
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+          },
+        }),
+      };
+    },
   };
   const fakeDb = {
     transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
@@ -181,7 +240,46 @@ test('refundCredit increments remaining_balance on the specified row', async () 
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
   await service.refundCredit('user-1', 'tx-abc', 1);
-  assert.equal(updatedTransactionId, 'tx-abc');
+  assert.equal(returningCalled, true);
+});
+
+test('refundCredit inserts compensation row when original transaction is expired', async () => {
+  let insertedValues: Record<string, unknown> | null = null;
+
+  let selectCount = 0;
+  const fakeTx = {
+    update: () => ({
+      set: () => ({
+        where: () => Object.assign(Promise.resolve(undefined), {
+          returning: async () => [],  // row expired → nothing matched
+        }),
+      }),
+    }),
+    insert: () => ({
+      values: async (vals: Record<string, unknown>) => { insertedValues = vals; },
+    }),
+    select: () => {
+      selectCount++;
+      return {
+        from: () => ({
+          where: () => {
+            const rows = selectCount % 2 !== 0 ? [{ total: 1 }] : [{ minExpiry: null }];
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+          },
+        }),
+      };
+    },
+  };
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  await service.refundCredit('user-1', 'tx-expired', 1);
+  assert.ok(insertedValues, 'compensation row should be inserted');
+  assert.equal((insertedValues as Record<string, unknown>).remainingBalance, 1);
+  assert.equal((insertedValues as Record<string, unknown>).expiresAt, null);
+  assert.equal((insertedValues as Record<string, unknown>).reason, 'refund_compensation');
 });
 
 // ---------------------------------------------------------------------------

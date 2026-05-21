@@ -102,7 +102,17 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       const db = await deps.getDb();
       try {
         return await db.transaction(async (tx: DbTx) => {
-          // Check net active balance first — accounts for negative adjustCredits rows (e.g. Stripe refunds).
+          // Acquire a per-user lock to serialize concurrent spends. Without this,
+          // two spends can both pass the net-balance SUM check before either commits,
+          // producing overdraft when negative adjustCredits rows (Stripe refunds) exist.
+          await tx
+            .select({ userId: subscriptions.userId })
+            .from(subscriptions)
+            .where(eq(subscriptions.userId, userId))
+            .limit(1)
+            .for('update');
+
+          // Check net active balance — accounts for negative adjustCredits rows (e.g. Stripe refunds).
           const netResult = await tx
             .select({ total: sql<number>`GREATEST(COALESCE(SUM(${creditTransactions.remainingBalance}), 0), 0)` })
             .from(creditTransactions)
@@ -225,11 +235,11 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
     async refundCredit(userId: string, transactionId: string, amount: number): Promise<void> {
       const db = await deps.getDb();
       await db.transaction(async (tx: DbTx) => {
-        // Check if the target row is still active using DB clock.
-        // If a subscription renewal expired it between spend and refund, restore to a non-expiring pool.
-        const activeRows = await tx
-          .select({ id: creditTransactions.id })
-          .from(creditTransactions)
+        // Single atomic UPDATE: expiry guard lives in the WHERE clause so the
+        // SELECT-then-UPDATE race (a concurrent renewal expiring the row between the two ops) cannot occur.
+        const updated = await tx
+          .update(creditTransactions)
+          .set({ remainingBalance: sql`${creditTransactions.remainingBalance} + ${amount}` })
           .where(
             and(
               eq(creditTransactions.id, transactionId),
@@ -240,19 +250,11 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
               )
             )
           )
-          .limit(1);
+          .returning({ id: creditTransactions.id });
 
-        if (activeRows.length > 0) {
-          await tx
-            .update(creditTransactions)
-            .set({ remainingBalance: sql`${creditTransactions.remainingBalance} + ${amount}` })
-            .where(
-              and(
-                eq(creditTransactions.id, transactionId),
-                eq(creditTransactions.userId, userId)
-              )
-            );
-        } else {
+        if (updated.length === 0) {
+          // Original row expired between spend and refund (e.g. subscription renewal expired the pool).
+          // Insert a non-expiring compensation so credits remain accessible to the user.
           await tx.insert(creditTransactions).values({
             userId,
             delta: amount,
