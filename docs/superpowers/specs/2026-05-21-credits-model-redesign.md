@@ -115,7 +115,7 @@ ALTER TABLE subscriptions ADD COLUMN next_expiry_date TIMESTAMPTZ;
   5. Return `null` if no qualifying row found (insufficient credits).
 
 - **`refundCredit(userId, transactionId, amount)`** _(new)_: within a DB transaction —
-  1. Increment `remaining_balance` by `amount` for the given `transactionId`.
+  1. Increment `remaining_balance` atomically: `UPDATE credit_transactions SET remaining_balance = remaining_balance + $1 WHERE id = $2`. Never read-then-write a cached value — concurrent spends between the read and the write would be silently overwritten.
   2. Update `subscriptions.currentCredits` cache.
   3. Credits are restored to their exact original pool — `expires_at` unchanged, no extension granted.
 
