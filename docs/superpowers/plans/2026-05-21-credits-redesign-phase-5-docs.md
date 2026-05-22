@@ -8,6 +8,10 @@
 
 **Tech Stack:** Markdown
 
+**Branches:**
+origin branch for PR: feat/credits-phase-5-docs
+local worktree branch for PR: feat/credits-phase-5-docs
+
 ---
 
 ## Prerequisite
