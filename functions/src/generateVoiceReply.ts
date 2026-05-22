@@ -497,7 +497,7 @@ const handler = async (
 
     const audio = await synthesizeSpeech(speechInput, input.characterVoice);
 
-    let usageSnapshot;
+    let usageSnapshot: ReturnType<typeof buildUsageSnapshot>;
     try {
       const subscription = await subscriptionService.getSubscription(user.id);
       usageSnapshot = buildUsageSnapshot(subscription);

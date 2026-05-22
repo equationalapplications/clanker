@@ -278,7 +278,7 @@ const handler = async (
       throw new HttpsError("internal", "Model returned an empty chat response.");
     }
 
-    let usageSnapshot;
+    let usageSnapshot: ReturnType<typeof buildUsageSnapshot>;
     try {
       const subscription = await subscriptionService.getSubscription(user.id);
       usageSnapshot = buildUsageSnapshot(subscription);

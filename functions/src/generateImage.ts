@@ -428,7 +428,7 @@ const handler = async (
       imageBytesApprox: Math.floor(imageResult.imageBase64.length * 0.75),
     });
 
-    let usageSnapshot;
+    let usageSnapshot: ReturnType<typeof buildUsageSnapshot>;
     try {
       const subscription = await subscriptionService.getSubscription(user.id);
       usageSnapshot = buildUsageSnapshot(subscription);
