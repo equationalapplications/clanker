@@ -52,8 +52,8 @@ If any check fails, function fails closed with `HttpsError`.
 
 - All image generations:
   - require available credits
-  - spend exactly 1 credit after successful model generation only
-  - no credit spend when Vertex/model call fails
+  - reserve (decrement) 1 credit before the Vertex model call
+  - on model failure: refund 1 credit to the same grant row — no net spend
 
 ## Storage Behavior
 

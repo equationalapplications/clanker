@@ -31,8 +31,8 @@ No cloud object-storage upload is used in this flow.
 ## Billing Behavior
 
 - All image generations require a credit spend.
-- Spend one credit only after successful generation.
-- Failed model calls: no credit decrement
+- One credit is reserved (decremented) before the model call.
+- On model failure: credit is refunded to the same grant row — no net spend occurs.
 
 ## Client Integration Files
 

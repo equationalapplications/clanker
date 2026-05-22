@@ -41,16 +41,14 @@ Auth requirements:
 ```json
 {
   "reply": "string",
-  "creditsSpent": "number (0 or 1)",
-  "remainingCredits": "number | null",
-  "planTier": "string | null"
+  "creditsSpent": "number",
+  "remainingCredits": "number | null"
 }
 ```
 
 Semantics:
-- `creditsSpent = 1` for all successful text generation requests that consume credits.
+- `creditsSpent = 1` for all successful text generation requests.
 - `remainingCredits` reflects the balance after the spend operation.
-- `planTier` may still report the user's current subscription tier.
 
 ## Authorization And Billing Rules
 
@@ -58,15 +56,16 @@ Semantics:
 2. Load active row from `subscriptions` for that user.
 3. Authorize usage:
 - Require aggregate `current_credits >= 1`.
-4. Generate text reply with Vertex AI.
-5. Spend exactly 1 credit via the Cloud SQL-backed credit service after successful generation.
+4. Spend exactly 1 credit via the Cloud SQL-backed credit service; capture the `transactionId` of the decremented row.
+5. Generate text reply with Vertex AI.
+6. On model failure: refund 1 credit to the same grant row via `transactionId`, then return `internal` error.
 
 Generation limits:
 - Vertex model config sets `maxOutputTokens = 1024` for cost/latency control.
 
 Important billing behavior:
-- Credit spending occurs after successful model generation.
-- Failed model generation must not decrement credits.
+- Credit is reserved (decremented) before model generation begins.
+- On model failure, the credit is refunded to the same grant row — no net spend occurs.
 - Invalid credit update payload is treated as internal error (not silently accepted).
 
 ## Error Mapping
@@ -74,8 +73,7 @@ Important billing behavior:
 Function returns Firebase `HttpsError` codes:
 - `unauthenticated`: missing auth context or token UID mismatch.
 - `invalid-argument`: prompt missing, empty after trim, exceeds 12000 chars, or `referenceId` exceeds 128 chars.
-- `failed-precondition`: missing token email or missing required server config.
-- `resource-exhausted`: no available credits.
+- `failed-precondition`: missing token email, missing required server config, or insufficient credits.
 - `internal`: user lookup/create failures, downstream failures (subscription query, model invocation, credit RPC), or other unexpected failures.
 
 Operational logs include separate debug signals for:

@@ -5,7 +5,7 @@ New users receive **50 free credits** upon their first login (via `exchangeToken
 ## How it works
 
 1. `exchangeToken` calls `subscriptionService.getOrCreateDefaultSubscription(userId)`.
-2. That function checks whether a `credit_transactions` row with `transaction_type = 'signup'` exists.
+2. That function checks whether any `credit_transactions` row exists for the user.
 3. If the user is new (no existing credits), it calls `creditService.addCredits(userId, 50, null, 'signup')`.
 4. This inserts a `credit_transactions` row with:
    - `initial_amount = 50`

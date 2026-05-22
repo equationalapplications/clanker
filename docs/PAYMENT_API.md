@@ -23,7 +23,7 @@ Complete API documentation for the Clanker payment system.
 
 **Signature:** `addCredits(userId, amount, expiresAt, transactionType, referenceId?)`
 
-- `expiresAt`: `Date | null` — `null` means never expires (signup credits only)
+- `expiresAt`: `Date | null` — `null` means never expires (used for signup credits and other permanent grants such as legacy rows)
 - `transactionType`: `'signup' | 'subscription' | 'one_time' | 'legacy'`
 - `referenceId`: optional idempotency key (Stripe/RevenueCat event ID)
 
@@ -45,6 +45,9 @@ spent last.
 Atomically increments `remaining_balance` on the specified `credit_transactions`
 row. Called when an API invocation fails after credits were spent. Credits are
 restored to the original grant row — `expires_at` is unchanged, no extension granted.
+
+Note: If a refunded credit's original pool has expired at the time of the refund,
+a non-expiring compensation row is granted to prevent unfair user credit loss.
 
 ## `purchasePackageStripe` (Web Checkout Callable)
 
