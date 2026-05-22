@@ -5,7 +5,7 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
-import { buildUsageSnapshot } from "./usageSnapshot.js";
+import { buildUsageSnapshot, buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
@@ -278,17 +278,11 @@ const handler = async (
       throw new HttpsError("internal", "Model returned an empty chat response.");
     }
 
-    let usageSnapshot: ReturnType<typeof buildUsageSnapshot>;
-    try {
-      const subscription = await subscriptionService.getSubscription(user.id);
-      usageSnapshot = buildUsageSnapshot(subscription);
-    } catch (snapshotError) {
-      logger.warn("Failed to fetch subscription for usage snapshot in generateReply", {
-        userId: user.id,
-        error: snapshotError,
-      });
-      usageSnapshot = buildUsageSnapshot(null);
-    }
+    const usageSnapshot = await buildUsageSnapshotForUser(
+      user.id,
+      subscriptionService,
+      'generateReply'
+    );
 
     return {
       reply,

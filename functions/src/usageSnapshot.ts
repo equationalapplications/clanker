@@ -1,3 +1,5 @@
+import * as logger from 'firebase-functions/logger'
+
 interface SubscriptionRow {
   planTier: string;
   planStatus: string;
@@ -30,4 +32,21 @@ export function buildUsageSnapshot(
     planStatus,
     verifiedAt: timestamp,
   };
+}
+
+export async function buildUsageSnapshotForUser(
+  userId: string,
+  subscriptionService: { getSubscription(userId: string): Promise<SubscriptionRow | null> },
+  functionName: string
+): Promise<UsageSnapshot> {
+  try {
+    const subscription = await subscriptionService.getSubscription(userId);
+    return buildUsageSnapshot(subscription);
+  } catch (snapshotError: unknown) {
+    logger.warn(
+      `Failed to fetch subscription for usage snapshot in ${functionName}`,
+      { userId, error: snapshotError }
+    );
+    return buildUsageSnapshot(null);
+  }
 }

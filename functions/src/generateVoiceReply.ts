@@ -5,7 +5,7 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
-import {buildUsageSnapshot} from "./usageSnapshot.js";
+import {buildUsageSnapshot, buildUsageSnapshotForUser} from "./usageSnapshot.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
 const TEXT_MODEL = "gemini-2.5-flash";
@@ -497,17 +497,11 @@ const handler = async (
 
     const audio = await synthesizeSpeech(speechInput, input.characterVoice);
 
-    let usageSnapshot: ReturnType<typeof buildUsageSnapshot>;
-    try {
-      const subscription = await subscriptionService.getSubscription(user.id);
-      usageSnapshot = buildUsageSnapshot(subscription);
-    } catch (snapshotError) {
-      logger.warn("Failed to fetch subscription for usage snapshot in generateVoiceReply", {
-        userId: user.id,
-        error: snapshotError,
-      });
-      usageSnapshot = buildUsageSnapshot(null);
-    }
+    const usageSnapshot = await buildUsageSnapshotForUser(
+      user.id,
+      subscriptionService,
+      'generateVoiceReply'
+    );
 
     return {
       replyText,
