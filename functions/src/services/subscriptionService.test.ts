@@ -37,6 +37,7 @@ test('upsertSubscription defaults first insert credits to 50 when omitted', asyn
 
 test('getOrCreateDefaultSubscription grants signup credits for new user', async () => {
   let addedCreditArgs: unknown = null;
+  let selectCalls = 0;
   const mockDeps = {
     getDb: async () => ({
       insert: () => ({
@@ -49,10 +50,16 @@ test('getOrCreateDefaultSubscription grants signup credits for new user', async 
       select: () => ({
         from: () => ({
           where: () => ({
-            limit: async () => [{
-              id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 0,
-              termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
-            }],
+            limit: async () => {
+              selectCalls += 1;
+              if (selectCalls === 1) {
+                return [{
+                  id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 0,
+                  termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
+                }];
+              }
+              return [];
+            },
           }),
         }),
       }),

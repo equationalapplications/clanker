@@ -12,7 +12,6 @@ const TEXT_MODEL = "gemini-2.5-flash";
 const TTS_MODEL = "gemini-2.5-flash-tts";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 12_000;
-const MAX_REFERENCE_ID_LENGTH = 128;
 const MAX_OUTPUT_TOKENS = 1_024;
 
 if (!admin.apps.length) {
@@ -24,7 +23,6 @@ interface GenerateVoiceReplyData {
   characterVoice: string;
   characterTraits?: string;
   characterEmotions?: string;
-  referenceId?: string;
 }
 
 interface UsageState {
@@ -400,7 +398,6 @@ function parseInput(data: unknown): {
   characterVoice: string;
   characterTraits: string;
   characterEmotions: string;
-  referenceId: string | null;
 } {
   const payload = data as GenerateVoiceReplyData | undefined;
   const promptValue = payload?.prompt;
@@ -422,20 +419,11 @@ function parseInput(data: unknown): {
     );
   }
 
-  const reference = typeof payload?.referenceId === "string" ? payload.referenceId.trim() : "";
-  if (reference.length > MAX_REFERENCE_ID_LENGTH) {
-    throw new HttpsError(
-      "invalid-argument",
-      `referenceId must be at most ${MAX_REFERENCE_ID_LENGTH} characters.`
-    );
-  }
-
   return {
     prompt,
     characterVoice,
     characterTraits: typeof payload?.characterTraits === "string" ? payload.characterTraits.trim() : "",
     characterEmotions: typeof payload?.characterEmotions === "string" ? payload.characterEmotions.trim() : "",
-    referenceId: reference.length > 0 ? reference : null,
   };
 }
 
@@ -479,7 +467,6 @@ function assertUsageAuthorized(usage: UsageState): void {
 async function spendCreditsIfRequired(
   userId: string,
   usage: UsageState,
-  referenceId: string | null
 ): Promise<number | null> {
   if (usage.hasUnlimited) {
     return null;
@@ -499,7 +486,6 @@ async function spendCreditsIfRequired(
 
     logger.error("Failed to spend credits for voice reply.", {
       userId,
-      referenceId,
       error,
     });
 
@@ -588,7 +574,7 @@ const handler = async (
 
   const audio = await synthesizeSpeech(speechInput, input.characterVoice);
 
-  const remainingCredits = await spendCreditsIfRequired(user.id, usage, input.referenceId);
+  const remainingCredits = await spendCreditsIfRequired(user.id, usage);
 
   return {
     replyText,

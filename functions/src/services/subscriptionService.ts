@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { subscriptions, creditTransactions } from '../db/schema.js';
 import { createCreditService } from './creditService.js';
@@ -39,7 +39,7 @@ export const createSubscriptionService = (
       const db = await deps.getDb();
       const creditService = deps.creditService ?? createCreditService({ getDb: deps.getDb });
 
-      const [insertedSubscription] = await db
+      await db
         .insert(subscriptions)
         .values({
           userId,
@@ -55,15 +55,20 @@ export const createSubscriptionService = (
         throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`);
       }
 
-      const hasAnyCreditRows = (await db
+      const hasSignupCreditRow = (await db
         .select()
         .from(creditTransactions)
-        .where(eq(creditTransactions.userId, userId))
+        .where(
+          and(
+            eq(creditTransactions.userId, userId),
+            eq(creditTransactions.reason, 'signup'),
+            eq(creditTransactions.referenceId, SIGNUP_CREDIT_REFERENCE_ID)
+          )
+        )
         .limit(1))
         .length > 0;
 
-      const shouldGrantSignupCredits = Boolean(insertedSubscription) || !hasAnyCreditRows;
-      if (shouldGrantSignupCredits) {
+      if (!hasSignupCreditRow) {
         await creditService.addCredits(userId, 50, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
       }
 
