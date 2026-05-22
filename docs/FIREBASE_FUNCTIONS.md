@@ -47,11 +47,10 @@ By setting `"codebase": "clanker"`, deploy commands can reliably target this app
 - **Process**:
     1. Verifies callable auth context and token integrity.
     2. Resolves Cloud SQL user from authenticated Firebase identity.
-    3. Reads active subscription row from Cloud SQL `subscriptions` table.
-    4. Authorizes access based on available credits.
-    5. Spends one credit (captures `transactionId`).
-    6. Calls Vertex AI to generate the reply.
-    7. On model failure: refunds the credit via `transactionId`.
+    3. Ensures the Cloud SQL user and subscription row exist.
+    4. Reserves one credit via the credit service (captures `transactionId`).
+    5. Calls Vertex AI to generate the reply.
+    6. On model failure: refunds the credit via `transactionId`.
 - **Security**:
   - Enforces App Check.
   - Keeps AI invocation server-side to prevent direct client bypass.
@@ -66,12 +65,11 @@ By setting `"codebase": "clanker"`, deploy commands can reliably target this app
 - **Process**:
     1. Verifies callable auth context and token integrity.
     2. Resolves Cloud SQL user from Firebase identity.
-    3. Reads active subscription row and validates access based on available credits.
+    3. Ensures the Cloud SQL user exists and reserves one credit via the credit service (captures `transactionId`).
     4. Applies prompt validation + per-user throttling guard.
-    5. Spends one credit (captures `transactionId`).
-    6. Calls Vertex AI image model (`gemini-2.5-flash-image`) and extracts inline base64 image data.
-    7. On model failure: refunds the credit via `transactionId`.
-    8. Returns `{ imageBase64, mimeType, creditsSpent, remainingCredits }`.
+    5. Calls Vertex AI image model (`gemini-2.5-flash-image`) and extracts inline base64 image data.
+    6. On model failure: refunds the credit via `transactionId`.
+    7. Returns `{ imageBase64, mimeType, creditsSpent, remainingCredits }`.
 - **Security**:
   - Enforces App Check.
   - Keeps image model access server-side (client has no direct GenAI SDK access).

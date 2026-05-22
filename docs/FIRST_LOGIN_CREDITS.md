@@ -1,6 +1,6 @@
 # First Login Credits
 
-New users receive **50 free credits** upon their first login (via `exchangeToken`).
+New users receive **50 free credits** upon their first login. These credits are seeded by the Cloud SQL bootstrap flow, either during `exchangeToken` or by the DB trigger `handle_new_user()` when a new Cloud SQL user row is created.
 
 ## How it works
 

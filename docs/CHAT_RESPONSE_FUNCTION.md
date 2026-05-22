@@ -8,7 +8,7 @@ Text generation now runs through a Firebase 2nd Gen callable function, `generate
 
 This ensures:
 - Firebase Auth is verified server-side before usage.
-- Access control is enforced from Cloud SQL subscription state.
+- Access control is enforced from Cloud SQL credit ledger state.
 - Credit spending is enforced server-side for all applicable requests.
 - Vertex AI credentials and model invocation remain server-only.
 
