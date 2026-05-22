@@ -4,10 +4,9 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import {inArray, and, eq, sql} from "drizzle-orm";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
-import {subscriptionService} from "./services/subscriptionService.js";
+import {creditService as defaultCreditService} from "./services/creditService.js";
 import {getDb} from "./db/cloudSql.js";
 import {llmWikiEntries, llmWikiTasks, llmWikiEvents, characters} from "./db/schema.js";
-import {PREMIUM_TIERS} from "./constants/plans.js";
 
 const DEFAULT_REGION = "us-central1";
 
@@ -67,7 +66,8 @@ interface WikiSyncOptions {
   validateEntityOwnership?: (entityIds: string[], userId: string) => Promise<void>;
   fetchMergedDump?: (entityIds: string[], userId: string) => Promise<MemoryDump>;
   getUser?: typeof userRepository.getOrCreateUserByFirebaseIdentity;
-  getSubscription?: typeof subscriptionService.getSubscription;
+  getSubscription?: () => Promise<unknown>;
+  creditService?: Pick<typeof defaultCreditService, "spendCredits" | "refundCredit">;
 }
 
 const MAX_ENTITIES = 50;
@@ -552,7 +552,7 @@ export const wikiSyncHandler = async (
   const dump = parseInput(request.data);
 
   const getUser = options.getUser ?? ((args) => userRepository.getOrCreateUserByFirebaseIdentity(args));
-  const getSubscription = options.getSubscription ?? ((userId) => subscriptionService.getSubscription(userId));
+  const credits = options.creditService ?? defaultCreditService;
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -567,12 +567,9 @@ export const wikiSyncHandler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const subscription = await getSubscription(user.id);
-  const isUnlimited =
-    PREMIUM_TIERS.has(subscription?.planTier ?? "") && subscription?.planStatus === "active";
-
-  if (!isUnlimited) {
-    throw new HttpsError("permission-denied", "Wiki sync requires an active unlimited subscription.");
+  const transactionId = await credits.spendCredits(user.id, 1);
+  if (transactionId === null) {
+    throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
 
   // Validate that every entity in the dump belongs to this user and is saved to cloud.
@@ -610,6 +607,16 @@ export const wikiSyncHandler = async (
     }
   } catch (error) {
     logger.error("wikiSync upsert failed", {userId: user.id, entityIds, error});
+    try {
+      await credits.refundCredit(user.id, transactionId, 1);
+    } catch (refundError) {
+      logger.error("Failed to refund credits after wikiSync failure", {
+        userId: user.id,
+        transactionId,
+        error: refundError,
+      });
+    }
+
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", "Failed to sync wiki data.");
   }
