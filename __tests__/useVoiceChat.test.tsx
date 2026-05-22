@@ -232,7 +232,7 @@ describe('useVoiceChat', () => {
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'Insufficient Credits',
-      'Voice replies cost 2 credits. Purchase more or subscribe for unlimited.',
+      'Voice replies cost 2 credits. Purchase more credits to continue.',
       expect.any(Array),
     )
     expect(mockStart).not.toHaveBeenCalled()

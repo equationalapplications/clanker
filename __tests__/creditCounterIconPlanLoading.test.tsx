@@ -115,7 +115,7 @@ describe('CreditCounterIcon with useCurrentPlan', () => {
     })
 
     const allWithOnPress = tree.root.findAll((node: any) => !!node.props.onPress)
-    expect(allWithOnPress[0].props.accessibilityLabel).toBe('Premium subscriber, unlimited credits')
+    expect(allWithOnPress[0].props.accessibilityLabel).toBe('0 credits remaining')
   })
 
   it('pressable has accessibilityHint for subscription management', () => {

@@ -1,70 +1,30 @@
 import { getCurrentUser, spendCreditsFn } from '../config/firebaseConfig'
-import { PLAN_TIERS, SUBSCRIPTION_TIERS, type PlanTier } from '../config/constants'
 import { getUserState } from '../services/apiClient'
 
-interface UserCredits {
+export interface UserCredits {
   totalCredits: number
-  hasUnlimited: boolean
-  subscriptions: {
-    tier: string
-    credits: number
-    isUnlimited: boolean
-  }[]
-}
-
-const ALL_PLAN_TIERS = Object.values(PLAN_TIERS)
-
-const isPlanTier = (value: unknown): value is PlanTier => {
-  return typeof value === 'string' && ALL_PLAN_TIERS.includes(value as PlanTier)
+  nextExpiryDate: string | null
 }
 
 export const getUserCredits = async (): Promise<UserCredits> => {
   if (!getCurrentUser()) {
-    console.log('📊 getUserCredits: No Firebase user')
-    return {
-      totalCredits: 0,
-      hasUnlimited: false,
-      subscriptions: [],
-    }
+    return { totalCredits: 0, nextExpiryDate: null }
   }
 
   try {
     const state = await getUserState()
 
     if (!state?.subscription) {
-      console.error('❌ getUserCredits: Error getting user state')
-      return {
-        totalCredits: 0,
-        hasUnlimited: false,
-        subscriptions: [],
-      }
+      return { totalCredits: 0, nextExpiryDate: null }
     }
 
-    const { planTier, planStatus, currentCredits } = state.subscription
-    const isActive = planStatus === 'active'
-    const isUnlimited =
-      isActive && isPlanTier(planTier) && SUBSCRIPTION_TIERS.includes(planTier)
-
-    const totalCredits = Math.max(0, currentCredits)
-
     return {
-      totalCredits,
-      hasUnlimited: isUnlimited,
-      subscriptions: [
-        {
-          tier: planTier,
-          credits: totalCredits,
-          isUnlimited,
-        },
-      ],
+      totalCredits: Math.max(0, state.subscription.currentCredits),
+      nextExpiryDate: state.subscription.nextExpiryDate ?? null,
     }
   } catch (error) {
     console.error('Error checking user credits:', error)
-    return {
-      totalCredits: 0,
-      hasUnlimited: false,
-      subscriptions: [],
-    }
+    return { totalCredits: 0, nextExpiryDate: null }
   }
 }
 

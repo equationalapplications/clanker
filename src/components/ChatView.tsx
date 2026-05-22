@@ -30,7 +30,6 @@ export default function ChatView({ characterId }: ChatViewProps) {
   const messages = useChatMessages({ id: characterId, userId: currentUserId || '' })
   const { data: creditsData } = useUserCredits()
   const credits = creditsData?.totalCredits || 0
-  const hasUnlimited = creditsData?.hasUnlimited || false
   const { colors, roundness } = useTheme()
 
   const { status: wikiStatus } = useCharacterWiki(characterId)
@@ -55,7 +54,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
     async (newMessages: IMessage[] = []) => {
       if (!currentUserId || !character) return
 
-      if (credits <= 0 && !hasUnlimited) {
+      if (credits <= 0) {
         router.push('/subscribe')
         return
       }
@@ -64,7 +63,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
         await sendMessage(newMessages[0])
       }
     },
-    [sendMessage, currentUserId, character, credits, hasUnlimited],
+    [sendMessage, currentUserId, character, credits],
   )
 
   const renderBubble = useCallback(
