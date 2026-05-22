@@ -8,8 +8,8 @@ Text generation now runs through a Firebase 2nd Gen callable function, `generate
 
 This ensures:
 - Firebase Auth is verified server-side before usage.
-- Access control is enforced from Cloud SQL subscription state.
-- Credit spending is enforced server-side for non-unlimited tiers.
+- Access control is enforced from Cloud SQL credit ledger state.
+- Credit spending is enforced server-side for all applicable requests.
 - Vertex AI credentials and model invocation remain server-only.
 
 ## Endpoint
@@ -41,33 +41,34 @@ Auth requirements:
 ```json
 {
   "reply": "string",
-  "creditsSpent": "number (0 or 1)",
-  "remainingCredits": "number | null",
-  "planTier": "string | null"
+  "creditsSpent": "number",
+  "remainingCredits": "number",
+  "planTier": "string | null",
+  "planStatus": "'active' | 'cancelled' | 'expired' | null",
+  "verifiedAt": "string"
 }
 ```
 
 Semantics:
-- `creditsSpent = 0` for unlimited tiers (`monthly_20`, `monthly_50`).
-- `creditsSpent = 1` for credit-based access (`payg`, `free`, or other non-unlimited active tiers).
-- `remainingCredits` is null for unlimited tiers.
+- `creditsSpent = 1` for all successful text generation requests.
+- `remainingCredits` reflects the balance after the spend operation.
+- `planTier` and `planStatus` mirror the current Cloud SQL subscription state when available.
+- `verifiedAt` is an ISO 8601 timestamp used by the app’s usage snapshot plumbing.
 
 ## Authorization And Billing Rules
 
 1. Resolve Cloud SQL user from Firebase identity (create on first authenticated call when absent).
-2. Load active row from `subscriptions` for that user.
-3. Authorize usage:
-- Unlimited tier (`monthly_20`, `monthly_50`) -> allow without credit spend.
-- Otherwise require aggregate `current_credits >= 1`.
+2. Ensure Cloud SQL user and subscription row exist.
+3. Reserve one credit via the Cloud SQL-backed credit service; capture the `transactionId`.
 4. Generate text reply with Vertex AI.
-5. If credit-based usage, spend exactly 1 credit via the Cloud SQL-backed credit service.
+5. On model failure: refund 1 credit to the same grant row via `transactionId`, then return `internal` error.
 
 Generation limits:
 - Vertex model config sets `maxOutputTokens = 1024` for cost/latency control.
 
 Important billing behavior:
-- Credit spending occurs after successful model generation.
-- Failed model generation must not decrement credits.
+- Credit is reserved (decremented) before model generation begins.
+- On model failure, the credit is refunded to the same grant row — no net spend occurs.
 - Invalid credit update payload is treated as internal error (not silently accepted).
 
 ## Error Mapping
@@ -75,8 +76,7 @@ Important billing behavior:
 Function returns Firebase `HttpsError` codes:
 - `unauthenticated`: missing auth context or token UID mismatch.
 - `invalid-argument`: prompt missing, empty after trim, exceeds 12000 chars, or `referenceId` exceeds 128 chars.
-- `failed-precondition`: missing token email or missing required server config.
-- `resource-exhausted`: no unlimited tier and no available credits.
+- `failed-precondition`: missing token email, missing required server config, or insufficient credits.
 - `internal`: user lookup/create failures, downstream failures (subscription query, model invocation, credit RPC), or other unexpected failures.
 
 Operational logs include separate debug signals for:
@@ -102,7 +102,7 @@ Covered behavior:
 - unauthenticated rejection
 - empty prompt rejection
 - pay-as-you-go spend flow
-- unlimited plan no-spend flow
+- subscription credit spend flow
 - zero-credit rejection
 - no spend on model failure
 - response shape on success

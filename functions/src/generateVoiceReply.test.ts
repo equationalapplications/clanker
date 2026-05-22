@@ -223,6 +223,9 @@ test("generateVoiceReplyHandler spends 2 credits for payg users", async () => {
 
     assert.equal(result.creditsSpent, 2);
     assert.equal(result.remainingCredits, 3);
+    assert.equal(result.planTier, "payg");
+    assert.equal(result.planStatus, "active");
+    assert.ok(typeof result.verifiedAt === "string" && result.verifiedAt.length > 0);
     assert.equal(spendCalls, 1);
   });
 });

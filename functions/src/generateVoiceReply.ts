@@ -3,7 +3,9 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import {userRepository} from "./services/userRepository.js";
+import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
+import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
 const TEXT_MODEL = "gemini-2.5-flash";
@@ -30,6 +32,9 @@ export interface GenerateVoiceReplyResponse {
   audioMimeType: string;
   creditsSpent: number;
   remainingCredits: number;
+  planTier: string | null;
+  planStatus: 'active' | 'cancelled' | 'expired' | null;
+  verifiedAt: string;
 }
 
 type GenerateTextFn = (prompt: string) => Promise<string>;
@@ -414,6 +419,7 @@ async function chargeForVoiceReply(
   return { txId, remainingCredits };
 }
 
+
 function cleanReplyText(rawText: string): string {
   return rawText.replace(/\[[^\]]+\]/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -491,6 +497,12 @@ const handler = async (
 
     const audio = await synthesizeSpeech(speechInput, input.characterVoice);
 
+    const usageSnapshot = await buildUsageSnapshotForUser(
+      user.id,
+      subscriptionService,
+      'generateVoiceReply'
+    );
+
     return {
       replyText,
       rawReplyText,
@@ -498,6 +510,7 @@ const handler = async (
       audioMimeType: audio.audioMimeType,
       creditsSpent: 2,
       remainingCredits,
+      ...usageSnapshot,
     };
   } catch (error) {
     if (spentTransactionId) {

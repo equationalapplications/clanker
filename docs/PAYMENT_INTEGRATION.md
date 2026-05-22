@@ -19,9 +19,9 @@ Credits and subscriptions are shared across platforms. If a user purchases credi
 
 ### Credits and Subscriptions
 
-The user may purchase 100 credits for $10 or subscribe monthly for unlimited credits at $20/month or $50/month.
+The user may purchase 100 credits for $10 or subscribe monthly for 300 credits at $20/month. A reserved/inactive $50/month tier is also defined in the codebase for future use.
 
-Credits  will not expire and they roll over. They are not consumed if the user has a monthly subscription so they can be used when the user cancels the subscription.
+Free signup credits never expire. Subscription credits expire at the end of each billing cycle. One-time credit pack credits expire 31 days after purchase.
 
 ### Refunds
 
@@ -52,11 +52,14 @@ Both webhooks are deployed as Firebase Cloud Functions in `functions/src/`.
 
 | Stripe Event | Action |
 |---|---|
-| `checkout.session.completed` | Subscription product → upsert `subscriptions` with matching tier. Credit pack → add credits via `creditService`. |
-| `customer.subscription.updated` | Update `plan_tier`, `plan_status`, `billing_cycle_start`, `billing_cycle_end` |
-| `customer.subscription.deleted` | Set `plan_status = 'cancelled'` and `plan_tier = 'free'` |
-| `invoice.payment_succeeded` | For one-time PAYG invoices → add credits via `creditService`. |
-| `charge.refunded` | Credit pack refund → deduct credits via `creditService`. Subscription refund → set `plan_status = 'cancelled'` and `plan_tier = 'free'`. |
+| `checkout.session.completed` (subscription) | Grant 300 credits expiring at `current_period_end`; then expire old subscription credits |
+| `checkout.session.completed` (credit pack) | Grant 100 credits expiring 31 days from now |
+| `customer.subscription.updated` (renewal) | Grant 300 new credits expiring at `current_period_end` (referenceId = `sub_${sub.id}_${periodEnd}` — serves as idempotency guard); then expire old subscription credits |
+| `invoice.payment_succeeded` (credit pack fallback) | Grant 100 credits expiring 31 days from now |
+| `charge.refunded` | Deduct credits as before |
+| `customer.subscription.deleted` | No credit action — credits expire naturally at `expires_at` |
+
+> Idempotency guard must run before expiring old credits or performing any other DB writes. Guard first, write second.
 
 #### Price ID → DB Tier Mapping
 
