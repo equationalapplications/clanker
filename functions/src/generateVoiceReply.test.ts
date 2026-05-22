@@ -233,7 +233,7 @@ test("generateVoiceReplyHandler spends 2 credits for payg users", async () => {
   });
 });
 
-test("generateVoiceReplyHandler does not spend credits for monthly_20 users", async () => {
+test("generateVoiceReplyHandler rejects users without sufficient credits", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
@@ -248,15 +248,15 @@ test("generateVoiceReplyHandler does not spend credits for monthly_20 users", as
     };
     creditService.getCredits = async () => 0;
 
-    const result = await generateVoiceReplyHandler(
-      {auth, data: {prompt: "hello", characterVoice: "Kore"}} as never,
-      {generateText: stubGenerateText, synthesizeSpeech: stubSynthesizeSpeech}
+    await assert.rejects(
+      async () =>
+        generateVoiceReplyHandler(
+          {auth, data: {prompt: "hello", characterVoice: "Kore"}} as never,
+          {generateText: stubGenerateText, synthesizeSpeech: stubSynthesizeSpeech}
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
     );
 
-    assert.equal(result.creditsSpent, 0);
-    assert.equal(result.remainingCredits, null);
-    assert.equal(result.planTier, "monthly_20");
-    assert.equal(result.planStatus, "active");
     assert.equal(spendCalls, 0);
   });
 });

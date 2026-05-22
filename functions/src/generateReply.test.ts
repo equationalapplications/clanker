@@ -156,7 +156,7 @@ test("generateReplyHandler spends one credit for payg users", async () => {
   });
 });
 
-test("generateReplyHandler does not spend credits for unlimited users", async () => {
+test("generateReplyHandler rejects users without credits", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
@@ -171,24 +171,22 @@ test("generateReplyHandler does not spend credits for unlimited users", async ()
     };
     creditService.getCredits = async () => 0;
 
-    const result = await generateReplyHandler(
-      {
-        auth,
-        data: {
-          prompt: "hello",
-        },
-      } as never,
-      {
-        generateText: async () => "subscriber reply",
-      }
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              prompt: "hello",
+            },
+          } as never,
+          {
+            generateText: async () => "subscriber reply",
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
     );
 
-    assert.equal(result.reply, "subscriber reply");
-    assert.equal(result.creditsSpent, 0);
-    assert.equal(result.remainingCredits, null);
-    assert.equal(result.planTier, "monthly_20");
-    assert.equal(result.planStatus, "active");
-    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(spendCalls, 0);
   });
 });
@@ -299,18 +297,25 @@ test("generateReplyHandler bootstraps default subscription when missing", async 
   });
 });
 
-test("generateReplyHandler does not spend credit when model generation fails", async () => {
+test("generateReplyHandler refunds credit when model generation fails", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
     const user = buildUser(auth);
     let spendCalls = 0;
+    let refundCalls = 0;
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
       return 'mock-tx-id';
+    };
+    creditService.refundCredit = async (userId, transactionId, amount) => {
+      assert.equal(userId, user.id);
+      assert.equal(transactionId, 'mock-tx-id');
+      assert.equal(amount, 1);
+      refundCalls += 1;
     };
     creditService.getCredits = async () => 2;
 
@@ -332,22 +337,30 @@ test("generateReplyHandler does not spend credit when model generation fails", a
       (err: unknown) => err instanceof HttpsError && err.code === "internal"
     );
 
-    assert.equal(spendCalls, 0);
+    assert.equal(spendCalls, 1);
+    assert.equal(refundCalls, 1);
   });
 });
 
-test("generateReplyHandler preserves HttpsError from model generation", async () => {
+test("generateReplyHandler preserves HttpsError from model generation and refunds credit", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
     const user = buildUser(auth);
     let spendCalls = 0;
+    let refundCalls = 0;
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
       return 'mock-tx-id';
+    };
+    creditService.refundCredit = async (userId, transactionId, amount) => {
+      assert.equal(userId, user.id);
+      assert.equal(transactionId, 'mock-tx-id');
+      assert.equal(amount, 1);
+      refundCalls += 1;
     };
     creditService.getCredits = async () => 2;
 
@@ -372,7 +385,8 @@ test("generateReplyHandler preserves HttpsError from model generation", async ()
         err.message.includes("Vertex AI unavailable")
     );
 
-    assert.equal(spendCalls, 0);
+    assert.equal(spendCalls, 1);
+    assert.equal(refundCalls, 1);
   });
 });
 

@@ -1,6 +1,6 @@
 # Credits Redesign Phase 3: Callable Gating
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Remove all `UNLIMITED_TIERS`, `PREMIUM_TIERS`, `CLOUD_CHARACTER_ALLOWED_PLANS`, and `hasUnlimited` logic from every callable. Replace with the spend→execute→catch/refund pattern. Change `spendCredits` external signature to `(userId, amount)` → `string | null` (returns `transactionId` for refunds). Delete `functions/src/constants/plans.ts`.
 
@@ -8,6 +8,7 @@
 
 **Tech Stack:** Firebase Functions v2, Drizzle ORM
 
+**Branches:**
 origin branch for PR: feat/credits-phase-3-callable-gating
 local worktree branch for PR: feat/credits-phase-3-callable-gating
 

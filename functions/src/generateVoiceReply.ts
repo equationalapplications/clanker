@@ -7,7 +7,6 @@ import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
-const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const TEXT_MODEL = "gemini-2.5-flash";
 const TTS_MODEL = "gemini-2.5-flash-tts";
 const DEFAULT_REGION = "us-central1";
@@ -28,12 +27,11 @@ interface GenerateVoiceReplyData {
 interface UsageState {
   planTier: string | null;
   planStatus: "active" | "cancelled" | "expired";
-  hasUnlimited: boolean;
   creditBalance: number;
 }
 
 interface UsageSnapshotDetails {
-  remainingCredits: number | null;
+  remainingCredits: number;
   planTier: string | null;
   planStatus: "active" | "cancelled" | "expired";
   verifiedAt: string;
@@ -431,23 +429,16 @@ async function fetchUsageState(userId: string): Promise<UsageState> {
   const existing = await subscriptionService.getSubscription(userId);
   const sub = existing ?? await subscriptionService.getOrCreateDefaultSubscription(userId);
 
-  const planTier = sub.planTier;
-  const planStatus = normalizePlanStatus(sub.planStatus);
-  const isActive = planStatus === "active";
-  const hasUnlimited = isActive && UNLIMITED_TIERS.has(planTier);
-  const creditBalance = hasUnlimited ? 0 : Math.max(0, sub.currentCredits ?? 0);
-
   return {
-    planTier,
-    planStatus,
-    hasUnlimited,
-    creditBalance,
+    planTier: sub.planTier,
+    planStatus: normalizePlanStatus(sub.planStatus),
+    creditBalance: Math.max(0, sub.currentCredits ?? 0),
   };
 }
 
 function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
   return {
-    remainingCredits: usage.hasUnlimited ? null : usage.creditBalance,
+    remainingCredits: usage.creditBalance,
     planTier: usage.planTier,
     planStatus: usage.planStatus,
     verifiedAt: new Date().toISOString(),
@@ -455,7 +446,7 @@ function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
 }
 
 function assertUsageAuthorized(usage: UsageState): void {
-  if (!usage.hasUnlimited && usage.creditBalance < 2) {
+  if (usage.creditBalance < 2) {
     throw new HttpsError(
       "resource-exhausted",
       "Insufficient credits. Voice replies cost 2 credits.",
@@ -464,14 +455,9 @@ function assertUsageAuthorized(usage: UsageState): void {
   }
 }
 
-async function spendCreditsIfRequired(
+async function chargeForVoiceReply(
   userId: string,
-  usage: UsageState,
-): Promise<{ txId: string | null; remainingCredits: number | null }> {
-  if (usage.hasUnlimited) {
-    return { txId: null, remainingCredits: null };
-  }
-
+): Promise<{ txId: string; remainingCredits: number }> {
   try {
     const txId = await creditService.spendCredits(userId, 2);
     if (!txId) {
@@ -485,12 +471,12 @@ async function spendCreditsIfRequired(
       throw error;
     }
 
-    logger.error("Failed to spend credits for voice reply.", {
+    logger.error("Failed to charge credits for voice reply.", {
       userId,
       error,
     });
 
-    throw new HttpsError("internal", "Failed to spend credits for voice reply.");
+    throw new HttpsError("internal", "Failed to charge credits for voice reply.");
   }
 }
 
@@ -554,9 +540,9 @@ const handler = async (
   let remainingCredits: number | null = null;
 
   try {
-    const spendResult = await spendCreditsIfRequired(user.id, usage);
-    spentTransactionId = spendResult.txId;
-    remainingCredits = spendResult.remainingCredits;
+    const charge = await chargeForVoiceReply(user.id);
+    spentTransactionId = charge.txId;
+    remainingCredits = charge.remainingCredits;
 
     rawReplyText = (await generateText(input.prompt)).trim();
     if (!rawReplyText) {
@@ -578,7 +564,7 @@ const handler = async (
       rawReplyText,
       audioBase64: audio.audioBase64,
       audioMimeType: audio.audioMimeType,
-      creditsSpent: usage.hasUnlimited ? 0 : 2,
+      creditsSpent: 2,
       remainingCredits,
       planTier: usage.planTier,
       planStatus: usage.planStatus,

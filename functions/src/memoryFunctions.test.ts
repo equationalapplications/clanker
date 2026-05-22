@@ -123,15 +123,15 @@ test("memoryReadHandler rejects unauthenticated calls", async () => {
   );
 });
 
-test("memoryReadHandler rejects non-premium calls", async () => {
-  await assert.rejects(
-    async () =>
-      memoryReadHandler(
-        { auth: buildAuth(), data: { characterId: "char-1" } } as never,
-        buildDeps({ planTier: "free", planStatus: "active" }) as never,
-      ),
-    (err: unknown) => err instanceof HttpsError && err.code === "permission-denied",
+test("memoryReadHandler allows free-plan users", async () => {
+  const result = await memoryReadHandler(
+    { auth: buildAuth(), data: { characterId: "char-1" } } as never,
+    buildDeps({ planTier: "free", planStatus: "active" }) as never,
   );
+
+  assert.equal(result.characterId, "char-1");
+  assert.ok(Array.isArray(result.entries));
+  assert.ok(Array.isArray(result.tasks));
 });
 
 test("memoryWriteHandler returns structured diff envelope for premium caller", async () => {
