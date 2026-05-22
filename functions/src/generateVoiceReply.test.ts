@@ -19,6 +19,7 @@ const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity
 const originalGetSubscription = subscriptionService.getSubscription;
 const originalGetOrCreateDefaultSubscription = subscriptionService.getOrCreateDefaultSubscription;
 const originalSpendCredits = creditService.spendCredits;
+const originalRefundCredit = creditService.refundCredit;
 const originalGetCredits = creditService.getCredits;
 
 let authCounter = 0;
@@ -86,6 +87,7 @@ async function withServiceMocks(run: () => Promise<void>) {
     subscriptionService.getSubscription = originalGetSubscription;
     subscriptionService.getOrCreateDefaultSubscription = originalGetOrCreateDefaultSubscription;
     creditService.spendCredits = originalSpendCredits;
+    creditService.refundCredit = originalRefundCredit;
     creditService.getCredits = originalGetCredits;
   }
 }
@@ -259,18 +261,25 @@ test("generateVoiceReplyHandler does not spend credits for monthly_20 users", as
   });
 });
 
-test("generateVoiceReplyHandler does not spend credits when text generation fails", async () => {
+test("generateVoiceReplyHandler refunds credits when text generation fails", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
     const user = buildUser(auth);
     let spendCalls = 0;
+    let refundCalls = 0;
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
     creditService.spendCredits = async () => {
       spendCalls += 1;
       return 'mock-tx-id';
+    };
+    creditService.refundCredit = async (userId, txId, amount) => {
+      assert.equal(userId, user.id);
+      assert.equal(txId, 'mock-tx-id');
+      assert.equal(amount, 2);
+      refundCalls += 1;
     };
     creditService.getCredits = async () => 3;
 
@@ -288,22 +297,30 @@ test("generateVoiceReplyHandler does not spend credits when text generation fail
       (err: unknown) => err instanceof HttpsError && err.code === "internal"
     );
 
-    assert.equal(spendCalls, 0);
+    assert.equal(spendCalls, 1);
+    assert.equal(refundCalls, 1);
   });
 });
 
-test("generateVoiceReplyHandler does not spend credits when speech synthesis fails", async () => {
+test("generateVoiceReplyHandler refunds credits when speech synthesis fails", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
     const user = buildUser(auth);
     let spendCalls = 0;
+    let refundCalls = 0;
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
     creditService.spendCredits = async () => {
       spendCalls += 1;
       return 'mock-tx-id';
+    };
+    creditService.refundCredit = async (userId, txId, amount) => {
+      assert.equal(userId, user.id);
+      assert.equal(txId, 'mock-tx-id');
+      assert.equal(amount, 2);
+      refundCalls += 1;
     };
     creditService.getCredits = async () => 3;
 
@@ -324,7 +341,8 @@ test("generateVoiceReplyHandler does not spend credits when speech synthesis fai
         err.message.includes("TTS unavailable")
     );
 
-    assert.equal(spendCalls, 0);
+    assert.equal(spendCalls, 1);
+    assert.equal(refundCalls, 1);
   });
 });
 
