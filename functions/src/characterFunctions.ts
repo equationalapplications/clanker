@@ -110,6 +110,11 @@ export const syncCharacterHandler = async (
   request: CallableRequest,
   deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
 ) => {
+  const actualDeps: CharacterFunctionDeps = {
+    ...{userRepository, characterService, creditService},
+    ...deps,
+  };
+
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
   }
@@ -149,19 +154,19 @@ export const syncCharacterHandler = async (
     : undefined;
   const isPublic = parseOptionalIsPublic(character.isPublic);
 
-  const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
+  const user = await actualDeps.userRepository.findUserByFirebaseUid(request.auth.uid);
   if (!user) {
     throw new HttpsError('not-found', 'User not found.');
   }
 
   let transactionId: string | null = null;
   try {
-    transactionId = await deps.creditService.spendCredits(user.id, 1);
+    transactionId = await actualDeps.creditService.spendCredits(user.id, 1);
     if (transactionId === null) {
       throw new HttpsError('failed-precondition', 'Insufficient credits.');
     }
 
-    const upserted = await deps.characterService.upsertCharacter({
+    const upserted = await actualDeps.characterService.upsertCharacter({
       ...(character.id ? { id: character.id } : {}),
       userId: user.id,
       name: character.name,
@@ -181,7 +186,7 @@ export const syncCharacterHandler = async (
   } catch (error) {
     if (transactionId) {
       try {
-        await deps.creditService.refundCredit(user.id, transactionId, 1);
+        await actualDeps.creditService.refundCredit(user.id, transactionId, 1);
       } catch (refundError) {
         logger.error('Failed to refund credits after syncCharacter failure', {
           userId: user.id,

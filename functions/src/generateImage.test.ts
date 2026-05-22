@@ -215,7 +215,7 @@ test("generateImageHandler rejects users without credits", async () => {
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20", 0);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return 'mock-tx-id';
+      return null;
     };
     creditService.getCredits = async () => 0;
 
@@ -238,7 +238,7 @@ test("generateImageHandler rejects users without credits", async () => {
       (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
     );
 
-    assert.equal(spendCalls, 0);
+    assert.equal(spendCalls, 1);
   });
 });
 
@@ -288,7 +288,7 @@ test("generateImageHandler rejects users without unlimited plan and no credits",
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 0);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => null;
     creditService.getCredits = async () => 0;
 
     await assert.rejects(
@@ -320,7 +320,7 @@ test("generateImageHandler returns fallback planStatus details when subscription
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => null as never;
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => null;
     creditService.getCredits = async () => 0;
 
     await assert.rejects(
