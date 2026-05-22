@@ -83,26 +83,19 @@ export default function SubscribeScreen() {
           <Card.Content>
             <View style={styles.statusSection}>
               <Text variant="headlineMedium" style={styles.title}>
-                {isPremium ? 'Premium Account' : 'Upgrade to Premium'}
+                {isPremium ? 'Monthly Credit Plan' : 'Choose Your Credits'}
               </Text>
 
-              {isPremium ? (
-                <View style={styles.premiumStatus}>
-                  <IconButton icon="crown" size={48} iconColor="#FFD700" />
-                  <Text variant="bodyLarge" style={styles.statusText}>
-                    You have unlimited access to all features!
-                  </Text>
-                </View>
-              ) : Platform.OS !== 'web' ? (
-                <View style={styles.creditsStatus}>
-                  <Text variant="bodyLarge" style={styles.statusText}>
-                    Current Credits: {credits}
-                  </Text>
-                  <Text variant="bodyMedium" style={styles.description}>
-                    Credits are used for generating character images and other premium features.
-                  </Text>
-                </View>
-              ) : null}
+              <View style={styles.creditsStatus}>
+                <Text variant="bodyLarge" style={styles.statusText}>
+                  {isPremium
+                    ? 'You receive 300 credits each month. Credits expire at the end of each billing cycle.'
+                    : `Current Credits: ${credits}`}
+                </Text>
+                <Text variant="bodyMedium" style={styles.description}>
+                  Credits power chat, voice, images, and more. Purchase more anytime.
+                </Text>
+              </View>
             </View>
           </Card.Content>
         </Card>
@@ -123,7 +116,7 @@ export default function SubscribeScreen() {
                 loading={inFlightAction === 'monthly_20'}
                 style={[styles.actionButton, { marginBottom: 12 }]}
               >
-                Unlimited Subscription - $20/Month
+                300 credits / month · $20
               </Button>
             )}
             <Button
@@ -133,7 +126,7 @@ export default function SubscribeScreen() {
               loading={inFlightAction === 'payg'}
               style={styles.actionButton}
             >
-              Buy 100 Credits - $10
+              100 credits · $10
             </Button>
             <Button
               mode="text"
@@ -170,28 +163,28 @@ export default function SubscribeScreen() {
           <Card style={styles.card}>
             <Card.Content>
               <Text variant="headlineSmall" style={styles.featuresTitle}>
-                Premium Features
+                Why Buy Credits?
               </Text>
 
               <View style={styles.featuresList}>
                 <View style={styles.feature}>
                   <IconButton icon="image" size={24} />
-                  <Text variant="bodyMedium">Unlimited character image generation</Text>
+                  <Text variant="bodyMedium">Generate character images using credits</Text>
                 </View>
 
                 <View style={styles.feature}>
                   <IconButton icon="message" size={24} />
-                  <Text variant="bodyMedium">Enhanced chat capabilities</Text>
+                  <Text variant="bodyMedium">Send more chat and voice replies</Text>
                 </View>
 
                 <View style={styles.feature}>
                   <IconButton icon="account-group" size={24} />
-                  <Text variant="bodyMedium">Create unlimited characters</Text>
+                  <Text variant="bodyMedium">Create and manage more characters</Text>
                 </View>
 
                 <View style={styles.feature}>
                   <IconButton icon="star" size={24} />
-                  <Text variant="bodyMedium">Priority support</Text>
+                  <Text variant="bodyMedium">Priority support for paid customers</Text>
                 </View>
               </View>
             </Card.Content>
@@ -205,8 +198,8 @@ export default function SubscribeScreen() {
             </Text>
             <View style={styles.featuresList}>
               <Text variant="bodyMedium">• Free Tier — 50 credits</Text>
-              <Text variant="bodyMedium">• Unlimited Subscription: $20/month</Text>
-              <Text variant="bodyMedium">• One-time: 100 credits for $10</Text>
+              <Text variant="bodyMedium">• Monthly Plan — 300 credits for $20, renews monthly</Text>
+              <Text variant="bodyMedium">• One-time Pack — 100 credits for $10, valid 31 days</Text>
             </View>
           </Card.Content>
         </Card>

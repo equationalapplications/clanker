@@ -80,6 +80,10 @@ function makeDeps(options: {
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       }),
     },
+    creditService: {
+      spendCredits: async () => 'mock-tx-id',
+      refundCredit: async () => {},
+    },
     getDb: async () => ({
       select() {
         return {
@@ -223,15 +227,14 @@ describe('documentExtractHandler', () => {
     );
   });
 
-  it('rejects non-premium users', async () => {
-    await assert.rejects(
-      () =>
-        documentExtractHandler(
-          makeRequest({ characterId: CHAR_ID, filename: 'f.txt', content, contentHash }),
-          makeDeps({ planTier: 'free' }) as never,
-        ),
-      (e: unknown) => e instanceof HttpsError && e.code === 'permission-denied',
+  it('allows free-plan users to extract documents', async () => {
+    const result = await documentExtractHandler(
+      makeRequest({ characterId: CHAR_ID, filename: 'f.txt', content, contentHash }),
+      makeDeps({ planTier: 'free' }) as never,
     );
+
+    assert.ok(Array.isArray(result.facts));
+    assert.equal(result.truncated, false);
   });
 
   it('rejects when character not owned by user', async () => {

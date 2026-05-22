@@ -403,7 +403,12 @@ export const revenueCatWebhookHandler = async (
             renewalAt
           );
 
-          logger.info("RevenueCat: subscription product change upserted", {
+          if (renewalAt && original_transaction_id && typeof expiration_at_ms === 'number') {
+            const referenceId = `${original_transaction_id}_${expiration_at_ms}`;
+            await deps.renewSubscriptionCredits(cloudUser.id, 300, renewalAt, referenceId);
+          }
+
+          logger.info("RevenueCat: subscription product change upserted + credits renewed", {
             app_user_id,
             tier,
             type,

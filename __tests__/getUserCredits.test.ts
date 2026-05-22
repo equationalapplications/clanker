@@ -26,8 +26,7 @@ describe('getUserCredits', () => {
 
     expect(result).toEqual({
       totalCredits: 0,
-      hasUnlimited: false,
-      subscriptions: [],
+      nextExpiryDate: null,
     })
   })
 
@@ -51,19 +50,13 @@ describe('getUserCredits', () => {
         currentCredits: 12,
         termsVersion: 'v1',
         termsAcceptedAt: null,
+        nextExpiryDate: null,
       },
     })
 
     const result = await getUserCredits()
 
     expect(result.totalCredits).toBe(12)
-    expect(result.hasUnlimited).toBe(false)
-    expect(result.subscriptions).toEqual([
-      {
-        tier: 'monthly_20',
-        credits: 12,
-        isUnlimited: false,
-      },
-    ])
+    expect(result.nextExpiryDate).toBe(null)
   })
 })

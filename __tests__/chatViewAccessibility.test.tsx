@@ -106,7 +106,7 @@ jest.mock('~/hooks/useAIChat', () => ({
   useAIChat: () => ({ sendMessage: jest.fn() }),
 }))
 
-let mockCreditsData: { totalCredits: number; hasUnlimited: boolean } = { totalCredits: 10, hasUnlimited: true }
+let mockCreditsData: { totalCredits: number; nextExpiryDate: string | null } = { totalCredits: 10, nextExpiryDate: null }
 jest.mock('~/hooks/useUserCredits', () => ({
   useUserCredits: () => ({ data: mockCreditsData }),
 }))
@@ -164,7 +164,7 @@ describe('ChatView accessibility', () => {
     capturedGiftedChatProps = null
     mockWikiStatus = { ingesting: false, librarian: false, heal: false }
     mockPlatformOS = 'android'
-    mockCreditsData = { totalCredits: 10, hasUnlimited: true }
+    mockCreditsData = { totalCredits: 10, nextExpiryDate: null }
     withLoggedInUser()
   })
 
@@ -248,7 +248,7 @@ describe('ChatView accessibility', () => {
 
   // ── wiki status region (free tier) ────────────────────────────────────────
   it('wiki status region: renders status banner for free-tier users', () => {
-    mockCreditsData = { totalCredits: 0, hasUnlimited: false }
+    mockCreditsData = { totalCredits: 0, nextExpiryDate: null }
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
     mockWikiStatus = { ingesting: true, librarian: false, heal: false }
     let tree: any

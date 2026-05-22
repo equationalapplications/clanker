@@ -8,6 +8,10 @@
 
 **Tech Stack:** React Native / Expo, XState, `useSelector`, TypeScript
 
+**Branches:**
+origin branch for PR: feat/credits-phase-4-frontend
+local worktree branch for PR: feat/credits-phase-4-frontend
+
 ---
 
 ## Prerequisite

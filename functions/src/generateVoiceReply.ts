@@ -3,11 +3,9 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import {userRepository} from "./services/userRepository.js";
-import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
-const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const TEXT_MODEL = "gemini-2.5-flash";
 const TTS_MODEL = "gemini-2.5-flash-tts";
 const DEFAULT_REGION = "us-central1";
@@ -25,30 +23,13 @@ interface GenerateVoiceReplyData {
   characterEmotions?: string;
 }
 
-interface UsageState {
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  hasUnlimited: boolean;
-  creditBalance: number;
-}
-
-interface UsageSnapshotDetails {
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
-}
-
 export interface GenerateVoiceReplyResponse {
   replyText: string;
   rawReplyText: string;
   audioBase64: string;
   audioMimeType: string;
   creditsSpent: number;
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
+  remainingCredits: number;
 }
 
 type GenerateTextFn = (prompt: string) => Promise<string>;
@@ -57,6 +38,7 @@ type SynthesizeSpeechFn = (text: string, voice: string) => Promise<{audioBase64:
 interface GenerateVoiceReplyOptions {
   generateText?: GenerateTextFn;
   synthesizeSpeech?: SynthesizeSpeechFn;
+  creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
 }
 
 interface CandidatePart {
@@ -106,14 +88,6 @@ function toErrorMessage(error: unknown): string {
 
 function isIdentityConflictError(error: unknown): boolean {
   return toErrorMessage(error).toLowerCase().includes("different firebase uid");
-}
-
-function normalizePlanStatus(status: string | null | undefined): UsageState["planStatus"] {
-  if (status === "active" || status === "cancelled" || status === "expired") {
-    return status;
-  }
-
-  return "expired";
 }
 
 function getProjectId(): string | undefined {
@@ -427,71 +401,17 @@ function parseInput(data: unknown): {
   };
 }
 
-async function fetchUsageState(userId: string): Promise<UsageState> {
-  const existing = await subscriptionService.getSubscription(userId);
-  const sub = existing ?? await subscriptionService.getOrCreateDefaultSubscription(userId);
-
-  const planTier = sub.planTier;
-  const planStatus = normalizePlanStatus(sub.planStatus);
-  const isActive = planStatus === "active";
-  const hasUnlimited = isActive && UNLIMITED_TIERS.has(planTier);
-  const creditBalance = hasUnlimited ? 0 : Math.max(0, sub.currentCredits ?? 0);
-
-  return {
-    planTier,
-    planStatus,
-    hasUnlimited,
-    creditBalance,
-  };
-}
-
-function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
-  return {
-    remainingCredits: usage.hasUnlimited ? null : usage.creditBalance,
-    planTier: usage.planTier,
-    planStatus: usage.planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
-}
-
-function assertUsageAuthorized(usage: UsageState): void {
-  if (!usage.hasUnlimited && usage.creditBalance < 2) {
-    throw new HttpsError(
-      "resource-exhausted",
-      "Insufficient credits. Voice replies cost 2 credits.",
-      toUsageSnapshotDetails(usage)
-    );
-  }
-}
-
-async function spendCreditsIfRequired(
+async function chargeForVoiceReply(
   userId: string,
-  usage: UsageState,
-): Promise<{ txId: string | null; remainingCredits: number | null }> {
-  if (usage.hasUnlimited) {
-    return { txId: null, remainingCredits: null };
+  credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
+): Promise<{ txId: string; remainingCredits: number }> {
+  const txId = await credits.spendCredits(userId, 2);
+  if (txId === null) {
+    throw new HttpsError("failed-precondition", "Insufficient credits to complete voice reply.");
   }
 
-  try {
-    const txId = await creditService.spendCredits(userId, 2);
-    if (!txId) {
-      throw new HttpsError("resource-exhausted", "Insufficient credits to complete voice reply.");
-    }
-
-    const remainingCredits = await creditService.getCredits(userId);
-    return { txId, remainingCredits };
-  } catch (error) {
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-
-    logger.error("Failed to spend credits for voice reply.", {
-      userId,
-      error,
-    });
-
-    throw new HttpsError("internal", "Failed to spend credits for voice reply.");
-  }
+  const remainingCredits = await credits.getCredits(userId);
+  return { txId, remainingCredits };
 }
 
 function cleanReplyText(rawText: string): string {
@@ -543,20 +463,18 @@ const handler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const usage = await fetchUsageState(user.id);
-  assertUsageAuthorized(usage);
-
+  const credits = options.creditService ?? creditService;
   const generateText = options.generateText ?? getTextGenerator();
   const synthesizeSpeech = options.synthesizeSpeech ?? getSpeechSynthesizer();
 
   let rawReplyText: string;
   let spentTransactionId: string | null = null;
-  let remainingCredits: number | null = null;
+  let remainingCredits = 0;
 
   try {
-    const spendResult = await spendCreditsIfRequired(user.id, usage);
-    spentTransactionId = spendResult.txId;
-    remainingCredits = spendResult.remainingCredits;
+    const charge = await chargeForVoiceReply(user.id, credits);
+    spentTransactionId = charge.txId;
+    remainingCredits = charge.remainingCredits;
 
     rawReplyText = (await generateText(input.prompt)).trim();
     if (!rawReplyText) {
@@ -578,16 +496,13 @@ const handler = async (
       rawReplyText,
       audioBase64: audio.audioBase64,
       audioMimeType: audio.audioMimeType,
-      creditsSpent: usage.hasUnlimited ? 0 : 2,
+      creditsSpent: 2,
       remainingCredits,
-      planTier: usage.planTier,
-      planStatus: usage.planStatus,
-      verifiedAt: new Date().toISOString(),
     };
   } catch (error) {
     if (spentTransactionId) {
       try {
-        await creditService.refundCredit(user.id, spentTransactionId, 2);
+        await credits.refundCredit(user.id, spentTransactionId, 2);
       } catch (refundError) {
         logger.error("Failed to refund credits after voice reply failure", {
           userId: user.id,

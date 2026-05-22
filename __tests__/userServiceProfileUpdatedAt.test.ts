@@ -41,6 +41,7 @@ describe('userService profile timestamp mapping', () => {
         currentCredits: 50,
         termsVersion: null,
         termsAcceptedAt: null,
+        nextExpiryDate: null,
       },
     })
 
