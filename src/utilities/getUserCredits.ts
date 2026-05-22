@@ -1,4 +1,4 @@
-import { getCurrentUser, spendCreditsFn } from '../config/firebaseConfig'
+import { getCurrentUser } from '../config/firebaseConfig'
 import { getUserState } from '../services/apiClient'
 
 export interface UserCredits {
@@ -25,35 +25,6 @@ export const getUserCredits = async (): Promise<UserCredits> => {
   } catch (error) {
     console.error('Error checking user credits:', error)
     return { totalCredits: 0, nextExpiryDate: null }
-  }
-}
-
-/**
- * Deduct credits from user's account via server-side Cloud Function.
- * This calls the spendCredits Cloud Function which uses the secure
- * spend_user_credits DB function with service_role access.
- * @param amount - Number of credits to deduct
- * @param description - Description of the spend (e.g. 'image_generation')
- * @param referenceId - Optional reference ID for tracking
- * @returns Promise<boolean> - Success status
- */
-export const deductCredits = async (
-  amount: number,
-  description: string = 'credit_spend',
-  referenceId?: string
-): Promise<boolean> => {
-  if (!getCurrentUser()) {
-    return false
-  }
-
-  try {
-    const result = await spendCreditsFn({ amount, description, referenceId })
-    const data = result.data as { success?: boolean }
-    console.log('✅ deductCredits: Server-side spend result:', data)
-    return data?.success === true
-  } catch (error) {
-    console.error('❌ deductCredits: Error calling spendCredits:', error)
-    return false
   }
 }
 

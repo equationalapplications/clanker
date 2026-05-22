@@ -61,8 +61,8 @@ export default function Support() {
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
             Open the Talk tab, tap the mic, and speak. Your character replies out loud in their
-            chosen voice. Monthly subscribers get unlimited voice replies. Pay-as-you-go users
-            spend 2 credits per reply.
+            chosen voice. Voice replies cost 2 credits per reply, regardless of whether you are
+            on a monthly plan or using one-time credits.
           </Text>
 
           <Divider style={styles.divider} />

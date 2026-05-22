@@ -163,28 +163,28 @@ export default function SubscribeScreen() {
           <Card style={styles.card}>
             <Card.Content>
               <Text variant="headlineSmall" style={styles.featuresTitle}>
-                Premium Features
+                Why Buy Credits?
               </Text>
 
               <View style={styles.featuresList}>
                 <View style={styles.feature}>
                   <IconButton icon="image" size={24} />
-                  <Text variant="bodyMedium">Unlimited character image generation</Text>
+                  <Text variant="bodyMedium">Generate character images using credits</Text>
                 </View>
 
                 <View style={styles.feature}>
                   <IconButton icon="message" size={24} />
-                  <Text variant="bodyMedium">Enhanced chat capabilities</Text>
+                  <Text variant="bodyMedium">Send more chat and voice replies</Text>
                 </View>
 
                 <View style={styles.feature}>
                   <IconButton icon="account-group" size={24} />
-                  <Text variant="bodyMedium">Create unlimited characters</Text>
+                  <Text variant="bodyMedium">Create and manage more characters</Text>
                 </View>
 
                 <View style={styles.feature}>
                   <IconButton icon="star" size={24} />
-                  <Text variant="bodyMedium">Priority support</Text>
+                  <Text variant="bodyMedium">Priority support for paid customers</Text>
                 </View>
               </View>
             </Card.Content>
