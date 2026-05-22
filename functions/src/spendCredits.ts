@@ -14,7 +14,7 @@ if (!admin.apps.length) {
 
 interface SpendCreditsData {
   amount: number;
-  description: string;
+  description?: string;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -60,16 +60,6 @@ const handler = async (request: CallableRequest) => {
     );
   }
 
-  const descriptionIsInvalid = !data.description ||
-    typeof data.description !== "string" ||
-    data.description.trim().length === 0;
-  if (descriptionIsInvalid) {
-    throw new HttpsError(
-      "invalid-argument",
-      "description must be a non-empty string."
-    );
-  }
-
   const amount = Math.floor(data.amount);
   if (amount <= 0) {
     throw new HttpsError(
@@ -77,7 +67,9 @@ const handler = async (request: CallableRequest) => {
       "amount must be at least 1 after rounding down."
     );
   }
-  const description = data.description.trim();
+  const description = typeof data.description === "string"
+    ? data.description.trim() || undefined
+    : undefined;
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {

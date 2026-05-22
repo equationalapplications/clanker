@@ -50,11 +50,54 @@ test("spendCreditsHandler validates amount", async () => {
         },
         data: {
           amount: 0,
-          description: "chat message",
         },
       } as never),
     (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
   );
+});
+
+test("spendCreditsHandler accepts optional description", async () => {
+  await withServiceMocks(async () => {
+    const uid = "firebase-uid-4";
+    const email = "optional-desc@example.com";
+    const user = buildUser(uid, email);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getOrCreateDefaultSubscription = async () => ({
+      id: "sub-4",
+      userId: user.id,
+      planTier: "payg",
+      planStatus: "active",
+      currentCredits: 50,
+      nextExpiryDate: null,
+      termsVersion: null,
+      termsAcceptedAt: null,
+      stripeSubscriptionId: null,
+      stripeCustomerId: null,
+      billingCycleStart: null,
+      billingCycleEnd: null,
+      documentsIngestedCount: 0,
+      documentsIngestedDate: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    creditService.spendCredits = async () => 'mock-tx-id';
+
+    const result = await spendCreditsHandler({
+      auth: {
+        uid,
+        token: {
+          uid,
+          email,
+        },
+      },
+      data: {
+        amount: 1,
+      },
+    } as never);
+
+    assert.deepEqual(result, {success: true});
+  });
 });
 
 test("spendCreditsHandler calls credit service with floored amount", async () => {
@@ -102,7 +145,6 @@ test("spendCreditsHandler calls credit service with floored amount", async () =>
       data: {
         amount: 3.8,
         description: "chat response",
-        referenceId: "message-123",
       },
     } as never);
 
@@ -152,7 +194,6 @@ test("spendCreditsHandler throws resource-exhausted when spend fails", async () 
           },
           data: {
             amount: 1,
-            description: "chat response",
           },
         } as never),
       (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"

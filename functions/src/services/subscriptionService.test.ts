@@ -157,7 +157,10 @@ test('getOrCreateDefaultSubscription does not add signup credits when existing u
                   termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
                 }];
               }
-              return [{ id: 'tx-1' }];
+              return [{
+                id: 'tx-1', userId: 'user-1', delta: 50, reason: 'signup', referenceId: 'signup',
+                initialAmount: 50, remainingBalance: 50, transactionType: 'signup', expiresAt: null,
+              }];
             },
           }),
         }),
@@ -171,4 +174,5 @@ test('getOrCreateDefaultSubscription does not add signup credits when existing u
   const service = createSubscriptionService(mockDeps as never);
   await service.getOrCreateDefaultSubscription('user-1');
   assert.equal(addCreditsWasCalled, false);
+  assert.equal(selectCalls, 3);
 });
