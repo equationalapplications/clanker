@@ -7,9 +7,9 @@ import { and, eq, sql } from 'drizzle-orm';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 import { userRepository } from './services/userRepository.js';
 import { subscriptionService } from './services/subscriptionService.js';
+import { creditService } from './services/creditService.js';
 import { getDb } from './db/cloudSql.js';
 import { characters, subscriptions } from './db/schema.js';
-import { PREMIUM_TIERS } from './constants/plans.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_REGION = 'us-central1';
@@ -54,6 +54,7 @@ export interface DocumentExtractOutput {
 interface DocumentExtractDeps {
   userRepository: Pick<typeof userRepository, 'getOrCreateUserByFirebaseIdentity'>;
   subscriptionService: Pick<typeof subscriptionService, 'getSubscription'>;
+  creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
   getDb: typeof getDb;
   generateContent: (prompt: string) => Promise<string>;
 }
@@ -399,12 +400,22 @@ async function extractChunksConcurrently(
   return { facts: allFacts, failedChunkCount };
 }
 
+async function chargeForDocumentExtract(deps: DocumentExtractDeps, userId: string): Promise<string> {
+  const transactionId = await deps.creditService.spendCredits(userId, 1);
+  if (!transactionId) {
+    throw new HttpsError('resource-exhausted', 'Insufficient credits to extract documents.');
+  }
+
+  return transactionId;
+}
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 export async function documentExtractHandler(
   request: CallableRequest,
   deps: DocumentExtractDeps = {
     userRepository,
     subscriptionService,
+    creditService,
     getDb,
     generateContent: buildGenerateContent(),
   },
@@ -421,22 +432,12 @@ export async function documentExtractHandler(
   // 2. Parse input
   const { characterId, filename, content: rawContent, contentHash: clientHash } = parseInput(request.data);
 
-  // 3. Premium gate
+  // 3. User identity
   const user = await deps.userRepository.getOrCreateUserByFirebaseIdentity({
     firebaseUid: request.auth.uid,
     email: decoded.email ?? '',
     displayName: decoded.name,
   });
-
-  const subscription = await deps.subscriptionService.getSubscription(user.id);
-  const hasUnlimited =
-    subscription !== null &&
-    PREMIUM_TIERS.has(subscription.planTier) &&
-    subscription.planStatus === 'active';
-
-  if (!hasUnlimited) {
-    throw new HttpsError('permission-denied', 'Premium required for document ingest.');
-  }
 
   // 4. Normalize content
   const content = normalizeContent(rawContent);
@@ -554,8 +555,12 @@ export async function documentExtractHandler(
     userId: user.id,
   });
 
+  let transactionId: string | null = null;
   try {
-    // 12. Parallel extraction
+    // 12. Charge for extraction before calling the LLM.
+    transactionId = await chargeForDocumentExtract(deps, user.id);
+
+    // 13. Parallel extraction
     const { facts: rawFacts, failedChunkCount } = await extractChunksConcurrently(chunks, deps.generateContent);
 
     if (rawFacts.length === 0 && failedChunkCount > 0) {
@@ -577,6 +582,22 @@ export async function documentExtractHandler(
     // 14. Return (no DB write — client owns persistence)
     return { facts, contentHash: serverHash, truncated };
   } catch (error) {
+    if (transactionId) {
+      try {
+        await deps.creditService.refundCredit(user.id, transactionId, 1);
+        logger.warn('documentExtract refunded credit after extraction failure', {
+          userId: user.id,
+          transactionId,
+        });
+      } catch (refundError) {
+        logger.error('documentExtract failed to refund credit after failure', {
+          userId: user.id,
+          transactionId,
+          error: refundError instanceof Error ? refundError.message : String(refundError),
+        });
+      }
+    }
+
     try {
       await db
         .update(subscriptions)

@@ -3,11 +3,9 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
-import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
-const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const DEFAULT_MODEL = "gemini-2.5-flash-image";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 2_000;
@@ -24,21 +22,6 @@ interface GenerateImageData {
   prompt: string;
 }
 
-interface UsageState {
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  hasUnlimited: boolean;
-  creditBalance: number;
-}
-
-function normalizePlanStatus(status: string | null | undefined): UsageState["planStatus"] {
-  if (status === "active" || status === "cancelled" || status === "expired") {
-    return status;
-  }
-
-  return "expired";
-}
-
 interface GeneratedImageResult {
   imageBase64: string;
   mimeType: string;
@@ -48,17 +31,7 @@ export interface GenerateImageResponse {
   imageBase64: string;
   mimeType: string;
   creditsSpent: number;
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
-}
-
-interface UsageSnapshotDetails {
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
+  remainingCredits: number;
 }
 
 type GenerateImageFn = (prompt: string) => Promise<GeneratedImageResult>;
@@ -182,77 +155,14 @@ function parseInput(data: unknown): {prompt: string} {
   return { prompt };
 }
 
-async function fetchUsageState(userId: string): Promise<UsageState> {
-  const sub = await subscriptionService.getSubscription(userId);
-  if (!sub) {
-    return {
-      planTier: null,
-      planStatus: "expired",
-      hasUnlimited: false,
-      creditBalance: 0,
-    };
+async function chargeForImage(userId: string): Promise<{ transactionId: string; remainingCredits: number }> {
+  const transactionId = await creditService.spendCredits(userId, 1);
+  if (transactionId === null) {
+    throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
 
-  const planTier = sub.planTier;
-  const planStatus = normalizePlanStatus(sub.planStatus);
-  const isActive = planStatus === "active";
-  const hasUnlimited = isActive && UNLIMITED_TIERS.has(planTier);
-  const creditBalance = hasUnlimited ? 0 : Math.max(0, sub.currentCredits ?? 0);
-
-  return {
-    planTier,
-    planStatus,
-    hasUnlimited,
-    creditBalance,
-  };
-}
-
-function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
-  return {
-    remainingCredits: usage.hasUnlimited ? null : usage.creditBalance,
-    planTier: usage.planTier,
-    planStatus: usage.planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
-}
-
-function assertUsageAuthorized(usage: UsageState): void {
-  if (!usage.hasUnlimited && usage.creditBalance < 1) {
-    throw new HttpsError(
-      "resource-exhausted",
-      "Insufficient credits. Purchase credits or subscribe for unlimited access.",
-      toUsageSnapshotDetails(usage)
-    );
-  }
-}
-
-async function spendOneCreditIfRequired(
-  userId: string,
-  usage: UsageState,
-): Promise<number | null> {
-  if (usage.hasUnlimited) {
-    return null;
-  }
-
-  try {
-    const txId = await creditService.spendCredits(userId, 1);
-    if (!txId) {
-      throw new HttpsError("resource-exhausted", "Insufficient credits to complete the operation.");
-    }
-
-    return await creditService.getCredits(userId);
-  } catch (error) {
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-
-    logger.error("Failed to spend user credits", {
-      userId,
-      error,
-    });
-
-    throw new HttpsError("internal", "Failed to spend user credits.");
-  }
+  const remainingCredits = await creditService.getCredits(userId);
+  return { transactionId, remainingCredits };
 }
 
 function assertSupportedImageMimeType(mimeType: string): string {
@@ -469,17 +379,64 @@ const handler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const usage = await fetchUsageState(user.id);
-  assertUsageAuthorized(usage);
   assertWithinRateLimit(request.auth.uid);
 
   const generateImage = options.generateImage ?? getImageGenerator();
 
   let imageResult: GeneratedImageResult;
+  let transactionId: string | null = null;
+  let remainingCredits = 0;
+
   try {
+    const charge = await chargeForImage(user.id);
+    transactionId = charge.transactionId;
+    remainingCredits = charge.remainingCredits;
+
     imageResult = await generateImage(prompt);
+
+    if (!imageResult.imageBase64) {
+      throw new HttpsError("internal", "Model returned an empty image payload.");
+    }
+
+    if (imageResult.imageBase64.length > MAX_BASE64_LENGTH) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Generated image payload too large. Please try a simpler prompt."
+      );
+    }
+
+    const normalizedMimeType = assertSupportedImageMimeType(imageResult.mimeType);
+    const latencyMs = Date.now() - start;
+
+    logger.info("generateImage succeeded", {
+      firebaseUid: request.auth.uid,
+      userId: user.id,
+      creditsSpent: 1,
+      remainingCredits,
+      latencyMs,
+      imageBytesApprox: Math.floor(imageResult.imageBase64.length * 0.75),
+    });
+
+    return {
+      imageBase64: imageResult.imageBase64,
+      mimeType: normalizedMimeType,
+      creditsSpent: 1,
+      remainingCredits,
+    };
   } catch (error) {
-    logger.error("generateImage model call failed", {
+    if (transactionId) {
+      try {
+        await creditService.refundCredit(user.id, transactionId, 1);
+      } catch (refundError) {
+        logger.error("Failed to refund credits after generateImage failure", {
+          userId: user.id,
+          transactionId,
+          error: refundError,
+        });
+      }
+    }
+
+    logger.error("generateImage failed", {
       userId: user.id,
       error,
     });
@@ -498,58 +455,6 @@ const handler = async (
 
     throw new HttpsError("internal", "Failed to generate image.");
   }
-
-  if (!imageResult.imageBase64) {
-    throw new HttpsError("internal", "Model returned an empty image payload.");
-  }
-
-  if (imageResult.imageBase64.length > MAX_BASE64_LENGTH) {
-    throw new HttpsError(
-      "resource-exhausted",
-      "Generated image payload too large. Please try a simpler prompt."
-    );
-  }
-
-  const normalizedMimeType = assertSupportedImageMimeType(imageResult.mimeType);
-
-  let remainingCredits: number | null;
-  try {
-    remainingCredits = await spendOneCreditIfRequired(user.id, usage);
-  } catch (error) {
-    logger.error("spendOneCreditIfRequired failed", {
-      firebaseUid: request.auth.uid,
-      userId: user.id,
-      error,
-    });
-
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-
-    throw new HttpsError("internal", "Failed to spend user credits.");
-  }
-
-  const latencyMs = Date.now() - start;
-
-  logger.info("generateImage succeeded", {
-    firebaseUid: request.auth.uid,
-    userId: user.id,
-    planTier: usage.planTier,
-    creditsSpent: usage.hasUnlimited ? 0 : 1,
-    remainingCredits,
-    latencyMs,
-    imageBytesApprox: Math.floor(imageResult.imageBase64.length * 0.75),
-  });
-
-  return {
-    imageBase64: imageResult.imageBase64,
-    mimeType: normalizedMimeType,
-    creditsSpent: usage.hasUnlimited ? 0 : 1,
-    remainingCredits,
-    planTier: usage.planTier,
-    planStatus: usage.planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
 };
 
 export const generateImageHandler = handler;

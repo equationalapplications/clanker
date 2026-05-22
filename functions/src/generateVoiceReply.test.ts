@@ -179,7 +179,7 @@ test("generateVoiceReplyHandler rejects when user has fewer than 2 credits", asy
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 1);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => null;
     creditService.getCredits = async () => 1;
 
     await assert.rejects(
@@ -188,10 +188,7 @@ test("generateVoiceReplyHandler rejects when user has fewer than 2 credits", asy
           {auth, data: {prompt: "hello", characterVoice: "Kore"}} as never,
           {generateText: stubGenerateText, synthesizeSpeech: stubSynthesizeSpeech}
         ),
-      (err: unknown) =>
-        err instanceof HttpsError &&
-        err.code === "resource-exhausted" &&
-        typeof (err.details as {verifiedAt?: unknown})?.verifiedAt === "string"
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
     );
   });
 });
@@ -226,14 +223,11 @@ test("generateVoiceReplyHandler spends 2 credits for payg users", async () => {
 
     assert.equal(result.creditsSpent, 2);
     assert.equal(result.remainingCredits, 3);
-    assert.equal(result.planTier, "payg");
-    assert.equal(result.planStatus, "active");
-    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(spendCalls, 1);
   });
 });
 
-test("generateVoiceReplyHandler does not spend credits for monthly_20 users", async () => {
+test("generateVoiceReplyHandler rejects users without sufficient credits", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
@@ -244,20 +238,20 @@ test("generateVoiceReplyHandler does not spend credits for monthly_20 users", as
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20", 0);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return 'mock-tx-id';
+      return null;
     };
     creditService.getCredits = async () => 0;
 
-    const result = await generateVoiceReplyHandler(
-      {auth, data: {prompt: "hello", characterVoice: "Kore"}} as never,
-      {generateText: stubGenerateText, synthesizeSpeech: stubSynthesizeSpeech}
+    await assert.rejects(
+      async () =>
+        generateVoiceReplyHandler(
+          {auth, data: {prompt: "hello", characterVoice: "Kore"}} as never,
+          {generateText: stubGenerateText, synthesizeSpeech: stubSynthesizeSpeech}
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
     );
 
-    assert.equal(result.creditsSpent, 0);
-    assert.equal(result.remainingCredits, null);
-    assert.equal(result.planTier, "monthly_20");
-    assert.equal(result.planStatus, "active");
-    assert.equal(spendCalls, 0);
+    assert.equal(spendCalls, 1);
   });
 });
 

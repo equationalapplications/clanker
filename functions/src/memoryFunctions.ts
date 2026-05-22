@@ -4,11 +4,11 @@ import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
-import { PREMIUM_TIERS } from './constants/plans.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { userRepository } from './services/userRepository.js';
 import { subscriptionService } from './services/subscriptionService.js';
+import { creditService } from './services/creditService.js';
 import { getDb } from './db/cloudSql.js';
 import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
 
@@ -16,12 +16,9 @@ const DEFAULT_REGION = 'us-central1';
 const HEAL_MODEL = 'gemini-2.5-flash';
 const HEAL_MAX_OUTPUT_TOKENS = 1_024;
 
-type PlanStatus = 'active' | 'cancelled' | 'expired';
-
 type MemoryIdentity = {
   userId: string;
   firebaseUid: string;
-  hasUnlimited: boolean;
 };
 
 type MemoryReadPayload = {
@@ -127,6 +124,7 @@ type MemoryHealDiff = {
 type MemoryFunctionDeps = {
   userRepository: Pick<typeof userRepository, 'getOrCreateUserByFirebaseIdentity'>;
   subscriptionService: Pick<typeof subscriptionService, 'getSubscription' | 'getOrCreateDefaultSubscription'>;
+  creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
   getDb: typeof getDb;
   generateContent: (prompt: string) => Promise<string>;
 };
@@ -175,20 +173,13 @@ async function defaultGenerateContent(prompt: string): Promise<string> {
 const defaultDeps: MemoryFunctionDeps = {
   userRepository,
   subscriptionService,
+  creditService,
   getDb,
   generateContent: defaultGenerateContent,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function normalizePlanStatus(status: string | null | undefined): PlanStatus {
-  if (status === 'active' || status === 'cancelled' || status === 'expired') {
-    return status;
-  }
-
-  return 'expired';
 }
 
 function parseCharacterId(data: unknown): string {
@@ -535,15 +526,12 @@ async function authenticateAndResolveIdentity(
     avatarUrl: decoded.picture || null,
   });
 
-  const existing = await deps.subscriptionService.getSubscription(user.id);
-  const subscription = existing ?? (await deps.subscriptionService.getOrCreateDefaultSubscription(user.id));
-  const planStatus = normalizePlanStatus(subscription.planStatus);
-  const hasUnlimited = planStatus === 'active' && PREMIUM_TIERS.has(subscription.planTier);
+  await deps.subscriptionService.getSubscription(user.id);
+  await deps.subscriptionService.getOrCreateDefaultSubscription(user.id);
 
   return {
     userId: user.id,
     firebaseUid: request.auth.uid,
-    hasUnlimited,
   };
 }
 
@@ -574,18 +562,6 @@ function buildEmptyReadResponse(characterId: string, query: string) {
     tasks: [] as MemoryWriteTask[],
     events: [] as MemoryWriteEvent[],
     synonyms: [] as MemoryWriteSynonym[],
-  };
-}
-
-function buildEmptyHealDiff(): MemoryHealDiff {
-  return {
-    contradictionsFlagged: 0,
-    staleDowngraded: 0,
-    orphansRemoved: 0,
-    conceptsSeeded: 0,
-    entries: [],
-    tasks: [],
-    events: [],
   };
 }
 
@@ -1443,10 +1419,6 @@ export const memoryReadHandler = async (
   const characterId = parseCharacterId(payload);
   const query = parseOptionalQuery(payload);
 
-  if (!identity.hasUnlimited) {
-    throw new HttpsError('permission-denied', 'Memory read is available only for unlimited plans.');
-  }
-
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
   if (!ownsCharacter) {
     return buildEmptyReadResponse(characterId, query);
@@ -1511,22 +1483,50 @@ export const memoryWriteHandler = async (
   const sourceText = parseSourceText(payload);
   const sourceType = parseSourceType(payload);
 
-  if (!identity.hasUnlimited) {
-    throw new HttpsError('permission-denied', 'Memory write is available only for unlimited plans.');
-  }
-
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
   const seedEntries = ownsCharacter ? await loadWriteSeed(deps, characterId, identity.userId, identity.firebaseUid) : [];
-  const diff = await buildWriteDiff(characterId, identity.firebaseUid, sourceText, sourceType, seedEntries, !ownsCharacter, deps.generateContent);
 
-  if (ownsCharacter) {
-    await persistWriteDiff(deps, characterId, identity.userId, diff);
-    for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
-    for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
-    for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
+  let transactionId: string | null = null;
+  try {
+    transactionId = await deps.creditService.spendCredits(identity.userId, 1);
+    if (transactionId === null) {
+      throw new HttpsError('failed-precondition', 'Insufficient credits.');
+    }
+
+    const diff = await buildWriteDiff(characterId, identity.firebaseUid, sourceText, sourceType, seedEntries, !ownsCharacter, deps.generateContent);
+
+    if (ownsCharacter) {
+      await persistWriteDiff(deps, characterId, identity.userId, diff);
+      for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
+      for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
+      for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
+    }
+
+    return { diff };
+  } catch (error) {
+    if (transactionId) {
+      try {
+        await deps.creditService.refundCredit(identity.userId, transactionId, 1);
+      } catch (refundError) {
+        logger.error('Failed to refund credits after memoryWrite failure', {
+          userId: identity.userId,
+          transactionId,
+          error: refundError,
+        });
+      }
+    }
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    logger.error('memoryWrite failed', {
+      userId: identity.userId,
+      error,
+    });
+
+    throw new HttpsError('internal', 'Failed to write memory.');
   }
-
-  return { diff };
 };
 
 export const memoryHealHandler = async (
@@ -1535,12 +1535,6 @@ export const memoryHealHandler = async (
 ) => {
   const identity = await authenticateAndResolveIdentity(request, deps);
   const characterId = parseCharacterId(request.data);
-
-  if (!identity.hasUnlimited) {
-    return {
-      diff: buildEmptyHealDiff(),
-    };
-  }
 
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
 
@@ -1553,18 +1547,49 @@ export const memoryHealHandler = async (
     };
   }
 
-  const diff = await buildHealDiff(deps, characterId, identity.userId, identity.firebaseUid, seed);
+  let transactionId: string | null = null;
+  try {
+    transactionId = await deps.creditService.spendCredits(identity.userId, 1);
+    if (transactionId === null) {
+      throw new HttpsError('failed-precondition', 'Insufficient credits.');
+    }
 
-  if (ownsCharacter) {
-    await persistHealDiff(deps, characterId, identity.userId, diff);
-    for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
-    for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
-    for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
+    const diff = await buildHealDiff(deps, characterId, identity.userId, identity.firebaseUid, seed);
+
+    if (ownsCharacter) {
+      await persistHealDiff(deps, characterId, identity.userId, diff);
+      for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
+      for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
+      for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
+    }
+
+    return {
+      diff,
+    };
+  } catch (error) {
+    if (transactionId) {
+      try {
+        await deps.creditService.refundCredit(identity.userId, transactionId, 1);
+      } catch (refundError) {
+        logger.error('Failed to refund credits after memoryHeal failure', {
+          userId: identity.userId,
+          transactionId,
+          error: refundError,
+        });
+      }
+    }
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    logger.error('memoryHeal failed', {
+      userId: identity.userId,
+      error,
+    });
+
+    throw new HttpsError('internal', 'Failed to heal memory.');
   }
-
-  return {
-    diff,
-  };
 };
 
 export const memoryForgetHandler = async (
@@ -1576,10 +1601,6 @@ export const memoryForgetHandler = async (
 
   const characterId = parseCharacterId(payload);
   const targets = parseForgetTargets(payload);
-
-  if (!identity.hasUnlimited) {
-    throw new HttpsError('permission-denied', 'Memory forget is available only for unlimited plans.');
-  }
 
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
   if (!ownsCharacter) {
@@ -1706,14 +1727,6 @@ export const syncCharacterMemoryHandler = async (
 ) => {
   const identity = await authenticateAndResolveIdentity(request, deps);
   const characterId = parseCharacterId(request.data);
-
-  if (!identity.hasUnlimited) {
-    return {
-      syncedEntries: 0,
-      syncedTasks: 0,
-      syncedEvents: 0,
-    };
-  }
 
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
   if (!ownsCharacter) {

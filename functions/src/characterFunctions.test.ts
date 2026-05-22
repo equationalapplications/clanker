@@ -50,6 +50,14 @@ function buildDeps(): CharacterFunctionDeps {
         throw new Error("Unexpected subscription service call");
       },
     },
+    creditService: {
+      spendCredits: async () => {
+        throw new Error("Unexpected creditService.spendCredits call");
+      },
+      refundCredit: async () => {
+        throw new Error("Unexpected creditService.refundCredit call");
+      },
+    },
   } as unknown as CharacterFunctionDeps;
 }
 
@@ -179,6 +187,140 @@ test("syncCharacterHandler returns timestamps as ISO strings", async () => {
   assert.equal(typeof result.updatedAt, "string");
   assert.equal(result.createdAt, createdAt.toISOString());
   assert.equal(result.updatedAt, updatedAt.toISOString());
+});
+
+test("syncCharacterHandler spends a credit before saving a cloud character", async () => {
+  const auth = {
+    uid: "firebase-uid-2",
+    token: {
+      uid: "firebase-uid-2",
+      email: "credit@example.com",
+    },
+  };
+  let spent = false;
+
+  const result = await syncCharacterHandler(
+    {
+      auth,
+      data: {
+        character: {
+          name: "Nova",
+        },
+      },
+    } as never,
+    {
+      userRepository: {
+        findUserByFirebaseUid: async () => ({id: "user-2"} as never),
+      },
+      subscriptionService: {
+        getSubscription: async () => ({planTier: "payg", planStatus: "active"} as never),
+      },
+      characterService: {
+        upsertCharacter: async () => ({ id: "character-1" } as never),
+      },
+      creditService: {
+        spendCredits: async () => {
+          spent = true;
+          return 'tx-123';
+        },
+        refundCredit: async () => {
+          throw new Error('Should not refund when sync succeeds');
+        },
+      },
+    } as unknown as CharacterFunctionDeps
+  );
+
+  assert.equal((result as Record<string, unknown>).id, "character-1");
+  assert.equal(spent, true);
+});
+
+test("syncCharacterHandler refunds credit when character save fails", async () => {
+  const auth = {
+    uid: "firebase-uid-3",
+    token: {
+      uid: "firebase-uid-3",
+      email: "refund@example.com",
+    },
+  };
+  let refunded = false;
+
+  await assert.rejects(
+    async () =>
+      syncCharacterHandler(
+        {
+          auth,
+          data: {
+            character: {
+              name: "Nova",
+            },
+          },
+        } as never,
+        {
+          userRepository: {
+            findUserByFirebaseUid: async () => ({id: "user-3"} as never),
+          },
+          subscriptionService: {
+            getSubscription: async () => ({planTier: "payg", planStatus: "active"} as never),
+          },
+          characterService: {
+            upsertCharacter: async () => {
+              throw new Error("DB unavailable");
+            },
+          },
+          creditService: {
+            spendCredits: async () => 'tx-456',
+            refundCredit: async () => {
+              refunded = true;
+            },
+          },
+        } as unknown as CharacterFunctionDeps
+      ),
+    (err: unknown) => err instanceof HttpsError && err.code === "internal"
+  );
+
+  assert.equal(refunded, true);
+});
+
+test("syncCharacterHandler rejects when insufficient credits", async () => {
+  const auth = {
+    uid: "firebase-uid-4",
+    token: {
+      uid: "firebase-uid-4",
+      email: "insufficient@example.com",
+    },
+  };
+
+  await assert.rejects(
+    async () =>
+      syncCharacterHandler(
+        {
+          auth,
+          data: {
+            character: {
+              name: "Nova",
+            },
+          },
+        } as never,
+        {
+          userRepository: {
+            findUserByFirebaseUid: async () => ({id: "user-4"} as never),
+          },
+          subscriptionService: {
+            getSubscription: async () => ({planTier: "payg", planStatus: "active"} as never),
+          },
+          characterService: {
+            upsertCharacter: async () => ({ id: "character-1" } as never),
+          },
+          creditService: {
+            spendCredits: async () => null,
+            refundCredit: async () => {
+              throw new Error('Should not refund when spend fails');
+            },
+          },
+        } as unknown as CharacterFunctionDeps
+      ),
+    (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+  );
 });
 
 test("syncCharacterHandler ignores client-supplied createdAt and updatedAt", async () => {
@@ -428,97 +570,99 @@ test("syncCharacterHandler rejects invalid timestamp value types", async () => {
   );
 });
 
-test("syncCharacterHandler rejects users without cloud-character subscription access", async () => {
-  await assert.rejects(
-    async () =>
-      syncCharacterHandler(
-        {
-          auth,
-          data: {
-            character: {
-              name: "Nova",
-            },
-          },
-        } as never,
-        {
-          userRepository: {
-            findUserByFirebaseUid: async () => ({id: "user-1"} as never),
-          },
-          subscriptionService: {
-            getSubscription: async () => ({planTier: "free", planStatus: "active"} as never),
-          },
-          characterService: {
-            upsertCharacter: async () => {
-              throw new Error("Unexpected character service call");
-            },
-          },
-        } as unknown as CharacterFunctionDeps
-      ),
-    (err: unknown) =>
-      err instanceof HttpsError &&
-      err.code === "permission-denied" &&
-      err.message.includes("subscription is required")
+test("syncCharacterHandler allows users without cloud-character subscription access", async () => {
+  const result = await syncCharacterHandler(
+    {
+      auth,
+      data: {
+        character: {
+          name: "Nova",
+        },
+      },
+    } as never,
+    {
+      userRepository: {
+        findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+      },
+      characterService: {
+        upsertCharacter: async () => ({ id: "character-1" } as never),
+      },
+    } as unknown as CharacterFunctionDeps
   );
+
+  assert.equal((result as Record<string, unknown>).id, "character-1");
+  assert.equal((result as Record<string, unknown>).ownerUserId, "firebase-uid-1");
 });
 
-test("getUserCharactersHandler rejects users without cloud-character subscription access", async () => {
-  await assert.rejects(
-    async () =>
-      getUserCharactersHandler(
-        {
-          auth,
-          data: {},
-        } as never,
-        {
-          userRepository: {
-            findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+test("getUserCharactersHandler allows users without cloud-character subscription access", async () => {
+  const result = await getUserCharactersHandler(
+    {
+      auth,
+      data: {},
+    } as never,
+    {
+      userRepository: {
+        findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+      },
+      characterService: {
+        getUserCharacters: async () => ([
+          {
+            id: "character-1",
+            userId: "user-1",
+            name: "Nova",
+            avatar: null,
+            appearance: null,
+            traits: null,
+            emotions: null,
+            context: null,
+            isPublic: false,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-02T00:00:00.000Z"),
           },
-          subscriptionService: {
-            getSubscription: async () => ({planTier: "free", planStatus: "active"} as never),
-          },
-          characterService: {
-            getUserCharacters: async () => {
-              throw new Error("Unexpected character service call");
-            },
-          },
-        } as unknown as CharacterFunctionDeps
-      ),
-    (err: unknown) =>
-      err instanceof HttpsError &&
-      err.code === "permission-denied" &&
-      err.message.includes("subscription is required")
+        ] as never),
+      },
+    } as unknown as CharacterFunctionDeps
   );
+
+  assert.equal(result.characters.length, 1);
+  assert.equal(result.characters[0]?.ownerUserId, "firebase-uid-1");
 });
 
-test("getPublicCharacterHandler rejects users without cloud-character subscription access", async () => {
-  await assert.rejects(
-    async () =>
-      getPublicCharacterHandler(
-        {
-          auth,
-          data: {
-            characterId: "123e4567-e89b-42d3-a456-426614174000",
+test("getPublicCharacterHandler allows users without cloud-character subscription access", async () => {
+  const result = await getPublicCharacterHandler(
+    {
+      auth,
+      data: {
+        characterId: "123e4567-e89b-42d3-a456-426614174000",
+      },
+    } as never,
+    {
+      userRepository: {
+        findUserByFirebaseUid: async () => ({id: "user-1"} as never),
+      },
+      characterService: {
+        getPublicCharacterWithOwner: async () => ({
+          character: {
+            id: "character-1",
+            userId: "user-1",
+            name: "Nova",
+            avatar: null,
+            appearance: null,
+            traits: null,
+            emotions: null,
+            context: null,
+            isPublic: true,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-02T00:00:00.000Z"),
           },
-        } as never,
-        {
-          userRepository: {
-            findUserByFirebaseUid: async () => ({id: "user-1"} as never),
-          },
-          subscriptionService: {
-            getSubscription: async () => ({planTier: "free", planStatus: "active"} as never),
-          },
-          characterService: {
-            getPublicCharacterWithOwner: async () => {
-              throw new Error("Unexpected character service call");
-            },
-          },
-        } as unknown as CharacterFunctionDeps
-      ),
-    (err: unknown) =>
-      err instanceof HttpsError &&
-      err.code === "permission-denied" &&
-      err.message.includes("subscription is required")
+          ownerFirebaseUid: "firebase-uid-1",
+        } as never),
+      },
+    } as unknown as CharacterFunctionDeps
   );
+
+  assert.equal((result as Record<string, unknown>).id, "character-1");
+  assert.equal((result as Record<string, unknown>).name, "Nova");
 });
 test("getPublicCharacterHandler returns shared public character", async () => {
   const createdAt = new Date("2026-01-01T00:00:00.000Z");

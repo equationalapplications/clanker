@@ -56,7 +56,7 @@ test("spendCreditsHandler validates amount", async () => {
   );
 });
 
-test("spendCreditsHandler accepts optional description", async () => {
+test("spendCreditsHandler succeeds with valid amount", async () => {
   await withServiceMocks(async () => {
     const uid = "firebase-uid-4";
     const email = "optional-desc@example.com";
@@ -144,7 +144,6 @@ test("spendCreditsHandler calls credit service with floored amount", async () =>
       },
       data: {
         amount: 3.8,
-        description: "chat response",
       },
     } as never);
 
@@ -222,7 +221,6 @@ test("spendCreditsHandler maps identity conflicts to failed-precondition", async
           },
           data: {
             amount: 1,
-            description: "chat response",
           },
         } as never),
       (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
@@ -271,7 +269,6 @@ test("spendCreditsHandler bootstraps default subscription before spending", asyn
       },
       data: {
         amount: 1,
-        description: "chat response",
       },
     } as never);
 
