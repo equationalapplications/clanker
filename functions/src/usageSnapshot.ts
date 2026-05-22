@@ -11,9 +11,14 @@ export interface UsageSnapshot {
 
 const VALID_PLAN_STATUSES = new Set(['active', 'cancelled', 'expired']);
 
-export function buildUsageSnapshot(subscription: SubscriptionRow | null): UsageSnapshot {
+export function buildUsageSnapshot(
+  subscription: SubscriptionRow | null,
+  verifiedAt?: string
+): UsageSnapshot {
+  const timestamp = verifiedAt ?? new Date().toISOString();
+
   if (!subscription) {
-    return { planTier: null, planStatus: null, verifiedAt: new Date().toISOString() };
+    return { planTier: null, planStatus: null, verifiedAt: timestamp };
   }
 
   const planStatus = VALID_PLAN_STATUSES.has(subscription.planStatus)
@@ -23,6 +28,6 @@ export function buildUsageSnapshot(subscription: SubscriptionRow | null): UsageS
   return {
     planTier: subscription.planTier,
     planStatus,
-    verifiedAt: new Date().toISOString(),
+    verifiedAt: timestamp,
   };
 }

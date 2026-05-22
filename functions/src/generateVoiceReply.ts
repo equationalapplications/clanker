@@ -481,6 +481,7 @@ const handler = async (
     const charge = await chargeForVoiceReply(user.id, credits);
     spentTransactionId = charge.txId;
     remainingCredits = charge.remainingCredits;
+    const verifiedAt = new Date().toISOString();
 
     rawReplyText = (await generateText(input.prompt)).trim();
     if (!rawReplyText) {
@@ -500,13 +501,13 @@ const handler = async (
     let usageSnapshot: ReturnType<typeof buildUsageSnapshot>;
     try {
       const subscription = await subscriptionService.getSubscription(user.id);
-      usageSnapshot = buildUsageSnapshot(subscription);
+      usageSnapshot = buildUsageSnapshot(subscription, verifiedAt);
     } catch (snapshotError) {
       logger.warn("Failed to fetch subscription for usage snapshot in generateVoiceReply", {
         userId: user.id,
         error: snapshotError,
       });
-      usageSnapshot = buildUsageSnapshot(null);
+      usageSnapshot = buildUsageSnapshot(null, verifiedAt);
     }
 
     return {

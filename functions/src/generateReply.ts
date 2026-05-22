@@ -272,6 +272,7 @@ const handler = async (
     const charge = await chargeForReply(user.id, credits);
     transactionId = charge.transactionId;
     remainingCredits = charge.remainingCredits;
+    const verifiedAt = new Date().toISOString();
 
     reply = (await generateText(prompt)).trim();
     if (!reply) {
@@ -281,13 +282,13 @@ const handler = async (
     let usageSnapshot: ReturnType<typeof buildUsageSnapshot>;
     try {
       const subscription = await subscriptionService.getSubscription(user.id);
-      usageSnapshot = buildUsageSnapshot(subscription);
+      usageSnapshot = buildUsageSnapshot(subscription, verifiedAt);
     } catch (snapshotError) {
       logger.warn("Failed to fetch subscription for usage snapshot in generateReply", {
         userId: user.id,
         error: snapshotError,
       });
-      usageSnapshot = buildUsageSnapshot(null);
+      usageSnapshot = buildUsageSnapshot(null, verifiedAt);
     }
 
     return {
