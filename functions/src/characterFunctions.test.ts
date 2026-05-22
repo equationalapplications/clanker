@@ -180,6 +180,10 @@ test("syncCharacterHandler returns timestamps as ISO strings", async () => {
           updatedAt,
         } as never),
       },
+      creditService: {
+        spendCredits: async () => 'tx-123',
+        refundCredit: async () => {},
+      },
     } as unknown as CharacterFunctionDeps
   );
 
@@ -356,6 +360,10 @@ test("syncCharacterHandler ignores client-supplied createdAt and updatedAt", asy
           } as never;
         },
       },
+      creditService: {
+        spendCredits: async () => 'tx-123',
+        refundCredit: async () => {},
+      },
     } as unknown as CharacterFunctionDeps
   );
 
@@ -397,6 +405,10 @@ test("syncCharacterHandler defaults null voice to Umbriel", async () => {
           } as never;
         },
       },
+      creditService: {
+        spendCredits: async () => 'tx-123',
+        refundCredit: async () => {},
+      },
     } as unknown as CharacterFunctionDeps
   );
 
@@ -434,6 +446,10 @@ test("syncCharacterHandler leaves voice undefined when omitted", async () => {
             updatedAt: new Date("2026-01-02T00:00:00.000Z"),
           } as never;
         },
+      },
+      creditService: {
+        spendCredits: async () => 'tx-123',
+        refundCredit: async () => {},
       },
     } as unknown as CharacterFunctionDeps
   );
@@ -474,6 +490,10 @@ test("syncCharacterHandler defaults empty voice string to Umbriel", async () => 
             updatedAt: new Date("2026-01-02T00:00:00.000Z"),
           } as never;
         },
+      },
+      creditService: {
+        spendCredits: async () => 'tx-123',
+        refundCredit: async () => {},
       },
     } as unknown as CharacterFunctionDeps
   );
@@ -560,8 +580,12 @@ test("syncCharacterHandler rejects invalid timestamp value types", async () => {
               createdAt: {invalid: true},
               updatedAt: new Date("2026-01-02T00:00:00.000Z"),
             } as never),
-          },
-        } as unknown as CharacterFunctionDeps
+      },
+      creditService: {
+        spendCredits: async () => 'tx-123',
+        refundCredit: async () => {},
+      },
+    } as unknown as CharacterFunctionDeps
       ),
     (err: unknown) =>
       err instanceof HttpsError &&
@@ -586,6 +610,10 @@ test("syncCharacterHandler allows users without cloud-character subscription acc
       },
       characterService: {
         upsertCharacter: async () => ({ id: "character-1" } as never),
+      },
+      creditService: {
+        spendCredits: async () => 'tx-123',
+        refundCredit: async () => {},
       },
     } as unknown as CharacterFunctionDeps
   );
@@ -735,6 +763,10 @@ test("syncCharacterHandler rejects when character belongs to another user", asyn
             throw new CharacterOwnershipError();
           },
         },
+        creditService: {
+          spendCredits: async () => 'tx-123',
+          refundCredit: async () => {},
+        },
       } as unknown as CharacterFunctionDeps
     ),
     (err: unknown) =>
@@ -805,6 +837,10 @@ test("syncCharacterHandler response includes ownerUserId", async () => {
           createdAt: new Date("2026-01-01T00:00:00.000Z"),
           updatedAt: new Date("2026-01-02T00:00:00.000Z"),
         } as never),
+      },
+      creditService: {
+        spendCredits: async () => 'tx-123',
+        refundCredit: async () => {},
       },
     } as unknown as CharacterFunctionDeps
   );
