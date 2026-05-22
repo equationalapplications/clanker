@@ -30,7 +30,6 @@ type GenerateImageResponse = {
   mimeType: string
   creditsSpent: number
   remainingCredits: number
-  planTier: string | null
 }
 ```
 

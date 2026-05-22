@@ -53,12 +53,10 @@ Semantics:
 ## Authorization And Billing Rules
 
 1. Resolve Cloud SQL user from Firebase identity (create on first authenticated call when absent).
-2. Load active row from `subscriptions` for that user.
-3. Authorize usage:
-- Require aggregate `current_credits >= 1`.
-4. Spend exactly 1 credit via the Cloud SQL-backed credit service; capture the `transactionId` of the decremented row.
-5. Generate text reply with Vertex AI.
-6. On model failure: refund 1 credit to the same grant row via `transactionId`, then return `internal` error.
+2. Ensure Cloud SQL user and subscription row exist.
+3. Reserve one credit via the Cloud SQL-backed credit service; capture the `transactionId`.
+4. Generate text reply with Vertex AI.
+5. On model failure: refund 1 credit to the same grant row via `transactionId`, then return `internal` error.
 
 Generation limits:
 - Vertex model config sets `maxOutputTokens = 1024` for cost/latency control.
