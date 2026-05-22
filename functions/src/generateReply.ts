@@ -5,13 +5,12 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
+import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
-const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 12_000;
-const MAX_REFERENCE_ID_LENGTH = 128;
 const MAX_OUTPUT_TOKENS = 1_024;
 
 // Initialize the Admin SDK if not already initialized
@@ -21,37 +20,14 @@ if (!admin.apps.length) {
 
 interface GenerateReplyData {
   prompt: string;
-  referenceId?: string;
-}
-
-interface UsageState {
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  hasUnlimited: boolean;
-  creditBalance: number;
-}
-
-function normalizePlanStatus(status: string | null | undefined): UsageState["planStatus"] {
-  if (status === "active" || status === "cancelled" || status === "expired") {
-    return status;
-  }
-
-  return "expired";
 }
 
 export interface GenerateReplyResponse {
   reply: string;
   creditsSpent: number;
-  remainingCredits: number | null;
+  remainingCredits: number;
   planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
-}
-
-interface UsageSnapshotDetails {
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
+  planStatus: 'active' | 'cancelled' | 'expired' | null;
   verifiedAt: string;
 }
 
@@ -59,6 +35,7 @@ type GenerateTextFn = (prompt: string) => Promise<string>;
 
 interface GenerateReplyOptions {
   generateText?: GenerateTextFn;
+  creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
 }
 
 interface CandidatePart {
@@ -205,7 +182,7 @@ function getTextGenerator(): GenerateTextFn {
   return textGenerator;
 }
 
-function parseInput(data: unknown): {prompt: string; referenceId: string | null} {
+function parseInput(data: unknown): {prompt: string} {
   const payload = data as GenerateReplyData | undefined;
   const promptValue = payload?.prompt;
   const prompt = typeof promptValue === "string" ? promptValue.trim() : "";
@@ -221,88 +198,22 @@ function parseInput(data: unknown): {prompt: string; referenceId: string | null}
     );
   }
 
-  const reference = typeof payload?.referenceId === "string" ? payload.referenceId.trim() : "";
-  if (reference.length > MAX_REFERENCE_ID_LENGTH) {
-    throw new HttpsError(
-      "invalid-argument",
-      `referenceId must be at most ${MAX_REFERENCE_ID_LENGTH} characters.`
-    );
-  }
-
-  return {
-    prompt,
-    referenceId: reference.length > 0 ? reference : null,
-  };
+  return { prompt };
 }
 
-async function fetchUsageState(userId: string): Promise<UsageState> {
-  const existing = await subscriptionService.getSubscription(userId);
-  const sub = existing ?? await subscriptionService.getOrCreateDefaultSubscription(userId);
-
-  const planTier = sub.planTier;
-  const planStatus = normalizePlanStatus(sub.planStatus);
-  const isActive = planStatus === "active";
-  const hasUnlimited = isActive && UNLIMITED_TIERS.has(planTier);
-  const creditBalance = hasUnlimited ? 0 : Math.max(0, sub.currentCredits ?? 0);
-
-  return {
-    planTier,
-    planStatus,
-    hasUnlimited,
-    creditBalance,
-  };
-}
-
-function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
-  return {
-    remainingCredits: usage.hasUnlimited ? null : usage.creditBalance,
-    planTier: usage.planTier,
-    planStatus: usage.planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
-}
-
-function assertUsageAuthorized(usage: UsageState): void {
-  if (!usage.hasUnlimited && usage.creditBalance < 1) {
-    throw new HttpsError(
-      "resource-exhausted",
-      "Insufficient credits. Purchase credits or subscribe for unlimited access.",
-      toUsageSnapshotDetails(usage)
-    );
-  }
-}
-
-async function spendOneCreditIfRequired(
+async function chargeForReply(
   userId: string,
-  usage: UsageState,
-  referenceId: string | null
-): Promise<number | null> {
-  if (usage.hasUnlimited) {
-    return null;
+  credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
+): Promise<{transactionId: string; remainingCredits: number}> {
+  const transactionId = await credits.spendCredits(userId, 1);
+  if (transactionId === null) {
+    throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
 
-  try {
-    const success = await creditService.spendCredits(userId, 1, "chat response", referenceId ?? undefined);
-    if (!success) {
-      throw new HttpsError("resource-exhausted", "Insufficient credits to complete the operation.");
-    }
-    
-    // Get updated credits
-    return await creditService.getCredits(userId);
-  } catch (error) {
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-
-    logger.error("Failed to spend user credits", {
-      userId,
-      referenceId,
-      error,
-    });
-
-    throw new HttpsError("internal", "Failed to spend user credits.");
-  }
+  const remainingCredits = await credits.getCredits(userId);
+  return { transactionId, remainingCredits };
 }
+
 
 const handler = async (
   request: CallableRequest,
@@ -323,7 +234,7 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const {prompt, referenceId} = parseInput(request.data);
+  const {prompt} = parseInput(request.data);
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -350,41 +261,59 @@ const handler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const usage = await fetchUsageState(user.id);
-  assertUsageAuthorized(usage);
-
+  const credits = options.creditService ?? creditService;
   const generateText = options.generateText ?? getTextGenerator();
 
   let reply: string;
+  let transactionId: string | null = null;
+  let remainingCredits = 0;
+
   try {
+    const charge = await chargeForReply(user.id, credits);
+    transactionId = charge.transactionId;
+    remainingCredits = charge.remainingCredits;
+
     reply = (await generateText(prompt)).trim();
+    if (!reply) {
+      throw new HttpsError("internal", "Model returned an empty chat response.");
+    }
+
+    const usageSnapshot = await buildUsageSnapshotForUser(
+      user.id,
+      subscriptionService,
+      'generateReply'
+    );
+
+    return {
+      reply,
+      creditsSpent: 1,
+      remainingCredits,
+      ...usageSnapshot,
+    };
   } catch (error) {
-    logger.error("generateReply model call failed", {
-      userId: user.id,
-      error,
-    });
+    if (transactionId) {
+      try {
+        await credits.refundCredit(user.id, transactionId, 1);
+      } catch (refundError) {
+        logger.error("Failed to refund credits after generateReply failure", {
+          userId: user.id,
+          transactionId,
+          error: refundError,
+        });
+      }
+    }
 
     if (error instanceof HttpsError) {
       throw error;
     }
 
+    logger.error("generateReply failed", {
+      userId: user.id,
+      error,
+    });
+
     throw new HttpsError("internal", "Failed to generate chat response.");
   }
-
-  if (!reply) {
-    throw new HttpsError("internal", "Model returned an empty chat response.");
-  }
-
-  const remainingCredits = await spendOneCreditIfRequired(user.id, usage, referenceId);
-
-  return {
-    reply,
-    creditsSpent: usage.hasUnlimited ? 0 : 1,
-    remainingCredits,
-    planTier: usage.planTier,
-    planStatus: usage.planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
 };
 
 export const generateReplyHandler = handler;

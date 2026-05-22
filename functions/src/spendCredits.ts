@@ -14,8 +14,6 @@ if (!admin.apps.length) {
 
 interface SpendCreditsData {
   amount: number;
-  description: string;
-  referenceId?: string;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -61,16 +59,6 @@ const handler = async (request: CallableRequest) => {
     );
   }
 
-  const descriptionIsInvalid = !data.description ||
-    typeof data.description !== "string" ||
-    data.description.trim().length === 0;
-  if (descriptionIsInvalid) {
-    throw new HttpsError(
-      "invalid-argument",
-      "description must be a non-empty string."
-    );
-  }
-
   const amount = Math.floor(data.amount);
   if (amount <= 0) {
     throw new HttpsError(
@@ -78,11 +66,6 @@ const handler = async (request: CallableRequest) => {
       "amount must be at least 1 after rounding down."
     );
   }
-  const description = data.description.trim();
-  const trimmedReferenceId = data.referenceId && typeof data.referenceId === "string"
-    ? data.referenceId.trim()
-    : "";
-  const referenceId = trimmedReferenceId.length > 0 ? trimmedReferenceId : null;
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -119,13 +102,12 @@ const handler = async (request: CallableRequest) => {
     throw new HttpsError("internal", "Failed to bootstrap user subscription.");
   }
 
-  const success = await creditService.spendCredits(user.id, amount, description, referenceId ?? undefined);
+  const txId = await creditService.spendCredits(user.id, amount);
 
-  if (!success) {
+  if (!txId) {
     logger.warn("spendCredits failed - insufficient credits or user subscription missing", {
       userId: user.id,
       amount,
-      description,
     });
     throw new HttpsError("resource-exhausted", "Insufficient credits.");
   }
@@ -134,7 +116,6 @@ const handler = async (request: CallableRequest) => {
     email,
     userId: user.id,
     amount,
-    description,
   });
 
   return {success: true};

@@ -90,8 +90,8 @@ export default function Profile() {
             <Text variant="titleMedium">Credits: {credits}</Text>
             <Text variant="bodySmall" style={styles.subscriptionText}>
               {isPremium
-                ? 'You have a subscription for unlimited credit'
-                : 'You are using free trial credits.'}
+                ? 'Subscribed plan: 300 credits per month. Credits expire at the end of each billing cycle.'
+                : 'You are using free signup credits. Purchase more credits anytime.'}
             </Text>
           </View>
 

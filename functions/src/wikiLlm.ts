@@ -2,8 +2,7 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import {userRepository} from "./services/userRepository.js";
-import {subscriptionService} from "./services/subscriptionService.js";
-import {PREMIUM_TIERS} from "./constants/plans.js";
+import {creditService as defaultCreditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
@@ -59,7 +58,7 @@ interface VertexGenerateOptions {
   model?: string;
   generateText?: (systemPrompt: string, userPrompt: string) => Promise<string>;
   getUser?: typeof userRepository.getOrCreateUserByFirebaseIdentity;
-  getSubscription?: typeof subscriptionService.getSubscription;
+  creditService?: Pick<typeof defaultCreditService, "spendCredits" | "refundCredit">;
 }
 
 function getTextGenerator(model = DEFAULT_MODEL) {
@@ -121,7 +120,7 @@ export const wikiLlmHandler = async (
   const {systemPrompt, userPrompt} = parseInput(request.data);
 
   const getUser = options.getUser ?? ((args) => userRepository.getOrCreateUserByFirebaseIdentity(args));
-  const getSubscription = options.getSubscription ?? ((userId) => subscriptionService.getSubscription(userId));
+  const credits = options.creditService ?? defaultCreditService;
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -136,26 +135,32 @@ export const wikiLlmHandler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const subscription = await getSubscription(user.id);
-  const isUnlimited =
-    PREMIUM_TIERS.has(subscription?.planTier ?? "") && subscription?.planStatus === "active";
-
-  if (!isUnlimited) {
-    throw new HttpsError("permission-denied", "Wiki LLM requires an active unlimited subscription.");
+  const transactionId = await credits.spendCredits(user.id, 1);
+  if (transactionId === null) {
+    throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
 
   const generateText = options.generateText ?? getTextGenerator();
   let text: string;
   try {
     text = await generateText(systemPrompt, userPrompt);
+    if (!text) {
+      throw new HttpsError("internal", "Model returned an empty response.");
+    }
   } catch (error) {
     logger.error("wikiLlm model call failed", {userId: user.id, error});
+    try {
+      await credits.refundCredit(user.id, transactionId, 1);
+    } catch (refundError) {
+      logger.error("Failed to refund credits after wikiLlm failure", {
+        userId: user.id,
+        transactionId,
+        error: refundError,
+      });
+    }
+
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", "Failed to generate wiki response.");
-  }
-
-  if (!text) {
-    throw new HttpsError("internal", "Model returned an empty response.");
   }
 
   return {text};

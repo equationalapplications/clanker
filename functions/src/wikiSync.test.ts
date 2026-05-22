@@ -4,10 +4,7 @@ import {HttpsError, CallableRequest} from "firebase-functions/v2/https";
 
 import {wikiSyncHandler, MemoryDump} from "./wikiSync.js";
 import {userRepository} from "./services/userRepository.js";
-import {subscriptionService} from "./services/subscriptionService.js";
-
 type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
-type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionService.getSubscription>>>;
 
 let authCounter = 0;
 
@@ -37,29 +34,11 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
   };
 }
 
-function buildSubscription(
-  userId: string,
-  planTier: "payg" | "monthly_20",
-  planStatus: "active" | "cancelled" | "expired" = "active"
-): SubscriptionRecord {
-  return {
-    id: `sub-${userId}`,
-    userId,
-    planTier,
-    planStatus,
-    currentCredits: 10,
-    termsVersion: null,
-    termsAcceptedAt: null,
-    stripeSubscriptionId: null,
-    stripeCustomerId: null,
-    billingCycleStart: null,
-    billingCycleEnd: null,
-    documentsIngestedCount: 0,
-    documentsIngestedDate: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-}
+
+const defaultCreditService = {
+  spendCredits: async () => "tx-123",
+  refundCredit: async () => {},
+};
 
 const TEST_ENTITY_UUID = "00000000-0000-0000-0000-000000000001";
 
@@ -127,7 +106,7 @@ test("wikiSync: rejects missing dump", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -143,7 +122,7 @@ test("wikiSync: rejects missing dump.generatedAt", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -160,7 +139,7 @@ test("wikiSync: rejects NaN dump.generatedAt", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -177,7 +156,7 @@ test("wikiSync: rejects Infinity dump.generatedAt", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -216,7 +195,7 @@ test("wikiSync: rejects non-string tag element", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -255,7 +234,7 @@ test("wikiSync: rejects non-string source_ref", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -280,7 +259,7 @@ test("wikiSync: rejects non-UUID entity keys", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -308,7 +287,7 @@ test("wikiSync: rejects malformed fact (missing required field)", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -344,7 +323,7 @@ test("wikiSync: rejects malformed task (non-numeric priority)", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -380,7 +359,7 @@ test("wikiSync: rejects too many facts per entity", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -390,7 +369,7 @@ test("wikiSync: rejects too many facts per entity", async () => {
   );
 });
 
-test("wikiSync: rejects non-premium users", async () => {
+test("wikiSync: rejects when insufficient credits", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
 
@@ -398,10 +377,13 @@ test("wikiSync: rejects non-premium users", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "payg"),
+      creditService: {
+        spendCredits: async () => null,
+        refundCredit: async () => {},
+      },
     }),
     (err: HttpsError) => {
-      assert.equal(err.code, "permission-denied");
+      assert.equal(err.code, "failed-precondition");
       return true;
     }
   );
@@ -424,11 +406,36 @@ test("wikiSync: accepts valid dump for premium user", async () => {
     validateEntityOwnership,
     fetchMergedDump,
     getUser: async () => user,
-    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
   });
 
   assert.ok(result.remoteDump, "should return remoteDump");
   assert.equal(upserted.length, 1);
+});
+
+test("wikiSync: refunds credits on upsert failure", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  const request = {auth, data: {dump: buildDump()}};
+  let refunded = false;
+
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      upsertEntries: async () => { throw new Error("upsert failed"); },
+      validateEntityOwnership: async () => {},
+      fetchMergedDump: async () => ({ generatedAt: Date.now(), entities: {} }),
+      creditService: {
+        spendCredits: async () => "tx-123",
+        refundCredit: async () => { refunded = true; },
+      },
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "internal");
+      assert.ok(refunded, "refundCredit should be called when wiki sync upsert fails");
+      return true;
+    }
+  );
 });
 
 test("wikiSync: rejects fact with mismatched entity_id", async () => {
@@ -461,7 +468,7 @@ test("wikiSync: rejects fact with mismatched entity_id", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -471,21 +478,28 @@ test("wikiSync: rejects fact with mismatched entity_id", async () => {
   );
 });
 
-test("wikiSync: rejects cancelled subscription", async () => {
+test("wikiSync: accepts cancelled subscription when credits are available", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
 
+  const upserted: unknown[] = [];
+  const upsertEntries = async (entries: unknown[]) => {
+    upserted.push(...entries);
+  };
+  const validateEntityOwnership = async () => {};
+  const fetchMergedDump = async () => ({ generatedAt: Date.now(), entities: {} });
+
   const request = {auth, data: {dump: buildDump()}};
-  await assert.rejects(
-    () => wikiSyncHandler(request as unknown as CallableRequest, {
-      getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20", "cancelled"),
-    }),
-    (err: HttpsError) => {
-      assert.equal(err.code, "permission-denied");
-      return true;
-    }
-  );
+  const result = await wikiSyncHandler(request as CallableRequest, {
+    upsertEntries,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    creditService: defaultCreditService,
+  });
+
+  assert.ok(result.remoteDump, "should return remoteDump");
+  assert.equal(upserted.length, 1);
 });
 
 test("wikiSync: rejects non-numeric resolved_at on task", async () => {
@@ -515,7 +529,7 @@ test("wikiSync: rejects non-numeric resolved_at on task", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -574,7 +588,7 @@ test("wikiSync: last-write-wins semantics via upsertData injection", async () =>
     validateEntityOwnership,
     fetchMergedDump,
     getUser: async () => user,
-    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
   });
   assert.equal(store.get("lww-fact")?.body, "newer body");
 
@@ -594,7 +608,7 @@ test("wikiSync: last-write-wins semantics via upsertData injection", async () =>
     validateEntityOwnership,
     fetchMergedDump,
     getUser: async () => user,
-    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
   });
   // LWW: newer version (body="newer body") must survive the stale update.
   assert.equal(store.get("lww-fact")?.body, "newer body", "stale update must not overwrite newer version");
@@ -657,7 +671,7 @@ test("wikiSync: propagates tombstones (deleted_at) for cross-device deletion", a
     validateEntityOwnership,
     fetchMergedDump,
     getUser: async () => user,
-    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
   });
 
   assert(upsertCalled, "upsertData must be called");
@@ -705,7 +719,7 @@ async function rejectsFact(
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -775,7 +789,7 @@ test("wikiSync: accepts fact with null optional fields", async () => {
     validateEntityOwnership,
     fetchMergedDump,
     getUser: async () => user,
-    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
   });
   assert.ok(result.remoteDump, "should return remoteDump");
 });
@@ -797,7 +811,7 @@ test("wikiSync: accepts fact with valid optional fields set", async () => {
     validateEntityOwnership,
     fetchMergedDump,
     getUser: async () => user,
-    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
   });
   assert.ok(result.remoteDump, "should return remoteDump");
 });
@@ -865,7 +879,7 @@ test("wikiSync: remoteDump includes tombstones from multiple entities", async ()
     validateEntityOwnership: async () => {},
     fetchMergedDump: async () => multiEntityDump,
     getUser: async () => user,
-    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
   });
 
   // Both entities must be in remoteDump
@@ -906,7 +920,7 @@ test("wikiSync: fetchMergedDump is called with all entity ids from the dump", as
     validateEntityOwnership: async () => {},
     fetchMergedDump: fakeFetchMergedDump,
     getUser: async () => user,
-    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: defaultCreditService,
   });
 
   assert.equal(calledWith.length, 1, "fetchMergedDump must be called exactly once");

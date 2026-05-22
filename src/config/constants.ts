@@ -29,9 +29,6 @@ export const PLAN_TIERS = {
 
 export type PlanTier = (typeof PLAN_TIERS)[keyof typeof PLAN_TIERS]
 
-// Subscription tiers where credits are NOT consumed (unlimited usage)
-export const SUBSCRIPTION_TIERS: PlanTier[] = [PLAN_TIERS.MONTHLY_20, PLAN_TIERS.MONTHLY_50]
-
 // RevenueCat product identifiers (must match App Store Connect / Google Play Console)
 // iOS uses 'credit_100' (name was taken on re-creation); Android uses 'credit_pack_100'
 export const REVENUECAT_PRODUCTS = {

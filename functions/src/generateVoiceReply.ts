@@ -5,14 +5,13 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
+import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
-const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const TEXT_MODEL = "gemini-2.5-flash";
 const TTS_MODEL = "gemini-2.5-flash-tts";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 12_000;
-const MAX_REFERENCE_ID_LENGTH = 128;
 const MAX_OUTPUT_TOKENS = 1_024;
 
 if (!admin.apps.length) {
@@ -24,21 +23,6 @@ interface GenerateVoiceReplyData {
   characterVoice: string;
   characterTraits?: string;
   characterEmotions?: string;
-  referenceId?: string;
-}
-
-interface UsageState {
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  hasUnlimited: boolean;
-  creditBalance: number;
-}
-
-interface UsageSnapshotDetails {
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
 }
 
 export interface GenerateVoiceReplyResponse {
@@ -47,9 +31,9 @@ export interface GenerateVoiceReplyResponse {
   audioBase64: string;
   audioMimeType: string;
   creditsSpent: number;
-  remainingCredits: number | null;
+  remainingCredits: number;
   planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
+  planStatus: 'active' | 'cancelled' | 'expired' | null;
   verifiedAt: string;
 }
 
@@ -59,6 +43,7 @@ type SynthesizeSpeechFn = (text: string, voice: string) => Promise<{audioBase64:
 interface GenerateVoiceReplyOptions {
   generateText?: GenerateTextFn;
   synthesizeSpeech?: SynthesizeSpeechFn;
+  creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
 }
 
 interface CandidatePart {
@@ -108,14 +93,6 @@ function toErrorMessage(error: unknown): string {
 
 function isIdentityConflictError(error: unknown): boolean {
   return toErrorMessage(error).toLowerCase().includes("different firebase uid");
-}
-
-function normalizePlanStatus(status: string | null | undefined): UsageState["planStatus"] {
-  if (status === "active" || status === "cancelled" || status === "expired") {
-    return status;
-  }
-
-  return "expired";
 }
 
 function getProjectId(): string | undefined {
@@ -400,7 +377,6 @@ function parseInput(data: unknown): {
   characterVoice: string;
   characterTraits: string;
   characterEmotions: string;
-  referenceId: string | null;
 } {
   const payload = data as GenerateVoiceReplyData | undefined;
   const promptValue = payload?.prompt;
@@ -422,90 +398,27 @@ function parseInput(data: unknown): {
     );
   }
 
-  const reference = typeof payload?.referenceId === "string" ? payload.referenceId.trim() : "";
-  if (reference.length > MAX_REFERENCE_ID_LENGTH) {
-    throw new HttpsError(
-      "invalid-argument",
-      `referenceId must be at most ${MAX_REFERENCE_ID_LENGTH} characters.`
-    );
-  }
-
   return {
     prompt,
     characterVoice,
     characterTraits: typeof payload?.characterTraits === "string" ? payload.characterTraits.trim() : "",
     characterEmotions: typeof payload?.characterEmotions === "string" ? payload.characterEmotions.trim() : "",
-    referenceId: reference.length > 0 ? reference : null,
   };
 }
 
-async function fetchUsageState(userId: string): Promise<UsageState> {
-  const existing = await subscriptionService.getSubscription(userId);
-  const sub = existing ?? await subscriptionService.getOrCreateDefaultSubscription(userId);
-
-  const planTier = sub.planTier;
-  const planStatus = normalizePlanStatus(sub.planStatus);
-  const isActive = planStatus === "active";
-  const hasUnlimited = isActive && UNLIMITED_TIERS.has(planTier);
-  const creditBalance = hasUnlimited ? 0 : Math.max(0, sub.currentCredits ?? 0);
-
-  return {
-    planTier,
-    planStatus,
-    hasUnlimited,
-    creditBalance,
-  };
-}
-
-function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
-  return {
-    remainingCredits: usage.hasUnlimited ? null : usage.creditBalance,
-    planTier: usage.planTier,
-    planStatus: usage.planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
-}
-
-function assertUsageAuthorized(usage: UsageState): void {
-  if (!usage.hasUnlimited && usage.creditBalance < 2) {
-    throw new HttpsError(
-      "resource-exhausted",
-      "Insufficient credits. Voice replies cost 2 credits.",
-      toUsageSnapshotDetails(usage)
-    );
-  }
-}
-
-async function spendCreditsIfRequired(
+async function chargeForVoiceReply(
   userId: string,
-  usage: UsageState,
-  referenceId: string | null
-): Promise<number | null> {
-  if (usage.hasUnlimited) {
-    return null;
+  credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
+): Promise<{ txId: string; remainingCredits: number }> {
+  const txId = await credits.spendCredits(userId, 2);
+  if (txId === null) {
+    throw new HttpsError("failed-precondition", "Insufficient credits to complete voice reply.");
   }
 
-  try {
-    const success = await creditService.spendCredits(userId, 2, "voice reply", referenceId ?? undefined);
-    if (!success) {
-      throw new HttpsError("resource-exhausted", "Insufficient credits to complete voice reply.");
-    }
-
-    return await creditService.getCredits(userId);
-  } catch (error) {
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-
-    logger.error("Failed to spend credits for voice reply.", {
-      userId,
-      referenceId,
-      error,
-    });
-
-    throw new HttpsError("internal", "Failed to spend credits for voice reply.");
-  }
+  const remainingCredits = await credits.getCredits(userId);
+  return { txId, remainingCredits };
 }
+
 
 function cleanReplyText(rawText: string): string {
   return rawText.replace(/\[[^\]]+\]/g, " ").replace(/\s+/g, " ").trim();
@@ -556,51 +469,68 @@ const handler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const usage = await fetchUsageState(user.id);
-  assertUsageAuthorized(usage);
-
+  const credits = options.creditService ?? creditService;
   const generateText = options.generateText ?? getTextGenerator();
   const synthesizeSpeech = options.synthesizeSpeech ?? getSpeechSynthesizer();
 
   let rawReplyText: string;
+  let spentTransactionId: string | null = null;
+  let remainingCredits = 0;
+
   try {
+    const charge = await chargeForVoiceReply(user.id, credits);
+    spentTransactionId = charge.txId;
+    remainingCredits = charge.remainingCredits;
+
     rawReplyText = (await generateText(input.prompt)).trim();
+    if (!rawReplyText) {
+      throw new HttpsError("internal", "Model returned an empty voice reply.");
+    }
+
+    const replyText = cleanReplyText(rawReplyText) || rawReplyText;
+    const styleHints = [input.characterTraits, input.characterEmotions]
+      .filter((part): part is string => !!part)
+      .join(", ");
+    const speechInput = styleHints
+      ? `Speak with these qualities: ${styleHints}\n\n${replyText}`
+      : replyText;
+
+    const audio = await synthesizeSpeech(speechInput, input.characterVoice);
+
+    const usageSnapshot = await buildUsageSnapshotForUser(
+      user.id,
+      subscriptionService,
+      'generateVoiceReply'
+    );
+
+    return {
+      replyText,
+      rawReplyText,
+      audioBase64: audio.audioBase64,
+      audioMimeType: audio.audioMimeType,
+      creditsSpent: 2,
+      remainingCredits,
+      ...usageSnapshot,
+    };
   } catch (error) {
-    logger.error("generateVoiceReply text stage failed", {userId: user.id, error});
+    if (spentTransactionId) {
+      try {
+        await credits.refundCredit(user.id, spentTransactionId, 2);
+      } catch (refundError) {
+        logger.error("Failed to refund credits after voice reply failure", {
+          userId: user.id,
+          transactionId: spentTransactionId,
+          error: refundError,
+        });
+      }
+    }
+
     if (error instanceof HttpsError) {
       throw error;
     }
 
-    throw new HttpsError("internal", "Failed to generate voice reply text.");
+    throw new HttpsError("internal", "Failed to generate voice reply.");
   }
-
-  if (!rawReplyText) {
-    throw new HttpsError("internal", "Model returned an empty voice reply.");
-  }
-
-  const replyText = cleanReplyText(rawReplyText) || rawReplyText;
-  const styleHints = [input.characterTraits, input.characterEmotions]
-    .filter((part): part is string => !!part)
-    .join(", ");
-  const speechInput = styleHints
-    ? `Speak with these qualities: ${styleHints}\n\n${replyText}`
-    : replyText;
-
-  const audio = await synthesizeSpeech(speechInput, input.characterVoice);
-
-  const remainingCredits = await spendCreditsIfRequired(user.id, usage, input.referenceId);
-
-  return {
-    replyText,
-    rawReplyText,
-    audioBase64: audio.audioBase64,
-    audioMimeType: audio.audioMimeType,
-    creditsSpent: usage.hasUnlimited ? 0 : 2,
-    remainingCredits,
-    planTier: usage.planTier,
-    planStatus: usage.planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
 };
 
 export const generateVoiceReplyHandler = handler;

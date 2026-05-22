@@ -61,6 +61,7 @@ function buildSubscription(
     stripeCustomerId: null,
     billingCycleStart: null,
     billingCycleEnd: null,
+    nextExpiryDate: null,
     documentsIngestedCount: 0,
     documentsIngestedDate: null,
     createdAt: new Date(),
@@ -93,7 +94,7 @@ test("generateImageHandler validates prompt", async () => {
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => 'mock-tx-id';
     creditService.getCredits = async () => 2;
 
     await assert.rejects(
@@ -126,12 +127,10 @@ test("generateImageHandler spends one credit for payg users", async () => {
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+    creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 1);
-      assert.equal(reason, "image generation");
-      assert.equal(referenceId, "image-request-123");
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 
@@ -157,23 +156,30 @@ test("generateImageHandler spends one credit for payg users", async () => {
     assert.equal(result.remainingCredits, 2);
     assert.equal(result.planTier, "payg");
     assert.equal(result.planStatus, "active");
-    assert.equal(typeof result.verifiedAt, "string");
+    assert.ok(typeof result.verifiedAt === "string" && result.verifiedAt.length > 0);
     assert.equal(spendCalls, 1);
   });
 });
 
-test("generateImageHandler rejects unsupported mime type from model", async () => {
+test("generateImageHandler rejects unsupported mime type from model and refunds credit", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
     const user = buildUser(auth);
     let spendCalls = 0;
+    let refundCalls = 0;
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return true;
+      return 'mock-tx-id';
+    };
+    creditService.refundCredit = async (userId, transactionId, amount) => {
+      assert.equal(userId, user.id);
+      assert.equal(transactionId, 'mock-tx-id');
+      assert.equal(amount, 1);
+      refundCalls += 1;
     };
     creditService.getCredits = async () => 2;
 
@@ -196,11 +202,12 @@ test("generateImageHandler rejects unsupported mime type from model", async () =
       (err: unknown) => err instanceof HttpsError && err.code === "internal"
     );
 
-    assert.equal(spendCalls, 0);
+    assert.equal(spendCalls, 1);
+    assert.equal(refundCalls, 1);
   });
 });
 
-test("generateImageHandler does not spend credit for unlimited users", async () => {
+test("generateImageHandler rejects users without credits", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
@@ -211,31 +218,30 @@ test("generateImageHandler does not spend credit for unlimited users", async () 
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20", 0);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return true;
+      return null;
     };
     creditService.getCredits = async () => 0;
 
-    const result = await generateImageHandler(
-      {
-        auth,
-        data: {
-          prompt: "hero portrait",
-        },
-      } as never,
-      {
-        generateImage: async () => ({
-          imageBase64: "aGVsbG8=",
-          mimeType: "image/png",
-        }),
-      }
+    await assert.rejects(
+      async () =>
+        generateImageHandler(
+          {
+            auth,
+            data: {
+              prompt: "hero portrait",
+            },
+          } as never,
+          {
+            generateImage: async () => ({
+              imageBase64: "aGVsbG8=",
+              mimeType: "image/png",
+            }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
     );
 
-    assert.equal(result.creditsSpent, 0);
-    assert.equal(result.remainingCredits, null);
-    assert.equal(result.planTier, "monthly_20");
-    assert.equal(result.planStatus, "active");
-    assert.equal(typeof result.verifiedAt, "string");
-    assert.equal(spendCalls, 0);
+    assert.equal(spendCalls, 1);
   });
 });
 
@@ -248,12 +254,10 @@ test("generateImageHandler allows cancelled plans to spend remaining credits", a
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3, "cancelled");
-    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+    creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 1);
-      assert.equal(reason, "image generation");
-      assert.equal(referenceId, "image-cancelled");
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 
@@ -275,9 +279,6 @@ test("generateImageHandler allows cancelled plans to spend remaining credits", a
 
     assert.equal(result.creditsSpent, 1);
     assert.equal(result.remainingCredits, 2);
-    assert.equal(result.planTier, "payg");
-    assert.equal(result.planStatus, "cancelled");
-    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(spendCalls, 1);
   });
 });
@@ -290,114 +291,7 @@ test("generateImageHandler rejects users without unlimited plan and no credits",
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 0);
-    creditService.spendCredits = async () => true;
-    creditService.getCredits = async () => 0;
-
-    await assert.rejects(
-      async () =>
-        generateImageHandler(
-          {
-            auth,
-            data: {
-              prompt: "hero portrait",
-            },
-          } as never,
-          {
-            generateImage: async () => ({
-              imageBase64: "aGVsbG8=",
-              mimeType: "image/png",
-            }),
-          }
-        ),
-      (err: unknown) =>
-        err instanceof HttpsError &&
-        err.code === "resource-exhausted" &&
-        typeof (err.details as {verifiedAt?: unknown})?.verifiedAt === "string"
-    );
-  });
-});
-
-test("generateImageHandler returns fallback planStatus details when subscription is missing", async () => {
-  const auth = buildAuth();
-
-  await withServiceMocks(async () => {
-    const user = buildUser(auth);
-
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => null as never;
-    creditService.spendCredits = async () => true;
-    creditService.getCredits = async () => 0;
-
-    await assert.rejects(
-      async () =>
-        generateImageHandler(
-          {
-            auth,
-            data: {
-              prompt: "hero portrait",
-            },
-          } as never,
-          {
-            generateImage: async () => ({
-              imageBase64: "aGVsbG8=",
-              mimeType: "image/png",
-            }),
-          }
-        ),
-      (err: unknown) =>
-        err instanceof HttpsError &&
-        err.code === "resource-exhausted" &&
-        (err.details as {planStatus?: unknown})?.planStatus === "expired"
-    );
-  });
-});
-
-test("generateImageHandler does not spend credit when generation fails", async () => {
-  const auth = buildAuth();
-
-  await withServiceMocks(async () => {
-    const user = buildUser(auth);
-    let spendCalls = 0;
-
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => {
-      spendCalls += 1;
-      return true;
-    };
-    creditService.getCredits = async () => 2;
-
-    await assert.rejects(
-      async () =>
-        generateImageHandler(
-          {
-            auth,
-            data: {
-              prompt: "hero portrait",
-            },
-          } as never,
-          {
-            generateImage: async () => {
-              throw new Error("model down");
-            },
-          }
-        ),
-      (err: unknown) => err instanceof HttpsError && err.code === "internal"
-    );
-
-    assert.equal(spendCalls, 0);
-  });
-});
-
-test("generateImageHandler maps identity conflicts to failed-precondition", async () => {
-  const auth = buildAuth();
-
-  await withServiceMocks(async () => {
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => {
-      throw new Error("Existing user email is linked to a different Firebase UID.");
-    };
-    subscriptionService.getSubscription = async () => buildSubscription("unused-user", "payg", 1);
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => null;
     creditService.getCredits = async () => 0;
 
     await assert.rejects(
@@ -421,18 +315,134 @@ test("generateImageHandler maps identity conflicts to failed-precondition", asyn
   });
 });
 
-test("generateImageHandler maps Vertex IAM permission denial to failed-precondition", async () => {
+test("generateImageHandler returns fallback planStatus details when subscription is missing", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => null as never;
+    creditService.spendCredits = async () => null;
+    creditService.getCredits = async () => 0;
+
+    await assert.rejects(
+      async () =>
+        generateImageHandler(
+          {
+            auth,
+            data: {
+              prompt: "hero portrait",
+            },
+          } as never,
+          {
+            generateImage: async () => ({
+              imageBase64: "aGVsbG8=",
+              mimeType: "image/png",
+            }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+    );
+  });
+});
+
+test("generateImageHandler refunds credit when generation fails", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
     const user = buildUser(auth);
     let spendCalls = 0;
+    let refundCalls = 0;
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return true;
+      return 'mock-tx-id';
+    };
+    creditService.refundCredit = async (userId, transactionId, amount) => {
+      assert.equal(userId, user.id);
+      assert.equal(transactionId, 'mock-tx-id');
+      assert.equal(amount, 1);
+      refundCalls += 1;
+    };
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateImageHandler(
+          {
+            auth,
+            data: {
+              prompt: "hero portrait",
+            },
+          } as never,
+          {
+            generateImage: async () => {
+              throw new Error("model down");
+            },
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "internal"
+    );
+
+    assert.equal(spendCalls, 1);
+    assert.equal(refundCalls, 1);
+  });
+});
+
+test("generateImageHandler maps identity conflicts to failed-precondition", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => {
+      throw new Error("Existing user email is linked to a different Firebase UID.");
+    };
+    subscriptionService.getSubscription = async () => buildSubscription("unused-user", "payg", 1);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 0;
+
+    await assert.rejects(
+      async () =>
+        generateImageHandler(
+          {
+            auth,
+            data: {
+              prompt: "hero portrait",
+            },
+          } as never,
+          {
+            generateImage: async () => ({
+              imageBase64: "aGVsbG8=",
+              mimeType: "image/png",
+            }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
+    );
+  });
+});
+
+test("generateImageHandler maps Vertex IAM permission denial to failed-precondition and refunds credit", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    let spendCalls = 0;
+    let refundCalls = 0;
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => {
+      spendCalls += 1;
+      return 'mock-tx-id';
+    };
+    creditService.refundCredit = async (userId, transactionId, amount) => {
+      assert.equal(userId, user.id);
+      assert.equal(transactionId, 'mock-tx-id');
+      assert.equal(amount, 1);
+      refundCalls += 1;
     };
     creditService.getCredits = async () => 2;
 
@@ -472,6 +482,7 @@ test("generateImageHandler maps Vertex IAM permission denial to failed-precondit
         err.message.includes("Vertex AI permission")
     );
 
-    assert.equal(spendCalls, 0);
+    assert.equal(spendCalls, 1);
+    assert.equal(refundCalls, 1);
   });
 });

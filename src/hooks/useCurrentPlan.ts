@@ -1,5 +1,5 @@
 import { useSelector } from '@xstate/react'
-import { PLAN_TIERS, SUBSCRIPTION_TIERS, type PlanTier } from '~/config/constants'
+import { PLAN_TIERS, type PlanTier } from '~/config/constants'
 import { useAuthMachine } from '~/hooks/useMachines'
 
 interface CurrentPlan {
@@ -43,7 +43,9 @@ export function useCurrentPlan(): CurrentPlan {
       ? Math.max(0, subscription.currentCredits)
       : null
 
-  const isSubscriber = isActive && tier !== null && SUBSCRIPTION_TIERS.includes(tier)
+  const isSubscriber =
+    isActive &&
+    (tier === PLAN_TIERS.MONTHLY_20 || tier === PLAN_TIERS.MONTHLY_50)
 
   return { tier, isSubscriber, isLoading, remainingCredits }
 }

@@ -18,6 +18,7 @@ export interface SubscriptionSnapshot {
   currentCredits: number
   termsVersion: string | null
   termsAcceptedAt: string | null
+  nextExpiryDate: string | null
 }
 
 export interface BootstrapResponse {

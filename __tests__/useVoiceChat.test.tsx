@@ -232,7 +232,7 @@ describe('useVoiceChat', () => {
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'Insufficient Credits',
-      'Voice replies cost 2 credits. Purchase more or subscribe for unlimited.',
+      'Voice replies cost 2 credits. Purchase more credits to continue.',
       expect.any(Array),
     )
     expect(mockStart).not.toHaveBeenCalled()
@@ -256,7 +256,7 @@ describe('useVoiceChat', () => {
     expect(mockStart).toHaveBeenCalled()
   })
 
-  it('allows subscriber with zero credits', async () => {
+  it('blocks subscriber when remaining credits are below 2', async () => {
     mockUseCurrentPlan.mockReturnValue({ isSubscriber: true, isLoading: false, remainingCredits: 0 })
 
     const { getHookValue } = renderHook()
@@ -266,7 +266,12 @@ describe('useVoiceChat', () => {
       await flushPromises()
     })
 
-    expect(mockStart).toHaveBeenCalled()
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Insufficient Credits',
+      'Voice replies cost 2 credits. Purchase more credits to continue.',
+      expect.any(Array),
+    )
+    expect(mockStart).not.toHaveBeenCalled()
   })
 
   it('sets error when permissions are denied and retries on next tap', async () => {

@@ -18,7 +18,7 @@ const FEATURES = [
   {
     icon: 'microphone-outline' as const,
     title: 'Talk to Your Character',
-    body: 'Tap the mic and speak. Your character replies in their own voice. Monthly subscribers talk for free. Others use 2 credits per reply.',
+    body: 'Tap the mic and speak. Your character replies in their own voice. Voice replies cost 2 credits each.',
   },
   {
     icon: 'cloud-sync-outline' as const,

@@ -85,7 +85,7 @@ describe('CreditsDisplay purchase flows', () => {
 
     mockRefetch.mockResolvedValue(undefined)
     mockUseUserCredits.mockReturnValue({
-      data: { hasUnlimited: false, totalCredits: 42 },
+      data: { totalCredits: 42, nextExpiryDate: null },
       isLoading: false,
       error: null,
       refetch: mockRefetch,
@@ -113,7 +113,7 @@ describe('CreditsDisplay purchase flows', () => {
       await buyButton.props.onPress()
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: 'Unlimited Subscription - $20/Month' })
+    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
 
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('payg')
     expect(mockRefetch).not.toHaveBeenCalled()
@@ -127,7 +127,7 @@ describe('CreditsDisplay purchase flows', () => {
       packageType: 'payg',
     },
     {
-      buttonTestId: 'Unlimited Subscription - $20/Month',
+      buttonTestId: '300 credits / month · $20',
       packageType: 'monthly_20',
     },
   ])('ignores a rapid second same-tab web purchase start for %s', async ({ buttonTestId, packageType }) => {
@@ -170,7 +170,7 @@ describe('CreditsDisplay purchase flows', () => {
       await buyButton.props.onPress()
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: 'Unlimited Subscription - $20/Month' })
+    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
 
     expect(buyButton.props.disabled).toBe(false)
     expect(subscribeButton.props.disabled).toBe(false)
@@ -187,7 +187,7 @@ describe('CreditsDisplay purchase flows', () => {
       tree = create(<CreditsDisplay />)
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: 'Unlimited Subscription - $20/Month' })
+    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
 
     await act(async () => {
       await subscribeButton.props.onPress()
@@ -212,7 +212,7 @@ describe('CreditsDisplay purchase flows', () => {
       tree = create(<CreditsDisplay />)
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: 'Unlimited Subscription - $20/Month' })
+    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
 
     await act(async () => {
       await subscribeButton.props.onPress()
@@ -275,7 +275,7 @@ describe('CreditsDisplay purchase flows', () => {
       )
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: 'Unlimited Subscription - $20/Month' })
+    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
     const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
 
     expect(subscribeButton.props.disabled).toBe(true)
@@ -297,7 +297,7 @@ describe('CreditsDisplay purchase flows', () => {
       )
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: 'Unlimited Subscription - $20/Month' })
+    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
     const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
 
     expect(subscribeButton.props.disabled).toBe(false)

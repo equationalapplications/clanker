@@ -50,8 +50,36 @@ export default function Support() {
             How do credits and subscriptions work?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            Subscriptions unlock app access and provide credits for usage. Credit balances and plan
-            details are available in the Subscribe screen.
+            Chat replies, image generation, voice replies, cloud character saves/sync, document ingestion, and memory writes/heals consume credits. Subscriptions give a monthly credit allowance, and one-time packs
+            grant temporary credits that expire after 31 days.
+          </Text>
+
+          <Text variant="titleSmall" style={styles.question}>
+            How do I get more credits?
+          </Text>
+          <Text variant="bodyMedium" style={styles.bodyText}>
+            Two options:
+            {'\n'}• Monthly subscription ($20/month): 300 credits per billing cycle, renewed automatically
+            {'\n'}• One-time pack ($10): 100 credits, valid for 31 days
+            {'\n'}Purchase from the Subscribe screen in the app.
+          </Text>
+
+          <Text variant="titleSmall" style={styles.question}>
+            Do credits expire?
+          </Text>
+          <Text variant="bodyMedium" style={styles.bodyText}>
+            • Free signup credits (50 credits): never expire
+            {'\n'}• Monthly subscription credits: expire at the end of each billing cycle
+            {'\n'}• One-time credit pack credits: expire 31 days after purchase
+            {'\n'}Your credit balance and next expiry date are shown in the Credits section.
+          </Text>
+
+          <Text variant="titleSmall" style={styles.question}>
+            What happened to unlimited credits?
+          </Text>
+          <Text variant="bodyMedium" style={styles.bodyText}>
+            The unlimited credits plan has been retired. Monthly subscribers now receive
+            300 credits per billing cycle. Your existing credits remain unaffected.
           </Text>
 
           <Divider style={styles.divider} />
@@ -61,8 +89,8 @@ export default function Support() {
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
             Open the Talk tab, tap the mic, and speak. Your character replies out loud in their
-            chosen voice. Monthly subscribers get unlimited voice replies. Pay-as-you-go users
-            spend 2 credits per reply.
+            chosen voice. Voice replies cost 2 credits per reply, regardless of whether you are
+            on a monthly plan or using one-time credits.
           </Text>
 
           <Divider style={styles.divider} />
