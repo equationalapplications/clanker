@@ -14,7 +14,6 @@ if (!admin.apps.length) {
 
 interface SpendCreditsData {
   amount: number;
-  description?: string;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -67,9 +66,6 @@ const handler = async (request: CallableRequest) => {
       "amount must be at least 1 after rounding down."
     );
   }
-  const description = typeof data.description === "string"
-    ? data.description.trim() || undefined
-    : undefined;
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -112,7 +108,6 @@ const handler = async (request: CallableRequest) => {
     logger.warn("spendCredits failed - insufficient credits or user subscription missing", {
       userId: user.id,
       amount,
-      description,
     });
     throw new HttpsError("resource-exhausted", "Insufficient credits.");
   }
@@ -121,7 +116,6 @@ const handler = async (request: CallableRequest) => {
     email,
     userId: user.id,
     amount,
-    description,
   });
 
   return {success: true};

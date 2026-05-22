@@ -2,7 +2,7 @@ import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/
 import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { characterService, CharacterOwnershipError } from './services/characterService.js';
-import { subscriptionService } from './services/subscriptionService.js';
+import { creditService } from './services/creditService.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 import { DEFAULT_VOICE } from './constants/voiceDefaults.js';
 
@@ -28,29 +28,9 @@ type CharacterFunctionDeps = {
     typeof characterService,
     'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters' | 'getPublicCharacterWithOwner'
   >;
-  subscriptionService: Pick<typeof subscriptionService, 'getSubscription'>;
+  creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
 };
 
-const CLOUD_CHARACTER_ALLOWED_PLANS = new Set(['monthly_20', 'monthly_50']);
-
-async function assertCloudCharacterAccess(
-  userId: string,
-  deps: CharacterFunctionDeps
-): Promise<void> {
-  const subscription = await deps.subscriptionService.getSubscription(userId);
-  const hasAccess = Boolean(
-      subscription &&
-      subscription.planStatus === 'active' &&
-      CLOUD_CHARACTER_ALLOWED_PLANS.has(subscription.planTier)
-  );
-
-  if (!hasAccess) {
-    throw new HttpsError(
-      'permission-denied',
-      'An active monthly_20 or monthly_50 subscription is required for cloud character access.'
-    );
-  }
-}
 
 function toISO(value: unknown): string | null {
   if (value === null || value === undefined) {
@@ -128,8 +108,13 @@ export const syncCharacter = onCall(
 
 export const syncCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, subscriptionService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
 ) => {
+  const actualDeps: CharacterFunctionDeps = {
+    ...{userRepository, characterService, creditService},
+    ...deps,
+  };
+
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
   }
@@ -169,14 +154,19 @@ export const syncCharacterHandler = async (
     : undefined;
   const isPublic = parseOptionalIsPublic(character.isPublic);
 
-  const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
+  const user = await actualDeps.userRepository.findUserByFirebaseUid(request.auth.uid);
   if (!user) {
     throw new HttpsError('not-found', 'User not found.');
   }
-  await assertCloudCharacterAccess(user.id, deps);
 
+  let transactionId: string | null = null;
   try {
-    const upserted = await deps.characterService.upsertCharacter({
+    transactionId = await actualDeps.creditService.spendCredits(user.id, 1);
+    if (transactionId === null) {
+      throw new HttpsError('failed-precondition', 'Insufficient credits.');
+    }
+
+    const upserted = await actualDeps.characterService.upsertCharacter({
       ...(character.id ? { id: character.id } : {}),
       userId: user.id,
       name: character.name,
@@ -194,6 +184,18 @@ export const syncCharacterHandler = async (
 
     return serializeCharacter(upserted as unknown as Record<string, unknown>, request.auth.uid);
   } catch (error) {
+    if (transactionId) {
+      try {
+        await actualDeps.creditService.refundCredit(user.id, transactionId, 1);
+      } catch (refundError) {
+        logger.error('Failed to refund credits after syncCharacter failure', {
+          userId: user.id,
+          transactionId,
+          error: refundError,
+        });
+      }
+    }
+
     if (error instanceof HttpsError) {
       throw error;
     }
@@ -222,7 +224,7 @@ export const deleteCharacter = onCall(
 
 export const deleteCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, subscriptionService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -279,7 +281,7 @@ export const getUserCharacters = onCall(
 
 export const getUserCharactersHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, subscriptionService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -289,7 +291,6 @@ export const getUserCharactersHandler = async (
   if (!user) {
     throw new HttpsError('not-found', 'User not found.');
   }
-  await assertCloudCharacterAccess(user.id, deps);
 
   try {
     const characters = await deps.characterService.getUserCharacters(user.id);
@@ -316,7 +317,7 @@ export const getPublicCharacter = onCall(
 
 export const getPublicCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, subscriptionService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -340,7 +341,6 @@ export const getPublicCharacterHandler = async (
   if (!user) {
     throw new HttpsError('not-found', 'User not found.');
   }
-  await assertCloudCharacterAccess(user.id, deps);
 
   try {
     const row = await deps.characterService.getPublicCharacterWithOwner(normalizedCharacterId);

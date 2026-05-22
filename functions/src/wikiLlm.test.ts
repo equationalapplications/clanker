@@ -4,10 +4,7 @@ import {HttpsError, CallableRequest} from "firebase-functions/v2/https";
 
 import {wikiLlmHandler} from "./wikiLlm.js";
 import {userRepository} from "./services/userRepository.js";
-import {subscriptionService} from "./services/subscriptionService.js";
-
 type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
-type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionService.getSubscription>>>;
 
 let authCounter = 0;
 
@@ -37,30 +34,6 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
   };
 }
 
-function buildSubscription(
-  userId: string,
-  planTier: "payg" | "monthly_20",
-  planStatus: "active" | "cancelled" | "expired" = "active"
-): SubscriptionRecord {
-  return {
-    id: `sub-${userId}`,
-    userId,
-    planTier,
-    planStatus,
-    currentCredits: 10,
-    termsVersion: null,
-    termsAcceptedAt: null,
-    stripeSubscriptionId: null,
-    stripeCustomerId: null,
-    billingCycleStart: null,
-    billingCycleEnd: null,
-    nextExpiryDate: null,
-    documentsIngestedCount: 0,
-    documentsIngestedDate: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-}
 
 test("wikiLlm: rejects unauthenticated requests", async () => {
   const request = {auth: null, data: {systemPrompt: "sys", userPrompt: "hi"}};
@@ -81,7 +54,6 @@ test("wikiLlm: rejects missing systemPrompt", async () => {
   await assert.rejects(
     () => wikiLlmHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -98,7 +70,6 @@ test("wikiLlm: rejects oversized systemPrompt", async () => {
   await assert.rejects(
     () => wikiLlmHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -116,7 +87,6 @@ test("wikiLlm: rejects oversized userPrompt", async () => {
   await assert.rejects(
     () => wikiLlmHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -127,7 +97,7 @@ test("wikiLlm: rejects oversized userPrompt", async () => {
 });
 
 
-test("wikiLlm: rejects non-premium users", async () => {
+test("wikiLlm: rejects when insufficient credits", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
 
@@ -135,16 +105,19 @@ test("wikiLlm: rejects non-premium users", async () => {
   await assert.rejects(
     () => wikiLlmHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "payg"),
+      creditService: {
+        spendCredits: async () => null,
+        refundCredit: async () => {},
+      },
     }),
     (err: HttpsError) => {
-      assert.equal(err.code, "permission-denied");
+      assert.equal(err.code, "failed-precondition");
       return true;
     }
   );
 });
 
-test("wikiLlm: returns generated text for premium users", async () => {
+test("wikiLlm: returns generated text when credits are available", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
 
@@ -154,9 +127,35 @@ test("wikiLlm: returns generated text for premium users", async () => {
   const result = await wikiLlmHandler(request as CallableRequest, {
     generateText: mockGenerateText,
     getUser: async () => user,
-    getSubscription: async () => buildSubscription(user.id, "monthly_20"),
+    creditService: {
+      spendCredits: async () => "tx-123",
+      refundCredit: async () => {},
+    },
   });
 
   assert.equal(result.text, "Generated wiki response");
+});
+
+test("wikiLlm: refunds credit when generateText fails", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  let refunded = false;
+
+  const request = {auth, data: {systemPrompt: "You are an assistant.", userPrompt: "Tell me facts."}};
+  await assert.rejects(
+    () => wikiLlmHandler(request as CallableRequest, {
+      getUser: async () => user,
+      generateText: async () => { throw new Error("Vertex failed"); },
+      creditService: {
+        spendCredits: async () => "tx-123",
+        refundCredit: async () => { refunded = true; },
+      },
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "internal");
+      assert.ok(refunded, "refundCredit should be called when generation fails");
+      return true;
+    }
+  );
 });
 
