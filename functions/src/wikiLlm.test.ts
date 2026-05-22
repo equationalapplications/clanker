@@ -4,10 +4,7 @@ import {HttpsError, CallableRequest} from "firebase-functions/v2/https";
 
 import {wikiLlmHandler} from "./wikiLlm.js";
 import {userRepository} from "./services/userRepository.js";
-import {subscriptionService} from "./services/subscriptionService.js";
-
 type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
-type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionService.getSubscription>>>;
 
 let authCounter = 0;
 
@@ -37,30 +34,6 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
   };
 }
 
-function buildSubscription(
-  userId: string,
-  planTier: "payg" | "monthly_20",
-  planStatus: "active" | "cancelled" | "expired" = "active"
-): SubscriptionRecord {
-  return {
-    id: `sub-${userId}`,
-    userId,
-    planTier,
-    planStatus,
-    currentCredits: 10,
-    termsVersion: null,
-    termsAcceptedAt: null,
-    stripeSubscriptionId: null,
-    stripeCustomerId: null,
-    billingCycleStart: null,
-    billingCycleEnd: null,
-    nextExpiryDate: null,
-    documentsIngestedCount: 0,
-    documentsIngestedDate: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-}
 
 test("wikiLlm: rejects unauthenticated requests", async () => {
   const request = {auth: null, data: {systemPrompt: "sys", userPrompt: "hi"}};
@@ -81,7 +54,6 @@ test("wikiLlm: rejects missing systemPrompt", async () => {
   await assert.rejects(
     () => wikiLlmHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -98,7 +70,6 @@ test("wikiLlm: rejects oversized systemPrompt", async () => {
   await assert.rejects(
     () => wikiLlmHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");
@@ -116,7 +87,6 @@ test("wikiLlm: rejects oversized userPrompt", async () => {
   await assert.rejects(
     () => wikiLlmHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
-      getSubscription: async () => buildSubscription(user.id, "monthly_20"),
     }),
     (err: HttpsError) => {
       assert.equal(err.code, "invalid-argument");

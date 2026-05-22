@@ -58,7 +58,6 @@ interface VertexGenerateOptions {
   model?: string;
   generateText?: (systemPrompt: string, userPrompt: string) => Promise<string>;
   getUser?: typeof userRepository.getOrCreateUserByFirebaseIdentity;
-  getSubscription?: () => Promise<unknown>;
   creditService?: Pick<typeof defaultCreditService, "spendCredits" | "refundCredit">;
 }
 

@@ -66,7 +66,6 @@ interface WikiSyncOptions {
   validateEntityOwnership?: (entityIds: string[], userId: string) => Promise<void>;
   fetchMergedDump?: (entityIds: string[], userId: string) => Promise<MemoryDump>;
   getUser?: typeof userRepository.getOrCreateUserByFirebaseIdentity;
-  getSubscription?: () => Promise<unknown>;
   creditService?: Pick<typeof defaultCreditService, "spendCredits" | "refundCredit">;
 }
 
@@ -567,11 +566,6 @@ export const wikiSyncHandler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const transactionId = await credits.spendCredits(user.id, 1);
-  if (transactionId === null) {
-    throw new HttpsError("failed-precondition", "Insufficient credits.");
-  }
-
   // Validate that every entity in the dump belongs to this user and is saved to cloud.
   const entityIds = Object.keys(dump.entities);
   if (entityIds.length > 0) {
@@ -594,6 +588,11 @@ export const wikiSyncHandler = async (
         }
       }
     }
+  }
+
+  const transactionId = await credits.spendCredits(user.id, 1);
+  if (transactionId === null) {
+    throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
 
   try {

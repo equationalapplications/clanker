@@ -65,7 +65,7 @@ export default function CreditsDisplay({
 
   if (error) {
     return (
-      <Card style={[styles.errorCard, { backgroundColor: colors.errorContainer }]}> 
+      <Card style={[styles.errorCard, { backgroundColor: colors.errorContainer }]}>
         <Card.Content>
           <Text variant="bodyMedium">Error loading credits</Text>
           <Button onPress={() => refetch()} mode="outlined" style={styles.retryButton}>
@@ -143,12 +143,12 @@ export default function CreditsDisplay({
           </Text>
 
           <View style={styles.creditsContainer}>
-            <Text variant="displaySmall" style={[styles.creditsCount, { color: colors.primary }]}> 
+            <Text variant="displaySmall" style={[styles.creditsCount, { color: colors.primary }]}>
               {credits?.totalCredits || 0}
             </Text>
             <Text variant="bodyMedium">Credits Available</Text>
             {credits?.nextExpiryDate && credits.totalCredits > 0 && (
-              <Text variant="bodySmall" style={[styles.expiryText, { color: colors.onSurfaceVariant }]}> 
+              <Text variant="bodySmall" style={[styles.expiryText, { color: colors.onSurfaceVariant }]}>
                 Credits expire {new Date(credits.nextExpiryDate).toLocaleDateString()}
               </Text>
             )}
@@ -185,7 +185,7 @@ export default function CreditsDisplay({
           >
             Sync Subscription & Credits
           </Button>
-          <Text variant="bodySmall" style={[styles.syncHelperText, { color: colors.onSurfaceVariant }]}> 
+          <Text variant="bodySmall" style={[styles.syncHelperText, { color: colors.onSurfaceVariant }]}>
             Use this if your subscription or credits aren&apos;t showing correctly.
           </Text>
         </Card.Content>
