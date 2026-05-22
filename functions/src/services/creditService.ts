@@ -122,9 +122,13 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       const db = await deps.getDb();
       try {
         return await db.transaction(async (tx: DbTx) => {
-          // Acquire a per-user lock to serialize concurrent spends. Without this,
-          // two spends can both pass the net-balance SUM check before either commits,
-          // producing overdraft when negative adjustCredits rows (Stripe refunds) exist.
+          // Ensure a subscriptions row exists and lock it to serialize concurrent spends.
+          // Without the row, a SELECT FOR UPDATE returns no rows and no lock is taken.
+          await tx
+            .insert(subscriptions)
+            .values({ userId })
+            .onConflictDoNothing({ target: subscriptions.userId });
+
           await tx
             .select({ userId: subscriptions.userId })
             .from(subscriptions)

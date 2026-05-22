@@ -94,6 +94,11 @@ test('spendCredits returns null when no qualifying creditTransactions row found'
   ];
   let selectIdx = 0;
   const fakeTx = {
+    insert: () => ({
+      values: () => ({
+        onConflictDoNothing: async () => {},
+      }),
+    }),
     select: () => {
       const rows = selectQueue[selectIdx++] ?? [];
       return {
