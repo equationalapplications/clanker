@@ -30,8 +30,8 @@ No cloud object-storage upload is used in this flow.
 
 ## Billing Behavior
 
-- Unlimited tiers: no credit spend
-- Non-unlimited tiers: spend one credit only after successful generation
+- All image generations require a credit spend.
+- Spend one credit only after successful generation.
 - Failed model calls: no credit decrement
 
 ## Client Integration Files

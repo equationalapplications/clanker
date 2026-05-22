@@ -41,7 +41,7 @@ type GenerateImageResponse = {
 - Firebase Authentication (valid callable auth context)
 - Firebase App Check (`enforceAppCheck: true`)
 - Cloud SQL user resolution (Firebase UID first, email fallback)
-- Subscription/credit authorization (unlimited tiers or >=1 credit)
+- Subscription/credit authorization (requires available credits)
 - Prompt validation (non-empty, max length)
 - Per-user rate limiting (in-memory request window)
 - Payload-size guard on returned base64 data
@@ -50,11 +50,7 @@ If any check fails, function fails closed with `HttpsError`.
 
 ## Billing Rules
 
-- Unlimited tiers (`monthly_20`, `monthly_50`):
-  - allowed access
-  - `creditsSpent = 0`
-  - no credit decrement
-- Non-unlimited tiers (`payg`, free, etc.):
+- All image generations:
   - require available credits
   - spend exactly 1 credit after successful model generation only
   - no credit spend when Vertex/model call fails
