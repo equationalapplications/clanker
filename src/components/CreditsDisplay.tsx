@@ -172,7 +172,7 @@ export default function CreditsDisplay({
               disabled={isPaygLocked}
               loading={isPurchasing === 'payg'}
             >
-              100 credits · $10
+              Buy 100 Credits - $10
             </Button>
           </View>
 

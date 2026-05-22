@@ -53,7 +53,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
   const currentUser = useSelector(authService, (state) => state.context.user)
   const { data: character } = useCharacter(characterId)
   const messages = useChatMessages({ id: characterId, userId: currentUser?.uid || '' })
-  const { remainingCredits } = useCurrentPlan()
+  const { isSubscriber, remainingCredits } = useCurrentPlan()
 
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
   const [transcription, setTranscription] = useState('')
@@ -323,7 +323,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       return
     }
 
-    if (typeof remainingCredits === 'number' && remainingCredits < 2) {
+    if (!isSubscriber && typeof remainingCredits === 'number' && remainingCredits < 2) {
       Alert.alert(
         'Insufficient Credits',
         'Voice replies cost 2 credits. Purchase more credits to continue.',
@@ -378,7 +378,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       const errorMessage = err instanceof Error ? err.message : 'Failed to start listening'
       await fail(errorMessage)
     }
-  }, [canUseNativeVoice, character, characterId, clearListenTimer, fail, remainingCredits, voiceState])
+  }, [canUseNativeVoice, character, characterId, clearListenTimer, fail, isSubscriber, remainingCredits, voiceState])
 
   const cancel = useCallback(() => {
     cancelledRef.current = true
