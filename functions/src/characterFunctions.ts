@@ -2,6 +2,7 @@ import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/
 import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { characterService, CharacterOwnershipError } from './services/characterService.js';
+import { creditService } from './services/creditService.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 import { DEFAULT_VOICE } from './constants/voiceDefaults.js';
 
@@ -27,6 +28,7 @@ type CharacterFunctionDeps = {
     typeof characterService,
     'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters' | 'getPublicCharacterWithOwner'
   >;
+  creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
 };
 
 
@@ -106,7 +108,7 @@ export const syncCharacter = onCall(
 
 export const syncCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -152,7 +154,13 @@ export const syncCharacterHandler = async (
     throw new HttpsError('not-found', 'User not found.');
   }
 
+  let transactionId: string | null = null;
   try {
+    transactionId = await deps.creditService.spendCredits(user.id, 1);
+    if (transactionId === null) {
+      throw new HttpsError('failed-precondition', 'Insufficient credits.');
+    }
+
     const upserted = await deps.characterService.upsertCharacter({
       ...(character.id ? { id: character.id } : {}),
       userId: user.id,
@@ -171,6 +179,18 @@ export const syncCharacterHandler = async (
 
     return serializeCharacter(upserted as unknown as Record<string, unknown>, request.auth.uid);
   } catch (error) {
+    if (transactionId) {
+      try {
+        await deps.creditService.refundCredit(user.id, transactionId, 1);
+      } catch (refundError) {
+        logger.error('Failed to refund credits after syncCharacter failure', {
+          userId: user.id,
+          transactionId,
+          error: refundError,
+        });
+      }
+    }
+
     if (error instanceof HttpsError) {
       throw error;
     }
@@ -199,7 +219,7 @@ export const deleteCharacter = onCall(
 
 export const deleteCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -256,7 +276,7 @@ export const getUserCharacters = onCall(
 
 export const getUserCharactersHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -292,7 +312,7 @@ export const getPublicCharacter = onCall(
 
 export const getPublicCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');

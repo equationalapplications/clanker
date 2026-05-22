@@ -97,6 +97,10 @@ function buildDeps(options?: {
         updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       }),
     },
+    creditService: {
+      spendCredits: async () => 'mock-tx-id',
+      refundCredit: async () => {},
+    },
     getDb: async () => ({
       select: () => selectChain,
       insert: () => ({
@@ -153,6 +157,100 @@ test("memoryWriteHandler returns structured diff envelope for premium caller", a
   assert.equal(result.diff.entries[0]?.userId, "firebase-uid-2");
   assert.equal(result.diff.eventsAppended, 1);
   assert.equal(result.diff.events[0]?.eventType, "observation");
+});
+
+test("memoryWriteHandler spends a credit before invoking the LLM", async () => {
+  let spent = false;
+
+  const result = await memoryWriteHandler(
+    {
+      auth: buildAuth(),
+      data: {
+        characterId: "char-1",
+        sourceText: "I love hiking on weekends",
+      },
+    } as never,
+    {
+      ...buildDeps(),
+      creditService: {
+        spendCredits: async () => {
+          spent = true;
+          return 'tx-789';
+        },
+        refundCredit: async () => {
+          throw new Error('Refund should not be called');
+        },
+      },
+    } as never,
+  );
+
+  assert.equal(spent, true);
+  assert.equal(Array.isArray(result.diff.entries), true);
+});
+
+test("memoryHealHandler spends a credit before healing memory", async () => {
+  let spent = false;
+  const result = await memoryHealHandler(
+    {
+      auth: buildAuth(),
+      data: {
+        characterId: "char-1",
+      },
+    } as never,
+    {
+      ...buildDeps(),
+      creditService: {
+        spendCredits: async () => {
+          spent = true;
+          return 'tx-abc';
+        },
+        refundCredit: async () => {
+          throw new Error('Refund should not be called');
+        },
+      },
+    } as never,
+  );
+
+  assert.equal(spent, true);
+  assert.deepEqual(result.diff, {
+    contradictionsFlagged: 0,
+    staleDowngraded: 0,
+    orphansRemoved: 0,
+    conceptsSeeded: 0,
+    entries: [],
+    tasks: [],
+    events: [],
+  });
+});
+
+test("memoryHealHandler refunds credit when heal processing fails", async () => {
+  let refunded = false;
+  await assert.rejects(
+    async () =>
+      memoryHealHandler(
+        {
+          auth: buildAuth(),
+          data: {
+            characterId: "char-1",
+          },
+        } as never,
+        {
+          ...buildDeps(),
+          creditService: {
+            spendCredits: async () => 'tx-abc',
+            refundCredit: async () => {
+              refunded = true;
+            },
+          },
+          getDb: async () => {
+            throw new Error('DB unavailable');
+          },
+        } as never,
+      ),
+    (err: unknown) => err instanceof HttpsError && err.code === 'internal'
+  );
+
+  assert.equal(refunded, true);
 });
 
 test("memoryWriteHandler uses LLM-extracted entries when generateContent returns valid JSON", async () => {

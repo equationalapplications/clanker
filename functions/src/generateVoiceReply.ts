@@ -3,7 +3,6 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import {userRepository} from "./services/userRepository.js";
-import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
@@ -24,29 +23,13 @@ interface GenerateVoiceReplyData {
   characterEmotions?: string;
 }
 
-interface UsageState {
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  creditBalance: number;
-}
-
-interface UsageSnapshotDetails {
-  remainingCredits: number;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
-}
-
 export interface GenerateVoiceReplyResponse {
   replyText: string;
   rawReplyText: string;
   audioBase64: string;
   audioMimeType: string;
   creditsSpent: number;
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
+  remainingCredits: number;
 }
 
 type GenerateTextFn = (prompt: string) => Promise<string>;
@@ -104,14 +87,6 @@ function toErrorMessage(error: unknown): string {
 
 function isIdentityConflictError(error: unknown): boolean {
   return toErrorMessage(error).toLowerCase().includes("different firebase uid");
-}
-
-function normalizePlanStatus(status: string | null | undefined): UsageState["planStatus"] {
-  if (status === "active" || status === "cancelled" || status === "expired") {
-    return status;
-  }
-
-  return "expired";
 }
 
 function getProjectId(): string | undefined {
@@ -425,59 +400,16 @@ function parseInput(data: unknown): {
   };
 }
 
-async function fetchUsageState(userId: string): Promise<UsageState> {
-  const existing = await subscriptionService.getSubscription(userId);
-  const sub = existing ?? await subscriptionService.getOrCreateDefaultSubscription(userId);
-
-  return {
-    planTier: sub.planTier,
-    planStatus: normalizePlanStatus(sub.planStatus),
-    creditBalance: Math.max(0, sub.currentCredits ?? 0),
-  };
-}
-
-function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
-  return {
-    remainingCredits: usage.creditBalance,
-    planTier: usage.planTier,
-    planStatus: usage.planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
-}
-
-function assertUsageAuthorized(usage: UsageState): void {
-  if (usage.creditBalance < 2) {
-    throw new HttpsError(
-      "resource-exhausted",
-      "Insufficient credits. Voice replies cost 2 credits.",
-      toUsageSnapshotDetails(usage)
-    );
-  }
-}
-
 async function chargeForVoiceReply(
   userId: string,
 ): Promise<{ txId: string; remainingCredits: number }> {
-  try {
-    const txId = await creditService.spendCredits(userId, 2);
-    if (!txId) {
-      throw new HttpsError("resource-exhausted", "Insufficient credits to complete voice reply.");
-    }
-
-    const remainingCredits = await creditService.getCredits(userId);
-    return { txId, remainingCredits };
-  } catch (error) {
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-
-    logger.error("Failed to charge credits for voice reply.", {
-      userId,
-      error,
-    });
-
-    throw new HttpsError("internal", "Failed to charge credits for voice reply.");
+  const txId = await creditService.spendCredits(userId, 2);
+  if (txId === null) {
+    throw new HttpsError("failed-precondition", "Insufficient credits to complete voice reply.");
   }
+
+  const remainingCredits = await creditService.getCredits(userId);
+  return { txId, remainingCredits };
 }
 
 function cleanReplyText(rawText: string): string {
@@ -529,15 +461,12 @@ const handler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const usage = await fetchUsageState(user.id);
-  assertUsageAuthorized(usage);
-
   const generateText = options.generateText ?? getTextGenerator();
   const synthesizeSpeech = options.synthesizeSpeech ?? getSpeechSynthesizer();
 
   let rawReplyText: string;
   let spentTransactionId: string | null = null;
-  let remainingCredits: number | null = null;
+  let remainingCredits = 0;
 
   try {
     const charge = await chargeForVoiceReply(user.id);
@@ -566,9 +495,6 @@ const handler = async (
       audioMimeType: audio.audioMimeType,
       creditsSpent: 2,
       remainingCredits,
-      planTier: usage.planTier,
-      planStatus: usage.planStatus,
-      verifiedAt: new Date().toISOString(),
     };
   } catch (error) {
     if (spentTransactionId) {

@@ -179,7 +179,7 @@ test("generateVoiceReplyHandler rejects when user has fewer than 2 credits", asy
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 1);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => null;
     creditService.getCredits = async () => 1;
 
     await assert.rejects(
@@ -188,10 +188,7 @@ test("generateVoiceReplyHandler rejects when user has fewer than 2 credits", asy
           {auth, data: {prompt: "hello", characterVoice: "Kore"}} as never,
           {generateText: stubGenerateText, synthesizeSpeech: stubSynthesizeSpeech}
         ),
-      (err: unknown) =>
-        err instanceof HttpsError &&
-        err.code === "resource-exhausted" &&
-        typeof (err.details as {verifiedAt?: unknown})?.verifiedAt === "string"
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
     );
   });
 });
@@ -226,9 +223,6 @@ test("generateVoiceReplyHandler spends 2 credits for payg users", async () => {
 
     assert.equal(result.creditsSpent, 2);
     assert.equal(result.remainingCredits, 3);
-    assert.equal(result.planTier, "payg");
-    assert.equal(result.planStatus, "active");
-    assert.equal(typeof result.verifiedAt, "string");
     assert.equal(spendCalls, 1);
   });
 });
@@ -244,7 +238,7 @@ test("generateVoiceReplyHandler rejects users without sufficient credits", async
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20", 0);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return 'mock-tx-id';
+      return null;
     };
     creditService.getCredits = async () => 0;
 
@@ -254,10 +248,10 @@ test("generateVoiceReplyHandler rejects users without sufficient credits", async
           {auth, data: {prompt: "hello", characterVoice: "Kore"}} as never,
           {generateText: stubGenerateText, synthesizeSpeech: stubSynthesizeSpeech}
         ),
-      (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted"
+      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
     );
 
-    assert.equal(spendCalls, 0);
+    assert.equal(spendCalls, 1);
   });
 });
 

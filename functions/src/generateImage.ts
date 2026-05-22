@@ -3,7 +3,6 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
-import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
@@ -23,20 +22,6 @@ interface GenerateImageData {
   prompt: string;
 }
 
-interface UsageState {
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  creditBalance: number;
-}
-
-function normalizePlanStatus(status: string | null | undefined): UsageState["planStatus"] {
-  if (status === "active" || status === "cancelled" || status === "expired") {
-    return status;
-  }
-
-  return "expired";
-}
-
 interface GeneratedImageResult {
   imageBase64: string;
   mimeType: string;
@@ -46,17 +31,7 @@ export interface GenerateImageResponse {
   imageBase64: string;
   mimeType: string;
   creditsSpent: number;
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
-}
-
-interface UsageSnapshotDetails {
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
+  remainingCredits: number;
 }
 
 type GenerateImageFn = (prompt: string) => Promise<GeneratedImageResult>;
@@ -180,63 +155,14 @@ function parseInput(data: unknown): {prompt: string} {
   return { prompt };
 }
 
-async function fetchUsageState(userId: string): Promise<UsageState> {
-  const sub = await subscriptionService.getSubscription(userId);
-  if (!sub) {
-    return {
-      planTier: null,
-      planStatus: "expired",
-      creditBalance: 0,
-    };
-  }
-
-  return {
-    planTier: sub.planTier,
-    planStatus: normalizePlanStatus(sub.planStatus),
-    creditBalance: Math.max(0, sub.currentCredits ?? 0),
-  };
-}
-
-function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
-  return {
-    remainingCredits: usage.creditBalance,
-    planTier: usage.planTier,
-    planStatus: usage.planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
-}
-
-function assertUsageAuthorized(usage: UsageState): void {
-  if (usage.creditBalance < 1) {
-    throw new HttpsError(
-      "resource-exhausted",
-      "Insufficient credits. Purchase credits or try again after adding credits.",
-      toUsageSnapshotDetails(usage)
-    );
-  }
-}
-
 async function chargeForImage(userId: string): Promise<{ transactionId: string; remainingCredits: number }> {
-  try {
-    const transactionId = await creditService.spendCredits(userId, 1);
-    if (!transactionId) {
-      throw new HttpsError("resource-exhausted", "Insufficient credits.");
-    }
-
-    const remainingCredits = await creditService.getCredits(userId);
-    return { transactionId, remainingCredits };
-  } catch (error) {
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-
-    logger.error("Failed to charge user credits", {
-      userId,
-      error,
-    });
-
-    throw new HttpsError("internal", "Failed to charge user credits.");
+  const transactionId = await creditService.spendCredits(userId, 1);
+  if (transactionId === null) {
+    throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
+
+  const remainingCredits = await creditService.getCredits(userId);
+  return { transactionId, remainingCredits };
 }
 
 function assertSupportedImageMimeType(mimeType: string): string {
@@ -453,15 +379,13 @@ const handler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const usage = await fetchUsageState(user.id);
-  assertUsageAuthorized(usage);
   assertWithinRateLimit(request.auth.uid);
 
   const generateImage = options.generateImage ?? getImageGenerator();
 
   let imageResult: GeneratedImageResult;
   let transactionId: string | null = null;
-  let remainingCredits: number | null = null;
+  let remainingCredits = 0;
 
   try {
     const charge = await chargeForImage(user.id);
@@ -487,7 +411,6 @@ const handler = async (
     logger.info("generateImage succeeded", {
       firebaseUid: request.auth.uid,
       userId: user.id,
-      planTier: usage.planTier,
       creditsSpent: 1,
       remainingCredits,
       latencyMs,
@@ -499,9 +422,6 @@ const handler = async (
       mimeType: normalizedMimeType,
       creditsSpent: 1,
       remainingCredits,
-      planTier: usage.planTier,
-      planStatus: usage.planStatus,
-      verifiedAt: new Date().toISOString(),
     };
   } catch (error) {
     if (transactionId) {

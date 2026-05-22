@@ -8,6 +8,7 @@ import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { userRepository } from './services/userRepository.js';
 import { subscriptionService } from './services/subscriptionService.js';
+import { creditService } from './services/creditService.js';
 import { getDb } from './db/cloudSql.js';
 import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
 
@@ -123,6 +124,7 @@ type MemoryHealDiff = {
 type MemoryFunctionDeps = {
   userRepository: Pick<typeof userRepository, 'getOrCreateUserByFirebaseIdentity'>;
   subscriptionService: Pick<typeof subscriptionService, 'getSubscription' | 'getOrCreateDefaultSubscription'>;
+  creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
   getDb: typeof getDb;
   generateContent: (prompt: string) => Promise<string>;
 };
@@ -171,6 +173,7 @@ async function defaultGenerateContent(prompt: string): Promise<string> {
 const defaultDeps: MemoryFunctionDeps = {
   userRepository,
   subscriptionService,
+  creditService,
   getDb,
   generateContent: defaultGenerateContent,
 };
@@ -1482,16 +1485,48 @@ export const memoryWriteHandler = async (
 
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
   const seedEntries = ownsCharacter ? await loadWriteSeed(deps, characterId, identity.userId, identity.firebaseUid) : [];
-  const diff = await buildWriteDiff(characterId, identity.firebaseUid, sourceText, sourceType, seedEntries, !ownsCharacter, deps.generateContent);
 
-  if (ownsCharacter) {
-    await persistWriteDiff(deps, characterId, identity.userId, diff);
-    for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
-    for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
-    for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
+  let transactionId: string | null = null;
+  try {
+    transactionId = await deps.creditService.spendCredits(identity.userId, 1);
+    if (transactionId === null) {
+      throw new HttpsError('failed-precondition', 'Insufficient credits.');
+    }
+
+    const diff = await buildWriteDiff(characterId, identity.firebaseUid, sourceText, sourceType, seedEntries, !ownsCharacter, deps.generateContent);
+
+    if (ownsCharacter) {
+      await persistWriteDiff(deps, characterId, identity.userId, diff);
+      for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
+      for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
+      for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
+    }
+
+    return { diff };
+  } catch (error) {
+    if (transactionId) {
+      try {
+        await deps.creditService.refundCredit(identity.userId, transactionId, 1);
+      } catch (refundError) {
+        logger.error('Failed to refund credits after memoryWrite failure', {
+          userId: identity.userId,
+          transactionId,
+          error: refundError,
+        });
+      }
+    }
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    logger.error('memoryWrite failed', {
+      userId: identity.userId,
+      error,
+    });
+
+    throw new HttpsError('internal', 'Failed to write memory.');
   }
-
-  return { diff };
 };
 
 export const memoryHealHandler = async (
@@ -1512,18 +1547,49 @@ export const memoryHealHandler = async (
     };
   }
 
-  const diff = await buildHealDiff(deps, characterId, identity.userId, identity.firebaseUid, seed);
+  let transactionId: string | null = null;
+  try {
+    transactionId = await deps.creditService.spendCredits(identity.userId, 1);
+    if (transactionId === null) {
+      throw new HttpsError('failed-precondition', 'Insufficient credits.');
+    }
 
-  if (ownsCharacter) {
-    await persistHealDiff(deps, characterId, identity.userId, diff);
-    for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
-    for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
-    for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
+    const diff = await buildHealDiff(deps, characterId, identity.userId, identity.firebaseUid, seed);
+
+    if (ownsCharacter) {
+      await persistHealDiff(deps, characterId, identity.userId, diff);
+      for (const entry of diff.entries) { entry.syncedToCloud = 1; entry.cloudId = entry.id; }
+      for (const task of diff.tasks) { task.syncedToCloud = 1; task.cloudId = task.id; }
+      for (const event of diff.events) { event.syncedToCloud = 1; event.cloudId = event.id; }
+    }
+
+    return {
+      diff,
+    };
+  } catch (error) {
+    if (transactionId) {
+      try {
+        await deps.creditService.refundCredit(identity.userId, transactionId, 1);
+      } catch (refundError) {
+        logger.error('Failed to refund credits after memoryHeal failure', {
+          userId: identity.userId,
+          transactionId,
+          error: refundError,
+        });
+      }
+    }
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    logger.error('memoryHeal failed', {
+      userId: identity.userId,
+      error,
+    });
+
+    throw new HttpsError('internal', 'Failed to heal memory.');
   }
-
-  return {
-    diff,
-  };
 };
 
 export const memoryForgetHandler = async (

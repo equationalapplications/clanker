@@ -3,7 +3,6 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
-import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
@@ -21,34 +20,10 @@ interface GenerateReplyData {
   prompt: string;
 }
 
-interface UsageState {
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  creditBalance: number;
-}
-
-function normalizePlanStatus(status: string | null | undefined): UsageState["planStatus"] {
-  if (status === "active" || status === "cancelled" || status === "expired") {
-    return status;
-  }
-
-  return "expired";
-}
-
 export interface GenerateReplyResponse {
   reply: string;
   creditsSpent: number;
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
-}
-
-interface UsageSnapshotDetails {
-  remainingCredits: number | null;
-  planTier: string | null;
-  planStatus: "active" | "cancelled" | "expired";
-  verifiedAt: string;
+  remainingCredits: number;
 }
 
 type GenerateTextFn = (prompt: string) => Promise<string>;
@@ -220,57 +195,14 @@ function parseInput(data: unknown): {prompt: string} {
   return { prompt };
 }
 
-async function fetchUsageState(userId: string): Promise<UsageState> {
-  const existing = await subscriptionService.getSubscription(userId);
-  const sub = existing ?? await subscriptionService.getOrCreateDefaultSubscription(userId);
-
-  return {
-    planTier: sub.planTier,
-    planStatus: normalizePlanStatus(sub.planStatus),
-    creditBalance: Math.max(0, sub.currentCredits ?? 0),
-  };
-}
-
-function toUsageSnapshotDetails(usage: UsageState): UsageSnapshotDetails {
-  return {
-    remainingCredits: usage.creditBalance,
-    planTier: usage.planTier,
-    planStatus: usage.planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
-}
-
-function assertUsageAuthorized(usage: UsageState): void {
-  if (usage.creditBalance < 1) {
-    throw new HttpsError(
-      "resource-exhausted",
-      "Insufficient credits. Purchase credits or try again after adding credits.",
-      toUsageSnapshotDetails(usage)
-    );
-  }
-}
-
 async function chargeForReply(userId: string): Promise<{transactionId: string; remainingCredits: number}> {
-  try {
-    const transactionId = await creditService.spendCredits(userId, 1);
-    if (!transactionId) {
-      throw new HttpsError("resource-exhausted", "Insufficient credits.");
-    }
-
-    const remainingCredits = await creditService.getCredits(userId);
-    return { transactionId, remainingCredits };
-  } catch (error) {
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-
-    logger.error("Failed to charge user credits", {
-      userId,
-      error,
-    });
-
-    throw new HttpsError("internal", "Failed to charge user credits.");
+  const transactionId = await creditService.spendCredits(userId, 1);
+  if (transactionId === null) {
+    throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
+
+  const remainingCredits = await creditService.getCredits(userId);
+  return { transactionId, remainingCredits };
 }
 
 const handler = async (
@@ -319,14 +251,11 @@ const handler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const usage = await fetchUsageState(user.id);
-  assertUsageAuthorized(usage);
-
   const generateText = options.generateText ?? getTextGenerator();
 
   let reply: string;
   let transactionId: string | null = null;
-  let remainingCredits: number | null = null;
+  let remainingCredits = 0;
 
   try {
     const charge = await chargeForReply(user.id);
@@ -342,9 +271,6 @@ const handler = async (
       reply,
       creditsSpent: 1,
       remainingCredits,
-      planTier: usage.planTier,
-      planStatus: usage.planStatus,
-      verifiedAt: new Date().toISOString(),
     };
   } catch (error) {
     if (transactionId) {
