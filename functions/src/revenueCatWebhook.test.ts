@@ -152,6 +152,42 @@ test("parseRevenueCatEvent rejects invalid required fields", () => {
   );
 });
 
+test("revenueCatWebhookHandler does not renew credits on PRODUCT_CHANGE events", async () => {
+  const res = createResponseRecorder();
+  let renewCalls = 0;
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer rc-secret",
+      },
+      body: {
+        event: {
+          type: "PRODUCT_CHANGE",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+          original_transaction_id: "rc_txn_123",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      upsertSubscription: async () => {},
+      renewSubscriptionCredits: async () => {
+        renewCalls += 1;
+        return true;
+      },
+      addCredits: async () => undefined,
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(renewCalls, 0);
+});
+
 test("revenueCatWebhookHandler keeps paid tier active on cancellation until expiration", async () => {
   const res = createResponseRecorder();
   const upsertCalls: Array<{
@@ -182,6 +218,7 @@ test("revenueCatWebhookHandler keeps paid tier active on cancellation until expi
       upsertSubscription: async (userId, planTier, planStatus, renewalAt) => {
         upsertCalls.push({userId, planTier, planStatus, renewalAt});
       },
+      renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
     }
   );
@@ -224,6 +261,7 @@ test("revenueCatWebhookHandler normalizes expiration to free tier", async () => 
       upsertSubscription: async (userId, planTier, planStatus) => {
         upsertCalls.push({userId, planTier, planStatus});
       },
+      renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
     }
   );
@@ -281,6 +319,7 @@ test("revenueCatWebhookHandler does not map RevenueCat transaction ID to stripeS
           stripeSubscriptionId,
         });
       },
+      renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
     }
   );
@@ -321,6 +360,7 @@ test("revenueCatWebhookHandler bootstraps Cloud SQL user when missing", async ()
       upsertSubscription: async (userId, planTier, planStatus, renewalAt) => {
         upsertCalls.push({userId, planTier, planStatus, renewalAt});
       },
+      renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
     }
   );
@@ -365,6 +405,7 @@ test("revenueCatWebhookHandler maps Android base-plan-suffixed subscription IDs"
       upsertSubscription: async (userId, planTier, planStatus, renewalAt) => {
         upsertCalls.push({userId, planTier, planStatus, renewalAt});
       },
+      renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
     }
   );
@@ -409,6 +450,7 @@ test("revenueCatWebhookHandler maps cancellation for Android base-plan-suffixed 
       upsertSubscription: async (userId, planTier, planStatus, renewalAt) => {
         upsertCalls.push({userId, planTier, planStatus, renewalAt});
       },
+      renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
     }
   );
@@ -445,6 +487,7 @@ test("revenueCatWebhookHandler returns retryable status when Cloud SQL user is u
       findUserByFirebaseUid: async () => null,
       getOrCreateUserByFirebaseUid: async () => null,
       upsertSubscription: async () => undefined,
+      renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
     }
   );

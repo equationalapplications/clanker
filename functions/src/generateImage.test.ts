@@ -94,7 +94,7 @@ test("generateImageHandler validates prompt", async () => {
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => 'mock-tx-id';
     creditService.getCredits = async () => 2;
 
     await assert.rejects(
@@ -127,12 +127,10 @@ test("generateImageHandler spends one credit for payg users", async () => {
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+    creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 1);
-      assert.equal(reason, "image generation");
-      assert.equal(referenceId, "image-request-123");
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 
@@ -174,7 +172,7 @@ test("generateImageHandler rejects unsupported mime type from model", async () =
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 
@@ -212,7 +210,7 @@ test("generateImageHandler does not spend credit for unlimited users", async () 
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20", 0);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 0;
 
@@ -249,12 +247,10 @@ test("generateImageHandler allows cancelled plans to spend remaining credits", a
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3, "cancelled");
-    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+    creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 1);
-      assert.equal(reason, "image generation");
-      assert.equal(referenceId, "image-cancelled");
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 
@@ -291,7 +287,7 @@ test("generateImageHandler rejects users without unlimited plan and no credits",
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 0);
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => 'mock-tx-id';
     creditService.getCredits = async () => 0;
 
     await assert.rejects(
@@ -326,7 +322,7 @@ test("generateImageHandler returns fallback planStatus details when subscription
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => null as never;
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => 'mock-tx-id';
     creditService.getCredits = async () => 0;
 
     await assert.rejects(
@@ -364,7 +360,7 @@ test("generateImageHandler does not spend credit when generation fails", async (
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 
@@ -398,7 +394,7 @@ test("generateImageHandler maps identity conflicts to failed-precondition", asyn
       throw new Error("Existing user email is linked to a different Firebase UID.");
     };
     subscriptionService.getSubscription = async () => buildSubscription("unused-user", "payg", 1);
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => 'mock-tx-id';
     creditService.getCredits = async () => 0;
 
     await assert.rejects(
@@ -433,7 +429,7 @@ test("generateImageHandler maps Vertex IAM permission denial to failed-precondit
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 

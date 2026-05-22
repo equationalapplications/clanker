@@ -91,6 +91,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
     currentCredits: 50,
     termsVersion: null,
     termsAcceptedAt: null,
+    nextExpiryDate: null,
   };
 
   const mockDeps = {
@@ -138,6 +139,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       currentCredits: mockSubscription.currentCredits,
       termsVersion: mockSubscription.termsVersion,
       termsAcceptedAt: mockSubscription.termsAcceptedAt,
+      nextExpiryDate: mockSubscription.nextExpiryDate,
     },
   });
 });
@@ -162,6 +164,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
     currentCredits: 150,
     termsVersion: "v1",
     termsAcceptedAt: new Date(),
+    nextExpiryDate: new Date("2026-01-01T00:00:00.000Z"),
   };
 
   const mockDeps = {
@@ -207,6 +210,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       currentCredits: mockSubscription.currentCredits,
       termsVersion: mockSubscription.termsVersion,
       termsAcceptedAt: mockSubscription.termsAcceptedAt.toISOString(),
+      nextExpiryDate: mockSubscription.nextExpiryDate?.toISOString(),
     },
   });
 });

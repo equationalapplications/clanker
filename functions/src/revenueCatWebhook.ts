@@ -7,6 +7,7 @@ import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
+import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS} from "./constants/credits.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -43,7 +44,6 @@ function constantTimeEquals(provided: string | null, expected: string): boolean 
     return false;
   }
 }
-const CREDIT_PACK_AMOUNT = 100;
 
 interface RevenueCatDeps {
   findUserByFirebaseUid: (firebaseUid: string) => Promise<{id: string} | null>;
@@ -55,7 +55,8 @@ interface RevenueCatDeps {
     renewalAt?: Date | null,
     stripeSubscriptionId?: string | null
   ) => Promise<void>;
-  addCredits: (userId: string, amount: number, reason: string, referenceId?: string) => Promise<void>;
+  renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
+  addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
 }
 
 const defaultDeps: RevenueCatDeps = {
@@ -103,8 +104,11 @@ const defaultDeps: RevenueCatDeps = {
       stripeSubscriptionId,
     });
   },
-  async addCredits(userId: string, amount: number, reason: string, referenceId?: string) {
-    await creditService.addCredits(userId, amount, reason, referenceId);
+  async renewSubscriptionCredits(userId: string, amount: number, expiresAt: Date, referenceId: string) {
+    return creditService.renewSubscriptionCredits(userId, amount, expiresAt, referenceId);
+  },
+  async addCredits(userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) {
+    await creditService.addCredits(userId, amount, expiresAt, transactionType, referenceId);
   },
 };
 
@@ -346,41 +350,75 @@ export const revenueCatWebhookHandler = async (
 
       switch (type) {
       case "INITIAL_PURCHASE":
-      case "RENEWAL":
-      case "PRODUCT_CHANGE": {
+      case "RENEWAL": {
         if (REVENUECAT_PRODUCT_TO_TIER[normalizedProductId]) {
           const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
           const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
             new Date(expiration_at_ms) : null;
           const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
+
           await deps.upsertSubscription(
             cloudUser.id,
             tier,
             "active",
             renewalAt
           );
-          logger.info("RevenueCat: subscription upserted", {
+
+          if (renewalAt && original_transaction_id && typeof expiration_at_ms === 'number') {
+            // Use a per-cycle key: original_transaction_id alone would block all future renewals
+            // since it is stable for the lifetime of the subscription.
+            const referenceId = `${original_transaction_id}_${expiration_at_ms}`;
+            await deps.renewSubscriptionCredits(cloudUser.id, 300, renewalAt, referenceId);
+          }
+
+          logger.info("RevenueCat: subscription upserted + credits renewed", {
             app_user_id,
             tier,
             type,
           });
         } else if (isRevenueCatCreditPackProduct(product_id)) {
+          const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
           await deps.addCredits(
             cloudUser.id,
             CREDIT_PACK_AMOUNT,
-            "revenuecat_credit_pack_purchase",
+            expiresAt,
+            'one_time',
             original_transaction_id ?? undefined
           );
           logger.info("RevenueCat: credits added", {app_user_id, credits: CREDIT_PACK_AMOUNT});
         }
         break;
       }
+      case "PRODUCT_CHANGE": {
+        if (REVENUECAT_PRODUCT_TO_TIER[normalizedProductId]) {
+          const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
+          const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
+            new Date(expiration_at_ms) : null;
+          const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
+
+          await deps.upsertSubscription(
+            cloudUser.id,
+            tier,
+            "active",
+            renewalAt
+          );
+
+          logger.info("RevenueCat: subscription product change upserted", {
+            app_user_id,
+            tier,
+            type,
+          });
+        }
+        break;
+      }
       case "NON_RENEWING_PURCHASE": {
         if (isRevenueCatCreditPackProduct(product_id)) {
+          const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
           await deps.addCredits(
             cloudUser.id,
             CREDIT_PACK_AMOUNT,
-            "revenuecat_non_renewing_purchase",
+            expiresAt,
+            'one_time',
             original_transaction_id ?? undefined
           );
           logger.info("RevenueCat: non-renewing credits added", {app_user_id});
