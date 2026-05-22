@@ -1,7 +1,7 @@
 # Credits Model Redesign
 
 **Date:** 2026-05-21  
-**Status:** Approved
+**Status:** Implemented
 
 ## Overview
 
