@@ -11,6 +11,11 @@ Complete API documentation for the Clanker payment system.
 - Credits expire at the end of each billing cycle
 - Renewing the subscription expires old subscription credits and grants a fresh 300
 
+### Monthly $50 — reserved / inactive
+- Reserved product tier currently inactive in this release
+- Still accepted by `priceId` validation so `monthly_50` price IDs can be recognized and configured
+- Not available for purchase until the product is activated in a future release
+
 ### Credit Pack — $10 one-time
 - Grants **100 credits**
 - Expires **31 days** from purchase date

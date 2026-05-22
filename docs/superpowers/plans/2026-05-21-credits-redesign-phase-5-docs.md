@@ -68,21 +68,21 @@ If `PAYMENT_INTEGRATION.md` has a table like:
 
 | Event | Action |
 |---|---|
-| `checkout.session.completed` (subscription) | Grant unlimited credits |
+| `checkout.session.completed` (subscription) | Grant 300 credits expiring at `current_period_end`; then expire old subscription credits |
 | `customer.subscription.updated` | (no credit action) |
 
 Replace with:
 
 | Event | Action |
 |---|---|
-| `checkout.session.completed` (subscription) | Expire old subscription credits; grant 300 credits expiring at `current_period_end` |
+| `checkout.session.completed` (subscription) | Grant 300 credits expiring at `current_period_end`; then expire old subscription credits |
 | `checkout.session.completed` (credit pack) | Grant 100 credits expiring 31 days from now |
 | `customer.subscription.updated` (renewal) | `renewSubscriptionCredits(userId, 300, cycleEnd, eventId)` — atomic: idempotency check → expire old → grant new |
 | `invoice.payment_succeeded` (credit pack fallback) | Grant 100 credits expiring 31 days from now |
 | `charge.refunded` | Deduct credits as before |
 | `customer.subscription.deleted` | No credit action — credits expire naturally at `expires_at` |
 
-Add note: "Idempotency check MUST run before any DB writes (including the expiry UPDATE). Guard first, write second."
+Add note: "Idempotency guard must run before expiring old credits or performing any other DB writes. Guard first, write second."
 
 - [ ] **Step 3: Commit**
 

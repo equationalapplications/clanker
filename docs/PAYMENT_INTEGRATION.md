@@ -52,14 +52,14 @@ Both webhooks are deployed as Firebase Cloud Functions in `functions/src/`.
 
 | Stripe Event | Action |
 |---|---|
-| `checkout.session.completed` (subscription) | Expire old subscription credits; grant 300 credits expiring at `current_period_end` |
+| `checkout.session.completed` (subscription) | Grant 300 credits expiring at `current_period_end`; then expire old subscription credits |
 | `checkout.session.completed` (credit pack) | Grant 100 credits expiring 31 days from now |
 | `customer.subscription.updated` (renewal) | Grant 300 new credits expiring at `current_period_end` (referenceId = `sub_${sub.id}_${periodEnd}` — serves as idempotency guard); then expire old subscription credits |
 | `invoice.payment_succeeded` (credit pack fallback) | Grant 100 credits expiring 31 days from now |
 | `charge.refunded` | Deduct credits as before |
 | `customer.subscription.deleted` | No credit action — credits expire naturally at `expires_at` |
 
-> Idempotency check MUST run before any DB writes (including the expiry `UPDATE`). Guard first, write second.
+> Idempotency guard must run before expiring old credits or performing any other DB writes. Guard first, write second.
 
 #### Price ID → DB Tier Mapping
 

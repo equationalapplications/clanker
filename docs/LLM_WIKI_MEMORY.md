@@ -5,7 +5,7 @@
 > The current Clanker codebase now uses `@equationalapplications/expo-llm-wiki@4.9.0` with `src/services/wikiService.ts`, `src/hooks/useCharacterWiki.ts`, and `src/machines/wikiMachine.ts`. Legacy callable support remains in `functions/src/memoryFunctions.ts` for compatibility, but it is not the active modern client path.
 
 **Status**: v1 Implementation Complete ✅  
-**Premium Feature**: Yes (gated on sufficient credits / credit-eligible subscription state)  
+**Premium Feature**: Yes (gated on sufficient credits)  
 **Architecture**: Local SQLite + Cloud SQL mirror (optional)  
 **Related Docs**: [Spec](superpowers/specs/2026-04-24-llm-wiki-memory.md) | [Handoff](superpowers/plans/2026-04-27-llm-wiki-memory-handoff.md)
 

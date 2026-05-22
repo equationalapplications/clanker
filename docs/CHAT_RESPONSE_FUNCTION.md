@@ -42,7 +42,7 @@ Auth requirements:
 {
   "reply": "string",
   "creditsSpent": "number",
-  "remainingCredits": "number | null"
+  "remainingCredits": "number"
 }
 ```
 

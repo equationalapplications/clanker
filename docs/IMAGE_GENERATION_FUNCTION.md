@@ -29,7 +29,7 @@ type GenerateImageResponse = {
   imageBase64: string
   mimeType: string
   creditsSpent: number
-  remainingCredits: number | null
+  remainingCredits: number
   planTier: string | null
 }
 ```

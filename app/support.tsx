@@ -50,7 +50,7 @@ export default function Support() {
             How do credits and subscriptions work?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            Chat replies, image generation, voice replies, character saves, document ingestion, and memory features consume credits. Subscriptions give a monthly credit allowance, and one-time packs
+            Chat replies, image generation, voice replies, cloud character saves/sync, document ingestion, and memory features consume credits. Subscriptions give a monthly credit allowance, and one-time packs
             grant temporary credits that expire after 31 days.
           </Text>
 
