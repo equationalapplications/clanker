@@ -1,3 +1,59 @@
+# [29.13.0](https://github.com/equationalapplications/clanker/compare/v29.12.0...v29.13.0) (2026-05-22)
+
+
+### Bug Fixes
+
+* **credits:** address Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([f9087a0](https://github.com/equationalapplications/clanker/commit/f9087a073fe1f973bd3a4714b51aae81718308bc))
+* **credits:** address fifth-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([7f7893d](https://github.com/equationalapplications/clanker/commit/7f7893ddbd742ad1f8df1d330e1ece7520d469bf))
+* **credits:** address fourth-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([88b28f4](https://github.com/equationalapplications/clanker/commit/88b28f4ecbf89e57a46eb1df122d81034a7b125d))
+* **credits:** address second-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([08785f3](https://github.com/equationalapplications/clanker/commit/08785f3579ce15d24c7fda28cc1405fe0a505f18))
+* **credits:** address sixth-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([bc3b19d](https://github.com/equationalapplications/clanker/commit/bc3b19d3e4e44382cef84ac0c1215373c0f1b47d))
+* **credits:** address third-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([fdbb460](https://github.com/equationalapplications/clanker/commit/fdbb46092df6ce8e2c727ab826b55ad98cc61052))
+* **credits:** align callable response contract and docs with plan metadata ([2f2cfae](https://github.com/equationalapplications/clanker/commit/2f2cfaee49ec4cda680b23866c5c77a83b85511f))
+* **credits:** align spendCredits return type with redesign spec ([9e69c2c](https://github.com/equationalapplications/clanker/commit/9e69c2c3f46f36acf01f58112d92ebb7e547de53))
+* **credits:** align verifiedAt generation with usage snapshot build timing ([e9f721b](https://github.com/equationalapplications/clanker/commit/e9f721be1b40ab5fbf8048b5154626c0a592bc78))
+* **credits:** align voice gating and credit counter UI with Phase 4 credit model ([52b432c](https://github.com/equationalapplications/clanker/commit/52b432c40a416afbfdf342b69143f45ff8f0f508))
+* **credits:** avoid duplicate signup grant when subscription exists ([b9aa174](https://github.com/equationalapplications/clanker/commit/b9aa174f82edfae1f7e7d993304b1be29b7d8db5))
+* **credits:** avoid unnecessary subscription cache writes and align Phase 2 spendCredits signature docs ([152f4ac](https://github.com/equationalapplications/clanker/commit/152f4ac9544a231febd32624eaca2f207f47cdff))
+* **credits:** capture verifiedAt immediately after charge and pass through usage snapshot ([97cda5a](https://github.com/equationalapplications/clanker/commit/97cda5aa1f6b0c0f63ac3d24a0903d3763552072))
+* **credits:** extract CREDIT_PACK_EXPIRY_MS to shared constants/credits.ts ([4f2d26b](https://github.com/equationalapplications/clanker/commit/4f2d26bc9f8ae62b0cdfc5332752337c0af52c1c))
+* **credits:** fully inject creditService into generate callables for testability ([588c01a](https://github.com/equationalapplications/clanker/commit/588c01ac08fd06349232d4e8d2431efa49728b34))
+* **credits:** harden refundCredit and spendCredits against concurrency ([6012d45](https://github.com/equationalapplications/clanker/commit/6012d45488c28730721dcf1fddbabf7d675a7bf9))
+* **credits:** lock subscription row before spendCredits FOR UPDATE ([619ca80](https://github.com/equationalapplications/clanker/commit/619ca8092441901afe6754222384287a8c6b349d))
+* **credits:** remove stale referenceId spending contract and guard signup grant ([8d11f23](https://github.com/equationalapplications/clanker/commit/8d11f239d0aaff14d05851718f5f5aecd2a74c3d))
+* **credits:** resolve credit display and voice-chat subscriber handling ([c2164e1](https://github.com/equationalapplications/clanker/commit/c2164e16041524ff7812945bd09ed4554e5831be))
+* **credits:** resolve lint errors — replace explicit any with proper types ([687e569](https://github.com/equationalapplications/clanker/commit/687e569fe1c98d57c4f40e039a039e0dd96b8b82))
+* **credits:** tighten signup credit bootstrap and make spendCredits description optional ([a88be66](https://github.com/equationalapplications/clanker/commit/a88be66ff37028ccc77f4667c3a94b1f89821021))
+* **credits:** type usageSnapshot explicitly in callable handlers ([35a8a6c](https://github.com/equationalapplications/clanker/commit/35a8a6cf3e54dfcdb1d3df55a9dc24bbe18f9523))
+* **credits:** unify documentExtract credit error and add signup trigger migration ([07969b5](https://github.com/equationalapplications/clanker/commit/07969b5bdf35bcbc6b0c9886b3846051eb58926c))
+* **deps:** bump postcss to 8.5.15 and ws to 8.20.1 ([63c40a0](https://github.com/equationalapplications/clanker/commit/63c40a09090878cd8f56795899ff1235f759c7dc))
+* **docs:** resolve remaining PR review threads for phase 5 credits redesign ([e135ff3](https://github.com/equationalapplications/clanker/commit/e135ff357535d0812e399f291ae500f038f04520))
+* **frontend:** remove legacy credit deduction helpers and update remaining unlimited copy ([49ba328](https://github.com/equationalapplications/clanker/commit/49ba3280645e5b90b156928d92ee0d06513b774c))
+* **frontend:** remove subscriber infinite badge and enforce 2-credit voice requirement ([1af2b79](https://github.com/equationalapplications/clanker/commit/1af2b79c9d05c4259e0874cc50f808ecd8bf2f40))
+* **functions:** add phase 1 credits schema migration ([1c66122](https://github.com/equationalapplications/clanker/commit/1c66122ea24499a583739cb42715fb992cbfe259))
+* **functions:** centralize usage snapshot fetching for generator endpoints ([1ed9189](https://github.com/equationalapplications/clanker/commit/1ed9189316586ac9ae824da394ebe78975120e97))
+* **functions:** complete phase 3 callable credit gating for wiki callables ([624e490](https://github.com/equationalapplications/clanker/commit/624e490fa02b312dc78815233ca1f046348d8b4a))
+* **functions:** remove unsupported referenceId handling from generateReply ([7b75e3b](https://github.com/equationalapplications/clanker/commit/7b75e3b5341f5d26bac18c1dd323682ea50ae3cb))
+* **functions:** remove unused buildUsageSnapshot imports ([864c923](https://github.com/equationalapplications/clanker/commit/864c9230a58b7dcf3417042a0fa0e7082b31650c))
+* **functions:** update phase 3 callable credits flow and refund behavior ([92aa967](https://github.com/equationalapplications/clanker/commit/92aa9673634561d2a43881b58e860efc6fb637b6))
+* **functions:** update Phase 3 credit flow tests and character handler deps ([3519b9e](https://github.com/equationalapplications/clanker/commit/3519b9ed595b76b792f93746ff80a58a96663779))
+* **review:** address Copilot PR review feedback ([9e13809](https://github.com/equationalapplications/clanker/commit/9e13809a3f8be04e68664cf50c5f8bc290342e79))
+* **test:** increase timeout for checkout success refresh suite ([a7d5fb4](https://github.com/equationalapplications/clanker/commit/a7d5fb46665323f1bf024438d5990d7959a2679a))
+* **test:** remove duplicate nextExpiryDate fields in spendCredits tests ([0f34a04](https://github.com/equationalapplications/clanker/commit/0f34a0426d8ca4471d27c20d6c681933c61152aa))
+* **tests:** remove duplicate subscription fields in phase 2 test fixtures ([5b65c6d](https://github.com/equationalapplications/clanker/commit/5b65c6d52e8334f87a80d7af1b9f67fc894cb5aa))
+* **ui:** update credit badge and subscriber voice chat behavior ([cf16d97](https://github.com/equationalapplications/clanker/commit/cf16d97b040c96496efea6164d02bfe3ea270b4c))
+* update root package-lock.json to match staging package.json ([63db530](https://github.com/equationalapplications/clanker/commit/63db530448ecc6564e2647fac703825bb7666dd9))
+* **voice-chat/credits:** respect subscriber status and render credit badge correctly ([470e9d0](https://github.com/equationalapplications/clanker/commit/470e9d0dfa4a8ebb99268caee45b8dc14d75f5ff))
+* **voice-reply:** spend credits before generation and refund on failure ([382b738](https://github.com/equationalapplications/clanker/commit/382b738c80619387e6ea18e143fb7110eac261f9))
+
+
+### Features
+
+* **credits:** implement credit transactions balance model and webhook renewals ([89b4bd9](https://github.com/equationalapplications/clanker/commit/89b4bd9aa5226462b24f1cfaf54bbb85b8e88aee))
+* **credits:** merge phase 2 credit service branch ([05ecb45](https://github.com/equationalapplications/clanker/commit/05ecb451bd2401a479dadaf2402c541316737162))
+* **db:** add phase 1 credits redesign schema + migration ([c5e636d](https://github.com/equationalapplications/clanker/commit/c5e636d92e69b0156fd1a0f265dfa09ac04106b3))
+* **frontend:** phase 4 credits redesign — remove unlimited logic and show expiry dates ([890edb7](https://github.com/equationalapplications/clanker/commit/890edb7f2a742803ba6c76e82f9ee2b07a8ef85e))
+
 # [29.12.0](https://github.com/equationalapplications/clanker/compare/v29.11.0...v29.12.0) (2026-05-20)
 
 
