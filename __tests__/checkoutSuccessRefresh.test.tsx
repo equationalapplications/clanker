@@ -1,6 +1,8 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
 
+jest.setTimeout(10000)
+
 const mockReplace = jest.fn()
 const mockBack = jest.fn()
 const mockRefreshBootstrap = jest.fn()

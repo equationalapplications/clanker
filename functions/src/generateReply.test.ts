@@ -62,6 +62,7 @@ function buildSubscription(
     stripeCustomerId: null,
     billingCycleStart: null,
     billingCycleEnd: null,
+    nextExpiryDate: null,
     documentsIngestedCount: 0,
     documentsIngestedDate: null,
     createdAt: new Date(),
@@ -96,7 +97,7 @@ test("generateReplyHandler validates prompt", async () => {
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => 'mock-tx-id';
     creditService.getCredits = async () => 2;
 
     await assert.rejects(
@@ -126,12 +127,10 @@ test("generateReplyHandler spends one credit for payg users", async () => {
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+    creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 1);
-      assert.equal(reason, "chat response");
-      assert.equal(referenceId, "message-123");
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 
@@ -140,7 +139,6 @@ test("generateReplyHandler spends one credit for payg users", async () => {
         auth,
         data: {
           prompt: "hello",
-          referenceId: "message-123",
         },
       } as never,
       {
@@ -169,7 +167,7 @@ test("generateReplyHandler does not spend credits for unlimited users", async ()
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20", 0);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 0;
 
@@ -204,12 +202,10 @@ test("generateReplyHandler allows cancelled plans to spend remaining credits", a
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3, "cancelled");
-    creditService.spendCredits = async (_userId, amount, reason, referenceId) => {
+    creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 1);
-      assert.equal(reason, "chat response");
-      assert.equal(referenceId, "message-cancelled");
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 
@@ -218,7 +214,6 @@ test("generateReplyHandler allows cancelled plans to spend remaining credits", a
         auth,
         data: {
           prompt: "hello",
-          referenceId: "message-cancelled",
         },
       } as never,
       {
@@ -243,7 +238,7 @@ test("generateReplyHandler rejects when user has no credits and no unlimited pla
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 0);
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => 'mock-tx-id';
     creditService.getCredits = async () => 0;
 
     await assert.rejects(
@@ -280,7 +275,7 @@ test("generateReplyHandler bootstraps default subscription when missing", async 
       bootstrapCalls += 1;
       return buildSubscription(user.id, "payg", 50);
     };
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => 'mock-tx-id';
     creditService.getCredits = async () => 49;
 
     const result = await generateReplyHandler(
@@ -315,7 +310,7 @@ test("generateReplyHandler does not spend credit when model generation fails", a
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 
@@ -352,7 +347,7 @@ test("generateReplyHandler preserves HttpsError from model generation", async ()
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return true;
+      return 'mock-tx-id';
     };
     creditService.getCredits = async () => 2;
 
@@ -363,7 +358,6 @@ test("generateReplyHandler preserves HttpsError from model generation", async ()
             auth,
             data: {
               prompt: "hello",
-              referenceId: "message-123",
             },
           } as never,
           {
@@ -390,7 +384,7 @@ test("generateReplyHandler maps identity conflicts to failed-precondition", asyn
       throw new Error("Existing user email is linked to a different Firebase UID.");
     };
     subscriptionService.getSubscription = async () => buildSubscription("unused-user", "payg", 1);
-    creditService.spendCredits = async () => true;
+    creditService.spendCredits = async () => 'mock-tx-id';
     creditService.getCredits = async () => 0;
 
     await assert.rejects(

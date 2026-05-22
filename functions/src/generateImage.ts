@@ -11,7 +11,6 @@ const UNLIMITED_TIERS = new Set(["monthly_20", "monthly_50"]);
 const DEFAULT_MODEL = "gemini-2.5-flash-image";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 2_000;
-const MAX_REFERENCE_ID_LENGTH = 128;
 const MAX_BASE64_LENGTH = 8_000_000;
 const THROTTLE_WINDOW_MS = 60_000;
 const THROTTLE_MAX_REQUESTS = 5;
@@ -23,7 +22,6 @@ if (!admin.apps.length) {
 
 interface GenerateImageData {
   prompt: string;
-  referenceId?: string;
 }
 
 interface UsageState {
@@ -165,7 +163,7 @@ function getProjectId(): string | undefined {
   return value ? value : undefined;
 }
 
-function parseInput(data: unknown): {prompt: string; referenceId: string | null} {
+function parseInput(data: unknown): {prompt: string} {
   const payload = data as GenerateImageData | undefined;
   const promptValue = payload?.prompt;
   const prompt = typeof promptValue === "string" ? promptValue.trim() : "";
@@ -181,18 +179,7 @@ function parseInput(data: unknown): {prompt: string; referenceId: string | null}
     );
   }
 
-  const reference = typeof payload?.referenceId === "string" ? payload.referenceId.trim() : "";
-  if (reference.length > MAX_REFERENCE_ID_LENGTH) {
-    throw new HttpsError(
-      "invalid-argument",
-      `referenceId must be at most ${MAX_REFERENCE_ID_LENGTH} characters.`
-    );
-  }
-
-  return {
-    prompt,
-    referenceId: reference.length > 0 ? reference : null,
-  };
+  return { prompt };
 }
 
 async function fetchUsageState(userId: string): Promise<UsageState> {
@@ -242,15 +229,14 @@ function assertUsageAuthorized(usage: UsageState): void {
 async function spendOneCreditIfRequired(
   userId: string,
   usage: UsageState,
-  referenceId: string | null
 ): Promise<number | null> {
   if (usage.hasUnlimited) {
     return null;
   }
 
   try {
-    const success = await creditService.spendCredits(userId, 1, "image generation", referenceId ?? undefined);
-    if (!success) {
+    const txId = await creditService.spendCredits(userId, 1);
+    if (!txId) {
       throw new HttpsError("resource-exhausted", "Insufficient credits to complete the operation.");
     }
 
@@ -262,7 +248,6 @@ async function spendOneCreditIfRequired(
 
     logger.error("Failed to spend user credits", {
       userId,
-      referenceId,
       error,
     });
 
@@ -457,7 +442,7 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const {prompt, referenceId} = parseInput(request.data);
+  const {prompt} = parseInput(request.data);
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -529,7 +514,7 @@ const handler = async (
 
   let remainingCredits: number | null;
   try {
-    remainingCredits = await spendOneCreditIfRequired(user.id, usage, referenceId);
+    remainingCredits = await spendOneCreditIfRequired(user.id, usage);
   } catch (error) {
     logger.error("spendOneCreditIfRequired failed", {
       firebaseUid: request.auth.uid,

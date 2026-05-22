@@ -9,6 +9,17 @@ Remove the concept of "unlimited" credits from Clanker. The `monthly_20` subscri
 
 Credit consumption uses a **decrementing balance model**: each credit grant row tracks its own `remaining_balance`, and spending decrements that row directly. This keeps queries fast, expiration precise, and enables per-transaction refunds when downstream APIs fail.
 
+> **Breaking architecture change.** This redesign touches every layer of the stack simultaneously. All six areas below must ship together — a partial deploy leaves the system in an inconsistent state.
+>
+> | Area | Nature of break |
+> |---|---|
+> | **DB schema** | `credit_transactions` gains `initial_amount`, `remaining_balance`, `transaction_type`, `expires_at`; `subscriptions` gains `next_expiry_date`. Existing rows require backfill before backend deploys. |
+> | **`creditService`** | `getCredits`, `addCredits`, and `spendCredits` all change call signatures or return types. New `refundCredit` function added. Any caller of these functions must be updated. |
+> | **Webhook handlers** | `stripeWebhook.ts` and `revenueCatWebhook.ts` change how subscription renewals are processed — now expire old credits before granting new ones. Idempotency guard ordering is a hard requirement (see § What Does Not Change). |
+> | **Callable gating** | `generateImage.ts`, `generateReply.ts`, `generateVoiceReply.ts`, `characterFunctions.ts`, `documentExtract.ts`, `memoryFunctions.ts` — all replace tier-check guards with `spendCredits` / `refundCredit`. The `UNLIMITED_TIERS`, `PREMIUM_TIERS`, `hasUnlimited` constants are deleted. |
+> | **Frontend credit utilities and UI** | `getUserCredits.ts`, `useAuthSnapshot.ts`, `ChatView.tsx`, `useVoiceChat.ts`, `CreditCounterIcon.tsx`, `CreditsDisplay.tsx`, `constants.ts` — all remove unlimited-state logic. UI switches from plan-tier gates to balance-only gates. |
+> | **Tests** | Any test that stubs `hasUnlimited`, `isUnlimited`, tier membership, or the old `spendCredits` / `addCredits` signatures must be rewritten. Tests that mock webhook handlers must cover the idempotency-before-write ordering and the expiration `UPDATE` path. |
+
 ---
 
 ## Credit Model Rules
@@ -29,6 +40,7 @@ Credit consumption uses a **decrementing balance model**: each credit grant row 
 - Separate pools (subscription vs one-time) tracked independently via `transaction_type` and `expires_at` per `credit_transactions` row.
 - Spend order: earliest-expiring grant first (`ORDER BY expires_at NULLS LAST ASC`). Free credits (`expires_at = NULL`) spent last.
 - Credit costs: voice replies = 2 credits; all other features = 1 credit. Since the max cost per action is 2, `spendCredits` always finds a single row with sufficient `remaining_balance` — no cross-row splitting required.
+- **Known limitation (accepted for MVP):** If a user has 1 credit in an expiring pool and ≥ 2 credits in a non-expiring or later-expiring pool, `spendCredits` skips the expiring pool (insufficient balance for a 2-credit feature) and spends from the other pool. That single credit becomes "trapped" — it expires unused if the user only invokes 2-credit features before that pool expires. Accepted behavior: the trapped credit remains usable for any 1-credit feature, and cross-row splitting is explicitly out of scope for this release.
 - Local inference (future feature): client handles AI call on-device and never calls `spendCredits`. No credits consumed. No code change required — credit deduction is explicit/opt-in per callable.
 
 ---
@@ -69,7 +81,8 @@ ALTER TABLE credit_transactions
 
 ```sql
 ALTER TABLE subscriptions ADD COLUMN next_expiry_date TIMESTAMPTZ;
--- Set to the earliest expires_at across a user's non-expired credit_transactions rows.
+-- Set to the earliest expires_at across rows where remaining_balance > 0 AND (expires_at IS NULL OR expires_at > NOW()).
+-- Must exclude zero-balance rows: a depleted pool's expires_at must not trigger "credits expiring soon" in the UI.
 -- Allows frontend to display "your credits expire on X" without querying credit_transactions.
 ```
 
@@ -102,7 +115,7 @@ ALTER TABLE subscriptions ADD COLUMN next_expiry_date TIMESTAMPTZ;
   5. Return `null` if no qualifying row found (insufficient credits).
 
 - **`refundCredit(userId, transactionId, amount)`** _(new)_: within a DB transaction —
-  1. Increment `remaining_balance` by `amount` for the given `transactionId`.
+  1. Increment `remaining_balance` atomically: `UPDATE credit_transactions SET remaining_balance = remaining_balance + $1 WHERE id = $2`. Never read-then-write a cached value — concurrent spends between the read and the write would be silently overwritten.
   2. Update `subscriptions.currentCredits` cache.
   3. Credits are restored to their exact original pool — `expires_at` unchanged, no extension granted.
 
@@ -187,7 +200,7 @@ All files in `docs/` must be updated to remove references to "unlimited credits"
 ## What Does Not Change
 
 - `planTier` column and plan tier values (`free`, `monthly_20`, `monthly_50`, `payg`) remain in DB schema — used for billing/webhook routing.
-- Idempotency logic on `creditTransactions` remains unchanged.
+- Idempotency logic on `creditTransactions` remains unchanged — but the idempotency check (verify `stripe_event_id` / RevenueCat event ID has not been processed) **must execute before any DB writes begin**, including the `UPDATE` that expires old subscription credits. A duplicate webhook that reaches the expiration `UPDATE` before the idempotency guard runs could expire newly-granted credits if the timing is slightly off. Guard first, write second, unconditionally.
 - Provider-side refunds (Stripe, Apple, Google Play) remain handled by webhooks, not client.
 - `monthly_50` plan remains reserved and inactive.
 - Admin credit adjustment functions remain unchanged.

@@ -34,3 +34,145 @@ test('upsertSubscription defaults first insert credits to 50 when omitted', asyn
   assert.equal(insertedCredits, 50);
   assert.equal(upsertedCredits, 50);
 });
+
+test('getOrCreateDefaultSubscription grants signup credits for new user', async () => {
+  let addedCreditArgs: unknown = null;
+  let selectCalls = 0;
+  const mockDeps = {
+    getDb: async () => ({
+      insert: () => ({
+        values: () => ({
+          onConflictDoNothing: () => ({
+            returning: async () => [{ id: 'sub-1' }],
+          }),
+        }),
+      }),
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => {
+              selectCalls += 1;
+              if (selectCalls === 1) {
+                return [{
+                  id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 0,
+                  termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
+                }];
+              }
+              return [];
+            },
+          }),
+        }),
+      }),
+    }),
+    creditService: {
+      addCredits: async (userId: string, amount: number, expiresAt: Date | null, transactionType: string, referenceId?: string) => {
+        addedCreditArgs = { userId, amount, expiresAt, transactionType, referenceId };
+      },
+    },
+  } as const;
+
+  const service = createSubscriptionService(mockDeps as never);
+  const subscription = await service.getOrCreateDefaultSubscription('user-1');
+
+  assert.equal(subscription.currentCredits, 0);
+  assert.deepEqual(addedCreditArgs, {
+    userId: 'user-1',
+    amount: 50,
+    expiresAt: null,
+    transactionType: 'signup',
+    referenceId: 'signup',
+  });
+});
+
+test('getOrCreateDefaultSubscription grants signup credits when subscription row was pre-created but no credit rows exist', async () => {
+  let addedCreditArgs: unknown = null;
+  let selectCalls = 0;
+
+  const mockDeps = {
+    getDb: async () => ({
+      insert: () => ({
+        values: () => ({
+          onConflictDoNothing: () => ({
+            returning: async () => [],
+          }),
+        }),
+      }),
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => {
+              selectCalls += 1;
+              if (selectCalls === 1) {
+                return [{
+                  id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 0,
+                  termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
+                }];
+              }
+              return [];
+            },
+          }),
+        }),
+      }),
+    }),
+    creditService: {
+      addCredits: async (userId: string, amount: number, expiresAt: Date | null, transactionType: string, referenceId?: string) => {
+        addedCreditArgs = { userId, amount, expiresAt, transactionType, referenceId };
+      },
+    },
+  } as const;
+
+  const service = createSubscriptionService(mockDeps as never);
+  await service.getOrCreateDefaultSubscription('user-1');
+
+  assert.deepEqual(addedCreditArgs, {
+    userId: 'user-1',
+    amount: 50,
+    expiresAt: null,
+    transactionType: 'signup',
+    referenceId: 'signup',
+  });
+});
+
+test('getOrCreateDefaultSubscription does not add signup credits when existing user already has credit rows', async () => {
+  let addCreditsWasCalled = false;
+  let selectCalls = 0;
+
+  const mockDeps = {
+    getDb: async () => ({
+      insert: () => ({
+        values: () => ({
+          onConflictDoNothing: () => ({
+            returning: async () => [],
+          }),
+        }),
+      }),
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => {
+              selectCalls += 1;
+              if (selectCalls === 1) {
+                return [{
+                  id: 'sub-1', userId: 'user-1', planTier: 'free', planStatus: 'active', currentCredits: 50,
+                  termsVersion: null, termsAcceptedAt: null, nextExpiryDate: null,
+                }];
+              }
+              return [{
+                id: 'tx-1', userId: 'user-1', delta: 50, reason: 'signup', referenceId: 'signup',
+                initialAmount: 50, remainingBalance: 50, transactionType: 'signup', expiresAt: null,
+              }];
+            },
+          }),
+        }),
+      }),
+    }),
+    creditService: {
+      addCredits: async () => { addCreditsWasCalled = true; },
+    },
+  } as const;
+
+  const service = createSubscriptionService(mockDeps as never);
+  await service.getOrCreateDefaultSubscription('user-1');
+  assert.equal(addCreditsWasCalled, false);
+  assert.equal(selectCalls, 3);
+});
