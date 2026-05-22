@@ -3,7 +3,9 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
+import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
+import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
@@ -24,6 +26,9 @@ export interface GenerateReplyResponse {
   reply: string;
   creditsSpent: number;
   remainingCredits: number;
+  planTier: string | null;
+  planStatus: 'active' | 'cancelled' | 'expired' | null;
+  verifiedAt: string;
 }
 
 type GenerateTextFn = (prompt: string) => Promise<string>;
@@ -209,6 +214,7 @@ async function chargeForReply(
   return { transactionId, remainingCredits };
 }
 
+
 const handler = async (
   request: CallableRequest,
   options: GenerateReplyOptions = {}
@@ -272,10 +278,17 @@ const handler = async (
       throw new HttpsError("internal", "Model returned an empty chat response.");
     }
 
+    const usageSnapshot = await buildUsageSnapshotForUser(
+      user.id,
+      subscriptionService,
+      'generateReply'
+    );
+
     return {
       reply,
       creditsSpent: 1,
       remainingCredits,
+      ...usageSnapshot,
     };
   } catch (error) {
     if (transactionId) {

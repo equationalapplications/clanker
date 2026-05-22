@@ -3,7 +3,9 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
+import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
+import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 const DEFAULT_MODEL = "gemini-2.5-flash-image";
@@ -32,6 +34,9 @@ export interface GenerateImageResponse {
   mimeType: string;
   creditsSpent: number;
   remainingCredits: number;
+  planTier: string | null;
+  planStatus: 'active' | 'cancelled' | 'expired' | null;
+  verifiedAt: string;
 }
 
 type GenerateImageFn = (prompt: string) => Promise<GeneratedImageResult>;
@@ -168,6 +173,7 @@ async function chargeForImage(
   const remainingCredits = await credits.getCredits(userId);
   return { transactionId, remainingCredits };
 }
+
 
 function assertSupportedImageMimeType(mimeType: string): string {
   const normalized = mimeType.trim().toLowerCase();
@@ -422,11 +428,18 @@ const handler = async (
       imageBytesApprox: Math.floor(imageResult.imageBase64.length * 0.75),
     });
 
+    const usageSnapshot = await buildUsageSnapshotForUser(
+      user.id,
+      subscriptionService,
+      'generateImage'
+    );
+
     return {
       imageBase64: imageResult.imageBase64,
       mimeType: normalizedMimeType,
       creditsSpent: 1,
       remainingCredits,
+      ...usageSnapshot,
     };
   } catch (error) {
     if (transactionId) {

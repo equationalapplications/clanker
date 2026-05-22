@@ -4,6 +4,56 @@ Complete API documentation for the Clanker payment system.
 
 ---
 
+## Products
+
+### Monthly Subscription — $20/month
+- Grants **300 credits** per billing cycle
+- Credits expire at the end of each billing cycle
+- Renewing the subscription expires old subscription credits and grants a fresh 300
+
+### Monthly $50 — reserved / inactive
+- Reserved product tier currently inactive in this release
+- Still accepted by `priceId` validation so `monthly_50` price IDs can be recognized and configured
+- Not available for purchase until the product is activated in a future release
+
+### Credit Pack — $10 one-time
+- Grants **100 credits**
+- Expires **31 days** from purchase date
+
+### Free Signup
+- New users receive **50 credits** on first login
+- These credits **never expire** (`expires_at = NULL`)
+
+## `creditService.addCredits`
+
+**Signature:** `addCredits(userId, amount, expiresAt, transactionType, referenceId?)`
+
+- `expiresAt`: `Date | null` — `null` means never expires (used for signup credits and other permanent grants such as legacy rows)
+- `transactionType`: `'signup' | 'subscription' | 'one_time' | 'legacy'`
+- `referenceId`: optional idempotency key (Stripe/RevenueCat event ID)
+
+## `creditService.spendCredits`
+
+**Signature:** `spendCredits(userId, amount): Promise<string | null>`
+
+Spends `amount` credits from the earliest-expiring qualifying row. Returns the
+`transactionId` of the decremented row (used for `refundCredit` on failure), or
+`null` if no row has sufficient `remaining_balance`.
+
+Spend order: earliest `expires_at` first. Free credits (`expires_at = NULL`) are
+spent last.
+
+## `creditService.refundCredit`
+
+**Signature:** `refundCredit(userId, transactionId, amount): Promise<void>`
+
+Atomically increments `remaining_balance` on the specified `credit_transactions`
+row. Called when an API invocation fails after credits were spent. Credits are
+restored to the original grant row — `expires_at` is unchanged, no extension granted.
+
+Note: If a refunded credit's original pool has expired at the time of the refund,
+a non-expiring compensation row is granted to prevent unfair user credit loss.
+
 ## `purchasePackageStripe` (Web Checkout Callable)
 
 Creates a Stripe Checkout Session and returns the hosted URL. Web-only — native platforms use RevenueCat.

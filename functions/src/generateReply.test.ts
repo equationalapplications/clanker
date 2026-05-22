@@ -149,6 +149,9 @@ test("generateReplyHandler spends one credit for payg users", async () => {
     assert.equal(result.reply, "reply from model");
     assert.equal(result.creditsSpent, 1);
     assert.equal(result.remainingCredits, 2);
+    assert.equal(result.planTier, "payg");
+    assert.equal(result.planStatus, "active");
+    assert.ok(typeof result.verifiedAt === "string" && result.verifiedAt.length > 0);
     assert.equal(spendCalls, 1);
   });
 });
