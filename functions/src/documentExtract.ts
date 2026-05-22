@@ -403,7 +403,7 @@ async function extractChunksConcurrently(
 async function chargeForDocumentExtract(deps: DocumentExtractDeps, userId: string): Promise<string> {
   const transactionId = await deps.creditService.spendCredits(userId, 1);
   if (!transactionId) {
-    throw new HttpsError('resource-exhausted', 'Insufficient credits to extract documents.');
+    throw new HttpsError('failed-precondition', 'Insufficient credits to extract documents.');
   }
 
   return transactionId;
