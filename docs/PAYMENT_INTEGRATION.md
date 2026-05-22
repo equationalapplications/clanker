@@ -19,7 +19,7 @@ Credits and subscriptions are shared across platforms. If a user purchases credi
 
 ### Credits and Subscriptions
 
-The user may purchase 100 credits for $10 or subscribe monthly for 300 credits at $20/month.
+The user may purchase 100 credits for $10 or subscribe monthly for 300 credits at $20/month. A reserved/inactive $50/month tier is also defined in the codebase for future use.
 
 Free signup credits never expire. Subscription credits expire at the end of each billing cycle. One-time credit pack credits expire 31 days after purchase.
 

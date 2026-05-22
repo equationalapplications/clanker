@@ -9,8 +9,8 @@
 **Tech Stack:** Markdown
 
 **Branches:**
-origin branch for PR: feat/credits-phase-5-docs
-local worktree branch for PR: feat/credits-phase-5-docs
+- origin branch for PR: feature branch for this work
+- local worktree branch for PR: feature branch for this work
 
 ---
 
