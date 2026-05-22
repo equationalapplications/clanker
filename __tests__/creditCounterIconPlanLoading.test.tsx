@@ -64,7 +64,7 @@ describe('CreditCounterIcon with useCurrentPlan', () => {
     expect(badge.props.children).toBe(42)
   })
 
-  it('renders subscriber UI and no credits badge for subscribers', () => {
+  it('renders numeric credits for subscribers and shows monthly plan active in the label', () => {
     mockUseCurrentPlan.mockReturnValue({ isSubscriber: true, isLoading: false })
     mockUseUserCredits.mockReturnValue({ data: { totalCredits: 99 }, isLoading: false })
 
@@ -73,9 +73,10 @@ describe('CreditCounterIcon with useCurrentPlan', () => {
       tree = create(<CreditCounterIcon />)
     })
 
-    expect(tree.root.findAllByProps({ testID: 'badge' })).toHaveLength(0)
-    const textNodes = tree.root.findAll((node) => node.props?.children === '∞')
-    expect(textNodes.length).toBeGreaterThan(0)
+    const badge = tree.root.findByProps({ testID: 'badge' })
+    expect(badge.props.children).toBe(99)
+    const allWithOnPress = tree.root.findAll((node: any) => !!node.props.onPress)
+    expect(allWithOnPress[0].props.accessibilityLabel).toBe('99 credits remaining, monthly plan active')
   })
 
   it('pressable has accessibilityRole "button"', () => {
@@ -115,7 +116,7 @@ describe('CreditCounterIcon with useCurrentPlan', () => {
     })
 
     const allWithOnPress = tree.root.findAll((node: any) => !!node.props.onPress)
-    expect(allWithOnPress[0].props.accessibilityLabel).toBe('Unlimited credits')
+    expect(allWithOnPress[0].props.accessibilityLabel).toBe('0 credits remaining, monthly plan active')
   })
 
   it('pressable has accessibilityHint for subscription management', () => {

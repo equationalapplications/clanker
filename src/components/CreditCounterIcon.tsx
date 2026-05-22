@@ -12,9 +12,7 @@ export function CreditCounterIcon() {
   const isLoading = isPlanLoading || isCreditsLoading
   const accessibilityLabel = isLoading
     ? 'Credits loading'
-    : isSubscriber
-    ? 'Unlimited credits'
-    : `${credits?.totalCredits ?? 0} credits remaining`
+    : `${credits?.totalCredits ?? 0} credits remaining${isSubscriber ? ', monthly plan active' : ''}`
 
   const badgeContent = isLoading ? '...' : credits?.totalCredits ?? 0
 
@@ -32,7 +30,7 @@ export function CreditCounterIcon() {
       })}
     >
       <Text>Credits </Text>
-      {isSubscriber ? <Text>∞</Text> : <Badge testID="badge">{badgeContent}</Badge>}
+      <Badge testID="badge">{badgeContent}</Badge>
     </Pressable>
   )
 }
