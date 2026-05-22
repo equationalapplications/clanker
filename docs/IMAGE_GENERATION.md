@@ -15,7 +15,7 @@ No cloud object-storage upload is used in this flow.
 2. Hook `useImageGeneration` calls `generateImageViaCallable(prompt)`.
 3. Firebase callable `generateImage` validates auth + App Check + billing.
 4. Function generates image with `gemini-2.5-flash-image`.
-5. Function returns `{ imageBase64, mimeType, creditsSpent, remainingCredits }`.
+5. Function returns `{ imageBase64, mimeType, creditsSpent, remainingCredits, planTier, planStatus, verifiedAt }`.
 6. Client saves `imageBase64` to SQLite via `saveCharacterImageLocally`.
 7. UI refreshes from local DB-backed state.
 

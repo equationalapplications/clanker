@@ -5,6 +5,7 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
+import { buildUsageSnapshot } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
@@ -213,20 +214,6 @@ async function chargeForReply(
   return { transactionId, remainingCredits };
 }
 
-function buildUsageSnapshot(subscription: Awaited<ReturnType<typeof subscriptionService.getSubscription>>) {
-  const planStatus: 'active' | 'cancelled' | 'expired' =
-    subscription?.planStatus === 'active' ||
-    subscription?.planStatus === 'cancelled' ||
-    subscription?.planStatus === 'expired'
-      ? subscription.planStatus
-      : 'active';
-
-  return {
-    planTier: subscription?.planTier ?? 'free',
-    planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
-}
 
 const handler = async (
   request: CallableRequest,
@@ -291,8 +278,17 @@ const handler = async (
       throw new HttpsError("internal", "Model returned an empty chat response.");
     }
 
-    const subscription = await subscriptionService.getSubscription(user.id);
-    const usageSnapshot = buildUsageSnapshot(subscription);
+    let usageSnapshot;
+    try {
+      const subscription = await subscriptionService.getSubscription(user.id);
+      usageSnapshot = buildUsageSnapshot(subscription);
+    } catch (snapshotError) {
+      logger.warn("Failed to fetch subscription for usage snapshot in generateReply", {
+        userId: user.id,
+        error: snapshotError,
+      });
+      usageSnapshot = buildUsageSnapshot(null);
+    }
 
     return {
       reply,

@@ -5,6 +5,7 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
+import { buildUsageSnapshot } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 const DEFAULT_MODEL = "gemini-2.5-flash-image";
@@ -173,20 +174,6 @@ async function chargeForImage(
   return { transactionId, remainingCredits };
 }
 
-function buildUsageSnapshot(subscription: Awaited<ReturnType<typeof subscriptionService.getSubscription>>) {
-  const planStatus: 'active' | 'cancelled' | 'expired' =
-    subscription?.planStatus === 'active' ||
-    subscription?.planStatus === 'cancelled' ||
-    subscription?.planStatus === 'expired'
-      ? subscription.planStatus
-      : 'active';
-
-  return {
-    planTier: subscription?.planTier ?? 'free',
-    planStatus,
-    verifiedAt: new Date().toISOString(),
-  };
-}
 
 function assertSupportedImageMimeType(mimeType: string): string {
   const normalized = mimeType.trim().toLowerCase();
@@ -441,8 +428,17 @@ const handler = async (
       imageBytesApprox: Math.floor(imageResult.imageBase64.length * 0.75),
     });
 
-    const subscription = await subscriptionService.getSubscription(user.id);
-    const usageSnapshot = buildUsageSnapshot(subscription);
+    let usageSnapshot;
+    try {
+      const subscription = await subscriptionService.getSubscription(user.id);
+      usageSnapshot = buildUsageSnapshot(subscription);
+    } catch (snapshotError) {
+      logger.warn("Failed to fetch subscription for usage snapshot in generateImage", {
+        userId: user.id,
+        error: snapshotError,
+      });
+      usageSnapshot = buildUsageSnapshot(null);
+    }
 
     return {
       imageBase64: imageResult.imageBase64,

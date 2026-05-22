@@ -69,7 +69,7 @@ By setting `"codebase": "clanker"`, deploy commands can reliably target this app
     4. Applies prompt validation + per-user throttling guard.
     5. Calls Vertex AI image model (`gemini-2.5-flash-image`) and extracts inline base64 image data.
     6. On model failure: refunds the credit via `transactionId`.
-    7. Returns `{ imageBase64, mimeType, creditsSpent, remainingCredits }`.
+    7. Returns `{ imageBase64, mimeType, creditsSpent, remainingCredits, planTier, planStatus, verifiedAt }`.
 - **Security**:
   - Enforces App Check.
   - Keeps image model access server-side (client has no direct GenAI SDK access).
