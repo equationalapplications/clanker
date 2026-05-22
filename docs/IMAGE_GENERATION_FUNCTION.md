@@ -30,6 +30,9 @@ type GenerateImageResponse = {
   mimeType: string
   creditsSpent: number
   remainingCredits: number
+  planTier: string | null
+  planStatus: 'active' | 'cancelled' | 'expired' | null
+  verifiedAt: string
 }
 ```
 

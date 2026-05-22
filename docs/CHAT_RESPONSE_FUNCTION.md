@@ -42,13 +42,18 @@ Auth requirements:
 {
   "reply": "string",
   "creditsSpent": "number",
-  "remainingCredits": "number"
+  "remainingCredits": "number",
+  "planTier": "string | null",
+  "planStatus": "'active' | 'cancelled' | 'expired' | null",
+  "verifiedAt": "string"
 }
 ```
 
 Semantics:
 - `creditsSpent = 1` for all successful text generation requests.
 - `remainingCredits` reflects the balance after the spend operation.
+- `planTier` and `planStatus` mirror the current Cloud SQL subscription state when available.
+- `verifiedAt` is an ISO 8601 timestamp used by the app’s usage snapshot plumbing.
 
 ## Authorization And Billing Rules
 

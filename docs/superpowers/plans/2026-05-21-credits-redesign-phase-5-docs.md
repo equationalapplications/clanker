@@ -77,7 +77,7 @@ Replace with:
 |---|---|
 | `checkout.session.completed` (subscription) | Grant 300 credits expiring at `current_period_end`; then expire old subscription credits |
 | `checkout.session.completed` (credit pack) | Grant 100 credits expiring 31 days from now |
-| `customer.subscription.updated` (renewal) | `renewSubscriptionCredits(userId, 300, cycleEnd, eventId)` — atomic: idempotency check → expire old → grant new |
+| `customer.subscription.updated` (renewal) | `renewSubscriptionCredits(userId, 300, cycleEnd, eventId)` — atomic: insert idempotent subscription credit row first, then expire older subscription credit rows |
 | `invoice.payment_succeeded` (credit pack fallback) | Grant 100 credits expiring 31 days from now |
 | `charge.refunded` | Deduct credits as before |
 | `customer.subscription.deleted` | No credit action — credits expire naturally at `expires_at` |

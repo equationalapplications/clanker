@@ -3,6 +3,7 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
+import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
@@ -24,6 +25,9 @@ export interface GenerateReplyResponse {
   reply: string;
   creditsSpent: number;
   remainingCredits: number;
+  planTier: string | null;
+  planStatus: 'active' | 'cancelled' | 'expired' | null;
+  verifiedAt: string;
 }
 
 type GenerateTextFn = (prompt: string) => Promise<string>;
@@ -209,6 +213,21 @@ async function chargeForReply(
   return { transactionId, remainingCredits };
 }
 
+function buildUsageSnapshot(subscription: Awaited<ReturnType<typeof subscriptionService.getSubscription>>) {
+  const planStatus: 'active' | 'cancelled' | 'expired' =
+    subscription?.planStatus === 'active' ||
+    subscription?.planStatus === 'cancelled' ||
+    subscription?.planStatus === 'expired'
+      ? subscription.planStatus
+      : 'active';
+
+  return {
+    planTier: subscription?.planTier ?? 'free',
+    planStatus,
+    verifiedAt: new Date().toISOString(),
+  };
+}
+
 const handler = async (
   request: CallableRequest,
   options: GenerateReplyOptions = {}
@@ -272,10 +291,14 @@ const handler = async (
       throw new HttpsError("internal", "Model returned an empty chat response.");
     }
 
+    const subscription = await subscriptionService.getSubscription(user.id);
+    const usageSnapshot = buildUsageSnapshot(subscription);
+
     return {
       reply,
       creditsSpent: 1,
       remainingCredits,
+      ...usageSnapshot,
     };
   } catch (error) {
     if (transactionId) {
