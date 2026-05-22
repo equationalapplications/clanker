@@ -5,7 +5,7 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
-import {buildUsageSnapshot, buildUsageSnapshotForUser} from "./usageSnapshot.js";
+import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
 const TEXT_MODEL = "gemini-2.5-flash";
