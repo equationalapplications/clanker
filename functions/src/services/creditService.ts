@@ -1,4 +1,5 @@
 import { eq, sql, and, or, isNull, gt, gte, ne } from 'drizzle-orm';
+import * as logger from 'firebase-functions/logger';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { getDb } from '../db/cloudSql.js';
 import { subscriptions, creditTransactions } from '../db/schema.js';
@@ -173,6 +174,8 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
             .for('update');
 
           if (rows.length === 0) {
+            // Net balance was sufficient but no single row holds >= amount; credits are fragmented.
+            logger.warn('spendCredits: net balance sufficient but no single qualifying row', { userId, amount, net: netResult[0]?.total });
             throw new InsufficientCreditsError();
           }
 
@@ -376,12 +379,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
                 referenceId,
               });
 
-              const current = await tx
-                .select({ currentCredits: subscriptions.currentCredits })
-                .from(subscriptions)
-                .where(eq(subscriptions.userId, userId))
-                .limit(1);
-              return current[0]?.currentCredits ?? 0;
+              return syncSubscriptionCache(tx, userId);
             }
             throw error;
           }

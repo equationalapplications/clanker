@@ -7,7 +7,6 @@ import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { userRepository } from './services/userRepository.js';
-import { subscriptionService } from './services/subscriptionService.js';
 import { creditService } from './services/creditService.js';
 import { getDb } from './db/cloudSql.js';
 import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
@@ -123,7 +122,6 @@ type MemoryHealDiff = {
 
 type MemoryFunctionDeps = {
   userRepository: Pick<typeof userRepository, 'getOrCreateUserByFirebaseIdentity'>;
-  subscriptionService: Pick<typeof subscriptionService, 'getSubscription' | 'getOrCreateDefaultSubscription'>;
   creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
   getDb: typeof getDb;
   generateContent: (prompt: string) => Promise<string>;
@@ -172,7 +170,6 @@ async function defaultGenerateContent(prompt: string): Promise<string> {
 
 const defaultDeps: MemoryFunctionDeps = {
   userRepository,
-  subscriptionService,
   creditService,
   getDb,
   generateContent: defaultGenerateContent,
@@ -525,9 +522,6 @@ async function authenticateAndResolveIdentity(
     displayName: decoded.name || null,
     avatarUrl: decoded.picture || null,
   });
-
-  await deps.subscriptionService.getSubscription(user.id);
-  await deps.subscriptionService.getOrCreateDefaultSubscription(user.id);
 
   return {
     userId: user.id,
@@ -1409,6 +1403,7 @@ async function persistHealDiff(
   });
 }
 
+// Memory reads do not invoke the LLM. Free by design; no spendCredits required.
 export const memoryReadHandler = async (
   request: CallableRequest,
   deps: MemoryFunctionDeps = defaultDeps,
