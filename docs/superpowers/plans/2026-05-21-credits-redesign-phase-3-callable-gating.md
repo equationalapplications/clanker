@@ -8,6 +8,9 @@
 
 **Tech Stack:** Firebase Functions v2, Drizzle ORM
 
+origin branch for PR: feat/credits-phase-3-callable-gating
+local worktree branch for PR: feat/credits-phase-3-callable-gating
+
 ---
 
 ## Prerequisite
