@@ -1,17 +1,22 @@
 import { useRouter } from 'expo-router'
 import { Pressable } from 'react-native'
 import { Badge, Text } from 'react-native-paper'
+import { useCurrentPlan } from '../hooks/useCurrentPlan'
 import { useUserCredits } from '../hooks/useUserCredits'
 
 export function CreditCounterIcon() {
   const router = useRouter()
-  const { data: credits, isLoading } = useUserCredits()
+  const { isSubscriber, isLoading: isPlanLoading } = useCurrentPlan()
+  const { data: credits, isLoading: isCreditsLoading } = useUserCredits()
 
+  const isLoading = isPlanLoading || isCreditsLoading
   const accessibilityLabel = isLoading
     ? 'Credits loading'
+    : isSubscriber
+    ? 'Unlimited credits'
     : `${credits?.totalCredits ?? 0} credits remaining`
 
-  const badgeContent = isLoading ? '...' : (credits?.totalCredits ?? 0)
+  const badgeContent = isLoading ? '...' : credits?.totalCredits ?? 0
 
   return (
     <Pressable
@@ -27,7 +32,7 @@ export function CreditCounterIcon() {
       })}
     >
       <Text>Credits </Text>
-      <Badge>{badgeContent}</Badge>
+      {isSubscriber ? <Text>∞</Text> : <Badge testID="badge">{badgeContent}</Badge>}
     </Pressable>
   )
 }
