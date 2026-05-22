@@ -402,7 +402,6 @@ const handler = async (
     const charge = await chargeForImage(user.id, credits);
     transactionId = charge.transactionId;
     remainingCredits = charge.remainingCredits;
-    const verifiedAt = new Date().toISOString();
 
     imageResult = await generateImage(prompt);
 
@@ -432,13 +431,13 @@ const handler = async (
     let usageSnapshot: ReturnType<typeof buildUsageSnapshot>;
     try {
       const subscription = await subscriptionService.getSubscription(user.id);
-      usageSnapshot = buildUsageSnapshot(subscription, verifiedAt);
+      usageSnapshot = buildUsageSnapshot(subscription);
     } catch (snapshotError) {
       logger.warn("Failed to fetch subscription for usage snapshot in generateImage", {
         userId: user.id,
         error: snapshotError,
       });
-      usageSnapshot = buildUsageSnapshot(null, verifiedAt);
+      usageSnapshot = buildUsageSnapshot(null);
     }
 
     return {
