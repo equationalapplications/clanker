@@ -6,6 +6,10 @@
 
 **Architecture:** `spendCredits(userId, amount)` returns `string | null` — the `transactionId` of the decremented row on success, or `null` if credits are insufficient. This matches the redesign spec so callers can pass the `transactionId` to `refundCredit` on downstream API failure (Phase 3 wires the refund pattern into callables). `addCredits` gets a new signature (`userId, amount, expiresAt, transactionType, referenceId?`) — its callers are the two webhook handlers, updated in this same phase. A new `renewSubscriptionCredits` service method wraps the idempotency check + expiry + grant in one DB transaction, satisfying the spec's hard requirement that idempotency runs before any writes. `exchangeToken.ts` updated to return `nextExpiryDate` in the subscription snapshot.
 
+**Phase scoping:** This phase is strictly the backend ledger and webhook redesign. It preserves the existing `spendCredits(userId, amount)` callable-facing signature and does not remove `UNLIMITED_TIERS` / `hasUnlimited` gating from `generateReply.ts`, `generateImage.ts`, or other frontend callables. Those callable-gating changes are explicitly reserved for Phase 3 so the migration can remain zero-downtime.
+
+**Accepted MVP tradeoff:** `refundCredit()` may occasionally fall back to a non-expiring compensation row if the original spend row has already expired due to a subscription renewal or provider delay. This is an intentional MVP exception to prevent users from losing credits during transient webhook / provider outages; it preserves user balance even when the original grant pool can no longer be restored exactly.
+
 **Tech Stack:** Drizzle ORM, PostgreSQL `read committed` with row-level locking, Firebase Functions v2
 
 ---
@@ -20,7 +24,7 @@ Phase 1 merged to staging. `functions/src/db/schema.ts` exports `TransactionType
 
 - Modify: `functions/src/services/creditService.ts` — rewrite `getCredits`, `addCredits`, `spendCredits`; add `refundCredit`, `renewSubscriptionCredits`
 - Modify: `functions/src/services/creditService.test.ts` — rewrite tests for new behavior
-- Modify: `functions/src/services/subscriptionService.ts` — update `getOrCreateDefaultSubscription` to call `addCredits`
+- Modify: `functions/src/services/subscriptionService.ts` — update `getOrCreateDefaultSubscription` to call `addCredits` and avoid seeding `subscriptions.currentCredits` without a matching `credit_transactions` ledger row (otherwise `syncSubscriptionCache` will reset that 50-credit cache entry to 0).
 - Modify: `functions/src/services/subscriptionService.test.ts` — update signup test
 - Modify: `functions/src/stripeWebhook.ts` — update `deps.addCredits` signature; add credit expiry for subscription renewals; use `renewSubscriptionCredits` in deps
 - Modify: `functions/src/stripeWebhook.test.ts` — update tests for new webhook behavior
