@@ -38,6 +38,7 @@ type SynthesizeSpeechFn = (text: string, voice: string) => Promise<{audioBase64:
 interface GenerateVoiceReplyOptions {
   generateText?: GenerateTextFn;
   synthesizeSpeech?: SynthesizeSpeechFn;
+  creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
 }
 
 interface CandidatePart {
@@ -402,13 +403,14 @@ function parseInput(data: unknown): {
 
 async function chargeForVoiceReply(
   userId: string,
+  credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
 ): Promise<{ txId: string; remainingCredits: number }> {
-  const txId = await creditService.spendCredits(userId, 2);
+  const txId = await credits.spendCredits(userId, 2);
   if (txId === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits to complete voice reply.");
   }
 
-  const remainingCredits = await creditService.getCredits(userId);
+  const remainingCredits = await credits.getCredits(userId);
   return { txId, remainingCredits };
 }
 
@@ -461,6 +463,7 @@ const handler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
+  const credits = options.creditService ?? creditService;
   const generateText = options.generateText ?? getTextGenerator();
   const synthesizeSpeech = options.synthesizeSpeech ?? getSpeechSynthesizer();
 
@@ -469,7 +472,7 @@ const handler = async (
   let remainingCredits = 0;
 
   try {
-    const charge = await chargeForVoiceReply(user.id);
+    const charge = await chargeForVoiceReply(user.id, credits);
     spentTransactionId = charge.txId;
     remainingCredits = charge.remainingCredits;
 
@@ -499,7 +502,7 @@ const handler = async (
   } catch (error) {
     if (spentTransactionId) {
       try {
-        await creditService.refundCredit(user.id, spentTransactionId, 2);
+        await credits.refundCredit(user.id, spentTransactionId, 2);
       } catch (refundError) {
         logger.error("Failed to refund credits after voice reply failure", {
           userId: user.id,

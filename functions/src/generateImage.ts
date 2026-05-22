@@ -38,6 +38,7 @@ type GenerateImageFn = (prompt: string) => Promise<GeneratedImageResult>;
 
 interface GenerateImageOptions {
   generateImage?: GenerateImageFn;
+  creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
 }
 
 interface CandidateInlineData {
@@ -155,13 +156,16 @@ function parseInput(data: unknown): {prompt: string} {
   return { prompt };
 }
 
-async function chargeForImage(userId: string): Promise<{ transactionId: string; remainingCredits: number }> {
-  const transactionId = await creditService.spendCredits(userId, 1);
+async function chargeForImage(
+  userId: string,
+  credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
+): Promise<{ transactionId: string; remainingCredits: number }> {
+  const transactionId = await credits.spendCredits(userId, 1);
   if (transactionId === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
 
-  const remainingCredits = await creditService.getCredits(userId);
+  const remainingCredits = await credits.getCredits(userId);
   return { transactionId, remainingCredits };
 }
 
@@ -381,6 +385,7 @@ const handler = async (
 
   assertWithinRateLimit(request.auth.uid);
 
+  const credits = options.creditService ?? creditService;
   const generateImage = options.generateImage ?? getImageGenerator();
 
   let imageResult: GeneratedImageResult;
@@ -388,7 +393,7 @@ const handler = async (
   let remainingCredits = 0;
 
   try {
-    const charge = await chargeForImage(user.id);
+    const charge = await chargeForImage(user.id, credits);
     transactionId = charge.transactionId;
     remainingCredits = charge.remainingCredits;
 
@@ -426,7 +431,7 @@ const handler = async (
   } catch (error) {
     if (transactionId) {
       try {
-        await creditService.refundCredit(user.id, transactionId, 1);
+        await credits.refundCredit(user.id, transactionId, 1);
       } catch (refundError) {
         logger.error("Failed to refund credits after generateImage failure", {
           userId: user.id,

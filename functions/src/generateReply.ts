@@ -30,6 +30,7 @@ type GenerateTextFn = (prompt: string) => Promise<string>;
 
 interface GenerateReplyOptions {
   generateText?: GenerateTextFn;
+  creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
 }
 
 interface CandidatePart {
@@ -195,13 +196,16 @@ function parseInput(data: unknown): {prompt: string} {
   return { prompt };
 }
 
-async function chargeForReply(userId: string): Promise<{transactionId: string; remainingCredits: number}> {
-  const transactionId = await creditService.spendCredits(userId, 1);
+async function chargeForReply(
+  userId: string,
+  credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
+): Promise<{transactionId: string; remainingCredits: number}> {
+  const transactionId = await credits.spendCredits(userId, 1);
   if (transactionId === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
 
-  const remainingCredits = await creditService.getCredits(userId);
+  const remainingCredits = await credits.getCredits(userId);
   return { transactionId, remainingCredits };
 }
 
@@ -251,6 +255,7 @@ const handler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
+  const credits = options.creditService ?? creditService;
   const generateText = options.generateText ?? getTextGenerator();
 
   let reply: string;
@@ -258,7 +263,7 @@ const handler = async (
   let remainingCredits = 0;
 
   try {
-    const charge = await chargeForReply(user.id);
+    const charge = await chargeForReply(user.id, credits);
     transactionId = charge.transactionId;
     remainingCredits = charge.remainingCredits;
 
@@ -275,7 +280,7 @@ const handler = async (
   } catch (error) {
     if (transactionId) {
       try {
-        await creditService.refundCredit(user.id, transactionId, 1);
+        await credits.refundCredit(user.id, transactionId, 1);
       } catch (refundError) {
         logger.error("Failed to refund credits after generateReply failure", {
           userId: user.id,
