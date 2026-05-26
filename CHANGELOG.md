@@ -1,3 +1,15 @@
+## [29.13.1](https://github.com/equationalapplications/clanker/compare/v29.13.0...v29.13.1) (2026-05-26)
+
+
+### Bug Fixes
+
+* address PR review comments - GCP_PROJECT var, remove __dirname, replace prod identifiers ([ddc90a0](https://github.com/equationalapplications/clanker/commit/ddc90a08e2cc03ad10b9037907aae335c55035e3))
+* **credits:** invalidate queries on insufficient-credit failure ([916c501](https://github.com/equationalapplications/clanker/commit/916c50100b635ee0177e54e05e8b8a71ea067fff))
+* **credits:** serialize setCredits and harden exchangeToken credit read ([eee9186](https://github.com/equationalapplications/clanker/commit/eee91868af31aac40a478edfb8d61d2fb05c5f05))
+* **credits:** stabilize admin credit set/reset and handle failed-precondition UI flow ([30a80df](https://github.com/equationalapplications/clanker/commit/30a80df506f282b8ed089c770f7d15f3101f0784))
+* **credits:** sync admin credit updates and expose insufficient-credit failures ([5b2e96b](https://github.com/equationalapplications/clanker/commit/5b2e96b8ccb347b714ea3947189f574c0cc9ffbd))
+* **docs:** remove hard-coded Cloud SQL project placeholder and unused migration script import ([29983da](https://github.com/equationalapplications/clanker/commit/29983daf6ed19e09c92842bd7bdfe23ad0d521d8))
+
 # [29.13.0](https://github.com/equationalapplications/clanker/compare/v29.12.0...v29.13.0) (2026-05-22)
 
 
