@@ -12,7 +12,7 @@ How to generate and apply schema migrations to the production Cloud SQL (Postgre
 
 > **Note:** There is no `__drizzle_migrations` tracking table in production. Migrations must be applied manually via the node script below. Keep the "Applied Migrations" list in this file up to date.
 >
-> **Warning:** Before generating or applying migrations, verify that `DATABASE_URL` points to the intended Cloud SQL instance (for example, staging vs production). In Cloud Functions runtime configuration, use `CLOUD_SQL_CONNECTION_NAME` for the Cloud SQL connector settings. Do **not** run migration commands until you have confirmed the target.
+> **Warning:** Before generating or applying migrations, verify that `CLOUD_SQL_CONNECTION_NAME` points to the intended Cloud SQL instance (staging vs production). Do **not** run migration commands until you have confirmed the target.
 
 ---
 
@@ -34,28 +34,23 @@ This list covers the initial schema plus all subsequent migration files. Files a
 | 9 | `0008_wiki_memory_v2.sql` | `llm_wiki_entries`, `llm_wiki_events`, `llm_wiki_tasks` tables + `characters.save_to_cloud` *(applied 2026-05-02)* |
 | 10 | `0009_odd_sandman.sql` | `llm_wiki_entries`: `source_type`, `last_accessed_at`, `access_count` columns *(applied 2026-05-02)* |
 | 11 | `0010_fix_source_type_check.sql` | Fix `source_type` CHECK constraint on `llm_wiki_entries` *(applied 2026-05-02)* |
+| 12 | `0011_credits_redesign.sql` | `credit_transactions`: `initial_amount`, `remaining_balance`, `transaction_type`, `expires_at`; `subscriptions`: `next_expiry_date`; backfill + constraints *(applied 2026-05-26)* |
+| 13 | `0012_update_handle_new_user_trigger.sql` | Update `handle_new_user` trigger to seed signup credit transaction row *(applied 2026-05-26)* |
 
 ---
 
 ## Prerequisites
 
-### Cloud SQL Auth Proxy
+### gcloud application-default credentials
 
-The proxy must be running before any DB access. Download the Cloud SQL Auth Proxy binary for your OS and architecture from the official install guide, save it to `/tmp/cloud-sql-proxy`, and make it executable (it doesn't survive reboots — re-download if missing):
-
-https://cloud.google.com/sql/docs/postgres/connect-auth-proxy#install
-
-```bash
-chmod +x /tmp/cloud-sql-proxy
-```
-
-### gcloud authentication
+The Cloud SQL connector uses Application Default Credentials. Run once per machine:
 
 ```bash
 gcloud auth application-default login
+gcloud auth application-default set-quota-project "${GCP_PROJECT}"
 ```
 
-Run this if you see `invalid_grant` / RAPT errors from the proxy. `gcloud auth login` alone is not sufficient — application-default credentials are required.
+`gcloud auth login` alone is not sufficient — application-default credentials are required.
 
 ---
 
@@ -65,85 +60,108 @@ Before running any commands, set these shell variables to match your target envi
 
 ```bash
 # Set these to the target environment before proceeding
-# Example (staging): clanker-staging:us-central1:clanker-staging
-# Example (prod):    clanker-prod:us-central1:clanker-prod   ← confirm before use
-export CLOUD_SQL_CONNECTION_NAME="<project>:<region>:<instance>"
-export GCP_PROJECT="<project>"
+export GCP_PROJECT="your-project-id"
 ```
 
-> **Warning:** Double-check `CLOUD_SQL_CONNECTION_NAME` and `GCP_PROJECT` before continuing — running against the wrong instance may corrupt production data.
+> **Warning:** Double-check `GCP_PROJECT` before continuing — running against the wrong instance may corrupt production data.
 
-### 1. Start the proxy
+### 1. Fetch credentials from Secret Manager
 
 ```bash
-/tmp/cloud-sql-proxy "${CLOUD_SQL_CONNECTION_NAME}" --port 5433 &
+export CLOUD_SQL_CONNECTION_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_CONNECTION_NAME --project="${GCP_PROJECT}")
+export CLOUD_SQL_DB_USER=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_USER --project="${GCP_PROJECT}")
+export CLOUD_SQL_DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project="${GCP_PROJECT}")
+export CLOUD_SQL_DB_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_NAME --project="${GCP_PROJECT}")
 ```
 
-### 2. Build DATABASE_URL
-
-The DB password contains special characters and must be URL-encoded:
+### 2. Write a temporary migration runner
 
 ```bash
-DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project="${GCP_PROJECT}")
-ENCODED_PASS=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASS")
-export DATABASE_URL="postgresql://clanker_app:${ENCODED_PASS}@127.0.0.1:5433/clanker"
+cat > /tmp/migrate.mjs << 'EOF'
+import { Connector, IpAddressTypes } from '@google-cloud/cloud-sql-connector';
+import pg from 'pg';
+import fs from 'fs';
+import path from 'path';
+
+const required = (name) => {
+  const v = process.env[name]?.trim();
+  if (!v) throw new Error(`Missing env var: ${name}`);
+  return v;
+};
+
+const connectionName = required('CLOUD_SQL_CONNECTION_NAME');
+const user = required('CLOUD_SQL_DB_USER');
+const password = required('CLOUD_SQL_DB_PASS');
+const database = required('CLOUD_SQL_DB_NAME');
+const migrations = (process.env.MIGRATIONS || '').split(',').map(s => s.trim()).filter(Boolean);
+
+if (!migrations.length) {
+  console.error('Set MIGRATIONS=file1.sql,file2.sql');
+  process.exit(1);
+}
+
+const connector = new Connector();
+const clientOpts = await connector.getOptions({
+  instanceConnectionName: connectionName,
+  ipType: IpAddressTypes.PUBLIC,
+});
+
+const pool = new pg.Pool({ ...clientOpts, user, password, database, max: 1 });
+const client = await pool.connect();
+
+try {
+  for (const file of migrations) {
+    const sqlPath = path.join(process.cwd(), 'drizzle', file);
+    const sql = fs.readFileSync(sqlPath, 'utf8');
+    const stmts = sql.split('--> statement-breakpoint').map(s => s.trim()).filter(Boolean);
+    console.log(`Applying ${file} (${stmts.length} statements)…`);
+    await client.query('BEGIN');
+    try {
+      for (const stmt of stmts) await client.query(stmt);
+      await client.query('COMMIT');
+      console.log(`  ✅ ${file}`);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    }
+  }
+} catch (err) {
+  console.error('❌', err.message, err.detail || '');
+  process.exitCode = 1;
+} finally {
+  client.release();
+  await pool.end();
+  connector.close();
+}
+EOF
 ```
 
 ### 3. Apply migrations
 
-Edit the `MIGRATIONS` array to list only the files you want to apply, in order:
+Edit the `MIGRATIONS` value to list only the files you want to apply, in order:
 
 ```bash
-cd functions
-node -e "
-const { Pool } = require('pg');
-const fs = require('fs');
-const p = new Pool({ connectionString: process.env.DATABASE_URL });
-const MIGRATIONS = [
-  // '0008_my_new_migration.sql',
-];
-(async () => {
-  let client;
-  try {
-    client = await p.connect();
-    for (const file of MIGRATIONS) {
-      const stmts = fs.readFileSync('drizzle/' + file, 'utf8')
-        .split('--> statement-breakpoint').map(s => s.trim()).filter(Boolean);
-      console.log('Applying', file, '(' + stmts.length + ' statements)');
-      await client.query('BEGIN');
-      try {
-        for (const stmt of stmts) await client.query(stmt);
-        await client.query('COMMIT');
-        console.log('  ✅ Done');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      }
-    }
-  } catch (err) {
-    console.error('❌', err.message, err.detail || '');
-    process.exitCode = 1;
-  } finally { if (client) client.release(); await p.end(); }
-})();
-"
+cd functions && MIGRATIONS="0013_my_new_migration.sql" node /tmp/migrate.mjs
 ```
 
 ### 4. Verify
 
 ```bash
-node -e "
-const { Pool } = require('pg');
-const p = new Pool({ connectionString: process.env.DATABASE_URL });
-p.query(\"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name\")
-  .then(r => { console.log(r.rows.map(x => x.table_name)); p.end(); })
-  .catch(e => { console.error(e.message); p.end(); })
-"
-```
+node --input-type=module << 'EOF'
+import { Connector, IpAddressTypes } from '@google-cloud/cloud-sql-connector';
+import pg from 'pg';
 
-### 5. Stop the proxy
-
-```bash
-kill %1
+const connector = new Connector();
+const opts = await connector.getOptions({
+  instanceConnectionName: process.env.CLOUD_SQL_CONNECTION_NAME,
+  ipType: IpAddressTypes.PUBLIC,
+});
+const pool = new pg.Pool({ ...opts, user: process.env.CLOUD_SQL_DB_USER, password: process.env.CLOUD_SQL_DB_PASS, database: process.env.CLOUD_SQL_DB_NAME });
+const { rows } = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name");
+console.log(rows.map(r => r.table_name));
+await pool.end();
+connector.close();
+EOF
 ```
 
 ---
@@ -156,6 +174,5 @@ kill %1
    cd functions && npx drizzle-kit generate
    ```
 3. Review the generated SQL in `functions/drizzle/`
-4. Follow steps 1–5 above, listing only the new file in `MIGRATIONS`
+4. Follow steps 1–4 above, listing only the new file in `MIGRATIONS`
 5. Commit both `schema.ts` and the migration SQL to git
-6. Add a row to the "Applied Migrations" table in this file

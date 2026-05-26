@@ -294,6 +294,177 @@ test('refundCredit inserts compensation row when original transaction is expired
 });
 
 // ---------------------------------------------------------------------------
+// setCredits — atomic: lock + insert + expire old active rows + sync cache
+// ---------------------------------------------------------------------------
+
+test('setCredits inserts a non-expiring row, expires other active rows, and syncs the cache', async () => {
+  let insertCount = 0;
+  let insertedCtValues: Record<string, unknown> | null = null;
+  let expiredOldRows = false;
+
+  // select call order:
+  // 1. subscriptions FOR UPDATE lock
+  // 2. syncSubscriptionCache: total
+  // 3. syncSubscriptionCache: nextExpiry (no .limit)
+  // 4. syncSubscriptionCache: existing sub
+  const selectQueue: unknown[][] = [
+    [{ userId: 'user-1' }],
+    [{ total: 100 }],
+    [{ minExpiry: null }],
+    [{ currentCredits: 0, nextExpiryDate: null }],
+  ];
+  let selectIdx = 0;
+
+  const fakeTx = {
+    insert: () => ({
+      values: (vals: Record<string, unknown>) => {
+        insertCount++;
+        if (insertCount === 2) insertedCtValues = vals;
+        return {
+          onConflictDoNothing: (_opts?: unknown) => Object.assign(Promise.resolve({}), {
+            returning: async () => insertCount >= 2 ? [{ id: 'tx-new' }] : [],
+          }),
+        };
+      },
+    }),
+    select: () => {
+      const rows = selectQueue[selectIdx++] ?? [];
+      return {
+        from: () => ({
+          where: () => Object.assign(Promise.resolve(rows), {
+            limit: () => Object.assign(Promise.resolve(rows), {
+              for: async () => rows,
+            }),
+          }),
+        }),
+      };
+    },
+    update: () => ({
+      set: (vals: Record<string, unknown>) => ({
+        where: async () => {
+          if ('expiresAt' in vals) expiredOldRows = true;
+        },
+      }),
+    }),
+  };
+
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  await service.setCredits('user-1', 100, 'admin_set', 'req-123');
+
+  assert.ok(insertedCtValues, 'should insert a creditTransactions row');
+  assert.equal((insertedCtValues as Record<string, unknown>).delta, 100);
+  assert.equal((insertedCtValues as Record<string, unknown>).remainingBalance, 100);
+  assert.equal((insertedCtValues as Record<string, unknown>).reason, 'admin_set');
+  assert.equal((insertedCtValues as Record<string, unknown>).referenceId, 'req-123');
+  assert.equal((insertedCtValues as Record<string, unknown>).expiresAt, null);
+  assert.equal(expiredOldRows, true, 'should expire other active creditTransactions rows');
+});
+
+test('setCredits is idempotent: re-play with same referenceId and amount does not expire rows', async () => {
+  let expiredOldRows = false;
+
+  // select call order:
+  // 1. FOR UPDATE lock
+  // 2. existing tx row (idempotency check)
+  // 3. syncSubscriptionCache: total
+  // 4. syncSubscriptionCache: nextExpiry
+  // 5. syncSubscriptionCache: existing sub (credits match → no update)
+  const selectQueue: unknown[][] = [
+    [{ userId: 'user-1' }],
+    [{ delta: 50 }],
+    [{ total: 50 }],
+    [{ minExpiry: null }],
+    [{ currentCredits: 50, nextExpiryDate: null }],
+  ];
+  let selectIdx = 0;
+
+  const fakeTx = {
+    insert: () => ({
+      values: () => ({
+        onConflictDoNothing: (_opts?: unknown) => Object.assign(Promise.resolve({}), {
+          returning: async () => [],  // conflict — row already exists
+        }),
+      }),
+    }),
+    select: () => {
+      const rows = selectQueue[selectIdx++] ?? [];
+      return {
+        from: () => ({
+          where: () => Object.assign(Promise.resolve(rows), {
+            limit: () => Object.assign(Promise.resolve(rows), {
+              for: async () => rows,
+            }),
+          }),
+        }),
+      };
+    },
+    update: () => ({
+      set: (vals: Record<string, unknown>) => ({
+        where: async () => {
+          if ('expiresAt' in vals) expiredOldRows = true;
+        },
+      }),
+    }),
+  };
+
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  await assert.doesNotReject(() => service.setCredits('user-1', 50, 'admin_set', 'req-dup'));
+  assert.equal(expiredOldRows, false, 'should not expire creditTransactions rows on idempotent re-run');
+});
+
+test('setCredits throws when same referenceId is replayed with a different amount', async () => {
+  // select call order:
+  // 1. FOR UPDATE lock
+  // 2. existing tx row — delta was 100, new request is 50
+  const selectQueue: unknown[][] = [
+    [{ userId: 'user-1' }],
+    [{ delta: 100 }],
+  ];
+  let selectIdx = 0;
+
+  const fakeTx = {
+    insert: () => ({
+      values: () => ({
+        onConflictDoNothing: (_opts?: unknown) => Object.assign(Promise.resolve({}), {
+          returning: async () => [],  // conflict
+        }),
+      }),
+    }),
+    select: () => {
+      const rows = selectQueue[selectIdx++] ?? [];
+      return {
+        from: () => ({
+          where: () => Object.assign(Promise.resolve(rows), {
+            limit: () => Object.assign(Promise.resolve(rows), {
+              for: async () => rows,
+            }),
+          }),
+        }),
+      };
+    },
+    update: () => ({ set: () => ({ where: async () => {} }) }),
+  };
+
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => fn(fakeTx),
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  await assert.rejects(
+    () => service.setCredits('user-1', 50, 'admin_set', 'req-mismatch'),
+    /idempotency.*delta/i
+  );
+});
+
+// ---------------------------------------------------------------------------
 // renewSubscriptionCredits — atomic: idempotency + expire old + grant new
 // ---------------------------------------------------------------------------
 

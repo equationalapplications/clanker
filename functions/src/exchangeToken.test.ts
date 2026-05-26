@@ -56,6 +56,9 @@ test("exchangeTokenHandler normalizes token email before repository lookup", asy
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
     },
+    creditService: {
+      getCredits: async () => mockSubscription.currentCredits,
+    },
   };
 
   await exchangeTokenHandler({
@@ -106,6 +109,9 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       getOrCreateDefaultSubscription: async () => mockSubscription,
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
+    },
+    creditService: {
+      getCredits: async () => mockSubscription.currentCredits,
     },
   };
 
@@ -180,6 +186,9 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
     },
+    creditService: {
+      getCredits: async () => mockSubscription.currentCredits,
+    },
   };
 
   const result = await exchangeTokenHandler({
@@ -252,6 +261,9 @@ test("exchangeTokenHandler returns timestamps as ISO strings, not Date objects",
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
     },
+    creditService: {
+      getCredits: async () => mockSubscription.currentCredits,
+    },
   };
 
   const result = await exchangeTokenHandler({
@@ -310,6 +322,9 @@ test("exchangeTokenHandler returns null termsAcceptedAt as null", async () => {
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
     },
+    creditService: {
+      getCredits: async () => mockSubscription.currentCredits,
+    },
   };
 
   const result = await exchangeTokenHandler({
@@ -362,6 +377,9 @@ test("exchangeTokenHandler does not reset credits when default subscription crea
         throw new Error("upsertSubscription should not be used for bootstrap defaults");
       },
       acceptTerms: async () => {},
+    },
+    creditService: {
+      getCredits: async () => existingSubscription.currentCredits,
     },
   };
 
@@ -546,6 +564,9 @@ test("exchangeTokenHandler throws when required user timestamps are missing", as
       getOrCreateDefaultSubscription: async () => mockSubscription,
       upsertSubscription: async () => mockSubscription,
       acceptTerms: async () => {},
+    },
+    creditService: {
+      getCredits: async () => mockSubscription.currentCredits,
     },
   };
 

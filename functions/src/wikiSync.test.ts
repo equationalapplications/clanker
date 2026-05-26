@@ -377,6 +377,7 @@ test("wikiSync: rejects when insufficient credits", async () => {
   await assert.rejects(
     () => wikiSyncHandler(request as unknown as CallableRequest, {
       getUser: async () => user,
+      validateEntityOwnership: async () => {},
       creditService: {
         spendCredits: async () => null,
         refundCredit: async () => {},

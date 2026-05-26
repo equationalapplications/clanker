@@ -61,3 +61,4 @@ firebase-debug.log
 .worktrees/
 .codegraph/
 .github/instructions/codegraph-mcp.instructions.md
+.aider*

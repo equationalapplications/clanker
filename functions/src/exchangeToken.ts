@@ -4,6 +4,7 @@ import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
+import { creditService } from "./services/creditService.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 // Initialize the Admin SDK if not already initialized
@@ -39,7 +40,7 @@ function isCloudSqlConfigError(error: unknown): boolean {
  */
 const handler = async (
     request: CallableRequest,
-    deps = { userRepository, subscriptionService }
+    deps = { userRepository, subscriptionService, creditService }
 ) => {
     if (!request.auth) {
         logger.error("Unauthenticated request");
@@ -83,6 +84,20 @@ const handler = async (
 
         // 2. Get or create subscription and ensure onboarding credit_transactions exist
         const subscription = await deps.subscriptionService.getOrCreateDefaultSubscription(user.id);
+
+        // 3. Sync currentCredits from creditTransactions (source of truth) so the
+        // returned value always matches what spendCredits will see. This prevents
+        // stale subscriptions.currentCredits (e.g. from adminSetUserCredits before
+        // it was fixed) from reporting incorrect balances to the client.
+        // Fall back to the cached value if the ledger read fails (e.g. transient DB blip)
+        // so a momentary hiccup does not block the user from authenticating entirely.
+        let syncedCredits: number;
+        try {
+            syncedCredits = await deps.creditService.getCredits(user.id);
+        } catch (creditsError) {
+            logger.warn("creditService.getCredits failed, falling back to subscription cache", { userId: user.id, creditsError });
+            syncedCredits = subscription.currentCredits ?? 0;
+        }
 
         logger.info("Token exchange/bootstrap successful", {
             email: normalizedEmail,
@@ -132,7 +147,7 @@ const handler = async (
             subscription: {
                 planTier: subscription.planTier,
                 planStatus: subscription.planStatus,
-                currentCredits: subscription.currentCredits,
+                currentCredits: syncedCredits,
                 termsVersion: subscription.termsVersion,
                 termsAcceptedAt: toISO(subscription.termsAcceptedAt),
                 nextExpiryDate: toISO(subscription.nextExpiryDate),
