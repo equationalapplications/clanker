@@ -1,6 +1,5 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
-import { useAIChat } from '~/hooks/useAIChat'
 
 const mockSendMessageWithAIResponse = jest.fn()
 const mockUseChatMessages = jest.fn()
@@ -30,10 +29,10 @@ jest.mock('@tanstack/react-query', () => ({
     isPending: false,
   }),
   useQueryClient: () => ({
-    invalidateQueries: (...args: unknown[]) => mockInvalidateQueries(...args),
-    cancelQueries: (...args: unknown[]) => mockCancelQueries(...args),
-    getQueryData: (...args: unknown[]) => mockGetQueryData(...args),
-    setQueryData: (...args: unknown[]) => mockSetQueryData(...args),
+    invalidateQueries: mockInvalidateQueries,
+    cancelQueries: mockCancelQueries,
+    getQueryData: mockGetQueryData,
+    setQueryData: mockSetQueryData,
   }),
 }))
 
@@ -79,6 +78,8 @@ jest.mock('~/hooks/useCharacterWiki', () => ({
 jest.mock('~/utilities/reportError', () => ({
   reportError: (...args: unknown[]) => mockReportError(...args),
 }))
+
+const { useAIChat } = require('~/hooks/useAIChat')
 
 type HookValue = ReturnType<typeof useAIChat>
 

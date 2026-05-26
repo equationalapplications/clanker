@@ -127,6 +127,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         authService.send({ type: 'REFRESH_BOOTSTRAP', reason: 'foreground' })
       }
 
+      // Keep optimistic messages on insufficient-credit failures, but refetch the
+      // latest query state so the message is rendered with the persisted local DB
+      // state and does not remain stuck in a pending-only optimistic view.
+      if (firebaseCode === 'functions/failed-precondition') {
+        queryClient.invalidateQueries({
+          queryKey: messageKeys.list(characterId, userId),
+        })
+      }
+
       // Rollback optimistic update for transient failures only.
       if (firebaseCode !== 'functions/failed-precondition' && context?.previousMessages) {
         queryClient.setQueryData(messageKeys.list(characterId, userId), context.previousMessages)
