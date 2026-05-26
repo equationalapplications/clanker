@@ -6,6 +6,7 @@ import {requireAdmin} from "./adminAuth.js";
 import {getDb} from "./db/cloudSql.js";
 import {users, subscriptions, characters, messages} from "./db/schema.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
+import {creditService} from "./services/creditService.js";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -348,9 +349,9 @@ const adminSetUserCreditsHandler = async (request: CallableRequest) => {
   }
 
   const credits = Math.floor(data.credits);
-  await upsertSubscription(userId, {
-    currentCredits: credits,
-  });
+
+  // Replace any active credits with a fresh non-expiring admin-set balance.
+  await creditService.setCredits(userId, credits, 'admin_set', requestId);
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "set_credits", requestId, {
     credits,
@@ -501,12 +502,14 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
     planTier: "free",
     planStatus: "active",
     billingCycleEnd: null,
-    currentCredits: DEFAULT_RESET_CREDITS,
     termsAcceptedAt: null,
     termsVersion: null,
     stripeCustomerId: null,
     stripeSubscriptionId: null,
   });
+
+  // Reset the credit ledger so the user reliably has DEFAULT_RESET_CREDITS.
+  await creditService.setCredits(userId, DEFAULT_RESET_CREDITS, 'admin_reset', requestId);
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "reset_user_state", requestId, {
     reason,

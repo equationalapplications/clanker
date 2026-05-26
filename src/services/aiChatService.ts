@@ -423,9 +423,14 @@ export const sendMessageWithAIResponse = async (
     }
     return { usageSnapshot: toUsageSnapshot(aiResponse) }
   } catch (error) {
+    const firebaseCode = (error as { code?: string }).code
+    if (firebaseCode === 'functions/failed-precondition') {
+      throw error
+    }
+
     console.error('Error in sendMessageWithAIResponse:', error)
 
-    // Send a fallback error message
+    // For transient/unknown errors, save a fallback message so the chat stays usable.
     const errorId = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     try {
