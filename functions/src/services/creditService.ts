@@ -262,6 +262,19 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
     async setCredits(userId: string, amount: number, reason: string, referenceId: string): Promise<void> {
       const db = await deps.getDb();
       await db.transaction(async (tx: DbTx) => {
+        // Serialize against concurrent setCredits and spendCredits calls for this user.
+        await tx
+          .insert(subscriptions)
+          .values({ userId })
+          .onConflictDoNothing({ target: subscriptions.userId });
+
+        await tx
+          .select({ userId: subscriptions.userId })
+          .from(subscriptions)
+          .where(eq(subscriptions.userId, userId))
+          .limit(1)
+          .for('update');
+
         const inserted = await tx
           .insert(creditTransactions)
           .values({

@@ -89,7 +89,15 @@ const handler = async (
         // returned value always matches what spendCredits will see. This prevents
         // stale subscriptions.currentCredits (e.g. from adminSetUserCredits before
         // it was fixed) from reporting incorrect balances to the client.
-        const syncedCredits = await deps.creditService.getCredits(user.id);
+        // Fall back to the cached value if the ledger read fails (e.g. transient DB blip)
+        // so a momentary hiccup does not block the user from authenticating entirely.
+        let syncedCredits: number;
+        try {
+            syncedCredits = await deps.creditService.getCredits(user.id);
+        } catch (creditsError) {
+            logger.warn("creditService.getCredits failed, falling back to subscription cache", { userId: user.id, creditsError });
+            syncedCredits = subscription.currentCredits ?? 0;
+        }
 
         logger.info("Token exchange/bootstrap successful", {
             email: normalizedEmail,
