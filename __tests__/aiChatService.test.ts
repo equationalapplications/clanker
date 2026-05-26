@@ -286,4 +286,34 @@ describe('buildChatPrompt', () => {
       },
     })
   })
+
+  it('does not log expected failed-precondition credit failures', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const preconditionError = new Error('Insufficient credits') as any
+    preconditionError.code = 'functions/failed-precondition'
+
+    mockGenerateChatReply.mockRejectedValue(preconditionError)
+
+    await expect(
+      sendMessageWithAIResponse(
+        {
+          _id: 'msg-credit-failure',
+          text: 'Spend credits',
+          createdAt: new Date('2026-04-27T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any,
+        { id: 'char-1', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' },
+        'user-1',
+        [] as any,
+        {},
+      ),
+    ).rejects.toThrow(preconditionError)
+
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+      'Error in sendMessageWithAIResponse:',
+      preconditionError,
+    )
+    expect(mockSaveAIMessage).not.toHaveBeenCalled()
+    consoleErrorSpy.mockRestore()
+  })
 })

@@ -127,8 +127,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         authService.send({ type: 'REFRESH_BOOTSTRAP', reason: 'foreground' })
       }
 
-      // Rollback optimistic update
-      if (context?.previousMessages) {
+      // Rollback optimistic update for transient failures only.
+      if (firebaseCode !== 'functions/failed-precondition' && context?.previousMessages) {
         queryClient.setQueryData(messageKeys.list(characterId, userId), context.previousMessages)
       }
     },

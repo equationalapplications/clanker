@@ -14,14 +14,16 @@ const mockCharacterWikiRead = jest.fn().mockResolvedValue(null)
 const mockCharacterWikiWrite = jest.fn().mockResolvedValue(undefined)
 
 jest.mock('@tanstack/react-query', () => ({
-  useMutation: ({ mutationFn, onSuccess, onError }: any) => ({
+  useMutation: ({ mutationFn, onMutate, onSuccess, onError }: any) => ({
     mutateAsync: async (message: unknown) => {
+      const context = onMutate?.(message)
+
       try {
         const result = await mutationFn(message)
         onSuccess?.(result)
         return result
       } catch (error) {
-        onError?.(error, message, undefined)
+        onError?.(error, message, context)
         throw error
       }
     },
@@ -179,6 +181,35 @@ describe('useAIChat', () => {
     })
 
     expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:char-1:read')
+  })
+
+  it('keeps optimistic user messages when credits are insufficient', async () => {
+    const failedPreconditionError = new Error('Insufficient credits') as any
+    failedPreconditionError.code = 'functions/failed-precondition'
+    mockSendMessageWithAIResponse.mockRejectedValue(failedPreconditionError)
+
+    mockGetQueryData.mockReturnValue([
+      {
+        _id: 'msg-optimistic',
+        text: 'Optimistic user text',
+        user: { _id: 'user-1' },
+      },
+    ])
+
+    const hook = renderUseAIChat()
+
+    await expect(
+      act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-optimistic',
+          text: 'Hello',
+          createdAt: new Date('2026-04-27T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      }),
+    ).rejects.toThrow(failedPreconditionError)
+
+    expect(mockSetQueryData).toHaveBeenCalledTimes(1)
   })
 
   it('does not report WikiBusyError from wiki read', async () => {

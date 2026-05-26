@@ -259,6 +259,63 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       });
     },
 
+    async setCredits(userId: string, amount: number, reason: string, referenceId: string): Promise<void> {
+      const db = await deps.getDb();
+      await db.transaction(async (tx: DbTx) => {
+        const inserted = await tx
+          .insert(creditTransactions)
+          .values({
+            userId,
+            delta: amount,
+            reason,
+            referenceId,
+            initialAmount: amount,
+            remainingBalance: amount,
+            transactionType: 'legacy',
+            expiresAt: null,
+          })
+          .onConflictDoNothing()
+          .returning({ id: creditTransactions.id });
+
+        if (inserted.length === 0) {
+          const existing = await tx
+            .select({ delta: creditTransactions.delta })
+            .from(creditTransactions)
+            .where(
+              and(
+                eq(creditTransactions.userId, userId),
+                eq(creditTransactions.reason, reason),
+                eq(creditTransactions.referenceId, referenceId)
+              )
+            )
+            .limit(1);
+
+          assertIdempotentDeltaMatch({
+            requestedDelta: amount,
+            existingDelta: existing[0]?.delta ?? null,
+            reason,
+            referenceId,
+          });
+
+          await syncSubscriptionCache(tx, userId);
+          return;
+        }
+
+        await tx
+          .update(creditTransactions)
+          .set({ expiresAt: sql`NOW()` })
+          .where(
+            and(
+              eq(creditTransactions.userId, userId),
+              or(isNull(creditTransactions.expiresAt), gt(creditTransactions.expiresAt, sql`NOW()`)),
+              ne(creditTransactions.id, inserted[0].id)
+            )
+          );
+
+        await syncSubscriptionCache(tx, userId);
+      });
+    },
+
     async refundCredit(userId: string, transactionId: string, amount: number): Promise<void> {
       const db = await deps.getDb();
       await db.transaction(async (tx: DbTx) => {
