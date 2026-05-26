@@ -60,7 +60,7 @@ Before running any commands, set these shell variables to match your target envi
 
 ```bash
 # Set these to the target environment before proceeding
-export GCP_PROJECT="clanker-prod"   # staging: change accordingly
+export GCP_PROJECT="your-project-id"
 ```
 
 > **Warning:** Double-check `GCP_PROJECT` before continuing — running against the wrong instance may corrupt production data.
@@ -82,7 +82,6 @@ import { Connector, IpAddressTypes } from '@google-cloud/cloud-sql-connector';
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 const required = (name) => {
   const v = process.env[name]?.trim();
