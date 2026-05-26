@@ -6,6 +6,7 @@ import {requireAdmin} from "./adminAuth.js";
 import {getDb} from "./db/cloudSql.js";
 import {users, subscriptions, characters, messages} from "./db/schema.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
+import {creditService} from "./services/creditService.js";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -348,12 +349,19 @@ const adminSetUserCreditsHandler = async (request: CallableRequest) => {
   }
 
   const credits = Math.floor(data.credits);
-  await upsertSubscription(userId, {
-    currentCredits: credits,
-  });
+
+  // Read actual balance from creditTransactions (source of truth), then adjust.
+  // Direct upsert of subscriptions.currentCredits bypasses creditTransactions and
+  // causes spendCredits to fail with "Insufficient credits" despite the cache showing credits.
+  const currentCredits = await creditService.getCredits(userId);
+  const delta = credits - currentCredits;
+  if (delta !== 0) {
+    await creditService.adjustCredits(userId, delta, 'admin_set', requestId);
+  }
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "set_credits", requestId, {
     credits,
+    delta,
     reason,
   });
 
@@ -501,12 +509,18 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
     planTier: "free",
     planStatus: "active",
     billingCycleEnd: null,
-    currentCredits: DEFAULT_RESET_CREDITS,
     termsAcceptedAt: null,
     termsVersion: null,
     stripeCustomerId: null,
     stripeSubscriptionId: null,
   });
+
+  // Set credits through creditTransactions (source of truth) not directly on subscriptions cache.
+  const currentCredits = await creditService.getCredits(userId);
+  const delta = DEFAULT_RESET_CREDITS - currentCredits;
+  if (delta !== 0) {
+    await creditService.adjustCredits(userId, delta, 'admin_reset', requestId);
+  }
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "reset_user_state", requestId, {
     reason,

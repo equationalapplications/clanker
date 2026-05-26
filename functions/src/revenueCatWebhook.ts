@@ -403,12 +403,9 @@ export const revenueCatWebhookHandler = async (
             renewalAt
           );
 
-          if (renewalAt && original_transaction_id && typeof expiration_at_ms === 'number') {
-            const referenceId = `${original_transaction_id}_${expiration_at_ms}`;
-            await deps.renewSubscriptionCredits(cloudUser.id, 300, renewalAt, referenceId);
-          }
-
-          logger.info("RevenueCat: subscription product change upserted + credits renewed", {
+          // No credit renewal on plan change — credits are granted on RENEWAL events.
+          // Granting here would double-credit users who change plans mid-cycle.
+          logger.info("RevenueCat: subscription product change upserted", {
             app_user_id,
             tier,
             type,

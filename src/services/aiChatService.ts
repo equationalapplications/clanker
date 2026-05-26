@@ -425,7 +425,14 @@ export const sendMessageWithAIResponse = async (
   } catch (error) {
     console.error('Error in sendMessageWithAIResponse:', error)
 
-    // Send a fallback error message
+    // Rethrow user-facing errors (failed-precondition = Insufficient credits).
+    // Caller handles these to show proper UI (e.g. credits exhausted screen).
+    const firebaseCode = (error as { code?: string }).code
+    if (firebaseCode === 'functions/failed-precondition') {
+      throw error
+    }
+
+    // For transient/unknown errors, save a fallback message so the chat stays usable.
     const errorId = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     try {
