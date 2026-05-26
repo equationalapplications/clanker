@@ -16,7 +16,7 @@ const mockCharacterWikiWrite = jest.fn().mockResolvedValue(undefined)
 jest.mock('@tanstack/react-query', () => ({
   useMutation: ({ mutationFn, onMutate, onSuccess, onError }: any) => ({
     mutateAsync: async (message: unknown) => {
-      const context = onMutate?.(message)
+      const context = await onMutate?.(message)
 
       try {
         const result = await mutationFn(message)
