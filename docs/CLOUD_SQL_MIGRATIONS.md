@@ -47,7 +47,7 @@ The Cloud SQL connector uses Application Default Credentials. Run once per machi
 
 ```bash
 gcloud auth application-default login
-gcloud auth application-default set-quota-project clanker-prod
+gcloud auth application-default set-quota-project "${GCP_PROJECT}"
 ```
 
 `gcloud auth login` alone is not sufficient — application-default credentials are required.
@@ -83,8 +83,6 @@ import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const required = (name) => {
   const v = process.env[name]?.trim();
@@ -179,4 +177,3 @@ EOF
 3. Review the generated SQL in `functions/drizzle/`
 4. Follow steps 1–4 above, listing only the new file in `MIGRATIONS`
 5. Commit both `schema.ts` and the migration SQL to git
-6. Add a row to the "Applied Migrations" table in this file
