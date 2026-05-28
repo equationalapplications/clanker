@@ -79,6 +79,28 @@ jest.mock('~/utilities/reportError', () => ({
   reportError: (...args: unknown[]) => mockReportError(...args),
 }))
 
+jest.mock('~/database/messageDatabase', () => ({
+  saveAIMessage: jest.fn(),
+  getUnsyncedMessages: jest.fn().mockResolvedValue([]),
+  markMessagesAsSynced: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('~/services/syncMessage', () => ({
+  toSyncMessage: jest.fn((msg: any) => msg),
+}))
+
+jest.mock('~/services/messageService', () => ({
+  sendMessage: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('~/hooks/useEdgeAgent', () => ({
+  useEdgeAgent: jest.fn(() => ({
+    sendMessage: jest.fn().mockResolvedValue({ escalated: true, text: undefined }),
+    escalationState: 'idle',
+  })),
+  EscalationState: {},
+}))
+
 const { useAIChat } = require('~/hooks/useAIChat')
 
 type HookValue = ReturnType<typeof useAIChat>

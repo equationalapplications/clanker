@@ -102,6 +102,7 @@ export const messages = pgTable('messages', {
   characterIdIdx: index('messages_character_id_idx').on(table.characterId),
   senderUserIdIdx: index('messages_sender_user_id_idx').on(table.senderUserId),
   characterIdCreatedAtIdx: index('messages_character_id_created_at_idx').on(table.characterId, table.createdAt.desc()),
+  messageIdUniqueIdx: uniqueIndex('messages_message_id_unique_idx').on(table.messageId),
 }));
 
 // Legacy tables — used by memoryFunctions.ts; kept until old callables are retired.
