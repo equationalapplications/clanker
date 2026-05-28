@@ -1,8 +1,8 @@
 # Core LLM Tools Integration — Spec
 
 **Date:** 2026-05-28
-**Status:** Blocked on [`expo-llm-wiki` PR #39](https://github.com/equationalapplications/expo-llm-wiki/pull/39)
-**Scope:** Replace hardcoded JSON schemas in `clanker-local-adk-sandbox` ADK tools with shared manifests from `@equationalapplications/core-llm-tools`
+**Status:** Ready for implementation (`expo-llm-wiki` PR #39 merged)
+**Scope:** Replace hardcoded JSON schemas in `equationalapplications/clanker` with shared manifests from `@equationalapplications/core-llm-tools` — both the Expo frontend and Firebase Functions backend
 
 ---
 
@@ -12,21 +12,23 @@ Tool schemas (name, description, parameters) are duplicated across consumers. Th
 
 ---
 
-## 2. Architecture: Consumer B Pattern
+## 2. Architecture: Dual-Consumer Pattern
+
+The `equationalapplications/clanker` repo acts as both consumers in the same monorepo.
 
 ```
-┌─────────────────────────────────────┐
+┌─────────────────────────────────────────┐
 │  @equationalapplications/core-llm-tools  │
 │  (owns: name, description, params)       │
-└────────────────┬────────────────────┘
+└────────────────┬────────────────────────┘
                  │  exports manifest
        ┌─────────┴──────────┐
        │                    │
 Consumer A             Consumer B
-Edge Router            Cloud Backend
-(Claude/OpenAI)        (clanker-local-adk-sandbox)
+Expo Edge Router       Firebase Functions
+app/ (React Native)    functions/ (Node.js)
 spreads schema         spreads schema + attaches
-into provider SDK      Node.js execute() logic
+into provider SDK      @google/adk execute() logic
 ```
 
 The core package owns the schema contract. Each consumer owns only its runtime execution.
@@ -64,7 +66,7 @@ export function buildAuthorizedSchemaArray(
 
 ---
 
-## 4. Consumer B Usage (clanker-local-adk-sandbox)
+## 4. Consumer B Usage (functions/)
 
 ```typescript
 import { FunctionTool } from '@google/adk';
@@ -92,19 +94,17 @@ The `as any` cast is required because `@google/adk`'s `FunctionTool` constructor
 
 ## 5. Design Decisions
 
-### Pre-merge install strategy
+### Install strategy
 
-PR #39 is not yet merged. Install from a local tarball until the package publishes to npm:
+PR #39 merged. Install from the registry in both consumers:
 
 ```bash
-# In expo-llm-wiki/packages/core-llm-tools
-npm pack  # produces core-llm-tools-0.1.0.tgz
+# Consumer A — Expo app (root)
+npm install @equationalapplications/core-llm-tools
 
-# In clanker-local-adk-sandbox/functions
-npm install ./core-llm-tools-0.1.0.tgz
+# Consumer B — Firebase Functions
+cd functions && npm install @equationalapplications/core-llm-tools
 ```
-
-After merge: remove tarball, `npm install @equationalapplications/core-llm-tools`, rebuild Docker.
 
 ### Output format change
 
@@ -127,13 +127,14 @@ After merge: remove tarball, `npm install @equationalapplications/core-llm-tools
 
 ---
 
-## 7. Files Changed (clanker-local-adk-sandbox)
+## 7. Files Changed (equationalapplications/clanker)
 
 | File | Change |
 |------|--------|
-| `functions/package.json` | Add `@equationalapplications/core-llm-tools` dependency |
-| `functions/package-lock.json` | Updated lockfile |
-| `functions/core-llm-tools-0.1.0.tgz` | Local tarball (pre-merge only, remove after publish) |
+| `package.json` | Add `@equationalapplications/core-llm-tools` dependency (Consumer A) |
+| `package-lock.json` | Updated lockfile (root) |
+| `functions/package.json` | Add `@equationalapplications/core-llm-tools` dependency (Consumer B) |
+| `functions/package-lock.json` | Updated lockfile (functions) |
 | `functions/src/tools/time.ts` | Spread `getCurrentTimeManifest.schema`; update execute() to localized string |
 | `functions/tests/suite.ts` | Add Test 5: assert name inheritance + execute() returns string |
 
