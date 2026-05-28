@@ -71,9 +71,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
       if (!escalated && edgeText !== undefined) {
         // Edge resolved — save both messages, no Firebase call
+        // Save user message after edge resolves. On DB failure, onError rolls back the optimistic
+        // update — no fallback message is saved (intentional; Firebase path handled its own fallback).
         await persistUserMessage(character.id, userId, message)
 
-        const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
         const savedAIMessage = await saveAIMessage(character.id, userId, edgeText, aiMsgId, {
           user: {
             _id: character.id,
@@ -84,6 +86,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
         void triggerConversationSummary(character, userId)
 
+        // Filter out the current user message — the optimistic update may have injected
+        // it into messages before mutationFn executes, which would duplicate it in history.
         const priorHistory = messages.filter(
           (msg) => String(msg._id) !== String(message._id),
         )
