@@ -214,8 +214,17 @@ function parseInput(data: unknown): { prompt: string; characterId?: string; unsy
   const characterId = typeof payload?.characterId === 'string' ? payload.characterId : undefined;
 
   const rawHistory = payload?.unsyncedHistory;
-  const unsyncedHistory: SyncMessage[] | undefined =
-    Array.isArray(rawHistory) ? rawHistory as SyncMessage[] : undefined;
+  const unsyncedHistory: SyncMessage[] | undefined = Array.isArray(rawHistory)
+    ? (rawHistory as unknown[]).filter(
+        (item): item is SyncMessage =>
+          item !== null &&
+          typeof item === 'object' &&
+          typeof (item as SyncMessage).id === 'string' &&
+          ((item as SyncMessage).role === 'user' || (item as SyncMessage).role === 'model') &&
+          typeof (item as SyncMessage).text === 'string' &&
+          typeof (item as SyncMessage).createdAt === 'number',
+      )
+    : undefined;
 
   return { prompt, characterId, unsyncedHistory };
 }
