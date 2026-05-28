@@ -20,7 +20,7 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
   return {
     ...edgeToolExecutors,
     search_memory: async (args) => {
-      const query = args.query as string
+      const query = typeof args.query === 'string' ? args.query.trim() : ''
       if (!wiki || !query) return 'No relevant memories found.'
 
       const results = await readFromWiki(wiki, characterId, query)

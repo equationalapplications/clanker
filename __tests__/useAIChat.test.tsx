@@ -275,6 +275,28 @@ describe('useAIChat', () => {
     )
   })
 
+  it('prevents local-only escalation from reaching Firebase', async () => {
+    mockUseEdgeAgent.mockReturnValueOnce({
+      sendMessage: jest.fn().mockResolvedValue({ escalated: true, text: undefined }),
+      escalationState: 'idle',
+    })
+
+    const hook = renderUseAIChat({ save_to_cloud: 0 })
+
+    await expect(
+      act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-local-only-escalate',
+          text: 'Hi',
+          createdAt: new Date('2026-04-27T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      }),
+    ).rejects.toThrow('Local-only character attempted Firebase escalation')
+
+    expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
+  })
+
   it('reports non-busy wiki read errors with wiki:read context', async () => {
     mockCharacterWikiRead.mockRejectedValue(new Error('read failed'))
     const hook = renderUseAIChat()
