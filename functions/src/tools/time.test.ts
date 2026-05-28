@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { getCurrentTimeManifest } from "@equationalapplications/core-llm-tools";
+
 import { getCurrentTimeTool } from "./time.js";
 
-test("getCurrentTimeTool has name 'get_current_time'", () => {
-  assert.equal(getCurrentTimeTool.name, "get_current_time");
+test("getCurrentTimeTool inherits name from manifest", () => {
+  assert.equal(getCurrentTimeTool.name, getCurrentTimeManifest.schema.name);
 });
 
 test("getCurrentTimeTool.execute returns a non-empty string", async () => {

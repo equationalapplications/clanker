@@ -108,7 +108,7 @@ cd functions && npm install @equationalapplications/core-llm-tools
 
 ### Output format change
 
-`getCurrentTimeTool` currently returns `toISOString()` (UTC). After integration, it returns `toLocaleString('en-US', ...)`. This is intentional — ADK agents reason better on human-readable timestamps than ISO 8601.
+`getCurrentTimeTool` uses `toLocaleString('en-US', ...)` rather than `toISOString()` (UTC). This is intentional — ADK agents reason better on human-readable timestamps than ISO 8601.
 
 ### Type casting
 
@@ -136,7 +136,7 @@ cd functions && npm install @equationalapplications/core-llm-tools
 | `functions/package.json` | Add `@equationalapplications/core-llm-tools` dependency (Consumer B) |
 | `functions/package-lock.json` | Updated lockfile (functions) |
 | `functions/src/tools/time.ts` | Spread `getCurrentTimeManifest.schema`; update execute() to localized string |
-| `functions/tests/suite.ts` | Add Test 5: assert name inheritance + execute() returns string |
+| `functions/src/tools/time.test.ts` | Assert name inherited from manifest + execute() returns non-empty string |
 
 ---
 
