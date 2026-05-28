@@ -1,3 +1,33 @@
+# [29.14.0](https://github.com/equationalapplications/clanker/compare/v29.13.1...v29.14.0) (2026-05-28)
+
+
+### Bug Fixes
+
+* **db:** add userId filter to getUnsyncedMessages and synced_at to batchInsertMessages ([9b6a106](https://github.com/equationalapplications/clanker/commit/9b6a10691c884c32741b4724e501aa16fe3e737d))
+* **edge:** address all 8 Copilot review threads for PR [#405](https://github.com/equationalapplications/clanker/issues/405) ([8dea5b9](https://github.com/equationalapplications/clanker/commit/8dea5b98dc73ed5993cc56c25f1c1980c2ff094b))
+* **edge:** characterPromptBuilder quality fixes: type guards, test coverage, JSDoc ([c57bc3f](https://github.com/equationalapplications/clanker/commit/c57bc3f113b70fb2e8da8d2a99f1f475af29e150))
+* **edge:** only mark messages synced when cloud sync actually succeeded ([da36876](https://github.com/equationalapplications/clanker/commit/da368768f5f73e1fe29e03017948c9e902d28981))
+* **edge:** useAIChat quality fixes: comments and substr deprecation ([4e8d396](https://github.com/equationalapplications/clanker/commit/4e8d396e5132dec2918cc413895e8292dd1a8776))
+* **edge:** useEdgeAgent quality fixes: error handling, type casts, test coverage ([73096b2](https://github.com/equationalapplications/clanker/commit/73096b20f5893729b15fc4b7d0748dbacab516dd))
+* **edge:** validate unsyncedHistory ownership and sync only user messages ([da9868c](https://github.com/equationalapplications/clanker/commit/da9868c4643f4cd7768da51f81bb382cc0a59a7e))
+* **edge:** wire characterId to Firebase and validate unsyncedHistory elements ([c056091](https://github.com/equationalapplications/clanker/commit/c0560910faeb8b8524e790e995bdd6c902e05fc6))
+* **generateReply:** skip model-role messages in unsyncedHistory bulk insert ([d0c80f2](https://github.com/equationalapplications/clanker/commit/d0c80f2d3f52a73d8fe2e5b6b21d5b572bad75b2))
+* **tools:** address Copilot review on PR [#404](https://github.com/equationalapplications/clanker/issues/404) ([6b54789](https://github.com/equationalapplications/clanker/commit/6b54789b27a03992d4575ed822e2afb2d75be558))
+
+
+### Features
+
+* **db:** migration 18 adds synced_at to messages for cloud sync tracking ([cd1aa39](https://github.com/equationalapplications/clanker/commit/cd1aa39386568baaa09496e8014ba696ae366521))
+* **edge:** add CharacterPromptBuilder for @google/genai content format ([3ab36c6](https://github.com/equationalapplications/clanker/commit/3ab36c6f6d3766052d178f98358aa0842de14106))
+* **edge:** add edgeToolExecutors with get_current_time ([8eaf74d](https://github.com/equationalapplications/clanker/commit/8eaf74dc6ba2a4f852dc69d16fd7331c753e7964))
+* **edge:** add useEdgeAgent with @google/genai while-loop and escalation ([2370555](https://github.com/equationalapplications/clanker/commit/2370555b556f6a98245e9b52ef54cb40bcc94b53))
+* **edge:** gate escalate_to_cloud tool on isCloudSynced option ([cfbc0e0](https://github.com/equationalapplications/clanker/commit/cfbc0e05cf0b1fb93fe610394f7efad2ff3a787d))
+* **edge:** render escalation banner in ChatView when escalationState is escalating ([806fc8f](https://github.com/equationalapplications/clanker/commit/806fc8f5dbd5f009483068d1cd48ff03dc6b6316))
+* **edge:** wire escalation handoff with unsyncedHistory to Firebase ([2344a2f](https://github.com/equationalapplications/clanker/commit/2344a2fd2cc888a485d15d70e87c4c29a1775a05))
+* **edge:** wire useEdgeAgent into useAIChat with edge-first routing ([54c2f39](https://github.com/equationalapplications/clanker/commit/54c2f392ad83fee8b474d4ad09fb8481ae0f8415))
+* **sync:** add SyncMessage interface and toSyncMessage mapper ([29c2c22](https://github.com/equationalapplications/clanker/commit/29c2c222c4d1960f6e256c3a59aab27fa637f794))
+* **tools:** integrate @equationalapplications/core-llm-tools for shared time schema ([a6cd2c4](https://github.com/equationalapplications/clanker/commit/a6cd2c4a71c64215442062f4db7bb49c44927e40))
+
 ## [29.13.1](https://github.com/equationalapplications/clanker/compare/v29.13.0...v29.13.1) (2026-05-26)
 
 
