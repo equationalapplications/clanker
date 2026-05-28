@@ -1,13 +1,21 @@
 import { useCallback, useState } from 'react'
 import { IMessage } from 'react-native-gifted-chat'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { sendMessageWithAIResponse, Character } from '~/services/aiChatService'
+import {
+  sendMessageWithAIResponse,
+  Character,
+  getRecentConversationHistory,
+  triggerConversationSummary,
+} from '~/services/aiChatService'
 import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usageSnapshotFromError } from '~/services/usageSnapshot'
 import { formatContext, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { reportError } from '~/utilities/reportError'
+import { saveAIMessage } from '~/database/messageDatabase'
+import { sendMessage as persistUserMessage } from '~/services/messageService'
+import { useEdgeAgent, EscalationState } from '~/hooks/useEdgeAgent'
 
 interface UseAIChatProps {
   characterId: string
@@ -20,6 +28,7 @@ interface UseAIChatReturn {
   sendMessage: (message: IMessage) => Promise<void>
   isGeneratingResponse: boolean
   error: string | null
+  escalationState: EscalationState
 }
 
 /**
@@ -34,6 +43,12 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
   const characterWiki = useCharacterWiki(character.id)
 
+  const edgeAgent = useEdgeAgent({
+    character,
+    userId,
+    priorMessages: messages,
+  })
+
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
     mutationFn: async (message: IMessage) => {
@@ -44,12 +59,60 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       } catch (err) {
         if (!(err instanceof WikiBusyError)) reportError(err, `wiki:${character.id}:read`)
       }
-      // _characterId parameter maintained for aiChatService contract compatibility
+
       const onWriteObservation = (_characterId: string, text: string) => {
         void characterWiki.write(text).catch((err: unknown) => {
           if (!(err instanceof WikiBusyError)) reportError(err, `wiki:${character.id}:write`)
         })
       }
+
+      // Try edge agent first
+      const { escalated, text: edgeText } = await edgeAgent.sendMessage(message.text, memoryBlock)
+
+      if (!escalated && edgeText !== undefined) {
+        // Edge resolved — save both messages, no Firebase call
+        await persistUserMessage(character.id, userId, message)
+
+        const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        const savedAIMessage = await saveAIMessage(character.id, userId, edgeText, aiMsgId, {
+          user: {
+            _id: character.id,
+            name: character.name,
+            avatar: character.appearance || undefined,
+          },
+        })
+
+        void triggerConversationSummary(character, userId)
+
+        const priorHistory = messages.filter(
+          (msg) => String(msg._id) !== String(message._id),
+        )
+        const recentMessages = getRecentConversationHistory(
+          [...priorHistory, message, savedAIMessage],
+          20,
+        )
+        const chunk = recentMessages
+          .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
+          .join('\n')
+
+        try {
+          void Promise.resolve(
+            onWriteObservation(character.id, chunk || message.text),
+          ).catch((observationError: unknown) => {
+            if (!(observationError instanceof WikiBusyError)) {
+              reportError(observationError, `wiki:${character.id}:write:observation`)
+            }
+          })
+        } catch (observationError) {
+          if (!(observationError instanceof WikiBusyError)) {
+            reportError(observationError, `wiki:${character.id}:write:observation`)
+          }
+        }
+
+        return { usageSnapshot: null }
+      }
+
+      // Escalated — Firebase path (unchanged)
       return sendMessageWithAIResponse(message, character, userId, messages, {
         memoryBlock,
         onWriteObservation,
@@ -155,5 +218,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     sendMessage,
     isGeneratingResponse: aiMessageMutation.isPending,
     error,
+    escalationState: edgeAgent.escalationState,
   }
 }
