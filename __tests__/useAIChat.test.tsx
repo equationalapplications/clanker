@@ -79,11 +79,33 @@ jest.mock('~/utilities/reportError', () => ({
   reportError: (...args: unknown[]) => mockReportError(...args),
 }))
 
+jest.mock('~/database/messageDatabase', () => ({
+  saveAIMessage: jest.fn(),
+  getUnsyncedMessages: jest.fn().mockResolvedValue([]),
+  markMessagesAsSynced: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('~/services/syncMessage', () => ({
+  toSyncMessage: jest.fn((msg: any) => msg),
+}))
+
+jest.mock('~/services/messageService', () => ({
+  sendMessage: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('~/hooks/useEdgeAgent', () => ({
+  useEdgeAgent: jest.fn(() => ({
+    sendMessage: jest.fn().mockResolvedValue({ escalated: true, text: undefined }),
+    escalationState: 'idle',
+  })),
+  EscalationState: {},
+}))
+
 const { useAIChat } = require('~/hooks/useAIChat')
 
 type HookValue = ReturnType<typeof useAIChat>
 
-function renderUseAIChat(): HookValue {
+function renderUseAIChat(overrides: Partial<{ save_to_cloud: number }> = {}): HookValue {
   let hookValue: HookValue | null = null
 
   function Probe() {
@@ -97,6 +119,7 @@ function renderUseAIChat(): HookValue {
         traits: 'kind',
         emotions: 'calm',
         context: 'friendly',
+        save_to_cloud: overrides.save_to_cloud ?? 1, // Default: cloud-synced so escalation path is tested
       },
     })
     return null
@@ -168,6 +191,50 @@ describe('useAIChat', () => {
       }),
     )
   })
+
+  it('sends only user messages as unsyncedHistory and marks only user message IDs synced', async () => {
+    const database = require('~/database/messageDatabase')
+    database.getUnsyncedMessages.mockResolvedValue([
+      {
+        id: 'msg-1',
+        sender_user_id: 'user-1',
+        text: 'hello',
+      },
+      {
+        id: 'msg-2',
+        sender_user_id: 'other-user',
+        text: 'world',
+      },
+    ])
+
+    mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null, cloudSyncSucceeded: true })
+
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-2',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    expect(mockSendMessageWithAIResponse).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'user-1',
+      [],
+      expect.objectContaining({
+        unsyncedHistory: [
+          expect.objectContaining({ id: 'msg-1', sender_user_id: 'user-1' }),
+        ],
+      }),
+    )
+
+    expect(database.markMessagesAsSynced).toHaveBeenCalledWith(['msg-1'])
+  })
+
   it('reports non-busy wiki read errors with wiki:read context', async () => {
     mockCharacterWikiRead.mockRejectedValue(new Error('read failed'))
     const hook = renderUseAIChat()

@@ -2,11 +2,14 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
+import { and, eq } from "drizzle-orm";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
 import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
+import { getDb } from "./db/cloudSql.js";
+import { characters, messages } from "./db/schema.js";
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
@@ -18,8 +21,17 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+interface SyncMessage {
+  id: string;
+  role: 'user' | 'model';
+  text: string;
+  createdAt: number;
+}
+
 interface GenerateReplyData {
   prompt: string;
+  characterId?: string;
+  unsyncedHistory?: SyncMessage[];
 }
 
 export interface GenerateReplyResponse {
@@ -32,10 +44,12 @@ export interface GenerateReplyResponse {
 }
 
 type GenerateTextFn = (prompt: string) => Promise<string>;
+type GetDbFn = () => Promise<Pick<Awaited<ReturnType<typeof getDb>>, 'insert' | 'select'>>;
 
 interface GenerateReplyOptions {
   generateText?: GenerateTextFn;
   creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
+  getDb?: GetDbFn;
 }
 
 interface CandidatePart {
@@ -182,7 +196,7 @@ function getTextGenerator(): GenerateTextFn {
   return textGenerator;
 }
 
-function parseInput(data: unknown): {prompt: string} {
+function parseInput(data: unknown): { prompt: string; characterId?: string; unsyncedHistory?: SyncMessage[] } {
   const payload = data as GenerateReplyData | undefined;
   const promptValue = payload?.prompt;
   const prompt = typeof promptValue === "string" ? promptValue.trim() : "";
@@ -198,7 +212,42 @@ function parseInput(data: unknown): {prompt: string} {
     );
   }
 
-  return { prompt };
+  const characterId = typeof payload?.characterId === 'string' ? payload.characterId : undefined;
+
+  const rawHistory = payload?.unsyncedHistory;
+  let unsyncedHistory: SyncMessage[] | undefined;
+
+  if (rawHistory !== undefined) {
+    if (!Array.isArray(rawHistory)) {
+      throw new HttpsError("invalid-argument", "unsyncedHistory must be an array when provided.");
+    }
+
+    unsyncedHistory = (rawHistory as unknown[]).map((item, index): SyncMessage => {
+      if (item === null || typeof item !== 'object') {
+        throw new HttpsError(
+          "invalid-argument",
+          `unsyncedHistory[${index}] must be an object containing a user message.`
+        );
+      }
+
+      const message = item as SyncMessage;
+      if (
+        typeof message.id !== 'string' ||
+        message.role !== 'user' ||
+        typeof message.text !== 'string' ||
+        typeof message.createdAt !== 'number'
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          `unsyncedHistory[${index}] must contain only user-role messages with string id/text and numeric createdAt.`
+        );
+      }
+
+      return message;
+    });
+  }
+
+  return { prompt, characterId, unsyncedHistory };
 }
 
 async function chargeForReply(
@@ -234,7 +283,7 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const {prompt} = parseInput(request.data);
+  const { prompt, characterId, unsyncedHistory } = parseInput(request.data);
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -259,6 +308,47 @@ const handler = async (
     }
 
     throw new HttpsError("internal", "Failed to bootstrap user.");
+  }
+
+  // Bulk insert unsynced edge messages with idempotency guard
+  if (unsyncedHistory && unsyncedHistory.length > 0 && characterId) {
+    const getDbFn = options.getDb ?? getDb;
+    const db = await getDbFn();
+
+    // Verify the character belongs to the authenticated user before accepting client-supplied history.
+    const ownedCharacter = await db
+      .select({ id: characters.id })
+      .from(characters)
+      .where(and(eq(characters.id, characterId), eq(characters.userId, user.id)))
+      .limit(1);
+
+    if (!ownedCharacter[0]) {
+      throw new HttpsError(
+        "permission-denied",
+        "Character does not belong to the authenticated user."
+      );
+    }
+
+    const userMessages = unsyncedHistory.filter((msg) => msg.role === 'user');
+    if (userMessages.length > 0) {
+      try {
+        await db.insert(messages)
+          .values(userMessages.map((msg) => ({
+            messageId: msg.id,
+            characterId,
+            senderUserId: user.id,
+            text: msg.text,
+            createdAt: new Date(msg.createdAt),
+            messageData: {},
+          })))
+          .onConflictDoNothing({ target: messages.messageId });
+      } catch (insertError) {
+        logger.warn("Failed to bulk insert unsynced history; continuing with reply generation", {
+          userId: user.id,
+          error: insertError,
+        });
+      }
+    }
   }
 
   const credits = options.creditService ?? creditService;

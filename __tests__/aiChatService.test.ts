@@ -183,6 +183,7 @@ describe('buildChatPrompt', () => {
       'You are doing well.',
       expect.any(String),
       expect.any(Object),
+      expect.any(Number),
     )
   })
 
@@ -277,6 +278,7 @@ describe('buildChatPrompt', () => {
       'Hello!',
       expect.any(String),
       expect.any(Object),
+      expect.any(Number),
     )
     // Successful path returns a populated usageSnapshot, not the null from the error fallback
     expect(result).toMatchObject({

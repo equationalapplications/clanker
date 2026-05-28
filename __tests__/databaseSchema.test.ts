@@ -35,7 +35,7 @@ describe('database schema migration guards', () => {
   })
 
   it('bumps schema to v17 for wiki cleanup migration', () => {
-    expect(SCHEMA_VERSION).toBe(17)
+    expect(SCHEMA_VERSION).toBe(18)
     // Migration 13: adds source_hash — skipped if column exists OR wiki_entries table is missing
     expect(MIGRATION_SKIP_GUARDS[13]).toEqual([
       { table: 'wiki_entries', column: 'source_hash' },
@@ -68,6 +68,9 @@ describe('database schema migration guards', () => {
     expect(MIGRATIONS[17]).toContain('DROP TABLE IF EXISTS agent_tasks')
     expect(MIGRATIONS[17]).toContain('DROP TABLE IF EXISTS memory_events')
     expect(MIGRATIONS[17]).toContain('DROP TABLE IF EXISTS derived_synonyms')
+    // Migration 18: adds synced_at column to messages — skipped if column already exists
+    expect(MIGRATION_SKIP_GUARDS[18]).toEqual([{ table: 'messages', column: 'synced_at' }])
+    expect(MIGRATIONS[18]).toContain('ALTER TABLE messages ADD COLUMN synced_at INTEGER')
   })
 
   it('does not include old wiki memory tables in base schema', () => {
