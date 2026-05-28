@@ -11,6 +11,7 @@ const mockSend = jest.fn()
 const mockReportError = jest.fn()
 const mockCharacterWikiRead = jest.fn().mockResolvedValue(null)
 const mockCharacterWikiWrite = jest.fn().mockResolvedValue(undefined)
+const mockSaveAIMessage = jest.fn()
 
 jest.mock('@tanstack/react-query', () => ({
   useMutation: ({ mutationFn, onMutate, onSuccess, onError }: any) => ({
@@ -38,6 +39,8 @@ jest.mock('@tanstack/react-query', () => ({
 
 jest.mock('~/services/aiChatService', () => ({
   sendMessageWithAIResponse: (...args: unknown[]) => mockSendMessageWithAIResponse(...args),
+  triggerConversationSummary: jest.fn(),
+  getRecentConversationHistory: jest.fn((messages: any[]) => messages),
   Character: {},
 }))
 
@@ -81,7 +84,7 @@ jest.mock('~/utilities/reportError', () => ({
 }))
 
 jest.mock('~/database/messageDatabase', () => ({
-  saveAIMessage: jest.fn(),
+  saveAIMessage: mockSaveAIMessage,
   getUnsyncedMessages: jest.fn().mockResolvedValue([]),
   markMessagesAsSynced: jest.fn().mockResolvedValue(undefined),
 }))
@@ -102,6 +105,7 @@ jest.mock('~/hooks/useEdgeAgent', () => ({
   EscalationState: {},
 }))
 
+const mockUseEdgeAgent = require('~/hooks/useEdgeAgent').useEdgeAgent as jest.Mock
 const { useAIChat } = require('~/hooks/useAIChat')
 
 type HookValue = ReturnType<typeof useAIChat>
@@ -144,6 +148,11 @@ describe('useAIChat', () => {
     mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null })
     mockCharacterWikiRead.mockResolvedValue(null)
     mockCharacterWikiWrite.mockResolvedValue(undefined)
+    mockSaveAIMessage.mockResolvedValue({
+      _id: 'ai-1',
+      text: "I'm running in local-only mode and can't access your deep cloud memory right now.",
+      user: { _id: 'char-1' },
+    })
   })
 
   it('reads wiki memory and provides write callback for free-tier users', async () => {
@@ -236,7 +245,15 @@ describe('useAIChat', () => {
     expect(database.markMessagesAsSynced).toHaveBeenCalledWith(['msg-1'])
   })
 
-  it('falls through to Firebase path when a local-only character escalates', async () => {
+  it('does not call Firebase when a local-only character returns a local-only fallback', async () => {
+    mockUseEdgeAgent.mockReturnValueOnce({
+      sendMessage: jest.fn().mockResolvedValue({
+        escalated: false,
+        text: "I'm running in local-only mode and can't access your deep cloud memory right now.",
+      }),
+      escalationState: 'idle',
+    })
+
     const hook = renderUseAIChat({ save_to_cloud: 0 })
 
     await act(async () => {
@@ -248,11 +265,12 @@ describe('useAIChat', () => {
       } as any)
     })
 
-    expect(mockSendMessageWithAIResponse).toHaveBeenCalled()
-    expect(require('~/database/messageDatabase').saveAIMessage).not.toHaveBeenCalledWith(
+    expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
+    expect(require('~/database/messageDatabase').saveAIMessage).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(String),
       "I'm running in local-only mode and can't access your deep cloud memory right now.",
+      expect.any(String),
       expect.any(Object),
     )
   })

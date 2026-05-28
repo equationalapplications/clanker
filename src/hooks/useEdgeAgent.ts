@@ -26,6 +26,7 @@ export interface UseEdgeAgentReturn {
 
 const MAX_ITERATIONS = 5
 const GEMINI_MODEL = 'gemini-2.5-flash'
+const LOCAL_ONLY_FALLBACK_TEXT = "I'm running in local-only mode and can't access your deep cloud memory right now."
 
 export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, wiki }: UseEdgeAgentOptions): UseEdgeAgentReturn {
   const [isThinking, setIsThinking] = useState(false)
@@ -44,8 +45,11 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
       const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY
       if (!apiKey) {
         setIsThinking(false)
-        setEscalationState('escalating')
-        return { escalated: true }
+        if (isCloudSynced) {
+          setEscalationState('escalating')
+          return { escalated: true }
+        }
+        return { escalated: false, text: LOCAL_ONLY_FALLBACK_TEXT }
       }
 
       const ai = new GoogleGenAI({ apiKey })
@@ -112,11 +116,18 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
           } as Content)
         }
 
-        setEscalationState('escalating')
-        return { escalated: true }
+        if (isCloudSynced) {
+          setEscalationState('escalating')
+          return { escalated: true }
+        }
+
+        return { escalated: false, text: LOCAL_ONLY_FALLBACK_TEXT }
       } catch {
-        setEscalationState('escalating')
-        return { escalated: true }
+        if (isCloudSynced) {
+          setEscalationState('escalating')
+          return { escalated: true }
+        }
+        return { escalated: false, text: LOCAL_ONLY_FALLBACK_TEXT }
       } finally {
         setIsThinking(false)
       }

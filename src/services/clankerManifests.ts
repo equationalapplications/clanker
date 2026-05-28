@@ -3,7 +3,7 @@ import { getCurrentTimeManifest, escalateToCloudManifest } from '@equationalappl
 export const clankerTimeSchema = {
   ...getCurrentTimeManifest.schema,
   description:
-    'CRITICAL: ALWAYS call this tool immediately if the user asks for the current time, date, day of the week, or uses relative temporal words (today, tomorrow). Do not guess or act rustic.',
+    'CRITICAL: ALWAYS call this tool immediately if the user asks for the current time, date, day of the week, or uses relative temporal words (today, tomorrow). Do not guess or fabricate the time.',
 }
 
 export const clankerEscalationSchema = {
