@@ -122,8 +122,8 @@ cd functions && npm install @equationalapplications/core-llm-tools
 |------|----------|
 | `getCurrentTimeTool.name` | `'get_current_time'` (inherited from manifest, not hardcoded) |
 | `getCurrentTimeTool.execute({})` | Returns non-empty localized time string |
-| TypeScript build | `tsc --noEmit` passes with no errors |
-| Docker integration tests | All 5 tests pass inside container |
+| TypeScript build | `cd functions && npm run typecheck` passes with no errors |
+| Functions test suite | `cd functions && npm test` passes with no failures |
 
 ---
 
