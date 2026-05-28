@@ -7,6 +7,8 @@ export interface CharacterPromptContext {
   memoryBlock?: string
 }
 
+// Expects aiChatService.Character (all string fields), not the nullable DB model from characterService.
+/** Returns the system instruction string for @google/genai config, built from character fields and optional memory. */
 export function buildSystemInstruction(ctx: CharacterPromptContext): string {
   const { character, memoryBlock } = ctx
 
@@ -38,12 +40,13 @@ export function buildSystemInstruction(ctx: CharacterPromptContext): string {
   return lines.join('\n')
 }
 
+/** Converts IMessage[] to @google/genai Content[], mapping user/_model roles, sorted oldest to newest. */
 export function buildContentHistory(
   messages: IMessage[],
   userId: string,
 ): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> {
   return [...messages]
-    .filter((msg) => msg.text?.trim())
+    .filter((msg) => msg.text.trim())
     .sort(
       (a, b) =>
         new Date(a.createdAt as string | number | Date).getTime() -

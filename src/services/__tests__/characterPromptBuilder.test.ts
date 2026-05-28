@@ -44,6 +44,14 @@ describe('buildSystemInstruction', () => {
     const ctx: CharacterPromptContext = { character: baseCharacter, userId: 'u1' }
     expect(buildSystemInstruction(ctx)).toContain('Stay in character')
   })
+
+  it('omits context section when character.context is empty', () => {
+    const ctx: CharacterPromptContext = {
+      character: { ...baseCharacter, context: '' },
+      userId: 'u1',
+    }
+    expect(buildSystemInstruction(ctx)).not.toContain('Conversation context')
+  })
 })
 
 describe('buildContentHistory', () => {
@@ -90,6 +98,16 @@ describe('buildContentHistory', () => {
   it('filters out messages with empty text', () => {
     const msgs = [
       makeMsg('1', '', userId, new Date(1000)),
+      makeMsg('2', 'Valid', userId, new Date(2000)),
+    ]
+    const result = buildContentHistory(msgs, userId)
+    expect(result).toHaveLength(1)
+    expect(result[0].parts[0].text).toBe('Valid')
+  })
+
+  it('filters out whitespace-only messages', () => {
+    const msgs = [
+      makeMsg('1', '   ', userId, new Date(1000)),
       makeMsg('2', 'Valid', userId, new Date(2000)),
     ]
     const result = buildContentHistory(msgs, userId)
