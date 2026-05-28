@@ -342,7 +342,7 @@ export const sendMessageWithAIResponse = async (
     onWriteObservation?: (characterId: string, text: string) => void
     unsyncedHistory?: SyncMessage[]
   },
-): Promise<{ usageSnapshot: UsageSnapshot | null }> => {
+): Promise<{ usageSnapshot: UsageSnapshot | null; cloudSyncSucceeded: boolean }> => {
   try {
     // 1. Send the user's message to local database
     await sendMessage(character.id, userId, userMessage)
@@ -425,7 +425,7 @@ export const sendMessageWithAIResponse = async (
         }
       }
     }
-    return { usageSnapshot: toUsageSnapshot(aiResponse) }
+    return { usageSnapshot: toUsageSnapshot(aiResponse), cloudSyncSucceeded: true }
   } catch (error) {
     const firebaseCode = (error as { code?: string }).code
     if (firebaseCode === 'functions/failed-precondition') {
@@ -455,7 +455,7 @@ export const sendMessageWithAIResponse = async (
           },
         },
       )
-      return { usageSnapshot: null }
+      return { usageSnapshot: null, cloudSyncSucceeded: false }
     } catch (fallbackError) {
       console.error('Error sending fallback message:', fallbackError)
       throw error // Re-throw original error

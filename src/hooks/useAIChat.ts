@@ -134,8 +134,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         unsyncedHistory,
       })
 
-      // Mark local messages as synced after successful Firebase call
-      await markMessagesAsSynced(unsyncedLocal.map((m) => m.id))
+      if (result.cloudSyncSucceeded) {
+        // Mark local messages as synced only when Firebase actually received them
+        await markMessagesAsSynced(unsyncedLocal.map((m) => m.id))
+      }
 
       return result
     },
