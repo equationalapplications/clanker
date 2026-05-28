@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 17
+export const SCHEMA_VERSION = 18
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -56,6 +56,7 @@ export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   14: [{ table: 'wiki_entries', column: 'source_ref' }, { table: 'wiki_entries', skipIfTableMissing: true }],
   15: [{ table: 'wiki_entries', skipIfTableMissing: true }],
   16: [{ table: 'wiki_entries', skipIfTableMissing: true }],
+  18: [{ table: 'messages', column: 'synced_at' }],
 }
 
 /**
@@ -148,4 +149,5 @@ DROP TABLE IF EXISTS wiki_entries;
 DROP TABLE IF EXISTS agent_tasks;
 DROP TABLE IF EXISTS memory_events;
 DROP TABLE IF EXISTS derived_synonyms`.trim(),
+  18: `ALTER TABLE messages ADD COLUMN synced_at INTEGER;`,  // NULL = unsynced, Unix timestamp = synced
 }

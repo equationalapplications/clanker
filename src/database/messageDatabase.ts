@@ -18,6 +18,7 @@ export interface LocalMessage {
     sent: number // 0 or 1
     error: number // 0 or 1
     edited: number // 0 or 1
+    synced_at: number | null  // null = not synced to cloud
 }
 
 /**
@@ -129,6 +130,7 @@ export async function saveAIMessage(
     text: string,
     messageId?: string,
     additionalData?: Partial<IMessage>,
+    syncedAt?: number,
 ): Promise<IMessage> {
     const db = await getDatabase()
 
@@ -137,10 +139,10 @@ export async function saveAIMessage(
     const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
     await db.runAsync(
-        `INSERT INTO messages 
-     (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, characterId, characterId, userId, text, createdAt, messageData, 0, 1, 0, 0],
+        `INSERT INTO messages
+     (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, characterId, characterId, userId, text, createdAt, messageData, 0, 1, 0, 0, syncedAt ?? null],
     )
 
     return {
@@ -386,5 +388,29 @@ export async function pruneMessagesForCharacter(
          LIMIT ?
        )`,
         [characterId, userId, userId, characterId, userId, userId, keepLatestCount],
+    )
+}
+
+export async function getUnsyncedMessages(
+    characterId: string,
+    userId: string,
+): Promise<LocalMessage[]> {
+    const db = await getDatabase()
+    return db.getAllAsync<LocalMessage>(
+        `SELECT * FROM messages
+     WHERE character_id = ? AND synced_at IS NULL
+     ORDER BY created_at ASC`,
+        [characterId],
+    )
+}
+
+export async function markMessagesAsSynced(messageIds: string[]): Promise<void> {
+    if (messageIds.length === 0) return
+    const db = await getDatabase()
+    const now = Date.now()
+    const placeholders = messageIds.map(() => '?').join(',')
+    await db.runAsync(
+        `UPDATE messages SET synced_at = ? WHERE id IN (${placeholders})`,
+        [now, ...messageIds],
     )
 }
