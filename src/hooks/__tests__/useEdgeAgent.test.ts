@@ -165,6 +165,22 @@ describe('useEdgeAgent', () => {
     expect(done).toBe(true)
   })
 
+  it('escalates when generateContent throws', async () => {
+    mockGenerateContent.mockRejectedValue(new Error('Network error'))
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages }),
+    )
+
+    let response: { escalated: boolean; text?: string } | undefined
+    await act(async () => {
+      response = await result.current.sendMessage('Hello')
+    })
+
+    expect(response?.escalated).toBe(true)
+    expect(result.current.isThinking).toBe(false)
+  })
+
   it('escalates when EXPO_PUBLIC_GEMINI_API_KEY is not set', async () => {
     delete process.env.EXPO_PUBLIC_GEMINI_API_KEY
 

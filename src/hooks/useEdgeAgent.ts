@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { GoogleGenAI } from '@google/genai'
+import type { Content, ToolListUnion } from '@google/genai'
 import type { IMessage } from 'react-native-gifted-chat'
 import { getCurrentTimeManifest, escalateToCloudManifest } from '@equationalapplications/core-llm-tools'
 import type { Character } from '~/services/aiChatService'
@@ -47,11 +48,13 @@ export function useEdgeAgent({ character, userId, priorMessages }: UseEdgeAgentO
       const systemInstruction = buildSystemInstruction({ character, userId, memoryBlock })
       const historyContents = buildContentHistory(priorMessagesRef.current, userId)
 
-      const contents: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [
+      const contents: Content[] = [
         ...historyContents,
         { role: 'user', parts: [{ text: userText }] },
-      ]
+      ] as Content[]
 
+      // Cast required: AgentToolSchema.parameters.properties is Record<string,unknown>
+      // but FunctionDeclaration expects Record<string,Schema> — shapes are compatible at runtime
       const tools = [
         {
           functionDeclarations: [
@@ -59,7 +62,7 @@ export function useEdgeAgent({ character, userId, priorMessages }: UseEdgeAgentO
             escalateToCloudManifest.schema,
           ],
         },
-      ]
+      ] as unknown as ToolListUnion
 
       try {
         let iterations = 0
@@ -69,16 +72,14 @@ export function useEdgeAgent({ character, userId, priorMessages }: UseEdgeAgentO
 
           const result = await ai.models.generateContent({
             model: GEMINI_MODEL,
-            contents: contents as any,
-            config: { systemInstruction, tools } as any,
+            contents: contents as Content[],
+            config: { systemInstruction, tools },
           })
 
-          const functionCalls = (result as any).functionCalls as
-            | Array<{ name: string; args: Record<string, unknown> }>
-            | undefined
+          const functionCalls = result.functionCalls
 
           if (!functionCalls || functionCalls.length === 0) {
-            return { escalated: false, text: (result as any).text ?? '' }
+            return { escalated: false, text: result.text ?? '' }
           }
 
           const shouldEscalate = functionCalls.some((fc) => fc.name === 'escalate_to_cloud')
@@ -91,20 +92,24 @@ export function useEdgeAgent({ character, userId, priorMessages }: UseEdgeAgentO
           contents.push({
             role: 'model',
             parts: functionCalls.map((fc) => ({ functionCall: fc })),
-          })
+          } as Content)
 
           // Execute tools and append function responses
           contents.push({
             role: 'user',
             parts: functionCalls.map((fc) => {
-              const executor = edgeToolExecutors[fc.name]
-              const output = executor ? executor(fc.args) : null
-              return { functionResponse: { name: fc.name, response: { output } } }
+              const name = fc.name ?? ''
+              const executor = edgeToolExecutors[name]
+              const output = executor ? executor(fc.args ?? {}) : null
+              return { functionResponse: { name, response: { output } } }
             }),
-          })
+          } as Content)
         }
 
         // Iteration cap — escalate
+        setEscalationState('escalating')
+        return { escalated: true }
+      } catch {
         setEscalationState('escalating')
         return { escalated: true }
       } finally {
