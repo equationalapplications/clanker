@@ -291,9 +291,9 @@ export async function batchInsertMessages(messages: LocalMessage[]): Promise<voi
     await db.withTransactionAsync(async () => {
         for (const msg of messages) {
             await db.runAsync(
-                `INSERT OR REPLACE INTO messages 
-         (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT OR REPLACE INTO messages
+         (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited, synced_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     msg.id,
                     msg.character_id,
@@ -306,6 +306,7 @@ export async function batchInsertMessages(messages: LocalMessage[]): Promise<voi
                     msg.sent,
                     msg.error,
                     msg.edited,
+                    msg.synced_at,
                 ],
             )
         }
@@ -398,9 +399,9 @@ export async function getUnsyncedMessages(
     const db = await getDatabase()
     return db.getAllAsync<LocalMessage>(
         `SELECT * FROM messages
-     WHERE character_id = ? AND synced_at IS NULL
+     WHERE character_id = ? AND (sender_user_id = ? OR recipient_user_id = ?) AND synced_at IS NULL
      ORDER BY created_at ASC`,
-        [characterId],
+        [characterId, userId, userId],
     )
 }
 
