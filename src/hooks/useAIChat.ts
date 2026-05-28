@@ -10,7 +10,7 @@ import {
 import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usageSnapshotFromError } from '~/services/usageSnapshot'
-import { formatContext, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { formatContext, WikiBusyError, useWiki } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { reportError } from '~/utilities/reportError'
 import { saveAIMessage, getUnsyncedMessages, markMessagesAsSynced } from '~/database/messageDatabase'
@@ -43,6 +43,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const [error, setError] = useState<string | null>(null)
 
   const characterWiki = useCharacterWiki(character.id)
+  const wiki = useWiki()
 
   // Normalize save_to_cloud which can be boolean (from characterService) or number (from DB)
   const raw = character.save_to_cloud
@@ -53,6 +54,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     userId,
     priorMessages: messages,
     isCloudSynced,
+    wiki,
   })
 
   // Mutation for sending message with AI response
