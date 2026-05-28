@@ -106,7 +106,8 @@ export const CREATE_TABLES = `
     pending INTEGER DEFAULT 0,
     sent INTEGER DEFAULT 1,
     error INTEGER DEFAULT 0,
-    edited INTEGER DEFAULT 0
+    edited INTEGER DEFAULT 0,
+    synced_at INTEGER
   );
 
   -- Indexes for messages

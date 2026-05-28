@@ -42,6 +42,7 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced }
       const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY
       if (!apiKey) {
         setIsThinking(false)
+        setEscalationState('escalating')
         return { escalated: true }
       }
 
@@ -104,12 +105,19 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced }
           } as Content)
         }
 
-        // Iteration cap — escalate
-        setEscalationState('escalating')
-        return { escalated: true }
+        // Iteration cap — escalate only if cloud-synced, otherwise return fallback
+        if (isCloudSynced) {
+          setEscalationState('escalating')
+          return { escalated: true }
+        }
+        return { escalated: false, text: "I'm running in local-only mode and can't access your deep cloud memory right now." }
       } catch {
-        setEscalationState('escalating')
-        return { escalated: true }
+        // Error — escalate only if cloud-synced, otherwise return fallback
+        if (isCloudSynced) {
+          setEscalationState('escalating')
+          return { escalated: true }
+        }
+        return { escalated: false, text: "I'm running in local-only mode and can't access your deep cloud memory right now." }
       } finally {
         setIsThinking(false)
       }

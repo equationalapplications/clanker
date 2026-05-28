@@ -44,11 +44,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
   const characterWiki = useCharacterWiki(character.id)
 
+  // Normalize save_to_cloud which can be boolean (from characterService) or number (from DB)
+  const raw = character.save_to_cloud
+  const isCloudSynced = !!(raw ?? 0)
+
   const edgeAgent = useEdgeAgent({
     character,
     userId,
     priorMessages: messages,
-    isCloudSynced: (character.save_to_cloud ?? 0) === 1,
+    isCloudSynced,
   })
 
   // Mutation for sending message with AI response
@@ -119,12 +123,24 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
 
       // Escalated — Firebase path with unsynced history
-      let unsyncedLocal = await getUnsyncedMessages(character.id, userId)
+      // Guard: local-only characters must never call Firebase
+      if (!isCloudSynced) {
+        // Local-only character somehow escalated (e.g., iteration cap) — return fallback
+        const fallbackMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+        await saveAIMessage(character.id, userId, "I'm running in local-only mode and can't access your deep cloud memory right now.", fallbackMsgId, {
+          user: {
+            _id: character.id,
+            name: character.name,
+            avatar: character.appearance || undefined,
+          },
+        })
+        return { usageSnapshot: null }
+      }
 
-      // Filter out current message if already saved locally (avoids double-count)
-      unsyncedLocal = unsyncedLocal.filter(
-        (msg) => !(msg.text === message.text && Date.now() - msg.created_at < 10000),
-      )
+      let unsyncedLocal = await getUnsyncedMessages(character.id, userId)
+      // Note: current message filter removed — the UI does not insert the user message
+      // into SQLite before escalation fires, so no double-count occurs.
+      // If future flows change this, exclude by message ID instead of text+timestamp.
 
       const unsyncedHistory = unsyncedLocal.map((msg) => toSyncMessage(msg, userId))
 

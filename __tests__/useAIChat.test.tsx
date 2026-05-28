@@ -105,7 +105,7 @@ const { useAIChat } = require('~/hooks/useAIChat')
 
 type HookValue = ReturnType<typeof useAIChat>
 
-function renderUseAIChat(): HookValue {
+function renderUseAIChat(overrides: Partial<{ save_to_cloud: number }> = {}): HookValue {
   let hookValue: HookValue | null = null
 
   function Probe() {
@@ -119,6 +119,7 @@ function renderUseAIChat(): HookValue {
         traits: 'kind',
         emotions: 'calm',
         context: 'friendly',
+        save_to_cloud: overrides.save_to_cloud ?? 1, // Default: cloud-synced so escalation path is tested
       },
     })
     return null

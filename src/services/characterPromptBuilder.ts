@@ -15,9 +15,9 @@ export function buildSystemInstruction(ctx: CharacterPromptContext): string {
   const lines: string[] = [
     `You are ${character.name}, a virtual friend.`,
     ``,
-    `Appearance: ${character.appearance}`,
-    `Personality traits: ${character.traits}`,
-    `Emotional style: ${character.emotions}`,
+    `Appearance: ${character.appearance ?? ''}`,
+    `Personality traits: ${character.traits ?? ''}`,
+    `Emotional style: ${character.emotions ?? ''}`,
   ]
 
   if (character.context) {
@@ -44,7 +44,7 @@ export function buildSystemInstruction(ctx: CharacterPromptContext): string {
 export function buildContentHistory(
   messages: IMessage[],
   userId: string,
-): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> {
+): { role: 'user' | 'model'; parts: { text: string }[] }[] {
   return [...messages]
     .filter((msg) => msg.text.trim())
     .sort(
