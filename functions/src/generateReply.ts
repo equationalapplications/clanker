@@ -7,6 +7,8 @@ import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
 import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
+import { getDb } from "./db/cloudSql.js";
+import { messages } from "./db/schema.js";
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
@@ -18,8 +20,17 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+interface SyncMessage {
+  id: string;
+  role: 'user' | 'model';
+  text: string;
+  createdAt: number;
+}
+
 interface GenerateReplyData {
   prompt: string;
+  characterId?: string;
+  unsyncedHistory?: SyncMessage[];
 }
 
 export interface GenerateReplyResponse {
@@ -32,10 +43,12 @@ export interface GenerateReplyResponse {
 }
 
 type GenerateTextFn = (prompt: string) => Promise<string>;
+type GetDbFn = () => Promise<Pick<Awaited<ReturnType<typeof getDb>>, 'insert'>>;
 
 interface GenerateReplyOptions {
   generateText?: GenerateTextFn;
   creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
+  getDb?: GetDbFn;
 }
 
 interface CandidatePart {
@@ -182,7 +195,7 @@ function getTextGenerator(): GenerateTextFn {
   return textGenerator;
 }
 
-function parseInput(data: unknown): {prompt: string} {
+function parseInput(data: unknown): { prompt: string; characterId?: string; unsyncedHistory?: SyncMessage[] } {
   const payload = data as GenerateReplyData | undefined;
   const promptValue = payload?.prompt;
   const prompt = typeof promptValue === "string" ? promptValue.trim() : "";
@@ -198,7 +211,13 @@ function parseInput(data: unknown): {prompt: string} {
     );
   }
 
-  return { prompt };
+  const characterId = typeof payload?.characterId === 'string' ? payload.characterId : undefined;
+
+  const rawHistory = payload?.unsyncedHistory;
+  const unsyncedHistory: SyncMessage[] | undefined =
+    Array.isArray(rawHistory) ? rawHistory as SyncMessage[] : undefined;
+
+  return { prompt, characterId, unsyncedHistory };
 }
 
 async function chargeForReply(
@@ -234,7 +253,7 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const {prompt} = parseInput(request.data);
+  const { prompt, characterId, unsyncedHistory } = parseInput(request.data);
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -259,6 +278,32 @@ const handler = async (
     }
 
     throw new HttpsError("internal", "Failed to bootstrap user.");
+  }
+
+  // Bulk insert unsynced edge messages with idempotency guard
+  if (unsyncedHistory && unsyncedHistory.length > 0 && characterId) {
+    const userMessages = unsyncedHistory.filter((msg) => msg.role === 'user');
+    if (userMessages.length > 0) {
+      try {
+        const getDbFn = options.getDb ?? getDb;
+        const db = await getDbFn();
+        await db.insert(messages)
+          .values(userMessages.map((msg) => ({
+            messageId: msg.id,
+            characterId,
+            senderUserId: user.id,
+            text: msg.text,
+            createdAt: new Date(msg.createdAt),
+            messageData: {},
+          })))
+          .onConflictDoNothing({ target: messages.messageId });
+      } catch (insertError) {
+        logger.warn("Failed to bulk insert unsynced history; continuing with reply generation", {
+          userId: user.id,
+          error: insertError,
+        });
+      }
+    }
   }
 
   const credits = options.creditService ?? creditService;
