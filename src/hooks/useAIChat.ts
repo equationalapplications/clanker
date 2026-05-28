@@ -123,20 +123,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
 
       // Escalated — Firebase path with unsynced history
-      // Guard: local-only characters must never call Firebase
-      if (!isCloudSynced) {
-        // Local-only character somehow escalated (e.g., iteration cap) — return fallback
-        const fallbackMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-        await saveAIMessage(character.id, userId, "I'm running in local-only mode and can't access your deep cloud memory right now.", fallbackMsgId, {
-          user: {
-            _id: character.id,
-            name: character.name,
-            avatar: character.appearance || undefined,
-          },
-        })
-        return { usageSnapshot: null }
-      }
-
       const unsyncedLocal = await getUnsyncedMessages(character.id, userId)
       const unsyncedUserMessages = unsyncedLocal.filter((msg) => msg.sender_user_id === userId)
 

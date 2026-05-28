@@ -235,6 +235,27 @@ describe('useAIChat', () => {
     expect(database.markMessagesAsSynced).toHaveBeenCalledWith(['msg-1'])
   })
 
+  it('falls through to Firebase path when a local-only character escalates', async () => {
+    const hook = renderUseAIChat({ save_to_cloud: 0 })
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-local-only',
+        text: 'Hi',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    expect(mockSendMessageWithAIResponse).toHaveBeenCalled()
+    expect(require('~/database/messageDatabase').saveAIMessage).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      "I'm running in local-only mode and can't access your deep cloud memory right now.",
+      expect.any(Object),
+    )
+  })
+
   it('reports non-busy wiki read errors with wiki:read context', async () => {
     mockCharacterWikiRead.mockRejectedValue(new Error('read failed'))
     const hook = renderUseAIChat()

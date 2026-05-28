@@ -105,19 +105,13 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced }
           } as Content)
         }
 
-        // Iteration cap — escalate only if cloud-synced, otherwise return fallback
-        if (isCloudSynced) {
-          setEscalationState('escalating')
-          return { escalated: true }
-        }
-        return { escalated: false, text: "I'm running in local-only mode and can't access your deep cloud memory right now." }
+        // Iteration cap — escalate to Firebase
+        setEscalationState('escalating')
+        return { escalated: true }
       } catch {
-        // Error — escalate only if cloud-synced, otherwise return fallback
-        if (isCloudSynced) {
-          setEscalationState('escalating')
-          return { escalated: true }
-        }
-        return { escalated: false, text: "I'm running in local-only mode and can't access your deep cloud memory right now." }
+        // Error — escalate to Firebase
+        setEscalationState('escalating')
+        return { escalated: true }
       } finally {
         setIsThinking(false)
       }

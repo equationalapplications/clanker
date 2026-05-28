@@ -138,6 +138,26 @@ describe('useEdgeAgent', () => {
     expect(mockGenerateContent).toHaveBeenCalledTimes(5) // MAX_ITERATIONS
   })
 
+  it('escalates automatically when iteration cap is reached for local-only characters', async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: undefined,
+      functionCalls: [{ name: 'get_current_time', args: {} }],
+    })
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false }),
+    )
+
+    let response: { escalated: boolean; text?: string } | undefined
+    await act(async () => {
+      response = await result.current.sendMessage('Loop forever')
+    })
+
+    expect(response?.escalated).toBe(true)
+    expect(result.current.escalationState).toBe('escalating')
+    expect(mockGenerateContent).toHaveBeenCalledTimes(5)
+  })
+
   it('isThinking is true during the call and false after', async () => {
     let resolveGenerate: (v: any) => void
     const pendingGenerate = new Promise((resolve) => { resolveGenerate = resolve })
@@ -170,6 +190,22 @@ describe('useEdgeAgent', () => {
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true }),
+    )
+
+    let response: { escalated: boolean; text?: string } | undefined
+    await act(async () => {
+      response = await result.current.sendMessage('Hello')
+    })
+
+    expect(response?.escalated).toBe(true)
+    expect(result.current.isThinking).toBe(false)
+  })
+
+  it('escalates when generateContent throws for local-only characters', async () => {
+    mockGenerateContent.mockRejectedValue(new Error('Network error'))
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false }),
     )
 
     let response: { escalated: boolean; text?: string } | undefined
