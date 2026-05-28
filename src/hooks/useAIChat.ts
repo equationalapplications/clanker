@@ -13,9 +13,10 @@ import { usageSnapshotFromError } from '~/services/usageSnapshot'
 import { formatContext, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { reportError } from '~/utilities/reportError'
-import { saveAIMessage } from '~/database/messageDatabase'
+import { saveAIMessage, getUnsyncedMessages, markMessagesAsSynced } from '~/database/messageDatabase'
 import { sendMessage as persistUserMessage } from '~/services/messageService'
 import { useEdgeAgent, EscalationState } from '~/hooks/useEdgeAgent'
+import { toSyncMessage } from '~/services/syncMessage'
 
 interface UseAIChatProps {
   characterId: string
@@ -47,6 +48,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     character,
     userId,
     priorMessages: messages,
+    isCloudSynced: (character.save_to_cloud ?? 0) === 1,
   })
 
   // Mutation for sending message with AI response
@@ -116,11 +118,26 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         return { usageSnapshot: null }
       }
 
-      // Escalated — Firebase path (unchanged)
-      return sendMessageWithAIResponse(message, character, userId, messages, {
+      // Escalated — Firebase path with unsynced history
+      let unsyncedLocal = await getUnsyncedMessages(character.id, userId)
+
+      // Filter out current message if already saved locally (avoids double-count)
+      unsyncedLocal = unsyncedLocal.filter(
+        (msg) => !(msg.text === message.text && Date.now() - msg.created_at < 10000),
+      )
+
+      const unsyncedHistory = unsyncedLocal.map((msg) => toSyncMessage(msg, userId))
+
+      const result = await sendMessageWithAIResponse(message, character, userId, messages, {
         memoryBlock,
         onWriteObservation,
+        unsyncedHistory,
       })
+
+      // Mark local messages as synced after successful Firebase call
+      await markMessagesAsSynced(unsyncedLocal.map((m) => m.id))
+
+      return result
     },
 
     // Optimistic update: Add user message immediately

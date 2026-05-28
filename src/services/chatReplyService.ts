@@ -1,8 +1,10 @@
 import { appCheckReady, generateReplyFn } from '~/config/firebaseConfig'
+import type { SyncMessage } from '~/services/syncMessage'
 
 interface GenerateChatReplyInput {
   prompt: string
   referenceId?: string
+  unsyncedHistory?: SyncMessage[]
 }
 
 interface GenerateReplyCallableResponse {
@@ -24,6 +26,7 @@ export interface GenerateChatReplyResult {
 export async function generateChatReply({
   prompt,
   referenceId,
+  unsyncedHistory,
 }: GenerateChatReplyInput): Promise<GenerateChatReplyResult> {
   const trimmedPrompt = prompt.trim()
   if (!trimmedPrompt) {
@@ -35,6 +38,7 @@ export async function generateChatReply({
   const result = await generateReplyFn({
     prompt: trimmedPrompt,
     referenceId,
+    unsyncedHistory,
   })
 
   const data = result.data as GenerateReplyCallableResponse

@@ -13,6 +13,7 @@ import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { reportError } from '~/utilities/reportError'
+import type { SyncMessage } from '~/services/syncMessage'
 
 export interface Character {
   id: string
@@ -22,6 +23,7 @@ export interface Character {
   emotions: string
   context: string
   cloud_id?: string | null
+  save_to_cloud?: number
 }
 
 export type UsageSnapshot = UsageSnapshotPayload
@@ -338,6 +340,7 @@ export const sendMessageWithAIResponse = async (
   options?: {
     memoryBlock?: string
     onWriteObservation?: (characterId: string, text: string) => void
+    unsyncedHistory?: SyncMessage[]
   },
 ): Promise<{ usageSnapshot: UsageSnapshot | null }> => {
   try {
@@ -383,16 +386,17 @@ export const sendMessageWithAIResponse = async (
     const aiResponse = await generateChatReply({
       prompt,
       referenceId: buildReferenceId(userMessage._id),
+      unsyncedHistory: options?.unsyncedHistory,
     })
 
-    // 5. Save AI response to local database
+    // 5. Save AI response to local database (mark as synced — cloud reply is immediately synced)
     const savedAIMessage = await saveAIMessage(character.id, userId, aiResponse.reply, aiResponseId, {
       user: {
         _id: character.id, // The character is responding
         name: character.name,
         avatar: character.appearance || undefined,
       },
-    })
+    }, Date.now())
 
     void triggerConversationSummary(character, userId)
     if (options?.onWriteObservation) {
