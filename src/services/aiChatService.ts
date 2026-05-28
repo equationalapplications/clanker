@@ -387,7 +387,7 @@ export const sendMessageWithAIResponse = async (
       prompt,
       referenceId: buildReferenceId(userMessage._id),
       unsyncedHistory: options?.unsyncedHistory,
-      characterId: character.id,  // needed for cloud bulk insert
+      characterId: character.cloud_id ?? undefined,  // needed for cloud bulk insert; must be UUID
     })
 
     // 5. Save AI response to local database (mark as synced — cloud reply is immediately synced)
