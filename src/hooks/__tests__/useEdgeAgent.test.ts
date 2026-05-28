@@ -61,7 +61,7 @@ describe('useEdgeAgent', () => {
     })
 
     const { result } = renderHook(() =>
-      useEdgeAgent({ character, userId: 'u1', priorMessages }),
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true }),
     )
 
     let response: { escalated: boolean; text?: string } | undefined
@@ -80,7 +80,7 @@ describe('useEdgeAgent', () => {
     })
 
     const { result } = renderHook(() =>
-      useEdgeAgent({ character, userId: 'u1', priorMessages }),
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true }),
     )
 
     let response: { escalated: boolean; text?: string } | undefined
@@ -104,7 +104,7 @@ describe('useEdgeAgent', () => {
       })
 
     const { result } = renderHook(() =>
-      useEdgeAgent({ character, userId: 'u1', priorMessages }),
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true }),
     )
 
     let response: { escalated: boolean; text?: string } | undefined
@@ -125,7 +125,7 @@ describe('useEdgeAgent', () => {
     })
 
     const { result } = renderHook(() =>
-      useEdgeAgent({ character, userId: 'u1', priorMessages }),
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true }),
     )
 
     let response: { escalated: boolean; text?: string } | undefined
@@ -144,7 +144,7 @@ describe('useEdgeAgent', () => {
     mockGenerateContent.mockReturnValueOnce(pendingGenerate)
 
     const { result } = renderHook(() =>
-      useEdgeAgent({ character, userId: 'u1', priorMessages }),
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true }),
     )
 
     expect(result.current.isThinking).toBe(false)
@@ -169,7 +169,7 @@ describe('useEdgeAgent', () => {
     mockGenerateContent.mockRejectedValue(new Error('Network error'))
 
     const { result } = renderHook(() =>
-      useEdgeAgent({ character, userId: 'u1', priorMessages }),
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true }),
     )
 
     let response: { escalated: boolean; text?: string } | undefined
@@ -185,7 +185,7 @@ describe('useEdgeAgent', () => {
     delete process.env.EXPO_PUBLIC_GEMINI_API_KEY
 
     const { result } = renderHook(() =>
-      useEdgeAgent({ character, userId: 'u1', priorMessages }),
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true }),
     )
 
     let response: { escalated: boolean; text?: string } | undefined
@@ -195,5 +195,47 @@ describe('useEdgeAgent', () => {
 
     expect(response?.escalated).toBe(true)
     expect(mockGenerateContent).not.toHaveBeenCalled()
+  })
+
+  it('does not include escalate_to_cloud tool when isCloudSynced is false', async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: 'Hello!',
+      functionCalls: undefined,
+    })
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false }),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('Hi')
+    })
+
+    const callArgs = mockGenerateContent.mock.calls[0][0]
+    const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
+    const names = functionDeclarations.map((fd) => fd.name)
+    expect(names).toContain('get_current_time')
+    expect(names).not.toContain('escalate_to_cloud')
+  })
+
+  it('includes escalate_to_cloud tool when isCloudSynced is true', async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: 'Hello!',
+      functionCalls: undefined,
+    })
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true }),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('Hi')
+    })
+
+    const callArgs = mockGenerateContent.mock.calls[0][0]
+    const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
+    const names = functionDeclarations.map((fd) => fd.name)
+    expect(names).toContain('get_current_time')
+    expect(names).toContain('escalate_to_cloud')
   })
 })

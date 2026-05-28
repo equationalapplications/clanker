@@ -13,6 +13,7 @@ export interface UseEdgeAgentOptions {
   character: Character
   userId: string
   priorMessages: IMessage[]
+  isCloudSynced: boolean
 }
 
 export interface UseEdgeAgentReturn {
@@ -24,7 +25,7 @@ export interface UseEdgeAgentReturn {
 const MAX_ITERATIONS = 5
 const GEMINI_MODEL = 'gemini-2.5-flash'
 
-export function useEdgeAgent({ character, userId, priorMessages }: UseEdgeAgentOptions): UseEdgeAgentReturn {
+export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced }: UseEdgeAgentOptions): UseEdgeAgentReturn {
   const [isThinking, setIsThinking] = useState(false)
   const [escalationState, setEscalationState] = useState<EscalationState>('idle')
   const priorMessagesRef = useRef(priorMessages)
@@ -55,14 +56,11 @@ export function useEdgeAgent({ character, userId, priorMessages }: UseEdgeAgentO
 
       // Cast required: AgentToolSchema.parameters.properties is Record<string,unknown>
       // but FunctionDeclaration expects Record<string,Schema> — shapes are compatible at runtime
-      const tools = [
-        {
-          functionDeclarations: [
-            getCurrentTimeManifest.schema,
-            escalateToCloudManifest.schema,
-          ],
-        },
-      ] as unknown as ToolListUnion
+      const functionDeclarations = [getCurrentTimeManifest.schema]
+      if (isCloudSynced) {
+        functionDeclarations.push(escalateToCloudManifest.schema)
+      }
+      const tools = [{ functionDeclarations }] as unknown as ToolListUnion
 
       try {
         let iterations = 0
@@ -116,7 +114,7 @@ export function useEdgeAgent({ character, userId, priorMessages }: UseEdgeAgentO
         setIsThinking(false)
       }
     },
-    [character, userId],
+    [character, userId, isCloudSynced],
   )
 
   return { sendMessage, isThinking, escalationState }
