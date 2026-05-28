@@ -1,13 +1,22 @@
 import { useCallback, useState } from 'react'
 import { IMessage } from 'react-native-gifted-chat'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { sendMessageWithAIResponse, Character } from '~/services/aiChatService'
+import {
+  sendMessageWithAIResponse,
+  Character,
+  getRecentConversationHistory,
+  triggerConversationSummary,
+} from '~/services/aiChatService'
 import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usageSnapshotFromError } from '~/services/usageSnapshot'
 import { formatContext, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { reportError } from '~/utilities/reportError'
+import { saveAIMessage, getUnsyncedMessages, markMessagesAsSynced } from '~/database/messageDatabase'
+import { sendMessage as persistUserMessage } from '~/services/messageService'
+import { useEdgeAgent, EscalationState } from '~/hooks/useEdgeAgent'
+import { toSyncMessage } from '~/services/syncMessage'
 
 interface UseAIChatProps {
   characterId: string
@@ -20,6 +29,7 @@ interface UseAIChatReturn {
   sendMessage: (message: IMessage) => Promise<void>
   isGeneratingResponse: boolean
   error: string | null
+  escalationState: EscalationState
 }
 
 /**
@@ -34,6 +44,17 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
   const characterWiki = useCharacterWiki(character.id)
 
+  // Normalize save_to_cloud which can be boolean (from characterService) or number (from DB)
+  const raw = character.save_to_cloud
+  const isCloudSynced = !!(raw ?? 0)
+
+  const edgeAgent = useEdgeAgent({
+    character,
+    userId,
+    priorMessages: messages,
+    isCloudSynced,
+  })
+
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
     mutationFn: async (message: IMessage) => {
@@ -44,16 +65,95 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       } catch (err) {
         if (!(err instanceof WikiBusyError)) reportError(err, `wiki:${character.id}:read`)
       }
-      // _characterId parameter maintained for aiChatService contract compatibility
+
       const onWriteObservation = (_characterId: string, text: string) => {
         void characterWiki.write(text).catch((err: unknown) => {
           if (!(err instanceof WikiBusyError)) reportError(err, `wiki:${character.id}:write`)
         })
       }
-      return sendMessageWithAIResponse(message, character, userId, messages, {
+
+      // Try edge agent first
+      const { escalated, text: edgeText } = await edgeAgent.sendMessage(message.text, memoryBlock)
+
+      if (!escalated && edgeText !== undefined) {
+        // Edge resolved — save both messages, no Firebase call
+        // Save user message after edge resolves. On DB failure, onError rolls back the optimistic
+        // update — no fallback message is saved (intentional; Firebase path handled its own fallback).
+        await persistUserMessage(character.id, userId, message)
+
+        const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+        const savedAIMessage = await saveAIMessage(character.id, userId, edgeText, aiMsgId, {
+          user: {
+            _id: character.id,
+            name: character.name,
+            avatar: character.appearance || undefined,
+          },
+        })
+
+        void triggerConversationSummary(character, userId)
+
+        // Filter out the current user message — the optimistic update may have injected
+        // it into messages before mutationFn executes, which would duplicate it in history.
+        const priorHistory = messages.filter(
+          (msg) => String(msg._id) !== String(message._id),
+        )
+        const recentMessages = getRecentConversationHistory(
+          [...priorHistory, message, savedAIMessage],
+          20,
+        )
+        const chunk = recentMessages
+          .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
+          .join('\n')
+
+        try {
+          void Promise.resolve(
+            onWriteObservation(character.id, chunk || message.text),
+          ).catch((observationError: unknown) => {
+            if (!(observationError instanceof WikiBusyError)) {
+              reportError(observationError, `wiki:${character.id}:write:observation`)
+            }
+          })
+        } catch (observationError) {
+          if (!(observationError instanceof WikiBusyError)) {
+            reportError(observationError, `wiki:${character.id}:write:observation`)
+          }
+        }
+
+        return { usageSnapshot: null }
+      }
+
+      // Escalated — Firebase path with unsynced history
+      // Guard: local-only characters must never call Firebase
+      if (!isCloudSynced) {
+        // Local-only character somehow escalated (e.g., iteration cap) — return fallback
+        const fallbackMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+        await saveAIMessage(character.id, userId, "I'm running in local-only mode and can't access your deep cloud memory right now.", fallbackMsgId, {
+          user: {
+            _id: character.id,
+            name: character.name,
+            avatar: character.appearance || undefined,
+          },
+        })
+        return { usageSnapshot: null }
+      }
+
+      const unsyncedLocal = await getUnsyncedMessages(character.id, userId)
+      const unsyncedUserMessages = unsyncedLocal.filter((msg) => msg.sender_user_id === userId)
+
+      const unsyncedHistory = unsyncedUserMessages.map((msg) => toSyncMessage(msg, userId))
+
+      const result = await sendMessageWithAIResponse(message, character, userId, messages, {
         memoryBlock,
         onWriteObservation,
+        unsyncedHistory,
       })
+
+      if (result.cloudSyncSucceeded) {
+        // Mark only the user-originated messages that were persisted to the cloud.
+        await markMessagesAsSynced(unsyncedUserMessages.map((m) => m.id))
+      }
+
+      return result
     },
 
     // Optimistic update: Add user message immediately
@@ -155,5 +255,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     sendMessage,
     isGeneratingResponse: aiMessageMutation.isPending,
     error,
+    escalationState: edgeAgent.escalationState,
   }
 }

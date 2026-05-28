@@ -34,7 +34,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   const { status: wikiStatus } = useCharacterWiki(characterId)
 
-  const { sendMessage } = useAIChat({
+  const { sendMessage, escalationState } = useAIChat({
     characterId,
     userId: currentUserId || '',
     character: character as any, // Type compatibility - character structure matches
@@ -211,7 +211,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
         }}
       />
       <View style={styles.container}>
-        {(wikiStatus.ingesting || wikiStatus.librarian) && (
+        {(wikiStatus.ingesting || wikiStatus.librarian || escalationState === 'escalating') && (
           <View
             accessibilityLiveRegion="polite"
             accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
@@ -221,6 +221,9 @@ export default function ChatView({ characterId }: ChatViewProps) {
             )}
             {wikiStatus.librarian && (
               <Text style={styles.statusText} accessibilityLabel="Updating memory">🧠 Updating memory…</Text>
+            )}
+            {escalationState === 'escalating' && (
+              <Text style={styles.statusText} accessibilityLabel="Thinking deeply">🧠 Thinking deeply…</Text>
             )}
           </View>
         )}
