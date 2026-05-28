@@ -6,12 +6,10 @@ import { useSelector } from '@xstate/react'
 import { useCharacters, useCreateCharacter, useSyncCharacters } from '~/hooks/useCharacters'
 import { CharacterCard } from '~/components/CharacterCard'
 import { useCharacterMachine } from '~/hooks/useMachines'
-import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 
 export default function CharactersListScreen() {
   const { characters, isLoading } = useCharacters()
   const { create, isPending, pendingCharacterId } = useCreateCharacter()
-  const { isSubscriber } = useCurrentPlan()
   const characterService = useCharacterMachine()
   const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
   const { sync, isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
@@ -36,13 +34,6 @@ export default function CharactersListScreen() {
   }
 
   const handleCloudSync = () => {
-    if (!isSubscriber) {
-      setToastState({
-        message: 'Cloud retrieval requires a monthly subscription.',
-        requiresSubscription: true,
-      })
-      return
-    }
     cloudSyncErrorAtRequestRef.current = cloudSyncError
     didEnterCloudSyncStateRef.current = false
     setCloudSyncRequested(true)
@@ -150,14 +141,7 @@ export default function CharactersListScreen() {
         visible={toastState !== null}
         onDismiss={() => setToastState(null)}
         duration={4000}
-        action={
-          toastState?.requiresSubscription && !isSubscriber
-            ? {
-                label: 'Subscribe',
-                onPress: () => router.push('/subscribe'),
-              }
-            : undefined
-        }
+        action={undefined}
       >
         {toastState?.message}
       </Snackbar>

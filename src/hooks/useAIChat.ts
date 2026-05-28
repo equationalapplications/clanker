@@ -10,7 +10,7 @@ import {
 import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usageSnapshotFromError } from '~/services/usageSnapshot'
-import { formatContext, WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { formatContext, WikiBusyError, useWiki } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { reportError } from '~/utilities/reportError'
 import { saveAIMessage, getUnsyncedMessages, markMessagesAsSynced } from '~/database/messageDatabase'
@@ -43,6 +43,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const [error, setError] = useState<string | null>(null)
 
   const characterWiki = useCharacterWiki(character.id)
+  const wiki = useWiki()
 
   // Normalize save_to_cloud which can be boolean (from characterService) or number (from DB)
   const raw = character.save_to_cloud
@@ -53,6 +54,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     userId,
     priorMessages: messages,
     isCloudSynced,
+    wiki,
   })
 
   // Mutation for sending message with AI response
@@ -123,24 +125,18 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
 
       // Escalated — Firebase path with unsynced history
-      // Guard: local-only characters must never call Firebase
-      if (!isCloudSynced) {
-        // Local-only character somehow escalated (e.g., iteration cap) — return fallback
-        const fallbackMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-        await saveAIMessage(character.id, userId, "I'm running in local-only mode and can't access your deep cloud memory right now.", fallbackMsgId, {
-          user: {
-            _id: character.id,
-            name: character.name,
-            avatar: character.appearance || undefined,
-          },
-        })
-        return { usageSnapshot: null }
-      }
-
       const unsyncedLocal = await getUnsyncedMessages(character.id, userId)
       const unsyncedUserMessages = unsyncedLocal.filter((msg) => msg.sender_user_id === userId)
 
       const unsyncedHistory = unsyncedUserMessages.map((msg) => toSyncMessage(msg, userId))
+
+      if (!isCloudSynced && (escalated || edgeText === undefined)) {
+        const localOnlyEscalationError = new Error(
+          'Local-only character attempted Firebase escalation or returned no edge response.',
+        )
+        reportError(localOnlyEscalationError, `edgeAgent:${character.id}`)
+        throw localOnlyEscalationError
+      }
 
       const result = await sendMessageWithAIResponse(message, character, userId, messages, {
         memoryBlock,

@@ -11,6 +11,7 @@ const mockSend = jest.fn()
 const mockReportError = jest.fn()
 const mockCharacterWikiRead = jest.fn().mockResolvedValue(null)
 const mockCharacterWikiWrite = jest.fn().mockResolvedValue(undefined)
+const mockSaveAIMessage = jest.fn()
 
 jest.mock('@tanstack/react-query', () => ({
   useMutation: ({ mutationFn, onMutate, onSuccess, onError }: any) => ({
@@ -38,6 +39,8 @@ jest.mock('@tanstack/react-query', () => ({
 
 jest.mock('~/services/aiChatService', () => ({
   sendMessageWithAIResponse: (...args: unknown[]) => mockSendMessageWithAIResponse(...args),
+  triggerConversationSummary: jest.fn(),
+  getRecentConversationHistory: jest.fn((messages: any[]) => messages),
   Character: {},
 }))
 
@@ -59,6 +62,7 @@ jest.mock('~/services/usageSnapshot', () => ({
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
   formatContext: jest.fn((bundle) => '[MEMORY]\nFacts:\n[/MEMORY]'),
+  useWiki: jest.fn(() => null),
 }))
 
 jest.mock('~/hooks/useCharacterWiki', () => ({
@@ -80,7 +84,7 @@ jest.mock('~/utilities/reportError', () => ({
 }))
 
 jest.mock('~/database/messageDatabase', () => ({
-  saveAIMessage: jest.fn(),
+  saveAIMessage: mockSaveAIMessage,
   getUnsyncedMessages: jest.fn().mockResolvedValue([]),
   markMessagesAsSynced: jest.fn().mockResolvedValue(undefined),
 }))
@@ -101,6 +105,7 @@ jest.mock('~/hooks/useEdgeAgent', () => ({
   EscalationState: {},
 }))
 
+const mockUseEdgeAgent = require('~/hooks/useEdgeAgent').useEdgeAgent as jest.Mock
 const { useAIChat } = require('~/hooks/useAIChat')
 
 type HookValue = ReturnType<typeof useAIChat>
@@ -143,6 +148,11 @@ describe('useAIChat', () => {
     mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null })
     mockCharacterWikiRead.mockResolvedValue(null)
     mockCharacterWikiWrite.mockResolvedValue(undefined)
+    mockSaveAIMessage.mockResolvedValue({
+      _id: 'ai-1',
+      text: "I'm running in local-only mode and can't access your deep cloud memory right now.",
+      user: { _id: 'char-1' },
+    })
   })
 
   it('reads wiki memory and provides write callback for free-tier users', async () => {
@@ -233,6 +243,58 @@ describe('useAIChat', () => {
     )
 
     expect(database.markMessagesAsSynced).toHaveBeenCalledWith(['msg-1'])
+  })
+
+  it('does not call Firebase when a local-only character returns a local-only fallback', async () => {
+    mockUseEdgeAgent.mockReturnValueOnce({
+      sendMessage: jest.fn().mockResolvedValue({
+        escalated: false,
+        text: "I'm running in local-only mode and can't access your deep cloud memory right now.",
+      }),
+      escalationState: 'idle',
+    })
+
+    const hook = renderUseAIChat({ save_to_cloud: 0 })
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-local-only',
+        text: 'Hi',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
+    expect(require('~/database/messageDatabase').saveAIMessage).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      "I'm running in local-only mode and can't access your deep cloud memory right now.",
+      expect.any(String),
+      expect.any(Object),
+    )
+  })
+
+  it('prevents local-only escalation from reaching Firebase', async () => {
+    mockUseEdgeAgent.mockReturnValueOnce({
+      sendMessage: jest.fn().mockResolvedValue({ escalated: true, text: undefined }),
+      escalationState: 'idle',
+    })
+
+    const hook = renderUseAIChat({ save_to_cloud: 0 })
+
+    await expect(
+      act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-local-only-escalate',
+          text: 'Hi',
+          createdAt: new Date('2026-04-27T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      }),
+    ).rejects.toThrow('Local-only character attempted Firebase escalation')
+
+    expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
   })
 
   it('reports non-busy wiki read errors with wiki:read context', async () => {
