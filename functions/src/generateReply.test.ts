@@ -254,6 +254,91 @@ test("generateReplyHandler rejects when user has no credits and no unlimited pla
   });
 });
 
+test("generateReplyHandler rejects unsyncedHistory entries with non-user roles", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 4;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              prompt: "hello",
+              characterId: 'char-uuid-123',
+              unsyncedHistory: [
+                { id: 'msg-1', role: 'model' as const, text: 'hi', createdAt: 1_000_000 },
+              ],
+            },
+          } as never,
+          {
+            generateText: async () => "reply",
+          }
+        ),
+      (err: unknown) =>
+        err instanceof HttpsError &&
+        err.code === "invalid-argument" &&
+        /user-role messages/.test((err as Error).message)
+    );
+  });
+});
+
+test("generateReplyHandler validates character ownership before bulk inserting unsyncedHistory", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 4;
+
+    const mockDb = {
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => [],
+          }),
+        }),
+      }),
+      insert: (_table: unknown) => ({
+        values: (_rows: unknown[]) => ({
+          onConflictDoNothing: (_opts: unknown) => Promise.resolve(),
+        }),
+      }),
+    };
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              prompt: "hello",
+              characterId: 'char-uuid-123',
+              unsyncedHistory: [
+                { id: 'msg-1', role: 'user' as const, text: 'hi', createdAt: 1_000_000 },
+              ],
+            },
+          } as never,
+          {
+            generateText: async () => "reply",
+            getDb: async () => mockDb as never,
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === "permission-denied"
+    );
+  });
+});
+
 test("generateReplyHandler does not bootstrap a subscription in the new credit flow", async () => {
   const auth = buildAuth();
 
@@ -423,6 +508,13 @@ test("generateReplyHandler bulk inserts unsyncedHistory before generating a repl
 
     const insertedRows: unknown[] = [];
     const mockDb = {
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => [{ id: 'char-uuid-123' }],
+          }),
+        }),
+      }),
       insert: (_table: unknown) => ({
         values: (rows: unknown[]) => {
           insertedRows.push(...rows);
@@ -435,7 +527,6 @@ test("generateReplyHandler bulk inserts unsyncedHistory before generating a repl
 
     const unsyncedHistory = [
       { id: 'msg-1', role: 'user' as const, text: 'hello from edge', createdAt: 1_000_000 },
-      { id: 'msg-2', role: 'model' as const, text: 'hi there', createdAt: 1_000_001 },
     ];
 
     const result = await generateReplyHandler(
@@ -477,6 +568,13 @@ test("generateReplyHandler still returns reply when unsyncedHistory DB insert fa
     creditService.getCredits = async () => 4;
 
     const failingDb = {
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => [{ id: 'char-uuid-456' }],
+          }),
+        }),
+      }),
       insert: (_table: unknown) => ({
         values: (_rows: unknown[]) => ({
           onConflictDoNothing: (_opts: unknown) => {

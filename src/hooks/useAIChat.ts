@@ -137,12 +137,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         return { usageSnapshot: null }
       }
 
-      let unsyncedLocal = await getUnsyncedMessages(character.id, userId)
-      // Note: current message filter removed — the UI does not insert the user message
-      // into SQLite before escalation fires, so no double-count occurs.
-      // If future flows change this, exclude by message ID instead of text+timestamp.
+      const unsyncedLocal = await getUnsyncedMessages(character.id, userId)
+      const unsyncedUserMessages = unsyncedLocal.filter((msg) => msg.sender_user_id === userId)
 
-      const unsyncedHistory = unsyncedLocal.map((msg) => toSyncMessage(msg, userId))
+      const unsyncedHistory = unsyncedUserMessages.map((msg) => toSyncMessage(msg, userId))
 
       const result = await sendMessageWithAIResponse(message, character, userId, messages, {
         memoryBlock,
@@ -151,8 +149,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       })
 
       if (result.cloudSyncSucceeded) {
-        // Mark local messages as synced only when Firebase actually received them
-        await markMessagesAsSynced(unsyncedLocal.map((m) => m.id))
+        // Mark only the user-originated messages that were persisted to the cloud.
+        await markMessagesAsSynced(unsyncedUserMessages.map((m) => m.id))
       }
 
       return result
