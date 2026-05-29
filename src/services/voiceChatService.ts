@@ -173,6 +173,6 @@ function buildVoicePrompt(
     }
   }
 
-  const truncatedPrefix = buildTruncatedPrefix(truncatedPersonality, truncatedTraits)
-  return `${truncatedPrefix}${promptSuffix}`.slice(0, MAX_VOICE_PROMPT_LENGTH)
+  const truncatedPrefix = buildTruncatedPrefix(truncatedPersonality, truncatedTraits).slice(0, availableForPrefix)
+  return `${truncatedPrefix}${promptSuffix}`
 }

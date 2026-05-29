@@ -17,10 +17,6 @@ const MAX_PROMPT_LENGTH = 12_000;
 const MAX_OUTPUT_TOKENS = 1_024;
 const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000;
 
-function isIntroRequest(referenceId?: string): boolean {
-  return typeof referenceId === 'string' && referenceId.startsWith('intro-');
-}
-
 function validateStructuredPayloadSize(contents: unknown[], systemInstruction: string): void {
   let serialized: string;
 
@@ -416,18 +412,13 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const { prompt, characterId, unsyncedHistory, referenceId } = parseInput(request.data);
-  let { contents, systemInstruction } = parseInput(request.data);
+  const parsed = parseInput(request.data);
+  const { prompt, characterId, unsyncedHistory, referenceId } = parsed;
+  let { contents, systemInstruction } = parsed;
 
   if (prompt && !contents) {
-    if (isIntroRequest(referenceId)) {
-      // Intro requests: convert legacy prompt to structured contents so the model receives it.
-      contents = [{ role: 'user', parts: [{ text: prompt }] }];
-      systemInstruction = systemInstruction ?? '';
-    } else {
-      // Non-intro legacy requests: return soft-break so the client can upgrade to structured payloads.
-      return buildSoftBreakResponse();
-    }
+    // Legacy prompt callers must upgrade to structured payloads.
+    return buildSoftBreakResponse();
   }
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
