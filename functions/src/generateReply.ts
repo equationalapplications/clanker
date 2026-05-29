@@ -416,8 +416,7 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const { prompt, characterId, unsyncedHistory, referenceId } = parseInput(request.data);
-  let { contents, systemInstruction } = parseInput(request.data);
+  const { prompt, characterId, unsyncedHistory, referenceId, contents, systemInstruction } = parseInput(request.data);
 
   if (prompt && !contents) {
     if (isIntroRequest(referenceId)) {

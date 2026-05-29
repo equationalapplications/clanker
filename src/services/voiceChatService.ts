@@ -109,13 +109,18 @@ function buildVoicePrompt(
   conversationHistory: IMessage[],
   userId: string,
 ): string {
+  const MAX_NAME_LENGTH = 100
+  const truncatedName = character.name.length > MAX_NAME_LENGTH
+    ? character.name.slice(0, MAX_NAME_LENGTH - 3) + '...'
+    : character.name
+
   const historyLines = getRecentConversationHistory(conversationHistory, 10)
-    .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
+    .map((msg) => `${msg.user._id === userId ? 'User' : truncatedName}: ${msg.text}`)
 
   const characterPersonality = character.context || character.appearance || ''
   const characterTraits = `${character.traits ?? ''} ${character.emotions ?? ''}`.trim()
 
-  const promptSuffix = `\nUser: ${userText}\n${character.name}:`
+  const promptSuffix = `\nUser: ${userText}\n${truncatedName}:`
 
   const buildPrompt = (prefix: string, historyLinesToUse: string[]) => {
     const historyBlock = historyLinesToUse.length
@@ -125,8 +130,8 @@ function buildVoicePrompt(
     return `${prefix}${historyBlock}${promptSuffix}`
   }
 
-  const basePrefix = `You are ${character.name}, a virtual friend chatbot.\n\n`
-  const instructions = `Instructions:\n- Respond as ${character.name} would, staying true to the personality and traits\n- Respond naturally and conversationally\n- Do not reveal you are an AI\n\n`
+  const basePrefix = `You are ${truncatedName}, a virtual friend chatbot.\n\n`
+  const instructions = `Instructions:\n- Respond as ${truncatedName} would, staying true to the personality and traits\n- Respond naturally and conversationally\n- Do not reveal you are an AI\n\n`
   const fullPrefix = `${basePrefix}Personality: ${characterPersonality}\nTraits: ${characterTraits}\n\n${instructions}`
 
   // Phase 1: try full prefix with trimmed history

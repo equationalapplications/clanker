@@ -23,11 +23,16 @@ function estimatePayloadSize(contents: unknown[], systemInstruction: string): nu
   return new Blob([serialized]).size
 }
 
-function trimContentsToBudget(
+interface TrimResult {
+  contents: { role: string; parts: { text?: string }[] }[];
+  systemInstruction: string;
+}
+
+function trimToBudget(
   contents: { role: string; parts: { text?: string }[] }[],
   systemInstruction: string,
   maxBytes: number = MAX_STRUCTURED_PAYLOAD_SIZE,
-): { role: string; parts: { text?: string }[] }[] {
+): TrimResult {
   // Always keep the last message (current user input)
   const lastMessage = contents[contents.length - 1]
   const prefix = contents.slice(0, -1)
@@ -46,7 +51,7 @@ function trimContentsToBudget(
     }
   }
 
-  const trimmed = [...prefix.slice(-left), lastMessage]
+  let trimmed = [...prefix.slice(-left), lastMessage]
 
   // If still too large, truncate the last message text
   if (estimatePayloadSize(trimmed, systemInstruction) > maxBytes && lastMessage) {
@@ -67,7 +72,25 @@ function trimContentsToBudget(
     }
   }
 
-  return trimmed
+  // If still too large, trim systemInstruction
+  if (estimatePayloadSize(trimmed, systemInstruction) > maxBytes) {
+    let low = 0
+    let high = systemInstruction.length
+    let best = systemInstruction
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2)
+      const truncated = systemInstruction.slice(0, mid)
+      if (estimatePayloadSize(trimmed, truncated) <= maxBytes) {
+        best = truncated
+        low = mid
+      } else {
+        high = mid - 1
+      }
+    }
+    systemInstruction = best
+  }
+
+  return { contents: trimmed, systemInstruction }
 }
 
 export interface Character {
@@ -298,12 +321,12 @@ export const sendMessageWithAIResponse = async (
       { role: 'user' as const, parts: [{ text: userMessage.text }] },
     ]
 
-    // Trim contents to fit within the 12 KB payload budget before sending
-    const trimmedContents = trimContentsToBudget(contents, systemInstruction)
+    // Trim contents and systemInstruction to fit within the 12 KB payload budget before sending
+    const { contents: trimmedContents, systemInstruction: trimmedSystemInstruction } = trimToBudget(contents, systemInstruction)
 
     const aiResponse = await generateChatReply({
       contents: trimmedContents,
-      systemInstruction,
+      systemInstruction: trimmedSystemInstruction,
       referenceId: buildReferenceId(userMessage._id),
       unsyncedHistory: options?.unsyncedHistory,
       characterId: character.cloud_id ?? undefined,
