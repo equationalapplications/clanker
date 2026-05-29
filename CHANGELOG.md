@@ -1,3 +1,10 @@
+## [29.15.1](https://github.com/equationalapplications/clanker/compare/v29.15.0...v29.15.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* **chat:** allow non-cloud chars to use generateReply; fix cloud toggle ([8920d94](https://github.com/equationalapplications/clanker/commit/8920d94d70deef4ffe693aa2c15073fddb56d9ac))
+
 # [29.15.0](https://github.com/equationalapplications/clanker/compare/v29.14.0...v29.15.0) (2026-05-29)
 
 
