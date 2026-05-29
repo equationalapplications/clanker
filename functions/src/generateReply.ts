@@ -70,7 +70,7 @@ function buildSoftBreakResponse(): GenerateReplyResponse {
     reply: "🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.",
     messageId: `system-update-${Date.now()}`,
     creditsSpent: 0,
-    remainingCredits: 0,
+    remainingCredits: -1,
     planTier: null,
     planStatus: null,
     verifiedAt: new Date().toISOString(),
@@ -416,7 +416,8 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const { prompt, characterId, unsyncedHistory, referenceId, contents, systemInstruction } = parseInput(request.data);
+  const { prompt, characterId, unsyncedHistory, referenceId } = parseInput(request.data);
+  let { contents, systemInstruction } = parseInput(request.data);
 
   if (prompt && !contents) {
     if (isIntroRequest(referenceId)) {

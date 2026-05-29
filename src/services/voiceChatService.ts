@@ -149,9 +149,9 @@ function buildVoicePrompt(
   const availableForPrefix = MAX_VOICE_PROMPT_LENGTH - promptSuffix.length
   if (availableForPrefix <= 0) {
     // User text alone exceeds budget — truncate user text as last resort
-    const maxUserText = MAX_VOICE_PROMPT_LENGTH - `\nUser: \n${character.name}:`.length
+    const maxUserText = MAX_VOICE_PROMPT_LENGTH - `\nUser: \n${truncatedName}:`.length
     const truncatedUserText = maxUserText > 0 ? userText.slice(-maxUserText) : ''
-    return `\nUser: ${truncatedUserText}\n${character.name}:`.slice(0, MAX_VOICE_PROMPT_LENGTH)
+    return `\nUser: ${truncatedUserText}\n${truncatedName}:`.slice(0, MAX_VOICE_PROMPT_LENGTH)
   }
 
   let truncatedPersonality = characterPersonality

@@ -163,7 +163,7 @@ test("generateReplyHandler returns soft break for legacy prompt-only requests", 
     );
     assert.ok(typeof result.messageId === 'string' && result.messageId.startsWith('system-update-'))
     assert.equal(result.creditsSpent, 0)
-    assert.equal(result.remainingCredits, 0)
+    assert.equal(result.remainingCredits, -1)
   });
 });
 

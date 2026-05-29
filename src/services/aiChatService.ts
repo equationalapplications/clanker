@@ -53,6 +53,24 @@ function trimToBudget(
 
   let trimmed = [...prefix.slice(-left), lastMessage]
 
+  // Trim systemInstruction first to preserve user message text
+  if (estimatePayloadSize(trimmed, systemInstruction) > maxBytes) {
+    let low = 0
+    let high = systemInstruction.length
+    let best = systemInstruction
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2)
+      const truncated = systemInstruction.slice(0, mid)
+      if (estimatePayloadSize(trimmed, truncated) <= maxBytes) {
+        best = truncated
+        low = mid
+      } else {
+        high = mid - 1
+      }
+    }
+    systemInstruction = best
+  }
+
   // If still too large, truncate the last message text
   if (estimatePayloadSize(trimmed, systemInstruction) > maxBytes && lastMessage) {
     const lastPart = lastMessage.parts[0]
@@ -70,24 +88,6 @@ function trimToBudget(
       }
       lastMessage.parts[0].text = lastPart.text.slice(0, low)
     }
-  }
-
-  // If still too large, trim systemInstruction
-  if (estimatePayloadSize(trimmed, systemInstruction) > maxBytes) {
-    let low = 0
-    let high = systemInstruction.length
-    let best = systemInstruction
-    while (low < high) {
-      const mid = Math.ceil((low + high) / 2)
-      const truncated = systemInstruction.slice(0, mid)
-      if (estimatePayloadSize(trimmed, truncated) <= maxBytes) {
-        best = truncated
-        low = mid
-      } else {
-        high = mid - 1
-      }
-    }
-    systemInstruction = best
   }
 
   return { contents: trimmed, systemInstruction }
