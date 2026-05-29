@@ -59,7 +59,8 @@ function trimToBudget(
   if (estimatePayloadSize(trimmed, systemInstruction) > maxBytes) {
     let low = 0
     let high = systemInstruction.length
-    let best = ''  // Start with empty string to handle case where only empty fits
+    // Initialize best to at least the first character to ensure a minimal non-empty system instruction
+    let best = systemInstruction.length > 0 ? systemInstruction.slice(0, 1) : ''
     while (low < high) {
       const mid = Math.ceil((low + high) / 2)
       const truncated = systemInstruction.slice(0, mid)
@@ -428,9 +429,12 @@ export const sendCharacterIntroduction = async (
       { role: 'user' as const, parts: [{ text: introTask }] },
     ]
 
+    // Trim contents and systemInstruction to fit within the 12 KB payload budget before sending
+    const { contents: trimmedContents, systemInstruction: trimmedSystemInstruction } = trimToBudget(contents, systemInstruction)
+
     const introResult = await generateChatReply({
-      contents,
-      systemInstruction,
+      contents: trimmedContents,
+      systemInstruction: trimmedSystemInstruction,
       referenceId: buildReferenceId(`intro-${character.id}`),
     })
 
