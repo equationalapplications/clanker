@@ -70,6 +70,27 @@ function buildSubscription(
   };
 }
 
+function buildStructuredRequestData(
+  text = 'hello',
+  characterId?: string,
+  unsyncedHistory?: { id: string; role: 'user'; text: string; createdAt: number }[],
+) {
+  const payload: Record<string, unknown> = {
+    contents: [{ role: 'user', parts: [{ text }] }],
+    systemInstruction: 'You are a helpful AI assistant.',
+  }
+
+  if (characterId) {
+    payload.characterId = characterId
+  }
+
+  if (unsyncedHistory) {
+    payload.unsyncedHistory = unsyncedHistory
+  }
+
+  return payload
+}
+
 async function withServiceMocks(run: () => Promise<void>) {
   try {
     await run();
@@ -118,6 +139,151 @@ test("generateReplyHandler validates prompt", async () => {
   });
 });
 
+test("generateReplyHandler returns soft break for legacy prompt-only requests", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: {
+          prompt: "hello legacy",
+        },
+      } as never,
+      {
+        generateText: async () => {
+          throw new Error('generateText should not be invoked for legacy soft breaks')
+        },
+      }
+    );
+
+    assert.equal(
+      result.reply,
+      "🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.",
+    );
+    assert.ok(typeof result.messageId === 'string' && result.messageId.startsWith('system-update-'))
+    assert.equal(result.creditsSpent, 0)
+    assert.equal(result.remainingCredits, undefined)
+  });
+});
+
+test("generateReplyHandler allows intro requests with structured payload to proceed", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    let generateTextCalled = false;
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: {
+          contents: [
+            { role: 'user', parts: [{ text: 'hello intro' }] },
+          ],
+          systemInstruction: 'You are a helpful assistant.',
+          referenceId: "intro-char-1",
+        },
+      } as never,
+      {
+        generateText: async () => {
+          generateTextCalled = true;
+          return 'intro response';
+        },
+      }
+    );
+
+    assert.ok(generateTextCalled, 'generateText should be invoked for intro requests');
+    assert.equal(result.reply, 'intro response');
+    assert.equal(result.creditsSpent, 1);
+    assert.equal(result.remainingCredits, 2);
+  });
+});
+
+test("generateReplyHandler rejects oversized structured contents payloads", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [
+                { role: 'user', parts: [{ text: 'a'.repeat(12_001) }] },
+              ],
+              systemInstruction: 'You are a helpful assistant.',
+            },
+          } as never,
+          {
+            generateText: async () => 'unused',
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+  });
+});
+
+test("generateReplyHandler rejects malformed structured contents items", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [null],
+              systemInstruction: 'You are a helpful assistant.',
+            },
+          } as never,
+          {
+            generateText: async () => 'unused',
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [{ role: 'user', parts: [{}] }],
+              systemInstruction: 'You are a helpful assistant.',
+            },
+          } as never,
+          {
+            generateText: async () => 'unused',
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+  });
+});
+
 test("generateReplyHandler spends one credit for payg users", async () => {
   const auth = buildAuth();
 
@@ -137,9 +303,7 @@ test("generateReplyHandler spends one credit for payg users", async () => {
     const result = await generateReplyHandler(
       {
         auth,
-        data: {
-          prompt: "hello",
-        },
+        data: buildStructuredRequestData('hello'),
       } as never,
       {
         generateText: async () => "reply from model",
@@ -176,9 +340,7 @@ test("generateReplyHandler rejects users without credits", async () => {
         generateReplyHandler(
           {
             auth,
-            data: {
-              prompt: "hello",
-            },
+            data: buildStructuredRequestData('hello'),
           } as never,
           {
             generateText: async () => "subscriber reply",
@@ -210,9 +372,7 @@ test("generateReplyHandler allows cancelled plans to spend remaining credits", a
     const result = await generateReplyHandler(
       {
         auth,
-        data: {
-          prompt: "hello",
-        },
+        data: buildStructuredRequestData('hello'),
       } as never,
       {
         generateText: async () => "reply from model",
@@ -241,9 +401,7 @@ test("generateReplyHandler rejects when user has no credits and no unlimited pla
         generateReplyHandler(
           {
             auth,
-            data: {
-              prompt: "hello",
-            },
+            data: buildStructuredRequestData('hello'),
           } as never,
           {
             generateText: async () => "unused",
@@ -271,7 +429,7 @@ test("generateReplyHandler rejects unsyncedHistory entries with non-user roles",
           {
             auth,
             data: {
-              prompt: "hello",
+              ...buildStructuredRequestData('hello'),
               characterId: 'char-uuid-123',
               unsyncedHistory: [
                 { id: 'msg-1', role: 'model' as const, text: 'hi', createdAt: 1_000_000 },
@@ -322,7 +480,7 @@ test("generateReplyHandler validates character ownership before bulk inserting u
           {
             auth,
             data: {
-              prompt: "hello",
+              ...buildStructuredRequestData('hello'),
               characterId: 'char-uuid-123',
               unsyncedHistory: [
                 { id: 'msg-1', role: 'user' as const, text: 'hi', createdAt: 1_000_000 },
@@ -358,9 +516,7 @@ test("generateReplyHandler does not bootstrap a subscription in the new credit f
     const result = await generateReplyHandler(
       {
         auth,
-        data: {
-          prompt: "hello",
-        },
+        data: buildStructuredRequestData('hello'),
       } as never,
       {
         generateText: async () => "reply from model",
@@ -400,9 +556,7 @@ test("generateReplyHandler refunds credit when model generation fails", async ()
         generateReplyHandler(
           {
             auth,
-            data: {
-              prompt: "hello",
-            },
+            data: buildStructuredRequestData('hello'),
           } as never,
           {
             generateText: async () => {
@@ -445,9 +599,7 @@ test("generateReplyHandler preserves HttpsError from model generation and refund
         generateReplyHandler(
           {
             auth,
-            data: {
-              prompt: "hello",
-            },
+            data: buildStructuredRequestData('hello'),
           } as never,
           {
             generateText: async () => {
@@ -482,9 +634,7 @@ test("generateReplyHandler maps identity conflicts to failed-precondition", asyn
         generateReplyHandler(
           {
             auth,
-            data: {
-              prompt: "hello",
-            },
+            data: buildStructuredRequestData('hello'),
           } as never,
           {
             generateText: async () => "unused",
@@ -533,7 +683,7 @@ test("generateReplyHandler bulk inserts unsyncedHistory before generating a repl
       {
         auth,
         data: {
-          prompt: "continue the conversation",
+          ...buildStructuredRequestData('continue the conversation'),
           characterId: 'char-uuid-123',
           unsyncedHistory,
         },
@@ -588,7 +738,7 @@ test("generateReplyHandler still returns reply when unsyncedHistory DB insert fa
       {
         auth,
         data: {
-          prompt: "still works",
+          ...buildStructuredRequestData('still works'),
           characterId: 'char-uuid-456',
           unsyncedHistory: [
             { id: 'msg-3', role: 'user' as const, text: 'will fail to insert', createdAt: 2_000_000 },

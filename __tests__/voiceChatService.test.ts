@@ -1,7 +1,6 @@
 const mockSendMessage = jest.fn()
 const mockSaveAIMessage = jest.fn()
 const mockGenerateVoiceReply = jest.fn()
-const mockBuildChatPrompt = jest.fn()
 const mockGetRecentConversationHistory = jest.fn()
 const mockTriggerConversationSummary = jest.fn()
 
@@ -20,7 +19,6 @@ jest.mock('~/services/voiceReplyService', () => ({
 jest.mock('~/services/aiChatService', () => {
   return {
     Character: {},
-    buildChatPrompt: (...args: unknown[]) => mockBuildChatPrompt(...args),
     getRecentConversationHistory: (...args: unknown[]) => mockGetRecentConversationHistory(...args),
     triggerConversationSummary: (...args: unknown[]) => mockTriggerConversationSummary(...args),
   }
@@ -53,7 +51,6 @@ describe('sendVoiceMessage', () => {
     jest.clearAllMocks()
     queryClient.clear()
 
-    mockBuildChatPrompt.mockReturnValue('PROMPT')
     mockGetRecentConversationHistory.mockReturnValue([
       {
         _id: '1',
@@ -99,14 +96,15 @@ describe('sendVoiceMessage', () => {
       expect.objectContaining({ text: 'spoken message' }),
     )
 
-    expect(mockBuildChatPrompt).toHaveBeenCalledTimes(1)
-    expect(mockGenerateVoiceReply).toHaveBeenCalledWith({
-      prompt: 'PROMPT',
-      characterVoice: 'Kore',
-      characterTraits: 'kind',
-      characterEmotions: 'happy',
-      referenceId: expect.any(String),
-    })
+    expect(mockGenerateVoiceReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining('spoken message'),
+        characterVoice: 'Kore',
+        characterTraits: 'kind',
+        characterEmotions: 'happy',
+        referenceId: expect.any(String),
+      }),
+    )
 
     expect(mockSaveAIMessage).toHaveBeenCalledWith(
       'char-1',
@@ -153,5 +151,39 @@ describe('sendVoiceMessage', () => {
     ).rejects.toThrow('character.voice is required for a voice message')
 
     expect(mockSendMessage).not.toHaveBeenCalled()
+  })
+
+  it('truncates the voice prompt to the backend prompt budget before calling generateVoiceReply', async () => {
+    const longText = 'a'.repeat(13_000)
+
+    await sendVoiceMessage(longText, character, 'user-1', [])
+
+    expect(mockGenerateVoiceReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.any(String),
+      }),
+    )
+    const callArg = mockGenerateVoiceReply.mock.calls[0][0] as { prompt: string }
+    expect(callArg.prompt.length).toBeLessThanOrEqual(12_000)
+    expect(callArg.prompt).toContain(`User: ${longText.slice(-10)}`)
+  })
+
+  it('retains the user text when the static voice prompt already fills the budget', async () => {
+    const hugeCharacter = {
+      ...character,
+      context: 'a'.repeat(12_000),
+    }
+
+    await sendVoiceMessage('hello', hugeCharacter, 'user-1', [])
+
+    expect(mockGenerateVoiceReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.any(String),
+      }),
+    )
+    const callArg = mockGenerateVoiceReply.mock.calls[0][0] as { prompt: string }
+    expect(callArg.prompt.length).toBeLessThanOrEqual(12_000)
+    // User text must be retained — the static prefix is trimmed to reserve budget
+    expect(callArg.prompt).toContain('User: hello')
   })
 })

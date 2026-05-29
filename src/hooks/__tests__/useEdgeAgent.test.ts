@@ -31,7 +31,7 @@ jest.mock('~/services/edgeToolExecutors', () => ({
 }))
 
 // Mock characterPromptBuilder
-jest.mock('~/services/characterPromptBuilder', () => ({
+jest.mock('~/services/CharacterPromptBuilder', () => ({
   buildSystemInstruction: () => 'You are Aria.',
   buildContentHistory: () => [],
 }))

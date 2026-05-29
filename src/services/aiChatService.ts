@@ -7,6 +7,7 @@ import {
 } from '~/database/messageDatabase'
 import { getCharacter as getLocalCharacter, updateCharacter } from '~/database/characterDatabase'
 import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
+import { buildSystemInstruction, buildContentHistory } from '~/services/CharacterPromptBuilder'
 import { summarizeText } from '~/services/summarizeTextService'
 import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
 import { onlineManager } from '@tanstack/react-query'
@@ -14,6 +15,87 @@ import { IMessage } from 'react-native-gifted-chat'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { reportError } from '~/utilities/reportError'
 import type { SyncMessage } from '~/services/syncMessage'
+
+const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000
+
+function estimatePayloadSize(contents: unknown[], systemInstruction: string): number {
+  const serialized = JSON.stringify({ contents, systemInstruction })
+  return new Blob([serialized]).size
+}
+
+interface TrimResult {
+  contents: { role: string; parts: { text?: string }[] }[];
+  systemInstruction: string;
+}
+
+function trimToBudget(
+  contents: { role: string; parts: { text?: string }[] }[],
+  systemInstruction: string,
+  maxBytes: number = MAX_STRUCTURED_PAYLOAD_SIZE,
+): TrimResult {
+  // Always keep the last message (current user input)
+  const lastMessage = contents[contents.length - 1]
+  const prefix = contents.slice(0, -1)
+
+  // Binary search to find how many prefix messages fit
+  let left = 0
+  let right = prefix.length
+
+  while (left < right) {
+    const mid = Math.ceil((left + right) / 2)
+    const candidatePrefix = mid === 0 ? [] : prefix.slice(-mid)
+    const candidate = [...candidatePrefix, lastMessage]
+    if (estimatePayloadSize(candidate, systemInstruction) <= maxBytes) {
+      left = mid
+    } else {
+      right = mid - 1
+    }
+  }
+
+  const trimmedPrefix = left === 0 ? [] : prefix.slice(-left)
+  let trimmed = [...trimmedPrefix, lastMessage]
+
+  // Trim systemInstruction first to preserve user message text
+  if (estimatePayloadSize(trimmed, systemInstruction) > maxBytes) {
+    let low = 0
+    let high = systemInstruction.length
+    // Initialize best to at least the first character to ensure a minimal non-empty system instruction
+    let best = systemInstruction.length > 0 ? systemInstruction.slice(0, 1) : ''
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2)
+      const truncated = systemInstruction.slice(0, mid)
+      if (estimatePayloadSize(trimmed, truncated) <= maxBytes) {
+        best = truncated
+        low = mid
+      } else {
+        high = mid - 1
+      }
+    }
+    systemInstruction = best
+  }
+
+  // If still too large, truncate the last message text
+  if (estimatePayloadSize(trimmed, systemInstruction) > maxBytes && lastMessage) {
+    const lastPart = lastMessage.parts[0]
+    if (lastPart?.text) {
+      let low = 0
+      let high = lastPart.text.length
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2)
+        const truncated = { ...lastMessage, parts: [{ text: lastPart.text.slice(0, mid) }] }
+        const testTrimmed = [...trimmedPrefix, truncated]
+        if (estimatePayloadSize(testTrimmed, systemInstruction) <= maxBytes) {
+          low = mid
+        } else {
+          high = mid - 1
+        }
+      }
+      lastMessage.parts[0].text = lastPart.text.slice(0, low)
+    }
+  }
+
+  return { contents: trimmed, systemInstruction }
+}
 
 export interface Character {
   id: string
@@ -37,22 +119,6 @@ function toUsageSnapshot(data: GenerateChatReplyResult): UsageSnapshot {
   }
 }
 
-interface ChatContext {
-  characterName: string
-  characterPersonality: string
-  characterTraits: string
-  conversationHistory: {
-    role: 'user' | 'assistant'
-    content: string
-  }[]
-  memoryBlock?: string
-}
-
-const MAX_CHAT_PROMPT_LENGTH = 12_000
-const MAX_CHARACTER_NAME_LENGTH = 100
-const MAX_CHARACTER_PERSONALITY_LENGTH = 1_500
-const MAX_CHARACTER_TRAITS_LENGTH = 1_000
-const MAX_USER_MESSAGE_LENGTH = 3_000
 const MAX_REFERENCE_ID_LENGTH = 128
 const SUMMARY_TRIGGER_MESSAGE_COUNT = 20
 const SUMMARY_KEEP_RECENT_MESSAGE_COUNT = 20
@@ -75,40 +141,6 @@ function truncateText(value: string, maxLength: number): string {
   }
 
   return `${normalized.slice(0, maxLength - ELLIPSIS.length).trimEnd()}${ELLIPSIS}`
-}
-
-function buildConversationHistory(
-  conversationHistory: ChatContext['conversationHistory'],
-  maxLength: number,
-): string {
-  if (maxLength <= 0 || conversationHistory.length === 0) {
-    return ''
-  }
-
-  const selected: string[] = []
-  let usedLength = 0
-
-  for (let index = conversationHistory.length - 1; index >= 0; index -= 1) {
-    const message = conversationHistory[index]
-    if (!message) {
-      continue
-    }
-
-    const prefix = `${message.role}: `
-    const separatorLength = selected.length > 0 ? 1 : 0
-    const remainingLength = maxLength - usedLength - separatorLength
-
-    if (remainingLength <= prefix.length) {
-      break
-    }
-
-    const truncatedContent = truncateText(message.content, remainingLength - prefix.length)
-    const entry = `${prefix}${truncatedContent}`
-    selected.unshift(entry)
-    usedLength += entry.length + separatorLength
-  }
-
-  return selected.join('\n')
 }
 
 function buildReferenceId(value: unknown): string | undefined {
@@ -235,100 +267,6 @@ export async function triggerConversationSummary(character: Character, userId: s
   }
 }
 
-export function buildChatPrompt(userMessage: string, context: ChatContext): string {
-  const characterName = truncateText(context.characterName, MAX_CHARACTER_NAME_LENGTH)
-  const characterPersonality = truncateText(
-    context.characterPersonality,
-    MAX_CHARACTER_PERSONALITY_LENGTH,
-  )
-  const characterTraits = truncateText(context.characterTraits, MAX_CHARACTER_TRAITS_LENGTH)
-  const boundedUserMessage = truncateText(userMessage, MAX_USER_MESSAGE_LENGTH)
-  const memoryBlock = context.memoryBlock ?? ''
-
-  // Start with full conversation history, then trim iteratively if prompt exceeds budget
-  let conversationHistory = buildConversationHistory(
-    context.conversationHistory,
-    Math.max(1000, MAX_CHAT_PROMPT_LENGTH - 2000), // Initial estimate
-  )
-
-  let prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
-
-Personality: ${characterPersonality}
-Traits: ${characterTraits}
-
-Instructions:
-- Respond as ${characterName} would, staying true to the personality and traits
-- Keep responses conversational and engaging
-- Respond naturally and authentically to the user's message
-- Don't break character or mention that you're an AI
-- Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
-
-${memoryBlock ? `${memoryBlock}\n\n` : ''}Conversation history:
-${conversationHistory}
-
-User: ${boundedUserMessage}
-${characterName}:`
-
-  // If prompt exceeds budget, iteratively trim conversation history from oldest entries
-  while (prompt.length > MAX_CHAT_PROMPT_LENGTH && conversationHistory.length > 0) {
-    // Find the first newline boundary and remove the first message
-    const firstNewline = conversationHistory.indexOf('\n')
-    if (firstNewline === -1) {
-      conversationHistory = ''
-    } else {
-      conversationHistory = conversationHistory.slice(firstNewline + 1).trimStart()
-    }
-
-    prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
-
-Personality: ${characterPersonality}
-Traits: ${characterTraits}
-
-Instructions:
-- Respond as ${characterName} would, staying true to the personality and traits
-- Keep responses conversational and engaging
-- Respond naturally and authentically to the user's message
-- Don't break character or mention that you're an AI
-- Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
-
-${memoryBlock ? `${memoryBlock}\n\n` : ''}Conversation history:
-${conversationHistory}
-
-User: ${boundedUserMessage}
-${characterName}:`
-  }
-
-  if (prompt.length <= MAX_CHAT_PROMPT_LENGTH) return prompt
-  // Preserve the model-cue suffix ("\nCharacterName:") so the model always knows whose turn it is
-  const suffix = `\n${characterName}:`
-  return prompt.slice(0, MAX_CHAT_PROMPT_LENGTH - suffix.length) + suffix
-}
-
-function buildIntroductionPrompt(
-  characterName: string,
-  characterPersonality: string,
-  characterTraits: string,
-): string {
-  const boundedName = truncateText(characterName, MAX_CHARACTER_NAME_LENGTH)
-  const boundedPersonality = truncateText(characterPersonality, MAX_CHARACTER_PERSONALITY_LENGTH)
-  const boundedTraits = truncateText(characterTraits, MAX_CHARACTER_TRAITS_LENGTH)
-
-  const prompt = `You are ${boundedName}, a virtual friend chatbot. This is your first message to a new user.
-
-Your personality: ${boundedPersonality}
-Your traits: ${boundedTraits}
-
-Generate a friendly, warm introduction message that:
-- Introduces yourself as ${boundedName}
-- Shows your personality
-- Invites the user to start a conversation
-- Keep it brief and welcoming (1-2 sentences)
-
-Introduction:`
-
-  return truncateText(prompt, MAX_CHAT_PROMPT_LENGTH)
-}
-
 /**
  * Send a user message and generate an AI response
  */
@@ -367,27 +305,35 @@ export const sendMessageWithAIResponse = async (
     const priorHistory = conversationHistory.filter(
       (msg) => String(msg._id) !== String(userMessage._id),
     )
-    const chatContext: ChatContext = {
-      characterName: character.name,
-      characterPersonality: effectiveContext || character.appearance,
-      characterTraits: `${character.traits} ${character.emotions}`.trim(),
-      conversationHistory: getRecentConversationHistory(priorHistory, 10).map((msg) => ({
-        role: msg.user._id === userId ? 'user' : 'assistant',
-        content: msg.text,
-      })),
-      memoryBlock,
-    }
+    const recentHistory = getRecentConversationHistory(priorHistory, 10)
 
     // 3. Create AI response message ID
     const aiResponseId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     // 4. Generate AI response through secure cloud function
-    const prompt = buildChatPrompt(userMessage.text, chatContext)
+    const systemInstruction = buildSystemInstruction({
+      character: {
+        ...character,
+        context: effectiveContext,
+      },
+      userId,
+      memoryBlock,
+    })
+
+    const contents = [
+      ...buildContentHistory(recentHistory, userId),
+      { role: 'user' as const, parts: [{ text: userMessage.text }] },
+    ]
+
+    // Trim contents and systemInstruction to fit within the 12 KB payload budget before sending
+    const { contents: trimmedContents, systemInstruction: trimmedSystemInstruction } = trimToBudget(contents, systemInstruction)
+
     const aiResponse = await generateChatReply({
-      prompt,
+      contents: trimmedContents,
+      systemInstruction: trimmedSystemInstruction,
       referenceId: buildReferenceId(userMessage._id),
       unsyncedHistory: options?.unsyncedHistory,
-      characterId: character.cloud_id ?? undefined,  // needed for cloud bulk insert; must be UUID
+      characterId: character.cloud_id ?? undefined,
     })
 
     // 5. Save AI response to local database (mark as synced — cloud reply is immediately synced)
@@ -472,14 +418,23 @@ export const sendCharacterIntroduction = async (
   userId: string,
 ): Promise<void> => {
   try {
-    const introPrompt = buildIntroductionPrompt(
-      character.name,
-      character.context || character.appearance,
-      `${character.traits} ${character.emotions}`.trim(),
-    )
+    const introTask = 'Generate a friendly, warm introduction message that introduces yourself, shows your personality, and invites the user to start a conversation. Keep it brief and welcoming (1-2 sentences).'
+
+    const systemInstruction = buildSystemInstruction({
+      character,
+      userId,
+    })
+
+    const contents = [
+      { role: 'user' as const, parts: [{ text: introTask }] },
+    ]
+
+    // Trim contents and systemInstruction to fit within the 12 KB payload budget before sending
+    const { contents: trimmedContents, systemInstruction: trimmedSystemInstruction } = trimToBudget(contents, systemInstruction)
 
     const introResult = await generateChatReply({
-      prompt: introPrompt,
+      contents: trimmedContents,
+      systemInstruction: trimmedSystemInstruction,
       referenceId: buildReferenceId(`intro-${character.id}`),
     })
 

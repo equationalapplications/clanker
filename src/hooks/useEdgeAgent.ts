@@ -5,7 +5,7 @@ import type { IMessage } from 'react-native-gifted-chat'
 import { clankerTimeSchema, clankerEscalationSchema, clankerMemorySchema } from '~/services/clankerManifests'
 import type { Character } from '~/services/aiChatService'
 import type { Wiki } from '~/services/wikiService'
-import { buildSystemInstruction, buildContentHistory } from '~/services/characterPromptBuilder'
+import { buildSystemInstruction, buildContentHistory } from '~/services/CharacterPromptBuilder'
 import { createEdgeToolExecutors } from '~/services/edgeToolExecutors'
 
 export type EscalationState = 'idle' | 'escalating'

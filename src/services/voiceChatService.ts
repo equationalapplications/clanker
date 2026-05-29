@@ -4,7 +4,6 @@ import { messageKeys } from '~/hooks/useMessages'
 import { sendMessage } from '~/services/messageService'
 import { generateVoiceReply } from '~/services/voiceReplyService'
 import {
-  buildChatPrompt,
   getRecentConversationHistory,
   triggerConversationSummary,
   type UsageSnapshot,
@@ -21,6 +20,8 @@ type VoiceCharacter = {
   context: string | null
   voice?: string | null
 }
+
+const MAX_VOICE_PROMPT_LENGTH = 12_000
 
 export interface VoiceChatResult {
   audioBase64: string
@@ -54,15 +55,7 @@ export async function sendVoiceMessage(
     },
   })
 
-  const prompt = buildChatPrompt(text, {
-    characterName: character.name || 'Character',
-    characterPersonality: character.context || character.appearance || '',
-    characterTraits: `${character.traits ?? ''} ${character.emotions ?? ''}`.trim(),
-    conversationHistory: getRecentConversationHistory(conversationHistory, 10).map((msg) => ({
-      role: msg.user._id === userId ? 'user' : 'assistant',
-      content: msg.text,
-    })),
-  })
+  const prompt = buildVoicePrompt(text, character, conversationHistory, userId)
 
   const voiceResult = await generateVoiceReply({
     prompt,
@@ -108,4 +101,79 @@ export async function sendVoiceMessage(
       verifiedAt: voiceResult.verifiedAt,
     },
   }
+}
+
+function buildVoicePrompt(
+  userText: string,
+  character: VoiceCharacter,
+  conversationHistory: IMessage[],
+  userId: string,
+): string {
+  const MAX_NAME_LENGTH = 100
+  const normalizedName = character.name || 'Character'
+  const truncatedName = normalizedName.length > MAX_NAME_LENGTH
+    ? normalizedName.slice(0, MAX_NAME_LENGTH - 3) + '...'
+    : normalizedName
+
+  const historyLines = getRecentConversationHistory(conversationHistory, 10)
+    .map((msg) => `${msg.user._id === userId ? 'User' : truncatedName}: ${msg.text}`)
+
+  const characterPersonality = character.context || character.appearance || ''
+  const characterTraits = `${character.traits ?? ''} ${character.emotions ?? ''}`.trim()
+
+  const promptSuffix = `\nUser: ${userText}\n${truncatedName}:`
+
+  const buildPrompt = (prefix: string, historyLinesToUse: string[]) => {
+    const historyBlock = historyLinesToUse.length
+      ? `Conversation history:\n${historyLinesToUse.join('\n')}\n\n`
+      : ''
+
+    return `${prefix}${historyBlock}${promptSuffix}`
+  }
+
+  const basePrefix = `You are ${truncatedName}, a virtual friend chatbot.\n\n`
+  const instructions = `Instructions:\n- Respond as ${truncatedName} would, staying true to the personality and traits\n- Respond naturally and conversationally\n- Do not reveal you are an AI\n\n`
+  const fullPrefix = `${basePrefix}Personality: ${characterPersonality}\nTraits: ${characterTraits}\n\n${instructions}`
+
+  // Phase 1: try full prefix with trimmed history
+  let prompt = buildPrompt(fullPrefix, historyLines)
+  while (prompt.length > MAX_VOICE_PROMPT_LENGTH && historyLines.length > 0) {
+    historyLines.shift()
+    prompt = buildPrompt(fullPrefix, historyLines)
+  }
+
+  if (prompt.length <= MAX_VOICE_PROMPT_LENGTH) {
+    return prompt
+  }
+
+  // Phase 2: static prefix alone exceeds budget — trim personality/traits to reserve room for user text
+  const availableForPrefix = MAX_VOICE_PROMPT_LENGTH - promptSuffix.length
+  if (availableForPrefix <= 0) {
+    // User text alone exceeds budget — truncate user text as last resort
+    const maxUserText = MAX_VOICE_PROMPT_LENGTH - `\nUser: \n${truncatedName}:`.length
+    const truncatedUserText = maxUserText > 0 ? userText.slice(-maxUserText) : ''
+    return `\nUser: ${truncatedUserText}\n${truncatedName}:`.slice(0, MAX_VOICE_PROMPT_LENGTH)
+  }
+
+  let truncatedPersonality = characterPersonality
+  let truncatedTraits = characterTraits
+
+  const buildTruncatedPrefix = (pers: string, traits: string) =>
+    `${basePrefix}Personality: ${pers}\nTraits: ${traits}\n\n${instructions}`
+
+  // Trim personality/traits incrementally until the prefix fits
+  while (buildTruncatedPrefix(truncatedPersonality, truncatedTraits).length > availableForPrefix) {
+    if (truncatedPersonality.length === 0 && truncatedTraits.length === 0) {
+      break
+    }
+    // Trim the longer section
+    if (truncatedPersonality.length >= truncatedTraits.length && truncatedPersonality.length > 0) {
+      truncatedPersonality = truncatedPersonality.slice(0, Math.max(0, truncatedPersonality.length - 50))
+    } else if (truncatedTraits.length > 0) {
+      truncatedTraits = truncatedTraits.slice(0, Math.max(0, truncatedTraits.length - 50))
+    }
+  }
+
+  const truncatedPrefix = buildTruncatedPrefix(truncatedPersonality, truncatedTraits).slice(0, availableForPrefix)
+  return `${truncatedPrefix}${promptSuffix}`
 }
