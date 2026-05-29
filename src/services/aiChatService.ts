@@ -38,10 +38,6 @@ function toUsageSnapshot(data: GenerateChatReplyResult): UsageSnapshot {
   }
 }
 
-const MAX_CHAT_PROMPT_LENGTH = 12_000
-const MAX_CHARACTER_NAME_LENGTH = 100
-const MAX_CHARACTER_PERSONALITY_LENGTH = 1_500
-const MAX_CHARACTER_TRAITS_LENGTH = 1_000
 const MAX_REFERENCE_ID_LENGTH = 128
 const SUMMARY_TRIGGER_MESSAGE_COUNT = 20
 const SUMMARY_KEEP_RECENT_MESSAGE_COUNT = 20
@@ -188,31 +184,6 @@ export async function triggerConversationSummary(character: Character, userId: s
   } finally {
     activeSummaryJobs.delete(summaryKey)
   }
-}
-
-function buildIntroductionPrompt(
-  characterName: string,
-  characterPersonality: string,
-  characterTraits: string,
-): string {
-  const boundedName = truncateText(characterName, MAX_CHARACTER_NAME_LENGTH)
-  const boundedPersonality = truncateText(characterPersonality, MAX_CHARACTER_PERSONALITY_LENGTH)
-  const boundedTraits = truncateText(characterTraits, MAX_CHARACTER_TRAITS_LENGTH)
-
-  const prompt = `You are ${boundedName}, a virtual friend chatbot. This is your first message to a new user.
-
-Your personality: ${boundedPersonality}
-Your traits: ${boundedTraits}
-
-Generate a friendly, warm introduction message that:
-- Introduces yourself as ${boundedName}
-- Shows your personality
-- Invites the user to start a conversation
-- Keep it brief and welcoming (1-2 sentences)
-
-Introduction:`
-
-  return truncateText(prompt, MAX_CHAT_PROMPT_LENGTH)
 }
 
 /**
@@ -363,14 +334,20 @@ export const sendCharacterIntroduction = async (
   userId: string,
 ): Promise<void> => {
   try {
-    const introPrompt = buildIntroductionPrompt(
-      character.name,
-      character.context || character.appearance,
-      `${character.traits} ${character.emotions}`.trim(),
-    )
+    const introTask = 'Generate a friendly, warm introduction message that introduces yourself, shows your personality, and invites the user to start a conversation. Keep it brief and welcoming (1-2 sentences).'
+
+    const systemInstruction = buildSystemInstruction({
+      character,
+      userId,
+    })
+
+    const contents = [
+      { role: 'user' as const, parts: [{ text: introTask }] },
+    ]
 
     const introResult = await generateChatReply({
-      prompt: introPrompt,
+      contents,
+      systemInstruction,
       referenceId: buildReferenceId(`intro-${character.id}`),
     })
 

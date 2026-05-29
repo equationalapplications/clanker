@@ -115,40 +115,59 @@ function buildVoicePrompt(
   const characterPersonality = character.context || character.appearance || ''
   const characterTraits = `${character.traits ?? ''} ${character.emotions ?? ''}`.trim()
 
-  const promptPrefix = `You are ${character.name}, a virtual friend chatbot.\n\nPersonality: ${characterPersonality}\nTraits: ${characterTraits}\n\nInstructions:\n- Respond as ${character.name} would, staying true to the personality and traits\n- Respond naturally and conversationally\n- Do not reveal you are an AI\n\n`
-  const promptSuffix = `User: ${userText}\n${character.name}:`
+  const promptSuffix = `\nUser: ${userText}\n${character.name}:`
 
-  const buildPrompt = (historyLinesToUse: string[]) => {
+  const buildPrompt = (prefix: string, historyLinesToUse: string[]) => {
     const historyBlock = historyLinesToUse.length
       ? `Conversation history:\n${historyLinesToUse.join('\n')}\n\n`
       : ''
 
-    return `${promptPrefix}${historyBlock}${promptSuffix}`
+    return `${prefix}${historyBlock}${promptSuffix}`
   }
 
-  let prompt = buildPrompt(historyLines)
+  const basePrefix = `You are ${character.name}, a virtual friend chatbot.\n\n`
+  const instructions = `Instructions:\n- Respond as ${character.name} would, staying true to the personality and traits\n- Respond naturally and conversationally\n- Do not reveal you are an AI\n\n`
+  const fullPrefix = `${basePrefix}Personality: ${characterPersonality}\nTraits: ${characterTraits}\n\n${instructions}`
 
+  // Phase 1: try full prefix with trimmed history
+  let prompt = buildPrompt(fullPrefix, historyLines)
   while (prompt.length > MAX_VOICE_PROMPT_LENGTH && historyLines.length > 0) {
     historyLines.shift()
-    prompt = buildPrompt(historyLines)
+    prompt = buildPrompt(fullPrefix, historyLines)
   }
 
   if (prompt.length <= MAX_VOICE_PROMPT_LENGTH) {
     return prompt
   }
 
-  const promptWithoutUserText = buildPrompt([])
-  const allowedUserTextLength = Math.max(
-    0,
-    MAX_VOICE_PROMPT_LENGTH - (promptWithoutUserText.length - userText.length),
-  )
-  const trimmedUserText = allowedUserTextLength > 0 ? userText.slice(-allowedUserTextLength) : ''
-
-  let finalPrompt = `You are ${character.name}, a virtual friend chatbot.\n\nPersonality: ${characterPersonality}\nTraits: ${characterTraits}\n\nInstructions:\n- Respond as ${character.name} would, staying true to the personality and traits\n- Respond naturally and conversationally\n- Do not reveal you are an AI\n\nUser: ${trimmedUserText}\n${character.name}:`
-
-  if (finalPrompt.length > MAX_VOICE_PROMPT_LENGTH) {
-    finalPrompt = finalPrompt.slice(0, MAX_VOICE_PROMPT_LENGTH)
+  // Phase 2: static prefix alone exceeds budget — trim personality/traits to reserve room for user text
+  const availableForPrefix = MAX_VOICE_PROMPT_LENGTH - promptSuffix.length
+  if (availableForPrefix <= 0) {
+    // User text alone exceeds budget — truncate user text as last resort
+    const maxUserText = MAX_VOICE_PROMPT_LENGTH - `\nUser: \n${character.name}:`.length
+    const truncatedUserText = maxUserText > 0 ? userText.slice(-maxUserText) : ''
+    return `\nUser: ${truncatedUserText}\n${character.name}:`.slice(0, MAX_VOICE_PROMPT_LENGTH)
   }
 
-  return finalPrompt
+  let truncatedPersonality = characterPersonality
+  let truncatedTraits = characterTraits
+
+  const buildTruncatedPrefix = (pers: string, traits: string) =>
+    `${basePrefix}Personality: ${pers}\nTraits: ${traits}\n\n${instructions}`
+
+  // Trim personality/traits incrementally until the prefix fits
+  while (buildTruncatedPrefix(truncatedPersonality, truncatedTraits).length > availableForPrefix) {
+    if (truncatedPersonality.length === 0 && truncatedTraits.length === 0) {
+      break
+    }
+    // Trim the longer section
+    if (truncatedPersonality.length >= truncatedTraits.length && truncatedPersonality.length > 0) {
+      truncatedPersonality = truncatedPersonality.slice(0, Math.max(0, truncatedPersonality.length - 50))
+    } else if (truncatedTraits.length > 0) {
+      truncatedTraits = truncatedTraits.slice(0, Math.max(0, truncatedTraits.length - 50))
+    }
+  }
+
+  const truncatedPrefix = buildTruncatedPrefix(truncatedPersonality, truncatedTraits)
+  return `${truncatedPrefix}${promptSuffix}`.slice(0, MAX_VOICE_PROMPT_LENGTH)
 }

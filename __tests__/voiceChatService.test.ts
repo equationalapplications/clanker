@@ -168,7 +168,7 @@ describe('sendVoiceMessage', () => {
     expect(callArg.prompt).toContain(`User: ${longText.slice(-10)}`)
   })
 
-  it('does not retain the full user text when the static voice prompt already fills the budget', async () => {
+  it('retains the user text when the static voice prompt already fills the budget', async () => {
     const hugeCharacter = {
       ...character,
       context: 'a'.repeat(12_000),
@@ -183,6 +183,7 @@ describe('sendVoiceMessage', () => {
     )
     const callArg = mockGenerateVoiceReply.mock.calls[0][0] as { prompt: string }
     expect(callArg.prompt.length).toBeLessThanOrEqual(12_000)
-    expect(callArg.prompt).not.toContain('User: hello')
+    // User text must be retained — the static prefix is trimmed to reserve budget
+    expect(callArg.prompt).toContain('User: hello')
   })
 })

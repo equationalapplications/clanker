@@ -10,6 +10,25 @@ interface GenerateChatReplyInput {
   characterId?: string  // forwarded to Firebase for bulk insert
 }
 
+const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000
+
+function validateStructuredPayloadSize(contents: unknown[], systemInstruction: string): string {
+  let serialized: string
+  try {
+    serialized = JSON.stringify({ contents, systemInstruction })
+  } catch {
+    throw new Error('Structured contents must be JSON-serializable.')
+  }
+
+  const payloadSize = Buffer.byteLength(serialized, 'utf8')
+  if (payloadSize > MAX_STRUCTURED_PAYLOAD_SIZE) {
+    throw new Error(
+      `Structured contents and systemInstruction must serialize to at most ${MAX_STRUCTURED_PAYLOAD_SIZE} bytes.`,
+    )
+  }
+  return serialized
+}
+
 interface GenerateReplyCallableResponse {
   reply: string
   remainingCredits?: number | null
@@ -48,6 +67,9 @@ export async function generateChatReply({
     if (typeof systemInstruction !== 'string' || !systemInstruction.trim()) {
       throw new Error('systemInstruction must be a non-empty string when contents are provided')
     }
+
+    // Client-side size guard: match backend MAX_STRUCTURED_PAYLOAD_SIZE (12 KB)
+    validateStructuredPayloadSize(contents, systemInstruction.trim())
   }
 
   await appCheckReady
