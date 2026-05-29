@@ -1,5 +1,6 @@
 import { renderHook, act } from '@testing-library/react-native'
 import { useEdgeAgent } from '../useEdgeAgent'
+import { createEdgeToolExecutors } from '~/services/edgeToolExecutors'
 import type { IMessage } from 'react-native-gifted-chat'
 
 // Mock @google/genai
@@ -328,7 +329,6 @@ describe('useEdgeAgent', () => {
   })
 
   it('passes wiki to createEdgeToolExecutors', async () => {
-    const { createEdgeToolExecutors } = require('~/services/edgeToolExecutors')
     mockGenerateContent.mockResolvedValue({ text: 'Hi!', functionCalls: undefined })
 
     const mockWiki = { id: 'wiki-1' } as any
