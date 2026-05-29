@@ -1,3 +1,34 @@
+# [29.15.0](https://github.com/equationalapplications/clanker/compare/v29.14.0...v29.15.0) (2026-05-29)
+
+
+### Bug Fixes
+
+* **ai:** keep minimal system instruction and trim intro payload ([7c01d5e](https://github.com/equationalapplications/clanker/commit/7c01d5ed931ad40df9be95aea77e31bc1fc038cd)), closes [#411](https://github.com/equationalapplications/clanker/issues/411)
+* **ai:** resolve PR review issues in aiChatService and generateReply ([fc2da5d](https://github.com/equationalapplications/clanker/commit/fc2da5dbc46b1868decc963721eff8ac8422d484))
+* **chat:** address PR [#411](https://github.com/equationalapplications/clanker/issues/411) review comments ([f9ba269](https://github.com/equationalapplications/clanker/commit/f9ba269966ce6e40a68781b6b5624ab3aeb0a8d2))
+* **chat:** address PR [#411](https://github.com/equationalapplications/clanker/issues/411) review comments ([a6f6ea2](https://github.com/equationalapplications/clanker/commit/a6f6ea25a38c22ee8345ef4945287115a3edcaff))
+* **chat:** address PR [#411](https://github.com/equationalapplications/clanker/issues/411) review comments ([e851cfa](https://github.com/equationalapplications/clanker/commit/e851cfa5b35a7da237457193d8e88da9d88ea0f3))
+* **chat:** address review threads for structured prompt migration ([ced8f64](https://github.com/equationalapplications/clanker/commit/ced8f64ca749eab5dd2ee782930041f390d6367f))
+* **chat:** resolve structured prompt migration review feedback ([1740c23](https://github.com/equationalapplications/clanker/commit/1740c232d329567574747b54fe5aad83c17bda2b))
+* **chat:** resolve structured prompt review issues from PR 411 ([21e9482](https://github.com/equationalapplications/clanker/commit/21e9482926c161f82af1bba6a6defef832cf0200))
+* **chat:** route local-only edge escalations through Firebase and remove stale local-only fallback ([d09c1b6](https://github.com/equationalapplications/clanker/commit/d09c1b677974ae46c15d111764ebf736e63faca8))
+* **core:** correct clankerMemorySchema function declaration typing ([2f6e248](https://github.com/equationalapplications/clanker/commit/2f6e2483349b662b690acf19c63674df981f26cc))
+* **edge:** guard local-only escalation and validate search_memory query input ([95e4c7b](https://github.com/equationalapplications/clanker/commit/95e4c7b4b1a4b39515958c47d71edc6446502300))
+* **edge:** harden search_memory and gate tool on wiki availability ([91cd7bb](https://github.com/equationalapplications/clanker/commit/91cd7bb33d07619855631c709c491fc1ec57497a))
+* **edge:** preserve local-only fallback and clarify time manifest wording ([14503b8](https://github.com/equationalapplications/clanker/commit/14503b8d041d576fc8692ad59b62916920357320))
+* **functions:** validate structured contents items for generateReply ([f6df33e](https://github.com/equationalapplications/clanker/commit/f6df33e0eee5c486e6ad1df34aaae2262e61120c))
+* **generateReply:** address PR review comments ([91ddbc6](https://github.com/equationalapplications/clanker/commit/91ddbc651a970be4199443d40511f7277e08e698))
+* **generateReply:** address unresolved review threads ([8367948](https://github.com/equationalapplications/clanker/commit/83679481ea4eb630915efa8ea1c715c58ec5a194))
+* **hooks:** replace require with import in useEdgeAgent test to satisfy lint ([e826ab5](https://github.com/equationalapplications/clanker/commit/e826ab5ddead37ab58ea609fbcc3eb6662d8c3ee))
+* **pr-411:** address review feedback on prompt ordering, soft-break credits, and name normalization ([d47f3e7](https://github.com/equationalapplications/clanker/commit/d47f3e77d9076089d59dff7fda4b25ebc286bae0))
+* **superpowers:** address PR review comments from spec alignment review ([64a1852](https://github.com/equationalapplications/clanker/commit/64a1852a14fe7a4a80f4378e63b2b85204ccebdf))
+
+
+### Features
+
+* **chat:** migrate cloud chat to structured GenAI contents and remove legacy buildChatPrompt ([c62fe98](https://github.com/equationalapplications/clanker/commit/c62fe98b556fb80634766720eadb71768a987c61))
+* **edge:** add clanker manifests, async search_memory, and wiki injection ([831e0af](https://github.com/equationalapplications/clanker/commit/831e0afa72a63326846294ac5e54302304a3d2e3))
+
 # [29.14.0](https://github.com/equationalapplications/clanker/compare/v29.13.1...v29.14.0) (2026-05-28)
 
 
