@@ -42,6 +42,41 @@ function validateStructuredPayloadSize(contents: unknown[], systemInstruction: s
   }
 }
 
+function trimSystemInstruction(systemInstruction: string, contents: unknown[], maxBytes: number = MAX_STRUCTURED_PAYLOAD_SIZE): string {
+  // Binary search to find the maximum prefix that fits within the budget.
+  let low = 0;
+  let high = systemInstruction.length;
+  let best = '';
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const truncated = systemInstruction.slice(0, mid);
+    const serialized = JSON.stringify({ contents, systemInstruction: truncated });
+    const size = Buffer.byteLength(serialized, 'utf8');
+
+    if (size <= maxBytes) {
+      best = truncated;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return best;
+}
+
+function buildSoftBreakResponse(): GenerateReplyResponse {
+  return {
+    reply: "🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.",
+    messageId: `system-update-${Date.now()}`,
+    creditsSpent: 0,
+    remainingCredits: 0,
+    planTier: null,
+    planStatus: null,
+    verifiedAt: new Date().toISOString(),
+  };
+}
+
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -274,7 +309,7 @@ function parseInput(data: unknown): {
   }
 
   const systemInstructionValue = payload?.systemInstruction;
-  const systemInstruction =
+  let systemInstruction =
     typeof systemInstructionValue === "string" ? systemInstructionValue.trim() : undefined;
   const rawReferenceId = payload?.referenceId;
   const referenceId = typeof rawReferenceId === 'string' ? rawReferenceId.trim() : undefined;
@@ -301,6 +336,13 @@ function parseInput(data: unknown): {
   }
 
   if (contents !== undefined && systemInstruction !== undefined) {
+    // Trim systemInstruction if needed to fit within the payload budget.
+    // This ensures large character context or memory blocks don't cause every request to fail.
+    const trimmedSystemInstruction = trimSystemInstruction(systemInstruction, contents);
+    if (trimmedSystemInstruction !== systemInstruction) {
+      logger.warn('systemInstruction was truncated to fit within payload budget');
+      systemInstruction = trimmedSystemInstruction;
+    }
     validateStructuredPayloadSize(contents, systemInstruction);
   }
 
@@ -374,14 +416,18 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const { prompt, contents, systemInstruction, characterId, unsyncedHistory, referenceId } = parseInput(request.data);
+  const { prompt, characterId, unsyncedHistory, referenceId } = parseInput(request.data);
+  let { contents, systemInstruction } = parseInput(request.data);
 
-  if (prompt && !contents && !isIntroRequest(referenceId)) {
-    // Legacy prompt-only request: convert to structured contents so the model
-    // receives the prompt text. Intro requests are exempted because they use a
-    // different prompt format that is handled separately.
-    contents = [{ role: 'user', parts: [{ text: prompt }] }];
-    systemInstruction = systemInstruction ?? '';
+  if (prompt && !contents) {
+    if (isIntroRequest(referenceId)) {
+      // Intro requests: convert legacy prompt to structured contents so the model receives it.
+      contents = [{ role: 'user', parts: [{ text: prompt }] }];
+      systemInstruction = systemInstruction ?? '';
+    } else {
+      // Non-intro legacy requests: return soft-break so the client can upgrade to structured payloads.
+      return buildSoftBreakResponse();
+    }
   }
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
