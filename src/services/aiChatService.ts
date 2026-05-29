@@ -43,7 +43,8 @@ function trimToBudget(
 
   while (left < right) {
     const mid = Math.ceil((left + right) / 2)
-    const candidate = [...prefix.slice(-mid), lastMessage]
+    const candidatePrefix = mid === 0 ? [] : prefix.slice(-mid)
+    const candidate = [...candidatePrefix, lastMessage]
     if (estimatePayloadSize(candidate, systemInstruction) <= maxBytes) {
       left = mid
     } else {
@@ -51,13 +52,14 @@ function trimToBudget(
     }
   }
 
-  let trimmed = [...prefix.slice(-left), lastMessage]
+  const trimmedPrefix = left === 0 ? [] : prefix.slice(-left)
+  let trimmed = [...trimmedPrefix, lastMessage]
 
   // Trim systemInstruction first to preserve user message text
   if (estimatePayloadSize(trimmed, systemInstruction) > maxBytes) {
     let low = 0
     let high = systemInstruction.length
-    let best = systemInstruction
+    let best = ''  // Start with empty string to handle case where only empty fits
     while (low < high) {
       const mid = Math.ceil((low + high) / 2)
       const truncated = systemInstruction.slice(0, mid)
@@ -80,7 +82,8 @@ function trimToBudget(
       while (low < high) {
         const mid = Math.ceil((low + high) / 2)
         const truncated = { ...lastMessage, parts: [{ text: lastPart.text.slice(0, mid) }] }
-        if (estimatePayloadSize([...prefix.slice(-left), truncated], systemInstruction) <= maxBytes) {
+        const testTrimmed = [...trimmedPrefix, truncated]
+        if (estimatePayloadSize(testTrimmed, systemInstruction) <= maxBytes) {
           low = mid
         } else {
           high = mid - 1

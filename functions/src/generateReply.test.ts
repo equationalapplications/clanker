@@ -167,7 +167,7 @@ test("generateReplyHandler returns soft break for legacy prompt-only requests", 
   });
 });
 
-test("generateReplyHandler allows intro prompt-only requests to proceed", async () => {
+test("generateReplyHandler allows intro requests with structured payload to proceed", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
@@ -183,7 +183,10 @@ test("generateReplyHandler allows intro prompt-only requests to proceed", async 
       {
         auth,
         data: {
-          prompt: "hello intro",
+          contents: [
+            { role: 'user', parts: [{ text: 'hello intro' }] },
+          ],
+          systemInstruction: 'You are a helpful assistant.',
           referenceId: "intro-char-1",
         },
       } as never,

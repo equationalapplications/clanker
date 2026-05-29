@@ -413,7 +413,7 @@ const handler = async (
   }
 
   const parsed = parseInput(request.data);
-  const { prompt, characterId, unsyncedHistory, referenceId } = parsed;
+  const { prompt, characterId, unsyncedHistory } = parsed;
   let { contents, systemInstruction } = parsed;
 
   if (prompt && !contents) {
