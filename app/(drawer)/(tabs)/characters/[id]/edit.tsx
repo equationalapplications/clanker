@@ -22,7 +22,6 @@ import { useImageGeneration } from '~/hooks/useImageGeneration'
 import { useAvatarUpload } from '~/hooks/useAvatarUpload'
 import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
-import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 import { reportError } from '~/utilities/reportError'
 import {
   buildCharacterShareUrl,
@@ -36,7 +35,6 @@ export default function EditCharacterScreen() {
   const characterId = typeof id === 'string' ? id : ''
   const theme = useTheme()
   const authService = useAuthMachine()
-  const { isSubscriber } = useCurrentPlan()
   const { user } = useSelector(authService, (state) => ({
     user: state.context.user,
   }))
@@ -202,14 +200,6 @@ export default function EditCharacterScreen() {
   const nativeShareLink = cloudCharacterId ? buildNativeCharacterShareLink(cloudCharacterId) : null
 
   const handleToggleSaveToCloud = (nextValue: boolean) => {
-    if (nextValue && !isSubscriber) {
-      setToastState({
-        message: 'Cloud character save requires a monthly subscription.',
-        requiresSubscription: true,
-      })
-      return
-    }
-
     if (!nextValue && character?.save_to_cloud === true) {
       Alert.alert(
         'Remove from Cloud?',
@@ -474,7 +464,7 @@ export default function EditCharacterScreen() {
             <View style={styles.toggleTextContainer}>
               <Text variant="titleMedium">Save to Cloud</Text>
               <Text variant="bodySmall" style={styles.toggleHelperText}>
-                Requires a monthly subscription.
+                Costs 1 credit per sync.
               </Text>
             </View>
             <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} disabled={!canEdit} />
@@ -510,7 +500,7 @@ export default function EditCharacterScreen() {
             </Button>
           ) : null}
 
-          {isSubscriber && character?.save_to_cloud && character?.cloud_id ? (
+          {character?.save_to_cloud && character?.cloud_id ? (
             <Button
               mode="outlined"
               icon="brain"
@@ -598,14 +588,7 @@ export default function EditCharacterScreen() {
         visible={toastState !== null}
         onDismiss={() => setToastState(null)}
         duration={4000}
-        action={
-          toastState?.requiresSubscription && !isSubscriber
-            ? {
-              label: 'Subscribe',
-              onPress: () => router.push('/subscribe'),
-            }
-            : undefined
-        }
+        action={undefined}
       >
         {toastState?.message}
       </Snackbar>

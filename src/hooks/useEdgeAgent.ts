@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { GoogleGenAI } from '@google/genai'
-import type { Content, ToolListUnion } from '@google/genai'
+import type { Content, Part, ToolListUnion } from '@google/genai'
 import type { IMessage } from 'react-native-gifted-chat'
-import { getCurrentTimeManifest, escalateToCloudManifest } from '@equationalapplications/core-llm-tools'
+import { clankerTimeSchema, clankerEscalationSchema, clankerMemorySchema } from '~/services/clankerManifests'
 import type { Character } from '~/services/aiChatService'
-import { buildSystemInstruction, buildContentHistory } from '~/services/characterPromptBuilder'
-import { edgeToolExecutors } from '~/services/edgeToolExecutors'
+import type { Wiki } from '~/services/wikiService'
+import { buildSystemInstruction, buildContentHistory } from '~/services/CharacterPromptBuilder'
+import { createEdgeToolExecutors } from '~/services/edgeToolExecutors'
 
 export type EscalationState = 'idle' | 'escalating'
 
@@ -14,6 +15,7 @@ export interface UseEdgeAgentOptions {
   userId: string
   priorMessages: IMessage[]
   isCloudSynced: boolean
+  wiki: Wiki | null
 }
 
 export interface UseEdgeAgentReturn {
@@ -24,8 +26,9 @@ export interface UseEdgeAgentReturn {
 
 const MAX_ITERATIONS = 5
 const GEMINI_MODEL = 'gemini-2.5-flash'
+const LOCAL_ONLY_FALLBACK_TEXT = "I'm running in local-only mode and can't access your deep cloud memory right now."
 
-export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced }: UseEdgeAgentOptions): UseEdgeAgentReturn {
+export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, wiki }: UseEdgeAgentOptions): UseEdgeAgentReturn {
   const [isThinking, setIsThinking] = useState(false)
   const [escalationState, setEscalationState] = useState<EscalationState>('idle')
   const priorMessagesRef = useRef(priorMessages)
@@ -42,24 +45,29 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced }
       const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY
       if (!apiKey) {
         setIsThinking(false)
-        setEscalationState('escalating')
-        return { escalated: true }
+        if (isCloudSynced) {
+          setEscalationState('escalating')
+          return { escalated: true }
+        }
+        return { escalated: false, text: LOCAL_ONLY_FALLBACK_TEXT }
       }
 
       const ai = new GoogleGenAI({ apiKey })
       const systemInstruction = buildSystemInstruction({ character, userId, memoryBlock })
       const historyContents = buildContentHistory(priorMessagesRef.current, userId)
+      const toolExecutors = createEdgeToolExecutors(character.id, wiki)
 
       const contents: Content[] = [
         ...historyContents,
         { role: 'user', parts: [{ text: userText }] },
       ] as Content[]
 
-      // Cast required: AgentToolSchema.parameters.properties is Record<string,unknown>
-      // but FunctionDeclaration expects Record<string,Schema> — shapes are compatible at runtime
-      const functionDeclarations = [getCurrentTimeManifest.schema]
+      const functionDeclarations = [clankerTimeSchema]
+      if (wiki) {
+        functionDeclarations.push(clankerMemorySchema)
+      }
       if (isCloudSynced) {
-        functionDeclarations.push(escalateToCloudManifest.schema)
+        functionDeclarations.push(clankerEscalationSchema)
       }
       const tools = [{ functionDeclarations }] as unknown as ToolListUnion
 
@@ -81,48 +89,53 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced }
             return { escalated: false, text: result.text ?? '' }
           }
 
-          const shouldEscalate = functionCalls.some((fc) => fc.name === 'escalate_to_cloud')
-          if (shouldEscalate) {
+          let didEscalate = false
+          const responseParts = await Promise.all(
+            functionCalls.map(async (fc) => {
+              const name = fc.name ?? ''
+              if (name === 'escalate_to_cloud_agent') {
+                didEscalate = true
+                return null
+              }
+              const executor = toolExecutors[name]
+              const output = executor ? await executor(fc.args ?? {}) : null
+              return { functionResponse: { name, response: { output } } }
+            }),
+          )
+
+          if (didEscalate) {
             setEscalationState('escalating')
             return { escalated: true }
           }
 
-          // Append model turn
           contents.push({
             role: 'model',
             parts: functionCalls.map((fc) => ({ functionCall: fc })),
           } as Content)
 
-          // Execute tools and append function responses
           contents.push({
             role: 'user',
-            parts: functionCalls.map((fc) => {
-              const name = fc.name ?? ''
-              const executor = edgeToolExecutors[name]
-              const output = executor ? executor(fc.args ?? {}) : null
-              return { functionResponse: { name, response: { output } } }
-            }),
+            parts: responseParts.filter(Boolean) as Part[],
           } as Content)
         }
 
-        // Iteration cap — escalate only if cloud-synced, otherwise return fallback
         if (isCloudSynced) {
           setEscalationState('escalating')
           return { escalated: true }
         }
-        return { escalated: false, text: "I'm running in local-only mode and can't access your deep cloud memory right now." }
+
+        return { escalated: false, text: LOCAL_ONLY_FALLBACK_TEXT }
       } catch {
-        // Error — escalate only if cloud-synced, otherwise return fallback
         if (isCloudSynced) {
           setEscalationState('escalating')
           return { escalated: true }
         }
-        return { escalated: false, text: "I'm running in local-only mode and can't access your deep cloud memory right now." }
+        return { escalated: false, text: LOCAL_ONLY_FALLBACK_TEXT }
       } finally {
         setIsThinking(false)
       }
     },
-    [character, userId, isCloudSynced],
+    [character, userId, isCloudSynced, wiki],
   )
 
   return { sendMessage, isThinking, escalationState }

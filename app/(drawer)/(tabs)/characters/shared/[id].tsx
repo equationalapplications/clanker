@@ -17,7 +17,7 @@ export default function SharedCharacterImportScreen() {
       state.matches('signingIn') ||
       state.matches('bootstrapping'),
   }))
-  const { isSubscriber, isLoading: isPlanLoading } = useCurrentPlan()
+  const { isLoading: isPlanLoading } = useCurrentPlan()
   const [isImporting, setIsImporting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -28,11 +28,6 @@ export default function SharedCharacterImportScreen() {
 
     if (!user) {
       setErrorMessage('Please sign in to import this shared character.')
-      return
-    }
-
-    if (!isSubscriber) {
-      setErrorMessage('Cloud character import requires a monthly_20 or monthly_50 subscription.')
       return
     }
 
@@ -64,7 +59,7 @@ export default function SharedCharacterImportScreen() {
     return () => {
       cancelled = true
     }
-  }, [id, isAuthLoading, isPlanLoading, isSubscriber, user])
+  }, [id, isAuthLoading, isPlanLoading, user])
 
   if (isAuthLoading || isPlanLoading || isImporting) {
     return (
@@ -87,11 +82,6 @@ export default function SharedCharacterImportScreen() {
         {!user ? (
           <Button mode="contained" onPress={() => router.replace('/sign-in')}>
             Sign In
-          </Button>
-        ) : null}
-        {user && !isSubscriber ? (
-          <Button mode="contained" onPress={() => router.push('/subscribe')}>
-            Subscribe
           </Button>
         ) : null}
       </View>

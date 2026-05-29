@@ -15,6 +15,107 @@ const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 12_000;
 const MAX_OUTPUT_TOKENS = 1_024;
+const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000;
+
+function validateStructuredPayloadSize(contents: unknown[], systemInstruction: string): void {
+  let serialized: string;
+
+  try {
+    serialized = JSON.stringify({ contents, systemInstruction });
+  } catch {
+    throw new HttpsError(
+      'invalid-argument',
+      'Structured contents must be JSON-serializable.',
+    );
+  }
+
+  const payloadSize = Buffer.byteLength(serialized, 'utf8');
+  if (payloadSize > MAX_STRUCTURED_PAYLOAD_SIZE) {
+    throw new HttpsError(
+      'invalid-argument',
+      `Structured contents and systemInstruction must serialize to at most ${MAX_STRUCTURED_PAYLOAD_SIZE} bytes.`,
+    );
+  }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function validateStructuredContents(contents: unknown[]): void {
+  for (const [index, item] of contents.entries()) {
+    if (!isPlainObject(item)) {
+      throw new HttpsError("invalid-argument", `contents[${index}] must be an object.`);
+    }
+
+    const parts = (item as { parts?: unknown }).parts;
+    if (!Array.isArray(parts)) {
+      throw new HttpsError(
+        "invalid-argument",
+        `contents[${index}].parts must be an array of text parts.`,
+      );
+    }
+
+    if (parts.length === 0) {
+      throw new HttpsError(
+        "invalid-argument",
+        `contents[${index}].parts must not be empty.`,
+      );
+    }
+
+    for (const [partIndex, part] of parts.entries()) {
+      if (!isPlainObject(part)) {
+        throw new HttpsError(
+          "invalid-argument",
+          `contents[${index}].parts[${partIndex}] must be an object with a text string.`,
+        );
+      }
+
+      const text = (part as { text?: unknown }).text;
+      if (typeof text !== "string") {
+        throw new HttpsError(
+          "invalid-argument",
+          `contents[${index}].parts[${partIndex}].text must be a string.`,
+        );
+      }
+    }
+  }
+}
+
+function trimSystemInstruction(systemInstruction: string, contents: unknown[], maxBytes: number = MAX_STRUCTURED_PAYLOAD_SIZE): string {
+  // Binary search to find the maximum prefix that fits within the budget.
+  let low = 0;
+  let high = systemInstruction.length;
+  let best = '';
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const truncated = systemInstruction.slice(0, mid);
+    const serialized = JSON.stringify({ contents, systemInstruction: truncated });
+    const size = Buffer.byteLength(serialized, 'utf8');
+
+    if (size <= maxBytes) {
+      best = truncated;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return best;
+}
+
+function buildSoftBreakResponse(): GenerateReplyResponse {
+  return {
+    reply: "🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.",
+    messageId: `system-update-${Date.now()}`,
+    creditsSpent: 0,
+    remainingCredits: undefined,
+    planTier: null,
+    planStatus: null,
+    verifiedAt: new Date().toISOString(),
+  };
+}
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -29,21 +130,28 @@ interface SyncMessage {
 }
 
 interface GenerateReplyData {
-  prompt: string;
   characterId?: string;
+  prompt?: string;
+  contents?: unknown[];
+  systemInstruction?: string;
   unsyncedHistory?: SyncMessage[];
+  referenceId?: string;
 }
 
 export interface GenerateReplyResponse {
   reply: string;
   creditsSpent: number;
-  remainingCredits: number;
+  remainingCredits: number | undefined;
   planTier: string | null;
   planStatus: 'active' | 'cancelled' | 'expired' | null;
   verifiedAt: string;
+  messageId?: string;
 }
 
-type GenerateTextFn = (prompt: string) => Promise<string>;
+type GenerateTextFn = (input: {
+  contents: unknown[];
+  systemInstruction: string;
+}) => Promise<string>;
 type GetDbFn = () => Promise<Pick<Awaited<ReturnType<typeof getDb>>, 'insert' | 'select'>>;
 
 interface GenerateReplyOptions {
@@ -62,6 +170,11 @@ interface Candidate {
   };
 }
 
+interface GenerateContentInput {
+  contents: unknown[];
+  systemInstruction: string;
+}
+
 interface GenerateContentResult {
   response: {
     candidates?: Candidate[];
@@ -69,7 +182,7 @@ interface GenerateContentResult {
 }
 
 interface GenerativeModelLike {
-  generateContent(prompt: string): Promise<GenerateContentResult>;
+  generateContent(input: GenerateContentInput): Promise<GenerateContentResult>;
 }
 
 interface VertexAILike {
@@ -173,9 +286,15 @@ function getTextGenerator(): GenerateTextFn {
     return textGenerator;
   }
 
-  textGenerator = async (prompt: string): Promise<string> => {
+  textGenerator = async (input: {
+    contents: unknown[];
+    systemInstruction: string;
+  }): Promise<string> => {
     const model = await getModel();
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent({
+      contents: input.contents,
+      systemInstruction: input.systemInstruction,
+    });
     const candidates = result.response.candidates ?? [];
 
     for (const candidate of candidates) {
@@ -196,24 +315,79 @@ function getTextGenerator(): GenerateTextFn {
   return textGenerator;
 }
 
-function parseInput(data: unknown): { prompt: string; characterId?: string; unsyncedHistory?: SyncMessage[] } {
+function parseInput(data: unknown): {
+  prompt?: string;
+  contents?: unknown[];
+  systemInstruction?: string;
+  characterId?: string;
+  unsyncedHistory?: SyncMessage[];
+  referenceId?: string;
+} {
   const payload = data as GenerateReplyData | undefined;
   const promptValue = payload?.prompt;
-  const prompt = typeof promptValue === "string" ? promptValue.trim() : "";
+  const prompt = typeof promptValue === "string" ? promptValue.trim() : undefined;
 
-  if (!prompt) {
-    throw new HttpsError("invalid-argument", "prompt must be a non-empty string.");
-  }
-
-  if (prompt.length > MAX_PROMPT_LENGTH) {
+  if (prompt !== undefined && prompt.length > MAX_PROMPT_LENGTH) {
     throw new HttpsError(
       "invalid-argument",
       `prompt must be at most ${MAX_PROMPT_LENGTH} characters.`
     );
   }
 
-  const characterId = typeof payload?.characterId === 'string' ? payload.characterId : undefined;
+  const contentsValue = payload?.contents;
+  let contents: unknown[] | undefined;
+  if (contentsValue !== undefined) {
+    if (!Array.isArray(contentsValue)) {
+      throw new HttpsError("invalid-argument", "contents must be an array when provided.");
+    }
 
+    if (contentsValue.length === 0) {
+      throw new HttpsError("invalid-argument", "contents must not be empty.");
+    }
+
+    validateStructuredContents(contentsValue);
+    contents = contentsValue;
+  }
+
+  const systemInstructionValue = payload?.systemInstruction;
+  let systemInstruction =
+    typeof systemInstructionValue === "string" ? systemInstructionValue.trim() : undefined;
+  const rawReferenceId = payload?.referenceId;
+  const referenceId = typeof rawReferenceId === 'string' ? rawReferenceId.trim() : undefined;
+
+  if (!prompt && contents === undefined) {
+    throw new HttpsError(
+      "invalid-argument",
+      "prompt or structured contents are required.",
+    );
+  }
+
+  if (contents !== undefined && !systemInstruction) {
+    throw new HttpsError(
+      "invalid-argument",
+      "systemInstruction is required when contents are provided.",
+    );
+  }
+
+  if (contents === undefined && systemInstruction !== undefined) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Structured contents and systemInstruction are required together.",
+    );
+  }
+
+  if (contents !== undefined && systemInstruction !== undefined) {
+    // Trim systemInstruction if needed to fit within the payload budget.
+    // This ensures large character context or memory blocks don't cause every request to fail.
+    const trimmedSystemInstruction = trimSystemInstruction(systemInstruction, contents);
+    if (trimmedSystemInstruction !== systemInstruction) {
+      logger.warn('systemInstruction was truncated to fit within payload budget');
+      systemInstruction = trimmedSystemInstruction;
+    }
+    validateStructuredPayloadSize(contents, systemInstruction);
+  }
+
+  const characterId = typeof payload?.characterId === 'string' ? payload.characterId : undefined;
   const rawHistory = payload?.unsyncedHistory;
   let unsyncedHistory: SyncMessage[] | undefined;
 
@@ -226,7 +400,7 @@ function parseInput(data: unknown): { prompt: string; characterId?: string; unsy
       if (item === null || typeof item !== 'object') {
         throw new HttpsError(
           "invalid-argument",
-          `unsyncedHistory[${index}] must be an object containing a user message.`
+          `unsyncedHistory[${index}] must be an object containing a user message.`,
         );
       }
 
@@ -239,7 +413,7 @@ function parseInput(data: unknown): { prompt: string; characterId?: string; unsy
       ) {
         throw new HttpsError(
           "invalid-argument",
-          `unsyncedHistory[${index}] must contain only user-role messages with string id/text and numeric createdAt.`
+          `unsyncedHistory[${index}] must contain only user-role messages with string id/text and numeric createdAt.`,
         );
       }
 
@@ -247,7 +421,7 @@ function parseInput(data: unknown): { prompt: string; characterId?: string; unsy
     });
   }
 
-  return { prompt, characterId, unsyncedHistory };
+  return { prompt, contents, systemInstruction, characterId, unsyncedHistory, referenceId };
 }
 
 async function chargeForReply(
@@ -283,7 +457,13 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const { prompt, characterId, unsyncedHistory } = parseInput(request.data);
+  const parsed = parseInput(request.data);
+  const { prompt, characterId, unsyncedHistory, contents, systemInstruction } = parsed;
+
+  if (prompt && !contents) {
+    // Legacy prompt callers must upgrade to structured payloads.
+    return buildSoftBreakResponse();
+  }
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
   try {
@@ -363,7 +543,12 @@ const handler = async (
     transactionId = charge.transactionId;
     remainingCredits = charge.remainingCredits;
 
-    reply = (await generateText(prompt)).trim();
+    reply = (
+      await generateText({
+        contents: contents ?? [],
+        systemInstruction: systemInstruction ?? '',
+      })
+    ).trim();
     if (!reply) {
       throw new HttpsError("internal", "Model returned an empty chat response.");
     }
