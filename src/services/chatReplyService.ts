@@ -12,6 +12,10 @@ interface GenerateChatReplyInput {
 
 const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000
 
+function getUtf8ByteLength(text: string): number {
+  return new Blob([text]).size
+}
+
 function validateStructuredPayloadSize(contents: unknown[], systemInstruction: string): string {
   let serialized: string
   try {
@@ -20,7 +24,7 @@ function validateStructuredPayloadSize(contents: unknown[], systemInstruction: s
     throw new Error('Structured contents must be JSON-serializable.')
   }
 
-  const payloadSize = Buffer.byteLength(serialized, 'utf8')
+  const payloadSize = getUtf8ByteLength(serialized)
   if (payloadSize > MAX_STRUCTURED_PAYLOAD_SIZE) {
     throw new Error(
       `Structured contents and systemInstruction must serialize to at most ${MAX_STRUCTURED_PAYLOAD_SIZE} bytes.`,

@@ -16,6 +16,60 @@ import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { reportError } from '~/utilities/reportError'
 import type { SyncMessage } from '~/services/syncMessage'
 
+const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000
+
+function estimatePayloadSize(contents: unknown[], systemInstruction: string): number {
+  const serialized = JSON.stringify({ contents, systemInstruction })
+  return new Blob([serialized]).size
+}
+
+function trimContentsToBudget(
+  contents: { role: string; parts: { text?: string }[] }[],
+  systemInstruction: string,
+  maxBytes: number = MAX_STRUCTURED_PAYLOAD_SIZE,
+): { role: string; parts: { text?: string }[] }[] {
+  // Always keep the last message (current user input)
+  const lastMessage = contents[contents.length - 1]
+  const prefix = contents.slice(0, -1)
+
+  // Binary search to find how many prefix messages fit
+  let left = 0
+  let right = prefix.length
+
+  while (left < right) {
+    const mid = Math.ceil((left + right) / 2)
+    const candidate = [...prefix.slice(-mid), lastMessage]
+    if (estimatePayloadSize(candidate, systemInstruction) <= maxBytes) {
+      left = mid
+    } else {
+      right = mid - 1
+    }
+  }
+
+  const trimmed = [...prefix.slice(-left), lastMessage]
+
+  // If still too large, truncate the last message text
+  if (estimatePayloadSize(trimmed, systemInstruction) > maxBytes && lastMessage) {
+    const lastPart = lastMessage.parts[0]
+    if (lastPart?.text) {
+      let low = 0
+      let high = lastPart.text.length
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2)
+        const truncated = { ...lastMessage, parts: [{ text: lastPart.text.slice(0, mid) }] }
+        if (estimatePayloadSize([...prefix.slice(-left), truncated], systemInstruction) <= maxBytes) {
+          low = mid
+        } else {
+          high = mid - 1
+        }
+      }
+      lastMessage.parts[0].text = lastPart.text.slice(0, low)
+    }
+  }
+
+  return trimmed
+}
+
 export interface Character {
   id: string
   name: string
@@ -244,8 +298,11 @@ export const sendMessageWithAIResponse = async (
       { role: 'user' as const, parts: [{ text: userMessage.text }] },
     ]
 
+    // Trim contents to fit within the 12 KB payload budget before sending
+    const trimmedContents = trimContentsToBudget(contents, systemInstruction)
+
     const aiResponse = await generateChatReply({
-      contents,
+      contents: trimmedContents,
       systemInstruction,
       referenceId: buildReferenceId(userMessage._id),
       unsyncedHistory: options?.unsyncedHistory,

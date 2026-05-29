@@ -377,16 +377,11 @@ const handler = async (
   const { prompt, contents, systemInstruction, characterId, unsyncedHistory, referenceId } = parseInput(request.data);
 
   if (prompt && !contents && !isIntroRequest(referenceId)) {
-    return {
-      reply:
-        "🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.",
-      messageId: `system-update-${Date.now()}`,
-      creditsSpent: 0,
-      remainingCredits: 0,
-      planTier: null,
-      planStatus: null,
-      verifiedAt: new Date().toISOString(),
-    };
+    // Legacy prompt-only request: convert to structured contents so the model
+    // receives the prompt text. Intro requests are exempted because they use a
+    // different prompt format that is handled separately.
+    contents = [{ role: 'user', parts: [{ text: prompt }] }];
+    systemInstruction = systemInstruction ?? '';
   }
 
   let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
