@@ -17,8 +17,8 @@ export const clankerMemorySchema = {
   description:
     "Search the user's local long-term memory and wiki. ALWAYS use this tool if the user asks you to recall something previously discussed or look up a fact.",
   parameters: {
-    type: 'object',
-    properties: { query: { type: 'string' } },
+    type: 'object' as const,
+    properties: { query: { type: 'string' as const } },
     required: ['query'],
   },
 }
