@@ -288,6 +288,32 @@ describe('EditCharacterScreen - confirm dialog', () => {
     expect(updatedSwitch.props.value).toBe(false)
   })
 
+  it('toggles off without alert when character is not yet cloud-saved', () => {
+    const character = makeCharacter({ save_to_cloud: false, cloud_id: null })
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const switchComponent = tree.root.findAll((node) => String(node.type) === 'Switch')[0]
+
+    // Toggle ON
+    act(() => {
+      switchComponent.props.onValueChange(true)
+    })
+    expect(tree.root.findAll((node) => String(node.type) === 'Switch')[0].props.value).toBe(true)
+    expect(mockAlertAlert).not.toHaveBeenCalled()
+
+    // Toggle back OFF — no alert should show, switch goes directly to false
+    act(() => {
+      switchComponent.props.onValueChange(false)
+    })
+    expect(mockAlertAlert).not.toHaveBeenCalled()
+    expect(tree.root.findAll((node) => String(node.type) === 'Switch')[0].props.value).toBe(false)
+  })
+
   it('does not change switch state on cancel press', () => {
     const character = makeCharacter({ save_to_cloud: true, cloud_id: 'cloud-id-1' })
     mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
