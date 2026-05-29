@@ -18,6 +18,12 @@ export class CharacterPromptBuilder {
       `Appearance: ${character.appearance ?? ''}`,
       `Personality traits: ${character.traits ?? ''}`,
       `Emotional style: ${character.emotions ?? ''}`,
+      ``,
+      `Instructions:`,
+      `- Stay in character as ${character.name} at all times`,
+      `- Never reveal you are an AI`,
+      `- Respond naturally and conversationally`,
+      `- Keep responses concise (1-3 sentences) unless depth is needed`,
     ]
 
     if (character.context) {
@@ -27,15 +33,6 @@ export class CharacterPromptBuilder {
     if (memoryBlock) {
       lines.push(``, `Memory:`, memoryBlock)
     }
-
-    lines.push(
-      ``,
-      `Instructions:`,
-      `- Stay in character as ${character.name} at all times`,
-      `- Never reveal you are an AI`,
-      `- Respond naturally and conversationally`,
-      `- Keep responses concise (1-3 sentences) unless depth is needed`,
-    )
 
     return lines.join('\n')
   }

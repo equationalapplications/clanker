@@ -110,9 +110,10 @@ function buildVoicePrompt(
   userId: string,
 ): string {
   const MAX_NAME_LENGTH = 100
-  const truncatedName = character.name.length > MAX_NAME_LENGTH
-    ? character.name.slice(0, MAX_NAME_LENGTH - 3) + '...'
-    : character.name
+  const normalizedName = character.name || 'Character'
+  const truncatedName = normalizedName.length > MAX_NAME_LENGTH
+    ? normalizedName.slice(0, MAX_NAME_LENGTH - 3) + '...'
+    : normalizedName
 
   const historyLines = getRecentConversationHistory(conversationHistory, 10)
     .map((msg) => `${msg.user._id === userId ? 'User' : truncatedName}: ${msg.text}`)

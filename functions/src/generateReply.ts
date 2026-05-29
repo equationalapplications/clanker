@@ -66,7 +66,7 @@ function buildSoftBreakResponse(): GenerateReplyResponse {
     reply: "🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.",
     messageId: `system-update-${Date.now()}`,
     creditsSpent: 0,
-    remainingCredits: -1,
+    remainingCredits: undefined,
     planTier: null,
     planStatus: null,
     verifiedAt: new Date().toISOString(),
@@ -97,7 +97,7 @@ interface GenerateReplyData {
 export interface GenerateReplyResponse {
   reply: string;
   creditsSpent: number;
-  remainingCredits: number;
+  remainingCredits: number | undefined;
   planTier: string | null;
   planStatus: 'active' | 'cancelled' | 'expired' | null;
   verifiedAt: string;
