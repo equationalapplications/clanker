@@ -315,7 +315,10 @@ export const sendMessageWithAIResponse = async (
 
     // 4. Generate AI response through secure cloud function
     const systemInstruction = buildSystemInstruction({
-      character,
+      character: {
+        ...character,
+        context: effectiveContext,
+      },
       userId,
       memoryBlock,
     })

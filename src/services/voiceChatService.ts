@@ -21,6 +21,8 @@ type VoiceCharacter = {
   voice?: string | null
 }
 
+const MAX_VOICE_PROMPT_LENGTH = 12_000
+
 export interface VoiceChatResult {
   audioBase64: string
   audioMimeType: string
@@ -107,23 +109,40 @@ function buildVoicePrompt(
   conversationHistory: IMessage[],
   userId: string,
 ): string {
-  const recentHistory = getRecentConversationHistory(conversationHistory, 10)
+  const historyLines = getRecentConversationHistory(conversationHistory, 10)
     .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
-    .join('\n')
 
   const characterPersonality = character.context || character.appearance || ''
   const characterTraits = `${character.traits ?? ''} ${character.emotions ?? ''}`.trim()
 
-  return `You are ${character.name}, a virtual friend chatbot.
+  const promptPrefix = `You are ${character.name}, a virtual friend chatbot.\n\nPersonality: ${characterPersonality}\nTraits: ${characterTraits}\n\nInstructions:\n- Respond as ${character.name} would, staying true to the personality and traits\n- Respond naturally and conversationally\n- Do not reveal you are an AI\n\n`
+  const promptSuffix = `User: ${userText}\n${character.name}:`
 
-Personality: ${characterPersonality}
-Traits: ${characterTraits}
+  const buildPrompt = (historyLinesToUse: string[]) => {
+    const historyBlock = historyLinesToUse.length
+      ? `Conversation history:\n${historyLinesToUse.join('\n')}\n\n`
+      : ''
 
-Instructions:
-- Respond as ${character.name} would, staying true to the personality and traits
-- Respond naturally and conversationally
-- Do not reveal you are an AI
+    return `${promptPrefix}${historyBlock}${promptSuffix}`
+  }
 
-${recentHistory ? `Conversation history:\n${recentHistory}\n\n` : ''}User: ${userText}
-${character.name}:`
+  let prompt = buildPrompt(historyLines)
+
+  while (prompt.length > MAX_VOICE_PROMPT_LENGTH && historyLines.length > 0) {
+    historyLines.shift()
+    prompt = buildPrompt(historyLines)
+  }
+
+  if (prompt.length <= MAX_VOICE_PROMPT_LENGTH) {
+    return prompt
+  }
+
+  const promptWithoutUserText = buildPrompt([])
+  const allowedUserTextLength = Math.max(
+    0,
+    MAX_VOICE_PROMPT_LENGTH - (promptWithoutUserText.length - userText.length),
+  )
+  const trimmedUserText = userText.slice(-allowedUserTextLength)
+
+  return `You are ${character.name}, a virtual friend chatbot.\n\nPersonality: ${characterPersonality}\nTraits: ${characterTraits}\n\nInstructions:\n- Respond as ${character.name} would, staying true to the personality and traits\n- Respond naturally and conversationally\n- Do not reveal you are an AI\n\nUser: ${trimmedUserText}\n${character.name}:`
 }

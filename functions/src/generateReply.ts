@@ -68,6 +68,11 @@ interface Candidate {
   };
 }
 
+interface GenerateContentInput {
+  contents: unknown[];
+  systemInstruction: string;
+}
+
 interface GenerateContentResult {
   response: {
     candidates?: Candidate[];
@@ -75,7 +80,7 @@ interface GenerateContentResult {
 }
 
 interface GenerativeModelLike {
-  generateContent(prompt: string): Promise<GenerateContentResult>;
+  generateContent(input: GenerateContentInput): Promise<GenerateContentResult>;
 }
 
 interface VertexAILike {

@@ -152,4 +152,19 @@ describe('sendVoiceMessage', () => {
 
     expect(mockSendMessage).not.toHaveBeenCalled()
   })
+
+  it('truncates the voice prompt to the backend prompt budget before calling generateVoiceReply', async () => {
+    const longText = 'a'.repeat(13_000)
+
+    await sendVoiceMessage(longText, character, 'user-1', [])
+
+    expect(mockGenerateVoiceReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.any(String),
+      }),
+    )
+    const callArg = mockGenerateVoiceReply.mock.calls[0][0] as { prompt: string }
+    expect(callArg.prompt.length).toBeLessThanOrEqual(12_000)
+    expect(callArg.prompt).toContain(`User: ${longText.slice(-10)}`)
+  })
 })

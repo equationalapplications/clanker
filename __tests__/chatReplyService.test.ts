@@ -47,6 +47,49 @@ describe('generateChatReply', () => {
     expect(mockGenerateReplyFn).toHaveBeenCalledWith({ prompt: 'hi', referenceId: 'abc' })
   })
 
+  it('forwards structured contents and systemInstruction to the callable payload', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: {
+        reply: 'Structured reply',
+        verifiedAt: '2026-01-01T00:00:00.000Z',
+      },
+    })
+
+    const resultPromise = generateChatReply({
+      contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+      systemInstruction: 'Be concise.',
+      referenceId: 'abc',
+    })
+
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    await expect(resultPromise).resolves.toEqual({
+      reply: 'Structured reply',
+      remainingCredits: null,
+      planTier: null,
+      planStatus: null,
+      verifiedAt: '2026-01-01T00:00:00.000Z',
+    })
+    expect(mockGenerateReplyFn).toHaveBeenCalledWith({
+      contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+      systemInstruction: 'Be concise.',
+      referenceId: 'abc',
+    })
+  })
+
+  it('rejects invalid structured payloads when contents are empty or missing systemInstruction', async () => {
+    await expect(
+      generateChatReply({ contents: [], systemInstruction: 'Tell a story.' }),
+    ).rejects.toThrow('contents must be a non-empty array when provided')
+
+    await expect(
+      generateChatReply({ contents: [{ role: 'user', parts: [{ text: 'hi' }] }] }),
+    ).rejects.toThrow('systemInstruction must be a non-empty string when contents are provided')
+  })
+
   it('rejects callable responses missing verifiedAt', async () => {
     mockGenerateReplyFn.mockResolvedValue({ data: { reply: 'hello' } })
 
