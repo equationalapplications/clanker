@@ -260,7 +260,7 @@ describe('useEdgeAgent', () => {
     expect(mockGenerateContent).not.toHaveBeenCalled()
   })
 
-  it('does not include escalate_to_cloud_agent tool when isCloudSynced is false', async () => {
+  it('does not include escalate_to_cloud_agent or search_memory when wiki:null and isCloudSynced:false', async () => {
     mockGenerateContent.mockResolvedValue({
       text: 'Hello!',
       functionCalls: undefined,
@@ -278,11 +278,11 @@ describe('useEdgeAgent', () => {
     const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
     const names = functionDeclarations.map((fd) => fd.name)
     expect(names).toContain('get_current_time')
-    expect(names).toContain('search_memory')
+    expect(names).not.toContain('search_memory')
     expect(names).not.toContain('escalate_to_cloud_agent')
   })
 
-  it('includes escalate_to_cloud_agent tool when isCloudSynced is true', async () => {
+  it('includes escalate_to_cloud_agent but not search_memory when wiki:null and isCloudSynced:true', async () => {
     mockGenerateContent.mockResolvedValue({
       text: 'Hello!',
       functionCalls: undefined,
@@ -300,7 +300,46 @@ describe('useEdgeAgent', () => {
     const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
     const names = functionDeclarations.map((fd) => fd.name)
     expect(names).toContain('get_current_time')
-    expect(names).toContain('search_memory')
+    expect(names).not.toContain('search_memory')
     expect(names).toContain('escalate_to_cloud_agent')
+  })
+
+  it('includes search_memory when wiki is provided', async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: 'Hello!',
+      functionCalls: undefined,
+    })
+
+    const mockWiki = {} as any
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: mockWiki }),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('Hi')
+    })
+
+    const callArgs = mockGenerateContent.mock.calls[0][0]
+    const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
+    const names = functionDeclarations.map((fd) => fd.name)
+    expect(names).toContain('get_current_time')
+    expect(names).toContain('search_memory')
+    expect(names).not.toContain('escalate_to_cloud_agent')
+  })
+
+  it('passes wiki to createEdgeToolExecutors', async () => {
+    const { createEdgeToolExecutors } = require('~/services/edgeToolExecutors')
+    mockGenerateContent.mockResolvedValue({ text: 'Hi!', functionCalls: undefined })
+
+    const mockWiki = { id: 'wiki-1' } as any
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: mockWiki }),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('Hello')
+    })
+
+    expect(createEdgeToolExecutors).toHaveBeenCalledWith(character.id, mockWiki)
   })
 })

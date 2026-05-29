@@ -62,7 +62,10 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
         { role: 'user', parts: [{ text: userText }] },
       ] as Content[]
 
-      const functionDeclarations = [clankerTimeSchema, clankerMemorySchema]
+      const functionDeclarations = [clankerTimeSchema]
+      if (wiki) {
+        functionDeclarations.push(clankerMemorySchema)
+      }
       if (isCloudSynced) {
         functionDeclarations.push(clankerEscalationSchema)
       }

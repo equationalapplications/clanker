@@ -1,7 +1,8 @@
 # Manifest Override Pattern + Local `search_memory` Tool
 
 **Date:** 2026-05-28
-**Branch:** `kv/fixes`
+**Status:** Retroactive Design Doc (Implemented post-PR #407)
+**Branch:** `main` (formerly `kv/fixes`)
 **Approach:** Minimal Scope + Options Injection (Option B)
 
 ---
@@ -100,11 +101,16 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
   return {
     ...edgeToolExecutors,
     search_memory: async (args) => {
-      const query = args.query as string
-      if (!wiki || !query) return 'No relevant memories found.'
-      const results = await readFromWiki(wiki, characterId, query)
-      const hasMemories = results.facts.length > 0 || results.tasks.length > 0 || results.events.length > 0
-      return hasMemories ? JSON.stringify(results) : 'No relevant memories found.'
+      try {
+        const query = typeof args.query === 'string' ? args.query.trim() : ''
+        if (!wiki || !query) return 'No relevant memories found.'
+        const results = await readFromWiki(wiki, characterId, query)
+        const hasMemories = results.facts.length > 0 || results.tasks.length > 0 || results.events.length > 0
+        return hasMemories ? JSON.stringify(results) : 'No relevant memories found.'
+      } catch (error) {
+        console.error('[EdgeAgent] Local memory search failed:', error)
+        return 'No relevant memories found.'
+      }
     },
   }
 }
@@ -135,7 +141,8 @@ import { clankerTimeSchema, clankerEscalationSchema, clankerMemorySchema } from 
 
 **Tool declarations:**
 ```ts
-const functionDeclarations = [clankerTimeSchema, clankerMemorySchema]
+const functionDeclarations = [clankerTimeSchema]
+if (wiki) functionDeclarations.push(clankerMemorySchema)
 if (isCloudSynced) functionDeclarations.push(clankerEscalationSchema)
 ```
 
@@ -180,7 +187,7 @@ contents.push({
 } as Content)
 ```
 
-**`useCallback` deps:** add `wiki` to dependency array.
+**`useCallback` deps:** add `wiki` to dependency array. `useWiki()` returns a stable reference from its context provider — this is safe and does not cause `sendMessage` churn on re-renders.
 
 **Additional import needed:** `Part` from `@google/genai` (for the `responseParts.filter(Boolean) as Part[]` cast).
 

@@ -20,13 +20,18 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
   return {
     ...edgeToolExecutors,
     search_memory: async (args) => {
-      const query = typeof args.query === 'string' ? args.query.trim() : ''
-      if (!wiki || !query) return 'No relevant memories found.'
+      try {
+        const query = typeof args.query === 'string' ? args.query.trim() : ''
+        if (!wiki || !query) return 'No relevant memories found.'
 
-      const results = await readFromWiki(wiki, characterId, query)
-      const hasMemories =
-        results.facts.length > 0 || results.tasks.length > 0 || results.events.length > 0
-      return hasMemories ? JSON.stringify(results) : 'No relevant memories found.'
+        const results = await readFromWiki(wiki, characterId, query)
+        const hasMemories =
+          results.facts.length > 0 || results.tasks.length > 0 || results.events.length > 0
+        return hasMemories ? JSON.stringify(results) : 'No relevant memories found.'
+      } catch (error) {
+        console.error('[EdgeAgent] Local memory search failed:', error)
+        return 'No relevant memories found.'
+      }
     },
   }
 }

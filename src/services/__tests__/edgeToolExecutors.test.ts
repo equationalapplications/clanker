@@ -115,5 +115,13 @@ describe('createEdgeToolExecutors', () => {
       expect(result).toBe('No relevant memories found.')
       expect(mockReadFromWiki).not.toHaveBeenCalled()
     })
+
+    it('returns "No relevant memories found." when readFromWiki throws', async () => {
+      mockReadFromWiki.mockRejectedValue(new Error('SQLite locked'))
+      const wiki = {} as any
+      const execs = createEdgeToolExecutors('char-1', wiki)
+      const result = await execs['search_memory']({ query: 'coffee' })
+      expect(result).toBe('No relevant memories found.')
+    })
   })
 })
