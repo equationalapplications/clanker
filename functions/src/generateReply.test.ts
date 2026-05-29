@@ -237,6 +237,53 @@ test("generateReplyHandler rejects oversized structured contents payloads", asyn
   });
 });
 
+test("generateReplyHandler rejects malformed structured contents items", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [null],
+              systemInstruction: 'You are a helpful assistant.',
+            },
+          } as never,
+          {
+            generateText: async () => 'unused',
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [{ role: 'user', parts: [{}] }],
+              systemInstruction: 'You are a helpful assistant.',
+            },
+          } as never,
+          {
+            generateText: async () => 'unused',
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+  });
+});
+
 test("generateReplyHandler spends one credit for payg users", async () => {
   const auth = buildAuth();
 

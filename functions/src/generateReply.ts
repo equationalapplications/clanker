@@ -38,6 +38,50 @@ function validateStructuredPayloadSize(contents: unknown[], systemInstruction: s
   }
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function validateStructuredContents(contents: unknown[]): void {
+  for (const [index, item] of contents.entries()) {
+    if (!isPlainObject(item)) {
+      throw new HttpsError("invalid-argument", `contents[${index}] must be an object.`);
+    }
+
+    const parts = (item as { parts?: unknown }).parts;
+    if (!Array.isArray(parts)) {
+      throw new HttpsError(
+        "invalid-argument",
+        `contents[${index}].parts must be an array of text parts.`,
+      );
+    }
+
+    if (parts.length === 0) {
+      throw new HttpsError(
+        "invalid-argument",
+        `contents[${index}].parts must not be empty.`,
+      );
+    }
+
+    for (const [partIndex, part] of parts.entries()) {
+      if (!isPlainObject(part)) {
+        throw new HttpsError(
+          "invalid-argument",
+          `contents[${index}].parts[${partIndex}] must be an object with a text string.`,
+        );
+      }
+
+      const text = (part as { text?: unknown }).text;
+      if (typeof text !== "string") {
+        throw new HttpsError(
+          "invalid-argument",
+          `contents[${index}].parts[${partIndex}].text must be a string.`,
+        );
+      }
+    }
+  }
+}
+
 function trimSystemInstruction(systemInstruction: string, contents: unknown[], maxBytes: number = MAX_STRUCTURED_PAYLOAD_SIZE): string {
   // Binary search to find the maximum prefix that fits within the budget.
   let low = 0;
@@ -301,6 +345,7 @@ function parseInput(data: unknown): {
       throw new HttpsError("invalid-argument", "contents must not be empty.");
     }
 
+    validateStructuredContents(contentsValue);
     contents = contentsValue;
   }
 
@@ -413,8 +458,7 @@ const handler = async (
   }
 
   const parsed = parseInput(request.data);
-  const { prompt, characterId, unsyncedHistory } = parsed;
-  let { contents, systemInstruction } = parsed;
+  const { prompt, characterId, unsyncedHistory, contents, systemInstruction } = parsed;
 
   if (prompt && !contents) {
     // Legacy prompt callers must upgrade to structured payloads.
