@@ -150,7 +150,7 @@ describe('useAIChat', () => {
     mockCharacterWikiWrite.mockResolvedValue(undefined)
     mockSaveAIMessage.mockResolvedValue({
       _id: 'ai-1',
-      text: "I'm running in local-only mode and can't access your deep cloud memory right now.",
+      text: 'Hello!',
       user: { _id: 'char-1' },
     })
   })
@@ -245,11 +245,11 @@ describe('useAIChat', () => {
     expect(database.markMessagesAsSynced).toHaveBeenCalledWith(['msg-1'])
   })
 
-  it('does not call Firebase when a local-only character returns a local-only fallback', async () => {
+  it('uses edge text directly without Firebase when edge agent resolves for local-only character', async () => {
     mockUseEdgeAgent.mockReturnValueOnce({
       sendMessage: jest.fn().mockResolvedValue({
         escalated: false,
-        text: "I'm running in local-only mode and can't access your deep cloud memory right now.",
+        text: 'Hello from on-device!',
       }),
       escalationState: 'idle',
     })
@@ -269,32 +269,32 @@ describe('useAIChat', () => {
     expect(require('~/database/messageDatabase').saveAIMessage).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(String),
-      "I'm running in local-only mode and can't access your deep cloud memory right now.",
+      'Hello from on-device!',
       expect.any(String),
       expect.any(Object),
     )
   })
 
-  it('prevents local-only escalation from reaching Firebase', async () => {
+  it('falls through to generateReply when edge agent returns no text for local-only character', async () => {
     mockUseEdgeAgent.mockReturnValueOnce({
-      sendMessage: jest.fn().mockResolvedValue({ escalated: true, text: undefined }),
+      sendMessage: jest.fn().mockResolvedValue({ escalated: false, text: undefined }),
       escalationState: 'idle',
     })
 
+    mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null, cloudSyncSucceeded: false })
+
     const hook = renderUseAIChat({ save_to_cloud: 0 })
 
-    await expect(
-      act(async () => {
-        await hook.sendMessage({
-          _id: 'msg-local-only-escalate',
-          text: 'Hi',
-          createdAt: new Date('2026-04-27T00:00:00.000Z'),
-          user: { _id: 'user-1' },
-        } as any)
-      }),
-    ).rejects.toThrow('Local-only character attempted Firebase escalation')
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-local-only-fallback',
+        text: 'Hi',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
 
-    expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
+    expect(mockSendMessageWithAIResponse).toHaveBeenCalled()
   })
 
   it('reports non-busy wiki read errors with wiki:read context', async () => {

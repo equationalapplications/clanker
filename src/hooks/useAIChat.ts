@@ -138,14 +138,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
       const unsyncedHistory = unsyncedUserMessages.map((msg) => toSyncMessage(msg, userId))
 
-      if (!isCloudSynced && (escalated || edgeText === undefined)) {
-        const localOnlyEscalationError = new Error(
-          'Local-only character attempted Firebase escalation or returned no edge response.',
-        )
-        reportError(localOnlyEscalationError, `edgeAgent:${character.id}`)
-        throw localOnlyEscalationError
-      }
-
       const result = await sendMessageWithAIResponse(message, character, userId, messages, {
         memoryBlock,
         onWriteObservation,

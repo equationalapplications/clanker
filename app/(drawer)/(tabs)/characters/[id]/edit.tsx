@@ -127,7 +127,7 @@ export default function EditCharacterScreen() {
       setTraits(character.traits || '')
       setEmotions(character.emotions || '')
       setContext(character.context || '')
-      setSaveToCloud(character.save_to_cloud ?? false)
+      setSaveToCloud(!!character.save_to_cloud)
       setIsCharacterShareable(character.is_public || false)
       setVoice(character.voice ?? DEFAULT_VOICE)
       setAvatarUri(character.avatar ?? null)
@@ -200,7 +200,7 @@ export default function EditCharacterScreen() {
   const nativeShareLink = cloudCharacterId ? buildNativeCharacterShareLink(cloudCharacterId) : null
 
   const handleToggleSaveToCloud = (nextValue: boolean) => {
-    if (!nextValue && character?.save_to_cloud === true) {
+    if (!nextValue && !!character?.save_to_cloud) {
       Alert.alert(
         'Remove from Cloud?',
         'Are you sure you want to remove the character from the cloud?',
@@ -467,7 +467,7 @@ export default function EditCharacterScreen() {
                 Costs 1 credit per sync.
               </Text>
             </View>
-            <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} disabled={!canEdit} />
+            <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} disabled={!canEdit || isSaving || isUpdating || isCloudSyncing || isCloudUnsyncing} />
           </View>
 
           {character.owner_user_id && canEdit ? (
