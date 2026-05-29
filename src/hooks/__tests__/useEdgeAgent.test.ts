@@ -165,7 +165,7 @@ describe('useEdgeAgent', () => {
     expect(mockGenerateContent).toHaveBeenCalledTimes(5)
   })
 
-  it('returns local-only fallback when iteration cap is reached for local-only characters', async () => {
+  it('returns no text when iteration cap is reached for local-only characters', async () => {
     mockGenerateContent.mockResolvedValue({
       text: undefined,
       functionCalls: [{ name: 'get_current_time', args: {} }],
@@ -181,7 +181,7 @@ describe('useEdgeAgent', () => {
     })
 
     expect(response?.escalated).toBe(false)
-    expect(response?.text).toBe("I'm running in local-only mode and can't access your deep cloud memory right now.")
+    expect(response?.text).toBeUndefined()
     expect(result.current.escalationState).toBe('idle')
     expect(mockGenerateContent).toHaveBeenCalledTimes(5)
   })
@@ -228,7 +228,7 @@ describe('useEdgeAgent', () => {
     expect(result.current.isThinking).toBe(false)
   })
 
-  it('returns local-only fallback when generateContent throws for local-only characters', async () => {
+  it('returns no text when generateContent throws for local-only characters', async () => {
     mockGenerateContent.mockRejectedValue(new Error('Network error'))
 
     const { result } = renderHook(() =>
@@ -241,7 +241,7 @@ describe('useEdgeAgent', () => {
     })
 
     expect(response?.escalated).toBe(false)
-    expect(response?.text).toBe("I'm running in local-only mode and can't access your deep cloud memory right now.")
+    expect(response?.text).toBeUndefined()
     expect(result.current.isThinking).toBe(false)
   })
 
