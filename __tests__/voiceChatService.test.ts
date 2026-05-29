@@ -167,4 +167,22 @@ describe('sendVoiceMessage', () => {
     expect(callArg.prompt.length).toBeLessThanOrEqual(12_000)
     expect(callArg.prompt).toContain(`User: ${longText.slice(-10)}`)
   })
+
+  it('does not retain the full user text when the static voice prompt already fills the budget', async () => {
+    const hugeCharacter = {
+      ...character,
+      context: 'a'.repeat(12_000),
+    }
+
+    await sendVoiceMessage('hello', hugeCharacter, 'user-1', [])
+
+    expect(mockGenerateVoiceReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.any(String),
+      }),
+    )
+    const callArg = mockGenerateVoiceReply.mock.calls[0][0] as { prompt: string }
+    expect(callArg.prompt.length).toBeLessThanOrEqual(12_000)
+    expect(callArg.prompt).not.toContain('User: hello')
+  })
 })

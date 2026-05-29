@@ -15,6 +15,32 @@ const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 12_000;
 const MAX_OUTPUT_TOKENS = 1_024;
+const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000;
+
+function isIntroRequest(referenceId?: string): boolean {
+  return typeof referenceId === 'string' && referenceId.startsWith('intro-');
+}
+
+function validateStructuredPayloadSize(contents: unknown[], systemInstruction: string): void {
+  let serialized: string;
+
+  try {
+    serialized = JSON.stringify({ contents, systemInstruction });
+  } catch {
+    throw new HttpsError(
+      'invalid-argument',
+      'Structured contents must be JSON-serializable.',
+    );
+  }
+
+  const payloadSize = Buffer.byteLength(serialized, 'utf8');
+  if (payloadSize > MAX_STRUCTURED_PAYLOAD_SIZE) {
+    throw new HttpsError(
+      'invalid-argument',
+      `Structured contents and systemInstruction must serialize to at most ${MAX_STRUCTURED_PAYLOAD_SIZE} bytes.`,
+    );
+  }
+}
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -34,6 +60,7 @@ interface GenerateReplyData {
   contents?: unknown[];
   systemInstruction?: string;
   unsyncedHistory?: SyncMessage[];
+  referenceId?: string;
 }
 
 export interface GenerateReplyResponse {
@@ -219,6 +246,7 @@ function parseInput(data: unknown): {
   systemInstruction?: string;
   characterId?: string;
   unsyncedHistory?: SyncMessage[];
+  referenceId?: string;
 } {
   const payload = data as GenerateReplyData | undefined;
   const promptValue = payload?.prompt;
@@ -248,6 +276,8 @@ function parseInput(data: unknown): {
   const systemInstructionValue = payload?.systemInstruction;
   const systemInstruction =
     typeof systemInstructionValue === "string" ? systemInstructionValue.trim() : undefined;
+  const rawReferenceId = payload?.referenceId;
+  const referenceId = typeof rawReferenceId === 'string' ? rawReferenceId.trim() : undefined;
 
   if (!prompt && contents === undefined) {
     throw new HttpsError(
@@ -270,8 +300,11 @@ function parseInput(data: unknown): {
     );
   }
 
-  const characterId = typeof payload?.characterId === 'string' ? payload.characterId : undefined;
+  if (contents !== undefined && systemInstruction !== undefined) {
+    validateStructuredPayloadSize(contents, systemInstruction);
+  }
 
+  const characterId = typeof payload?.characterId === 'string' ? payload.characterId : undefined;
   const rawHistory = payload?.unsyncedHistory;
   let unsyncedHistory: SyncMessage[] | undefined;
 
@@ -305,7 +338,7 @@ function parseInput(data: unknown): {
     });
   }
 
-  return { prompt, contents, systemInstruction, characterId, unsyncedHistory };
+  return { prompt, contents, systemInstruction, characterId, unsyncedHistory, referenceId };
 }
 
 async function chargeForReply(
@@ -341,9 +374,9 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Firebase user email is required.");
   }
 
-  const { prompt, contents, systemInstruction, characterId, unsyncedHistory } = parseInput(request.data);
+  const { prompt, contents, systemInstruction, characterId, unsyncedHistory, referenceId } = parseInput(request.data);
 
-  if (prompt && !contents) {
+  if (prompt && !contents && !isIntroRequest(referenceId)) {
     return {
       reply:
         "🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.",

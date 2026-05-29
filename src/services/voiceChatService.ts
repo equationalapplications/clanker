@@ -142,7 +142,13 @@ function buildVoicePrompt(
     0,
     MAX_VOICE_PROMPT_LENGTH - (promptWithoutUserText.length - userText.length),
   )
-  const trimmedUserText = userText.slice(-allowedUserTextLength)
+  const trimmedUserText = allowedUserTextLength > 0 ? userText.slice(-allowedUserTextLength) : ''
 
-  return `You are ${character.name}, a virtual friend chatbot.\n\nPersonality: ${characterPersonality}\nTraits: ${characterTraits}\n\nInstructions:\n- Respond as ${character.name} would, staying true to the personality and traits\n- Respond naturally and conversationally\n- Do not reveal you are an AI\n\nUser: ${trimmedUserText}\n${character.name}:`
+  let finalPrompt = `You are ${character.name}, a virtual friend chatbot.\n\nPersonality: ${characterPersonality}\nTraits: ${characterTraits}\n\nInstructions:\n- Respond as ${character.name} would, staying true to the personality and traits\n- Respond naturally and conversationally\n- Do not reveal you are an AI\n\nUser: ${trimmedUserText}\n${character.name}:`
+
+  if (finalPrompt.length > MAX_VOICE_PROMPT_LENGTH) {
+    finalPrompt = finalPrompt.slice(0, MAX_VOICE_PROMPT_LENGTH)
+  }
+
+  return finalPrompt
 }

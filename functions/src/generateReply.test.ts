@@ -167,6 +167,73 @@ test("generateReplyHandler returns soft break for legacy prompt-only requests", 
   });
 });
 
+test("generateReplyHandler allows intro prompt-only requests to proceed", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    let generateTextCalled = false;
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: {
+          prompt: "hello intro",
+          referenceId: "intro-char-1",
+        },
+      } as never,
+      {
+        generateText: async () => {
+          generateTextCalled = true;
+          return 'intro response';
+        },
+      }
+    );
+
+    assert.ok(generateTextCalled, 'generateText should be invoked for intro requests');
+    assert.equal(result.reply, 'intro response');
+    assert.equal(result.creditsSpent, 1);
+    assert.equal(result.remainingCredits, 2);
+  });
+});
+
+test("generateReplyHandler rejects oversized structured contents payloads", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [
+                { role: 'user', parts: [{ text: 'a'.repeat(12_001) }] },
+              ],
+              systemInstruction: 'You are a helpful assistant.',
+            },
+          } as never,
+          {
+            generateText: async () => 'unused',
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+  });
+});
+
 test("generateReplyHandler spends one credit for payg users", async () => {
   const auth = buildAuth();
 

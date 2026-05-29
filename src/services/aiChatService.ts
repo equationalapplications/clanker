@@ -38,22 +38,10 @@ function toUsageSnapshot(data: GenerateChatReplyResult): UsageSnapshot {
   }
 }
 
-interface ChatContext {
-  characterName: string
-  characterPersonality: string
-  characterTraits: string
-  conversationHistory: {
-    role: 'user' | 'assistant'
-    content: string
-  }[]
-  memoryBlock?: string
-}
-
 const MAX_CHAT_PROMPT_LENGTH = 12_000
 const MAX_CHARACTER_NAME_LENGTH = 100
 const MAX_CHARACTER_PERSONALITY_LENGTH = 1_500
 const MAX_CHARACTER_TRAITS_LENGTH = 1_000
-const MAX_USER_MESSAGE_LENGTH = 3_000
 const MAX_REFERENCE_ID_LENGTH = 128
 const SUMMARY_TRIGGER_MESSAGE_COUNT = 20
 const SUMMARY_KEEP_RECENT_MESSAGE_COUNT = 20
@@ -76,40 +64,6 @@ function truncateText(value: string, maxLength: number): string {
   }
 
   return `${normalized.slice(0, maxLength - ELLIPSIS.length).trimEnd()}${ELLIPSIS}`
-}
-
-function buildConversationHistory(
-  conversationHistory: ChatContext['conversationHistory'],
-  maxLength: number,
-): string {
-  if (maxLength <= 0 || conversationHistory.length === 0) {
-    return ''
-  }
-
-  const selected: string[] = []
-  let usedLength = 0
-
-  for (let index = conversationHistory.length - 1; index >= 0; index -= 1) {
-    const message = conversationHistory[index]
-    if (!message) {
-      continue
-    }
-
-    const prefix = `${message.role}: `
-    const separatorLength = selected.length > 0 ? 1 : 0
-    const remainingLength = maxLength - usedLength - separatorLength
-
-    if (remainingLength <= prefix.length) {
-      break
-    }
-
-    const truncatedContent = truncateText(message.content, remainingLength - prefix.length)
-    const entry = `${prefix}${truncatedContent}`
-    selected.unshift(entry)
-    usedLength += entry.length + separatorLength
-  }
-
-  return selected.join('\n')
 }
 
 function buildReferenceId(value: unknown): string | undefined {
@@ -299,16 +253,7 @@ export const sendMessageWithAIResponse = async (
     const priorHistory = conversationHistory.filter(
       (msg) => String(msg._id) !== String(userMessage._id),
     )
-    const chatContext: ChatContext = {
-      characterName: character.name,
-      characterPersonality: effectiveContext || character.appearance,
-      characterTraits: `${character.traits} ${character.emotions}`.trim(),
-      conversationHistory: getRecentConversationHistory(priorHistory, 10).map((msg) => ({
-        role: msg.user._id === userId ? 'user' : 'assistant',
-        content: msg.text,
-      })),
-      memoryBlock,
-    }
+    const recentHistory = getRecentConversationHistory(priorHistory, 10)
 
     // 3. Create AI response message ID
     const aiResponseId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -324,7 +269,7 @@ export const sendMessageWithAIResponse = async (
     })
 
     const contents = [
-      ...buildContentHistory(priorHistory, userId),
+      ...buildContentHistory(recentHistory, userId),
       { role: 'user' as const, parts: [{ text: userMessage.text }] },
     ]
 
