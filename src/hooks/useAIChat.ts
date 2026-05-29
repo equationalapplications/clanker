@@ -125,7 +125,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
 
       // Escalated — Firebase path with unsynced history
-      const unsyncedLocal = await getUnsyncedMessages(character.id, userId)
+      let unsyncedLocal = await getUnsyncedMessages(character.id, userId)
+
+      // Gotcha 1: Filter out current message if already saved locally
+      // The current user message may have been inserted into SQLite before escalation fires.
+      // If so, exclude it from unsyncedHistory to prevent Firebase receiving it twice.
+      unsyncedLocal = unsyncedLocal.filter((msg) => {
+        return !(msg.text === message.text && Date.now() - msg.created_at < 10000)
+      })
+
       const unsyncedUserMessages = unsyncedLocal.filter((msg) => msg.sender_user_id === userId)
 
       const unsyncedHistory = unsyncedUserMessages.map((msg) => toSyncMessage(msg, userId))

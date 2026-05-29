@@ -90,7 +90,8 @@ function trimToBudget(
           high = mid - 1
         }
       }
-      lastMessage.parts[0].text = lastPart.text.slice(0, low)
+      const truncatedLast = { ...lastMessage, parts: [{ text: lastPart.text.slice(0, low) }] }
+      trimmed = [...trimmedPrefix, truncatedLast]
     }
   }
 
@@ -332,7 +333,9 @@ export const sendMessageWithAIResponse = async (
       contents: trimmedContents,
       systemInstruction: trimmedSystemInstruction,
       referenceId: buildReferenceId(userMessage._id),
-      unsyncedHistory: options?.unsyncedHistory,
+      // Only send unsyncedHistory when the character has a cloud_id;
+      // otherwise the backend skips the bulk insert and the history is silently dropped.
+      unsyncedHistory: character.cloud_id ? options?.unsyncedHistory : undefined,
       characterId: character.cloud_id ?? undefined,
     })
 
