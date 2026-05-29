@@ -1,5 +1,5 @@
-import { buildSystemInstruction, buildContentHistory } from '../characterPromptBuilder'
-import type { CharacterPromptContext } from '../characterPromptBuilder'
+import { buildSystemInstruction, buildContentHistory } from '../CharacterPromptBuilder'
+import type { CharacterPromptContext } from '../CharacterPromptBuilder'
 import type { IMessage } from 'react-native-gifted-chat'
 
 const baseCharacter = {

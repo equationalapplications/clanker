@@ -1,7 +1,6 @@
 const mockSendMessage = jest.fn()
 const mockSaveAIMessage = jest.fn()
 const mockGenerateVoiceReply = jest.fn()
-const mockBuildChatPrompt = jest.fn()
 const mockGetRecentConversationHistory = jest.fn()
 const mockTriggerConversationSummary = jest.fn()
 
@@ -20,7 +19,6 @@ jest.mock('~/services/voiceReplyService', () => ({
 jest.mock('~/services/aiChatService', () => {
   return {
     Character: {},
-    buildChatPrompt: (...args: unknown[]) => mockBuildChatPrompt(...args),
     getRecentConversationHistory: (...args: unknown[]) => mockGetRecentConversationHistory(...args),
     triggerConversationSummary: (...args: unknown[]) => mockTriggerConversationSummary(...args),
   }
@@ -53,7 +51,6 @@ describe('sendVoiceMessage', () => {
     jest.clearAllMocks()
     queryClient.clear()
 
-    mockBuildChatPrompt.mockReturnValue('PROMPT')
     mockGetRecentConversationHistory.mockReturnValue([
       {
         _id: '1',
@@ -99,14 +96,15 @@ describe('sendVoiceMessage', () => {
       expect.objectContaining({ text: 'spoken message' }),
     )
 
-    expect(mockBuildChatPrompt).toHaveBeenCalledTimes(1)
-    expect(mockGenerateVoiceReply).toHaveBeenCalledWith({
-      prompt: 'PROMPT',
-      characterVoice: 'Kore',
-      characterTraits: 'kind',
-      characterEmotions: 'happy',
-      referenceId: expect.any(String),
-    })
+    expect(mockGenerateVoiceReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining('spoken message'),
+        characterVoice: 'Kore',
+        characterTraits: 'kind',
+        characterEmotions: 'happy',
+        referenceId: expect.any(String),
+      }),
+    )
 
     expect(mockSaveAIMessage).toHaveBeenCalledWith(
       'char-1',

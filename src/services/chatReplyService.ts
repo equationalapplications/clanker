@@ -2,7 +2,9 @@ import { appCheckReady, generateReplyFn } from '~/config/firebaseConfig'
 import type { SyncMessage } from '~/services/syncMessage'
 
 interface GenerateChatReplyInput {
-  prompt: string
+  prompt?: string
+  contents?: unknown[]
+  systemInstruction?: string
   referenceId?: string
   unsyncedHistory?: SyncMessage[]
   characterId?: string  // forwarded to Firebase for bulk insert
@@ -26,23 +28,49 @@ export interface GenerateChatReplyResult {
 
 export async function generateChatReply({
   prompt,
+  contents,
+  systemInstruction,
   referenceId,
   unsyncedHistory,
   characterId,
 }: GenerateChatReplyInput): Promise<GenerateChatReplyResult> {
-  const trimmedPrompt = prompt.trim()
-  if (!trimmedPrompt) {
-    throw new Error('Prompt must be non-empty')
+  const trimmedPrompt = typeof prompt === 'string' ? prompt.trim() : ''
+
+  if (!trimmedPrompt && contents === undefined) {
+    throw new Error('Prompt or structured contents are required')
+  }
+
+  if (contents !== undefined) {
+    if (!Array.isArray(contents) || contents.length === 0) {
+      throw new Error('contents must be a non-empty array when provided')
+    }
+
+    if (typeof systemInstruction !== 'string' || !systemInstruction.trim()) {
+      throw new Error('systemInstruction must be a non-empty string when contents are provided')
+    }
   }
 
   await appCheckReady
 
-  const result = await generateReplyFn({
-    prompt: trimmedPrompt,
+  const payload: Record<string, unknown> = {
     referenceId,
     unsyncedHistory,
     characterId,
-  })
+  }
+
+  if (trimmedPrompt) {
+    payload.prompt = trimmedPrompt
+  }
+
+  if (contents !== undefined) {
+    payload.contents = contents
+  }
+
+  if (typeof systemInstruction === 'string') {
+    payload.systemInstruction = systemInstruction.trim()
+  }
+
+  const result = await generateReplyFn(payload)
 
   const data = result.data as GenerateReplyCallableResponse
   if (!data?.reply || typeof data.reply !== 'string') {

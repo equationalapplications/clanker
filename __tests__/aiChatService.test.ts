@@ -37,9 +37,9 @@ jest.mock('~/utilities/reportError', () => ({
   reportError: (...args: unknown[]) => mockReportError(...args),
 }))
 
-import { buildChatPrompt, sendMessageWithAIResponse } from '~/services/aiChatService'
+import { sendMessageWithAIResponse } from '~/services/aiChatService'
 
-describe('buildChatPrompt', () => {
+describe('sendMessageWithAIResponse', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockGetCharacter.mockResolvedValue(null)
@@ -96,39 +96,43 @@ describe('buildChatPrompt', () => {
     expect(mockReportError).toHaveBeenCalledWith(writeError, 'wiki:char-1:write:observation')
   })
 
-  it('prepends memory block before conversation history when memoryBlock provided', () => {
+  it('passes memoryBlock into the system instruction when memoryBlock is provided', async () => {
     const memoryBlock = '[MEMORY]\nFacts:\n  - [certain] User prefers morning workouts.\n[/MEMORY]'
-    const prompt = buildChatPrompt(
-      'How am I doing?',
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'All good.',
+      remainingCredits: null,
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-04-27T00:00:00.000Z',
+    })
+
+    await sendMessageWithAIResponse(
       {
-        characterName: 'Nova',
-        characterPersonality: 'Friendly coach',
-        characterTraits: 'calm encouraging',
-        conversationHistory: [
-          {
-            role: 'user',
-            content: 'We talked about training yesterday.',
-          },
-        ],
+        _id: 'msg-memory',
+        text: 'How am I doing?',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any,
+      {
+        id: 'char-1',
+        name: 'Nova',
+        appearance: 'avatar',
+        traits: 'calm',
+        emotions: 'encouraging',
+        context: 'friendly coach',
+      },
+      'user-1',
+      [] as any,
+      {
         memoryBlock,
       },
     )
 
-    expect(prompt).toContain('[MEMORY]')
-    expect(prompt).toContain('User prefers morning workouts.')
-    expect(prompt.indexOf('[MEMORY]')).toBeLessThan(prompt.indexOf('Conversation history:'))
-  })
-
-  it('preserves characterName cue suffix when prompt exceeds budget', () => {
-    const longMessage = 'x'.repeat(12_000)
-    const prompt = buildChatPrompt(longMessage, {
-      characterName: 'Nova',
-      characterPersonality: 'Friendly coach',
-      characterTraits: 'calm',
-      conversationHistory: [],
-    })
-    expect(prompt.length).toBeLessThanOrEqual(12_000)
-    expect(prompt.endsWith('\nNova:')).toBe(true)
+    expect(mockGenerateChatReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemInstruction: expect.stringContaining('[MEMORY]'),
+      }),
+    )
   })
 
   it('injects provided memoryBlock into prompt and dispatches write observation post-turn', async () => {
@@ -173,7 +177,7 @@ describe('buildChatPrompt', () => {
 
     expect(mockGenerateChatReply).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: expect.stringContaining('[MEMORY]'),
+        systemInstruction: expect.stringContaining('[MEMORY]'),
       }),
     )
     expect(mockOnWrite).toHaveBeenCalledWith('char-1', expect.any(String))
@@ -211,8 +215,10 @@ describe('buildChatPrompt', () => {
       {},
     )
 
-    const prompt: string = mockGenerateChatReply.mock.calls[0][0].prompt
-    expect((prompt.match(/Hello duplicate test/g) ?? []).length).toBe(1)
+    const callArg = mockGenerateChatReply.mock.calls[0][0]
+    expect(callArg.contents).toBeDefined()
+    expect(callArg.contents).toHaveLength(1)
+    expect(callArg.contents[0].parts[0].text).toBe('Hello duplicate test')
   })
 
   it('observation chunk ends with character reply, not just user message', async () => {

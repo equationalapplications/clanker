@@ -7,6 +7,7 @@ import {
 } from '~/database/messageDatabase'
 import { getCharacter as getLocalCharacter, updateCharacter } from '~/database/characterDatabase'
 import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
+import { buildSystemInstruction, buildContentHistory } from '~/services/CharacterPromptBuilder'
 import { summarizeText } from '~/services/summarizeTextService'
 import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
 import { onlineManager } from '@tanstack/react-query'
@@ -235,75 +236,6 @@ export async function triggerConversationSummary(character: Character, userId: s
   }
 }
 
-export function buildChatPrompt(userMessage: string, context: ChatContext): string {
-  const characterName = truncateText(context.characterName, MAX_CHARACTER_NAME_LENGTH)
-  const characterPersonality = truncateText(
-    context.characterPersonality,
-    MAX_CHARACTER_PERSONALITY_LENGTH,
-  )
-  const characterTraits = truncateText(context.characterTraits, MAX_CHARACTER_TRAITS_LENGTH)
-  const boundedUserMessage = truncateText(userMessage, MAX_USER_MESSAGE_LENGTH)
-  const memoryBlock = context.memoryBlock ?? ''
-
-  // Start with full conversation history, then trim iteratively if prompt exceeds budget
-  let conversationHistory = buildConversationHistory(
-    context.conversationHistory,
-    Math.max(1000, MAX_CHAT_PROMPT_LENGTH - 2000), // Initial estimate
-  )
-
-  let prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
-
-Personality: ${characterPersonality}
-Traits: ${characterTraits}
-
-Instructions:
-- Respond as ${characterName} would, staying true to the personality and traits
-- Keep responses conversational and engaging
-- Respond naturally and authentically to the user's message
-- Don't break character or mention that you're an AI
-- Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
-
-${memoryBlock ? `${memoryBlock}\n\n` : ''}Conversation history:
-${conversationHistory}
-
-User: ${boundedUserMessage}
-${characterName}:`
-
-  // If prompt exceeds budget, iteratively trim conversation history from oldest entries
-  while (prompt.length > MAX_CHAT_PROMPT_LENGTH && conversationHistory.length > 0) {
-    // Find the first newline boundary and remove the first message
-    const firstNewline = conversationHistory.indexOf('\n')
-    if (firstNewline === -1) {
-      conversationHistory = ''
-    } else {
-      conversationHistory = conversationHistory.slice(firstNewline + 1).trimStart()
-    }
-
-    prompt = `You are ${characterName}, a virtual friend chatbot with the following personality:
-
-Personality: ${characterPersonality}
-Traits: ${characterTraits}
-
-Instructions:
-- Respond as ${characterName} would, staying true to the personality and traits
-- Keep responses conversational and engaging
-- Respond naturally and authentically to the user's message
-- Don't break character or mention that you're an AI
-- Keep responses reasonably brief (1-3 sentences unless the conversation calls for more)
-
-${memoryBlock ? `${memoryBlock}\n\n` : ''}Conversation history:
-${conversationHistory}
-
-User: ${boundedUserMessage}
-${characterName}:`
-  }
-
-  if (prompt.length <= MAX_CHAT_PROMPT_LENGTH) return prompt
-  // Preserve the model-cue suffix ("\nCharacterName:") so the model always knows whose turn it is
-  const suffix = `\n${characterName}:`
-  return prompt.slice(0, MAX_CHAT_PROMPT_LENGTH - suffix.length) + suffix
-}
-
 function buildIntroductionPrompt(
   characterName: string,
   characterPersonality: string,
@@ -382,12 +314,23 @@ export const sendMessageWithAIResponse = async (
     const aiResponseId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     // 4. Generate AI response through secure cloud function
-    const prompt = buildChatPrompt(userMessage.text, chatContext)
+    const systemInstruction = buildSystemInstruction({
+      character,
+      userId,
+      memoryBlock,
+    })
+
+    const contents = [
+      ...buildContentHistory(priorHistory, userId),
+      { role: 'user' as const, parts: [{ text: userMessage.text }] },
+    ]
+
     const aiResponse = await generateChatReply({
-      prompt,
+      contents,
+      systemInstruction,
       referenceId: buildReferenceId(userMessage._id),
       unsyncedHistory: options?.unsyncedHistory,
-      characterId: character.cloud_id ?? undefined,  // needed for cloud bulk insert; must be UUID
+      characterId: character.cloud_id ?? undefined,
     })
 
     // 5. Save AI response to local database (mark as synced — cloud reply is immediately synced)

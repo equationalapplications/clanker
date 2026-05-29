@@ -4,7 +4,6 @@ import { messageKeys } from '~/hooks/useMessages'
 import { sendMessage } from '~/services/messageService'
 import { generateVoiceReply } from '~/services/voiceReplyService'
 import {
-  buildChatPrompt,
   getRecentConversationHistory,
   triggerConversationSummary,
   type UsageSnapshot,
@@ -54,15 +53,7 @@ export async function sendVoiceMessage(
     },
   })
 
-  const prompt = buildChatPrompt(text, {
-    characterName: character.name || 'Character',
-    characterPersonality: character.context || character.appearance || '',
-    characterTraits: `${character.traits ?? ''} ${character.emotions ?? ''}`.trim(),
-    conversationHistory: getRecentConversationHistory(conversationHistory, 10).map((msg) => ({
-      role: msg.user._id === userId ? 'user' : 'assistant',
-      content: msg.text,
-    })),
-  })
+  const prompt = buildVoicePrompt(text, character, conversationHistory, userId)
 
   const voiceResult = await generateVoiceReply({
     prompt,
@@ -108,4 +99,31 @@ export async function sendVoiceMessage(
       verifiedAt: voiceResult.verifiedAt,
     },
   }
+}
+
+function buildVoicePrompt(
+  userText: string,
+  character: VoiceCharacter,
+  conversationHistory: IMessage[],
+  userId: string,
+): string {
+  const recentHistory = getRecentConversationHistory(conversationHistory, 10)
+    .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
+    .join('\n')
+
+  const characterPersonality = character.context || character.appearance || ''
+  const characterTraits = `${character.traits ?? ''} ${character.emotions ?? ''}`.trim()
+
+  return `You are ${character.name}, a virtual friend chatbot.
+
+Personality: ${characterPersonality}
+Traits: ${characterTraits}
+
+Instructions:
+- Respond as ${character.name} would, staying true to the personality and traits
+- Respond naturally and conversationally
+- Do not reveal you are an AI
+
+${recentHistory ? `Conversation history:\n${recentHistory}\n\n` : ''}User: ${userText}
+${character.name}:`
 }
