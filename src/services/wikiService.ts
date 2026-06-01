@@ -104,6 +104,7 @@ export async function writeToWiki(
   event: { event_type: 'observation' | 'decision' | 'action' | 'outcome'; summary: string },
 ): Promise<void> {
   await wiki.write(entityId, event)
+  clearWikiNoResultCache(entityId)
 }
 
 const WIKI_METADATA_TABLE = `"${TABLE_PREFIX}meta"`

@@ -8,7 +8,7 @@
 **Related Docs:**
 - Phase 1: [Edge Agent Chat Architecture](2026-05-28-edge-agent-chat-architecture.md)
 - Phase 2: [Manifest Override + Local `search_memory`](2026-05-28-manifest-override-memory-search-design.md)
-- Implementation Plan: [2026-06-01-edge-write-observation.md](../plans/2026-06-01-edge-write-observation.md)
+- Implementation Plan: [2026-06-01-edge-write-observation-plan.md](../plans/2026-06-01-edge-write-observation-plan.md)
 
 ---
 

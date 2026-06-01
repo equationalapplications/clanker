@@ -1,7 +1,7 @@
 # Manifest Override Pattern + Local `search_memory` Tool
 
 **Date:** 2026-05-28
-**Status:** Implementeed
+**Status:** Implemented
 **Branch:** `main` (formerly `kv/fixes`)
 **Approach:** Minimal Scope + Options Injection (Option B)
 

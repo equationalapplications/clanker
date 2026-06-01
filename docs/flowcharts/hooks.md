@@ -414,6 +414,9 @@ graph LR
   createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
 (edgeToolExecutors.ts)"] --> readFromWiki__src_services_wikiService_ts["readFromWiki
 (wikiService.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> writeToWiki__src_services_wikiService_ts["writeToWiki
+(wikiService.ts)"]
   generateImageViaCallable__src_services_imageGenerationService_ts["generateImageViaCallable
 (imageGenerationService.ts)"] --> generateImageFn__src_config_firebaseConfig_ts["generateImageFn
 (firebaseConfig.ts)"]

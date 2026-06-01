@@ -288,6 +288,9 @@ graph LR
   createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
 (edgeToolExecutors.ts)"] --> readFromWiki__src_services_wikiService_ts["readFromWiki
 (wikiService.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> writeToWiki__src_services_wikiService_ts["writeToWiki
+(wikiService.ts)"]
   parseResponse__src_services_imageGenerationService_ts["parseResponse
 (imageGenerationService.ts)"] --> normalizeBase64__src_services_imageGenerationService_ts["normalizeBase64
 (imageGenerationService.ts)"]
