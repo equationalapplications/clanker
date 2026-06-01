@@ -53,6 +53,7 @@ async function bulkInsertUnsynced(
   items: unknown[],
 ): Promise<void> {
   for (const raw of items) {
+    if (typeof raw !== 'object' || raw === null) continue
     const item = raw as UnsyncedItem
     if (item.type === 'task') {
       await db.insert(tasks).values({
@@ -190,10 +191,11 @@ export function createApp(options: AppOptions) {
   }
 
   app.post('/agent/run', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    try {
     const parseResult = z
       .object({
-        message: z.string().min(1),
-        characterId: z.string().min(1),
+        message: z.string().min(1).trim(),
+        characterId: z.string().min(1).trim(),
         unsyncedHistory: z.array(z.unknown()).optional(),
         history: z.array(z.unknown()).optional(),
       })
@@ -231,6 +233,10 @@ export function createApp(options: AppOptions) {
 
     const result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history })
     res.json(result)
+    } catch (err) {
+      console.error('agent/run error:', err)
+      res.status(500).json({ error: 'Internal server error' })
+    }
   })
 
   return app

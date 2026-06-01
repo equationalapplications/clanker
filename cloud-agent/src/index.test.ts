@@ -14,7 +14,7 @@ function makeMockDb(queryRowSets: InsertedRow[][] = []) {
   return {
     _inserted: inserted,
     insert: (_t: unknown) => ({
-      values: async (row: InsertedRow) => { inserted.push(row); return { onConflictDoNothing } },
+      values: (row: InsertedRow) => { inserted.push(row); return { onConflictDoNothing } },
       onConflictDoNothing,
     }),
     select: (_fields?: unknown) => ({
