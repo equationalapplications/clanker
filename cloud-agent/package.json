@@ -1,0 +1,30 @@
+{
+  "name": "clanker-cloud-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "NODE_ENV=test npm run build && NODE_ENV=test node --test --test-reporter spec \"dist/**/*.test.js\""
+  },
+  "dependencies": {
+    "@google/adk": "^1.1.0",
+    "@google/genai": "^1.50.1",
+    "@google-cloud/cloud-sql-connector": "^1.10.0",
+    "drizzle-orm": "^0.45.2",
+    "express": "^4.19.2",
+    "firebase-admin": "^13.8.0",
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.19.17",
+    "@types/pg": "^8.20.0",
+    "@types/supertest": "^6.0.2",
+    "supertest": "^7.0.0",
+    "tsx": "^4.9.3",
+    "typescript": "^6.0.3"
+  }
+}
