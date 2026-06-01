@@ -92,8 +92,7 @@ export const clankerWriteObservationSchema = {
 
 ### 5.2 `src/services/wikiService.ts`
 
-Export a thin `writeToWiki` helper after `readFromWiki`. It is intentionally minimal — no caching, no no-result tracking, no retry. The write path does not need any of that.
-
+Export a thin `writeToWiki` helper after `readFromWiki`. It is intentionally minimal — no retry logic; it also clears the per-entity “no result” cache so newly written observations can be discovered immediately.
 ```typescript
 export async function writeToWiki(
   wiki: Wiki,
