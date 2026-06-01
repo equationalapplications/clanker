@@ -24,6 +24,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
+    "edge-evals": "jest --testRegex '.*\\.int\\.test\\.ts$' --runInBand",
     "docs:charts": "node scripts/generate-charts.js",
     "adb": "adb reverse tcp:8081 tcp:8081",
     "predeploy": "npx expo export --platform web --clear",
