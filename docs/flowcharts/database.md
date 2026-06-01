@@ -78,6 +78,9 @@ graph LR
   initializeDatabase__src_database_index_ts["initializeDatabase
 (index.ts)"] --> applyInitializationPlan__src_database_index_ts["applyInitializationPlan
 (index.ts)"]
+  initializeDatabase__src_database_index_ts["initializeDatabase
+(index.ts)"] --> initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"]
   applyInitializationPlan__src_database_index_ts["applyInitializationPlan
 (index.ts)"] --> runMigrations__src_database_index_ts["runMigrations
 (index.ts)"]
@@ -171,6 +174,18 @@ graph LR
   markMessagesAsSynced__src_database_messageDatabase_ts["markMessagesAsSynced
 (messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> getSourceTypeEnumMigrationSql__src_services_wikiService_ts["getSourceTypeEnumMigrationSql
+(wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> setupWiki__src_services_wikiService_ts["setupWiki
+(wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> ensureWikiEmbeddingMigration__src_services_wikiService_ts["ensureWikiEmbeddingMigration
+(wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> markWikiEmbeddingMigrationComplete__src_services_wikiService_ts["markWikiEmbeddingMigrationComplete
+(wikiService.ts)"]
   schema__src_database_schema_ts["schema
 (schema.ts)"] --> __constants_voiceDefaults["voiceDefaults
 (constants)"]

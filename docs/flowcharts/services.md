@@ -172,6 +172,9 @@ graph LR
 (characterSyncService.ts)"] --> getAllCharactersIncludingDeleted__src_database_characterDatabase_ts["getAllCharactersIncludingDeleted
 (characterDatabase.ts)"]
   syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
+(characterSyncService.ts)"] --> getWiki__src_services_wikiService_ts["getWiki
+(wikiService.ts)"]
+  syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
 (characterSyncService.ts)"] --> wikiSync__src_services_apiClient_ts["wikiSync
 (apiClient.ts)"]
   syncWikiForCloud__src_services_characterSyncService_ts["syncWikiForCloud
@@ -282,6 +285,12 @@ graph LR
   loadDefaultAvatarBase64__src_services_defaultAvatarService_ts["loadDefaultAvatarBase64
 (defaultAvatarService.ts)"] --> loadDefaultCharacterAvatar__src_utilities_loadDefaultAvatar_ts["loadDefaultCharacterAvatar
 (loadDefaultAvatar.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> readFromWiki__src_services_wikiService_ts["readFromWiki
+(wikiService.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> writeToWiki__src_services_wikiService_ts["writeToWiki
+(wikiService.ts)"]
   parseResponse__src_services_imageGenerationService_ts["parseResponse
 (imageGenerationService.ts)"] --> normalizeBase64__src_services_imageGenerationService_ts["normalizeBase64
 (imageGenerationService.ts)"]
@@ -393,12 +402,45 @@ graph LR
   createWikiLlmProvider__src_services_wikiLlmProvider_ts["createWikiLlmProvider
 (wikiLlmProvider.ts)"] --> generateEmbedding__src_services_apiClient_ts["generateEmbedding
 (apiClient.ts)"]
+  stop__src_services_wikiOrchestrator_ts["stop
+(wikiOrchestrator.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
+(wikiService.ts)"]
   syncAll__src_services_wikiOrchestrator_ts["syncAll
 (wikiOrchestrator.ts)"] --> getOrSpawn__src_services_wikiOrchestrator_ts["getOrSpawn
 (wikiOrchestrator.ts)"]
   syncAll__src_services_wikiOrchestrator_ts["syncAll
 (wikiOrchestrator.ts)"] --> stop__src_services_wikiOrchestrator_ts["stop
 (wikiOrchestrator.ts)"]
+  readFromWiki__src_services_wikiService_ts["readFromWiki
+(wikiService.ts)"] --> getWikiNoResultCache__src_services_wikiService_ts["getWikiNoResultCache
+(wikiService.ts)"]
+  readFromWiki__src_services_wikiService_ts["readFromWiki
+(wikiService.ts)"] --> addWikiNoResultQuery__src_services_wikiService_ts["addWikiNoResultQuery
+(wikiService.ts)"]
+  writeToWiki__src_services_wikiService_ts["writeToWiki
+(wikiService.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
+(wikiService.ts)"]
+  ensureWikiEmbeddingMigration__src_services_wikiService_ts["ensureWikiEmbeddingMigration
+(wikiService.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
+(wikiService.ts)"]
+  setupWiki__src_services_wikiService_ts["setupWiki
+(wikiService.ts)"] --> createWikiLlmProvider__src_services_wikiLlmProvider_ts["createWikiLlmProvider
+(wikiLlmProvider.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> getSourceTypeEnumMigrationSql__src_services_wikiService_ts["getSourceTypeEnumMigrationSql
+(wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> setupWiki__src_services_wikiService_ts["setupWiki
+(wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> ensureWikiEmbeddingMigration__src_services_wikiService_ts["ensureWikiEmbeddingMigration
+(wikiService.ts)"]
+  initWiki__src_services_wikiService_ts["initWiki
+(wikiService.ts)"] --> markWikiEmbeddingMigrationComplete__src_services_wikiService_ts["markWikiEmbeddingMigrationComplete
+(wikiService.ts)"]
+  _resetWikiForTests__src_services_wikiService_ts["_resetWikiForTests
+(wikiService.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
+(wikiService.ts)"]
   getMessageCount__src_database_messageDatabase_ts["getMessageCount
 (messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
