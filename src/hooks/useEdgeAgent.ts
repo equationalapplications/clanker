@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { GoogleGenAI } from '@google/genai'
 import type { Content, Part, ToolListUnion } from '@google/genai'
 import type { IMessage } from 'react-native-gifted-chat'
-import { clankerTimeSchema, clankerEscalationSchema, clankerMemorySchema, clankerWriteObservationSchema } from '~/services/clankerManifests'
+import { clankerTimeSchema, clankerEscalationSchema, clankerMemorySchema, clankerWriteObservationSchema, clankerCreateTaskSchema, clankerListTasksSchema } from '~/services/clankerManifests'
 import type { Character } from '~/services/aiChatService'
 import type { Wiki } from '~/services/wikiService'
 import { buildSystemInstruction, buildContentHistory } from '~/services/CharacterPromptBuilder'
@@ -60,7 +60,7 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
         { role: 'user', parts: [{ text: userText }] },
       ] as Content[]
 
-      const functionDeclarations = [clankerTimeSchema]
+      const functionDeclarations = [clankerTimeSchema, clankerCreateTaskSchema, clankerListTasksSchema]
       if (wiki) {
         functionDeclarations.push(clankerMemorySchema)
         functionDeclarations.push(clankerWriteObservationSchema)
