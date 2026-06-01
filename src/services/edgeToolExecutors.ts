@@ -1,4 +1,4 @@
-import { readFromWiki } from './wikiService'
+import { readFromWiki, writeToWiki } from './wikiService'
 import type { Wiki } from './wikiService'
 
 export type ToolExecutor = (args: Record<string, unknown>) => unknown | Promise<unknown>
@@ -31,6 +31,17 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
       } catch (error) {
         console.error('[EdgeAgent] Local memory search failed:', error)
         return 'No relevant memories found.'
+      }
+    },
+    write_observation: async (args) => {
+      try {
+        const summary = typeof args.summary === 'string' ? args.summary.trim() : ''
+        if (!wiki || !summary) return 'Failed to record observation: Invalid input or missing database.'
+        await writeToWiki(wiki, characterId, { event_type: 'observation', summary })
+        return 'Observation recorded successfully.'
+      } catch (error) {
+        console.error('[EdgeAgent] write_observation failed:', error)
+        return 'Failed to record observation due to an internal error.'
       }
     },
   }
