@@ -1,5 +1,7 @@
 import { readFromWiki, writeToWiki } from './wikiService'
 import type { Wiki } from './wikiService'
+import { createTask, listTasks } from '~/database/taskDatabase'
+import type { LocalTask } from '~/database/taskDatabase'
 
 export type ToolExecutor = (args: Record<string, unknown>) => unknown | Promise<unknown>
 
@@ -42,6 +44,29 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
       } catch (error) {
         console.error('[EdgeAgent] write_observation failed:', error)
         return 'Failed to record observation due to an internal error.'
+      }
+    },
+    create_task: async (args) => {
+      try {
+        const title = typeof args.title === 'string' ? args.title.trim() : ''
+        if (!title) return 'Failed to create task: title is required.'
+        await createTask(characterId, title)
+        return 'Task created successfully.'
+      } catch (error) {
+        console.error('[EdgeAgent] create_task failed:', error)
+        return 'Failed to create task due to an internal error.'
+      }
+    },
+    list_tasks: async () => {
+      try {
+        const tasks = await listTasks(characterId)
+        if (tasks.length === 0) return 'No tasks found.'
+        return JSON.stringify(
+          tasks.map((t: LocalTask) => ({ id: t.id, title: t.title, status: t.status })),
+        )
+      } catch (error) {
+        console.error('[EdgeAgent] list_tasks failed:', error)
+        return 'Failed to list tasks due to an internal error.'
       }
     },
   }
