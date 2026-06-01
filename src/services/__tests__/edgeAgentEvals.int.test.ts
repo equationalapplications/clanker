@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
-import type { Content } from '@google/genai'
+import type { Content, ToolListUnion } from '@google/genai'
 import { buildSystemInstruction } from '../CharacterPromptBuilder'
 import {
   clankerTimeSchema,
@@ -32,7 +32,7 @@ const ALL_TOOLS = [
       clankerListTasksSchema,
     ],
   },
-]
+] as unknown as ToolListUnion
 
 async function runEdgeEval(userText: string) {
   const apiKey = process.env.GOOGLE_GENAI_API_KEY
@@ -48,7 +48,6 @@ async function runEdgeEval(userText: string) {
     config: {
       systemInstruction,
       tools: ALL_TOOLS,
-      generationConfig: { temperature: 0 },
     },
   })
 }
