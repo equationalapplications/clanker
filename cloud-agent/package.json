@@ -16,7 +16,8 @@
     "drizzle-orm": "^0.45.2",
     "express": "^4.19.2",
     "firebase-admin": "^13.8.0",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

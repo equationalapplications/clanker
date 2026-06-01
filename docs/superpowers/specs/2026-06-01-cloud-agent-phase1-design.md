@@ -104,6 +104,8 @@ CREATE INDEX idx_tasks_character_user ON tasks(character_id, user_id);
 
 Note: `user_id` is added to the Cloud SQL version (absent in local SQLite) to support the security model WHERE clause filtering.
 
+**Status mapping:** The local SQLite `tasks` table uses `status DEFAULT 'pending'`, but Cloud SQL `tasks` only allows `('open', 'done', 'abandoned')`. During `unsyncedHistory` sync, `'pending'` is mapped to `'open'` in application code.
+
 ---
 
 ## 5. Dockerfile
@@ -182,14 +184,15 @@ Protected by `requireFirebaseAuth`.
 
 **Handler execution order:**
 
-1. `requireFirebaseAuth` → `req.uid`
-2. Bulk insert `unsyncedHistory` into Cloud SQL (tasks + `llm_wiki_events`)
-3. Fetch character profile (`name`, `appearance`, `traits`, `emotions`, `context`) from DB
-4. Direct DB query: full-text search `llm_wiki_events` for `message` → relevant background facts (zero-latency RAG pre-fetch; happens before ADK session exists, not via ADK tool)
-5. Assemble `systemInstruction` string from character profile + RAG facts
-6. `buildAgent(db, req.uid, characterId, systemInstruction)`
-7. `new Runner(agent).run({ message, history })`
-8. Return `{ reply: result.text, toolCalls: result.toolCallNames }`
+1. `requireFirebaseAuth` → `req.uid` (Firebase UID)
+2. Look up `users.id` (UUID) by `users.firebase_uid = req.uid` → `userId`; return 401 if no match
+3. Fetch character profile (`name`, `appearance`, `traits`, `emotions`, `context`) with `WHERE characters.id = characterId AND characters.user_id = userId`; return 404 if no match
+4. Bulk insert `unsyncedHistory` into Cloud SQL (tasks + `llm_wiki_events`) — after ownership verified
+5. Direct DB query: full-text search `llm_wiki_events` for `message` → relevant background facts (zero-latency RAG pre-fetch; happens before ADK session exists, not via ADK tool)
+6. Assemble `systemInstruction` string from character profile + RAG facts
+7. `buildAgent(db, userId, characterId, systemInstruction)`
+8. `new Runner(agent).run({ message, history })` — seeds session with prior turns if `history` provided
+9. Return `{ reply: result.text, toolCalls: result.toolCallNames }`
 
 Each request is stateless. No session stored server-side. Cloud Run scales horizontally.
 

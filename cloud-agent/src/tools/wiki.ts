@@ -13,18 +13,24 @@ export function wikiReadTool(db: DrizzleClient, characterId: string): FunctionTo
     }),
     execute: async (args: unknown): Promise<string> => {
       const { query } = args as { query: string }
-      const rows = await db
-        .select({ summary: llmWikiEvents.summary })
-        .from(llmWikiEvents)
-        .where(
-          and(
-            eq(llmWikiEvents.entityId, characterId),
-            ilike(llmWikiEvents.summary, `%${query}%`)
+      if (!query?.trim()) return 'Failed to search memory: query is required.'
+      try {
+        const rows = await db
+          .select({ summary: llmWikiEvents.summary })
+          .from(llmWikiEvents)
+          .where(
+            and(
+              eq(llmWikiEvents.entityId, characterId),
+              ilike(llmWikiEvents.summary, `%${query.trim()}%`)
+            )
           )
-        )
-        .limit(5)
-      if (rows.length === 0) return ''
-      return rows.map((r) => `- ${r.summary}`).join('\n')
+          .limit(5)
+        if (rows.length === 0) return ''
+        return rows.map((r) => `- ${r.summary}`).join('\n')
+      } catch (error) {
+        console.error('[CloudAgent] wiki_read failed:', error)
+        return 'Failed to search memory due to an internal error.'
+      }
     },
   })
 }

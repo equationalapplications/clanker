@@ -1,11 +1,11 @@
 import express, { Request, Response, NextFunction } from 'express'
 import admin from 'firebase-admin'
 import { eq, and, ilike } from 'drizzle-orm'
-import { InMemoryRunner, isFinalResponse } from '@google/adk'
+import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
 import type { Content } from '@google/genai'
 import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
-import { characters, llmWikiEvents, tasks } from './db/schema.js'
+import { users, characters, llmWikiEvents, tasks } from './db/schema.js'
 import type { DrizzleClient } from './db/client.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ export interface RunAgentParams {
   characterId: string
   systemInstruction: string
   message: string
-  _history: Content[]
+  history: Content[]
 }
 
 interface AppOptions {
@@ -30,6 +30,12 @@ type UnsyncedWikiEvent = { type: 'wiki_event'; id: string; eventType: string; su
 type UnsyncedItem = UnsyncedTask | UnsyncedWikiEvent
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Maps local SQLite task status 'pending' to cloud-side 'open'; local uses
+// 'pending' as the default but Cloud SQL tasks only allow ('open','done','abandoned').
+function toCloudStatus(status: string): string {
+  return status === 'pending' ? 'open' : (status || 'open')
+}
 
 async function bulkInsertUnsynced(
   db: DrizzleClient,
@@ -45,7 +51,7 @@ async function bulkInsertUnsynced(
         characterId,
         userId,
         title: item.title,
-        status: item.status ?? 'open',
+        status: toCloudStatus(item.status),
         createdAt: new Date(item.createdAt * 1000),
         updatedAt: new Date(),
       })
@@ -91,13 +97,33 @@ function assembleSystemInstruction(
 // ── Real agent runner (production) ────────────────────────────────────────────
 
 async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> {
-  const { db, userId, characterId, systemInstruction, message } = params
+  const { db, userId, characterId, systemInstruction, message, history } = params
   const agent = buildAgent(db, userId, characterId, systemInstruction)
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
+  const sessionId = crypto.randomUUID()
+
+  if (history.length > 0) {
+    const session = await runner.sessionService.createSession({
+      appName: 'clanker-cloud-agent',
+      userId,
+      sessionId,
+    })
+    for (const turn of history) {
+      await runner.sessionService.appendEvent({
+        session,
+        event: createEvent({
+          invocationId: crypto.randomUUID(),
+          author: turn.role === 'user' ? 'user' : agent.name,
+          content: turn,
+          actions: createEventActions(),
+        }),
+      })
+    }
+  }
 
   const events = runner.runAsync({
     userId,
-    sessionId: crypto.randomUUID(),
+    sessionId,
     newMessage: { role: 'user', parts: [{ text: message }] },
   })
 
@@ -150,24 +176,33 @@ export function createApp(options: AppOptions) {
   }
 
   app.post('/agent/run', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
-    const { message, characterId, unsyncedHistory = [] } = req.body as {
+    const { message, characterId, unsyncedHistory = [], history = [] } = req.body as {
       message: string
       characterId: string
       unsyncedHistory?: unknown[]
+      history?: Content[]
     }
-    const userId = req.uid!
+    const firebaseUid = req.uid!
+
+    // Map Firebase UID → DB user UUID (users.id is UUID; firebase_uid is the token uid)
+    const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
+    if (!dbUser) { res.status(401).json({ error: 'Unauthorized' }); return }
+    const userId = dbUser.id
+
+    // Verify character exists and belongs to this user before any writes
+    const [character] = await db.select().from(characters).where(
+      and(eq(characters.id, characterId), eq(characters.userId, userId))
+    )
+    if (!character) { res.status(404).json({ error: 'Character not found' }); return }
 
     if (unsyncedHistory.length > 0) {
       await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
     }
 
-    const [character] = await db.select().from(characters).where(eq(characters.id, characterId))
-    if (!character) { res.status(404).json({ error: 'Character not found' }); return }
-
     const wikiContext = await queryWikiContext(db, message, characterId)
     const systemInstruction = assembleSystemInstruction(character, wikiContext)
 
-    const result = await runAgentFn({ db, userId, characterId, systemInstruction, message, _history: [] })
+    const result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history })
     res.json(result)
   })
 

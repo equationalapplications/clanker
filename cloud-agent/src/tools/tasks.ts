@@ -13,18 +13,23 @@ export function createTaskTool(db: DrizzleClient, userId: string, characterId: s
     }),
     execute: async (args: unknown): Promise<string> => {
       const { title } = args as { title: string }
-      if (!title) throw new Error('title is required')
+      if (!title?.trim()) return 'Failed to create task: title is required.'
       const id = crypto.randomUUID()
-      await db.insert(tasks).values({
-        id,
-        characterId,
-        userId,
-        title,
-        status: 'open',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      return JSON.stringify({ taskId: id, title })
+      try {
+        await db.insert(tasks).values({
+          id,
+          characterId,
+          userId,
+          title: title.trim(),
+          status: 'open',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+      } catch (error) {
+        console.error('[CloudAgent] create_task failed:', error)
+        return 'Failed to create task due to an internal error.'
+      }
+      return JSON.stringify({ taskId: id, title: title.trim() })
     },
   })
 }
@@ -34,18 +39,23 @@ export function listTasksTool(db: DrizzleClient, userId: string, characterId: st
     name: 'list_tasks',
     description: 'List all open tasks for the current character.',
     execute: async (_args: unknown): Promise<string> => {
-      const rows = await db
-        .select()
-        .from(tasks)
-        .where(
-          and(
-            eq(tasks.characterId, characterId),
-            eq(tasks.userId, userId),
-            eq(tasks.status, 'open')
+      try {
+        const rows = await db
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.characterId, characterId),
+              eq(tasks.userId, userId),
+              eq(tasks.status, 'open')
+            )
           )
-        )
-        .orderBy(tasks.createdAt)
-      return JSON.stringify(rows)
+          .orderBy(tasks.createdAt)
+        return JSON.stringify(rows)
+      } catch (error) {
+        console.error('[CloudAgent] list_tasks failed:', error)
+        return 'Failed to list tasks due to an internal error.'
+      }
     },
   })
 }

@@ -6,18 +6,21 @@ import type { RunAgentParams } from './index.js'
 
 type InsertedRow = Record<string, unknown>
 
-function makeMockDb(queryRows: InsertedRow[] = []) {
+// Returns different row sets for sequential select().from().where() calls.
+function makeMockDb(queryRowSets: InsertedRow[][] = []) {
   const inserted: InsertedRow[] = []
+  let callIndex = 0
   return {
     _inserted: inserted,
     insert: (_t: unknown) => ({ values: async (row: InsertedRow) => { inserted.push(row) } }),
     select: (_fields?: unknown) => ({
       from: (_table: unknown) => ({
         where: (_cond: unknown) => {
-          const p = Promise.resolve(queryRows)
+          const rows = queryRowSets[callIndex++] ?? []
+          const p = Promise.resolve(rows)
           return Object.assign(p, {
-            limit: (_n: unknown) => Promise.resolve(queryRows),
-            orderBy: (_ord: unknown) => Promise.resolve(queryRows),
+            limit: (_n: unknown) => Promise.resolve(rows),
+            orderBy: (_ord: unknown) => Promise.resolve(rows),
           })
         },
       }),
@@ -25,8 +28,17 @@ function makeMockDb(queryRows: InsertedRow[] = []) {
   } as unknown as DrizzleClient & { _inserted: InsertedRow[] }
 }
 
+const mockUser = {
+  id: 'user-uuid-1',
+  firebaseUid: 'user-1',
+  email: 'test@example.com',
+  displayName: 'Test User',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
+
 const mockCharacter = {
-  id: 'char-1', userId: 'user-1', name: 'Alice',
+  id: 'char-1', userId: 'user-uuid-1', name: 'Alice',
   appearance: null, traits: null, emotions: null, context: null,
   createdAt: new Date(), updatedAt: new Date(),
 }
@@ -75,8 +87,9 @@ test('POST /agent/run returns 401 with invalid token', async () => {
 
 // ── /agent/run ────────────────────────────────────────────────────────────────
 
-test('POST /agent/run passes uid from token to runAgentFn', async () => {
-  const db = makeMockDb([mockCharacter] as InsertedRow[])
+test('POST /agent/run passes DB user UUID (not Firebase UID) to runAgentFn', async () => {
+  // Query order: [user lookup, character lookup, wiki context]
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
   let capturedUserId = ''
   const app = createApp({
     verifyToken: mockVerify,
@@ -87,11 +100,11 @@ test('POST /agent/run passes uid from token to runAgentFn', async () => {
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
     .send({ message: 'hello', characterId: 'char-1' })
-  assert.equal(capturedUserId, 'user-1')
+  assert.equal(capturedUserId, mockUser.id)
 })
 
 test('POST /agent/run returns reply from runAgentFn', async () => {
-  const db = makeMockDb([mockCharacter] as InsertedRow[])
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   const res = await request(app)
     .post('/agent/run')
@@ -101,8 +114,9 @@ test('POST /agent/run returns reply from runAgentFn', async () => {
   assert.equal((res.body as { reply: string }).reply, 'Hello from mock agent')
 })
 
-test('POST /agent/run returns 404 when character not found', async () => {
-  const db = makeMockDb([])
+test('POST /agent/run returns 404 when character not found for this user', async () => {
+  // User found, but character not found (or belongs to another user)
+  const db = makeMockDb([[mockUser] as InsertedRow[], []])
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   const res = await request(app)
     .post('/agent/run')
@@ -111,8 +125,18 @@ test('POST /agent/run returns 404 when character not found', async () => {
   assert.equal(res.status, 404)
 })
 
-test('POST /agent/run bulk-inserts unsyncedHistory tasks', async () => {
-  const db = makeMockDb([mockCharacter] as InsertedRow[])
+test('POST /agent/run returns 401 when Firebase UID has no DB user record', async () => {
+  const db = makeMockDb([[]])
+  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+  const res = await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .send({ message: 'hello', characterId: 'char-1' })
+  assert.equal(res.status, 401)
+})
+
+test('POST /agent/run bulk-inserts unsyncedHistory tasks with DB user UUID', async () => {
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   await request(app)
     .post('/agent/run')
@@ -127,6 +151,25 @@ test('POST /agent/run bulk-inserts unsyncedHistory tasks', async () => {
   const inserted = (db as unknown as { _inserted: InsertedRow[] })._inserted
   const taskRow = inserted.find((r) => r['title'] === 'Buy milk')
   assert.ok(taskRow, 'expected task row to be inserted')
-  assert.equal(taskRow!['userId'], 'user-1')
+  assert.equal(taskRow!['userId'], mockUser.id)
   assert.equal(taskRow!['characterId'], 'char-1')
+})
+
+test('POST /agent/run maps pending status to open during sync', async () => {
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+  await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .send({
+      message: 'hello',
+      characterId: 'char-1',
+      unsyncedHistory: [
+        { type: 'task', id: 'task-2', title: 'Old task', status: 'pending', createdAt: 1700000000 },
+      ],
+    })
+  const inserted = (db as unknown as { _inserted: InsertedRow[] })._inserted
+  const taskRow = inserted.find((r) => r['title'] === 'Old task')
+  assert.ok(taskRow, 'expected task row to be inserted')
+  assert.equal(taskRow!['status'], 'open')
 })
