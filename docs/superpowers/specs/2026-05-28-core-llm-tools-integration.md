@@ -1,7 +1,7 @@
 # Core LLM Tools Integration — Spec
 
 **Date:** 2026-05-28
-**Status:** Ready for implementation (`expo-llm-wiki` PR #39 merged)
+**Status:** Implemented
 **Scope:** Replace hardcoded JSON schemas in `equationalapplications/clanker` with shared manifests from `@equationalapplications/core-llm-tools` — both the Expo frontend and Firebase Functions backend
 
 ---
