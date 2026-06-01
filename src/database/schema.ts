@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 18
+export const SCHEMA_VERSION = 19
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -57,6 +57,7 @@ export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   15: [{ table: 'wiki_entries', skipIfTableMissing: true }],
   16: [{ table: 'wiki_entries', skipIfTableMissing: true }],
   18: [{ table: 'messages', column: 'synced_at' }],
+  19: [{ table: 'tasks', column: 'id' }],
 }
 
 /**
@@ -115,6 +116,18 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(character_id, sender_user_id, recipient_user_id);
   CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
 
+  -- Tasks table
+  CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY NOT NULL,
+    character_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL
+  );
+
+  -- Indexes for tasks
+  CREATE INDEX IF NOT EXISTS idx_tasks_character ON tasks(character_id);
+
   -- Schema version tracking
   CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY,
@@ -151,4 +164,12 @@ DROP TABLE IF EXISTS agent_tasks;
 DROP TABLE IF EXISTS memory_events;
 DROP TABLE IF EXISTS derived_synonyms`.trim(),
   18: `ALTER TABLE messages ADD COLUMN synced_at INTEGER;`,  // NULL = unsynced, Unix timestamp = synced
+  19: `CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY NOT NULL,
+  character_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_character ON tasks(character_id)`,
 }
