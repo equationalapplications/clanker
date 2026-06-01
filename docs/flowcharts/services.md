@@ -417,6 +417,9 @@ graph LR
   readFromWiki__src_services_wikiService_ts["readFromWiki
 (wikiService.ts)"] --> addWikiNoResultQuery__src_services_wikiService_ts["addWikiNoResultQuery
 (wikiService.ts)"]
+  writeToWiki__src_services_wikiService_ts["writeToWiki
+(wikiService.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
+(wikiService.ts)"]
   ensureWikiEmbeddingMigration__src_services_wikiService_ts["ensureWikiEmbeddingMigration
 (wikiService.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
 (wikiService.ts)"]

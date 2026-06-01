@@ -25,6 +25,8 @@ jest.mock('~/services/clankerManifests', () => ({
     description: 'Write observation',
     parameters: { type: 'object', properties: { summary: { type: 'string' } }, required: ['summary'] },
   },
+  clankerCreateTaskSchema: { name: 'create_task', description: 'Create a task', parameters: {} },
+  clankerListTasksSchema: { name: 'list_tasks', description: 'List tasks', parameters: {} },
 }))
 
 // Mock edgeToolExecutors — factory returns a fixed executor map
@@ -415,5 +417,44 @@ describe('useEdgeAgent', () => {
     expect(response?.escalated).toBe(false)
     expect(response?.text).toContain('remember')
     expect(mockGenerateContent).toHaveBeenCalledTimes(2)
+  })
+
+  it('always includes create_task and list_tasks regardless of wiki or isCloudSynced', async () => {
+    mockGenerateContent.mockResolvedValue({ text: 'Hello!', functionCalls: undefined })
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('Hi')
+    })
+
+    const callArgs = mockGenerateContent.mock.calls[0][0]
+    const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
+    const names = functionDeclarations.map((fd) => fd.name)
+    expect(names).toContain('create_task')
+    expect(names).toContain('list_tasks')
+  })
+
+  it('includes create_task and list_tasks alongside escalation and memory when both enabled', async () => {
+    mockGenerateContent.mockResolvedValue({ text: 'Hello!', functionCalls: undefined })
+
+    const mockWiki = {} as any
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: mockWiki }),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('Hi')
+    })
+
+    const callArgs = mockGenerateContent.mock.calls[0][0]
+    const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
+    const names = functionDeclarations.map((fd) => fd.name)
+    expect(names).toContain('create_task')
+    expect(names).toContain('list_tasks')
+    expect(names).toContain('search_memory')
+    expect(names).toContain('escalate_to_cloud_agent')
   })
 })

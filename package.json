@@ -24,6 +24,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
+    "edge-evals": "jest --config jest.evals.config.js --runInBand",
     "docs:charts": "node scripts/generate-charts.js",
     "adb": "adb reverse tcp:8081 tcp:8081",
     "predeploy": "npx expo export --platform web --clear",
@@ -161,7 +162,8 @@
       "<rootDir>/build/",
       "<rootDir>/dist/",
       "<rootDir>/coverage/",
-      "<rootDir>/__tests__/helpers/"
+      "<rootDir>/__tests__/helpers/",
+      ".*\\.int\\.test\\.ts$"
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-firebase/.*|firebase/.*|@firebase/.*)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)"
