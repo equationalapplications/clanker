@@ -1,7 +1,7 @@
 # Manifest Override Pattern + Local `search_memory` Tool
 
 **Date:** 2026-05-28
-**Status:** Retroactive Design Doc (Implemented post-PR #407)
+**Status:** Implemented
 **Branch:** `main` (formerly `kv/fixes`)
 **Approach:** Minimal Scope + Options Injection (Option B)
 

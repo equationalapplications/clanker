@@ -1,7 +1,7 @@
 # Structured Prompt Migration & Legacy Code Deletion — Phase 2 Spec
 
 **Date:** 2026-05-28  
-**Status:** Ready for Implementation  
+**Status:** Implemented
 **Depends on:** `2026-05-28-edge-agent-escalation-handoff.md`  
 **Scope:** Migrate Firebase Cloud Agent to structured `Content[]` arrays, enforce a "Soft Break" for old clients, and delete legacy string concatenation.
 

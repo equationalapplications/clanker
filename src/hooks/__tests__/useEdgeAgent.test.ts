@@ -20,6 +20,11 @@ jest.mock('~/services/clankerManifests', () => ({
     description: 'Search memory',
     parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
   },
+  clankerWriteObservationSchema: {
+    name: 'write_observation',
+    description: 'Write observation',
+    parameters: { type: 'object', properties: { summary: { type: 'string' } }, required: ['summary'] },
+  },
 }))
 
 // Mock edgeToolExecutors — factory returns a fixed executor map
@@ -27,6 +32,7 @@ jest.mock('~/services/edgeToolExecutors', () => ({
   createEdgeToolExecutors: jest.fn().mockReturnValue({
     get_current_time: () => 'Thursday, May 28, 2026 at 10:00 AM PDT',
     search_memory: async () => JSON.stringify({ facts: [{ content: 'User likes tea' }], tasks: [], events: [] }),
+    write_observation: async () => 'Observation recorded successfully.',
   }),
 }))
 
@@ -341,5 +347,73 @@ describe('useEdgeAgent', () => {
     })
 
     expect(createEdgeToolExecutors).toHaveBeenCalledWith(character.id, mockWiki)
+  })
+
+  it('includes write_observation when wiki is provided', async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: 'Got it, I will remember that!',
+      functionCalls: undefined,
+    })
+
+    const mockWiki = {} as any
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: mockWiki }),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('I prefer dark mode.')
+    })
+
+    const callArgs = mockGenerateContent.mock.calls[0][0]
+    const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
+    const names = functionDeclarations.map((fd) => fd.name)
+    expect(names).toContain('write_observation')
+    expect(names).toContain('search_memory')
+  })
+
+  it('does not include write_observation when wiki is null', async () => {
+    mockGenerateContent.mockResolvedValue({
+      text: 'Hello!',
+      functionCalls: undefined,
+    })
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('Hi')
+    })
+
+    const callArgs = mockGenerateContent.mock.calls[0][0]
+    const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
+    const names = functionDeclarations.map((fd) => fd.name)
+    expect(names).not.toContain('write_observation')
+  })
+
+  it('executes write_observation tool and loops to get text reply', async () => {
+    mockGenerateContent
+      .mockResolvedValueOnce({
+        text: undefined,
+        functionCalls: [{ name: 'write_observation', args: { summary: 'User prefers dark mode' } }],
+      })
+      .mockResolvedValueOnce({
+        text: 'Got it, I will remember that!',
+        functionCalls: undefined,
+      })
+
+    const mockWiki = {} as any
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: mockWiki }),
+    )
+
+    let response: { escalated: boolean; text?: string } | undefined
+    await act(async () => {
+      response = await result.current.sendMessage('I prefer dark mode.')
+    })
+
+    expect(response?.escalated).toBe(false)
+    expect(response?.text).toContain('remember')
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2)
   })
 })

@@ -1,7 +1,7 @@
 # Edge Agent Chat Architecture — Spec
 
 **Date:** 2026-05-28
-**Status:** Ready for implementation
+**Status:** Implemented
 **Branch:** `feat/character-prompt`
 **Scope:** Replace the Firebase-only chat path with an ADK-style edge execution loop in Expo. Simple queries (time, greetings) resolve on-device via `@google/genai`. Complex or stateful tasks escalate to the existing Firebase `generateReply` callable.
 

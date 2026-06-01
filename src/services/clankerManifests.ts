@@ -9,7 +9,7 @@ export const clankerTimeSchema = {
 export const clankerEscalationSchema = {
   ...escalateToCloudManifest.schema,
   description:
-    'Escalate complex workflows or writing tasks. CRITICAL: Do NOT use this tool for reading memory, checking the time, or casual chatting.',
+    'Escalate complex workflows or writing tasks. CRITICAL: Do NOT use this tool for checking the time, reading memory, or WRITING/saving observations.',
 }
 
 export const clankerMemorySchema = {
@@ -20,5 +20,21 @@ export const clankerMemorySchema = {
     type: 'object' as const,
     properties: { query: { type: 'string' as const } },
     required: ['query'],
+  },
+}
+
+export const clankerWriteObservationSchema = {
+  name: 'write_observation',
+  description:
+    'Record a new observation about the user into long-term memory. Call this when the user shares a personal detail, preference, or fact that should be remembered across future conversations.',
+  parameters: {
+    type: 'object' as const,
+    properties: {
+      summary: {
+        type: 'string' as const,
+        description: 'The observation to record about the user.',
+      },
+    },
+    required: ['summary'],
   },
 }

@@ -1,11 +1,13 @@
 import { edgeToolExecutors, createEdgeToolExecutors } from '../edgeToolExecutors'
-import { readFromWiki } from '../wikiService'
+import { readFromWiki, writeToWiki } from '../wikiService'
 
 jest.mock('../wikiService', () => ({
   readFromWiki: jest.fn(),
+  writeToWiki: jest.fn(),
 }))
 
 const mockReadFromWiki = readFromWiki as jest.Mock
+const mockWriteToWiki = writeToWiki as jest.Mock
 
 describe('edgeToolExecutors (static map)', () => {
   describe('get_current_time', () => {
@@ -123,5 +125,82 @@ describe('createEdgeToolExecutors', () => {
       const result = await execs['search_memory']({ query: 'coffee' })
       expect(result).toBe('No relevant memories found.')
     })
+  })
+})
+
+describe('createEdgeToolExecutors — write_observation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('write_observation is present in executor map', () => {
+    const execs = createEdgeToolExecutors('char-1', null)
+    expect(typeof execs['write_observation']).toBe('function')
+  })
+
+  it('returns failure message when wiki is null', async () => {
+    const execs = createEdgeToolExecutors('char-1', null)
+    const result = await execs['write_observation']({ summary: 'User likes tea' })
+    expect(result).toBe('Failed to record observation: Invalid input or missing database.')
+    expect(mockWriteToWiki).not.toHaveBeenCalled()
+  })
+
+  it('returns failure message when summary is empty string', async () => {
+    const wiki = {} as any
+    const execs = createEdgeToolExecutors('char-1', wiki)
+    const result = await execs['write_observation']({ summary: '' })
+    expect(result).toBe('Failed to record observation: Invalid input or missing database.')
+    expect(mockWriteToWiki).not.toHaveBeenCalled()
+  })
+
+  it('returns failure message when summary is whitespace only', async () => {
+    const wiki = {} as any
+    const execs = createEdgeToolExecutors('char-1', wiki)
+    const result = await execs['write_observation']({ summary: '   ' })
+    expect(result).toBe('Failed to record observation: Invalid input or missing database.')
+    expect(mockWriteToWiki).not.toHaveBeenCalled()
+  })
+
+  it('returns failure message when summary is missing from args', async () => {
+    const wiki = {} as any
+    const execs = createEdgeToolExecutors('char-1', wiki)
+    const result = await execs['write_observation']({})
+    expect(result).toBe('Failed to record observation: Invalid input or missing database.')
+    expect(mockWriteToWiki).not.toHaveBeenCalled()
+  })
+
+  it('returns failure message when summary is not a string', async () => {
+    const wiki = {} as any
+    const execs = createEdgeToolExecutors('char-1', wiki)
+    const result = await execs['write_observation']({ summary: 42 })
+    expect(result).toBe('Failed to record observation: Invalid input or missing database.')
+    expect(mockWriteToWiki).not.toHaveBeenCalled()
+  })
+
+  it('calls writeToWiki with characterId and observation payload', async () => {
+    mockWriteToWiki.mockResolvedValue(undefined)
+    const wiki = {} as any
+    const execs = createEdgeToolExecutors('char-42', wiki)
+    await execs['write_observation']({ summary: 'User prefers dark mode' })
+    expect(mockWriteToWiki).toHaveBeenCalledWith(wiki, 'char-42', {
+      event_type: 'observation',
+      summary: 'User prefers dark mode',
+    })
+  })
+
+  it('returns success message on successful write', async () => {
+    mockWriteToWiki.mockResolvedValue(undefined)
+    const wiki = {} as any
+    const execs = createEdgeToolExecutors('char-1', wiki)
+    const result = await execs['write_observation']({ summary: 'User likes jazz' })
+    expect(result).toBe('Observation recorded successfully.')
+  })
+
+  it('returns internal error message when writeToWiki throws', async () => {
+    mockWriteToWiki.mockRejectedValue(new Error('SQLite locked'))
+    const wiki = {} as any
+    const execs = createEdgeToolExecutors('char-1', wiki)
+    const result = await execs['write_observation']({ summary: 'User likes jazz' })
+    expect(result).toBe('Failed to record observation due to an internal error.')
   })
 })
