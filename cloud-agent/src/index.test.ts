@@ -10,9 +10,13 @@ type InsertedRow = Record<string, unknown>
 function makeMockDb(queryRowSets: InsertedRow[][] = []) {
   const inserted: InsertedRow[] = []
   let callIndex = 0
+  const onConflictDoNothing = () => Promise.resolve()
   return {
     _inserted: inserted,
-    insert: (_t: unknown) => ({ values: async (row: InsertedRow) => { inserted.push(row) } }),
+    insert: (_t: unknown) => ({
+      values: async (row: InsertedRow) => { inserted.push(row); return { onConflictDoNothing } },
+      onConflictDoNothing,
+    }),
     select: (_fields?: unknown) => ({
       from: (_table: unknown) => ({
         where: (_cond: unknown) => {

@@ -7,6 +7,7 @@ import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
 import { users, characters, llmWikiEvents, tasks } from './db/schema.js'
 import type { DrizzleClient } from './db/client.js'
+import { z } from 'zod'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -189,12 +190,20 @@ export function createApp(options: AppOptions) {
   }
 
   app.post('/agent/run', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
-    const { message, characterId, unsyncedHistory = [], history = [] } = req.body as {
-      message: string
-      characterId: string
-      unsyncedHistory?: unknown[]
-      history?: Content[]
+    const parseResult = z
+      .object({
+        message: z.string().min(1),
+        characterId: z.string().min(1),
+        unsyncedHistory: z.array(z.unknown()).optional(),
+        history: z.array(z.unknown()).optional(),
+      })
+      .safeParse(req.body)
+    if (!parseResult.success) {
+      res.status(400).json({ error: 'Invalid request body' })
+      return
     }
+    const { message, characterId, unsyncedHistory = [], history: rawHistory = [] } = parseResult.data
+    const history = rawHistory as Content[]
     const firebaseUid = req.uid!
 
     // Map Firebase UID → DB user UUID (users.id is UUID; firebase_uid is the token uid)
@@ -211,8 +220,9 @@ export function createApp(options: AppOptions) {
     if (unsyncedHistory.length > 0) {
       try {
         await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
-      } catch {
+      } catch (err) {
         // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
+        console.error('bulkInsertUnsynced failed:', err)
       }
     }
 
