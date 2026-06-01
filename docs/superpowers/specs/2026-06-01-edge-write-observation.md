@@ -1,7 +1,7 @@
 # Edge Memory Writing — `write_observation` Tool Spec
 
 **Date:** 2026-06-01
-**Status:** Ready for implementation
+**Status:** Implemented
 **Branch:** `kv/fixes`
 **Scope:** Phase 3 of the edge-agent architectural upgrades. Add a `write_observation` tool so the local Gemini edge loop can proactively persist user observations to the local SQLite wiki without escalating to Firebase.
 
