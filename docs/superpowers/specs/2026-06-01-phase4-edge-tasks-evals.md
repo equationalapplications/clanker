@@ -1,7 +1,7 @@
 # Phase 4: Edge Completion, JIT Sync & Evaluation Pipeline
 
 **Date:** 2026-06-01
-**Status:** Ready for Implementation
+**Status:** Implementated
 **Branch:** `feat/phase-4`
 **Scope:** Finalize edge capabilities (Task Management), implement JIT Escalation Sync, build the Firebase ingestion bridge, and establish the LLM evaluation pipeline. Depends on Phase 3 (`write_observation` edge tool).
 
@@ -41,11 +41,11 @@ Additionally, two previously designed components now need wiring:
 
 **LLM-in-the-loop evals** (`src/services/__tests__/edgeAgentEvals.int.test.ts`):
 - Initialize a real `@google/genai` client using `process.env.GOOGLE_GENAI_API_KEY`.
-- Use `gemini-2.5-flash` with `temperature: 0` and production edge tool manifests.
+- Use `gemini-2.5-flash` (no temperature config — matches production `useEdgeAgent.ts` which omits `generationConfig` due to the installed SDK version) and production edge tool manifests.
 - **Test A:** Asking about a past fact yields a `search_memory` tool call.
 - **Test B:** Asking to write a long essay yields an `escalate_to_cloud_agent` tool call.
 - **Test C:** Casual chatting yields plain text with no tool calls.
-- Add `"edge-evals": "jest --testRegex '.*\\.int\\.test\\.ts$' --runInBand"` to `package.json`. These tests never run in CI — only manually.
+- Add `"edge-evals": "jest --config jest.evals.config.js --runInBand"` to `package.json`, backed by a dedicated `jest.evals.config.js` that overrides `testRegex` to `.*\.int\.test\.ts$` and strips the `testPathIgnorePatterns` exclusion. These tests never run in CI — only manually.
 
 ### 2.2 JIT Escalation Sync (Delta Handoff)
 
@@ -94,13 +94,13 @@ Before passing `contents` to the LLM, `functions/src/generateReply.ts` must:
 
 Task tools inject unconditionally — not gated on `wiki !== null`. Tasks are a separate offline capability backed by the local SQLite `tasks` table, not by the `expo-llm-wiki` package. A character without wiki enabled should still support task creation.
 
-### `.int.test.ts` extension as CI gate
+### `.int.test.ts` extension gated via `testPathIgnorePatterns` + dedicated config
 
-The project's `jest.testMatch` patterns match `**/__tests__/**/*.test.ts` — they do not match `*.int.test.ts`. The `edge-evals` script uses `--testRegex` to exclusively target integration tests. This keeps token-consuming network calls out of standard CI without any additional jest config changes.
+The project's `jest.testPathIgnorePatterns` excludes `.*\.int\.test\.ts$`, preventing eval files from being picked up by standard `jest` runs. The `edge-evals` script uses `jest --config jest.evals.config.js`, which inherits the project's `preset`, `setupFiles`, and `transformIgnorePatterns` but overrides `testRegex: '.*\.int\.test\.ts$'` and omits the `.int.test.ts` exclusion from `testPathIgnorePatterns`. A separate config file is required because CLI flags like `--testRegex` cannot override config-level `testPathIgnorePatterns` on their own.
 
-### `temperature: 0` for eval determinism
+### No temperature config — matches production code path
 
-LLM routing evals use `temperature: 0` to maximize reproducibility. If a test is flaky (model sometimes returns text instead of a tool call), the fix is to strengthen the prompt stimulus — not to retry or soften the assertion.
+The installed `@google/genai` SDK version does not support `generationConfig` in `GenerateContentConfig`. The eval tests follow the same pattern as `useEdgeAgent.ts` (which also omits temperature), ensuring the evals test exactly what runs on device. The default model temperature provides sufficient reproducibility; if a test is flaky (model sometimes returns text instead of a tool call), the fix is to strengthen the prompt stimulus — not to retry or soften the assertion.
 
 ### Migration skip guard for tasks table
 
