@@ -148,9 +148,6 @@ graph LR
 (useAIChat.ts)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
 (useCharacterWiki.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
-(useEdgeAgent.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> reportError__src_utilities_reportError_ts["reportError
 (reportError.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat

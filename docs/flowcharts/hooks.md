@@ -13,9 +13,6 @@ graph LR
 (useAIChat.ts)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
 (useCharacterWiki.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
-(useAIChat.ts)"] --> useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
-(useEdgeAgent.ts)"]
-  useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> reportError__src_utilities_reportError_ts["reportError
 (reportError.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
@@ -135,15 +132,6 @@ graph LR
   useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
 (useCurrentPlan.ts)"] --> isPlanTier__src_hooks_useCurrentPlan_ts["isPlanTier
 (useCurrentPlan.ts)"]
-  useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
-(useEdgeAgent.ts)"] --> buildSystemInstruction__src_services_CharacterPromptBuilder_ts["buildSystemInstruction
-(CharacterPromptBuilder.ts)"]
-  useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
-(useEdgeAgent.ts)"] --> buildContentHistory__src_services_CharacterPromptBuilder_ts["buildContentHistory
-(CharacterPromptBuilder.ts)"]
-  useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
-(useEdgeAgent.ts)"] --> createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
-(edgeToolExecutors.ts)"]
   useEditDirtyState__src_hooks_useEditDirtyState_ts["useEditDirtyState
 (useEditDirtyState.ts)"] --> setEditDirty__src_hooks_useEditDirtyState_ts["setEditDirty
 (useEditDirtyState.ts)"]
@@ -285,6 +273,15 @@ graph LR
   useWebCheckoutSync__src_hooks_useWebCheckoutSync_web_ts["useWebCheckoutSync
 (useWebCheckoutSync.web.ts)"] --> expireStalePendingAttempts__src_utilities_checkoutStateStore_ts["expireStalePendingAttempts
 (checkoutStateStore.ts)"]
+  useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
+(useEdgeAgent.ts)"] --> buildSystemInstruction__src_services_CharacterPromptBuilder_ts["buildSystemInstruction
+(CharacterPromptBuilder.ts)"]
+  useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
+(useEdgeAgent.ts)"] --> buildContentHistory__src_services_CharacterPromptBuilder_ts["buildContentHistory
+(CharacterPromptBuilder.ts)"]
+  useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
+(useEdgeAgent.ts)"] --> createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"]
   reportError__src_utilities_reportError_ts["reportError
 (reportError.ts)"] --> logCrashlyticsError__src_services_crashlyticsService_ts["logCrashlyticsError
 (crashlyticsService.ts)"]
@@ -411,12 +408,6 @@ graph LR
   getDatabase__src_database_index_ts["getDatabase
 (index.ts)"] --> initializeDatabase__src_database_index_ts["initializeDatabase
 (index.ts)"]
-  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
-(edgeToolExecutors.ts)"] --> readFromWiki__src_services_wikiService_ts["readFromWiki
-(wikiService.ts)"]
-  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
-(edgeToolExecutors.ts)"] --> writeToWiki__src_services_wikiService_ts["writeToWiki
-(wikiService.ts)"]
   generateImageViaCallable__src_services_imageGenerationService_ts["generateImageViaCallable
 (imageGenerationService.ts)"] --> generateImageFn__src_config_firebaseConfig_ts["generateImageFn
 (firebaseConfig.ts)"]
@@ -462,9 +453,6 @@ graph LR
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
 (useMessages.ts)"]
-  useEdgeAgent_test__src_hooks___tests___useEdgeAgent_test_ts["useEdgeAgent.test
-(useEdgeAgent.test.ts)"] --> __services_edgeToolExecutors["edgeToolExecutors
-(services)"]
   useMachines__src_hooks_useMachines_ts["useMachines
 (useMachines.ts)"] --> __machines_authMachine["authMachine
 (machines)"]
@@ -474,6 +462,9 @@ graph LR
   useMachines__src_hooks_useMachines_ts["useMachines
 (useMachines.ts)"] --> __machines_characterMachine["characterMachine
 (machines)"]
+  useEdgeAgent_test__src_hooks___tests___useEdgeAgent_test_ts["useEdgeAgent.test
+(useEdgeAgent.test.ts)"] --> __services_edgeToolExecutors["edgeToolExecutors
+(services)"]
 ```
 
 > **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are
