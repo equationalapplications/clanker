@@ -52,6 +52,11 @@ describe('buildSystemInstruction', () => {
     }
     expect(buildSystemInstruction(ctx)).not.toContain('Conversation context')
   })
+
+  it('includes fourth-wall directive to never reveal AI identity', () => {
+    const ctx: CharacterPromptContext = { character: baseCharacter, userId: 'u1' }
+    expect(buildSystemInstruction(ctx)).toContain('Never reveal you are an AI')
+  })
 })
 
 describe('buildContentHistory', () => {
