@@ -33,8 +33,16 @@ type UnsyncedItem = UnsyncedTask | UnsyncedWikiEvent
 
 // Maps local SQLite task status 'pending' to cloud-side 'open'; local uses
 // 'pending' as the default but Cloud SQL tasks only allow ('open','done','abandoned').
+// Clamps to allowed values to prevent constraint violations.
 function toCloudStatus(status: string): string {
-  return status === 'pending' ? 'open' : (status || 'open')
+  const normalized = status === 'pending' ? 'open' : (status || 'open')
+  return ['open', 'done', 'abandoned'].includes(normalized) ? normalized : 'open'
+}
+
+// Accepts both second and millisecond epoch timestamps.
+// If value > 9999999999 (Nov 2286 in seconds), assume milliseconds.
+function toCloudTimestamp(epoch: number): Date {
+  return new Date(epoch > 9999999999 ? epoch : epoch * 1000)
 }
 
 async function bulkInsertUnsynced(
@@ -52,18 +60,23 @@ async function bulkInsertUnsynced(
         userId,
         title: item.title,
         status: toCloudStatus(item.status),
-        createdAt: new Date(item.createdAt * 1000),
+        createdAt: toCloudTimestamp(item.createdAt),
         updatedAt: new Date(),
-      })
+      }).onConflictDoNothing()
     } else if (item.type === 'wiki_event') {
+      const allowedEvents = ['observation', 'decision', 'action', 'outcome'] as const
+      type AllowedEvent = (typeof allowedEvents)[number]
+      const eventType = allowedEvents.includes(item.eventType as AllowedEvent)
+        ? item.eventType
+        : 'observation'
       await db.insert(llmWikiEvents).values({
         id: item.id,
         entityId: characterId,
         userId,
-        eventType: item.eventType ?? 'observation',
+        eventType,
         summary: item.summary,
-        createdAt: item.createdAt,
-      })
+        createdAt: toCloudTimestamp(item.createdAt).getTime(),
+      }).onConflictDoNothing()
     }
   }
 }
@@ -196,7 +209,11 @@ export function createApp(options: AppOptions) {
     if (!character) { res.status(404).json({ error: 'Character not found' }); return }
 
     if (unsyncedHistory.length > 0) {
-      await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
+      try {
+        await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
+      } catch {
+        // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
+      }
     }
 
     const wikiContext = await queryWikiContext(db, message, characterId)
