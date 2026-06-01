@@ -9,6 +9,11 @@ import { users, characters, llmWikiEvents, tasks } from './db/schema.js'
 import type { DrizzleClient } from './db/client.js'
 import { z } from 'zod'
 
+const contentSchema = z.object({
+  role: z.string().min(1),
+  parts: z.array(z.object({}).passthrough()).min(1),
+})
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface RunAgentParams {
@@ -52,11 +57,29 @@ async function bulkInsertUnsynced(
   characterId: string,
   items: unknown[],
 ): Promise<void> {
+  const taskRows: Array<{
+    id: string;
+    characterId: string;
+    userId: string;
+    title: string;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }> = []
+  const wikiRows: Array<{
+    id: string;
+    entityId: string;
+    userId: string;
+    eventType: string;
+    summary: string;
+    createdAt: number;
+  }> = []
+
   for (const raw of items) {
     if (typeof raw !== 'object' || raw === null) continue
     const item = raw as UnsyncedItem
     if (item.type === 'task') {
-      await db.insert(tasks).values({
+      taskRows.push({
         id: item.id,
         characterId,
         userId,
@@ -64,22 +87,29 @@ async function bulkInsertUnsynced(
         status: toCloudStatus(item.status),
         createdAt: toCloudTimestamp(item.createdAt),
         updatedAt: new Date(),
-      }).onConflictDoNothing()
+      })
     } else if (item.type === 'wiki_event') {
       const allowedEvents = ['observation', 'decision', 'action', 'outcome'] as const
       type AllowedEvent = (typeof allowedEvents)[number]
       const eventType = allowedEvents.includes(item.eventType as AllowedEvent)
         ? item.eventType
         : 'observation'
-      await db.insert(llmWikiEvents).values({
+      wikiRows.push({
         id: item.id,
         entityId: characterId,
         userId,
         eventType,
         summary: item.summary,
         createdAt: toCloudTimestamp(item.createdAt).getTime(),
-      }).onConflictDoNothing()
+      })
     }
+  }
+
+  if (taskRows.length > 0) {
+    await db.insert(tasks).values(taskRows).onConflictDoNothing()
+  }
+  if (wikiRows.length > 0) {
+    await db.insert(llmWikiEvents).values(wikiRows).onConflictDoNothing()
   }
 }
 
@@ -197,7 +227,7 @@ export function createApp(options: AppOptions) {
         message: z.string().min(1).trim(),
         characterId: z.string().min(1).trim(),
         unsyncedHistory: z.array(z.unknown()).optional(),
-        history: z.array(z.unknown()).optional(),
+        history: z.array(contentSchema).optional(),
       })
       .safeParse(req.body)
     if (!parseResult.success) {

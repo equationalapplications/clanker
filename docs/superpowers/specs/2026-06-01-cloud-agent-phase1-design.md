@@ -38,7 +38,7 @@ clanker/
 
 ## 3. Package Configuration
 
-ESM, Node 22. Dep versions pinned to match `functions/` to avoid drift.
+ESM, Node 22. Dep versions aligned with `functions/` semver ranges.
 
 ```json
 {

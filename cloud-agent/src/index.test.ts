@@ -14,7 +14,14 @@ function makeMockDb(queryRowSets: InsertedRow[][] = []) {
   return {
     _inserted: inserted,
     insert: (_t: unknown) => ({
-      values: (row: InsertedRow) => { inserted.push(row); return { onConflictDoNothing } },
+      values: (rowOrRows: InsertedRow | InsertedRow[]) => {
+        if (Array.isArray(rowOrRows)) {
+          inserted.push(...rowOrRows)
+        } else {
+          inserted.push(rowOrRows)
+        }
+        return { onConflictDoNothing }
+      },
       onConflictDoNothing,
     }),
     select: (_fields?: unknown) => ({
