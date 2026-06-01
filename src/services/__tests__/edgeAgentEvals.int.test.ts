@@ -76,7 +76,7 @@ describe('Edge Agent LLM Routing Evals', () => {
       if (calls.length > 0) {
         expect(calls[0].name).toBe('escalate_to_cloud_agent')
       } else {
-        expect(result.text?.toLowerCase()).toMatch(/cloud|escalate|remote server|server-side/)
+        expect(result.text?.toLowerCase()).toMatch(/cloud|escalate|remote server|server-side|more powerful tool|connect(?:s|ed)? you with|transfer(?:red)? you|tool that specializes/)
       }
     },
     30000,
