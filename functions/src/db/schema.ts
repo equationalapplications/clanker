@@ -220,3 +220,18 @@ export const llmWikiEvents = pgTable('llm_wiki_events', {
   entityCreatedIdx: index('llm_wiki_events_entity_created_idx').on(table.entityId, table.userId, table.createdAt),
   eventTypeCheck: check('llm_wiki_events_event_type_check', sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`),
 }));
+
+// Cloud Agent tasks — cloud-persisted version of the local SQLite tasks table.
+// user_id added (absent in SQLite) to satisfy the security WHERE-clause filter.
+export const tasks = pgTable('tasks', {
+  id: text('id').primaryKey(),
+  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  status: text('status').notNull().default('open'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  characterUserIdx: index('tasks_character_user_idx').on(table.characterId, table.userId),
+  statusCheck: check('tasks_status_check', sql`${table.status} IN ('open', 'done', 'abandoned')`),
+}));
