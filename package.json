@@ -157,6 +157,7 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "<rootDir>/functions/",
+      "<rootDir>/cloud-agent/",
       "<rootDir>/\\.claude/",
       "<rootDir>/\\.worktrees/",
       "<rootDir>/build/",
