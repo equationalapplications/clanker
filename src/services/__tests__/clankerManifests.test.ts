@@ -1,4 +1,4 @@
-import { clankerTimeSchema, clankerEscalationSchema, clankerMemorySchema } from '../clankerManifests'
+import { clankerTimeSchema, clankerEscalationSchema, clankerMemorySchema, clankerWriteObservationSchema } from '../clankerManifests'
 
 describe('clankerTimeSchema', () => {
   it('has name get_current_time', () => {
@@ -42,5 +42,34 @@ describe('clankerMemorySchema', () => {
     }
     expect(params.required).toContain('query')
     expect(params.properties['query']).toBeDefined()
+  })
+})
+
+describe('clankerWriteObservationSchema', () => {
+  it('has name write_observation', () => {
+    expect(clankerWriteObservationSchema.name).toBe('write_observation')
+  })
+
+  it('description mentions long-term memory', () => {
+    expect(clankerWriteObservationSchema.description).toContain('long-term memory')
+  })
+
+  it('has required summary parameter of type string', () => {
+    const params = clankerWriteObservationSchema.parameters as {
+      required: string[]
+      properties: Record<string, { type: string }>
+    }
+    expect(params.required).toContain('summary')
+    expect(params.properties['summary'].type).toBe('string')
+  })
+
+  it('parameters type is object', () => {
+    expect(clankerWriteObservationSchema.parameters.type).toBe('object')
+  })
+})
+
+describe('clankerEscalationSchema — updated guard', () => {
+  it('description forbids WRITING/saving observations', () => {
+    expect(clankerEscalationSchema.description).toContain('WRITING/saving observations')
   })
 })
