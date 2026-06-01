@@ -122,7 +122,8 @@ export const CREATE_TABLES = `
     character_id TEXT NOT NULL,
     title TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
   );
 
   -- Indexes for tasks
@@ -169,7 +170,8 @@ DROP TABLE IF EXISTS derived_synonyms`.trim(),
   character_id TEXT NOT NULL,
   title TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_character ON tasks(character_id)`,
 }

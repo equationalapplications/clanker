@@ -10,7 +10,9 @@ export interface LocalTask {
 
 export async function createTask(characterId: string, title: string): Promise<string> {
   const db = await getDatabase()
-  const id = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const id =
+    globalThis.crypto?.randomUUID?.() ??
+    `task_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
   await db.runAsync(
     'INSERT INTO tasks (id, character_id, title, status, created_at) VALUES (?, ?, ?, ?, ?)',
     [id, characterId, title, 'pending', Date.now()],

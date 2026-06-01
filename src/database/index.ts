@@ -117,6 +117,7 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
             await database.execAsync('PRAGMA journal_mode=WAL;')
         }
 
+        await database.execAsync('PRAGMA foreign_keys = ON;')
         await applyInitializationPlan(database)
         await initWiki(database)
 

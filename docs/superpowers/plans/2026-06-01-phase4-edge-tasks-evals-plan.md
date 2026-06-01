@@ -6,7 +6,7 @@
 
 **Architecture:** A new SQLite `tasks` table (migration v19) backs `create_task` / `list_tasks` executors. Both tool manifests inject unconditionally into `useEdgeAgent`. LLM evals live in a `*.int.test.ts` file gated behind a manual npm script, never CI.
 
-**Tech Stack:** expo-sqlite (`getDatabase`), `@google/genai` (gemini-2.5-flash, temperature 0), jest
+**Tech Stack:** expo-sqlite (`getDatabase`), `@google/genai` (gemini-2.5-flash, no `generationConfig`), jest
 
 > **Pre-flight:** Sections 2 (JIT Escalation Sync) and 4 (Firebase Ingestion Bridge) from the spec are **already fully implemented** in `useAIChat.ts` and `functions/src/generateReply.ts`. This plan covers only the remaining work: Sections 1 and 3.
 
@@ -800,7 +800,6 @@ async function runEdgeEval(userText: string) {
     config: {
       systemInstruction,
       tools: ALL_TOOLS,
-      generationConfig: { temperature: 0 },
     },
   })
 }
