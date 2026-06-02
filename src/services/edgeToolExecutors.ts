@@ -50,8 +50,8 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
       try {
         const title = typeof args.title === 'string' ? args.title.trim() : ''
         if (!title) return 'Failed to create task: title is required.'
-        await createTask(characterId, title)
-        return 'Task created successfully.'
+        const taskId = await createTask(characterId, title)
+        return JSON.stringify({ taskId, title })
       } catch (error) {
         console.error('[EdgeAgent] create_task failed:', error)
         return 'Failed to create task due to an internal error.'

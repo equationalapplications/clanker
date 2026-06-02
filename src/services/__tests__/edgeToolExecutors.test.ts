@@ -247,7 +247,7 @@ describe('createEdgeToolExecutors — create_task', () => {
     mockCreateTask.mockResolvedValue('task_123')
     const execs = createEdgeToolExecutors('char-1', null)
     const result = await execs['create_task']({ title: 'Buy milk' })
-    expect(result).toBe('Task created successfully.')
+    expect(result).toBe(JSON.stringify({ taskId: 'task_123', title: 'Buy milk' }))
   })
 
   it('returns error message when createTask throws', async () => {

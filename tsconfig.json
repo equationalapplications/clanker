@@ -26,6 +26,7 @@
     "app"
   ],
   "exclude": [
-    "functions"
+    "functions",
+    "cloud-agent"
   ]
 }
