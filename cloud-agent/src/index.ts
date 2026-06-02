@@ -213,7 +213,19 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
 function corsOrigins(): string | string[] {
   const raw = process.env.CORS_ORIGIN
   if (!raw) return '*'
-  const origins = raw.split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean)
+
+  const origins = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((value) => {
+      try {
+        return new URL(value).origin
+      } catch {
+        return value.replace(/\/$/, '')
+      }
+    })
+
   // If any origin is '*', allow all — an array containing '*' would not match
   // real Origin headers, leading to unexpectedly blocked browser requests.
   if (origins.some((o) => o === '*')) return '*'
