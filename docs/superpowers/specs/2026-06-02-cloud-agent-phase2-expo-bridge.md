@@ -11,7 +11,7 @@
 
 Phase 1 shipped a stateless ADK Cloud Agent on Cloud Run, secured with Firebase ID tokens (`POST /agent/run`). The Expo app currently routes all escalated messages to Firebase `generateReply` (a Cloud Function). Phase 2 cuts over cloud-synced characters to the Cloud Agent, giving them access to persistent tasks and wiki memory.
 
-**No Firebase Functions are modified.** The Firebase path remains for non-cloud-synced characters and as fallback when `EXPO_PUBLIC_CLOUD_AGENT_URL` is not configured.
+**No Firebase callable function runtime logic is modified.** The Firebase path remains for non-cloud-synced characters and as fallback when `EXPO_PUBLIC_CLOUD_AGENT_URL` is not configured.
 
 ---
 
