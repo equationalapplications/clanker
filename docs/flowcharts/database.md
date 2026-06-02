@@ -174,6 +174,12 @@ graph LR
   markMessagesAsSynced__src_database_messageDatabase_ts["markMessagesAsSynced
 (messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
+  createTask__src_database_taskDatabase_ts["createTask
+(taskDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  listTasks__src_database_taskDatabase_ts["listTasks
+(taskDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
   initWiki__src_services_wikiService_ts["initWiki
 (wikiService.ts)"] --> getSourceTypeEnumMigrationSql__src_services_wikiService_ts["getSourceTypeEnumMigrationSql
 (wikiService.ts)"]

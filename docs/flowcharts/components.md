@@ -163,6 +163,15 @@ graph LR
 (useAIChat.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
 (aiChatService.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> buildContentHistory__src_services_CharacterPromptBuilder_ts["buildContentHistory
+(CharacterPromptBuilder.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> listTasks__src_database_taskDatabase_ts["listTasks
+(taskDatabase.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> callCloudAgent__src_services_cloudAgentService_ts["callCloudAgent
+(cloudAgentService.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> getUnsyncedMessages__src_database_messageDatabase_ts["getUnsyncedMessages
 (messageDatabase.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat

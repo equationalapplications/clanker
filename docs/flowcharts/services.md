@@ -3,6 +3,9 @@
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
+  runEdgeEval__src_services___tests___edgeAgentEvals_int_test_ts["runEdgeEval
+(edgeAgentEvals.int.test.ts)"] --> buildSystemInstruction__src_services_CharacterPromptBuilder_ts["buildSystemInstruction
+(CharacterPromptBuilder.ts)"]
   callAdmin__src_services_adminService_ts["callAdmin
 (adminService.ts)"] --> ensureAppCheckConfigured__src_services_adminService_ts["ensureAppCheckConfigured
 (adminService.ts)"]
@@ -291,6 +294,12 @@ graph LR
   createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
 (edgeToolExecutors.ts)"] --> writeToWiki__src_services_wikiService_ts["writeToWiki
 (wikiService.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> createTask__src_database_taskDatabase_ts["createTask
+(taskDatabase.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> listTasks__src_database_taskDatabase_ts["listTasks
+(taskDatabase.ts)"]
   parseResponse__src_services_imageGenerationService_ts["parseResponse
 (imageGenerationService.ts)"] --> normalizeBase64__src_services_imageGenerationService_ts["normalizeBase64
 (imageGenerationService.ts)"]
@@ -525,6 +534,12 @@ graph LR
   hardDeleteCharacterLocal__src_database_characterDatabase_ts["hardDeleteCharacterLocal
 (characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
+  createTask__src_database_taskDatabase_ts["createTask
+(taskDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  listTasks__src_database_taskDatabase_ts["listTasks
+(taskDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
   getDatabase__src_database_index_ts["getDatabase
 (index.ts)"] --> openDatabaseAsyncWithRetry__src_database_index_ts["openDatabaseAsyncWithRetry
 (index.ts)"]
@@ -570,6 +585,9 @@ graph LR
   CharacterPromptBuilder__src_services_CharacterPromptBuilder_ts["CharacterPromptBuilder
 (CharacterPromptBuilder.ts)"] --> __services_aiChatService["aiChatService
 (services)"]
+  cloudAgentService__src_services_cloudAgentService_ts["cloudAgentService
+(cloudAgentService.ts)"] --> __config_firebaseConfig["firebaseConfig
+(config)"]
   crashlyticsService__src_services_crashlyticsService_ts["crashlyticsService
 (crashlyticsService.ts)"] --> __utilities_kvStorage["kvStorage
 (utilities)"]
