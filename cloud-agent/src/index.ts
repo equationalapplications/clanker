@@ -10,7 +10,7 @@ import type { DrizzleClient } from './db/client.js'
 import { z } from 'zod'
 
 const contentSchema = z.object({
-  role: z.enum(['user', 'model', 'system', 'function']),
+  role: z.enum(['user', 'model']),
   parts: z.array(z.object({}).passthrough()).min(1),
 })
 
@@ -79,27 +79,33 @@ async function bulkInsertUnsynced(
     if (typeof raw !== 'object' || raw === null) continue
     const item = raw as UnsyncedItem
     if (item.type === 'task') {
+      if (typeof item.id !== 'string' || !item.id.trim()) continue
+      if (typeof item.title !== 'string' || !item.title.trim()) continue
+      if (typeof item.createdAt !== 'number') continue
       taskRows.push({
-        id: item.id,
+        id: item.id.trim(),
         characterId,
         userId,
-        title: item.title,
+        title: item.title.trim(),
         status: toCloudStatus(item.status),
         createdAt: toCloudTimestamp(item.createdAt),
         updatedAt: new Date(),
       })
     } else if (item.type === 'wiki_event') {
+      if (typeof item.id !== 'string' || !item.id.trim()) continue
+      if (typeof item.summary !== 'string' || !item.summary.trim()) continue
+      if (typeof item.createdAt !== 'number') continue
       const allowedEvents = ['observation', 'decision', 'action', 'outcome'] as const
       type AllowedEvent = (typeof allowedEvents)[number]
       const eventType = allowedEvents.includes(item.eventType as AllowedEvent)
         ? item.eventType
         : 'observation'
       wikiRows.push({
-        id: item.id,
+        id: item.id.trim(),
         entityId: characterId,
         userId,
         eventType,
-        summary: item.summary,
+        summary: item.summary.trim(),
         createdAt: toCloudTimestamp(item.createdAt).getTime(),
       })
     }

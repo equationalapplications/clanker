@@ -210,11 +210,11 @@ export function buildAgent(
   return new LlmAgent({
     name: 'clanker-cloud-agent',
     model: 'gemini-2.0-flash',
-    systemInstruction,
+    instruction: systemInstruction,
     tools: [
       createTaskTool(db, userId, characterId),
       listTasksTool(db, userId, characterId),
-      wikiReadTool(db, characterId),
+      wikiReadTool(db, userId, characterId),
       wikiWriteTool(db, userId, characterId),
     ],
   })
@@ -238,7 +238,7 @@ export function buildAgent(
 
 | Tool | LLM-visible params | Closure-injected | Action |
 |---|---|---|---|
-| `wiki_read` | `{ query: string }` | `characterId` | Full-text / embedding search against `llm_wiki_events` in Cloud SQL |
+| `wiki_read` | `{ query: string }` | `userId`, `characterId` | ILIKE substring search against `llm_wiki_events` summary (scoped by `userId` + `characterId`) |
 | `wiki_write` | `{ summary: string }` | `userId`, `characterId` | Insert `{ event_type: 'observation', summary }` into `llm_wiki_events` |
 
 All executors return strings. No executor throws — errors return a failure string to prevent unhandled rejections from triggering unintended escalation paths.

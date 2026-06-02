@@ -12,10 +12,10 @@ export function createTaskTool(db: DrizzleClient, userId: string, characterId: s
       title: z.string().describe('A short, clear title for the task.'),
     }),
     execute: async (args: unknown): Promise<string> => {
-      const { title } = args as { title: string }
-      if (!title?.trim()) return 'Failed to create task: title is required.'
-      const id = crypto.randomUUID()
       try {
+        const { title } = args as { title: string }
+        if (!title?.trim()) return 'Failed to create task: title is required.'
+        const id = crypto.randomUUID()
         await db.insert(tasks).values({
           id,
           characterId,
@@ -25,11 +25,11 @@ export function createTaskTool(db: DrizzleClient, userId: string, characterId: s
           createdAt: new Date(),
           updatedAt: new Date(),
         })
+        return JSON.stringify({ taskId: id, title: title.trim() })
       } catch (error) {
         console.error('[CloudAgent] create_task failed:', error)
         return 'Failed to create task due to an internal error.'
       }
-      return JSON.stringify({ taskId: id, title: title.trim() })
     },
   })
 }

@@ -12,9 +12,9 @@ export function wikiReadTool(db: DrizzleClient, userId: string, characterId: str
       query: z.string().describe('The topic or keywords to search for in memory.'),
     }),
     execute: async (args: unknown): Promise<string> => {
-      const { query } = args as { query: string }
-      if (!query?.trim()) return 'Failed to search memory: query is required.'
       try {
+        const { query } = args as { query: string }
+        if (!query?.trim()) return 'Failed to search memory: query is required.'
         const rows = await db
           .select({ summary: llmWikiEvents.summary })
           .from(llmWikiEvents)
