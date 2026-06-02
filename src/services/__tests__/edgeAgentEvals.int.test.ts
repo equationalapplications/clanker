@@ -25,11 +25,11 @@ const ALL_TOOLS = [
   {
     functionDeclarations: [
       clankerTimeSchema,
+      clankerCreateTaskSchema,
+      clankerListTasksSchema,
       clankerMemorySchema,
       clankerWriteObservationSchema,
       clankerEscalationSchema,
-      clankerCreateTaskSchema,
-      clankerListTasksSchema,
     ],
   },
 ] as unknown as ToolListUnion
