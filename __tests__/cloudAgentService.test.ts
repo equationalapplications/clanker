@@ -111,4 +111,25 @@ describe('callCloudAgent', () => {
       callCloudAgent({ message: 'hi', characterId: 'char-1' }),
     ).rejects.toThrow('Invalid Cloud Agent response')
   })
+
+  describe('backward-compatible URL normalization', () => {
+    it.each([
+      ['http://10.0.0.1:8080', 'http://10.0.0.1:8080/agent/run'],
+      ['http://10.0.0.1:8080/', 'http://10.0.0.1:8080/agent/run'],
+      ['http://10.0.0.1:8080/agent/run', 'http://10.0.0.1:8080/agent/run'],
+      ['http://10.0.0.1:8080/agent/run/', 'http://10.0.0.1:8080/agent/run'],
+    ])('strips trailing /agent/run from %s', async (inputUrl, expectedFetchUrl) => {
+      process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = inputUrl
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ reply: 'ok', toolCalls: [] }),
+      })
+      const { callCloudAgent } = loadWithMocks()
+      await callCloudAgent({ message: 'hi', characterId: 'char-1' })
+      expect(mockFetch).toHaveBeenCalledWith(
+        expectedFetchUrl,
+        expect.any(Object),
+      )
+    })
+  })
 })

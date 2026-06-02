@@ -214,7 +214,10 @@ function corsOrigins(): string | string[] {
   const raw = process.env.CORS_ORIGIN
   if (!raw) return '*'
   const origins = raw.split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean)
-  return origins.length === 1 && origins[0] === '*' ? '*' : origins
+  // If any origin is '*', allow all — an array containing '*' would not match
+  // real Origin headers, leading to unexpectedly blocked browser requests.
+  if (origins.some((o) => o === '*')) return '*'
+  return origins
 }
 
 export function createApp(options: AppOptions) {
