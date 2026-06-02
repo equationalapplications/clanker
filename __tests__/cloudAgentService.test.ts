@@ -28,7 +28,7 @@ describe('callCloudAgent', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockFetch.mockReset()
-    process.env = { ...OLD_ENV, EXPO_PUBLIC_CLOUD_AGENT_URL: 'http://10.0.0.1:8080/agent/run' }
+    process.env = { ...OLD_ENV, EXPO_PUBLIC_CLOUD_AGENT_URL: 'http://10.0.0.1:8080' }
   })
 
   afterEach(() => {
