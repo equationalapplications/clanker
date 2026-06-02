@@ -319,12 +319,12 @@ export function createApp(options: AppOptions) {
       res.json(result)
     } catch (err) {
       console.error('agent/run error:', err)
-      const message = err instanceof Error ? err.message : 'Internal server error'
+      const errorMessage = err instanceof Error ? err.message : 'Internal server error'
       // Treat Cloud Run (K_SERVICE) as production by default since Cloud Run
       // does not typically set NODE_ENV. Leak details only in dev/test envs.
       const isProd = !!process.env.K_SERVICE || process.env.NODE_ENV === 'production'
       res.status(500).json({
-        error: isProd ? 'Internal server error' : message,
+        error: isProd ? 'Internal server error' : errorMessage,
       })
     }
   })
