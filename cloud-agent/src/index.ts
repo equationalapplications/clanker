@@ -213,7 +213,8 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
 function corsOrigins(): string | string[] {
   const raw = process.env.CORS_ORIGIN
   if (!raw) return '*'
-  return raw.split(',').map((s) => s.trim()).filter(Boolean)
+  const origins = raw.split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean)
+  return origins.length === 1 && origins[0] === '*' ? '*' : origins
 }
 
 export function createApp(options: AppOptions) {
@@ -248,6 +249,9 @@ export function createApp(options: AppOptions) {
     limit: 20,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
+    handler: (_req: Request, res: Response) => {
+      res.status(429).json({ error: 'Too many requests. Please try again later.' })
+    },
   })
 
   app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
