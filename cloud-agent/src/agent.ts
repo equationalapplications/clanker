@@ -16,7 +16,7 @@ export function buildAgent(
     tools: [
       createTaskTool(db, userId, characterId),
       listTasksTool(db, userId, characterId),
-      wikiReadTool(db, characterId),
+      wikiReadTool(db, userId, characterId),
       wikiWriteTool(db, userId, characterId),
     ],
   })

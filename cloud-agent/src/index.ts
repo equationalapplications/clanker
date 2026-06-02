@@ -10,7 +10,7 @@ import type { DrizzleClient } from './db/client.js'
 import { z } from 'zod'
 
 const contentSchema = z.object({
-  role: z.string().min(1),
+  role: z.enum(['user', 'model', 'system', 'function']),
   parts: z.array(z.object({}).passthrough()).min(1),
 })
 
@@ -113,11 +113,15 @@ async function bulkInsertUnsynced(
   }
 }
 
-async function queryWikiContext(db: DrizzleClient, query: string, characterId: string): Promise<string> {
+async function queryWikiContext(db: DrizzleClient, query: string, userId: string, characterId: string): Promise<string> {
   const rows = await db
     .select({ summary: llmWikiEvents.summary })
     .from(llmWikiEvents)
-    .where(and(eq(llmWikiEvents.entityId, characterId), ilike(llmWikiEvents.summary, `%${query}%`)))
+    .where(and(
+      eq(llmWikiEvents.entityId, characterId),
+      eq(llmWikiEvents.userId, userId),
+      ilike(llmWikiEvents.summary, `%${query}%`)
+    ))
     .limit(5)
   if (rows.length === 0) return ''
   return rows.map((r) => `- ${r.summary}`).join('\n')
@@ -258,7 +262,7 @@ export function createApp(options: AppOptions) {
       }
     }
 
-    const wikiContext = await queryWikiContext(db, message, characterId)
+    const wikiContext = await queryWikiContext(db, message, userId, characterId)
     const systemInstruction = assembleSystemInstruction(character, wikiContext)
 
     const result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history })

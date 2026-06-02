@@ -25,13 +25,13 @@ const { wikiReadTool, wikiWriteTool } = await import('./wiki.js')
 
 test('wikiReadTool: name is wiki_read', () => {
   const db = makeMockDb()
-  const tool = wikiReadTool(db, 'char-1')
+  const tool = wikiReadTool(db, 'user-1', 'char-1')
   assert.equal(tool.name, 'wiki_read')
 })
 
 test('wikiReadTool: schema does not expose characterId', () => {
   const db = makeMockDb()
-  const tool = wikiReadTool(db, 'char-1')
+  const tool = wikiReadTool(db, 'user-1', 'char-1')
   const decl = tool._getDeclaration()
   const props = decl.parameters?.properties ?? {}
   assert.ok(!('characterId' in props))
@@ -45,7 +45,7 @@ test('wikiReadTool: returns formatted context string when results found', async 
     { summary: 'User is vegetarian' },
   ]
   const db = makeMockDb(rows as InsertedRow[])
-  const tool = wikiReadTool(db, 'char-1')
+  const tool = wikiReadTool(db, 'user-1', 'char-1')
   const result = await (tool as unknown as { execute: (args: unknown) => Promise<string> })
     .execute({ query: 'food' })
   assert.ok(result.includes('User likes cats'))
@@ -54,7 +54,7 @@ test('wikiReadTool: returns formatted context string when results found', async 
 
 test('wikiReadTool: returns empty string when no results', async () => {
   const db = makeMockDb([])
-  const tool = wikiReadTool(db, 'char-1')
+  const tool = wikiReadTool(db, 'user-1', 'char-1')
   const result = await (tool as unknown as { execute: (args: unknown) => Promise<string> })
     .execute({ query: 'nothing' })
   assert.equal(result, '')

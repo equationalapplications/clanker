@@ -4,7 +4,7 @@ import { eq, and, ilike } from 'drizzle-orm'
 import { llmWikiEvents } from '../db/schema.js'
 import type { DrizzleClient } from '../db/client.js'
 
-export function wikiReadTool(db: DrizzleClient, characterId: string): FunctionTool {
+export function wikiReadTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
   return new FunctionTool({
     name: 'wiki_read',
     description: 'Search long-term memory for facts relevant to the given query.',
@@ -21,6 +21,7 @@ export function wikiReadTool(db: DrizzleClient, characterId: string): FunctionTo
           .where(
             and(
               eq(llmWikiEvents.entityId, characterId),
+              eq(llmWikiEvents.userId, userId),
               ilike(llmWikiEvents.summary, `%${query.trim()}%`)
             )
           )
