@@ -295,7 +295,7 @@ if (process.env.NODE_ENV !== 'test') {
   })
 
   const port = process.env.PORT ?? '8080'
-  app.listen(Number(port), () => {
+  app.listen(Number(port), '0.0.0.0', () => {
     console.log(`Cloud Agent listening on port ${port}`)
   })
 }
