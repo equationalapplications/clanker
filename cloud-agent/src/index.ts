@@ -122,14 +122,19 @@ async function bulkInsertUnsynced(
 }
 
 async function queryWikiContext(db: DrizzleClient, query: string, userId: string, characterId: string): Promise<string> {
+  const normalizedQuery = query.trim().slice(0, 200)
+  if (!normalizedQuery) return ''
+
   const rows = await db
     .select({ summary: llmWikiEvents.summary })
     .from(llmWikiEvents)
-    .where(and(
-      eq(llmWikiEvents.entityId, characterId),
-      eq(llmWikiEvents.userId, userId),
-      ilike(llmWikiEvents.summary, `%${query}%`)
-    ))
+    .where(
+      and(
+        eq(llmWikiEvents.entityId, characterId),
+        eq(llmWikiEvents.userId, userId),
+        ilike(llmWikiEvents.summary, `%${normalizedQuery}%`),
+      ),
+    )
     .limit(5)
   if (rows.length === 0) return ''
   return rows.map((r) => `- ${r.summary}`).join('\n')
