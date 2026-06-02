@@ -79,21 +79,21 @@ test('GET /health returns 200 without auth', async () => {
 
 // ── CORS headers (regression) ────────────────────────────────────────────────
 
-test('health endpoint sends Access-Control-Allow-Origin header', async () => {
+test('health endpoint sends Access-Control-Allow-Origin header when CORS_ORIGIN is set', async () => {
   const orig = process.env.CORS_ORIGIN
-  delete process.env.CORS_ORIGIN
+  process.env.CORS_ORIGIN = 'https://example.com'
   const db = makeMockDb()
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   const res = await request(app).get('/health').set('Origin', 'https://example.com')
   assert.equal(res.status, 200)
-  // With CORS_ORIGIN unset, corsOrigins returns '*' so any origin is allowed.
-  assert.equal(res.headers['access-control-allow-origin'], '*')
+  assert.equal(res.headers['access-control-allow-origin'], 'https://example.com')
   if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  else delete process.env.CORS_ORIGIN
 })
 
-test('POST /agent/run sends Access-Control-Allow-Origin on CORS preflight', async () => {
+test('POST /agent/run sends Access-Control-Allow-Origin on CORS preflight when CORS_ORIGIN is set', async () => {
   const orig = process.env.CORS_ORIGIN
-  delete process.env.CORS_ORIGIN
+  process.env.CORS_ORIGIN = 'https://example.com'
   const db = makeMockDb()
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   const res = await request(app)
@@ -101,8 +101,9 @@ test('POST /agent/run sends Access-Control-Allow-Origin on CORS preflight', asyn
     .set('Origin', 'https://example.com')
     .set('Access-Control-Request-Method', 'POST')
   assert.equal(res.status, 204)
-  assert.equal(res.headers['access-control-allow-origin'], '*')
+  assert.equal(res.headers['access-control-allow-origin'], 'https://example.com')
   if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  else delete process.env.CORS_ORIGIN
 })
 
 // ── Auth middleware ───────────────────────────────────────────────────────────

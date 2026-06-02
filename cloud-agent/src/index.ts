@@ -210,9 +210,9 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
 
 // ── App factory ───────────────────────────────────────────────────────────────
 
-function corsOrigins(): string | string[] {
+function corsOrigins(): string | string[] | false {
   const raw = process.env.CORS_ORIGIN
-  if (!raw) return '*'
+  if (!raw) return false
 
   const origins = raw
     .split(',')
@@ -225,11 +225,9 @@ function corsOrigins(): string | string[] {
         return value.replace(/\/$/, '')
       }
     })
+    .filter((o) => o !== '*')
 
-  // If any origin is '*', allow all — an array containing '*' would not match
-  // real Origin headers, leading to unexpectedly blocked browser requests.
-  if (origins.some((o) => o === '*')) return '*'
-  return origins
+  return origins.length > 0 ? origins : false
 }
 
 export function createApp(options: AppOptions) {
