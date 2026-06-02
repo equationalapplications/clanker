@@ -235,7 +235,12 @@ function corsOrigins(): string | string[] {
 export function createApp(options: AppOptions) {
   const { verifyToken, db, runAgentFn } = options
   const app = express()
-  app.set('trust proxy', 1)
+  // trust proxy is required behind Cloud Run's managed load balancer so that
+  // rate-limiting sees the real client IP via X-Forwarded-For. Only enable in
+  // production to prevent IP spoofing in dev/test environments.
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1)
+  }
   app.use(cors({ origin: corsOrigins() }))
   app.use(express.json())
 
