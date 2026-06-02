@@ -1,7 +1,7 @@
 # Cloud Agent — Phase 2: Expo Bridge
 
 **Date:** 2026-06-02
-**Status:** Ready to implement
+**Status:** Implemented
 **Epic:** Epic 2 — Cloud Agent
 **Goal:** Wire the Expo app to call the Cloud Agent via HTTP instead of Firebase `generateReply` when a cloud-synced character escalates.
 
