@@ -106,11 +106,22 @@ jest.mock('~/hooks/useEdgeAgent', () => ({
 }))
 
 const mockUseEdgeAgent = require('~/hooks/useEdgeAgent').useEdgeAgent as jest.Mock
+const mockCallCloudAgent = jest.fn()
+const mockListTasks = jest.fn().mockResolvedValue([])
+
+jest.mock('~/services/cloudAgentService', () => ({
+  callCloudAgent: (...args: unknown[]) => mockCallCloudAgent(...args),
+}))
+
+jest.mock('~/database/taskDatabase', () => ({
+  listTasks: (...args: unknown[]) => mockListTasks(...args),
+}))
+
 const { useAIChat } = require('~/hooks/useAIChat')
 
 type HookValue = ReturnType<typeof useAIChat>
 
-function renderUseAIChat(overrides: Partial<{ save_to_cloud: number }> = {}): HookValue {
+function renderUseAIChat(overrides: Partial<{ save_to_cloud: number; cloud_id: string | null }> = {}): HookValue {
   let hookValue: HookValue | null = null
 
   function Probe() {
@@ -124,7 +135,8 @@ function renderUseAIChat(overrides: Partial<{ save_to_cloud: number }> = {}): Ho
         traits: 'kind',
         emotions: 'calm',
         context: 'friendly',
-        save_to_cloud: overrides.save_to_cloud ?? 1, // Default: cloud-synced so escalation path is tested
+        save_to_cloud: overrides.save_to_cloud ?? 1,
+        cloud_id: 'cloud_id' in overrides ? overrides.cloud_id : 'cloud-char-uuid-1',
       },
     })
     return null
@@ -153,6 +165,12 @@ describe('useAIChat', () => {
       text: 'Hello!',
       user: { _id: 'char-1' },
     })
+    mockCallCloudAgent.mockResolvedValue({ reply: 'Cloud reply!', toolCalls: [] })
+    mockListTasks.mockResolvedValue([])
+  })
+
+  afterEach(() => {
+    delete process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
   })
 
   it('reads wiki memory and provides write callback for free-tier users', async () => {
@@ -410,5 +428,151 @@ describe('useAIChat', () => {
     })
 
     expect(mockReportError).not.toHaveBeenCalled()
+  })
+
+  describe('Cloud Agent path', () => {
+    beforeEach(() => {
+      mockUseEdgeAgent.mockReturnValue({
+        sendMessage: jest.fn().mockResolvedValue({ escalated: true, text: undefined }),
+        escalationState: 'escalating',
+      })
+      process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://10.0.0.1:8080/agent/run'
+    })
+
+    it('calls Cloud Agent when isCloudSynced=true and URL is configured', async () => {
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-cloud-1',
+          text: 'Use cloud agent',
+          createdAt: new Date('2026-06-02T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      expect(mockCallCloudAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Use cloud agent',
+          characterId: 'cloud-char-uuid-1',
+          history: expect.any(Array),
+          unsyncedHistory: expect.any(Array),
+        }),
+      )
+      expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
+    })
+
+    it('sends local tasks as unsyncedHistory', async () => {
+      mockListTasks.mockResolvedValue([
+        { id: 't1', character_id: 'char-1', title: 'Buy milk', status: 'pending', created_at: 1000 },
+      ])
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-cloud-2',
+          text: 'Tasks please',
+          createdAt: new Date('2026-06-02T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      expect(mockCallCloudAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          unsyncedHistory: [
+            { type: 'task', id: 't1', title: 'Buy milk', status: 'pending', createdAt: 1000 },
+          ],
+        }),
+      )
+    })
+
+    it('saves Cloud Agent reply as AI message', async () => {
+      mockCallCloudAgent.mockResolvedValue({ reply: 'Cloud says hi!', toolCalls: [] })
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-cloud-3',
+          text: 'Hello',
+          createdAt: new Date('2026-06-02T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      expect(mockSaveAIMessage).toHaveBeenCalledWith(
+        'char-1',
+        'user-1',
+        'Cloud says hi!',
+        expect.any(String),
+        expect.objectContaining({ user: expect.objectContaining({ _id: 'char-1' }) }),
+      )
+    })
+
+    it('falls through to Firebase when URL is not configured', async () => {
+      delete process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-firebase',
+          text: 'Fallback to firebase',
+          createdAt: new Date('2026-06-02T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      expect(mockCallCloudAgent).not.toHaveBeenCalled()
+      expect(mockSendMessageWithAIResponse).toHaveBeenCalled()
+    })
+
+    it('falls through to Firebase when isCloudSynced=false', async () => {
+      const hook = renderUseAIChat({ save_to_cloud: 0 })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-firebase-2',
+          text: 'Not cloud synced',
+          createdAt: new Date('2026-06-02T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      expect(mockCallCloudAgent).not.toHaveBeenCalled()
+      expect(mockSendMessageWithAIResponse).toHaveBeenCalled()
+    })
+
+    it('falls through to Firebase when cloud_id is null (character not yet synced to cloud)', async () => {
+      const hook = renderUseAIChat({ save_to_cloud: 1, cloud_id: null })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-no-cloud-id',
+          text: 'No cloud id yet',
+          createdAt: new Date('2026-06-02T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      expect(mockCallCloudAgent).not.toHaveBeenCalled()
+      expect(mockSendMessageWithAIResponse).toHaveBeenCalled()
+    })
+
+    it('propagates Cloud Agent errors so onError can roll back the optimistic update', async () => {
+      mockCallCloudAgent.mockRejectedValue(new Error('Cloud Agent responded with 500'))
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await act(async () => {
+        await expect(
+          hook.sendMessage({
+            _id: 'msg-fail',
+            text: 'Failing',
+            createdAt: new Date('2026-06-02T00:00:00.000Z'),
+            user: { _id: 'user-1' },
+          } as any),
+        ).rejects.toThrow('Cloud Agent responded with 500')
+      })
+
+      expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
+    })
   })
 })
