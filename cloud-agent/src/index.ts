@@ -1,4 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express'
+import cors from 'cors'
+import { rateLimit } from 'express-rate-limit'
 import admin from 'firebase-admin'
 import { eq, and, ilike } from 'drizzle-orm'
 import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
@@ -185,6 +187,9 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
   let reply = ''
   const toolCalls: string[] = []
   for await (const event of events) {
+    if (event.errorCode || event.errorMessage) {
+      throw new Error(`ADK error (${event.errorCode ?? 'unknown'}): ${event.errorMessage ?? 'no message'}`)
+    }
     if (event.content?.parts) {
       for (const part of event.content.parts) {
         if ('functionCall' in part) {
@@ -205,9 +210,38 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
 
 // ── App factory ───────────────────────────────────────────────────────────────
 
+function corsOrigins(): string | string[] {
+  const raw = process.env.CORS_ORIGIN
+  if (!raw) return '*'
+
+  const origins = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((value) => {
+      try {
+        return new URL(value).origin
+      } catch {
+        return value.replace(/\/$/, '')
+      }
+    })
+
+  // If any origin is '*', allow all — an array containing '*' would not match
+  // real Origin headers, leading to unexpectedly blocked browser requests.
+  if (origins.some((o) => o === '*')) return '*'
+  return origins
+}
+
 export function createApp(options: AppOptions) {
   const { verifyToken, db, runAgentFn } = options
   const app = express()
+  // trust proxy is required behind Cloud Run's managed load balancer so that
+  // rate-limiting sees the real client IP via X-Forwarded-For. Cloud Run always
+  // sets K_SERVICE; fall back to an explicit TRUST_PROXY flag for other envs.
+  if (process.env.K_SERVICE || process.env.TRUST_PROXY === '1') {
+    app.set('trust proxy', 1)
+  }
+  app.use(cors({ origin: corsOrigins() }))
   app.use(express.json())
 
   app.get('/health', (_req: Request, res: Response) => {
@@ -230,52 +264,68 @@ export function createApp(options: AppOptions) {
     }
   }
 
-  app.post('/agent/run', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+  const agentRunLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: (_req: Request, res: Response) => {
+      res.status(429).json({ error: 'Too many requests. Please try again later.' })
+    },
+  })
+
+  app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     try {
-    const parseResult = z
-      .object({
-        message: z.string().min(1).trim(),
-        characterId: z.string().min(1).trim(),
-        unsyncedHistory: z.array(z.unknown()).optional(),
-        history: z.array(contentSchema).optional(),
-      })
-      .safeParse(req.body)
-    if (!parseResult.success) {
-      res.status(400).json({ error: 'Invalid request body' })
-      return
-    }
-    const { message, characterId, unsyncedHistory = [], history: rawHistory = [] } = parseResult.data
-    const history = rawHistory as Content[]
-    const firebaseUid = req.uid!
-
-    // Map Firebase UID → DB user UUID (users.id is UUID; firebase_uid is the token uid)
-    const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
-    if (!dbUser) { res.status(401).json({ error: 'Unauthorized' }); return }
-    const userId = dbUser.id
-
-    // Verify character exists and belongs to this user before any writes
-    const [character] = await db.select().from(characters).where(
-      and(eq(characters.id, characterId), eq(characters.userId, userId))
-    )
-    if (!character) { res.status(404).json({ error: 'Character not found' }); return }
-
-    if (unsyncedHistory.length > 0) {
-      try {
-        await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
-      } catch (err) {
-        // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
-        console.error('bulkInsertUnsynced failed:', err)
+      const parseResult = z
+        .object({
+          message: z.string().min(1).trim(),
+          characterId: z.string().min(1).trim(),
+          unsyncedHistory: z.array(z.unknown()).optional(),
+          history: z.array(contentSchema).optional(),
+        })
+        .safeParse(req.body)
+      if (!parseResult.success) {
+        res.status(400).json({ error: 'Invalid request body' })
+        return
       }
-    }
+      const { message, characterId, unsyncedHistory = [], history: rawHistory = [] } = parseResult.data
+      const history = rawHistory as Content[]
+      const firebaseUid = req.uid!
 
-    const wikiContext = await queryWikiContext(db, message, userId, characterId)
-    const systemInstruction = assembleSystemInstruction(character, wikiContext)
+      // Map Firebase UID → DB user UUID (users.id is UUID; firebase_uid is the token uid)
+      const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
+      if (!dbUser) { res.status(401).json({ error: 'Unauthorized' }); return }
+      const userId = dbUser.id
 
-    const result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history })
-    res.json(result)
+      // Verify character exists and belongs to this user before any writes
+      const [character] = await db.select().from(characters).where(
+        and(eq(characters.id, characterId), eq(characters.userId, userId))
+      )
+      if (!character) { res.status(404).json({ error: 'Character not found' }); return }
+
+      if (unsyncedHistory.length > 0) {
+        try {
+          await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
+        } catch (err) {
+          // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
+          console.error('bulkInsertUnsynced failed:', err)
+        }
+      }
+
+      const wikiContext = await queryWikiContext(db, message, userId, characterId)
+      const systemInstruction = assembleSystemInstruction(character, wikiContext)
+
+      const result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history })
+      res.json(result)
     } catch (err) {
       console.error('agent/run error:', err)
-      res.status(500).json({ error: 'Internal server error' })
+      const errorMessage = err instanceof Error ? err.message : 'Internal server error'
+      // Treat Cloud Run (K_SERVICE) as production by default since Cloud Run
+      // does not typically set NODE_ENV. Leak details only in dev/test envs.
+      const isProd = !!process.env.K_SERVICE || process.env.NODE_ENV === 'production'
+      res.status(500).json({
+        error: isProd ? 'Internal server error' : errorMessage,
+      })
     }
   })
 
