@@ -225,7 +225,7 @@ test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', asyn
     .set('Authorization', 'Bearer valid-token')
     .send({ message: 'hello', characterId: 'char-1' })
   assert.equal(res.status, 500)
-  // NODE_ENV=test leaks the real error so debugging is easier
+  // K_SERVICE is not set and NODE_ENV is 'test', so real error leaks for debugging
   assert.match((res.body as { error: string }).error, /ADK error/)
 })
 
