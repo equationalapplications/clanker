@@ -236,9 +236,9 @@ export function createApp(options: AppOptions) {
   const { verifyToken, db, runAgentFn } = options
   const app = express()
   // trust proxy is required behind Cloud Run's managed load balancer so that
-  // rate-limiting sees the real client IP via X-Forwarded-For. Only enable in
-  // production to prevent IP spoofing in dev/test environments.
-  if (process.env.NODE_ENV === 'production') {
+  // rate-limiting sees the real client IP via X-Forwarded-For. Cloud Run always
+  // sets K_SERVICE; fall back to an explicit TRUST_PROXY flag for other envs.
+  if (process.env.K_SERVICE || process.env.TRUST_PROXY === '1') {
     app.set('trust proxy', 1)
   }
   app.use(cors({ origin: corsOrigins() }))
@@ -319,7 +319,10 @@ export function createApp(options: AppOptions) {
       res.json(result)
     } catch (err) {
       console.error('agent/run error:', err)
-      res.status(500).json({ error: 'Internal server error' })
+      const message = err instanceof Error ? err.message : 'Internal server error'
+      res.status(500).json({
+        error: process.env.NODE_ENV === 'production' ? 'Internal server error' : message,
+      })
     }
   })
 

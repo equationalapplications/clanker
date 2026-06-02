@@ -27,6 +27,7 @@ function makeMockDb(queryRowSets: InsertedRow[][] = []) {
     select: (_fields?: unknown) => ({
       from: (_table: unknown) => ({
         where: (_cond: unknown) => {
+          if (callIndex >= queryRowSets.length) callIndex = 0
           const rows = queryRowSets[callIndex++] ?? []
           const p = Promise.resolve(rows)
           return Object.assign(p, {
@@ -79,15 +80,20 @@ test('GET /health returns 200 without auth', async () => {
 // ── CORS headers (regression) ────────────────────────────────────────────────
 
 test('health endpoint sends Access-Control-Allow-Origin header', async () => {
+  const orig = process.env.CORS_ORIGIN
+  delete process.env.CORS_ORIGIN
   const db = makeMockDb()
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   const res = await request(app).get('/health').set('Origin', 'https://example.com')
   assert.equal(res.status, 200)
   // With CORS_ORIGIN unset, corsOrigins returns '*' so any origin is allowed.
   assert.equal(res.headers['access-control-allow-origin'], '*')
+  if (orig !== undefined) process.env.CORS_ORIGIN = orig
 })
 
 test('POST /agent/run sends Access-Control-Allow-Origin on CORS preflight', async () => {
+  const orig = process.env.CORS_ORIGIN
+  delete process.env.CORS_ORIGIN
   const db = makeMockDb()
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   const res = await request(app)
@@ -96,6 +102,7 @@ test('POST /agent/run sends Access-Control-Allow-Origin on CORS preflight', asyn
     .set('Access-Control-Request-Method', 'POST')
   assert.equal(res.status, 204)
   assert.equal(res.headers['access-control-allow-origin'], '*')
+  if (orig !== undefined) process.env.CORS_ORIGIN = orig
 })
 
 // ── Auth middleware ───────────────────────────────────────────────────────────
@@ -218,5 +225,26 @@ test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', asyn
     .set('Authorization', 'Bearer valid-token')
     .send({ message: 'hello', characterId: 'char-1' })
   assert.equal(res.status, 500)
-  assert.equal((res.body as { error: string }).error, 'Internal server error')
+  // NODE_ENV=test leaks the real error so debugging is easier
+  assert.match((res.body as { error: string }).error, /ADK error/)
+})
+
+// ── Rate limiter ──────────────────────────────────────────────────────────────
+
+test('POST /agent/run rate-limits after 20 requests in 60s window', async () => {
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+  for (let i = 0; i < 20; i++) {
+    const res = await request(app)
+      .post('/agent/run')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ message: 'hello', characterId: 'char-1' })
+    assert.equal(res.status, 200, `request ${i + 1} should succeed`)
+  }
+  const res = await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .send({ message: 'hello', characterId: 'char-1' })
+  assert.equal(res.status, 429)
+  assert.equal((res.body as { error: string }).error, 'Too many requests. Please try again later.')
 })
