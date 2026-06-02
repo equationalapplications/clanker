@@ -24,7 +24,7 @@ export interface CloudAgentResult {
 export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudAgentResult> {
   const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
   if (!baseUrl) throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL is not configured')
-  const url = `${baseUrl.replace(/\/$/, '')}/agent/run`
+  const url = `${baseUrl.replace(/\/agent\/run\/?$/, '').replace(/\/$/, '')}/agent/run`
 
   const token = await auth.currentUser?.getIdToken()
   if (!token) throw new Error('No authenticated user')
