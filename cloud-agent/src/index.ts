@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express'
+import cors from 'cors'
 import admin from 'firebase-admin'
 import { eq, and, ilike } from 'drizzle-orm'
 import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
@@ -185,6 +186,9 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
   let reply = ''
   const toolCalls: string[] = []
   for await (const event of events) {
+    if (event.errorCode || event.errorMessage) {
+      throw new Error(`ADK error (${event.errorCode ?? 'unknown'}): ${event.errorMessage ?? 'no message'}`)
+    }
     if (event.content?.parts) {
       for (const part of event.content.parts) {
         if ('functionCall' in part) {
@@ -208,6 +212,7 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
 export function createApp(options: AppOptions) {
   const { verifyToken, db, runAgentFn } = options
   const app = express()
+  app.use(cors())
   app.use(express.json())
 
   app.get('/health', (_req: Request, res: Response) => {

@@ -11,7 +11,7 @@ export function buildAgent(
 ): LlmAgent {
   return new LlmAgent({
     name: 'clanker-cloud-agent',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     instruction: systemInstruction,
     tools: [
       createTaskTool(db, userId, characterId),
