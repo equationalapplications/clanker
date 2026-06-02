@@ -188,7 +188,7 @@ Protected by `requireFirebaseAuth`.
 2. Look up `users.id` (UUID) by `users.firebase_uid = req.uid` → `userId`; return 401 if no match
 3. Fetch character profile (`name`, `appearance`, `traits`, `emotions`, `context`) with `WHERE characters.id = characterId AND characters.user_id = userId`; return 404 if no match
 4. Bulk insert `unsyncedHistory` into Cloud SQL (tasks + `llm_wiki_events`) — after ownership verified
-5. Direct DB query: full-text search `llm_wiki_events` for `message` → relevant background facts (zero-latency RAG pre-fetch; happens before ADK session exists, not via ADK tool)
+5. Direct DB query: substring match (ILIKE `%message%`) against `llm_wiki_events.summary` → relevant background facts (zero-latency RAG pre-fetch; happens before ADK session exists, not via ADK tool)
 6. Assemble `systemInstruction` string from character profile + RAG facts
 7. `buildAgent(db, userId, characterId, systemInstruction)`
 8. `new Runner(agent).run({ message, history })` — seeds session with prior turns if `history` provided
@@ -209,7 +209,7 @@ export function buildAgent(
 ): LlmAgent {
   return new LlmAgent({
     name: 'clanker-cloud-agent',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     instruction: systemInstruction,
     tools: [
       createTaskTool(db, userId, characterId),

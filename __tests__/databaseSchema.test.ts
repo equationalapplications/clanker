@@ -34,7 +34,7 @@ describe('database schema migration guards', () => {
     )
   })
 
-  it('bumps schema to v17 for wiki cleanup migration', () => {
+  it('bumps schema to v19 for tasks table migration', () => {
     expect(SCHEMA_VERSION).toBe(19)
     // Migration 13: adds source_hash — skipped if column exists OR wiki_entries table is missing
     expect(MIGRATION_SKIP_GUARDS[13]).toEqual([

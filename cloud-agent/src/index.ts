@@ -225,8 +225,8 @@ function corsOrigins(): string | string[] | false {
         return value.replace(/\/$/, '')
       }
     })
-    .filter((o) => o !== '*')
 
+  if (origins.some((o) => o === '*')) return '*'
   return origins.length > 0 ? origins : false
 }
 
