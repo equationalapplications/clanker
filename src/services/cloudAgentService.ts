@@ -22,7 +22,7 @@ export interface CloudAgentResult {
 }
 
 export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudAgentResult> {
-  const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
+  const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
   if (!baseUrl) throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL is not configured')
   const url = `${baseUrl.replace(/\/agent\/run\/?$/, '').replace(/\/$/, '')}/agent/run`
 

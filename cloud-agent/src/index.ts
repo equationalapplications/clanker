@@ -276,8 +276,8 @@ export function createApp(options: AppOptions) {
     try {
       const parseResult = z
         .object({
-          message: z.string().min(1).trim(),
-          characterId: z.string().min(1).trim(),
+          message: z.string().trim().min(1),
+          characterId: z.string().trim().min(1),
           unsyncedHistory: z.array(z.unknown()).optional(),
           history: z.array(contentSchema).optional(),
         })
