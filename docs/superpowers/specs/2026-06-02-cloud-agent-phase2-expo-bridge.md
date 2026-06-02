@@ -62,10 +62,7 @@ useEdgeAgent.sendMessage() → escalated=true
 }
 ```
 
-**History:** Built with `buildContentHistory(recentHistory, userId)` from `CharacterPromptBuilder`. Uses 20 recent messages (Cloud Agent has no 12 KB Firebase payload limit). Current user message excluded — sent as `message` separately.
-
-**`characterId` must be `character.cloud_id`** (the Cloud SQL UUID). `character.id` is a local-only SQLite identifier — sending it causes Cloud Agent DB queries to silently return zero results. If `character.cloud_id` is null (not yet synced), skip the Cloud Agent path entirely and fall through to Firebase.
-
+**`characterId` must be `character.cloud_id`** (the Cloud SQL UUID). `character.id` is a local-only SQLite identifier — sending it will typically fail Cloud Agent validation (400) or ownership checks (404). If `character.cloud_id` is null (not yet synced), skip the Cloud Agent path entirely and fall through to Firebase.
 **unsyncedHistory:** All local tasks for the character from `listTasks(characterId)`. The Cloud Agent uses `onConflictDoNothing()` so re-sending already-synced tasks is safe.
 
 **No billing:** Phase 1 has no credits deduction. Cloud Agent path returns `{ usageSnapshot: null }`.
