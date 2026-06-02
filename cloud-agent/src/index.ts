@@ -210,11 +210,17 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
 
 // ── App factory ───────────────────────────────────────────────────────────────
 
+function corsOrigins(): string | string[] {
+  const raw = process.env.CORS_ORIGIN
+  if (!raw) return '*'
+  return raw.split(',').map((s) => s.trim()).filter(Boolean)
+}
+
 export function createApp(options: AppOptions) {
   const { verifyToken, db, runAgentFn } = options
   const app = express()
   app.set('trust proxy', 1)
-  app.use(cors())
+  app.use(cors({ origin: corsOrigins() }))
   app.use(express.json())
 
   app.get('/health', (_req: Request, res: Response) => {
@@ -246,47 +252,47 @@ export function createApp(options: AppOptions) {
 
   app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     try {
-    const parseResult = z
-      .object({
-        message: z.string().min(1).trim(),
-        characterId: z.string().min(1).trim(),
-        unsyncedHistory: z.array(z.unknown()).optional(),
-        history: z.array(contentSchema).optional(),
-      })
-      .safeParse(req.body)
-    if (!parseResult.success) {
-      res.status(400).json({ error: 'Invalid request body' })
-      return
-    }
-    const { message, characterId, unsyncedHistory = [], history: rawHistory = [] } = parseResult.data
-    const history = rawHistory as Content[]
-    const firebaseUid = req.uid!
-
-    // Map Firebase UID → DB user UUID (users.id is UUID; firebase_uid is the token uid)
-    const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
-    if (!dbUser) { res.status(401).json({ error: 'Unauthorized' }); return }
-    const userId = dbUser.id
-
-    // Verify character exists and belongs to this user before any writes
-    const [character] = await db.select().from(characters).where(
-      and(eq(characters.id, characterId), eq(characters.userId, userId))
-    )
-    if (!character) { res.status(404).json({ error: 'Character not found' }); return }
-
-    if (unsyncedHistory.length > 0) {
-      try {
-        await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
-      } catch (err) {
-        // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
-        console.error('bulkInsertUnsynced failed:', err)
+      const parseResult = z
+        .object({
+          message: z.string().min(1).trim(),
+          characterId: z.string().min(1).trim(),
+          unsyncedHistory: z.array(z.unknown()).optional(),
+          history: z.array(contentSchema).optional(),
+        })
+        .safeParse(req.body)
+      if (!parseResult.success) {
+        res.status(400).json({ error: 'Invalid request body' })
+        return
       }
-    }
+      const { message, characterId, unsyncedHistory = [], history: rawHistory = [] } = parseResult.data
+      const history = rawHistory as Content[]
+      const firebaseUid = req.uid!
 
-    const wikiContext = await queryWikiContext(db, message, userId, characterId)
-    const systemInstruction = assembleSystemInstruction(character, wikiContext)
+      // Map Firebase UID → DB user UUID (users.id is UUID; firebase_uid is the token uid)
+      const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
+      if (!dbUser) { res.status(401).json({ error: 'Unauthorized' }); return }
+      const userId = dbUser.id
 
-    const result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history })
-    res.json(result)
+      // Verify character exists and belongs to this user before any writes
+      const [character] = await db.select().from(characters).where(
+        and(eq(characters.id, characterId), eq(characters.userId, userId))
+      )
+      if (!character) { res.status(404).json({ error: 'Character not found' }); return }
+
+      if (unsyncedHistory.length > 0) {
+        try {
+          await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
+        } catch (err) {
+          // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
+          console.error('bulkInsertUnsynced failed:', err)
+        }
+      }
+
+      const wikiContext = await queryWikiContext(db, message, userId, characterId)
+      const systemInstruction = assembleSystemInstruction(character, wikiContext)
+
+      const result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history })
+      res.json(result)
     } catch (err) {
       console.error('agent/run error:', err)
       res.status(500).json({ error: 'Internal server error' })

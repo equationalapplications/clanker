@@ -184,3 +184,17 @@ test('POST /agent/run maps pending status to open during sync', async () => {
   assert.ok(taskRow, 'expected task row to be inserted')
   assert.equal(taskRow!['status'], 'open')
 })
+
+test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', async () => {
+  const failingAgent = async (_params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> => {
+    throw new Error('ADK error (unknown): something went wrong')
+  }
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: failingAgent })
+  const res = await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .send({ message: 'hello', characterId: 'char-1' })
+  assert.equal(res.status, 500)
+  assert.equal((res.body as { error: string }).error, 'Internal server error')
+})
