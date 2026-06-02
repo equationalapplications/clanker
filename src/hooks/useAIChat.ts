@@ -128,8 +128,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
 
       // Cloud Agent path — isCloudSynced characters with a cloud_id when EXPO_PUBLIC_CLOUD_AGENT_URL is set.
-      // Must send character.cloud_id (Cloud SQL UUID) — character.id is local-only and
-      // will silently produce zero results from Cloud Agent DB queries.
+      // Must send character.cloud_id (Cloud SQL UUID) — character.id is local-only and will typically fail
+      // Cloud Agent validation/ownership checks (400/404), so avoid sending it.
       if (isCloudSynced && character.cloud_id && process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
         const cloudCharacterId = character.cloud_id
 
