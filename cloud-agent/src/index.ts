@@ -262,7 +262,9 @@ export function createApp(options: AppOptions) {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    const token = req.headers.authorization?.split('Bearer ')[1]
+    const authHeader = req.headers.authorization ?? ''
+    const match = authHeader.match(/^Bearer\s+(.+)$/i)
+    const token = match?.[1]
     if (!token) { res.status(401).json({ error: 'Unauthorized' }); return }
     try {
       const decoded = await verifyToken(token)
