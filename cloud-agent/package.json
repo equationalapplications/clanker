@@ -19,6 +19,7 @@
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.2",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2",
     "firebase-admin": "^13.8.0",
     "pg": "^8.20.0",
     "zod": "^4.4.3"

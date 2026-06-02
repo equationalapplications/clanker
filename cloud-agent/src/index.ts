@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
+import { rateLimit } from 'express-rate-limit'
 import admin from 'firebase-admin'
 import { eq, and, ilike } from 'drizzle-orm'
 import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
@@ -235,7 +236,14 @@ export function createApp(options: AppOptions) {
     }
   }
 
-  app.post('/agent/run', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+  const agentRunLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+  })
+
+  app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     try {
     const parseResult = z
       .object({
