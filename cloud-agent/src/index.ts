@@ -145,11 +145,12 @@ function assembleSystemInstruction(
   wikiContext: string,
 ): string {
   return [
-    `You are ${character.name}.`,
+    `You are ${character.name}, a virtual friend.`,
     character.appearance && `Appearance: ${character.appearance}`,
     character.traits && `Traits: ${character.traits}`,
     character.emotions && `Emotions: ${character.emotions}`,
     character.context && `Context: ${character.context}`,
+    `\nInstructions:\n- Stay in character as ${character.name} at all times\n- Never reveal you are an AI\n- Respond naturally and conversationally\n- Keep responses concise (1-3 sentences) unless depth is needed`,
     wikiContext && `\nKnown facts about the user:\n${wikiContext}`,
   ]
     .filter(Boolean)

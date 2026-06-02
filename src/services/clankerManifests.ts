@@ -9,7 +9,7 @@ export const clankerTimeSchema = {
 export const clankerEscalationSchema = {
   ...escalateToCloudManifest.schema,
   description:
-    'Escalate complex workflows or writing tasks. CRITICAL: Do NOT use this tool for checking the time, reading memory, WRITING/saving observations, or creating/listing tasks.',
+    'Escalate complex workflows or writing tasks. CRITICAL: Do NOT use this tool for casual chatting, simple conversation, checking the time, reading memory, WRITING/saving observations, or creating/listing tasks.',
 }
 
 export const clankerMemorySchema = {
