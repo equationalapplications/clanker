@@ -205,6 +205,10 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
         .join('')
     }
   }
+
+  if (!reply.trim()) {
+    throw new Error('ADK returned an empty final reply')
+  }
   return { reply, toolCalls }
 }
 
