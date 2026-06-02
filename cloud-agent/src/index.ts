@@ -210,9 +210,11 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
 
 // ── App factory ───────────────────────────────────────────────────────────────
 
-function corsOrigins(): string | string[] | false {
+function corsOrigins(): string | string[] | boolean {
   const raw = process.env.CORS_ORIGIN
-  if (!raw) return false
+  // Default to true (reflect origin) so Expo web can reach Cloud Run without
+  // explicit CORS_ORIGIN configuration; Firebase auth provides the access control.
+  if (!raw) return true
 
   const origins = raw
     .split(',')
@@ -277,7 +279,7 @@ export function createApp(options: AppOptions) {
       const parseResult = z
         .object({
           message: z.string().trim().min(1),
-          characterId: z.string().trim().min(1),
+          characterId: z.string().uuid(),
           unsyncedHistory: z.array(z.unknown()).optional(),
           history: z.array(contentSchema).optional(),
         })

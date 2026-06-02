@@ -1,6 +1,6 @@
 import { FunctionTool } from '@google/adk'
 import { z } from 'zod'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, desc } from 'drizzle-orm'
 import { tasks } from '../db/schema.js'
 import type { DrizzleClient } from '../db/client.js'
 
@@ -50,7 +50,7 @@ export function listTasksTool(db: DrizzleClient, userId: string, characterId: st
               eq(tasks.status, 'open')
             )
           )
-          .orderBy(tasks.createdAt)
+          .orderBy(desc(tasks.createdAt))
         return JSON.stringify(rows)
       } catch (error) {
         console.error('[CloudAgent] list_tasks failed:', error)

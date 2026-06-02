@@ -65,6 +65,9 @@ const mockRunAgent = async (_params: RunAgentParams): Promise<{ reply: string; t
   toolCalls: [],
 })
 
+const CHAR_UUID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const MISSING_CHAR_UUID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+
 const { createApp } = await import('./index.js')
 
 // ── /health ──────────────────────────────────────────────────────────────────
@@ -118,12 +121,25 @@ test('health endpoint allows all origins when CORS_ORIGIN is set to wildcard', a
   else delete process.env.CORS_ORIGIN
 })
 
+// ── CORS default (no CORS_ORIGIN) ────────────────────────────────────────────
+
+test('health endpoint reflects origin when CORS_ORIGIN is not set', async () => {
+  const orig = process.env.CORS_ORIGIN
+  delete process.env.CORS_ORIGIN
+  const db = makeMockDb()
+  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+  const res = await request(app).get('/health').set('Origin', 'https://example.com')
+  assert.equal(res.status, 200)
+  assert.equal(res.headers['access-control-allow-origin'], 'https://example.com')
+  if (orig !== undefined) process.env.CORS_ORIGIN = orig
+})
+
 // ── Auth middleware ───────────────────────────────────────────────────────────
 
 test('POST /agent/run returns 401 with no Authorization header', async () => {
   const db = makeMockDb()
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
-  const res = await request(app).post('/agent/run').send({ message: 'hi', characterId: 'char-1' })
+  const res = await request(app).post('/agent/run').send({ message: 'hi', characterId: CHAR_UUID })
   assert.equal(res.status, 401)
   assert.equal((res.body as { error: string }).error, 'Unauthorized')
 })
@@ -134,11 +150,21 @@ test('POST /agent/run returns 401 with invalid token', async () => {
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer bad-token')
-    .send({ message: 'hi', characterId: 'char-1' })
+    .send({ message: 'hi', characterId: CHAR_UUID })
   assert.equal(res.status, 401)
 })
 
 // ── /agent/run ────────────────────────────────────────────────────────────────
+
+test('POST /agent/run returns 400 when characterId is not a valid UUID', async () => {
+  const db = makeMockDb([[mockUser] as InsertedRow[]])
+  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+  const res = await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .send({ message: 'hello', characterId: 'not-a-uuid' })
+  assert.equal(res.status, 400)
+})
 
 test('POST /agent/run passes DB user UUID (not Firebase UID) to runAgentFn', async () => {
   // Query order: [user lookup, character lookup, wiki context]
@@ -152,7 +178,7 @@ test('POST /agent/run passes DB user UUID (not Firebase UID) to runAgentFn', asy
   await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
-    .send({ message: 'hello', characterId: 'char-1' })
+    .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(capturedUserId, mockUser.id)
 })
 
@@ -162,7 +188,7 @@ test('POST /agent/run returns reply from runAgentFn', async () => {
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
-    .send({ message: 'hello', characterId: 'char-1' })
+    .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(res.status, 200)
   assert.equal((res.body as { reply: string }).reply, 'Hello from mock agent')
 })
@@ -174,7 +200,7 @@ test('POST /agent/run returns 404 when character not found for this user', async
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
-    .send({ message: 'hello', characterId: 'char-missing' })
+    .send({ message: 'hello', characterId: MISSING_CHAR_UUID })
   assert.equal(res.status, 404)
 })
 
@@ -184,7 +210,7 @@ test('POST /agent/run returns 401 when Firebase UID has no DB user record', asyn
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
-    .send({ message: 'hello', characterId: 'char-1' })
+    .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(res.status, 401)
 })
 
@@ -196,7 +222,7 @@ test('POST /agent/run bulk-inserts unsyncedHistory tasks with DB user UUID', asy
     .set('Authorization', 'Bearer valid-token')
     .send({
       message: 'hello',
-      characterId: 'char-1',
+      characterId: CHAR_UUID,
       unsyncedHistory: [
         { type: 'task', id: 'task-1', title: 'Buy milk', status: 'open', createdAt: 1700000000 },
       ],
@@ -205,7 +231,7 @@ test('POST /agent/run bulk-inserts unsyncedHistory tasks with DB user UUID', asy
   const taskRow = inserted.find((r) => r['title'] === 'Buy milk')
   assert.ok(taskRow, 'expected task row to be inserted')
   assert.equal(taskRow!['userId'], mockUser.id)
-  assert.equal(taskRow!['characterId'], 'char-1')
+  assert.equal(taskRow!['characterId'], CHAR_UUID)
 })
 
 test('POST /agent/run maps pending status to open during sync', async () => {
@@ -216,7 +242,7 @@ test('POST /agent/run maps pending status to open during sync', async () => {
     .set('Authorization', 'Bearer valid-token')
     .send({
       message: 'hello',
-      characterId: 'char-1',
+      characterId: CHAR_UUID,
       unsyncedHistory: [
         { type: 'task', id: 'task-2', title: 'Old task', status: 'pending', createdAt: 1700000000 },
       ],
@@ -236,7 +262,7 @@ test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', asyn
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
-    .send({ message: 'hello', characterId: 'char-1' })
+    .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(res.status, 500)
   // K_SERVICE is not set and NODE_ENV is 'test', so real error leaks for debugging
   assert.match((res.body as { error: string }).error, /ADK error/)
@@ -251,13 +277,13 @@ test('POST /agent/run rate-limits after 20 requests in 60s window', async () => 
     const res = await request(app)
       .post('/agent/run')
       .set('Authorization', 'Bearer valid-token')
-      .send({ message: 'hello', characterId: 'char-1' })
+      .send({ message: 'hello', characterId: CHAR_UUID })
     assert.equal(res.status, 200, `request ${i + 1} should succeed`)
   }
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
-    .send({ message: 'hello', characterId: 'char-1' })
+    .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(res.status, 429)
   assert.equal((res.body as { error: string }).error, 'Too many requests. Please try again later.')
 })
