@@ -3,7 +3,7 @@ import { useNavigation } from '@react-navigation/native'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
-import { useCallback, useLayoutEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useChatMessages } from '~/hooks/useMessages'
@@ -55,27 +55,41 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   const characterName = character?.name || 'Character'
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!character) return
-    const drawerNav = navigation.getParent()?.getParent()
-    drawerNav?.setOptions({
-      headerTitle: () => (
-        <View style={styles.headerTitle}>
-          <TouchableOpacity
-            onPress={handleEdit}
-            accessibilityRole="button"
-            accessibilityLabel={`Edit ${characterName}`}
-            accessibilityHint="Opens the character editor"
-          >
-            <CharacterAvatar size={40} imageUrl={character.avatar} characterName={characterName} />
-          </TouchableOpacity>
-          <Text variant="titleMedium" numberOfLines={1}>
-            {characterName}
-          </Text>
-        </View>
-      ),
+    const drawerNav = navigation.getParent?.()?.getParent?.()
+    if (!drawerNav) return
+    
+    const setHeader = () => {
+      drawerNav?.setOptions({
+        headerTitle: () => (
+          <View style={styles.headerTitle}>
+            <TouchableOpacity
+              onPress={handleEdit}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${characterName}`}
+              accessibilityHint="Opens the character editor"
+            >
+              <CharacterAvatar size={40} imageUrl={character.avatar} characterName={characterName} />
+            </TouchableOpacity>
+            <Text variant="titleMedium" numberOfLines={1}>
+              {characterName}
+            </Text>
+          </View>
+        ),
+      })
+    }
+    
+    setHeader()
+    
+    const unsubscribeFocus = navigation.addListener?.('focus', setHeader)
+    const unsubscribeBlur = navigation.addListener?.('blur', () => {
+      drawerNav?.setOptions({ headerTitle: 'Chat' })
     })
+    
     return () => {
+      unsubscribeFocus?.()
+      unsubscribeBlur?.()
       drawerNav?.setOptions({ headerTitle: 'Chat' })
     }
   }, [character, characterName, handleEdit, navigation])

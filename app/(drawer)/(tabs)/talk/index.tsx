@@ -1,6 +1,6 @@
-import { router, useFocusEffect } from 'expo-router'
+import { router } from 'expo-router'
 import { useNavigation } from '@react-navigation/native'
-import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Text } from 'react-native-paper'
@@ -62,13 +62,17 @@ function TalkView({ characterId }: { characterId: string }) {
     cancelRef.current = cancel
   }, [cancel])
 
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        cancelRef.current()
-      }
-    }, []),
-  )
+  useEffect(() => {
+    const unsubscribeFocus = navigation.addListener?.('focus', () => {})
+    const unsubscribeBlur = navigation.addListener?.('blur', () => {
+      cancelRef.current()
+    })
+    
+    return () => {
+      unsubscribeFocus?.()
+      unsubscribeBlur?.()
+    }
+  }, [navigation, cancelRef])
 
   const canEdit = voiceState === 'idle' || voiceState === 'error'
   const showSpinner = voiceState === 'processing'
@@ -86,28 +90,41 @@ function TalkView({ characterId }: { characterId: string }) {
     return 'Tap the mic to talk'
   })()
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!character) return
     const drawerNav = navigation.getParent()?.getParent()
-    drawerNav?.setOptions({
-      headerTitle: () => (
-        <View style={styles.headerTitle}>
-          <Pressable
-            onPress={canEdit ? () => router.push(`/characters/${characterId}/edit`) : undefined}
-            disabled={!canEdit}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canEdit }}
-            accessibilityLabel={canEdit ? `Edit ${character.name}` : character.name}
-          >
-            <CharacterAvatar size={40} imageUrl={character.avatar} characterName={character.name} />
-          </Pressable>
-          <Text variant="titleMedium" numberOfLines={1}>
-            {character.name}
-          </Text>
-        </View>
-      ),
+    
+    const setHeader = () => {
+      drawerNav?.setOptions({
+        headerTitle: () => (
+          <View style={styles.headerTitle}>
+            <Pressable
+              onPress={canEdit ? () => router.push(`/characters/${characterId}/edit`) : undefined}
+              disabled={!canEdit}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canEdit }}
+              accessibilityLabel={canEdit ? `Edit ${character.name}` : character.name}
+            >
+              <CharacterAvatar size={40} imageUrl={character.avatar} characterName={character.name} />
+            </Pressable>
+            <Text variant="titleMedium" numberOfLines={1}>
+              {character.name}
+            </Text>
+          </View>
+        ),
+      })
+    }
+    
+    setHeader()
+    
+    const unsubscribeFocus = navigation.addListener?.('focus', setHeader)
+    const unsubscribeBlur = navigation.addListener?.('blur', () => {
+      drawerNav?.setOptions({ headerTitle: 'Chat' })
     })
+    
     return () => {
+      unsubscribeFocus?.()
+      unsubscribeBlur?.()
       drawerNav?.setOptions({ headerTitle: 'Chat' })
     }
   }, [character, canEdit, characterId, navigation])
