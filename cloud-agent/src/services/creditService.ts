@@ -15,93 +15,97 @@ export function createCreditService(db: DrizzleClient): CreditService {
       // 2. Then lock and update credit_transactions
       // This matches functions/src/services/creditService.ts lock ordering.
 
-      // Ensure subscriptions row exists (ON CONFLICT DO NOTHING is idempotent)
-      await db.execute(sql`
-        INSERT INTO subscriptions (user_id, current_credits)
-        VALUES (${userId}, 0)
-        ON CONFLICT (user_id) DO NOTHING
-      `)
-
-      // Lock the subscriptions row first
-      await db.execute(sql`
-        SELECT user_id FROM subscriptions
-        WHERE user_id = ${userId}
-        FOR UPDATE
-      `)
-
-      // Atomically selects the earliest-expiring row with remaining_balance >= 1
-      // and decrements it. Returns 0 rows if no qualifying row exists.
-      // Two concurrent requests with 1 credit: PostgreSQL row locking ensures
-      // only one succeeds; the second sees remaining_balance = 0 and returns 0 rows.
-      const spendResult = await db.execute<{ id: string }>(sql`
-        UPDATE credit_transactions
-        SET remaining_balance = remaining_balance - 1
-        WHERE user_id = ${userId}
-          AND remaining_balance >= 1
-          AND (expires_at IS NULL OR expires_at > NOW())
-          AND id = (
-            SELECT id FROM credit_transactions
-            WHERE user_id = ${userId}
-              AND remaining_balance >= 1
-              AND (expires_at IS NULL OR expires_at > NOW())
-            ORDER BY expires_at ASC NULLS LAST
-            LIMIT 1 FOR UPDATE
-          )
-        RETURNING id
-      `)
-
-      if (spendResult.rows.length === 0) {
-        throw new Error('INSUFFICIENT_CREDITS')
-      }
-
-      const txId = spendResult.rows[0].id
-
-      // Update subscriptions cache (row is already locked)
-      try {
-        await db.execute(sql`
-          UPDATE subscriptions
-          SET current_credits = current_credits - 1
-          WHERE user_id = ${userId}
+      return await db.transaction(async (tx) => {
+        // Ensure subscriptions row exists (ON CONFLICT DO NOTHING is idempotent)
+        await tx.execute(sql`
+          INSERT INTO subscriptions (user_id, current_credits)
+          VALUES (${userId}, 0)
+          ON CONFLICT (user_id) DO NOTHING
         `)
-      } catch (err) {
-        // Best-effort cache sync; credit_transactions is the source of truth.
-        console.warn(`subscriptions.current_credits decrement failed user=${userId}`, err)
-      }
 
-      return txId
+        // Lock the subscriptions row first
+        await tx.execute(sql`
+          SELECT user_id FROM subscriptions
+          WHERE user_id = ${userId}
+          FOR UPDATE
+        `)
+
+        // Atomically selects the earliest-expiring row with remaining_balance >= 1
+        // and decrements it. Returns 0 rows if no qualifying row exists.
+        // Two concurrent requests with 1 credit: PostgreSQL row locking ensures
+        // only one succeeds; the second sees remaining_balance = 0 and returns 0 rows.
+        const spendResult = await tx.execute<{ id: string }>(sql`
+          UPDATE credit_transactions
+          SET remaining_balance = remaining_balance - 1
+          WHERE user_id = ${userId}
+            AND remaining_balance >= 1
+            AND (expires_at IS NULL OR expires_at > NOW())
+            AND id = (
+              SELECT id FROM credit_transactions
+              WHERE user_id = ${userId}
+                AND remaining_balance >= 1
+                AND (expires_at IS NULL OR expires_at > NOW())
+              ORDER BY expires_at ASC NULLS LAST
+              LIMIT 1 FOR UPDATE
+            )
+          RETURNING id
+        `)
+
+        if (spendResult.rows.length === 0) {
+          throw new Error('INSUFFICIENT_CREDITS')
+        }
+
+        const txId = spendResult.rows[0].id
+
+        // Update subscriptions cache (row is already locked)
+        try {
+          await tx.execute(sql`
+            UPDATE subscriptions
+            SET current_credits = current_credits - 1
+            WHERE user_id = ${userId}
+          `)
+        } catch (err) {
+          // Best-effort cache sync; credit_transactions is the source of truth.
+          console.warn(`subscriptions.current_credits decrement failed user=${userId}`, err)
+        }
+
+        return txId
+      })
     },
 
     async refundCredit(userId: string, txId: string): Promise<void> {
       // Match functions lock order: lock subscriptions first, then credit_transactions
-      await db.execute(sql`
-        INSERT INTO subscriptions (user_id, current_credits)
-        VALUES (${userId}, 0)
-        ON CONFLICT (user_id) DO NOTHING
-      `)
-
-      await db.execute(sql`
-        SELECT user_id FROM subscriptions
-        WHERE user_id = ${userId}
-        FOR UPDATE
-      `)
-
-      await db.execute(sql`
-        UPDATE credit_transactions
-        SET remaining_balance = remaining_balance + 1
-        WHERE id = ${txId}
-          AND user_id = ${userId}
-      `)
-
-      try {
-        await db.execute(sql`
-          UPDATE subscriptions
-          SET current_credits = current_credits + 1
-          WHERE user_id = ${userId}
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`
+          INSERT INTO subscriptions (user_id, current_credits)
+          VALUES (${userId}, 0)
+          ON CONFLICT (user_id) DO NOTHING
         `)
-      } catch (err) {
-        // Best-effort cache sync; credit_transactions is the source of truth.
-        console.warn(`subscriptions.current_credits increment failed user=${userId}`, err)
-      }
+
+        await tx.execute(sql`
+          SELECT user_id FROM subscriptions
+          WHERE user_id = ${userId}
+          FOR UPDATE
+        `)
+
+        await tx.execute(sql`
+          UPDATE credit_transactions
+          SET remaining_balance = remaining_balance + 1
+          WHERE id = ${txId}
+            AND user_id = ${userId}
+        `)
+
+        try {
+          await tx.execute(sql`
+            UPDATE subscriptions
+            SET current_credits = current_credits + 1
+            WHERE user_id = ${userId}
+          `)
+        } catch (err) {
+          // Best-effort cache sync; credit_transactions is the source of truth.
+          console.warn(`subscriptions.current_credits increment failed user=${userId}`, err)
+        }
+      })
     },
 
     async getBalance(userId: string): Promise<number> {
