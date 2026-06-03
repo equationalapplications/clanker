@@ -37,11 +37,16 @@ export function createCreditService(db: DrizzleClient): CreditService {
 
       const txId = spendResult.rows[0].id
 
-      await db.execute(sql`
-        UPDATE subscriptions
-        SET current_credits = current_credits - 1
-        WHERE user_id = ${userId}
-      `)
+      try {
+        await db.execute(sql`
+          UPDATE subscriptions
+          SET current_credits = current_credits - 1
+          WHERE user_id = ${userId}
+        `)
+      } catch (err) {
+        // Best-effort cache sync; credit_transactions is the source of truth.
+        console.warn(`subscriptions.current_credits decrement failed user=${userId}`, err)
+      }
 
       return txId
     },
