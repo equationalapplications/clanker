@@ -320,19 +320,7 @@ export function createApp(options: AppOptions) {
       )
       if (!character) { res.status(404).json({ error: 'Character not found' }); return }
 
-      if (unsyncedHistory.length > 0) {
-        try {
-          await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
-        } catch (err) {
-          // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
-          console.error('bulkInsertUnsynced failed:', err)
-        }
-      }
-
-      const wikiContext = await queryWikiContext(db, message, userId, characterId)
-      const systemInstruction = assembleSystemInstruction(character, wikiContext)
-
-      // 1. SPEND FIRST — 402 if no qualifying credit row
+      // SPEND FIRST — fail fast with 402 before any non-essential work or writes
       let txId: string
       try {
         txId = await cs.spendCredit(userId)
@@ -344,6 +332,18 @@ export function createApp(options: AppOptions) {
         }
         throw creditErr
       }
+
+      if (unsyncedHistory.length > 0) {
+        try {
+          await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
+        } catch (err) {
+          // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
+          console.error('bulkInsertUnsynced failed:', err)
+        }
+      }
+
+      const wikiContext = await queryWikiContext(db, message, userId, characterId)
+      const systemInstruction = assembleSystemInstruction(character, wikiContext)
 
       // 2. EXECUTE — refund on ADK failure
       let result: { reply: string; toolCalls: string[] }
