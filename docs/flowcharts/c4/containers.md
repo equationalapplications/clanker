@@ -15,9 +15,12 @@ C4Container
 
   System_Boundary(firebase_b, "Firebase") {
     Container(auth, "Firebase Auth", "Firebase Auth", "Identity and session tokens. Supports Google Sign-In and email.")
-    Container(functions, "Cloud Functions", "Firebase Functions (Node.js)", "Backend logic: AI chat orchestration, wiki sync, purchase webhooks.")
-    Container(firestore, "Firestore", "Firebase Firestore", "Real-time sync. App reads directly; Functions write on events.")
-    Container(cloudsql, "Cloud SQL", "PostgreSQL (accessed via Functions)", "Relational store for user records and subscription state.")
+    Container(functions, "Cloud Functions", "Firebase Functions (Node.js)", "Backend logic: AI chat orchestration for non-cloud-synced characters, wiki sync, purchase webhooks.")
+  }
+
+  System_Boundary(gcp_b, "Google Cloud") {
+    Container(cloudsql, "Cloud SQL", "PostgreSQL", "Relational store for user records, subscription state, tasks, and wiki events.")
+    Container(cloudagent, "Cloud Agent", "Cloud Run (Node.js/Express + Google ADK)", "Stateless ADK agent. Handles escalated messages for cloud-synced characters. Verified via Firebase ID tokens.")
   }
 
   System_Ext(gemini, "Google Gemini", "LLM completions (Gemini 2.5 Flash via Vertex AI)")
@@ -26,11 +29,14 @@ C4Container
 
   Rel(user, app, "Uses", "HTTPS / native")
   Rel(app, auth, "Sign-in and token refresh")
-  Rel(app, functions, "Callable functions: chat, purchases, wiki sync")
-  Rel(app, firestore, "Real-time reads")
+  Rel(app, functions, "Callable functions: chat (non-cloud-synced), purchases, wiki sync")
+  Rel(app, cloudagent, "Escalated messages for cloud-synced characters", "HTTPS POST /agent/run + Bearer token")
   Rel(app, sqlite, "All local reads and writes")
   Rel(app, stripe, "Checkout session redirect (web)")
-  Rel(functions, cloudsql, "User data and subscription records")
+  Rel(functions, cloudsql, "User data, subscription records")
   Rel(functions, gemini, "LLM calls for chat and wiki (Gemini 2.5 Flash)")
   Rel(functions, revenuecat, "Subscription validation (mobile)")
+  Rel(cloudagent, auth, "Verify Firebase ID token")
+  Rel(cloudagent, cloudsql, "Character data, tasks, wiki events (Drizzle ORM)")
+  Rel(cloudagent, gemini, "LLM calls via Google ADK (Gemini 2.5 Flash)")
 ```
