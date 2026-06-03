@@ -110,7 +110,7 @@ export function createCreditService(db: DrizzleClient): CreditService {
 
     async getBalance(userId: string): Promise<number> {
       const result = await db.execute<{ total: string | null }>(sql`
-        SELECT COALESCE(SUM(remaining_balance), 0) AS total
+        SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0) AS total
         FROM credit_transactions
         WHERE user_id = ${userId}
           AND (expires_at IS NULL OR expires_at > NOW())
