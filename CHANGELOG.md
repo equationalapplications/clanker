@@ -1,3 +1,11 @@
+## [29.17.1](https://github.com/equationalapplications/clanker/compare/v29.17.0...v29.17.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **charts:** restore import fallback for machines; replace OpenAI with Gemini ([a8a7a05](https://github.com/equationalapplications/clanker/commit/a8a7a05122b80512e24e46a4498aa97decb58cf4))
+* **scripts:** close SQL template literal in generate-charts.js ([b6cf9ef](https://github.com/equationalapplications/clanker/commit/b6cf9efb19810262b4c1c26ad3685ae7e1600239))
+
 # [29.17.0](https://github.com/equationalapplications/clanker/compare/v29.16.0...v29.17.0) (2026-06-03)
 
 
