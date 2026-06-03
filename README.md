@@ -27,6 +27,7 @@
 
 ### Other Reference
 - **[Accessibility Guide](docs/accessibility.md)** — Conventions for `accessibilityLabel`, `accessibilityRole`, `accessibilityHint`, live regions, and skip links.
+- **[Architecture Charts](docs/flowcharts/README.md)** — Auto-generated Mermaid dependency charts per module, plus C4 system context and container diagrams.
 
 ## 🏗️ Tech Stack
 
@@ -64,6 +65,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - UI components from [React Native Paper](https://reactnativepaper.com/)
 - Chat interface powered by [React Native Gifted Chat](https://github.com/FaridSafi/react-native-gifted-chat)
 - AI capabilities provided by [Google Cloud Vertex AI](https://cloud.google.com/vertex-ai)
+- Agentic memory powered by [expo-llm-wiki](https://github.com/equationalapplications/expo-llm-wiki)
+- Agent tools and permissions via [@equationalapplications/core-llm-tools](https://www.npmjs.com/package/@equationalapplications/core-llm-tools)
 
 ## 📞 Support
 

@@ -75,7 +75,58 @@ function renderFileChart(directory, edges) {
   return header + '```mermaid\ngraph LR\n' + lines.join('\n') + '\n```\n'
 }
 
-module.exports = { queryFileEdges, renderFileChart }
+/**
+ * Import-based fallback for directories where calls edges don't exist (e.g. XState machines).
+ * Queries ~/... import paths contained in each file, maps them to {sourceFile, targetFile} pairs.
+ * Excludes utilities, types, config, constants, and self-referential edges.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} directory - one of DIRECTORIES
+ * @returns {{ sourceFile: string, targetFile: string }[]}
+ */
+function queryImportEdges(db, directory) {
+  const EXCLUDED = new Set(['utilities', 'types', 'config', 'constants'])
+  const sql = `
+    SELECT DISTINCT
+      nf.file_path AS source_file,
+      ni.name      AS import_path
+    FROM edges e
+    JOIN nodes nf ON e.source = nf.id
+    JOIN nodes ni ON e.target = ni.id
+    WHERE nf.file_path LIKE ?
+      AND nf.kind = 'file'
+      AND nf.file_path NOT LIKE '%/utilities/%'
+      AND nf.file_path NOT LIKE '%/types/%'
+      AND nf.file_path NOT LIKE '%/config/%'
+      AND nf.file_path NOT LIKE '%/constants/%'
+      AND e.kind  = 'contains'
+      AND ni.kind = 'import'
+      AND ni.name LIKE '~/%'
+  `
+  const rows = db.prepare(sql).all(`src/${directory}/%`)
+
+  const seen = new Set()
+  const result = []
+
+  for (const row of rows) {
+    const sourceFile = path.basename(row.source_file).replace(/\.[^.]+$/, '')
+    const segments = row.import_path.split('/')
+    const rawTarget = segments[segments.length - 1] ?? ''
+    const targetFile = rawTarget.replace(/\.[^.]+$/, '')
+    if (segments.some((seg) => EXCLUDED.has(seg))) continue
+    if (sourceFile === targetFile) continue
+
+    const key = `${sourceFile}|${targetFile}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      result.push({ sourceFile, targetFile })
+    }
+  }
+
+  return result
+}
+
+module.exports = { queryFileEdges, queryImportEdges, renderFileChart }
 
 function main() {
   const dbPath = '.codegraph/codegraph.db'
@@ -91,11 +142,16 @@ function main() {
     fs.mkdirSync('docs/flowcharts', { recursive: true })
 
     for (const dir of DIRECTORIES) {
-      const edges = queryFileEdges(db, dir)
+      let edges = queryFileEdges(db, dir)
+      let edgeSource = 'call'
+      if (edges.length === 0) {
+        edges = queryImportEdges(db, dir)
+        edgeSource = 'import'
+      }
       const content = renderFileChart(dir, edges)
       const outFile = `docs/flowcharts/${dir}.md`
       fs.writeFileSync(outFile, content, 'utf8')
-      console.log(`  wrote ${outFile} (${edges.length} file edges)`)
+      console.log(`  wrote ${outFile} (${edges.length} ${edgeSource} edges)`)
     }
 
     if (fs.existsSync(OVERVIEW_FILE)) {

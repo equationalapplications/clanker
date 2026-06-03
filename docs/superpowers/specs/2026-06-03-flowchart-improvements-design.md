@@ -23,7 +23,7 @@ Actors and systems:
 | Clanker | System | The app itself |
 | Firebase | System_Ext | Auth, Cloud Functions, Firestore |
 | Google Sign-In | System_Ext | Identity provider |
-| OpenAI | System_Ext | LLM responses via Cloud Functions |
+| Google Gemini | System_Ext | LLM responses (Gemini 2.5 Flash) via Cloud Functions |
 | Stripe | System_Ext | Web subscription payments |
 | RevenueCat | System_Ext | Mobile in-app purchases |
 | Crashlytics | System_Ext | Error reporting |
@@ -52,7 +52,7 @@ Key relations:
 - App → Firestore (direct real-time reads)
 - App → Local SQLite (all local reads/writes)
 - Cloud Functions → Cloud SQL (user data, subscriptions)
-- Cloud Functions → OpenAI (LLM calls)
+- Cloud Functions → Google Gemini (LLM calls)
 - Cloud Functions → RevenueCat (subscription validation)
 
 ## Simplified Auto-Generated Charts
