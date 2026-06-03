@@ -303,7 +303,7 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const { isLoadingComplete, dbInitFailed } = useCachedResources()
+  const { isLoadingComplete, dbInitFailed, dbInitError } = useCachedResources()
 
   if (!isLoadingComplete) {
     return (
@@ -314,9 +314,26 @@ export default function RootLayout() {
   }
 
   if (dbInitFailed) {
+    const isTabConflict = dbInitError?.message?.includes('locked in browser storage')
     return (
       <View style={styles.loadingContainer}>
-        <Text>Failed to start the app. Please restart.</Text>
+        {isTabConflict ? (
+          <>
+            <Text style={styles.errorText}>Clanker is already open in another tab.</Text>
+            <Text style={styles.errorSubText}>Close the other tab, then reload this page.</Text>
+            <Pressable
+              style={styles.reloadButton}
+              onPress={() => (window as any)?.location?.reload?.()}
+              accessibilityRole="button"
+              accessibilityLabel="Reload page"
+              accessibilityHint="Reloads the page to retry app initialization"
+            >
+              <Text style={styles.reloadButtonText}>Reload</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Text style={styles.errorText}>Failed to start the app. Please restart.</Text>
+        )}
       </View>
     )
   }
@@ -354,6 +371,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  errorSubText: {
+    fontSize: 14,
+    textAlign: 'center',
+    opacity: 0.7,
+    marginBottom: 24,
+  },
+  reloadButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: '#1f9d55',
+    borderRadius: 8,
+  },
+  reloadButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 15,
   },
   headerBackButton: {
     paddingVertical: 4,

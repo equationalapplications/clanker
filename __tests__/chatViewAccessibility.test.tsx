@@ -29,6 +29,19 @@ jest.mock('react-native-gifted-chat', () => {
 })
 
 // ── expo-router ──────────────────────────────────────────────────────────────
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+    getParent: () => ({
+      getParent: () => ({
+        setOptions: jest.fn(),
+      }),
+    }),
+    addListener: jest.fn(() => jest.fn()),
+  }),
+}))
+
 jest.mock('expo-router', () => ({
   router: { push: jest.fn() },
   Stack: Object.assign(
@@ -50,7 +63,7 @@ jest.mock('react-native', () => {
   const TouchableOpacity = (props: any) => React.createElement('TouchableOpacity', props)
   return {
     StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
-    Platform: { get OS() { return mockPlatformOS } },
+    Platform: { get OS() { return mockPlatformOS }, select: (spec: any) => spec[mockPlatformOS] || spec.default },
     View,
     Text,
     TouchableOpacity,

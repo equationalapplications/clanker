@@ -1,5 +1,6 @@
-import { Stack, router, useFocusEffect } from 'expo-router'
-import React, { useCallback, useEffect, useRef } from 'react'
+import { router } from 'expo-router'
+import { useNavigation } from '@react-navigation/native'
+import React, { useEffect, useRef } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Text } from 'react-native-paper'
@@ -24,6 +25,7 @@ const GLOW_SIZE = AVATAR_SIZE + 60
 function TalkView({ characterId }: { characterId: string }) {
   const { data: character } = useCharacter(characterId)
   const { voiceState, transcription, replyText, error, startListening, cancel } = useVoiceChat(characterId)
+  const navigation = useNavigation()
 
   const glowScale = useSharedValue(1)
   const glowOpacity = useSharedValue(0)
@@ -60,22 +62,24 @@ function TalkView({ characterId }: { characterId: string }) {
     cancelRef.current = cancel
   }, [cancel])
 
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        cancelRef.current()
-      }
-    }, []),
-  )
+  useEffect(() => {
+    const unsubscribeBlur = navigation.addListener?.('blur', () => {
+      cancelRef.current()
+    })
+    
+    return () => {
+      unsubscribeBlur?.()
+      cancelRef.current()
+    }
+  }, [navigation, cancelRef])
 
-  if (!character) {
-    return (
-      <View style={styles.centered}>
-        <Text>Character not found.</Text>
-      </View>
-    )
-  }
-
+  const canEdit = voiceState === 'idle' || voiceState === 'error'
+  const showSpinner = voiceState === 'processing'
+  const isBusy =
+    voiceState === 'listening' ||
+    voiceState === 'transcribing' ||
+    voiceState === 'processing' ||
+    voiceState === 'playing'
   const statusText = (() => {
     if (error) return error
     if (voiceState === 'listening') return transcription || 'Listening…'
@@ -85,77 +89,92 @@ function TalkView({ characterId }: { characterId: string }) {
     return 'Tap the mic to talk'
   })()
 
-  const showSpinner = voiceState === 'processing'
-  const isBusy =
-    voiceState === 'listening' ||
-    voiceState === 'transcribing' ||
-    voiceState === 'processing' ||
-    voiceState === 'playing'
-  const canEdit = voiceState === 'idle' || voiceState === 'error'
+  React.useLayoutEffect(() => {
+    if (!character) return
+    const drawerNav = navigation.getParent()?.getParent()
+    
+    const setHeader = () => {
+      drawerNav?.setOptions({
+        headerTitle: () => (
+          <View style={styles.headerTitle}>
+            <Pressable
+              onPress={canEdit ? () => router.push(`/characters/${characterId}/edit`) : undefined}
+              disabled={!canEdit}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canEdit }}
+              accessibilityLabel={canEdit ? `Edit ${character.name}` : character.name}
+            >
+              <CharacterAvatar size={40} imageUrl={character.avatar} characterName={character.name} />
+            </Pressable>
+            <Text variant="titleMedium" numberOfLines={1}>
+              {character.name}
+            </Text>
+          </View>
+        ),
+      })
+    }
+    
+    setHeader()
+    
+    const unsubscribeFocus = navigation.addListener?.('focus', setHeader)
+    const unsubscribeBlur = navigation.addListener?.('blur', () => {
+      drawerNav?.setOptions({ headerTitle: 'Chat' })
+    })
+    
+    return () => {
+      unsubscribeFocus?.()
+      unsubscribeBlur?.()
+      drawerNav?.setOptions({ headerTitle: 'Chat' })
+    }
+  }, [character, canEdit, characterId, navigation])
+
+  if (!character) {
+    return (
+      <View style={styles.centered}>
+        <Text>Character not found.</Text>
+      </View>
+    )
+  }
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          headerBackVisible: false,
-          headerTitle: () => (
-            <View style={styles.headerTitle}>
-              <Pressable
-                onPress={canEdit ? () => router.push(`/characters/${characterId}/edit`) : undefined}
-                disabled={!canEdit}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !canEdit }}
-                accessibilityLabel={canEdit ? `Edit ${character.name}` : character.name}
-              >
-                <CharacterAvatar size={40} imageUrl={character.avatar} characterName={character.name} />
-              </Pressable>
-              <Text variant="titleMedium" numberOfLines={1}>
-                {character.name}
-              </Text>
-            </View>
-          ),
-        }}
-      />
-      <View style={styles.container}>
-        <View style={styles.avatarWrap}>
-          <Animated.View style={[styles.glow, glowAnimatedStyle]} />
-          <CharacterAvatar
-            size={AVATAR_SIZE}
-            imageUrl={character.avatar}
-            characterName={character.name}
-          />
-        </View>
-
-        <View
-          style={styles.statusWrap}
-          accessibilityLiveRegion="polite"
-        >
-          {showSpinner ? <ActivityIndicator size="small" style={styles.spinner} /> : null}
-          <Text style={[styles.statusText, error ? styles.errorText : null]}>{statusText}</Text>
-        </View>
-
-        <View style={styles.buttonWrap}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Talk"
-            onPress={startListening}
-            disabled={isBusy}
-            style={[styles.micButton, isBusy ? styles.micButtonDisabled : null]}
-          >
-            {voiceState === 'playing' ? (
-              <MaterialCommunityIcons name="volume-high" size={36} color="#ffffff" />
-            ) : voiceState === 'listening' || voiceState === 'transcribing' ? (
-              <MaterialCommunityIcons name="microphone" size={36} color="#ffffff" />
-            ) : voiceState === 'processing' ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <MaterialCommunityIcons name="microphone" size={36} color="#ffffff" />
-            )}
-          </Pressable>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.avatarWrap}>
+        <Animated.View style={[styles.glow, glowAnimatedStyle]} />
+        <CharacterAvatar
+          size={AVATAR_SIZE}
+          imageUrl={character.avatar}
+          characterName={character.name}
+        />
       </View>
-    </>
+
+      <View
+        style={styles.statusWrap}
+        accessibilityLiveRegion="polite"
+      >
+        {showSpinner ? <ActivityIndicator size="small" style={styles.spinner} /> : null}
+        <Text style={[styles.statusText, error ? styles.errorText : null]}>{statusText}</Text>
+      </View>
+
+      <View style={styles.buttonWrap}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Talk"
+          onPress={startListening}
+          disabled={isBusy}
+          style={[styles.micButton, isBusy ? styles.micButtonDisabled : null]}
+        >
+          {voiceState === 'playing' ? (
+            <MaterialCommunityIcons name="volume-high" size={36} color="#ffffff" />
+          ) : voiceState === 'listening' || voiceState === 'transcribing' ? (
+            <MaterialCommunityIcons name="microphone" size={36} color="#ffffff" />
+          ) : voiceState === 'processing' ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <MaterialCommunityIcons name="microphone" size={36} color="#ffffff" />
+          )}
+        </Pressable>
+      </View>
+    </View>
   )
 }
 
