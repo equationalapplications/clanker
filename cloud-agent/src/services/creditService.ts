@@ -73,7 +73,12 @@ export function createCreditService(db: DrizzleClient): CreditService {
         try {
           await tx.execute(sql`
             UPDATE subscriptions
-            SET current_credits = current_credits - 1
+            SET current_credits = (
+              SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
+              FROM credit_transactions
+              WHERE user_id = ${userId}
+                AND (expires_at IS NULL OR expires_at > NOW())
+            )
             WHERE user_id = ${userId}
           `)
         } catch (err) {
