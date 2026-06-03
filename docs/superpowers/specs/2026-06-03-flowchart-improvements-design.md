@@ -1,6 +1,7 @@
 # Flowchart Improvements Design
 
 _2026-06-03_
+Status: Implemented
 
 ## Goal
 
