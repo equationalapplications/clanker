@@ -95,10 +95,13 @@ function queryImportEdges(db, directory) {
     JOIN nodes ni ON e.target = ni.id
     WHERE nf.file_path LIKE ?
       AND nf.kind = 'file'
+      AND nf.file_path NOT LIKE '%/utilities/%'
+      AND nf.file_path NOT LIKE '%/types/%'
+      AND nf.file_path NOT LIKE '%/config/%'
+      AND nf.file_path NOT LIKE '%/constants/%'
       AND e.kind  = 'contains'
       AND ni.kind = 'import'
       AND ni.name LIKE '~/%'
-  `
   const rows = db.prepare(sql).all(`src/${directory}/%`)
 
   const seen = new Set()
