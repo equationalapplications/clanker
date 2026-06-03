@@ -30,6 +30,18 @@ export function createCreditService(db: DrizzleClient): CreditService {
           FOR UPDATE
         `)
 
+        // Ensure the user has a non-negative net active balance (adjustments can create negative rows).
+        const netResult = await tx.execute<{ total: string | null }>(sql`
+          SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0) AS total
+          FROM credit_transactions
+          WHERE user_id = ${userId}
+            AND (expires_at IS NULL OR expires_at > NOW())
+        `)
+        const netCredits = Number(netResult.rows[0]?.total ?? 0)
+        if (netCredits < 1) {
+          throw new Error('INSUFFICIENT_CREDITS')
+        }
+
         // Atomically selects the earliest-expiring row with remaining_balance >= 1
         // and decrements it. Returns 0 rows if no qualifying row exists.
         // Two concurrent requests with 1 credit: PostgreSQL row locking ensures
