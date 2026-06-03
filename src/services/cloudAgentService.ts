@@ -57,12 +57,10 @@ export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudA
     throw new Error('Invalid Cloud Agent response')
   }
 
-  const rawSnapshot = data.usageSnapshot
+  const remainingCredits = data.usageSnapshot?.remainingCredits
   const usageSnapshot =
-    rawSnapshot !== null &&
-    rawSnapshot !== undefined &&
-    typeof rawSnapshot.remainingCredits === 'number'
-      ? { remainingCredits: rawSnapshot.remainingCredits }
+    typeof remainingCredits === 'number' && Number.isFinite(remainingCredits)
+      ? { remainingCredits }
       : null
 
   return {
