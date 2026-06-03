@@ -342,9 +342,19 @@ export function createApp(options: AppOptions) {
         }
       }
 
-      const wikiContext = await queryWikiContext(db, message, userId, characterId)
-      const systemInstruction = assembleSystemInstruction(character, wikiContext)
-
+      let wikiContext: string
+      let systemInstruction: string
+      try {
+        wikiContext = await queryWikiContext(db, message, userId, characterId)
+        systemInstruction = assembleSystemInstruction(character, wikiContext)
+      } catch (preAgentErr) {
+        try {
+          await cs.refundCredit(userId, txId)
+        } catch (refundErr) {
+          console.error(`[CRITICAL] refundCredit failed user=${userId} txId=${txId}`, refundErr)
+        }
+        throw preAgentErr
+      }
       // 2. EXECUTE — refund on ADK failure
       let result: { reply: string; toolCalls: string[] }
       try {
