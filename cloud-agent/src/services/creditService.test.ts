@@ -16,9 +16,11 @@ const { createCreditService } = await import('./creditService.js')
 // ── spendCredit ───────────────────────────────────────────────────────────────
 
 test('spendCredit returns txId when a qualifying row exists', async () => {
-  // Call 1: UPDATE credit_transactions RETURNING id
-  // Call 2: UPDATE subscriptions SET current_credits - 1
-  const db = makeExecuteDb([{ rows: [{ id: 'tx-abc' }] }, { rows: [] }])
+  // Call 1: INSERT subscriptions (ensure row exists)
+  // Call 2: SELECT FOR UPDATE on subscriptions (lock ordering)
+  // Call 3: UPDATE credit_transactions RETURNING id
+  // Call 4: UPDATE subscriptions SET current_credits - 1
+  const db = makeExecuteDb([{ rows: [] }, { rows: [{ user_id: 'user-1' }] }, { rows: [{ id: 'tx-abc' }] }, { rows: [] }])
   const cs = createCreditService(db)
   const txId = await cs.spendCredit('user-1')
   assert.equal(txId, 'tx-abc')
@@ -46,27 +48,30 @@ test('spendCredit does not update subscriptions when spend fails', async () => {
   } as unknown as DrizzleClient
   const cs = createCreditService(db)
   await assert.rejects(() => cs.spendCredit('user-1'))
-  assert.equal(executeCalls, 1)  // only the UPDATE RETURNING — no subscriptions UPDATE
+  // INSERT subscriptions + SELECT FOR UPDATE + UPDATE credit_transactions (fails)
+  assert.equal(executeCalls, 3)
 })
 
 // ── refundCredit ──────────────────────────────────────────────────────────────
 
 test('refundCredit resolves without throwing', async () => {
-  // Call 1: UPDATE credit_transactions SET remaining_balance + 1
-  // Call 2: UPDATE subscriptions SET current_credits + 1
-  const db = makeExecuteDb([{ rows: [] }, { rows: [] }])
+  // Call 1: INSERT subscriptions (ensure row exists)
+  // Call 2: SELECT FOR UPDATE on subscriptions (lock ordering)
+  // Call 3: UPDATE credit_transactions SET remaining_balance + 1
+  // Call 4: UPDATE subscriptions SET current_credits + 1
+  const db = makeExecuteDb([{ rows: [] }, { rows: [{ user_id: 'user-1' }] }, { rows: [] }, { rows: [] }])
   const cs = createCreditService(db)
   await assert.doesNotReject(() => cs.refundCredit('user-1', 'tx-abc'))
 })
 
-test('refundCredit makes exactly two execute calls', async () => {
+test('refundCredit makes exactly four execute calls', async () => {
   let executeCalls = 0
   const db = {
     execute: async (_query: unknown) => { executeCalls++; return { rows: [] } },
   } as unknown as DrizzleClient
   const cs = createCreditService(db)
   await cs.refundCredit('user-1', 'tx-abc')
-  assert.equal(executeCalls, 2)
+  assert.equal(executeCalls, 4)
 })
 
 // ── getBalance ────────────────────────────────────────────────────────────────
