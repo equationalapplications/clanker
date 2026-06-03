@@ -20,6 +20,12 @@ export function createCreditService(db: DrizzleClient): CreditService {
         WHERE user_id = ${userId}
           AND remaining_balance >= 1
           AND (expires_at IS NULL OR expires_at > NOW())
+          AND (
+            SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
+            FROM credit_transactions
+            WHERE user_id = ${userId}
+              AND (expires_at IS NULL OR expires_at > NOW())
+          ) >= 1
           AND id = (
             SELECT id FROM credit_transactions
             WHERE user_id = ${userId}
