@@ -105,12 +105,30 @@ export function createCreditService(db: DrizzleClient): CreditService {
           FOR UPDATE
         `)
 
-        await tx.execute(sql`
+        const updated = await tx.execute<{ id: string }>(sql`
           UPDATE credit_transactions
           SET remaining_balance = remaining_balance + 1
           WHERE id = ${txId}
             AND user_id = ${userId}
+            AND (expires_at IS NULL OR expires_at > NOW())
+          RETURNING id
         `)
+
+        if (updated.rows.length === 0) {
+          // Original row expired between spend and refund; insert a non-expiring compensation
+          await tx.execute(sql`
+            INSERT INTO credit_transactions (
+              user_id,
+              delta,
+              reason,
+              initial_amount,
+              remaining_balance,
+              transaction_type,
+              expires_at
+            )
+            VALUES (${userId}, 1, 'refund_compensation', 1, 1, 'legacy', NULL)
+          `)
+        }
 
         try {
           await tx.execute(sql`
