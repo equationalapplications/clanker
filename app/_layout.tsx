@@ -323,7 +323,7 @@ export default function RootLayout() {
             <Text style={styles.errorSubText}>Close the other tab, then reload this page.</Text>
             <Pressable
               style={styles.reloadButton}
-              onPress={() => (window as any)?.location?.reload?.()}
+              onPress={() => (globalThis as any).location?.reload?.()}
               accessibilityRole="button"
               accessibilityLabel="Reload page"
               accessibilityHint="Reloads the page to retry app initialization"
