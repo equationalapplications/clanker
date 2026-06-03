@@ -108,8 +108,8 @@ function queryImportEdges(db, directory) {
     const sourceFile = path.basename(row.source_file).replace(/\.[^.]+$/, '')
     const segments = row.import_path.split('/')
     const targetDir = segments[1]
-    const targetFile = segments[segments.length - 1]
-
+    const rawTarget = segments[segments.length - 1] ?? ''
+    const targetFile = rawTarget.replace(/\.[^.]+$/, '')
     if (EXCLUDED.has(targetDir)) continue
     if (sourceFile === targetFile) continue
 
