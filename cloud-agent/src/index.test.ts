@@ -14,6 +14,12 @@ function makeMockDb(queryRowSets: InsertedRow[][] = []) {
   return {
     _inserted: inserted,
     execute: async (_query: unknown) => ({ rows: [{ id: 'mock-txid', total: '99' }] }),
+    transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) => {
+      const tx = {
+        execute: async (_query: unknown) => ({ rows: [{ id: 'mock-txid', total: '99' }] }),
+      }
+      return await callback(tx as unknown as DrizzleClient)
+    },
     insert: (_t: unknown) => ({
       values: (rowOrRows: InsertedRow | InsertedRow[]) => {
         if (Array.isArray(rowOrRows)) {

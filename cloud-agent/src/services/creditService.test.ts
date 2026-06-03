@@ -8,6 +8,13 @@ function makeExecuteDb(responses: Array<{ rows: unknown[] }>): DrizzleClient {
   let callIndex = 0
   return {
     execute: async (_query: unknown) => responses[callIndex++] ?? { rows: [] },
+    transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) => {
+      // Create a transaction mock that uses the same execute mock
+      const tx = {
+        execute: async (_query: unknown) => responses[callIndex++] ?? { rows: [] },
+      }
+      return await callback(tx as unknown as DrizzleClient)
+    },
   } as unknown as DrizzleClient
 }
 
@@ -45,10 +52,19 @@ test('spendCredit does not update subscriptions when spend fails', async () => {
       executeCalls++
       return { rows: [] }  // always returns empty (insufficient)
     },
+    transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) => {
+      const tx = {
+        execute: async (_query: unknown) => {
+          executeCalls++
+          return { rows: [] }
+        },
+      }
+      return await callback(tx as unknown as DrizzleClient)
+    },
   } as unknown as DrizzleClient
   const cs = createCreditService(db)
   await assert.rejects(() => cs.spendCredit('user-1'))
-  // INSERT subscriptions + SELECT FOR UPDATE + UPDATE credit_transactions (fails)
+  // Inside transaction: INSERT subscriptions + SELECT FOR UPDATE + UPDATE credit_transactions (fails)
   assert.equal(executeCalls, 3)
 })
 
@@ -68,9 +84,16 @@ test('refundCredit makes exactly four execute calls', async () => {
   let executeCalls = 0
   const db = {
     execute: async (_query: unknown) => { executeCalls++; return { rows: [] } },
+    transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) => {
+      const tx = {
+        execute: async (_query: unknown) => { executeCalls++; return { rows: [] } },
+      }
+      return await callback(tx as unknown as DrizzleClient)
+    },
   } as unknown as DrizzleClient
   const cs = createCreditService(db)
   await cs.refundCredit('user-1', 'tx-abc')
+  // Inside transaction: INSERT subscriptions + SELECT FOR UPDATE + UPDATE credit_transactions + UPDATE subscriptions
   assert.equal(executeCalls, 4)
 })
 
