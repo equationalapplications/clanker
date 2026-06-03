@@ -1,3 +1,10 @@
+# ADR 001: Callable Error Normalization
+
+**Date:** 2024 (exact date unknown — see git log for `docs/CALLABLE_ERROR_NORMALIZATION.md`)
+**Status:** Accepted
+
+---
+
 # Callable Error Normalization
 
 ## Overview
