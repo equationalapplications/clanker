@@ -362,6 +362,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     sendMessage,
     isGeneratingResponse: aiMessageMutation.isPending,
     error,
-    escalationState: edgeAgent.escalationState,
+    escalationState: aiMessageMutation.isPending ? edgeAgent.escalationState : 'idle',
   }
 }

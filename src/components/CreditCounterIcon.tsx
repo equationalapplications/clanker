@@ -18,7 +18,7 @@ export function CreditCounterIcon() {
 
   return (
     <Pressable
-      onPress={() => router.push('./subscribe')}
+      onPress={() => router.push('/(drawer)/subscribe')}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint="Opens subscription management"
