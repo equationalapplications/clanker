@@ -222,8 +222,9 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
 
 function corsOrigins(): string | string[] | boolean {
   const raw = process.env.CORS_ORIGIN
-  // Default to false (deny cross-origin) unless explicit allowed origins are configured.
-  if (!raw) return false
+  // No env var → reflect the request Origin (allow all). Safe because auth uses
+  // Authorization header (not cookies), so credentials are not at risk.
+  if (!raw) return true
 
   const origins = raw
     .split(',')
