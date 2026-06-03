@@ -10,7 +10,7 @@ C4Context
 
   System(clanker, "Clanker", "AI character chat app. Hosts chat, character management, wiki, and subscription features.")
 
-  System_Ext(firebase, "Firebase", "Auth and Cloud Functions (Node.js backend for chat, wiki sync, purchases)")
+  System_Ext(firebase, "Firebase", "Auth and Cloud Functions (Node.js backend for non-cloud-synced chat, wiki sync, purchases)")
   System_Ext(cloudagent, "Cloud Agent", "Stateless ADK agent on Cloud Run. Handles cloud-synced character escalations via POST /agent/run")
   System_Ext(google, "Google Sign-In", "Identity provider for OAuth sign-in")
   System_Ext(gemini, "Google Gemini", "LLM completions (Gemini 2.5 Flash via Vertex AI). Called by Cloud Functions and Cloud Agent")
