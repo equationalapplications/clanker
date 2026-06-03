@@ -1,7 +1,7 @@
 # Edge Agent Escalation Handoff — Followup Spec
 
 **Date:** 2026-05-28  
-**Status:** Approved — ready for implementation  
+**Status:** Implemented  
 **Depends on:** `2026-05-28-edge-agent-chat-architecture.md`  
 **Scope:** Local-only airgap, stale cloud sync prevention, and the escalation handoff payload contract.
 

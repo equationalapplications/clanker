@@ -34,8 +34,8 @@ describe('database schema migration guards', () => {
     )
   })
 
-  it('bumps schema to v17 for wiki cleanup migration', () => {
-    expect(SCHEMA_VERSION).toBe(18)
+  it('bumps schema to v19 for tasks table migration', () => {
+    expect(SCHEMA_VERSION).toBe(19)
     // Migration 13: adds source_hash — skipped if column exists OR wiki_entries table is missing
     expect(MIGRATION_SKIP_GUARDS[13]).toEqual([
       { table: 'wiki_entries', column: 'source_hash' },
@@ -71,6 +71,10 @@ describe('database schema migration guards', () => {
     // Migration 18: adds synced_at column to messages — skipped if column already exists
     expect(MIGRATION_SKIP_GUARDS[18]).toEqual([{ table: 'messages', column: 'synced_at' }])
     expect(MIGRATIONS[18]).toContain('ALTER TABLE messages ADD COLUMN synced_at INTEGER')
+    // Migration 19: creates tasks table — skipped if tasks table already has id column
+    expect(MIGRATION_SKIP_GUARDS[19]).toEqual([{ table: 'tasks', column: 'id' }])
+    expect(MIGRATIONS[19]).toContain('CREATE TABLE IF NOT EXISTS tasks')
+    expect(MIGRATIONS[19]).toContain('idx_tasks_character')
   })
 
   it('does not include old wiki memory tables in base schema', () => {
@@ -80,6 +84,8 @@ describe('database schema migration guards', () => {
     expect(CREATE_TABLES).not.toContain('CREATE TABLE IF NOT EXISTS derived_synonyms')
     expect(CREATE_TABLES).toContain('heal_checkpoint INTEGER NOT NULL DEFAULT 0')
     expect(CREATE_TABLES).toContain('memory_checkpoint INTEGER NOT NULL DEFAULT 0')
+    expect(CREATE_TABLES).toContain('CREATE TABLE IF NOT EXISTS tasks')
+    expect(CREATE_TABLES).toContain('idx_tasks_character')
   })
 
   it('adds heal_checkpoint in migration 11 and memory_checkpoint in migration 12', () => {

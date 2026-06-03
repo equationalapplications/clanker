@@ -13,11 +13,41 @@ graph LR
 (useAIChat.ts)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
 (useCharacterWiki.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
+(useEdgeAgent.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> reportError__src_utilities_reportError_ts["reportError
 (reportError.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
+(messageDatabase.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
+(aiChatService.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> buildContentHistory__src_services_CharacterPromptBuilder_ts["buildContentHistory
+(CharacterPromptBuilder.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> listTasks__src_database_taskDatabase_ts["listTasks
+(taskDatabase.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> callCloudAgent__src_services_cloudAgentService_ts["callCloudAgent
+(cloudAgentService.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> getUnsyncedMessages__src_database_messageDatabase_ts["getUnsyncedMessages
+(messageDatabase.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> toSyncMessage__src_services_syncMessage_ts["toSyncMessage
+(syncMessage.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> markMessagesAsSynced__src_database_messageDatabase_ts["markMessagesAsSynced
+(messageDatabase.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
 (useMessages.ts)"]
@@ -51,12 +81,6 @@ graph LR
   useAuthCredits__src_hooks_useAuthSnapshot_ts["useAuthCredits
 (useAuthSnapshot.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
-  useAuthCredits__src_hooks_useAuthSnapshot_ts["useAuthCredits
-(useAuthSnapshot.ts)"] --> isPlanTier__src_hooks_useAuthSnapshot_ts["isPlanTier
-(useAuthSnapshot.ts)"]
-  useAuthCredits__src_hooks_useAuthSnapshot_ts["useAuthCredits
-(useAuthSnapshot.ts)"] --> SUBSCRIPTION_TIERS__src_config_constants_ts["SUBSCRIPTION_TIERS
-(constants.ts)"]
   useAuthTerms__src_hooks_useAuthSnapshot_ts["useAuthTerms
 (useAuthSnapshot.ts)"] --> useAuthSubscription__src_hooks_useAuthSnapshot_ts["useAuthSubscription
 (useAuthSnapshot.ts)"]
@@ -120,9 +144,15 @@ graph LR
   useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
 (useCurrentPlan.ts)"] --> isPlanTier__src_hooks_useCurrentPlan_ts["isPlanTier
 (useCurrentPlan.ts)"]
-  useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
-(useCurrentPlan.ts)"] --> SUBSCRIPTION_TIERS__src_config_constants_ts["SUBSCRIPTION_TIERS
-(constants.ts)"]
+  useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
+(useEdgeAgent.ts)"] --> buildSystemInstruction__src_services_CharacterPromptBuilder_ts["buildSystemInstruction
+(CharacterPromptBuilder.ts)"]
+  useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
+(useEdgeAgent.ts)"] --> buildContentHistory__src_services_CharacterPromptBuilder_ts["buildContentHistory
+(CharacterPromptBuilder.ts)"]
+  useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
+(useEdgeAgent.ts)"] --> createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"]
   useEditDirtyState__src_hooks_useEditDirtyState_ts["useEditDirtyState
 (useEditDirtyState.ts)"] --> setEditDirty__src_hooks_useEditDirtyState_ts["setEditDirty
 (useEditDirtyState.ts)"]
@@ -222,15 +252,6 @@ graph LR
   useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
 (useUserCredits.ts)"] --> requestBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["requestBootstrapRefresh
 (useBootstrapRefresh.ts)"]
-  useDeductCredits__src_hooks_useUserCredits_ts["useDeductCredits
-(useUserCredits.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
-(useMachines.ts)"]
-  useDeductCredits__src_hooks_useUserCredits_ts["useDeductCredits
-(useUserCredits.ts)"] --> deductCredits__src_utilities_getUserCredits_ts["deductCredits
-(getUserCredits.ts)"]
-  useDeductCredits__src_hooks_useUserCredits_ts["useDeductCredits
-(useUserCredits.ts)"] --> requestBootstrapRefresh__src_hooks_useBootstrapRefresh_ts["requestBootstrapRefresh
-(useBootstrapRefresh.ts)"]
   useVoiceChat__src_hooks_useVoiceChat_ts["useVoiceChat
 (useVoiceChat.ts)"] --> useAuthMachine__src_hooks_useMachines_ts["useAuthMachine
 (useMachines.ts)"]
@@ -276,6 +297,33 @@ graph LR
   reportError__src_utilities_reportError_ts["reportError
 (reportError.ts)"] --> logCrashlyticsError__src_services_crashlyticsService_ts["logCrashlyticsError
 (crashlyticsService.ts)"]
+  saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
+(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> getMessageCount__src_database_messageDatabase_ts["getMessageCount
+(messageDatabase.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> updateCharacter__src_database_characterDatabase_ts["updateCharacter
+(characterDatabase.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> getMessagesForContextSummary__src_database_messageDatabase_ts["getMessagesForContextSummary
+(messageDatabase.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> buildSummaryInput__src_services_aiChatService_ts["buildSummaryInput
+(aiChatService.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> summarizeText__src_services_summarizeTextService_ts["summarizeText
+(summarizeTextService.ts)"]
+  triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"] --> pruneMessagesForCharacter__src_database_messageDatabase_ts["pruneMessagesForCharacter
+(messageDatabase.ts)"]
+  listTasks__src_database_taskDatabase_ts["listTasks
+(taskDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  getUnsyncedMessages__src_database_messageDatabase_ts["getUnsyncedMessages
+(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
 (messageService.ts)"]
@@ -283,7 +331,13 @@ graph LR
 (aiChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
 (aiChatService.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
+(aiChatService.ts)"] --> buildSystemInstruction__src_services_CharacterPromptBuilder_ts["buildSystemInstruction
+(CharacterPromptBuilder.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> buildContentHistory__src_services_CharacterPromptBuilder_ts["buildContentHistory
+(CharacterPromptBuilder.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> trimToBudget__src_services_aiChatService_ts["trimToBudget
 (aiChatService.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> generateChatReply__src_services_chatReplyService_ts["generateChatReply
@@ -303,6 +357,9 @@ graph LR
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> toUsageSnapshot__src_services_aiChatService_ts["toUsageSnapshot
 (aiChatService.ts)"]
+  markMessagesAsSynced__src_database_messageDatabase_ts["markMessagesAsSynced
+(messageDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
   usageSnapshotFromError__src_services_usageSnapshot_ts["usageSnapshotFromError
 (usageSnapshot.ts)"] --> toUsageSnapshotPayload__src_services_usageSnapshot_ts["toUsageSnapshotPayload
 (usageSnapshot.ts)"]
@@ -366,6 +423,18 @@ graph LR
   getDatabase__src_database_index_ts["getDatabase
 (index.ts)"] --> initializeDatabase__src_database_index_ts["initializeDatabase
 (index.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> readFromWiki__src_services_wikiService_ts["readFromWiki
+(wikiService.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> writeToWiki__src_services_wikiService_ts["writeToWiki
+(wikiService.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> createTask__src_database_taskDatabase_ts["createTask
+(taskDatabase.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> listTasks__src_database_taskDatabase_ts["listTasks
+(taskDatabase.ts)"]
   generateImageViaCallable__src_services_imageGenerationService_ts["generateImageViaCallable
 (imageGenerationService.ts)"] --> generateImageFn__src_config_firebaseConfig_ts["generateImageFn
 (firebaseConfig.ts)"]
@@ -390,21 +459,12 @@ graph LR
   upsertUserProfile__src_services_userService_ts["upsertUserProfile
 (userService.ts)"] --> updateUserProfile__src_services_apiClient_ts["updateUserProfile
 (apiClient.ts)"]
-  deductCredits__src_utilities_getUserCredits_ts["deductCredits
-(getUserCredits.ts)"] --> getCurrentUser__src_auth_googleSignin_ts["getCurrentUser
-(googleSignin.ts)"]
-  deductCredits__src_utilities_getUserCredits_ts["deductCredits
-(getUserCredits.ts)"] --> spendCreditsFn__src_config_firebaseConfig_ts["spendCreditsFn
-(firebaseConfig.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
 (messageService.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
-(voiceChatService.ts)"] --> buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
-(aiChatService.ts)"]
-  sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
-(voiceChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
-(aiChatService.ts)"]
+(voiceChatService.ts)"] --> buildVoicePrompt__src_services_voiceChatService_ts["buildVoicePrompt
+(voiceChatService.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> generateVoiceReply__src_services_voiceReplyService_ts["generateVoiceReply
 (voiceReplyService.ts)"]
@@ -420,6 +480,9 @@ graph LR
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
 (useMessages.ts)"]
+  useEdgeAgent_test__src_hooks___tests___useEdgeAgent_test_ts["useEdgeAgent.test
+(useEdgeAgent.test.ts)"] --> __services_edgeToolExecutors["edgeToolExecutors
+(services)"]
   useMachines__src_hooks_useMachines_ts["useMachines
 (useMachines.ts)"] --> __machines_authMachine["authMachine
 (machines)"]

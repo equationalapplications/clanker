@@ -58,11 +58,11 @@ graph LR
 (CookiePreferencesModal.tsx)"] --> COOKIE_CATEGORIES__src_utilities_cookieConsentTypes_ts["COOKIE_CATEGORIES
 (cookieConsentTypes.ts)"]
   CreditCounterIcon__src_components_CreditCounterIcon_tsx["CreditCounterIcon
-(CreditCounterIcon.tsx)"] --> useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
-(useUserCredits.ts)"]
-  CreditCounterIcon__src_components_CreditCounterIcon_tsx["CreditCounterIcon
 (CreditCounterIcon.tsx)"] --> useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
 (useCurrentPlan.ts)"]
+  CreditCounterIcon__src_components_CreditCounterIcon_tsx["CreditCounterIcon
+(CreditCounterIcon.tsx)"] --> useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
+(useUserCredits.ts)"]
   CreditsDisplay__src_components_CreditsDisplay_tsx["CreditsDisplay
 (CreditsDisplay.tsx)"] --> useUserCredits__src_hooks_useUserCredits_ts["useUserCredits
 (useUserCredits.ts)"]
@@ -148,11 +148,41 @@ graph LR
 (useAIChat.ts)"] --> useCharacterWiki__src_hooks_useCharacterWiki_ts["useCharacterWiki
 (useCharacterWiki.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> useEdgeAgent__src_hooks_useEdgeAgent_ts["useEdgeAgent
+(useEdgeAgent.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> reportError__src_utilities_reportError_ts["reportError
 (reportError.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> saveAIMessage__src_database_messageDatabase_ts["saveAIMessage
+(messageDatabase.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
+(aiChatService.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
+(aiChatService.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> buildContentHistory__src_services_CharacterPromptBuilder_ts["buildContentHistory
+(CharacterPromptBuilder.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> listTasks__src_database_taskDatabase_ts["listTasks
+(taskDatabase.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> callCloudAgent__src_services_cloudAgentService_ts["callCloudAgent
+(cloudAgentService.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> getUnsyncedMessages__src_database_messageDatabase_ts["getUnsyncedMessages
+(messageDatabase.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> toSyncMessage__src_services_syncMessage_ts["toSyncMessage
+(syncMessage.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"]
+  useAIChat__src_hooks_useAIChat_ts["useAIChat
+(useAIChat.ts)"] --> markMessagesAsSynced__src_database_messageDatabase_ts["markMessagesAsSynced
+(messageDatabase.ts)"]
   useAIChat__src_hooks_useAIChat_ts["useAIChat
 (useAIChat.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
 (useMessages.ts)"]
@@ -165,9 +195,6 @@ graph LR
   useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
 (useCurrentPlan.ts)"] --> isPlanTier__src_hooks_useCurrentPlan_ts["isPlanTier
 (useCurrentPlan.ts)"]
-  useCurrentPlan__src_hooks_useCurrentPlan_ts["useCurrentPlan
-(useCurrentPlan.ts)"] --> SUBSCRIPTION_TIERS__src_config_constants_ts["SUBSCRIPTION_TIERS
-(constants.ts)"]
   readConsent__src_utilities_cookieConsentStorage_web_ts["readConsent
 (cookieConsentStorage.web.ts)"] --> getStorage__src_utilities_cookieConsentStorage_web_ts["getStorage
 (cookieConsentStorage.web.ts)"]

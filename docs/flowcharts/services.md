@@ -3,6 +3,9 @@
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
+  runEdgeEval__src_services___tests___edgeAgentEvals_int_test_ts["runEdgeEval
+(edgeAgentEvals.int.test.ts)"] --> buildSystemInstruction__src_services_CharacterPromptBuilder_ts["buildSystemInstruction
+(CharacterPromptBuilder.ts)"]
   callAdmin__src_services_adminService_ts["callAdmin
 (adminService.ts)"] --> ensureAppCheckConfigured__src_services_adminService_ts["ensureAppCheckConfigured
 (adminService.ts)"]
@@ -54,8 +57,8 @@ graph LR
   deleteAdminUser__src_services_adminService_ts["deleteAdminUser
 (adminService.ts)"] --> makeRequestId__src_services_adminService_ts["makeRequestId
 (adminService.ts)"]
-  buildConversationHistory__src_services_aiChatService_ts["buildConversationHistory
-(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
+  trimToBudget__src_services_aiChatService_ts["trimToBudget
+(aiChatService.ts)"] --> estimatePayloadSize__src_services_aiChatService_ts["estimatePayloadSize
 (aiChatService.ts)"]
   buildReferenceId__src_services_aiChatService_ts["buildReferenceId
 (aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
@@ -78,15 +81,6 @@ graph LR
   triggerConversationSummary__src_services_aiChatService_ts["triggerConversationSummary
 (aiChatService.ts)"] --> pruneMessagesForCharacter__src_database_messageDatabase_ts["pruneMessagesForCharacter
 (messageDatabase.ts)"]
-  buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
-(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
-(aiChatService.ts)"]
-  buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
-(aiChatService.ts)"] --> buildConversationHistory__src_services_aiChatService_ts["buildConversationHistory
-(aiChatService.ts)"]
-  buildIntroductionPrompt__src_services_aiChatService_ts["buildIntroductionPrompt
-(aiChatService.ts)"] --> truncateText__src_services_aiChatService_ts["truncateText
-(aiChatService.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
 (messageService.ts)"]
@@ -94,7 +88,13 @@ graph LR
 (aiChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
 (aiChatService.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
-(aiChatService.ts)"] --> buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
+(aiChatService.ts)"] --> buildSystemInstruction__src_services_CharacterPromptBuilder_ts["buildSystemInstruction
+(CharacterPromptBuilder.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> buildContentHistory__src_services_CharacterPromptBuilder_ts["buildContentHistory
+(CharacterPromptBuilder.ts)"]
+  sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
+(aiChatService.ts)"] --> trimToBudget__src_services_aiChatService_ts["trimToBudget
 (aiChatService.ts)"]
   sendMessageWithAIResponse__src_services_aiChatService_ts["sendMessageWithAIResponse
 (aiChatService.ts)"] --> generateChatReply__src_services_chatReplyService_ts["generateChatReply
@@ -115,7 +115,10 @@ graph LR
 (aiChatService.ts)"] --> toUsageSnapshot__src_services_aiChatService_ts["toUsageSnapshot
 (aiChatService.ts)"]
   sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
-(aiChatService.ts)"] --> buildIntroductionPrompt__src_services_aiChatService_ts["buildIntroductionPrompt
+(aiChatService.ts)"] --> buildSystemInstruction__src_services_CharacterPromptBuilder_ts["buildSystemInstruction
+(CharacterPromptBuilder.ts)"]
+  sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
+(aiChatService.ts)"] --> trimToBudget__src_services_aiChatService_ts["trimToBudget
 (aiChatService.ts)"]
   sendCharacterIntroduction__src_services_aiChatService_ts["sendCharacterIntroduction
 (aiChatService.ts)"] --> generateChatReply__src_services_chatReplyService_ts["generateChatReply
@@ -273,12 +276,30 @@ graph LR
   syncDeletionsToCloud__src_services_characterSyncService_ts["syncDeletionsToCloud
 (characterSyncService.ts)"] --> reportWikiOpForCharacter__src_services_characterSyncService_ts["reportWikiOpForCharacter
 (characterSyncService.ts)"]
+  validateStructuredPayloadSize__src_services_chatReplyService_ts["validateStructuredPayloadSize
+(chatReplyService.ts)"] --> getUtf8ByteLength__src_services_chatReplyService_ts["getUtf8ByteLength
+(chatReplyService.ts)"]
+  generateChatReply__src_services_chatReplyService_ts["generateChatReply
+(chatReplyService.ts)"] --> validateStructuredPayloadSize__src_services_chatReplyService_ts["validateStructuredPayloadSize
+(chatReplyService.ts)"]
   generateChatReply__src_services_chatReplyService_ts["generateChatReply
 (chatReplyService.ts)"] --> generateReplyFn__src_config_firebaseConfig_ts["generateReplyFn
 (firebaseConfig.ts)"]
   loadDefaultAvatarBase64__src_services_defaultAvatarService_ts["loadDefaultAvatarBase64
 (defaultAvatarService.ts)"] --> loadDefaultCharacterAvatar__src_utilities_loadDefaultAvatar_ts["loadDefaultCharacterAvatar
 (loadDefaultAvatar.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> readFromWiki__src_services_wikiService_ts["readFromWiki
+(wikiService.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> writeToWiki__src_services_wikiService_ts["writeToWiki
+(wikiService.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> createTask__src_database_taskDatabase_ts["createTask
+(taskDatabase.ts)"]
+  createEdgeToolExecutors__src_services_edgeToolExecutors_ts["createEdgeToolExecutors
+(edgeToolExecutors.ts)"] --> listTasks__src_database_taskDatabase_ts["listTasks
+(taskDatabase.ts)"]
   parseResponse__src_services_imageGenerationService_ts["parseResponse
 (imageGenerationService.ts)"] --> normalizeBase64__src_services_imageGenerationService_ts["normalizeBase64
 (imageGenerationService.ts)"]
@@ -361,11 +382,8 @@ graph LR
 (voiceChatService.ts)"] --> sendMessage__src_services_messageService_ts["sendMessage
 (messageService.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
-(voiceChatService.ts)"] --> buildChatPrompt__src_services_aiChatService_ts["buildChatPrompt
-(aiChatService.ts)"]
-  sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
-(voiceChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
-(aiChatService.ts)"]
+(voiceChatService.ts)"] --> buildVoicePrompt__src_services_voiceChatService_ts["buildVoicePrompt
+(voiceChatService.ts)"]
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> generateVoiceReply__src_services_voiceReplyService_ts["generateVoiceReply
 (voiceReplyService.ts)"]
@@ -381,6 +399,9 @@ graph LR
   sendVoiceMessage__src_services_voiceChatService_ts["sendVoiceMessage
 (voiceChatService.ts)"] --> messageKeys__src_hooks_useMessages_ts["messageKeys
 (useMessages.ts)"]
+  buildVoicePrompt__src_services_voiceChatService_ts["buildVoicePrompt
+(voiceChatService.ts)"] --> getRecentConversationHistory__src_services_aiChatService_ts["getRecentConversationHistory
+(aiChatService.ts)"]
   generateVoiceReply__src_services_voiceReplyService_ts["generateVoiceReply
 (voiceReplyService.ts)"] --> generateVoiceReplyFn__src_config_firebaseConfig_ts["generateVoiceReplyFn
 (firebaseConfig.ts)"]
@@ -404,6 +425,9 @@ graph LR
 (wikiService.ts)"]
   readFromWiki__src_services_wikiService_ts["readFromWiki
 (wikiService.ts)"] --> addWikiNoResultQuery__src_services_wikiService_ts["addWikiNoResultQuery
+(wikiService.ts)"]
+  writeToWiki__src_services_wikiService_ts["writeToWiki
+(wikiService.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
 (wikiService.ts)"]
   ensureWikiEmbeddingMigration__src_services_wikiService_ts["ensureWikiEmbeddingMigration
 (wikiService.ts)"] --> clearWikiNoResultCache__src_services_wikiService_ts["clearWikiNoResultCache
@@ -510,6 +534,12 @@ graph LR
   hardDeleteCharacterLocal__src_database_characterDatabase_ts["hardDeleteCharacterLocal
 (characterDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
 (index.ts)"]
+  createTask__src_database_taskDatabase_ts["createTask
+(taskDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
+  listTasks__src_database_taskDatabase_ts["listTasks
+(taskDatabase.ts)"] --> getDatabase__src_database_index_ts["getDatabase
+(index.ts)"]
   getDatabase__src_database_index_ts["getDatabase
 (index.ts)"] --> openDatabaseAsyncWithRetry__src_database_index_ts["openDatabaseAsyncWithRetry
 (index.ts)"]
@@ -552,9 +582,18 @@ graph LR
   getMostRecentMessage__src_database_messageDatabase_ts["getMostRecentMessage
 (messageDatabase.ts)"] --> toGiftedChatMessage__src_database_messageDatabase_ts["toGiftedChatMessage
 (messageDatabase.ts)"]
+  CharacterPromptBuilder__src_services_CharacterPromptBuilder_ts["CharacterPromptBuilder
+(CharacterPromptBuilder.ts)"] --> __services_aiChatService["aiChatService
+(services)"]
+  cloudAgentService__src_services_cloudAgentService_ts["cloudAgentService
+(cloudAgentService.ts)"] --> __config_firebaseConfig["firebaseConfig
+(config)"]
   crashlyticsService__src_services_crashlyticsService_ts["crashlyticsService
 (crashlyticsService.ts)"] --> __utilities_kvStorage["kvStorage
 (utilities)"]
+  syncMessage__src_services_syncMessage_ts["syncMessage
+(syncMessage.ts)"] --> __database_messageDatabase["messageDatabase
+(database)"]
 ```
 
 > **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are

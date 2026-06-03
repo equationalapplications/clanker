@@ -98,6 +98,15 @@ export async function readFromWiki(
   return fullScanResult
 }
 
+export async function writeToWiki(
+  wiki: Wiki,
+  entityId: string,
+  event: { event_type: 'observation' | 'decision' | 'action' | 'outcome'; summary: string },
+): Promise<void> {
+  await wiki.write(entityId, event)
+  clearWikiNoResultCache(entityId)
+}
+
 const WIKI_METADATA_TABLE = `"${TABLE_PREFIX}meta"`
 const WIKI_EMBEDDING_MIGRATION_KEY = 'wiki_embedding_tasktype_migration_v1'
 const WIKI_EMBEDDING_MIGRATION_FAILED_KEY = 'wiki_embedding_tasktype_migration_v1_failed'

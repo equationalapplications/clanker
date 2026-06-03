@@ -17,6 +17,9 @@ import { saveAIMessage, getUnsyncedMessages, markMessagesAsSynced } from '~/data
 import { sendMessage as persistUserMessage } from '~/services/messageService'
 import { useEdgeAgent, EscalationState } from '~/hooks/useEdgeAgent'
 import { toSyncMessage } from '~/services/syncMessage'
+import { callCloudAgent } from '~/services/cloudAgentService'
+import { listTasks } from '~/database/taskDatabase'
+import { buildContentHistory } from '~/services/CharacterPromptBuilder'
 
 interface UseAIChatProps {
   characterId: string
@@ -118,6 +121,83 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         } catch (observationError) {
           if (!(observationError instanceof WikiBusyError)) {
             reportError(observationError, `wiki:${character.id}:write:observation`)
+          }
+        }
+
+        return { usageSnapshot: null }
+      }
+
+      // Cloud Agent path — isCloudSynced characters with a cloud_id when EXPO_PUBLIC_CLOUD_AGENT_URL is set.
+      // Must send character.cloud_id (Cloud SQL UUID) — character.id is local-only and will typically fail
+      // Cloud Agent validation/ownership checks (400/404), so avoid sending it.
+      if (isCloudSynced && character.cloud_id && process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
+        const cloudCharacterId = character.cloud_id
+
+        const priorHistory = messages.filter(
+          (msg) => String(msg._id) !== String(message._id),
+        )
+        const recentHistory = getRecentConversationHistory(priorHistory, 20)
+        const history = buildContentHistory(recentHistory, userId)
+
+        let localTasks = [] as Awaited<ReturnType<typeof listTasks>>
+        try {
+          localTasks = await listTasks(character.id)
+        } catch (taskErr) {
+          reportError(taskErr, `tasks:${character.id}:list`)
+        }
+        const unsyncedHistory = localTasks.map((t) => ({
+          type: 'task' as const,
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          createdAt: t.created_at,
+        }))
+
+        const agentResult = await callCloudAgent({
+          message: message.text,
+          characterId: cloudCharacterId,
+          history,
+          unsyncedHistory,
+        })
+
+        await persistUserMessage(character.id, userId, message)
+
+        const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+        const savedAIMessage = await saveAIMessage(
+          character.id,
+          userId,
+          agentResult.reply,
+          aiMsgId,
+          {
+            user: {
+              _id: character.id,
+              name: character.name,
+              avatar: character.appearance || undefined,
+            },
+          },
+        )
+
+        void triggerConversationSummary(character, userId)
+
+        const recentMessages = getRecentConversationHistory(
+          [...priorHistory, message, savedAIMessage],
+          20,
+        )
+        const chunk = recentMessages
+          .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
+          .join('\n')
+
+        try {
+          void Promise.resolve(
+            onWriteObservation(character.id, chunk || message.text),
+          ).catch((obsErr: unknown) => {
+            if (!(obsErr instanceof WikiBusyError)) {
+              reportError(obsErr, `wiki:${character.id}:write:observation`)
+            }
+          })
+        } catch (obsErr) {
+          if (!(obsErr instanceof WikiBusyError)) {
+            reportError(obsErr, `wiki:${character.id}:write:observation`)
           }
         }
 

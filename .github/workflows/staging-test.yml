@@ -39,3 +39,6 @@ jobs:
 
       - name: 🧪 Test with Jest
         run: npm run test
+
+      - name: 🧪 Test Cloud Agent
+        run: cd cloud-agent && npm ci && npm test
