@@ -1,3 +1,10 @@
+## [29.17.2](https://github.com/equationalapplications/clanker/compare/v29.17.1...v29.17.2) (2026-06-03)
+
+
+### Bug Fixes
+
+* **c4:** move Cloud SQL and Cloud Agent to Google Cloud boundary ([aeb7881](https://github.com/equationalapplications/clanker/commit/aeb788172b04f302a5746daa955a605354a10279))
+
 ## [29.17.1](https://github.com/equationalapplications/clanker/compare/v29.17.0...v29.17.1) (2026-06-03)
 
 
