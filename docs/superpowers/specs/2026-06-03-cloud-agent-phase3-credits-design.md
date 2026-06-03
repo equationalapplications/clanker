@@ -94,11 +94,16 @@ WHERE id = (
 RETURNING id
 ```
 
-Also decrements `subscriptions.current_credits` by 1 to keep the Firebase-side cache in sync:
+Also best-effort syncs `subscriptions.current_credits` to the net active balance (clamped to ≥ 0) so the cache matches `credit_transactions`:
 
-```sql
-UPDATE subscriptions SET current_credits = current_credits - 1 WHERE user_id = $userId
-```
+    UPDATE subscriptions
+    SET current_credits = (
+      SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
+      FROM credit_transactions
+      WHERE user_id = $userId
+        AND (expires_at IS NULL OR expires_at > NOW())
+    )
+    WHERE user_id = $userId
 
 Throws `"INSUFFICIENT_CREDITS"` if no qualifying row (0 rows returned).
 Returns the `id` of the decremented row (`txId`) for use by `refundCredit`.
