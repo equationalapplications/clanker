@@ -59,7 +59,9 @@ export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudA
 
   const remainingCredits = data.usageSnapshot?.remainingCredits
   const usageSnapshot =
-    typeof remainingCredits === 'number' && Number.isFinite(remainingCredits)
+    typeof remainingCredits === 'number' &&
+    Number.isInteger(remainingCredits) &&
+    remainingCredits >= 0
       ? { remainingCredits }
       : null
 
