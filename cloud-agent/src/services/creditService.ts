@@ -10,6 +10,25 @@ export type CreditService = {
 export function createCreditService(db: DrizzleClient): CreditService {
   return {
     async spendCredit(userId: string): Promise<string> {
+      // Match functions lock order to prevent deadlocks:
+      // 1. Ensure subscriptions row exists and lock it first
+      // 2. Then lock and update credit_transactions
+      // This matches functions/src/services/creditService.ts lock ordering.
+
+      // Ensure subscriptions row exists (ON CONFLICT DO NOTHING is idempotent)
+      await db.execute(sql`
+        INSERT INTO subscriptions (user_id, current_credits)
+        VALUES (${userId}, 0)
+        ON CONFLICT (user_id) DO NOTHING
+      `)
+
+      // Lock the subscriptions row first
+      await db.execute(sql`
+        SELECT user_id FROM subscriptions
+        WHERE user_id = ${userId}
+        FOR UPDATE
+      `)
+
       // Atomically selects the earliest-expiring row with remaining_balance >= 1
       // and decrements it. Returns 0 rows if no qualifying row exists.
       // Two concurrent requests with 1 credit: PostgreSQL row locking ensures
@@ -37,6 +56,7 @@ export function createCreditService(db: DrizzleClient): CreditService {
 
       const txId = spendResult.rows[0].id
 
+      // Update subscriptions cache (row is already locked)
       try {
         await db.execute(sql`
           UPDATE subscriptions
@@ -52,6 +72,19 @@ export function createCreditService(db: DrizzleClient): CreditService {
     },
 
     async refundCredit(userId: string, txId: string): Promise<void> {
+      // Match functions lock order: lock subscriptions first, then credit_transactions
+      await db.execute(sql`
+        INSERT INTO subscriptions (user_id, current_credits)
+        VALUES (${userId}, 0)
+        ON CONFLICT (user_id) DO NOTHING
+      `)
+
+      await db.execute(sql`
+        SELECT user_id FROM subscriptions
+        WHERE user_id = ${userId}
+        FOR UPDATE
+      `)
+
       await db.execute(sql`
         UPDATE credit_transactions
         SET remaining_balance = remaining_balance + 1
