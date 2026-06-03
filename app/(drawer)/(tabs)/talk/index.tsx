@@ -69,7 +69,6 @@ function TalkView({ characterId }: { characterId: string }) {
     
     return () => {
       unsubscribeBlur?.()
-      cancelRef.current()
     }
   }, [navigation, cancelRef])
 
