@@ -16,10 +16,12 @@ C4Container
   System_Boundary(firebase_b, "Firebase") {
     Container(auth, "Firebase Auth", "Firebase Auth", "Identity and session tokens. Supports Google Sign-In and email.")
     Container(functions, "Cloud Functions", "Firebase Functions (Node.js)", "Backend logic: AI chat orchestration for non-cloud-synced characters, wiki sync, purchase webhooks.")
-    Container(cloudsql, "Cloud SQL", "PostgreSQL", "Relational store for user records, subscription state, tasks, and wiki events.")
   }
 
-  Container(cloudagent, "Cloud Agent", "Cloud Run (Node.js/Express + Google ADK)", "Stateless ADK agent. Handles escalated messages for cloud-synced characters. Verified via Firebase ID tokens.")
+  System_Boundary(gcp_b, "Google Cloud") {
+    Container(cloudsql, "Cloud SQL", "PostgreSQL", "Relational store for user records, subscription state, tasks, and wiki events.")
+    Container(cloudagent, "Cloud Agent", "Cloud Run (Node.js/Express + Google ADK)", "Stateless ADK agent. Handles escalated messages for cloud-synced characters. Verified via Firebase ID tokens.")
+  }
 
   System_Ext(gemini, "Google Gemini", "LLM completions (Gemini 2.5 Flash via Vertex AI)")
   System_Ext(revenuecat, "RevenueCat", "Mobile IAP validation")
