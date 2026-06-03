@@ -27,6 +27,7 @@
 
 ### Other Reference
 - **[Accessibility Guide](docs/accessibility.md)** — Conventions for `accessibilityLabel`, `accessibilityRole`, `accessibilityHint`, live regions, and skip links.
+- **[Architecture Charts](docs/flowcharts/README.md)** — Auto-generated Mermaid dependency charts per module, plus C4 system context and container diagrams.
 
 ## 🏗️ Tech Stack
 
