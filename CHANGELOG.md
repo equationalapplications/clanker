@@ -1,3 +1,11 @@
+# [29.17.0](https://github.com/equationalapplications/clanker/compare/v29.16.0...v29.17.0) (2026-06-03)
+
+
+### Features
+
+* **charts:** pivot to file-level module flowcharts ([5268a87](https://github.com/equationalapplications/clanker/commit/5268a879a590114272e16614092d7f84abf0c445))
+* **charts:** rewrite to folder-level dependency overview ([6d7ac8d](https://github.com/equationalapplications/clanker/commit/6d7ac8d7c2031d5b59825cdf4bd082d0828206be))
+
 # [29.16.0](https://github.com/equationalapplications/clanker/compare/v29.15.1...v29.16.0) (2026-06-03)
 
 
