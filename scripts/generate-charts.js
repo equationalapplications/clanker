@@ -102,6 +102,7 @@ function queryImportEdges(db, directory) {
       AND e.kind  = 'contains'
       AND ni.kind = 'import'
       AND ni.name LIKE '~/%'
+  `
   const rows = db.prepare(sql).all(`src/${directory}/%`)
 
   const seen = new Set()
