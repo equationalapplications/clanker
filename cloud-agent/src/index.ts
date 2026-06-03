@@ -222,9 +222,8 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
 
 function corsOrigins(): string | string[] | boolean {
   const raw = process.env.CORS_ORIGIN
-  // Default to true (reflect origin) so Expo web can reach Cloud Run without
-  // explicit CORS_ORIGIN configuration; Firebase auth provides the access control.
-  if (!raw) return true
+  // Default to false (deny cross-origin) unless explicit allowed origins are configured.
+  if (!raw) return false
 
   const origins = raw
     .split(',')
