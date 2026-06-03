@@ -25,9 +25,9 @@ const { createCreditService } = await import('./creditService.js')
 test('spendCredit returns txId when a qualifying row exists', async () => {
   // Call 1: INSERT subscriptions (ensure row exists)
   // Call 2: SELECT FOR UPDATE on subscriptions (lock ordering)
-  // Call 3: UPDATE credit_transactions RETURNING id
-  // Call 4: UPDATE subscriptions SET current_credits - 1
-  const db = makeExecuteDb([{ rows: [] }, { rows: [{ user_id: 'user-1' }] }, { rows: [{ id: 'tx-abc' }] }, { rows: [] }])
+  // Call 3: SELECT SUM(...) net active balance (must be >= 1)
+  // Call 4: UPDATE credit_transactions RETURNING id; Call 5: UPDATE subscriptions current_credits cache
+  const db = makeExecuteDb([{ rows: [] }, { rows: [{ user_id: 'user-1' }] }, { rows: [{ total: '1' }] }, { rows: [{ id: 'tx-abc' }] }, { rows: [] }])
   const cs = createCreditService(db)
   const txId = await cs.spendCredit('user-1')
   assert.equal(txId, 'tx-abc')
