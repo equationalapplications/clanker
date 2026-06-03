@@ -238,8 +238,8 @@ function corsOrigins(): string | string[] | boolean {
       }
     })
 
-  if (origins.some((o) => o === '*')) return '*'
-  return origins.length > 0 ? origins : false
+  const filtered = origins.filter((o) => o !== '*')
+  return filtered.length > 0 ? filtered : false
 }
 
 export function createApp(options: AppOptions) {
@@ -252,7 +252,7 @@ export function createApp(options: AppOptions) {
     app.set('trust proxy', 1)
   }
   app.use(cors({ origin: corsOrigins() }))
-  app.use(express.json())
+  app.use(express.json({ limit: '2mb' }))
 
   app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' })
@@ -264,8 +264,9 @@ export function createApp(options: AppOptions) {
     next: NextFunction,
   ): Promise<void> => {
     const authHeader = req.headers.authorization ?? ''
-    const match = authHeader.match(/^Bearer\s+(.+)$/i)
-    const token = match?.[1]
+    const token = authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7).trim() || undefined
+      : undefined
     if (!token) { res.status(401).json({ error: 'Unauthorized' }); return }
     try {
       const decoded = await verifyToken(token)

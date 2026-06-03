@@ -109,14 +109,14 @@ test('POST /agent/run sends Access-Control-Allow-Origin on CORS preflight when C
   else delete process.env.CORS_ORIGIN
 })
 
-test('health endpoint allows all origins when CORS_ORIGIN is set to wildcard', async () => {
+test('health endpoint blocks all origins when CORS_ORIGIN is set to wildcard (wildcard disallowed)', async () => {
   const orig = process.env.CORS_ORIGIN
   process.env.CORS_ORIGIN = '*'
   const db = makeMockDb()
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   const res = await request(app).get('/health').set('Origin', 'https://anything.example.com')
   assert.equal(res.status, 200)
-  assert.equal(res.headers['access-control-allow-origin'], '*')
+  assert.equal(res.headers['access-control-allow-origin'], undefined)
   if (orig !== undefined) process.env.CORS_ORIGIN = orig
   else delete process.env.CORS_ORIGIN
 })
