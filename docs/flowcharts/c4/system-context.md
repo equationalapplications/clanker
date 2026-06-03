@@ -20,7 +20,7 @@ C4Context
 
   Rel(user, clanker, "Uses", "HTTPS / native")
   Rel(clanker, firebase, "Auth, callable functions")
-  Rel(clanker, cloudagent, "Escalated messages for cloud-synced characters", "HTTPS POST /agent/run")
+  Rel(clanker, cloudagent, "Escalated messages for cloud-synced characters", "HTTPS POST /agent/run + Bearer token")
   Rel(clanker, google, "OAuth sign-in")
   Rel(clanker, gemini, "LLM calls (via Cloud Functions and Cloud Agent)")
   Rel(clanker, stripe, "Checkout session (web)")
