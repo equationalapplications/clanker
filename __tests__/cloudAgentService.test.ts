@@ -80,7 +80,7 @@ describe('callCloudAgent', () => {
         }),
       }),
     )
-    expect(result).toEqual({ reply: 'Hello!', toolCalls: ['create_task'] })
+    expect(result).toEqual({ reply: 'Hello!', toolCalls: ['create_task'], usageSnapshot: null })
   })
 
   it('defaults toolCalls to [] when absent in response', async () => {
@@ -99,6 +99,62 @@ describe('callCloudAgent', () => {
     await expect(
       callCloudAgent({ message: 'hi', characterId: 'char-1' }),
     ).rejects.toThrow('Cloud Agent responded with 401')
+  })
+
+  it('throws CLOUD_AGENT_INSUFFICIENT_CREDITS when server returns 402', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 402 })
+    const { callCloudAgent } = loadWithMocks()
+    await expect(
+      callCloudAgent({ message: 'hi', characterId: 'char-1' }),
+    ).rejects.toThrow('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+  })
+
+  it('does not throw generic HTTP error for 402 — only CLOUD_AGENT_INSUFFICIENT_CREDITS', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 402 })
+    const { callCloudAgent } = loadWithMocks()
+    await expect(
+      callCloudAgent({ message: 'hi', characterId: 'char-1' }),
+    ).rejects.not.toThrow('Cloud Agent responded with 402')
+  })
+
+  it('returns usageSnapshot with remainingCredits when present in response', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ reply: 'Hi!', toolCalls: [], usageSnapshot: { remainingCredits: 42 } }),
+    })
+    const { callCloudAgent } = loadWithMocks()
+    const result = await callCloudAgent({ message: 'hi', characterId: 'char-1' })
+    expect(result.usageSnapshot).toEqual({ remainingCredits: 42 })
+  })
+
+  it('returns usageSnapshot: null when usageSnapshot is absent from response', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ reply: 'Hi!', toolCalls: [] }),
+    })
+    const { callCloudAgent } = loadWithMocks()
+    const result = await callCloudAgent({ message: 'hi', characterId: 'char-1' })
+    expect(result.usageSnapshot).toBeNull()
+  })
+
+  it('returns usageSnapshot: null when remainingCredits is not a number', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ reply: 'Hi!', toolCalls: [], usageSnapshot: { remainingCredits: 'bad' } }),
+    })
+    const { callCloudAgent } = loadWithMocks()
+    const result = await callCloudAgent({ message: 'hi', characterId: 'char-1' })
+    expect(result.usageSnapshot).toBeNull()
+  })
+
+  it('returns usageSnapshot: null when usageSnapshot.remainingCredits is null', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ reply: 'Hi!', toolCalls: [], usageSnapshot: { remainingCredits: null } }),
+    })
+    const { callCloudAgent } = loadWithMocks()
+    const result = await callCloudAgent({ message: 'hi', characterId: 'char-1' })
+    expect(result.usageSnapshot).toBeNull()
   })
 
   it('throws when response body missing reply', async () => {
