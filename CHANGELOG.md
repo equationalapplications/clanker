@@ -1,3 +1,62 @@
+# [29.16.0](https://github.com/equationalapplications/clanker/compare/v29.15.1...v29.16.0) (2026-06-03)
+
+
+### Bug Fixes
+
+* address Copilot review — tsconfig exclusion and create_task return value ([99dc943](https://github.com/equationalapplications/clanker/commit/99dc94345e2e0e5efed70454f30fc244d21d9ef4))
+* **cloud-agent:** add rate limiting to /agent/run (20 req/min) ([e65c778](https://github.com/equationalapplications/clanker/commit/e65c7783b3cf355ef3f889f41e24e3f638a18133))
+* **cloud-agent:** add userId filter to wiki queries and validate contentSchema role ([426a2ef](https://github.com/equationalapplications/clanker/commit/426a2ef62d4d75b48ec2b67db8d79ccd3326d884))
+* **cloud-agent:** address Copilot review feedback on PR [#418](https://github.com/equationalapplications/clanker/issues/418) ([7c386af](https://github.com/equationalapplications/clanker/commit/7c386afff6788dffe4f37490ce7ffabf429926f6))
+* **cloud-agent:** address Copilot review issues ([80f5f24](https://github.com/equationalapplications/clanker/commit/80f5f2416f9a3df152ce5eef49f4c85a277da31c))
+* **cloud-agent:** address Copilot review threads in index.ts ([72c5ff6](https://github.com/equationalapplications/clanker/commit/72c5ff67eb55599a19b455db0da07f85d328a036))
+* **cloud-agent:** address PR [#416](https://github.com/equationalapplications/clanker/issues/416) review comments ([e7a9c3c](https://github.com/equationalapplications/clanker/commit/e7a9c3c2fc217e5976d7c70318a3fa8b96b8d8d6))
+* **cloud-agent:** address PR [#416](https://github.com/equationalapplications/clanker/issues/416) review comments ([1581bb0](https://github.com/equationalapplications/clanker/commit/1581bb00b25ffc27f460b76cec3506ba50532446))
+* **cloud-agent:** address PR [#418](https://github.com/equationalapplications/clanker/issues/418) review feedback ([d8f6ecb](https://github.com/equationalapplications/clanker/commit/d8f6ecbdf22dda55be81816f609fc8bd79d1f1a9))
+* **cloud-agent:** address PR review feedback ([3ab0407](https://github.com/equationalapplications/clanker/commit/3ab040709c74445c863a41dc2c2bcff1721f4b9a))
+* **cloud-agent:** address remaining Copilot review threads ([50fdd0e](https://github.com/equationalapplications/clanker/commit/50fdd0e5a1c8adb551b8223c4bf2203e39a65491))
+* **cloud-agent:** address remaining Copilot review threads ([c888054](https://github.com/equationalapplications/clanker/commit/c888054c896f8c2fb3c7cddc9bd76d20f34f28d9))
+* **cloud-agent:** address security review — ReDoS, body limit, CORS wildcard ([38833ce](https://github.com/equationalapplications/clanker/commit/38833ce2cdc05c35e5fa519f2f8fa5c80f421644))
+* **cloud-agent:** apply cloud agent fixes and add ignore files ([91ac0d9](https://github.com/equationalapplications/clanker/commit/91ac0d90907c34473d177044bfb261e8ef51ca2f))
+* **cloud-agent:** detect Cloud Run (K_SERVICE) as production in 500 handler ([0c2d9fb](https://github.com/equationalapplications/clanker/commit/0c2d9fbc52e87e4e8d341abd298bad182b1bdf66))
+* **cloud-agent:** fix corsOrigins wildcard handling and rate limiter JSON response ([f465754](https://github.com/equationalapplications/clanker/commit/f46575450a7060bdc8324db8bc26d604f82b8331))
+* **cloud-agent:** fix silent empty replies and broken endpoint routing ([7d1797d](https://github.com/equationalapplications/clanker/commit/7d1797d418fdca713dee1e2507c4c58927377b57))
+* **cloud-agent:** fix try-block indentation, restrict CORS, add 500-path test ([22d101f](https://github.com/equationalapplications/clanker/commit/22d101f890b81279d66a0b8672eb0cc9390b3d03))
+* **cloud-agent:** rename shadowed `message` to `errorMessage` in error handler ([f50d9e6](https://github.com/equationalapplications/clanker/commit/f50d9e68a4a161ae4c1dc00f8fa7a989006fbf9f))
+* **cloud-agent:** restore CORS_ORIGIN=* passthrough and fix stale spec/test ([21ff2f9](https://github.com/equationalapplications/clanker/commit/21ff2f93c67625179b0e75e7d4e73236779f3143))
+* **cloud-agent:** restore origin reflection when CORS_ORIGIN is unset ([6c22033](https://github.com/equationalapplications/clanker/commit/6c220338524c9c0200bf89caaa6d33da59ddb742))
+* **cloud-agent:** restrict CORS to explicit origins, remove wildcard default ([23706f8](https://github.com/equationalapplications/clanker/commit/23706f872229665ecdb1cfa2a10d773372b3196a))
+* **cloud-agent:** swap Zod trim/min order and trim EXPO_PUBLIC_CLOUD_AGENT_URL ([a0ec01a](https://github.com/equationalapplications/clanker/commit/a0ec01a3281d34f32ec7037f7b101e9014c5118a))
+* **cloud-agent:** uuid validation, cors default, list_tasks order ([ecc03b5](https://github.com/equationalapplications/clanker/commit/ecc03b558a7552dea79700c4d82233fc41d532a7))
+* **edge:** add task cascade delete, stable task ids, and update edge eval docs ([5342eb7](https://github.com/equationalapplications/clanker/commit/5342eb767fa800d28487b070396e7a9312c9c1fb))
+* **edge:** address Copilot review feedback on write_observation PR ([6b94568](https://github.com/equationalapplications/clanker/commit/6b945681420f3cbeac434e2db3a0d77176e80414))
+* handle wildcard in CORS origins and add backward-compatible URL test coverage ([349e4c3](https://github.com/equationalapplications/clanker/commit/349e4c3c34cb8e0c08cfd0a2bff04d410322f4f6))
+* **jest:** exclude cloud-agent/ from root test run ([5f84008](https://github.com/equationalapplications/clanker/commit/5f84008f9be22f9f949ede3d8f933efcac202ea4))
+* restore casual-chat escalation guard and align Cloud Agent system prompt ([24ca36c](https://github.com/equationalapplications/clanker/commit/24ca36cd03b3588c6605b5eb0340d52a585db7f0))
+* **test:** update buildAgent model assertion to gemini-2.5-flash ([f7fa1b0](https://github.com/equationalapplications/clanker/commit/f7fa1b0789d1e51815bb988bf29e3af3b8b4c899))
+* **test:** update cloudAgentService mock URL to base URL only ([75bb4f7](https://github.com/equationalapplications/clanker/commit/75bb4f78cdf67b15b119c2d60f451d51bd97364d))
+
+
+### Features
+
+* **cloud-agent:** add buildAgent factory with injected LlmAgent and four tools ([931c985](https://github.com/equationalapplications/clanker/commit/931c985991af37b7f45a1f3121cedec9f83127d7))
+* **cloud-agent:** add cloud sql connector and drizzle client ([36818b4](https://github.com/equationalapplications/clanker/commit/36818b455136291f6b154a4713079c0b4d394c5e))
+* **cloud-agent:** add express server with firebase auth middleware and agent run endpoint ([ecb94e9](https://github.com/equationalapplications/clanker/commit/ecb94e9dcd14e6f8938817e2b15ce8fc4c09e608))
+* **cloud-agent:** add minimal drizzle schema for cloud sql bounded context ([0b66313](https://github.com/equationalapplications/clanker/commit/0b663138c4043be5ec948a229460b66d629e0e50))
+* **cloud-agent:** add package scaffolding and dockerfile ([d801850](https://github.com/equationalapplications/clanker/commit/d801850f271f22ceddeb05c58a2f906ac60e5ff2))
+* **cloud-agent:** add task tools and design spec update ([1609f12](https://github.com/equationalapplications/clanker/commit/1609f126929feeaee5bef97d474dfb5a55dc7922))
+* **cloud-agent:** add wiki_read and wiki_write ADK tools with closure security ([2f64b3b](https://github.com/equationalapplications/clanker/commit/2f64b3b539a6fbff107d17f6a6dab6f9dd7a7a80))
+* **db:** add cloud sql tasks table for cloud agent ([9bf9138](https://github.com/equationalapplications/clanker/commit/9bf91387552548ef961b09b590711a91bd964cdb))
+* **db:** add taskDatabase CRUD for local tasks ([8e5fd9d](https://github.com/equationalapplications/clanker/commit/8e5fd9dd2ef599eb63dc934ab67e4d84852cf655))
+* **db:** add tasks table via migration v19 ([53c4ccd](https://github.com/equationalapplications/clanker/commit/53c4ccd4ffea37f7cc4c3685309683ff589f8623))
+* **edge:** add create_task and list_tasks tool executors ([a3adacb](https://github.com/equationalapplications/clanker/commit/a3adacb44e284dbefb7405182079c3e839431f5a))
+* **edge:** add write_observation schema and tighten escalation guard ([ed56e2e](https://github.com/equationalapplications/clanker/commit/ed56e2e0bba6979771c4e75661ef71adc96dc26e))
+* **edge:** implement write_observation executor ([34c348e](https://github.com/equationalapplications/clanker/commit/34c348e043db9928a428f4a615fd39ff6fdb9dd7))
+* **edge:** inject create_task and list_tasks into edge agent tool declarations ([b1527fc](https://github.com/equationalapplications/clanker/commit/b1527fc253becc9d9b7bf648b1fd755a6ce36ac4))
+* **edge:** inject write_observation into edge loop when wiki present ([bad07ae](https://github.com/equationalapplications/clanker/commit/bad07aef2ccf43a322bb761a08c7fac54e22555a))
+* **expo:** add Cloud Agent HTTP client and route escalated cloud-synced messages ([62d15a7](https://github.com/equationalapplications/clanker/commit/62d15a7adf6928d9c8d2eb3d2cd6f16511bf6bf0))
+* **manifests:** add create_task and list_tasks schemas; guard escalation ([1d721ae](https://github.com/equationalapplications/clanker/commit/1d721ae9885e953fa2e896420a2202181677893d))
+* **wiki:** export writeToWiki helper ([b6bf036](https://github.com/equationalapplications/clanker/commit/b6bf03605a7540aebd451e80fbe6f5936ae0a73b))
+
 ## [29.15.1](https://github.com/equationalapplications/clanker/compare/v29.15.0...v29.15.1) (2026-05-29)
 
 
