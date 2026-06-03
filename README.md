@@ -21,7 +21,7 @@
 - [Bootstrap event-driven refresh](docs/BOOTSTRAP_EVENT_DRIVEN_REFRESH.md) — How auth bootstrap reconciliation now works without interval polling, including refresh reason semantics, lifecycle triggers, and usage snapshot updates.
 - [Firebase setup](docs/FIREBASE_SETUP.md) — How to configure mobile Firebase app files for EAS builds and local builds.
 - [Firebase Cloud Functions](docs/FIREBASE_FUNCTIONS.md) — How backend functions (`exchangeToken`, `purchasePackageStripe`) are managed and deployed.
-- [Callable error normalization](docs/CALLABLE_ERROR_NORMALIZATION.md) — How callable handlers map bootstrap/config errors to stable `HttpsError` codes without leaking internals.
+- [Callable error normalization](docs/adrs/001-callable-error-normalization.md) — How callable handlers map bootstrap/config errors to stable `HttpsError` codes without leaking internals.
 - [Chat response function](docs/CHAT_RESPONSE_FUNCTION.md) — Secure callable architecture for server-side text generation, auth checks, and credit billing.
 - [Image generation function](docs/IMAGE_GENERATION_FUNCTION.md) — Server-side image generation with auth, billing, and abuse controls.
 - [Firebase Functions testing](docs/FIREBASE_FUNCTIONS_TESTING.md) — Test strategy and local commands for callable and webhook function coverage in `functions/`.
