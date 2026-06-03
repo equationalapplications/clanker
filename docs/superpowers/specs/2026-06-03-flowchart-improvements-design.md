@@ -76,8 +76,16 @@ machines --> services
 ```sql
 SELECT DISTINCT s_dir, t_dir FROM (
   SELECT
-    substr(ns.file_path, 5, instr(substr(ns.file_path, 5), '/') - 1) AS s_dir,
-    substr(nt.file_path, 5, instr(substr(nt.file_path, 5), '/') - 1) AS t_dir
+    CASE
+      WHEN instr(substr(ns.file_path, 5), '/') > 0
+      THEN substr(ns.file_path, 5, instr(substr(ns.file_path, 5), '/') - 1)
+      ELSE 'root'
+    END AS s_dir,
+    CASE
+      WHEN instr(substr(nt.file_path, 5), '/') > 0
+      THEN substr(nt.file_path, 5, instr(substr(nt.file_path, 5), '/') - 1)
+      ELSE 'root'
+    END AS t_dir
   FROM edges e
   JOIN nodes ns ON e.source = ns.id
   JOIN nodes nt ON e.target = nt.id
@@ -85,11 +93,9 @@ SELECT DISTINCT s_dir, t_dir FROM (
     AND ns.file_path LIKE 'src/%'
     AND nt.file_path LIKE 'src/%'
 )
-WHERE s_dir NOT IN ('utilities', 'types', 'config')
-  AND t_dir NOT IN ('utilities', 'types', 'config')
+WHERE s_dir NOT IN ('utilities', 'types', 'config', 'root')
+  AND t_dir NOT IN ('utilities', 'types', 'config', 'root')
   AND s_dir != t_dir
-  AND s_dir != ''
-  AND t_dir != ''
 ```
 
 **Exclusions:** `utilities`, `types`, `config` filtered from both source and target sides.
