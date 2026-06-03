@@ -20,7 +20,7 @@ C4Container
     Container(cloudsql, "Cloud SQL", "PostgreSQL (accessed via Functions)", "Relational store for user records and subscription state.")
   }
 
-  System_Ext(openai, "OpenAI", "LLM completions")
+  System_Ext(gemini, "Google Gemini", "LLM completions (Gemini 2.5 Flash via Vertex AI)")
   System_Ext(revenuecat, "RevenueCat", "Mobile IAP validation")
   System_Ext(stripe, "Stripe", "Web subscription payments")
 
@@ -31,6 +31,6 @@ C4Container
   Rel(app, sqlite, "All local reads and writes")
   Rel(app, stripe, "Checkout session redirect (web)")
   Rel(functions, cloudsql, "User data and subscription records")
-  Rel(functions, openai, "LLM calls for chat and wiki")
+  Rel(functions, gemini, "LLM calls for chat and wiki (Gemini 2.5 Flash)")
   Rel(functions, revenuecat, "Subscription validation (mobile)")
 ```
