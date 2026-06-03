@@ -90,6 +90,15 @@ jest.mock('~/components/CharacterAvatar', () => () => null)
 
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: jest.fn(),
+  useNavigation: () => ({
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+    getParent: () => ({
+      getParent: () => ({
+        setOptions: jest.fn(),
+      }),
+    }),
+  }),
 }))
 
 jest.mock('react-native-paper', () => {
