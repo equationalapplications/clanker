@@ -68,9 +68,10 @@ function TalkView({ characterId }: { characterId: string }) {
     })
     
     return () => {
+      cancelRef.current()
       unsubscribeBlur?.()
     }
-  }, [navigation, cancelRef])
+  }, [navigation])
 
   const canEdit = voiceState === 'idle' || voiceState === 'error'
   const showSpinner = voiceState === 'processing'
