@@ -1,32 +1,38 @@
 # Flowcharts
 
-Auto-generated Mermaid call-graph diagrams, one per source module.
+Architecture diagrams for the Clanker codebase. Two types:
 
-## Regenerating
+## C4 Architecture (manual)
+
+High-level diagrams maintained by hand. Update when system boundaries or integrations change.
+
+| File | Description |
+|---|---|
+| `c4/system-context.md` | Level 1: Clanker and its external dependencies |
+| `c4/containers.md` | Level 2: Internal containers (app, functions, databases) |
+
+## Dependency Overview (auto-generated)
+
+Folder-level dependency graph showing which source directories depend on which others.
+
+| File | Description |
+|---|---|
+| `overview.md` | Folder dependencies across `src/` (excludes utilities, types, config) |
+
+Regenerate with:
 
 ```bash
 npm run docs:charts
 ```
 
-Requires `.codegraph/codegraph.db` to exist. If missing, run:
+Requires `.codegraph/codegraph.db`. If missing:
 
 ```bash
 codegraph index
 ```
 
-## Files
-
-| File | Source module |
-|---|---|
-| `database.md` | `src/database/` |
-| `services.md` | `src/services/` |
-| `hooks.md` | `src/hooks/` |
-| `machines.md` | `src/machines/` |
-| `components.md` | `src/components/` |
-
 ## Notes
 
-- Charts show call edges up to 3 hops from each function node.
-- External library calls are excluded; only edges within `src/` are shown.
-- Node labels: `functionName\n(filename.ts)`.
-- Do not edit these files manually — they will be overwritten on next run.
+- `overview.md` is auto-generated — do not edit manually.
+- C4 files in `c4/` are manually maintained.
+- The script excludes `utilities/`, `types/`, and `config/` from both source and target sides.
