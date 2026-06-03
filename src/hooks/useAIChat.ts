@@ -139,7 +139,12 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         const recentHistory = getRecentConversationHistory(priorHistory, 20)
         const history = buildContentHistory(recentHistory, userId)
 
-        const localTasks = await listTasks(character.id)
+        let localTasks = [] as Awaited<ReturnType<typeof listTasks>>
+        try {
+          localTasks = await listTasks(character.id)
+        } catch (taskErr) {
+          reportError(taskErr, `tasks:${character.id}:list`)
+        }
         const unsyncedHistory = localTasks.map((t) => ({
           type: 'task' as const,
           id: t.id,
