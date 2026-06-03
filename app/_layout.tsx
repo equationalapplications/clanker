@@ -321,7 +321,13 @@ export default function RootLayout() {
           <>
             <Text style={styles.errorText}>Clanker is already open in another tab.</Text>
             <Text style={styles.errorSubText}>Close the other tab, then reload this page.</Text>
-            <Pressable style={styles.reloadButton} onPress={() => (window as any)?.location?.reload?.()}>
+            <Pressable
+              style={styles.reloadButton}
+              onPress={() => (window as any)?.location?.reload?.()}
+              accessibilityRole="button"
+              accessibilityLabel="Reload page"
+              accessibilityHint="Reloads the page to retry app initialization"
+            >
               <Text style={styles.reloadButtonText}>Reload</Text>
             </Pressable>
           </>

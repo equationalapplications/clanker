@@ -63,14 +63,13 @@ function TalkView({ characterId }: { characterId: string }) {
   }, [cancel])
 
   useEffect(() => {
-    const unsubscribeFocus = navigation.addListener?.('focus', () => {})
     const unsubscribeBlur = navigation.addListener?.('blur', () => {
       cancelRef.current()
     })
     
     return () => {
-      unsubscribeFocus?.()
       unsubscribeBlur?.()
+      cancelRef.current()
     }
   }, [navigation, cancelRef])
 
@@ -90,7 +89,7 @@ function TalkView({ characterId }: { characterId: string }) {
     return 'Tap the mic to talk'
   })()
 
-  useEffect(() => {
+  React.useLayoutEffect(() => {
     if (!character) return
     const drawerNav = navigation.getParent()?.getParent()
     

@@ -1,9 +1,9 @@
+import React, { useCallback } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from '@react-navigation/native'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
-import { useCallback, useEffect } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useChatMessages } from '~/hooks/useMessages'
@@ -55,7 +55,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   const characterName = character?.name || 'Character'
 
-  useEffect(() => {
+  React.useLayoutEffect(() => {
     if (!character) return
     const drawerNav = navigation.getParent?.()?.getParent?.()
     if (!drawerNav) return
