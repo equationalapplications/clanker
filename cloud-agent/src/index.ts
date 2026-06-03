@@ -9,6 +9,8 @@ import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
 import { users, characters, llmWikiEvents, tasks } from './db/schema.js'
 import type { DrizzleClient } from './db/client.js'
+import { createCreditService } from './services/creditService.js'
+import type { CreditService } from './services/creditService.js'
 import { z } from 'zod'
 
 const contentSchema = z.object({
@@ -31,6 +33,7 @@ interface AppOptions {
   verifyToken: (token: string) => Promise<{ uid: string }>
   db: DrizzleClient
   runAgentFn: (params: RunAgentParams) => Promise<{ reply: string; toolCalls: string[] }>
+  creditService?: CreditService
 }
 
 type UnsyncedTask = { type: 'task'; id: string; title: string; status: string; createdAt: number }
@@ -244,6 +247,7 @@ function corsOrigins(): string | string[] | boolean {
 
 export function createApp(options: AppOptions) {
   const { verifyToken, db, runAgentFn } = options
+  const cs = options.creditService ?? createCreditService(options.db)
   const app = express()
   // trust proxy is required behind Cloud Run's managed load balancer so that
   // rate-limiting sees the real client IP via X-Forwarded-For. Cloud Run always
@@ -316,6 +320,19 @@ export function createApp(options: AppOptions) {
       )
       if (!character) { res.status(404).json({ error: 'Character not found' }); return }
 
+      // SPEND FIRST — fail fast with 402 before any non-essential work or writes
+      let txId: string
+      try {
+        txId = await cs.spendCredit(userId)
+      } catch (creditErr: unknown) {
+        const msg = creditErr instanceof Error ? creditErr.message : ''
+        if (msg === 'INSUFFICIENT_CREDITS') {
+          res.status(402).json({ error: 'Insufficient credits' })
+          return
+        }
+        throw creditErr
+      }
+
       if (unsyncedHistory.length > 0) {
         try {
           await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
@@ -325,11 +342,46 @@ export function createApp(options: AppOptions) {
         }
       }
 
-      const wikiContext = await queryWikiContext(db, message, userId, characterId)
-      const systemInstruction = assembleSystemInstruction(character, wikiContext)
+      let wikiContext: string
+      let systemInstruction: string
+      try {
+        wikiContext = await queryWikiContext(db, message, userId, characterId)
+        systemInstruction = assembleSystemInstruction(character, wikiContext)
+      } catch (preAgentErr) {
+        try {
+          await cs.refundCredit(userId, txId)
+        } catch (refundErr) {
+          console.error(`[CRITICAL] refundCredit failed user=${userId} txId=${txId}`, refundErr)
+        }
+        throw preAgentErr
+      }
+      // 2. EXECUTE — refund on ADK failure
+      let result: { reply: string; toolCalls: string[] }
+      try {
+        result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history })
+      } catch (adkErr) {
+        try {
+          await cs.refundCredit(userId, txId)
+        } catch (refundErr) {
+          console.error(`[CRITICAL] refundCredit failed user=${userId} txId=${txId}`, refundErr)
+        }
+        throw adkErr
+      }
 
-      const result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history })
-      res.json(result)
+      // 3. GET BALANCE — graceful degrade if this fails
+      let newBalance: number | null = null
+      try {
+        newBalance = await cs.getBalance(userId)
+      } catch (balErr) {
+        console.warn(`getBalance failed user=${userId}, returning null snapshot`, balErr)
+      }
+
+      // 4. RESPOND
+      res.json({
+        reply: result.reply,
+        toolCalls: result.toolCalls,
+        usageSnapshot: newBalance !== null ? { remainingCredits: newBalance } : null,
+      })
     } catch (err) {
       console.error('agent/run error:', err)
       const errorMessage = err instanceof Error ? err.message : 'Internal server error'
