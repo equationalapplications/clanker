@@ -13,11 +13,15 @@ High-level diagrams maintained by hand. Update when system boundaries or integra
 
 ## Dependency Overview (auto-generated)
 
-Folder-level dependency graph showing which source directories depend on which others.
+File-level dependency graphs for each core source module. Show which files within a directory call into which other files across the codebase. Excludes utilities, types, and config from both source and target.
 
-| File | Description |
+| File | Module |
 |---|---|
-| `overview.md` | Folder dependencies across `src/` (excludes utilities, types, config) |
+| `components.md` | `src/components/` |
+| `database.md` | `src/database/` |
+| `hooks.md` | `src/hooks/` |
+| `machines.md` | `src/machines/` |
+| `services.md` | `src/services/` |
 
 Regenerate with:
 
@@ -33,6 +37,6 @@ codegraph index
 
 ## Notes
 
-- `overview.md` is auto-generated — do not edit manually.
+- Files above are auto-generated — do not edit manually.
 - C4 files in `c4/` are manually maintained.
 - The script excludes `utilities/`, `types/`, and `config/` from both source and target sides.

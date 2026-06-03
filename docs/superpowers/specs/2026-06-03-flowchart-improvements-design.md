@@ -118,7 +118,7 @@ WHERE s_dir NOT IN ('utilities', 'types', 'config', 'root')
 |---|---|
 | Create | `docs/flowcharts/c4/system-context.md` |
 | Create | `docs/flowcharts/c4/containers.md` |
-| Create | `docs/flowcharts/overview.md` (auto-generated, not checked in) |
+| Create | `docs/flowcharts/overview.md` (auto-generated) |
 | Modify | `scripts/generate-charts.js` |
 | Modify | `docs/flowcharts/README.md` |
 | Delete | `docs/flowcharts/database.md` |
