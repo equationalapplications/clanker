@@ -67,7 +67,7 @@ export type AuthMachineEvents =
   | { type: 'APP_FOREGROUNDED'; at: string }
   | {
       type: 'USAGE_SNAPSHOT_RECEIVED'
-      source: 'generateReply' | 'generateImage'
+      source: 'generateReply' | 'generateImage' | 'cloudAgent'
       remainingCredits: number | null
       planTier: string | null
       planStatus: UsagePlanStatus
