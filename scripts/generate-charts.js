@@ -1,235 +1,81 @@
 #!/usr/bin/env node
 'use strict'
 
-const path = require('path')
 const fs = require('fs')
+const path = require('path')
 
-// --- Pure functions ---
+const DIRECTORIES = ['components', 'database', 'hooks', 'machines', 'services']
+const OVERVIEW_FILE = 'docs/flowcharts/overview.md'
 
-function sanitizeName(str) {
-  const s = str.replace(/[^A-Za-z0-9_]/g, '_')
-  return /^[0-9]/.test(s) ? '_' + s : s
-}
+/**
+ * Query file-to-file dependency edges within a single src/ directory.
+ * Excludes utilities, types, config, and self-referential edges.
+ * Returns deduplicated {sourceFile, targetFile} pairs (no extensions).
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} directory - one of DIRECTORIES
+ * @returns {{ sourceFile: string, targetFile: string }[]}
+ */
+function queryFileEdges(db, directory) {
+  const sql = `
+    SELECT ns.file_path AS src_path, nt.file_path AS tgt_path
+    FROM edges e
+    JOIN nodes ns ON e.source = ns.id
+    JOIN nodes nt ON e.target = nt.id
+    WHERE e.kind = 'calls'
+      AND ns.file_path LIKE ?
+      AND ns.file_path NOT LIKE '%/utilities/%'
+      AND ns.file_path NOT LIKE '%/types/%'
+      AND ns.file_path NOT LIKE '%/config/%'
+      AND nt.file_path NOT LIKE '%/utilities/%'
+      AND nt.file_path NOT LIKE '%/types/%'
+      AND nt.file_path NOT LIKE '%/config/%'
+  `
+  const rows = db.prepare(sql).all(`src/${directory}/%`)
 
-function makeNodeId(name, filePath) {
-  return sanitizeName(name) + '__' + sanitizeName(filePath)
-}
+  const seen = new Set()
+  const result = []
 
-function makeNodeLabel(name, filePath) {
-  const raw = name + '\n(' + path.basename(filePath) + ')'
-  return raw.replace(/"/g, "'")
+  for (const row of rows) {
+    const sourceFile = path.basename(row.src_path).replace(/\.[^.]+$/, '')
+    const targetFile = path.basename(row.tgt_path).replace(/\.[^.]+$/, '')
+
+    if (sourceFile === targetFile) continue
+
+    const key = `${sourceFile}|${targetFile}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      result.push({ sourceFile, targetFile })
+    }
+  }
+
+  return result
 }
 
 /**
- * @param {{ source_name, source_file, target_name, target_file }[]} rows
- * @returns {{ sourceId, sourceLabel, targetId, targetLabel }[]}
+ * Render a file-level Mermaid graph LR block for a directory.
+ *
+ * @param {string} directory
+ * @param {{ sourceFile: string, targetFile: string }[]} edges
+ * @returns {string}
  */
-function buildEdgeSet(rows) {
-  const seen = new Set()
-  const edges = []
-  for (const row of rows) {
-    const sourceId = makeNodeId(row.source_name, row.source_file)
-    const targetId = makeNodeId(row.target_name, row.target_file)
-    const key = sourceId + '->' + targetId
-    if (seen.has(key)) continue
-    seen.add(key)
-    edges.push({
-      sourceId,
-      sourceLabel: makeNodeLabel(row.source_name, row.source_file),
-      targetId,
-      targetLabel: makeNodeLabel(row.target_name, row.target_file),
-    })
-  }
-  return edges
-}
-
-function renderMermaid(moduleName, edges, title) {
-  const chartTitle = title != null ? title : `${moduleName} call graph`
+function renderFileChart(directory, edges) {
   const header = [
-    `# ${chartTitle}`,
+    `# ${directory} file dependencies`,
     '',
     '_Auto-generated. Run `npm run docs:charts` to regenerate._',
     '',
   ].join('\n')
 
-  const footer = [
-    '',
-    '> **Note:** Edges involving Firebase callable functions (created via `httpsCallable()`) are',
-    '> not captured here. Because callables are instantiated at module scope and invoked indirectly,',
-    '> static analysis cannot trace them as call edges. Affected call sites include',
-    '> `generateReplyFn`, `generateVoiceReplyFn`, `summarizeTextFn`, and similar callable wrappers.',
-  ].join('\n')
-
   if (edges.length === 0) {
-    return header + '_No edges found for this module._\n' + footer + '\n'
+    return header + '_No edges found._\n'
   }
 
-  const lines = edges.map(
-    (e) => `  ${e.sourceId}["${e.sourceLabel}"] --> ${e.targetId}["${e.targetLabel}"]`,
-  )
-
-  return header + '```mermaid\ngraph LR\n' + lines.join('\n') + '\n```\n' + footer + '\n'
+  const lines = edges.map((e) => `  ${e.sourceFile} --> ${e.targetFile}`)
+  return header + '```mermaid\ngraph LR\n' + lines.join('\n') + '\n```\n'
 }
 
-/**
- * Walk `calls` edges from all function nodes in a module up to `maxDepth` hops.
- * Filters out targets outside `src/` (external libs).
- *
- * Uses recursive CTEs for BFS inside SQLite — single round-trip regardless of depth.
- *
- * @param {import('better-sqlite3').Database} db
- * @param {string} moduleGlob e.g. 'src/database/%'
- * @param {number} maxDepth
- * @returns {{ source_name, source_file, target_name, target_file }[]}
- */
-function queryModuleEdges(db, moduleGlob, maxDepth) {
-  const sql = `
-    WITH RECURSIVE bfs(source_id, target_id, depth) AS (
-      -- seed: all calls edges from function nodes in this module
-      SELECT e.source, e.target, 1
-      FROM edges e
-      JOIN nodes n ON e.source = n.id
-      WHERE e.kind = 'calls'
-        AND n.kind = 'function'
-        AND n.file_path LIKE ?
-
-      UNION
-
-      -- recurse: follow calls from targets already in BFS
-      SELECT e.source, e.target, bfs.depth + 1
-      FROM edges e
-      JOIN bfs ON e.source = bfs.target_id
-      WHERE e.kind = 'calls'
-        AND bfs.depth < ?
-    )
-    SELECT DISTINCT
-      ns.name  AS source_name,
-      ns.file_path AS source_file,
-      nt.name  AS target_name,
-      nt.file_path AS target_file
-    FROM bfs
-    JOIN nodes ns ON bfs.source_id = ns.id
-    JOIN nodes nt ON bfs.target_id = nt.id
-    WHERE nt.file_path LIKE 'src/%'
-  `
-  // UNION deduplicates on (source_id, target_id, depth) — not just the pair.
-  // SQLite does not support self-referential NOT EXISTS in recursive CTEs,
-  // so we cannot deduplicate on the pair alone. The depth cap ensures termination.
-  // SELECT DISTINCT in the outer query produces deduplicated output rows.
-  return db.prepare(sql).all(moduleGlob, maxDepth)
-}
-
-/**
- * Query project-local imports (~/...) for all files in a module.
- * Used as fallback for modules with no call edges (e.g. XState machines).
- *
- * @param {import('better-sqlite3').Database} db
- * @param {string} moduleGlob e.g. 'src/machines/%'
- * @returns {{ source_file: string, import_path: string }[]}
- */
-function queryModuleImports(db, moduleGlob) {
-  const sql = `
-    SELECT DISTINCT
-      nf.file_path AS source_file,
-      ni.name      AS import_path
-    FROM edges e
-    JOIN nodes nf ON e.source = nf.id
-    JOIN nodes ni ON e.target = ni.id
-    WHERE nf.file_path LIKE ?
-      AND nf.kind = 'file'
-      AND e.kind  = 'contains'
-      AND ni.kind = 'import'
-      AND ni.name LIKE '~/%'
-  `
-  return db.prepare(sql).all(moduleGlob)
-}
-
-/**
- * @param {{ source_file: string, import_path: string }[]} rows
- * @returns {{ sourceId, sourceLabel, targetId, targetLabel }[]}
- */
-function buildImportEdgeSet(rows) {
-  const seen = new Set()
-  const edges = []
-  for (const row of rows) {
-    const sourceName = path.basename(row.source_file, path.extname(row.source_file))
-    const segments = row.import_path.split('/')
-    const targetName = segments[segments.length - 1]
-    const targetDir = segments.slice(0, -1).join('/')
-    const sourceId = makeNodeId(sourceName, row.source_file)
-    const targetId = sanitizeName(row.import_path)
-    const key = sourceId + '->' + targetId
-    if (seen.has(key)) continue
-    seen.add(key)
-    edges.push({
-      sourceId,
-      sourceLabel: makeNodeLabel(sourceName, row.source_file),
-      targetId,
-      targetLabel: makeNodeLabel(targetName, targetDir),
-    })
-  }
-  return edges
-}
-
-/**
- * Per-file hybrid: module files that already appear as a call-edge source do not
- * get import-fallback rows (static call edges take precedence for that file).
- *
- * @param {string} moduleGlob e.g. 'src/machines/%'
- * @param {{ source_file: string }[]} callRows
- * @param {{ source_file: string, import_path: string }[]} importRowsAll
- * @returns {{ source_file: string, import_path: string }[]}
- */
-function filterImportRowsForHybrid(moduleGlob, callRows, importRowsAll) {
-  const modulePrefix = moduleGlob.replace(/%$/, '')
-  const filesWithCalls = new Set(
-    callRows.map((r) => r.source_file).filter((f) => f.startsWith(modulePrefix)),
-  )
-  return importRowsAll.filter((r) => !filesWithCalls.has(r.source_file))
-}
-
-/**
- * @param {string} modName e.g. 'machines'
- * @param {number} callEdgeCount after {@link buildEdgeSet}
- * @param {number} importEdgeCount after {@link buildImportEdgeSet}
- */
-function chartTitleForHybrid(modName, callEdgeCount, importEdgeCount) {
-  const total = callEdgeCount + importEdgeCount
-  if (total === 0) {
-    return `${modName} (no edges)`
-  }
-  if (callEdgeCount === 0) {
-    return `${modName} import dependencies`
-  }
-  if (importEdgeCount === 0) {
-    return `${modName} call graph`
-  }
-  return `${modName} call graph + import fallback`
-}
-
-module.exports = {
-  sanitizeName,
-  makeNodeId,
-  makeNodeLabel,
-  buildEdgeSet,
-  renderMermaid,
-  queryModuleEdges,
-  queryModuleImports,
-  buildImportEdgeSet,
-  filterImportRowsForHybrid,
-  chartTitleForHybrid,
-}
-
-const MODULES = [
-  { name: 'database',   glob: 'src/database/%' },
-  { name: 'services',   glob: 'src/services/%' },
-  { name: 'hooks',      glob: 'src/hooks/%' },
-  { name: 'machines',   glob: 'src/machines/%' },
-  { name: 'components', glob: 'src/components/%' },
-]
-
-const MAX_DEPTH = 2
-const OUT_DIR = 'docs/flowcharts'
+module.exports = { queryFileEdges, renderFileChart }
 
 function main() {
   const dbPath = '.codegraph/codegraph.db'
@@ -242,23 +88,19 @@ function main() {
   const db = new Database(dbPath, { readonly: true })
 
   try {
-    fs.mkdirSync(OUT_DIR, { recursive: true })
+    fs.mkdirSync('docs/flowcharts', { recursive: true })
 
-    for (const mod of MODULES) {
-      const callRows = queryModuleEdges(db, mod.glob, MAX_DEPTH)
-      const callEdges = buildEdgeSet(callRows)
-      const importRowsAll = queryModuleImports(db, mod.glob)
-      const importRows = filterImportRowsForHybrid(mod.glob, callRows, importRowsAll)
-      const importEdges = buildImportEdgeSet(importRows)
+    for (const dir of DIRECTORIES) {
+      const edges = queryFileEdges(db, dir)
+      const content = renderFileChart(dir, edges)
+      const outFile = `docs/flowcharts/${dir}.md`
+      fs.writeFileSync(outFile, content, 'utf8')
+      console.log(`  wrote ${outFile} (${edges.length} file edges)`)
+    }
 
-      const edges = [...callEdges, ...importEdges]
-      const title = chartTitleForHybrid(mod.name, callEdges.length, importEdges.length)
-      const content = renderMermaid(mod.name, edges, title)
-      const outPath = `${OUT_DIR}/${mod.name}.md`
-      fs.writeFileSync(outPath, content, 'utf8')
-      console.log(
-        `  wrote ${outPath} (${callEdges.length} call edges, ${importEdges.length} import fallback edges)`,
-      )
+    if (fs.existsSync(OVERVIEW_FILE)) {
+      fs.unlinkSync(OVERVIEW_FILE)
+      console.log(`  deleted ${OVERVIEW_FILE}`)
     }
   } finally {
     db.close()

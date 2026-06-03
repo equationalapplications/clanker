@@ -1,4 +1,9 @@
-# Callable Error Normalization
+# ADR 001: Callable Error Normalization
+
+**Date:** 2026-04-20
+**Status:** Accepted
+
+---
 
 ## Overview
 
@@ -6,6 +11,10 @@ Several callable functions bootstrap the current Firebase user in Cloud SQL usin
 That repository can throw plain `Error` values for identity conflicts and infrastructure/configuration failures.
 
 This document defines how callables normalize those failures to stable, client-safe `HttpsError` responses.
+
+## Decision
+
+All callable Firebase functions normalize thrown errors to stable, client-safe `HttpsError` responses following the four rules in the Normalization Rules section below. Plain `Error` values must never bubble out of callable handlers.
 
 ## Why This Exists
 
@@ -64,8 +73,9 @@ Clients should treat these codes consistently:
 
 ## Related Files
 
-- `functions/src/spendCredits.ts`
-- `functions/src/exchangeToken.ts`
-- `functions/src/generateReply.ts`
-- `functions/src/generateImage.ts`
-- `functions/src/services/userRepository.ts`
+These files implement this normalization contract:
+- `functions/src/spendCredits.ts` — applies normalization rules
+- `functions/src/exchangeToken.ts` — applies normalization rules
+- `functions/src/generateReply.ts` — applies normalization rules
+- `functions/src/generateImage.ts` — applies normalization rules
+- `functions/src/services/userRepository.ts` — throws the plain `Error` values normalized here
