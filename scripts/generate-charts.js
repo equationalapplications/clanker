@@ -2,80 +2,77 @@
 'use strict'
 
 const fs = require('fs')
-const path = require('path')
-
-const DIRECTORIES = ['components', 'database', 'hooks', 'machines', 'services']
-const OVERVIEW_FILE = 'docs/flowcharts/overview.md'
 
 /**
- * Query file-to-file dependency edges within a single src/ directory.
- * Excludes utilities, types, config, and self-referential edges.
- * Returns deduplicated {sourceFile, targetFile} pairs (no extensions).
+ * Query all src/ folder-to-folder dependency edges via CodeGraph.
+ * Maps each file_path to its top-level src/ subdirectory.
+ * Excludes utilities, types, config, and src-root files.
+ * Returns deduplicated {s_dir, t_dir} pairs.
  *
  * @param {import('better-sqlite3').Database} db
- * @param {string} directory - one of DIRECTORIES
- * @returns {{ sourceFile: string, targetFile: string }[]}
+ * @returns {{ s_dir: string, t_dir: string }[]}
  */
-function queryFileEdges(db, directory) {
+function queryFolderEdges(db) {
   const sql = `
-    SELECT ns.file_path AS src_path, nt.file_path AS tgt_path
-    FROM edges e
-    JOIN nodes ns ON e.source = ns.id
-    JOIN nodes nt ON e.target = nt.id
-    WHERE e.kind = 'calls'
-      AND ns.file_path LIKE ?
-      AND ns.file_path NOT LIKE '%/utilities/%'
-      AND ns.file_path NOT LIKE '%/types/%'
-      AND ns.file_path NOT LIKE '%/config/%'
-      AND nt.file_path NOT LIKE '%/utilities/%'
-      AND nt.file_path NOT LIKE '%/types/%'
-      AND nt.file_path NOT LIKE '%/config/%'
+    SELECT DISTINCT s_dir, t_dir FROM (
+      SELECT
+        CASE
+          WHEN instr(substr(ns.file_path, 5), '/') > 0
+          THEN substr(ns.file_path, 5, instr(substr(ns.file_path, 5), '/') - 1)
+          ELSE 'root'
+        END AS s_dir,
+        CASE
+          WHEN instr(substr(nt.file_path, 5), '/') > 0
+          THEN substr(nt.file_path, 5, instr(substr(nt.file_path, 5), '/') - 1)
+          ELSE 'root'
+        END AS t_dir
+      FROM edges e
+      JOIN nodes ns ON e.source = ns.id
+      JOIN nodes nt ON e.target = nt.id
+      WHERE e.kind = 'calls'
+        AND ns.file_path LIKE 'src/%'
+        AND nt.file_path LIKE 'src/%'
+    )
+    WHERE s_dir NOT IN ('utilities', 'types', 'config', 'root')
+      AND t_dir NOT IN ('utilities', 'types', 'config', 'root')
+      AND s_dir != t_dir
   `
-  const rows = db.prepare(sql).all(`src/${directory}/%`)
-
-  const seen = new Set()
-  const result = []
-
-  for (const row of rows) {
-    const sourceFile = path.basename(row.src_path).replace(/\.[^.]+$/, '')
-    const targetFile = path.basename(row.tgt_path).replace(/\.[^.]+$/, '')
-
-    if (sourceFile === targetFile) continue
-
-    const key = `${sourceFile}|${targetFile}`
-    if (!seen.has(key)) {
-      seen.add(key)
-      result.push({ sourceFile, targetFile })
-    }
-  }
-
-  return result
+  return db.prepare(sql).all()
 }
 
 /**
- * Render a file-level Mermaid graph LR block for a directory.
+ * Render a folder-level Mermaid graph LR overview.
  *
- * @param {string} directory
- * @param {{ sourceFile: string, targetFile: string }[]} edges
+ * @param {{ s_dir: string, t_dir: string }[]} edges
  * @returns {string}
  */
-function renderFileChart(directory, edges) {
+function renderFolderOverview(edges) {
   const header = [
-    `# ${directory} file dependencies`,
+    '# Source folder dependencies',
     '',
     '_Auto-generated. Run `npm run docs:charts` to regenerate._',
     '',
   ].join('\n')
 
   if (edges.length === 0) {
-    return header + '_No edges found._\n'
+    return header + '_No folder-level edges found._\n'
   }
 
-  const lines = edges.map((e) => `  ${e.sourceFile} --> ${e.targetFile}`)
+  const lines = edges.map((e) => `  ${e.s_dir} --> ${e.t_dir}`)
   return header + '```mermaid\ngraph LR\n' + lines.join('\n') + '\n```\n'
 }
 
-module.exports = { queryFileEdges, renderFileChart }
+module.exports = { queryFolderEdges, renderFolderOverview }
+
+const OLD_FILES = [
+  'docs/flowcharts/database.md',
+  'docs/flowcharts/services.md',
+  'docs/flowcharts/hooks.md',
+  'docs/flowcharts/machines.md',
+  'docs/flowcharts/components.md',
+]
+
+const OUT_FILE = 'docs/flowcharts/overview.md'
 
 function main() {
   const dbPath = '.codegraph/codegraph.db'
@@ -90,17 +87,16 @@ function main() {
   try {
     fs.mkdirSync('docs/flowcharts', { recursive: true })
 
-    for (const dir of DIRECTORIES) {
-      const edges = queryFileEdges(db, dir)
-      const content = renderFileChart(dir, edges)
-      const outFile = `docs/flowcharts/${dir}.md`
-      fs.writeFileSync(outFile, content, 'utf8')
-      console.log(`  wrote ${outFile} (${edges.length} file edges)`)
-    }
+    const edges = queryFolderEdges(db)
+    const content = renderFolderOverview(edges)
+    fs.writeFileSync(OUT_FILE, content, 'utf8')
+    console.log(`  wrote ${OUT_FILE} (${edges.length} folder edges)`)
 
-    if (fs.existsSync(OVERVIEW_FILE)) {
-      fs.unlinkSync(OVERVIEW_FILE)
-      console.log(`  deleted ${OVERVIEW_FILE}`)
+    for (const f of OLD_FILES) {
+      if (fs.existsSync(f)) {
+        fs.unlinkSync(f)
+        console.log(`  deleted ${f}`)
+      }
     }
   } finally {
     db.close()

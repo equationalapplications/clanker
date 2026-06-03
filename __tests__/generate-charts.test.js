@@ -1,51 +1,38 @@
-const { queryFileEdges, renderFileChart } = require('../scripts/generate-charts')
+const {
+  queryFolderEdges,
+  renderFolderOverview,
+} = require('../scripts/generate-charts')
 
-describe('queryFileEdges', () => {
-  it('scopes query to directory and returns deduplicated file-to-file edges', () => {
+describe('queryFolderEdges', () => {
+  it('passes the query to db.prepare().all() and returns results', () => {
     const mockRows = [
-      { src_path: 'src/services/aiChatService.ts', tgt_path: 'src/hooks/useChat.ts' },
-      { src_path: 'src/services/aiChatService.ts', tgt_path: 'src/hooks/useChat.ts' },
-      { src_path: 'src/services/tokenService.ts', tgt_path: 'src/database/tokens.ts' },
-    ]
-    let capturedParam
-    const mockDb = {
-      prepare: () => ({ all: (param) => { capturedParam = param; return mockRows } }),
-    }
-    const result = queryFileEdges(mockDb, 'services')
-    expect(capturedParam).toBe('src/services/%')
-    expect(result).toHaveLength(2)
-    expect(result).toContainEqual({ sourceFile: 'aiChatService', targetFile: 'useChat' })
-    expect(result).toContainEqual({ sourceFile: 'tokenService', targetFile: 'tokens' })
-  })
-
-  it('excludes self-referential edges', () => {
-    const mockRows = [
-      { src_path: 'src/hooks/useChat.ts', tgt_path: 'src/hooks/useChat.ts' },
+      { s_dir: 'hooks', t_dir: 'services' },
+      { s_dir: 'components', t_dir: 'hooks' },
     ]
     const mockDb = {
       prepare: () => ({ all: () => mockRows }),
     }
-    expect(queryFileEdges(mockDb, 'hooks')).toHaveLength(0)
+    expect(queryFolderEdges(mockDb)).toEqual(mockRows)
   })
 })
 
-describe('renderFileChart', () => {
-  it('renders a graph LR block with file-level edges', () => {
+describe('renderFolderOverview', () => {
+  it('renders a graph LR block with folder edges', () => {
     const edges = [
-      { sourceFile: 'aiChatService', targetFile: 'useChat' },
-      { sourceFile: 'tokenService', targetFile: 'tokens' },
+      { s_dir: 'hooks', t_dir: 'services' },
+      { s_dir: 'components', t_dir: 'hooks' },
     ]
-    const result = renderFileChart('services', edges)
-    expect(result).toContain('# services')
+    const result = renderFolderOverview(edges)
+    expect(result).toContain('# Source folder dependencies')
     expect(result).toContain('graph LR')
-    expect(result).toContain('  aiChatService --> useChat')
-    expect(result).toContain('  tokenService --> tokens')
+    expect(result).toContain('  hooks --> services')
+    expect(result).toContain('  components --> hooks')
     expect(result).toContain('npm run docs:charts')
   })
 
   it('returns empty notice when no edges present', () => {
-    const result = renderFileChart('hooks', [])
-    expect(result).toContain('_No edges found')
+    const result = renderFolderOverview([])
+    expect(result).toContain('_No folder-level edges found._')
     expect(result).not.toContain('graph LR')
   })
 })
