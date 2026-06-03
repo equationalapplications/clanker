@@ -1,200 +1,38 @@
 const {
-  sanitizeName,
-  makeNodeId,
-  makeNodeLabel,
-  buildEdgeSet,
-  renderMermaid,
-  queryModuleEdges,
-  queryModuleImports,
-  buildImportEdgeSet,
-  filterImportRowsForHybrid,
-  chartTitleForHybrid,
+  queryFolderEdges,
+  renderFolderOverview,
 } = require('../scripts/generate-charts')
 
-describe('sanitizeName', () => {
-  it('replaces non-alphanumeric chars with underscore', () => {
-    expect(sanitizeName('foo-bar.ts')).toBe('foo_bar_ts')
-  })
-  it('leaves clean names unchanged', () => {
-    expect(sanitizeName('fooBar')).toBe('fooBar')
-  })
-  it('prefixes digit-leading names with underscore', () => {
-    expect(sanitizeName('123abc')).toBe('_123abc')
-  })
-})
-
-describe('makeNodeId', () => {
-  it('combines sanitized name and file', () => {
-    expect(makeNodeId('getDatabase', 'src/database/index.ts')).toBe('getDatabase__src_database_index_ts')
-  })
-})
-
-describe('makeNodeLabel', () => {
-  it('returns name and basename', () => {
-    expect(makeNodeLabel('getDatabase', 'src/database/index.ts')).toBe('getDatabase\n(index.ts)')
-  })
-  it('escapes double-quotes in name', () => {
-    expect(makeNodeLabel('get"Value', 'src/x.ts')).toBe("get'Value\n(x.ts)")
-  })
-})
-
-describe('buildEdgeSet', () => {
-  it('collects direct call edges', () => {
-    const rows = [
-      { source_name: 'a', source_file: 'src/x.ts', target_name: 'b', target_file: 'src/y.ts' },
+describe('queryFolderEdges', () => {
+  it('passes the query to db.prepare().all() and returns results', () => {
+    const mockRows = [
+      { s_dir: 'hooks', t_dir: 'services' },
+      { s_dir: 'components', t_dir: 'hooks' },
     ]
-    const edges = buildEdgeSet(rows)
-    expect(edges).toEqual([
-      {
-        sourceId: 'a__src_x_ts',
-        sourceLabel: 'a\n(x.ts)',
-        targetId: 'b__src_y_ts',
-        targetLabel: 'b\n(y.ts)',
-      },
-    ])
-  })
-  it('deduplicates identical edges', () => {
-    const row = { source_name: 'a', source_file: 'src/x.ts', target_name: 'b', target_file: 'src/y.ts' }
-    const edges = buildEdgeSet([row, row])
-    expect(edges).toHaveLength(1)
+    const mockDb = {
+      prepare: () => ({ all: () => mockRows }),
+    }
+    expect(queryFolderEdges(mockDb)).toEqual(mockRows)
   })
 })
 
-describe('renderMermaid', () => {
-  it('wraps edges in graph TD block', () => {
+describe('renderFolderOverview', () => {
+  it('renders a graph LR block with folder edges', () => {
     const edges = [
-      { sourceId: 'a_x', sourceLabel: 'a\n(x.ts)', targetId: 'b_y', targetLabel: 'b\n(y.ts)' },
+      { s_dir: 'hooks', t_dir: 'services' },
+      { s_dir: 'components', t_dir: 'hooks' },
     ]
-    const result = renderMermaid('database', edges)
-    expect(result).toContain('# database call graph')
+    const result = renderFolderOverview(edges)
+    expect(result).toContain('# Source folder dependencies')
     expect(result).toContain('graph LR')
-    expect(result).toContain('a_x["a\n(x.ts)"] --> b_y["b\n(y.ts)"]')
-  })
-  it('returns empty-graph notice when no edges', () => {
-    const result = renderMermaid('machines', [])
-    expect(result).toContain('_No edges found for this module._')
-    expect(result).toContain('httpsCallable()')
-  })
-  it('uses custom title when provided', () => {
-    const edges = [
-      { sourceId: 'a_x', sourceLabel: 'a\n(x.ts)', targetId: 'b_y', targetLabel: 'b\n(y.ts)' },
-    ]
-    const result = renderMermaid('machines', edges, 'machines import dependencies')
-    expect(result).toContain('# machines import dependencies')
-    expect(result).not.toContain('call graph')
-  })
-})
-
-describe('queryModuleImports', () => {
-  it('returns rows with source_file and import_path', () => {
-    const mockRows = [
-      { source_file: 'src/machines/authMachine.ts', import_path: '~/services/crashlyticsService' },
-    ]
-    const mockDb = {
-      prepare: () => ({
-        all: (glob) => {
-          expect(glob).toBe('src/machines/%')
-          return mockRows
-        },
-      }),
-    }
-    const result = queryModuleImports(mockDb, 'src/machines/%')
-    expect(result).toEqual(mockRows)
-  })
-})
-
-describe('buildImportEdgeSet', () => {
-  it('builds edges from source file to imported module', () => {
-    const rows = [
-      { source_file: 'src/machines/authMachine.ts', import_path: '~/services/crashlyticsService' },
-    ]
-    const edges = buildImportEdgeSet(rows)
-    expect(edges).toHaveLength(1)
-    expect(edges[0].sourceLabel).toBe('authMachine\n(authMachine.ts)')
-    expect(edges[0].targetLabel).toBe('crashlyticsService\n(services)')
-  })
-  it('deduplicates identical import edges', () => {
-    const row = { source_file: 'src/machines/authMachine.ts', import_path: '~/services/crashlyticsService' }
-    const edges = buildImportEdgeSet([row, row])
-    expect(edges).toHaveLength(1)
-  })
-})
-
-describe('filterImportRowsForHybrid', () => {
-  const glob = 'src/machines/%'
-
-  it('drops import rows for module files that already have a call edge as source', () => {
-    const callRows = [
-      {
-        source_name: 'wiki',
-        source_file: 'src/machines/wikiMachine.ts',
-        target_name: 'x',
-        target_file: 'src/y.ts',
-      },
-    ]
-    const importRowsAll = [
-      { source_file: 'src/machines/authMachine.ts', import_path: '~/services/a' },
-      { source_file: 'src/machines/wikiMachine.ts', import_path: '~/services/b' },
-    ]
-    const filtered = filterImportRowsForHybrid(glob, callRows, importRowsAll)
-    expect(filtered).toEqual([importRowsAll[0]])
+    expect(result).toContain('  hooks --> services')
+    expect(result).toContain('  components --> hooks')
+    expect(result).toContain('npm run docs:charts')
   })
 
-  it('keeps all import rows when no call rows exist', () => {
-    const importRowsAll = [
-      { source_file: 'src/machines/authMachine.ts', import_path: '~/services/a' },
-      { source_file: 'src/machines/termsMachine.ts', import_path: '~/services/b' },
-    ]
-    expect(filterImportRowsForHybrid(glob, [], importRowsAll)).toEqual(importRowsAll)
-  })
-
-  it('keeps import rows for files with call targets but not as call source', () => {
-    const callRows = [
-      {
-        source_name: 'other',
-        source_file: 'src/services/foo.ts',
-        target_name: 'auth',
-        target_file: 'src/machines/authMachine.ts',
-      },
-    ]
-    const importRowsAll = [
-      { source_file: 'src/machines/authMachine.ts', import_path: '~/services/a' },
-    ]
-    expect(filterImportRowsForHybrid(glob, callRows, importRowsAll)).toEqual(importRowsAll)
-  })
-})
-
-describe('chartTitleForHybrid', () => {
-  it('uses (no edges) when both edge kinds are empty', () => {
-    expect(chartTitleForHybrid('machines', 0, 0)).toBe('machines (no edges)')
-  })
-  it('uses import dependencies when only import fallback edges exist', () => {
-    expect(chartTitleForHybrid('machines', 0, 3)).toBe('machines import dependencies')
-  })
-  it('uses call graph when only call edges exist', () => {
-    expect(chartTitleForHybrid('machines', 2, 0)).toBe('machines call graph')
-  })
-  it('mentions hybrid when both call and import fallback edges exist', () => {
-    expect(chartTitleForHybrid('machines', 1, 4)).toBe('machines call graph + import fallback')
-  })
-})
-
-describe('queryModuleEdges', () => {
-  it('returns rows with source/target names and file paths', () => {
-    // mock db with .prepare().all() interface
-    const mockRows = [
-      { source_name: 'getDatabase', source_file: 'src/database/index.ts', target_name: 'openDatabaseAsyncWithRetry', target_file: 'src/database/index.ts' },
-    ]
-    const mockDb = {
-      prepare: () => ({
-        all: (glob, depth) => {
-          expect(glob).toBe('src/database/%')
-          expect(depth).toBe(3)
-          return mockRows
-        },
-      }),
-    }
-    const result = queryModuleEdges(mockDb, 'src/database/%', 3)
-    expect(result).toEqual(mockRows)
+  it('returns empty notice when no edges present', () => {
+    const result = renderFolderOverview([])
+    expect(result).toContain('_No folder-level edges found._')
+    expect(result).not.toContain('graph LR')
   })
 })
