@@ -64,7 +64,7 @@ test('spendCredit does not update subscriptions when spend fails', async () => {
   } as unknown as DrizzleClient
   const cs = createCreditService(db)
   await assert.rejects(() => cs.spendCredit('user-1'))
-  // Inside transaction: INSERT subscriptions + SELECT FOR UPDATE + UPDATE credit_transactions (fails)
+  // Inside transaction: INSERT subscriptions + SELECT FOR UPDATE + SELECT SUM(...) net active balance (fails insufficient credits)
   assert.equal(executeCalls, 3)
 })
 
