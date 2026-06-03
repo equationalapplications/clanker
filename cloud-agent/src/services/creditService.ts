@@ -26,7 +26,7 @@ export function createCreditService(db: DrizzleClient): CreditService {
               AND remaining_balance >= 1
               AND (expires_at IS NULL OR expires_at > NOW())
             ORDER BY expires_at ASC NULLS LAST
-            LIMIT 1
+            LIMIT 1 FOR UPDATE
           )
         RETURNING id
       `)
