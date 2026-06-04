@@ -26,7 +26,7 @@ describe('escalate_to_cloud_agent spec', () => {
 
   it('description says Do NOT use for reading memory', () => {
     expect(findSpec('escalate_to_cloud_agent').description).toContain('Do NOT')
-    expect(findSpec('escalate_to_cloud_agent').description).toContain('reading memory')
+    expect(findSpec('escalate_to_cloud_agent').description).toContain('memory reads/writes')
   })
 })
 
@@ -68,7 +68,7 @@ describe('wiki_write spec', () => {
 
 describe('escalate_to_cloud_agent — updated guard', () => {
   it('description forbids WRITING/saving observations', () => {
-    expect(findSpec('escalate_to_cloud_agent').description).toContain('WRITING/saving observations')
+    expect(findSpec('escalate_to_cloud_agent').description).toContain('memory reads/writes')
   })
 })
 

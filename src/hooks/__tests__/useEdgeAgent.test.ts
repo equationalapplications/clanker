@@ -11,22 +11,26 @@ jest.mock('@google/genai', () => ({
   })),
 }))
 
-// Mock clankerManifests — useEdgeAgent now imports from here, not core-llm-tools
+// Mock clankerManifests — useEdgeAgent now imports getSchemasForEdge from here
 jest.mock('~/services/clankerManifests', () => ({
-  clankerTimeSchema: { name: 'get_current_time', description: 'Get current time', parameters: {} },
-  clankerEscalationSchema: { name: 'escalate_to_cloud_agent', description: 'Escalate to cloud', parameters: {} },
-  clankerMemorySchema: {
-    name: 'search_memory',
-    description: 'Search memory',
-    parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
-  },
-  clankerWriteObservationSchema: {
-    name: 'write_observation',
-    description: 'Write observation',
-    parameters: { type: 'object', properties: { summary: { type: 'string' } }, required: ['summary'] },
-  },
-  clankerCreateTaskSchema: { name: 'create_task', description: 'Create a task', parameters: {} },
-  clankerListTasksSchema: { name: 'list_tasks', description: 'List tasks', parameters: {} },
+  getSchemasForEdge: jest.fn((hasWiki: boolean, isCloudSynced: boolean) => {
+    const schemas = [
+      { name: 'get_current_time', description: 'Get current time', parameters: { type: 'object', properties: {}, required: [] } },
+      { name: 'escalate_to_cloud_agent', description: 'Escalate to cloud', parameters: { type: 'object', properties: {}, required: [] } },
+      { name: 'create_task', description: 'Create a task', parameters: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] } },
+      { name: 'list_tasks', description: 'List tasks', parameters: { type: 'object', properties: {}, required: [] } },
+    ]
+    if (hasWiki) {
+      schemas.push(
+        { name: 'wiki_read', description: 'Search memory', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } as any,
+        { name: 'wiki_write', description: 'Write observation', parameters: { type: 'object', properties: { summary: { type: 'string' } }, required: ['summary'] } } as any,
+      )
+    }
+    if (!isCloudSynced) {
+      return schemas.filter(s => s.name !== 'escalate_to_cloud_agent')
+    }
+    return schemas
+  }),
 }))
 
 // Mock edgeToolExecutors — factory returns a fixed executor map
@@ -332,7 +336,7 @@ describe('useEdgeAgent', () => {
     const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
     const names = functionDeclarations.map((fd) => fd.name)
     expect(names).toContain('get_current_time')
-    expect(names).toContain('search_memory')
+    expect(names).toContain('wiki_read')
     expect(names).not.toContain('escalate_to_cloud_agent')
   })
 
@@ -369,8 +373,8 @@ describe('useEdgeAgent', () => {
     const callArgs = mockGenerateContent.mock.calls[0][0]
     const functionDeclarations = callArgs.config.tools[0].functionDeclarations as { name: string }[]
     const names = functionDeclarations.map((fd) => fd.name)
-    expect(names).toContain('write_observation')
-    expect(names).toContain('search_memory')
+    expect(names).toContain('wiki_write')
+    expect(names).toContain('wiki_read')
   })
 
   it('does not include write_observation when wiki is null', async () => {
@@ -454,7 +458,7 @@ describe('useEdgeAgent', () => {
     const names = functionDeclarations.map((fd) => fd.name)
     expect(names).toContain('create_task')
     expect(names).toContain('list_tasks')
-    expect(names).toContain('search_memory')
+    expect(names).toContain('wiki_read')
     expect(names).toContain('escalate_to_cloud_agent')
   })
 })

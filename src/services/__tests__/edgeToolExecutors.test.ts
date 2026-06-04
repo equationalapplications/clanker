@@ -55,15 +55,15 @@ describe('createEdgeToolExecutors', () => {
     expect(typeof execs['get_current_time']).toBe('function')
   })
 
-  it('includes search_memory', () => {
+  it('includes wiki_read', () => {
     const execs = createEdgeToolExecutors('char-1', null)
-    expect(typeof execs['search_memory']).toBe('function')
+    expect(typeof execs['wiki_read']).toBe('function')
   })
 
-  describe('search_memory', () => {
+  describe('wiki_read', () => {
     it('returns "No relevant memories found." when wiki is null', async () => {
       const execs = createEdgeToolExecutors('char-1', null)
-      const result = await execs['search_memory']({ query: 'anything' })
+      const result = await execs['wiki_read']({ query: 'anything' })
       expect(result).toBe('No relevant memories found.')
       expect(mockReadFromWiki).not.toHaveBeenCalled()
     })
@@ -71,7 +71,7 @@ describe('createEdgeToolExecutors', () => {
     it('returns "No relevant memories found." when query is empty string', async () => {
       const wiki = {} as any
       const execs = createEdgeToolExecutors('char-1', wiki)
-      const result = await execs['search_memory']({ query: '' })
+      const result = await execs['wiki_read']({ query: '' })
       expect(result).toBe('No relevant memories found.')
       expect(mockReadFromWiki).not.toHaveBeenCalled()
     })
@@ -80,7 +80,7 @@ describe('createEdgeToolExecutors', () => {
       mockReadFromWiki.mockResolvedValue({ facts: [], tasks: [], events: [] })
       const wiki = {} as any
       const execs = createEdgeToolExecutors('char-1', wiki)
-      const result = await execs['search_memory']({ query: 'coffee' })
+      const result = await execs['wiki_read']({ query: 'coffee' })
       expect(result).toBe('No relevant memories found.')
     })
 
@@ -89,7 +89,7 @@ describe('createEdgeToolExecutors', () => {
       mockReadFromWiki.mockResolvedValue(mockResults)
       const wiki = {} as any
       const execs = createEdgeToolExecutors('char-1', wiki)
-      const result = await execs['search_memory']({ query: 'coffee' })
+      const result = await execs['wiki_read']({ query: 'coffee' })
       expect(result).toBe(JSON.stringify(mockResults))
     })
 
@@ -98,7 +98,7 @@ describe('createEdgeToolExecutors', () => {
       mockReadFromWiki.mockResolvedValue(mockResults)
       const wiki = {} as any
       const execs = createEdgeToolExecutors('char-1', wiki)
-      const result = await execs['search_memory']({ query: 'groceries' })
+      const result = await execs['wiki_read']({ query: 'groceries' })
       expect(result).toBe(JSON.stringify(mockResults))
     })
 
@@ -107,7 +107,7 @@ describe('createEdgeToolExecutors', () => {
       mockReadFromWiki.mockResolvedValue(mockResults)
       const wiki = {} as any
       const execs = createEdgeToolExecutors('char-1', wiki)
-      const result = await execs['search_memory']({ query: 'park' })
+      const result = await execs['wiki_read']({ query: 'park' })
       expect(result).toBe(JSON.stringify(mockResults))
     })
 
@@ -115,14 +115,14 @@ describe('createEdgeToolExecutors', () => {
       mockReadFromWiki.mockResolvedValue({ facts: [], tasks: [], events: [] })
       const wiki = {} as any
       const execs = createEdgeToolExecutors('char-42', wiki)
-      await execs['search_memory']({ query: 'favorite food' })
+      await execs['wiki_read']({ query: 'favorite food' })
       expect(mockReadFromWiki).toHaveBeenCalledWith(wiki, 'char-42', 'favorite food')
     })
 
     it('does not call readFromWiki when query is missing from args', async () => {
       const wiki = {} as any
       const execs = createEdgeToolExecutors('char-1', wiki)
-      const result = await execs['search_memory']({})
+      const result = await execs['wiki_read']({})
       expect(result).toBe('No relevant memories found.')
       expect(mockReadFromWiki).not.toHaveBeenCalled()
     })
@@ -131,25 +131,25 @@ describe('createEdgeToolExecutors', () => {
       mockReadFromWiki.mockRejectedValue(new Error('SQLite locked'))
       const wiki = {} as any
       const execs = createEdgeToolExecutors('char-1', wiki)
-      const result = await execs['search_memory']({ query: 'coffee' })
+      const result = await execs['wiki_read']({ query: 'coffee' })
       expect(result).toBe('No relevant memories found.')
     })
   })
 })
 
-describe('createEdgeToolExecutors — write_observation', () => {
+describe('createEdgeToolExecutors — wiki_write', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('write_observation is present in executor map', () => {
+  it('wiki_write is present in executor map', () => {
     const execs = createEdgeToolExecutors('char-1', null)
-    expect(typeof execs['write_observation']).toBe('function')
+    expect(typeof execs['wiki_write']).toBe('function')
   })
 
   it('returns failure message when wiki is null', async () => {
     const execs = createEdgeToolExecutors('char-1', null)
-    const result = await execs['write_observation']({ summary: 'User likes tea' })
+    const result = await execs['wiki_write']({ summary: 'User likes tea' })
     expect(result).toBe('Failed to record observation: Invalid input or missing database.')
     expect(mockWriteToWiki).not.toHaveBeenCalled()
   })
@@ -157,7 +157,7 @@ describe('createEdgeToolExecutors — write_observation', () => {
   it('returns failure message when summary is empty string', async () => {
     const wiki = {} as any
     const execs = createEdgeToolExecutors('char-1', wiki)
-    const result = await execs['write_observation']({ summary: '' })
+    const result = await execs['wiki_write']({ summary: '' })
     expect(result).toBe('Failed to record observation: Invalid input or missing database.')
     expect(mockWriteToWiki).not.toHaveBeenCalled()
   })
@@ -165,7 +165,7 @@ describe('createEdgeToolExecutors — write_observation', () => {
   it('returns failure message when summary is whitespace only', async () => {
     const wiki = {} as any
     const execs = createEdgeToolExecutors('char-1', wiki)
-    const result = await execs['write_observation']({ summary: '   ' })
+    const result = await execs['wiki_write']({ summary: '   ' })
     expect(result).toBe('Failed to record observation: Invalid input or missing database.')
     expect(mockWriteToWiki).not.toHaveBeenCalled()
   })
@@ -173,7 +173,7 @@ describe('createEdgeToolExecutors — write_observation', () => {
   it('returns failure message when summary is missing from args', async () => {
     const wiki = {} as any
     const execs = createEdgeToolExecutors('char-1', wiki)
-    const result = await execs['write_observation']({})
+    const result = await execs['wiki_write']({})
     expect(result).toBe('Failed to record observation: Invalid input or missing database.')
     expect(mockWriteToWiki).not.toHaveBeenCalled()
   })
@@ -181,7 +181,7 @@ describe('createEdgeToolExecutors — write_observation', () => {
   it('returns failure message when summary is not a string', async () => {
     const wiki = {} as any
     const execs = createEdgeToolExecutors('char-1', wiki)
-    const result = await execs['write_observation']({ summary: 42 })
+    const result = await execs['wiki_write']({ summary: 42 })
     expect(result).toBe('Failed to record observation: Invalid input or missing database.')
     expect(mockWriteToWiki).not.toHaveBeenCalled()
   })
@@ -190,7 +190,7 @@ describe('createEdgeToolExecutors — write_observation', () => {
     mockWriteToWiki.mockResolvedValue(undefined)
     const wiki = {} as any
     const execs = createEdgeToolExecutors('char-42', wiki)
-    await execs['write_observation']({ summary: 'User prefers dark mode' })
+    await execs['wiki_write']({ summary: 'User prefers dark mode' })
     expect(mockWriteToWiki).toHaveBeenCalledWith(wiki, 'char-42', {
       event_type: 'observation',
       summary: 'User prefers dark mode',
@@ -201,7 +201,7 @@ describe('createEdgeToolExecutors — write_observation', () => {
     mockWriteToWiki.mockResolvedValue(undefined)
     const wiki = {} as any
     const execs = createEdgeToolExecutors('char-1', wiki)
-    const result = await execs['write_observation']({ summary: 'User likes jazz' })
+    const result = await execs['wiki_write']({ summary: 'User likes jazz' })
     expect(result).toBe('Observation recorded successfully.')
   })
 
@@ -209,7 +209,7 @@ describe('createEdgeToolExecutors — write_observation', () => {
     mockWriteToWiki.mockRejectedValue(new Error('SQLite locked'))
     const wiki = {} as any
     const execs = createEdgeToolExecutors('char-1', wiki)
-    const result = await execs['write_observation']({ summary: 'User likes jazz' })
+    const result = await execs['wiki_write']({ summary: 'User likes jazz' })
     expect(result).toBe('Failed to record observation due to an internal error.')
   })
 })
