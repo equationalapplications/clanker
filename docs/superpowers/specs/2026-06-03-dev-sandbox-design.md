@@ -38,10 +38,11 @@ Run the full chat loop locally: Expo web frontend → Docker cloud-agent → loc
     ├─ bootstrapSession() (mocked) ──→ signedIn with fake UserSnapshot
     │
     ├─ /agent/run ──→ [cloud-agent :8080] ──→ [postgres_db :5432]
+    ├─ /agent/run ──→ [cloud-agent :8080] ──→ [postgres_db :5432]
     │     Authorization: Bearer mock_token_123      real credit SQL
     │     verifyToken (mocked) → uid: local_test_user_123
     │
-    └─ generateChatReply fallback (mocked) ──→ static reply string
+    └─ generateChatReply (edge agent) ──→ Gemini decides (API key) → local reply OR escalate → /agent/run
 ```
 
 ---
