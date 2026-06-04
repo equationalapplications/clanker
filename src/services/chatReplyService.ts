@@ -154,15 +154,29 @@ export async function generateChatReply({
         throw new Error(`Docker Cloud Agent failed with status ${cloudRes.status}`)
       }
 
-      const cloudData = await cloudRes.json()
-      
-      // Return the Cloud Agent's reply and the DEDUCTED credits from Postgres
+      const cloudData = (await cloudRes.json()) as {
+        reply?: unknown
+        usageSnapshot?: { remainingCredits?: unknown } | null
+      }
+
+      if (typeof cloudData.reply !== 'string' || !cloudData.reply.trim()) {
+        throw new Error('Invalid Cloud Agent response')
+      }
+
+      const remainingCreditsRaw = cloudData.usageSnapshot?.remainingCredits
+      const remainingCredits =
+        typeof remainingCreditsRaw === 'number' &&
+        Number.isInteger(remainingCreditsRaw) &&
+        remainingCreditsRaw >= 0
+          ? remainingCreditsRaw
+          : null
+
       return {
         reply: cloudData.reply,
-        remainingCredits: cloudData.usageSnapshot?.remainingCredits ?? null,
+        remainingCredits,
         planTier: 'free',
         planStatus: 'active',
-        verifiedAt: new Date().toISOString()
+        verifiedAt: new Date().toISOString(),
       }
     }
 
