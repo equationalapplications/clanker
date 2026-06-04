@@ -179,7 +179,7 @@ export function getSchemasForCloud() {
 `src/services/clankerManifests.ts` is replaced by `getSchemasForEdge`. Relative import:
 
 ```typescript
-import { getSchemasForEdge } from '../../../shared/agent-tools-spec'
+import { getSchemasForEdge } from '../../shared/agent-tools-spec'
 ```
 
 `metro.config.js` adds `shared/` to `watchFolders` — Metro ignores files outside its root by default:
@@ -187,16 +187,20 @@ import { getSchemasForEdge } from '../../../shared/agent-tools-spec'
 ```javascript
 const path = require('path')
 config.watchFolders = [
-  ...existing,
-  path.resolve(__dirname, '../../shared'), // adjust depth to repo root
+  ...(config.watchFolders ?? []),
+  path.resolve(__dirname, 'shared'),
 ]
 ```
 
 ### 3.4 Cloud Import
 
+Tool files (`cloud-agent/src/tools/wiki.ts`) import shared utilities:
+
 ```typescript
-import { getSchemasForCloud } from '../../shared/agent-tools-spec.js'
+import { clip, inferTags } from '../../../shared/wiki-utils.js'
 ```
+
+The cloud agent does not import `getSchemasForCloud` — tools are registered directly via their factory functions (see §7.3).
 
 ---
 
@@ -204,7 +208,7 @@ import { getSchemasForCloud } from '../../shared/agent-tools-spec.js'
 
 ### 4.1 Dockerfile
 
-Build context shifts to **repo root**. Folder depth preserved inside the container so `../shared` resolves correctly from `cloud-agent/`.
+Build context is the **repo root**. The multi-stage builder copies both `shared/` and `cloud-agent/` into `/app`, so `tsc` (with `rootDir: ".."` and `include: ["src", "../shared"]`) can resolve imports like `../../../shared/wiki-utils.js` from `cloud-agent/src/tools/`.
 
 ```dockerfile
 FROM node:22-bullseye-slim AS builder
@@ -226,17 +230,18 @@ CMD ["npm", "start"]
 
 ### 4.2 docker-compose.local.yml
 
-The local sandbox compose file must also shift build context to repo root. The `cloud-agent` service context and volume mounts reference the old path — without this update the local hot-reload loop fails to find `shared/` at startup.
+The `docker-compose.local.yml` lives at the repo root — its build context is already `.` (no upward traversal needed). The Compose file references `cloud-agent/Dockerfile.dev` for local development (hot-reload via `tsx watch`).
 
 ```yaml
 services:
   cloud-agent:
     build:
-      context: ../         # was: .  (was relative to cloud-agent/)
-      dockerfile: cloud-agent/Dockerfile
+      context: .
+      dockerfile: cloud-agent/Dockerfile.dev
     volumes:
-      - ../shared:/app/shared          # mount shared/ into container
-      - ./src:/app/cloud-agent/src     # existing hot-reload mount
+      - ./shared:/app/shared
+      - ./cloud-agent/src:/app/cloud-agent/src
+      - /app/cloud-agent/node_modules
 ```
 
 ### 4.3 tsc Output Nesting
@@ -305,9 +310,11 @@ headers: { 'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone }
 | `queryWikiContext` pre-fetch | `llm_wiki_entries` | Same retrieval as tool; no split-brain |
 | `bulkInsertUnsynced` wiki items | `llm_wiki_entries` + `llm_wiki_events` | Mirror dual-write for edge-originated items |
 
-### 6.2 Schema Migration
+### 6.2 Schema Mirror — cloud-agent/src/db/schema.ts
 
-New migration in `functions/src/db/` (all migrations live there only):
+Only `llmWikiEntries` added to the cloud agent schema mirror. `llmWikiTasks` is intentionally **not** mirrored — the cloud agent performs all task CRUD against the `tasks` table, not the LWW wiki task table. Adding the mirror with no executor writing to it would create a misleading dead export.
+
+Migration for the vector extension (in `functions/src/db/` — all migrations live there only):
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -321,7 +328,7 @@ CREATE INDEX llm_wiki_entries_embedding_idx
 
 768 dimensions = `text-embedding-004` output. HNSW chosen over IVFFlat: builds on empty tables, grows dynamically as rows are inserted, no accuracy degradation requiring manual REINDEX.
 
-`cloud-agent/src/db/schema.ts` adds `llm_wiki_entries` (currently only has `llm_wiki_events`). `llm_wiki_tasks` is intentionally excluded — the cloud agent performs all task CRUD against the `tasks` table, not the LWW wiki task table. Adding the mirror with no executor writing to it would create a misleading dead export.
+`cloud-agent/src/db/schema.ts` adds `llmWikiEntries`:
 
 ```typescript
 // llm_wiki_entries — add to existing schema mirror
@@ -411,7 +418,7 @@ function parseSummary(summary: string): { title: string; body: string; tags: str
 
 ### 6.6 `wiki_write` Dual-Write Pattern
 
-Both inserts wrapped in a DB transaction:
+Both inserts wrapped in a DB transaction. Note: Drizzle requires `(tx as unknown as typeof db)` to cast the transaction client when wrapping queries with specific client types:
 
 ```typescript
 await db.transaction(async (tx) => {
@@ -420,7 +427,7 @@ await db.transaction(async (tx) => {
   let embedding: number[] | null = null
   try { embedding = await embed(body) } catch { /* log, continue */ }
 
-  await tx.insert(llmWikiEntries).values({
+  await (tx as unknown as typeof db).insert(llmWikiEntries).values({
     id: entryId, entityId: characterId, userId,
     title, body, tags,
     confidence: 'inferred', sourceType: 'agent_inferred',
@@ -431,7 +438,7 @@ await db.transaction(async (tx) => {
     set: { body: sql`excluded.body`, updatedAt: sql`excluded.updated_at`, embedding: sql`excluded.embedding` },
   })
 
-  await tx.insert(llmWikiEvents).values({
+  await (tx as unknown as typeof db).insert(llmWikiEvents).values({
     id: crypto.randomUUID(), entityId: characterId, userId,
     eventType: 'observation',
     summary: clip(`${title}: ${body}`, 200),
@@ -442,28 +449,30 @@ await db.transaction(async (tx) => {
 
 ### 6.7 `wiki_read` — pgvector Query
 
+The `<=>` (cosine distance) operator is used via raw SQL rather than importing `cosineDistance` from `drizzle-orm/pg-core`, because the latter can cause type issues with the vector column. The function wraps both paths in try/catch: attempt embedding first, fall back to full-text search with `coalesce()` guards against null columns:
+
 ```typescript
-import { cosineDistance } from 'drizzle-orm/pg-core'
+try {
+  const vec = await embed(query.trim())
+  rows = await db.select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
+    .from(llmWikiEntries)
+    .where(and(eq(llmWikiEntries.entityId, characterId), eq(llmWikiEntries.userId, userId), isNull(llmWikiEntries.deletedAt)))
+    .orderBy(sql`${llmWikiEntries.embedding} <=> ${JSON.stringify(vec)}::vector`)
+    .limit(5)
+} catch {
+  // embedText failed — fall back to full-text search
+  rows = await db.select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
+    .from(llmWikiEntries)
+    .where(and(
+      eq(llmWikiEntries.entityId, characterId),
+      eq(llmWikiEntries.userId, userId),
+      isNull(llmWikiEntries.deletedAt),
+      sql`to_tsvector('english', coalesce(${llmWikiEntries.title}, '') || ' ' || coalesce(${llmWikiEntries.body}, '')) @@ websearch_to_tsquery('english', ${query.trim().slice(0, 200)})`,
+    ))
+    .limit(5)
+}
 
-// Happy path: pgvector cosine similarity
-const vec = await embed(query)
-const rows = await db.select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
-  .from(llmWikiEntries)
-  .where(and(eq(llmWikiEntries.entityId, characterId), eq(llmWikiEntries.userId, userId), isNull(llmWikiEntries.deletedAt)))
-  .orderBy(cosineDistance(llmWikiEntries.embedding, vec))
-  .limit(5)
-
-// Fallback: full-text search
-const rows = await db.select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
-  .from(llmWikiEntries)
-  .where(and(
-    eq(llmWikiEntries.entityId, characterId),
-    eq(llmWikiEntries.userId, userId),
-    isNull(llmWikiEntries.deletedAt),
-    sql`to_tsvector('english', ${llmWikiEntries.title} || ' ' || ${llmWikiEntries.body}) @@ websearch_to_tsquery('english', ${query})`,
-  ))
-  .limit(5)
-
+if (rows.length === 0) return ''
 return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
 ```
 
@@ -515,27 +524,36 @@ Per-entry try/catch ensures one failed embedding does not abort the entire sync 
 
 | File | Change |
 |---|---|
-| `cloud-agent/src/db/schema.ts` | Add `llmWikiEntries`, `llmWikiTasks` mirrors; add `embedding` column to `llmWikiEntries` |
+| `cloud-agent/src/db/schema.ts` | Add `llmWikiEntries` mirror (note: `llmWikiTasks` intentionally _not_ mirrored — task CRUD targets `tasks` table); add `embedding` column to `llmWikiEntries` |
 | `cloud-agent/src/tools/wiki.ts` | Replace ILIKE on events with pgvector on entries; dual-write; inject `embedText` |
 | `cloud-agent/src/tools/tasks.ts` | Add `update_task`, `complete_task`, `delete_task` |
-| `cloud-agent/src/agent.ts` | Register all new tools; use `getSchemasForCloud` for ADK tool name alignment |
+| `cloud-agent/src/agent.ts` | Register all new tools; add `timezone` and `embed` params to `buildAgent` signature; import extract embed type from `embeddings.ts` |
 | `cloud-agent/src/index.ts` | Replace `queryWikiContext` ILIKE with pgvector+fallback; expand `bulkInsertUnsynced` for `wiki_entry` items with embedding backfill; parse `X-Timezone` header; pass timezone to `buildAgent` |
 | `src/services/cloudAgentService.ts` | Add `X-Timezone: Intl.DateTimeFormat().resolvedOptions().timeZone` header |
-| `cloud-agent/docker-compose.local.yml` | Shift build context to repo root; add `shared/` volume mount |
-| `cloud-agent/Dockerfile` | Root build context; folder depth preserved |
+| `docker-compose.local.yml` | Context is already `.` (repo root); add `shared/` volume mount; use `cloud-agent/Dockerfile.dev` for dev |
+| `cloud-agent/Dockerfile` | Production build from repo root context; copies `shared/` and `cloud-agent/` |
 | `cloud-agent/tsconfig.json` | `rootDir: ".."` |
 | `cloud-agent/package.json` | Update start script to `dist/cloud-agent/src/index.js` |
 
 ### 7.3 `agent.ts` Tool Registration
 
+`buildAgent` receives `timezone` (string from `X-Timezone` header) and `embed` (typed as `typeof embedText` from `embeddings.ts`) as explicit parameters. Tools are registered directly via their factory functions — `getSchemasForCloud` is not used at registration time since ADK `FunctionTool` manifests embed names already.
+
 ```typescript
-export function buildAgent(db, userId, characterId, systemInstruction, embed) {
+export function buildAgent(
+  db: DrizzleClient,
+  userId: string,
+  characterId: string,
+  systemInstruction: string,
+  timezone: string,
+  embed: typeof embedText,
+): LlmAgent {
   return new LlmAgent({
     name: 'clanker-cloud-agent',
     model: 'gemini-2.5-flash',
     instruction: systemInstruction,
     tools: [
-      getCurrentTimeTool(),
+      getCurrentTimeTool(timezone),
       wikiReadTool(db, userId, characterId, embed),
       wikiWriteTool(db, userId, characterId, embed),
       createTaskTool(db, userId, characterId),
