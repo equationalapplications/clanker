@@ -19,6 +19,7 @@ export interface CloudAgentPayload {
 export interface CloudAgentResult {
   reply: string
   toolCalls: string[]
+  usageSnapshot: { remainingCredits: number } | null
 }
 
 export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudAgentResult> {
@@ -38,14 +39,35 @@ export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudA
     body: JSON.stringify(payload),
   })
 
+  if (response.status === 402) {
+    throw new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+  }
+
   if (!response.ok) {
     throw new Error(`Cloud Agent responded with ${response.status}`)
   }
 
-  const data = (await response.json()) as { reply?: string; toolCalls?: string[] }
+  const data = (await response.json()) as {
+    reply?: string
+    toolCalls?: string[]
+    usageSnapshot?: { remainingCredits?: unknown } | null
+  }
+
   if (!data.reply || typeof data.reply !== 'string') {
     throw new Error('Invalid Cloud Agent response')
   }
 
-  return { reply: data.reply, toolCalls: data.toolCalls ?? [] }
+  const remainingCredits = data.usageSnapshot?.remainingCredits
+  const usageSnapshot =
+    typeof remainingCredits === 'number' &&
+    Number.isInteger(remainingCredits) &&
+    remainingCredits >= 0
+      ? { remainingCredits }
+      : null
+
+  return {
+    reply: data.reply,
+    toolCalls: data.toolCalls ?? [],
+    usageSnapshot,
+  }
 }

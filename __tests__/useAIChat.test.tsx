@@ -574,5 +574,122 @@ describe('useAIChat', () => {
 
       expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
     })
+
+    it('dispatches USAGE_SNAPSHOT_RECEIVED to authService when cloud agent returns usageSnapshot', async () => {
+      mockCallCloudAgent.mockResolvedValue({
+        reply: 'Cloud says hi!',
+        toolCalls: [],
+        usageSnapshot: { remainingCredits: 26 },
+      })
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-snapshot-1',
+          text: 'Use cloud agent',
+          createdAt: new Date('2026-06-03T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'USAGE_SNAPSHOT_RECEIVED',
+          source: 'cloudAgent',
+          remainingCredits: 26,
+          planTier: null,
+          planStatus: null,
+        }),
+      )
+    })
+
+    it('does NOT dispatch USAGE_SNAPSHOT_RECEIVED when usageSnapshot is null', async () => {
+      mockCallCloudAgent.mockResolvedValue({
+        reply: 'Cloud says hi!',
+        toolCalls: [],
+        usageSnapshot: null,
+      })
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-snapshot-2',
+          text: 'Use cloud agent',
+          createdAt: new Date('2026-06-03T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      const cloudAgentSnapshots = mockSend.mock.calls.filter(
+        (call: unknown[]) =>
+          typeof call[0] === 'object' &&
+          call[0] !== null &&
+          (call[0] as { type?: string; source?: string }).type === 'USAGE_SNAPSHOT_RECEIVED' &&
+          (call[0] as { type?: string; source?: string }).source === 'cloudAgent',
+      )
+      expect(cloudAgentSnapshots).toHaveLength(0)
+    })
+
+    it('dispatches USAGE_SNAPSHOT_RECEIVED with remainingCredits: 0 on CLOUD_AGENT_INSUFFICIENT_CREDITS', async () => {
+      mockCallCloudAgent.mockRejectedValue(new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS'))
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await act(async () => {
+        await expect(
+          hook.sendMessage({
+            _id: 'msg-402-1',
+            text: 'No credits',
+            createdAt: new Date('2026-06-03T00:00:00.000Z'),
+            user: { _id: 'user-1' },
+          } as any),
+        ).rejects.toThrow('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+      })
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'USAGE_SNAPSHOT_RECEIVED',
+          source: 'cloudAgent',
+          remainingCredits: 0,
+          planTier: null,
+          planStatus: null,
+        }),
+      )
+    })
+
+    it('invalidates message query on CLOUD_AGENT_INSUFFICIENT_CREDITS', async () => {
+      mockCallCloudAgent.mockRejectedValue(new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS'))
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await act(async () => {
+        await expect(
+          hook.sendMessage({
+            _id: 'msg-402-2',
+            text: 'No credits',
+            createdAt: new Date('2026-06-03T00:00:00.000Z'),
+            user: { _id: 'user-1' },
+          } as any),
+        ).rejects.toThrow('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+      })
+
+      expect(mockInvalidateQueries).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: expect.arrayContaining(['messages']) }),
+      )
+    })
+
+    it('rethrows CLOUD_AGENT_INSUFFICIENT_CREDITS so mutation onError still runs', async () => {
+      mockCallCloudAgent.mockRejectedValue(new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS'))
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await expect(
+        act(async () => {
+          await hook.sendMessage({
+            _id: 'msg-402-3',
+            text: 'No credits',
+            createdAt: new Date('2026-06-03T00:00:00.000Z'),
+            user: { _id: 'user-1' },
+          } as any)
+        }),
+      ).rejects.toThrow('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+    })
   })
 })

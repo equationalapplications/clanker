@@ -201,6 +201,17 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           }
         }
 
+        if (agentResult.usageSnapshot) {
+          authService.send({
+            type: 'USAGE_SNAPSHOT_RECEIVED',
+            source: 'cloudAgent',
+            remainingCredits: agentResult.usageSnapshot.remainingCredits,
+            planTier: null,
+            planStatus: null,
+            verifiedAt: new Date().toISOString(),
+          })
+        }
+
         return { usageSnapshot: null }
       }
 
@@ -312,8 +323,28 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         })
       }
 
+      const isInsufficientCredits =
+        err instanceof Error && err.message === 'CLOUD_AGENT_INSUFFICIENT_CREDITS'
+      if (isInsufficientCredits) {
+        authService.send({
+          type: 'USAGE_SNAPSHOT_RECEIVED',
+          source: 'cloudAgent',
+          remainingCredits: 0,
+          planTier: null,
+          planStatus: null,
+          verifiedAt: new Date().toISOString(),
+        })
+        queryClient.invalidateQueries({
+          queryKey: messageKeys.list(characterId, userId),
+        })
+      }
+
       // Rollback optimistic update for transient failures only.
-      if (firebaseCode !== 'functions/failed-precondition' && context?.previousMessages) {
+      if (
+        firebaseCode !== 'functions/failed-precondition' &&
+        !isInsufficientCredits &&
+        context?.previousMessages
+      ) {
         queryClient.setQueryData(messageKeys.list(characterId, userId), context.previousMessages)
       }
     },
@@ -331,6 +362,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     sendMessage,
     isGeneratingResponse: aiMessageMutation.isPending,
     error,
-    escalationState: edgeAgent.escalationState,
+    escalationState: aiMessageMutation.isPending ? edgeAgent.escalationState : 'idle',
   }
 }
