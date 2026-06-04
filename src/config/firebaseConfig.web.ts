@@ -97,8 +97,17 @@ const auth = getAuth(firebaseApp)
 
 const getCurrentUser = () => auth.currentUser
 
-const onAuthStateChanged = (callback: (user: User | null) => void): Unsubscribe =>
-  onAuthStateChangedInternal(auth, callback)
+const onAuthStateChanged = (callback: (user: User | null) => void): Unsubscribe => {
+  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    callback({
+      uid: 'local_test_user_123',
+      email: 'dev@localhost.com',
+      getIdToken: async () => 'mock_token_123',
+    } as unknown as User)
+    return () => {}
+  }
+  return onAuthStateChangedInternal(auth, callback)
+}
 
 const signOut = () => signOutInternal(auth)
 

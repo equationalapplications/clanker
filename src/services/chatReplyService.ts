@@ -57,6 +57,15 @@ export async function generateChatReply({
   unsyncedHistory,
   characterId,
 }: GenerateChatReplyInput): Promise<GenerateChatReplyResult> {
+  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    return {
+      reply: '[MOCKED FALLBACK] Edge agent did not escalate. Local simulated response.',
+      remainingCredits: null,
+      planTier: null,
+      planStatus: null,
+      verifiedAt: new Date().toISOString(),
+    }
+  }
   const trimmedPrompt = typeof prompt === 'string' ? prompt.trim() : ''
 
   if (!trimmedPrompt && contents === undefined) {

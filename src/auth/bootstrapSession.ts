@@ -91,6 +91,29 @@ async function runBootstrapSession(): Promise<BootstrapResponse> {
 }
 
 export async function bootstrapSession(): Promise<BootstrapResponse> {
+  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    return {
+      user: {
+        id: '11111111-1111-1111-1111-111111111111',
+        firebaseUid: 'local_test_user_123',
+        email: 'dev@localhost.com',
+        displayName: 'Dev User',
+        avatarUrl: null,
+        isProfilePublic: false,
+        defaultCharacterId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      subscription: {
+        planTier: 'free',
+        planStatus: 'active',
+        currentCredits: 100,
+        termsVersion: null,
+        termsAcceptedAt: null,
+        nextExpiryDate: null,
+      },
+    }
+  }
   const user = getCurrentUser()
   if (!user) {
     throw new Error('No Firebase user is currently signed in')

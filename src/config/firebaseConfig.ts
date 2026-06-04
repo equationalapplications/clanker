@@ -41,8 +41,17 @@ const auth = getAuth(firebaseApp)
 
 const getCurrentUser = () => auth.currentUser
 
-const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) =>
-  onAuthStateChangedMod(auth, callback)
+const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) => {
+  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    callback({
+      uid: 'local_test_user_123',
+      email: 'dev@localhost.com',
+      getIdToken: async () => 'mock_token_123',
+    } as FirebaseAuthTypes.User)
+    return () => {}
+  }
+  return onAuthStateChangedMod(auth, callback)
+}
 
 const signOut = () => signOutMod(auth)
 
