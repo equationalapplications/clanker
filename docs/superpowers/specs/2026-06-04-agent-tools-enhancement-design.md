@@ -1,7 +1,7 @@
 # Agent Tools Enhancement — Edge & Cloud Parity
 
 **Date:** 2026-06-04
-**Status:** Approved
+**Status:** Implemented
 **Epic:** Epic 3 — Enhanced Agent Tools
 **Goal:** Unified, matching tool sets across edge and cloud agents. Single source of truth for all manifests. Full task CRUD, semantic wiki memory on both sides, document search, and cloud-only reminders.
 
