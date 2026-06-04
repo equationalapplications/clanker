@@ -248,7 +248,7 @@ Returns exact `GenerateChatReplyResult` shape. No type issues downstream.
    - Real credit deduction via `SELECT FOR UPDATE` saga against local Postgres
    - ADK agent runs, returns reply
 4. User sends chat message → fallback path (non-escalated):
-   - `generateChatReply()` returns mock string immediately, no Firebase call
+   - `generateChatReply()` uses Gemini locally (requires `EXPO_PUBLIC_GOOGLE_GENAI_API_KEY`) and returns a reply without calling Firebase or spending credits
 
 ---
 
