@@ -110,9 +110,15 @@ async function seed() {
   console.log('Seeding test data...')
 
   await db.execute(sql`
+    DELETE FROM users WHERE firebase_uid = 'local_test_user_123' AND id != ${USER_ID}::uuid
+  `)
+  await db.execute(sql`
     INSERT INTO users (id, firebase_uid, email, display_name)
     VALUES (${USER_ID}, 'local_test_user_123', 'dev@localhost.com', 'Dev User')
-    ON CONFLICT (firebase_uid) DO NOTHING
+    ON CONFLICT (id) DO UPDATE
+      SET firebase_uid = EXCLUDED.firebase_uid,
+          email = EXCLUDED.email,
+          display_name = EXCLUDED.display_name
   `)
 
   await db.execute(sql`

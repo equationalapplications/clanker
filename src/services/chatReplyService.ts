@@ -72,6 +72,16 @@ export async function generateChatReply({
       throw new Error('EXPO_PUBLIC_GEMINI_API_KEY is not configured')
     }
 
+    if (contents !== undefined) {
+      if (!Array.isArray(contents) || contents.length === 0) {
+        throw new Error('contents must be a non-empty array when provided')
+      }
+      if (typeof systemInstruction !== 'string' || !systemInstruction.trim()) {
+        throw new Error('systemInstruction must be a non-empty string when contents are provided')
+      }
+      validateStructuredPayloadSize(contents, systemInstruction.trim())
+    }
+
     const messageFromContents =
       Array.isArray(contents)
         ? (contents
