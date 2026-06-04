@@ -67,7 +67,7 @@ export async function generateChatReply({
     console.log("🛠️ Mock Env: Initializing Local Edge Agent...")
     
     // 1. Initialize Gemini using the local API key
-    const ai = new GoogleGenAI({ apiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY })
+    const ai = new GoogleGenAI({ apiKey: process.env.EXPO_PUBLIC_GOOGLE_GENAI_API_KEY })
 
     // 2. Ask Gemini to evaluate the prompt and decide whether to escalate
     const response = await ai.models.generateContent({
