@@ -6,8 +6,8 @@ const CHARACTER_ID = '22222222-2222-2222-2222-222222222222'
 
 async function seed() {
   const db = await getDb()
+  await db.execute(sql`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`)
   console.log('Creating tables...')
-
   // ── Tables mirrored from cloud-agent/src/db/schema.ts ─────────────────────
 
   await db.execute(sql`
