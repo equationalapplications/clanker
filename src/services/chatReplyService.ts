@@ -1,4 +1,5 @@
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenAI, Type } from '@google/genai'
+import { appCheckReady, generateReplyFn } from '~/config/firebaseConfig'
 import type { SyncMessage } from '~/services/syncMessage'
 
 interface GenerateChatReplyInput {
@@ -110,7 +111,8 @@ export async function generateChatReply({
           {
             functionDeclarations: [
               {
-                parameters: { type: 'object' as const, properties: {}, required: [] as string[] },
+                parameters: { type: Type.OBJECT, properties: {}, required: [] as string[] },
+              },
             ],
           },
         ],
