@@ -277,7 +277,7 @@ EXPO_PUBLIC_CLOUD_AGENT_URL=http://localhost:8080
 EXPO_PUBLIC_USE_MOCK_AUTH=false   # real Firebase login
 ```
 
-With `USE_MOCK_AUTH=false`: real Firebase login, real staging bootstrapSession, but chat still routes to local cloud-agent. Useful for LLM prompt iteration against a real user account.
+With `EXPO_PUBLIC_USE_MOCK_AUTH=false`: real Firebase login, real staging bootstrapSession, but chat still routes to local cloud-agent. Useful for LLM prompt iteration against a real user account.
 
 ---
 

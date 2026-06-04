@@ -10,6 +10,18 @@ jest.mock('~/config/firebaseConfig', () => ({
   generateReplyFn: (...args: unknown[]) => mockGenerateReplyFn(...args),
 }))
 
+// Mock GoogleGenAI to avoid platform-specific import issues in tests
+jest.mock('@google/genai', () => ({
+  GoogleGenAI: jest.fn().mockImplementation(() => ({
+    models: {
+      generateContent: jest.fn().mockResolvedValue({
+        functionCalls: null,
+        text: '[MOCKED FALLBACK] Edge agent did not escalate. Local simulated response.',
+      }),
+    },
+  })),
+}))
+
 import { generateChatReply } from '~/services/chatReplyService'
 
 describe('generateChatReply', () => {
@@ -139,6 +151,43 @@ describe('generateChatReply', () => {
 
     await expect(resultPromise).resolves.toMatchObject({
       verifiedAt: '2026-01-01T00:00:00.000Z',
+    })
+  })
+
+  describe('mock auth branch (EXPO_PUBLIC_USE_MOCK_AUTH)', () => {
+    const originalEnv = process.env.EXPO_PUBLIC_USE_MOCK_AUTH
+
+    beforeEach(() => {
+      process.env.EXPO_PUBLIC_USE_MOCK_AUTH = 'true'
+      // Mock __DEV__ global
+      ;(global as { __DEV__?: boolean }).__DEV__ = true
+    })
+
+    afterEach(() => {
+      process.env.EXPO_PUBLIC_USE_MOCK_AUTH = originalEnv
+      delete (global as { __DEV__?: boolean }).__DEV__
+    })
+
+    it('returns mock response without calling generateReplyFn', async () => {
+      const result = await generateChatReply({ prompt: 'hello' })
+
+      expect(mockGenerateReplyFn).not.toHaveBeenCalled()
+      expect(result.reply).toBe('[MOCKED FALLBACK] Edge agent did not escalate. Local simulated response.')
+      // Edge Agent returns 100 credits when handling locally (no deduction)
+      expect(result.remainingCredits).toBe(100)
+      expect(result.planTier).toBe('free')
+      expect(result.planStatus).toBe('active')
+      expect(result.verifiedAt).toBeTruthy()
+    })
+
+    it('returns mock response with structured contents', async () => {
+      const result = await generateChatReply({
+        contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
+        systemInstruction: 'Be helpful.',
+      })
+
+      expect(mockGenerateReplyFn).not.toHaveBeenCalled()
+      expect(result.reply).toBe('[MOCKED FALLBACK] Edge agent did not escalate. Local simulated response.')
     })
   })
 })

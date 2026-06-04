@@ -6,7 +6,7 @@
 
 **Architecture:** Two env-flag gates (`MOCK_FIREBASE_AUTH` on backend, `EXPO_PUBLIC_USE_MOCK_AUTH` on frontend) intercept at exactly four boundaries: `verifyToken`, `onAuthStateChanged`, `bootstrapSession`, and `generateChatReply`. The DB client gains a `DATABASE_URL` branch that uses standard `pg.Pool` instead of the Google Cloud SQL Connector. Everything else is unchanged production code.
 
-**Tech Stack:** Docker Compose, Postgres 15, Node 20, tsx, Express, Drizzle ORM, Expo web, XState, React Native Firebase (native) / Firebase Web SDK (web)
+**Tech Stack:** Docker Compose, Postgres 15, Node 22, tsx, Express, Drizzle ORM, Expo web, XState, React Native Firebase (native) / Firebase Web SDK (web)
 
 **Spec:** `docs/superpowers/specs/2026-06-03-dev-sandbox-design.md`
 
@@ -698,4 +698,4 @@ EXPO_PUBLIC_CLOUD_AGENT_URL=http://localhost:8080
 EXPO_PUBLIC_USE_MOCK_AUTH=false
 ```
 
-With `USE_MOCK_AUTH=false`: real Firebase login, real staging bootstrapSession, but `/agent/run` still hits `localhost:8080`.
+With `EXPO_PUBLIC_USE_MOCK_AUTH=false`: real Firebase login, real staging bootstrapSession, but `/agent/run` still hits `localhost:8080`.
