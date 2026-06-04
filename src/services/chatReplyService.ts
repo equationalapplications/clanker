@@ -57,7 +57,7 @@ export async function generateChatReply({
   unsyncedHistory,
   characterId,
 }: GenerateChatReplyInput): Promise<GenerateChatReplyResult> {
-  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+  if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     return {
       reply: '[MOCKED FALLBACK] Edge agent did not escalate. Local simulated response.',
       remainingCredits: null,
