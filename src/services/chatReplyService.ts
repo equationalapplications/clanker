@@ -77,8 +77,8 @@ export async function generateChatReply({
         ? (contents
             .slice()
             .reverse()
-            .find((c: any) => c?.role === 'user')
-            ?.parts?.find((p: any) => typeof p?.text === 'string')?.text ?? '')
+            .find((c: any) => c?.role === 'user') as any)
+            ?.parts?.find((p: any) => typeof p?.text === 'string')?.text ?? ''
         : ''
     const message = trimmedPrompt || messageFromContents
     if (!message.trim()) {
