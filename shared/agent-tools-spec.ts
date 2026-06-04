@@ -1,4 +1,6 @@
 // shared/agent-tools-spec.ts
+import { getCurrentTimeManifest, escalateToCloudManifest } from '@equationalapplications/core-llm-tools'
+
 export type ToolTier = 'both' | 'cloud-only' | 'edge-only'
 
 export interface ToolManifest {
@@ -14,10 +16,9 @@ export interface ToolManifest {
 
 export const agentToolSpec: ToolManifest[] = [
   {
-    name: 'get_current_time',
+    ...(getCurrentTimeManifest.schema as any),
     tier: 'both',
     description: 'CRITICAL: ALWAYS call this tool if the user asks for the current time, date, day of week, or uses relative temporal words (today, tomorrow). Do not guess.',
-    parameters: { type: 'object', properties: {}, required: [] },
   },
   {
     name: 'wiki_read',
@@ -42,7 +43,7 @@ export const agentToolSpec: ToolManifest[] = [
   {
     name: 'create_task',
     tier: 'both',
-    description: 'Create a new task or to-do item for the user.',
+    description: 'Create a new task or to-do item for the user. Do NOT use for reminders or scheduling.',
     parameters: {
       type: 'object',
       properties: { title: { type: 'string', description: 'Task description.' } },
@@ -100,7 +101,7 @@ export const agentToolSpec: ToolManifest[] = [
   },
   {
     name: 'set_reminder',
-    tier: 'cloud-only',
+    tier: 'both',
     description: 'Schedule a reminder for the user at a specific future time.',
     parameters: {
       type: 'object',
@@ -112,10 +113,9 @@ export const agentToolSpec: ToolManifest[] = [
     },
   },
   {
-    name: 'escalate_to_cloud_agent',
+    ...(escalateToCloudManifest.schema as any),
     tier: 'edge-only',
-    description: 'Escalate complex workflows, writing tasks, reminders, or scheduling to the cloud agent. Do NOT use for casual chat, time checks, memory reads/writes, or task create/list.',
-    parameters: { type: 'object', properties: {}, required: [] },
+    description: 'Escalate complex workflows or writing tasks to the cloud agent. Do NOT use for casual chat, time checks, memory reads/writes, or basic untimed task creation.',
   },
 ]
 

@@ -8,10 +8,12 @@ services:
     volumes:
       - ./shared:/app/shared
       - ./cloud-agent/src:/app/cloud-agent/src
+      - ./cloud-agent/scripts:/app/cloud-agent/scripts
       - /app/cloud-agent/node_modules
     environment:
       - NODE_ENV=development
       - MOCK_FIREBASE_AUTH=true
+      - GEMINI_API_KEY=${EXPO_PUBLIC_GEMINI_API_KEY}
       - DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker
       - CORS_ORIGIN=http://localhost:8081,http://localhost:8082
     depends_on:
@@ -19,7 +21,7 @@ services:
         condition: service_healthy
 
   postgres_db:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     environment:
       - POSTGRES_USER=clanker_dev
       - POSTGRES_PASSWORD=local_pass

@@ -220,12 +220,13 @@ async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; to
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
 
+  const session = await runner.sessionService.createSession({
+    appName: 'clanker-cloud-agent',
+    userId,
+    sessionId,
+  })
+
   if (history.length > 0) {
-    const session = await runner.sessionService.createSession({
-      appName: 'clanker-cloud-agent',
-      userId,
-      sessionId,
-    })
     for (const turn of history) {
       await runner.sessionService.appendEvent({
         session,
@@ -454,6 +455,14 @@ export function createApp(options: AppOptions) {
 
 if (process.env.NODE_ENV !== 'test') {
   const isMockAuth = process.env.MOCK_FIREBASE_AUTH === 'true' && process.env.NODE_ENV !== 'production' && !process.env.K_SERVICE
+  
+  console.log('--- Auth Debug ---');
+  console.log(`MOCK_FIREBASE_AUTH: ${process.env.MOCK_FIREBASE_AUTH} (type: ${typeof process.env.MOCK_FIREBASE_AUTH})`);
+  console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`K_SERVICE: ${process.env.K_SERVICE}`);
+  console.log(`isMockAuth evaluated to: ${isMockAuth}`);
+  console.log('------------------');
+
   if (!isMockAuth && !admin.apps.length) admin.initializeApp()
 
   const db = await getDb()
