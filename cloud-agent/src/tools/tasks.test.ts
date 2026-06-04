@@ -92,3 +92,78 @@ test('listTasksTool: returns serialised task rows', async () => {
   assert.equal(parsed.length, 1)
   assert.equal(parsed[0]!.title, 'Task one')
 })
+
+// Mutation tool tests — use a separate db mock that supports update/delete
+function makeMutationDb() {
+  const updates: Record<string, unknown>[] = []
+  return {
+    _updates: updates,
+    update: (_table: unknown) => ({
+      set: (values: Record<string, unknown>) => ({
+        where: () => {
+          updates.push(values)
+          return Promise.resolve()
+        },
+      }),
+    }),
+    delete: (_table: unknown) => ({
+      where: () => {
+        updates.push({ _deleted: true })
+        return Promise.resolve()
+      },
+    }),
+  }
+}
+
+const { updateTaskTool, completeTaskTool, deleteTaskTool } = await import('./tasks.js')
+
+test('updateTaskTool: name is update_task', () => {
+  const db = makeMutationDb()
+  const tool = updateTaskTool(db as unknown as DrizzleClient, 'user-1', 'char-1')
+  assert.equal(tool.name, 'update_task')
+})
+
+test('updateTaskTool: schema has taskId and title but not userId', () => {
+  const db = makeMutationDb()
+  const tool = updateTaskTool(db as unknown as DrizzleClient, 'user-1', 'char-1')
+  const props = tool._getDeclaration().parameters?.properties ?? {}
+  assert.ok('taskId' in props)
+  assert.ok('title' in props)
+  assert.ok(!('userId' in props))
+})
+
+test('updateTaskTool: returns success string', async () => {
+  const db = makeMutationDb()
+  const tool = updateTaskTool(db as unknown as DrizzleClient, 'user-1', 'char-1')
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> })
+    .execute({ taskId: 't-1', title: 'New title' })
+  assert.equal(result, 'Task updated.')
+})
+
+test('completeTaskTool: name is complete_task', () => {
+  const db = makeMutationDb()
+  const tool = completeTaskTool(db as unknown as DrizzleClient, 'user-1', 'char-1')
+  assert.equal(tool.name, 'complete_task')
+})
+
+test('completeTaskTool: returns success string', async () => {
+  const db = makeMutationDb()
+  const tool = completeTaskTool(db as unknown as DrizzleClient, 'user-1', 'char-1')
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> })
+    .execute({ taskId: 't-1' })
+  assert.equal(result, 'Task marked as completed.')
+})
+
+test('deleteTaskTool: name is delete_task', () => {
+  const db = makeMutationDb()
+  const tool = deleteTaskTool(db as unknown as DrizzleClient, 'user-1', 'char-1')
+  assert.equal(tool.name, 'delete_task')
+})
+
+test('deleteTaskTool: returns success string', async () => {
+  const db = makeMutationDb()
+  const tool = deleteTaskTool(db as unknown as DrizzleClient, 'user-1', 'char-1')
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> })
+    .execute({ taskId: 't-1' })
+  assert.equal(result, 'Task deleted.')
+})

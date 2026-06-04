@@ -6,13 +6,13 @@
     "types": ["node"],
     "noImplicitReturns": true,
     "noUnusedLocals": true,
-    "outDir": "dist",
-    "rootDir": "src",
+    "outDir": "./dist",
+    "rootDir": "..",
     "sourceMap": true,
     "strict": true,
     "target": "es2022",
     "skipLibCheck": true
   },
   "compileOnSave": true,
-  "include": ["src"]
+  "include": ["src", "../shared"]
 }

@@ -2,8 +2,8 @@
 // Source of truth: functions/src/db/schema.ts
 // Tables omitted: subscriptions, credit_transactions, messages, legacy wiki tables, stripe tables.
 import {
-  pgTable, uuid, text, timestamp, bigint,
-  index, check, primaryKey,
+  pgTable, uuid, text, timestamp, bigint, integer, jsonb,
+  index, check, primaryKey, vector,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -57,4 +57,26 @@ export const llmWikiEvents = pgTable('llm_wiki_events', {
     'llm_wiki_events_event_type_check',
     sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`
   ),
+}))
+
+export const llmWikiEntries = pgTable('llm_wiki_entries', {
+  id: text('id').notNull(),
+  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  tags: jsonb('tags').notNull().default([]),
+  confidence: text('confidence').notNull().default('inferred'),
+  sourceType: text('source_type').notNull().default('agent_inferred'),
+  sourceRef: text('source_ref'),
+  sourceHash: text('source_hash'),
+  lastAccessedAt: bigint('last_accessed_at', { mode: 'number' }),
+  accessCount: integer('access_count').notNull().default(0),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  deletedAt: bigint('deleted_at', { mode: 'number' }),
+  embedding: vector('embedding', { dimensions: 768 }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.id, table.userId] }),
+  entityUserIdx: index('llm_wiki_entries_entity_user_idx').on(table.entityId, table.userId),
 }))

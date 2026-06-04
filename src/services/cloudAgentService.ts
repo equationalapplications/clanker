@@ -35,6 +35,7 @@ export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudA
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+      'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
     body: JSON.stringify(payload),
   })

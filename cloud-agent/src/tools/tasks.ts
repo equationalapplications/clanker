@@ -59,3 +59,72 @@ export function listTasksTool(db: DrizzleClient, userId: string, characterId: st
     },
   })
 }
+
+export function updateTaskTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
+  return new FunctionTool({
+    name: 'update_task',
+    description: 'Update the title of an existing task.',
+    parameters: z.object({
+      taskId: z.string(),
+      title: z.string(),
+    }),
+    execute: async (args: unknown): Promise<string> => {
+      try {
+        const { taskId, title } = args as { taskId: string; title: string }
+        if (!taskId?.trim() || !title?.trim()) return 'Failed to update task: taskId and title are required.'
+        await db.update(tasks)
+          .set({ title: title.trim(), updatedAt: new Date() })
+          .where(and(eq(tasks.id, taskId.trim()), eq(tasks.userId, userId), eq(tasks.characterId, characterId)))
+        return 'Task updated.'
+      } catch (error) {
+        console.error('[CloudAgent] update_task failed:', error)
+        return 'Failed to update task due to an internal error.'
+      }
+    },
+  })
+}
+
+export function completeTaskTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
+  return new FunctionTool({
+    name: 'complete_task',
+    description: 'Mark a task as completed.',
+    parameters: z.object({
+      taskId: z.string(),
+    }),
+    execute: async (args: unknown): Promise<string> => {
+      try {
+        const { taskId } = args as { taskId: string }
+        if (!taskId?.trim()) return 'Failed to complete task: taskId is required.'
+        await db.update(tasks)
+          .set({ status: 'done', updatedAt: new Date() })
+          .where(and(eq(tasks.id, taskId.trim()), eq(tasks.userId, userId), eq(tasks.characterId, characterId)))
+        return 'Task marked as completed.'
+      } catch (error) {
+        console.error('[CloudAgent] complete_task failed:', error)
+        return 'Failed to complete task due to an internal error.'
+      }
+    },
+  })
+}
+
+export function deleteTaskTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
+  return new FunctionTool({
+    name: 'delete_task',
+    description: 'Delete a task permanently.',
+    parameters: z.object({
+      taskId: z.string(),
+    }),
+    execute: async (args: unknown): Promise<string> => {
+      try {
+        const { taskId } = args as { taskId: string }
+        if (!taskId?.trim()) return 'Failed to delete task: taskId is required.'
+        await db.delete(tasks)
+          .where(and(eq(tasks.id, taskId.trim()), eq(tasks.userId, userId), eq(tasks.characterId, characterId)))
+        return 'Task deleted.'
+      } catch (error) {
+        console.error('[CloudAgent] delete_task failed:', error)
+        return 'Failed to delete task due to an internal error.'
+      }
+    },
+  })
+}

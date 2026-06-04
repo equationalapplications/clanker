@@ -1,13 +1,14 @@
 services:
   cloud-agent:
     build:
-      context: ./cloud-agent
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: cloud-agent/Dockerfile.dev
     ports:
       - "8080:8080"
     volumes:
-      - ./cloud-agent:/app
-      - /app/node_modules
+      - ./shared:/app/shared
+      - ./cloud-agent/src:/app/cloud-agent/src
+      - /app/cloud-agent/node_modules
     environment:
       - NODE_ENV=development
       - MOCK_FIREBASE_AUTH=true
