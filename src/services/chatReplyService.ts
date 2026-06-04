@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenAI, Type } from '@google/genai'
 import { appCheckReady, generateReplyFn } from '~/config/firebaseConfig'
 import type { SyncMessage } from '~/services/syncMessage'
 
@@ -104,7 +104,7 @@ export async function generateChatReply({
                 name: 'escalate_to_cloud_agent',
                 description:
                   'Call this tool ONLY when the user requests a complex task, database access, image generation, or heavy reasoning.',
-                parameters: { type: 'object', properties: {}, required: [] },
+                parameters: { type: Type.OBJECT, properties: {}, required: [] },
               },
             ],
           },

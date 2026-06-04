@@ -93,6 +93,7 @@ async function runBootstrapSession(): Promise<BootstrapResponse> {
 export async function bootstrapSession(): Promise<BootstrapResponse> {
   const isDevBuild = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production'
   if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    return {
       user: {
         id: '11111111-1111-1111-1111-111111111111',
         firebaseUid: 'local_test_user_123',
