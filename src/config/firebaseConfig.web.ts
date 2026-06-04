@@ -112,7 +112,7 @@ const getCurrentUser = () => {
 }
 
 const onAuthStateChanged = (callback: (user: User | null) => void): Unsubscribe => {
-  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+  if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     mockUser = getMockUser()
     callback(mockUser)
     return () => {}
