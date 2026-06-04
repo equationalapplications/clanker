@@ -105,7 +105,7 @@ const getMockUser = (): User => ({
 } as unknown as User)
 
 const getCurrentUser = () => {
-  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+  if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     return mockUser
   }
   return auth.currentUser
