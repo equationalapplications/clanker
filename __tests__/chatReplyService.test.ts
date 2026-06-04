@@ -1,3 +1,4 @@
+const mockGenerateContent = jest.fn()
 const mockGenerateReplyFn = jest.fn()
 let resolveAppCheck: (() => void) | null = null
 
@@ -10,11 +11,22 @@ jest.mock('~/config/firebaseConfig', () => ({
   generateReplyFn: (...args: unknown[]) => mockGenerateReplyFn(...args),
 }))
 
+// Mock GoogleGenAI to avoid platform-specific import issues in tests
+jest.mock('@google/genai', () => ({
+  GoogleGenAI: jest.fn().mockImplementation(() => ({
+    models: {
+      generateContent: mockGenerateContent,
+    },
+  })),
+  Type: { OBJECT: 'object' },
+}))
+
 import { generateChatReply } from '~/services/chatReplyService'
 
 describe('generateChatReply', () => {
   beforeEach(() => {
     mockGenerateReplyFn.mockReset()
+    mockGenerateContent.mockReset()
     resolveAppCheck = null
   })
 
@@ -139,6 +151,106 @@ describe('generateChatReply', () => {
 
     await expect(resultPromise).resolves.toMatchObject({
       verifiedAt: '2026-01-01T00:00:00.000Z',
+    })
+  })
+
+  describe('mock auth branch (EXPO_PUBLIC_USE_MOCK_AUTH)', () => {
+    const originalEnv = process.env.EXPO_PUBLIC_USE_MOCK_AUTH
+
+    beforeEach(() => {
+      process.env.EXPO_PUBLIC_USE_MOCK_AUTH = 'true'
+      process.env.EXPO_PUBLIC_GEMINI_API_KEY = 'test-api-key'
+      ;(global as { __DEV__?: boolean }).__DEV__ = true
+      mockGenerateContent.mockResolvedValue({
+        functionCalls: null,
+        text: '[MOCKED FALLBACK] Edge agent did not escalate. Local simulated response.',
+      })
+    })
+
+    afterEach(() => {
+      process.env.EXPO_PUBLIC_USE_MOCK_AUTH = originalEnv
+      delete process.env.EXPO_PUBLIC_GEMINI_API_KEY
+      delete (global as { __DEV__?: boolean }).__DEV__
+    })
+
+    it('returns mock response without calling generateReplyFn', async () => {
+      const result = await generateChatReply({ prompt: 'hello' })
+
+      expect(mockGenerateReplyFn).not.toHaveBeenCalled()
+      expect(result.reply).toBe('[MOCKED FALLBACK] Edge agent did not escalate. Local simulated response.')
+      // No credits are spent when the edge agent handles locally, so the usage snapshot should not override UI state.
+      expect(result.remainingCredits).toBeNull()
+      expect(result.planTier).toBeNull()
+      expect(result.planStatus).toBeNull()
+      expect(result.verifiedAt).toBeTruthy()
+    })
+
+    it('returns mock response with structured contents', async () => {
+      const result = await generateChatReply({
+        contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
+        systemInstruction: 'Be helpful.',
+      })
+
+      expect(mockGenerateReplyFn).not.toHaveBeenCalled()
+      expect(result.reply).toBe('[MOCKED FALLBACK] Edge agent did not escalate. Local simulated response.')
+    })
+
+    describe('escalated path (escalate_to_cloud_agent function call)', () => {
+      const mockFetch = jest.fn()
+
+      beforeEach(() => {
+        process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://localhost:8080'
+        global.fetch = mockFetch
+        mockGenerateContent.mockResolvedValue({
+          functionCalls: [{ name: 'escalate_to_cloud_agent' }],
+          text: '',
+        })
+      })
+
+      afterEach(() => {
+        delete process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
+        mockFetch.mockReset()
+      })
+
+      it('POSTs to /agent/run and maps cloud response', async () => {
+        mockFetch.mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            reply: 'Cloud reply',
+            usageSnapshot: { remainingCredits: 5 },
+          }),
+        })
+
+        const result = await generateChatReply({ prompt: 'hello', characterId: 'char-1' })
+
+        expect(mockFetch).toHaveBeenCalledWith(
+          'http://localhost:8080/agent/run',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer mock_token_123',
+            },
+            body: JSON.stringify({ message: 'hello', characterId: 'char-1' }),
+          },
+        )
+        expect(result).toEqual({
+          reply: 'Cloud reply',
+          remainingCredits: 5,
+          planTier: 'free',
+          planStatus: 'active',
+          verifiedAt: expect.any(String),
+        })
+      })
+
+      it('throws CLOUD_AGENT_INSUFFICIENT_CREDITS on 402', async () => {
+        mockFetch.mockResolvedValue({ ok: false, status: 402 })
+
+        await expect(
+          generateChatReply({ prompt: 'hello', characterId: 'char-1' }),
+        ).rejects.toThrow('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+      })
     })
   })
 })

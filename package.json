@@ -37,7 +37,7 @@
     "@equationalapplications/expo-llm-wiki": "4.9.0",
     "@expo/metro-runtime": "~55.0.7",
     "@expo/vector-icons": "^15.1.1",
-    "@google/genai": "^2.6.0",
+    "@google/genai": "^2.8.0",
     "@react-native-community/netinfo": "11.5.2",
     "@react-native-firebase/app": "^23.4.1",
     "@react-native-firebase/app-check": "^23.8.8",

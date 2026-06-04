@@ -39,12 +39,39 @@ export const appCheckReady = initAppCheck().catch((err: unknown) => {
 
 const auth = getAuth(firebaseApp)
 
-const getCurrentUser = () => auth.currentUser
+// Mock user for local development sandbox
+let mockUser: FirebaseAuthTypes.User | null = null
 
-const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) =>
-  onAuthStateChangedMod(auth, callback)
+const getMockUser = (): FirebaseAuthTypes.User => ({
+  uid: 'local_test_user_123',
+  email: 'dev@localhost.com',
+  getIdToken: async () => 'mock_token_123',
+} as unknown as FirebaseAuthTypes.User)
 
-const signOut = () => signOutMod(auth)
+const getCurrentUser = () => {
+  if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    if (!mockUser) mockUser = getMockUser()
+    return mockUser
+  }
+  return auth.currentUser
+}
+
+const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) => {
+  if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    mockUser = getMockUser()
+    callback(mockUser)
+    return () => {}
+  }
+  return onAuthStateChangedMod(auth, callback)
+}
+
+const signOut = () => {
+  if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    mockUser = null
+    return Promise.resolve()
+  }
+  return signOutMod(auth)
+}
 
 // Align Functions region with deployed backend (best practice per RNFirebase docs)
 const functionsInstance = getFunctions(firebaseApp, 'us-central1')

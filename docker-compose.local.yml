@@ -1,0 +1,32 @@
+services:
+  cloud-agent:
+    build:
+      context: ./cloud-agent
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./cloud-agent:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - MOCK_FIREBASE_AUTH=true
+      - DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker
+      - CORS_ORIGIN=http://localhost:8081,http://localhost:8082
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+
+  postgres_db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=clanker_dev
+      - POSTGRES_PASSWORD=local_pass
+      - POSTGRES_DB=clanker
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clanker_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
