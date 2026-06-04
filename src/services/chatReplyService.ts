@@ -97,12 +97,11 @@ export async function generateChatReply({
           'Content-Type': 'application/json',
           'Authorization': 'Bearer mock_token_123' // Handled by backend bypass
         },
-        body: JSON.stringify({ 
-          message: trimmedPrompt, 
-          systemInstruction, 
-          history: unsyncedHistory,
+        body: JSON.stringify({
+          message: trimmedPrompt,
+          systemInstruction,
+          unsyncedHistory,
           characterId,
-          userId: 'local_test_user_123'
         })
       })
 
