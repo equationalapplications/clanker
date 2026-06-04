@@ -125,6 +125,7 @@ const onAuthStateChanged = (callback: (user: User | null) => void): Unsubscribe 
 const signOut = () => {
   if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     mockUser = null
+    ;(auth as unknown as { currentUser: User | null }).currentUser = null
     return Promise.resolve()
   }
   return signOutInternal(auth)
