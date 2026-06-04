@@ -95,21 +95,38 @@ const appCheckReady: Promise<void> = (() => {
 
 const auth = getAuth(firebaseApp)
 
-const getCurrentUser = () => auth.currentUser
+// Mock user for local development sandbox
+let mockUser: User | null = null
+
+const getMockUser = (): User => ({
+  uid: 'local_test_user_123',
+  email: 'dev@localhost.com',
+  getIdToken: async () => 'mock_token_123',
+} as unknown as User)
+
+const getCurrentUser = () => {
+  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    return mockUser
+  }
+  return auth.currentUser
+}
 
 const onAuthStateChanged = (callback: (user: User | null) => void): Unsubscribe => {
   if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
-    callback({
-      uid: 'local_test_user_123',
-      email: 'dev@localhost.com',
-      getIdToken: async () => 'mock_token_123',
-    } as unknown as User)
+    mockUser = getMockUser()
+    callback(mockUser)
     return () => {}
   }
   return onAuthStateChangedInternal(auth, callback)
 }
 
-const signOut = () => signOutInternal(auth)
+const signOut = () => {
+  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    mockUser = null
+    return Promise.resolve()
+  }
+  return signOutInternal(auth)
+}
 
 const functionsInstance: Functions = getFunctions(firebaseApp, 'us-central1')
 
