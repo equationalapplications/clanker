@@ -400,11 +400,14 @@ export function createApp(options: AppOptions) {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 if (process.env.NODE_ENV !== 'test') {
-  if (!admin.apps.length) admin.initializeApp()
+  const isMockAuth = process.env.MOCK_FIREBASE_AUTH === 'true'
+  if (!isMockAuth && !admin.apps.length) admin.initializeApp()
 
   const db = await getDb()
   const app = createApp({
-    verifyToken: (token) => admin.auth().verifyIdToken(token).then((d) => ({ uid: d.uid })),
+    verifyToken: isMockAuth
+      ? async (_token: string) => ({ uid: 'local_test_user_123' })
+      : (token) => admin.auth().verifyIdToken(token).then((d) => ({ uid: d.uid })),
     db,
     runAgentFn: runAgentReal,
   })

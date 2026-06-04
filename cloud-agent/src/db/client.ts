@@ -53,6 +53,17 @@ async function createDb(): Promise<DrizzleClient> {
     )
   }
 
+  if (process.env.DATABASE_URL) {
+    pool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: 5,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    })
+    registerShutdownHandlers()
+    return drizzle(pool, { schema })
+  }
+
   assertCloudSqlEnv()
 
   connector = new Connector()
