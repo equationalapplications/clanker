@@ -111,11 +111,7 @@ export async function generateChatReply({
           {
             functionDeclarations: [
               {
-                name: 'escalate_to_cloud_agent',
-                description:
-                  'Call this tool ONLY when the user requests a complex task, database access, image generation, or heavy reasoning.',
-                parameters: { type: Type.OBJECT, properties: {}, required: [] },
-              },
+                parameters: { type: 'object' as const, properties: {}, required: [] as string[] },
             ],
           },
         ],
