@@ -89,18 +89,22 @@ export async function generateChatReply({
     const ai = new GoogleGenAI({ apiKey })
 
     // 2. Ask Gemini to evaluate the prompt and decide whether to escalate
+    const geminiContents =
+      Array.isArray(contents) ? (contents as any) : [{ role: 'user', parts: [{ text: message }] }]
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: Array.isArray(contents) ? (contents as any) : message,
+      contents: geminiContents,
       config: {
         systemInstruction: systemInstruction || 'You are an AI assistant.',
         tools: [
           {
             functionDeclarations: [
               {
-                name: 'escalateToCloud',
+                name: 'escalate_to_cloud_agent',
                 description:
                   'Call this tool ONLY when the user requests a complex task, database access, image generation, or heavy reasoning.',
+                parameters: { type: 'object', properties: {}, required: [] },
               },
             ],
           },
@@ -109,8 +113,9 @@ export async function generateChatReply({
     })
 
     // 3. Check if the LLM decided to invoke the Cloud Agent tool
-    const escalated = response.functionCalls && response.functionCalls.some(call => call.name === 'escalateToCloud')
-
+    const escalated = (response.functionCalls ?? []).some(
+      (call) => call.name === 'escalate_to_cloud_agent',
+    )
     if (escalated) {
       console.log("🚀 Edge Agent Escalated! Routing to Docker Cloud Agent...")
       
