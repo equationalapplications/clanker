@@ -134,7 +134,10 @@ export async function generateChatReply({
       if (!baseUrl) throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL is not configured')
       const url = `${baseUrl.replace(/\/agent\/run\/?$/, '').replace(/\/$/, '')}/agent/run`
 
-      // Make the HTTP call directly to your local Docker container
+      if (!characterId) {
+        throw new Error('characterId is required when escalating to Cloud Agent')
+      }
+
       const cloudRes = await fetch(url, {
         method: 'POST',
         headers: {
