@@ -6,7 +6,7 @@ test('embedText: returns number array from mock provider', async () => {
   assert.deepEqual(await mockEmbed('hello'), [0.1, 0.2, 0.3])
 })
 
-test('isRetryable: matches 429 error message', () => {
+test('isRetryable: matches 429 error message', async () => {
   // Test the exported helper indirectly via re-export
   const { isRetryable } = (await import('./embeddings.js')) as { isRetryable: (e: unknown) => boolean }
   assert.equal(isRetryable(new Error('HTTP 429 rate limit exceeded')), true)

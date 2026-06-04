@@ -1,7 +1,6 @@
 import { FunctionTool } from '@google/adk'
 import { z } from 'zod'
 import { eq, and, isNull, sql } from 'drizzle-orm'
-import { cosineDistance } from 'drizzle-orm/pg-core'
 import { llmWikiEntries, llmWikiEvents } from '../db/schema.js'
 import { clip, inferTags } from '../../../shared/wiki-utils.js'
 import type { DrizzleClient } from '../db/client.js'
@@ -38,7 +37,7 @@ export function wikiReadTool(db: DrizzleClient, userId: string, characterId: str
               eq(llmWikiEntries.userId, userId),
               isNull(llmWikiEntries.deletedAt),
             ))
-            .orderBy(cosineDistance(llmWikiEntries.embedding, vec))
+            .orderBy(sql`${llmWikiEntries.embedding} <=> ${JSON.stringify(vec)}::vector`)
             .limit(5)
         } catch {
           // embedText failed — fall back to full-text search
@@ -84,7 +83,7 @@ export function wikiWriteTool(db: DrizzleClient, userId: string, characterId: st
         try { embedding = await embed(body) } catch { console.warn('[CloudAgent] wiki_write embed failed, inserting with null embedding') }
 
         await db.transaction(async (tx) => {
-          await (tx as DrizzleClient).insert(llmWikiEntries).values({
+          await (tx as unknown as typeof db).insert(llmWikiEntries).values({
             id: entryId,
             entityId: characterId,
             userId,
@@ -105,7 +104,7 @@ export function wikiWriteTool(db: DrizzleClient, userId: string, characterId: st
             },
           })
 
-          await (tx as DrizzleClient).insert(llmWikiEvents).values({
+          await (tx as unknown as typeof db).insert(llmWikiEvents).values({
             id: crypto.randomUUID(),
             entityId: characterId,
             userId,

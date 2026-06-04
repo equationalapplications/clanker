@@ -2,8 +2,7 @@ import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import admin from 'firebase-admin'
-import { eq, and, ilike, isNull, sql } from 'drizzle-orm'
-import { cosineDistance } from 'drizzle-orm/pg-core'
+import { eq, and, isNull, sql } from 'drizzle-orm'
 import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
 import type { Content } from '@google/genai'
 import { getDb } from './db/client.js'
@@ -177,7 +176,7 @@ async function queryWikiContext(
         eq(llmWikiEntries.userId, userId),
         isNull(llmWikiEntries.deletedAt),
       ))
-      .orderBy(cosineDistance(llmWikiEntries.embedding, vec))
+      .orderBy(sql`${llmWikiEntries.embedding} <=> ${JSON.stringify(vec)}::vector`)
       .limit(5)
     return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
   } catch {
