@@ -156,12 +156,11 @@ export async function generateChatReply({
     // 4. Fallback Path: Edge Agent handled it locally (No credits deducted)
     console.log("⏬ Edge Agent handled the request locally (0 credits spent).")
     return {
-      reply: response.text || "[Empty Edge Response]",
-      // Return 100 or whatever your mock frontend state expects to show unchanged
-      remainingCredits: 100, 
-      planTier: 'free',
-      planStatus: 'active',
-      verifiedAt: new Date().toISOString()
+      reply: response.text || '[Empty Edge Response]',
+      remainingCredits: null,
+      planTier: null,
+      planStatus: null,
+      verifiedAt: new Date().toISOString(),
     }
   }
 
