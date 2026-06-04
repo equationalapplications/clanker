@@ -115,18 +115,23 @@ export async function generateChatReply({
       console.log("🚀 Edge Agent Escalated! Routing to Docker Cloud Agent...")
       
       // Make the HTTP call directly to your local Docker container
-      const cloudRes = await fetch(`${process.env.EXPO_PUBLIC_CLOUD_AGENT_URL}/agent/run`, {
+      const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
+      if (!baseUrl) throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL is not configured')
+      const url = `${baseUrl.replace(/\/agent\/run\/?$/, '').replace(/\/$/, '')}/agent/run`
+
+      // Make the HTTP call directly to your local Docker container
+      const cloudRes = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock_token_123' // Handled by backend bypass
+          Authorization: 'Bearer mock_token_123', // Handled by backend bypass
         },
         body: JSON.stringify({
-          message: trimmedPrompt,
+          message,
           systemInstruction,
           unsyncedHistory,
           characterId,
-        })
+        }),
       })
 
       if (cloudRes.status === 402) {
