@@ -91,7 +91,7 @@ async function runBootstrapSession(): Promise<BootstrapResponse> {
 }
 
 export async function bootstrapSession(): Promise<BootstrapResponse> {
-  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+  if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     return {
       user: {
         id: '11111111-1111-1111-1111-111111111111',
