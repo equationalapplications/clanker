@@ -55,9 +55,9 @@ function toCloudStatus(status: string): string {
 }
 
 // Accepts both second and millisecond epoch timestamps.
-// If value > 9999999999 (Nov 2286 in seconds), assume milliseconds.
+// If value > 1e10 (Nov 2286 in seconds), assume milliseconds.
 function toCloudTimestamp(epoch: number): Date {
-  return new Date(epoch > 9999999999 ? epoch : epoch * 1000)
+  return new Date(epoch > 1e10 ? epoch : epoch * 1000)
 }
 
 async function bulkInsertUnsynced(

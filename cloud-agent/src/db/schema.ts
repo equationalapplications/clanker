@@ -79,4 +79,5 @@ export const llmWikiEntries = pgTable('llm_wiki_entries', {
 }, (table) => ({
   pk: primaryKey({ columns: [table.id, table.userId] }),
   entityUserIdx: index('llm_wiki_entries_entity_user_idx').on(table.entityId, table.userId),
+  embeddingIdx: index('llm_wiki_entries_embedding_idx').on(table.embedding),
 }))
