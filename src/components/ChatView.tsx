@@ -90,7 +90,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
     return () => {
       unsubscribeFocus?.()
       unsubscribeBlur?.()
-      drawerNav?.setOptions({ headerTitle: 'Chat' })
+      drawerNav?.setOptions({ headerTitle: undefined })
     }
   }, [character, characterName, handleEdit, navigation])
 
