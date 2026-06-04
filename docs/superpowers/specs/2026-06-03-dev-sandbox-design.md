@@ -218,7 +218,7 @@ UUID `11111111-1111-1111-1111-111111111111` matches seed script — FK lookups s
 
 In mock mode (`EXPO_PUBLIC_USE_MOCK_AUTH=true` + dev build), `generateChatReply()` bypasses Firebase App Check / callable functions and runs a local “edge agent” step:
 
-- Requires `EXPO_PUBLIC_GOOGLE_GENAI_API_KEY`.
+- Requires `EXPO_PUBLIC_GEMINI_API_KEY`.
 - Calls Gemini to decide whether to **escalate** to the local Docker cloud-agent (`/agent/run`).
 - If not escalated, returns the model text locally (no credits deducted; UI credits remain unchanged).
 
@@ -237,7 +237,7 @@ Production behavior is unchanged and continues to call the `generateReply` Fireb
    - Real credit deduction via `SELECT FOR UPDATE` saga against local Postgres
    - ADK agent runs, returns reply
 4. User sends chat message → fallback path (non-escalated):
-   - `generateChatReply()` uses Gemini locally (requires `EXPO_PUBLIC_GOOGLE_GENAI_API_KEY`) and returns a reply without calling Firebase or spending credits
+   - `generateChatReply()` uses Gemini locally (requires `EXPO_PUBLIC_GEMINI_API_KEY`) and returns a reply without calling Firebase or spending credits
 
 ---
 

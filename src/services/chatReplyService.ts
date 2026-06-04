@@ -67,9 +67,9 @@ export async function generateChatReply({
   if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     console.log('🛠️ Mock Env: Initializing Local Edge Agent...')
 
-    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_GENAI_API_KEY?.trim()
+    const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim()
     if (!apiKey) {
-      throw new Error('EXPO_PUBLIC_GOOGLE_GENAI_API_KEY is not configured')
+      throw new Error('EXPO_PUBLIC_GEMINI_API_KEY is not configured')
     }
 
     const messageFromContents =

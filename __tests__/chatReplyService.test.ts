@@ -159,14 +159,14 @@ describe('generateChatReply', () => {
 
     beforeEach(() => {
       process.env.EXPO_PUBLIC_USE_MOCK_AUTH = 'true'
-      process.env.EXPO_PUBLIC_GOOGLE_GENAI_API_KEY = 'test-api-key'
+      process.env.EXPO_PUBLIC_GEMINI_API_KEY = 'test-api-key'
       // Mock __DEV__ global
       ;(global as { __DEV__?: boolean }).__DEV__ = true
     })
 
     afterEach(() => {
       process.env.EXPO_PUBLIC_USE_MOCK_AUTH = originalEnv
-      delete process.env.EXPO_PUBLIC_GOOGLE_GENAI_API_KEY
+      delete process.env.EXPO_PUBLIC_GEMINI_API_KEY
       delete (global as { __DEV__?: boolean }).__DEV__
     })
 
