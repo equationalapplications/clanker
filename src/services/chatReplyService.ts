@@ -63,25 +63,49 @@ export async function generateChatReply({
   // ==========================================
   // 🛠️ THE LOCAL DEV SANDBOX (EDGE AGENT MOCK)
   // ==========================================
-  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
-    console.log("🛠️ Mock Env: Initializing Local Edge Agent...")
-    
+  const isDevBuild = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production'
+  if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+    console.log('🛠️ Mock Env: Initializing Local Edge Agent...')
+
+    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_GENAI_API_KEY?.trim()
+    if (!apiKey) {
+      throw new Error('EXPO_PUBLIC_GOOGLE_GENAI_API_KEY is not configured')
+    }
+
+    const messageFromContents =
+      Array.isArray(contents)
+        ? (contents
+            .slice()
+            .reverse()
+            .find((c: any) => c?.role === 'user')
+            ?.parts?.find((p: any) => typeof p?.text === 'string')?.text ?? '')
+        : ''
+    const message = trimmedPrompt || messageFromContents
+    if (!message.trim()) {
+      throw new Error('Prompt or structured contents are required')
+    }
+
     // 1. Initialize Gemini using the local API key
-    const ai = new GoogleGenAI({ apiKey: process.env.EXPO_PUBLIC_GOOGLE_GENAI_API_KEY })
+    const ai = new GoogleGenAI({ apiKey })
 
     // 2. Ask Gemini to evaluate the prompt and decide whether to escalate
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: trimmedPrompt,
+      contents: Array.isArray(contents) ? (contents as any) : message,
       config: {
-        systemInstruction: systemInstruction || "You are an AI assistant.",
-        tools: [{
-          functionDeclarations: [{
-            name: 'escalateToCloud',
-            description: 'Call this tool ONLY when the user requests a complex task, database access, image generation, or heavy reasoning.'
-          }]
-        }]
-      }
+        systemInstruction: systemInstruction || 'You are an AI assistant.',
+        tools: [
+          {
+            functionDeclarations: [
+              {
+                name: 'escalateToCloud',
+                description:
+                  'Call this tool ONLY when the user requests a complex task, database access, image generation, or heavy reasoning.',
+              },
+            ],
+          },
+        ],
+      },
     })
 
     // 3. Check if the LLM decided to invoke the Cloud Agent tool
