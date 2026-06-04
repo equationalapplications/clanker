@@ -69,6 +69,7 @@ const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => v
 const signOut = () => {
   if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     mockUser = null
+    ;(auth as unknown as { currentUser: FirebaseAuthTypes.User | null }).currentUser = null
     return Promise.resolve()
   }
   return signOutMod(auth)
