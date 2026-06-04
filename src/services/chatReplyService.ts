@@ -1,5 +1,4 @@
-import { GoogleGenAI, Type } from '@google/genai'
-import { appCheckReady, generateReplyFn } from '~/config/firebaseConfig'
+import { GoogleGenAI } from '@google/genai'
 import type { SyncMessage } from '~/services/syncMessage'
 
 interface GenerateChatReplyInput {
