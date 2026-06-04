@@ -1,7 +1,7 @@
 # Dev Sandbox Design
 
 **Date:** 2026-06-03  
-**Status:** Approved  
+**Status:** Implemented
 **Scope:** Local hot-reloading environment for cloud-agent ↔ Expo UI bridge. No Firebase Emulator. No production cloud resources consumed.
 
 ---

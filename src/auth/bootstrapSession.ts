@@ -108,8 +108,8 @@ export async function bootstrapSession(): Promise<BootstrapResponse> {
         planTier: 'free',
         planStatus: 'active',
         currentCredits: 100,
-        termsVersion: null,
-        termsAcceptedAt: null,
+        termsVersion: '2.2',
+        termsAcceptedAt: new Date().toISOString(),
         nextExpiryDate: null,
       },
     }
