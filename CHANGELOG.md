@@ -1,3 +1,27 @@
+# [29.18.0](https://github.com/equationalapplications/clanker/compare/v29.17.2...v29.18.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **cloud-agent:** accept 4 or 5 execute calls in refundCredit test ([e64675d](https://github.com/equationalapplications/clanker/commit/e64675dbc72dd34c4033eba9bb78e08f753f46b5))
+* **cloud-agent:** add transaction support to mock DB clients in tests ([402564b](https://github.com/equationalapplications/clanker/commit/402564b79d280fbce6c5001db58a51c53049b736))
+* **cloud-agent:** match functions lock order to prevent deadlocks ([40914bb](https://github.com/equationalapplications/clanker/commit/40914bbaf7137c8554edbc469e682206e0f1fe35))
+* **cloud-agent:** move spendCredit before writes to fail fast with 402 ([c09ad91](https://github.com/equationalapplications/clanker/commit/c09ad91acb00497dc6b5ed0ac4c651bf5174336c))
+* **cloud-agent:** wrap refundCredit in transaction to hold FOR UPDATE locks ([82af9ea](https://github.com/equationalapplications/clanker/commit/82af9eaffa8a170e4b6dd0b494175b12734c32b0)), closes [#427](https://github.com/equationalapplications/clanker/issues/427)
+* **pr-428:** address review comments ([460b2a6](https://github.com/equationalapplications/clanker/commit/460b2a66abbde90a128038bd5554a8097b34f138)), closes [#428](https://github.com/equationalapplications/clanker/issues/428)
+* **test:** add missing navigation mocks to fix staging test failures ([ee0788b](https://github.com/equationalapplications/clanker/commit/ee0788bd2cbc563abded92752b39956acbcef282)), closes [#428](https://github.com/equationalapplications/clanker/issues/428)
+* **ui:** address PR review - use focus/blur listeners, guard window.reload ([9824bd1](https://github.com/equationalapplications/clanker/commit/9824bd16a1f33ad89778862d521fd90ae05af87e))
+* **ui:** credits badge, single header, escalation indicator, multi-tab error ([f9174d0](https://github.com/equationalapplications/clanker/commit/f9174d06869bd7f9608528c225067d4f91fb6ae3))
+* **ui:** use globalThis instead of window for cross-platform reload safety ([ab25afd](https://github.com/equationalapplications/clanker/commit/ab25afdcb45b01a00652aaa495da1a0a8837b48b))
+
+
+### Features
+
+* **cloud-agent:** add credit deduction to /agent/run with spend-execute-refund pattern ([cbc4c4c](https://github.com/equationalapplications/clanker/commit/cbc4c4c64f7019b1f9addf135381f1e3d43c121e))
+* **cloud-agent:** add creditService with spend/refund/getBalance raw SQL ([1a44a7c](https://github.com/equationalapplications/clanker/commit/1a44a7c07811005e3dc09bc9ce574c065d405e4b))
+* **expo:** dispatch USAGE_SNAPSHOT_RECEIVED from cloud agent responses and handle 402 ([cbe731c](https://github.com/equationalapplications/clanker/commit/cbe731c2521bd0f1de75969c3385ce5ea090dbf2))
+* **expo:** handle 402 and parse usageSnapshot in cloudAgentService ([16936c9](https://github.com/equationalapplications/clanker/commit/16936c977662577b864cf2f6d64e61c19041ae45))
+
 ## [29.17.2](https://github.com/equationalapplications/clanker/compare/v29.17.1...v29.17.2) (2026-06-03)
 
 
