@@ -132,6 +132,7 @@ export async function generateChatReply({
           unsyncedHistory,
           history: Array.isArray(contents) ? (contents as any) : undefined,
         }),
+      })
 
       if (cloudRes.status === 402) {
         throw new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS')
