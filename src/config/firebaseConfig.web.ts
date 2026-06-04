@@ -114,8 +114,6 @@ const getCurrentUser = () => {
 const onAuthStateChanged = (callback: (user: User | null) => void): Unsubscribe => {
   if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     mockUser = getMockUser()
-    // Set auth.currentUser so code that reads it directly (e.g. cloudAgentService.ts) works
-    ;(auth as unknown as { currentUser: User | null }).currentUser = mockUser
     callback(mockUser)
     return () => {}
   }
@@ -125,7 +123,6 @@ const onAuthStateChanged = (callback: (user: User | null) => void): Unsubscribe 
 const signOut = () => {
   if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     mockUser = null
-    ;(auth as unknown as { currentUser: User | null }).currentUser = null
     return Promise.resolve()
   }
   return signOutInternal(auth)
