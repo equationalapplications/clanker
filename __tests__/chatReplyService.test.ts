@@ -20,6 +20,7 @@ jest.mock('@google/genai', () => ({
       }),
     },
   })),
+  Type: { OBJECT: 'object' },
 }))
 
 import { generateChatReply } from '~/services/chatReplyService'
