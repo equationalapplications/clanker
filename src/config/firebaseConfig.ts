@@ -57,7 +57,7 @@ const getCurrentUser = () => {
 }
 
 const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) => {
-  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+  if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     mockUser = getMockUser()
     callback(mockUser)
     return () => {}
