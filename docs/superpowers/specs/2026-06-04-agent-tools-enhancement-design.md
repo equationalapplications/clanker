@@ -473,7 +473,7 @@ Existing ILIKE on `llm_wiki_events` at `index.ts:127–144` is replaced with the
 
 ---
 
-## 6. `bulkInsertUnsynced` — Embedding Backfill on Ingestion
+## 7. `bulkInsertUnsynced` — Embedding Backfill on Ingestion
 
 Edge-originated wiki events arrive as raw text with no embeddings. The ingestion bridge generates embeddings before inserting, or those rows are invisible to semantic search.
 
@@ -498,7 +498,7 @@ Per-entry try/catch ensures one failed embedding does not abort the entire sync 
 
 ---
 
-## 7. Cloud Agent Tool Changes
+## 8. Cloud Agent Tool Changes
 
 ### 7.1 New Files
 
@@ -554,7 +554,7 @@ ADK tool `name` fields must match `agentToolSpec` names exactly.
 
 ---
 
-## 8. Edge Agent Changes
+## 9. Edge Agent Changes
 
 ### 8.1 Modified Files
 
@@ -593,7 +593,7 @@ Local SQLite `taskDatabase.ts` must expose `updateTask`, `completeTask`, `delete
 
 ---
 
-## 9. Security Model (Unchanged)
+## 10. Security Model (Unchanged)
 
 | Threat | Mitigation |
 |---|---|
@@ -603,7 +603,7 @@ Local SQLite `taskDatabase.ts` must expose `updateTask`, `completeTask`, `delete
 
 ---
 
-## 10. Non-Goals
+## 11. Non-Goals
 
 - No changes to Firebase `generateReply` or legacy `memoryFunctions.ts` — retirement tracked separately
 - No streaming changes
@@ -613,7 +613,7 @@ Local SQLite `taskDatabase.ts` must expose `updateTask`, `completeTask`, `delete
 
 ---
 
-## 11. Acceptance Criteria
+## 12. Acceptance Criteria
 
 | Scenario | Expected |
 |---|---|
