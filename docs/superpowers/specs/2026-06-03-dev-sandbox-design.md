@@ -216,25 +216,13 @@ UUID `11111111-1111-1111-1111-111111111111` matches seed script — FK lookups s
 
 ### `src/services/chatReplyService.ts`
 
-Add mock at top of `generateChatReply()`, before `await appCheckReady`:
+In mock mode (`EXPO_PUBLIC_USE_MOCK_AUTH=true` + dev build), `generateChatReply()` bypasses Firebase App Check / callable functions and runs a local “edge agent” step:
 
-```typescript
-export async function generateChatReply(input: GenerateChatReplyInput): Promise<GenerateChatReplyResult> {
-  if (process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
-    return {
-      reply: '[MOCKED FALLBACK] Edge agent did not escalate. Local simulated response.',
-      remainingCredits: null,
-      planTier: null,
-      planStatus: null,
-      verifiedAt: new Date().toISOString(),
-    }
-  }
-  // existing implementation unchanged below
-  ...
-}
-```
+- Requires `EXPO_PUBLIC_GOOGLE_GENAI_API_KEY`.
+- Calls Gemini to decide whether to **escalate** to the local Docker cloud-agent (`/agent/run`).
+- If not escalated, returns the model text locally (no credits deducted; UI credits remain unchanged).
 
-Returns exact `GenerateChatReplyResult` shape. No type issues downstream.
+Production behavior is unchanged and continues to call the `generateReply` Firebase callable.
 
 ---
 
