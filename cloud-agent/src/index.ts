@@ -400,7 +400,7 @@ export function createApp(options: AppOptions) {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 if (process.env.NODE_ENV !== 'test') {
-  const isMockAuth = process.env.MOCK_FIREBASE_AUTH === 'true'
+  const isMockAuth = process.env.MOCK_FIREBASE_AUTH === 'true' && process.env.NODE_ENV !== 'production' && !process.env.K_SERVICE
   if (!isMockAuth && !admin.apps.length) admin.initializeApp()
 
   const db = await getDb()
