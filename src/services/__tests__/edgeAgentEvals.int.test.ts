@@ -1,14 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import type { Content, ToolListUnion } from '@google/genai'
 import { buildSystemInstruction } from '../CharacterPromptBuilder'
-import {
-  clankerTimeSchema,
-  clankerEscalationSchema,
-  clankerMemorySchema,
-  clankerWriteObservationSchema,
-  clankerCreateTaskSchema,
-  clankerListTasksSchema,
-} from '../clankerManifests'
+import { agentToolSpec } from '../../../shared/agent-tools-spec'
 
 const character = {
   id: 'eval-char',
@@ -23,14 +16,9 @@ const userId = 'eval-user'
 
 const ALL_TOOLS = [
   {
-    functionDeclarations: [
-      clankerTimeSchema,
-      clankerCreateTaskSchema,
-      clankerListTasksSchema,
-      clankerMemorySchema,
-      clankerWriteObservationSchema,
-      clankerEscalationSchema,
-    ],
+    functionDeclarations: agentToolSpec
+      .filter(t => t.tier === 'both' || t.tier === 'edge-only')
+      .map(({ name, description, parameters }) => ({ name, description, parameters })),
   },
 ] as unknown as ToolListUnion
 
@@ -61,7 +49,7 @@ describe('Edge Agent LLM Routing Evals', () => {
       )
       const calls = result.functionCalls ?? []
       expect(calls.length).toBeGreaterThan(0)
-      expect(calls[0].name).toBe('search_memory')
+      expect(calls[0].name).toBe('wiki_read')
     },
     30000,
   )
