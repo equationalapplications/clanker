@@ -175,10 +175,10 @@ describe('generateChatReply', () => {
 
       expect(mockGenerateReplyFn).not.toHaveBeenCalled()
       expect(result.reply).toBe('[MOCKED FALLBACK] Edge agent did not escalate. Local simulated response.')
-      // Edge Agent returns 100 credits when handling locally (no deduction)
-      expect(result.remainingCredits).toBe(100)
-      expect(result.planTier).toBe('free')
-      expect(result.planStatus).toBe('active')
+      // No credits are spent when the edge agent handles locally, so the usage snapshot should not override UI state.
+      expect(result.remainingCredits).toBeNull()
+      expect(result.planTier).toBeNull()
+      expect(result.planStatus).toBeNull()
       expect(result.verifiedAt).toBeTruthy()
     })
 
