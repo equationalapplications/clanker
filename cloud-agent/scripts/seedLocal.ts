@@ -101,8 +101,7 @@ async function seed() {
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS llm_wiki_entries_embedding_idx
       ON llm_wiki_entries
-      USING ivfflat (embedding vector_cosine_ops)
-      WITH (lists = 10)
+      USING hnsw (embedding vector_cosine_ops)
   `)
 
   // ── Tables NOT in cloud-agent schema (from functions/src/db/schema.ts) ─────
