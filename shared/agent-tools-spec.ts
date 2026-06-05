@@ -115,7 +115,7 @@ export const agentToolSpec: ToolManifest[] = [
   {
     ...(escalateToCloudManifest.schema as any),
     tier: 'edge-only',
-    description: 'Escalate complex workflows or writing tasks to the cloud agent. Do NOT use for casual chat, time checks, memory reads/writes, or basic untimed task creation.',
+    description: 'Escalate complex workflows, writing tasks, or timed task creation (reminders/scheduling) to the cloud agent. Do NOT use for casual chat, time checks, memory reads/writes, or basic untimed task creation.',
   },
 ]
 

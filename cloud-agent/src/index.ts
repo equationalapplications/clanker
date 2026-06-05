@@ -67,7 +67,7 @@ async function bulkInsertUnsynced(
   items: unknown[],
   embed: (text: string) => Promise<number[]>,
 ): Promise<void> {
-  const taskRows: Array<{
+  const taskRows: {
     id: string;
     characterId: string;
     userId: string;
@@ -75,16 +75,16 @@ async function bulkInsertUnsynced(
     status: string;
     createdAt: Date;
     updatedAt: Date;
-  }> = []
+  }[] = []
   const wikiEntryItems: UnsyncedWikiEntry[] = []
-  const wikiRows: Array<{
+  const wikiRows: {
     id: string;
     entityId: string;
     userId: string;
     eventType: string;
     summary: string;
     createdAt: number;
-  }> = []
+  }[] = []
 
   for (const raw of items) {
     if (typeof raw !== 'object' || raw === null) continue
@@ -456,12 +456,14 @@ export function createApp(options: AppOptions) {
 if (process.env.NODE_ENV !== 'test') {
   const isMockAuth = process.env.MOCK_FIREBASE_AUTH === 'true' && process.env.NODE_ENV !== 'production' && !process.env.K_SERVICE
   
-  console.log('--- Auth Debug ---');
-  console.log(`MOCK_FIREBASE_AUTH: ${process.env.MOCK_FIREBASE_AUTH} (type: ${typeof process.env.MOCK_FIREBASE_AUTH})`);
-  console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-  console.log(`K_SERVICE: ${process.env.K_SERVICE}`);
-  console.log(`isMockAuth evaluated to: ${isMockAuth}`);
-  console.log('------------------');
+  if (isMockAuth) {
+    console.log('--- Auth Debug ---');
+    console.log(`MOCK_FIREBASE_AUTH: ${process.env.MOCK_FIREBASE_AUTH} (type: ${typeof process.env.MOCK_FIREBASE_AUTH})`);
+    console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`K_SERVICE: ${process.env.K_SERVICE}`);
+    console.log(`isMockAuth evaluated to: ${isMockAuth}`);
+    console.log('------------------');
+  }
 
   if (!isMockAuth && !admin.apps.length) admin.initializeApp()
 
