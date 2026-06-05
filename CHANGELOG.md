@@ -1,3 +1,41 @@
+# [29.19.0](https://github.com/equationalapplications/clanker/compare/v29.18.0...v29.19.0) (2026-06-05)
+
+
+### Bug Fixes
+
+* address PR [#434](https://github.com/equationalapplications/clanker/issues/434) review issues ([6591d6d](https://github.com/equationalapplications/clanker/commit/6591d6d1e85d7fbe91fed58bd766ef27d2b82668))
+* align test mocks and assertions with renamed wiki tools ([4782f5d](https://github.com/equationalapplications/clanker/commit/4782f5d7232b97bb09588362bd50887b34cf81ae))
+* **auth:** wire mock user to getCurrentUser() in dev sandbox ([0df212b](https://github.com/equationalapplications/clanker/commit/0df212b5e34df16a7e05b4f3c9c7839306a37121)), closes [#430](https://github.com/equationalapplications/clanker/issues/430)
+* **ci:** update package-lock.json to match @google/genai@^2.8.0 ([fb94c2e](https://github.com/equationalapplications/clanker/commit/fb94c2e359520321f8285876d6c884d23f318688))
+* **cloud-agent:** fix timestamp threshold bug and add missing embedding index ([893d8cb](https://github.com/equationalapplications/clanker/commit/893d8cb5dcc48354b8ba987212b0b2c71b522da9))
+* correct shared import path in clankerManifests, update design doc status ([5e839f6](https://github.com/equationalapplications/clanker/commit/5e839f6edacc8086cc6c9cff9c6087363cef70c2))
+* **dev-sandbox:** add env warning and fix TypeScript error in chatReplyService ([93fcaa1](https://github.com/equationalapplications/clanker/commit/93fcaa1c59dc84fb3e2575b29877d49e38156043))
+* **dev-sandbox:** add missing return in bootstrapSession mock branch, fix Type enum ([3083065](https://github.com/equationalapplications/clanker/commit/308306502a3d35d2384d1e1c1d6420a7d544e60e))
+* **dev-sandbox:** apply production validations in sandbox path and fix seed idempotency ([667e794](https://github.com/equationalapplications/clanker/commit/667e794e3b84d7ff1c6740718ba997e907a62a6a))
+* **dev-sandbox:** resolve syntax error in chatReplyService.ts ([6ee4991](https://github.com/equationalapplications/clanker/commit/6ee4991b1253a9bb380581ac2f5c0a36a7d6dfe0))
+* **dev-sandbox:** update env docs, fix TypeScript errors, and add tests ([a4ab54d](https://github.com/equationalapplications/clanker/commit/a4ab54ddf4d4c91d0462c5ddc32d1116ce498b68))
+* **dev-sandbox:** update tests for getCurrentUser refactor and Type enum ([1850b7b](https://github.com/equationalapplications/clanker/commit/1850b7b3f9da8415fc59b79e8dc38e6be1bbfe6a))
+* **dev-sandbox:** use getCurrentUser() in cloudAgentService, remove auth.currentUser cast ([a2d727b](https://github.com/equationalapplications/clanker/commit/a2d727b64bcb95cc3fa92806409cf36d0b600e64))
+* **pr-430:** address review comments ([164880f](https://github.com/equationalapplications/clanker/commit/164880f85a442e6a2d26bf432cdf82ceacc71c7b))
+* resolve build errors - tsconfig shared/, wiki tx cast, null-safety ([d1bcf4a](https://github.com/equationalapplications/clanker/commit/d1bcf4a5480e31f6d6392866ab643384285a59f5))
+* restore escalate description and gate auth debug behind isMockAuth ([c12dca4](https://github.com/equationalapplications/clanker/commit/c12dca4c301c589e3290523ced0c6099cd53e192))
+* **sandbox:** use correct env var EXPO_PUBLIC_GOOGLE_GENAI_API_KEY ([529a5e8](https://github.com/equationalapplications/clanker/commit/529a5e85f4e0c2959ee8a0bb9250f604aa074c86))
+* **test:** add missing EXPO_PUBLIC_GOOGLE_GENAI_API_KEY to mock auth test ([2602d66](https://github.com/equationalapplications/clanker/commit/2602d661330fd2275308e89011d2b93242406e5b))
+* update test files for shared manifest re-export ([3292513](https://github.com/equationalapplications/clanker/commit/32925139ef1de5b1e2c58a8a7b70d9cbf798ae9b))
+
+
+### Features
+
+* add shared agent tool manifests and wiki utilities ([b766ceb](https://github.com/equationalapplications/clanker/commit/b766ceb0b95065081d7d435daf92ca39cf0aee84))
+* cloud wiki_read/wiki_write — pgvector cosine search + dual-write ([8a191ba](https://github.com/equationalapplications/clanker/commit/8a191babeaa1dcaa9e25130fff74845f584af04a))
+* **dev-sandbox:** fix cloud agent escalation with pgvector and mock auth ([9cb162c](https://github.com/equationalapplications/clanker/commit/9cb162cba0cf429f95e2b8d3e7dfe90ab3736db3))
+* **dev-sandbox:** implement dev sandbox with terms pre-accepted ([c7eb296](https://github.com/equationalapplications/clanker/commit/c7eb296186937fdec368458979ec2d14925a704d))
+* edge SQLite task CRUD, shared manifest, X-Timezone ([92c79fb](https://github.com/equationalapplications/clanker/commit/92c79fb8a1b13b07205e98a6dc8401e10b5f8e44))
+* **sandbox:** add docker infra, DATABASE_URL branch, mock auth, seed script ([35ae309](https://github.com/equationalapplications/clanker/commit/35ae309f3f0356185b1e313a18a25c43a1fb30a9))
+* **sandbox:** add Edge Agent routing with local Gemini evaluation ([abc50fd](https://github.com/equationalapplications/clanker/commit/abc50fd3d5c50ae0a456224cb17335d83600f367))
+* **sandbox:** mock auth, bootstrap, and chat reply for local dev ([ccf19ae](https://github.com/equationalapplications/clanker/commit/ccf19ae3a61798fbde765fa73beda85d153493e4))
+* wire all new cloud tools, pgvector queryWikiContext, timezone header ([ddd2cb1](https://github.com/equationalapplications/clanker/commit/ddd2cb159124c4e07f0412f25e3677d39e9d679f))
+
 # [29.18.0](https://github.com/equationalapplications/clanker/compare/v29.17.2...v29.18.0) (2026-06-04)
 
 
