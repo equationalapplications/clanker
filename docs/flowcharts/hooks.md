@@ -26,6 +26,7 @@ graph LR
   useCurrentPlan --> useMachines
   useEdgeAgent --> CharacterPromptBuilder
   useEdgeAgent --> edgeToolExecutors
+  useEdgeAgent --> agent-tools-spec
   useImageGeneration --> useMachines
   useImageGeneration --> imageGenerationService
   useImageGeneration --> localImageStorageService

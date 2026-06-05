@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react'
 import { router } from 'expo-router'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation } from "expo-router/react-navigation"
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'

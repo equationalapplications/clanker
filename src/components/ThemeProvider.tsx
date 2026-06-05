@@ -1,7 +1,7 @@
 import React from 'react'
 import { Provider as PaperProvider } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native'
+import { ThemeProvider as NavigationThemeProvider } from "expo-router/react-navigation"
 import { appDarkTheme, appLightTheme, appNavigationDarkTheme, appNavigationLightTheme } from '~/config/theme'
 import { useSettings } from '~/contexts/SettingsContext'
 

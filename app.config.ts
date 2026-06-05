@@ -175,6 +175,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/app-check',
     'expo-font',
     'expo-image',
+    'expo-splash-screen',
+    'expo-status-bar',
     [
       'expo-image-picker',
       {
