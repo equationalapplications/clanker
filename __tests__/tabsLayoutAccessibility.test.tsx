@@ -25,6 +25,7 @@ jest.mock('react-native', () => {
   const React = require('react')
   return {
     Alert: { alert: jest.fn() },
+    Platform: { OS: 'ios', select: (spec: any) => spec.ios ?? spec.default },
     View: ({ children }: any) => React.createElement('View', {}, children),
   }
 })
