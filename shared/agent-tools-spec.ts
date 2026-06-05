@@ -101,7 +101,7 @@ export const agentToolSpec: ToolManifest[] = [
   },
   {
     name: 'set_reminder',
-    tier: 'both',
+    tier: 'cloud-only',
     description: 'Schedule a reminder for the user at a specific future time.',
     parameters: {
       type: 'object',
@@ -111,7 +111,7 @@ export const agentToolSpec: ToolManifest[] = [
       },
       required: ['message', 'remind_at'],
     },
-  },
+  }
   {
     ...(escalateToCloudManifest.schema as any),
     tier: 'edge-only',
