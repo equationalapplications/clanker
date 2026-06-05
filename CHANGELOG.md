@@ -1,3 +1,14 @@
+## [29.19.1](https://github.com/equationalapplications/clanker/compare/v29.19.0...v29.19.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* address review feedback on cross-platform test script and fetch race ([2e6ed9c](https://github.com/equationalapplications/clanker/commit/2e6ed9c92693d34680a809cfa014f13ff81780f4))
+* **deps:** pin react-test-renderer to exact version ([d7de6cb](https://github.com/equationalapplications/clanker/commit/d7de6cb15968f05083e2cab06354dc018c447ae1))
+* resolve type errors, lint issues, and test infrastructure ([2587e01](https://github.com/equationalapplications/clanker/commit/2587e0121f66440fc1a95e16954b299bfe52cbc9))
+* **scripts:** apply jest preload to test:watch and edge-evals ([377e99b](https://github.com/equationalapplications/clanker/commit/377e99bda2a401789519c5ddfd55a0998fc7d6bd))
+* **test:** restore __DEV__ in Jest globals and remove manual test cleanup ([41a5131](https://github.com/equationalapplications/clanker/commit/41a5131e68809eb3a287b17c87e35f3bbd80a04b))
+
 # [29.19.0](https://github.com/equationalapplications/clanker/compare/v29.18.0...v29.19.0) (2026-06-05)
 
 
