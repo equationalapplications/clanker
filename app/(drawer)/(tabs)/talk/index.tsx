@@ -1,5 +1,5 @@
 import { router } from 'expo-router'
-import { useNavigation } from "expo-router/react-navigation"
+import { useNavigation } from 'expo-router/react-navigation'
 import React, { useEffect, useRef } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'

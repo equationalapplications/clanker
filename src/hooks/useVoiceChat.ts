@@ -219,7 +219,6 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       const errorMessage = err instanceof Error ? err.message : 'Voice reply failed'
       await fail(errorMessage)
     }
-   
   }, [character, cleanupPlayback, currentUser?.uid, fail, goIdle, messages])
 
   useSpeechRecognitionEvent('start', () => {})

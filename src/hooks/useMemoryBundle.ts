@@ -9,17 +9,13 @@ export function useMemoryBundle(entityId: string) {
   const [error, setError] = useState<Error | null>(null)
   const fetchGenerationRef = useRef(0)
 
-  // Track entityId/wiki changes via key to trigger re-fetch
-  const [, setInputKey] = useState(0)
-
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset state when deps change
     setBundle(null)
-     
+
     setError(null)
-     
+
     setIsLoading(true)
-    setInputKey((k) => k + 1)
   }, [entityId, wiki])
 
   const fetch = useCallback(async () => {

@@ -5,7 +5,9 @@ jest.mock('expo-modules-core/src/polyfill/dangerous-internal', () => ({}), {
 })
 
 // Provide globals expected by react-native / expo in Jest
-globalThis.__DEV__ = true
+if (globalThis.__DEV__ === undefined) {
+  globalThis.__DEV__ = true
+}
 
 // Mock the native Crashlytics module directly so alias/path resolution does not
 // allow @react-native-firebase/crashlytics to initialize during Jest runs.

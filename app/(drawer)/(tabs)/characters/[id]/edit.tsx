@@ -120,7 +120,6 @@ export default function EditCharacterScreen() {
   )
 
   // Update local state when character data loads
-   
   useEffect(() => {
     if (character) {
       /* eslint-disable react-hooks/set-state-in-effect -- intentional: hydrate form from fetched data */

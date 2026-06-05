@@ -33,7 +33,7 @@ function DrawerToggleButton({ tintColor }: { tintColor?: ColorValue }) {
       accessibilityRole="button"
       accessibilityLabel="Toggle navigation drawer"
     >
-      <Icon source="menu" color={tintColor as string} size={24} />
+      <Icon source="menu" color={tintColor ? String(tintColor) : undefined} size={24} />
     </Pressable>
   )
 }
@@ -93,7 +93,7 @@ const AppLayout = () => {
           {termsAccepted ? (
             <DrawerItem
               label="Support"
-              icon={({ color, size }) => <Icon source="lifebuoy" color={color as string} size={size} />}
+              icon={({ color, size }) => <Icon source="lifebuoy" color={String(color)} size={size} />}
               onPress={() => router.push('/support' as Href)}
             />
           ) : null}
@@ -111,7 +111,7 @@ const AppLayout = () => {
             title: routeConfig.label,
             headerTitle: routeConfig.label,
             drawerIcon: ({ color, size }: { color: ColorValue; size: number }) => (
-              <Icon source={routeConfig.icon} color={color as string} size={size} />
+              <Icon source={routeConfig.icon} color={String(color)} size={size} />
             ),
           }
         })(),

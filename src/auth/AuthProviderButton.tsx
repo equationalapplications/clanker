@@ -1,6 +1,6 @@
 import { StyleSheet, ViewStyle } from 'react-native'
 import { Button } from 'react-native-paper'
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 
 type SocialType = 'facebook' | 'google' | 'apple' | 'phone'
 
