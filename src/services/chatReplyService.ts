@@ -145,6 +145,7 @@ export async function generateChatReply({
         headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer mock_token_123', // Handled by backend bypass
+          'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
         },
         body: JSON.stringify({
           message,
