@@ -6,6 +6,7 @@ jest.mock('react-native', () => {
   return {
     Image: ({ accessibilityLabel, accessibilityRole, style, source, ...rest }: any) =>
       React.createElement('Image', { accessibilityLabel, accessibilityRole, style, source, ...rest }),
+    Platform: { OS: 'ios', select: (spec: any) => spec.ios ?? spec.default },
     StyleSheet: { create: (s: any) => s },
   }
 })

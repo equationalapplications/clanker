@@ -1,9 +1,8 @@
-import { DrawerActions, useNavigation } from '@react-navigation/native'
-import { DrawerContentScrollView, DrawerItem, DrawerItemList } from '@react-navigation/drawer'
-import { router, type Href } from 'expo-router'
+import { DrawerContentScrollView, DrawerItem, DrawerItemList } from 'expo-router/build/react-navigation/drawer'
+import { router, useNavigation, type Href } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
 import { useTheme, Icon } from 'react-native-paper'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View, ColorValue } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine, useTermsMachine } from '~/hooks/useMachines'
 import { AcceptTerms } from '~/components/AcceptTerms'
@@ -24,17 +23,17 @@ const HIDDEN_DRAWER_SCREEN_OPTIONS = {
   drawerItemStyle: { display: 'none' as const },
 }
 
-function DrawerToggleButton({ tintColor }: { tintColor?: string }) {
+function DrawerToggleButton({ tintColor }: { tintColor?: ColorValue }) {
   const navigation = useNavigation()
   return (
     <Pressable
-      onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
+      onPress={() => navigation.dispatch({ type: 'TOGGLE_DRAWER' })}
       style={{ marginLeft: 6, padding: 10 }}
       hitSlop={4}
       accessibilityRole="button"
       accessibilityLabel="Toggle navigation drawer"
     >
-      <Icon source="menu" color={tintColor} size={24} />
+      <Icon source="menu" color={tintColor ? String(tintColor) : undefined} size={24} />
     </Pressable>
   )
 }
@@ -94,7 +93,7 @@ const AppLayout = () => {
           {termsAccepted ? (
             <DrawerItem
               label="Support"
-              icon={({ color, size }) => <Icon source="lifebuoy" color={color} size={size} />}
+              icon={({ color, size }) => <Icon source="lifebuoy" color={String(color)} size={size} />}
               onPress={() => router.push('/support' as Href)}
             />
           ) : null}
@@ -111,8 +110,8 @@ const AppLayout = () => {
             drawerLabel: routeConfig.label,
             title: routeConfig.label,
             headerTitle: routeConfig.label,
-            drawerIcon: ({ color, size }: { color: string; size: number }) => (
-              <Icon source={routeConfig.icon} color={color} size={size} />
+            drawerIcon: ({ color, size }: { color: ColorValue; size: number }) => (
+              <Icon source={routeConfig.icon} color={String(color)} size={size} />
             ),
           }
         })(),

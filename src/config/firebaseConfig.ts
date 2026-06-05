@@ -17,11 +17,11 @@ async function initAppCheck() {
     provider: {
       providerOptions: {
         android: {
-          provider: __DEV__ ? 'debug' : 'playIntegrity',
+          provider: process.env.NODE_ENV !== 'production' ? 'debug' : 'playIntegrity',
           debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
         },
         apple: {
-          provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
+          provider: process.env.NODE_ENV !== 'production' ? 'debug' : 'appAttestWithDeviceCheckFallback',
           debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
         },
       },
@@ -49,7 +49,7 @@ const getMockUser = (): FirebaseAuthTypes.User => ({
 } as unknown as FirebaseAuthTypes.User)
 
 const getCurrentUser = () => {
-  if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+  if (process.env.NODE_ENV !== 'production' && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     if (!mockUser) mockUser = getMockUser()
     return mockUser
   }
@@ -57,7 +57,7 @@ const getCurrentUser = () => {
 }
 
 const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) => {
-  if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+  if (process.env.NODE_ENV !== 'production' && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     mockUser = getMockUser()
     callback(mockUser)
     return () => {}
@@ -66,7 +66,7 @@ const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => v
 }
 
 const signOut = () => {
-  if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+  if (process.env.NODE_ENV !== 'production' && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     mockUser = null
     return Promise.resolve()
   }

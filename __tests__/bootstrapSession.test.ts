@@ -92,13 +92,10 @@ describe('bootstrapSession', () => {
 
     beforeEach(() => {
       process.env.EXPO_PUBLIC_USE_MOCK_AUTH = 'true'
-      // Mock __DEV__ global
-      ;(global as { __DEV__?: boolean }).__DEV__ = true
     })
 
     afterEach(() => {
       process.env.EXPO_PUBLIC_USE_MOCK_AUTH = originalEnv
-      delete (global as { __DEV__?: boolean }).__DEV__
     })
 
     it('returns mock user and subscription without calling exchangeToken', async () => {

@@ -79,6 +79,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
+  // @ts-expect-error: splash is valid for expo-splash-screen plugin config
   splash: {
     image: './assets/splash.png',
     resizeMode: 'contain',
@@ -168,6 +169,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-secure-store',
     'expo-router',
     'expo-sqlite',
+    'expo-asset',
     'expo-apple-authentication',
     '@react-native-firebase/app',
     '@react-native-firebase/auth',
@@ -175,6 +177,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/app-check',
     'expo-font',
     'expo-image',
+    'expo-splash-screen',
+    'expo-status-bar',
     [
       'expo-image-picker',
       {

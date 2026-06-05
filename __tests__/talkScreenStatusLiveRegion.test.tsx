@@ -88,7 +88,7 @@ jest.mock('@expo/vector-icons', () => ({
 
 jest.mock('~/components/CharacterAvatar', () => () => null)
 
-jest.mock('@react-navigation/native', () => ({
+jest.mock('expo-router/react-navigation', () => ({
   useFocusEffect: jest.fn(),
   useNavigation: () => ({
     navigate: jest.fn(),

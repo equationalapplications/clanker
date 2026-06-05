@@ -29,6 +29,7 @@ export default function CookiePreferencesModal() {
   const [draft, setDraft] = useState(choices)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sync draft from saved choices on open
     if (isPreferencesOpen) setDraft(choices)
   }, [isPreferencesOpen, choices])
 

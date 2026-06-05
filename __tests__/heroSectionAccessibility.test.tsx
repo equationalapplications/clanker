@@ -20,6 +20,7 @@ jest.mock('react-native-reanimated', () => {
 jest.mock('react-native', () => {
   const React = require('react')
   return {
+    Platform: { OS: 'ios', select: (spec: any) => spec.ios ?? spec.default },
     StyleSheet: { create: (s: any) => s, flatten: (s: any) => s },
     View: ({ children, style }: any) => React.createElement('View', { style }, children),
     useWindowDimensions: () => ({ width: 390, height: 844 }),

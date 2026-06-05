@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useWiki, type MemoryBundle } from '@equationalapplications/expo-llm-wiki'
 import { reportError } from '~/utilities/reportError'
 
@@ -8,17 +8,21 @@ export function useMemoryBundle(entityId: string) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const fetchGenerationRef = useRef(0)
-  const prevEntityIdRef = useRef(entityId)
-  const prevWikiRef = useRef(wiki)
 
-  if (prevEntityIdRef.current !== entityId || prevWikiRef.current !== wiki) {
-    prevEntityIdRef.current = entityId
-    prevWikiRef.current = wiki
-    fetchGenerationRef.current += 1
+  useLayoutEffect(() => {
+    // Bump gen immediately on dep change so any in-flight fetch is invalidated
+    // before the async useEffect fires and starts a new fetch.
+    ++fetchGenerationRef.current
+  }, [entityId, wiki])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset state when deps change
     setBundle(null)
+
     setError(null)
+
     setIsLoading(true)
-  }
+  }, [entityId, wiki])
 
   const fetch = useCallback(async () => {
     const gen = ++fetchGenerationRef.current
@@ -56,9 +60,7 @@ export function useMemoryBundle(entityId: string) {
   }, [wiki, entityId])
 
   useEffect(() => {
-    setBundle(null)
-    setError(null)
-    setIsLoading(true)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: fetch sets state asynchronously
     void fetch()
   }, [fetch])
 

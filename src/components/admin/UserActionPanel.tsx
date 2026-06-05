@@ -48,6 +48,7 @@ export function UserActionPanel({
     if (!user) {
       return
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: hydrate form from user prop
     setCreditsText(String(user.currentCredits))
     setPlanTier(asWritablePlanTier(user.planTier))
     setPlanStatus(asWritablePlanStatus(user.planStatus))
