@@ -23,7 +23,7 @@
     "lint:check": "npx expo lint",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:generate": "npx expo export --platform web --clear && npm run typecheck",
-    "test": "NODE_OPTIONS='--require ./jest.preload.cjs' jest",
+    "test": "node -e \"const p=require('path');process.env.NODE_OPTIONS=(process.env.NODE_OPTIONS?process.env.NODE_OPTIONS+' ':'')+('--require '+p.resolve('./jest.preload.cjs'));const{spawnSync}=require('child_process');const r=spawnSync(process.platform==='win32'?'jest.cmd':'jest',process.argv.slice(2),{stdio:'inherit',env:process.env});process.exit(r.status??0);\" --",
     "test:watch": "jest --watch",
     "edge-evals": "jest --config jest.evals.config.js --runInBand",
     "docs:charts": "node scripts/generate-charts.js",
