@@ -105,7 +105,9 @@ async function bulkInsertUnsynced(
     } else if (item.type === 'wiki_entry') {
       if (typeof item.id !== 'string' || !item.id.trim()) continue
       if (typeof item.body !== 'string' || !item.body.trim()) continue
+      if (typeof item.createdAt !== 'number' || typeof item.updatedAt !== 'number') continue
       wikiEntryItems.push(item)
+    }
     } else if (item.type === 'wiki_event') {
       if (typeof item.id !== 'string' || !item.id.trim()) continue
       if (typeof item.summary !== 'string' || !item.summary.trim()) continue
