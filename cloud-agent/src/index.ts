@@ -144,10 +144,10 @@ async function bulkInsertUnsynced(
           tags: [],
           confidence: item.confidence === 'certain' ? 'certain' : 'inferred',
           sourceType: item.sourceType ?? 'agent_inferred',
+          sourceType: item.sourceType ?? 'agent_inferred',
           embedding,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt ?? item.createdAt,
-        }
+          createdAt: toCloudTimestamp(item.createdAt).getTime(),
+          updatedAt: toCloudTimestamp(item.updatedAt).getTime(),
       }),
     )
     await db.insert(llmWikiEntries).values(wikiEntryRows).onConflictDoNothing()
