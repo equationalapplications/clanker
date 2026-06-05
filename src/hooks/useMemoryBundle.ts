@@ -59,10 +59,10 @@ export function useMemoryBundle(entityId: string) {
     }
   }, [wiki, entityId])
 
-useEffect(() => {
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: fetch sets state asynchronously
-  void fetch()
-}, [fetch])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: fetch sets state asynchronously
+    void fetch()
+  }, [fetch])
 
   return { bundle, isLoading, error, refetch: fetch }
 }
