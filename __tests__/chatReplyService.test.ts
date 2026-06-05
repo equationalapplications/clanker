@@ -231,6 +231,7 @@ describe('generateChatReply', () => {
             headers: {
               'Content-Type': 'application/json',
               Authorization: 'Bearer mock_token_123',
+              'X-Timezone': expect.any(String),
             },
             body: JSON.stringify({ message: 'hello', characterId: 'char-1' }),
           },

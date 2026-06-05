@@ -111,7 +111,7 @@ export const agentToolSpec: ToolManifest[] = [
       },
       required: ['message', 'remind_at'],
     },
-  }
+  },
   {
     ...(escalateToCloudManifest.schema as any),
     tier: 'edge-only',

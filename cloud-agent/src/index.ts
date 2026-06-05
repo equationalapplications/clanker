@@ -107,7 +107,6 @@ async function bulkInsertUnsynced(
       if (typeof item.body !== 'string' || !item.body.trim()) continue
       if (typeof item.createdAt !== 'number' || typeof item.updatedAt !== 'number') continue
       wikiEntryItems.push(item)
-    }
     } else if (item.type === 'wiki_event') {
       if (typeof item.id !== 'string' || !item.id.trim()) continue
       if (typeof item.summary !== 'string' || !item.summary.trim()) continue
@@ -144,10 +143,10 @@ async function bulkInsertUnsynced(
           tags: [],
           confidence: item.confidence === 'certain' ? 'certain' : 'inferred',
           sourceType: item.sourceType ?? 'agent_inferred',
-          sourceType: item.sourceType ?? 'agent_inferred',
           embedding,
           createdAt: toCloudTimestamp(item.createdAt).getTime(),
           updatedAt: toCloudTimestamp(item.updatedAt).getTime(),
+        }
       }),
     )
     await db.insert(llmWikiEntries).values(wikiEntryRows).onConflictDoNothing()

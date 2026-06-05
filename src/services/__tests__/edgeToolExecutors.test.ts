@@ -282,7 +282,7 @@ describe('createEdgeToolExecutors — list_tasks', () => {
     const result = await execs['list_tasks']({})
     const parsed = JSON.parse(result as string)
     expect(parsed[0].title).toBe('Buy milk')
-    expect(parsed[0].status).toBe('pending')
+    expect(parsed[0].status).toBe('open')
   })
 
   it('calls listTasks with correct characterId', async () => {

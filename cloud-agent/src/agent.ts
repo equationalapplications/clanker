@@ -5,15 +5,13 @@ import { getCurrentTimeTool } from './tools/time.js'
 import { documentSearchTool } from './tools/documents.js'
 import { setReminderTool } from './tools/reminders.js'
 import type { DrizzleClient } from './db/client.js'
-import type { embedText } from './db/embeddings.js'
-
 export function buildAgent(
   db: DrizzleClient,
   userId: string,
   characterId: string,
   systemInstruction: string,
   timezone: string,
-  embed: typeof embedText,
+  embed: (text: string) => Promise<number[]>,
 ): LlmAgent {
   return new LlmAgent({
     name: 'clanker-cloud-agent',

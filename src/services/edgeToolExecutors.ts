@@ -58,8 +58,9 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
     list_tasks: async () => {
       try {
         const tasks = await listTasks(characterId)
-        if (tasks.length === 0) return 'No tasks found.'
-        return JSON.stringify(tasks.map((t: LocalTask) => ({ id: t.id, title: t.title, status: t.status })))
+        const open = tasks.filter((t: LocalTask) => t.status === 'pending' || t.status === 'open')
+        if (open.length === 0) return 'No tasks found.'
+        return JSON.stringify(open.map((t: LocalTask) => ({ id: t.id, title: t.title, status: 'open' })))
       } catch (error) {
         console.error('[EdgeAgent] list_tasks failed:', error)
         return 'Failed to list tasks due to an internal error.'

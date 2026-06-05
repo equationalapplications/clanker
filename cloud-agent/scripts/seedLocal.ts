@@ -96,8 +96,7 @@ async function seed() {
     )
   `)
 
-  // ivfflat index for approximate nearest-neighbor search on embeddings.
-  // Lists = sqrt(rows) is a reasonable starting point; adjust as the table grows.
+  // hnsw index for approximate nearest-neighbor search on embeddings (matches migration).
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS llm_wiki_entries_embedding_idx
       ON llm_wiki_entries
