@@ -110,5 +110,11 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
         return 'Failed to search documents due to an internal error.'
       }
     },
+    set_reminder: async () => {
+      // This is a phantom tool that exists only to force escalation.
+      // The edge agent will see this tool and its description, and call it for reminders.
+      // The useEdgeAgent hook will see the 'ESCALATE_TO_CLOUD_AGENT' output and escalate.
+      return 'ESCALATE_TO_CLOUD_AGENT'
+    },
   }
 }

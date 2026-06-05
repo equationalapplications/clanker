@@ -1,12 +1,24 @@
 import { sql } from 'drizzle-orm'
 import { getDb } from '../src/db/client.js'
 
-const USER_ID = '11111111-1111-1111-1111-111111111111'
-const CHARACTER_ID = '22222222-2222-2222-2222-222222222222'
+const USER_ID = '11111111-1111-4111-8111-111111111111'
+const CHARACTER_ID = '22222222-2222-4222-8222-222222222222'
+
+/** Generate a deterministic 768‑dimensional mock embedding vector as a pgvector‑compatible SQL literal string. */
+function mockEmbedding(seed: number): string {
+  const dims: string[] = []
+  for (let i = 0; i < 768; i++) {
+    // Deterministic-ish float in [-0.5, 0.5] so the cosine distance is non‑trivial
+    const val = Math.sin(i * seed * 0.01) * 0.5
+    dims.push(val.toFixed(8))
+  }
+  return `'[${dims.join(',')}]'::vector`
+}
 
 async function seed() {
   const db = await getDb()
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`)
+  await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`)
   console.log('Creating tables...')
   // ── Tables mirrored from cloud-agent/src/db/schema.ts ─────────────────────
 
@@ -60,6 +72,37 @@ async function seed() {
       CONSTRAINT llm_wiki_events_event_type_check
         CHECK (event_type IN ('observation', 'decision', 'action', 'outcome'))
     )
+  `)
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS llm_wiki_entries (
+      id TEXT NOT NULL,
+      entity_id UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      tags JSONB NOT NULL DEFAULT '[]',
+      confidence TEXT NOT NULL DEFAULT 'inferred',
+      source_type TEXT NOT NULL DEFAULT 'agent_inferred',
+      source_ref TEXT,
+      source_hash TEXT,
+      last_accessed_at BIGINT,
+      access_count INTEGER NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      deleted_at BIGINT,
+      embedding vector(768),
+      PRIMARY KEY (id, user_id)
+    )
+  `)
+
+  // ivfflat index for approximate nearest-neighbor search on embeddings.
+  // Lists = sqrt(rows) is a reasonable starting point; adjust as the table grows.
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS llm_wiki_entries_embedding_idx
+      ON llm_wiki_entries
+      USING ivfflat (embedding vector_cosine_ops)
+      WITH (lists = 10)
   `)
 
   // ── Tables NOT in cloud-agent schema (from functions/src/db/schema.ts) ─────
@@ -126,6 +169,27 @@ async function seed() {
     VALUES (${CHARACTER_ID}, ${USER_ID}, 'Dev Character', 'Friendly, helpful')
     ON CONFLICT (id) DO NOTHING
   `)
+
+  // ── Seed a mock wiki entry so pgvector similarity search is testable ──────
+  const now = Date.now()
+  await db.execute(sql`
+    INSERT INTO llm_wiki_entries (id, entity_id, user_id, title, body, tags, confidence, source_type, created_at, updated_at, embedding)
+    VALUES (
+      'wiki-entry-001',
+      ${CHARACTER_ID},
+      ${USER_ID},
+      'User Likes Dogs',
+      'The user mentioned they have two golden retrievers named Sunny and Scout. They love taking them to the park on weekends.',
+      '["pets", "dogs", "personal"]',
+      'certain',
+      'agent_inferred',
+      ${now},
+      ${now},
+      ${sql.raw(mockEmbedding(1))}
+    )
+    ON CONFLICT (id, user_id) DO NOTHING
+  `)
+  console.log('  + Mock wiki entry: User Likes Dogs')
 
   await db.execute(sql`
     INSERT INTO subscriptions (user_id, plan_tier, plan_status, current_credits)

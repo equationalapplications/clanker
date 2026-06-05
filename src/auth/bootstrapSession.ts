@@ -95,7 +95,7 @@ export async function bootstrapSession(): Promise<BootstrapResponse> {
   if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     return {
       user: {
-        id: '11111111-1111-1111-1111-111111111111',
+        id: '11111111-1111-4111-8111-111111111111',
         firebaseUid: 'local_test_user_123',
         email: 'dev@localhost.com',
         displayName: 'Dev User',

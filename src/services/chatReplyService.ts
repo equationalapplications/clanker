@@ -1,6 +1,7 @@
-import { GoogleGenAI, Type } from '@google/genai'
+import { GoogleGenAI } from '@google/genai'
 import { appCheckReady, generateReplyFn } from '~/config/firebaseConfig'
 import type { SyncMessage } from '~/services/syncMessage'
+import { getSchemasForEdge } from '../../shared/agent-tools-spec'
 
 interface GenerateChatReplyInput {
   prompt?: string
@@ -102,38 +103,42 @@ export async function generateChatReply({
     const geminiContents =
       Array.isArray(contents) ? (contents as any) : [{ role: 'user', parts: [{ text: message }] }]
 
+    // Build edge-visible tool declarations so Gemini can call escalate_to_cloud_agent
+    const hasWiki = !!characterId
+    const edgeDeclarations = getSchemasForEdge(hasWiki, true).map(
+      ({ name, description, parameters }) => ({ name, description, parameters }),
+    ) as any[]
+
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: geminiContents,
       config: {
         systemInstruction: systemInstruction || 'You are an AI assistant.',
-        tools: [
-          {
-            functionDeclarations: [
-              {
-                parameters: { type: Type.OBJECT, properties: {}, required: [] as string[] },
-              },
-            ],
-          },
-        ],
+        tools: [{ functionDeclarations: edgeDeclarations }],
       },
     })
 
-    // 3. Check if the LLM decided to invoke the Cloud Agent tool
-    const escalated = (response.functionCalls ?? []).some(
-      (call) => call.name === 'escalate_to_cloud_agent',
-    )
+    // 3. If Gemini made any function call, escalate to the cloud agent.
+    //    The mock doesn't run local tool executors, so any function call
+    //    (set_reminder, escalate_to_cloud_agent, etc.) means escalation is needed.
+    const functionCalls = response.functionCalls ?? []
+    const escalated = functionCalls.length > 0
     if (escalated) {
       console.log("🚀 Edge Agent Escalated! Routing to Docker Cloud Agent...")
-      
-      // Make the HTTP call directly to your local Docker container
+
+      // Resolve the character ID for escalation. In the dev sandbox,
+      // cloud_id may be undefined (local SQLite character hasn't been
+      // synced). Fall back to the seeded cloud character UUID from
+      // cloud-agent/scripts/seedLocal.ts.
+      const cloudCharacterId = characterId ?? '22222222-2222-4222-8222-222222222222'
+      if (!characterId) {
+        console.log(`🛠️ Mock Env: Using seeded cloud characterId ${cloudCharacterId}`)
+      }
+
       const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
       if (!baseUrl) throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL is not configured')
       const url = `${baseUrl.replace(/\/agent\/run\/?$/, '').replace(/\/$/, '')}/agent/run`
-
-      if (!characterId) {
-        throw new Error('characterId is required when escalating to Cloud Agent')
-      }
 
       const cloudRes = await fetch(url, {
         method: 'POST',
@@ -143,7 +148,7 @@ export async function generateChatReply({
         },
         body: JSON.stringify({
           message,
-          characterId,
+          characterId: cloudCharacterId,
           unsyncedHistory,
           history: Array.isArray(contents) ? (contents as any) : undefined,
         }),

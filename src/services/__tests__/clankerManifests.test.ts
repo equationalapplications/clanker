@@ -28,6 +28,11 @@ describe('escalate_to_cloud_agent spec', () => {
     expect(findSpec('escalate_to_cloud_agent').description).toContain('Do NOT')
     expect(findSpec('escalate_to_cloud_agent').description).toContain('memory reads/writes')
   })
+
+  it('description explicitly mentions timed reminders or scheduling', () => {
+    expect(findSpec('escalate_to_cloud_agent').description).toContain('timed task creation')
+    expect(findSpec('escalate_to_cloud_agent').description).toContain('writing tasks')
+  })
 })
 
 describe('wiki_read spec', () => {
@@ -85,6 +90,10 @@ describe('create_task spec', () => {
 
   it('parameters type is object', () => {
     expect(findSpec('create_task').parameters.type).toBe('object')
+  })
+
+  it('description explicitly forbids time-based reminders or scheduling', () => {
+    expect(findSpec('create_task').description).toContain('Do NOT use for reminders or scheduling')
   })
 })
 

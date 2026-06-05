@@ -105,7 +105,7 @@ describe('bootstrapSession', () => {
       const result = await bootstrapSession()
 
       expect(mockExchangeToken).not.toHaveBeenCalled()
-      expect(result.user.id).toBe('11111111-1111-1111-1111-111111111111')
+      expect(result.user.id).toBe('11111111-1111-4111-8111-111111111111')
       expect(result.user.firebaseUid).toBe('local_test_user_123')
       expect(result.user.email).toBe('dev@localhost.com')
       expect(result.subscription.planTier).toBe('free')
