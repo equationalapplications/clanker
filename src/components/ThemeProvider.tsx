@@ -1,8 +1,13 @@
 import React from 'react'
 import { Provider as PaperProvider } from 'react-native-paper'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { ThemeProvider as NavigationThemeProvider } from '@react-navigation/native'
-import { appDarkTheme, appLightTheme, appNavigationDarkTheme, appNavigationLightTheme } from '~/config/theme'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
+import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navigation'
+import {
+  appDarkTheme,
+  appLightTheme,
+  appNavigationDarkTheme,
+  appNavigationLightTheme,
+} from '~/config/theme'
 import { useSettings } from '~/contexts/SettingsContext'
 
 interface ThemeProviderProps {
@@ -22,9 +27,7 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
         icon: (props) => <MaterialCommunityIcons {...props} />, // web-safe icon mapping
       }}
     >
-      <NavigationThemeProvider value={navigationTheme}>
-        {children}
-      </NavigationThemeProvider>
+      <NavigationThemeProvider value={navigationTheme}>{children}</NavigationThemeProvider>
     </PaperProvider>
   )
 }

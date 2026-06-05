@@ -3,7 +3,7 @@ import {
   DarkTheme as NavigationDarkThemeBase,
   DefaultTheme as NavigationDefaultThemeBase,
   Theme as NavigationTheme,
-} from '@react-navigation/native'
+} from 'expo-router/react-navigation'
 import { colorsLight, colorsDark } from './constants'
 
 // Map app constants to MD3 theme colors.

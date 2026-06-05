@@ -91,7 +91,7 @@ async function runBootstrapSession(): Promise<BootstrapResponse> {
 }
 
 export async function bootstrapSession(): Promise<BootstrapResponse> {
-  const isDevBuild = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production'
+  const isDevBuild = process.env.NODE_ENV !== 'production'
   if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     return {
       user: {

@@ -107,6 +107,7 @@ export function useCharacterWiki(entityId: string) {
   const [snapshot, setSnapshot] = useState(() => actor?.getSnapshot() ?? null)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sync snapshot from actor on change
     setSnapshot(actor?.getSnapshot() ?? null)
     if (!actor) return
     const sub = actor.subscribe((next) => setSnapshot(next))

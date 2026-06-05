@@ -1,6 +1,6 @@
 // This component is a placeholder for the TabBarIcon.
 // You can customize it to your needs.
-import { Ionicons } from '@expo/vector-icons'
+import Ionicons from '@expo/vector-icons/Ionicons'
 import { type IconProps } from '@expo/vector-icons/build/createIconSet'
 import { type ComponentProps } from 'react'
 

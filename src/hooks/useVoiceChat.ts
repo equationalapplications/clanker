@@ -131,6 +131,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
     [cleanupPlayback],
   )
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- intentional: only depend on uid, not full user object
   const processTranscript = useCallback(async () => {
     const currentText = (finalTranscriptionRef.current || transcriptionRef.current).trim()
 
@@ -191,7 +192,9 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
         try {
           file.write(bytes)
         } catch (writeError) {
-          await fail(`Failed to write audio file: ${writeError instanceof Error ? writeError.message : String(writeError)}`)
+          await fail(
+            `Failed to write audio file: ${writeError instanceof Error ? writeError.message : String(writeError)}`,
+          )
           return
         }
         tempFileRef.current = file
@@ -258,7 +261,8 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
     clearListenTimer()
     recognitionActiveRef.current = false
 
-    const errorPayload = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {}
+    const errorPayload =
+      typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {}
     const rawError =
       typeof errorPayload.error === 'string'
         ? errorPayload.error
@@ -282,7 +286,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
         ? canUseNativeVoice
           ? 'Microphone permission required. Enable it in Settings.'
           : 'Microphone permission required. Allow it in your browser.'
-        : 'Speech recognition failed. Please try again.'
+        : 'Speech recognition failed. Please try again.',
     )
   })
 
@@ -327,10 +331,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       Alert.alert(
         'Insufficient Credits',
         'Voice replies cost 2 credits. Purchase more credits to continue.',
-        [
-          { text: 'Cancel' },
-          { text: 'Get More', onPress: () => router.push('/subscribe') },
-        ],
+        [{ text: 'Cancel' }, { text: 'Get More', onPress: () => router.push('/subscribe') }],
       )
       return
     }
@@ -378,7 +379,15 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       const errorMessage = err instanceof Error ? err.message : 'Failed to start listening'
       await fail(errorMessage)
     }
-  }, [canUseNativeVoice, character, characterId, clearListenTimer, fail, remainingCredits, voiceState])
+  }, [
+    canUseNativeVoice,
+    character,
+    characterId,
+    clearListenTimer,
+    fail,
+    remainingCredits,
+    voiceState,
+  ])
 
   const cancel = useCallback(() => {
     cancelledRef.current = true

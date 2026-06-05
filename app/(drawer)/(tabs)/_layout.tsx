@@ -1,6 +1,6 @@
 import { Tabs, router, useNavigation, usePathname } from 'expo-router'
 import React from 'react'
-import { Alert } from 'react-native'
+import { Alert, ColorValue } from 'react-native'
 import { TabBarIcon } from '~/components/navigation/TabBarIcon'
 import { editDirtyRef, setEditDirty } from '~/hooks/useEditDirtyState'
 
@@ -24,7 +24,7 @@ export default function TabLayout() {
         options={{
           title: 'Chat',
           tabBarAccessibilityLabel: 'Chat',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+          tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
             <TabBarIcon name={focused ? 'chatbubble' : 'chatbubble-outline'} color={color} />
           ),
         }}
@@ -34,7 +34,7 @@ export default function TabLayout() {
         options={{
           title: 'Talk',
           tabBarAccessibilityLabel: 'Talk',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+          tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
             <TabBarIcon name={focused ? 'mic' : 'mic-outline'} color={color} />
           ),
         }}
@@ -44,7 +44,7 @@ export default function TabLayout() {
         options={{
           title: 'Characters',
           tabBarAccessibilityLabel: 'Characters',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+          tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
             <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} />
           ),
         }}

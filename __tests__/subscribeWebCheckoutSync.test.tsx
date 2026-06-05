@@ -76,7 +76,7 @@ jest.mock('expo-router', () => ({
     useRouter: () => ({ push: jest.fn() }),
 }))
 
-jest.mock('@react-navigation/native', () => ({
+jest.mock('expo-router/react-navigation', () => ({
     useNavigation: () => ({ setOptions: jest.fn() }),
 }))
 

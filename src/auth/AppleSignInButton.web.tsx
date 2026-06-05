@@ -25,7 +25,10 @@ function AppleSignInButtonInner({ onLoadingChange, loading, disabled, style }: P
   const [buttonState, setButtonState] = useState<ButtonState>('idle')
   const [initFailed, setInitFailed] = useState(false)
   const onLoadingChangeRef = useRef(onLoadingChange)
-  onLoadingChangeRef.current = onLoadingChange
+
+  useEffect(() => {
+    onLoadingChangeRef.current = onLoadingChange
+  }, [onLoadingChange])
 
   useEffect(() => {
     let cancelled = false
@@ -126,7 +129,7 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.65)',

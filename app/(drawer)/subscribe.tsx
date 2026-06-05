@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation } from 'expo-router/react-navigation'
 import React, { useState } from 'react'
 import { ScrollView, StyleSheet, View, Platform, Linking } from 'react-native'
 import { Card, Text, IconButton, Button, Snackbar, List, Divider } from 'react-native-paper'

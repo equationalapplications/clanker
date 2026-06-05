@@ -8,6 +8,7 @@ jest.mock('~/components/admin/renewalDateValidation', () => ({
 jest.mock('react-native', () => {
   const React = require('react')
   return {
+    Platform: { OS: 'ios', select: (spec: any) => spec.ios ?? spec.default },
     StyleSheet: { create: (s: any) => s },
     View: ({ children, style }: any) => React.createElement('View', { style }, children),
   }
