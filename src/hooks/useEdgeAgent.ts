@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { GoogleGenAI } from '@google/genai'
 import type { Content, Part, ToolListUnion } from '@google/genai'
 import type { IMessage } from 'react-native-gifted-chat'
-import { clankerTimeSchema, clankerEscalationSchema, clankerMemorySchema, clankerWriteObservationSchema, clankerCreateTaskSchema, clankerListTasksSchema } from '~/services/clankerManifests'
+import { getSchemasForEdge } from '~/services/clankerManifests'
 import type { Character } from '~/services/aiChatService'
 import type { Wiki } from '~/services/wikiService'
 import { buildSystemInstruction, buildContentHistory } from '~/services/CharacterPromptBuilder'
@@ -60,14 +60,7 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
         { role: 'user', parts: [{ text: userText }] },
       ] as Content[]
 
-      const functionDeclarations = [clankerTimeSchema, clankerCreateTaskSchema, clankerListTasksSchema]
-      if (wiki) {
-        functionDeclarations.push(clankerMemorySchema)
-        functionDeclarations.push(clankerWriteObservationSchema)
-      }
-      if (isCloudSynced) {
-        functionDeclarations.push(clankerEscalationSchema)
-      }
+      const functionDeclarations = getSchemasForEdge(!!wiki, isCloudSynced)
       const tools = [{ functionDeclarations }] as unknown as ToolListUnion
 
       try {
@@ -88,21 +81,21 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
             return { escalated: false, text: result.text ?? '' }
           }
 
-          let didEscalate = false
+          if (functionCalls.some((fc) => fc.name === 'escalate_to_cloud_agent')) {
+            setEscalationState('escalating')
+            return { escalated: true }
+          }
+
           const responseParts = await Promise.all(
             functionCalls.map(async (fc) => {
               const name = fc.name ?? ''
-              if (name === 'escalate_to_cloud_agent') {
-                didEscalate = true
-                return null
-              }
               const executor = toolExecutors[name]
               const output = executor ? await executor(fc.args ?? {}) : null
               return { functionResponse: { name, response: { output } } }
             }),
           )
-
-          if (didEscalate) {
+          
+          if (responseParts.some((p) => p.functionResponse.response.output === 'ESCALATE_TO_CLOUD_AGENT')) {
             setEscalationState('escalating')
             return { escalated: true }
           }

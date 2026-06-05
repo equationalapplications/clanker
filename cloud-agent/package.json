@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/cloud-agent/src/index.js",
     "typecheck": "tsc --noEmit",
     "test": "NODE_ENV=test npm run build && NODE_ENV=test node --test --test-reporter spec \"dist/**/*.test.js\""
   },

@@ -22,6 +22,11 @@ config.resolver.blockList = [
 config.resolver.assetExts.push('cjs')
 config.resolver.assetExts.push('wasm')
 
+config.watchFolders = [
+  ...(config.watchFolders ?? []),
+  path.resolve(__dirname, 'shared'),
+]
+
 config.server = {
   ...config.server,
   enhanceMiddleware: (middleware) => {

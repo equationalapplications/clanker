@@ -86,4 +86,39 @@ describe('bootstrapSession', () => {
     expect(firstResult.user.firebaseUid).toBe('firebase-1')
     expect(secondResult.user.firebaseUid).toBe('firebase-2')
   })
+
+  describe('mock auth branch (EXPO_PUBLIC_USE_MOCK_AUTH)', () => {
+    const originalEnv = process.env.EXPO_PUBLIC_USE_MOCK_AUTH
+
+    beforeEach(() => {
+      process.env.EXPO_PUBLIC_USE_MOCK_AUTH = 'true'
+      // Mock __DEV__ global
+      ;(global as { __DEV__?: boolean }).__DEV__ = true
+    })
+
+    afterEach(() => {
+      process.env.EXPO_PUBLIC_USE_MOCK_AUTH = originalEnv
+      delete (global as { __DEV__?: boolean }).__DEV__
+    })
+
+    it('returns mock user and subscription without calling exchangeToken', async () => {
+      const result = await bootstrapSession()
+
+      expect(mockExchangeToken).not.toHaveBeenCalled()
+      expect(result.user.id).toBe('11111111-1111-4111-8111-111111111111')
+      expect(result.user.firebaseUid).toBe('local_test_user_123')
+      expect(result.user.email).toBe('dev@localhost.com')
+      expect(result.subscription.planTier).toBe('free')
+      expect(result.subscription.currentCredits).toBe(100)
+    })
+
+    it('returns consistent mock data across multiple calls', async () => {
+      const first = await bootstrapSession()
+      const second = await bootstrapSession()
+
+      expect(first.user.firebaseUid).toBe('local_test_user_123')
+      expect(second.user.firebaseUid).toBe('local_test_user_123')
+      expect(first.subscription.currentCredits).toBe(second.subscription.currentCredits)
+    })
+  })
 })

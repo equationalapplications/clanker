@@ -2,12 +2,13 @@ import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import admin from 'firebase-admin'
-import { eq, and, ilike } from 'drizzle-orm'
+import { eq, and, isNull, sql } from 'drizzle-orm'
 import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
 import type { Content } from '@google/genai'
 import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
-import { users, characters, llmWikiEvents, tasks } from './db/schema.js'
+import { users, characters, llmWikiEvents, llmWikiEntries, tasks } from './db/schema.js'
+import { embedText } from './db/embeddings.js'
 import type { DrizzleClient } from './db/client.js'
 import { createCreditService } from './services/creditService.js'
 import type { CreditService } from './services/creditService.js'
@@ -27,6 +28,8 @@ export interface RunAgentParams {
   systemInstruction: string
   message: string
   history: Content[]
+  timezone: string
+  embed: (text: string) => Promise<number[]>
 }
 
 interface AppOptions {
@@ -37,8 +40,9 @@ interface AppOptions {
 }
 
 type UnsyncedTask = { type: 'task'; id: string; title: string; status: string; createdAt: number }
+type UnsyncedWikiEntry = { type: 'wiki_entry'; id: string; title: string; body: string; confidence?: string; sourceType?: string; createdAt: number; updatedAt: number }
 type UnsyncedWikiEvent = { type: 'wiki_event'; id: string; eventType: string; summary: string; createdAt: number }
-type UnsyncedItem = UnsyncedTask | UnsyncedWikiEvent
+type UnsyncedItem = UnsyncedTask | UnsyncedWikiEntry | UnsyncedWikiEvent
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -51,9 +55,9 @@ function toCloudStatus(status: string): string {
 }
 
 // Accepts both second and millisecond epoch timestamps.
-// If value > 9999999999 (Nov 2286 in seconds), assume milliseconds.
+// If value > 1e10 (Nov 2286 in seconds), assume milliseconds.
 function toCloudTimestamp(epoch: number): Date {
-  return new Date(epoch > 9999999999 ? epoch : epoch * 1000)
+  return new Date(epoch > 1e10 ? epoch : epoch * 1000)
 }
 
 async function bulkInsertUnsynced(
@@ -61,8 +65,9 @@ async function bulkInsertUnsynced(
   userId: string,
   characterId: string,
   items: unknown[],
+  embed: (text: string) => Promise<number[]>,
 ): Promise<void> {
-  const taskRows: Array<{
+  const taskRows: {
     id: string;
     characterId: string;
     userId: string;
@@ -70,15 +75,16 @@ async function bulkInsertUnsynced(
     status: string;
     createdAt: Date;
     updatedAt: Date;
-  }> = []
-  const wikiRows: Array<{
+  }[] = []
+  const wikiEntryItems: UnsyncedWikiEntry[] = []
+  const wikiRows: {
     id: string;
     entityId: string;
     userId: string;
     eventType: string;
     summary: string;
     createdAt: number;
-  }> = []
+  }[] = []
 
   for (const raw of items) {
     if (typeof raw !== 'object' || raw === null) continue
@@ -96,6 +102,11 @@ async function bulkInsertUnsynced(
         createdAt: toCloudTimestamp(item.createdAt),
         updatedAt: new Date(),
       })
+    } else if (item.type === 'wiki_entry') {
+      if (typeof item.id !== 'string' || !item.id.trim()) continue
+      if (typeof item.body !== 'string' || !item.body.trim()) continue
+      if (typeof item.createdAt !== 'number' || typeof item.updatedAt !== 'number') continue
+      wikiEntryItems.push(item)
     } else if (item.type === 'wiki_event') {
       if (typeof item.id !== 'string' || !item.id.trim()) continue
       if (typeof item.summary !== 'string' || !item.summary.trim()) continue
@@ -119,28 +130,70 @@ async function bulkInsertUnsynced(
   if (taskRows.length > 0) {
     await db.insert(tasks).values(taskRows).onConflictDoNothing()
   }
+
+  if (wikiEntryItems.length > 0) {
+    const wikiEntryRows = await Promise.all(
+      wikiEntryItems.map(async (item) => {
+        let embedding: number[] | null = null
+        try { embedding = await embed(item.body.trim()) } catch { /* log, insert with null */ }
+        return {
+          id: item.id.trim(), entityId: characterId, userId,
+          title: (item.title ?? '').trim() || item.body.trim().slice(0, 64),
+          body: item.body.trim(),
+          tags: [],
+          confidence: item.confidence === 'certain' ? 'certain' : 'inferred',
+          sourceType: item.sourceType ?? 'agent_inferred',
+          embedding,
+          createdAt: toCloudTimestamp(item.createdAt).getTime(),
+          updatedAt: toCloudTimestamp(item.updatedAt).getTime(),
+        }
+      }),
+    )
+    await db.insert(llmWikiEntries).values(wikiEntryRows).onConflictDoNothing()
+  }
+
   if (wikiRows.length > 0) {
     await db.insert(llmWikiEvents).values(wikiRows).onConflictDoNothing()
   }
 }
 
-async function queryWikiContext(db: DrizzleClient, query: string, userId: string, characterId: string): Promise<string> {
+async function queryWikiContext(
+  db: DrizzleClient,
+  query: string,
+  userId: string,
+  characterId: string,
+  embed: (text: string) => Promise<number[]>,
+): Promise<string> {
   const normalizedQuery = query.trim().slice(0, 200)
   if (!normalizedQuery) return ''
 
-  const rows = await db
-    .select({ summary: llmWikiEvents.summary })
-    .from(llmWikiEvents)
-    .where(
-      and(
-        eq(llmWikiEvents.entityId, characterId),
-        eq(llmWikiEvents.userId, userId),
-        ilike(llmWikiEvents.summary, `%${normalizedQuery}%`),
-      ),
-    )
-    .limit(5)
-  if (rows.length === 0) return ''
-  return rows.map((r) => `- ${r.summary}`).join('\n')
+  try {
+    const vec = await embed(normalizedQuery)
+    const rows = await db
+      .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
+      .from(llmWikiEntries)
+      .where(and(
+        eq(llmWikiEntries.entityId, characterId),
+        eq(llmWikiEntries.userId, userId),
+        isNull(llmWikiEntries.deletedAt),
+      ))
+      .orderBy(sql`${llmWikiEntries.embedding} <=> ${JSON.stringify(vec)}::vector`)
+      .limit(5)
+    return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
+  } catch {
+    // embedText failed — fall back to full-text search
+    const rows = await db
+      .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
+      .from(llmWikiEntries)
+      .where(and(
+        eq(llmWikiEntries.entityId, characterId),
+        eq(llmWikiEntries.userId, userId),
+        isNull(llmWikiEntries.deletedAt),
+        sql`to_tsvector('english', coalesce(${llmWikiEntries.title}, '') || ' ' || coalesce(${llmWikiEntries.body}, '')) @@ websearch_to_tsquery('english', ${normalizedQuery})`,
+      ))
+      .limit(5)
+    return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
+  }
 }
 
 function assembleSystemInstruction(
@@ -163,17 +216,18 @@ function assembleSystemInstruction(
 // ── Real agent runner (production) ────────────────────────────────────────────
 
 async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> {
-  const { db, userId, characterId, systemInstruction, message, history } = params
-  const agent = buildAgent(db, userId, characterId, systemInstruction)
+  const { db, userId, characterId, systemInstruction, message, history, timezone, embed } = params
+  const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed)
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
 
+  const session = await runner.sessionService.createSession({
+    appName: 'clanker-cloud-agent',
+    userId,
+    sessionId,
+  })
+
   if (history.length > 0) {
-    const session = await runner.sessionService.createSession({
-      appName: 'clanker-cloud-agent',
-      userId,
-      sessionId,
-    })
     for (const turn of history) {
       await runner.sessionService.appendEvent({
         session,
@@ -308,6 +362,7 @@ export function createApp(options: AppOptions) {
       const { message, characterId, unsyncedHistory = [], history: rawHistory = [] } = parseResult.data
       const history = rawHistory as Content[]
       const firebaseUid = req.uid!
+      const timezone = typeof req.headers['x-timezone'] === 'string' ? req.headers['x-timezone'].trim() : 'UTC'
 
       // Map Firebase UID → DB user UUID (users.id is UUID; firebase_uid is the token uid)
       const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
@@ -335,7 +390,7 @@ export function createApp(options: AppOptions) {
 
       if (unsyncedHistory.length > 0) {
         try {
-          await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory)
+          await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory, embedText)
         } catch (err) {
           // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
           console.error('bulkInsertUnsynced failed:', err)
@@ -345,7 +400,7 @@ export function createApp(options: AppOptions) {
       let wikiContext: string
       let systemInstruction: string
       try {
-        wikiContext = await queryWikiContext(db, message, userId, characterId)
+        wikiContext = await queryWikiContext(db, message, userId, characterId, embedText)
         systemInstruction = assembleSystemInstruction(character, wikiContext)
       } catch (preAgentErr) {
         try {
@@ -358,7 +413,7 @@ export function createApp(options: AppOptions) {
       // 2. EXECUTE — refund on ADK failure
       let result: { reply: string; toolCalls: string[] }
       try {
-        result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history })
+        result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history, timezone, embed: embedText })
       } catch (adkErr) {
         try {
           await cs.refundCredit(userId, txId)
@@ -400,11 +455,24 @@ export function createApp(options: AppOptions) {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 if (process.env.NODE_ENV !== 'test') {
-  if (!admin.apps.length) admin.initializeApp()
+  const isMockAuth = process.env.MOCK_FIREBASE_AUTH === 'true' && process.env.NODE_ENV !== 'production' && !process.env.K_SERVICE
+  
+  if (isMockAuth) {
+    console.log('--- Auth Debug ---');
+    console.log(`MOCK_FIREBASE_AUTH: ${process.env.MOCK_FIREBASE_AUTH} (type: ${typeof process.env.MOCK_FIREBASE_AUTH})`);
+    console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`K_SERVICE: ${process.env.K_SERVICE}`);
+    console.log(`isMockAuth evaluated to: ${isMockAuth}`);
+    console.log('------------------');
+  }
+
+  if (!isMockAuth && !admin.apps.length) admin.initializeApp()
 
   const db = await getDb()
   const app = createApp({
-    verifyToken: (token) => admin.auth().verifyIdToken(token).then((d) => ({ uid: d.uid })),
+    verifyToken: isMockAuth
+      ? async (_token: string) => ({ uid: 'local_test_user_123' })
+      : (token) => admin.auth().verifyIdToken(token).then((d) => ({ uid: d.uid })),
     db,
     runAgentFn: runAgentReal,
   })

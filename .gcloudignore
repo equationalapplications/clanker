@@ -1,0 +1,39 @@
+# Monorepo .gcloudignore — blocklist for `gcloud builds submit`
+# The cloudbuild.yaml uses cloud-agent/Dockerfile to build from repo root.
+# Only junk gets excluded; all source stays visible for the build context.
+
+.git
+.gitignore
+.gcloudignore
+
+# Dependencies (should be installed fresh in the build)
+node_modules
+cloud-agent/node_modules
+functions/node_modules
+
+# Build outputs
+cloud-agent/dist
+dist
+
+# Native + platform artifacts
+ios
+android
+.idea
+.gradle
+
+# Secrets & env
+.env
+*.p8
+credentials.json
+google-services.json
+GoogleService-Info.plist
+
+# Test & CI outputs
+coverage
+jest-output.json
+*.ipa
+*.aab
+
+# Firebase emulators
+.firebase
+firebase-debug.log

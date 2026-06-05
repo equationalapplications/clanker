@@ -7,15 +7,13 @@ function loadWithMocks({ hasCurrentUser = true, token = 'firebase-id-token' } = 
   
   if (hasCurrentUser) {
     jest.doMock('~/config/firebaseConfig', () => ({
-      auth: {
-        currentUser: {
-          getIdToken: jest.fn().mockResolvedValue(token),
-        },
-      },
+      getCurrentUser: jest.fn().mockReturnValue({
+        getIdToken: jest.fn().mockResolvedValue(token),
+      }),
     }))
   } else {
     jest.doMock('~/config/firebaseConfig', () => ({
-      auth: { currentUser: null },
+      getCurrentUser: jest.fn().mockReturnValue(null),
     }))
   }
   

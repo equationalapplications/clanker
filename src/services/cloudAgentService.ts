@@ -1,4 +1,4 @@
-import { auth } from '~/config/firebaseConfig'
+import { getCurrentUser } from '~/config/firebaseConfig'
 import type { Content } from '@google/genai'
 
 export interface CloudAgentUnsyncedTask {
@@ -27,7 +27,7 @@ export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudA
   if (!baseUrl) throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL is not configured')
   const url = `${baseUrl.replace(/\/agent\/run\/?$/, '').replace(/\/$/, '')}/agent/run`
 
-  const token = await auth.currentUser?.getIdToken()
+  const token = await getCurrentUser()?.getIdToken()
   if (!token) throw new Error('No authenticated user')
 
   const response = await fetch(url, {
@@ -35,6 +35,7 @@ export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudA
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+      'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
     body: JSON.stringify(payload),
   })

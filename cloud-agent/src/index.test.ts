@@ -406,3 +406,19 @@ test('POST /agent/run does not call runAgentFn when spendCredit throws INSUFFICI
     .send({ message: 'hello', characterId: CHAR_UUID })
   assert.ok(!agentCalled, 'runAgentFn must not be called when credits are insufficient')
 })
+
+test('POST /agent/run captures X-Timezone header and passes it to runAgentFn', async () => {
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+  let capturedTimezone = ''
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: async (params) => { capturedTimezone = params.timezone; return { reply: 'ok', toolCalls: [] } },
+  })
+  await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .set('X-Timezone', 'America/Chicago')
+    .send({ message: 'hello', characterId: CHAR_UUID })
+  assert.equal(capturedTimezone, 'America/Chicago')
+})
