@@ -30,6 +30,7 @@ export function AdminConfirmationModal({
   const [reason, setReason] = useState('')
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset form when dialog opens
     setTypedKeyword('')
     setReason('')
   }, [visible, confirmKeyword, title, summary])

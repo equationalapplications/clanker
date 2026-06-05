@@ -29,7 +29,7 @@ jest.mock('react-native-gifted-chat', () => {
 })
 
 // ── expo-router ──────────────────────────────────────────────────────────────
-jest.mock('@react-navigation/native', () => ({
+jest.mock('expo-router/react-navigation', () => ({
   useNavigation: () => ({
     navigate: jest.fn(),
     goBack: jest.fn(),

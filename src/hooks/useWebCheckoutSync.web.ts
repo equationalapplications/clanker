@@ -168,6 +168,7 @@ export function useWebCheckoutSync(
     if (!uid) {
       const nextLocks = { isPaygLocked: false, isSubscribeLocked: false }
       locksRef.current = nextLocks
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sync locks from uid
       setLocks(nextLocks)
       return
     }

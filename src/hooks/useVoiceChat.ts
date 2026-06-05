@@ -131,6 +131,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
     [cleanupPlayback],
   )
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- intentional: only depend on uid, not full user object
   const processTranscript = useCallback(async () => {
     const currentText = (finalTranscriptionRef.current || transcriptionRef.current).trim()
 
@@ -218,6 +219,7 @@ export function useVoiceChat(characterId: string): UseVoiceChatReturn {
       const errorMessage = err instanceof Error ? err.message : 'Voice reply failed'
       await fail(errorMessage)
     }
+   
   }, [character, cleanupPlayback, currentUser?.uid, fail, goIdle, messages])
 
   useSpeechRecognitionEvent('start', () => {})

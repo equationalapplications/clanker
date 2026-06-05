@@ -92,7 +92,7 @@ export default function EditCharacterScreen() {
     // - deny edits for cloud/shared characters with unknown ownership
     if (!character.owner_user_id) return !character.cloud_id
     return user.uid === character.owner_user_id
-  }, [character, user?.uid])
+  }, [character, user])
 
   useEditDirtyState(
     canEdit
@@ -120,8 +120,10 @@ export default function EditCharacterScreen() {
   )
 
   // Update local state when character data loads
+   
   useEffect(() => {
     if (character) {
+      /* eslint-disable react-hooks/set-state-in-effect -- intentional: hydrate form from fetched data */
       setName(character.name || '')
       setAppearance(character.appearance || '')
       setTraits(character.traits || '')
@@ -131,6 +133,7 @@ export default function EditCharacterScreen() {
       setIsCharacterShareable(character.is_public || false)
       setVoice(character.voice ?? DEFAULT_VOICE)
       setAvatarUri(character.avatar ?? null)
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [character])
 

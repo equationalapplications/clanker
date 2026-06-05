@@ -27,6 +27,7 @@ export default function SharedCharacterImportScreen() {
     }
 
     if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: gate rendering based on auth state
       setErrorMessage('Please sign in to import this shared character.')
       return
     }

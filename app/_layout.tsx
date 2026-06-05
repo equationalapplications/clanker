@@ -1,4 +1,4 @@
-/// <reference types="expo-router/types" />
+/// <reference path="../.expo/types/router.d.ts" />
 import 'expo-dev-client'
 import { StatusBar } from 'expo-status-bar'
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context'
