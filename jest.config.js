@@ -8,6 +8,9 @@
 
 module.exports = {
   preset: 'jest-expo',
+  globals: {
+    __DEV__: true,
+  },
   setupFiles: [
     '<rootDir>/jest.setup.early.js',
     '<rootDir>/jest.setup.js'
