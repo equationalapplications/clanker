@@ -53,15 +53,9 @@ export function useMemoryBundle(entityId: string) {
     }
   }, [wiki, entityId])
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset state when deps change
-    setBundle(null)
-     
-    setError(null)
-     
-    setIsLoading(true)
-    void fetch()
-  }, [fetch])
+useEffect(() => {
+  void fetch()
+}, [fetch])
 
   return { bundle, isLoading, error, refetch: fetch }
 }
