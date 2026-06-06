@@ -1,3 +1,11 @@
+## [29.19.2](https://github.com/equationalapplications/clanker/compare/v29.19.1...v29.19.2) (2026-06-06)
+
+
+### Bug Fixes
+
+* **deps:** bump expo-speech-recognition to SDK 56 ([57af687](https://github.com/equationalapplications/clanker/commit/57af6876424741200463fe70df540cdc62eb9577))
+* **deps:** update expo-speech-recognition to 56.0.1 ([8da3451](https://github.com/equationalapplications/clanker/commit/8da3451efa06ead4fe162c88f614173a3b786a5b))
+
 ## [29.19.1](https://github.com/equationalapplications/clanker/compare/v29.19.0...v29.19.1) (2026-06-05)
 
 
