@@ -126,8 +126,7 @@ export function AcceptTerms({
           />
         </View>
         <Text style={styles.text}>
-          I am over 18 years of age and I have read and accept the Terms and Conditions and Privacy
-          Policy.
+          I have read and accept the Terms and Conditions and Privacy Policy.
         </Text>
       </View>
       <View style={styles.separatorSmall} />
