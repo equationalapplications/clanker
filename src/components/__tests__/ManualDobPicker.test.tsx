@@ -89,6 +89,10 @@ describe('ManualDobPicker', () => {
     fireEvent.press(screen.getByTestId('dob-submit'))
     expect(onComplete).not.toHaveBeenCalled()
 
+    fillDob('1', '1', '199a')
+    fireEvent.press(screen.getByTestId('dob-submit'))
+    expect(onComplete).not.toHaveBeenCalled()
+
     const futureYear = String(new Date().getFullYear() + 1)
     fillDob('1', '1', futureYear)
     fireEvent.press(screen.getByTestId('dob-submit'))

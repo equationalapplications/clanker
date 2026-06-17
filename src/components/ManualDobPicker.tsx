@@ -45,11 +45,13 @@ export function ManualDobPicker({ onComplete, loading = false }: ManualDobPicker
   const [year, setYear] = useState('')
 
   const handleSubmit = () => {
-    const m = parseInt(month, 10)
-    const d = parseInt(day, 10)
-    const y = parseInt(year, 10)
+    if (!/^\d{1,2}$/.test(month) || !/^\d{1,2}$/.test(day) || !/^\d{4}$/.test(year)) return
 
-    if (year.length !== 4 || !isValidBirthDate(y, m, d)) return
+    const m = Number(month)
+    const d = Number(day)
+    const y = Number(year)
+
+    if (!isValidBirthDate(y, m, d)) return
 
     const age = calculateAge(y, m, d)
     onComplete(age >= 18)

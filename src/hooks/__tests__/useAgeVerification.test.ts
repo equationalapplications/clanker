@@ -104,6 +104,17 @@ describe('iOS >= 26', () => {
     expect(result.current.isVerifying).toBe(false)
   })
 
+  it('shows DOB picker when lowerBound is null', async () => {
+    mockIsEligible.mockResolvedValue(true)
+    mockRequestAgeRange.mockResolvedValue({ lowerBound: null, upperBound: null })
+    const { result, onVerified, onRejected } = setup()
+    await act(() => result.current.verifyAge())
+    expect(result.current.showDobPicker).toBe(true)
+    expect(result.current.isVerifying).toBe(false)
+    expect(onVerified).not.toHaveBeenCalled()
+    expect(onRejected).not.toHaveBeenCalled()
+  })
+
   it('shows DOB picker when requestAgeRangeAsync throws', async () => {
     mockIsEligible.mockResolvedValue(true)
     mockRequestAgeRange.mockRejectedValue(new Error('not signed in'))

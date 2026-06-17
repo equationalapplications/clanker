@@ -27,7 +27,7 @@ Age verification is a pre-flight check before the existing `ACCEPT_TERMS` XState
 
 ## Platform Verification Flow
 
-```
+```text
 User taps "I Accept"
   │
   ├─ web                    → show ManualDobPicker immediately
