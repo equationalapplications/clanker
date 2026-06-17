@@ -42,6 +42,19 @@ jest.mock('~/components/AcceptTerms', () => ({
   },
 }))
 
+jest.mock('~/components/ManualDobPicker', () => ({
+  ManualDobPicker: () => null,
+}))
+
+jest.mock('~/hooks/useAgeVerification', () => ({
+  useAgeVerification: ({ onVerified }: { onVerified: () => void; onRejected: () => void }) => ({
+    verifyAge: onVerified,
+    isVerifying: false,
+    showDobPicker: false,
+    handleDobResult: jest.fn(),
+  }),
+}))
+
 type TermsSnapshot = {
   accepted: boolean
   accepting: boolean
