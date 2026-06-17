@@ -49,7 +49,7 @@ ManualDobPicker
 
 **Silent-pass platforms (confirmed from source):**
 - **Web** (`AgeRange.web.js`): hardcodes `return { lowerBound: 18 }` — intercepted by our web check before any API call.
-- **iOS < 26** (`AgeRange.js` comment): returns `lowerBound: 18` silently. Hook must check `parseInt(String(Platform.Version), 10) < 26` and route to `ManualDobPicker` before calling the API.
+- **iOS < 26** (`AgeRange.js` comment): returns `lowerBound: 18` silently. Hook must check `parseInt(String(Platform.Version), 10) < 26` and route to `ManualDobPicker` before calling the API. Note: "iOS 26" is NOT a typo — Apple switched to year-based versioning at WWDC 2025; iOS 26 is the Fall 2025 release. `parseInt("17.5") = 17`, `parseInt("26.1") = 26` — the check works correctly. Do NOT replace 26 with 16 or 17.
 - **Android**: uses `AgeSignalsManager.checkAgeSignals()` with `addOnFailureListener` — **rejects the promise (throws) on error**. No silent pass. Existing `throws → ManualDobPicker` path is sufficient; no Android version check needed.
 
 ## Hook: `useAgeVerification`
