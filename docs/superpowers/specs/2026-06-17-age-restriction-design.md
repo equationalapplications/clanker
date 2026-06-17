@@ -47,7 +47,10 @@ ManualDobPicker
   → age < 18  → alert + SIGN_OUT
 ```
 
-**iOS version check:** `expo-age-range` docs state unsupported platforms return `lowerBound: 18` by default — a silent pass that bypasses the gate for underage users on older iOS. The hook must check `parseInt(String(Platform.Version), 10) < 26` and route to `ManualDobPicker` before any native API call. Verify exact minimum version against installed `expo-age-range` docs at implementation time.
+**Silent-pass platforms (confirmed from source):**
+- **Web** (`AgeRange.web.js`): hardcodes `return { lowerBound: 18 }` — intercepted by our web check before any API call.
+- **iOS < 26** (`AgeRange.js` comment): returns `lowerBound: 18` silently. Hook must check `parseInt(String(Platform.Version), 10) < 26` and route to `ManualDobPicker` before calling the API.
+- **Android**: uses `AgeSignalsManager.checkAgeSignals()` with `addOnFailureListener` — **rejects the promise (throws) on error**. No silent pass. Existing `throws → ManualDobPicker` path is sufficient; no Android version check needed.
 
 ## Hook: `useAgeVerification`
 
