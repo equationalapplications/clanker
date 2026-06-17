@@ -45,6 +45,7 @@ export function ManualDobPicker({ onComplete, loading = false }: ManualDobPicker
   const [year, setYear] = useState('')
 
   const handleSubmit = () => {
+    if (loading) return
     if (!/^\d{1,2}$/.test(month) || !/^\d{1,2}$/.test(day) || !/^\d{4}$/.test(year)) return
 
     const m = Number(month)

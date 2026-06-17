@@ -18,7 +18,16 @@ function setup() {
   return { ...result, onVerified, onRejected }
 }
 
+let originalVersionDescriptor: PropertyDescriptor | undefined
+
 function setVersion(version: string) {
+  if (!originalVersionDescriptor) {
+    originalVersionDescriptor = Object.getOwnPropertyDescriptor(Platform, 'Version') ?? {
+      value: Platform.Version,
+      configurable: true,
+      writable: true,
+    }
+  }
   Object.defineProperty(Platform, 'Version', {
     value: version,
     configurable: true,
@@ -26,9 +35,20 @@ function setVersion(version: string) {
   })
 }
 
+function resetPlatformVersion() {
+  if (originalVersionDescriptor) {
+    Object.defineProperty(Platform, 'Version', originalVersionDescriptor)
+    originalVersionDescriptor = undefined
+  }
+}
+
 beforeEach(() => {
   jest.clearAllMocks()
+})
+
+afterEach(() => {
   __resetJestPlatformOS()
+  resetPlatformVersion()
 })
 
 describe('web', () => {
