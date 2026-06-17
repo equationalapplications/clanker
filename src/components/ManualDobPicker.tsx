@@ -4,6 +4,7 @@ import { TextInput, Button, Text } from 'react-native-paper'
 
 interface ManualDobPickerProps {
   onComplete: (isAdult: boolean) => void
+  loading?: boolean
 }
 
 function isValidBirthDate(year: number, month: number, day: number): boolean {
@@ -38,7 +39,7 @@ function calculateAge(year: number, month: number, day: number): number {
   return age
 }
 
-export function ManualDobPicker({ onComplete }: ManualDobPickerProps) {
+export function ManualDobPicker({ onComplete, loading = false }: ManualDobPickerProps) {
   const [month, setMonth] = useState('')
   const [day, setDay] = useState('')
   const [year, setYear] = useState('')
@@ -86,7 +87,14 @@ export function ManualDobPicker({ onComplete }: ManualDobPickerProps) {
           style={styles.yearField}
         />
       </View>
-      <Button testID="dob-submit" mode="contained" onPress={handleSubmit} style={styles.button}>
+      <Button
+        testID="dob-submit"
+        mode="contained"
+        onPress={handleSubmit}
+        style={styles.button}
+        loading={loading}
+        disabled={loading}
+      >
         Continue
       </Button>
     </View>

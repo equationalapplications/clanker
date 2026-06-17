@@ -69,6 +69,14 @@ describe('ManualDobPicker', () => {
     expect(onComplete).not.toHaveBeenCalled()
   })
 
+  it('does not call onComplete when loading', () => {
+    const onComplete = jest.fn()
+    render(<ManualDobPicker onComplete={onComplete} loading />)
+    fillDob('1', '1', '1990')
+    fireEvent.press(screen.getByTestId('dob-submit'))
+    expect(onComplete).not.toHaveBeenCalled()
+  })
+
   it('does not call onComplete for invalid dates', () => {
     const onComplete = jest.fn()
     render(<ManualDobPicker onComplete={onComplete} />)

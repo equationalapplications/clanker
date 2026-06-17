@@ -62,7 +62,7 @@ export default function AcceptTermsScreen() {
   if (showDobPicker) {
     return (
       <View style={styles.container}>
-        <ManualDobPicker onComplete={handleDobResult} />
+        <ManualDobPicker onComplete={handleDobResult} loading={accepting} />
       </View>
     )
   }
