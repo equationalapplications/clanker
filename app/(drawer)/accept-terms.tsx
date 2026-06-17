@@ -46,6 +46,15 @@ export default function AcceptTermsScreen() {
     onRejected: handleRejectedMinor,
   })
 
+  useEffect(() => {
+    if (showDobPicker && error) {
+      Alert.alert(
+        'Error',
+        `Failed to record your acceptance. Please check your connection and try again.\n\n${error.message}`,
+      )
+    }
+  }, [showDobPicker, error])
+
   const handleCanceled = () => {
     authService.send({ type: 'SIGN_OUT' })
   }

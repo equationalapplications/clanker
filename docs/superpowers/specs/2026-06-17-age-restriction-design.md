@@ -15,9 +15,15 @@ Age verification is a pre-flight check before the existing `ACCEPT_TERMS` XState
 | File | Action |
 |------|--------|
 | `src/hooks/useAgeVerification.ts` | New — platform branching, native API calls, fallback state |
+| `src/hooks/__tests__/useAgeVerification.test.ts` | New — unit tests for hook branching and fallback behavior |
 | `src/components/ManualDobPicker.tsx` | New — DOB input UI for web and native error fallback |
-| `app/(drawer)/accept-terms.tsx` | Modified — wire hook, conditional render |
+| `src/components/__tests__/ManualDobPicker.test.tsx` | New — unit tests for DOB picker validation and age boundaries |
+| `app/(drawer)/accept-terms.tsx` | Modified — wire hook, conditional render, DOB-path error alerts |
 | `src/components/AcceptTerms.tsx` | Modified — remove "I am over 18 years of age and" from checkbox text |
+| `__tests__/acceptTermsScreen.test.tsx` | Modified — mocks and coverage for DOB fallback branch |
+| `app.config.ts` | Modified — iOS entitlements for age-range support |
+| `package.json` / `package-lock.json` | Modified — add `expo-age-range`, dependency bumps |
+| `docs/superpowers/plans/2026-06-17-age-restriction.md` | New — implementation plan |
 
 ## Platform Verification Flow
 
@@ -92,7 +98,9 @@ interface ManualDobPickerProps {
 }
 ```
 
-**UI:** Three dropdowns (Month / Day / Year) using react-native-paper, plus a "Continue" button. Heading: "Enter your date of birth to continue." No mention of age threshold — neutral framing to prevent gaming.
+**UI:** Three numeric `TextInput` fields (Month / Day / Year) using react-native-paper, plus a "Continue" button. Heading: "Enter your date of birth to continue." No mention of age threshold — neutral framing to prevent gaming.
+
+**Validation:** Reject non-integer, out-of-range, or calendar-invalid values (e.g. month 13, Feb 31, negative components). Reject dates that `Date()` would normalize to a different calendar day. Reject future birthdates. Only call `onComplete` when the DOB passes validation.
 
 **Logic:** On submit, calculates age from selected DOB using full date comparison (not year subtraction alone — must account for whether birthday has passed this year). Calls `onComplete(age >= 18)`.
 
@@ -132,7 +140,7 @@ Age is now enforced by the hook, not self-attested in the UI.
 |----------|----------|
 | Minor detected (native or DOB) | `Alert("Age Restriction", "This app is for users 18 and older.")` then `SIGN_OUT` |
 | Native API throws | Silently swap to `ManualDobPicker`, no error shown |
-| Terms API error (existing) | Unchanged — existing `Alert` in `AcceptTerms.tsx` |
+| Terms API error (existing) | `Alert` in `AcceptTerms.tsx` when on terms screen; same alert in `accept-terms.tsx` when `showDobPicker` is active |
 
 ## Out of Scope
 

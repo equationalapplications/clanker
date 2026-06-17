@@ -6,6 +6,29 @@ interface ManualDobPickerProps {
   onComplete: (isAdult: boolean) => void
 }
 
+function isValidBirthDate(year: number, month: number, day: number): boolean {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return false
+  }
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return false
+  }
+
+  const birth = new Date(year, month - 1, day)
+  if (
+    birth.getFullYear() !== year ||
+    birth.getMonth() !== month - 1 ||
+    birth.getDate() !== day
+  ) {
+    return false
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  birth.setHours(0, 0, 0, 0)
+  return birth <= today
+}
+
 function calculateAge(year: number, month: number, day: number): number {
   const today = new Date()
   const birth = new Date(year, month - 1, day) // month is 1-indexed from inputs
@@ -25,7 +48,7 @@ export function ManualDobPicker({ onComplete }: ManualDobPickerProps) {
     const d = parseInt(day, 10)
     const y = parseInt(year, 10)
 
-    if (!m || !d || !y || year.length !== 4) return
+    if (year.length !== 4 || !isValidBirthDate(y, m, d)) return
 
     const age = calculateAge(y, m, d)
     onComplete(age >= 18)

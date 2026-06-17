@@ -42,7 +42,10 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
       const ageRange = await AgeRange.requestAgeRangeAsync({ threshold1: 18 })
 
       setIsVerifying(false)
-      if (ageRange.lowerBound >= 18) {
+      const { lowerBound } = ageRange
+      if (lowerBound == null) {
+        setShowDobPicker(true)
+      } else if (lowerBound >= 18) {
         onVerified()
       } else {
         onRejected()
