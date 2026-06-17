@@ -1,3 +1,30 @@
+# [30.0.0](https://github.com/equationalapplications/clanker/compare/v29.19.2...v30.0.0) (2026-06-17)
+
+
+* feat(age-restriction)!: refactor age verification with custom hook ([3ba987e](https://github.com/equationalapplications/clanker/commit/3ba987e280c97f530d100b7be48f4c873a4fb3f4))
+
+
+### Bug Fixes
+
+* **age-restriction:** address CodeRabbit review on DOB parsing and tests ([b60b1fd](https://github.com/equationalapplications/clanker/commit/b60b1fd175ef02a4be54fc1ea1701587b9b79078))
+* **age-restriction:** address PR review feedback on DOB validation and tests ([abf5b12](https://github.com/equationalapplications/clanker/commit/abf5b1206c92ee3dcaefc71936e1062653bdadeb))
+* **age-restriction:** show loading state on DOB fallback submit ([1610472](https://github.com/equationalapplications/clanker/commit/16104728d87a7686623447a46564f5d9fa6055d3))
+* **age-verification:** address PR 442 Copilot review feedback ([17a920a](https://github.com/equationalapplications/clanker/commit/17a920a0fa043fe7039b0c1c68bc71d2ca5a3d66))
+* **test:** replace expo-router requireActual mock to fix Jest ESM parse error ([af19bd3](https://github.com/equationalapplications/clanker/commit/af19bd34fcb3936b005f8a2976d5bc3bfdab20a9))
+
+
+### Features
+
+* add ManualDobPicker component with age calculation ([8417811](https://github.com/equationalapplications/clanker/commit/8417811371229ae7cc3b71d802689c533dbd05e8))
+* add useAgeVerification hook with platform branching ([6857b05](https://github.com/equationalapplications/clanker/commit/6857b052bde4a07cd92a85df1d4ede6909cea174))
+* remove age self-attestation from terms checkbox — enforced by hook ([58b908b](https://github.com/equationalapplications/clanker/commit/58b908b10e4ae11120a38e963b5e353ab9dc15f4))
+* wire useAgeVerification into accept-terms screen ([1a5a60f](https://github.com/equationalapplications/clanker/commit/1a5a60f8902e1b3fa8807663ce69364f37188e42))
+
+
+### BREAKING CHANGES
+
+* Age verification now requires native build due to hook architecture changes
+
 ## [29.19.2](https://github.com/equationalapplications/clanker/compare/v29.19.1...v29.19.2) (2026-06-06)
 
 
