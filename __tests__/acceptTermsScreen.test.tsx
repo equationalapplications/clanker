@@ -34,12 +34,30 @@ type AcceptTermsProps = {
 }
 
 let mockLastAcceptTermsProps: AcceptTermsProps | null = null
+let mockShowDobPicker = false
+let mockManualDobPickerRendered = false
 
 jest.mock('~/components/AcceptTerms', () => ({
   AcceptTerms: (props: AcceptTermsProps) => {
     mockLastAcceptTermsProps = props
     return null
   },
+}))
+
+jest.mock('~/components/ManualDobPicker', () => ({
+  ManualDobPicker: () => {
+    mockManualDobPickerRendered = true
+    return null
+  },
+}))
+
+jest.mock('~/hooks/useAgeVerification', () => ({
+  useAgeVerification: ({ onVerified }: { onVerified: () => void; onRejected: () => void }) => ({
+    verifyAge: onVerified,
+    isVerifying: false,
+    showDobPicker: mockShowDobPicker,
+    handleDobResult: jest.fn(),
+  }),
 }))
 
 type TermsSnapshot = {
@@ -69,6 +87,8 @@ describe('accept-terms screen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockLastAcceptTermsProps = null
+    mockShowDobPicker = false
+    mockManualDobPickerRendered = false
     mockUseLocalSearchParams.mockReturnValue({ isUpdate: 'false' })
     setTermsSnapshot({ accepted: false, accepting: false, error: null })
   })
@@ -122,5 +142,18 @@ describe('accept-terms screen', () => {
     })
 
     expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+  })
+
+  it('renders ManualDobPicker instead of AcceptTerms when showDobPicker is true', () => {
+    mockShowDobPicker = true
+
+    const AcceptTermsScreen = require('../app/(drawer)/accept-terms').default
+
+    renderer.act(() => {
+      renderer.create(<AcceptTermsScreen />)
+    })
+
+    expect(mockManualDobPickerRendered).toBe(true)
+    expect(mockLastAcceptTermsProps).toBeNull()
   })
 })

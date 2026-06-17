@@ -96,9 +96,11 @@ jest.mock('expo-sqlite', () => {
   }
 })
 
-// Mock only the expo-router pieces needed for tests while preserving other runtime exports
+// Mock expo-router without requireActual — expo-router now depends on
+// standard-navigation (ESM), which Jest cannot parse from node_modules.
 jest.mock('expo-router', () => {
-  const actualExpoRouter = jest.requireActual('expo-router')
+  const React = require('react')
+
   const mockRouter = {
     push: jest.fn(),
     replace: jest.fn(),
@@ -107,13 +109,23 @@ jest.mock('expo-router', () => {
     setParams: jest.fn(),
   }
 
+  const Passthrough = ({ children }) => children ?? null
+
   return {
-    ...actualExpoRouter,
-    Link: ({ children, href }) => children,
-    router: actualExpoRouter.router ?? mockRouter,
+    Link: ({ children }) => children,
+    Redirect: ({ href }) => React.createElement('Redirect', { href }),
+    Stack: Passthrough,
+    Tabs: Passthrough,
+    router: mockRouter,
     useRouter: () => mockRouter,
     useSegments: () => [],
     usePathname: () => '/',
+    useLocalSearchParams: () => ({}),
+    useNavigation: () => ({
+      navigate: jest.fn(),
+      goBack: jest.fn(),
+      setOptions: jest.fn(),
+    }),
   }
 })
 

@@ -108,6 +108,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     config: {
       usesNonExemptEncryption: false,
     },
+    entitlements: {
+      'com.apple.developer.declared-age-range': true
+    }
   },
   android: {
     package: 'com.equationalapplications.clanker',
