@@ -250,7 +250,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
               originWhitelist={['about:blank', 'http://*', 'https://*']}
               source={{ html: renderedContent }}
               style={styles.searchSuggestions}
-              scrollEnabled={false}
+              scrollEnabled={true}
               javaScriptEnabled={false}
               domStorageEnabled={false}
               setSupportMultipleWindows={false}

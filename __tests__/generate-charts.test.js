@@ -1,4 +1,4 @@
-const { queryFileEdges, renderFileChart } = require('../scripts/generate-charts')
+const { queryFileEdges, renderFileChart, toDocFilename } = require('../scripts/generate-charts')
 
 describe('queryFileEdges', () => {
   it('scopes query to directory and returns deduplicated file-to-file edges', () => {
@@ -27,6 +27,18 @@ describe('queryFileEdges', () => {
     }
     expect(queryFileEdges(mockDb, 'hooks')).toHaveLength(0)
   })
+
+  it('restricts call targets to src/', () => {
+    let capturedSql
+    const mockDb = {
+      prepare: (sql) => {
+        capturedSql = sql
+        return { all: () => [] }
+      },
+    }
+    queryFileEdges(mockDb, 'hooks')
+    expect(capturedSql).toContain("nt.file_path LIKE 'src/%'")
+  })
 })
 
 describe('renderFileChart', () => {
@@ -47,5 +59,12 @@ describe('renderFileChart', () => {
     const result = renderFileChart('hooks', [])
     expect(result).toContain('_No edges found')
     expect(result).not.toContain('graph LR')
+  })
+})
+
+describe('toDocFilename', () => {
+  it('converts directory names to SCREAMING_SNAKE_CASE markdown filenames', () => {
+    expect(toDocFilename('hooks')).toBe('HOOKS.md')
+    expect(toDocFilename('components')).toBe('COMPONENTS.md')
   })
 })

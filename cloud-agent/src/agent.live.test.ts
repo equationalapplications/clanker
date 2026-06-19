@@ -4,6 +4,10 @@ import type { DrizzleClient } from './db/client.js'
 
 const { runAgentReal } = await import('./index.js')
 
+// Mock DB is an empty object; the test prompt is carefully designed to only
+// invoke get_current_time and google_search, avoiding wiki/tasks/documents/reminders
+// that would require actual DB operations. Future prompt changes that trigger DB tools
+// may cause unpredictable failures.
 const mockDb = {} as unknown as DrizzleClient
 const mockEmbed = async (_text: string): Promise<number[]> => [0.1, 0.2]
 const liveTestsEnabled = process.env.RUN_LIVE_TESTS === '1'
@@ -18,7 +22,8 @@ test(
       characterId: 'live-test-character',
       systemInstruction:
         'You are a helpful assistant. You must call tools before answering when the user asks for live or current information. ' +
-        'Always call get_current_time for the current time and google_search for current weather or other real-time facts. ' +
+        'Only use get_current_time for the current time and google_search for current weather or other real-time facts. ' +
+        'Do not use wiki, task, document, or reminder tools. ' +
         'Do not answer from memory or prior knowledge; invoke the required tools first, then summarize the results.',
       message: 'What time is it right now, and what is the current weather in New York?',
       history: [],
