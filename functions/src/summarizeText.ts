@@ -93,7 +93,7 @@ function getGenAIClient(): GoogleGenAI {
   if (!project) {
     throw new HttpsError(
       "failed-precondition",
-      "Missing GCLOUD_PROJECT for text summarization."
+      "Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for text summarization."
     );
   }
 

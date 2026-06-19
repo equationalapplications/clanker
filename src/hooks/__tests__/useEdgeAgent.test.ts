@@ -11,7 +11,7 @@ describe('useEdgeAgent', () => {
     })
 
     expect(response).toEqual({ escalated: true })
-    expect(result.current.escalationState).toBe('idle')
+    expect(result.current.escalationState).toBe('escalating')
     expect(result.current.isThinking).toBe(false)
   })
 })

@@ -140,7 +140,10 @@ function getGenAIClient(): GoogleGenAI {
 
   const project = (process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT)?.trim();
   if (!project) {
-    throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for memory heal.');
+    throw new HttpsError(
+      'failed-precondition',
+      'Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for memory heal.',
+    );
   }
 
   genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });

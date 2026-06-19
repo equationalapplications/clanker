@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 
 export type EscalationState = 'idle' | 'escalating'
 
@@ -15,12 +15,15 @@ export interface UseEdgeAgentReturn {
 // (generateReply / cloud-agent) via useAIChat's existing fallback chain, so this
 // always escalates and takes no inputs.
 export function useEdgeAgent(): UseEdgeAgentReturn {
+  const [escalationState, setEscalationState] = useState<EscalationState>('idle')
+
   const sendMessage = useCallback(
     async (): Promise<{ escalated: boolean; text?: string }> => {
+      setEscalationState('escalating')
       return { escalated: true }
     },
     [],
   )
 
-  return { sendMessage, isThinking: false, escalationState: 'idle' }
+  return { sendMessage, isThinking: false, escalationState }
 }

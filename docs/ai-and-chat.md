@@ -450,12 +450,12 @@ gcloud auth application-default login
 
 **`docker-compose.local.yml` wiring** (already in place):
 - Mounts `${HOME}/.config/gcloud` read-only into the container, so the container sees the host's ADC.
-- Sets `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT=${GCP_PROJECT:-clanker-prod}`, `GOOGLE_CLOUD_LOCATION=global` — the `@google/genai` SDK auto-detects these three env vars when no explicit client config is passed (this is how `agent.ts`'s `LlmAgent` picks up Vertex AI without any code wiring).
+- Sets `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT=${GCP_PROJECT:?Set GCP_PROJECT to a non-production project}`, `GOOGLE_CLOUD_LOCATION=global` — the `@google/genai` SDK auto-detects these three env vars when no explicit client config is passed (this is how `agent.ts`'s `LlmAgent` picks up Vertex AI without any code wiring). `GCP_PROJECT` must be set explicitly; compose fails fast if it is missing.
 
 **Run it:**
 
 ```bash
-docker compose -f docker-compose.local.yml up -d
+GCP_PROJECT=your-dev-project docker compose -f docker-compose.local.yml up -d
 ```
 
-Caveat: there's no separate dev/staging GCP project — local runs hit real Vertex AI in `clanker-prod`, billed there. Override the project via `GCP_PROJECT=other-project docker compose -f docker-compose.local.yml up -d` if you ever provision a dedicated dev project.
+Caveat: local runs call real Vertex AI and bill whichever GCP project you set via `GCP_PROJECT`. Use a non-production project (the compose file enforces this by requiring `GCP_PROJECT` and suggesting a non-production value in its error message).
