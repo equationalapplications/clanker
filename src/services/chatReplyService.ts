@@ -55,7 +55,7 @@ export interface GenerateChatReplyResult {
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
+  return Object.prototype.toString.call(value) === '[object Object]'
 }
 
 function parseGroundingMetadata(raw: unknown): GroundingMetadata | undefined {
@@ -70,11 +70,23 @@ function parseGroundingMetadata(raw: unknown): GroundingMetadata | undefined {
   }
 
   if (Array.isArray(raw.groundingChunks)) {
-    metadata.groundingChunks = raw.groundingChunks as GroundingMetadata['groundingChunks']
+    const chunks = raw.groundingChunks.filter(
+      (chunk): chunk is NonNullable<GroundingMetadata['groundingChunks']>[number] =>
+        isPlainObject(chunk),
+    )
+    if (chunks.length > 0) {
+      metadata.groundingChunks = chunks
+    }
   }
 
   if (Array.isArray(raw.groundingSupports)) {
-    metadata.groundingSupports = raw.groundingSupports as GroundingMetadata['groundingSupports']
+    const supports = raw.groundingSupports.filter(
+      (support): support is NonNullable<GroundingMetadata['groundingSupports']>[number] =>
+        isPlainObject(support),
+    )
+    if (supports.length > 0) {
+      metadata.groundingSupports = supports
+    }
   }
 
   if (

@@ -219,6 +219,25 @@ describe('generateChatReply', () => {
     expect(result.groundingMetadata).toBeUndefined()
   })
 
+  it('drops malformed groundingChunks entries', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: {
+        reply: 'Reply',
+        verifiedAt: '2026-01-01T00:00:00.000Z',
+        groundingMetadata: { groundingChunks: [null, { web: { uri: 'https://example.com' } }] },
+      },
+    })
+
+    const resultPromise = generateChatReply({ prompt: 'hello' })
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    const result = await resultPromise
+    expect(result.groundingMetadata?.groundingChunks).toEqual([{ web: { uri: 'https://example.com' } }])
+  })
+
   describe('mock auth branch (EXPO_PUBLIC_USE_MOCK_AUTH)', () => {
     const originalEnv = process.env.EXPO_PUBLIC_USE_MOCK_AUTH
 

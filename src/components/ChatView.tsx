@@ -246,16 +246,28 @@ export default function ChatView({ characterId }: ChatViewProps) {
             </View>
           )}
           {renderedContent && (
-<WebView
-  originWhitelist={['about:blank']}
-  source={{ html: renderedContent }}
-  style={styles.searchSuggestions}
-  scrollEnabled={false}
-  javaScriptEnabled={false}
-  domStorageEnabled={false}
-  setSupportMultipleWindows={false}
-  onShouldStartLoadWithRequest={(request) => request.url === 'about:blank'}
-/>
+            <WebView
+              originWhitelist={['about:blank', 'https://*']}
+              source={{ html: renderedContent }}
+              style={styles.searchSuggestions}
+              scrollEnabled={false}
+              javaScriptEnabled={false}
+              domStorageEnabled={false}
+              setSupportMultipleWindows={false}
+              onShouldStartLoadWithRequest={(request) => {
+                if (request.url === 'about:blank') {
+                  return true
+                }
+
+                if (isSafeHttpUrl(request.url)) {
+                  void Linking.openURL(request.url).catch((error) => {
+                    console.warn('Failed to open search suggestion URL', error)
+                  })
+                }
+
+                return false
+              }}
+            />
           )}
         </View>
       )
