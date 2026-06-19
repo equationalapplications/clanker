@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {HttpsError} from "firebase-functions/v2/https";
 
-import {generateReplyHandler} from "./generateReply.js";
+import {generateReplyHandler, toGenAITool} from "./generateReply.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
@@ -103,6 +103,26 @@ async function withServiceMocks(run: () => Promise<void>) {
   }
 }
 
+test("toGenAITool maps a google_search entry to the camelCase googleSearch field", () => {
+  const result = toGenAITool({ google_search: {} } as never);
+  assert.deepEqual(result, { googleSearch: {} });
+});
+
+test("toGenAITool passes functionDeclarations entries through", () => {
+  const functionDeclarations = [
+    { name: "get_current_time", description: "Returns the current time." },
+  ];
+  const result = toGenAITool({ functionDeclarations } as never);
+  assert.deepEqual(result, { functionDeclarations });
+});
+
+test("toGenAITool throws on an unrecognized tool entry", () => {
+  assert.throws(
+    () => toGenAITool({} as never),
+    /Unsupported tool entry/
+  );
+});
+
 test("generateReplyHandler rejects unauthenticated calls", async () => {
   await assert.rejects(
     async () => generateReplyHandler({auth: null, data: {prompt: "Hello"}} as never),
@@ -131,7 +151,7 @@ test("generateReplyHandler validates prompt", async () => {
             },
           } as never,
           {
-            generateText: async () => "unused",
+            generateText: async () => ({ text: "unused" }),
           }
         ),
       (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
@@ -193,7 +213,7 @@ test("generateReplyHandler allows intro requests with structured payload to proc
       {
         generateText: async () => {
           generateTextCalled = true;
-          return 'intro response';
+          return { text: 'intro response' };
         },
       }
     );
@@ -229,7 +249,7 @@ test("generateReplyHandler rejects oversized structured contents payloads", asyn
             },
           } as never,
           {
-            generateText: async () => 'unused',
+            generateText: async () => ({ text: 'unused' }),
           }
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
@@ -259,7 +279,7 @@ test("generateReplyHandler rejects malformed structured contents items", async (
             },
           } as never,
           {
-            generateText: async () => 'unused',
+            generateText: async () => ({ text: 'unused' }),
           }
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
@@ -276,7 +296,7 @@ test("generateReplyHandler rejects malformed structured contents items", async (
             },
           } as never,
           {
-            generateText: async () => 'unused',
+            generateText: async () => ({ text: 'unused' }),
           }
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
@@ -306,7 +326,7 @@ test("generateReplyHandler spends one credit for payg users", async () => {
         data: buildStructuredRequestData('hello'),
       } as never,
       {
-        generateText: async () => "reply from model",
+        generateText: async () => ({ text: "reply from model" }),
       }
     );
 
@@ -343,7 +363,7 @@ test("generateReplyHandler rejects users without credits", async () => {
             data: buildStructuredRequestData('hello'),
           } as never,
           {
-            generateText: async () => "subscriber reply",
+            generateText: async () => ({ text: "subscriber reply" }),
           }
         ),
       (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
@@ -375,7 +395,7 @@ test("generateReplyHandler allows cancelled plans to spend remaining credits", a
         data: buildStructuredRequestData('hello'),
       } as never,
       {
-        generateText: async () => "reply from model",
+        generateText: async () => ({ text: "reply from model" }),
       }
     );
 
@@ -404,7 +424,7 @@ test("generateReplyHandler rejects when user has no credits and no unlimited pla
             data: buildStructuredRequestData('hello'),
           } as never,
           {
-            generateText: async () => "unused",
+            generateText: async () => ({ text: "unused" }),
           }
         ),
       (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
@@ -437,7 +457,7 @@ test("generateReplyHandler rejects unsyncedHistory entries with non-user roles",
             },
           } as never,
           {
-            generateText: async () => "reply",
+            generateText: async () => ({ text: "reply" }),
           }
         ),
       (err: unknown) =>
@@ -488,7 +508,7 @@ test("generateReplyHandler validates character ownership before bulk inserting u
             },
           } as never,
           {
-            generateText: async () => "reply",
+            generateText: async () => ({ text: "reply" }),
             getDb: async () => mockDb as never,
           }
         ),
@@ -519,7 +539,7 @@ test("generateReplyHandler does not bootstrap a subscription in the new credit f
         data: buildStructuredRequestData('hello'),
       } as never,
       {
-        generateText: async () => "reply from model",
+        generateText: async () => ({ text: "reply from model" }),
       }
     );
 
@@ -637,7 +657,7 @@ test("generateReplyHandler maps identity conflicts to failed-precondition", asyn
             data: buildStructuredRequestData('hello'),
           } as never,
           {
-            generateText: async () => "unused",
+            generateText: async () => ({ text: "unused" }),
           }
         ),
       (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
@@ -689,7 +709,7 @@ test("generateReplyHandler bulk inserts unsyncedHistory before generating a repl
         },
       } as never,
       {
-        generateText: async () => "cloud reply",
+        generateText: async () => ({ text: "cloud reply" }),
         getDb: async () => mockDb as never,
       }
     );
@@ -746,12 +766,70 @@ test("generateReplyHandler still returns reply when unsyncedHistory DB insert fa
         },
       } as never,
       {
-        generateText: async () => "reply despite db failure",
+        generateText: async () => ({ text: "reply despite db failure" }),
         getDb: async () => failingDb as never,
       }
     );
 
     assert.equal(result.reply, "reply despite db failure");
     assert.equal(result.creditsSpent, 1);
+  });
+});
+
+test("generateReplyHandler forwards groundingMetadata when the model grounds its reply", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    const groundingMetadata = {
+      webSearchQueries: ['weather in Tokyo'],
+      groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+      searchEntryPoint: { renderedContent: '<div>suggestions</div>' },
+    };
+
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: buildStructuredRequestData('what is the weather in Tokyo'),
+      } as never,
+      {
+        generateText: async () => ({ text: 'It is sunny in Tokyo.', groundingMetadata }),
+      }
+    );
+
+    assert.equal(result.reply, 'It is sunny in Tokyo.');
+    assert.deepEqual(result.groundingMetadata, groundingMetadata);
+  });
+});
+
+test("generateReplyHandler omits groundingMetadata when the model does not ground its reply", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: buildStructuredRequestData('hello'),
+      } as never,
+      {
+        generateText: async () => ({ text: 'hi there' }),
+      }
+    );
+
+    assert.equal(result.reply, 'hi there');
+    assert.equal(result.groundingMetadata, undefined);
   });
 });
