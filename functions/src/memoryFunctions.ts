@@ -2,6 +2,7 @@ import * as logger from 'firebase-functions/logger';
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { DecodedIdToken } from 'firebase-admin/auth';
+import { GoogleGenAI } from '@google/genai';
 
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 
@@ -127,46 +128,45 @@ type MemoryFunctionDeps = {
   generateContent: (prompt: string) => Promise<string>;
 };
 
-interface VertexGenerativeModel {
-  generateContent(prompt: string): Promise<{ response: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> } }>;
-}
-interface VertexAILike {
-  getGenerativeModel(config: { model: string; generationConfig: { maxOutputTokens: number } }): VertexGenerativeModel;
-}
-interface VertexAIModule {
-  VertexAI: new (config: { project: string; location: string }) => VertexAILike;
-}
+let genAIClient: GoogleGenAI | undefined;
 
-let healModelPromise: Promise<VertexGenerativeModel> | undefined;
+function getGenAIClient(): GoogleGenAI {
+  if (genAIClient) {
+    return genAIClient;
+  }
 
-async function getHealModel(): Promise<VertexGenerativeModel> {
-  if (healModelPromise) return healModelPromise;
   const project = (process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT)?.trim();
   if (!project) {
     throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for memory heal.');
   }
-  healModelPromise = (async () => {
-    try {
-      const moduleName = '@google-cloud/vertexai';
-      const mod = await import(moduleName) as VertexAIModule;
-      const vertex = new mod.VertexAI({ project, location: DEFAULT_REGION });
-      return vertex.getGenerativeModel({
-        model: HEAL_MODEL,
-        generationConfig: { maxOutputTokens: HEAL_MAX_OUTPUT_TOKENS },
-      });
-    } catch (err: unknown) {
-      healModelPromise = undefined;
-      throw err;
-    }
-  })();
-  return healModelPromise;
+
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  return genAIClient;
 }
 
 async function defaultGenerateContent(prompt: string): Promise<string> {
-  const model = await getHealModel();
-  const result = await model.generateContent(prompt);
-  const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  return text;
+  const ai = getGenAIClient();
+  const result = await ai.models.generateContent({
+    model: HEAL_MODEL,
+    contents: prompt,
+    config: {
+      maxOutputTokens: HEAL_MAX_OUTPUT_TOKENS,
+    },
+  });
+  const candidates = result.candidates ?? [];
+
+  for (const candidate of candidates) {
+    const parts = candidate.content?.parts ?? [];
+    const text = parts
+      .map((part) => (typeof part.text === 'string' ? part.text : ''))
+      .join('')
+      .trim();
+    if (text) {
+      return text;
+    }
+  }
+
+  return '';
 }
 
 const defaultDeps: MemoryFunctionDeps = {
