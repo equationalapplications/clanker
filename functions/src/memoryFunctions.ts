@@ -13,7 +13,7 @@ import { getDb } from './db/cloudSql.js';
 import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
 
 const DEFAULT_REGION = 'us-central1';
-const HEAL_MODEL = 'gemini-2.5-flash';
+const HEAL_MODEL = 'gemini-3-flash-preview';
 const HEAL_MAX_OUTPUT_TOKENS = 1_024;
 
 type MemoryIdentity = {

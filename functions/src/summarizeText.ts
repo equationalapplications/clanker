@@ -3,7 +3,7 @@ import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { GoogleGenAI } from "@google/genai";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 const DEFAULT_REGION = "us-central1";
 const MAX_INPUT_LENGTH = 16_000;
 const MAX_OUTPUT_TOKENS = 1_024;

@@ -3,6 +3,7 @@ import * as logger from 'firebase-functions/logger';
 import { createHash } from 'node:crypto';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { and, eq, sql } from 'drizzle-orm';
+import { GoogleGenAI, Type, type Schema } from '@google/genai';
 
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 import { userRepository } from './services/userRepository.js';
@@ -13,7 +14,7 @@ import { characters, subscriptions } from './db/schema.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_REGION = 'us-central1';
-const EXTRACT_MODEL = 'gemini-2.5-flash';
+const EXTRACT_MODEL = 'gemini-3-flash-preview';
 const MAX_DOCUMENT_CHARS = 200_000;
 const MAX_DOCUMENTS_PER_DAY = 5;
 const MAX_CHUNKS = 100;
@@ -59,80 +60,59 @@ interface DocumentExtractDeps {
   generateContent: (prompt: string) => Promise<string>;
 }
 
-// ─── Helper: Vertex AI lazy singleton ─────────────────────────────────────────
-interface GenerativeModelLike {
-  generateContent(prompt: string): Promise<{
-    response: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-  }>;
-}
+const FACT_EXTRACTION_SCHEMA: Schema = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING, maxLength: '80' },
+      body: { type: Type.STRING, maxLength: '200' },
+      tags: {
+        type: Type.ARRAY,
+        maxItems: '6',
+        items: { type: Type.STRING, maxLength: '40' },
+      },
+      confidence: { type: Type.STRING, enum: ['certain', 'inferred', 'tentative'] },
+    },
+    required: ['title', 'body', 'tags', 'confidence'],
+  },
+};
 
-let modelPromise: Promise<GenerativeModelLike> | undefined;
+let genAIClient: GoogleGenAI | undefined;
 
 function getProjectId(): string {
   const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
   const value = fromEnv?.trim();
-  if (!value) throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for Vertex AI.');
+  if (!value) throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for document extraction.');
   return value;
 }
 
-async function getModel(): Promise<GenerativeModelLike> {
-  if (modelPromise) return modelPromise;
-  modelPromise = (async () => {
-    try {
-      const moduleName = '@google-cloud/vertexai';
-      const vertexModule = await import(moduleName) as {
-        VertexAI: new (cfg: { project: string; location: string }) => {
-          getGenerativeModel(cfg: {
-            model: string;
-            generationConfig: {
-              maxOutputTokens: number;
-              responseMimeType?: string;
-              responseSchema?: unknown;
-            };
-          }): GenerativeModelLike;
-        };
-      };
-      const vertex = new vertexModule.VertexAI({ project: getProjectId(), location: DEFAULT_REGION });
-      // JSON schema for structured extraction output
-      const responseSchema = {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            title: { type: 'string', maxLength: 80 },
-            body: { type: 'string', maxLength: 200 },
-            tags: {
-              type: 'array',
-              maxItems: 6,
-              items: { type: 'string', maxLength: 40 },
-            },
-            confidence: { type: 'string', enum: ['certain', 'inferred', 'tentative'] },
-          },
-          required: ['title', 'body', 'tags', 'confidence'],
-        },
-      };
-      return vertex.getGenerativeModel({
-        model: EXTRACT_MODEL,
-        generationConfig: {
-          maxOutputTokens: 2048,
-          responseMimeType: 'application/json',
-          responseSchema,
-        },
-      });
-    } catch (err) {
-      modelPromise = undefined;
-      if (err instanceof HttpsError) throw err;
-      throw new HttpsError('failed-precondition', `Failed to load Vertex AI: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  })();
-  return modelPromise;
+function getGenAIClient(): GoogleGenAI {
+  if (genAIClient) {
+    return genAIClient;
+  }
+
+  genAIClient = new GoogleGenAI({
+    vertexai: true,
+    project: getProjectId(),
+    location: DEFAULT_REGION,
+  });
+  return genAIClient;
 }
 
 function buildGenerateContent(): (prompt: string) => Promise<string> {
   return async (prompt: string) => {
-    const model = await getModel();
-    const result = await model.generateContent(prompt);
-    const candidates = result.response.candidates ?? [];
+    const ai = getGenAIClient();
+    const result = await ai.models.generateContent({
+      model: EXTRACT_MODEL,
+      contents: prompt,
+      config: {
+        maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+        responseSchema: FACT_EXTRACTION_SCHEMA,
+      },
+    });
+    const candidates = result.candidates ?? [];
     for (const candidate of candidates) {
       const text = (candidate.content?.parts ?? [])
         .map((p) => (typeof p.text === 'string' ? p.text : ''))
@@ -140,7 +120,7 @@ function buildGenerateContent(): (prompt: string) => Promise<string> {
         .trim();
       if (text) return text;
     }
-    throw new HttpsError('internal', 'Vertex AI returned empty extraction response.');
+    throw new HttpsError('internal', 'Model returned empty extraction response.');
   };
 }
 
