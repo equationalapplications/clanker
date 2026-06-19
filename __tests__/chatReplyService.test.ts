@@ -154,6 +154,71 @@ describe('generateChatReply', () => {
     })
   })
 
+  it('parses and forwards groundingMetadata when present', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: {
+        reply: 'Grounded reply',
+        verifiedAt: '2026-01-01T00:00:00.000Z',
+        groundingMetadata: {
+          webSearchQueries: ['weather in Tokyo'],
+          groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+          searchEntryPoint: { renderedContent: '<div>suggestions</div>' },
+        },
+      },
+    })
+
+    const resultPromise = generateChatReply({ prompt: 'weather', referenceId: 'abc' })
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    const result = await resultPromise
+    expect(result.groundingMetadata).toEqual({
+      webSearchQueries: ['weather in Tokyo'],
+      groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+      searchEntryPoint: { renderedContent: '<div>suggestions</div>' },
+    })
+  })
+
+  it('drops malformed groundingMetadata instead of throwing', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: {
+        reply: 'Reply',
+        verifiedAt: '2026-01-01T00:00:00.000Z',
+        groundingMetadata: 'not-an-object',
+      },
+    })
+
+    const resultPromise = generateChatReply({ prompt: 'hello' })
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    const result = await resultPromise
+    expect(result.groundingMetadata).toBeUndefined()
+  })
+
+  it('drops groundingMetadata when present but empty of recognized fields', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: {
+        reply: 'Reply',
+        verifiedAt: '2026-01-01T00:00:00.000Z',
+        groundingMetadata: { unrelatedField: 123 },
+      },
+    })
+
+    const resultPromise = generateChatReply({ prompt: 'hello' })
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    const result = await resultPromise
+    expect(result.groundingMetadata).toBeUndefined()
+  })
+
   describe('mock auth branch (EXPO_PUBLIC_USE_MOCK_AUTH)', () => {
     const originalEnv = process.env.EXPO_PUBLIC_USE_MOCK_AUTH
 

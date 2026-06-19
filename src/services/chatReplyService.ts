@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
+import type { GroundingMetadata } from '@google/genai'
 import { appCheckReady, generateReplyFn } from '~/config/firebaseConfig'
 import type { SyncMessage } from '~/services/syncMessage'
 import { getSchemasForEdge } from '../../shared/agent-tools-spec'
@@ -41,6 +42,7 @@ interface GenerateReplyCallableResponse {
   planTier?: string | null
   planStatus?: 'active' | 'cancelled' | 'expired' | null
   verifiedAt?: string
+  groundingMetadata?: unknown
 }
 
 export interface GenerateChatReplyResult {
@@ -49,6 +51,40 @@ export interface GenerateChatReplyResult {
   planTier: string | null
   planStatus: 'active' | 'cancelled' | 'expired' | null
   verifiedAt: string
+  groundingMetadata?: GroundingMetadata
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function parseGroundingMetadata(raw: unknown): GroundingMetadata | undefined {
+  if (!isPlainObject(raw)) {
+    return undefined
+  }
+
+  const metadata: GroundingMetadata = {}
+
+  if (Array.isArray(raw.webSearchQueries) && raw.webSearchQueries.every((q) => typeof q === 'string')) {
+    metadata.webSearchQueries = raw.webSearchQueries as string[]
+  }
+
+  if (Array.isArray(raw.groundingChunks)) {
+    metadata.groundingChunks = raw.groundingChunks as GroundingMetadata['groundingChunks']
+  }
+
+  if (Array.isArray(raw.groundingSupports)) {
+    metadata.groundingSupports = raw.groundingSupports as GroundingMetadata['groundingSupports']
+  }
+
+  if (
+    isPlainObject(raw.searchEntryPoint) &&
+    typeof raw.searchEntryPoint.renderedContent === 'string'
+  ) {
+    metadata.searchEntryPoint = raw.searchEntryPoint as GroundingMetadata['searchEntryPoint']
+  }
+
+  return Object.keys(metadata).length > 0 ? metadata : undefined
 }
 
 export async function generateChatReply({
@@ -259,5 +295,6 @@ export async function generateChatReply({
         ? data.planStatus
         : null,
     verifiedAt,
+    groundingMetadata: parseGroundingMetadata(data.groundingMetadata),
   }
 }
