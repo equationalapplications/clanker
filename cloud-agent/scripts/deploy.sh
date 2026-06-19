@@ -9,9 +9,18 @@ fi
 PROJECT_ID="${GCP_PROJECT}"
 REGION="${GCP_REGION:-us-central1}"
 SERVICE="${CLOUD_RUN_SERVICE:-clanker-cloud-agent}"
+# Gemini 3 family is currently global-only on Vertex AI (no us-central1
+# regional serving yet). GEMINI_LOCATION governs the Vertex AI model calls
+# made by the agent, independent of REGION above (the Cloud Run service's
+# own deploy region).
+GEMINI_LOCATION="${GOOGLE_CLOUD_LOCATION:-global}"
 # cloudbuild.yaml currently builds/pushes gcr.io/$PROJECT_ID/clanker-cloud-agent
 IMAGE="gcr.io/${PROJECT_ID}/clanker-cloud-agent"
-ALLOW_UNAUTHENTICATED="${ALLOW_UNAUTHENTICATED:-false}"
+# Public by default: the app does its own Firebase-token auth (see
+# requireAuth/CORS comments in src/index.ts) and the browser calls this
+# service directly, so Cloud Run's invoker IAM must allow unauthenticated
+# access. Set ALLOW_UNAUTHENTICATED=false only for a deliberately private deploy.
+ALLOW_UNAUTHENTICATED="${ALLOW_UNAUTHENTICATED:-true}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${REPO_ROOT}"
 
@@ -23,6 +32,10 @@ DEPLOY_ARGS=(
   --project "${PROJECT_ID}"
   --image "${IMAGE}"
   --region "${REGION}"
+  --set-env-vars "GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION}"
+  # GEMINI_API_KEY secret was deleted (embeddings.ts migrated to Vertex AI ADC);
+  # remove the dangling secret-backed env var carried forward from prior revisions.
+  --remove-secrets "GEMINI_API_KEY"
 )
 if [[ "${ALLOW_UNAUTHENTICATED}" == "true" ]]; then
   DEPLOY_ARGS+=(--allow-unauthenticated)

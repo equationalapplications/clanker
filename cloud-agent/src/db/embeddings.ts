@@ -7,8 +7,22 @@ export function isRetryable(err: unknown): boolean {
   return false
 }
 
+let genAIClient: GoogleGenAI | undefined
+
+function getGenAIClient(): GoogleGenAI {
+  if (genAIClient) return genAIClient
+  const project = process.env.GOOGLE_CLOUD_PROJECT
+  if (!project) throw new Error('Missing GOOGLE_CLOUD_PROJECT for Vertex AI embeddings')
+  genAIClient = new GoogleGenAI({
+    vertexai: true,
+    project,
+    location: process.env.GOOGLE_CLOUD_LOCATION ?? 'global',
+  })
+  return genAIClient
+}
+
 export async function embedText(text: string): Promise<number[]> {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' })
+  const ai = getGenAIClient()
   try {
     const result = await ai.models.embedContent({ model: EMBEDDING_MODEL, contents: text })
     const values = result.embeddings?.[0]?.values

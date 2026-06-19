@@ -3,8 +3,11 @@ import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { GoogleGenAI } from "@google/genai";
 
-const DEFAULT_MODEL = "gemini-3-flash-preview";
+const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_REGION = "us-central1";
+// Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
+// governs this Cloud Function's own deploy region, unrelated to this.
+const GEMINI_LOCATION = "global";
 const MAX_INPUT_LENGTH = 16_000;
 const MAX_OUTPUT_TOKENS = 1_024;
 
@@ -24,9 +27,13 @@ interface SummarizeTextOptions {
 }
 
 function getProjectId(): string | undefined {
-  const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
-  const value = fromEnv?.trim();
-  return value ? value : undefined;
+  return [
+    process.env.GCLOUD_PROJECT,
+    process.env.GCP_PROJECT,
+    process.env.GOOGLE_CLOUD_PROJECT,
+  ]
+    .map((v) => v?.trim())
+    .find((v): v is string => Boolean(v));
 }
 
 function truncateSummary(text: string, maxLength: number): string {
@@ -86,11 +93,11 @@ function getGenAIClient(): GoogleGenAI {
   if (!project) {
     throw new HttpsError(
       "failed-precondition",
-      "Missing GCLOUD_PROJECT for text summarization."
+      "Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for text summarization."
     );
   }
 
-  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
   return genAIClient;
 }
 
@@ -106,6 +113,7 @@ function getSummaryGenerator(): GenerateSummaryFn {
       contents: prompt,
       config: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
     const candidates = result.candidates ?? [];

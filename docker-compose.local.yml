@@ -10,10 +10,15 @@ services:
       - ./cloud-agent/src:/app/cloud-agent/src
       - ./cloud-agent/scripts:/app/cloud-agent/scripts
       - /app/cloud-agent/node_modules
+      # Embeddings (cloud-agent/src/db/embeddings.ts) call Vertex AI via ADC, not an API key.
+      # Run `gcloud auth application-default login` on the host first.
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
     environment:
       - NODE_ENV=development
       - MOCK_FIREBASE_AUTH=true
-      - GEMINI_API_KEY=${EXPO_PUBLIC_GEMINI_API_KEY}
+      - GOOGLE_GENAI_USE_VERTEXAI=true
+      - GOOGLE_CLOUD_PROJECT=${GCP_PROJECT:?Set GCP_PROJECT to a non-production project}
+      - GOOGLE_CLOUD_LOCATION=global
       - DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker
       - CORS_ORIGIN=http://localhost:8081,http://localhost:8082
     depends_on:

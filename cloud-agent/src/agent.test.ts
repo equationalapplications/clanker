@@ -34,7 +34,7 @@ test('buildAgent: sets instruction from parameter', () => {
   assert.equal(agent.instruction, 'You are Bob, a chef.')
 })
 
-test('buildAgent: model is gemini-3-flash-preview', () => {
+test('buildAgent: model is gemini-3.5-flash', () => {
   const agent = buildAgent(mockDb, 'user-1', 'char-1', 'You are Alice.', timezone, mockEmbed)
-  assert.equal(agent.model, 'gemini-3-flash-preview')
+  assert.equal(agent.model, 'gemini-3.5-flash')
 })
