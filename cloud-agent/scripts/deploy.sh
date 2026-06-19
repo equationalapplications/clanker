@@ -9,7 +9,8 @@ fi
 PROJECT_ID="${GCP_PROJECT}"
 REGION="${GCP_REGION:-us-central1}"
 SERVICE="${CLOUD_RUN_SERVICE:-clanker-cloud-agent}"
-IMAGE="gcr.io/${PROJECT_ID}/${SERVICE}"
+# cloudbuild.yaml currently builds/pushes gcr.io/$PROJECT_ID/clanker-cloud-agent
+IMAGE="gcr.io/${PROJECT_ID}/clanker-cloud-agent"
 ALLOW_UNAUTHENTICATED="${ALLOW_UNAUTHENTICATED:-false}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${REPO_ROOT}"
