@@ -14,7 +14,10 @@ import { characters, subscriptions } from './db/schema.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_REGION = 'us-central1';
-const EXTRACT_MODEL = 'gemini-3-flash-preview';
+// Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
+// governs this Cloud Function's own deploy region, unrelated to this.
+const GEMINI_LOCATION = 'global';
+const EXTRACT_MODEL = 'gemini-3.5-flash';
 const MAX_DOCUMENT_CHARS = 200_000;
 const MAX_DOCUMENTS_PER_DAY = 5;
 const MAX_CHUNKS = 100;
@@ -95,7 +98,7 @@ function getGenAIClient(): GoogleGenAI {
   genAIClient = new GoogleGenAI({
     vertexai: true,
     project: getProjectId(),
-    location: DEFAULT_REGION,
+    location: GEMINI_LOCATION,
   });
   return genAIClient;
 }

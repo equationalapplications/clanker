@@ -15,8 +15,12 @@ import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 import { getDb } from "./db/cloudSql.js";
 import { characters, messages } from "./db/schema.js";
 
-const DEFAULT_MODEL = "gemini-3-flash-preview";
+const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_REGION = "us-central1";
+// Gemini 3 family is currently global-only on Vertex AI (no us-central1
+// regional serving yet); DEFAULT_REGION above still governs the Cloud
+// Function's own deploy region, unrelated to this.
+const GEMINI_LOCATION = "global";
 const MAX_PROMPT_LENGTH = 12_000;
 const MAX_OUTPUT_TOKENS = 1_024;
 const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000;
@@ -199,7 +203,7 @@ function getGenAIClient(): GoogleGenAI {
     );
   }
 
-  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
   return genAIClient;
 }
 

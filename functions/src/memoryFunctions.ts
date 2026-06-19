@@ -13,7 +13,10 @@ import { getDb } from './db/cloudSql.js';
 import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
 
 const DEFAULT_REGION = 'us-central1';
-const HEAL_MODEL = 'gemini-3-flash-preview';
+// Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
+// governs this Cloud Function's own deploy region, unrelated to this.
+const GEMINI_LOCATION = 'global';
+const HEAL_MODEL = 'gemini-3.5-flash';
 const HEAL_MAX_OUTPUT_TOKENS = 1_024;
 
 type MemoryIdentity = {
@@ -140,7 +143,7 @@ function getGenAIClient(): GoogleGenAI {
     throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for memory heal.');
   }
 
-  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
   return genAIClient;
 }
 
