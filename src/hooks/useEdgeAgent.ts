@@ -13,12 +13,15 @@ export interface UseEdgeAgentReturn {
 // revoked, and violated the "zero direct GenAI SDK imports" architecture policy
 // (docs/ai-and-chat.md). All chat now routes through the secured backend
 // (generateReply / cloud-agent) via useAIChat's existing fallback chain, so this
-// always escalates and takes no inputs.
+// always escalates; caller args are accepted for API compatibility but ignored.
 export function useEdgeAgent(): UseEdgeAgentReturn {
   const [escalationState, setEscalationState] = useState<EscalationState>('idle')
 
   const sendMessage = useCallback(
-    async (): Promise<{ escalated: boolean; text?: string }> => {
+    async (
+      _userText: string,
+      _memoryBlock?: string,
+    ): Promise<{ escalated: boolean; text?: string }> => {
       setEscalationState('escalating')
       return { escalated: true }
     },
