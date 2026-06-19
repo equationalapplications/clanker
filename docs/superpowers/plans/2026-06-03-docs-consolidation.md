@@ -23,7 +23,7 @@ docs/
 ├── adrs/
 │   └── 001-callable-error-normalization.md
 ├── flowcharts/                # Keep unchanged
-└── superpowers/               # Keep unchanged
+└── superpowers/               # Keep unchanged — agent specs/plans; not indexed in root README.md (see AGENTS.md)
 
 Root:
 CONTRIBUTING.md                # Absorbs git workflow, merge strategy, debugging, functions testing

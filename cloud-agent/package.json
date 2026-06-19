@@ -10,7 +10,8 @@
     "build": "tsc",
     "start": "node dist/cloud-agent/src/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "NODE_ENV=test npm run build && NODE_ENV=test node --test --test-reporter spec \"dist/**/*.test.js\""
+    "test": "NODE_ENV=test npm run build && NODE_ENV=test node --test --test-reporter spec \"dist/**/*.test.js\"",
+    "test:live": "RUN_LIVE_TESTS=1 npm test"
   },
   "dependencies": {
     "@google-cloud/cloud-sql-connector": "^1.10.0",

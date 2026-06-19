@@ -3,6 +3,8 @@
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
+  useAgeVerification.test --> useAvatarUpload.test
+  useAgeVerification.test --> useAgeVerification
   useAIChat --> useMessages
   useAIChat --> useMachines
   useAIChat --> useCharacterWiki

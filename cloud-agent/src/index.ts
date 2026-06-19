@@ -215,7 +215,7 @@ function assembleSystemInstruction(
 
 // ── Real agent runner (production) ────────────────────────────────────────────
 
-async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> {
+export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> {
   const { db, userId, characterId, systemInstruction, message, history, timezone, embed } = params
   const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed)
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
