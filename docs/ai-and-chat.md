@@ -2,7 +2,7 @@
 
 ## Overview
 
-All AI model access (chat + image) flows through Firebase 2nd Gen callable functions. The app has zero direct GenAI SDK imports. This ensures auth verification, access control, credit ledger enforcement, and Vertex AI credential protection all happen server-side.
+All AI model access (chat + image) flows through secured backend endpoints (Firebase 2nd Gen callable functions and the Cloud Run `cloud-agent` service). In production app runtime, the app makes no client-side GenAI model calls (type-only `@google/genai` imports are allowed; local-only eval harnesses such as `npm run edge-evals` are excluded). This ensures auth verification, access control, credit ledger enforcement, and Vertex AI credential protection all happen server-side.
 
 ---
 
@@ -128,7 +128,7 @@ After a successful summary update:
 
 ### Cloud Function: `summarizeText`
 
-A Firebase callable that performs summarization on Vertex AI using `gemini-2.5-flash`.
+A Firebase callable that performs summarization on Vertex AI using `gemini-3.5-flash` via the `global` endpoint (Gemini 3 family models are global-only on Vertex AI; the function itself still deploys to `us-central1`).
 
 **Input:**
 ```json
@@ -151,9 +151,9 @@ A Firebase callable that performs summarization on Vertex AI using `gemini-2.5-f
 
 ## LLM Wiki Memory — Structured Agent-Robust Memory
 
-> **Status:** Premium feature (gated on sufficient credits), v1 implementation complete.
+> **Status:** Credit-gated (1 credit per server-side write/heal/LLM call), v1 implementation complete. Available to any user with sufficient credits — including active monthly subscribers and `payg` users with a positive balance.
 >
-> **Note:** The current codebase uses `@equationalapplications/expo-llm-wiki@4.9.0` with `src/services/wikiService.ts`, `src/hooks/useCharacterWiki.ts`, and `src/machines/wikiMachine.ts`. Legacy callable support remains in `functions/src/memoryFunctions.ts` for compatibility.
+> **Note:** The current codebase uses `@equationalapplications/expo-llm-wiki` (see `package.json` for the current version) with `src/services/wikiService.ts`, `src/hooks/useCharacterWiki.ts`, and `src/machines/wikiMachine.ts`. Legacy callable support remains in `functions/src/memoryFunctions.ts` for compatibility.
 
 LLM Wiki Memory extends chat summarization with structured, queryable memory that can be read, written, and updated within a conversation without blocking replies. It complements `characters.context` (rolling summary) with a database of facts, open tasks, and episodic observations.
 
@@ -175,7 +175,7 @@ LLM Wiki Memory extends chat summarization with structured, queryable memory tha
 - **`agent_tasks`** — Volatile goals/pending actions. Status: `pending` → `in_progress` | `done` | `abandoned`. Priority-ordered.
 - **`memory_events`** — Episodic append-only log. Types: `observation`, `decision`, `action`, `outcome`. Links to related entries/tasks. Unbounded retention (pruning not yet implemented).
 - **`derived_synonyms`** — Auto-grown query expansion vocabulary from co-occurring tags. Not synced to Cloud SQL.
-- **`characters` columns:** `memory_checkpoint` (message count at last `memoryWrite`), `heal_checkpoint` (message count at last `memoryHeal`).
+- **`characters` columns:** `memory_checkpoint` and `heal_checkpoint` are legacy schema columns from the pre–`expo-llm-wiki` implementation; the current runtime uses package-managed checkpoints in `llm_wiki_*` tables instead.
 
 #### Cloud SQL (PostgreSQL, optional)
 
@@ -213,118 +213,50 @@ Recent episodic context:
 [/MEMORY]
 ```
 
-### Server-Side Memory Write
+### Wiki Memory Write (Runtime)
 
-Premium-only. Fire-and-forget, deduped per `(characterId, userId)` pair. Triggered every 20 messages via `dispatchWikiWrite`.
+Post-turn, fire-and-forget. After each AI response, `useAIChat` calls `useCharacterWiki.write(observation)` with the recent conversation chunk. The write is serialized through the per-character `wikiMachine` actor (`idle` → `writing` → `idle`).
 
-**Flow:**
-1. **Fact Extraction** — LLM-first structured extraction via Vertex AI; falls back to heuristic sentence chunking (top 3 sentences, 200 chars, keyword-based tags)
-2. **Dedup** — Fuzzy case-insensitive title match (token Jaccard similarity ≥ 0.5)
-3. **Task Extraction** — LLM-extracted or keyword-filtered ("remind", "follow up", "todo")
-4. **Synonym Enrichment** — Post-upsert collection of co-occurring terms
-5. **Cloud Persist** — If `character.save_to_cloud = 1`, upsert to Cloud SQL; always returns diff payloads for client SQLite upsert
+1. **Local observation** — `@equationalapplications/expo-llm-wiki` appends an episodic event to local SQLite immediately (no server round-trip on the hot path).
+2. **Auto-librarian** — When entry count crosses `autoLibrarianThreshold` (5 in `wikiService.ts`), the package runs a structured fact-extraction pass. LLM calls go through the `wikiLlm` Firebase callable via `wikiLlmProvider.ts`.
+3. **Credit gate** — Each `wikiLlm` call reserves 1 credit via `creditService.spendCredits` on the server; refunded on failure. Available to any user with sufficient credits (including `payg` with positive balance).
 
-**Response:**
-```json
-{
-  "diff": {
-    "entriesAdded": 2,
-    "entriesUpdated": 1,
-    "tasksOpened": 1,
-    "tasksClosed": 0,
-    "eventsAppended": 1,
-    "synonymsUpdated": 2
-  }
-}
-```
-
-### Server-Side Memory Heal
-
-Premium-only. Same cadence as write (every 20 messages). Uses heuristic rules + Gemini LLM for contradiction detection.
-
-**Passes:**
-1. **Stale Downgrade:** `last_accessed_at > 60 days` + `confidence='inferred'` → `tentative`. Preserves `certain` facts.
-2. **Orphan Removal:** `access_count = 0` + age > 30 days → soft-delete
-3. **Concept Seeding:** Create tentative entries from uncovered pending tasks
-4. **Contradiction Detection:** LLM-assisted (gemini-2.5-flash, up to 100 entries). Older entry downgraded per flagged pair. Fails soft: LLM errors skip contradiction pass.
-
-**Response:**
-```json
-{
-  "diff": {
-    "contradictionsFlagged": 0,
-    "staleDowngraded": 3,
-    "orphansRemoved": 1,
-    "conceptsSeeded": 2
-  }
-}
-```
-
-### Memory Forget
-
-User-initiated soft-delete via `memoryForget` callable.
-
-```json
-{
-  "characterId": "char_123",
-  "entryIds": ["entry_1"],
-  "taskIds": ["task_1"],
-  "clearAll": false
-}
-```
-
-Sets `deleted_at`, preserves `memory_events` for audit.
-
-### Memory Read (Bootstrap)
-
-One-time pull from Cloud SQL to seed a new device. Invoked by `triggerMemoryRead` before the first write cycle when:
-- Cloud-synced character with valid `cloud_id`
-- Local wiki is empty for that character
-- User is online
-
-Returns entries, tasks, events, and synonyms for bulk upsert. Subsequent calls are no-ops once `countEntries > 0`.
-
-### State Machine: `dispatchWikiWrite`
-
-Implemented as a simple dispatcher in `wikiHealMachine.ts` (not a full XState machine):
-
-```
-dispatchWikiWrite({ character, userId, chunk })
-  → Check dedup (Set<characterId:userId>)
-  → Load message count + character checkpoints
-  → Verify online (onlineManager.isOnline())
-  → If messages - memory_checkpoint >= 20:
-      Advance memory_checkpoint
-      triggerMemoryWrite()
-      → If messages - heal_checkpoint >= 20:
-          Advance heal_checkpoint
-          triggerMemoryHeal()
-  → Remove from activeWikiJobs
-```
-
-**Key properties:** Dedup set prevents concurrent jobs, online gate returns early (no checkpoint consumed), checkpoint advances before invocation to prevent retry storms, fire-and-forget (no await).
-
-Invoked post-turn from `src/services/aiChatService.ts`:
+Invoked post-turn from `src/hooks/useAIChat.ts`:
 ```ts
-void dispatchWikiWrite({ character, userId, chunk: userMessage.text })
+void characterWiki.write(text).catch(/* WikiBusyError tolerated */)
 ```
+
+> **Legacy note:** The old `memoryWrite` callable and `dispatchWikiWrite` dispatcher were removed from the client. `functions/src/memoryFunctions.ts` still exports `memoryWrite` for backward compatibility only.
+
+### Wiki Auto-Heal (Runtime)
+
+Triggered by `@equationalapplications/expo-llm-wiki` when entry count crosses `autoHealThreshold` (100 in `wikiService.ts`), not on a fixed message cadence. Uses the same credit-gated `wikiLlm` callable for LLM-assisted passes (contradiction detection, stale downgrade, orphan cleanup). Package config also controls pruning (`pruneEventsAfter`, `orphanAfterDays`, `staleInferredAfterDays`).
+
+> **Legacy note:** The old `memoryHeal` callable is not invoked by the current client.
+
+### Wiki Forget & Cloud Sync
+
+- **Forget:** User-initiated soft-delete via `useCharacterWiki.forget()` → `wikiMachine` → local `wiki.forget()`. Sets `deleted_at`; events are preserved for audit.
+- **Cloud sync:** `useCharacterWiki.sync()` / `characterSyncService.syncWikiForCloud` → `wikiSync` callable exchanges a `MemoryDump` with Cloud SQL when `save_to_cloud = 1`.
+
+> **Legacy note:** `memoryForget` and `memoryRead` callables remain in `functions/src/memoryFunctions.ts` for backward compatibility but are not used by the current client.
 
 ### Coexistence with Existing Memory
 
 | System | Trigger | Scope | Gate |
 |---|---|---|---|
-| `characters.context` (summary blob) | Every 20 messages | All users | None |
-| Wiki entries (write) | Every 20 messages | Credit gated | sufficient credits |
-| Wiki heal | Every 20 messages | Credit gated | sufficient credits |
+| `characters.context` (summary blob) | Every 20 messages via `triggerConversationSummary` | All users | None |
+| Wiki observation write | Post-turn (each AI reply) | All users | None (local SQLite only) |
+| Wiki auto-librarian / auto-heal | Entry-count thresholds in `wikiService.ts` | Credit gated | sufficient credits for `wikiLlm` |
 
-Summary flow (`triggerConversationSummary`) unchanged. Wiki flow runs in parallel for premium users. Prompt includes both `[MEMORY]` block and existing summary section.
+Summary flow (`triggerConversationSummary`) is unchanged. Wiki reads/writes run in parallel on every turn; LLM-backed librarian/heal passes run when package thresholds are met and credits are available. Prompt includes both `[MEMORY]` block (from `useCharacterWiki.read`) and the existing summary section.
 
 ### Testing
 
-- `__tests__/wikiHealMachine.test.ts` — Dispatcher orchestration
-- `__tests__/ftsQueryBuilder.test.ts` — 3-layer query preprocessing
-- `__tests__/memoryService.test.ts` — Client callable wrappers
-- `functions/src/memoryFunctions.test.ts` — All 5 callables (162 tests)
+- `__tests__/wikiMachine.test.ts` — Wiki state machine orchestration
+- `__tests__/useCharacterWiki.test.tsx` — Hook serialization and actor lifecycle
+- `functions/src/wikiLlm.test.ts` — Credit-gated `wikiLlm` callable
+- `functions/src/memoryFunctions.test.ts` — Legacy callables (backward compatibility)
 
 ### Known Limitations (v1)
 
@@ -338,7 +270,7 @@ Summary flow (`triggerConversationSummary`) unchanged. Wiki flow runs in paralle
 
 ## Wiki State Machine Architecture
 
-The character memory system uses `@equationalapplications/expo-llm-wiki@4.9.0` with an XState v5 state machine per character to serialize all wiki operations.
+The character memory system uses `@equationalapplications/expo-llm-wiki` (see `package.json` for the current version) with an XState v5 state machine per character to serialize all wiki operations.
 
 ### Components
 
@@ -359,7 +291,9 @@ The character memory system uses `@equationalapplications/expo-llm-wiki@4.9.0` w
 
 ### Key Design Decisions
 
-- **No subscription gate on memory:** All users get memory read/write/ingest. Cloud sync remains gated on `save_to_cloud + cloud_id`.
+- **Credit-gated LLM paths:** Server-side wiki LLM calls (`wikiLlm`, legacy `memoryWrite`/`memoryHeal`) reserve 1 credit each via `spendCredits`; refunded on failure. Available to any user with sufficient credits (including `payg` with positive balance).
+- **Free local read:** Memory read/inject on the hot path uses local SQLite only — no credit charge.
+- **Cloud sync:** Wiki cloud mirror remains gated on `save_to_cloud + cloud_id` (plus cloud character sync credits).
 - **SYNC carries a callback:** `runRemoteSync` decouples the machine from cloud-specific entity-ID remapping.
 - **`subscribeEntityStatus` required:** Polling fallback removed.
 

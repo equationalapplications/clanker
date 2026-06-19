@@ -21,8 +21,6 @@ graph LR
   characterSyncService --> googleSignin
   characterSyncService --> voiceDefaults
   cloudAgentService --> googleSignin
-  edgeToolExecutors --> wikiService
-  edgeToolExecutors --> taskDatabase
   localImageStorageService --> index
   messageService --> messageDatabase
   userService --> apiClient
