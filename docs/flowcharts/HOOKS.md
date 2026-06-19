@@ -25,8 +25,6 @@ graph LR
   useCharacterWiki --> apiClient
   useCharacters --> useMachines
   useCurrentPlan --> useMachines
-  useEdgeAgent --> CharacterPromptBuilder
-  useEdgeAgent --> edgeToolExecutors
   useImageGeneration --> useMachines
   useImageGeneration --> imageGenerationService
   useImageGeneration --> localImageStorageService

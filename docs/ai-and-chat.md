@@ -2,7 +2,7 @@
 
 ## Overview
 
-All AI model access (chat + image) flows through Firebase 2nd Gen callable functions. The app has zero direct GenAI SDK imports. This ensures auth verification, access control, credit ledger enforcement, and Vertex AI credential protection all happen server-side.
+All AI model access (chat + image) flows through Firebase 2nd Gen callable functions. The app makes no client-side GenAI model calls (type-only `@google/genai` imports are allowed). This ensures auth verification, access control, credit ledger enforcement, and Vertex AI credential protection all happen server-side.
 
 ---
 
@@ -128,7 +128,7 @@ After a successful summary update:
 
 ### Cloud Function: `summarizeText`
 
-A Firebase callable that performs summarization on Vertex AI using `gemini-2.5-flash`.
+A Firebase callable that performs summarization on Vertex AI using `gemini-3.5-flash` via the `global` endpoint (Gemini 3 family models are global-only on Vertex AI; the function itself still deploys to `us-central1`).
 
 **Input:**
 ```json
@@ -151,7 +151,7 @@ A Firebase callable that performs summarization on Vertex AI using `gemini-2.5-f
 
 ## LLM Wiki Memory — Structured Agent-Robust Memory
 
-> **Status:** Premium feature (gated on sufficient credits), v1 implementation complete.
+> **Status:** Credit-gated (1 credit per server-side write/heal/LLM call), v1 implementation complete. Available to any user with sufficient credits — including active monthly subscribers and `payg` users with a positive balance.
 >
 > **Note:** The current codebase uses `@equationalapplications/expo-llm-wiki@4.9.0` with `src/services/wikiService.ts`, `src/hooks/useCharacterWiki.ts`, and `src/machines/wikiMachine.ts`. Legacy callable support remains in `functions/src/memoryFunctions.ts` for compatibility.
 
@@ -215,7 +215,7 @@ Recent episodic context:
 
 ### Server-Side Memory Write
 
-Premium-only. Fire-and-forget, deduped per `(characterId, userId)` pair. Triggered every 20 messages via `dispatchWikiWrite`.
+Credit-gated (1 credit per `memoryWrite` call via `creditService.spendCredits`; refunded on failure). Fire-and-forget, deduped per `(characterId, userId)` pair. Triggered every 20 messages via `dispatchWikiWrite`.
 
 **Flow:**
 1. **Fact Extraction** — LLM-first structured extraction via Vertex AI; falls back to heuristic sentence chunking (top 3 sentences, 200 chars, keyword-based tags)
@@ -240,13 +240,13 @@ Premium-only. Fire-and-forget, deduped per `(characterId, userId)` pair. Trigger
 
 ### Server-Side Memory Heal
 
-Premium-only. Same cadence as write (every 20 messages). Uses heuristic rules + Gemini LLM for contradiction detection.
+Credit-gated (1 credit per `memoryHeal` call via `creditService.spendCredits`; refunded on failure). Same cadence as write (every 20 messages). Uses heuristic rules + Gemini LLM for contradiction detection.
 
 **Passes:**
 1. **Stale Downgrade:** `last_accessed_at > 60 days` + `confidence='inferred'` → `tentative`. Preserves `certain` facts.
 2. **Orphan Removal:** `access_count = 0` + age > 30 days → soft-delete
 3. **Concept Seeding:** Create tentative entries from uncovered pending tasks
-4. **Contradiction Detection:** LLM-assisted (gemini-2.5-flash, up to 100 entries). Older entry downgraded per flagged pair. Fails soft: LLM errors skip contradiction pass.
+4. **Contradiction Detection:** LLM-assisted (`gemini-3.5-flash` via Vertex AI `global` endpoint, up to 100 entries). Older entry downgraded per flagged pair. Fails soft: LLM errors skip contradiction pass.
 
 **Response:**
 ```json
@@ -317,7 +317,7 @@ void dispatchWikiWrite({ character, userId, chunk: userMessage.text })
 | Wiki entries (write) | Every 20 messages | Credit gated | sufficient credits |
 | Wiki heal | Every 20 messages | Credit gated | sufficient credits |
 
-Summary flow (`triggerConversationSummary`) unchanged. Wiki flow runs in parallel for premium users. Prompt includes both `[MEMORY]` block and existing summary section.
+Summary flow (`triggerConversationSummary`) unchanged. Wiki flow runs in parallel for users with sufficient credits. Prompt includes both `[MEMORY]` block and existing summary section.
 
 ### Testing
 
@@ -359,7 +359,9 @@ The character memory system uses `@equationalapplications/expo-llm-wiki@4.9.0` w
 
 ### Key Design Decisions
 
-- **No subscription gate on memory:** All users get memory read/write/ingest. Cloud sync remains gated on `save_to_cloud + cloud_id`.
+- **Credit-gated LLM paths:** Server-side wiki LLM calls (`wikiLlm`, legacy `memoryWrite`/`memoryHeal`) reserve 1 credit each via `spendCredits`; refunded on failure. Available to any user with sufficient credits (including `payg` with positive balance).
+- **Free local read:** Memory read/inject on the hot path uses local SQLite only — no credit charge.
+- **Cloud sync:** Wiki cloud mirror remains gated on `save_to_cloud + cloud_id` (plus cloud character sync credits).
 - **SYNC carries a callback:** `runRemoteSync` decouples the machine from cloud-specific entity-ID remapping.
 - **`subscribeEntityStatus` required:** Polling fallback removed.
 
