@@ -34,7 +34,7 @@
     "update": "npm run deploy-hosting && npm run ota"
   },
   "dependencies": {
-    "@equationalapplications/core-llm-tools": "^4.11.0",
+    "@equationalapplications/core-llm-tools": "^4.13.1",
     "@equationalapplications/expo-llm-wiki": "4.11.0",
     "@expo/metro-runtime": "~56.0.13",
     "@expo/vector-icons": "^15.1.1",
@@ -91,6 +91,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
     "react-native-web": "^0.21.2",
+    "react-native-webview": "13.16.1",
     "react-native-worklets": "0.8.3",
     "wa-sqlite": "^1.0.0",
     "xstate": "^5.32.1",

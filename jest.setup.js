@@ -96,6 +96,16 @@ jest.mock('expo-sqlite', () => {
   }
 })
 
+jest.mock('react-native-webview', () => {
+  const React = require('react')
+  const MockWebView = (props) => React.createElement('View', { testID: 'mock-webview', ...props })
+  return {
+    __esModule: true,
+    WebView: MockWebView,
+    default: MockWebView,
+  }
+})
+
 // Mock expo-router without requireActual — expo-router now depends on
 // standard-navigation (ESM), which Jest cannot parse from node_modules.
 jest.mock('expo-router', () => {

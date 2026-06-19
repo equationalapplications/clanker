@@ -2,6 +2,7 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
+import { GoogleGenAI } from "@google/genai";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
@@ -44,48 +45,6 @@ type GenerateImageFn = (prompt: string) => Promise<GeneratedImageResult>;
 interface GenerateImageOptions {
   generateImage?: GenerateImageFn;
   creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
-}
-
-interface CandidateInlineData {
-  data?: string;
-  mimeType?: string;
-}
-
-interface CandidatePart {
-  inlineData?: CandidateInlineData;
-}
-
-interface Candidate {
-  content?: {
-    parts?: CandidatePart[];
-  };
-}
-
-interface GenerateContentResult {
-  response: {
-    candidates?: Candidate[];
-  };
-}
-
-interface GenerativeModelLike {
-  generateContent(prompt: string): Promise<GenerateContentResult>;
-}
-
-interface VertexAILike {
-  getGenerativeModel(config: {
-    model: string;
-    generationConfig: {
-      responseModalities: string[];
-    };
-  }): GenerativeModelLike;
-}
-
-interface VertexAIConstructor {
-  new (config: {project: string; location: string}): VertexAILike;
-}
-
-interface VertexAIModule {
-  VertexAI: VertexAIConstructor;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -184,60 +143,24 @@ function assertSupportedImageMimeType(mimeType: string): string {
   return normalized;
 }
 
-let modelPromise: Promise<GenerativeModelLike> | undefined;
+let genAIClient: GoogleGenAI | undefined;
 let imageGenerator: GenerateImageFn | undefined;
 
-async function getModel(): Promise<GenerativeModelLike> {
-  if (modelPromise) {
-    return modelPromise;
+function getGenAIClient(): GoogleGenAI {
+  if (genAIClient) {
+    return genAIClient;
   }
 
   const project = getProjectId();
   if (!project) {
     throw new HttpsError(
       "failed-precondition",
-      "Missing GCLOUD_PROJECT for Vertex AI image generation."
+      "Missing GCLOUD_PROJECT for image generation."
     );
   }
 
-  modelPromise = (async () => {
-    try {
-      const moduleName = "@google-cloud/vertexai";
-      const vertexModule = await import(moduleName) as VertexAIModule;
-      const vertex = new vertexModule.VertexAI({project, location: DEFAULT_REGION});
-
-      return vertex.getGenerativeModel({
-        model: DEFAULT_MODEL,
-        generationConfig: {
-          responseModalities: ["TEXT", "IMAGE"],
-        },
-      });
-    } catch (error: unknown) {
-      modelPromise = undefined;
-
-      const message = error instanceof Error ? error.message : String(error);
-      const missingVertexModule =
-        (error instanceof Error &&
-          ("code" in error && error.code === "MODULE_NOT_FOUND")) ||
-        message.includes("@google-cloud/vertexai");
-
-      if (missingVertexModule) {
-        throw new HttpsError(
-          "failed-precondition",
-          "The @google-cloud/vertexai package is not available. " +
-            "Ensure it is installed and deployed with this function."
-        );
-      }
-
-      if (error instanceof HttpsError) {
-        throw error;
-      }
-
-      throw new HttpsError("internal", `Failed to initialize image model: ${message}`);
-    }
-  })();
-
-  return modelPromise;
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  return genAIClient;
 }
 
 function buildImagePrompt(userPrompt: string): string {
@@ -257,9 +180,15 @@ function getImageGenerator(): GenerateImageFn {
   }
 
   imageGenerator = async (prompt: string): Promise<GeneratedImageResult> => {
-    const model = await getModel();
-    const result = await model.generateContent(buildImagePrompt(prompt));
-    const candidates = result.response.candidates ?? [];
+    const ai = getGenAIClient();
+    const result = await ai.models.generateContent({
+      model: DEFAULT_MODEL,
+      contents: buildImagePrompt(prompt),
+      config: {
+        responseModalities: ["TEXT", "IMAGE"],
+      },
+    });
+    const candidates = result.candidates ?? [];
 
     for (const candidate of candidates) {
       const parts = candidate.content?.parts ?? [];
@@ -274,7 +203,7 @@ function getImageGenerator(): GenerateImageFn {
       }
     }
 
-    throw new HttpsError("internal", "Vertex AI returned no image data.");
+    throw new HttpsError("internal", "Model returned no image data.");
   };
 
   return imageGenerator;
