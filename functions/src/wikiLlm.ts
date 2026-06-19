@@ -72,7 +72,7 @@ function getGenAIClient(): GoogleGenAI {
     return genAIClient;
   }
 
-  const project = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
+  const project = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
   if (!project) {
     throw new HttpsError("failed-precondition", "Missing GCLOUD_PROJECT for wiki LLM.");
   }

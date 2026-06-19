@@ -27,7 +27,7 @@ interface SummarizeTextOptions {
 }
 
 function getProjectId(): string | undefined {
-  const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
+  const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
   const value = fromEnv?.trim();
   return value ? value : undefined;
 }

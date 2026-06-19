@@ -84,7 +84,7 @@ const FACT_EXTRACTION_SCHEMA = {
 let genAIClient: GoogleGenAI | undefined;
 
 function getProjectId(): string {
-  const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
+  const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
   const value = fromEnv?.trim();
   if (!value) throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for document extraction.');
   return value;

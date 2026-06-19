@@ -138,7 +138,7 @@ function getGenAIClient(): GoogleGenAI {
     return genAIClient;
   }
 
-  const project = (process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT)?.trim();
+  const project = (process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT)?.trim();
   if (!project) {
     throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for memory heal.');
   }
