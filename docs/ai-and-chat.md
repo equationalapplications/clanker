@@ -435,3 +435,27 @@ Success logs include: Firebase UID, Cloud SQL user ID, plan tier, credits spent/
 ### AI Access Policy
 
 The app has zero direct GenAI SDK imports. All AI model access (chat + image) flows through Firebase callable functions.
+
+---
+
+## Local Development (cloud-agent)
+
+`cloud-agent` (Cloud Run service backing the "Cloud Agent path" in `useAIChat.ts`, plus wiki-memory embeddings) makes its own Vertex AI calls — `agent.ts` for chat/tool routing, `db/embeddings.ts` for `text-embedding-004`. Neither uses an API key; both authenticate via Application Default Credentials (ADC), same as the deployed Cloud Run service (which gets ADC for free from the metadata server).
+
+**One-time host setup:**
+
+```bash
+gcloud auth application-default login
+```
+
+**`docker-compose.local.yml` wiring** (already in place):
+- Mounts `${HOME}/.config/gcloud` read-only into the container, so the container sees the host's ADC.
+- Sets `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT=${GCP_PROJECT:-clanker-prod}`, `GOOGLE_CLOUD_LOCATION=global` — the `@google/genai` SDK auto-detects these three env vars when no explicit client config is passed (this is how `agent.ts`'s `LlmAgent` picks up Vertex AI without any code wiring).
+
+**Run it:**
+
+```bash
+docker compose -f docker-compose.local.yml up -d
+```
+
+Caveat: there's no separate dev/staging GCP project — local runs hit real Vertex AI in `clanker-prod`, billed there. Override the project via `GCP_PROJECT=other-project docker compose -f docker-compose.local.yml up -d` if you ever provision a dedicated dev project.
