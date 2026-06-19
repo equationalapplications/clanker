@@ -1,9 +1,10 @@
 import React, { useCallback } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
-import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity } from 'react-native'
+import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
+import { WebView } from 'react-native-webview'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useChatMessages } from '~/hooks/useMessages'
@@ -14,6 +15,7 @@ import { useUserCredits } from '~/hooks/useUserCredits'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import ChatComposer from '~/components/ChatComposer'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import type { GroundedIMessage } from '~/services/aiChatService'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
@@ -186,6 +188,64 @@ export default function ChatView({ characterId }: ChatViewProps) {
     [characterId, currentUserId],
   )
 
+  const renderCustomView = useCallback(
+    (props: { currentMessage?: GroundedIMessage }) => {
+      const metadata = props.currentMessage?.groundingMetadata
+      if (!metadata) {
+        return null
+      }
+
+      const chunks = metadata.groundingChunks ?? []
+      const renderedContent = metadata.searchEntryPoint?.renderedContent
+
+      if (chunks.length === 0 && !renderedContent) {
+        return null
+      }
+
+      return (
+        <View style={styles.groundingContainer}>
+          {chunks.length > 0 && (
+            <View
+              style={styles.citationRow}
+              accessibilityRole={Platform.OS === 'web' ? ('list' as any) : undefined}
+              accessibilityLabel="Search sources"
+            >
+              {chunks.map((chunk, index) => {
+                const uri = chunk.web?.uri
+                const title = chunk.web?.title ?? uri
+                if (!uri || !title) {
+                  return null
+                }
+                return (
+                  <TouchableOpacity
+                    key={`${uri}-${index}`}
+                    style={styles.citationChip}
+                    onPress={() => Linking.openURL(uri)}
+                    accessibilityRole="link"
+                    accessibilityLabel={title}
+                  >
+                    <RNText style={styles.citationChipText} numberOfLines={1}>
+                      {title}
+                    </RNText>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          )}
+          {renderedContent && (
+            <WebView
+              originWhitelist={['*']}
+              source={{ html: renderedContent }}
+              style={styles.searchSuggestions}
+              scrollEnabled={false}
+            />
+          )}
+        </View>
+      )
+    },
+    [],
+  )
+
   if (characterLoading) {
     return (
       <View
@@ -256,6 +316,8 @@ export default function ChatView({ characterId }: ChatViewProps) {
           renderBubble={renderBubble}
           renderInputToolbar={renderInputToolbar}
           renderSend={renderSend}
+          renderCustomView={renderCustomView}
+          isCustomViewBottom
           renderAvatarOnTop
           messagesContainerStyle={styles.messagesContainer}
           minInputToolbarHeight={56}
@@ -298,6 +360,30 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     fontSize: 12,
     opacity: 0.7,
+  },
+  groundingContainer: {
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    gap: 6,
+  },
+  citationRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  citationChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    maxWidth: 220,
+  },
+  citationChipText: {
+    fontSize: 12,
+  },
+  searchSuggestions: {
+    height: 44,
+    backgroundColor: 'transparent',
   },
   headerTitle: {
     flexDirection: 'row',
