@@ -70,12 +70,9 @@ function parseGroundingMetadata(raw: unknown): GroundingMetadata | undefined {
   }
 
   if (Array.isArray(raw.groundingChunks)) {
-    const chunks = raw.groundingChunks.filter(
-      (chunk): chunk is NonNullable<GroundingMetadata['groundingChunks']>[number] =>
-        isPlainObject(chunk),
-    )
+    const chunks = raw.groundingChunks.filter(isPlainObject)
     if (chunks.length > 0) {
-      metadata.groundingChunks = chunks
+      metadata.groundingChunks = chunks as GroundingMetadata['groundingChunks']
     }
   }
 
