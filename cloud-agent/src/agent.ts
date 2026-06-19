@@ -1,4 +1,4 @@
-import { LlmAgent } from '@google/adk'
+import { LlmAgent, GOOGLE_SEARCH } from '@google/adk'
 import { createTaskTool, listTasksTool, updateTaskTool, completeTaskTool, deleteTaskTool } from './tools/tasks.js'
 import { wikiReadTool, wikiWriteTool } from './tools/wiki.js'
 import { getCurrentTimeTool } from './tools/time.js'
@@ -15,7 +15,7 @@ export function buildAgent(
 ): LlmAgent {
   return new LlmAgent({
     name: 'clanker-cloud-agent',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3-flash-preview',
     instruction: systemInstruction,
     tools: [
       getCurrentTimeTool(timezone),
@@ -28,6 +28,7 @@ export function buildAgent(
       deleteTaskTool(db, userId, characterId),
       documentSearchTool(db, userId, characterId),
       setReminderTool(db, userId, characterId),
+      GOOGLE_SEARCH,
     ],
   })
 }
