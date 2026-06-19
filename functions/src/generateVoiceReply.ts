@@ -2,13 +2,14 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
+import { GoogleGenAI } from "@google/genai";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
-const TEXT_MODEL = "gemini-2.5-flash";
+const TEXT_MODEL = "gemini-3-flash-preview";
 const TTS_MODEL = "gemini-2.5-flash-tts";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 12_000;
@@ -46,43 +47,6 @@ interface GenerateVoiceReplyOptions {
   creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
 }
 
-interface CandidatePart {
-  text?: string;
-}
-
-interface Candidate {
-  content?: {
-    parts?: CandidatePart[];
-  };
-}
-
-interface GenerateContentResult {
-  response: {
-    candidates?: Candidate[];
-  };
-}
-
-interface GenerativeModelLike {
-  generateContent(prompt: string): Promise<GenerateContentResult>;
-}
-
-interface VertexAILike {
-  getGenerativeModel(config: {
-    model: string;
-    generationConfig: {
-      maxOutputTokens: number;
-    };
-  }): GenerativeModelLike;
-}
-
-interface VertexAIConstructor {
-  new (config: {project: string; location: string}): VertexAILike;
-}
-
-interface VertexAIModule {
-  VertexAI: VertexAIConstructor;
-}
-
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error && typeof error.message === "string") {
     return error.message;
@@ -101,77 +65,25 @@ function getProjectId(): string | undefined {
   return value ? value : undefined;
 }
 
-interface GenAiClientLike {
-  models: {
-    generateContent: (payload: Record<string, unknown>) => Promise<{
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{
-            inlineData?: {
-              data?: string;
-              mimeType?: string;
-            };
-          }>;
-        };
-      }>;
-    }>;
-  };
-}
-
 let textGenerator: GenerateTextFn | undefined;
-let modelPromise: Promise<GenerativeModelLike> | undefined;
-let genAiClientPromise: Promise<GenAiClientLike> | undefined;
+let genAIClient: GoogleGenAI | undefined;
 let speechSynthesizer: SynthesizeSpeechFn | undefined;
 
-async function getModel(): Promise<GenerativeModelLike> {
-  if (modelPromise) {
-    return modelPromise;
+function getGenAIClient(): GoogleGenAI {
+  if (genAIClient) {
+    return genAIClient;
   }
 
   const project = getProjectId();
   if (!project) {
     throw new HttpsError(
       "failed-precondition",
-      "Missing GCLOUD_PROJECT for Vertex AI voice reply generation."
+      "Missing GCLOUD_PROJECT for voice reply generation."
     );
   }
 
-  modelPromise = (async () => {
-    try {
-      const moduleName = "@google-cloud/vertexai";
-      const vertexModule = await import(moduleName) as VertexAIModule;
-      const vertex = new vertexModule.VertexAI({project, location: DEFAULT_REGION});
-
-      return vertex.getGenerativeModel({
-        model: TEXT_MODEL,
-        generationConfig: {
-          maxOutputTokens: MAX_OUTPUT_TOKENS,
-        },
-      });
-    } catch (error: unknown) {
-      modelPromise = undefined;
-      const message = toErrorMessage(error);
-
-      const missingVertexModule =
-        (error instanceof Error && ("code" in error && error.code === "MODULE_NOT_FOUND")) ||
-        message.includes("@google-cloud/vertexai");
-
-      if (missingVertexModule) {
-        throw new HttpsError(
-          "failed-precondition",
-          "The @google-cloud/vertexai package is not available."
-        );
-      }
-
-      if (error instanceof HttpsError) {
-        throw error;
-      }
-
-      throw new HttpsError("internal", `Failed to initialize Vertex AI model: ${message}`);
-    }
-  })();
-
-  return modelPromise;
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  return genAIClient;
 }
 
 function getTextGenerator(): GenerateTextFn {
@@ -180,14 +92,20 @@ function getTextGenerator(): GenerateTextFn {
   }
 
   textGenerator = async (prompt: string): Promise<string> => {
-    const model = await getModel();
-    const result = await model.generateContent(prompt);
-    const candidates = result.response.candidates ?? [];
+    const ai = getGenAIClient();
+    const result = await ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: prompt,
+      config: {
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+      },
+    });
+    const candidates = result.candidates ?? [];
 
     for (const candidate of candidates) {
       const parts = candidate.content?.parts ?? [];
       const text = parts
-        .map((part: CandidatePart) => (typeof part.text === "string" ? part.text : ""))
+        .map((part) => (typeof part.text === "string" ? part.text : ""))
         .join("")
         .trim();
 
@@ -196,46 +114,10 @@ function getTextGenerator(): GenerateTextFn {
       }
     }
 
-    throw new HttpsError("internal", "Vertex AI returned an empty response.");
+    throw new HttpsError("internal", "Model returned an empty response.");
   };
 
   return textGenerator;
-}
-
-async function getGenAiClient(): Promise<GenAiClientLike> {
-  if (genAiClientPromise) {
-    return genAiClientPromise;
-  }
-
-  const project = getProjectId();
-  if (!project) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Missing GCLOUD_PROJECT for Vertex AI speech synthesis."
-    );
-  }
-
-  genAiClientPromise = (async () => {
-    try {
-      const moduleName = "@google/genai";
-      const genAiModule = await import(moduleName) as {
-        GoogleGenAI: new (config: Record<string, unknown>) => GenAiClientLike;
-      };
-      return new genAiModule.GoogleGenAI({
-        vertexai: true,
-        project,
-        location: DEFAULT_REGION,
-      });
-    } catch (error: unknown) {
-      genAiClientPromise = undefined;
-      if (error instanceof HttpsError) {
-        throw error;
-      }
-      throw new HttpsError("internal", `Failed to initialize Google GenAI client: ${toErrorMessage(error)}`);
-    }
-  })();
-
-  return genAiClientPromise;
 }
 
 const DEFAULT_PCM_SAMPLE_RATE = 24_000;
@@ -311,9 +193,9 @@ function getSpeechSynthesizer(): SynthesizeSpeechFn {
 
   speechSynthesizer = async (text: string, voice: string) => {
     try {
-      const client = await getGenAiClient();
+      const ai = getGenAIClient();
 
-      const response = await client.models.generateContent({
+      const response = await ai.models.generateContent({
         model: TTS_MODEL,
         contents: [
           {

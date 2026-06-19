@@ -458,7 +458,7 @@ Stripe checkout tests also assume `STRIPE_SECRET_KEY` is set to a valid key-like
 ### Project Documentation
 
 - Update relevant docs in `/docs` folder
-- Add links in README.md for new major features
+- Add README links for new user-facing docs in `docs/` (not under `docs/superpowers/`)
 - Include code examples in documentation
 - Keep the documentation style consistent
 

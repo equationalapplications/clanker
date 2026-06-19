@@ -1,11 +1,12 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
+import { GoogleGenAI, Type } from "@google/genai";
 import {userRepository} from "./services/userRepository.js";
 import {creditService as defaultCreditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 const DEFAULT_REGION = "us-central1";
 const MAX_OUTPUT_TOKENS = 2_048;
 const MAX_SYSTEM_PROMPT_LENGTH = 32_000;
@@ -54,54 +55,61 @@ function parseInput(data: unknown): WikiLlmRequest {
   return {systemPrompt: trimmedSystemPrompt, userPrompt: trimmedUserPrompt};
 }
 
-interface VertexGenerateOptions {
+interface WikiLlmOptions {
   model?: string;
   generateText?: (systemPrompt: string, userPrompt: string) => Promise<string>;
   getUser?: typeof userRepository.getOrCreateUserByFirebaseIdentity;
   creditService?: Pick<typeof defaultCreditService, "spendCredits" | "refundCredit">;
 }
 
+let genAIClient: GoogleGenAI | undefined;
+
+function getGenAIClient(): GoogleGenAI {
+  if (genAIClient) {
+    return genAIClient;
+  }
+
+  const project = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
+  if (!project) {
+    throw new HttpsError("failed-precondition", "Missing GCLOUD_PROJECT for wiki LLM.");
+  }
+
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  return genAIClient;
+}
+
 function getTextGenerator(model = DEFAULT_MODEL) {
   return async (systemPrompt: string, userPrompt: string): Promise<string> => {
-    // Dynamic import to allow mocking in tests
-    const {VertexAI, SchemaType} = await import("@google-cloud/vertexai");
-    const project = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
-    if (!project) {
-      throw new HttpsError("failed-precondition", "Missing GCLOUD_PROJECT for Vertex AI.");
-    }
-    const vertexAI = new VertexAI({project, location: DEFAULT_REGION});
-    const generativeModel = vertexAI.getGenerativeModel({
+    const ai = getGenAIClient();
+    const result = await ai.models.generateContent({
       model,
-      generationConfig: {
+      contents: [{role: "user", parts: [{text: userPrompt}]}],
+      config: {
+        systemInstruction: systemPrompt,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         temperature: 0,
         responseMimeType: "application/json",
-        responseSchema: {type: SchemaType.OBJECT},
+        responseSchema: {type: Type.OBJECT},
       },
     });
 
-    const result = await generativeModel.generateContent({
-      contents: [{role: "user", parts: [{text: userPrompt}]}],
-      systemInstruction: systemPrompt,
-    });
-
-    const candidates = result.response.candidates ?? [];
+    const candidates = result.candidates ?? [];
     for (const candidate of candidates) {
       const parts = candidate.content?.parts ?? [];
       const text = parts
-        .map((p: {text?: string}) => (typeof p.text === "string" ? p.text : ""))
+        .map((p) => (typeof p.text === "string" ? p.text : ""))
         .join("")
         .trim();
       if (text) return text;
     }
 
-    throw new HttpsError("internal", "Vertex AI returned an empty response.");
+    throw new HttpsError("internal", "Model returned an empty response.");
   };
 }
 
 export const wikiLlmHandler = async (
   request: CallableRequest,
-  options: VertexGenerateOptions = {}
+  options: WikiLlmOptions = {}
 ): Promise<WikiLlmResponse> => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required.");
@@ -140,7 +148,7 @@ export const wikiLlmHandler = async (
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
 
-  const generateText = options.generateText ?? getTextGenerator();
+  const generateText = options.generateText ?? getTextGenerator(options.model);
   let text: string;
   try {
     text = await generateText(systemPrompt, userPrompt);

@@ -3,6 +3,7 @@
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
+  useAgeVerification.test --> useAgeVerification
   useAIChat --> useMessages
   useAIChat --> useMachines
   useAIChat --> useCharacterWiki
@@ -26,7 +27,6 @@ graph LR
   useCurrentPlan --> useMachines
   useEdgeAgent --> CharacterPromptBuilder
   useEdgeAgent --> edgeToolExecutors
-  useEdgeAgent --> agent-tools-spec
   useImageGeneration --> useMachines
   useImageGeneration --> imageGenerationService
   useImageGeneration --> localImageStorageService
@@ -48,5 +48,4 @@ graph LR
   useVoiceChat --> useCurrentPlan
   useVoiceChat --> voiceChatService
   useWebCheckoutSync.web --> googleSignin
-  useWebCheckoutSync.web --> checkoutChannel.test
 ```

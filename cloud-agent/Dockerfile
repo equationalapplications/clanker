@@ -4,6 +4,7 @@ COPY shared/ ./shared/
 COPY cloud-agent/ ./cloud-agent/
 WORKDIR /app/cloud-agent
 RUN npm ci
+RUN ln -sfn /app/cloud-agent/node_modules /app/node_modules
 RUN npm run build
 
 FROM node:22-bullseye-slim

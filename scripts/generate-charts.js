@@ -7,6 +7,11 @@ const path = require('path')
 const DIRECTORIES = ['components', 'database', 'hooks', 'machines', 'services']
 const OVERVIEW_FILE = 'docs/flowcharts/overview.md'
 
+/** @param {string} directory */
+function toDocFilename(directory) {
+  return `${directory.toUpperCase()}.md`
+}
+
 /**
  * Query file-to-file dependency edges within a single src/ directory.
  * Excludes utilities, types, config, and self-referential edges.
@@ -30,6 +35,7 @@ function queryFileEdges(db, directory) {
       AND nt.file_path NOT LIKE '%/utilities/%'
       AND nt.file_path NOT LIKE '%/types/%'
       AND nt.file_path NOT LIKE '%/config/%'
+      AND nt.file_path LIKE 'src/%'
   `
   const rows = db.prepare(sql).all(`src/${directory}/%`)
 
@@ -126,7 +132,7 @@ function queryImportEdges(db, directory) {
   return result
 }
 
-module.exports = { queryFileEdges, queryImportEdges, renderFileChart }
+module.exports = { queryFileEdges, queryImportEdges, renderFileChart, toDocFilename }
 
 function main() {
   const dbPath = '.codegraph/codegraph.db'
@@ -149,7 +155,12 @@ function main() {
         edgeSource = 'import'
       }
       const content = renderFileChart(dir, edges)
-      const outFile = `docs/flowcharts/${dir}.md`
+      const outFile = `docs/flowcharts/${toDocFilename(dir)}`
+      const legacyFile = `docs/flowcharts/${dir}.md`
+      if (legacyFile !== outFile && fs.existsSync(legacyFile)) {
+        fs.unlinkSync(legacyFile)
+        console.log(`  deleted ${legacyFile}`)
+      }
       fs.writeFileSync(outFile, content, 'utf8')
       console.log(`  wrote ${outFile} (${edges.length} ${edgeSource} edges)`)
     }

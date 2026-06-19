@@ -1,8 +1,9 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
+import { GoogleGenAI } from "@google/genai";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 const DEFAULT_REGION = "us-central1";
 const MAX_INPUT_LENGTH = 16_000;
 const MAX_OUTPUT_TOKENS = 1_024;
@@ -14,43 +15,6 @@ interface SummarizeTextData {
 
 export interface SummarizeTextResponse {
   summary: string;
-}
-
-interface CandidatePart {
-  text?: string;
-}
-
-interface Candidate {
-  content?: {
-    parts?: CandidatePart[];
-  };
-}
-
-interface GenerateContentResult {
-  response: {
-    candidates?: Candidate[];
-  };
-}
-
-interface GenerativeModelLike {
-  generateContent(prompt: string): Promise<GenerateContentResult>;
-}
-
-interface VertexAILike {
-  getGenerativeModel(config: {
-    model: string;
-    generationConfig: {
-      maxOutputTokens: number;
-    };
-  }): GenerativeModelLike;
-}
-
-interface VertexAIConstructor {
-  new (config: {project: string; location: string}): VertexAILike;
-}
-
-interface VertexAIModule {
-  VertexAI: VertexAIConstructor;
 }
 
 type GenerateSummaryFn = (prompt: string) => Promise<string>;
@@ -110,62 +74,24 @@ function parseInput(data: unknown): {text: string; maxCharacters: number} {
   };
 }
 
-let modelPromise: Promise<GenerativeModelLike> | undefined;
+let genAIClient: GoogleGenAI | undefined;
 let summaryGenerator: GenerateSummaryFn | undefined;
 
-async function getModel(): Promise<GenerativeModelLike> {
-  if (modelPromise) {
-    return modelPromise;
+function getGenAIClient(): GoogleGenAI {
+  if (genAIClient) {
+    return genAIClient;
   }
 
   const project = getProjectId();
   if (!project) {
     throw new HttpsError(
       "failed-precondition",
-      "Missing GCLOUD_PROJECT for Vertex AI text summarization."
+      "Missing GCLOUD_PROJECT for text summarization."
     );
   }
 
-  modelPromise = (async () => {
-    try {
-      const moduleName = "@google-cloud/vertexai";
-      const vertexModule = await import(moduleName) as VertexAIModule;
-      const vertex = new vertexModule.VertexAI({project, location: DEFAULT_REGION});
-      return vertex.getGenerativeModel({
-        model: DEFAULT_MODEL,
-        generationConfig: {
-          maxOutputTokens: MAX_OUTPUT_TOKENS,
-        },
-      });
-    } catch (error: unknown) {
-      modelPromise = undefined;
-
-      const message = error instanceof Error ? error.message : String(error);
-      const missingVertexModule =
-        (error instanceof Error &&
-          ("code" in error && (error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND")) ||
-        message.includes("@google-cloud/vertexai");
-
-      if (missingVertexModule) {
-        throw new HttpsError(
-          "failed-precondition",
-          "The @google-cloud/vertexai package is not available. " +
-            "Ensure it is installed and deployed with this function."
-        );
-      }
-
-      if (error instanceof HttpsError) {
-        throw error;
-      }
-
-      throw new HttpsError(
-        "internal",
-        `Failed to initialize summarization model: ${message}`
-      );
-    }
-  })();
-
-  return modelPromise;
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  return genAIClient;
 }
 
 function getSummaryGenerator(): GenerateSummaryFn {
@@ -174,9 +100,15 @@ function getSummaryGenerator(): GenerateSummaryFn {
   }
 
   summaryGenerator = async (prompt: string): Promise<string> => {
-    const model = await getModel();
-    const result = await model.generateContent(prompt);
-    const candidates = result.response.candidates ?? [];
+    const ai = getGenAIClient();
+    const result = await ai.models.generateContent({
+      model: DEFAULT_MODEL,
+      contents: prompt,
+      config: {
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+      },
+    });
+    const candidates = result.candidates ?? [];
 
     for (const candidate of candidates) {
       const parts = candidate.content?.parts ?? [];
@@ -189,7 +121,7 @@ function getSummaryGenerator(): GenerateSummaryFn {
       }
     }
 
-    throw new HttpsError("internal", "Vertex AI returned an empty summary response.");
+    throw new HttpsError("internal", "Model returned an empty summary response.");
   };
 
   return summaryGenerator;

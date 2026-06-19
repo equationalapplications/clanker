@@ -3,7 +3,6 @@
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
-  clankerManifests.test --> agent-tools-spec
   edgeAgentEvals.int.test --> CharacterPromptBuilder
   aiChatService --> messageDatabase
   aiChatService --> characterDatabase
@@ -21,7 +20,6 @@ graph LR
   characterSyncService --> wikiOrchestrator
   characterSyncService --> googleSignin
   characterSyncService --> voiceDefaults
-  chatReplyService --> agent-tools-spec
   cloudAgentService --> googleSignin
   edgeToolExecutors --> wikiService
   edgeToolExecutors --> taskDatabase
@@ -33,7 +31,6 @@ graph LR
   voiceChatService --> messageDatabase
   voiceChatService --> aiChatService
   voiceChatService --> useMessages
-  voiceChatService --> summarizeText
   wikiLlmProvider --> apiClient
   wikiOrchestrator --> wikiService
   wikiService --> wikiLlmProvider

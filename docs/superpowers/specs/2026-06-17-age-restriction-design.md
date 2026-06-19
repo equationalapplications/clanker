@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-17  
 **Branch:** age-restriction  
-**Status:** Approved
+**Status:** Implemented
 
 ## Overview
 

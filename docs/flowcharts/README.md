@@ -17,11 +17,11 @@ File-level dependency graphs for each core source module. Show which files withi
 
 | File | Module |
 |---|---|
-| `components.md` | `src/components/` |
-| `database.md` | `src/database/` |
-| `hooks.md` | `src/hooks/` |
-| `machines.md` | `src/machines/` |
-| `services.md` | `src/services/` |
+| `COMPONENTS.md` | `src/components/` |
+| `DATABASE.md` | `src/database/` |
+| `HOOKS.md` | `src/hooks/` |
+| `MACHINES.md` | `src/machines/` |
+| `SERVICES.md` | `src/services/` |
 
 Regenerate with:
 

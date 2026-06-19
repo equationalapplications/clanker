@@ -295,6 +295,81 @@ describe('sendMessageWithAIResponse', () => {
     })
   })
 
+  it('forwards groundingMetadata to saveAIMessage when the AI response includes it', async () => {
+    const groundingMetadata = {
+      webSearchQueries: ['weather in Tokyo'],
+      groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+    }
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'It is sunny in Tokyo.',
+      remainingCredits: null,
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-04-27T00:00:00.000Z',
+      groundingMetadata,
+    })
+
+    await sendMessageWithAIResponse(
+      {
+        _id: 'msg-grounded',
+        text: 'What is the weather in Tokyo?',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any,
+      {
+        id: 'char-1',
+        name: 'Nova',
+        appearance: 'avatar',
+        traits: 'calm',
+        emotions: 'encouraging',
+        context: 'friendly coach',
+      },
+      'user-1',
+      [] as any,
+    )
+
+    expect(mockSaveAIMessage).toHaveBeenCalledWith(
+      'char-1',
+      'user-1',
+      'It is sunny in Tokyo.',
+      expect.any(String),
+      expect.objectContaining({ groundingMetadata }),
+      expect.any(Number),
+    )
+  })
+
+  it('omits groundingMetadata from saveAIMessage when the AI response has none', async () => {
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'Hi there.',
+      remainingCredits: null,
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-04-27T00:00:00.000Z',
+    })
+
+    await sendMessageWithAIResponse(
+      {
+        _id: 'msg-plain',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any,
+      {
+        id: 'char-1',
+        name: 'Nova',
+        appearance: 'avatar',
+        traits: 'calm',
+        emotions: 'encouraging',
+        context: 'friendly coach',
+      },
+      'user-1',
+      [] as any,
+    )
+
+    const additionalDataArg = mockSaveAIMessage.mock.calls[0][4]
+    expect(additionalDataArg).not.toHaveProperty('groundingMetadata')
+  })
+
   it('does not log expected failed-precondition credit failures', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
     const preconditionError = new Error('Insufficient credits') as any

@@ -8,9 +8,9 @@ const timezone = 'UTC'
 
 const { buildAgent } = await import('./agent.js')
 
-test('buildAgent: returns LlmAgent with 10 tools', () => {
+test('buildAgent: returns LlmAgent with 11 tools', () => {
   const agent = buildAgent(mockDb, 'user-1', 'char-1', 'You are Alice.', timezone, mockEmbed)
-  assert.equal(agent.tools.length, 10)
+  assert.equal(agent.tools.length, 11)
 })
 
 test('buildAgent: registers all required tool names', () => {
@@ -26,6 +26,7 @@ test('buildAgent: registers all required tool names', () => {
   assert.ok(names.includes('delete_task'), 'missing delete_task')
   assert.ok(names.includes('document_search'), 'missing document_search')
   assert.ok(names.includes('set_reminder'), 'missing set_reminder')
+  assert.ok(names.includes('google_search'), 'missing google_search')
 })
 
 test('buildAgent: sets instruction from parameter', () => {
@@ -33,7 +34,7 @@ test('buildAgent: sets instruction from parameter', () => {
   assert.equal(agent.instruction, 'You are Bob, a chef.')
 })
 
-test('buildAgent: model is gemini-2.5-flash', () => {
+test('buildAgent: model is gemini-3-flash-preview', () => {
   const agent = buildAgent(mockDb, 'user-1', 'char-1', 'You are Alice.', timezone, mockEmbed)
-  assert.equal(agent.model, 'gemini-2.5-flash')
+  assert.equal(agent.model, 'gemini-3-flash-preview')
 })
