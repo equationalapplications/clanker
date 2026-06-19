@@ -77,12 +77,9 @@ function parseGroundingMetadata(raw: unknown): GroundingMetadata | undefined {
   }
 
   if (Array.isArray(raw.groundingSupports)) {
-    const supports = raw.groundingSupports.filter(
-      (support): support is NonNullable<GroundingMetadata['groundingSupports']>[number] =>
-        isPlainObject(support),
-    )
+    const supports = raw.groundingSupports.filter(isPlainObject)
     if (supports.length > 0) {
-      metadata.groundingSupports = supports
+      metadata.groundingSupports = supports as GroundingMetadata['groundingSupports']
     }
   }
 
