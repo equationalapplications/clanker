@@ -153,7 +153,7 @@ A Firebase callable that performs summarization on Vertex AI using `gemini-3.5-f
 
 > **Status:** Credit-gated (1 credit per server-side write/heal/LLM call), v1 implementation complete. Available to any user with sufficient credits — including active monthly subscribers and `payg` users with a positive balance.
 >
-> **Note:** The current codebase uses `@equationalapplications/expo-llm-wiki@4.11.0` with `src/services/wikiService.ts`, `src/hooks/useCharacterWiki.ts`, and `src/machines/wikiMachine.ts`. Legacy callable support remains in `functions/src/memoryFunctions.ts` for compatibility.
+> **Note:** The current codebase uses `@equationalapplications/expo-llm-wiki` (see `package.json` for the current version) with `src/services/wikiService.ts`, `src/hooks/useCharacterWiki.ts`, and `src/machines/wikiMachine.ts`. Legacy callable support remains in `functions/src/memoryFunctions.ts` for compatibility.
 
 LLM Wiki Memory extends chat summarization with structured, queryable memory that can be read, written, and updated within a conversation without blocking replies. It complements `characters.context` (rolling summary) with a database of facts, open tasks, and episodic observations.
 
