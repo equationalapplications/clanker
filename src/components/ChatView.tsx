@@ -237,12 +237,16 @@ onPress={() => {
             </View>
           )}
           {renderedContent && (
-            <WebView
-              originWhitelist={['*']}
-              source={{ html: renderedContent }}
-              style={styles.searchSuggestions}
-              scrollEnabled={false}
-            />
+<WebView
+  originWhitelist={['about:blank']}
+  source={{ html: renderedContent }}
+  style={styles.searchSuggestions}
+  scrollEnabled={false}
+  javaScriptEnabled={false}
+  domStorageEnabled={false}
+  setSupportMultipleWindows={false}
+  onShouldStartLoadWithRequest={(request) => request.url === 'about:blank'}
+/>
           )}
         </View>
       )
