@@ -14,7 +14,10 @@ import { characters, subscriptions } from './db/schema.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_REGION = 'us-central1';
-const EXTRACT_MODEL = 'gemini-3-flash-preview';
+// Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
+// governs this Cloud Function's own deploy region, unrelated to this.
+const GEMINI_LOCATION = 'global';
+const EXTRACT_MODEL = 'gemini-3.5-flash';
 const MAX_DOCUMENT_CHARS = 200_000;
 const MAX_DOCUMENTS_PER_DAY = 5;
 const MAX_CHUNKS = 100;
@@ -81,9 +84,19 @@ const FACT_EXTRACTION_SCHEMA = {
 let genAIClient: GoogleGenAI | undefined;
 
 function getProjectId(): string {
-  const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
-  const value = fromEnv?.trim();
-  if (!value) throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for document extraction.');
+  const value = [
+    process.env.GCLOUD_PROJECT,
+    process.env.GCP_PROJECT,
+    process.env.GOOGLE_CLOUD_PROJECT,
+  ]
+    .map((v) => v?.trim())
+    .find((v): v is string => Boolean(v));
+  if (!value) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for document extraction.',
+    );
+  }
   return value;
 }
 
@@ -95,7 +108,7 @@ function getGenAIClient(): GoogleGenAI {
   genAIClient = new GoogleGenAI({
     vertexai: true,
     project: getProjectId(),
-    location: DEFAULT_REGION,
+    location: GEMINI_LOCATION,
   });
   return genAIClient;
 }
@@ -108,6 +121,7 @@ function buildGenerateContent(): (prompt: string) => Promise<string> {
       contents: prompt,
       config: {
         maxOutputTokens: 2048,
+        thinkingConfig: { thinkingBudget: 0 },
         responseMimeType: 'application/json',
         responseSchema: FACT_EXTRACTION_SCHEMA,
       },

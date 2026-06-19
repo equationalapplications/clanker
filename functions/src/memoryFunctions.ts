@@ -13,7 +13,10 @@ import { getDb } from './db/cloudSql.js';
 import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
 
 const DEFAULT_REGION = 'us-central1';
-const HEAL_MODEL = 'gemini-3-flash-preview';
+// Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
+// governs this Cloud Function's own deploy region, unrelated to this.
+const GEMINI_LOCATION = 'global';
+const HEAL_MODEL = 'gemini-3.5-flash';
 const HEAL_MAX_OUTPUT_TOKENS = 1_024;
 
 type MemoryIdentity = {
@@ -135,12 +138,21 @@ function getGenAIClient(): GoogleGenAI {
     return genAIClient;
   }
 
-  const project = (process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT)?.trim();
+  const project = [
+    process.env.GCLOUD_PROJECT,
+    process.env.GCP_PROJECT,
+    process.env.GOOGLE_CLOUD_PROJECT,
+  ]
+    .map(v => v?.trim())
+    .find((v): v is string => Boolean(v));
   if (!project) {
-    throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for memory heal.');
+    throw new HttpsError(
+      'failed-precondition',
+      'Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for memory heal.',
+    );
   }
 
-  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
   return genAIClient;
 }
 
@@ -151,6 +163,7 @@ async function defaultGenerateContent(prompt: string): Promise<string> {
     contents: prompt,
     config: {
       maxOutputTokens: HEAL_MAX_OUTPUT_TOKENS,
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
   const candidates = result.candidates ?? [];

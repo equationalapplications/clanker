@@ -22,19 +22,46 @@ const ALL_TOOLS = [
   },
 ] as unknown as ToolListUnion
 
-async function runEdgeEval(userText: string) {
-  const apiKey = process.env.GOOGLE_GENAI_API_KEY
-  if (!apiKey) throw new Error('GOOGLE_GENAI_API_KEY is not set')
+function getProjectId(): string | undefined {
+  return [
+    process.env.GCLOUD_PROJECT,
+    process.env.GCP_PROJECT,
+    process.env.GOOGLE_CLOUD_PROJECT,
+  ]
+    .map(v => v?.trim())
+    .find((v): v is string => Boolean(v))
+}
 
-  const ai = new GoogleGenAI({ apiKey })
+async function runEdgeEval(userText: string) {
+  const useVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true'
+  const project = getProjectId()
+  const location = process.env.GOOGLE_CLOUD_LOCATION?.trim() || 'global'
+  const apiKey = process.env.GOOGLE_GENAI_API_KEY?.trim()
+
+  let ai: GoogleGenAI
+  if (useVertex) {
+    if (!project) {
+      throw new Error(
+        'Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for Vertex AI evals',
+      )
+    }
+    ai = new GoogleGenAI({ vertexai: true, project, location })
+  } else if (!apiKey) {
+    throw new Error(
+      'Set GOOGLE_GENAI_API_KEY or enable GOOGLE_GENAI_USE_VERTEXAI=true with a project env var',
+    )
+  } else {
+    ai = new GoogleGenAI({ apiKey })
+  }
   const systemInstruction = buildSystemInstruction({ character, userId })
   const contents: Content[] = [{ role: 'user', parts: [{ text: userText }] }]
 
   return ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.5-flash',
     contents,
     config: {
       systemInstruction,
+      thinkingConfig: { thinkingBudget: 0 },
       tools: ALL_TOOLS,
     },
   })

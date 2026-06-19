@@ -15,8 +15,12 @@ import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 import { getDb } from "./db/cloudSql.js";
 import { characters, messages } from "./db/schema.js";
 
-const DEFAULT_MODEL = "gemini-3-flash-preview";
+const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_REGION = "us-central1";
+// Gemini 3 family is currently global-only on Vertex AI (no us-central1
+// regional serving yet); DEFAULT_REGION above still governs the Cloud
+// Function's own deploy region, unrelated to this.
+const GEMINI_LOCATION = "global";
 const MAX_PROMPT_LENGTH = 12_000;
 const MAX_OUTPUT_TOKENS = 1_024;
 const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000;
@@ -178,9 +182,13 @@ function isIdentityConflictError(error: unknown): boolean {
 }
 
 function getProjectId(): string | undefined {
-  const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
-  const value = fromEnv?.trim();
-  return value ? value : undefined;
+  return [
+    process.env.GCLOUD_PROJECT,
+    process.env.GCP_PROJECT,
+    process.env.GOOGLE_CLOUD_PROJECT,
+  ]
+    .map((v) => v?.trim())
+    .find((v): v is string => Boolean(v));
 }
 
 let textGenerator: GenerateTextFn | undefined;
@@ -195,11 +203,11 @@ function getGenAIClient(): GoogleGenAI {
   if (!project) {
     throw new HttpsError(
       "failed-precondition",
-      "Missing GCLOUD_PROJECT for Vertex AI chat response generation."
+      "Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for Vertex AI chat response generation."
     );
   }
 
-  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
   return genAIClient;
 }
 
@@ -231,6 +239,7 @@ function getTextGenerator(): GenerateTextFn {
       config: {
         systemInstruction: input.systemInstruction,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
+        thinkingConfig: { thinkingBudget: 0 },
         tools,
       },
     });

@@ -15,7 +15,7 @@ export function buildAgent(
 ): LlmAgent {
   return new LlmAgent({
     name: 'clanker-cloud-agent',
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-3.5-flash',
     instruction: systemInstruction,
     tools: [
       getCurrentTimeTool(timezone),

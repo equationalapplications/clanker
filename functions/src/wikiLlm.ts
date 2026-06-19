@@ -6,8 +6,11 @@ import {userRepository} from "./services/userRepository.js";
 import {creditService as defaultCreditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
-const DEFAULT_MODEL = "gemini-3-flash-preview";
+const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_REGION = "us-central1";
+// Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
+// governs this Cloud Function's own deploy region, unrelated to this.
+const GEMINI_LOCATION = "global";
 const MAX_OUTPUT_TOKENS = 2_048;
 const MAX_SYSTEM_PROMPT_LENGTH = 32_000;
 const MAX_USER_PROMPT_LENGTH = 500_000;
@@ -69,12 +72,21 @@ function getGenAIClient(): GoogleGenAI {
     return genAIClient;
   }
 
-  const project = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
+  const project = [
+    process.env.GCLOUD_PROJECT,
+    process.env.GCP_PROJECT,
+    process.env.GOOGLE_CLOUD_PROJECT,
+  ]
+    .map((v) => v?.trim())
+    .find((v): v is string => Boolean(v));
   if (!project) {
-    throw new HttpsError("failed-precondition", "Missing GCLOUD_PROJECT for wiki LLM.");
+    throw new HttpsError(
+      "failed-precondition",
+      "Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for wiki LLM.",
+    );
   }
 
-  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
   return genAIClient;
 }
 
@@ -87,6 +99,7 @@ function getTextGenerator(model = DEFAULT_MODEL) {
       config: {
         systemInstruction: systemPrompt,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
+        thinkingConfig: { thinkingBudget: 0 },
         temperature: 0,
         responseMimeType: "application/json",
         responseSchema: {type: Type.OBJECT},

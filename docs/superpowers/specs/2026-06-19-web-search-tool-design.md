@@ -162,12 +162,18 @@ both tool-calling surfaces in the codebase:
 - Migrate `DEFAULT_MODEL` in `functions/src/generateReply.ts` and the `model:`
   literal in `cloud-agent/src/agent.ts` from `gemini-2.5-flash` to a Gemini
   3-family model.
-- **Exact model ID is not finalized in this spec.** Before implementation,
-  check Vertex AI documentation/console for `us-central1` availability and
-  pricing. Implementation note from the requester: prefer the $0.50/$3.00
-  price tier (e.g. a `gemini-3-flash-preview`-class model) over the
-  $1.50/$9.00 tier (e.g. a `gemini-3.5-flash`-class model) to protect credit
-  economics, provided `us-central1` rate limits are sufficient for that tier.
+- **Decided during implementation:** `gemini-3.5-flash`, at the $1.50/$9.00
+  tier — the pricier of the two tiers originally considered. The cheaper
+  $0.50/$3.00 tier (`gemini-3-flash-preview`) is also confirmed available
+  (Vertex AI, `global` location only — see below), but the requester
+  confirmed credit economics support the higher tier, so this is an
+  intentional choice rather than a fallback.
+- **Vertex AI location:** Gemini 3 family models are currently global-only on
+  Vertex AI — `us-central1` (and every other region tested) returns 404
+  NOT_FOUND for all gemini-3.x model IDs; only `location: "global"` works.
+  `DEFAULT_REGION` (`us-central1`) still governs the Cloud Function's own
+  deploy region and is unrelated to this — the Vertex client's `location`
+  param was split out separately (`GEMINI_LOCATION`).
 - This also moves grounding billing from per-prompt to per-search-query —
   worth confirming against current Vertex AI pricing docs at implementation
   time, since it changes the cost model for `creditService`'s 1-credit-per-reply
