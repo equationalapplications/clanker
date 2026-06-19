@@ -1,5 +1,7 @@
 # Web Search Tool (Google Search Grounding) — Design
 
+**Status:** Implemented
+
 ## Goal
 
 Give Clanker's AI replies access to live web search via Gemini's built-in

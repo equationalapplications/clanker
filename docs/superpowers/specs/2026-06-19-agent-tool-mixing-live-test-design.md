@@ -1,5 +1,7 @@
 # Live tool-mixing integration test — design
 
+**Status:** Implemented
+
 ## Context
 
 `cloud-agent/src/agent.ts:16-33` already wires a built-in tool (`GOOGLE_SEARCH`) alongside multiple custom `FunctionTool`s (tasks, wiki, time, documents, reminders) into one `LlmAgent`. Older Gemini models rejected payloads mixing built-in tools with `functionDeclarations` (HTTP 400). This is currently live in production with no automated check that the combination still works against the real Vertex AI endpoint for the configured model (`gemini-3-flash-preview`).
