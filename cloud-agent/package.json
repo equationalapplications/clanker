@@ -11,9 +11,11 @@
     "start": "node dist/cloud-agent/src/index.js",
     "typecheck": "tsc --noEmit",
     "test": "NODE_ENV=test npm run build && NODE_ENV=test node --test --test-reporter spec \"dist/**/*.test.js\"",
-    "test:live": "RUN_LIVE_TESTS=1 npm test"
+    "test:live": "RUN_LIVE_TESTS=1 npm test",
+    "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
+    "@equationalapplications/core-llm-tools": "^4.13.1",
     "@google-cloud/cloud-sql-connector": "^1.10.0",
     "@google/adk": "^1.2.0",
     "@google/genai": "^1.50.1",
