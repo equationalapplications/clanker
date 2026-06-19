@@ -17,7 +17,7 @@
 
   1. **Create detailed docs in `/docs` folder** - All comprehensive documentation lives in individual markdown files in the `docs/` directory. Use descriptive filenames like `FEATURE_NAME.md` or `SYSTEM_NAME.md` in SCREAMING_SNAKE_CASE.
 
-  2. **Add summary + link to README** - After creating a doc file, add a brief 1-2 sentence summary and a link to it in the main `README.md` under the appropriate section (e.g., "Documentation Deep Dives", "Architecture", "Key Features").
+  2. **Add summary + link to README** - After creating a user-facing doc in `docs/` (not under `docs/superpowers/`), add a brief summary and link in `README.md` under the appropriate section. Exclude `docs/superpowers/` — agent specs/plans are not README-indexed.
 
   3. **Keep README concise** - The README should be a high-level overview and index. Detailed implementation details belong in individual doc files, not the README.
 
