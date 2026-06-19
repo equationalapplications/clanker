@@ -147,7 +147,8 @@ async function getHealModel(): Promise<VertexGenerativeModel> {
   }
   healModelPromise = (async () => {
     try {
-      const mod = await import('@google-cloud/vertexai') as VertexAIModule;
+      const moduleName = '@google-cloud/vertexai';
+      const mod = await import(moduleName) as VertexAIModule;
       const vertex = new mod.VertexAI({ project, location: DEFAULT_REGION });
       return vertex.getGenerativeModel({
         model: HEAL_MODEL,
