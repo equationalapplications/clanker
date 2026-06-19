@@ -3,6 +3,10 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { and, eq } from "drizzle-orm";
+import { GoogleGenAI } from "@google/genai";
+import type { Content, GroundingMetadata, Tool } from "@google/genai";
+import { buildAuthorizedToolsArray, googleSearchManifest } from "@equationalapplications/core-llm-tools";
+import type { GeminiToolEntry } from "@equationalapplications/core-llm-tools";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService } from "./services/creditService.js";
@@ -11,7 +15,7 @@ import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 import { getDb } from "./db/cloudSql.js";
 import { characters, messages } from "./db/schema.js";
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 const DEFAULT_REGION = "us-central1";
 const MAX_PROMPT_LENGTH = 12_000;
 const MAX_OUTPUT_TOKENS = 1_024;
@@ -146,60 +150,19 @@ export interface GenerateReplyResponse {
   planStatus: 'active' | 'cancelled' | 'expired' | null;
   verifiedAt: string;
   messageId?: string;
+  groundingMetadata?: GroundingMetadata;
 }
 
 type GenerateTextFn = (input: {
   contents: unknown[];
   systemInstruction: string;
-}) => Promise<string>;
+}) => Promise<{ text: string; groundingMetadata?: GroundingMetadata }>;
 type GetDbFn = () => Promise<Pick<Awaited<ReturnType<typeof getDb>>, 'insert' | 'select'>>;
 
 interface GenerateReplyOptions {
   generateText?: GenerateTextFn;
   creditService?: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>;
   getDb?: GetDbFn;
-}
-
-interface CandidatePart {
-  text?: string;
-}
-
-interface Candidate {
-  content?: {
-    parts?: CandidatePart[];
-  };
-}
-
-interface GenerateContentInput {
-  contents: unknown[];
-  systemInstruction: string;
-}
-
-interface GenerateContentResult {
-  response: {
-    candidates?: Candidate[];
-  };
-}
-
-interface GenerativeModelLike {
-  generateContent(input: GenerateContentInput): Promise<GenerateContentResult>;
-}
-
-interface VertexAILike {
-  getGenerativeModel(config: {
-    model: string;
-    generationConfig: {
-      maxOutputTokens: number;
-    };
-  }): GenerativeModelLike;
-}
-
-interface VertexAIConstructor {
-  new (config: {project: string; location: string}): VertexAILike;
-}
-
-interface VertexAIModule {
-  VertexAI: VertexAIConstructor;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -221,11 +184,11 @@ function getProjectId(): string | undefined {
 }
 
 let textGenerator: GenerateTextFn | undefined;
-let modelPromise: Promise<GenerativeModelLike> | undefined;
+let genAIClient: GoogleGenAI | undefined;
 
-async function getModel(): Promise<GenerativeModelLike> {
-  if (modelPromise) {
-    return modelPromise;
+function getGenAIClient(): GoogleGenAI {
+  if (genAIClient) {
+    return genAIClient;
   }
 
   const project = getProjectId();
@@ -236,49 +199,18 @@ async function getModel(): Promise<GenerativeModelLike> {
     );
   }
 
-  modelPromise = (async () => {
-    try {
-      // Avoid hard compile-time dependency resolution so typecheck still runs when
-      // function deps are not installed in the current environment.
-      const moduleName = "@google-cloud/vertexai";
-      const vertexModule = await import(moduleName) as VertexAIModule;
-      const vertex = new vertexModule.VertexAI({project, location: DEFAULT_REGION});
+  genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION });
+  return genAIClient;
+}
 
-      return vertex.getGenerativeModel({
-        model: DEFAULT_MODEL,
-        generationConfig: {
-          maxOutputTokens: MAX_OUTPUT_TOKENS,
-        },
-      });
-    } catch (error: unknown) {
-      modelPromise = undefined;
-
-      const message = error instanceof Error ? error.message : String(error);
-      const missingVertexModule =
-        (error instanceof Error &&
-          ("code" in error && error.code === "MODULE_NOT_FOUND")) ||
-        message.includes("@google-cloud/vertexai");
-
-      if (missingVertexModule) {
-        throw new HttpsError(
-          "failed-precondition",
-          "The @google-cloud/vertexai package is not available. " +
-            "Ensure it is installed and deployed with this function."
-        );
-      }
-
-      if (error instanceof HttpsError) {
-        throw error;
-      }
-
-      throw new HttpsError(
-        "internal",
-        `Failed to initialize Vertex AI model: ${message}`
-      );
-    }
-  })();
-
-  return modelPromise;
+export function toGenAITool(entry: GeminiToolEntry): Tool {
+  if ('google_search' in entry) {
+    return { googleSearch: {} };
+  }
+  if ('functionDeclarations' in entry) {
+    return { functionDeclarations: entry.functionDeclarations as Tool['functionDeclarations'] };
+  }
+  throw new Error('Unsupported tool entry');
 }
 
 function getTextGenerator(): GenerateTextFn {
@@ -289,27 +221,34 @@ function getTextGenerator(): GenerateTextFn {
   textGenerator = async (input: {
     contents: unknown[];
     systemInstruction: string;
-  }): Promise<string> => {
-    const model = await getModel();
-    const result = await model.generateContent({
-      contents: input.contents,
-      systemInstruction: input.systemInstruction,
+  }) => {
+    const ai = getGenAIClient();
+    const tools = buildAuthorizedToolsArray([googleSearchManifest], []).map(toGenAITool);
+
+    const result = await ai.models.generateContent({
+      model: DEFAULT_MODEL,
+      contents: input.contents as Content[],
+      config: {
+        systemInstruction: input.systemInstruction,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        tools,
+      },
     });
-    const candidates = result.response.candidates ?? [];
+    const candidates = result.candidates ?? [];
 
     for (const candidate of candidates) {
       const parts = candidate.content?.parts ?? [];
       const text = parts
-        .map((part: CandidatePart) => (typeof part.text === "string" ? part.text : ""))
+        .map((part) => (typeof part.text === "string" ? part.text : ""))
         .join("")
         .trim();
 
       if (text.length > 0) {
-        return text;
+        return { text, groundingMetadata: candidate.groundingMetadata };
       }
     }
 
-    throw new HttpsError("internal", "Vertex AI returned an empty response.");
+    throw new HttpsError("internal", "Model returned an empty response.");
   };
 
   return textGenerator;
@@ -543,12 +482,11 @@ const handler = async (
     transactionId = charge.transactionId;
     remainingCredits = charge.remainingCredits;
 
-    reply = (
-      await generateText({
-        contents: contents ?? [],
-        systemInstruction: systemInstruction ?? '',
-      })
-    ).trim();
+    const generated = await generateText({
+      contents: contents ?? [],
+      systemInstruction: systemInstruction ?? '',
+    });
+    reply = generated.text.trim();
     if (!reply) {
       throw new HttpsError("internal", "Model returned an empty chat response.");
     }
@@ -563,6 +501,7 @@ const handler = async (
       reply,
       creditsSpent: 1,
       remainingCredits,
+      groundingMetadata: generated.groundingMetadata,
       ...usageSnapshot,
     };
   } catch (error) {
