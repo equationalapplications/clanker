@@ -10,7 +10,7 @@ export interface UseEdgeAgentReturn {
 
 // On-device edge-triage (direct client-side Gemini calls) was removed: it required
 // shipping a Developer API key in the public JS bundle, which got abuse-flagged and
-// revoked, and violated the "zero direct GenAI SDK imports" architecture policy
+// revoked, and violated the "no client-side GenAI model calls" architecture policy
 // (docs/ai-and-chat.md). All chat now routes through the secured backend
 // (generateReply / cloud-agent) via useAIChat's existing fallback chain, so this
 // always escalates; sendMessage args are accepted for API compatibility but ignored.

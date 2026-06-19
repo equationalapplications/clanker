@@ -174,7 +174,7 @@ Only characters (not messages). Direction: local → cloud (local is source of t
 
 ## Cloud Character Save & Share
 
-Subscription-gated (monthly_20/monthly_50, active status), opt-in per character.
+Credit-gated (1 credit per cloud sync), opt-in per character. Available to any user with sufficient credits — including active monthly subscribers (`monthly_20`/`monthly_50`) and Pay-As-You-Go (`payg`) users with a positive credit balance.
 
 ### Data Model
 
@@ -186,9 +186,9 @@ Rows with `synced_to_cloud = 0` AND `save_to_cloud = 1` AND not soft-deleted.
 
 ### UI
 
-- Character edit screen: "Save to Cloud" toggle (subscription-gated with subscribe CTA toast), "Make Character Shareable" toggle (disabled unless cloud-save enabled)
+- Character edit screen: "Save to Cloud" toggle (credit-gated; helper text notes 1 credit per sync), "Make Character Shareable" toggle (disabled unless cloud-save enabled)
 - Share button (shown for shareable characters) provides social card with avatar, name, and public share URL using cloud UUID (`/characters/shared/{id}`)
-- Characters list: "Retrieve from Cloud" — subscription-gated, imports latest cloud characters
+- Characters list: cloud sync icon — imports latest cloud characters (auth required; no per-call credit charge for restore)
 
 ### Shared Character Import
 
@@ -200,9 +200,15 @@ Rows with `synced_to_cloud = 0` AND `save_to_cloud = 1` AND not soft-deleted.
 - Uses `EXPO_PUBLIC_CHARACTER_SHARE_BASE_URL` (optional, fallback: `https://clanker-ai.com`)
 - Web share URL + native deep link (`com.equationalapplications.clanker://`)
 
-### Subscription Gating
+### Access Control
 
-Enforced in both client and backend callables for: `syncCharacter`, `getUserCharacters`, `getPublicCharacter`.
+| Callable | Gate |
+|---|---|
+| `syncCharacter` | 1 credit reserved via `creditService.spendCredits` before upsert; refunded on failure. Available to monthly subscribers and `payg` users with sufficient credits. |
+| `getUserCharacters` | Firebase Auth + App Check only (no credit charge) |
+| `getPublicCharacter` | Firebase Auth + App Check only (no credit charge) |
+
+Backend enforcement lives in `functions/src/characterFunctions.ts`. Client UI surfaces credit cost on the "Save to Cloud" toggle rather than blocking on plan tier.
 
 ---
 

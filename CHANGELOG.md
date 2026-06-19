@@ -1,3 +1,18 @@
+## [30.1.1](https://github.com/equationalapplications/clanker/compare/v30.1.0...v30.1.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* address PR 448 Copilot review on escalation state and env errors ([7cd63ed](https://github.com/equationalapplications/clanker/commit/7cd63ed140c7d3ad15d1d30a57141c42fff67372))
+* address PR 448 review feedback on env wiring, escalation contract, and project-id fallback ([051c976](https://github.com/equationalapplications/clanker/commit/051c976058103fbb591fa70d5f6eb304bb3dd5e1))
+* disable Gemini 3 thinking budget to prevent empty model responses ([2521da4](https://github.com/equationalapplications/clanker/commit/2521da42eabfb7e68f2489cc220041f7e3625ff0))
+* **functions:** trim project env vars and require explicit GCP_PROJECT locally ([c17b3ca](https://github.com/equationalapplications/clanker/commit/c17b3ca79103922e7eec4ef1f50e34370f7b5a3d))
+* gemini 3 models require global vertex ai location, not us-central1 ([0b7d270](https://github.com/equationalapplications/clanker/commit/0b7d2705a991e9c0ded5b24718b1607c2c4b7281))
+* gemini 3 models require global vertex ai location, not us-central1 ([014ecaa](https://github.com/equationalapplications/clanker/commit/014ecaa1653a46b6b964c1c70d8040d554c8619d))
+* **review:** address PR 449 review feedback ([6d648c9](https://github.com/equationalapplications/clanker/commit/6d648c991dc4992636b7620f3312c1ad11bdd5ac))
+* **test:** align eval helper auth with Vertex ADC pattern ([e7f6a6b](https://github.com/equationalapplications/clanker/commit/e7f6a6b71b746356fa06586df05ce2e4d87cb506))
+* **vertex:** harden env resolution and align useEdgeAgent signature ([cce8532](https://github.com/equationalapplications/clanker/commit/cce853228ac1e20b5b9273c832eab0c78f2a2ae4))
+
 # [30.1.0](https://github.com/equationalapplications/clanker/compare/v30.0.0...v30.1.0) (2026-06-19)
 
 
