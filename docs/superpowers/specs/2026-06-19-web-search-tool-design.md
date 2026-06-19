@@ -52,8 +52,9 @@ both tool-calling surfaces in the codebase:
 - Migrating `functions/src/generateReply.ts` off `@google-cloud/vertexai` onto
   `@google/genai`.
 - Dependency bumps: `core-llm-tools` → `^4.13.1` (root + functions),
-  `@google/genai` → `^2.8.0` (functions, to match root), `@google/adk` →
-  `^1.2.0` (cloud-agent).
+  `@google/genai` → `^2.9.0` (functions, to match root's resolved version —
+  root declares `^2.8.0` but resolves to `2.9.0`), `@google/adk` → `^1.2.0`
+  (cloud-agent).
 - Migrating the model used by `generateReply.ts` and `cloud-agent/src/agent.ts`
   from `gemini-2.5-flash` to a Gemini 3-family model, to get official support
   for mixing built-in tools with custom function declarations and per-query
@@ -74,8 +75,10 @@ both tool-calling surfaces in the codebase:
 
 - Bump `@equationalapplications/core-llm-tools` to `^4.13.1` in root
   `package.json` and `functions/package.json`.
-- Bump `@google/genai` in `functions/package.json` from `^1.50.1` to `^2.8.0`
-  (matches root, which is already on `^2.8.0`).
+- Bump `@google/genai` in `functions/package.json` from `^1.50.1` to `^2.9.0`
+  (root declares `^2.8.0` but resolves to `2.9.0` — pin functions to `^2.9.0`
+  explicitly for type symmetry, since `groundingMetadata` types are still
+  evolving across releases).
 - Bump `@google/adk` in `cloud-agent/package.json` from `^1.1.0` to `^1.2.0`.
 - Remove `@google-cloud/vertexai` from `functions/package.json` entirely.
 - In `functions/src/generateReply.ts`: replace the dynamic
