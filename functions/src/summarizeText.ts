@@ -27,9 +27,13 @@ interface SummarizeTextOptions {
 }
 
 function getProjectId(): string | undefined {
-  const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT;
-  const value = fromEnv?.trim();
-  return value ? value : undefined;
+  return [
+    process.env.GCLOUD_PROJECT,
+    process.env.GCP_PROJECT,
+    process.env.GOOGLE_CLOUD_PROJECT,
+  ]
+    .map((v) => v?.trim())
+    .find((v): v is string => Boolean(v));
 }
 
 function truncateSummary(text: string, maxLength: number): string {

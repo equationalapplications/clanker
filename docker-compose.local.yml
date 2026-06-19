@@ -17,7 +17,7 @@ services:
       - NODE_ENV=development
       - MOCK_FIREBASE_AUTH=true
       - GOOGLE_GENAI_USE_VERTEXAI=true
-      - GOOGLE_CLOUD_PROJECT=${GCP_PROJECT:-clanker-prod}
+      - GOOGLE_CLOUD_PROJECT=${GCP_PROJECT:?Set GCP_PROJECT to a non-production project}
       - GOOGLE_CLOUD_LOCATION=global
       - DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker
       - CORS_ORIGIN=http://localhost:8081,http://localhost:8082
