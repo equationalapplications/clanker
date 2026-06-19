@@ -15,6 +15,7 @@ import { IMessage } from 'react-native-gifted-chat'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { reportError } from '~/utilities/reportError'
 import type { SyncMessage } from '~/services/syncMessage'
+import type { GroundingMetadata } from '@google/genai'
 
 const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000
 
@@ -22,6 +23,8 @@ function estimatePayloadSize(contents: unknown[], systemInstruction: string): nu
   const serialized = JSON.stringify({ contents, systemInstruction })
   return new Blob([serialized]).size
 }
+
+export type GroundedIMessage = IMessage & { groundingMetadata?: GroundingMetadata }
 
 interface TrimResult {
   contents: { role: string; parts: { text?: string }[] }[];
@@ -340,13 +343,18 @@ export const sendMessageWithAIResponse = async (
     })
 
     // 5. Save AI response to local database (mark as synced — cloud reply is immediately synced)
-    const savedAIMessage = await saveAIMessage(character.id, userId, aiResponse.reply, aiResponseId, {
+    const aiMessageData: Partial<GroundedIMessage> = {
       user: {
         _id: character.id, // The character is responding
         name: character.name,
         avatar: character.appearance || undefined,
       },
-    }, Date.now())
+    }
+    if (aiResponse.groundingMetadata) {
+      aiMessageData.groundingMetadata = aiResponse.groundingMetadata
+    }
+
+    const savedAIMessage = await saveAIMessage(character.id, userId, aiResponse.reply, aiResponseId, aiMessageData, Date.now())
 
     void triggerConversationSummary(character, userId)
     if (options?.onWriteObservation) {
