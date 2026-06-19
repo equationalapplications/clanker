@@ -12,9 +12,9 @@ let genAIClient: GoogleGenAI | undefined
 function getGenAIClient(): GoogleGenAI {
   if (genAIClient) return genAIClient
   const project = [
-    process.env.GOOGLE_CLOUD_PROJECT,
     process.env.GCLOUD_PROJECT,
     process.env.GCP_PROJECT,
+    process.env.GOOGLE_CLOUD_PROJECT,
   ]
     .map((v) => v?.trim())
     .find((v): v is string => Boolean(v))
