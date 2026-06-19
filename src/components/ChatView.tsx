@@ -247,7 +247,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
           )}
           {renderedContent && (
             <WebView
-              originWhitelist={['about:blank', 'https://*']}
+              originWhitelist={['about:blank', 'http://*', 'https://*']}
               source={{ html: renderedContent }}
               style={styles.searchSuggestions}
               scrollEnabled={false}
