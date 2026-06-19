@@ -220,7 +220,11 @@ export default function ChatView({ characterId }: ChatViewProps) {
                   <TouchableOpacity
                     key={`${uri}-${index}`}
                     style={styles.citationChip}
-                    onPress={() => Linking.openURL(uri)}
+onPress={() => {
+  void Linking.openURL(uri).catch((error) => {
+    console.warn('Failed to open citation URL', error)
+  })
+}}
                     accessibilityRole="link"
                     accessibilityLabel={title}
                   >
