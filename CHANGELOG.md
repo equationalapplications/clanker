@@ -1,3 +1,28 @@
+# [30.1.0](https://github.com/equationalapplications/clanker/compare/v30.0.0...v30.1.0) (2026-06-19)
+
+
+### Bug Fixes
+
+* address CodeRabbit review feedback on PR 447 ([73e8f5e](https://github.com/equationalapplications/clanker/commit/73e8f5e356429ddfa8a4b375f37a874abb6e2ca9))
+* **cloud-agent:** add missing core-llm-tools dependency ([e0a9257](https://github.com/equationalapplications/clanker/commit/e0a9257b494c250b7634dfc2f2b665b8f339c4fc))
+* **cloud-agent:** address live test review feedback ([3944980](https://github.com/equationalapplications/clanker/commit/3944980eb9d15fdd87699b22e0234615f84237d9))
+* **cloud-agent:** harden deploy script and Dockerfile symlink ([22fd5ce](https://github.com/equationalapplications/clanker/commit/22fd5cec007f230e08c0310cc7b9299bfec50cdf))
+* **cloud-agent:** remove unused core-llm-tools dependency ([a82fd9c](https://github.com/equationalapplications/clanker/commit/a82fd9ce5f91a4415075b49b4752882984f83b73))
+* **cloud-agent:** symlink node_modules so tsc resolves shared/ deps ([f4ecac8](https://github.com/equationalapplications/clanker/commit/f4ecac847074056d27375690bd53f98ca5dafa30))
+* **functions:** use dynamic moduleName import for vertexai typecheck compatibility ([45cfe7a](https://github.com/equationalapplications/clanker/commit/45cfe7ad785a7521a2eb88b21dcde08d7e7ac39c))
+* guard citation URLs and use numeric extract schema constraints ([8c9848b](https://github.com/equationalapplications/clanker/commit/8c9848b04efa2788fa9e2067628667b097aefa6a))
+* harden grounding metadata parsing and open search suggestion links ([f813b04](https://github.com/equationalapplications/clanker/commit/f813b042ef2afb1988105b8e274d2043d694c265))
+
+
+### Features
+
+* add Google Search grounding tool to the cloud-agent ADK agent ([ae1d16c](https://github.com/equationalapplications/clanker/commit/ae1d16cfc2c6d2ed385845ef1056374b13473dcc))
+* **cloud-agent:** add deploy script ([1d1dccd](https://github.com/equationalapplications/clanker/commit/1d1dccd2b77546ab8b155aa3ecae75664489d35c))
+* forward groundingMetadata into saveAIMessage via GroundedIMessage ([cc6fa8c](https://github.com/equationalapplications/clanker/commit/cc6fa8cb9b4a438d7a688142870937418965f4e9))
+* migrate generateReply to @google/genai with Google Search grounding ([938164e](https://github.com/equationalapplications/clanker/commit/938164eefde06fc4fcf4db5f262d23813084c3cc))
+* parse and forward groundingMetadata in chatReplyService ([bbde842](https://github.com/equationalapplications/clanker/commit/bbde84295d86e524a3b2e038997992d7a167b636))
+* render Google Search citations and Search Suggestions widget in ChatView ([c185c85](https://github.com/equationalapplications/clanker/commit/c185c8529e3d1fa573c98c7f7615d7bcc8958b76))
+
 # [30.0.0](https://github.com/equationalapplications/clanker/compare/v29.19.2...v30.0.0) (2026-06-17)
 
 
