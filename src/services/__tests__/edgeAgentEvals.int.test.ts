@@ -31,7 +31,7 @@ async function runEdgeEval(userText: string) {
   const contents: Content[] = [{ role: 'user', parts: [{ text: userText }] }]
 
   return ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.5-flash',
     contents,
     config: {
       systemInstruction,

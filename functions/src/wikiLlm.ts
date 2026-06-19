@@ -90,6 +90,7 @@ function getTextGenerator(model = DEFAULT_MODEL) {
       config: {
         systemInstruction: systemPrompt,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
+        thinkingConfig: { thinkingBudget: 0 },
         temperature: 0,
         responseMimeType: "application/json",
         responseSchema: {type: Type.OBJECT},

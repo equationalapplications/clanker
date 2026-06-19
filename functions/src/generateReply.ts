@@ -235,6 +235,7 @@ function getTextGenerator(): GenerateTextFn {
       config: {
         systemInstruction: input.systemInstruction,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
+        thinkingConfig: { thinkingBudget: 0 },
         tools,
       },
     });

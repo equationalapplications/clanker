@@ -109,6 +109,7 @@ function getSummaryGenerator(): GenerateSummaryFn {
       contents: prompt,
       config: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
     const candidates = result.candidates ?? [];

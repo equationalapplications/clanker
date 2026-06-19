@@ -101,6 +101,7 @@ function getTextGenerator(): GenerateTextFn {
       contents: prompt,
       config: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
     const candidates = result.candidates ?? [];

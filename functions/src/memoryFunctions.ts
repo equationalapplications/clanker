@@ -154,6 +154,7 @@ async function defaultGenerateContent(prompt: string): Promise<string> {
     contents: prompt,
     config: {
       maxOutputTokens: HEAL_MAX_OUTPUT_TOKENS,
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
   const candidates = result.candidates ?? [];

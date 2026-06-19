@@ -111,6 +111,7 @@ function buildGenerateContent(): (prompt: string) => Promise<string> {
       contents: prompt,
       config: {
         maxOutputTokens: 2048,
+        thinkingConfig: { thinkingBudget: 0 },
         responseMimeType: 'application/json',
         responseSchema: FACT_EXTRACTION_SCHEMA,
       },
