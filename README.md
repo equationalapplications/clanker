@@ -9,6 +9,7 @@
 
 ### AI & Chat
 - **[AI & Chat](docs/ai-and-chat.md)** — Chat response pipeline (`generateReply`), chat memory summarization, LLM Wiki Memory (structured facts/tasks/events), wiki state machine architecture, and image generation (`generateImage`).
+- **[Agent Tool-Mixing Live Test](docs/superpowers/specs/2026-06-19-agent-tool-mixing-live-test-design.md)** — Manual/local-only live integration test design for verifying `GOOGLE_SEARCH` and custom `FunctionTool`s can be invoked together in one Vertex AI turn. [Implementation plan](docs/superpowers/plans/2026-06-19-agent-tool-mixing-live-test-plan.md).
 
 ### Billing & Credits
 - **[Billing & Credits](docs/billing-and-credits.md)** — First-login credits, Stripe and RevenueCat webhook event mappings, web checkout flow, Apple auto-renewable subscription consent, and multi-tab checkout robustness (localStorage + BroadcastChannel).
