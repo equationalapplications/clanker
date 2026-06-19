@@ -60,23 +60,23 @@ interface DocumentExtractDeps {
   generateContent: (prompt: string) => Promise<string>;
 }
 
-const FACT_EXTRACTION_SCHEMA: Schema = {
+const FACT_EXTRACTION_SCHEMA = {
   type: Type.ARRAY,
   items: {
     type: Type.OBJECT,
     properties: {
-      title: { type: Type.STRING, maxLength: '80' },
-      body: { type: Type.STRING, maxLength: '200' },
+      title: { type: Type.STRING, maxLength: 80 },
+      body: { type: Type.STRING, maxLength: 200 },
       tags: {
         type: Type.ARRAY,
-        maxItems: '6',
-        items: { type: Type.STRING, maxLength: '40' },
+        maxItems: 6,
+        items: { type: Type.STRING, maxLength: 40 },
       },
       confidence: { type: Type.STRING, enum: ['certain', 'inferred', 'tentative'] },
     },
     required: ['title', 'body', 'tags', 'confidence'],
   },
-};
+} as unknown as Schema;
 
 let genAIClient: GoogleGenAI | undefined;
 

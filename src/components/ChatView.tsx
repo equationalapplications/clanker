@@ -19,6 +19,15 @@ import type { GroundedIMessage } from '~/services/aiChatService'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
+function isSafeHttpUrl(uri: string): boolean {
+  try {
+    const { protocol } = new URL(uri)
+    return protocol === 'http:' || protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 interface ChatViewProps {
   characterId: string
 }
@@ -213,18 +222,18 @@ export default function ChatView({ characterId }: ChatViewProps) {
               {chunks.map((chunk, index) => {
                 const uri = chunk.web?.uri
                 const title = chunk.web?.title ?? uri
-                if (!uri || !title) {
+                if (!uri || !title || !isSafeHttpUrl(uri)) {
                   return null
                 }
                 return (
                   <TouchableOpacity
                     key={`${uri}-${index}`}
                     style={styles.citationChip}
-onPress={() => {
-  void Linking.openURL(uri).catch((error) => {
-    console.warn('Failed to open citation URL', error)
-  })
-}}
+                    onPress={() => {
+                      void Linking.openURL(uri).catch((error) => {
+                        console.warn('Failed to open citation URL', error)
+                      })
+                    }}
                     accessibilityRole="link"
                     accessibilityLabel={title}
                   >
