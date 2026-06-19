@@ -434,7 +434,7 @@ Success logs include: Firebase UID, Cloud SQL user ID, plan tier, credits spent/
 
 ### AI Access Policy
 
-The app has zero direct GenAI SDK imports. All AI model access (chat + image) flows through Firebase callable functions.
+The app makes no client-side GenAI model calls (type-only `@google/genai` imports are allowed). All AI model access (chat + image) flows through Firebase callable functions.
 
 ---
 

@@ -36,23 +36,23 @@ async function runEdgeEval(userText: string) {
   const useVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true'
   const project = getProjectId()
   const location = process.env.GOOGLE_CLOUD_LOCATION?.trim() || 'global'
-  const apiKey = process.env.GOOGLE_GENAI_API_KEY
+  const apiKey = process.env.GOOGLE_GENAI_API_KEY?.trim()
 
+  let ai: GoogleGenAI
   if (useVertex) {
     if (!project) {
       throw new Error(
         'Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for Vertex AI evals',
       )
     }
+    ai = new GoogleGenAI({ vertexai: true, project, location })
   } else if (!apiKey) {
     throw new Error(
       'Set GOOGLE_GENAI_API_KEY or enable GOOGLE_GENAI_USE_VERTEXAI=true with a project env var',
     )
+  } else {
+    ai = new GoogleGenAI({ apiKey })
   }
-
-  const ai = useVertex
-    ? new GoogleGenAI({ vertexai: true, project: project!, location })
-    : new GoogleGenAI({ apiKey })
   const systemInstruction = buildSystemInstruction({ character, userId })
   const contents: Content[] = [{ role: 'user', parts: [{ text: userText }] }]
 
@@ -61,6 +61,7 @@ async function runEdgeEval(userText: string) {
     contents,
     config: {
       systemInstruction,
+      thinkingConfig: { thinkingBudget: 0 },
       tools: ALL_TOOLS,
     },
   })
