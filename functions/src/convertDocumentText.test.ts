@@ -4,7 +4,7 @@ import { HttpsError } from 'firebase-functions/v2/https';
 
 process.env.NODE_ENV = 'test';
 
-const { convertDocumentTextHandler } = await import('./convertDocumentText.js');
+const { convertDocumentTextHandler, convertDocumentText } = await import('./convertDocumentText.js');
 
 function makeRequest(data: unknown, uid = 'uid-1') {
   return {
@@ -275,5 +275,15 @@ describe('convertDocumentTextHandler', () => {
       makeDeps() as never,
     );
     assert.ok(result.text.length > 0);
+  });
+});
+
+describe('convertDocumentText onCall config', () => {
+  it('sets timeoutSeconds and memory high enough for slow Gemini conversions', () => {
+    const endpoint = (convertDocumentText as unknown as {
+      __endpoint: { timeoutSeconds: number; availableMemoryMb: number };
+    }).__endpoint;
+    assert.equal(endpoint.timeoutSeconds, 540);
+    assert.equal(endpoint.availableMemoryMb, 512);
   });
 });

@@ -11,7 +11,7 @@ const DEFAULT_REGION = "us-central1";
 // Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
 // governs this Cloud Function's own deploy region, unrelated to this.
 const GEMINI_LOCATION = "global";
-const MAX_OUTPUT_TOKENS = 2_048;
+const MAX_OUTPUT_TOKENS = 8_192;
 const MAX_SYSTEM_PROMPT_LENGTH = 32_000;
 const MAX_USER_PROMPT_LENGTH = 500_000;
 

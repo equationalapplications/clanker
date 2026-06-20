@@ -160,7 +160,9 @@ const getPublicCharacterFn = httpsCallable(functionsInstance, 'getPublicCharacte
 const wikiLlmFn = httpsCallable(functionsInstance, 'wikiLlm')
 const wikiSyncFn = httpsCallable(functionsInstance, 'wikiSync')
 const generateEmbeddingFn = httpsCallable(functionsInstance, 'generateEmbedding')
-const convertDocumentTextFn = httpsCallable(functionsInstance, 'convertDocumentText')
+const convertDocumentTextFn = httpsCallable(functionsInstance, 'convertDocumentText', {
+  timeout: 545_000,
+})
 
 export type FirebaseUser = User
 export { appCheckReady }
