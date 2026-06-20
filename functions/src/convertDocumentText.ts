@@ -227,7 +227,7 @@ export async function convertDocumentTextHandler(
     logger.error('convertDocumentText conversion failed', {
       userId: user.id,
       mimeType,
-      error: error instanceof Error ? error.message : String(error),
+      error,
     });
     try {
       await deps.creditService.refundCredit(user.id, transactionId, 1);
