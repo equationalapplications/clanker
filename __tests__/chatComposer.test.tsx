@@ -68,11 +68,13 @@ global.fetch = mockFetch as unknown as typeof fetch
 
 class MockFileReader {
   result: string | null = null
+  onload: (() => void) | null = null
   onloadend: (() => void) | null = null
   onerror: (() => void) | null = null
 
   readAsDataURL(_blob: unknown) {
     this.result = 'data:application/pdf;base64,d2ViLWJhc2U2NA=='
+    this.onload?.()
     this.onloadend?.()
   }
 }
