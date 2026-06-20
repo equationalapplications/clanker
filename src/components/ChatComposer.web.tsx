@@ -29,9 +29,9 @@ async function readAsBase64Web(uri: string): Promise<string> {
   const blob = await response.blob()
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string
-      const base64 = dataUrl.split(',')[1]
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : null
+      const base64 = dataUrl?.split(',')[1]
       if (!base64) {
         reject(new Error('Failed to extract base64 from file data'))
         return
