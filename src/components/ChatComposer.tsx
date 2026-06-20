@@ -16,10 +16,13 @@ import {
   TEXT_MIME_TYPES,
 } from './documentMimeTypes'
 
+export type DocumentUploadPhase = 'reading' | 'converting' | 'checking' | 'forgetting' | null
+
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
     userId?: string
+    onPhaseChange?: (phase: DocumentUploadPhase) => void
   }
 
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
@@ -30,10 +33,12 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   textInputProps,
   characterId,
   userId,
+  onPhaseChange,
   ...props
 }: ChatComposerProps<TMessage>) {
   const skipNextSubmitRef = useRef(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [phase, setPhase] = useState<DocumentUploadPhase>(null)
   const { colors, roundness } = useTheme()
 
   const characterWiki = useCharacterWiki(characterId ?? '')
@@ -49,6 +54,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       })
       if (pickerResult.canceled || !pickerResult.assets?.[0]) return
 
+      setPhase('reading')
+      onPhaseChange?.('reading')
+
       const asset = pickerResult.assets[0]
       const uri = asset.uri
       // Sanitize filename: strip control chars, cap length for stable sourceRef
@@ -57,15 +65,29 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
       const resolvedMimeType = resolveDocumentMimeType(sourceRef, asset.mimeType)
       const normalizedMimeType = resolvedMimeType?.trim().toLowerCase()
+      const isConvertType = Boolean(normalizedMimeType && CONVERT_MIME_TYPES.has(normalizedMimeType))
+
+      let fileContent: string
+      try {
+        fileContent = isConvertType
+          ? await readAsStringAsync(uri, { encoding: 'base64' })
+          : await readAsStringAsync(uri)
+      } catch {
+        setToastMessage('Failed to read file.')
+        setPhase(null)
+        onPhaseChange?.(null)
+        return
+      }
 
       let rawText: string
-      if (normalizedMimeType && CONVERT_MIME_TYPES.has(normalizedMimeType)) {
-        const contentBase64 = await readAsStringAsync(uri, { encoding: 'base64' })
+      if (isConvertType && normalizedMimeType) {
+        setPhase('converting')
+        onPhaseChange?.('converting')
         try {
           const convertResult = await convertDocumentText({
             filename: sourceRef,
             mimeType: normalizedMimeType,
-            contentBase64,
+            contentBase64: fileContent,
           })
           rawText = convertResult.data.text
         } catch (error) {
@@ -82,32 +104,61 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           } else {
             setToastMessage('Failed to convert document.')
           }
+          setPhase(null)
+          onPhaseChange?.(null)
           return
         }
       } else {
-        rawText = await readAsStringAsync(uri)
+        rawText = fileContent
       }
 
-      // Strip BOM/null bytes and normalize to NFC for consistent cross-platform
-      // hashing regardless of editor/OS encoding quirks or conversion source.
-      const documentChunk = rawText
-        .replace(/^\uFEFF/, '')   // strip UTF-8 BOM
-        .replace(/\0/g, '')       // strip null bytes
-        .normalize('NFC')         // canonical Unicode form
-        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')  // normalize line endings
-      const sourceHash = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        documentChunk,
-      )
+      setPhase('checking')
+      onPhaseChange?.('checking')
 
-      const changed = await hasChanged(sourceRef, sourceHash)
-      if (!changed) {
-        setToastMessage(`"${sourceRef}" is already up to date.`)
+      let documentChunk: string
+      let sourceHash: string
+      let changed: boolean
+      try {
+        // Strip BOM/null bytes and normalize to NFC for consistent cross-platform
+        // hashing regardless of editor/OS encoding quirks or conversion source.
+        documentChunk = rawText
+          .replace(/^\uFEFF/, '')   // strip UTF-8 BOM
+          .replace(/\0/g, '')       // strip null bytes
+          .normalize('NFC')         // canonical Unicode form
+          .replace(/\r\n/g, '\n').replace(/\r/g, '\n')  // normalize line endings
+        sourceHash = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          documentChunk,
+        )
+        changed = await hasChanged(sourceRef, sourceHash)
+      } catch {
+        setToastMessage('Failed to check for changes.')
+        setPhase(null)
+        onPhaseChange?.(null)
         return
       }
 
-      // Remove stale facts from a previous version of this document before re-ingesting.
-      await forget({ sourceRef })
+      if (!changed) {
+        setToastMessage(`"${sourceRef}" is already up to date.`)
+        setPhase(null)
+        onPhaseChange?.(null)
+        return
+      }
+
+      setPhase('forgetting')
+      onPhaseChange?.('forgetting')
+      try {
+        // Remove stale facts from a previous version of this document before re-ingesting.
+        await forget({ sourceRef })
+      } catch {
+        setToastMessage('Failed to remove previous version.')
+        setPhase(null)
+        onPhaseChange?.(null)
+        return
+      }
+
+      setPhase(null)
+      onPhaseChange?.(null)
 
       const ingestResult = await ingest({
         sourceRef,
@@ -119,6 +170,8 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
       )
     } catch (error) {
+      setPhase(null)
+      onPhaseChange?.(null)
       if (error instanceof WikiBusyError) {
         setToastMessage('Memory is busy. Please try again shortly.')
       } else if (
@@ -130,7 +183,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         setToastMessage('Failed to ingest document.')
       }
     }
-  }, [characterId, userId, hasChanged, forget, ingest])
+  }, [characterId, userId, hasChanged, forget, ingest, onPhaseChange])
 
   const sendCurrentText = useCallback(() => {
     const trimmedText = text?.trim()
@@ -148,7 +201,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     <View style={styles.container}>
       <View style={styles.row}>
         {showPlusButton && (
-          isIngesting ? (
+          (isIngesting || phase !== null) ? (
             <View
               style={styles.spinnerContainer}
               accessible

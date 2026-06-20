@@ -690,4 +690,676 @@ describe('ChatComposer', () => {
     expect(mockIngest).not.toHaveBeenCalled()
     expect(capturedSnackbarProps.children).toBe('Failed to convert document.')
   })
+
+  it('emits phase transitions in order reading -> checking -> forgetting -> null, then ingest (native, non-convert)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
+    })
+    const calls: string[] = []
+    FileSystemLegacy.readAsStringAsync.mockImplementation(async () => {
+      calls.push('read')
+      return 'hello world'
+    })
+    mockHasChanged.mockImplementation(async () => {
+      calls.push('hasChanged')
+      return true
+    })
+    mockForget.mockImplementation(async () => {
+      calls.push('forget')
+    })
+    mockIngest.mockImplementation(async () => {
+      calls.push('ingest')
+      return { chunks: 1 }
+    })
+
+    const onPhaseChange = jest.fn((phase: string | null) => calls.push(`phase:${phase}`))
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(calls).toEqual([
+      'phase:reading',
+      'read',
+      'phase:checking',
+      'hasChanged',
+      'phase:forgetting',
+      'forget',
+      'phase:null',
+      'ingest',
+    ])
+  })
+
+  it('emits converting phase before convertDocumentText, then continues through checking/forgetting (native, pdf)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
+    })
+    const calls: string[] = []
+    FileSystemLegacy.readAsStringAsync.mockImplementation(async () => {
+      calls.push('readBase64')
+      return 'base64-bytes'
+    })
+    mockConvertDocumentText.mockImplementation(async () => {
+      calls.push('convert')
+      return { data: { text: 'transcribed pdf text', truncated: false } }
+    })
+    mockHasChanged.mockImplementation(async () => {
+      calls.push('hasChanged')
+      return true
+    })
+    mockForget.mockImplementation(async () => {
+      calls.push('forget')
+    })
+    mockIngest.mockImplementation(async () => {
+      calls.push('ingest')
+      return { chunks: 1 }
+    })
+
+    const onPhaseChange = jest.fn((phase: string | null) => calls.push(`phase:${phase}`))
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(calls).toEqual([
+      'phase:reading',
+      'readBase64',
+      'phase:converting',
+      'convert',
+      'phase:checking',
+      'hasChanged',
+      'phase:forgetting',
+      'forget',
+      'phase:null',
+      'ingest',
+    ])
+  })
+
+  it('resets phase to null and shows a toast when reading the file fails (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
+    })
+    FileSystemLegacy.readAsStringAsync.mockRejectedValue(new Error('disk error'))
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(onPhaseChange).toHaveBeenCalledWith('reading')
+    expect(onPhaseChange).toHaveBeenLastCalledWith(null)
+    expect(capturedSnackbarProps.children).toBe('Failed to read file.')
+    expect(mockHasChanged).not.toHaveBeenCalled()
+  })
+
+  it('resets phase to null and shows a toast when checking for changes fails (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
+    })
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockHasChanged.mockRejectedValue(new Error('boom'))
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(onPhaseChange).toHaveBeenCalledWith('checking')
+    expect(onPhaseChange).toHaveBeenLastCalledWith(null)
+    expect(capturedSnackbarProps.children).toBe('Failed to check for changes.')
+    expect(mockForget).not.toHaveBeenCalled()
+  })
+
+  it('resets phase to null without forgetting/ingesting when document is already up to date (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
+    })
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockHasChanged.mockResolvedValue(false)
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(onPhaseChange).toHaveBeenLastCalledWith(null)
+    expect(capturedSnackbarProps.children).toBe('"doc.txt" is already up to date.')
+    expect(mockForget).not.toHaveBeenCalled()
+    expect(mockIngest).not.toHaveBeenCalled()
+  })
+
+  it('resets phase to null and shows a toast when removing the stale version fails (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
+    })
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockHasChanged.mockResolvedValue(true)
+    mockForget.mockRejectedValue(new Error('boom'))
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(onPhaseChange).toHaveBeenCalledWith('forgetting')
+    expect(onPhaseChange).toHaveBeenLastCalledWith(null)
+    expect(capturedSnackbarProps.children).toBe('Failed to remove previous version.')
+    expect(mockIngest).not.toHaveBeenCalled()
+  })
+
+  it('resets phase to null when document conversion fails (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
+    })
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('base64-bytes')
+    mockConvertDocumentText.mockRejectedValue({ code: 'functions/invalid-argument' })
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(onPhaseChange).toHaveBeenCalledWith('converting')
+    expect(onPhaseChange).toHaveBeenLastCalledWith(null)
+    expect(capturedSnackbarProps.children).toBe('File too large or unsupported format.')
+  })
+
+  it('shows the spinner while a document phase is active, before isIngesting becomes true (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
+    })
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockHasChanged.mockImplementation(() => new Promise(() => {})) // never resolves
+
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      void plusButton.props.onPress()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    const spinner = tree.root.findAll(
+      (n: any) => n.props?.accessibilityLabel === 'Adding document to memory',
+    )
+    expect(spinner.length).toBeGreaterThan(0)
+    expect(tree.root.findAll((n: any) => n.props?.__iconButtonMock === true).length).toBe(0)
+    expect(mockUseCharacterWikiResult.isIngesting).toBe(false)
+  })
+
+  it('emits phase transitions in order reading -> checking -> forgetting -> null, then ingest (web, non-convert)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:doc.txt', name: 'doc.txt' }],
+    })
+    const calls: string[] = []
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: async () => {
+        calls.push('read')
+        return 'hello world'
+      },
+    })
+    mockHasChanged.mockImplementation(async () => {
+      calls.push('hasChanged')
+      return true
+    })
+    mockForget.mockImplementation(async () => {
+      calls.push('forget')
+    })
+    mockIngest.mockImplementation(async () => {
+      calls.push('ingest')
+      return { chunks: 1 }
+    })
+
+    const onPhaseChange = jest.fn((phase: string | null) => calls.push(`phase:${phase}`))
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(calls).toEqual([
+      'phase:reading',
+      'read',
+      'phase:checking',
+      'hasChanged',
+      'phase:forgetting',
+      'forget',
+      'phase:null',
+      'ingest',
+    ])
+  })
+
+  it('emits converting phase before convertDocumentText, then continues through checking/forgetting (web, pdf)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
+    })
+    const calls: string[] = []
+    mockFetch.mockResolvedValue({
+      ok: true,
+      blob: async () => {
+        calls.push('readBase64')
+        return {}
+      },
+    })
+    mockConvertDocumentText.mockImplementation(async () => {
+      calls.push('convert')
+      return { data: { text: 'transcribed pdf text', truncated: false } }
+    })
+    mockHasChanged.mockImplementation(async () => {
+      calls.push('hasChanged')
+      return true
+    })
+    mockForget.mockImplementation(async () => {
+      calls.push('forget')
+    })
+    mockIngest.mockImplementation(async () => {
+      calls.push('ingest')
+      return { chunks: 1 }
+    })
+
+    const onPhaseChange = jest.fn((phase: string | null) => calls.push(`phase:${phase}`))
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(calls).toEqual([
+      'phase:reading',
+      'readBase64',
+      'phase:converting',
+      'convert',
+      'phase:checking',
+      'hasChanged',
+      'phase:forgetting',
+      'forget',
+      'phase:null',
+      'ingest',
+    ])
+  })
+
+  it('resets phase to null and shows a toast when reading the file fails (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:doc.txt', name: 'doc.txt' }],
+    })
+    mockFetch.mockResolvedValue({ ok: false, status: 500 })
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(onPhaseChange).toHaveBeenCalledWith('reading')
+    expect(onPhaseChange).toHaveBeenLastCalledWith(null)
+    expect(capturedSnackbarProps.children).toBe('Failed to read file.')
+    expect(mockHasChanged).not.toHaveBeenCalled()
+  })
+
+  it('resets phase to null and shows a toast when checking for changes fails (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:doc.txt', name: 'doc.txt' }],
+    })
+    mockFetch.mockResolvedValue({ ok: true, text: async () => 'hello world' })
+    mockHasChanged.mockRejectedValue(new Error('boom'))
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(onPhaseChange).toHaveBeenCalledWith('checking')
+    expect(onPhaseChange).toHaveBeenLastCalledWith(null)
+    expect(capturedSnackbarProps.children).toBe('Failed to check for changes.')
+    expect(mockForget).not.toHaveBeenCalled()
+  })
+
+  it('resets phase to null without forgetting/ingesting when document is already up to date (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:doc.txt', name: 'doc.txt' }],
+    })
+    mockFetch.mockResolvedValue({ ok: true, text: async () => 'hello world' })
+    mockHasChanged.mockResolvedValue(false)
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(onPhaseChange).toHaveBeenLastCalledWith(null)
+    expect(capturedSnackbarProps.children).toBe('"doc.txt" is already up to date.')
+    expect(mockForget).not.toHaveBeenCalled()
+    expect(mockIngest).not.toHaveBeenCalled()
+  })
+
+  it('resets phase to null and shows a toast when removing the stale version fails (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:doc.txt', name: 'doc.txt' }],
+    })
+    mockFetch.mockResolvedValue({ ok: true, text: async () => 'hello world' })
+    mockHasChanged.mockResolvedValue(true)
+    mockForget.mockRejectedValue(new Error('boom'))
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(onPhaseChange).toHaveBeenCalledWith('forgetting')
+    expect(onPhaseChange).toHaveBeenLastCalledWith(null)
+    expect(capturedSnackbarProps.children).toBe('Failed to remove previous version.')
+    expect(mockIngest).not.toHaveBeenCalled()
+  })
+
+  it('resets phase to null when document conversion fails (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
+    })
+    mockFetch.mockResolvedValue({ ok: true, blob: async () => ({}) })
+    mockConvertDocumentText.mockRejectedValue({ code: 'functions/invalid-argument' })
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(onPhaseChange).toHaveBeenCalledWith('converting')
+    expect(onPhaseChange).toHaveBeenLastCalledWith(null)
+    expect(capturedSnackbarProps.children).toBe('File too large or unsupported format.')
+  })
+
+  it('shows the spinner while a document phase is active, before isIngesting becomes true (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:doc.txt', name: 'doc.txt' }],
+    })
+    mockFetch.mockResolvedValue({ ok: true, text: async () => 'hello world' })
+    mockHasChanged.mockImplementation(() => new Promise(() => {})) // never resolves
+
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      void plusButton.props.onPress()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    const spinner = tree.root.findAll(
+      (n: any) => n.props?.accessibilityLabel === 'Adding document to memory',
+    )
+    expect(spinner.length).toBeGreaterThan(0)
+    expect(tree.root.findAll((n: any) => n.props?.__iconButtonMock === true).length).toBe(0)
+    expect(mockUseCharacterWikiResult.isIngesting).toBe(false)
+  })
 })
