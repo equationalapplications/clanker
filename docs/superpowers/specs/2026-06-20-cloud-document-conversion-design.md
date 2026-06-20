@@ -66,7 +66,7 @@ const GEMINI_MIME_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg',
 const ALLOWED_MIME_TYPES = new Set([DOCX_MIME, ...GEMINI_MIME_TYPES]);
 ```
 
-- `DOCX_MIME` → **mammoth** (`mammoth.extractRawText({ buffer })`) — deterministic, no LLM call, no credit-cost variance from model latency/availability. Mammoth has no `convertToMarkdown` API (only `convertToHtml` and `extractRawText`); `extractRawText` returns plain text, which is sufficient — the existing ingest pipeline chunks prose regardless of markdown formatting.
+- `DOCX_MIME` → **mammoth** (`mammoth.extractRawText({ buffer })`) — deterministic, no LLM call, no credit-cost variance from model latency/availability. Mammoth has no `convertToMarkdown` API (only `convertToHtml` and `extractRawText`); `extractRawText` returns plain text, which is sufficient — the existing ingest pipeline chunks prose regardless of Markdown formatting.
 - `GEMINI_MIME_TYPES` (pdf, png, jpeg, webp) → **Gemini multimodal**, inline file part.
 
 Any other `mimeType` → `HttpsError('invalid-argument', 'Unsupported file type.')` before any credit charge.
@@ -80,7 +80,7 @@ Any other `mimeType` → `HttpsError('invalid-argument', 'Unsupported file type.
 5. **Charge 1 credit** — `creditService.spendCredits(userId, 1)`; insufficient balance → `HttpsError('failed-precondition', 'Insufficient credits to convert document.')`. Charged *before* conversion (matches old `documentExtract`'s `chargeForDocumentExtract`), refunded on any failure in the try/catch below.
 6. **Decode + convert**:
    - DOCX → `Buffer.from(contentBase64, 'base64')` → `mammoth.extractRawText({ buffer })` → `.value` is the plain text. Mammoth conversion errors (corrupt/non-OOXML file) caught and rethrown as `HttpsError('invalid-argument', 'Could not read DOCX file.')`.
-   - PDF/image → Gemini multimodal call: `ai.models.generateContent({ model: 'gemini-3.5-flash', contents: [{ inlineData: { mimeType, data: contentBase64 } }, { text: CONVERSION_PROMPT }] })`. `CONVERSION_PROMPT`: "Transcribe all text content from this document into clean markdown. Preserve headings, lists, and tables where present. Output only the transcribed markdown — no commentary, no preamble." No structured-output schema needed (output is markdown text, not JSON) — use default `responseMimeType` (text).
+   - PDF/image → Gemini multimodal call: `ai.models.generateContent({ model: 'gemini-3.5-flash', contents: [{ inlineData: { mimeType, data: contentBase64 } }, { text: CONVERSION_PROMPT }] })`. `CONVERSION_PROMPT`: "Transcribe all text content from this document into clean markdown. Preserve headings, lists, and tables where present. Output only the transcribed markdown — no commentary, no preamble." No structured-output schema needed (output is Markdown text, not JSON) — use default `responseMimeType` (text).
 7. **Validate output** — empty/whitespace-only result → `HttpsError('internal', 'Conversion produced no text.')` (triggers refund below, same as a thrown error).
 8. **Truncate** — `text.length > MAX_DOCUMENT_CHARS (200_000)` → slice + `truncated = true`. Same constant as old `documentExtract`.
 9. **Return** `{ text, truncated }`.
@@ -130,7 +130,7 @@ type: [
 
 ### Branch on MIME type
 
-```
+```ts
 asset.mimeType === 'text/plain' | 'text/markdown'
   → read as UTF-8 text                              [existing path, unchanged per platform]
   → documentChunk = normalize(raw)

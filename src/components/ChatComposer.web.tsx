@@ -9,21 +9,17 @@ import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { convertDocumentText } from '~/services/apiClient'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { ingestPromptOverride } from './ingestPromptOverride'
+import {
+  CONVERT_MIME_TYPES,
+  resolveDocumentMimeType,
+  TEXT_MIME_TYPES,
+} from './documentMimeTypes'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
     userId?: string
   }
-
-const TEXT_MIME_TYPES = ['text/plain', 'text/markdown']
-const CONVERT_MIME_TYPES = new Set([
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-])
 
 async function readAsBase64Web(uri: string): Promise<string> {
   const response = await fetch(uri)
@@ -76,12 +72,14 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       const rawRef = asset.name ?? uri
       const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
 
+      const resolvedMimeType = resolveDocumentMimeType(sourceRef, asset.mimeType)
+
       let rawText: string
-      if (asset.mimeType && CONVERT_MIME_TYPES.has(asset.mimeType)) {
+      if (resolvedMimeType && CONVERT_MIME_TYPES.has(resolvedMimeType)) {
         const contentBase64 = await readAsBase64Web(uri)
         const convertResult = await convertDocumentText({
           filename: sourceRef,
-          mimeType: asset.mimeType,
+          mimeType: resolvedMimeType,
           contentBase64,
         })
         rawText = convertResult.data.text

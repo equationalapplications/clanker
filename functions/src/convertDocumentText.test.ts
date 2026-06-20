@@ -54,6 +54,36 @@ describe('convertDocumentTextHandler', () => {
     );
   });
 
+  it('rejects token UID mismatch', async () => {
+    await assert.rejects(
+      () =>
+        convertDocumentTextHandler(
+          {
+            auth: { uid: 'uid-1', token: { uid: 'other-uid', email: 'test@example.com' } },
+            data: { filename: 'f.pdf', mimeType: 'application/pdf', contentBase64: VALID_BASE64 },
+            rawRequest: {},
+          } as never,
+          makeDeps() as never,
+        ),
+      (e: unknown) => e instanceof HttpsError && e.code === 'unauthenticated',
+    );
+  });
+
+  it('rejects missing token email', async () => {
+    await assert.rejects(
+      () =>
+        convertDocumentTextHandler(
+          {
+            auth: { uid: 'uid-1', token: { uid: 'uid-1' } },
+            data: { filename: 'f.pdf', mimeType: 'application/pdf', contentBase64: VALID_BASE64 },
+            rawRequest: {},
+          } as never,
+          makeDeps() as never,
+        ),
+      (e: unknown) => e instanceof HttpsError && e.code === 'failed-precondition',
+    );
+  });
+
   it('rejects missing filename', async () => {
     await assert.rejects(
       () =>

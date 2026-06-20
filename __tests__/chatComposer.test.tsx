@@ -501,6 +501,90 @@ describe('ChatComposer', () => {
     )
   })
 
+  it('converts PDF documents via convertDocumentText when mimeType is missing (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    const Crypto = require('expo-crypto')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf' }],
+    })
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('base64-bytes')
+    Crypto.digestStringAsync.mockResolvedValue('hash456')
+    mockConvertDocumentText.mockResolvedValue({ data: { text: 'transcribed pdf text', truncated: false } })
+
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(FileSystemLegacy.readAsStringAsync).toHaveBeenCalledWith(
+      'file://doc.pdf',
+      { encoding: 'base64' },
+    )
+    expect(mockConvertDocumentText).toHaveBeenCalledWith({
+      filename: 'doc.pdf',
+      mimeType: 'application/pdf',
+      contentBase64: 'base64-bytes',
+    })
+    expect(mockIngest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceRef: 'doc.pdf',
+        documentChunk: 'transcribed pdf text',
+      }),
+    )
+  })
+
+  it('converts PDF documents via convertDocumentText when mimeType is missing (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const Crypto = require('expo-crypto')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:doc.pdf', name: 'doc.pdf' }],
+    })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      blob: async () => ({}),
+    })
+    Crypto.digestStringAsync.mockResolvedValue('hash789')
+    mockConvertDocumentText.mockResolvedValue({ data: { text: 'transcribed pdf text', truncated: false } })
+
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(mockConvertDocumentText).toHaveBeenCalledWith({
+      filename: 'doc.pdf',
+      mimeType: 'application/pdf',
+      contentBase64: 'd2ViLWJhc2U2NA==',
+    })
+    expect(mockIngest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceRef: 'doc.pdf',
+        documentChunk: 'transcribed pdf text',
+      }),
+    )
+  })
+
   it('converts PDF documents via convertDocumentText before ingesting (web)', async () => {
     const DocumentPicker = require('expo-document-picker')
     const Crypto = require('expo-crypto')

@@ -144,7 +144,10 @@ function parseInput(data: unknown): {
   if (payload.contentBase64.length > MAX_BASE64_LENGTH) {
     throw new HttpsError('invalid-argument', 'File too large.');
   }
-  if (!/^[A-Za-z0-9+/]+=*$/.test(payload.contentBase64)) {
+  if (
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(payload.contentBase64) ||
+    payload.contentBase64.length % 4 !== 0
+  ) {
     throw new HttpsError('invalid-argument', 'contentBase64 must be valid base64.');
   }
 
@@ -169,6 +172,9 @@ export async function convertDocumentTextHandler(
   if (!decoded || decoded.uid !== request.auth.uid) {
     throw new HttpsError('unauthenticated', 'Invalid Firebase authentication token.');
   }
+  if (typeof decoded.email !== 'string' || !decoded.email.trim()) {
+    throw new HttpsError('failed-precondition', 'Authenticated account must include an email.');
+  }
 
   // 2. Parse + validate input (before any credit charge)
   const { filename, mimeType, contentBase64 } = parseInput(request.data);
@@ -176,7 +182,7 @@ export async function convertDocumentTextHandler(
   // 3. User identity
   const user = await deps.userRepository.getOrCreateUserByFirebaseIdentity({
     firebaseUid: request.auth.uid,
-    email: decoded.email ?? '',
+    email: decoded.email.trim(),
     displayName: decoded.name,
   });
 
