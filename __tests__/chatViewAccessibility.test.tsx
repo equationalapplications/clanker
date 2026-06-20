@@ -126,7 +126,11 @@ jest.mock('~/hooks/useUserCredits', () => ({
 
 // ── Child components / services ───────────────────────────────────────────────
 jest.mock('~/components/CharacterAvatar', () => () => null)
-jest.mock('~/components/ChatComposer', () => () => null)
+let capturedChatComposerProps: any = null
+jest.mock('~/components/ChatComposer', () => (props: any) => {
+  capturedChatComposerProps = props
+  return null
+})
 
 let mockWikiStatus = { ingesting: false, librarian: false, heal: false }
 jest.mock('~/hooks/useCharacterWiki', () => ({
@@ -175,6 +179,7 @@ describe('ChatView accessibility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     capturedGiftedChatProps = null
+    capturedChatComposerProps = null
     mockWikiStatus = { ingesting: false, librarian: false, heal: false }
     mockPlatformOS = 'android'
     mockCreditsData = { totalCredits: 10, nextExpiryDate: null }
@@ -272,6 +277,46 @@ describe('ChatView accessibility', () => {
     expect(ingestingText).toBeDefined()
 
     act(() => { tree.unmount() })
+  })
+
+  // ── document upload phase banner ──────────────────────────────────────────
+  it.each([
+    ['reading', 'Reading file', '⏳ Reading file…'],
+    ['converting', 'Converting document', '⏳ Converting document…'],
+    ['checking', 'Checking for changes', '⏳ Checking for changes…'],
+    ['forgetting', 'Removing previous version', '⏳ Removing previous version…'],
+  ])('shows the %s banner with label %s when ChatComposer reports that phase', (phase, label, text) => {
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+
+    let tree: any
+    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => { create(capturedGiftedChatProps.renderComposer({ onSend: jest.fn() })) })
+
+    expect(capturedChatComposerProps).not.toBeNull()
+    expect(typeof capturedChatComposerProps.onPhaseChange).toBe('function')
+
+    act(() => { capturedChatComposerProps.onPhaseChange(phase) })
+
+    const allTexts = tree.root.findAll((n: any) => n.type === 'Text')
+    const phaseText = allTexts.find((t: any) => t.props.accessibilityLabel === label)
+    expect(phaseText).toBeDefined()
+    expect(phaseText.props.children).toBe(text)
+  })
+
+  it('hides the document-phase banner once ChatComposer reports phase null and no other status is active', () => {
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+
+    let tree: any
+    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => { create(capturedGiftedChatProps.renderComposer({ onSend: jest.fn() })) })
+
+    act(() => { capturedChatComposerProps.onPhaseChange('reading') })
+    let allTexts = tree.root.findAll((n: any) => n.type === 'Text')
+    expect(allTexts.find((t: any) => t.props.accessibilityLabel === 'Reading file')).toBeDefined()
+
+    act(() => { capturedChatComposerProps.onPhaseChange(null) })
+    allTexts = tree.root.findAll((n: any) => n.type === 'Text')
+    expect(allTexts.find((t: any) => t.props.accessibilityLabel === 'Reading file')).toBeUndefined()
   })
 
   // ── web platform: status role on loading states ────────────────────────────

@@ -4,8 +4,10 @@ _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
   ChatComposer --> useCharacterWiki
+  ChatComposer --> documentMimeTypes
   ChatComposer --> apiClient
   ChatComposer.web --> useCharacterWiki
+  ChatComposer.web --> documentMimeTypes
   ChatComposer.web --> apiClient
   ChatView --> useMachines
   ChatView --> useCharacters

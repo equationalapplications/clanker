@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { View, StyleSheet, ActivityIndicator } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
@@ -11,14 +11,18 @@ import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { ingestPromptOverride } from './ingestPromptOverride'
 import {
   CONVERT_MIME_TYPES,
+  MAX_DOCUMENT_RAW_BYTES,
   resolveDocumentMimeType,
   TEXT_MIME_TYPES,
 } from './documentMimeTypes'
+
+export type DocumentUploadPhase = 'reading' | 'converting' | 'checking' | 'forgetting' | null
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
     userId?: string
+    onPhaseChange?: (phase: DocumentUploadPhase) => void
   }
 
 async function readAsBase64Web(uri: string): Promise<string> {
@@ -49,16 +53,28 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   textInputProps,
   characterId,
   userId,
+  onPhaseChange,
   ...props
 }: ChatComposerProps<TMessage>) {
   const { colors, roundness } = useTheme()
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [phase, setPhase] = useState<DocumentUploadPhase>(null)
+  const activeRequestIdRef = useRef(0)
 
   const characterWiki = useCharacterWiki(characterId ?? '')
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
 
+  useEffect(() => {
+    return () => {
+      activeRequestIdRef.current = -1
+    }
+  }, [])
+
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
+
+    let requestId = 0
+    const isStaleRequest = () => requestId !== 0 && activeRequestIdRef.current !== requestId
 
     try {
       const pickerResult = await DocumentPicker.getDocumentAsync({
@@ -68,24 +84,57 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       if (pickerResult.canceled || !pickerResult.assets?.[0]) return
 
       const asset = pickerResult.assets[0]
+      if (typeof asset.size === 'number' && asset.size > MAX_DOCUMENT_RAW_BYTES) {
+        setToastMessage('File too large.')
+        return
+      }
+      if (activeRequestIdRef.current === -1) return
+      requestId = ++activeRequestIdRef.current
+
+      setPhase('reading')
+      onPhaseChange?.('reading')
+
       const uri = asset.uri
       const rawRef = asset.name ?? uri
       const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
 
       const resolvedMimeType = resolveDocumentMimeType(sourceRef, asset.mimeType)
       const normalizedMimeType = resolvedMimeType?.trim().toLowerCase()
+      const isConvertType = Boolean(normalizedMimeType && CONVERT_MIME_TYPES.has(normalizedMimeType))
+
+      let fileContent: string
+      try {
+        if (isConvertType) {
+          fileContent = await readAsBase64Web(uri)
+        } else {
+          const response = await fetch(uri)
+          if (!response.ok) {
+            throw new Error(`Failed to read file (HTTP ${response.status})`)
+          }
+          fileContent = await response.text()
+        }
+      } catch {
+        if (isStaleRequest()) return
+        setToastMessage('Failed to read file.')
+        setPhase(null)
+        onPhaseChange?.(null)
+        return
+      }
+      if (isStaleRequest()) return
 
       let rawText: string
-      if (normalizedMimeType && CONVERT_MIME_TYPES.has(normalizedMimeType)) {
-        const contentBase64 = await readAsBase64Web(uri)
+      if (isConvertType && normalizedMimeType) {
+        setPhase('converting')
+        onPhaseChange?.('converting')
         try {
           const convertResult = await convertDocumentText({
             filename: sourceRef,
             mimeType: normalizedMimeType,
-            contentBase64,
+            contentBase64: fileContent,
           })
           rawText = convertResult.data.text
         } catch (error) {
+          if (isStaleRequest()) return
           const firebaseCode = (error as { code?: unknown } | null)?.code
           const message = (error as { message?: unknown } | null)?.message
           if (
@@ -99,33 +148,63 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           } else {
             setToastMessage('Failed to convert document.')
           }
+          setPhase(null)
+          onPhaseChange?.(null)
           return
         }
+        if (isStaleRequest()) return
       } else {
-        const response = await fetch(uri)
-        if (!response.ok) {
-          throw new Error(`Failed to read file (HTTP ${response.status})`)
-        }
-        rawText = await response.text()
+        rawText = fileContent
       }
 
-      const documentChunk = rawText
-        .replace(/^\uFEFF/, '')
-        .replace(/\0/g, '')
-        .normalize('NFC')
-        .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-      const sourceHash = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        documentChunk,
-      )
+      setPhase('checking')
+      onPhaseChange?.('checking')
 
-      const changed = await hasChanged(sourceRef, sourceHash)
+      let documentChunk: string
+      let sourceHash: string
+      let changed: boolean
+      try {
+        documentChunk = rawText
+          .replace(/^\uFEFF/, '')
+          .replace(/\0/g, '')
+          .normalize('NFC')
+          .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        sourceHash = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          documentChunk,
+        )
+        changed = await hasChanged(sourceRef, sourceHash)
+      } catch {
+        if (isStaleRequest()) return
+        setToastMessage('Failed to check for changes.')
+        setPhase(null)
+        onPhaseChange?.(null)
+        return
+      }
+      if (isStaleRequest()) return
+
       if (!changed) {
         setToastMessage(`"${sourceRef}" is already up to date.`)
+        setPhase(null)
+        onPhaseChange?.(null)
         return
       }
 
-      await forget({ sourceRef })
+      setPhase('forgetting')
+      onPhaseChange?.('forgetting')
+      try {
+        await forget({ sourceRef })
+      } catch {
+        if (isStaleRequest()) return
+        setToastMessage('Failed to remove previous version.')
+        setPhase(null)
+        onPhaseChange?.(null)
+        return
+      }
+      if (isStaleRequest()) return
+
+      setPhase(null)
+      onPhaseChange?.(null)
 
       const ingestResult = await ingest({
         sourceRef,
@@ -133,10 +212,14 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         documentChunk,
         promptOverride: ingestPromptOverride,
       })
+      if (isStaleRequest()) return
       setToastMessage(
         `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
       )
     } catch (error) {
+      if (activeRequestIdRef.current === -1 || isStaleRequest()) return
+      setPhase(null)
+      onPhaseChange?.(null)
       if (error instanceof WikiBusyError) {
         setToastMessage('Memory is busy. Please try again shortly.')
       } else if (
@@ -148,7 +231,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         setToastMessage('Failed to ingest document.')
       }
     }
-  }, [characterId, userId, hasChanged, forget, ingest])
+  }, [characterId, userId, hasChanged, forget, ingest, onPhaseChange])
 
   const sendCurrentText = useCallback(() => {
     const trimmedText = text?.trim()
@@ -184,7 +267,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     <View style={styles.container}>
       <View style={styles.row}>
         {showPlusButton && (
-          isIngesting ? (
+          (isIngesting || phase !== null) ? (
             <View
               style={styles.spinnerContainer}
               accessible

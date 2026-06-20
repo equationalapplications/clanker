@@ -1,3 +1,8 @@
+// Mirrors functions/src/convertDocumentText.ts's MAX_BASE64_LENGTH (12,000,000 base64
+// chars ≈ 9,000,000 raw bytes). Kept in sync manually — functions/ and app src/ are
+// separate deployables with no shared module between them.
+export const MAX_DOCUMENT_RAW_BYTES = 9_000_000
+
 export const TEXT_MIME_TYPES = ['text/plain', 'text/markdown'] as const
 
 export const CONVERT_MIME_TYPES = new Set([

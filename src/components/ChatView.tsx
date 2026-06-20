@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
@@ -13,7 +13,7 @@ import { Text, useTheme, Avatar } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import CharacterAvatar from '~/components/CharacterAvatar'
-import ChatComposer from '~/components/ChatComposer'
+import ChatComposer, { type DocumentUploadPhase } from '~/components/ChatComposer'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import type { GroundedIMessage } from '~/services/aiChatService'
 
@@ -45,6 +45,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
   const { colors, roundness } = useTheme()
 
   const { status: wikiStatus } = useCharacterWiki(characterId)
+  const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
 
   const { sendMessage, escalationState } = useAIChat({
     characterId,
@@ -192,7 +193,12 @@ export default function ChatView({ characterId }: ChatViewProps) {
     // GiftedChat currently passes full internal input toolbar props to renderComposer,
     // including onSend from SendProps in addition to ComposerProps.
     (props: ComposerProps & Pick<SendProps<IMessage>, 'onSend'>) => (
-      <ChatComposer {...props} characterId={characterId} userId={currentUserId ?? undefined} />
+      <ChatComposer
+        {...props}
+        characterId={characterId}
+        userId={currentUserId ?? undefined}
+        onPhaseChange={setDocumentPhase}
+      />
     ),
     [characterId, currentUserId],
   )
@@ -321,11 +327,23 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   return (
     <View style={styles.container}>
-        {(wikiStatus.ingesting || wikiStatus.librarian || escalationState === 'escalating') && (
+        {(wikiStatus.ingesting || wikiStatus.librarian || escalationState === 'escalating' || documentPhase !== null) && (
           <View
             accessibilityLiveRegion="polite"
             accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
           >
+            {documentPhase === 'reading' && (
+              <Text style={styles.statusText} accessibilityLabel="Reading file">⏳ Reading file…</Text>
+            )}
+            {documentPhase === 'converting' && (
+              <Text style={styles.statusText} accessibilityLabel="Converting document">⏳ Converting document…</Text>
+            )}
+            {documentPhase === 'checking' && (
+              <Text style={styles.statusText} accessibilityLabel="Checking for changes">⏳ Checking for changes…</Text>
+            )}
+            {documentPhase === 'forgetting' && (
+              <Text style={styles.statusText} accessibilityLabel="Removing previous version">⏳ Removing previous version…</Text>
+            )}
             {wikiStatus.ingesting && (
               <Text style={styles.statusText} accessibilityLabel="Ingesting document">⏳ Ingesting document…</Text>
             )}
