@@ -1,7 +1,7 @@
 # Spec: Cloud Document Format Conversion (PDF / DOCX / Image → Text)
 
 Date: 2026-06-20
-Status: Ready
+Status: Implemented
 Branch: TBD (feature branch off `staging`)
 Supersedes: [2026-04-28-document-ingest.md](./2026-04-28-document-ingest.md) (its `documentExtract` callable is dead code — see Cleanup)
 
