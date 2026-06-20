@@ -138,6 +138,15 @@ describe('convertDocumentTextHandler', () => {
     assert.equal(result.truncated, false);
   });
 
+  it('accepts mime types with incidental whitespace and casing', async () => {
+    const deps = makeDeps({ generateFromGeminiImpl: async () => 'Normalized mime text.' });
+    const result = await convertDocumentTextHandler(
+      makeRequest({ filename: 'f.pdf', mimeType: ' Application/PDF ', contentBase64: VALID_BASE64 }),
+      deps as never,
+    );
+    assert.equal(result.text, 'Normalized mime text.');
+  });
+
   it('converts PDF via Gemini and returns text', async () => {
     let capturedMime = '';
     const deps = makeDeps({
@@ -192,11 +201,13 @@ describe('convertDocumentTextHandler', () => {
         refunded = true;
       },
     });
-    await assert.rejects(() =>
-      convertDocumentTextHandler(
-        makeRequest({ filename: 'f.pdf', mimeType: 'application/pdf', contentBase64: VALID_BASE64 }),
-        deps as never,
-      ),
+    await assert.rejects(
+      () =>
+        convertDocumentTextHandler(
+          makeRequest({ filename: 'f.pdf', mimeType: 'application/pdf', contentBase64: VALID_BASE64 }),
+          deps as never,
+        ),
+      (e: unknown) => e instanceof HttpsError && e.code === 'internal',
     );
     assert.equal(refunded, true);
   });

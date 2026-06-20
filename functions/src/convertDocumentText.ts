@@ -80,7 +80,12 @@ async function defaultGenerateFromGemini(mimeType: string, base64: string): Prom
   const ai = getGenAIClient();
   const result = await ai.models.generateContent({
     model: CONVERT_MODEL,
-    contents: [{ inlineData: { mimeType, data: base64 } }, { text: CONVERSION_PROMPT }],
+    contents: [
+      {
+        role: 'user',
+        parts: [{ inlineData: { mimeType, data: base64 } }, { text: CONVERSION_PROMPT }],
+      },
+    ],
     config: { maxOutputTokens: 8192 },
   });
   const candidates = result.candidates ?? [];
@@ -125,7 +130,11 @@ function parseInput(data: unknown): {
     throw new HttpsError('invalid-argument', 'filename is required after sanitization.');
   }
 
-  if (typeof payload.mimeType !== 'string' || !ALLOWED_MIME_TYPES.has(payload.mimeType)) {
+  if (typeof payload.mimeType !== 'string') {
+    throw new HttpsError('invalid-argument', 'Unsupported file type.');
+  }
+  const mimeType = payload.mimeType.trim().toLowerCase();
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
     throw new HttpsError('invalid-argument', 'Unsupported file type.');
   }
 
@@ -139,7 +148,7 @@ function parseInput(data: unknown): {
     throw new HttpsError('invalid-argument', 'contentBase64 must be valid base64.');
   }
 
-  return { filename, mimeType: payload.mimeType, contentBase64: payload.contentBase64 };
+  return { filename, mimeType, contentBase64: payload.contentBase64 };
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
@@ -225,7 +234,10 @@ export async function convertDocumentTextHandler(
         error: refundError instanceof Error ? refundError.message : String(refundError),
       });
     }
-    throw error;
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError('internal', 'Failed to convert document.');
   }
 }
 
