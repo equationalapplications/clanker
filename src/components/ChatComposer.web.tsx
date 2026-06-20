@@ -15,7 +15,7 @@ import {
   TEXT_MIME_TYPES,
 } from './documentMimeTypes'
 
-type DocumentUploadPhase = 'reading' | 'converting' | 'checking' | 'forgetting' | null
+export type DocumentUploadPhase = 'reading' | 'converting' | 'checking' | 'forgetting' | null
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
