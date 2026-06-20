@@ -73,8 +73,8 @@ export {
 } from "./adminFunctions.js";
 
 export {
-  documentExtract,
-} from "./documentExtract.js";
+  convertDocumentText,
+} from "./convertDocumentText.js";
 
 export {
   generateEmbedding,
