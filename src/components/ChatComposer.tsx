@@ -197,7 +197,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
       )
     } catch (error) {
-      if (isStaleRequest()) return
+      if (activeRequestIdRef.current === -1 || isStaleRequest()) return
       setPhase(null)
       onPhaseChange?.(null)
       if (error instanceof WikiBusyError) {
