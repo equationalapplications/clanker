@@ -37,7 +37,7 @@ describe('convertDocumentText callable timeout', () => {
     env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY = originalRecaptchaKey
   })
 
-  it('passes a 540s timeout on web', () => {
+  it('passes a 545s timeout on web', () => {
     let capturedHttpsCallable: jest.Mock | undefined
 
     jest.isolateModules(() => {
@@ -53,11 +53,11 @@ describe('convertDocumentText callable timeout', () => {
     expect(capturedHttpsCallable).toHaveBeenCalledWith(
       expect.anything(),
       'convertDocumentText',
-      { timeout: 540_000 },
+      { timeout: 545_000 },
     )
   })
 
-  it('passes a 540s timeout on native', () => {
+  it('passes a 545s timeout on native', () => {
     let capturedHttpsCallable: jest.Mock | undefined
 
     jest.isolateModules(() => {
@@ -74,7 +74,7 @@ describe('convertDocumentText callable timeout', () => {
     expect(capturedHttpsCallable).toHaveBeenCalledWith(
       expect.anything(),
       'convertDocumentText',
-      { timeout: 540_000 },
+      { timeout: 545_000 },
     )
   })
 })

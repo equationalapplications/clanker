@@ -105,7 +105,7 @@ const wikiLlmFn = httpsCallable(functionsInstance, 'wikiLlm')
 const wikiSyncFn = httpsCallable(functionsInstance, 'wikiSync')
 const generateEmbeddingFn = httpsCallable(functionsInstance, 'generateEmbedding')
 const convertDocumentTextFn = httpsCallable(functionsInstance, 'convertDocumentText', {
-  timeout: 540_000,
+  timeout: 545_000,
 })
 
 export type FirebaseUser = FirebaseAuthTypes.User
