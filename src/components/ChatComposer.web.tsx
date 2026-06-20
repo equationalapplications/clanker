@@ -87,7 +87,12 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           rawText = convertResult.data.text
         } catch (error) {
           const firebaseCode = (error as { code?: unknown } | null)?.code
-          if (firebaseCode === 'functions/failed-precondition') {
+          const message = (error as { message?: unknown } | null)?.message
+          if (
+            firebaseCode === 'functions/failed-precondition' &&
+            typeof message === 'string' &&
+            message.toLowerCase().includes('insufficient credits')
+          ) {
             setToastMessage('Insufficient credits to convert this document.')
           } else if (firebaseCode === 'functions/invalid-argument') {
             setToastMessage('File too large or unsupported format.')

@@ -657,4 +657,35 @@ describe('ChatComposer', () => {
     expect(mockIngest).not.toHaveBeenCalled()
     expect(capturedSnackbarProps.children).toBe('Insufficient credits to convert this document.')
   })
+
+  it('maps non-credit failed-precondition from convertDocumentText to a generic toast (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
+    })
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('base64-bytes')
+    mockConvertDocumentText.mockRejectedValue({
+      code: 'functions/failed-precondition',
+      message: 'Account setup incomplete.',
+    })
+
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(mockIngest).not.toHaveBeenCalled()
+    expect(capturedSnackbarProps.children).toBe('Failed to convert document.')
+  })
 })
