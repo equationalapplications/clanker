@@ -1,7 +1,7 @@
 # Spec: Document Upload Progress Feedback
 
 Date: 2026-06-20
-Status: Approved
+Status: Implemented
 Branch: fix/doc-uploads
 
 ## Problem
