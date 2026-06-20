@@ -1,3 +1,18 @@
+# [30.3.0](https://github.com/equationalapplications/clanker/compare/v30.2.0...v30.3.0) (2026-06-20)
+
+
+### Bug Fixes
+
+* **chat:** guard outer upload catch against unmount ([85572be](https://github.com/equationalapplications/clanker/commit/85572beafb1bbb6deaee20325a0539e90d83e28e))
+* **chat:** harden document upload against timeouts and stale requests ([e289762](https://github.com/equationalapplications/clanker/commit/e28976266806fa104ff1854e8a57b4a39b491606))
+* **config:** add client timeout headroom above backend deadline ([3c2eaf8](https://github.com/equationalapplications/clanker/commit/3c2eaf8be22d4db0744de3aab0f3fe3405d7a096))
+* **functions:** raise Gemini output limits and log conversion failures ([2e56684](https://github.com/equationalapplications/clanker/commit/2e566849c4a729efe8c899086e44d863524cbdef))
+
+
+### Features
+
+* **chat:** add document upload phase feedback during ingest ([18e31f8](https://github.com/equationalapplications/clanker/commit/18e31f8cfad1ac9395d80f476b836db454410442))
+
 # [30.2.0](https://github.com/equationalapplications/clanker/compare/v30.1.1...v30.2.0) (2026-06-20)
 
 
