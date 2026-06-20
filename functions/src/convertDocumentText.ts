@@ -253,6 +253,8 @@ export async function convertDocumentTextHandler(
 export const convertDocumentText = onCall(
   {
     region: DEFAULT_REGION,
+    timeoutSeconds: 540,
+    memory: '512MiB',
     enforceAppCheck: true,
     invoker: 'public',
     secrets: [...CLOUD_SQL_SECRETS],

@@ -107,9 +107,9 @@ This makes every step idempotent against staleness without touching the existing
 
 ## Acceptance Criteria
 
-- [ ] `convertDocumentText` Cloud Function has `timeoutSeconds: 540` and `memory: '512MiB'`
-- [ ] Client `convertDocumentTextFn` (both platforms) has matching `timeout: 540_000`
-- [ ] Files larger than `MAX_DOCUMENT_RAW_BYTES` are rejected client-side with a toast before any read, on both platforms
-- [ ] A stale (unmounted or superseded) upload request never calls `setPhase`, shows a toast, or calls `ingest` after it resolves
-- [ ] No changes to `wikiMachine.ts`, `useCharacterWiki.ts`, `EntityStatus`, or the existing phase-feedback UI from the prior spec
-- [ ] `npm run typecheck && npm run lint && npm run test` green at root
+- [x] `convertDocumentText` Cloud Function has `timeoutSeconds: 540` and `memory: '512MiB'`
+- [x] Client `convertDocumentTextFn` (both platforms) has matching `timeout: 540_000`
+- [x] Files larger than `MAX_DOCUMENT_RAW_BYTES` are rejected client-side with a toast before any read, on both platforms
+- [x] A stale (unmounted or superseded) upload request never calls `setPhase`, shows a toast, or calls `ingest` after it resolves
+- [x] No changes to `wikiMachine.ts`, `useCharacterWiki.ts`, `EntityStatus`, or the existing phase-feedback UI from the prior spec
+- [x] `npm run typecheck && npm run lint && npm run test` green at root

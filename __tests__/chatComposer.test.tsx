@@ -995,6 +995,148 @@ describe('ChatComposer', () => {
     expect(capturedSnackbarProps.children).toBe('File too large or unsupported format.')
   })
 
+  it('rejects oversized files before any read (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://big.pdf', name: 'big.pdf', mimeType: 'application/pdf', size: 9_000_001 }],
+    })
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(capturedSnackbarProps.children).toBe('File too large.')
+    expect(onPhaseChange).not.toHaveBeenCalled()
+    expect(FileSystemLegacy.readAsStringAsync).not.toHaveBeenCalled()
+  })
+
+  it('proceeds normally when asset.size is at or below the threshold (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://small.txt', name: 'small.txt', size: 9_000_000 }],
+    })
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(mockIngest).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceRef: 'small.txt' }),
+    )
+  })
+
+  it('ignores a superseded request when a second pick starts before the first resolves (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync
+      .mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file://first.txt', name: 'first.txt' }],
+      })
+      .mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'file://second.txt', name: 'second.txt' }],
+      })
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      const firstPress = plusButton.props.onPress()
+      const secondPress = plusButton.props.onPress()
+      await Promise.all([firstPress, secondPress])
+    })
+
+    expect(mockIngest).toHaveBeenCalledTimes(1)
+    expect(mockIngest).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceRef: 'second.txt' }),
+    )
+    expect(capturedSnackbarProps.children).not.toBe('"first.txt" is already up to date.')
+  })
+
+  it('ignores an in-flight request after the component unmounts (native)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    const FileSystemLegacy = require('expo-file-system/legacy')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
+    })
+    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    let resolveForget: () => void = () => {}
+    mockForget.mockImplementation(
+      () => new Promise<void>((resolve) => {
+        resolveForget = resolve
+      }),
+    )
+
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    let pressPromise!: Promise<void>
+    await act(async () => {
+      pressPromise = plusButton.props.onPress()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    act(() => {
+      tree.unmount()
+    })
+
+    await act(async () => {
+      resolveForget()
+      await pressPromise
+    })
+
+    expect(mockIngest).not.toHaveBeenCalled()
+  })
+
   it('shows the spinner while a document phase is active, before isIngesting becomes true (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
     const FileSystemLegacy = require('expo-file-system/legacy')
@@ -1329,6 +1471,143 @@ describe('ChatComposer', () => {
     expect(onPhaseChange).toHaveBeenCalledWith('converting')
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
     expect(capturedSnackbarProps.children).toBe('File too large or unsupported format.')
+  })
+
+  it('rejects oversized files before any read (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:big.pdf', name: 'big.pdf', mimeType: 'application/pdf', size: 9_000_001 }],
+    })
+
+    const onPhaseChange = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onPhaseChange={onPhaseChange}
+        />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(capturedSnackbarProps.children).toBe('File too large.')
+    expect(onPhaseChange).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('proceeds normally when asset.size is at or below the threshold (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:small.txt', name: 'small.txt', size: 9_000_000 }],
+    })
+    mockFetch.mockResolvedValue({ ok: true, text: async () => 'hello world' })
+
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      await plusButton.props.onPress()
+    })
+
+    expect(mockIngest).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceRef: 'small.txt' }),
+    )
+  })
+
+  it('ignores a superseded request when a second pick starts before the first resolves (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync
+      .mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'blob:first.txt', name: 'first.txt' }],
+      })
+      .mockResolvedValueOnce({
+        canceled: false,
+        assets: [{ uri: 'blob:second.txt', name: 'second.txt' }],
+      })
+    mockFetch.mockResolvedValue({ ok: true, text: async () => 'hello world' })
+
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      const firstPress = plusButton.props.onPress()
+      const secondPress = plusButton.props.onPress()
+      await Promise.all([firstPress, secondPress])
+    })
+
+    expect(mockIngest).toHaveBeenCalledTimes(1)
+    expect(mockIngest).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceRef: 'second.txt' }),
+    )
+  })
+
+  it('ignores an in-flight request after the component unmounts (web)', async () => {
+    const DocumentPicker = require('expo-document-picker')
+    DocumentPicker.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'blob:doc.txt', name: 'doc.txt' }],
+    })
+    mockFetch.mockResolvedValue({ ok: true, text: async () => 'hello world' })
+    let resolveForget: () => void = () => {}
+    mockForget.mockImplementation(
+      () => new Promise<void>((resolve) => {
+        resolveForget = resolve
+      }),
+    )
+
+    const ChatComposer = require('~/components/ChatComposer.web').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+    })
+
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    let pressPromise!: Promise<void>
+    await act(async () => {
+      pressPromise = plusButton.props.onPress()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    act(() => {
+      tree.unmount()
+    })
+
+    await act(async () => {
+      resolveForget()
+      await pressPromise
+    })
+
+    expect(mockIngest).not.toHaveBeenCalled()
   })
 
   it('shows the spinner while a document phase is active, before isIngesting becomes true (web)', async () => {

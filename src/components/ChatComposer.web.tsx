@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { View, StyleSheet, ActivityIndicator } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
@@ -11,6 +11,7 @@ import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { ingestPromptOverride } from './ingestPromptOverride'
 import {
   CONVERT_MIME_TYPES,
+  MAX_DOCUMENT_RAW_BYTES,
   resolveDocumentMimeType,
   TEXT_MIME_TYPES,
 } from './documentMimeTypes'
@@ -58,12 +59,22 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const { colors, roundness } = useTheme()
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [phase, setPhase] = useState<DocumentUploadPhase>(null)
+  const activeRequestIdRef = useRef(0)
 
   const characterWiki = useCharacterWiki(characterId ?? '')
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
 
+  useEffect(() => {
+    return () => {
+      activeRequestIdRef.current = -1
+    }
+  }, [])
+
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
+
+    let requestId = 0
+    const isStaleRequest = () => requestId !== 0 && activeRequestIdRef.current !== requestId
 
     try {
       const pickerResult = await DocumentPicker.getDocumentAsync({
@@ -72,10 +83,17 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       })
       if (pickerResult.canceled || !pickerResult.assets?.[0]) return
 
+      const asset = pickerResult.assets[0]
+      if (typeof asset.size === 'number' && asset.size > MAX_DOCUMENT_RAW_BYTES) {
+        setToastMessage('File too large.')
+        return
+      }
+      if (activeRequestIdRef.current === -1) return
+      requestId = ++activeRequestIdRef.current
+
       setPhase('reading')
       onPhaseChange?.('reading')
 
-      const asset = pickerResult.assets[0]
       const uri = asset.uri
       const rawRef = asset.name ?? uri
       const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
@@ -96,11 +114,13 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           fileContent = await response.text()
         }
       } catch {
+        if (isStaleRequest()) return
         setToastMessage('Failed to read file.')
         setPhase(null)
         onPhaseChange?.(null)
         return
       }
+      if (isStaleRequest()) return
 
       let rawText: string
       if (isConvertType && normalizedMimeType) {
@@ -114,6 +134,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           })
           rawText = convertResult.data.text
         } catch (error) {
+          if (isStaleRequest()) return
           const firebaseCode = (error as { code?: unknown } | null)?.code
           const message = (error as { message?: unknown } | null)?.message
           if (
@@ -131,6 +152,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           onPhaseChange?.(null)
           return
         }
+        if (isStaleRequest()) return
       } else {
         rawText = fileContent
       }
@@ -153,11 +175,13 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         )
         changed = await hasChanged(sourceRef, sourceHash)
       } catch {
+        if (isStaleRequest()) return
         setToastMessage('Failed to check for changes.')
         setPhase(null)
         onPhaseChange?.(null)
         return
       }
+      if (isStaleRequest()) return
 
       if (!changed) {
         setToastMessage(`"${sourceRef}" is already up to date.`)
@@ -171,11 +195,13 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       try {
         await forget({ sourceRef })
       } catch {
+        if (isStaleRequest()) return
         setToastMessage('Failed to remove previous version.')
         setPhase(null)
         onPhaseChange?.(null)
         return
       }
+      if (isStaleRequest()) return
 
       setPhase(null)
       onPhaseChange?.(null)
@@ -186,10 +212,12 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         documentChunk,
         promptOverride: ingestPromptOverride,
       })
+      if (isStaleRequest()) return
       setToastMessage(
         `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
       )
     } catch (error) {
+      if (isStaleRequest()) return
       setPhase(null)
       onPhaseChange?.(null)
       if (error instanceof WikiBusyError) {
