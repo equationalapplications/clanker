@@ -572,6 +572,8 @@ describe('ChatComposer', () => {
       await plusButton.props.onPress()
     })
 
+    expect(mockFetch).toHaveBeenCalledWith('blob:doc.pdf')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockConvertDocumentText).toHaveBeenCalledWith({
       filename: 'doc.pdf',
       mimeType: 'application/pdf',
@@ -650,6 +652,7 @@ describe('ChatComposer', () => {
       await plusButton.props.onPress()
     })
 
+    expect(mockIngest).not.toHaveBeenCalled()
     expect(capturedSnackbarProps.children).toBe('Insufficient credits to convert this document.')
   })
 })

@@ -172,9 +172,6 @@ export async function convertDocumentTextHandler(
   if (!decoded || decoded.uid !== request.auth.uid) {
     throw new HttpsError('unauthenticated', 'Invalid Firebase authentication token.');
   }
-  if (typeof decoded.email !== 'string' || !decoded.email.trim()) {
-    throw new HttpsError('failed-precondition', 'Authenticated account must include an email.');
-  }
 
   // 2. Parse + validate input (before any credit charge)
   const { filename, mimeType, contentBase64 } = parseInput(request.data);
@@ -182,7 +179,7 @@ export async function convertDocumentTextHandler(
   // 3. User identity
   const user = await deps.userRepository.getOrCreateUserByFirebaseIdentity({
     firebaseUid: request.auth.uid,
-    email: decoded.email.trim(),
+    email: typeof decoded.email === 'string' ? decoded.email.trim() : '',
     displayName: decoded.name,
   });
 

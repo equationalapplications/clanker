@@ -69,19 +69,16 @@ describe('convertDocumentTextHandler', () => {
     );
   });
 
-  it('rejects missing token email', async () => {
-    await assert.rejects(
-      () =>
-        convertDocumentTextHandler(
-          {
-            auth: { uid: 'uid-1', token: { uid: 'uid-1' } },
-            data: { filename: 'f.pdf', mimeType: 'application/pdf', contentBase64: VALID_BASE64 },
-            rawRequest: {},
-          } as never,
-          makeDeps() as never,
-        ),
-      (e: unknown) => e instanceof HttpsError && e.code === 'failed-precondition',
+  it('accepts missing token email by falling back to empty string', async () => {
+    const result = await convertDocumentTextHandler(
+      {
+        auth: { uid: 'uid-1', token: { uid: 'uid-1' } } as never,
+        data: { filename: 'f.pdf', mimeType: 'application/pdf', contentBase64: VALID_BASE64 },
+        rawRequest: {},
+      } as never,
+      makeDeps() as never,
     );
+    assert.ok(typeof result.text === 'string');
   });
 
   it('rejects missing filename', async () => {

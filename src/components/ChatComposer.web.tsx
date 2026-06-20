@@ -73,16 +73,29 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
 
       const resolvedMimeType = resolveDocumentMimeType(sourceRef, asset.mimeType)
+      const normalizedMimeType = resolvedMimeType?.trim().toLowerCase()
 
       let rawText: string
-      if (resolvedMimeType && CONVERT_MIME_TYPES.has(resolvedMimeType)) {
+      if (normalizedMimeType && CONVERT_MIME_TYPES.has(normalizedMimeType)) {
         const contentBase64 = await readAsBase64Web(uri)
-        const convertResult = await convertDocumentText({
-          filename: sourceRef,
-          mimeType: resolvedMimeType,
-          contentBase64,
-        })
-        rawText = convertResult.data.text
+        try {
+          const convertResult = await convertDocumentText({
+            filename: sourceRef,
+            mimeType: normalizedMimeType,
+            contentBase64,
+          })
+          rawText = convertResult.data.text
+        } catch (error) {
+          const firebaseCode = (error as { code?: unknown } | null)?.code
+          if (firebaseCode === 'functions/failed-precondition') {
+            setToastMessage('Insufficient credits to convert this document.')
+          } else if (firebaseCode === 'functions/invalid-argument') {
+            setToastMessage('File too large or unsupported format.')
+          } else {
+            setToastMessage('Failed to convert document.')
+          }
+          return
+        }
       } else {
         const response = await fetch(uri)
         if (!response.ok) {
@@ -119,13 +132,8 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
       )
     } catch (error) {
-      const firebaseCode = (error as { code?: unknown } | null)?.code
       if (error instanceof WikiBusyError) {
         setToastMessage('Memory is busy. Please try again shortly.')
-      } else if (firebaseCode === 'functions/failed-precondition') {
-        setToastMessage('Insufficient credits to convert this document.')
-      } else if (firebaseCode === 'functions/invalid-argument') {
-        setToastMessage('File too large or unsupported format.')
       } else if (
         error instanceof SyntaxError ||
         (error instanceof Error && error.message.includes('No JSON object/array found'))

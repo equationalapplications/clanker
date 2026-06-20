@@ -13,7 +13,14 @@ export function resolveDocumentMimeType(
   filename: string,
   mimeType?: string | null,
 ): string | undefined {
-  if (mimeType) return mimeType
+  const normalizedMime = mimeType?.split(';')[0]?.trim().toLowerCase()
+  if (
+    normalizedMime &&
+    (TEXT_MIME_TYPES.includes(normalizedMime as (typeof TEXT_MIME_TYPES)[number]) ||
+      CONVERT_MIME_TYPES.has(normalizedMime))
+  ) {
+    return normalizedMime
+  }
 
   const lowerName = filename.toLowerCase()
   if (lowerName.endsWith('.pdf')) return 'application/pdf'
