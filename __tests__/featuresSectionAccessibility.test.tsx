@@ -57,6 +57,8 @@ const FEATURE_TITLES = [
   'Real AI Conversations',
   'Talk to Your Character',
   'Share & Sync',
+  'Personal Assistant',
+  'Wiki-Based Memory',
 ]
 
 describe('FeaturesSection accessibility', () => {
@@ -66,9 +68,9 @@ describe('FeaturesSection accessibility', () => {
     act(() => { tree = create(<FeaturesSection />) })
   })
 
-  it('renders 4 feature icons', () => {
+  it('renders 6 feature icons', () => {
     const icons = tree.root.findAllByType('MaterialCommunityIcons')
-    expect(icons.length).toBe(4)
+    expect(icons.length).toBe(6)
   })
 
   it('each feature icon has accessibilityRole "image"', () => {

@@ -8,7 +8,13 @@ import { readAsStringAsync } from 'expo-file-system/legacy'
 import * as Crypto from 'expo-crypto'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { convertDocumentText } from '~/services/apiClient'
 import { ingestPromptOverride } from './ingestPromptOverride'
+import {
+  CONVERT_MIME_TYPES,
+  resolveDocumentMimeType,
+  TEXT_MIME_TYPES,
+} from './documentMimeTypes'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -37,22 +43,36 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     if (!characterId || !userId) return
 
     try {
-      const result = await DocumentPicker.getDocumentAsync({
+      const pickerResult = await DocumentPicker.getDocumentAsync({
         copyToCacheDirectory: true,
-        type: ['text/plain', 'text/markdown'],
+        type: [...TEXT_MIME_TYPES, ...CONVERT_MIME_TYPES],
       })
-      if (result.canceled || !result.assets?.[0]) return
+      if (pickerResult.canceled || !pickerResult.assets?.[0]) return
 
-      const asset = result.assets[0]
+      const asset = pickerResult.assets[0]
       const uri = asset.uri
       // Sanitize filename: strip control chars, cap length for stable sourceRef
       const rawRef = asset.name ?? uri
       const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
 
-      // Read as UTF-8 (the default); strip BOM/null bytes and normalize to NFC for
-      // consistent cross-platform hashing regardless of editor/OS encoding quirks.
-      const raw = await readAsStringAsync(uri)
-      const documentChunk = raw
+      const resolvedMimeType = resolveDocumentMimeType(sourceRef, asset.mimeType)
+
+      let rawText: string
+      if (resolvedMimeType && CONVERT_MIME_TYPES.has(resolvedMimeType)) {
+        const contentBase64 = await readAsStringAsync(uri, { encoding: 'base64' })
+        const convertResult = await convertDocumentText({
+          filename: sourceRef,
+          mimeType: resolvedMimeType,
+          contentBase64,
+        })
+        rawText = convertResult.data.text
+      } else {
+        rawText = await readAsStringAsync(uri)
+      }
+
+      // Strip BOM/null bytes and normalize to NFC for consistent cross-platform
+      // hashing regardless of editor/OS encoding quirks or conversion source.
+      const documentChunk = rawText
         .replace(/^\uFEFF/, '')   // strip UTF-8 BOM
         .replace(/\0/g, '')       // strip null bytes
         .normalize('NFC')         // canonical Unicode form
@@ -81,8 +101,13 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
       )
     } catch (error) {
+      const firebaseCode = (error as { code?: unknown } | null)?.code
       if (error instanceof WikiBusyError) {
         setToastMessage('Memory is busy. Please try again shortly.')
+      } else if (firebaseCode === 'functions/failed-precondition') {
+        setToastMessage('Insufficient credits to convert this document.')
+      } else if (firebaseCode === 'functions/invalid-argument') {
+        setToastMessage('File too large or unsupported format.')
       } else if (
         error instanceof SyntaxError ||
         (error instanceof Error && error.message.includes('No JSON object/array found'))
