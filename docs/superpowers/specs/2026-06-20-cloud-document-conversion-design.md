@@ -66,7 +66,7 @@ const GEMINI_MIME_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg',
 const ALLOWED_MIME_TYPES = new Set([DOCX_MIME, ...GEMINI_MIME_TYPES]);
 ```
 
-- `DOCX_MIME` → **mammoth** (`mammoth.convertToMarkdown({ buffer })`) — deterministic, no LLM call, no credit-cost variance from model latency/availability.
+- `DOCX_MIME` → **mammoth** (`mammoth.extractRawText({ buffer })`) — deterministic, no LLM call, no credit-cost variance from model latency/availability. Mammoth has no `convertToMarkdown` API (only `convertToHtml` and `extractRawText`); `extractRawText` returns plain text, which is sufficient — the existing ingest pipeline chunks prose regardless of markdown formatting.
 - `GEMINI_MIME_TYPES` (pdf, png, jpeg, webp) → **Gemini multimodal**, inline file part.
 
 Any other `mimeType` → `HttpsError('invalid-argument', 'Unsupported file type.')` before any credit charge.
@@ -79,7 +79,7 @@ Any other `mimeType` → `HttpsError('invalid-argument', 'Unsupported file type.
 4. **User identity** — `userRepository.getOrCreateUserByFirebaseIdentity`, same as every other callable.
 5. **Charge 1 credit** — `creditService.spendCredits(userId, 1)`; insufficient balance → `HttpsError('failed-precondition', 'Insufficient credits to convert document.')`. Charged *before* conversion (matches old `documentExtract`'s `chargeForDocumentExtract`), refunded on any failure in the try/catch below.
 6. **Decode + convert**:
-   - DOCX → `Buffer.from(contentBase64, 'base64')` → `mammoth.convertToMarkdown({ buffer })` → `.value` is the markdown string. Mammoth conversion errors (corrupt/non-OOXML file) caught and rethrown as `HttpsError('invalid-argument', 'Could not read DOCX file.')`.
+   - DOCX → `Buffer.from(contentBase64, 'base64')` → `mammoth.extractRawText({ buffer })` → `.value` is the plain text. Mammoth conversion errors (corrupt/non-OOXML file) caught and rethrown as `HttpsError('invalid-argument', 'Could not read DOCX file.')`.
    - PDF/image → Gemini multimodal call: `ai.models.generateContent({ model: 'gemini-3.5-flash', contents: [{ inlineData: { mimeType, data: contentBase64 } }, { text: CONVERSION_PROMPT }] })`. `CONVERSION_PROMPT`: "Transcribe all text content from this document into clean markdown. Preserve headings, lists, and tables where present. Output only the transcribed markdown — no commentary, no preamble." No structured-output schema needed (output is markdown text, not JSON) — use default `responseMimeType` (text).
 7. **Validate output** — empty/whitespace-only result → `HttpsError('internal', 'Conversion produced no text.')` (triggers refund below, same as a thrown error).
 8. **Truncate** — `text.length > MAX_DOCUMENT_CHARS (200_000)` → slice + `truncated = true`. Same constant as old `documentExtract`.
@@ -132,14 +132,19 @@ type: [
 
 ```
 asset.mimeType === 'text/plain' | 'text/markdown'
-  → readAsStringAsync(uri)                         [existing path, unchanged]
+  → read as UTF-8 text                              [existing path, unchanged per platform]
   → documentChunk = normalize(raw)
 
 else (pdf / docx / image)
-  → readAsStringAsync(uri, { encoding: 'base64' })
+  → read as base64                                  [new — platform-specific, see below]
   → convertDocumentText({ filename: sourceRef, mimeType: asset.mimeType, contentBase64 })
   → documentChunk = normalize(result.text)
 ```
+
+`ChatComposer.tsx` (native) and `ChatComposer.web.tsx` already use different file-read mechanics for the existing text path — native uses `readAsStringAsync` from `expo-file-system/legacy`, web uses `fetch(uri).text()` (the legacy module's web shim does not implement `readAsStringAsync`). The new base64 read needs the same per-platform split:
+
+- **Native**: `readAsStringAsync(uri, { encoding: 'base64' })` from `expo-file-system/legacy` — same module already imported, just a different `encoding` option (confirmed supported in its `ReadingOptions` type).
+- **Web**: no equivalent in `expo-file-system`'s web shim. Use `fetch(uri).then(r => r.blob())`, then `FileReader.readAsDataURL(blob)`, then strip the `data:...;base64,` prefix to get the raw base64 string. Plain browser APIs, no new dependency.
 
 From `documentChunk` onward, **zero changes** — same `sourceHash` computation (`expo-crypto` SHA-256), same `hasChanged` → `forget({ sourceRef })` → `ingest({ sourceRef, sourceHash, documentChunk, promptOverride: ingestPromptOverride })` call sequence already in `handlePlusPress`.
 
