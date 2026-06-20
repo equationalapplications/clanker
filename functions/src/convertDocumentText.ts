@@ -86,7 +86,7 @@ async function defaultGenerateFromGemini(mimeType: string, base64: string): Prom
         parts: [{ inlineData: { mimeType, data: base64 } }, { text: CONVERSION_PROMPT }],
       },
     ],
-    config: { maxOutputTokens: 8192 },
+    config: { maxOutputTokens: 65_536, thinkingConfig: { thinkingBudget: 0 } },
   });
   const candidates = result.candidates ?? [];
   for (const candidate of candidates) {
@@ -224,6 +224,11 @@ export async function convertDocumentTextHandler(
 
     return { text, truncated };
   } catch (error) {
+    logger.error('convertDocumentText conversion failed', {
+      userId: user.id,
+      mimeType,
+      error: error instanceof Error ? error.message : String(error),
+    });
     try {
       await deps.creditService.refundCredit(user.id, transactionId, 1);
       logger.warn('convertDocumentText refunded credit after conversion failure', {
