@@ -11,6 +11,7 @@ import {
   wikiLlmFn as wikiLlmCallable,
   wikiSyncFn as wikiSyncCallable,
   generateEmbeddingFn as generateEmbeddingCallable,
+  convertDocumentTextFn as convertDocumentTextCallable,
 } from '~/config/firebaseConfig'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 
@@ -167,4 +168,19 @@ export const wikiSync = withAppCheck(
 
 export const generateEmbedding = withAppCheck(
   generateEmbeddingCallable as Callable<GenerateEmbeddingRequest, GenerateEmbeddingResponse>,
+)
+
+export interface ConvertDocumentTextRequest {
+  filename: string
+  mimeType: string
+  contentBase64: string
+}
+
+export interface ConvertDocumentTextResponse {
+  text: string
+  truncated: boolean
+}
+
+export const convertDocumentText = withAppCheck(
+  convertDocumentTextCallable as Callable<ConvertDocumentTextRequest, ConvertDocumentTextResponse>,
 )

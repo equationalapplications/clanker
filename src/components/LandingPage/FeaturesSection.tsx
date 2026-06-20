@@ -25,6 +25,16 @@ const FEATURES = [
     title: 'Share & Sync',
     body: 'Save characters to the cloud and sync across all your devices. Share any character via link. Anyone can open it instantly.',
   },
+  {
+    icon: 'account-cog-outline' as const,
+    title: 'Personal Assistant',
+    body: 'Upload documents (including PDFs, Word docs, and images) and your personal assistant builds foundational knowledge from them. Share it with others and watch it evolve as you all add to its understanding.',
+  },
+  {
+    icon: 'brain' as const,
+    title: 'Wiki-Based Memory',
+    body: 'As your assistant learns more, it automatically reconciles conflicting information to stay consistent and accurate. Powered by our local-first LLM Wiki engine, your agent actively maintains a compounding knowledge base without prompt bloat.',
+  },
 ]
 
 function FeatureCard({

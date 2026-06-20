@@ -65,7 +65,7 @@ jest.mock('@expo/vector-icons', () => {
 
 import ComingSoonSection from '~/components/LandingPage/ComingSoonSection'
 
-const COMING_SOON_TITLES = ['Personal Assistant', 'Wiki-Based Memory']
+const COMING_SOON_TITLES = ['Organizational Hierarchy', 'Plug-and-Play MCP Tools', 'Agent-to-Agent (A2A) Communication']
 
 describe('ComingSoonSection accessibility', () => {
   let tree: any
@@ -74,9 +74,9 @@ describe('ComingSoonSection accessibility', () => {
     act(() => { tree = create(<ComingSoonSection />) })
   })
 
-  it('renders 2 feature icons', () => {
+  it('renders 3 feature icons', () => {
     const icons = tree.root.findAllByType('MaterialCommunityIcons')
-    expect(icons.length).toBe(2)
+    expect(icons.length).toBe(3)
   })
 
   it('each feature icon has accessibilityRole "image"', () => {
@@ -102,7 +102,7 @@ describe('ComingSoonSection accessibility', () => {
 
   it('each Coming Soon badge has accessibilityLabel "Coming soon"', () => {
     const badges = tree.root.findAll((node: any) => node.props.accessibilityLabel === 'Coming soon')
-    expect(badges.length).toBe(2)
+    expect(badges.length).toBe(3)
     badges.forEach((badge: any) => {
       expect(badge.props.accessibilityLabel).toBe('Coming soon')
     })
@@ -110,7 +110,7 @@ describe('ComingSoonSection accessibility', () => {
 
   it('each Coming Soon badge has accessibilityRole "text"', () => {
     const badges = tree.root.findAll((node: any) => node.props.accessibilityLabel === 'Coming soon')
-    expect(badges.length).toBe(2)
+    expect(badges.length).toBe(3)
     badges.forEach((badge: any) => {
       expect(badge.props.accessibilityRole).toBe('text')
     })

@@ -6,14 +6,42 @@ import { IconButton, Portal, Snackbar, useTheme } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
 import * as Crypto from 'expo-crypto'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { convertDocumentText } from '~/services/apiClient'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { ingestPromptOverride } from './ingestPromptOverride'
+import {
+  CONVERT_MIME_TYPES,
+  resolveDocumentMimeType,
+  TEXT_MIME_TYPES,
+} from './documentMimeTypes'
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
     userId?: string
   }
+
+async function readAsBase64Web(uri: string): Promise<string> {
+  const response = await fetch(uri)
+  if (!response.ok) {
+    throw new Error(`Failed to read file (HTTP ${response.status})`)
+  }
+  const blob = await response.blob()
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : null
+      const base64 = dataUrl?.split(',')[1]
+      if (!base64) {
+        reject(new Error('Failed to extract base64 from file data'))
+        return
+      }
+      resolve(base64)
+    }
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'))
+    reader.readAsDataURL(blob)
+  })
+}
 
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
   onSend,
@@ -33,23 +61,55 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     if (!characterId || !userId) return
 
     try {
-      const result = await DocumentPicker.getDocumentAsync({
+      const pickerResult = await DocumentPicker.getDocumentAsync({
         copyToCacheDirectory: false,
-        type: ['text/plain', 'text/markdown'],
+        type: [...TEXT_MIME_TYPES, ...CONVERT_MIME_TYPES],
       })
-      if (result.canceled || !result.assets?.[0]) return
+      if (pickerResult.canceled || !pickerResult.assets?.[0]) return
 
-      const asset = result.assets[0]
+      const asset = pickerResult.assets[0]
       const uri = asset.uri
       const rawRef = asset.name ?? uri
       const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
 
-      const response = await fetch(uri)
-      if (!response.ok) {
-        throw new Error(`Failed to read file (HTTP ${response.status})`)
+      const resolvedMimeType = resolveDocumentMimeType(sourceRef, asset.mimeType)
+      const normalizedMimeType = resolvedMimeType?.trim().toLowerCase()
+
+      let rawText: string
+      if (normalizedMimeType && CONVERT_MIME_TYPES.has(normalizedMimeType)) {
+        const contentBase64 = await readAsBase64Web(uri)
+        try {
+          const convertResult = await convertDocumentText({
+            filename: sourceRef,
+            mimeType: normalizedMimeType,
+            contentBase64,
+          })
+          rawText = convertResult.data.text
+        } catch (error) {
+          const firebaseCode = (error as { code?: unknown } | null)?.code
+          const message = (error as { message?: unknown } | null)?.message
+          if (
+            firebaseCode === 'functions/failed-precondition' &&
+            typeof message === 'string' &&
+            message.toLowerCase().includes('insufficient credits')
+          ) {
+            setToastMessage('Insufficient credits to convert this document.')
+          } else if (firebaseCode === 'functions/invalid-argument') {
+            setToastMessage('File too large or unsupported format.')
+          } else {
+            setToastMessage('Failed to convert document.')
+          }
+          return
+        }
+      } else {
+        const response = await fetch(uri)
+        if (!response.ok) {
+          throw new Error(`Failed to read file (HTTP ${response.status})`)
+        }
+        rawText = await response.text()
       }
-      const raw = await response.text()
-      const documentChunk = raw
+
+      const documentChunk = rawText
         .replace(/^\uFEFF/, '')
         .replace(/\0/g, '')
         .normalize('NFC')

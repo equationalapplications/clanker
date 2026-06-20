@@ -6,14 +6,19 @@ import { useFloatingCardAnimation } from '~/hooks/useFloatingCardAnimation'
 
 const COMING_SOON_FEATURES = [
   {
-    icon: 'account-cog-outline' as const,
-    title: 'Personal Assistant',
-    body: 'Upload documents and your personal assistant builds knowledge from them. Share it with others and watch it evolve as you all add to its understanding.',
+    icon: 'sitemap' as const,
+    title: 'Organizational Hierarchy',
+    body: 'Create shared workspaces for your small business. Easily manage shared company knowledge, policies, and tool integrations that automatically cascade down to any agent assigned to your organization.',
   },
   {
-    icon: 'brain' as const,
-    title: 'Wiki-Based Memory',
-    body: 'As your assistant learns more, it automatically reconciles conflicting information to stay consistent and accurate.',
+    icon: 'power-plug-outline' as const,
+    title: 'Plug-and-Play MCP Tools',
+    body: 'Securely connect your cloud agents to external services like Google Drive, Slack, and PostgreSQL. Using the Model Context Protocol (MCP), your agents will be able to search internal documents and analyze live databases without needing custom API integrations.',
+  },
+  {
+    icon: 'account-network-outline' as const,
+    title: 'Agent-to-Agent (A2A) Communication',
+    body: 'Deploy multi-agent departments with strictly scoped capabilities. A unified router agent will seamlessly delegate user requests to specialized workers—ensuring the marketing agent handles campaigns while the accounting agent securely processes billing.',
   },
 ]
 
