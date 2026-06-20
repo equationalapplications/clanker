@@ -1,3 +1,24 @@
+# [30.2.0](https://github.com/equationalapplications/clanker/compare/v30.1.1...v30.2.0) (2026-06-20)
+
+
+### Bug Fixes
+
+* **chat:** narrow convertDocumentText error toasts ([c63c7a5](https://github.com/equationalapplications/clanker/commit/c63c7a5fcfb486a0c368eac86f833971d67e2e42))
+* **doc-uploads:** address CodeRabbit review on PR [#452](https://github.com/equationalapplications/clanker/issues/452) ([600d7aa](https://github.com/equationalapplications/clanker/commit/600d7aa788f06ed3d80e35bb20e78b935c033d0d))
+* **doc-uploads:** address Copilot review on convertDocumentText ([a38b773](https://github.com/equationalapplications/clanker/commit/a38b773fd13a9b913af16867e8d6564e5f498f73))
+* **document-conversion:** tighten error handling and tests ([43982eb](https://github.com/equationalapplications/clanker/commit/43982eb120c02c4bceb5c0e3aa980f7834bae710))
+* **test:** trigger FileReader.onload in chatComposer mock ([71ebf72](https://github.com/equationalapplications/clanker/commit/71ebf72a9fb985ea1957b005bdea5eeaa954af68))
+
+
+### Features
+
+* **client:** route PDF/DOCX/image uploads through convertDocumentText (native) ([bc3b0e0](https://github.com/equationalapplications/clanker/commit/bc3b0e0a3b1f51fefafcfaee8c8b66ada8a8a8eb))
+* **client:** route PDF/DOCX/image uploads through convertDocumentText (web) ([115ce45](https://github.com/equationalapplications/clanker/commit/115ce456a6fe4712f040e97a5926007210bb5580))
+* **client:** wire convertDocumentText callable into apiClient ([be7338a](https://github.com/equationalapplications/clanker/commit/be7338a0171c49e201ee1bbd358067e183a469f9))
+* **functions:** add convertDocumentText callable for PDF/DOCX/image conversion ([1550e93](https://github.com/equationalapplications/clanker/commit/1550e934143021d2bf2adf12f5acfc5fba711e5c))
+* **functions:** register convertDocumentText, remove dead documentExtract callable ([8c3cc39](https://github.com/equationalapplications/clanker/commit/8c3cc396289c7c5fdc421b691c2ed0929def144b))
+* **landing:** promote Personal Assistant and Wiki-Based Memory to active features ([86bd367](https://github.com/equationalapplications/clanker/commit/86bd36731d5bbf18161a545e738df934d0543cfb))
+
 ## [30.1.1](https://github.com/equationalapplications/clanker/compare/v30.1.0...v30.1.1) (2026-06-19)
 
 
