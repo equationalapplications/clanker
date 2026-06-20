@@ -615,6 +615,8 @@ describe('ChatComposer', () => {
       await plusButton.props.onPress()
     })
 
+    expect(mockFetch).toHaveBeenCalledWith('blob:doc.pdf')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockConvertDocumentText).toHaveBeenCalledWith({
       filename: 'doc.pdf',
       mimeType: 'application/pdf',
