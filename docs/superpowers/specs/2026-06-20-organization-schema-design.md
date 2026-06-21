@@ -49,8 +49,10 @@ The codebase has no existing Drizzle `relations()` helper usage anywhere in `sch
 ## Migration
 
 1. Add the two table definitions to `functions/src/db/schema.ts`.
-2. From `functions/`, run `npx drizzle-kit generate` to produce the new numbered migration SQL file in `functions/drizzle/`.
+2. Create a hand-written migration SQL file in `functions/drizzle/`. The Drizzle journal (`functions/drizzle/meta/_journal.json`) currently stops at `0011_credits_redesign`, while hand-written migrations `0012`–`0014` already exist on disk — so **`npx drizzle-kit generate` would assign a conflicting number/tag** until the journal is re-synced. Use the next on-disk sequential index (`0015_organizations.sql` after `0014_pgvector_wiki_embeddings.sql`). Match the style of existing hand-written migrations: `CREATE TABLE`, `ALTER TABLE ... ADD CONSTRAINT` for FKs, and explicit `CREATE INDEX` / `CREATE UNIQUE INDEX` statements. Do **not** update `_journal.json` or add snapshot files unless the journal is being re-synced project-wide.
 3. Verify with a typecheck (e.g. `npm run typecheck` / `tsc --noEmit` in `functions/`) — no compile errors expected since no other file references these new exports yet.
+
+> **Note:** If the Drizzle journal is brought back in sync with on-disk migrations, `drizzle-kit generate` can be used again for future schema changes. Until then, follow the hand-written migration workflow documented in [architecture-and-data.md](../../architecture-and-data.md).
 
 ## Out of scope
 

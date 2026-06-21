@@ -2,17 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add `organizations` and `organization_members` tables to the Drizzle ORM schema, generate the migration SQL, and verify the project typechecks.
+**Goal:** Add `organizations` and `organization_members` tables to the Drizzle ORM schema, add the migration SQL, and verify the project typechecks.
 
-**Architecture:** Two new `pgTable` definitions appended to the existing `functions/src/db/schema.ts` (single-file schema, matching current codebase convention — no `relations()` helpers, no separate file). `organizations` holds tenant records; `organization_members` is a junction table with its own `uuid` PK, a unique index on `(organization_id, user_id)` to prevent duplicate memberships, and a secondary index on `user_id` for reverse lookups. Migration generated via `drizzle-kit generate`.
+**Architecture:** Two new `pgTable` definitions appended to the existing `functions/src/db/schema.ts` (single-file schema, matching current codebase convention — no `relations()` helpers, no separate file). `organizations` holds tenant records; `organization_members` is a junction table with its own `uuid` PK, a unique index on `(organization_id, user_id)` to prevent duplicate memberships, and a secondary index on `user_id` for reverse lookups. Migration is hand-written because the Drizzle journal (`functions/drizzle/meta/_journal.json`) stops at `0011` while migrations `0012`–`0014` already exist on disk — running `drizzle-kit generate` would produce a conflicting number/tag until the journal is re-synced.
 
 **Tech Stack:** Drizzle ORM (`drizzle-orm/pg-core`), drizzle-kit, TypeScript, PostgreSQL (Cloud SQL).
 
 ---
 
-This is a single-file schema change with no application logic, so there is no behavior to drive with a failing test. The verification loop here is: schema compiles → migration generates → typecheck passes.
+This is a single-file schema change with no application logic, so there is no behavior to drive with a failing test. The verification loop here is: schema compiles → migration SQL written → typecheck passes.
 
-### Task 1: Add `organizations` and `organization_members` tables to schema
+## Task 1: Add `organizations` and `organization_members` tables to schema
 
 **Files:**
 - Modify: `functions/src/db/schema.ts:1` (import line), end of file (new exports after line 237's `tasks` table)
@@ -73,47 +73,35 @@ git commit -m "feat(db): add organizations and organization_members tables"
 
 ---
 
-### Task 2: Generate migration SQL
+## Task 2: Write migration SQL
 
 **Files:**
-- Create: `functions/drizzle/00XX_<auto_generated_name>.sql` (drizzle-kit assigns the number and name — next sequential index after `0014_pgvector_wiki_embeddings.sql`, i.e. `0015_...`)
-- Modify: `functions/drizzle/meta/_journal.json` (drizzle-kit appends an entry automatically)
-- Create: `functions/drizzle/meta/00XX_snapshot.json` (drizzle-kit generates automatically)
+- Create: `functions/drizzle/0015_organizations.sql` (next sequential index after `0014_pgvector_wiki_embeddings.sql`)
+- Do **not** modify `functions/drizzle/meta/_journal.json` or add snapshot files — the journal stops at `0011` and is out of sync with on-disk migrations `0012`–`0014`. Updating the journal for this change alone would misrepresent prior migrations.
 
-- [ ] **Step 1: Confirm `DATABASE_URL` is available**
+- [ ] **Step 1: Write the migration SQL file**
 
-`functions/drizzle.config.ts` reads `process.env.DATABASE_URL`. Check it's set in the shell, e.g.:
-
-Run: `cd functions && echo $DATABASE_URL`
-
-`drizzle-kit generate` only needs this to resolve the dialect config — it does not connect to the database for `generate` (only for `push`/`migrate`). If empty, set a placeholder before running, e.g. `export DATABASE_URL="postgresql://localhost:5432/placeholder"` — any well-formed connection string works since no connection is opened.
-
-- [ ] **Step 2: Run drizzle-kit generate**
-
-Run: `cd functions && npx drizzle-kit generate`
-Expected output: a line like `Your SQL migration file ➜ drizzle/0015_<name>.sql 🚀` and a new file created under `functions/drizzle/`.
-
-- [ ] **Step 3: Read the generated SQL file**
-
-Open the new file under `functions/drizzle/0015_*.sql` and confirm it contains:
+Create `functions/drizzle/0015_organizations.sql` by hand, matching the style of existing migrations (e.g. `0014_pgvector_wiki_embeddings.sql`). The file should contain:
 - `CREATE TABLE "organizations" (...)` with `id`, `name`, `created_at`, `updated_at` columns
 - `CREATE TABLE "organization_members" (...)` with `id`, `user_id`, `organization_id`, `role`, `created_at` columns
 - Two `FOREIGN KEY` constraints on `organization_members` (`user_id` → `users.id`, `organization_id` → `organizations.id`), both `ON DELETE cascade`
 - A `CREATE UNIQUE INDEX "organization_members_org_user_unique_idx" ... ("organization_id","user_id")`
 - A `CREATE INDEX "organization_members_user_id_idx" ... ("user_id")`
 
-If any of the above is missing or incorrect, fix the table definitions in `functions/src/db/schema.ts` from Task 1 and re-run `npx drizzle-kit generate` (delete the incorrect generated file first since drizzle-kit won't overwrite — it will generate a new sequential file).
+If any of the above is missing or incorrect, fix the table definitions in `functions/src/db/schema.ts` from Task 1 and update the SQL file accordingly.
 
-- [ ] **Step 4: Re-run typecheck**
+> **Alternative (journal re-synced):** If `functions/drizzle/meta/_journal.json` is brought back in sync with all on-disk migrations first, `cd functions && npx drizzle-kit generate` can produce the migration and update journal/snapshots automatically. Until then, use the hand-written path above.
+
+- [ ] **Step 2: Re-run typecheck**
 
 Run: `cd functions && npm run typecheck`
 Expected: exits 0, no errors.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add functions/drizzle
-git commit -m "feat(db): generate migration for organizations and organization_members"
+git add functions/drizzle/0015_organizations.sql
+git commit -m "feat(db): add migration for organizations and organization_members"
 ```
 
 ---
