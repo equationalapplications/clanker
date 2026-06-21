@@ -1,5 +1,8 @@
 # Organization Database Schema — Design Spec
 
+Date: 2026-06-20
+Status: Implemented
+
 ## Goal
 
 Add `organizations` and `organization_members` tables to the Drizzle ORM schema (`functions/src/db/schema.ts`) to future-proof the Cloud SQL backend for multi-tenant B2B features. Backend groundwork only — no frontend UI, no app-level authorization logic, no invitation flow. Just the schema, migration, and typecheck.
