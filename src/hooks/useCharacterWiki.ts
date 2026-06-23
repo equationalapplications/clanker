@@ -180,7 +180,7 @@ export function useCharacterWiki(entityId: string) {
         actor.send({
           type: 'SYNC',
           runRemoteSync: async (localDump) => {
-            const localBundle = localDump.entities[entityId] ?? { facts: [], tasks: [], events: [] }
+            const localBundle = localDump.entities[entityId] ?? { facts: [], tasks: [], events: [], edges: [] }
             const cloudDump: MemoryDump = {
               generatedAt: localDump.generatedAt,
               entities: {
@@ -188,6 +188,7 @@ export function useCharacterWiki(entityId: string) {
                   facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudEntityId })),
                   tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudEntityId })),
                   events: localBundle.events.map((e) => ({ ...e, entity_id: cloudEntityId })),
+                  edges: localBundle.edges?.map((e) => ({ ...e, entity_id: cloudEntityId })) ?? [],
                 },
               },
             }
@@ -196,10 +197,16 @@ export function useCharacterWiki(entityId: string) {
             if (!remoteDump) {
               throw new Error('wikiSync returned without remoteDump in response data')
             }
+            const cloudBundle = remoteDump.entities[cloudEntityId] ?? { facts: [], tasks: [], events: [], edges: [] }
             const remappedDump: MemoryDump = {
               generatedAt: remoteDump.generatedAt,
               entities: {
-                [entityId]: remoteDump.entities[cloudEntityId] ?? { facts: [], tasks: [], events: [] },
+                [entityId]: {
+                  facts: cloudBundle.facts,
+                  tasks: cloudBundle.tasks,
+                  events: cloudBundle.events,
+                  edges: cloudBundle.edges?.map((e) => ({ ...e, entity_id: entityId })) ?? [],
+                },
               },
             }
             return remappedDump

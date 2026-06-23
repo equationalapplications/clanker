@@ -163,6 +163,45 @@ describe('syncWikiForCloud orchestration path', () => {
     expect(remapped.entities[LOCAL_ID].facts).toEqual([{ id: 'rf1' }])
   })
 
+  it('propagates edges through runRemoteSync in both directions', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+    await syncAllToCloud('user-1')
+
+    const [itemsArg] = mockSyncAll.mock.calls[0]
+    const runRemoteSync = itemsArg[0].runRemoteSync as (dump: any) => Promise<any>
+    mockWikiSyncFn.mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 1001,
+          entities: {
+            [CLOUD_ID]: {
+              facts: [], tasks: [], events: [],
+              edges: [{ id: 're1', entity_id: CLOUD_ID, source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 5 }],
+            },
+          },
+        },
+      },
+    })
+
+    const remapped = await runRemoteSync({
+      generatedAt: 1000,
+      entities: {
+        [LOCAL_ID]: {
+          facts: [], tasks: [], events: [],
+          edges: [{ id: 'le1', entity_id: LOCAL_ID, source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 4 }],
+        },
+      },
+    })
+
+    const syncArg = mockWikiSyncFn.mock.calls[mockWikiSyncFn.mock.calls.length - 1][0]
+    expect(syncArg.dump.entities[CLOUD_ID].edges).toEqual([
+      { id: 'le1', entity_id: CLOUD_ID, source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 4 },
+    ])
+    expect(remapped.entities[LOCAL_ID].edges).toEqual([
+      { id: 're1', entity_id: LOCAL_ID, source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 5 },
+    ])
+  })
+
   it('continues fail-soft when orchestrator sync throws', async () => {
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
     mockSyncAll.mockRejectedValue(new Error('network error'))
