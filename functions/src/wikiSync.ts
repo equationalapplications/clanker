@@ -6,7 +6,7 @@ import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {creditService as defaultCreditService} from "./services/creditService.js";
 import {getDb} from "./db/cloudSql.js";
-import {llmWikiEntries, llmWikiTasks, llmWikiEvents, characters} from "./db/schema.js";
+import {llmWikiEntries, llmWikiTasks, llmWikiEvents, llmWikiEdges, characters} from "./db/schema.js";
 
 const DEFAULT_REGION = "us-central1";
 
@@ -47,10 +47,20 @@ interface WikiEvent {
   created_at: number;
 }
 
+interface WikiEdge {
+  id: string;
+  entity_id: string;
+  source_id: string;
+  target_id: string;
+  edge_type: string;
+  created_at: number;
+}
+
 interface MemoryBundle {
   facts: WikiFact[];
   tasks: WikiTask[];
   events: WikiEvent[];
+  edges?: WikiEdge[];
 }
 
 export interface MemoryDump {
@@ -73,6 +83,7 @@ const MAX_ENTITIES = 50;
 const MAX_FACTS_PER_ENTITY = 500;
 const MAX_TASKS_PER_ENTITY = 200;
 const MAX_EVENTS_PER_ENTITY = 500;
+const MAX_EDGES_PER_ENTITY = 500;
 /** 30-day event retention window in milliseconds — matches runPrune retainEventsFor policy. */
 const WIKI_EVENTS_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -203,6 +214,24 @@ function validateEvent(event: unknown, entityId: string, label: string): void {
   assertNumber(e.created_at, `${label}.created_at`);
 }
 
+function validateEdge(edge: unknown, entityId: string, label: string): void {
+  if (!edge || typeof edge !== "object" || Array.isArray(edge)) {
+    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  }
+  const e = edge as Record<string, unknown>;
+  assertString(e.id, `${label}.id`);
+  if (e.entity_id !== entityId) {
+    throw new HttpsError(
+      "invalid-argument",
+      `${label}.entity_id must match the entity key "${entityId}".`
+    );
+  }
+  assertString(e.source_id, `${label}.source_id`);
+  assertString(e.target_id, `${label}.target_id`);
+  assertString(e.edge_type, `${label}.edge_type`);
+  assertNumber(e.created_at, `${label}.created_at`);
+}
+
 function parseInput(data: unknown): MemoryDump {
   if (!data || typeof data !== "object") {
     throw new HttpsError("invalid-argument", "Request body must be an object.");
@@ -248,6 +277,10 @@ function parseInput(data: unknown): MemoryDump {
     if (!Array.isArray(b.events)) {
       throw new HttpsError("invalid-argument", `Entity "${entityId}".events must be an array.`);
     }
+    if (b.edges !== undefined && !Array.isArray(b.edges)) {
+      throw new HttpsError("invalid-argument", `Entity "${entityId}".edges must be an array.`);
+    }
+    const edges = (b.edges as unknown[] | undefined) ?? [];
 
     if (b.facts.length > MAX_FACTS_PER_ENTITY) {
       throw new HttpsError(
@@ -267,10 +300,17 @@ function parseInput(data: unknown): MemoryDump {
         `Entity "${entityId}" may not contain more than ${MAX_EVENTS_PER_ENTITY} events.`
       );
     }
+    if (edges.length > MAX_EDGES_PER_ENTITY) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Entity "${entityId}" may not contain more than ${MAX_EDGES_PER_ENTITY} edges.`
+      );
+    }
 
     b.facts.forEach((f: unknown, i: number) => validateFact(f, entityId, `Entity "${entityId}".facts[${i}]`));
     b.tasks.forEach((t: unknown, i: number) => validateTask(t, entityId, `Entity "${entityId}".tasks[${i}]`));
     b.events.forEach((e: unknown, i: number) => validateEvent(e, entityId, `Entity "${entityId}".events[${i}]`));
+    edges.forEach((e: unknown, i: number) => validateEdge(e, entityId, `Entity "${entityId}".edges[${i}]`));
   }
 
   return d.dump as unknown as MemoryDump;
@@ -323,6 +363,14 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
     summary: string;
     created_at: string;
   };
+  type EdgeRow = {
+    id: string;
+    entity_id: string;
+    source_id: string;
+    target_id: string;
+    edge_type: string;
+    created_at: string;
+  };
 
   // Format entity IDs as PostgreSQL array literal for ANY() operator.
   // Build the SQL dynamically to avoid parameterization issues with array casts.
@@ -334,7 +382,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
     `ARRAY[${entityIds.map((id) => `'${id}'::uuid`).join(',')}]`
   );
 
-  const [factResult, taskResult, eventResult] = await Promise.all([
+  const [factResult, taskResult, eventResult, edgeResult] = await Promise.all([
     db.execute<FactRow>(sql`
       WITH ranked AS (
         SELECT *,
@@ -375,11 +423,24 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       )
       SELECT * FROM ranked WHERE rn <= ${MAX_EVENTS_PER_ENTITY}
     `),
+    db.execute<EdgeRow>(sql`
+      WITH ranked AS (
+        SELECT *,
+          ROW_NUMBER() OVER (
+            PARTITION BY entity_id
+            ORDER BY created_at DESC
+          ) AS rn
+        FROM llm_wiki_edges
+        WHERE entity_id = ANY(${arrayLiteral})
+          AND user_id = ${userId}::uuid
+      )
+      SELECT * FROM ranked WHERE rn <= ${MAX_EDGES_PER_ENTITY}
+    `),
   ]);
 
   const entities: Record<string, MemoryBundle> = {};
   for (const entityId of entityIds) {
-    entities[entityId] = {facts: [], tasks: [], events: []};
+    entities[entityId] = {facts: [], tasks: [], events: [], edges: []};
   }
 
   for (const r of factResult.rows) {
@@ -427,6 +488,19 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       entity_id: r.entity_id,
       event_type: r.event_type,
       summary: r.summary,
+      created_at: Number(r.created_at),
+    });
+  }
+
+  for (const r of edgeResult.rows) {
+    const entity = entities[r.entity_id];
+    if (!entity) continue;
+    entity.edges!.push({
+      id: r.id,
+      entity_id: r.entity_id,
+      source_id: r.source_id,
+      target_id: r.target_id,
+      edge_type: r.edge_type,
       created_at: Number(r.created_at),
     });
   }
@@ -521,6 +595,23 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               userId,
               eventType: e.event_type,
               summary: e.summary,
+              createdAt: e.created_at,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+
+      if (bundle.edges && bundle.edges.length > 0) {
+        await tx
+          .insert(llmWikiEdges)
+          .values(
+            bundle.edges.map((e) => ({
+              id: e.id,
+              entityId,
+              userId,
+              sourceId: e.source_id,
+              targetId: e.target_id,
+              edgeType: e.edge_type,
               createdAt: e.created_at,
             }))
           )

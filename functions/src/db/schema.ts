@@ -221,6 +221,32 @@ export const llmWikiEvents = pgTable('llm_wiki_events', {
   eventTypeCheck: check('llm_wiki_events_event_type_check', sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`),
 }));
 
+export const llmWikiEdges = pgTable('llm_wiki_edges', {
+  id: text('id').notNull(),
+  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sourceId: text('source_id').notNull(),
+  targetId: text('target_id').notNull(),
+  edgeType: text('edge_type').notNull(),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.id, table.userId] }),
+  entityUserIdx: index('llm_wiki_edges_entity_user_idx').on(table.entityId, table.userId),
+  sourceIdx: index('llm_wiki_edges_source_idx').on(table.sourceId, table.userId),
+  targetIdx: index('llm_wiki_edges_target_idx').on(table.targetId, table.userId),
+}));
+
+export const llmWikiOntology = pgTable('llm_wiki_ontology', {
+  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  mode: text('mode').notNull().default('off'),
+  manifest: jsonb('manifest'),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.entityId, table.userId] }),
+  modeCheck: check('llm_wiki_ontology_mode_check', sql`${table.mode} IN ('strict', 'emergent', 'off')`),
+}));
+
 // Cloud Agent tasks — cloud-persisted version of the local SQLite tasks table.
 // user_id added (absent in SQLite) to satisfy the security WHERE-clause filter.
 export const tasks = pgTable('tasks', {

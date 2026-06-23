@@ -929,3 +929,151 @@ test("wikiSync: fetchMergedDump is called with all entity ids from the dump", as
   assert.ok(passedIds.includes(ENTITY_A), "entity A must be passed to fetchMergedDump");
   assert.ok(passedIds.includes(ENTITY_B), "entity B must be passed to fetchMergedDump");
 });
+
+test("wikiSync: rejects malformed edge (missing required field)", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [],
+        tasks: [],
+        events: [],
+        edges: [{ id: "e1", entity_id: TEST_ENTITY_UUID /* missing source_id, target_id, edge_type, created_at */ }],
+      },
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      creditService: defaultCreditService,
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /edges\[0\]\.source_id must be a non-empty string/);
+      return true;
+    }
+  );
+});
+
+test("wikiSync: rejects edge with mismatched entity_id", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [],
+        tasks: [],
+        events: [],
+        edges: [{
+          id: "e1",
+          entity_id: "00000000-0000-0000-0000-000000000099",
+          source_id: "fact-1",
+          target_id: "fact-2",
+          edge_type: "relates_to",
+          created_at: 1000,
+        }],
+      },
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      creditService: defaultCreditService,
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /edges\[0\]\.entity_id must match the entity key/);
+      return true;
+    }
+  );
+});
+
+test("wikiSync: rejects too many edges per entity", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const tooManyEdges = Array.from({length: 501}, (_, i) => ({
+    id: `edge-${i}`,
+    entity_id: TEST_ENTITY_UUID,
+    source_id: "fact-1",
+    target_id: "fact-2",
+    edge_type: "relates_to",
+    created_at: 1000,
+  }));
+  const badDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {facts: [], tasks: [], events: [], edges: tooManyEdges},
+    },
+  };
+  const request = {auth, data: {dump: badDump}};
+  await assert.rejects(
+    () => wikiSyncHandler(request as unknown as CallableRequest, {
+      getUser: async () => user,
+      creditService: defaultCreditService,
+    }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /more than 500 edges/);
+      return true;
+    }
+  );
+});
+
+test("wikiSync: accepts valid dump with edges and forwards them to upsertData", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  let capturedDump: MemoryDump | null = null;
+  const upsertData = async (dump: MemoryDump) => {
+    capturedDump = dump;
+  };
+  const validateEntityOwnership = async () => { /* ownership validated by test setup */ };
+  const fetchMergedDump = async () => ({generatedAt: Date.now(), entities: {}});
+
+  const dump = buildDump() as MemoryDump;
+  (dump.entities[TEST_ENTITY_UUID] as unknown as Record<string, unknown>).edges = [{
+    id: "edge-1",
+    entity_id: TEST_ENTITY_UUID,
+    source_id: "fact-1",
+    target_id: "fact-2",
+    edge_type: "relates_to",
+    created_at: 1000000,
+  }];
+
+  await wikiSyncHandler({auth, data: {dump}} as unknown as CallableRequest, {
+    upsertData,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    creditService: defaultCreditService,
+  });
+
+  assert.equal(capturedDump!.entities[TEST_ENTITY_UUID].edges?.length, 1);
+  assert.equal(capturedDump!.entities[TEST_ENTITY_UUID].edges?.[0].id, "edge-1");
+});
+
+test("wikiSync: accepts dump without edges field (backward compatible)", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  const upserted: unknown[] = [];
+  const upsertEntries = async (entries: unknown[]) => { upserted.push(...entries); };
+  const validateEntityOwnership = async () => {};
+  const fetchMergedDump = async () => ({generatedAt: Date.now(), entities: {}});
+
+  await wikiSyncHandler({auth, data: {dump: buildDump()}} as unknown as CallableRequest, {
+    upsertEntries,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    creditService: defaultCreditService,
+  });
+  assert.equal(upserted.length, 1);
+});

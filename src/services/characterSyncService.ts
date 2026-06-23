@@ -112,7 +112,7 @@ async function syncWikiForCloud(
         return {
             entityId: char.id,
             runRemoteSync: async (localDump: MemoryDump): Promise<MemoryDump> => {
-                const localBundle = localDump.entities[char.id] ?? { facts: [], tasks: [], events: [] }
+                const localBundle = localDump.entities[char.id] ?? { facts: [], tasks: [], events: [], edges: [] }
                 const cloudDump: MemoryDump = {
                     generatedAt: localDump.generatedAt,
                     entities: {
@@ -120,6 +120,7 @@ async function syncWikiForCloud(
                             facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudId })),
                             tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudId })),
                             events: localBundle.events.map((e) => ({ ...e, entity_id: cloudId })),
+                            edges: localBundle.edges?.map((e) => ({ ...e, entity_id: cloudId })) ?? [],
                         },
                     },
                 }
@@ -128,10 +129,16 @@ async function syncWikiForCloud(
                 if (!remoteDump) {
                     throw new Error('wikiSync returned without remoteDump in response data')
                 }
+                const cloudBundle = remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [], edges: [] }
                 return {
                     generatedAt: remoteDump.generatedAt,
                     entities: {
-                        [char.id]: remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [] },
+                        [char.id]: {
+                            facts: cloudBundle.facts,
+                            tasks: cloudBundle.tasks,
+                            events: cloudBundle.events,
+                            edges: cloudBundle.edges?.map((e) => ({ ...e, entity_id: char.id })) ?? [],
+                        },
                     },
                 }
             },

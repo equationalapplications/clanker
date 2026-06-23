@@ -8,9 +8,9 @@ const timezone = 'UTC'
 
 const { buildAgent } = await import('./agent.js')
 
-test('buildAgent: returns LlmAgent with 11 tools', () => {
+test('buildAgent: returns LlmAgent with 13 tools', () => {
   const agent = buildAgent(mockDb, 'user-1', 'char-1', 'You are Alice.', timezone, mockEmbed)
-  assert.equal(agent.tools.length, 11)
+  assert.equal(agent.tools.length, 13)
 })
 
 test('buildAgent: registers all required tool names', () => {
@@ -27,6 +27,8 @@ test('buildAgent: registers all required tool names', () => {
   assert.ok(names.includes('document_search'), 'missing document_search')
   assert.ok(names.includes('set_reminder'), 'missing set_reminder')
   assert.ok(names.includes('google_search'), 'missing google_search')
+  assert.ok(names.includes('wiki_get_ontology_manifest'), 'missing wiki_get_ontology_manifest')
+  assert.ok(names.includes('wiki_traverse_graph'), 'missing wiki_traverse_graph')
 })
 
 test('buildAgent: sets instruction from parameter', () => {

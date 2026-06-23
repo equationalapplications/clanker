@@ -28,9 +28,11 @@ import { act, renderHook } from '@testing-library/react'
 import { useCharacterWiki, _resetCharacterWikiEntityQueuesForTests } from '~/hooks/useCharacterWiki'
 import { useWiki } from '@equationalapplications/expo-llm-wiki'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
+import { wikiSync } from '~/services/apiClient'
 
 const mockUseWiki = jest.mocked(useWiki)
 const mockGetOrSpawn = jest.mocked(wikiOrchestrator.getOrSpawn)
+const mockWikiSync = jest.mocked(wikiSync)
 
 describe('useCharacterWiki', () => {
   beforeEach(() => {
@@ -87,6 +89,26 @@ describe('useCharacterWiki', () => {
             state = 'idle'
             callback?.(snapshot(state))
           })
+        }
+        if (event.type === 'SYNC') {
+          state = 'syncing'
+          callback?.(snapshot(state))
+          Promise.resolve()
+            .then(() => event.runRemoteSync({
+              generatedAt: 1000,
+              entities: {
+                char1: {
+                  facts: [],
+                  tasks: [],
+                  events: [],
+                  edges: [{ id: 'local-edge', entity_id: 'char1', source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 1 }],
+                },
+              },
+            }))
+            .then(() => {
+              state = 'idle'
+              callback?.(snapshot(state))
+            })
         }
       }),
     }
@@ -201,5 +223,31 @@ describe('useCharacterWiki', () => {
     })
     
     expect(readResultReturned).toEqual(readResult)
+  })
+
+  test('sync forwards local edges to cloud under the remapped cloud entity id', async () => {
+    const mockWiki = {} as any
+    mockUseWiki.mockReturnValue(mockWiki)
+    const mockActor = createMockActor()
+    mockGetOrSpawn.mockReturnValue(mockActor)
+
+    mockWikiSync.mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 2000,
+          entities: { 'cloud-1': { facts: [], tasks: [], events: [], edges: [] } },
+        },
+      },
+    } as any)
+
+    const { result } = renderHook(() => useCharacterWiki('char1'))
+    await act(async () => {
+      await result.current.sync('cloud-1')
+    })
+
+    const syncArg = mockWikiSync.mock.calls[0][0]
+    expect(syncArg.dump.entities['cloud-1'].edges).toEqual([
+      { id: 'local-edge', entity_id: 'cloud-1', source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 1 },
+    ])
   })
 })
