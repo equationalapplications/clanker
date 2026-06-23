@@ -36,9 +36,7 @@ export function wikiTraverseGraphTool(db: DrizzleClient, userId: string, charact
       sourceId: z.string().describe('The exact ID of the starting fact node (obtained from a previous wiki_read call).'),
       maxDepth: z.number().int().min(1).max(3).optional().describe('How many relationship hops to traverse. Maximum allowed is 3. Default 1.'),
       direction: z.enum(['inbound', 'outbound', 'both']).optional().describe("The direction of relationships to follow. Default 'both'."),
-      edgeTypes: z.array(z.string()).optional().describe('Optional filter. If provided, traversal only follows these edge types (e.g. ["reports_to", "depends_on"]).'),
-      maxTraversalNodes: z.number().int().min(1).optional().describe('Maximum number of nodes to return, including the anchor. Default 20.'),
-      minTraversalConfidence: z.enum(['certain', 'inferred', 'tentative']).optional().describe('Minimum confidence tier required for discovered nodes. Does not gate the anchor. Default tentative.'),
+      maxTraversalNodes: z.number().int().min(1).max(200).optional().describe('Maximum number of nodes to return, including the anchor. Default 20.'),
     }),
     execute: async (args: unknown): Promise<string> => {
       try {
