@@ -63,7 +63,7 @@ test('wikiTraverseGraphTool: name is wiki_traverse_graph', () => {
   assert.equal(tool.name, 'wiki_traverse_graph')
 })
 
-test('wikiTraverseGraphTool: schema does not expose entityId or userId', () => {
+test('wikiTraverseGraphTool: schema exposes GraphTraversalOptions params', () => {
   const db = makeMockExecuteDb([])
   const tool = wikiTraverseGraphTool(db, 'user-1', 'char-1')
   const decl = tool._getDeclaration()
@@ -71,6 +71,8 @@ test('wikiTraverseGraphTool: schema does not expose entityId or userId', () => {
   assert.ok(!('entityId' in props))
   assert.ok(!('userId' in props))
   assert.ok('sourceId' in props)
+  assert.ok('edgeTypes' in props)
+  assert.ok('minTraversalConfidence' in props)
 })
 
 test('wikiTraverseGraphTool: returns failure string when sourceId is missing', async () => {
