@@ -105,7 +105,8 @@ One recursive CTE (in `cloud-agent/src/tools/wiki.ts` or a new `graph.ts` helper
 
 - **Anchor row**: validates the `sourceId` exists and belongs to `(entityId, userId)` in `llmWikiEntries` — does **not** apply `minTraversalConfidence` to the anchor (matches the package's own documented semantics: confidence gating "does not gate the anchor," only discovered neighbors).
 - **Recursive step**: joins `llmWikiEdges` on whichever column(s) `direction` allows (`source_id` for outbound, `target_id` for inbound, both via `UNION` for `'both'`), filters `edge_type IN (...)` when `edgeTypes` is provided, joins `llmWikiEntries` to apply `minTraversalConfidence` to newly-discovered nodes, stops at `maxDepth`.
-- **Cap**: total result set (anchor + neighbors) limited to `maxTraversalNodes`.
+- **Cycle guard**: carry a Postgres `text[]` path column (`path || next_id`), recursive step's `WHERE` excludes `next_id = ANY(path)`. This is the direct Postgres-array equivalent of the SQLite implementation's comma-delimited `visited` string + `instr(...) = 0` check in `EdgeRepository.getNeighborhood` (verified in the published package's compiled source) — same cycle-prevention guarantee, idiomatic to Postgres instead of string matching.
+- **Ordering and cap**: final `SELECT` does `GROUP BY node_id` (dedupe across multiple paths to the same node, keep `MIN(depth)`), `ORDER BY depth ASC, updated_at DESC LIMIT maxTraversalNodes` — exact match for the SQLite implementation's ordering (BFS-first, recency as tie-breaker among equal-depth nodes).
 
 Both tools registered in `cloud-agent/src/agent.ts`'s tool list, scoped the same way as `wikiReadTool`/`wikiWriteTool`.
 
