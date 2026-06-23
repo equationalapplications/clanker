@@ -428,7 +428,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
         SELECT *,
           ROW_NUMBER() OVER (
             PARTITION BY entity_id
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
           ) AS rn
         FROM llm_wiki_edges
         WHERE entity_id = ANY(${arrayLiteral})

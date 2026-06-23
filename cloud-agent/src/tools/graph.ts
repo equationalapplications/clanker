@@ -41,6 +41,8 @@ const CONFIDENCE_RANK: Record<'tentative' | 'inferred' | 'certain', number> = {
   certain: 2,
 }
 
+const MAX_TRAVERSAL_NODES = 200
+
 function mapEntryRowToFact(row: EntryRow, entityId: string): WikiFact {
   return {
     id: row.id,
@@ -68,8 +70,12 @@ export async function traverseGraphCte(
 ): Promise<GraphNeighborhood> {
   const direction = options.direction ?? 'both'
   const maxDepth = Math.min(Math.max(options.maxDepth ?? 1, 1), 3)
-  const maxTraversalNodes = Math.min(Math.max(options.maxTraversalNodes ?? 20, 1), 200)
+  const maxTraversalNodes = Math.min(
+    Math.max(options.maxTraversalNodes ?? 20, 1),
+    MAX_TRAVERSAL_NODES,
+  )
   const minConfidenceRank = CONFIDENCE_RANK[options.minTraversalConfidence ?? 'tentative']
+  const edgeTypes = options.edgeTypes
 
   // Explicit empty array means "match no edge types" — anchor only, matching
   // GraphTraversalOptions.edgeTypes semantics (distinct from undefined = no filter).
