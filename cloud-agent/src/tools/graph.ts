@@ -68,9 +68,8 @@ export async function traverseGraphCte(
 ): Promise<GraphNeighborhood> {
   const direction = options.direction ?? 'both'
   const maxDepth = Math.min(Math.max(options.maxDepth ?? 1, 1), 3)
-  const maxTraversalNodes = options.maxTraversalNodes ?? 20
+  const maxTraversalNodes = Math.min(Math.max(options.maxTraversalNodes ?? 20, 1), 200)
   const minConfidenceRank = CONFIDENCE_RANK[options.minTraversalConfidence ?? 'tentative']
-  const edgeTypes = options.edgeTypes
 
   // Explicit empty array means "match no edge types" — anchor only, matching
   // GraphTraversalOptions.edgeTypes semantics (distinct from undefined = no filter).
