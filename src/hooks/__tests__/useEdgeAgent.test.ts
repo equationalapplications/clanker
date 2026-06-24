@@ -12,7 +12,7 @@ jest.mock('~/services/clankerManifests', () => ({
   getSchemasForEdge: jest.fn((hasWiki: boolean, isCloudSynced: boolean) => {
     const schemas = [
       { name: 'get_current_time', description: 'Get current time', parameters: { type: 'object', properties: {}, required: [] } },
-      { name: 'set_reminder', description: 'Set a reminder', parameters: { type: 'object', properties: {}, required: [] } },
+      { name: 'escalate_to_cloud_agent', description: 'Escalate to cloud', parameters: { type: 'object', properties: {}, required: [] } },
     ]
     if (hasWiki) {
       schemas.push({ name: 'wiki_read', description: 'Search memory', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } as never)
@@ -27,7 +27,6 @@ jest.mock('~/services/clankerManifests', () => ({
 const mockExecutors = {
   get_current_time: jest.fn(() => 'Thursday, May 28, 2026 at 10:00 AM PDT'),
   wiki_read: jest.fn(async () => JSON.stringify({ facts: [{ content: 'User likes tea' }], tasks: [], events: [] })),
-  set_reminder: jest.fn(async () => 'ESCALATE_TO_CLOUD_AGENT'),
 }
 jest.mock('~/services/edgeToolExecutors', () => ({
   createEdgeToolExecutors: jest.fn(() => mockExecutors),
@@ -89,8 +88,8 @@ describe('useEdgeAgent', () => {
     expect(mockExecutors.get_current_time).toHaveBeenCalledWith({})
   })
 
-  it('escalates when the set_reminder phantom tool fires (ESCALATE_TO_CLOUD_AGENT sentinel)', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'set_reminder', args: {} }] })
+  it('escalates when the model calls escalate_to_cloud_agent', async () => {
+    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'escalate_to_cloud_agent', args: {} }] })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
@@ -208,6 +207,6 @@ describe('useEdgeAgent', () => {
     const callArgs = mockGenerateChatReply.mock.calls[0][0]
     const names = (callArgs.tools as { name: string }[]).map((t) => t.name)
     expect(names).toContain('get_current_time')
-    expect(names).toContain('set_reminder')
+    expect(names).toContain('escalate_to_cloud_agent')
   })
 })

@@ -111,9 +111,6 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
         return 'Failed to search documents due to an internal error.'
       }
     },
-    set_reminder: async () => {
-      return 'ESCALATE_TO_CLOUD_AGENT'
-    },
     wiki_get_ontology: async () => {
       if (!wiki) return JSON.stringify({ mode: 'off', manifest: null })
       try {

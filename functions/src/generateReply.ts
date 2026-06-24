@@ -73,7 +73,7 @@ function validateStructuredPayloadSize(contents: unknown[], systemInstruction: s
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function validateStructuredContents(contents: unknown[]): void {
@@ -129,6 +129,24 @@ function validateStructuredContents(contents: unknown[]): void {
         `contents[${index}].parts[${partIndex}] must be an object with a text string, functionCall, or functionResponse.`,
       );
     }
+  }
+}
+
+function validateToolsPayloadSize(tools: ToolDeclaration[]): void {
+  let serialized: string;
+
+  try {
+    serialized = JSON.stringify(tools);
+  } catch {
+    throw new HttpsError("invalid-argument", "tools must be JSON-serializable.");
+  }
+
+  const payloadSize = Buffer.byteLength(serialized, "utf8");
+  if (payloadSize > MAX_STRUCTURED_PAYLOAD_SIZE) {
+    throw new HttpsError(
+      "invalid-argument",
+      `tools must serialize to at most ${MAX_STRUCTURED_PAYLOAD_SIZE} bytes.`,
+    );
   }
 }
 
@@ -392,6 +410,7 @@ function parseInput(data: unknown): {
       throw new HttpsError("invalid-argument", "tools must be an array when provided.");
     }
     tools = validateTools(toolsValue);
+    validateToolsPayloadSize(tools);
   }
 
   const systemInstructionValue = payload?.systemInstruction;

@@ -184,14 +184,6 @@ describe('createEdgeToolExecutors — document_search (placeholder)', () => {
   })
 })
 
-describe('createEdgeToolExecutors — set_reminder (escalation phantom tool)', () => {
-  it('returns the ESCALATE_TO_CLOUD_AGENT sentinel', async () => {
-    const execs = createEdgeToolExecutors('char-1', null)
-    const result = await execs['set_reminder']({})
-    expect(result).toBe('ESCALATE_TO_CLOUD_AGENT')
-  })
-})
-
 describe('createEdgeToolExecutors — wiki_get_ontology', () => {
   it('returns { mode: "off", manifest: null } when wiki is null', async () => {
     const execs = createEdgeToolExecutors('char-1', null)
