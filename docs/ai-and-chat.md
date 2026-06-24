@@ -392,4 +392,32 @@ gcloud auth application-default login
 GCP_PROJECT=your-dev-project docker compose -f docker-compose.local.yml up -d
 ```
 
+**Apply database migrations** (local Postgres only; tracks applied files in a `dev_migrations` table):
+
+```bash
+# From repo root (Postgres must be up — compose up starts postgres_db on localhost:5432)
+./scripts/migrate-dev.sh
+
+# Or from functions/ (DATABASE_URL defaults to docker-compose credentials)
+npm run migrate:dev
+```
+
+Re-running prints `No pending dev migrations.` On a **fresh** volume, run migrations before seeding test data. If you previously used only `seedLocal.ts`, the script auto-baselines through `0014_pgvector_wiki_embeddings.sql` and then applies anything newer (e.g. `0016_llm_wiki_graph.sql`).
+
+Optional overrides (see `functions/scripts/migrate-dev.mjs`):
+
+```bash
+# Apply one file only
+MIGRATIONS=0016_llm_wiki_graph.sql npm run migrate:dev
+
+# Mark migrations as applied without executing SQL (e.g. manual baseline)
+STAMP_MIGRATIONS=0014_pgvector_wiki_embeddings.sql npm run migrate:dev
+```
+
+**Seed test user/character** (requires the `cloud-agent` container to be running):
+
+```bash
+docker compose -f docker-compose.local.yml exec cloud-agent npx tsx scripts/seedLocal.ts
+```
+
 Caveat: local runs call real Vertex AI and bill whichever GCP project you set via `GCP_PROJECT`. Use a non-production project (the compose file enforces this by requiring `GCP_PROJECT` and suggesting a non-production value in its error message).
