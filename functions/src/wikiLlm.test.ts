@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {HttpsError, CallableRequest} from "firebase-functions/v2/https";
 
-import {wikiLlmHandler} from "./wikiLlm.js";
+import {wikiLlm, wikiLlmHandler} from "./wikiLlm.js";
 import {userRepository} from "./services/userRepository.js";
 type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
 
@@ -134,6 +134,13 @@ test("wikiLlm: returns generated text when credits are available", async () => {
   });
 
   assert.equal(result.text, "Generated wiki response");
+});
+
+test("wikiLlm onCall config: sets timeoutSeconds high enough for slow wiki generation", () => {
+  const endpoint = (wikiLlm as unknown as {
+    __endpoint: { timeoutSeconds: number };
+  }).__endpoint;
+  assert.equal(endpoint.timeoutSeconds, 540);
 });
 
 test("wikiLlm: refunds credit when generateText fails", async () => {

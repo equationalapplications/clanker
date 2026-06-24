@@ -9,10 +9,10 @@ graph LR
   ChatComposer.web --> useCharacterWiki
   ChatComposer.web --> documentMimeTypes
   ChatComposer.web --> apiClient
-  ChatView --> useMachines
-  ChatView --> useCharacters
   ChatView --> useUserCredits
   ChatView --> useAIChat
+  ChatView --> useMachines
+  ChatView --> useCharacters
   CombinedSubscriptionButton --> useCurrentPlan
   CookieConsentBanner --> CookieConsentContext
   CookieConsentContext --> crashlyticsService

@@ -434,7 +434,7 @@ GCP_PROJECT=clanker-prod docker compose -f docker-compose.local.yml exec cloud-a
 
 With `EXPO_PUBLIC_USE_MOCK_AUTH=true`, the Expo app auto-provisions a local SQLite **Dev Character** linked to that seed (`cloud_id` + `save_to_cloud=1`) on sign-in so chat escalates to the local cloud-agent instead of production Firebase.
 
-**Hybrid mode (optional):** default compose uses `MOCK_FIREBASE_AUTH=true` (local test user). To iterate on prompts against a real Firebase account while keeping chat on local Docker, set in `.env.local`:
+**Hybrid mode (optional):** default compose uses `MOCK_FIREBASE_AUTH=true` (local test user). To iterate on prompts against a real Firebase account while keeping chat on local Docker, set in `.env.development.local` (not `.env.local` — Expo loads `.env.local` in every mode, including production exports, and will leak these into prod):
 
 ```bash
 EXPO_PUBLIC_CLOUD_AGENT_URL=http://localhost:8080
