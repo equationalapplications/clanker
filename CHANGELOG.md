@@ -1,3 +1,23 @@
+# [30.5.0](https://github.com/equationalapplications/clanker/compare/v30.4.0...v30.5.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* **chat:** keep sent messages visible while agent is thinking ([872f1e3](https://github.com/equationalapplications/clanker/commit/872f1e3881e4149b4d97c9000f445faacb6176d0))
+* **dev-sandbox:** route mock-auth chat to local cloud-agent ([fd2bf65](https://github.com/equationalapplications/clanker/commit/fd2bf65ce6610592da534e6c6b9d94d6c9a4f4b4))
+* **dev-sandbox:** skip Firebase wiki/sync paths under mock auth ([e928ec1](https://github.com/equationalapplications/clanker/commit/e928ec1b21e16263a03239c406ce76f80e938af0))
+* **edge-agent:** clear isThinking after dev-sandbox escalation ([4cf460c](https://github.com/equationalapplications/clanker/commit/4cf460c1c183f4a83b431d83e0e0e4e630ea4e5e))
+* **edge-agent:** surface proxy usage snapshot and document BYOI architecture ([23e007c](https://github.com/equationalapplications/clanker/commit/23e007c7a24be0cfe10caa46c26e857e3b968a44))
+* **migrations:** commit migrate.mjs into functions/, wire to npm run migrate ([d0d9038](https://github.com/equationalapplications/clanker/commit/d0d90386834d29db41a0ddf02f7ace5270bfbce6))
+* **review:** address PR 461 Copilot and CodeRabbit feedback ([82aedcc](https://github.com/equationalapplications/clanker/commit/82aedccef934a4074f3caebe7e0a8e8697381e4b))
+
+
+### Features
+
+* **cloud-agent:** add local Postgres migration script for dev sandbox ([da2f47a](https://github.com/equationalapplications/clanker/commit/da2f47ada923bd972f3d91b1f1643568be9b9de8))
+* **db:** add native Cloud SQL backup script, run pre-migration by default ([598a38d](https://github.com/equationalapplications/clanker/commit/598a38d627c71b5e26988a54020d56f7acc18744))
+* **migrations:** add deploy-migrations.sh to fetch secrets + run migrate.mjs in one step ([fcf4fdf](https://github.com/equationalapplications/clanker/commit/fcf4fdf7d0c18e2b0a62989d2a70ba49e584e14e))
+
 # [30.4.0](https://github.com/equationalapplications/clanker/compare/v30.3.0...v30.4.0) (2026-06-24)
 
 
