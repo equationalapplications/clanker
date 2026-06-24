@@ -16,7 +16,8 @@ export function isDevSandboxEnabled(): boolean {
 
 /**
  * Ensures the local SQLite character is linked to the Docker Postgres seed character
- * so mock-auth chat can escalate to the local cloud-agent (`EXPO_PUBLIC_CLOUD_AGENT_URL`).
+ * so mock-auth chat can escalate to the local cloud-agent (`EXPO_PUBLIC_CLOUD_AGENT_URL`,
+ * set in `.env.development.local` — never `.env.local`, which Expo loads in all modes).
  */
 export async function ensureDevSandboxCharacter(firebaseUid: string): Promise<string | null> {
   if (!isDevSandboxEnabled() || firebaseUid !== DEV_FIREBASE_UID) {
