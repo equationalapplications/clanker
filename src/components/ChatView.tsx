@@ -8,7 +8,7 @@ import { WebView } from 'react-native-webview'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useAIChat } from '~/hooks/useAIChat'
-import { Text, useTheme, Avatar } from 'react-native-paper'
+import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import CharacterAvatar from '~/components/CharacterAvatar'
@@ -67,7 +67,7 @@ function ChatViewContent({
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
 
-  const { messages, sendMessage, escalationState } = useAIChat({
+  const { messages, sendMessage, escalationState, isGeneratingResponse } = useAIChat({
     characterId,
     userId: currentUserId,
     character: toAIChatCharacter(character),
@@ -178,32 +178,48 @@ function ChatViewContent({
   )
 
   const renderSend = useCallback(
-    (props: SendProps<IMessage>) => (
-      <Send
-        {...props}
-        containerStyle={{ justifyContent: 'center', alignSelf: 'center', marginRight: 4 }}
-        sendButtonProps={{
-          accessibilityLabel: 'Send message',
-          accessibilityRole: 'button',
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: colors.primaryContainer,
-            borderRadius: roundness * 4,
-            paddingHorizontal: 14,
-            paddingVertical: 8,
-            justifyContent: 'center',
-            alignItems: 'center',
+    (props: SendProps<IMessage>) => {
+      if (isGeneratingResponse) {
+        return (
+          <View
+            style={styles.sendSpinnerContainer}
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityLabel="Generating response"
+            accessibilityState={{ busy: true }}
+          >
+            <ActivityIndicator size={20} />
+          </View>
+        )
+      }
+
+      return (
+        <Send
+          {...props}
+          containerStyle={{ justifyContent: 'center', alignSelf: 'center', marginRight: 4 }}
+          sendButtonProps={{
+            accessibilityLabel: 'Send message',
+            accessibilityRole: 'button',
           }}
         >
-          <RNText style={{ color: colors.onPrimaryContainer, fontWeight: '600', fontSize: 15 }}>
-            Send
-          </RNText>
-        </View>
-      </Send>
-    ),
-    [colors, roundness],
+          <View
+            style={{
+              backgroundColor: colors.primaryContainer,
+              borderRadius: roundness * 4,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <RNText style={{ color: colors.onPrimaryContainer, fontWeight: '600', fontSize: 15 }}>
+              Send
+            </RNText>
+          </View>
+        </Send>
+      )
+    },
+    [colors, roundness, isGeneratingResponse],
   )
 
   const renderComposer = useCallback(
@@ -302,7 +318,7 @@ function ChatViewContent({
 
   return (
     <View style={styles.container}>
-      {(wikiStatus.ingesting || wikiStatus.librarian || escalationState === 'escalating' || documentPhase !== null) && (
+      {(wikiStatus.ingesting || wikiStatus.librarian || isGeneratingResponse || documentPhase !== null) && (
         <View
           accessibilityLiveRegion="polite"
           accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
@@ -327,6 +343,9 @@ function ChatViewContent({
           )}
           {escalationState === 'escalating' && (
             <Text style={styles.statusText} accessibilityLabel="Thinking deeply">🧠 Thinking deeply…</Text>
+          )}
+          {isGeneratingResponse && escalationState !== 'escalating' && (
+            <Text style={styles.statusText} accessibilityLabel="Thinking">💭 Thinking…</Text>
           )}
         </View>
       )}
@@ -443,6 +462,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     fontSize: 12,
     opacity: 0.7,
+  },
+  sendSpinnerContainer: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
   },
   groundingContainer: {
     paddingHorizontal: 8,
