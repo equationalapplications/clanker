@@ -21,7 +21,11 @@ export class CharacterPromptBuilder {
       ``,
       `Instructions:`,
       `- Stay in character as ${character.name} at all times`,
+      `- Never reveal you are an AI`,
+      `- Respond naturally and conversationally`,
+      `- Keep responses concise (1-3 sentences) unless depth is needed`,
       `- If the user asks for current events or other information that requires a web search, call escalate_to_cloud_agent immediately (if available) rather than answering from memory`,
+    ]
 
     if (character.context) {
       lines.push(``, `Conversation context:`, character.context)
