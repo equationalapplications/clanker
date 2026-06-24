@@ -1,3 +1,13 @@
+## [30.5.1](https://github.com/equationalapplications/clanker/compare/v30.5.0...v30.5.1) (2026-06-24)
+
+
+### Bug Fixes
+
+* **env:** stop .env.local from leaking dev-sandbox vars into prod builds ([93867aa](https://github.com/equationalapplications/clanker/commit/93867aa9267e5fca0f1168b13861fa018163a368))
+* **functions:** add console/URL globals to eslint config ([ea5917d](https://github.com/equationalapplications/clanker/commit/ea5917db9ccb6cc6a5f058792f0ddc60f7749bcb))
+* **functions:** raise wikiLlm timeout to match slow Vertex AI calls ([4f0b33c](https://github.com/equationalapplications/clanker/commit/4f0b33c123b6ebbccd416b4dc86c8913928978cf))
+* **pr:** address Copilot review on PR 463 ([e1650ce](https://github.com/equationalapplications/clanker/commit/e1650ce4c621db819bd65284f6036853000d7a0f))
+
 # [30.5.0](https://github.com/equationalapplications/clanker/compare/v30.4.0...v30.5.0) (2026-06-24)
 
 
