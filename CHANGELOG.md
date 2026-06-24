@@ -1,3 +1,15 @@
+## [30.5.2](https://github.com/equationalapplications/clanker/compare/v30.5.1...v30.5.2) (2026-06-24)
+
+
+### Bug Fixes
+
+* **agent:** restore CharacterPromptBuilder array syntax after review fix ([8aba7fa](https://github.com/equationalapplications/clanker/commit/8aba7faad156b233ecfc718309fde65218c93919))
+* **agent:** route live-info queries from edge agent to cloud agent ([760e070](https://github.com/equationalapplications/clanker/commit/760e0708934afe464ba42ce8d1d70960b2c4bf27))
+* **chat:** keep send slot visible while generating response ([08d4ed1](https://github.com/equationalapplications/clanker/commit/08d4ed148a8afb1323daa0bfc68ccfc6cc29ec3e))
+* **chat:** show loading indicator for edge and cloud agent replies ([ba7c71b](https://github.com/equationalapplications/clanker/commit/ba7c71b1d61307a809e8a61de89df891638d0ceb))
+* **functions:** clear eslint warnings in tests and scripts ([aae8d2f](https://github.com/equationalapplications/clanker/commit/aae8d2fbeaa4247eb6e8a48866721da345b6943e))
+* **voice:** stop TTS from speaking the style-hint instruction text ([f47e7d5](https://github.com/equationalapplications/clanker/commit/f47e7d55d1d80fe3b56ccc3de13b185eecf60037))
+
 ## [30.5.1](https://github.com/equationalapplications/clanker/compare/v30.5.0...v30.5.1) (2026-06-24)
 
 
