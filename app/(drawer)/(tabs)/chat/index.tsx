@@ -4,17 +4,32 @@ import { useSelector } from '@xstate/react'
 import { useCharacters } from '~/hooks/useCharacters'
 import { useMostRecentMessage } from '~/hooks/useMessages'
 import ChatView from '~/components/ChatView'
-import { useCharacterMachine } from '~/hooks/useMachines'
+import { useAuthMachine, useCharacterMachine } from '~/hooks/useMachines'
+import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { DEV_CLOUD_CHARACTER_ID } from '../../../../shared/dev-sandbox'
 
 export default function ChatTabScreen() {
   const { data: mostRecentMessage, isLoading: isLoadingMessage } = useMostRecentMessage()
   const { characters, isLoading: isLoadingCharacters } = useCharacters()
   const characterService = useCharacterMachine()
+  const authService = useAuthMachine()
+  const defaultCharacterId = useSelector(
+    authService,
+    (s) => s.context.dbUser?.defaultCharacterId ?? null,
+  )
   const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
 
   const isLoading = isLoadingMessage || isLoadingCharacters
 
-  const characterId = mostRecentMessage?.character_id ?? characters?.[0]?.id
+  const devLinkedCharacterId = isDevSandboxEnabled()
+    ? characters.find((c) => c.cloud_id === DEV_CLOUD_CHARACTER_ID)?.id
+    : undefined
+
+  const characterId =
+    mostRecentMessage?.character_id ??
+    devLinkedCharacterId ??
+    defaultCharacterId ??
+    characters?.[0]?.id
 
   if (isCreatingDefault) {
     return (

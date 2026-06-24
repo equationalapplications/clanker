@@ -119,6 +119,12 @@ jest.mock('~/database/taskDatabase', () => ({
   listTasks: (...args: unknown[]) => mockListTasks(...args),
 }))
 
+const mockIsDevSandboxEnabled = jest.fn(() => false)
+jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+  isDevSandboxEnabled: () => mockIsDevSandboxEnabled(),
+  ensureDevSandboxCharacter: jest.fn(),
+}))
+
 const { useAIChat } = require('~/hooks/useAIChat')
 
 type HookValue = ReturnType<typeof useAIChat>
@@ -158,6 +164,7 @@ function renderUseAIChat(overrides: Partial<{ save_to_cloud: number; cloud_id: s
 describe('useAIChat', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockIsDevSandboxEnabled.mockReturnValue(false)
     mockUseChatMessages.mockReturnValue([])
     mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null })
     mockCharacterWikiRead.mockResolvedValue(null)
@@ -598,6 +605,28 @@ describe('useAIChat', () => {
 
       expect(mockCallCloudAgent).not.toHaveBeenCalled()
       expect(mockSendMessageWithAIResponse).toHaveBeenCalled()
+    })
+
+    it('uses local cloud agent in dev sandbox even without character.cloud_id', async () => {
+      mockIsDevSandboxEnabled.mockReturnValue(true)
+      const hook = renderUseAIChat({ save_to_cloud: 0, cloud_id: null })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-dev-sandbox',
+          text: 'Dev sandbox chat',
+          createdAt: new Date('2026-06-02T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      expect(mockCallCloudAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Dev sandbox chat',
+          characterId: '22222222-2222-4222-8222-222222222222',
+        }),
+      )
+      expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
     })
 
     it('propagates Cloud Agent errors so onError can roll back the optimistic update', async () => {

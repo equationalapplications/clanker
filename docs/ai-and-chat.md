@@ -429,8 +429,10 @@ STAMP_MIGRATIONS=0014_pgvector_wiki_embeddings.sql npm run migrate:dev
 **Seed test user/character** (requires the `cloud-agent` container to be running):
 
 ```bash
-docker compose -f docker-compose.local.yml exec cloud-agent npx tsx scripts/seedLocal.ts
+GCP_PROJECT=clanker-prod docker compose -f docker-compose.local.yml exec cloud-agent npx tsx scripts/seedLocal.ts
 ```
+
+With `EXPO_PUBLIC_USE_MOCK_AUTH=true`, the Expo app auto-provisions a local SQLite **Dev Character** linked to that seed (`cloud_id` + `save_to_cloud=1`) on sign-in so chat escalates to the local cloud-agent instead of production Firebase.
 
 **Hybrid mode (optional):** default compose uses `MOCK_FIREBASE_AUTH=true` (local test user). To iterate on prompts against a real Firebase account while keeping chat on local Docker, set in `.env.local`:
 

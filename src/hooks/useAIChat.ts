@@ -20,6 +20,8 @@ import { toSyncMessage } from '~/services/syncMessage'
 import { callCloudAgent } from '~/services/cloudAgentService'
 import { listTasks } from '~/database/taskDatabase'
 import { buildContentHistory } from '~/services/CharacterPromptBuilder'
+import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { DEV_CLOUD_CHARACTER_ID } from '../../shared/dev-sandbox'
 
 interface UseAIChatProps {
   characterId: string
@@ -52,8 +54,21 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   // Normalize save_to_cloud which can be boolean (from characterService) or number (from DB)
   const raw = character.save_to_cloud
   const isCloudSynced = !!(raw ?? 0)
+  const devSandbox = isDevSandboxEnabled()
+  const cloudAgentCharacterId =
+    character.cloud_id ?? (devSandbox ? DEV_CLOUD_CHARACTER_ID : null)
+  const canUseCloudAgent =
+    !!process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim() &&
+    !!cloudAgentCharacterId &&
+    (isCloudSynced || devSandbox)
 
-  const edgeAgent = useEdgeAgent({ character, userId, priorMessages: messages, isCloudSynced, wiki })
+  const edgeAgent = useEdgeAgent({
+    character,
+    userId,
+    priorMessages: messages,
+    isCloudSynced: isCloudSynced || devSandbox,
+    wiki,
+  })
 
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
@@ -123,11 +138,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         return { usageSnapshot: edgeUsageSnapshot ?? null }
       }
 
-      // Cloud Agent path — isCloudSynced characters with a cloud_id when EXPO_PUBLIC_CLOUD_AGENT_URL is set.
-      // Must send character.cloud_id (Cloud SQL UUID) — character.id is local-only and will typically fail
-      // Cloud Agent validation/ownership checks (400/404), so avoid sending it.
-      if (isCloudSynced && character.cloud_id && process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
-        const cloudCharacterId = character.cloud_id
+      // Cloud Agent path — cloud-synced (or dev sandbox) characters with a cloud_id when
+      // EXPO_PUBLIC_CLOUD_AGENT_URL is set. Must send character.cloud_id (Cloud SQL UUID).
+      if (canUseCloudAgent && cloudAgentCharacterId) {
+        const cloudCharacterId = cloudAgentCharacterId
 
         const priorHistory = messages.filter(
           (msg) => String(msg._id) !== String(message._id),

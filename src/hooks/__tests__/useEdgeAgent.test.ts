@@ -37,6 +37,12 @@ jest.mock('~/services/CharacterPromptBuilder', () => ({
   buildContentHistory: () => [],
 }))
 
+const mockIsDevSandboxEnabled = jest.fn(() => false)
+jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+  isDevSandboxEnabled: () => mockIsDevSandboxEnabled(),
+  ensureDevSandboxCharacter: jest.fn(),
+}))
+
 const character = {
   id: 'char-1',
   name: 'Aria',
@@ -57,9 +63,29 @@ const usageFields = {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockIsDevSandboxEnabled.mockReturnValue(false)
+  process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = ''
 })
 
 describe('useEdgeAgent', () => {
+  it('escalates immediately in dev sandbox without calling generateReply', async () => {
+    mockIsDevSandboxEnabled.mockReturnValue(true)
+    process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://localhost:8080'
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
+    )
+
+    let response: { escalated: boolean; text?: string } | undefined
+    await act(async () => {
+      response = await result.current.sendMessage('Hi there')
+    })
+
+    expect(response).toEqual({ escalated: true, usageSnapshot: null })
+    expect(mockGenerateChatReply).not.toHaveBeenCalled()
+    expect(result.current.escalationState).toBe('escalating')
+  })
+
   it('returns escalated:false and text when the model returns a text reply with no functionCalls', async () => {
     mockGenerateChatReply.mockResolvedValue({ reply: 'Hello! How are you?', functionCalls: undefined, ...usageFields })
 
