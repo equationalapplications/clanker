@@ -124,10 +124,19 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
     wiki_traverse_graph: async (args) => {
       try {
         const sourceId = typeof args.sourceId === 'string' ? args.sourceId.trim() : ''
-        if (!wiki || !sourceId) return 'Failed to traverse graph: sourceId is required.'
-        const maxDepth = typeof args.maxDepth === 'number' ? args.maxDepth : undefined
-        const direction = args.direction as 'inbound' | 'outbound' | 'both' | undefined
-        const edgeTypes = Array.isArray(args.edgeTypes) ? (args.edgeTypes as string[]) : undefined
+        if (!sourceId) return 'Failed to traverse graph: sourceId is required.'
+        if (!wiki) return 'Failed to traverse graph: wiki database is unavailable.'
+
+        const maxDepthRaw = typeof args.maxDepth === 'number' && Number.isFinite(args.maxDepth) ? Math.trunc(args.maxDepth) : undefined
+        const maxDepth = maxDepthRaw !== undefined ? Math.max(1, Math.min(maxDepthRaw, 3)) : undefined
+        const direction =
+          args.direction === 'inbound' || args.direction === 'outbound' || args.direction === 'both'
+            ? args.direction
+            : undefined
+        const edgeTypes = Array.isArray(args.edgeTypes) && args.edgeTypes.every((t) => typeof t === 'string')
+          ? (args.edgeTypes as string[])
+          : undefined
+
         const neighborhood = await wiki.traverseGraph(characterId, { sourceId, maxDepth, direction, edgeTypes })
         return formatGraphContext(neighborhood)
       } catch (error) {
