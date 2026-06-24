@@ -74,12 +74,12 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
         { role: 'user', parts: [{ text: userText }] },
       ]
 
-      if (isDevSandboxEnabled() && process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
-        setEscalationState('escalating')
-        return { escalated: true, usageSnapshot: latestUsageSnapshot }
-      }
-
       try {
+        if (isDevSandboxEnabled() && process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
+          setEscalationState('escalating')
+          return { escalated: true, usageSnapshot: latestUsageSnapshot }
+        }
+
         let iterations = 0
 
         while (iterations < MAX_ITERATIONS) {

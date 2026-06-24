@@ -84,6 +84,7 @@ describe('useEdgeAgent', () => {
     expect(response).toEqual({ escalated: true, usageSnapshot: null })
     expect(mockGenerateChatReply).not.toHaveBeenCalled()
     expect(result.current.escalationState).toBe('escalating')
+    expect(result.current.isThinking).toBe(false)
   })
 
   it('returns escalated:false and text when the model returns a text reply with no functionCalls', async () => {
