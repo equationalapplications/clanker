@@ -61,7 +61,7 @@ interface WikiOntology {
   manifest: {
     node_types: { type: string; description: string }[];
     edge_types: { type: string; source_type: string; target_type: string; description: string }[];
-  };
+  } | null;
 }
 
 interface MemoryBundle {
