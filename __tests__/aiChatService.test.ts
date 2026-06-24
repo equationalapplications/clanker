@@ -58,6 +58,38 @@ describe('sendMessageWithAIResponse', () => {
     )
   })
 
+  it('skips persisting the user message when userMessageAlreadyPersisted is true', async () => {
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'All good.',
+      remainingCredits: null,
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      verifiedAt: '2026-04-27T00:00:00.000Z',
+    })
+
+    await sendMessageWithAIResponse(
+      {
+        _id: 'msg-already-persisted',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any,
+      {
+        id: 'char-1',
+        name: 'Nova',
+        appearance: 'avatar',
+        traits: 'calm',
+        emotions: 'encouraging',
+        context: 'friendly coach',
+      },
+      'user-1',
+      [] as any,
+      { userMessageAlreadyPersisted: true },
+    )
+
+    expect(mockSendMessage).not.toHaveBeenCalled()
+  })
+
   it('reports observation write failures from service callback with wiki:write:observation context', async () => {
     const writeError = new Error('observation write failed')
     const mockOnWrite = jest.fn().mockRejectedValue(writeError)

@@ -40,10 +40,11 @@ interface UseAIChatReturn {
  * Enhanced with React Query for offline support and optimistic updates
  */
 export function useAIChat({ characterId, userId, character }: UseAIChatProps): UseAIChatReturn {
-  const messages = useChatMessages({ id: characterId, userId })
   const queryClient = useQueryClient()
   const authService = useAuthMachine()
   const [error, setError] = useState<string | null>(null)
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const messages = useChatMessages({ id: characterId, userId, pauseRefetch: isSendingMessage })
 
   const characterWiki = useCharacterWiki(character.id)
   const wiki = useWiki()
@@ -57,6 +58,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
     mutationFn: async (message: IMessage) => {
+      // Persist immediately so background SQLite refetches keep the user message visible
+      // while edge/cloud/Firebase agents are still thinking.
+      await persistUserMessage(character.id, userId, message)
+
       let memoryBlock: string | undefined
       try {
         const bundle = await characterWiki.read(message.text)
@@ -76,11 +81,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         await edgeAgent.sendMessage(message.text, memoryBlock)
 
       if (!escalated && edgeText !== undefined) {
-        // Edge resolved — save both messages locally (inference already ran via generateReply proxy).
-        // Save user message after edge resolves. On DB failure, onError rolls back the optimistic
-        // update — no fallback message is saved (intentional; Firebase path handled its own fallback).
-        await persistUserMessage(character.id, userId, message)
-
+        // Edge resolved — save AI reply locally (user message already persisted above).
         const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
         const savedAIMessage = await saveAIMessage(character.id, userId, edgeText, aiMsgId, {
           user: {
@@ -155,8 +156,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           unsyncedHistory,
         })
 
-        await persistUserMessage(character.id, userId, message)
-
         const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
         const savedAIMessage = await saveAIMessage(
           character.id,
@@ -228,6 +227,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         memoryBlock,
         onWriteObservation,
         unsyncedHistory,
+        userMessageAlreadyPersisted: true,
       })
 
       if (result.cloudSyncSucceeded) {
@@ -240,6 +240,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
     // Optimistic update: Add user message immediately
     onMutate: async (message) => {
+      setIsSendingMessage(true)
+
       await queryClient.cancelQueries({
         queryKey: messageKeys.list(characterId, userId),
       })
@@ -261,6 +263,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       ])
 
       return { previousMessages }
+    },
+
+    onSettled: () => {
+      setIsSendingMessage(false)
     },
 
     onSuccess: (result) => {
@@ -334,13 +340,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         })
       }
 
-      // Rollback optimistic update for transient failures only.
+      // Refetch from SQLite on transient failures — the user message was already persisted
+      // at the start of mutationFn, so rolling back the optimistic cache would hide it.
       if (
         firebaseCode !== 'functions/failed-precondition' &&
-        !isInsufficientCredits &&
-        context?.previousMessages
+        !isInsufficientCredits
       ) {
-        queryClient.setQueryData(messageKeys.list(characterId, userId), context.previousMessages)
+        queryClient.invalidateQueries({
+          queryKey: messageKeys.list(characterId, userId),
+        })
       }
     },
   })

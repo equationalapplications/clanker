@@ -283,11 +283,14 @@ export const sendMessageWithAIResponse = async (
     memoryBlock?: string
     onWriteObservation?: (characterId: string, text: string) => void
     unsyncedHistory?: SyncMessage[]
+    userMessageAlreadyPersisted?: boolean
   },
 ): Promise<{ usageSnapshot: UsageSnapshot | null; cloudSyncSucceeded: boolean }> => {
   try {
     // 1. Send the user's message to local database
-    await sendMessage(character.id, userId, userMessage)
+    if (!options?.userMessageAlreadyPersisted) {
+      await sendMessage(character.id, userId, userMessage)
+    }
 
     // Fetch the latest character from the DB so the rolling summary written by a prior
     // triggerConversationSummary pass (which only updates the DB, not the machine state)

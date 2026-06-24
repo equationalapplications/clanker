@@ -14,7 +14,7 @@ const mockCharacterWikiWrite = jest.fn().mockResolvedValue(undefined)
 const mockSaveAIMessage = jest.fn()
 
 jest.mock('@tanstack/react-query', () => ({
-  useMutation: ({ mutationFn, onMutate, onSuccess, onError }: any) => ({
+  useMutation: ({ mutationFn, onMutate, onSuccess, onError, onSettled }: any) => ({
     mutateAsync: async (message: unknown) => {
       const context = await onMutate?.(message)
 
@@ -25,6 +25,8 @@ jest.mock('@tanstack/react-query', () => ({
       } catch (error) {
         onError?.(error, message, context)
         throw error
+      } finally {
+        onSettled?.()
       }
     },
     isPending: false,
@@ -173,6 +175,29 @@ describe('useAIChat', () => {
     delete process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
   })
 
+  it('persists the user message before cloud or edge work begins', async () => {
+    const persistUserMessage = require('~/services/messageService').sendMessage as jest.Mock
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-early-persist',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    expect(persistUserMessage).toHaveBeenCalledWith(
+      'char-1',
+      'user-1',
+      expect.objectContaining({ _id: 'msg-early-persist' }),
+    )
+    expect(persistUserMessage.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSendMessageWithAIResponse.mock.invocationCallOrder[0],
+    )
+  })
+
   it('reads wiki memory and provides write callback for free-tier users', async () => {
     const hook = renderUseAIChat()
 
@@ -193,6 +218,7 @@ describe('useAIChat', () => {
       [],
       expect.objectContaining({
         onWriteObservation: expect.any(Function),
+        userMessageAlreadyPersisted: true,
       }),
     )
   })
@@ -216,6 +242,7 @@ describe('useAIChat', () => {
       [],
       expect.objectContaining({
         onWriteObservation: expect.any(Function),
+        userMessageAlreadyPersisted: true,
       }),
     )
   })
