@@ -8,6 +8,11 @@ jest.mock('~/config/firebaseConfig', () => ({
   appCheckReady: mockAppCheckReady,
 }))
 
+jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+  isDevSandboxEnabled: jest.fn(() => process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true'),
+  ensureDevSandboxCharacter: jest.fn(async () => '22222222-2222-4222-8222-222222222222'),
+}))
+
 import { bootstrapSession } from '~/auth/bootstrapSession'
 
 const bootstrapData = {
@@ -104,6 +109,7 @@ describe('bootstrapSession', () => {
       expect(mockExchangeToken).not.toHaveBeenCalled()
       expect(result.user.id).toBe('11111111-1111-4111-8111-111111111111')
       expect(result.user.firebaseUid).toBe('local_test_user_123')
+      expect(result.user.defaultCharacterId).toBe('22222222-2222-4222-8222-222222222222')
       expect(result.user.email).toBe('dev@localhost.com')
       expect(result.subscription.planTier).toBe('free')
       expect(result.subscription.currentCredits).toBe(100)
@@ -116,6 +122,16 @@ describe('bootstrapSession', () => {
       expect(first.user.firebaseUid).toBe('local_test_user_123')
       expect(second.user.firebaseUid).toBe('local_test_user_123')
       expect(first.subscription.currentCredits).toBe(second.subscription.currentCredits)
+    })
+
+    it('returns mock bootstrap when dev character provisioning fails', async () => {
+      const { ensureDevSandboxCharacter } = jest.requireMock('~/auth/ensureDevSandboxCharacter')
+      ensureDevSandboxCharacter.mockRejectedValueOnce(new Error('db locked'))
+
+      const result = await bootstrapSession()
+
+      expect(result.user.firebaseUid).toBe('local_test_user_123')
+      expect(result.user.defaultCharacterId).toBe('22222222-2222-4222-8222-222222222222')
     })
   })
 })

@@ -13,6 +13,7 @@
 import { Storage } from '~/utilities/kvStorage'
 import { normalizeVoice } from '~/constants/voiceDefaults'
 import { getCurrentUser } from '~/config/firebaseConfig'
+import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn, wikiSync } from './apiClient'
 import type { CharacterSnapshot, WikiSyncBundle } from './apiClient'
@@ -187,6 +188,12 @@ async function syncWikiForCloud(
  * Safe to call at any time — returns early if user is not authenticated.
  */
 export async function syncAllToCloud(userId?: string): Promise<void> {
+    if (isDevSandboxEnabled()) {
+        // Mock auth has no Firebase ID token; cloud backup/sync callables would fail and
+        // surface as dev LogBox errors a few seconds after startup or reconnect.
+        return
+    }
+
     const localUserId = userId || getCurrentUser()?.uid
     if (!localUserId) return
 
@@ -208,6 +215,10 @@ export async function syncAllToCloud(userId?: string): Promise<void> {
  * Uses last-write-wins: cloud records overwrite local only if cloud updated_at is newer.
  */
 export async function restoreFromCloud(userId?: string): Promise<void> {
+    if (isDevSandboxEnabled()) {
+        return
+    }
+
     const localUserId = userId || getCurrentUser()?.uid
     if (!localUserId) return
 

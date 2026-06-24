@@ -14,7 +14,7 @@ const mockCharacterWikiWrite = jest.fn().mockResolvedValue(undefined)
 const mockSaveAIMessage = jest.fn()
 
 jest.mock('@tanstack/react-query', () => ({
-  useMutation: ({ mutationFn, onMutate, onSuccess, onError }: any) => ({
+  useMutation: ({ mutationFn, onMutate, onSuccess, onError, onSettled }: any) => ({
     mutateAsync: async (message: unknown) => {
       const context = await onMutate?.(message)
 
@@ -25,6 +25,8 @@ jest.mock('@tanstack/react-query', () => ({
       } catch (error) {
         onError?.(error, message, context)
         throw error
+      } finally {
+        onSettled?.()
       }
     },
     isPending: false,
@@ -117,6 +119,12 @@ jest.mock('~/database/taskDatabase', () => ({
   listTasks: (...args: unknown[]) => mockListTasks(...args),
 }))
 
+const mockIsDevSandboxEnabled = jest.fn(() => false)
+jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+  isDevSandboxEnabled: () => mockIsDevSandboxEnabled(),
+  ensureDevSandboxCharacter: jest.fn(),
+}))
+
 const { useAIChat } = require('~/hooks/useAIChat')
 
 type HookValue = ReturnType<typeof useAIChat>
@@ -156,6 +164,7 @@ function renderUseAIChat(overrides: Partial<{ save_to_cloud: number; cloud_id: s
 describe('useAIChat', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockIsDevSandboxEnabled.mockReturnValue(false)
     mockUseChatMessages.mockReturnValue([])
     mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null })
     mockCharacterWikiRead.mockResolvedValue(null)
@@ -171,6 +180,29 @@ describe('useAIChat', () => {
 
   afterEach(() => {
     delete process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
+  })
+
+  it('persists the user message before cloud or edge work begins', async () => {
+    const persistUserMessage = require('~/services/messageService').sendMessage as jest.Mock
+    const hook = renderUseAIChat()
+
+    await act(async () => {
+      await hook.sendMessage({
+        _id: 'msg-early-persist',
+        text: 'Hello',
+        createdAt: new Date('2026-04-27T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      } as any)
+    })
+
+    expect(persistUserMessage).toHaveBeenCalledWith(
+      'char-1',
+      'user-1',
+      expect.objectContaining({ _id: 'msg-early-persist' }),
+    )
+    expect(persistUserMessage.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSendMessageWithAIResponse.mock.invocationCallOrder[0],
+    )
   })
 
   it('reads wiki memory and provides write callback for free-tier users', async () => {
@@ -193,6 +225,7 @@ describe('useAIChat', () => {
       [],
       expect.objectContaining({
         onWriteObservation: expect.any(Function),
+        userMessageAlreadyPersisted: true,
       }),
     )
   })
@@ -216,6 +249,7 @@ describe('useAIChat', () => {
       [],
       expect.objectContaining({
         onWriteObservation: expect.any(Function),
+        userMessageAlreadyPersisted: true,
       }),
     )
   })
@@ -268,6 +302,12 @@ describe('useAIChat', () => {
       sendMessage: jest.fn().mockResolvedValue({
         escalated: false,
         text: 'Hello from on-device!',
+        usageSnapshot: {
+          remainingCredits: 15,
+          planTier: 'free',
+          planStatus: 'active',
+          verifiedAt: '2026-06-24T00:00:00.000Z',
+        },
       }),
       escalationState: 'idle',
     })
@@ -290,6 +330,16 @@ describe('useAIChat', () => {
       'Hello from on-device!',
       expect.any(String),
       expect.any(Object),
+    )
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'USAGE_SNAPSHOT_RECEIVED',
+        source: 'generateReply',
+        remainingCredits: 15,
+        planTier: 'free',
+        planStatus: 'active',
+        verifiedAt: '2026-06-24T00:00:00.000Z',
+      }),
     )
   })
 
@@ -555,6 +605,48 @@ describe('useAIChat', () => {
 
       expect(mockCallCloudAgent).not.toHaveBeenCalled()
       expect(mockSendMessageWithAIResponse).toHaveBeenCalled()
+    })
+
+    it('uses local cloud agent in dev sandbox even without character.cloud_id', async () => {
+      mockIsDevSandboxEnabled.mockReturnValue(true)
+      const hook = renderUseAIChat({ save_to_cloud: 0, cloud_id: null })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-dev-sandbox',
+          text: 'Dev sandbox chat',
+          createdAt: new Date('2026-06-02T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      expect(mockCallCloudAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Dev sandbox chat',
+          characterId: '22222222-2222-4222-8222-222222222222',
+        }),
+      )
+      expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
+    })
+
+    it('fails fast in dev sandbox when EXPO_PUBLIC_CLOUD_AGENT_URL is not configured', async () => {
+      mockIsDevSandboxEnabled.mockReturnValue(true)
+      delete process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
+      const hook = renderUseAIChat({ save_to_cloud: 0, cloud_id: null })
+
+      await act(async () => {
+        await expect(
+          hook.sendMessage({
+            _id: 'msg-dev-misconfig',
+            text: 'Should fail fast',
+            createdAt: new Date('2026-06-02T00:00:00.000Z'),
+            user: { _id: 'user-1' },
+          } as any),
+        ).rejects.toThrow('Dev sandbox requires EXPO_PUBLIC_CLOUD_AGENT_URL')
+      })
+
+      expect(mockCallCloudAgent).not.toHaveBeenCalled()
+      expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
     })
 
     it('propagates Cloud Agent errors so onError can roll back the optimistic update', async () => {

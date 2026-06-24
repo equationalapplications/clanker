@@ -28,16 +28,21 @@ export const messageKeys = {
  * Hook to get chat messages for a character conversation
  * Uses local SQLite storage - no real-time subscriptions needed
  */
-export function useMessages(characterId: string | undefined, recipientUserId: string | undefined) {
+export function useMessages(
+  characterId: string | undefined,
+  recipientUserId: string | undefined,
+  options?: { pauseRefetch?: boolean },
+) {
   const authService = useAuthMachine()
   const user = useSelector(authService, (state) => state.context.user)
+  const pauseRefetch = options?.pauseRefetch ?? false
 
   const query = useQuery({
     queryKey: messageKeys.list(characterId || '', recipientUserId || ''),
     queryFn: () => getMessages(characterId || '', user?.uid || ''),
     enabled: !!characterId && !!user,
     staleTime: 1000 * 30, // 30 seconds - messages change frequently
-    refetchInterval: 5000, // Refetch every 5 seconds for AI responses
+    refetchInterval: pauseRefetch ? false : 5000, // Pause while a send is in flight to keep optimistic messages visible
     networkMode: 'offlineFirst', // Messages are in local SQLite - always available
   })
 
@@ -260,7 +265,15 @@ export function useMostRecentMessage() {
  * Legacy hook for backward compatibility
  * Use useMessages() for new code
  */
-export function useChatMessages({ id, userId }: { id: string; userId: string }): IMessage[] {
-  const { messages } = useMessages(id, userId)
+export function useChatMessages({
+  id,
+  userId,
+  pauseRefetch,
+}: {
+  id: string
+  userId: string
+  pauseRefetch?: boolean
+}): IMessage[] {
+  const { messages } = useMessages(id, userId, { pauseRefetch })
   return messages
 }
