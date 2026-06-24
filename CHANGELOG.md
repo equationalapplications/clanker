@@ -1,3 +1,22 @@
+# [30.4.0](https://github.com/equationalapplications/clanker/compare/v30.3.0...v30.4.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* **cloud-agent:** expose edgeTypes and minTraversalConfidence in wiki_traverse_graph schema ([d625182](https://github.com/equationalapplications/clanker/commit/d6251820c5881eb807c3f48a4d1d70cc27293798))
+* **edge:** address PR review feedback on escalation and validation ([b288fcd](https://github.com/equationalapplications/clanker/commit/b288fcde1d1f20c22a243fbebf5f6571d9f37423))
+* **pr-459:** address review findings for ontology sync and graph tools ([bfab202](https://github.com/equationalapplications/clanker/commit/bfab202442bb20627d0f4d28725cb4ef778b6a88))
+* **wiki-sync:** allow null ontology manifest when mode is off ([ce3daae](https://github.com/equationalapplications/clanker/commit/ce3daae60732ff58005a89c088e2d63c715dd973))
+* **wiki:** cap graph traversal and stabilize edge ranking ([10667a4](https://github.com/equationalapplications/clanker/commit/10667a4412c867932512f613ab69d476019c2fd6))
+
+
+### Features
+
+* **db:** add organizations and organization_members tables ([347b0f6](https://github.com/equationalapplications/clanker/commit/347b0f6f43608ca2fff69cdb2c0ba0c9d71f2782))
+* **db:** generate migration for organizations and organization_members ([b047de7](https://github.com/equationalapplications/clanker/commit/b047de72878fc022bfcb154219ad66e7afb74343))
+* **edge:** restore on-device tool loop, ontology sync, and status UI cleanup ([c1a3fbd](https://github.com/equationalapplications/clanker/commit/c1a3fbd27b3f1aa17028f6c7323d14677168ee4b))
+* **wiki:** cloud ontology graph traversal phase 1 ([edb4e96](https://github.com/equationalapplications/clanker/commit/edb4e96d078a630a4c7117c5c84eb84aa47d5517))
+
 # [30.3.0](https://github.com/equationalapplications/clanker/compare/v30.2.0...v30.3.0) (2026-06-20)
 
 
