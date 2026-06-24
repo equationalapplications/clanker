@@ -380,16 +380,26 @@ The app makes no client-side GenAI model calls (type-only `@google/genai` import
 
 ```bash
 gcloud auth application-default login
+gcloud auth application-default set-quota-project clanker-prod
 ```
 
 **`docker-compose.local.yml` wiring** (already in place):
 - Mounts `${HOME}/.config/gcloud` read-only into the container, so the container sees the host's ADC.
-- Sets `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT=${GCP_PROJECT:?Set GCP_PROJECT to a non-production project}`, `GOOGLE_CLOUD_LOCATION=global` — the `@google/genai` SDK auto-detects these three env vars when no explicit client config is passed (this is how `agent.ts`'s `LlmAgent` picks up Vertex AI without any code wiring). `GCP_PROJECT` must be set explicitly; compose fails fast if it is missing.
+- Sets `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT=${GCP_PROJECT}`, `GOOGLE_CLOUD_LOCATION=global` — the `@google/genai` SDK auto-detects these three env vars when no explicit client config is passed (this is how `agent.ts`'s `LlmAgent` picks up Vertex AI without any code wiring). `GCP_PROJECT` must be set explicitly; compose fails fast if it is missing.
+- Sets `DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker` — `cloud-agent/src/db/client.ts` uses this **before** the Cloud SQL connector path, so all local queries (tasks, wiki, credits) hit the Docker `postgres_db` container, not production Cloud SQL.
+
+**Which `GCP_PROJECT`?** Use a GCP project with **Vertex AI enabled**. For this repo that is `clanker-prod`. This routes LLM inference through ADC; it does **not** connect the app to production Postgres. Vertex calls are real API usage and bill against that project.
 
 **Run it:**
 
 ```bash
-GCP_PROJECT=your-dev-project docker compose -f docker-compose.local.yml up -d
+GCP_PROJECT=clanker-prod docker compose -f docker-compose.local.yml up -d
+```
+
+After `cloud-agent/package.json` or lockfile changes, rebuild and refresh the container `node_modules` volume:
+
+```bash
+GCP_PROJECT=clanker-prod docker compose -f docker-compose.local.yml up -d --build --force-recreate --renew-anon-volumes cloud-agent
 ```
 
 **Apply database migrations** (local Postgres only; tracks applied files in a `dev_migrations` table):
@@ -420,4 +430,11 @@ STAMP_MIGRATIONS=0014_pgvector_wiki_embeddings.sql npm run migrate:dev
 docker compose -f docker-compose.local.yml exec cloud-agent npx tsx scripts/seedLocal.ts
 ```
 
-Caveat: local runs call real Vertex AI and bill whichever GCP project you set via `GCP_PROJECT`. Use a non-production project (the compose file enforces this by requiring `GCP_PROJECT` and suggesting a non-production value in its error message).
+**Hybrid mode (optional):** default compose uses `MOCK_FIREBASE_AUTH=true` (local test user). To iterate on prompts against a real Firebase account while keeping chat on local Docker, set in `.env.local`:
+
+```
+EXPO_PUBLIC_CLOUD_AGENT_URL=http://localhost:8080
+EXPO_PUBLIC_USE_MOCK_AUTH=false
+```
+
+Real Firebase login and staging bootstrap still route chat to local `cloud-agent`; database remains the local Postgres container.
