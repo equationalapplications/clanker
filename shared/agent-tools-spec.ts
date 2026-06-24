@@ -3,13 +3,22 @@ import { getCurrentTimeManifest, escalateToCloudManifest } from '@equationalappl
 
 export type ToolTier = 'both' | 'cloud-only' | 'edge-only'
 
+type ToolSchemaProperty = {
+  type: string
+  description?: string
+  enum?: string[]
+  minimum?: number
+  maximum?: number
+  items?: ToolSchemaProperty
+}
+
 export interface ToolManifest {
   name: string
   tier: ToolTier
   description: string
   parameters: {
     type: 'object'
-    properties: Record<string, { type: string; description?: string }>
+    properties: Record<string, ToolSchemaProperty>
     required?: string[]
   }
 }

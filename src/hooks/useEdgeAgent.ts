@@ -74,8 +74,10 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
           }
 
           if (functionCalls.some((fc) => fc.name === 'escalate_to_cloud_agent')) {
-            setEscalationState('escalating')
-            return { escalated: true }
+            if (isCloudSynced) {
+              setEscalationState('escalating')
+              return { escalated: true }
+            }
           }
 
           const responseParts = await Promise.all(

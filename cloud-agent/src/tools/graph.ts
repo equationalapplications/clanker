@@ -157,12 +157,17 @@ export async function traverseGraphCte(
   const nodes = nodeResult.rows.map((row) => mapEntryRowToFact(row, entityId))
   const nodeIds = nodes.map((n) => n.id)
 
+  const edgeFetchTypeFilter = edgeTypes && edgeTypes.length > 0
+    ? sql` AND edge_type IN (${sql.join(edgeTypes.map((t) => sql`${t}`), sql`, `)})`
+    : sql``
+
   const edgeResult = await db.execute<EdgeRow>(sql`
     SELECT id, source_id, target_id, edge_type, created_at
     FROM llm_wiki_edges
     WHERE entity_id = ${entityId}::uuid AND user_id = ${userId}::uuid
       AND source_id IN (${sql.join(nodeIds.map((id) => sql`${id}`), sql`, `)})
       AND target_id IN (${sql.join(nodeIds.map((id) => sql`${id}`), sql`, `)})
+      ${edgeFetchTypeFilter}
   `)
 
   const edges: WikiEdge[] = edgeResult.rows.map((r) => ({

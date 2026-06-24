@@ -123,8 +123,11 @@ function validateOntology(ontology: unknown, label: string): void {
   if (!VALID_ONTOLOGY_MODE.has(o.mode as string)) {
     throw new HttpsError("invalid-argument", `${label}.mode must be one of: strict, emergent, off.`);
   }
+  if (o.mode === "off" && o.manifest == null) {
+    return;
+  }
   if (!o.manifest || typeof o.manifest !== "object" || Array.isArray(o.manifest)) {
-    throw new HttpsError("invalid-argument", `${label}.manifest must be an object.`);
+    throw new HttpsError("invalid-argument", `${label}.manifest must be an object (or null when mode is "off").`);
   }
   const m = o.manifest as Record<string, unknown>;
   if (!Array.isArray(m.node_types)) {
@@ -133,6 +136,24 @@ function validateOntology(ontology: unknown, label: string): void {
   if (!Array.isArray(m.edge_types)) {
     throw new HttpsError("invalid-argument", `${label}.manifest.edge_types must be an array.`);
   }
+  m.node_types.forEach((n, i) => {
+    if (!n || typeof n !== "object" || Array.isArray(n)) {
+      throw new HttpsError("invalid-argument", `${label}.manifest.node_types[${i}] must be an object.`);
+    }
+    const node = n as Record<string, unknown>;
+    assertString(node.type, `${label}.manifest.node_types[${i}].type`);
+    assertString(node.description, `${label}.manifest.node_types[${i}].description`);
+  });
+  m.edge_types.forEach((e, i) => {
+    if (!e || typeof e !== "object" || Array.isArray(e)) {
+      throw new HttpsError("invalid-argument", `${label}.manifest.edge_types[${i}] must be an object.`);
+    }
+    const edge = e as Record<string, unknown>;
+    assertString(edge.type, `${label}.manifest.edge_types[${i}].type`);
+    assertString(edge.source_type, `${label}.manifest.edge_types[${i}].source_type`);
+    assertString(edge.target_type, `${label}.manifest.edge_types[${i}].target_type`);
+    assertString(edge.description, `${label}.manifest.edge_types[${i}].description`);
+  });
 }
 
 function validateFact(fact: unknown, entityId: string, label: string): void {

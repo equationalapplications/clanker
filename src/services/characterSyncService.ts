@@ -15,7 +15,7 @@ import { normalizeVoice } from '~/constants/voiceDefaults'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn, wikiSync } from './apiClient'
-import type { CharacterSnapshot } from './apiClient'
+import type { CharacterSnapshot, WikiSyncBundle } from './apiClient'
 import {
     getUnsyncedCharacters,
     getSoftDeletedCharacters,
@@ -113,7 +113,16 @@ async function syncWikiForCloud(
             entityId: char.id,
             runRemoteSync: async (localDump: MemoryDump): Promise<MemoryDump> => {
                 const localBundle = localDump.entities[char.id] ?? { facts: [], tasks: [], events: [], edges: [] }
-                const cloudDump: MemoryDump = {
+
+                let ontology: WikiSyncBundle['ontology']
+                try {
+                    const existing = await wiki.getOntologyManifest(char.id)
+                    if (existing) ontology = existing
+                } catch (err) {
+                    reportWikiOpForCharacter(err, `wiki:${char.id}:ontology:read`, char.id, 'Failed to read ontology manifest')
+                }
+
+                const cloudDump = {
                     generatedAt: localDump.generatedAt,
                     entities: {
                         [cloudId]: {
@@ -121,7 +130,8 @@ async function syncWikiForCloud(
                             tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudId })),
                             events: localBundle.events.map((e) => ({ ...e, entity_id: cloudId })),
                             edges: localBundle.edges?.map((e) => ({ ...e, entity_id: cloudId })) ?? [],
-                        },
+                            ontology,
+                        } satisfies WikiSyncBundle,
                     },
                 }
                 const result = await wikiSync({ dump: cloudDump })
@@ -130,6 +140,17 @@ async function syncWikiForCloud(
                     throw new Error('wikiSync returned without remoteDump in response data')
                 }
                 const cloudBundle = remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [], edges: [] }
+
+                if (cloudBundle.ontology) {
+                    try {
+                        await wiki.setOntologyManifest(char.id, cloudBundle.ontology.manifest, {
+                            mode: cloudBundle.ontology.mode,
+                        })
+                    } catch (err) {
+                        reportWikiOpForCharacter(err, `wiki:${char.id}:ontology:write`, char.id, 'Failed to write ontology manifest')
+                    }
+                }
+
                 return {
                     generatedAt: remoteDump.generatedAt,
                     entities: {

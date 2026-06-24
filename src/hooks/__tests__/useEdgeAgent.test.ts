@@ -104,6 +104,25 @@ describe('useEdgeAgent', () => {
     expect(result.current.escalationState).toBe('escalating')
   })
 
+  it('ignores hallucinated escalate_to_cloud_agent for local-only characters', async () => {
+    mockGenerateChatReply
+      .mockResolvedValueOnce({ reply: '', functionCalls: [{ name: 'escalate_to_cloud_agent', args: {} }] })
+      .mockResolvedValueOnce({ reply: 'Handled locally', functionCalls: undefined })
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
+    )
+
+    let response: { escalated: boolean; text?: string } | undefined
+    await act(async () => {
+      response = await result.current.sendMessage('Remind me to call mom tomorrow')
+    })
+
+    expect(response).toEqual({ escalated: false, text: 'Handled locally' })
+    expect(result.current.escalationState).toBe('idle')
+    expect(mockGenerateChatReply).toHaveBeenCalledTimes(2)
+  })
+
   it('escalates automatically when MAX_ITERATIONS (5) is reached for cloud-synced characters', async () => {
     mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'get_current_time', args: {} }] })
 

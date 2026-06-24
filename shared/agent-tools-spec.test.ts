@@ -9,9 +9,11 @@ describe('agent-tools-spec', () => {
   })
 
   it('getSchemasForEdge includes the new graph tools regardless of wiki/cloud-sync flags', () => {
-    const names = getSchemasForEdge(true, true).map((t) => t.name)
-    expect(names).toContain('wiki_get_ontology')
-    expect(names).toContain('wiki_traverse_graph')
+    for (const [hasWiki, isCloudSynced] of [[true, true], [true, false], [false, true], [false, false]] as const) {
+      const names = getSchemasForEdge(hasWiki, isCloudSynced).map((t) => t.name)
+      expect(names).toContain('wiki_get_ontology')
+      expect(names).toContain('wiki_traverse_graph')
+    }
   })
 
   it('getSchemasForCloud does not include the edge-only graph tools', () => {

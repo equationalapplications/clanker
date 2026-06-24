@@ -1117,6 +1117,75 @@ test("wikiSync: ontology bundle round-trips through upsertData/fetchMergedDump u
   );
 });
 
+test("wikiSync: ontology mode off with null manifest round-trips unchanged", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const dumpWithOffOntology: MemoryDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [],
+        tasks: [],
+        events: [],
+        ontology: { mode: "off", manifest: null as unknown as { node_types: []; edge_types: [] } },
+      },
+    },
+  };
+
+  let receivedOntology: unknown;
+  const upsertData = async (dump: MemoryDump) => {
+    receivedOntology = dump.entities[TEST_ENTITY_UUID]?.ontology;
+  };
+  const validateEntityOwnership = async () => {};
+  const fetchMergedDump = async () => dumpWithOffOntology;
+
+  const request = { auth, data: { dump: dumpWithOffOntology } };
+  const result = await wikiSyncHandler(request as unknown as CallableRequest, {
+    upsertData,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    creditService: defaultCreditService,
+  });
+
+  assert.deepEqual(receivedOntology, { mode: "off", manifest: null });
+  assert.deepEqual(result.remoteDump.entities[TEST_ENTITY_UUID]?.ontology, { mode: "off", manifest: null });
+});
+
+test("wikiSync: rejects ontology bundles with malformed manifest entries", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const dumpWithBadNodeType = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [],
+        tasks: [],
+        events: [],
+        ontology: { mode: "emergent", manifest: { node_types: [null], edge_types: [] } },
+      },
+    },
+  };
+
+  const request = { auth, data: { dump: dumpWithBadNodeType } };
+  await assert.rejects(
+    () =>
+      wikiSyncHandler(request as unknown as CallableRequest, {
+        validateEntityOwnership: async () => {},
+        fetchMergedDump: async () => ({ generatedAt: Date.now(), entities: {} }),
+        getUser: async () => user,
+        creditService: defaultCreditService,
+      }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /node_types\[0\]/);
+      return true;
+    },
+  );
+});
+
 test("wikiSync: rejects an ontology bundle with an invalid mode", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);
