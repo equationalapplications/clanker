@@ -349,6 +349,11 @@ Enable HA when: single-zone maintenance/restart downtime is unacceptable, or rev
 | 11 | `0010_fix_source_type_check.sql` | Fix CHECK constraint |
 | 12 | `0011_credits_redesign.sql` | Credit transactions redesign |
 | 13 | `0012_update_handle_new_user_trigger.sql` | Update signup credit trigger |
+| 14 | `0013_cloud_agent_tasks.sql` | Cloud agent task tracking |
+| 15 | `0015_organizations.sql` | `organizations`/`organization_members` tables |
+| 16 | `0016_llm_wiki_graph.sql` | `llm_wiki_edges`/`llm_wiki_ontology` tables |
+
+> **Gap:** `0014_pgvector_wiki_embeddings.sql` is on disk but **not yet applied** to `clanker-prod` (verified via `information_schema.columns` — `llm_wiki_entries.embedding` does not exist). Unrelated to the three specs in this deploy; flagged here, not applied as part of it.
 
 ### Prerequisites
 
@@ -367,7 +372,7 @@ gcloud auth application-default set-quota-project "${GCP_PROJECT}"
    export CLOUD_SQL_DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project="${GCP_PROJECT}")
    export CLOUD_SQL_DB_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_NAME --project="${GCP_PROJECT}")
    ```
-3. Apply: `cd functions && MIGRATIONS="0013_my_new_migration.sql" node /tmp/migrate.mjs`
+3. Apply: `cd functions && MIGRATIONS="0017_my_new_migration.sql" npm run migrate` (runs `functions/scripts/migrate.mjs`, checked into the repo so it resolves `@google-cloud/cloud-sql-connector`/`pg` from `functions/node_modules` — do not copy it to `/tmp`, that breaks module resolution)
 
 ### Workflow for Schema Changes
 

@@ -11,7 +11,8 @@
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions -P clanker-prod",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "migrate": "node scripts/migrate.mjs"
   },
   "engines": {
     "node": "22"
