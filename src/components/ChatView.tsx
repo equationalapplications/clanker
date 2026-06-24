@@ -357,6 +357,7 @@ function ChatViewContent({
         renderBubble={renderBubble}
         renderInputToolbar={renderInputToolbar}
         renderSend={renderSend}
+        alwaysShowSend={isGeneratingResponse}
         renderCustomView={renderCustomView}
         isCustomViewBottom
         renderAvatarOnTop
