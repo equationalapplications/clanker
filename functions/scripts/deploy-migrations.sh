@@ -20,5 +20,11 @@ export CLOUD_SQL_DB_USER=$(gcloud secrets versions access latest --secret=CLOUD_
 export CLOUD_SQL_DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project="${GCP_PROJECT}")
 export CLOUD_SQL_DB_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_NAME --project="${GCP_PROJECT}")
 
+if [[ "${SKIP_BACKUP:-}" != "true" ]]; then
+  bash "${REPO_ROOT}/scripts/backup-db.sh"
+else
+  echo "SKIP_BACKUP=true set, skipping pre-migration backup."
+fi
+
 echo "Applying migrations: ${MIGRATIONS}"
 node scripts/migrate.mjs

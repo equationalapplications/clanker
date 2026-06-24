@@ -367,7 +367,9 @@ gcloud auth application-default set-quota-project "${GCP_PROJECT}"
 1. Set project: `export GCP_PROJECT="your-project-id"`
 2. Apply: `cd functions && MIGRATIONS="0017_my_new_migration.sql" npm run deploy:migrations`
 
-`deploy:migrations` (`functions/scripts/deploy-migrations.sh`) fetches the four `CLOUD_SQL_*` secrets from Secret Manager and runs `functions/scripts/migrate.mjs` against them in one step. Both scripts are checked into the repo so they resolve `@google-cloud/cloud-sql-connector`/`pg` from `functions/node_modules` — do not copy `migrate.mjs` to `/tmp` or elsewhere outside `functions/`, that breaks module resolution.
+`deploy:migrations` (`functions/scripts/deploy-migrations.sh`) fetches the four `CLOUD_SQL_*` secrets from Secret Manager, triggers an on-demand native Cloud SQL backup (`functions/scripts/backup-db.sh`, `gcloud sql backups create`) as a pre-migration safeguard, then runs `functions/scripts/migrate.mjs`. Both scripts are checked into the repo so they resolve `@google-cloud/cloud-sql-connector`/`pg` from `functions/node_modules` — do not copy `migrate.mjs` to `/tmp` or elsewhere outside `functions/`, that breaks module resolution.
+
+The backup step can be skipped with `SKIP_BACKUP=true npm run deploy:migrations`, or triggered standalone via `npm run backup:db`. It runs entirely inside Google's infrastructure (no data leaves the cloud boundary, no local bandwidth used) — deliberately not a `pg_dump`-to-laptop approach, which would pull production user data onto local hardware unnecessarily.
 
 To fetch secrets manually instead (e.g. for one-off inspection) or run `migrate.mjs` directly without the wrapper:
 ```bash
