@@ -365,14 +365,18 @@ gcloud auth application-default set-quota-project "${GCP_PROJECT}"
 ### Apply Migrations
 
 1. Set project: `export GCP_PROJECT="your-project-id"`
-2. Fetch secrets from Secret Manager:
-   ```bash
-   export CLOUD_SQL_CONNECTION_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_CONNECTION_NAME --project="${GCP_PROJECT}")
-   export CLOUD_SQL_DB_USER=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_USER --project="${GCP_PROJECT}")
-   export CLOUD_SQL_DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project="${GCP_PROJECT}")
-   export CLOUD_SQL_DB_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_NAME --project="${GCP_PROJECT}")
-   ```
-3. Apply: `cd functions && MIGRATIONS="0017_my_new_migration.sql" npm run migrate` (runs `functions/scripts/migrate.mjs`, checked into the repo so it resolves `@google-cloud/cloud-sql-connector`/`pg` from `functions/node_modules` — do not copy it to `/tmp`, that breaks module resolution)
+2. Apply: `cd functions && MIGRATIONS="0017_my_new_migration.sql" npm run deploy:migrations`
+
+`deploy:migrations` (`functions/scripts/deploy-migrations.sh`) fetches the four `CLOUD_SQL_*` secrets from Secret Manager and runs `functions/scripts/migrate.mjs` against them in one step. Both scripts are checked into the repo so they resolve `@google-cloud/cloud-sql-connector`/`pg` from `functions/node_modules` — do not copy `migrate.mjs` to `/tmp` or elsewhere outside `functions/`, that breaks module resolution.
+
+To fetch secrets manually instead (e.g. for one-off inspection) or run `migrate.mjs` directly without the wrapper:
+```bash
+export CLOUD_SQL_CONNECTION_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_CONNECTION_NAME --project="${GCP_PROJECT}")
+export CLOUD_SQL_DB_USER=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_USER --project="${GCP_PROJECT}")
+export CLOUD_SQL_DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project="${GCP_PROJECT}")
+export CLOUD_SQL_DB_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_NAME --project="${GCP_PROJECT}")
+MIGRATIONS="0017_my_new_migration.sql" npm run migrate
+```
 
 ### Workflow for Schema Changes
 
