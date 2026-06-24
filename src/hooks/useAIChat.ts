@@ -72,10 +72,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
 
       // Try edge agent first
-      const { escalated, text: edgeText } = await edgeAgent.sendMessage(message.text, memoryBlock)
+      const { escalated, text: edgeText, usageSnapshot: edgeUsageSnapshot } =
+        await edgeAgent.sendMessage(message.text, memoryBlock)
 
       if (!escalated && edgeText !== undefined) {
-        // Edge resolved — save both messages, no Firebase call
+        // Edge resolved — save both messages locally (inference already ran via generateReply proxy).
         // Save user message after edge resolves. On DB failure, onError rolls back the optimistic
         // update — no fallback message is saved (intentional; Firebase path handled its own fallback).
         await persistUserMessage(character.id, userId, message)
@@ -118,7 +119,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           }
         }
 
-        return { usageSnapshot: null }
+        return { usageSnapshot: edgeUsageSnapshot ?? null }
       }
 
       // Cloud Agent path — isCloudSynced characters with a cloud_id when EXPO_PUBLIC_CLOUD_AGENT_URL is set.

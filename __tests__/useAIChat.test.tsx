@@ -268,6 +268,12 @@ describe('useAIChat', () => {
       sendMessage: jest.fn().mockResolvedValue({
         escalated: false,
         text: 'Hello from on-device!',
+        usageSnapshot: {
+          remainingCredits: 15,
+          planTier: 'free',
+          planStatus: 'active',
+          verifiedAt: '2026-06-24T00:00:00.000Z',
+        },
       }),
       escalationState: 'idle',
     })
@@ -290,6 +296,16 @@ describe('useAIChat', () => {
       'Hello from on-device!',
       expect.any(String),
       expect.any(Object),
+    )
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'USAGE_SNAPSHOT_RECEIVED',
+        source: 'generateReply',
+        remainingCredits: 15,
+        planTier: 'free',
+        planStatus: 'active',
+        verifiedAt: '2026-06-24T00:00:00.000Z',
+      }),
     )
   })
 

@@ -4,6 +4,8 @@
 
 All AI model access (chat + image) flows through secured backend endpoints (Firebase 2nd Gen callable functions and the Cloud Run `cloud-agent` service). In production app runtime, the app makes no client-side GenAI model calls (type-only `@google/genai` imports are allowed; local-only eval harnesses such as `npm run edge-evals` are excluded). This ensures auth verification, access control, credit ledger enforcement, and Vertex AI credential protection all happen server-side.
 
+For the on-device edge agent loop (client orchestration + secured `generateReply` proxy), see **[Edge Agent](EDGE_AGENT.md)**.
+
 ---
 
 ## Chat Response Pipeline
