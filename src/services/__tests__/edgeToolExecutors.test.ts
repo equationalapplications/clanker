@@ -227,7 +227,7 @@ describe('createEdgeToolExecutors — wiki_traverse_graph', () => {
   it('returns a failure message when wiki is null', async () => {
     const execs = createEdgeToolExecutors('char-1', null)
     const result = await execs['wiki_traverse_graph']({ sourceId: 'fact-1' })
-    expect(result).toBe('Failed to traverse graph: sourceId is required.')
+    expect(result).toBe('Failed to traverse graph: wiki database is unavailable.')
   })
 
   it('calls wiki.traverseGraph with parsed options and formats the result', async () => {
