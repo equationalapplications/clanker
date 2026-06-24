@@ -6,8 +6,9 @@ import path from 'path'
 import * as pkg from './package.json'
 
 dotenv.config()
-// Load .env.local after .env so dev-sandbox flags (e.g. EXPO_PUBLIC_USE_MOCK_AUTH) apply.
-dotenv.config({ path: '.env.local', override: true })
+// .env.development.local (gitignored, dev-only) carries dev-sandbox flags like
+// EXPO_PUBLIC_USE_MOCK_AUTH. Expo's own env loader applies it for dev builds only,
+// so it never overrides production values during `expo export`/EAS production builds.
 
 const breakingChangeVersion = pkg.version.split('.')[0]
 

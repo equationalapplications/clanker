@@ -76,7 +76,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       if (devSandbox && !process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
         throw new Error(
           'Dev sandbox requires EXPO_PUBLIC_CLOUD_AGENT_URL (e.g. http://localhost:8080). ' +
-            'Start docker-compose.local.yml and set it in .env.local.',
+            'Start docker-compose.local.yml and set it in .env.development.local.',
         )
       }
 

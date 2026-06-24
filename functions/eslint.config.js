@@ -14,6 +14,8 @@ export default tseslint.config(
             globals: {
                 process: 'readonly',
                 fetch: 'readonly',
+                console: 'readonly',
+                URL: 'readonly',
             },
         },
         rules: {

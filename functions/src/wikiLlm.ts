@@ -190,6 +190,7 @@ export const wikiLlmHandler = async (
 export const wikiLlm = onCall(
   {
     region: DEFAULT_REGION,
+    timeoutSeconds: 540,
     enforceAppCheck: true,
     invoker: "public",
     secrets: [...CLOUD_SQL_SECRETS],
