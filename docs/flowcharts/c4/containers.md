@@ -9,34 +9,46 @@ C4Container
   Person(user, "User", "Mobile or web user")
 
   System_Boundary(clanker_b, "Clanker") {
-    Container(app, "Clanker App", "Expo React Native (shared mobile/web)", "Chat, characters, wiki, payments UI. 90%+ shared code across mobile and web.")
-    Container(sqlite, "Local SQLite", "expo-sqlite", "Offline-first on-device store for messages, characters, and tasks.")
+    Container(app, "Clanker App", "Expo React Native (shared mobile/web)", "UI plus edge agent orchestration (useEdgeAgent): local tool loop, generateReply proxy calls, escalation routing. 90%+ shared code across mobile and web.")
+    Container(sqlite, "Local SQLite", "expo-sqlite", "Offline-first store: messages, characters, wiki/memory (expo-llm-wiki), and tasks. Messages never leave device.")
   }
 
   System_Boundary(firebase_b, "Firebase") {
-    Container(auth, "Firebase Auth", "Firebase Auth", "Identity and session tokens. Supports Google Sign-In and email.")
-    Container(functions, "Cloud Functions", "Firebase Functions (Node.js)", "Backend logic: AI chat orchestration for non-cloud-synced characters, wiki sync, purchase webhooks.")
+    Container(auth, "Firebase Auth", "Firebase Auth", "Identity and session tokens. Google Sign-In and email.")
+    Container(functions, "Cloud Functions", "Firebase Functions (Node.js)", "generateReply BYOI proxy, exchangeToken, summarizeText, wikiLlm/wikiSync, generateImage, character sync. HTTP webhooks: Stripe and RevenueCat.")
   }
 
   System_Boundary(gcp_b, "Google Cloud") {
-    Container(cloudsql, "Cloud SQL", "PostgreSQL", "Relational store for user records, subscription state, tasks, and wiki events.")
-    Container(cloudagent, "Cloud Agent", "Cloud Run (Node.js/Express + Google ADK)", "Stateless ADK agent. Handles escalated messages for cloud-synced characters. Verified via Firebase ID tokens.")
+    Container(cloudsql, "Cloud SQL", "PostgreSQL", "Users, credits, subscriptions; cloud character backup; wiki/task mirror for save_to_cloud characters.")
+    Container(cloudagent, "Cloud Agent", "Cloud Run (Node.js/Express + Google ADK)", "Stateless ADK agent. Escalated chat for cloud-synced characters. Verified via Firebase ID tokens.")
   }
 
-  System_Ext(gemini, "Google Gemini", "LLM completions (Gemini 2.5 Flash via Vertex AI)")
-  System_Ext(revenuecat, "RevenueCat", "Mobile IAP validation")
+  System_Ext(gemini, "Vertex AI (Gemini)", "LLM completions (model selected server-side)")
+  System_Ext(revenuecat, "RevenueCat", "Mobile IAP (native SDK)")
   System_Ext(stripe, "Stripe", "Web subscription payments")
 
   Rel(user, app, "Uses", "HTTPS / native")
   Rel(app, auth, "Sign-in and token refresh")
-  Rel(app, functions, "Callable functions: chat (non-cloud-synced), purchases, wiki sync")
-  Rel(app, cloudagent, "Escalated messages for cloud-synced characters", "HTTPS POST /agent/run + Bearer token")
+  Rel(app, functions, "generateReply (edge agent + fallback), bootstrap, wiki, media, character sync")
+  Rel(app, cloudagent, "Escalated chat for cloud-synced characters", "HTTPS POST /agent/run + Bearer token")
   Rel(app, sqlite, "All local reads and writes")
   Rel(app, stripe, "Checkout session redirect (web)")
-  Rel(functions, cloudsql, "User data, subscription records")
-  Rel(functions, gemini, "LLM calls for chat and wiki (Gemini 2.5 Flash)")
-  Rel(functions, revenuecat, "Subscription validation (mobile)")
+  Rel(app, revenuecat, "Native IAP (SDK)")
+  Rel(stripe, functions, "Checkout/subscription webhooks")
+  Rel(revenuecat, functions, "Purchase webhooks")
+  Rel(functions, cloudsql, "Users, credits, subscriptions, wiki cloud mirror")
+  Rel(functions, gemini, "LLM calls (generateReply, wikiLlm, summarizeText, generateImage, …)")
   Rel(cloudagent, auth, "Verify Firebase ID token")
   Rel(cloudagent, cloudsql, "Character data, tasks, wiki events (Drizzle ORM)")
-  Rel(cloudagent, gemini, "LLM calls via Google ADK (Gemini 2.5 Flash)")
+  Rel(cloudagent, gemini, "LLM calls via Google ADK")
 ```
+
+## Chat routing (summary)
+
+Priority order in `useAIChat` after send:
+
+1. **Edge resolved** — `useEdgeAgent` loop returns text; each iteration billed via `generateReply`.
+2. **Cloud Agent** — `callCloudAgent` when character is cloud-synced (or dev sandbox) and `EXPO_PUBLIC_CLOUD_AGENT_URL` is set.
+3. **Firebase fallback** — `sendMessageWithAIResponse` → `generateReply` with optional unsynced history.
+
+See [Edge Agent](../../EDGE_AGENT.md) and [AI & Chat](../../ai-and-chat.md).
