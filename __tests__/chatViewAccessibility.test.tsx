@@ -133,18 +133,8 @@ jest.mock('~/components/ChatComposer', () => (props: any) => {
 })
 
 let mockWikiStatus = { ingesting: false, librarian: false, heal: false }
-jest.mock('~/hooks/useCharacterWiki', () => ({
-  useCharacterWiki: () => ({
-    status: mockWikiStatus,
-    isBusy: false,
-    error: null,
-    read: jest.fn(),
-    write: jest.fn(),
-    ingest: jest.fn(),
-    forget: jest.fn(),
-    sync: jest.fn(),
-    hasChanged: jest.fn(),
-  }),
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  useEntityStatus: () => mockWikiStatus,
 }))
 
 // ── SUT ───────────────────────────────────────────────────────────────────────

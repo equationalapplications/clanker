@@ -1077,3 +1077,74 @@ test("wikiSync: accepts dump without edges field (backward compatible)", async (
   });
   assert.equal(upserted.length, 1);
 });
+
+test("wikiSync: ontology bundle round-trips through upsertData/fetchMergedDump unchanged", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const dumpWithOntology: MemoryDump = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [],
+        tasks: [],
+        events: [],
+        ontology: { mode: "emergent", manifest: { node_types: [], edge_types: [] } },
+      },
+    },
+  };
+
+  let receivedOntology: unknown;
+  const upsertData = async (dump: MemoryDump) => {
+    receivedOntology = dump.entities[TEST_ENTITY_UUID]?.ontology;
+  };
+  const validateEntityOwnership = async () => {};
+  const fetchMergedDump = async () => dumpWithOntology;
+
+  const request = { auth, data: { dump: dumpWithOntology } };
+  const result = await wikiSyncHandler(request as unknown as CallableRequest, {
+    upsertData,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    creditService: defaultCreditService,
+  });
+
+  assert.deepEqual(receivedOntology, { mode: "emergent", manifest: { node_types: [], edge_types: [] } });
+  assert.deepEqual(
+    result.remoteDump.entities[TEST_ENTITY_UUID]?.ontology,
+    { mode: "emergent", manifest: { node_types: [], edge_types: [] } },
+  );
+});
+
+test("wikiSync: rejects an ontology bundle with an invalid mode", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+
+  const dumpWithBadOntology = {
+    generatedAt: Date.now(),
+    entities: {
+      [TEST_ENTITY_UUID]: {
+        facts: [],
+        tasks: [],
+        events: [],
+        ontology: { mode: "not-a-real-mode", manifest: { node_types: [], edge_types: [] } },
+      },
+    },
+  };
+
+  const request = { auth, data: { dump: dumpWithBadOntology } };
+  await assert.rejects(
+    () =>
+      wikiSyncHandler(request as unknown as CallableRequest, {
+        validateEntityOwnership: async () => {},
+        fetchMergedDump: async () => ({ generatedAt: Date.now(), entities: {} }),
+        getUser: async () => user,
+        creditService: defaultCreditService,
+      }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "invalid-argument");
+      return true;
+    },
+  );
+});

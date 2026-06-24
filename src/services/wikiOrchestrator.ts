@@ -50,6 +50,15 @@ function getOrSpawn(
   })
   actor.start()
   actors.set(entityId, actor)
+
+  void wiki.getOntologyManifest(entityId).then((existing) => {
+    if (!existing || existing.mode === 'off') {
+      return wiki.setOntologyManifest(entityId, { node_types: [], edge_types: [] }, { mode: 'emergent' })
+    }
+  }).catch((error) => {
+    console.warn(`Failed to bootstrap emergent ontology mode for ${entityId}:`, error)
+  })
+
   return actor
 }
 

@@ -52,7 +52,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const raw = character.save_to_cloud
   const isCloudSynced = !!(raw ?? 0)
 
-  const edgeAgent = useEdgeAgent()
+  const edgeAgent = useEdgeAgent({ character, userId, priorMessages: messages, isCloudSynced, wiki })
 
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
