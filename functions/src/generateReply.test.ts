@@ -357,7 +357,7 @@ test("generateReplyHandler rejects oversized tools payload", async () => {
     creditService.spendCredits = async () => 'mock-tx-id';
     creditService.getCredits = async () => 2;
 
-    const oversizedTools = Array.from({ length: 500 }, (_, index) => ({
+    const oversizedTools = Array.from({ length: 500 }, () => ({
       name: 'get_current_time',
       description: 'x'.repeat(30),
       parameters: { type: 'object', properties: {} },
