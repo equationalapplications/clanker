@@ -75,6 +75,8 @@ jest.mock('react-native-paper', () => {
   const React = require('react')
   return {
     Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
+    ActivityIndicator: (props: any) =>
+      React.createElement('View', { testID: 'activity-indicator', ...props }),
     useTheme: () => ({
       colors: {
         primary: '#6200ee',
@@ -116,7 +118,7 @@ jest.mock('~/hooks/useMessages', () => ({
 }))
 
 jest.mock('~/hooks/useAIChat', () => ({
-  useAIChat: () => ({ sendMessage: jest.fn() }),
+  useAIChat: jest.fn(() => ({ sendMessage: jest.fn() })),
 }))
 
 let mockCreditsData: { totalCredits: number; nextExpiryDate: string | null } = { totalCredits: 10, nextExpiryDate: null }
@@ -139,6 +141,9 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
 
 // ── SUT ───────────────────────────────────────────────────────────────────────
 import ChatView from '~/components/ChatView'
+import { useAIChat } from '~/hooks/useAIChat'
+
+const mockUseAIChat = useAIChat as jest.MockedFunction<typeof useAIChat>
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 const defaultCharacter = {
@@ -173,6 +178,13 @@ describe('ChatView accessibility', () => {
     mockWikiStatus = { ingesting: false, librarian: false, heal: false }
     mockPlatformOS = 'android'
     mockCreditsData = { totalCredits: 10, nextExpiryDate: null }
+    mockUseAIChat.mockReturnValue({
+      messages: [],
+      sendMessage: jest.fn(),
+      isGeneratingResponse: false,
+      escalationState: 'idle',
+      error: null,
+    })
     withLoggedInUser()
   })
 
@@ -403,6 +415,32 @@ describe('ChatView accessibility', () => {
     expect(typeof capturedGiftedChatProps.renderInputToolbar).toBe('function')
     expect(typeof capturedGiftedChatProps.renderSend).toBe('function')
     expect(capturedGiftedChatProps.minInputToolbarHeight).toBe(56)
+    expect(capturedGiftedChatProps.alwaysShowSend).toBe(false)
+  })
+
+  it('GiftedChat keeps the send slot visible while generating a response', () => {
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+    mockUseAIChat.mockReturnValue({
+      messages: [],
+      sendMessage: jest.fn(),
+      isGeneratingResponse: true,
+      escalationState: 'idle',
+      error: null,
+    })
+
+    act(() => { create(<ChatView characterId="char-1" />) })
+
+    expect(capturedGiftedChatProps.alwaysShowSend).toBe(true)
+
+    const sendEl = capturedGiftedChatProps.renderSend({ text: '', onSend: jest.fn() })
+    let sendTree: any
+    act(() => { sendTree = create(sendEl) })
+
+    const spinner = sendTree.root.find(
+      (n: any) => n.props.accessibilityLabel === 'Generating response',
+    )
+    expect(spinner).toBeDefined()
+    expect(spinner.props.accessibilityRole).toBe('progressbar')
   })
 
   it('does not use interval polling for wiki status updates', () => {

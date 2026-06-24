@@ -343,6 +343,48 @@ test("generateVoiceReplyHandler refunds credits when speech synthesis fails", as
   });
 });
 
+test("generateVoiceReplyHandler passes only cleaned replyText to synthesizeSpeech without style preamble", async () => {
+  const auth = buildAuth();
+  const rawModelReply = "[pause] Hello, this is the AI reply.";
+  const expectedReplyText = "Hello, this is the AI reply.";
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 3;
+
+    let synthesizeSpeechInput: string | undefined;
+    let synthesizeSpeechVoice: string | undefined;
+
+    const result = await generateVoiceReplyHandler(
+      {
+        auth,
+        data: {
+          prompt: "hello",
+          characterVoice: "Kore",
+          characterTraits: "warm and witty",
+          characterEmotions: "cheerful",
+        },
+      } as never,
+      {
+        generateText: async () => rawModelReply,
+        synthesizeSpeech: async (text, voice) => {
+          synthesizeSpeechInput = text;
+          synthesizeSpeechVoice = voice;
+          return {audioBase64: "dGVzdA==", audioMimeType: "audio/wav"};
+        },
+      }
+    );
+
+    assert.equal(synthesizeSpeechInput, expectedReplyText);
+    assert.equal(synthesizeSpeechVoice, "Kore");
+    assert.equal(result.replyText, expectedReplyText);
+    assert.doesNotMatch(synthesizeSpeechInput ?? "", /Speak with these qualities:/);
+  });
+});
+
 test("generateVoiceReplyHandler returns non-empty audioBase64 in payload", async () => {
   const auth = buildAuth();
 

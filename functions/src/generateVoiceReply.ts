@@ -378,14 +378,8 @@ const handler = async (
     }
 
     const replyText = cleanReplyText(rawReplyText) || rawReplyText;
-    const styleHints = [input.characterTraits, input.characterEmotions]
-      .filter((part): part is string => !!part)
-      .join(", ");
-    const speechInput = styleHints
-      ? `Speak with these qualities: ${styleHints}\n\n${replyText}`
-      : replyText;
 
-    const audio = await synthesizeSpeech(speechInput, input.characterVoice);
+    const audio = await synthesizeSpeech(replyText, input.characterVoice);
 
     const usageSnapshot = await buildUsageSnapshotForUser(
       user.id,
