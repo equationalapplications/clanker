@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {HttpsError} from "firebase-functions/v2/https";
 
-import {generateReplyHandler, toGenAITool} from "./generateReply.js";
+import {generateReplyHandler, toGenAITool, buildToolsForRequest} from "./generateReply.js";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
@@ -121,6 +121,17 @@ test("toGenAITool throws on an unrecognized tool entry", () => {
     () => toGenAITool({} as never),
     /Unsupported tool entry/
   );
+});
+
+test("buildToolsForRequest falls back to googleSearch when no tools are provided", () => {
+  const result = buildToolsForRequest(undefined);
+  assert.deepEqual(result, [{ googleSearch: {} }]);
+});
+
+test("buildToolsForRequest uses provided functionDeclarations and omits googleSearch when tools are present", () => {
+  const tools = [{ name: "get_current_time", description: "Get the time", parameters: { type: "object", properties: {} } }];
+  const result = buildToolsForRequest(tools);
+  assert.deepEqual(result, [{ functionDeclarations: tools }]);
 });
 
 test("generateReplyHandler rejects unauthenticated calls", async () => {
@@ -301,6 +312,314 @@ test("generateReplyHandler rejects malformed structured contents items", async (
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
     );
+  });
+});
+
+test("generateReplyHandler rejects tools with an unrecognized name", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+              systemInstruction: 'You are a helpful assistant.',
+              tools: [{ name: 'delete_everything', description: 'Bad tool', parameters: { type: 'object', properties: {} } }],
+            },
+          } as never,
+          {
+            generateText: async () => ({ text: 'unused' }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+  });
+});
+
+test("generateReplyHandler rejects oversized tools payload", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    const oversizedTools = Array.from({ length: 500 }, (_, index) => ({
+      name: 'get_current_time',
+      description: 'x'.repeat(30),
+      parameters: { type: 'object', properties: {} },
+    }));
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+              systemInstruction: 'You are a helpful assistant.',
+              tools: oversizedTools,
+            },
+          } as never,
+          {
+            generateText: async () => ({ text: 'unused' }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+  });
+});
+
+test("generateReplyHandler rejects array-valued structured content parts", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [{ role: 'user', parts: [[]] }],
+              systemInstruction: 'You are a helpful assistant.',
+            },
+          } as never,
+          {
+            generateText: async () => ({ text: 'unused' }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+  });
+});
+
+test("generateReplyHandler rejects array-valued functionCall and functionResponse parts", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [{ role: 'model', parts: [{ functionCall: [] }] }],
+              systemInstruction: 'You are a helpful assistant.',
+            },
+          } as never,
+          {
+            generateText: async () => ({ text: 'unused' }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [{ role: 'user', parts: [{ functionResponse: { name: 'get_current_time', response: [] } }] }],
+              systemInstruction: 'You are a helpful assistant.',
+            },
+          } as never,
+          {
+            generateText: async () => ({ text: 'unused' }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+  });
+});
+
+test("generateReplyHandler rejects array-valued tool declarations", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+              systemInstruction: 'You are a helpful assistant.',
+              tools: [['get_current_time']],
+            },
+          } as never,
+          {
+            generateText: async () => ({ text: 'unused' }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+  });
+});
+
+test("generateReplyHandler accepts recognized tools and forwards them to generateText", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    const tools = [{ name: 'get_current_time', description: 'Get the time', parameters: { type: 'object', properties: {} } }];
+    let receivedTools: unknown;
+
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: {
+          contents: [{ role: 'user', parts: [{ text: 'what time is it' }] }],
+          systemInstruction: 'You are a helpful assistant.',
+          tools,
+        },
+      } as never,
+      {
+        generateText: async (input) => {
+          receivedTools = input.tools;
+          return { text: 'It is noon.' };
+        },
+      }
+    );
+
+    assert.deepEqual(receivedTools, tools);
+    assert.equal(result.reply, 'It is noon.');
+  });
+});
+
+test("generateReplyHandler accepts contents with functionCall and functionResponse parts", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: {
+          contents: [
+            { role: 'user', parts: [{ text: 'what time is it' }] },
+            { role: 'model', parts: [{ functionCall: { name: 'get_current_time', args: {} } }] },
+            { role: 'user', parts: [{ functionResponse: { name: 'get_current_time', response: { output: 'noon' } } }] },
+          ],
+          systemInstruction: 'You are a helpful assistant.',
+        },
+      } as never,
+      {
+        generateText: async () => ({ text: 'It is noon.' }),
+      }
+    );
+
+    assert.equal(result.reply, 'It is noon.');
+  });
+});
+
+test("generateReplyHandler rejects a contents part with neither text, functionCall, nor functionResponse", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    await assert.rejects(
+      async () =>
+        generateReplyHandler(
+          {
+            auth,
+            data: {
+              contents: [{ role: 'model', parts: [{ functionCall: { args: {} } }] }],
+              systemInstruction: 'You are a helpful assistant.',
+            },
+          } as never,
+          {
+            generateText: async () => ({ text: 'unused' }),
+          }
+        ),
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    );
+  });
+});
+
+test("generateReplyHandler returns functionCalls instead of throwing on an empty text response", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 2;
+
+    const functionCalls = [{ name: 'get_current_time', args: {} }];
+
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: {
+          contents: [{ role: 'user', parts: [{ text: 'what time is it' }] }],
+          systemInstruction: 'You are a helpful assistant.',
+          tools: [{ name: 'get_current_time', description: 'Get the time', parameters: { type: 'object', properties: {} } }],
+        },
+      } as never,
+      {
+        generateText: async () => ({ functionCalls }),
+      }
+    );
+
+    assert.deepEqual(result.functionCalls, functionCalls);
+    assert.equal(result.reply, '');
+    assert.equal(result.creditsSpent, 1);
+    assert.equal(result.remainingCredits, 2);
   });
 });
 

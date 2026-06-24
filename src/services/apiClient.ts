@@ -15,6 +15,30 @@ import {
 } from '~/config/firebaseConfig'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 
+export interface WikiSyncOntologyManifest {
+  node_types: { type: string; description: string }[]
+  edge_types: { type: string; source_type: string; target_type: string; description: string }[]
+}
+
+export interface WikiSyncOntology {
+  mode: 'strict' | 'emergent' | 'off'
+  manifest: WikiSyncOntologyManifest | null
+}
+
+// The package's MemoryBundle has no `ontology` field (it lives in a separate table,
+// reached only via wiki.getOntologyManifest/setOntologyManifest) — extend the wire
+// type locally rather than widening the package's strict MemoryDump type.
+export type WikiSyncBundle = MemoryDump['entities'][string] & { ontology?: WikiSyncOntology }
+export type WikiSyncDump = Omit<MemoryDump, 'entities'> & { entities: Record<string, WikiSyncBundle> }
+
+export interface WikiSyncRequest {
+  dump: WikiSyncDump
+}
+
+export interface WikiSyncResponse {
+  remoteDump: WikiSyncDump
+}
+
 type Callable<Req, Res> = (payload: Req) => Promise<{ data: Res }>
 type OptionalCallable<Req, Res> = (payload?: Req) => Promise<{ data: Res }>
 
@@ -133,14 +157,6 @@ export interface WikiLlmRequest {
 
 export interface WikiLlmResponse {
   text: string
-}
-
-export interface WikiSyncRequest {
-  dump: MemoryDump
-}
-
-export interface WikiSyncResponse {
-  remoteDump: MemoryDump
 }
 
 // Keep in sync with GenerateEmbeddingTaskType in functions/src/generateEmbedding.ts

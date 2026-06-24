@@ -3,13 +3,22 @@ import { getCurrentTimeManifest, escalateToCloudManifest } from '@equationalappl
 
 export type ToolTier = 'both' | 'cloud-only' | 'edge-only'
 
+type ToolSchemaProperty = {
+  type: string
+  description?: string
+  enum?: string[]
+  minimum?: number
+  maximum?: number
+  items?: ToolSchemaProperty
+}
+
 export interface ToolManifest {
   name: string
   tier: ToolTier
   description: string
   parameters: {
     type: 'object'
-    properties: Record<string, { type: string; description?: string }>
+    properties: Record<string, ToolSchemaProperty>
     required?: string[]
   }
 }
@@ -97,6 +106,27 @@ export const agentToolSpec: ToolManifest[] = [
       type: 'object',
       properties: { query: { type: 'string', description: 'What to search for in documents.' } },
       required: ['query'],
+    },
+  },
+  {
+    name: 'wiki_get_ontology',
+    tier: 'edge-only',
+    description: "Retrieve the current ontology manifest (allowed node types and edge types) for the user's memory. Use this to understand the structure of the knowledge graph before traversing it.",
+    parameters: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'wiki_traverse_graph',
+    tier: 'edge-only',
+    description: 'Traverse the knowledge graph starting from a specific fact ID to discover connected concepts and relationships. Returns a formatted neighborhood subgraph.',
+    parameters: {
+      type: 'object',
+      properties: {
+        sourceId: { type: 'string', description: 'The exact ID of the starting fact node (obtained from a previous wiki_read call).' },
+        maxDepth: { type: 'integer', minimum: 1, maximum: 3, description: 'How many relationship hops to traverse. Maximum allowed is 3.' },
+        direction: { type: 'string', enum: ['inbound', 'outbound', 'both'], description: "Direction of relationships to follow. Default 'both'." },
+        edgeTypes: { type: 'array', items: { type: 'string' }, description: 'Optional filter. If provided, traversal only follows these edge types.' },
+      },
+      required: ['sourceId'],
     },
   },
   {

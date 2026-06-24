@@ -6,7 +6,7 @@ import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {creditService as defaultCreditService} from "./services/creditService.js";
 import {getDb} from "./db/cloudSql.js";
-import {llmWikiEntries, llmWikiTasks, llmWikiEvents, characters} from "./db/schema.js";
+import {llmWikiEntries, llmWikiTasks, llmWikiEvents, llmWikiEdges, llmWikiOntology, characters} from "./db/schema.js";
 
 const DEFAULT_REGION = "us-central1";
 
@@ -47,10 +47,31 @@ interface WikiEvent {
   created_at: number;
 }
 
+interface WikiEdge {
+  id: string;
+  entity_id: string;
+  source_id: string;
+  target_id: string;
+  edge_type: string;
+  created_at: number;
+}
+
+interface WikiOntologyManifest {
+  node_types: { type: string; description: string }[];
+  edge_types: { type: string; source_type: string; target_type: string; description: string }[];
+}
+
+interface WikiOntology {
+  mode: 'strict' | 'emergent' | 'off';
+  manifest: WikiOntologyManifest | null;
+}
+
 interface MemoryBundle {
   facts: WikiFact[];
   tasks: WikiTask[];
   events: WikiEvent[];
+  edges?: WikiEdge[];
+  ontology?: WikiOntology;
 }
 
 export interface MemoryDump {
@@ -73,6 +94,7 @@ const MAX_ENTITIES = 50;
 const MAX_FACTS_PER_ENTITY = 500;
 const MAX_TASKS_PER_ENTITY = 200;
 const MAX_EVENTS_PER_ENTITY = 500;
+const MAX_EDGES_PER_ENTITY = 500;
 /** 30-day event retention window in milliseconds — matches runPrune retainEventsFor policy. */
 const WIKI_EVENTS_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -90,6 +112,50 @@ function assertNumber(value: unknown, label: string): void {
   if (typeof value !== "number" || !isFinite(value)) {
     throw new HttpsError("invalid-argument", `${label} must be a finite number.`);
   }
+}
+
+const VALID_ONTOLOGY_MODE = new Set(["strict", "emergent", "off"]);
+
+function validateOntology(ontology: unknown, label: string): void {
+  if (!ontology || typeof ontology !== "object" || Array.isArray(ontology)) {
+    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  }
+  const o = ontology as Record<string, unknown>;
+  assertString(o.mode, `${label}.mode`);
+  if (!VALID_ONTOLOGY_MODE.has(o.mode as string)) {
+    throw new HttpsError("invalid-argument", `${label}.mode must be one of: strict, emergent, off.`);
+  }
+  if (o.mode === "off" && o.manifest == null) {
+    return;
+  }
+  if (!o.manifest || typeof o.manifest !== "object" || Array.isArray(o.manifest)) {
+    throw new HttpsError("invalid-argument", `${label}.manifest must be an object (or null when mode is "off").`);
+  }
+  const m = o.manifest as Record<string, unknown>;
+  if (!Array.isArray(m.node_types)) {
+    throw new HttpsError("invalid-argument", `${label}.manifest.node_types must be an array.`);
+  }
+  if (!Array.isArray(m.edge_types)) {
+    throw new HttpsError("invalid-argument", `${label}.manifest.edge_types must be an array.`);
+  }
+  m.node_types.forEach((n, i) => {
+    if (!n || typeof n !== "object" || Array.isArray(n)) {
+      throw new HttpsError("invalid-argument", `${label}.manifest.node_types[${i}] must be an object.`);
+    }
+    const node = n as Record<string, unknown>;
+    assertString(node.type, `${label}.manifest.node_types[${i}].type`);
+    assertString(node.description, `${label}.manifest.node_types[${i}].description`);
+  });
+  m.edge_types.forEach((e, i) => {
+    if (!e || typeof e !== "object" || Array.isArray(e)) {
+      throw new HttpsError("invalid-argument", `${label}.manifest.edge_types[${i}] must be an object.`);
+    }
+    const edge = e as Record<string, unknown>;
+    assertString(edge.type, `${label}.manifest.edge_types[${i}].type`);
+    assertString(edge.source_type, `${label}.manifest.edge_types[${i}].source_type`);
+    assertString(edge.target_type, `${label}.manifest.edge_types[${i}].target_type`);
+    assertString(edge.description, `${label}.manifest.edge_types[${i}].description`);
+  });
 }
 
 function validateFact(fact: unknown, entityId: string, label: string): void {
@@ -203,6 +269,24 @@ function validateEvent(event: unknown, entityId: string, label: string): void {
   assertNumber(e.created_at, `${label}.created_at`);
 }
 
+function validateEdge(edge: unknown, entityId: string, label: string): void {
+  if (!edge || typeof edge !== "object" || Array.isArray(edge)) {
+    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  }
+  const e = edge as Record<string, unknown>;
+  assertString(e.id, `${label}.id`);
+  if (e.entity_id !== entityId) {
+    throw new HttpsError(
+      "invalid-argument",
+      `${label}.entity_id must match the entity key "${entityId}".`
+    );
+  }
+  assertString(e.source_id, `${label}.source_id`);
+  assertString(e.target_id, `${label}.target_id`);
+  assertString(e.edge_type, `${label}.edge_type`);
+  assertNumber(e.created_at, `${label}.created_at`);
+}
+
 function parseInput(data: unknown): MemoryDump {
   if (!data || typeof data !== "object") {
     throw new HttpsError("invalid-argument", "Request body must be an object.");
@@ -248,6 +332,10 @@ function parseInput(data: unknown): MemoryDump {
     if (!Array.isArray(b.events)) {
       throw new HttpsError("invalid-argument", `Entity "${entityId}".events must be an array.`);
     }
+    if (b.edges !== undefined && !Array.isArray(b.edges)) {
+      throw new HttpsError("invalid-argument", `Entity "${entityId}".edges must be an array.`);
+    }
+    const edges = (b.edges as unknown[] | undefined) ?? [];
 
     if (b.facts.length > MAX_FACTS_PER_ENTITY) {
       throw new HttpsError(
@@ -267,10 +355,20 @@ function parseInput(data: unknown): MemoryDump {
         `Entity "${entityId}" may not contain more than ${MAX_EVENTS_PER_ENTITY} events.`
       );
     }
+    if (edges.length > MAX_EDGES_PER_ENTITY) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Entity "${entityId}" may not contain more than ${MAX_EDGES_PER_ENTITY} edges.`
+      );
+    }
 
     b.facts.forEach((f: unknown, i: number) => validateFact(f, entityId, `Entity "${entityId}".facts[${i}]`));
     b.tasks.forEach((t: unknown, i: number) => validateTask(t, entityId, `Entity "${entityId}".tasks[${i}]`));
     b.events.forEach((e: unknown, i: number) => validateEvent(e, entityId, `Entity "${entityId}".events[${i}]`));
+    edges.forEach((e: unknown, i: number) => validateEdge(e, entityId, `Entity "${entityId}".edges[${i}]`));
+    if (b.ontology !== undefined) {
+      validateOntology(b.ontology, `Entity "${entityId}".ontology`);
+    }
   }
 
   return d.dump as unknown as MemoryDump;
@@ -323,6 +421,19 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
     summary: string;
     created_at: string;
   };
+  type EdgeRow = {
+    id: string;
+    entity_id: string;
+    source_id: string;
+    target_id: string;
+    edge_type: string;
+    created_at: string;
+  };
+  type OntologyRow = {
+    entity_id: string;
+    mode: string;
+    manifest: unknown;
+  };
 
   // Format entity IDs as PostgreSQL array literal for ANY() operator.
   // Build the SQL dynamically to avoid parameterization issues with array casts.
@@ -334,7 +445,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
     `ARRAY[${entityIds.map((id) => `'${id}'::uuid`).join(',')}]`
   );
 
-  const [factResult, taskResult, eventResult] = await Promise.all([
+  const [factResult, taskResult, eventResult, edgeResult, ontologyResult] = await Promise.all([
     db.execute<FactRow>(sql`
       WITH ranked AS (
         SELECT *,
@@ -375,11 +486,28 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       )
       SELECT * FROM ranked WHERE rn <= ${MAX_EVENTS_PER_ENTITY}
     `),
+    db.execute<EdgeRow>(sql`
+      WITH ranked AS (
+        SELECT *,
+          ROW_NUMBER() OVER (
+            PARTITION BY entity_id
+            ORDER BY created_at DESC, id DESC
+          ) AS rn
+        FROM llm_wiki_edges
+        WHERE entity_id = ANY(${arrayLiteral})
+          AND user_id = ${userId}::uuid
+      )
+      SELECT * FROM ranked WHERE rn <= ${MAX_EDGES_PER_ENTITY}
+    `),
+    db.execute<OntologyRow>(sql`
+      SELECT entity_id, mode, manifest FROM llm_wiki_ontology
+      WHERE entity_id = ANY(${arrayLiteral}) AND user_id = ${userId}::uuid
+    `),
   ]);
 
   const entities: Record<string, MemoryBundle> = {};
   for (const entityId of entityIds) {
-    entities[entityId] = {facts: [], tasks: [], events: []};
+    entities[entityId] = {facts: [], tasks: [], events: [], edges: []};
   }
 
   for (const r of factResult.rows) {
@@ -429,6 +557,28 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       summary: r.summary,
       created_at: Number(r.created_at),
     });
+  }
+
+  for (const r of edgeResult.rows) {
+    const entity = entities[r.entity_id];
+    if (!entity) continue;
+    entity.edges!.push({
+      id: r.id,
+      entity_id: r.entity_id,
+      source_id: r.source_id,
+      target_id: r.target_id,
+      edge_type: r.edge_type,
+      created_at: Number(r.created_at),
+    });
+  }
+
+  for (const r of ontologyResult.rows) {
+    const entity = entities[r.entity_id];
+    if (!entity) continue;
+    entity.ontology = {
+      mode: r.mode as WikiOntology['mode'],
+      manifest: (r.manifest ?? null) as WikiOntology['manifest'],
+    };
   }
 
   return {generatedAt: Date.now(), entities};
@@ -525,6 +675,43 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
             }))
           )
           .onConflictDoNothing();
+      }
+
+      if (bundle.edges && bundle.edges.length > 0) {
+        await tx
+          .insert(llmWikiEdges)
+          .values(
+            bundle.edges.map((e) => ({
+              id: e.id,
+              entityId,
+              userId,
+              sourceId: e.source_id,
+              targetId: e.target_id,
+              edgeType: e.edge_type,
+              createdAt: e.created_at,
+            }))
+          )
+          .onConflictDoNothing();
+      }
+
+      if (bundle.ontology) {
+        await tx
+          .insert(llmWikiOntology)
+          .values({
+            entityId,
+            userId,
+            mode: bundle.ontology.mode,
+            manifest: bundle.ontology.manifest,
+            updatedAt: Date.now(),
+          })
+          .onConflictDoUpdate({
+            target: [llmWikiOntology.entityId, llmWikiOntology.userId],
+            set: {
+              mode: sql`excluded.mode`,
+              manifest: sql`excluded.manifest`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
       }
     }
   });

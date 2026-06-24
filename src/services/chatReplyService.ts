@@ -9,6 +9,7 @@ interface GenerateChatReplyInput {
   referenceId?: string
   unsyncedHistory?: SyncMessage[]
   characterId?: string  // forwarded to Firebase for bulk insert
+  tools?: { name: string; description: string; parameters: object }[]
 }
 
 const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000
@@ -41,6 +42,7 @@ interface GenerateReplyCallableResponse {
   planStatus?: 'active' | 'cancelled' | 'expired' | null
   verifiedAt?: string
   groundingMetadata?: unknown
+  functionCalls?: { name: string; args?: Record<string, unknown> }[]
 }
 
 export interface GenerateChatReplyResult {
@@ -50,6 +52,7 @@ export interface GenerateChatReplyResult {
   planStatus: 'active' | 'cancelled' | 'expired' | null
   verifiedAt: string
   groundingMetadata?: GroundingMetadata
+  functionCalls?: { name: string; args?: Record<string, unknown> }[]
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -98,6 +101,7 @@ export async function generateChatReply({
   referenceId,
   unsyncedHistory,
   characterId,
+  tools,
 }: GenerateChatReplyInput): Promise<GenerateChatReplyResult> {
   const trimmedPrompt = typeof prompt === 'string' ? prompt.trim() : ''
 
@@ -138,10 +142,18 @@ export async function generateChatReply({
     payload.systemInstruction = systemInstruction.trim()
   }
 
+  if (tools !== undefined) {
+    payload.tools = tools
+  }
+
   const result = await generateReplyFn(payload)
 
   const data = result.data as GenerateReplyCallableResponse
-  if (!data?.reply || typeof data.reply !== 'string') {
+  const functionCalls = Array.isArray(data?.functionCalls) && data.functionCalls.length > 0
+    ? data.functionCalls
+    : undefined
+
+  if (!functionCalls && (!data?.reply || typeof data.reply !== 'string')) {
     throw new Error('Invalid generateReply response payload')
   }
   const verifiedAt = typeof data.verifiedAt === 'string' ? data.verifiedAt.trim() : ''
@@ -150,7 +162,7 @@ export async function generateChatReply({
   }
 
   return {
-    reply: data.reply.trim(),
+    reply: typeof data.reply === 'string' ? data.reply.trim() : '',
     remainingCredits:
       typeof data.remainingCredits === 'number' && Number.isFinite(data.remainingCredits)
         ? data.remainingCredits
@@ -162,5 +174,6 @@ export async function generateChatReply({
         : null,
     verifiedAt,
     groundingMetadata: parseGroundingMetadata(data.groundingMetadata),
+    functionCalls,
   }
 }

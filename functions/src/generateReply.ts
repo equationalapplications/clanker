@@ -25,6 +25,32 @@ const MAX_PROMPT_LENGTH = 12_000;
 const MAX_OUTPUT_TOKENS = 1_024;
 const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000;
 
+// Mirrors the 'both' + 'edge-only' tier tool names from shared/agent-tools-spec.ts.
+// Hardcoded rather than imported: functions/'s tsconfig.json has rootDir: "src" and
+// cannot reach the repo-root shared/ directory without restructuring its build. The
+// client already builds the schema array itself via getSchemasForEdge() and sends it
+// as data, so the server only needs to defend against unexpected tool *names*.
+const ALLOWED_TOOL_NAMES = new Set([
+  "get_current_time",
+  "wiki_read",
+  "wiki_write",
+  "create_task",
+  "list_tasks",
+  "update_task",
+  "complete_task",
+  "delete_task",
+  "document_search",
+  "escalate_to_cloud_agent",
+  "wiki_get_ontology",
+  "wiki_traverse_graph",
+]);
+
+interface ToolDeclaration {
+  name: string;
+  description: string;
+  parameters: object;
+}
+
 function validateStructuredPayloadSize(contents: unknown[], systemInstruction: string): void {
   let serialized: string;
 
@@ -47,7 +73,7 @@ function validateStructuredPayloadSize(contents: unknown[], systemInstruction: s
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function validateStructuredContents(contents: unknown[]): void {
@@ -75,19 +101,72 @@ function validateStructuredContents(contents: unknown[]): void {
       if (!isPlainObject(part)) {
         throw new HttpsError(
           "invalid-argument",
-          `contents[${index}].parts[${partIndex}] must be an object with a text string.`,
+          `contents[${index}].parts[${partIndex}] must be an object with a text string, functionCall, or functionResponse.`,
         );
       }
 
       const text = (part as { text?: unknown }).text;
-      if (typeof text !== "string") {
-        throw new HttpsError(
-          "invalid-argument",
-          `contents[${index}].parts[${partIndex}].text must be a string.`,
-        );
+      if (typeof text === "string") {
+        continue;
       }
+
+      const functionCall = (part as { functionCall?: unknown }).functionCall;
+      if (isPlainObject(functionCall) && typeof (functionCall as { name?: unknown }).name === "string") {
+        continue;
+      }
+
+      const functionResponse = (part as { functionResponse?: unknown }).functionResponse;
+      if (
+        isPlainObject(functionResponse) &&
+        typeof (functionResponse as { name?: unknown }).name === "string" &&
+        isPlainObject((functionResponse as { response?: unknown }).response)
+      ) {
+        continue;
+      }
+
+      throw new HttpsError(
+        "invalid-argument",
+        `contents[${index}].parts[${partIndex}] must be an object with a text string, functionCall, or functionResponse.`,
+      );
     }
   }
+}
+
+function validateToolsPayloadSize(tools: ToolDeclaration[]): void {
+  let serialized: string;
+
+  try {
+    serialized = JSON.stringify(tools);
+  } catch {
+    throw new HttpsError("invalid-argument", "tools must be JSON-serializable.");
+  }
+
+  const payloadSize = Buffer.byteLength(serialized, "utf8");
+  if (payloadSize > MAX_STRUCTURED_PAYLOAD_SIZE) {
+    throw new HttpsError(
+      "invalid-argument",
+      `tools must serialize to at most ${MAX_STRUCTURED_PAYLOAD_SIZE} bytes.`,
+    );
+  }
+}
+
+function validateTools(tools: unknown[]): ToolDeclaration[] {
+  return tools.map((tool, index) => {
+    if (!isPlainObject(tool)) {
+      throw new HttpsError("invalid-argument", `tools[${index}] must be an object.`);
+    }
+    const t = tool as Record<string, unknown>;
+    if (typeof t.name !== "string" || typeof t.description !== "string" || !isPlainObject(t.parameters)) {
+      throw new HttpsError(
+        "invalid-argument",
+        `tools[${index}] must have a string name, string description, and object parameters.`,
+      );
+    }
+    if (!ALLOWED_TOOL_NAMES.has(t.name)) {
+      throw new HttpsError("invalid-argument", `tools[${index}].name "${t.name}" is not a recognized tool.`);
+    }
+    return { name: t.name, description: t.description, parameters: t.parameters as object };
+  });
 }
 
 function trimSystemInstruction(systemInstruction: string, contents: unknown[], maxBytes: number = MAX_STRUCTURED_PAYLOAD_SIZE): string {
@@ -142,6 +221,7 @@ interface GenerateReplyData {
   prompt?: string;
   contents?: unknown[];
   systemInstruction?: string;
+  tools?: unknown[];
   unsyncedHistory?: SyncMessage[];
   referenceId?: string;
 }
@@ -155,12 +235,18 @@ export interface GenerateReplyResponse {
   verifiedAt: string;
   messageId?: string;
   groundingMetadata?: GroundingMetadata;
+  functionCalls?: { name: string; args?: Record<string, unknown> }[];
 }
+
+type GenerateTextResult =
+  | { text: string; groundingMetadata?: GroundingMetadata; functionCalls?: undefined }
+  | { functionCalls: { name: string; args?: Record<string, unknown> }[]; text?: undefined; groundingMetadata?: undefined };
 
 type GenerateTextFn = (input: {
   contents: unknown[];
   systemInstruction: string;
-}) => Promise<{ text: string; groundingMetadata?: GroundingMetadata }>;
+  tools?: ToolDeclaration[];
+}) => Promise<GenerateTextResult>;
 type GetDbFn = () => Promise<Pick<Awaited<ReturnType<typeof getDb>>, 'insert' | 'select'>>;
 
 interface GenerateReplyOptions {
@@ -221,17 +307,25 @@ export function toGenAITool(entry: GeminiToolEntry): Tool {
   throw new Error('Unsupported tool entry');
 }
 
+export function buildToolsForRequest(tools?: ToolDeclaration[]): Tool[] {
+  if (tools && tools.length > 0) {
+    return [{ functionDeclarations: tools as Tool['functionDeclarations'] }];
+  }
+  return buildAuthorizedToolsArray([googleSearchManifest], []).map(toGenAITool);
+}
+
 function getTextGenerator(): GenerateTextFn {
   if (textGenerator) {
     return textGenerator;
   }
 
-  textGenerator = async (input: {
+  const generator: GenerateTextFn = async (input: {
     contents: unknown[];
     systemInstruction: string;
+    tools?: ToolDeclaration[];
   }) => {
     const ai = getGenAIClient();
-    const tools = buildAuthorizedToolsArray([googleSearchManifest], []).map(toGenAITool);
+    const tools = buildToolsForRequest(input.tools);
 
     const result = await ai.models.generateContent({
       model: DEFAULT_MODEL,
@@ -243,6 +337,16 @@ function getTextGenerator(): GenerateTextFn {
         tools,
       },
     });
+
+    if (result.functionCalls && result.functionCalls.length > 0) {
+      return {
+        functionCalls: result.functionCalls.map((fc) => ({
+          name: fc.name ?? "",
+          args: fc.args as Record<string, unknown> | undefined,
+        })),
+      };
+    }
+
     const candidates = result.candidates ?? [];
 
     for (const candidate of candidates) {
@@ -260,13 +364,15 @@ function getTextGenerator(): GenerateTextFn {
     throw new HttpsError("internal", "Model returned an empty response.");
   };
 
-  return textGenerator;
+  textGenerator = generator;
+  return generator;
 }
 
 function parseInput(data: unknown): {
   prompt?: string;
   contents?: unknown[];
   systemInstruction?: string;
+  tools?: ToolDeclaration[];
   characterId?: string;
   unsyncedHistory?: SyncMessage[];
   referenceId?: string;
@@ -295,6 +401,16 @@ function parseInput(data: unknown): {
 
     validateStructuredContents(contentsValue);
     contents = contentsValue;
+  }
+
+  const toolsValue = payload?.tools;
+  let tools: ToolDeclaration[] | undefined;
+  if (toolsValue !== undefined) {
+    if (!Array.isArray(toolsValue)) {
+      throw new HttpsError("invalid-argument", "tools must be an array when provided.");
+    }
+    tools = validateTools(toolsValue);
+    validateToolsPayloadSize(tools);
   }
 
   const systemInstructionValue = payload?.systemInstruction;
@@ -369,7 +485,7 @@ function parseInput(data: unknown): {
     });
   }
 
-  return { prompt, contents, systemInstruction, characterId, unsyncedHistory, referenceId };
+  return { prompt, contents, systemInstruction, tools, characterId, unsyncedHistory, referenceId };
 }
 
 async function chargeForReply(
@@ -406,7 +522,7 @@ const handler = async (
   }
 
   const parsed = parseInput(request.data);
-  const { prompt, characterId, unsyncedHistory, contents, systemInstruction } = parsed;
+  const { prompt, characterId, unsyncedHistory, contents, systemInstruction, tools } = parsed;
 
   if (prompt && !contents) {
     // Legacy prompt callers must upgrade to structured payloads.
@@ -494,8 +610,26 @@ const handler = async (
     const generated = await generateText({
       contents: contents ?? [],
       systemInstruction: systemInstruction ?? '',
+      tools,
     });
-    reply = generated.text.trim();
+
+    if (generated.functionCalls && generated.functionCalls.length > 0) {
+      const usageSnapshot = await buildUsageSnapshotForUser(
+        user.id,
+        subscriptionService,
+        'generateReply'
+      );
+
+      return {
+        reply: '',
+        functionCalls: generated.functionCalls,
+        creditsSpent: 1,
+        remainingCredits,
+        ...usageSnapshot,
+      };
+    }
+
+    reply = (generated.text ?? '').trim();
     if (!reply) {
       throw new HttpsError("internal", "Model returned an empty chat response.");
     }
