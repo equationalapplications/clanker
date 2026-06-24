@@ -36,6 +36,9 @@ jest.mock('~/utilities/kvStorage', () => ({
   Storage: { getItem: jest.fn(), setItem: jest.fn() },
 }))
 jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
+jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+  isDevSandboxEnabled: jest.fn(() => process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true'),
+}))
 jest.mock('~/services/apiClient', () => ({
   syncCharacterFn: jest.fn(),
   deleteCharacterFn: jest.fn(),
@@ -104,6 +107,25 @@ describe('syncWikiForCloud orchestration path', () => {
     await syncAllToCloud('user-1')
 
     expect(mockSyncAll).not.toHaveBeenCalled()
+  })
+
+  it('skips Firebase cloud sync when dev sandbox mock auth is enabled', async () => {
+    const previous = process.env.EXPO_PUBLIC_USE_MOCK_AUTH
+    process.env.EXPO_PUBLIC_USE_MOCK_AUTH = 'true'
+    try {
+      mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+
+      await syncAllToCloud('user-1')
+
+      expect(mockSyncAll).not.toHaveBeenCalled()
+      expect(mockGetAllCharactersIncludingDeleted).not.toHaveBeenCalled()
+    } finally {
+      if (previous === undefined) {
+        delete process.env.EXPO_PUBLIC_USE_MOCK_AUTH
+      } else {
+        process.env.EXPO_PUBLIC_USE_MOCK_AUTH = previous
+      }
+    }
   })
 
   it('routes sync through wikiOrchestrator.syncAll', async () => {

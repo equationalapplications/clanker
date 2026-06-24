@@ -1,9 +1,13 @@
-import 'dotenv/config'
+import dotenv from 'dotenv'
 import { ExpoConfig, ConfigContext } from 'expo/config'
 import fs from 'fs'
 import path from 'path'
 
 import * as pkg from './package.json'
+
+dotenv.config()
+// Load .env.local after .env so dev-sandbox flags (e.g. EXPO_PUBLIC_USE_MOCK_AUTH) apply.
+dotenv.config({ path: '.env.local', override: true })
 
 const breakingChangeVersion = pkg.version.split('.')[0]
 

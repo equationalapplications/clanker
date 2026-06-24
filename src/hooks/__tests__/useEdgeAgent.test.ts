@@ -37,6 +37,12 @@ jest.mock('~/services/CharacterPromptBuilder', () => ({
   buildContentHistory: () => [],
 }))
 
+const mockIsDevSandboxEnabled = jest.fn(() => false)
+jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+  isDevSandboxEnabled: () => mockIsDevSandboxEnabled(),
+  ensureDevSandboxCharacter: jest.fn(),
+}))
+
 const character = {
   id: 'char-1',
   name: 'Aria',
@@ -48,13 +54,41 @@ const character = {
 
 const priorMessages: IMessage[] = []
 
+const usageFields = {
+  remainingCredits: 42,
+  planTier: 'free',
+  planStatus: 'active' as const,
+  verifiedAt: '2026-06-24T00:00:00.000Z',
+}
+
 beforeEach(() => {
   jest.clearAllMocks()
+  mockIsDevSandboxEnabled.mockReturnValue(false)
+  process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = ''
 })
 
 describe('useEdgeAgent', () => {
+  it('escalates immediately in dev sandbox without calling generateReply', async () => {
+    mockIsDevSandboxEnabled.mockReturnValue(true)
+    process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://localhost:8080'
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
+    )
+
+    let response: { escalated: boolean; text?: string } | undefined
+    await act(async () => {
+      response = await result.current.sendMessage('Hi there')
+    })
+
+    expect(response).toEqual({ escalated: true, usageSnapshot: null })
+    expect(mockGenerateChatReply).not.toHaveBeenCalled()
+    expect(result.current.escalationState).toBe('escalating')
+    expect(result.current.isThinking).toBe(false)
+  })
+
   it('returns escalated:false and text when the model returns a text reply with no functionCalls', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: 'Hello! How are you?', functionCalls: undefined })
+    mockGenerateChatReply.mockResolvedValue({ reply: 'Hello! How are you?', functionCalls: undefined, ...usageFields })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
@@ -65,14 +99,18 @@ describe('useEdgeAgent', () => {
       response = await result.current.sendMessage('Hi there')
     })
 
-    expect(response).toEqual({ escalated: false, text: 'Hello! How are you?' })
+    expect(response).toEqual({
+      escalated: false,
+      text: 'Hello! How are you?',
+      usageSnapshot: usageFields,
+    })
     expect(result.current.escalationState).toBe('idle')
   })
 
   it('executes get_current_time and loops to a final text reply', async () => {
     mockGenerateChatReply
-      .mockResolvedValueOnce({ reply: '', functionCalls: [{ name: 'get_current_time', args: {} }] })
-      .mockResolvedValueOnce({ reply: 'It is Thursday.', functionCalls: undefined })
+      .mockResolvedValueOnce({ reply: '', functionCalls: [{ name: 'get_current_time', args: {} }], ...usageFields, remainingCredits: 41 })
+      .mockResolvedValueOnce({ reply: 'It is Thursday.', functionCalls: undefined, ...usageFields })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
@@ -83,13 +121,17 @@ describe('useEdgeAgent', () => {
       response = await result.current.sendMessage('What time is it?')
     })
 
-    expect(response).toEqual({ escalated: false, text: 'It is Thursday.' })
+    expect(response).toEqual({
+      escalated: false,
+      text: 'It is Thursday.',
+      usageSnapshot: usageFields,
+    })
     expect(mockGenerateChatReply).toHaveBeenCalledTimes(2)
     expect(mockExecutors.get_current_time).toHaveBeenCalledWith({})
   })
 
   it('escalates when the model calls escalate_to_cloud_agent', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'escalate_to_cloud_agent', args: {} }] })
+    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'escalate_to_cloud_agent', args: {} }], ...usageFields })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
@@ -100,14 +142,14 @@ describe('useEdgeAgent', () => {
       response = await result.current.sendMessage('Remind me to call mom tomorrow')
     })
 
-    expect(response?.escalated).toBe(true)
+    expect(response).toEqual({ escalated: true, usageSnapshot: usageFields })
     expect(result.current.escalationState).toBe('escalating')
   })
 
   it('ignores hallucinated escalate_to_cloud_agent for local-only characters', async () => {
     mockGenerateChatReply
-      .mockResolvedValueOnce({ reply: '', functionCalls: [{ name: 'escalate_to_cloud_agent', args: {} }] })
-      .mockResolvedValueOnce({ reply: 'Handled locally', functionCalls: undefined })
+      .mockResolvedValueOnce({ reply: '', functionCalls: [{ name: 'escalate_to_cloud_agent', args: {} }], ...usageFields })
+      .mockResolvedValueOnce({ reply: 'Handled locally', functionCalls: undefined, ...usageFields })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
@@ -118,13 +160,17 @@ describe('useEdgeAgent', () => {
       response = await result.current.sendMessage('Remind me to call mom tomorrow')
     })
 
-    expect(response).toEqual({ escalated: false, text: 'Handled locally' })
+    expect(response).toEqual({
+      escalated: false,
+      text: 'Handled locally',
+      usageSnapshot: usageFields,
+    })
     expect(result.current.escalationState).toBe('idle')
     expect(mockGenerateChatReply).toHaveBeenCalledTimes(2)
   })
 
   it('escalates automatically when MAX_ITERATIONS (5) is reached for cloud-synced characters', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'get_current_time', args: {} }] })
+    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'get_current_time', args: {} }], ...usageFields })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
@@ -135,13 +181,13 @@ describe('useEdgeAgent', () => {
       response = await result.current.sendMessage('Loop forever')
     })
 
-    expect(response?.escalated).toBe(true)
+    expect(response).toEqual({ escalated: true, usageSnapshot: usageFields })
     expect(result.current.escalationState).toBe('escalating')
     expect(mockGenerateChatReply).toHaveBeenCalledTimes(5)
   })
 
   it('returns no text (no escalation) when MAX_ITERATIONS is reached for local-only characters', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'get_current_time', args: {} }] })
+    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'get_current_time', args: {} }], ...usageFields })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
@@ -152,7 +198,7 @@ describe('useEdgeAgent', () => {
       response = await result.current.sendMessage('Loop forever')
     })
 
-    expect(response).toEqual({ escalated: false })
+    expect(response).toEqual({ escalated: false, usageSnapshot: usageFields })
     expect(result.current.escalationState).toBe('idle')
     expect(mockGenerateChatReply).toHaveBeenCalledTimes(5)
   })
@@ -169,7 +215,7 @@ describe('useEdgeAgent', () => {
       response = await result.current.sendMessage('Hello')
     })
 
-    expect(response).toEqual({ escalated: true })
+    expect(response).toEqual({ escalated: true, usageSnapshot: null })
   })
 
   it('isThinking is true during the call and false after it resolves', async () => {
@@ -190,7 +236,7 @@ describe('useEdgeAgent', () => {
     expect(result.current.isThinking).toBe(true)
 
     await act(async () => {
-      resolveReply({ reply: 'Hi!', functionCalls: undefined })
+      resolveReply({ reply: 'Hi!', functionCalls: undefined, ...usageFields })
     })
 
     expect(result.current.isThinking).toBe(false)
@@ -198,7 +244,7 @@ describe('useEdgeAgent', () => {
   })
 
   it('passes characterId and wiki to createEdgeToolExecutors', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: 'Hi!', functionCalls: undefined })
+    mockGenerateChatReply.mockResolvedValue({ reply: 'Hi!', functionCalls: undefined, ...usageFields })
     const mockWiki = { id: 'wiki-1' } as never
 
     const { result } = renderHook(() =>
@@ -213,7 +259,7 @@ describe('useEdgeAgent', () => {
   })
 
   it('passes tools from getSchemasForEdge to generateChatReply', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: 'Hi!', functionCalls: undefined })
+    mockGenerateChatReply.mockResolvedValue({ reply: 'Hi!', functionCalls: undefined, ...usageFields })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),

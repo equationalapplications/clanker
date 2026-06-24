@@ -29,6 +29,7 @@ import { useInitializeApp } from '~/hooks/useInitializeApp'
 import { authMachine } from '~/machines/authMachine'
 import { termsMachine } from '~/machines/termsMachine'
 import { characterMachine } from '~/machines/characterMachine'
+import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
 import {
   GlobalStateContext,
   useAuthMachine,
@@ -66,6 +67,7 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
 
   // authMachine → characterMachine: forward user changes (deduplicated)
   const previousCharacterUserIdRef = useRef<string | null>(null)
+  const previousSignedInRef = useRef(false)
   useEffect(() => {
     const subscription = authService.subscribe((state) => {
       const userId = state.context.user?.uid ?? null
@@ -73,6 +75,12 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
         previousCharacterUserIdRef.current = userId
         characterService.send({ type: 'USER_CHANGED', userId })
       }
+
+      const isSignedIn = state.matches('signedIn')
+      if (isSignedIn && !previousSignedInRef.current && isDevSandboxEnabled()) {
+        characterService.send({ type: 'LOAD' })
+      }
+      previousSignedInRef.current = isSignedIn
     })
     return subscription.unsubscribe
   }, [authService, characterService])

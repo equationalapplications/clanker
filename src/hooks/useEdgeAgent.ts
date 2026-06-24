@@ -5,9 +5,17 @@ import type { Character } from '~/services/aiChatService'
 import type { Wiki } from '~/services/wikiService'
 import { buildSystemInstruction, buildContentHistory } from '~/services/CharacterPromptBuilder'
 import { createEdgeToolExecutors } from '~/services/edgeToolExecutors'
-import { generateChatReply } from '~/services/chatReplyService'
+import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
+import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
+import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
 
 export type EscalationState = 'idle' | 'escalating'
+
+export interface EdgeAgentSendResult {
+  escalated: boolean
+  text?: string
+  usageSnapshot?: UsageSnapshotPayload | null
+}
 
 export interface UseEdgeAgentOptions {
   character: Character
@@ -18,7 +26,7 @@ export interface UseEdgeAgentOptions {
 }
 
 export interface UseEdgeAgentReturn {
-  sendMessage: (userText: string, memoryBlock?: string) => Promise<{ escalated: boolean; text?: string }>
+  sendMessage: (userText: string, memoryBlock?: string) => Promise<EdgeAgentSendResult>
   isThinking: boolean
   escalationState: EscalationState
 }
@@ -31,6 +39,15 @@ type ChatContent = { role: 'user' | 'model'; parts: ContentPart[] }
 
 const MAX_ITERATIONS = 5
 
+function toUsageSnapshot(result: GenerateChatReplyResult): UsageSnapshotPayload {
+  return {
+    remainingCredits: result.remainingCredits,
+    planTier: result.planTier,
+    planStatus: result.planStatus,
+    verifiedAt: result.verifiedAt,
+  }
+}
+
 export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, wiki }: UseEdgeAgentOptions): UseEdgeAgentReturn {
   const [isThinking, setIsThinking] = useState(false)
   const [escalationState, setEscalationState] = useState<EscalationState>('idle')
@@ -41,9 +58,11 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
   }, [priorMessages])
 
   const sendMessage = useCallback(
-    async (userText: string, memoryBlock?: string): Promise<{ escalated: boolean; text?: string }> => {
+    async (userText: string, memoryBlock?: string): Promise<EdgeAgentSendResult> => {
       setIsThinking(true)
       setEscalationState('idle')
+
+      let latestUsageSnapshot: UsageSnapshotPayload | null = null
 
       const systemInstruction = buildSystemInstruction({ character, userId, memoryBlock })
       const historyContents = buildContentHistory(priorMessagesRef.current, userId)
@@ -56,6 +75,11 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
       ]
 
       try {
+        if (isDevSandboxEnabled() && process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
+          setEscalationState('escalating')
+          return { escalated: true, usageSnapshot: latestUsageSnapshot }
+        }
+
         let iterations = 0
 
         while (iterations < MAX_ITERATIONS) {
@@ -66,17 +90,18 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
             systemInstruction,
             tools,
           })
+          latestUsageSnapshot = toUsageSnapshot(result)
 
           const functionCalls = result.functionCalls
 
           if (!functionCalls || functionCalls.length === 0) {
-            return { escalated: false, text: result.reply }
+            return { escalated: false, text: result.reply, usageSnapshot: latestUsageSnapshot }
           }
 
           if (functionCalls.some((fc) => fc.name === 'escalate_to_cloud_agent')) {
             if (isCloudSynced) {
               setEscalationState('escalating')
-              return { escalated: true }
+              return { escalated: true, usageSnapshot: latestUsageSnapshot }
             }
           }
 
@@ -102,16 +127,16 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
 
         if (isCloudSynced) {
           setEscalationState('escalating')
-          return { escalated: true }
+          return { escalated: true, usageSnapshot: latestUsageSnapshot }
         }
 
-        return { escalated: false }
+        return { escalated: false, usageSnapshot: latestUsageSnapshot }
       } catch {
         if (isCloudSynced) {
           setEscalationState('escalating')
-          return { escalated: true }
+          return { escalated: true, usageSnapshot: latestUsageSnapshot }
         }
-        return { escalated: false }
+        return { escalated: false, usageSnapshot: latestUsageSnapshot }
       } finally {
         setIsThinking(false)
       }

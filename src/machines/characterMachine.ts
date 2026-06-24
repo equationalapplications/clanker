@@ -6,6 +6,7 @@ import {
 } from '~/services/characterService'
 import {
   getUserCharacters,
+  getCharacter,
   createCharacter as createCharacterDb,
   updateCharacter as updateCharacterDb,
   deleteCharacter as deleteCharacterDb,
@@ -18,6 +19,7 @@ import {
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 import { loadDefaultAvatarBase64 } from '~/services/defaultAvatarService'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
+import { ensureDevSandboxCharacter, isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
 
 // Events
 type CharacterEvent =
@@ -60,6 +62,20 @@ const createDefaultCharacterActor = fromPromise(
   async ({ input }: { input: { userId: string | null } }) => {
     if (!input.userId) {
       throw new Error('Cannot create default character: no userId')
+    }
+
+    if (isDevSandboxEnabled()) {
+      const devCharacterId = await ensureDevSandboxCharacter(input.userId)
+      if (!devCharacterId) {
+        throw new Error('Failed to provision dev sandbox character')
+      }
+
+      const devCharacter = await getCharacter(devCharacterId, input.userId)
+      if (!devCharacter) {
+        throw new Error('Dev sandbox character missing after provisioning')
+      }
+
+      return devCharacter
     }
 
     let normalizedAvatarData: string | undefined

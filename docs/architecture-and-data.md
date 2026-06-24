@@ -349,6 +349,11 @@ Enable HA when: single-zone maintenance/restart downtime is unacceptable, or rev
 | 11 | `0010_fix_source_type_check.sql` | Fix CHECK constraint |
 | 12 | `0011_credits_redesign.sql` | Credit transactions redesign |
 | 13 | `0012_update_handle_new_user_trigger.sql` | Update signup credit trigger |
+| 14 | `0013_cloud_agent_tasks.sql` | Cloud agent task tracking |
+| 15 | `0015_organizations.sql` | `organizations`/`organization_members` tables |
+| 16 | `0016_llm_wiki_graph.sql` | `llm_wiki_edges`/`llm_wiki_ontology` tables |
+
+> **Gap:** `0014_pgvector_wiki_embeddings.sql` is on disk but **not yet applied** to `clanker-prod` (verified via `information_schema.columns` — `llm_wiki_entries.embedding` does not exist). Unrelated to the three specs in this deploy; flagged here, not applied as part of it.
 
 ### Prerequisites
 
@@ -360,14 +365,20 @@ gcloud auth application-default set-quota-project "${GCP_PROJECT}"
 ### Apply Migrations
 
 1. Set project: `export GCP_PROJECT="your-project-id"`
-2. Fetch secrets from Secret Manager:
-   ```bash
-   export CLOUD_SQL_CONNECTION_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_CONNECTION_NAME --project="${GCP_PROJECT}")
-   export CLOUD_SQL_DB_USER=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_USER --project="${GCP_PROJECT}")
-   export CLOUD_SQL_DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project="${GCP_PROJECT}")
-   export CLOUD_SQL_DB_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_NAME --project="${GCP_PROJECT}")
-   ```
-3. Apply: `cd functions && MIGRATIONS="0013_my_new_migration.sql" node /tmp/migrate.mjs`
+2. Apply: `cd functions && MIGRATIONS="0017_my_new_migration.sql" npm run deploy:migrations`
+
+`deploy:migrations` (`functions/scripts/deploy-migrations.sh`) fetches the four `CLOUD_SQL_*` secrets from Secret Manager, triggers an on-demand native Cloud SQL backup (`functions/scripts/backup-db.sh`, `gcloud sql backups create`) as a pre-migration safeguard, then runs `functions/scripts/migrate.mjs`. Both scripts are checked into the repo so they resolve `@google-cloud/cloud-sql-connector`/`pg` from `functions/node_modules` — do not copy `migrate.mjs` to `/tmp` or elsewhere outside `functions/`, that breaks module resolution.
+
+The backup step can be skipped with `SKIP_BACKUP=true npm run deploy:migrations`, or triggered standalone via `npm run backup:db`. It runs entirely inside Google's infrastructure (no data leaves the cloud boundary, no local bandwidth used) — deliberately not a `pg_dump`-to-laptop approach, which would pull production user data onto local hardware unnecessarily.
+
+To fetch secrets manually instead (e.g. for one-off inspection) or run `migrate.mjs` directly without the wrapper:
+```bash
+export CLOUD_SQL_CONNECTION_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_CONNECTION_NAME --project="${GCP_PROJECT}")
+export CLOUD_SQL_DB_USER=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_USER --project="${GCP_PROJECT}")
+export CLOUD_SQL_DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project="${GCP_PROJECT}")
+export CLOUD_SQL_DB_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_NAME --project="${GCP_PROJECT}")
+MIGRATIONS="0017_my_new_migration.sql" npm run migrate
+```
 
 ### Workflow for Schema Changes
 

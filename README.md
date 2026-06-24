@@ -8,7 +8,8 @@
 - **[Authentication](docs/authentication.md)** — Source of truth, Firebase → Cloud SQL bootstrap flow, auth cache management, provider name sync, event-driven refresh, cookie consent, and optimistic terms acceptance — all in one place.
 
 ### AI & Chat
-- **[AI & Chat](docs/ai-and-chat.md)** — Chat response pipeline (`generateReply`), chat memory summarization, LLM Wiki Memory (structured facts/tasks/events), wiki state machine architecture, image generation (`generateImage`), and local dev setup for `cloud-agent` (Vertex AI ADC via `docker-compose.local.yml`).
+- **[AI & Chat](docs/ai-and-chat.md)** — Chat response pipeline (`generateReply`), chat memory summarization, LLM Wiki Memory (structured facts/tasks/events), wiki state machine architecture, image generation (`generateImage`), and local `cloud-agent` dev (local Postgres + Vertex via ADC; see `docker-compose.local.yml` and `./scripts/migrate-dev.sh`).
+- **[Edge Agent](docs/EDGE_AGENT.md)** — On-device tool orchestration loop (BYOI proxy via `generateReply`), escalation paths, per-round billing, and security policy.
 
 ### Billing & Credits
 - **[Billing & Credits](docs/billing-and-credits.md)** — First-login credits, Stripe and RevenueCat webhook event mappings, web checkout flow, Apple auto-renewable subscription consent, and multi-tab checkout robustness (localStorage + BroadcastChannel).

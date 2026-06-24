@@ -11,9 +11,7 @@ graph LR
   ChatComposer.web --> apiClient
   ChatView --> useMachines
   ChatView --> useCharacters
-  ChatView --> useMessages
   ChatView --> useUserCredits
-  ChatView --> useCharacterWiki
   ChatView --> useAIChat
   CombinedSubscriptionButton --> useCurrentPlan
   CookieConsentBanner --> CookieConsentContext

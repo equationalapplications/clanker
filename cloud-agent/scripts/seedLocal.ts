@@ -1,8 +1,15 @@
 import { sql } from 'drizzle-orm'
 import { getDb } from '../src/db/client.js'
+import {
+  DEV_CLOUD_CHARACTER_ID,
+  DEV_CLOUD_USER_ID,
+  DEV_CHARACTER_NAME,
+  DEV_CHARACTER_TRAITS,
+  DEV_FIREBASE_UID,
+} from '../../shared/dev-sandbox.js'
 
-const USER_ID = '11111111-1111-4111-8111-111111111111'
-const CHARACTER_ID = '22222222-2222-4222-8222-222222222222'
+const USER_ID = DEV_CLOUD_USER_ID
+const CHARACTER_ID = DEV_CLOUD_CHARACTER_ID
 
 /** Generate a deterministic 768‑dimensional mock embedding vector as a pgvector‑compatible SQL literal string. */
 function mockEmbedding(seed: number): string {
@@ -151,11 +158,11 @@ async function seed() {
   console.log('Seeding test data...')
 
   await db.execute(sql`
-    DELETE FROM users WHERE firebase_uid = 'local_test_user_123' AND id != ${USER_ID}::uuid
+    DELETE FROM users WHERE firebase_uid = ${DEV_FIREBASE_UID} AND id != ${USER_ID}::uuid
   `)
   await db.execute(sql`
     INSERT INTO users (id, firebase_uid, email, display_name)
-    VALUES (${USER_ID}, 'local_test_user_123', 'dev@localhost.com', 'Dev User')
+    VALUES (${USER_ID}, ${DEV_FIREBASE_UID}, 'dev@localhost.com', 'Dev User')
     ON CONFLICT (id) DO UPDATE
       SET firebase_uid = EXCLUDED.firebase_uid,
           email = EXCLUDED.email,
@@ -164,7 +171,7 @@ async function seed() {
 
   await db.execute(sql`
     INSERT INTO characters (id, user_id, name, traits)
-    VALUES (${CHARACTER_ID}, ${USER_ID}, 'Dev Character', 'Friendly, helpful')
+    VALUES (${CHARACTER_ID}, ${USER_ID}, ${DEV_CHARACTER_NAME}, ${DEV_CHARACTER_TRAITS})
     ON CONFLICT (id) DO NOTHING
   `)
 
@@ -208,7 +215,7 @@ async function seed() {
   console.log('Seed complete!')
   console.log(`  User ID:      ${USER_ID}`)
   console.log(`  Character ID: ${CHARACTER_ID}`)
-  console.log(`  firebase_uid: local_test_user_123`)
+  console.log(`  firebase_uid: ${DEV_FIREBASE_UID}`)
   process.exit(0)
 }
 

@@ -7,7 +7,6 @@ import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, Messa
 import { WebView } from 'react-native-webview'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
-import { useChatMessages } from '~/hooks/useMessages'
 import { useAIChat } from '~/hooks/useAIChat'
 import { Text, useTheme, Avatar } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
@@ -39,7 +38,6 @@ export default function ChatView({ characterId }: ChatViewProps) {
   }))
   const currentUserId = user?.uid
   const { data: character, isLoading: characterLoading } = useCharacter(characterId)
-  const messages = useChatMessages({ id: characterId, userId: currentUserId || '' })
   const { data: creditsData } = useUserCredits()
   const credits = creditsData?.totalCredits || 0
   const { colors, roundness } = useTheme()
@@ -47,7 +45,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
 
-  const { sendMessage, escalationState } = useAIChat({
+  const { messages, sendMessage, escalationState } = useAIChat({
     characterId,
     userId: currentUserId || '',
     character: character as any, // Type compatibility - character structure matches

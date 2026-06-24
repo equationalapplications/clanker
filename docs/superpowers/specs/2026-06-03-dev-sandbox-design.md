@@ -1,5 +1,7 @@
 # Dev Sandbox Design
 
+> **⚠️ DEPRECATED — historical record only.** Mock auth and local cloud-agent routing are still valid; the **local-Gemini inference path described below was removed during the BYOI proxy migration**. See **[Edge Agent](../../EDGE_AGENT.md)** and [AI & Chat](../../ai-and-chat.md#local-development-cloud-agent).
+
 **Date:** 2026-06-03  
 **Status:** Implemented
 **Scope:** Local hot-reloading environment for cloud-agent ↔ Expo UI bridge. No Firebase Emulator. No production cloud resources consumed.
@@ -215,6 +217,8 @@ export async function bootstrapSession(): Promise<BootstrapResponse> {
 UUID `11111111-1111-1111-1111-111111111111` matches seed script — FK lookups succeed.
 
 ### `src/services/chatReplyService.ts`
+
+> **Removed during BYOI proxy migration:** The local-Gemini mock path below was implemented at the time of writing but has since been removed. `generateChatReply()` always calls the `generateReply` Firebase callable; the app must not make direct client-side Gemini calls.
 
 In mock mode (`EXPO_PUBLIC_USE_MOCK_AUTH=true` + dev build), `generateChatReply()` bypasses Firebase App Check / callable functions and runs a local “edge agent” step:
 

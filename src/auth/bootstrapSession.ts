@@ -1,4 +1,6 @@
 import { getCurrentUser, exchangeToken, appCheckReady } from '~/config/firebaseConfig'
+import { ensureDevSandboxCharacter, isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { DEV_CLOUD_CHARACTER_ID, DEV_CLOUD_USER_ID, DEV_FIREBASE_UID } from '../../shared/dev-sandbox'
 
 export interface UserSnapshot {
   id: string
@@ -91,17 +93,23 @@ async function runBootstrapSession(): Promise<BootstrapResponse> {
 }
 
 export async function bootstrapSession(): Promise<BootstrapResponse> {
-  const isDevBuild = process.env.NODE_ENV !== 'production'
-  if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
+  if (isDevSandboxEnabled()) {
+    let devCharacterId: string | null = null
+    try {
+      devCharacterId = await ensureDevSandboxCharacter(DEV_FIREBASE_UID)
+    } catch (error) {
+      console.warn('Failed to provision dev sandbox character during bootstrap:', error)
+    }
+
     return {
       user: {
-        id: '11111111-1111-4111-8111-111111111111',
-        firebaseUid: 'local_test_user_123',
+        id: DEV_CLOUD_USER_ID,
+        firebaseUid: DEV_FIREBASE_UID,
         email: 'dev@localhost.com',
         displayName: 'Dev User',
         avatarUrl: null,
         isProfilePublic: false,
-        defaultCharacterId: null,
+        defaultCharacterId: devCharacterId ?? DEV_CLOUD_CHARACTER_ID,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },

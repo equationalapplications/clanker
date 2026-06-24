@@ -20,6 +20,8 @@ import { toSyncMessage } from '~/services/syncMessage'
 import { callCloudAgent } from '~/services/cloudAgentService'
 import { listTasks } from '~/database/taskDatabase'
 import { buildContentHistory } from '~/services/CharacterPromptBuilder'
+import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { DEV_CLOUD_CHARACTER_ID } from '../../shared/dev-sandbox'
 
 interface UseAIChatProps {
   characterId: string
@@ -40,10 +42,11 @@ interface UseAIChatReturn {
  * Enhanced with React Query for offline support and optimistic updates
  */
 export function useAIChat({ characterId, userId, character }: UseAIChatProps): UseAIChatReturn {
-  const messages = useChatMessages({ id: characterId, userId })
   const queryClient = useQueryClient()
   const authService = useAuthMachine()
   const [error, setError] = useState<string | null>(null)
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const messages = useChatMessages({ id: characterId, userId, pauseRefetch: isSendingMessage })
 
   const characterWiki = useCharacterWiki(character.id)
   const wiki = useWiki()
@@ -51,12 +54,29 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   // Normalize save_to_cloud which can be boolean (from characterService) or number (from DB)
   const raw = character.save_to_cloud
   const isCloudSynced = !!(raw ?? 0)
+  const devSandbox = isDevSandboxEnabled()
+  const cloudAgentCharacterId =
+    character.cloud_id ?? (devSandbox ? DEV_CLOUD_CHARACTER_ID : null)
+  const canUseCloudAgent =
+    !!process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim() &&
+    !!cloudAgentCharacterId &&
+    (isCloudSynced || devSandbox)
 
-  const edgeAgent = useEdgeAgent({ character, userId, priorMessages: messages, isCloudSynced, wiki })
+  const edgeAgent = useEdgeAgent({
+    character,
+    userId,
+    priorMessages: messages,
+    isCloudSynced: isCloudSynced || devSandbox,
+    wiki,
+  })
 
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
     mutationFn: async (message: IMessage) => {
+      // Persist immediately so background SQLite refetches keep the user message visible
+      // while edge/cloud/Firebase agents are still thinking.
+      await persistUserMessage(character.id, userId, message)
+
       let memoryBlock: string | undefined
       try {
         const bundle = await characterWiki.read(message.text)
@@ -72,14 +92,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
 
       // Try edge agent first
-      const { escalated, text: edgeText } = await edgeAgent.sendMessage(message.text, memoryBlock)
+      const { escalated, text: edgeText, usageSnapshot: edgeUsageSnapshot } =
+        await edgeAgent.sendMessage(message.text, memoryBlock)
 
       if (!escalated && edgeText !== undefined) {
-        // Edge resolved — save both messages, no Firebase call
-        // Save user message after edge resolves. On DB failure, onError rolls back the optimistic
-        // update — no fallback message is saved (intentional; Firebase path handled its own fallback).
-        await persistUserMessage(character.id, userId, message)
-
+        // Edge resolved — save AI reply locally (user message already persisted above).
         const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
         const savedAIMessage = await saveAIMessage(character.id, userId, edgeText, aiMsgId, {
           user: {
@@ -118,14 +135,13 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           }
         }
 
-        return { usageSnapshot: null }
+        return { usageSnapshot: edgeUsageSnapshot ?? null }
       }
 
-      // Cloud Agent path — isCloudSynced characters with a cloud_id when EXPO_PUBLIC_CLOUD_AGENT_URL is set.
-      // Must send character.cloud_id (Cloud SQL UUID) — character.id is local-only and will typically fail
-      // Cloud Agent validation/ownership checks (400/404), so avoid sending it.
-      if (isCloudSynced && character.cloud_id && process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
-        const cloudCharacterId = character.cloud_id
+      // Cloud Agent path — cloud-synced (or dev sandbox) characters with a cloud_id when
+      // EXPO_PUBLIC_CLOUD_AGENT_URL is set. Must send character.cloud_id (Cloud SQL UUID).
+      if (canUseCloudAgent && cloudAgentCharacterId) {
+        const cloudCharacterId = cloudAgentCharacterId
 
         const priorHistory = messages.filter(
           (msg) => String(msg._id) !== String(message._id),
@@ -153,8 +169,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           history,
           unsyncedHistory,
         })
-
-        await persistUserMessage(character.id, userId, message)
 
         const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
         const savedAIMessage = await saveAIMessage(
@@ -227,6 +241,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         memoryBlock,
         onWriteObservation,
         unsyncedHistory,
+        userMessageAlreadyPersisted: true,
       })
 
       if (result.cloudSyncSucceeded) {
@@ -239,6 +254,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
     // Optimistic update: Add user message immediately
     onMutate: async (message) => {
+      setIsSendingMessage(true)
+
       await queryClient.cancelQueries({
         queryKey: messageKeys.list(characterId, userId),
       })
@@ -260,6 +277,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       ])
 
       return { previousMessages }
+    },
+
+    onSettled: () => {
+      setIsSendingMessage(false)
     },
 
     onSuccess: (result) => {
@@ -333,13 +354,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         })
       }
 
-      // Rollback optimistic update for transient failures only.
+      // Refetch from SQLite on transient failures — the user message was already persisted
+      // at the start of mutationFn, so rolling back the optimistic cache would hide it.
       if (
         firebaseCode !== 'functions/failed-precondition' &&
-        !isInsufficientCredits &&
-        context?.previousMessages
+        !isInsufficientCredits
       ) {
-        queryClient.setQueryData(messageKeys.list(characterId, userId), context.previousMessages)
+        queryClient.invalidateQueries({
+          queryKey: messageKeys.list(characterId, userId),
+        })
       }
     },
   })

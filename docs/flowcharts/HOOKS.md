@@ -4,9 +4,10 @@ _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
   useAgeVerification.test --> useAgeVerification
-  useAIChat --> useMessages
   useAIChat --> useMachines
+  useAIChat --> useMessages
   useAIChat --> useCharacterWiki
+  useAIChat --> ensureDevSandboxCharacter
   useAIChat --> useEdgeAgent
   useAIChat --> messageDatabase
   useAIChat --> aiChatService
@@ -25,6 +26,10 @@ graph LR
   useCharacterWiki --> apiClient
   useCharacters --> useMachines
   useCurrentPlan --> useMachines
+  useEdgeAgent --> CharacterPromptBuilder
+  useEdgeAgent --> edgeToolExecutors
+  useEdgeAgent --> ensureDevSandboxCharacter
+  useEdgeAgent --> chatReplyService
   useImageGeneration --> useMachines
   useImageGeneration --> imageGenerationService
   useImageGeneration --> localImageStorageService

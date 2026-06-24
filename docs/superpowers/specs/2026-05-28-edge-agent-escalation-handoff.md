@@ -1,5 +1,7 @@
 # Edge Agent Escalation Handoff — Followup Spec
 
+> **⚠️ DEPRECATED — historical record only.** Escalation and sync concepts here remain relevant, but the inference model (client-side Gemini) is superseded. See **[Edge Agent](../../EDGE_AGENT.md)** for current architecture.
+
 **Date:** 2026-05-28  
 **Status:** Implemented  
 **Depends on:** `2026-05-28-edge-agent-chat-architecture.md`  
