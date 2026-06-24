@@ -14,7 +14,8 @@ import { useUserCredits } from '~/hooks/useUserCredits'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import ChatComposer, { type DocumentUploadPhase } from '~/components/ChatComposer'
 import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
-import type { GroundedIMessage } from '~/services/aiChatService'
+import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/aiChatService'
+import type { Character } from '~/services/characterService'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
@@ -31,13 +32,34 @@ interface ChatViewProps {
   characterId: string
 }
 
-export default function ChatView({ characterId }: ChatViewProps) {
-  const authService = useAuthMachine()
-  const { user } = useSelector(authService, (state) => ({
-    user: state.context.user,
-  }))
-  const currentUserId = user?.uid
-  const { data: character, isLoading: characterLoading } = useCharacter(characterId)
+interface ChatViewContentProps {
+  characterId: string
+  character: Character
+  currentUserId: string
+  userDisplayName?: string | null
+  userPhotoUrl?: string | null
+}
+
+function toAIChatCharacter(character: Character): AIChatCharacter {
+  return {
+    id: character.id,
+    name: character.name,
+    appearance: character.appearance ?? '',
+    traits: character.traits ?? '',
+    emotions: character.emotions ?? '',
+    context: character.context ?? '',
+    cloud_id: character.cloud_id,
+    save_to_cloud: character.save_to_cloud ? 1 : 0,
+  }
+}
+
+function ChatViewContent({
+  characterId,
+  character,
+  currentUserId,
+  userDisplayName,
+  userPhotoUrl,
+}: ChatViewContentProps) {
   const { data: creditsData } = useUserCredits()
   const credits = creditsData?.totalCredits || 0
   const { colors, roundness } = useTheme()
@@ -47,14 +69,14 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   const { messages, sendMessage, escalationState } = useAIChat({
     characterId,
-    userId: currentUserId || '',
-    character: character as any, // Type compatibility - character structure matches
+    userId: currentUserId,
+    character: toAIChatCharacter(character),
   })
 
   const chatUser: User = {
-    _id: currentUserId || '',
-    name: user?.displayName || '',
-    avatar: user?.photoURL || defaultAvatarUrl,
+    _id: currentUserId,
+    name: userDisplayName || '',
+    avatar: userPhotoUrl || defaultAvatarUrl,
   }
 
   const navigation = useNavigation()
@@ -63,13 +85,12 @@ export default function ChatView({ characterId }: ChatViewProps) {
     router.push(`/characters/${characterId}/edit`)
   }, [characterId])
 
-  const characterName = character?.name || 'Character'
+  const characterName = character.name || 'Character'
 
   React.useLayoutEffect(() => {
-    if (!character) return
     const drawerNav = navigation.getParent?.()?.getParent?.()
     if (!drawerNav) return
-    
+
     const setHeader = () => {
       drawerNav?.setOptions({
         headerTitle: () => (
@@ -89,14 +110,14 @@ export default function ChatView({ characterId }: ChatViewProps) {
         ),
       })
     }
-    
+
     setHeader()
-    
+
     const unsubscribeFocus = navigation.addListener?.('focus', setHeader)
     const unsubscribeBlur = navigation.addListener?.('blur', () => {
       drawerNav?.setOptions({ headerTitle: 'Chat' })
     })
-    
+
     return () => {
       unsubscribeFocus?.()
       unsubscribeBlur?.()
@@ -106,8 +127,6 @@ export default function ChatView({ characterId }: ChatViewProps) {
 
   const handleSend = useCallback(
     async (newMessages: IMessage[] = []) => {
-      if (!currentUserId || !character) return
-
       if (credits <= 0) {
         router.push('/subscribe')
         return
@@ -117,7 +136,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
         await sendMessage(newMessages[0])
       }
     },
-    [sendMessage, currentUserId, character, credits],
+    [sendMessage, credits],
   )
 
   const renderBubble = useCallback(
@@ -194,7 +213,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
       <ChatComposer
         {...props}
         characterId={characterId}
-        userId={currentUserId ?? undefined}
+        userId={currentUserId}
         onPhaseChange={setDocumentPhase}
       />
     ),
@@ -279,6 +298,81 @@ export default function ChatView({ characterId }: ChatViewProps) {
     [],
   )
 
+  const characterAvatar = character.avatar || defaultAvatarUrl
+
+  return (
+    <View style={styles.container}>
+      {(wikiStatus.ingesting || wikiStatus.librarian || escalationState === 'escalating' || documentPhase !== null) && (
+        <View
+          accessibilityLiveRegion="polite"
+          accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
+        >
+          {documentPhase === 'reading' && (
+            <Text style={styles.statusText} accessibilityLabel="Reading file">⏳ Reading file…</Text>
+          )}
+          {documentPhase === 'converting' && (
+            <Text style={styles.statusText} accessibilityLabel="Converting document">⏳ Converting document…</Text>
+          )}
+          {documentPhase === 'checking' && (
+            <Text style={styles.statusText} accessibilityLabel="Checking for changes">⏳ Checking for changes…</Text>
+          )}
+          {documentPhase === 'forgetting' && (
+            <Text style={styles.statusText} accessibilityLabel="Removing previous version">⏳ Removing previous version…</Text>
+          )}
+          {wikiStatus.ingesting && (
+            <Text style={styles.statusText} accessibilityLabel="Ingesting document">⏳ Ingesting document…</Text>
+          )}
+          {wikiStatus.librarian && (
+            <Text style={styles.statusText} accessibilityLabel="Updating memory">🧠 Updating memory…</Text>
+          )}
+          {escalationState === 'escalating' && (
+            <Text style={styles.statusText} accessibilityLabel="Thinking deeply">🧠 Thinking deeply…</Text>
+          )}
+        </View>
+      )}
+      <GiftedChat
+        messages={messages}
+        onSend={handleSend}
+        user={chatUser}
+        renderComposer={renderComposer}
+        renderBubble={renderBubble}
+        renderInputToolbar={renderInputToolbar}
+        renderSend={renderSend}
+        renderCustomView={renderCustomView}
+        isCustomViewBottom
+        renderAvatarOnTop
+        messagesContainerStyle={styles.messagesContainer}
+        minInputToolbarHeight={56}
+        renderAvatar={(props) => {
+          const isUser = props.currentMessage?.user._id === currentUserId
+          const avatarUri = isUser ? (chatUser.avatar as string) : (characterAvatar as string)
+          const displayName = userDisplayName?.trim()
+          const accessibilityLabel = isUser
+            ? (displayName ? `${displayName}'s avatar` : 'Your avatar')
+            : `${characterName}'s avatar`
+          return (
+            <Avatar.Image
+              accessible
+              accessibilityRole="image"
+              size={36}
+              source={{ uri: avatarUri }}
+              accessibilityLabel={accessibilityLabel}
+            />
+          )
+        }}
+      />
+    </View>
+  )
+}
+
+export default function ChatView({ characterId }: ChatViewProps) {
+  const authService = useAuthMachine()
+  const { user } = useSelector(authService, (state) => ({
+    user: state.context.user,
+  }))
+  const currentUserId = user?.uid
+  const { data: character, isLoading: characterLoading } = useCharacter(characterId)
+
   if (characterLoading) {
     return (
       <View
@@ -321,70 +415,14 @@ export default function ChatView({ characterId }: ChatViewProps) {
     )
   }
 
-  const characterAvatar = character.avatar || defaultAvatarUrl
-
   return (
-    <View style={styles.container}>
-        {(wikiStatus.ingesting || wikiStatus.librarian || escalationState === 'escalating' || documentPhase !== null) && (
-          <View
-            accessibilityLiveRegion="polite"
-            accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
-          >
-            {documentPhase === 'reading' && (
-              <Text style={styles.statusText} accessibilityLabel="Reading file">⏳ Reading file…</Text>
-            )}
-            {documentPhase === 'converting' && (
-              <Text style={styles.statusText} accessibilityLabel="Converting document">⏳ Converting document…</Text>
-            )}
-            {documentPhase === 'checking' && (
-              <Text style={styles.statusText} accessibilityLabel="Checking for changes">⏳ Checking for changes…</Text>
-            )}
-            {documentPhase === 'forgetting' && (
-              <Text style={styles.statusText} accessibilityLabel="Removing previous version">⏳ Removing previous version…</Text>
-            )}
-            {wikiStatus.ingesting && (
-              <Text style={styles.statusText} accessibilityLabel="Ingesting document">⏳ Ingesting document…</Text>
-            )}
-            {wikiStatus.librarian && (
-              <Text style={styles.statusText} accessibilityLabel="Updating memory">🧠 Updating memory…</Text>
-            )}
-            {escalationState === 'escalating' && (
-              <Text style={styles.statusText} accessibilityLabel="Thinking deeply">🧠 Thinking deeply…</Text>
-            )}
-          </View>
-        )}
-        <GiftedChat
-          messages={messages}
-          onSend={handleSend}
-          user={chatUser}
-          renderComposer={renderComposer}
-          renderBubble={renderBubble}
-          renderInputToolbar={renderInputToolbar}
-          renderSend={renderSend}
-          renderCustomView={renderCustomView}
-          isCustomViewBottom
-          renderAvatarOnTop
-          messagesContainerStyle={styles.messagesContainer}
-          minInputToolbarHeight={56}
-          renderAvatar={(props) => {
-            const isUser = props.currentMessage?.user._id === currentUserId
-            const avatarUri = isUser ? (chatUser.avatar as string) : (characterAvatar as string)
-            const userDisplayName = user?.displayName?.trim()
-            const accessibilityLabel = isUser
-              ? (userDisplayName ? `${userDisplayName}'s avatar` : 'Your avatar')
-              : `${characterName}'s avatar`
-            return (
-              <Avatar.Image
-                accessible
-                accessibilityRole="image"
-                size={36}
-                source={{ uri: avatarUri }}
-                accessibilityLabel={accessibilityLabel}
-              />
-            )
-          }}
-        />
-    </View>
+    <ChatViewContent
+      characterId={characterId}
+      character={character}
+      currentUserId={currentUserId}
+      userDisplayName={user?.displayName}
+      userPhotoUrl={user?.photoURL}
+    />
   )
 }
 

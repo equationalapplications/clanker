@@ -22,7 +22,7 @@ export default function ChatTabScreen() {
   const isLoading = isLoadingMessage || isLoadingCharacters
 
   const devLinkedCharacterId = isDevSandboxEnabled()
-    ? characters.find((c) => c.cloud_id === DEV_CLOUD_CHARACTER_ID)?.id
+    ? characters?.find((c) => c.cloud_id === DEV_CLOUD_CHARACTER_ID)?.id
     : undefined
 
   const characterId =

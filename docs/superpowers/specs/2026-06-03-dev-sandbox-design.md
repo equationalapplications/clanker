@@ -218,15 +218,9 @@ UUID `11111111-1111-1111-1111-111111111111` matches seed script — FK lookups s
 
 ### `src/services/chatReplyService.ts`
 
-> **Removed during BYOI proxy migration:** The local-Gemini mock path below was implemented at the time of writing but has since been removed. `generateChatReply()` always calls the `generateReply` Firebase callable; the app must not make direct client-side Gemini calls.
+> **Removed during BYOI proxy migration:** An earlier draft implemented a local-Gemini mock path in `generateChatReply()`. That path was removed. **Current behavior:** `generateChatReply()` always calls the `generateReply` Firebase callable (which rejects unauthenticated mock-auth requests). Dev-sandbox chat must route through the local cloud-agent via `EXPO_PUBLIC_CLOUD_AGENT_URL` — the app must not make direct client-side Gemini calls.
 
-In mock mode (`EXPO_PUBLIC_USE_MOCK_AUTH=true` + dev build), `generateChatReply()` bypasses Firebase App Check / callable functions and runs a local “edge agent” step:
-
-- Requires `EXPO_PUBLIC_GEMINI_API_KEY`.
-- Calls Gemini to decide whether to **escalate** to the local Docker cloud-agent (`/agent/run`).
-- If not escalated, returns the model text locally (no credits deducted; UI credits remain unchanged).
-
-Production behavior is unchanged and continues to call the `generateReply` Firebase callable.
+**Historical note (pre-BYOI migration):** The removed mock path would have bypassed Firebase App Check, required `EXPO_PUBLIC_GEMINI_API_KEY`, called Gemini locally to decide escalation to `/agent/run`, and returned model text without spending credits. That flow is no longer supported.
 
 ---
 
@@ -234,14 +228,13 @@ Production behavior is unchanged and continues to call the `generateReply` Fireb
 
 1. `npx expo start -w` → `EXPO_PUBLIC_USE_MOCK_AUTH=true` → `onAuthStateChanged` fires immediately with fake user
 2. authMachine: `USER_FOUND` → `bootstrapping` → `bootstrapSession()` returns mock snapshot → `signedIn`
-3. User sends chat message → cloud agent path:
+3. User sends chat message → local cloud-agent path (requires `EXPO_PUBLIC_CLOUD_AGENT_URL`):
    - Frontend sends `Authorization: Bearer mock_token_123` to `http://localhost:8080/agent/run`
    - `verifyToken('mock_token_123')` → `{ uid: 'local_test_user_123' }`
    - `SELECT id FROM users WHERE firebase_uid = 'local_test_user_123'` → UUID found
    - Real credit deduction via `SELECT FOR UPDATE` saga against local Postgres
    - ADK agent runs, returns reply
-4. User sends chat message → fallback path (non-escalated):
-   - `generateChatReply()` uses Gemini locally (requires `EXPO_PUBLIC_GEMINI_API_KEY`) and returns a reply without calling Firebase or spending credits
+4. **Removed:** mock auth no longer falls back to local `generateChatReply()` / Gemini. Without `EXPO_PUBLIC_CLOUD_AGENT_URL`, chat fails fast with a configuration error instead of hitting unauthenticated Firebase callables.
 
 ---
 

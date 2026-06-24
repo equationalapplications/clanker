@@ -10,7 +10,7 @@ This matches the app-wide AI access policy in [AI & Chat](ai-and-chat.md): produ
 
 ## Architecture
 
-```
+```text
 User message
       ↓
 useAIChat

@@ -629,6 +629,26 @@ describe('useAIChat', () => {
       expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
     })
 
+    it('fails fast in dev sandbox when EXPO_PUBLIC_CLOUD_AGENT_URL is not configured', async () => {
+      mockIsDevSandboxEnabled.mockReturnValue(true)
+      delete process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
+      const hook = renderUseAIChat({ save_to_cloud: 0, cloud_id: null })
+
+      await act(async () => {
+        await expect(
+          hook.sendMessage({
+            _id: 'msg-dev-misconfig',
+            text: 'Should fail fast',
+            createdAt: new Date('2026-06-02T00:00:00.000Z'),
+            user: { _id: 'user-1' },
+          } as any),
+        ).rejects.toThrow('Dev sandbox requires EXPO_PUBLIC_CLOUD_AGENT_URL')
+      })
+
+      expect(mockCallCloudAgent).not.toHaveBeenCalled()
+      expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
+    })
+
     it('propagates Cloud Agent errors so onError can roll back the optimistic update', async () => {
       mockCallCloudAgent.mockRejectedValue(new Error('Cloud Agent responded with 500'))
       const hook = renderUseAIChat({ save_to_cloud: 1 })

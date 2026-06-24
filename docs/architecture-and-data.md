@@ -377,7 +377,7 @@ export CLOUD_SQL_CONNECTION_NAME=$(gcloud secrets versions access latest --secre
 export CLOUD_SQL_DB_USER=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_USER --project="${GCP_PROJECT}")
 export CLOUD_SQL_DB_PASS=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_PASS --project="${GCP_PROJECT}")
 export CLOUD_SQL_DB_NAME=$(gcloud secrets versions access latest --secret=CLOUD_SQL_DB_NAME --project="${GCP_PROJECT}")
-MIGRATIONS="0017_my_new_migration.sql" npm run migrate
+cd functions && MIGRATIONS="0017_my_new_migration.sql" npm run migrate
 ```
 
 ### Workflow for Schema Changes

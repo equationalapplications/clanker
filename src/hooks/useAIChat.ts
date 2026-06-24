@@ -73,6 +73,13 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
     mutationFn: async (message: IMessage) => {
+      if (devSandbox && !process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
+        throw new Error(
+          'Dev sandbox requires EXPO_PUBLIC_CLOUD_AGENT_URL (e.g. http://localhost:8080). ' +
+            'Start docker-compose.local.yml and set it in .env.local.',
+        )
+      }
+
       // Persist immediately so background SQLite refetches keep the user message visible
       // while edge/cloud/Firebase agents are still thinking.
       await persistUserMessage(character.id, userId, message)

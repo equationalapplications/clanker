@@ -436,7 +436,7 @@ With `EXPO_PUBLIC_USE_MOCK_AUTH=true`, the Expo app auto-provisions a local SQLi
 
 **Hybrid mode (optional):** default compose uses `MOCK_FIREBASE_AUTH=true` (local test user). To iterate on prompts against a real Firebase account while keeping chat on local Docker, set in `.env.local`:
 
-```
+```bash
 EXPO_PUBLIC_CLOUD_AGENT_URL=http://localhost:8080
 EXPO_PUBLIC_USE_MOCK_AUTH=false
 ```

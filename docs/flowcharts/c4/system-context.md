@@ -22,7 +22,6 @@ C4Context
   Rel(clanker, firebase, "Auth, callable functions, App Check")
   Rel(clanker, cloudagent, "Escalated chat for cloud-synced characters", "HTTPS POST /agent/run + Bearer token")
   Rel(clanker, google, "OAuth sign-in via Firebase Auth")
-  Rel(clanker, gemini, "LLM access (server-side only, via Firebase and Cloud Agent)")
   Rel(clanker, stripe, "Checkout session (web)")
   Rel(clanker, revenuecat, "Native IAP (SDK)")
   Rel(clanker, crashlytics, "Error events (native)")

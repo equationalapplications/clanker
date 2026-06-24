@@ -1,6 +1,6 @@
 import { Connector, IpAddressTypes } from '@google-cloud/cloud-sql-connector';
 import pg from 'pg';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -12,8 +12,27 @@ for (const name of required) {
   }
 }
 
-const files = process.env.MIGRATIONS.split(',').map((f) => f.trim()).filter(Boolean);
 const drizzleDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'drizzle');
+
+function resolveMigrationPath(file) {
+  const base = path.basename(file);
+  if (base !== file || !/^[a-zA-Z0-9_.-]+\.sql$/.test(base)) {
+    console.error(`Invalid migration filename: ${file} (must be a simple .sql basename in functions/drizzle/)`);
+    process.exit(1);
+  }
+  const fullPath = path.resolve(drizzleDir, base);
+  if (fullPath !== drizzleDir && !fullPath.startsWith(`${drizzleDir}${path.sep}`)) {
+    console.error(`Migration path escapes drizzle directory: ${file}`);
+    process.exit(1);
+  }
+  if (!existsSync(fullPath)) {
+    console.error(`Migration file not found: ${fullPath}`);
+    process.exit(1);
+  }
+  return fullPath;
+}
+
+const files = process.env.MIGRATIONS.split(',').map((f) => f.trim()).filter(Boolean);
 
 const connector = new Connector();
 const clientOpts = await connector.getOptions({
@@ -32,9 +51,9 @@ const pool = new pg.Pool({
 const client = await pool.connect();
 try {
   for (const file of files) {
-    const fullPath = path.join(drizzleDir, file);
+    const fullPath = resolveMigrationPath(file);
     const sql = readFileSync(fullPath, 'utf8');
-    console.log(`Applying ${file}...`);
+    console.log(`Applying ${path.basename(file)}...`);
     await client.query('BEGIN');
     try {
       await client.query(sql);
