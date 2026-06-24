@@ -1128,7 +1128,7 @@ test("wikiSync: ontology mode off with null manifest round-trips unchanged", asy
         facts: [],
         tasks: [],
         events: [],
-        ontology: { mode: "off", manifest: null as unknown as { node_types: []; edge_types: [] } },
+        ontology: { mode: "off", manifest: null },
       },
     },
   };

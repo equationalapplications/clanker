@@ -143,9 +143,11 @@ async function syncWikiForCloud(
 
                 if (cloudBundle.ontology) {
                     try {
-                        await wiki.setOntologyManifest(char.id, cloudBundle.ontology.manifest, {
-                            mode: cloudBundle.ontology.mode,
-                        })
+                        await wiki.setOntologyManifest(
+                            char.id,
+                            cloudBundle.ontology.manifest ?? { node_types: [], edge_types: [] },
+                            { mode: cloudBundle.ontology.mode },
+                        )
                     } catch (err) {
                         reportWikiOpForCharacter(err, `wiki:${char.id}:ontology:write`, char.id, 'Failed to write ontology manifest')
                     }

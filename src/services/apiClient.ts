@@ -15,12 +15,14 @@ import {
 } from '~/config/firebaseConfig'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 
+export interface WikiSyncOntologyManifest {
+  node_types: { type: string; description: string }[]
+  edge_types: { type: string; source_type: string; target_type: string; description: string }[]
+}
+
 export interface WikiSyncOntology {
   mode: 'strict' | 'emergent' | 'off'
-  manifest: {
-    node_types: { type: string; description: string }[]
-    edge_types: { type: string; source_type: string; target_type: string; description: string }[]
-  }
+  manifest: WikiSyncOntologyManifest | null
 }
 
 // The package's MemoryBundle has no `ontology` field (it lives in a separate table,

@@ -212,7 +212,11 @@ export function useCharacterWiki(entityId: string) {
 
             if (cloudBundle.ontology && wiki) {
               try {
-                await wiki.setOntologyManifest(entityId, cloudBundle.ontology.manifest, { mode: cloudBundle.ontology.mode })
+                await wiki.setOntologyManifest(
+                  entityId,
+                  cloudBundle.ontology.manifest ?? { node_types: [], edge_types: [] },
+                  { mode: cloudBundle.ontology.mode },
+                )
               } catch (err) {
                 reportError(err, `wiki:${entityId}:ontology:write`)
               }

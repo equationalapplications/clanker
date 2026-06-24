@@ -56,12 +56,14 @@ interface WikiEdge {
   created_at: number;
 }
 
+interface WikiOntologyManifest {
+  node_types: { type: string; description: string }[];
+  edge_types: { type: string; source_type: string; target_type: string; description: string }[];
+}
+
 interface WikiOntology {
   mode: 'strict' | 'emergent' | 'off';
-  manifest: {
-    node_types: { type: string; description: string }[];
-    edge_types: { type: string; source_type: string; target_type: string; description: string }[];
-  } | null;
+  manifest: WikiOntologyManifest | null;
 }
 
 interface MemoryBundle {
@@ -575,7 +577,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
     if (!entity) continue;
     entity.ontology = {
       mode: r.mode as WikiOntology['mode'],
-      manifest: (r.manifest ?? { node_types: [], edge_types: [] }) as WikiOntology['manifest'],
+      manifest: (r.manifest ?? null) as WikiOntology['manifest'],
     };
   }
 
