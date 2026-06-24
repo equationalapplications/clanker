@@ -225,4 +225,77 @@ describe('generateChatReply', () => {
     const result = await resultPromise
     expect(result.groundingMetadata?.groundingChunks).toEqual([{ web: { uri: 'https://example.com' } }])
   })
+
+  it('forwards tools to the callable payload when provided', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: {
+        reply: '',
+        functionCalls: [{ name: 'get_current_time', args: {} }],
+        verifiedAt: '2026-01-01T00:00:00.000Z',
+      },
+    })
+
+    const tools = [{ name: 'get_current_time', description: 'Get the time', parameters: { type: 'object', properties: {} } }]
+    const resultPromise = generateChatReply({
+      contents: [{ role: 'user', parts: [{ text: 'what time is it' }] }],
+      systemInstruction: 'Be concise.',
+      tools,
+    })
+
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    await expect(resultPromise).resolves.toEqual({
+      reply: '',
+      remainingCredits: null,
+      planTier: null,
+      planStatus: null,
+      verifiedAt: '2026-01-01T00:00:00.000Z',
+      functionCalls: [{ name: 'get_current_time', args: {} }],
+    })
+    expect(mockGenerateReplyFn).toHaveBeenCalledWith({
+      contents: [{ role: 'user', parts: [{ text: 'what time is it' }] }],
+      systemInstruction: 'Be concise.',
+      tools,
+    })
+  })
+
+  it('does not require a non-empty reply when functionCalls are present', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: {
+        reply: '',
+        functionCalls: [{ name: 'wiki_read', args: { query: 'coffee' } }],
+        verifiedAt: '2026-01-01T00:00:00.000Z',
+      },
+    })
+
+    const resultPromise = generateChatReply({
+      contents: [{ role: 'user', parts: [{ text: 'what do I like to drink' }] }],
+      systemInstruction: 'Be concise.',
+    })
+
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    const result = await resultPromise
+    expect(result.functionCalls).toEqual([{ name: 'wiki_read', args: { query: 'coffee' } }])
+  })
+
+  it('still rejects an empty reply when functionCalls are absent', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: { reply: '', verifiedAt: '2026-01-01T00:00:00.000Z' },
+    })
+
+    const resultPromise = generateChatReply({ prompt: 'hello' })
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    await expect(resultPromise).rejects.toThrow('Invalid generateReply response payload')
+  })
 })

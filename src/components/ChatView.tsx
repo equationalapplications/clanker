@@ -14,7 +14,7 @@ import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import ChatComposer, { type DocumentUploadPhase } from '~/components/ChatComposer'
-import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
 import type { GroundedIMessage } from '~/services/aiChatService'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
@@ -44,7 +44,7 @@ export default function ChatView({ characterId }: ChatViewProps) {
   const credits = creditsData?.totalCredits || 0
   const { colors, roundness } = useTheme()
 
-  const { status: wikiStatus } = useCharacterWiki(characterId)
+  const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
 
   const { sendMessage, escalationState } = useAIChat({

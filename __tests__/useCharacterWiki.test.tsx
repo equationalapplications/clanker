@@ -226,7 +226,10 @@ describe('useCharacterWiki', () => {
   })
 
   test('sync forwards local edges to cloud under the remapped cloud entity id', async () => {
-    const mockWiki = {} as any
+    const mockWiki = {
+      getOntologyManifest: jest.fn().mockResolvedValue(null),
+      setOntologyManifest: jest.fn().mockResolvedValue(undefined),
+    } as any
     mockUseWiki.mockReturnValue(mockWiki)
     const mockActor = createMockActor()
     mockGetOrSpawn.mockReturnValue(mockActor)
@@ -249,5 +252,47 @@ describe('useCharacterWiki', () => {
     expect(syncArg.dump.entities['cloud-1'].edges).toEqual([
       { id: 'local-edge', entity_id: 'cloud-1', source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 1 },
     ])
+  })
+
+  test('sync sends the local ontology manifest and writes back the cloud-merged one', async () => {
+    const mockWiki = {
+      getOntologyManifest: jest.fn().mockResolvedValue({ mode: 'emergent', manifest: { node_types: [], edge_types: [] } }),
+      setOntologyManifest: jest.fn().mockResolvedValue(undefined),
+    } as any
+    mockUseWiki.mockReturnValue(mockWiki)
+    const mockActor = createMockActor()
+    mockGetOrSpawn.mockReturnValue(mockActor)
+
+    mockWikiSync.mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 2000,
+          entities: {
+            'cloud-1': {
+              facts: [],
+              tasks: [],
+              events: [],
+              edges: [],
+              ontology: { mode: 'emergent', manifest: { node_types: [{ type: 'person', description: 'a person' }], edge_types: [] } },
+            },
+          },
+        },
+      },
+    } as any)
+
+    const { result } = renderHook(() => useCharacterWiki('char1'))
+    await act(async () => {
+      await result.current.sync('cloud-1')
+    })
+
+    expect(mockWiki.getOntologyManifest).toHaveBeenCalledWith('char1')
+    const syncArg = mockWikiSync.mock.calls[0][0]
+    expect(syncArg.dump.entities['cloud-1'].ontology).toEqual({ mode: 'emergent', manifest: { node_types: [], edge_types: [] } })
+
+    expect(mockWiki.setOntologyManifest).toHaveBeenCalledWith(
+      'char1',
+      { node_types: [{ type: 'person', description: 'a person' }], edge_types: [] },
+      { mode: 'emergent' },
+    )
   })
 })

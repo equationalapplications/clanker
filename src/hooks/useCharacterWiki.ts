@@ -3,6 +3,7 @@ import { useWiki, WikiBusyError, type EntityStatus, type MemoryDump } from '@equ
 import type { IngestArgs, ForgetArgs } from '~/machines/wikiMachine'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import { wikiSync } from '~/services/apiClient'
+import type { WikiSyncBundle } from '~/services/apiClient'
 import { reportError } from '~/utilities/reportError'
 
 type CharacterWikiOperation = 'reading' | 'writing' | 'ingesting' | 'forgetting' | 'syncing'
@@ -181,7 +182,16 @@ export function useCharacterWiki(entityId: string) {
           type: 'SYNC',
           runRemoteSync: async (localDump) => {
             const localBundle = localDump.entities[entityId] ?? { facts: [], tasks: [], events: [], edges: [] }
-            const cloudDump: MemoryDump = {
+
+            let ontology: WikiSyncBundle['ontology']
+            try {
+              const existing = await wiki?.getOntologyManifest(entityId)
+              if (existing) ontology = existing
+            } catch (err) {
+              reportError(err, `wiki:${entityId}:ontology:read`)
+            }
+
+            const cloudDump = {
               generatedAt: localDump.generatedAt,
               entities: {
                 [cloudEntityId]: {
@@ -189,7 +199,8 @@ export function useCharacterWiki(entityId: string) {
                   tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudEntityId })),
                   events: localBundle.events.map((e) => ({ ...e, entity_id: cloudEntityId })),
                   edges: localBundle.edges?.map((e) => ({ ...e, entity_id: cloudEntityId })) ?? [],
-                },
+                  ontology,
+                } satisfies WikiSyncBundle,
               },
             }
             const result = await wikiSync({ dump: cloudDump })
@@ -198,6 +209,15 @@ export function useCharacterWiki(entityId: string) {
               throw new Error('wikiSync returned without remoteDump in response data')
             }
             const cloudBundle = remoteDump.entities[cloudEntityId] ?? { facts: [], tasks: [], events: [], edges: [] }
+
+            if (cloudBundle.ontology && wiki) {
+              try {
+                await wiki.setOntologyManifest(entityId, cloudBundle.ontology.manifest, { mode: cloudBundle.ontology.mode })
+              } catch (err) {
+                reportError(err, `wiki:${entityId}:ontology:write`)
+              }
+            }
+
             const remappedDump: MemoryDump = {
               generatedAt: remoteDump.generatedAt,
               entities: {
@@ -222,7 +242,7 @@ export function useCharacterWiki(entityId: string) {
       }
       return { success: false, message }
     }
-  }, [actor, entityId, runSerialized])
+  }, [actor, entityId, runSerialized, wiki])
 
   return {
     status: (snapshot?.context.status as EntityStatus | undefined) ?? { ingesting: false, librarian: false, heal: false },

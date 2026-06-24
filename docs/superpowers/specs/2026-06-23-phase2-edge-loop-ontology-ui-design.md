@@ -1,7 +1,7 @@
 # Phase 2 — Edge Agent Tool Execution Loop, Silent Ontology Bootstrap, Status UI Cleanup
 
 Date: 2026-06-23
-Status: Draft
+Status: Implemented
 
 ## Goal
 
@@ -153,6 +153,24 @@ Without this, the bootstrap above only ever reaches local SQLite — `cloud-agen
 - Read-back: select the `(entityId, userId)` row into `remoteDump.ontology`.
 - `src/hooks/useCharacterWiki.ts`'s `sync()`: add `ontology: localBundle.ontology` to the local→cloud direction (no entity-ID remap needed beyond what `edges` already does, since this is a single object, not an array), and the equivalent remap back for cloud→local.
 
+## Section 4: `ChatView` status-hook cleanup
+
+`src/components/ChatView.tsx` currently gets its banner status from `useCharacterWiki(characterId)`'s `status` field (`ChatView.tsx:47`, aliased `wikiStatus`), which is itself derived manually from the `wikiMachine` XState snapshot inside `useCharacterWiki.ts:228` (`(snapshot?.context.status as EntityStatus | undefined) ?? { ingesting: false, librarian: false, heal: false }`). The package now exposes this directly as a hook: `useEntityStatus(entityId)` from `@equationalapplications/expo-llm-wiki`, returning the same `{ ingesting, librarian, heal }` shape.
+
+Two of the banner's five conditions are exactly this status: `wikiStatus.ingesting` (`ChatView.tsx:330`, `:347`) and `wikiStatus.librarian` (`ChatView.tsx:330`, `:350`). The other three banner branches — `documentPhase` (`'reading' | 'converting' | 'checking' | 'forgetting'`) and `escalationState === 'escalating'` — are unrelated local/`useAIChat` state, not wiki-machine status, and must not change.
+
+### Changes
+
+- Add `import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'`.
+- Replace `const { status: wikiStatus } = useCharacterWiki(characterId)` (`ChatView.tsx:47`) with `const wikiStatus = useEntityStatus(characterId)`.
+- Remove the now-unused `import { useCharacterWiki } from '~/hooks/useCharacterWiki'` (`ChatView.tsx:17`) — confirm first that `ChatView.tsx` has no other call into `useCharacterWiki`; as of this spec it doesn't.
+- No changes to the JSX at `ChatView.tsx:330-356`: `wikiStatus.ingesting` and `wikiStatus.librarian` keep their existing condition checks and rendered `<Text>` branches verbatim, only the source of `wikiStatus` changes. The `documentPhase` and `escalationState` branches are untouched.
+- `useCharacterWiki.ts` itself is not modified — `getOrSpawn`/the wiki actor still own `context.status` for other consumers; this change only stops `ChatView.tsx` from reading it manually.
+
+### Testing
+
+- `__tests__/chatViewAccessibility.test.tsx` currently mocks `~/hooks/useCharacterWiki` (`mockWikiStatus`, lines 135-137) to drive the `ingesting`/`librarian` banner assertions. Update the mock to target `useEntityStatus` from `@equationalapplications/expo-llm-wiki` instead (same `{ ingesting, librarian, heal }` return shape), and remove the `useCharacterWiki` mock once nothing in `ChatView.tsx` calls it. Existing assertions (e.g. the "Ingesting document" accessibility-label check around line 276) should pass unchanged against the new mock.
+
 ## Out of scope
 
 - `strict` ontology mode and any taxonomy-editing UI — explicitly deferred; `emergent` only, for all characters, for now.
@@ -168,3 +186,4 @@ Without this, the bootstrap above only ever reaches local SQLite — `cloud-agen
 - `functions/src/generateReply.test.ts` — new cases: `tools` round-trips with an unrecognized tool name (rejected), `contents` containing `functionCall`/`functionResponse` parts (accepted), a model response containing `functionCalls` (returned in the response shape instead of throwing on empty text), `tools` present alongside the implicit `googleSearch` omission.
 - `functions/src/wikiSync.test.ts` (or equivalent) — ontology bundle round-trip: local `emergent` mode + empty manifest persists to Postgres and reads back unchanged.
 - `src/services/__tests__/wikiOrchestrator.test.ts` — bootstrap fires `setOntologyManifest` only when existing mode is `'off'`/absent, and is skipped on subsequent `getOrSpawn` calls for the same entity once `emergent` is set.
+- `__tests__/chatViewAccessibility.test.tsx` — mock swapped from `~/hooks/useCharacterWiki` to `useEntityStatus` (`@equationalapplications/expo-llm-wiki`); existing `ingesting`/`librarian` banner assertions pass unchanged.

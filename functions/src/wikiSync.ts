@@ -6,7 +6,7 @@ import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {creditService as defaultCreditService} from "./services/creditService.js";
 import {getDb} from "./db/cloudSql.js";
-import {llmWikiEntries, llmWikiTasks, llmWikiEvents, llmWikiEdges, characters} from "./db/schema.js";
+import {llmWikiEntries, llmWikiTasks, llmWikiEvents, llmWikiEdges, llmWikiOntology, characters} from "./db/schema.js";
 
 const DEFAULT_REGION = "us-central1";
 
@@ -56,11 +56,20 @@ interface WikiEdge {
   created_at: number;
 }
 
+interface WikiOntology {
+  mode: 'strict' | 'emergent' | 'off';
+  manifest: {
+    node_types: { type: string; description: string }[];
+    edge_types: { type: string; source_type: string; target_type: string; description: string }[];
+  };
+}
+
 interface MemoryBundle {
   facts: WikiFact[];
   tasks: WikiTask[];
   events: WikiEvent[];
   edges?: WikiEdge[];
+  ontology?: WikiOntology;
 }
 
 export interface MemoryDump {
@@ -100,6 +109,29 @@ function assertString(value: unknown, label: string): void {
 function assertNumber(value: unknown, label: string): void {
   if (typeof value !== "number" || !isFinite(value)) {
     throw new HttpsError("invalid-argument", `${label} must be a finite number.`);
+  }
+}
+
+const VALID_ONTOLOGY_MODE = new Set(["strict", "emergent", "off"]);
+
+function validateOntology(ontology: unknown, label: string): void {
+  if (!ontology || typeof ontology !== "object" || Array.isArray(ontology)) {
+    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  }
+  const o = ontology as Record<string, unknown>;
+  assertString(o.mode, `${label}.mode`);
+  if (!VALID_ONTOLOGY_MODE.has(o.mode as string)) {
+    throw new HttpsError("invalid-argument", `${label}.mode must be one of: strict, emergent, off.`);
+  }
+  if (!o.manifest || typeof o.manifest !== "object" || Array.isArray(o.manifest)) {
+    throw new HttpsError("invalid-argument", `${label}.manifest must be an object.`);
+  }
+  const m = o.manifest as Record<string, unknown>;
+  if (!Array.isArray(m.node_types)) {
+    throw new HttpsError("invalid-argument", `${label}.manifest.node_types must be an array.`);
+  }
+  if (!Array.isArray(m.edge_types)) {
+    throw new HttpsError("invalid-argument", `${label}.manifest.edge_types must be an array.`);
   }
 }
 
@@ -311,6 +343,9 @@ function parseInput(data: unknown): MemoryDump {
     b.tasks.forEach((t: unknown, i: number) => validateTask(t, entityId, `Entity "${entityId}".tasks[${i}]`));
     b.events.forEach((e: unknown, i: number) => validateEvent(e, entityId, `Entity "${entityId}".events[${i}]`));
     edges.forEach((e: unknown, i: number) => validateEdge(e, entityId, `Entity "${entityId}".edges[${i}]`));
+    if (b.ontology !== undefined) {
+      validateOntology(b.ontology, `Entity "${entityId}".ontology`);
+    }
   }
 
   return d.dump as unknown as MemoryDump;
@@ -371,6 +406,11 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
     edge_type: string;
     created_at: string;
   };
+  type OntologyRow = {
+    entity_id: string;
+    mode: string;
+    manifest: unknown;
+  };
 
   // Format entity IDs as PostgreSQL array literal for ANY() operator.
   // Build the SQL dynamically to avoid parameterization issues with array casts.
@@ -382,7 +422,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
     `ARRAY[${entityIds.map((id) => `'${id}'::uuid`).join(',')}]`
   );
 
-  const [factResult, taskResult, eventResult, edgeResult] = await Promise.all([
+  const [factResult, taskResult, eventResult, edgeResult, ontologyResult] = await Promise.all([
     db.execute<FactRow>(sql`
       WITH ranked AS (
         SELECT *,
@@ -435,6 +475,10 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
           AND user_id = ${userId}::uuid
       )
       SELECT * FROM ranked WHERE rn <= ${MAX_EDGES_PER_ENTITY}
+    `),
+    db.execute<OntologyRow>(sql`
+      SELECT entity_id, mode, manifest FROM llm_wiki_ontology
+      WHERE entity_id = ANY(${arrayLiteral}) AND user_id = ${userId}::uuid
     `),
   ]);
 
@@ -503,6 +547,15 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       edge_type: r.edge_type,
       created_at: Number(r.created_at),
     });
+  }
+
+  for (const r of ontologyResult.rows) {
+    const entity = entities[r.entity_id];
+    if (!entity) continue;
+    entity.ontology = {
+      mode: r.mode as WikiOntology['mode'],
+      manifest: (r.manifest ?? { node_types: [], edge_types: [] }) as WikiOntology['manifest'],
+    };
   }
 
   return {generatedAt: Date.now(), entities};
@@ -616,6 +669,26 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
             }))
           )
           .onConflictDoNothing();
+      }
+
+      if (bundle.ontology) {
+        await tx
+          .insert(llmWikiOntology)
+          .values({
+            entityId,
+            userId,
+            mode: bundle.ontology.mode,
+            manifest: bundle.ontology.manifest,
+            updatedAt: Date.now(),
+          })
+          .onConflictDoUpdate({
+            target: [llmWikiOntology.entityId, llmWikiOntology.userId],
+            set: {
+              mode: sql`excluded.mode`,
+              manifest: sql`excluded.manifest`,
+              updatedAt: sql`excluded.updated_at`,
+            },
+          });
       }
     }
   });

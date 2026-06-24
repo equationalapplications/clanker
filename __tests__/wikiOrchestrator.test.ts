@@ -16,6 +16,8 @@ const makeWikiMock = () => ({
   importDump: jest.fn().mockResolvedValue(undefined),
   runPrune: jest.fn().mockResolvedValue(undefined),
   subscribeEntityStatus: jest.fn(() => () => {}),
+  getOntologyManifest: jest.fn().mockResolvedValue(null),
+  setOntologyManifest: jest.fn().mockResolvedValue(undefined),
 })
 
 beforeEach(() => _resetWikiOrchestratorForTests())
@@ -226,5 +228,60 @@ describe('wikiOrchestrator', () => {
         5000,
       ),
     ).rejects.toThrow('export failed')
+  })
+
+  describe('emergent ontology bootstrap', () => {
+    it('seeds an empty emergent manifest when no ontology row exists yet', async () => {
+      const wiki = makeWikiMock()
+      wiki.getOntologyManifest.mockResolvedValue(null)
+      wikiOrchestrator.getOrSpawn('e1', wiki as never)
+      await new Promise((r) => setTimeout(r, 0))
+      expect(wiki.getOntologyManifest).toHaveBeenCalledWith('e1')
+      expect(wiki.setOntologyManifest).toHaveBeenCalledWith('e1', { node_types: [], edge_types: [] }, { mode: 'emergent' })
+    })
+
+    it('seeds when the existing mode is "off"', async () => {
+      const wiki = makeWikiMock()
+      wiki.getOntologyManifest.mockResolvedValue({ mode: 'off', manifest: { node_types: [], edge_types: [] } })
+      wikiOrchestrator.getOrSpawn('e1', wiki as never)
+      await new Promise((r) => setTimeout(r, 0))
+      expect(wiki.setOntologyManifest).toHaveBeenCalledWith('e1', { node_types: [], edge_types: [] }, { mode: 'emergent' })
+    })
+
+    it('does not reseed when the existing mode is already emergent', async () => {
+      const wiki = makeWikiMock()
+      wiki.getOntologyManifest.mockResolvedValue({ mode: 'emergent', manifest: { node_types: [], edge_types: [] } })
+      wikiOrchestrator.getOrSpawn('e1', wiki as never)
+      await new Promise((r) => setTimeout(r, 0))
+      expect(wiki.setOntologyManifest).not.toHaveBeenCalled()
+    })
+
+    it('does not reseed when the existing mode is strict', async () => {
+      const wiki = makeWikiMock()
+      wiki.getOntologyManifest.mockResolvedValue({ mode: 'strict', manifest: { node_types: [{ type: 'person', description: 'x' }], edge_types: [] } })
+      wikiOrchestrator.getOrSpawn('e1', wiki as never)
+      await new Promise((r) => setTimeout(r, 0))
+      expect(wiki.setOntologyManifest).not.toHaveBeenCalled()
+    })
+
+    it('only checks once per entity per session: a second getOrSpawn for the same entity does not re-check', async () => {
+      const wiki = makeWikiMock()
+      wiki.getOntologyManifest.mockResolvedValue(null)
+      wikiOrchestrator.getOrSpawn('e1', wiki as never)
+      await new Promise((r) => setTimeout(r, 0))
+      wiki.getOntologyManifest.mockClear()
+      wikiOrchestrator.getOrSpawn('e1', wiki as never)
+      await new Promise((r) => setTimeout(r, 0))
+      expect(wiki.getOntologyManifest).not.toHaveBeenCalled()
+    })
+
+    it('does not throw or block actor creation when getOntologyManifest rejects', async () => {
+      const wiki = makeWikiMock()
+      wiki.getOntologyManifest.mockRejectedValue(new Error('SQLite locked'))
+      const actor = wikiOrchestrator.getOrSpawn('e1', wiki as never)
+      await new Promise((r) => setTimeout(r, 0))
+      expect(actor).toBeDefined()
+      expect(wiki.setOntologyManifest).not.toHaveBeenCalled()
+    })
   })
 })
