@@ -101,7 +101,9 @@ const syncCharacterFn = httpsCallable(functionsInstance, 'syncCharacter')
 const deleteCharacterFn = httpsCallable(functionsInstance, 'deleteCharacter')
 const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters')
 const getPublicCharacterFn = httpsCallable(functionsInstance, 'getPublicCharacter')
-const wikiLlmFn = httpsCallable(functionsInstance, 'wikiLlm')
+const wikiLlmFn = httpsCallable(functionsInstance, 'wikiLlm', {
+  timeout: 545_000,
+})
 const wikiSyncFn = httpsCallable(functionsInstance, 'wikiSync')
 const generateEmbeddingFn = httpsCallable(functionsInstance, 'generateEmbedding')
 const convertDocumentTextFn = httpsCallable(functionsInstance, 'convertDocumentText', {
