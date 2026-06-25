@@ -136,7 +136,7 @@ export function GroundingHtml({ html, style }: GroundingHtmlProps) {
         overflowY: 'hidden',
         boxSizing: 'border-box',
         WebkitOverflowScrolling: 'touch',
-        touchAction: 'pan-x',
+        touchAction: 'pan-x pan-y',
         ...containerStyle,
       }}
       onMouseDown={captureBubblePress}
