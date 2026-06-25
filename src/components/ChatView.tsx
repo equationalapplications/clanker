@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
-import type { FlatListProps } from 'react-native'
+import type { FlatListProps, TextStyle } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
 import { useSelector } from '@xstate/react'
@@ -20,6 +20,11 @@ import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/
 import type { Character } from '~/services/characterService'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
+
+const webMessageTextWrapStyle = {
+  wordBreak: 'break-word',
+  overflowWrap: 'anywhere',
+} as TextStyle
 
 /** WebViews in inverted lists can paint over sibling rows unless clipping is disabled. */
 const groundingListViewProps: Pick<FlatListProps<unknown>, 'removeClippedSubviews'> = {
@@ -178,12 +183,14 @@ function ChatViewContent({
             >
               <MessageText
                 {...msgProps}
-                textStyle={[
-                  msgProps.textStyle,
+                textStyle={
                   Platform.OS === 'web'
-                    ? ({ wordBreak: 'break-word', overflowWrap: 'anywhere' } as const)
-                    : undefined,
-                ]}
+                    ? {
+                        left: [msgProps.textStyle?.left, webMessageTextWrapStyle],
+                        right: [msgProps.textStyle?.right, webMessageTextWrapStyle],
+                      }
+                    : msgProps.textStyle
+                }
               />
             </View>
           )}

@@ -314,6 +314,23 @@ export function buildToolsForRequest(tools?: ToolDeclaration[]): Tool[] {
   return buildAuthorizedToolsArray([googleSearchManifest], []).map(toGenAITool);
 }
 
+const NON_RETRYABLE_EMPTY_RESPONSE_FINISH_REASONS = new Set([
+  "MAX_TOKENS",
+  "SAFETY",
+  "RECITATION",
+  "BLOCKLIST",
+  "PROHIBITED_CONTENT",
+  "SPII",
+  "MALFORMED_FUNCTION_CALL",
+]);
+
+function isRetryableEmptyResponseFinishReason(finishReason: string | undefined): boolean {
+  if (!finishReason || finishReason === "FINISH_REASON_UNSPECIFIED" || finishReason === "OTHER") {
+    return true;
+  }
+  return !NON_RETRYABLE_EMPTY_RESPONSE_FINISH_REASONS.has(finishReason);
+}
+
 function getTextGenerator(): GenerateTextFn {
   if (textGenerator) {
     return textGenerator;
@@ -362,18 +379,29 @@ function getTextGenerator(): GenerateTextFn {
         }
       }
 
-      if (attempt === 0) {
+      const finishReasons = candidates.map((c) => c.finishReason ?? null);
+      const shouldRetry =
+        attempt === 0 &&
+        (candidates.length === 0 ||
+          candidates.some((candidate) => isRetryableEmptyResponseFinishReason(candidate.finishReason)));
+
+      if (shouldRetry) {
         logger.warn("generateReply empty model response, retrying once", {
-          finishReasons: candidates.map((c) => c.finishReason ?? null),
+          finishReasons,
           candidateCount: candidates.length,
         });
         continue;
       }
 
-      logger.error("generateReply model returned empty response after retry", {
-        finishReasons: candidates.map((c) => c.finishReason ?? null),
-        candidateCount: candidates.length,
-      });
+      logger.error(
+        attempt === 0
+          ? "generateReply model returned empty response with non-retryable finish reason"
+          : "generateReply model returned empty response after retry",
+        {
+          finishReasons,
+          candidateCount: candidates.length,
+        },
+      );
     }
 
     throw new HttpsError("internal", "Model returned an empty response.");

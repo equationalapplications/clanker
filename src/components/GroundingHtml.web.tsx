@@ -26,12 +26,14 @@ const LAYOUT_REMEASURE_DELAYS_MS = [0, 100, 400, 800] as const
 export function GroundingHtml({ html, style }: GroundingHtmlProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
+  const mountedRef = useRef(false)
+  const syncRafRef = useRef<number | null>(null)
   const [contentWidth, setContentWidth] = useState(0)
 
   const syncLayout = useCallback(() => {
     const host = hostRef.current
     const shadow = host?.shadowRoot
-    if (!host || !shadow) {
+    if (!mountedRef.current || !host || !shadow) {
       return
     }
     setContentWidth(measureShadowLayout(host, shadow).contentWidth)
@@ -39,7 +41,13 @@ export function GroundingHtml({ html, style }: GroundingHtmlProps) {
 
   const scheduleSync = useCallback(() => {
     syncLayout()
-    requestAnimationFrame(syncLayout)
+    if (syncRafRef.current !== null) {
+      cancelAnimationFrame(syncRafRef.current)
+    }
+    syncRafRef.current = requestAnimationFrame(() => {
+      syncRafRef.current = null
+      syncLayout()
+    })
   }, [syncLayout])
 
   useEffect(() => {
@@ -48,6 +56,7 @@ export function GroundingHtml({ html, style }: GroundingHtmlProps) {
       return
     }
 
+    mountedRef.current = true
     const shadow = mountGroundingShadowContent(host, html)
     scheduleSync()
 
@@ -59,16 +68,10 @@ export function GroundingHtml({ html, style }: GroundingHtmlProps) {
       typeof ResizeObserver !== 'undefined' ? new ResizeObserver(scheduleSync) : null
     resizeObserver?.observe(host)
 
-    const stylesheetLoads: HTMLLinkElement[] = []
-    for (const link of Array.from(shadow.querySelectorAll('link[rel="stylesheet"]'))) {
-      if (link instanceof HTMLLinkElement) {
-        link.addEventListener('load', scheduleSync)
-        link.addEventListener('error', scheduleSync)
-        stylesheetLoads.push(link)
+    const onShadowWheel = (event: Event) => {
+      if (!(event instanceof WheelEvent)) {
+        return
       }
-    }
-
-    const onShadowWheel = (event: WheelEvent) => {
       const scrollEl = scrollRef.current
       if (!scrollEl) {
         return
@@ -82,14 +85,15 @@ export function GroundingHtml({ html, style }: GroundingHtmlProps) {
     shadow.addEventListener('wheel', onShadowWheel, { capture: true, passive: false })
 
     return () => {
+      mountedRef.current = false
+      if (syncRafRef.current !== null) {
+        cancelAnimationFrame(syncRafRef.current)
+        syncRafRef.current = null
+      }
       for (const timeoutId of timeouts) {
         window.clearTimeout(timeoutId)
       }
       resizeObserver?.disconnect()
-      for (const link of stylesheetLoads) {
-        link.removeEventListener('load', scheduleSync)
-        link.removeEventListener('error', scheduleSync)
-      }
       shadow.removeEventListener('wheel', onShadowWheel, { capture: true })
       shadow.innerHTML = ''
     }
@@ -116,7 +120,7 @@ export function GroundingHtml({ html, style }: GroundingHtmlProps) {
     stopBubbleScrollCapture(event)
   }, [])
 
-  const flattenedStyle = StyleSheet.flatten(style) as CSSProperties
+  const flattenedStyle = (StyleSheet.flatten(style) ?? {}) as CSSProperties
   const { minHeight: _minHeight, height: _height, ...containerStyle } = flattenedStyle
 
   const sizerWidth = contentWidth > 0 ? `${contentWidth}px` : '100%'

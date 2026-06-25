@@ -22,6 +22,17 @@ describe('sanitizeGroundingHtmlLinks', () => {
     expect(bodyHtml).toContain('<a>bad</a>')
     expect(bodyHtml).toContain('good</a>')
   })
+
+  it('removes embed-capable elements and external stylesheet links', () => {
+    const { headMarkup, bodyHtml } = sanitizeGroundingHtmlLinks(
+      '<link rel="stylesheet" href="https://evil.example/style.css"><style>.row{}</style><iframe src="https://evil.example"></iframe><div class="row">Suggestion</div>',
+    )
+
+    expect(headMarkup).toContain('.row')
+    expect(headMarkup).not.toContain('<link')
+    expect(bodyHtml).not.toContain('<iframe')
+    expect(bodyHtml).toContain('Suggestion</div>')
+  })
 })
 
 describe('formatGroundingShadowHtml', () => {
@@ -109,5 +120,20 @@ describe('applyHorizontalWheelToScrollport', () => {
 
     expect(scrolled).toBe(true)
     expect(scrollEl.scrollLeft).toBe(10)
+  })
+
+  it('returns false when the scrollport is already at the horizontal edge', () => {
+    const scrollEl = document.createElement('div')
+    Object.defineProperty(scrollEl, 'scrollWidth', { configurable: true, value: 400 })
+    Object.defineProperty(scrollEl, 'clientWidth', { configurable: true, value: 200 })
+    scrollEl.scrollLeft = 200
+
+    const scrolled = applyHorizontalWheelToScrollport(
+      { deltaX: 10, deltaY: 0, shiftKey: false },
+      scrollEl,
+    )
+
+    expect(scrolled).toBe(false)
+    expect(scrollEl.scrollLeft).toBe(200)
   })
 })

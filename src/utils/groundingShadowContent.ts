@@ -20,29 +20,115 @@ export const GROUNDING_SHADOW_HOST_CSS = `
 }
 `
 
-/** Strip executable markup and non-http(s) hrefs before rendering. */
-export function sanitizeGroundingHtmlLinks(html: string): { headMarkup: string; bodyHtml: string } {
-  const doc = new DOMParser().parseFromString(html, 'text/html')
-  for (const script of Array.from(doc.querySelectorAll('script'))) {
-    script.remove()
+/** Tags expected in Google's Search Suggestions widget HTML. */
+const GROUNDING_ALLOWED_BODY_TAGS = new Set([
+  'a',
+  'b',
+  'br',
+  'div',
+  'em',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'hr',
+  'i',
+  'img',
+  'li',
+  'ol',
+  'p',
+  'path',
+  'polygon',
+  'polyline',
+  'rect',
+  'span',
+  'strong',
+  'svg',
+  'ul',
+])
+
+const GROUNDING_GLOBAL_ALLOWED_ATTRS = new Set([
+  'class',
+  'dir',
+  'id',
+  'lang',
+  'role',
+  'style',
+  'title',
+])
+
+const GROUNDING_TAG_ALLOWED_ATTRS: Record<string, ReadonlySet<string>> = {
+  a: new Set(['href', 'rel', 'target']),
+  img: new Set(['alt', 'decoding', 'height', 'loading', 'src', 'width']),
+  path: new Set(['d', 'fill', 'stroke', 'stroke-width']),
+  svg: new Set(['fill', 'height', 'viewBox', 'width', 'xmlns']),
+}
+
+const GROUNDING_URL_ATTRS = new Set(['href', 'src'])
+
+function isAllowedGroundingAttribute(tagName: string, attributeName: string): boolean {
+  const lowerName = attributeName.toLowerCase()
+  if (lowerName.startsWith('on') || lowerName.startsWith('data-') || lowerName.startsWith('aria-')) {
+    return lowerName.startsWith('aria-') || lowerName.startsWith('data-')
   }
-  for (const element of Array.from(doc.querySelectorAll('*'))) {
+  if (GROUNDING_GLOBAL_ALLOWED_ATTRS.has(lowerName)) {
+    return true
+  }
+  return GROUNDING_TAG_ALLOWED_ATTRS[tagName]?.has(lowerName) ?? false
+}
+
+function sanitizeGroundingUrlAttribute(element: Element, attributeName: string): void {
+  const value = element.getAttribute(attributeName)
+  if (!value || !isSafeHttpUrl(value)) {
+    element.removeAttribute(attributeName)
+    return
+  }
+  if (element.tagName.toLowerCase() === 'a') {
+    element.setAttribute('target', '_blank')
+    element.setAttribute('rel', 'noopener noreferrer')
+  }
+}
+
+function unwrapDisallowedElement(element: Element): void {
+  const parent = element.parentNode
+  if (!parent) {
+    element.remove()
+    return
+  }
+  while (element.firstChild) {
+    parent.insertBefore(element.firstChild, element)
+  }
+  parent.removeChild(element)
+}
+
+function sanitizeGroundingElementTree(root: ParentNode): void {
+  for (const element of Array.from(root.querySelectorAll('*'))) {
+    const tagName = element.tagName.toLowerCase()
+    if (!GROUNDING_ALLOWED_BODY_TAGS.has(tagName)) {
+      unwrapDisallowedElement(element)
+      continue
+    }
+
     for (const attribute of Array.from(element.attributes)) {
-      if (attribute.name.toLowerCase().startsWith('on')) {
+      const attributeName = attribute.name.toLowerCase()
+      if (!isAllowedGroundingAttribute(tagName, attributeName)) {
         element.removeAttribute(attribute.name)
+        continue
+      }
+      if (GROUNDING_URL_ATTRS.has(attributeName)) {
+        sanitizeGroundingUrlAttribute(element, attribute.name)
       }
     }
   }
-  for (const anchor of Array.from(doc.querySelectorAll('a[href]'))) {
-    const href = anchor.getAttribute('href')
-    if (!href || !isSafeHttpUrl(href)) {
-      anchor.removeAttribute('href')
-    } else {
-      anchor.setAttribute('target', '_blank')
-      anchor.setAttribute('rel', 'noopener noreferrer')
-    }
-  }
-  const headMarkup = Array.from(doc.head.querySelectorAll('style, link[rel="stylesheet"]'))
+}
+
+/** Allowlist sanitizer for Google widget HTML before shadow-root injection. */
+export function sanitizeGroundingHtmlLinks(html: string): { headMarkup: string; bodyHtml: string } {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  sanitizeGroundingElementTree(doc.body)
+  const headMarkup = Array.from(doc.head.querySelectorAll('style'))
     .map((el) => el.outerHTML)
     .join('')
   return { headMarkup, bodyHtml: doc.body.innerHTML }
@@ -173,6 +259,11 @@ export function applyHorizontalWheelToScrollport(
   if (delta === 0 || scrollEl.scrollWidth <= scrollEl.clientWidth) {
     return false
   }
-  scrollEl.scrollLeft += delta
+  const maxScrollLeft = scrollEl.scrollWidth - scrollEl.clientWidth
+  const nextScrollLeft = Math.min(Math.max(scrollEl.scrollLeft + delta, 0), maxScrollLeft)
+  if (nextScrollLeft === scrollEl.scrollLeft) {
+    return false
+  }
+  scrollEl.scrollLeft = nextScrollLeft
   return true
 }
