@@ -23,6 +23,11 @@ export function stripExecutableGroundingMarkup(html: string): string {
   result = replaceUntilStable(result, SCRIPT_TAG_RE)
   result = replaceUntilStable(result, SCRIPT_SELF_CLOSING_RE)
   result = replaceUntilStable(result, INLINE_EVENT_HANDLER_RE)
+  result = replaceUntilStable(
+    result,
+    /<(?:iframe|object|embed|frame|frameset)\b[^>]*>(?:[\s\S]*?<\/(?:iframe|object|embed|frame|frameset)\s*>)?/gi,
+  )
+  result = replaceUntilStable(result, /<(?:link|meta)\b[^>]*>/gi)
   return result
 }
 
