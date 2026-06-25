@@ -1,3 +1,15 @@
+## [30.5.3](https://github.com/equationalapplications/clanker/compare/v30.5.2...v30.5.3) (2026-06-25)
+
+
+### Bug Fixes
+
+* **grounding:** address CodeRabbit review on metadata, links, DB conflicts ([a21597f](https://github.com/equationalapplications/clanker/commit/a21597f1a180b2d6062c567b763a36b75cf8ae50))
+* **grounding:** address Copilot TS and message ID review comments ([5542a52](https://github.com/equationalapplications/clanker/commit/5542a527bdaebb379725593b450056077bea50f4))
+* **grounding:** address PR review on iframe sandbox and message inserts ([aef3caf](https://github.com/equationalapplications/clanker/commit/aef3caff491687971b0eeb4672f64508ed645c94))
+* **grounding:** let web citation links escape iframe sandbox ([5a37e31](https://github.com/equationalapplications/clanker/commit/5a37e313172a5f7bd3d2ae8806874e126b5330ac))
+* **grounding:** thread Gemini search citations end-to-end, fix web render ([ad3928f](https://github.com/equationalapplications/clanker/commit/ad3928f99686fdcf0b9898f8843e6adac6a75102))
+* **web:** preserve grounding HTML styles after link sanitization ([87d50a3](https://github.com/equationalapplications/clanker/commit/87d50a31ae1db73cdac5890dc86452440bca09d4))
+
 ## [30.5.2](https://github.com/equationalapplications/clanker/compare/v30.5.1...v30.5.2) (2026-06-24)
 
 
