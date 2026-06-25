@@ -4,6 +4,7 @@ import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
+import type { ListViewProps } from 'react-native-gifted-chat/lib/MessageContainer/types'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useAIChat } from '~/hooks/useAIChat'
@@ -19,6 +20,9 @@ import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/
 import type { Character } from '~/services/characterService'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
+
+/** WebViews in inverted lists can paint over sibling rows unless clipping is disabled. */
+const groundingListViewProps = { removeClippedSubviews: false } as ListViewProps
 
 interface ChatViewProps {
   characterId: string
@@ -332,6 +336,7 @@ function ChatViewContent({
         renderCustomView={renderCustomView}
         isCustomViewBottom
         messageIdGenerator={() => `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`}
+        listViewProps={groundingListViewProps}
         renderAvatarOnTop
         messagesContainerStyle={styles.messagesContainer}
         minInputToolbarHeight={56}
@@ -447,6 +452,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingBottom: 8,
     gap: 6,
+    overflow: 'hidden',
+    width: '100%',
   },
   citationRow: {
     flexDirection: 'row',
@@ -464,7 +471,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   searchSuggestions: {
-    height: 85,
+    minHeight: 48,
     backgroundColor: 'transparent',
   },
   headerTitle: {
