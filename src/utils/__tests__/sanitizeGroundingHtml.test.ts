@@ -14,6 +14,16 @@ describe('stripExecutableGroundingMarkup', () => {
     const html = '<button onclick="alert(1)">tap</button>'
     expect(stripExecutableGroundingMarkup(html)).toBe('<button>tap</button>')
   })
+
+  it('removes script tags with whitespace before the closing angle bracket', () => {
+    const html = '<div>ok</div><script>alert(1)</script ><span>more</span>'
+    expect(stripExecutableGroundingMarkup(html)).toBe('<div>ok</div><span>more</span>')
+  })
+
+  it('removes nested script tag obfuscation', () => {
+    const html = '<scr<script>ipt>alert(1)</scr</script>ipt>'
+    expect(stripExecutableGroundingMarkup(html)).toBe('')
+  })
 })
 
 describe('sanitizeGroundingHtmlLinksRegex', () => {

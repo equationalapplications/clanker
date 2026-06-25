@@ -1,17 +1,29 @@
 import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
 
-const SCRIPT_TAG_RE = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi
+const SCRIPT_TAG_RE = /<script\b[^<]*(?:(?!<\/script\s*>)<[^<]*)*<\/script\s*>/gi
 const SCRIPT_SELF_CLOSING_RE = /<script\b[^>]*\/?>/gi
 const INLINE_EVENT_HANDLER_RE = /\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi
 const ANCHOR_TAG_RE = /<a\b([^>]*)>/gi
 const HREF_ATTR_RE = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i
 
+/** Repeat replace until stable — avoids CodeQL incomplete-sanitization bypasses. */
+function replaceUntilStable(html: string, pattern: RegExp): string {
+  let result = html
+  let previous = ''
+  while (result !== previous) {
+    previous = result
+    result = result.replace(new RegExp(pattern.source, pattern.flags), '')
+  }
+  return result
+}
+
 /** Remove script tags and inline event handlers from API-provided HTML snippets. */
 export function stripExecutableGroundingMarkup(html: string): string {
-  return html
-    .replace(SCRIPT_TAG_RE, '')
-    .replace(SCRIPT_SELF_CLOSING_RE, '')
-    .replace(INLINE_EVENT_HANDLER_RE, '')
+  let result = html
+  result = replaceUntilStable(result, SCRIPT_TAG_RE)
+  result = replaceUntilStable(result, SCRIPT_SELF_CLOSING_RE)
+  result = replaceUntilStable(result, INLINE_EVENT_HANDLER_RE)
+  return result
 }
 
 /** Strip unsafe hrefs from anchor tags (native path; web uses DOMParser). */
