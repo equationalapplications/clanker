@@ -4,7 +4,6 @@ import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
-import { WebView } from 'react-native-webview'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useAIChat } from '~/hooks/useAIChat'
@@ -13,20 +12,13 @@ import { useAuthMachine } from '~/hooks/useMachines'
 import { useUserCredits } from '~/hooks/useUserCredits'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import ChatComposer, { type DocumentUploadPhase } from '~/components/ChatComposer'
+import { GroundingHtml } from '~/components/GroundingHtml'
+import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
 import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
 import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/aiChatService'
 import type { Character } from '~/services/characterService'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
-
-function isSafeHttpUrl(uri: string): boolean {
-  try {
-    const { protocol } = new URL(uri)
-    return protocol === 'http:' || protocol === 'https:'
-  } catch {
-    return false
-  }
-}
 
 interface ChatViewProps {
   characterId: string
@@ -285,28 +277,7 @@ function ChatViewContent({
             </View>
           )}
           {renderedContent && (
-            <WebView
-              originWhitelist={['about:blank', 'http://*', 'https://*']}
-              source={{ html: renderedContent }}
-              style={styles.searchSuggestions}
-              scrollEnabled={true}
-              javaScriptEnabled={false}
-              domStorageEnabled={false}
-              setSupportMultipleWindows={false}
-              onShouldStartLoadWithRequest={(request) => {
-                if (request.url === 'about:blank') {
-                  return true
-                }
-
-                if (isSafeHttpUrl(request.url)) {
-                  void Linking.openURL(request.url).catch((error) => {
-                    console.warn('Failed to open search suggestion URL', error)
-                  })
-                }
-
-                return false
-              }}
-            />
+            <GroundingHtml html={renderedContent} style={styles.searchSuggestions} />
           )}
         </View>
       )
@@ -360,6 +331,7 @@ function ChatViewContent({
         alwaysShowSend={isGeneratingResponse}
         renderCustomView={renderCustomView}
         isCustomViewBottom
+        messageIdGenerator={() => `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`}
         renderAvatarOnTop
         messagesContainerStyle={styles.messagesContainer}
         minInputToolbarHeight={56}
@@ -492,7 +464,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   searchSuggestions: {
-    height: 44,
+    height: 85,
     backgroundColor: 'transparent',
   },
   headerTitle: {

@@ -4,7 +4,7 @@ import { rateLimit } from 'express-rate-limit'
 import admin from 'firebase-admin'
 import { eq, and, isNull, sql } from 'drizzle-orm'
 import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
-import type { Content } from '@google/genai'
+import type { Content, GroundingMetadata } from '@google/genai'
 import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
 import { users, characters, llmWikiEvents, llmWikiEntries, tasks } from './db/schema.js'
@@ -35,7 +35,7 @@ export interface RunAgentParams {
 interface AppOptions {
   verifyToken: (token: string) => Promise<{ uid: string }>
   db: DrizzleClient
-  runAgentFn: (params: RunAgentParams) => Promise<{ reply: string; toolCalls: string[] }>
+  runAgentFn: (params: RunAgentParams) => Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }>
   creditService?: CreditService
 }
 
@@ -215,7 +215,7 @@ function assembleSystemInstruction(
 
 // ── Real agent runner (production) ────────────────────────────────────────────
 
-export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> {
+export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
   const { db, userId, characterId, systemInstruction, message, history, timezone, embed } = params
   const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed)
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
@@ -249,6 +249,10 @@ export async function runAgentReal(params: RunAgentParams): Promise<{ reply: str
 
   let reply = ''
   const toolCalls: string[] = []
+  // Google Search grounding ToS requires surfacing the citation/search-suggestions
+  // Gemini returns. ADK exposes it as event.groundingMetadata (Event extends
+  // LlmResponse). Keep the last non-empty one — it rides the final response event.
+  let groundingMetadata: GroundingMetadata | undefined
   for await (const event of events) {
     if (event.errorCode || event.errorMessage) {
       throw new Error(`ADK error (${event.errorCode ?? 'unknown'}): ${event.errorMessage ?? 'no message'}`)
@@ -261,6 +265,9 @@ export async function runAgentReal(params: RunAgentParams): Promise<{ reply: str
         }
       }
     }
+    if (event.groundingMetadata) {
+      groundingMetadata = event.groundingMetadata
+    }
     if (isFinalResponse(event) && event.content?.parts) {
       reply = event.content.parts
         .filter((p) => 'text' in p)
@@ -272,7 +279,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{ reply: str
   if (!reply.trim()) {
     throw new Error('ADK returned an empty final reply')
   }
-  return { reply, toolCalls }
+  return { reply, toolCalls, groundingMetadata }
 }
 
 // ── App factory ───────────────────────────────────────────────────────────────
@@ -411,7 +418,7 @@ export function createApp(options: AppOptions) {
         throw preAgentErr
       }
       // 2. EXECUTE — refund on ADK failure
-      let result: { reply: string; toolCalls: string[] }
+      let result: { reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }
       try {
         result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history, timezone, embed: embedText })
       } catch (adkErr) {
@@ -436,6 +443,7 @@ export function createApp(options: AppOptions) {
         reply: result.reply,
         toolCalls: result.toolCalls,
         usageSnapshot: newBalance !== null ? { remainingCredits: newBalance } : null,
+        groundingMetadata: result.groundingMetadata,
       })
     } catch (err) {
       console.error('agent/run error:', err)

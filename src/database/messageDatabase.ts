@@ -100,12 +100,26 @@ export async function sendMessage(
     const createdAt = Date.now()
     const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
-    await db.runAsync(
-        `INSERT INTO messages 
+    // ON CONFLICT DO NOTHING: a persisted/resumed mutation (see PersistQueryClientProvider in
+    // app/_layout.tsx) can replay the same client-generated id after a paused mutation is restored.
+    // The replay carries identical content, so a duplicate insert is a no-op, not an error.
+    const insertResult = await db.runAsync(
+        `INSERT INTO messages
      (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO NOTHING`,
         [id, characterId, userId, characterId, text, createdAt, messageData, 0, 1, 0, 0],
     )
+
+    if (insertResult.changes === 0) {
+        const existing = await db.getFirstAsync<LocalMessage>(
+            'SELECT * FROM messages WHERE id = ?',
+            [id],
+        )
+        if (existing) {
+            return toGiftedChatMessage(existing, userId)
+        }
+    }
 
     return {
         _id: id,
@@ -138,12 +152,23 @@ export async function saveAIMessage(
     const createdAt = Date.now()
     const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
-    await db.runAsync(
+    const insertResult = await db.runAsync(
         `INSERT INTO messages
      (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited, synced_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO NOTHING`,
         [id, characterId, characterId, userId, text, createdAt, messageData, 0, 1, 0, 0, syncedAt ?? null],
     )
+
+    if (insertResult.changes === 0) {
+        const existing = await db.getFirstAsync<LocalMessage>(
+            'SELECT * FROM messages WHERE id = ?',
+            [id],
+        )
+        if (existing) {
+            return toGiftedChatMessage(existing, userId)
+        }
+    }
 
     return {
         _id: id,
