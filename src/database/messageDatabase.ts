@@ -47,6 +47,60 @@ function toGiftedChatMessage(
   }
 }
 
+interface ExpectedMessageRow {
+  characterId: string
+  senderUserId: string
+  recipientUserId: string | null
+  text: string
+  messageData: string
+  syncedAt?: number | null
+}
+
+async function resolveInsertConflict(
+  db: Awaited<ReturnType<typeof getDatabase>>,
+  id: string,
+  userId: string,
+  expected: ExpectedMessageRow,
+): Promise<IMessage & { character_id: string }> {
+  const existing = await db.getFirstAsync<LocalMessage>(
+    'SELECT * FROM messages WHERE id = ?',
+    [id],
+  )
+  if (!existing) {
+    throw new Error(`Message insert conflict for id ${id} but no row found`)
+  }
+
+  if (
+    existing.character_id !== expected.characterId ||
+    existing.sender_user_id !== expected.senderUserId ||
+    existing.recipient_user_id !== expected.recipientUserId ||
+    existing.text !== expected.text
+  ) {
+    throw new Error(`Message id collision for ${id}: existing row does not match replay payload`)
+  }
+
+  const messageDataChanged = existing.message_data !== expected.messageData
+  const syncedAtChanged =
+    expected.syncedAt !== undefined && existing.synced_at !== expected.syncedAt
+
+  if (messageDataChanged || syncedAtChanged) {
+    await db.runAsync(
+      'UPDATE messages SET message_data = ?, synced_at = COALESCE(?, synced_at) WHERE id = ?',
+      [expected.messageData, expected.syncedAt ?? null, id],
+    )
+    const updated = await db.getFirstAsync<LocalMessage>(
+      'SELECT * FROM messages WHERE id = ?',
+      [id],
+    )
+    if (!updated) {
+      throw new Error(`Message row missing after merge update for id ${id}`)
+    }
+    return toGiftedChatMessage(updated, userId)
+  }
+
+  return toGiftedChatMessage(existing, userId)
+}
+
 /**
  * Get all messages for a character conversation
  */
@@ -112,13 +166,13 @@ export async function sendMessage(
     )
 
     if (insertResult.changes === 0) {
-        const existing = await db.getFirstAsync<LocalMessage>(
-            'SELECT * FROM messages WHERE id = ?',
-            [id],
-        )
-        if (existing) {
-            return toGiftedChatMessage(existing, userId)
-        }
+        return resolveInsertConflict(db, id, userId, {
+            characterId,
+            senderUserId: userId,
+            recipientUserId: characterId,
+            text,
+            messageData,
+        })
     }
 
     return {
@@ -161,13 +215,14 @@ export async function saveAIMessage(
     )
 
     if (insertResult.changes === 0) {
-        const existing = await db.getFirstAsync<LocalMessage>(
-            'SELECT * FROM messages WHERE id = ?',
-            [id],
-        )
-        if (existing) {
-            return toGiftedChatMessage(existing, userId)
-        }
+        return resolveInsertConflict(db, id, userId, {
+            characterId,
+            senderUserId: characterId,
+            recipientUserId: userId,
+            text,
+            messageData,
+            syncedAt: syncedAt ?? null,
+        })
     }
 
     return {

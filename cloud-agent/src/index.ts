@@ -215,6 +215,15 @@ function assembleSystemInstruction(
 
 // ── Real agent runner (production) ────────────────────────────────────────────
 
+function hasGroundingData(metadata: GroundingMetadata | undefined): metadata is GroundingMetadata {
+  return !!metadata && (
+    (Array.isArray(metadata.webSearchQueries) && metadata.webSearchQueries.length > 0) ||
+    (Array.isArray(metadata.groundingChunks) && metadata.groundingChunks.length > 0) ||
+    (Array.isArray(metadata.groundingSupports) && metadata.groundingSupports.length > 0) ||
+    typeof metadata.searchEntryPoint?.renderedContent === 'string'
+  )
+}
+
 export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
   const { db, userId, characterId, systemInstruction, message, history, timezone, embed } = params
   const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed)
@@ -265,7 +274,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{ reply: str
         }
       }
     }
-    if (event.groundingMetadata) {
+    if (hasGroundingData(event.groundingMetadata)) {
       groundingMetadata = event.groundingMetadata
     }
     if (isFinalResponse(event) && event.content?.parts) {
