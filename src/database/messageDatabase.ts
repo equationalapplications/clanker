@@ -47,6 +47,60 @@ function toGiftedChatMessage(
   }
 }
 
+interface ExpectedMessageRow {
+  characterId: string
+  senderUserId: string
+  recipientUserId: string | null
+  text: string
+  messageData: string
+  syncedAt?: number | null
+}
+
+async function resolveInsertConflict(
+  db: Awaited<ReturnType<typeof getDatabase>>,
+  id: string,
+  userId: string,
+  expected: ExpectedMessageRow,
+): Promise<IMessage & { character_id: string }> {
+  const existing = await db.getFirstAsync<LocalMessage>(
+    'SELECT * FROM messages WHERE id = ?',
+    [id],
+  )
+  if (!existing) {
+    throw new Error(`Message insert conflict for id ${id} but no row found`)
+  }
+
+  if (
+    existing.character_id !== expected.characterId ||
+    existing.sender_user_id !== expected.senderUserId ||
+    existing.recipient_user_id !== expected.recipientUserId ||
+    existing.text !== expected.text
+  ) {
+    throw new Error(`Message id collision for ${id}: existing row does not match replay payload`)
+  }
+
+  const messageDataChanged = existing.message_data !== expected.messageData
+  const syncedAtChanged =
+    expected.syncedAt !== undefined && existing.synced_at !== expected.syncedAt
+
+  if (messageDataChanged || syncedAtChanged) {
+    await db.runAsync(
+      'UPDATE messages SET message_data = ?, synced_at = COALESCE(?, synced_at) WHERE id = ?',
+      [expected.messageData, expected.syncedAt ?? null, id],
+    )
+    const updated = await db.getFirstAsync<LocalMessage>(
+      'SELECT * FROM messages WHERE id = ?',
+      [id],
+    )
+    if (!updated) {
+      throw new Error(`Message row missing after merge update for id ${id}`)
+    }
+    return toGiftedChatMessage(updated, userId)
+  }
+
+  return toGiftedChatMessage(existing, userId)
+}
+
 /**
  * Get all messages for a character conversation
  */
@@ -100,12 +154,26 @@ export async function sendMessage(
     const createdAt = Date.now()
     const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
-    await db.runAsync(
-        `INSERT INTO messages 
+    // ON CONFLICT DO NOTHING: a persisted/resumed mutation (see PersistQueryClientProvider in
+    // app/_layout.tsx) can replay the same client-generated id after a paused mutation is restored.
+    // The replay carries identical content, so a duplicate insert is a no-op, not an error.
+    const insertResult = await db.runAsync(
+        `INSERT INTO messages
      (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO NOTHING`,
         [id, characterId, userId, characterId, text, createdAt, messageData, 0, 1, 0, 0],
     )
+
+    if (insertResult.changes === 0) {
+        return resolveInsertConflict(db, id, userId, {
+            characterId,
+            senderUserId: userId,
+            recipientUserId: characterId,
+            text,
+            messageData,
+        })
+    }
 
     return {
         _id: id,
@@ -138,12 +206,24 @@ export async function saveAIMessage(
     const createdAt = Date.now()
     const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
-    await db.runAsync(
+    const insertResult = await db.runAsync(
         `INSERT INTO messages
      (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited, synced_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO NOTHING`,
         [id, characterId, characterId, userId, text, createdAt, messageData, 0, 1, 0, 0, syncedAt ?? null],
     )
+
+    if (insertResult.changes === 0) {
+        return resolveInsertConflict(db, id, userId, {
+            characterId,
+            senderUserId: characterId,
+            recipientUserId: userId,
+            text,
+            messageData,
+            syncedAt: syncedAt ?? null,
+        })
+    }
 
     return {
         _id: id,

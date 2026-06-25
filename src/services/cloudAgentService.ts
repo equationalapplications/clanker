@@ -1,5 +1,6 @@
 import { getCurrentUser } from '~/config/firebaseConfig'
-import type { Content } from '@google/genai'
+import { parseGroundingMetadata } from '~/services/groundingMetadata'
+import type { Content, GroundingMetadata } from '@google/genai'
 
 export interface CloudAgentUnsyncedTask {
   type: 'task'
@@ -20,6 +21,7 @@ export interface CloudAgentResult {
   reply: string
   toolCalls: string[]
   usageSnapshot: { remainingCredits: number } | null
+  groundingMetadata?: GroundingMetadata
 }
 
 export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudAgentResult> {
@@ -52,6 +54,7 @@ export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudA
     reply?: string
     toolCalls?: string[]
     usageSnapshot?: { remainingCredits?: unknown } | null
+    groundingMetadata?: unknown
   }
 
   if (!data.reply || typeof data.reply !== 'string') {
@@ -70,5 +73,6 @@ export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudA
     reply: data.reply,
     toolCalls: data.toolCalls ?? [],
     usageSnapshot,
+    groundingMetadata: parseGroundingMetadata(data.groundingMetadata),
   }
 }
