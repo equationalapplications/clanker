@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { StyleSheet } from 'react-native'
 import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
@@ -42,7 +42,7 @@ export function GroundingHtml({ html, style }: GroundingHtmlProps) {
     () => `<base target="_blank">${sanitizeGroundingHtmlLinks(html)}`,
     [html],
   )
-  const flattenedStyle = StyleSheet.flatten(style) as React.CSSProperties
+  const flattenedStyle = StyleSheet.flatten(style) as CSSProperties
   return (
     <iframe
       title="Search sources"

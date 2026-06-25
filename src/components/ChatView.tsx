@@ -331,7 +331,7 @@ function ChatViewContent({
         alwaysShowSend={isGeneratingResponse}
         renderCustomView={renderCustomView}
         isCustomViewBottom
-        messageIdGenerator={() => `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`}
+        messageIdGenerator={() => `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`}
         renderAvatarOnTop
         messagesContainerStyle={styles.messagesContainer}
         minInputToolbarHeight={56}
