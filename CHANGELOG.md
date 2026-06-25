@@ -1,3 +1,16 @@
+## [30.5.5](https://github.com/equationalapplications/clanker/compare/v30.5.4...v30.5.5) (2026-06-25)
+
+
+### Bug Fixes
+
+* **chat:** address Copilot review on grounding and generateReply ([d0c0be4](https://github.com/equationalapplications/clanker/commit/d0c0be439d4d3229eae31f0c7d7d47527b1d5979))
+* **grounding:** contain search suggestions WebView on iOS and Android ([32ed0db](https://github.com/equationalapplications/clanker/commit/32ed0dbe408fffa09efc457e4cfc597af30f7e97))
+* **grounding:** strip executable markup before native WebView render ([8b4e5dc](https://github.com/equationalapplications/clanker/commit/8b4e5dcdeb079c04e510629b9e788cf8c23bbb9c))
+* **security:** harden grounding HTML sanitization for CodeQL ([2cc1bdc](https://github.com/equationalapplications/clanker/commit/2cc1bdc961825ae467eb9312dc46989ab366cac8))
+* **security:** match malformed script closing tags in sanitizer ([d871371](https://github.com/equationalapplications/clanker/commit/d8713716449d3681c2b70dc5fe88bbe47a56a164))
+* **web:** address PR review feedback for grounding and chat ([5c9959b](https://github.com/equationalapplications/clanker/commit/5c9959b1a037f747656ce918a5639bdbe95ffc60))
+* **web:** restore chat replies and grounding widget layout ([6c81baf](https://github.com/equationalapplications/clanker/commit/6c81baf75c5325f9beb7470aafec27a86691add5))
+
 ## [30.5.4](https://github.com/equationalapplications/clanker/compare/v30.5.3...v30.5.4) (2026-06-25)
 
 
