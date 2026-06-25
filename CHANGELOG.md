@@ -1,3 +1,12 @@
+## [30.5.4](https://github.com/equationalapplications/clanker/compare/v30.5.3...v30.5.4) (2026-06-25)
+
+
+### Bug Fixes
+
+* **config:** silence dotenv logs to fix expo-doctor check ([535fd32](https://github.com/equationalapplications/clanker/commit/535fd324656c092e4debf9a1769026dbc5c85756))
+* **deps:** align core-llm-wiki to 4.17.1 for deduplication ([c609ac9](https://github.com/equationalapplications/clanker/commit/c609ac99728ed0595acb4df8323d76b35a4cf243))
+* **deps:** pin expo-llm-wiki to 4.17.1 ([c10905a](https://github.com/equationalapplications/clanker/commit/c10905ad6b6b62d01c1136d77988f2be9af58f2e))
+
 ## [30.5.3](https://github.com/equationalapplications/clanker/compare/v30.5.2...v30.5.3) (2026-06-25)
 
 
