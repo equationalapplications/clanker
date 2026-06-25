@@ -21,7 +21,12 @@ function sanitizeGroundingHtmlLinks(html: string): string {
       anchor.setAttribute('rel', 'noopener noreferrer')
     }
   }
-  return doc.body.innerHTML
+  // DOMParser hoists <style> / stylesheet <link> into <head>; re-include them so
+  // Search Suggestions CSS is not dropped when we inject into iframe srcDoc.
+  const headMarkup = Array.from(doc.head.querySelectorAll('style, link[rel="stylesheet"]'))
+    .map((el) => el.outerHTML)
+    .join('')
+  return headMarkup + doc.body.innerHTML
 }
 
 /**
