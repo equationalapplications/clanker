@@ -5,7 +5,7 @@ import path from 'path'
 
 import * as pkg from './package.json'
 
-dotenv.config()
+dotenv.config({ quiet: true })
 // .env.development.local (gitignored, dev-only) carries dev-sandbox flags like
 // EXPO_PUBLIC_USE_MOCK_AUTH. Expo's own env loader applies it for dev builds only,
 // so it never overrides production values during `expo export`/EAS production builds.
@@ -102,6 +102,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   ios: {
     bundleIdentifier: 'com.equationalapplications.clanker',
+    deploymentTarget: '16.4',
     googleServicesFile: getGoogleServiceInfoPlist(),
     supportsTablet: true,
     usesAppleSignIn: true,

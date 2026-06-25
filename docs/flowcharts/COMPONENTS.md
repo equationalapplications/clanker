@@ -11,6 +11,7 @@ graph LR
   ChatComposer.web --> apiClient
   ChatView --> useUserCredits
   ChatView --> useAIChat
+  ChatView --> isSafeHttpUrl
   ChatView --> useMachines
   ChatView --> useCharacters
   CombinedSubscriptionButton --> useCurrentPlan
@@ -21,6 +22,8 @@ graph LR
   CreditCounterIcon --> useUserCredits
   CreditsDisplay --> useUserCredits
   CreditsDisplay --> useBootstrapRefresh
+  GroundingHtml --> isSafeHttpUrl
+  GroundingHtml.web --> isSafeHttpUrl
   ComingSoonSection --> useFloatingCardAnimation
   FeaturesSection --> useFloatingCardAnimation
   HeroSection --> useMachines

@@ -22,7 +22,9 @@ graph LR
   characterSyncService --> ensureDevSandboxCharacter
   characterSyncService --> googleSignin
   characterSyncService --> voiceDefaults
+  chatReplyService --> groundingMetadata
   cloudAgentService --> googleSignin
+  cloudAgentService --> groundingMetadata
   edgeToolExecutors --> wikiService
   edgeToolExecutors --> taskDatabase
   localImageStorageService --> index
