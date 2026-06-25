@@ -9,9 +9,19 @@ interface GroundingHtmlProps {
   style?: StyleProp<ViewStyle>
 }
 
-/** Strip non-http(s) hrefs so only safe citation links can navigate (matches native). */
+/** Strip executable markup and non-http(s) hrefs before sandboxed iframe render. */
 function sanitizeGroundingHtmlLinks(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html')
+  for (const script of Array.from(doc.querySelectorAll('script'))) {
+    script.remove()
+  }
+  for (const element of Array.from(doc.querySelectorAll('*'))) {
+    for (const attribute of Array.from(element.attributes)) {
+      if (attribute.name.toLowerCase().startsWith('on')) {
+        element.removeAttribute(attribute.name)
+      }
+    }
+  }
   for (const anchor of Array.from(doc.querySelectorAll('a[href]'))) {
     const href = anchor.getAttribute('href')
     if (!href || !isSafeHttpUrl(href)) {
@@ -32,8 +42,8 @@ function sanitizeGroundingHtmlLinks(html: string): string {
 /**
  * Web renderer for the grounding "Search Suggestions" HTML. react-native-webview
  * has no web implementation, so we render the HTML in a sandboxed <iframe>:
- *   - no `allow-scripts` → scripts in the HTML never execute (matches the native
- *     WebView's javaScriptEnabled={false}).
+ *   - no `allow-scripts` → scripts in the HTML never execute; native strips
+ *     executable markup before enabling JS for height measurement only.
  *   - `allow-popups` + `allow-popups-to-escape-sandbox` + an injected
  *     `<base target="_blank">` so source links open as normal top-level pages
  *     in a new tab instead of navigating inside the sandbox.

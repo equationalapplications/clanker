@@ -2,9 +2,9 @@ import React, { useCallback, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
+import type { FlatListProps } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
-import type { ListViewProps } from 'react-native-gifted-chat/lib/MessageContainer/types'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useAIChat } from '~/hooks/useAIChat'
@@ -22,7 +22,9 @@ import type { Character } from '~/services/characterService'
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
 /** WebViews in inverted lists can paint over sibling rows unless clipping is disabled. */
-const groundingListViewProps = { removeClippedSubviews: false } as ListViewProps
+const groundingListViewProps: Pick<FlatListProps<unknown>, 'removeClippedSubviews'> = {
+  removeClippedSubviews: false,
+}
 
 interface ChatViewProps {
   characterId: string

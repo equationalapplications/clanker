@@ -3,6 +3,7 @@ import { Linking, StyleSheet, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { WebView } from 'react-native-webview'
 import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
+import { sanitizeGroundingHtmlForNative } from '~/utils/sanitizeGroundingHtml'
 
 interface GroundingHtmlProps {
   /** Gemini's searchEntryPoint.renderedContent — the Google Search Suggestions HTML. */
@@ -15,7 +16,8 @@ const MAX_HEIGHT = 160
 
 /**
  * Measure the rendered widget height so the WebView can size to its content.
- * Google's snippet is trusted API output; only this script runs in the WebView.
+ * Snippet scripts/event handlers are stripped before load; only this injected
+ * script runs in the WebView.
  */
 const MEASURE_HEIGHT_SCRIPT = `
 (function() {
@@ -35,7 +37,7 @@ const MEASURE_HEIGHT_SCRIPT = `
 true;
 `
 
-/** Wrap the API snippet in a minimal document shell without modifying the snippet itself. */
+/** Wrap the sanitized API snippet in a minimal document shell. */
 function wrapGroundingHtmlSnippet(html: string): string {
   return `<!DOCTYPE html>
 <html>
@@ -56,7 +58,10 @@ interface GroundingHtmlWebViewProps {
 
 function GroundingHtmlWebView({ html, minHeight, containerStyle }: GroundingHtmlWebViewProps) {
   const [height, setHeight] = useState(minHeight)
-  const wrappedHtml = useMemo(() => wrapGroundingHtmlSnippet(html), [html])
+  const wrappedHtml = useMemo(
+    () => wrapGroundingHtmlSnippet(sanitizeGroundingHtmlForNative(html)),
+    [html],
+  )
 
   return (
     <View
