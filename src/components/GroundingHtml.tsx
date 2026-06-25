@@ -113,7 +113,7 @@ function GroundingHtmlWebView({ html, minHeight, containerStyle }: GroundingHtml
  * contained within its message bubble.
  *
  * The web build resolves to GroundingHtml.web.tsx (react-native-webview has no
- * web support) which renders the same HTML in a sandboxed <iframe>.
+ * web support), which mounts the same HTML in a shadow DOM per Google's guidance.
  */
 export function GroundingHtml({ html, style }: GroundingHtmlProps) {
   const flattened = StyleSheet.flatten(style) ?? {}

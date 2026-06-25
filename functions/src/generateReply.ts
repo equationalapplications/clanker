@@ -327,38 +327,53 @@ function getTextGenerator(): GenerateTextFn {
     const ai = getGenAIClient();
     const tools = buildToolsForRequest(input.tools);
 
-    const result = await ai.models.generateContent({
-      model: DEFAULT_MODEL,
-      contents: input.contents as Content[],
-      config: {
-        systemInstruction: input.systemInstruction,
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
-        thinkingConfig: { thinkingBudget: 0 },
-        tools,
-      },
-    });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await ai.models.generateContent({
+        model: DEFAULT_MODEL,
+        contents: input.contents as Content[],
+        config: {
+          systemInstruction: input.systemInstruction,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          thinkingConfig: { thinkingBudget: 0 },
+          tools,
+        },
+      });
 
-    if (result.functionCalls && result.functionCalls.length > 0) {
-      return {
-        functionCalls: result.functionCalls.map((fc) => ({
-          name: fc.name ?? "",
-          args: fc.args as Record<string, unknown> | undefined,
-        })),
-      };
-    }
-
-    const candidates = result.candidates ?? [];
-
-    for (const candidate of candidates) {
-      const parts = candidate.content?.parts ?? [];
-      const text = parts
-        .map((part) => (typeof part.text === "string" ? part.text : ""))
-        .join("")
-        .trim();
-
-      if (text.length > 0) {
-        return { text, groundingMetadata: candidate.groundingMetadata };
+      if (result.functionCalls && result.functionCalls.length > 0) {
+        return {
+          functionCalls: result.functionCalls.map((fc) => ({
+            name: fc.name ?? "",
+            args: fc.args as Record<string, unknown> | undefined,
+          })),
+        };
       }
+
+      const candidates = result.candidates ?? [];
+
+      for (const candidate of candidates) {
+        const parts = candidate.content?.parts ?? [];
+        const text = parts
+          .map((part) => (typeof part.text === "string" ? part.text : ""))
+          .join("")
+          .trim();
+
+        if (text.length > 0) {
+          return { text, groundingMetadata: candidate.groundingMetadata };
+        }
+      }
+
+      if (attempt === 0) {
+        logger.warn("generateReply empty model response, retrying once", {
+          finishReasons: candidates.map((c) => c.finishReason ?? null),
+          candidateCount: candidates.length,
+        });
+        continue;
+      }
+
+      logger.error("generateReply model returned empty response after retry", {
+        finishReasons: candidates.map((c) => c.finishReason ?? null),
+        candidateCount: candidates.length,
+      });
     }
 
     throw new HttpsError("internal", "Model returned an empty response.");
@@ -455,7 +470,7 @@ function parseInput(data: unknown): {
   const rawHistory = payload?.unsyncedHistory;
   let unsyncedHistory: SyncMessage[] | undefined;
 
-  if (rawHistory !== undefined) {
+  if (rawHistory != null) {
     if (!Array.isArray(rawHistory)) {
       throw new HttpsError("invalid-argument", "unsyncedHistory must be an array when provided.");
     }

@@ -138,24 +138,58 @@ function ChatViewContent({
   )
 
   const renderBubble = useCallback(
-    (props: any) => (
-      <Bubble
-        {...props}
-        wrapperStyle={{
-          left: { backgroundColor: colors.secondary, borderRadius: roundness },
-          right: { backgroundColor: colors.primary, borderRadius: roundness },
-        }}
-        textStyle={{
-          left: { color: colors.onSecondary },
-          right: { color: colors.onPrimary },
-        }}
-        renderMessageText={(msgProps: MessageTextProps<IMessage>) => (
-          <View style={{ paddingVertical: 10 }}>
-            <MessageText {...msgProps} />
-          </View>
-        )}
-      />
-    ),
+    (props: any) => {
+      const hasGrounding = Boolean(
+        (props.currentMessage as GroundedIMessage | undefined)?.groundingMetadata,
+      )
+      const webBubbleConstraints =
+        Platform.OS === 'web'
+          ? ({ maxWidth: '80%', minWidth: 0, overflow: 'hidden' } as const)
+          : {}
+
+      return (
+        <Bubble
+          {...props}
+          touchableProps={
+            Platform.OS === 'web' && hasGrounding ? { disabled: true } : undefined
+          }
+          wrapperStyle={{
+            left: {
+              backgroundColor: colors.secondary,
+              borderRadius: roundness,
+              ...webBubbleConstraints,
+            },
+            right: {
+              backgroundColor: colors.primary,
+              borderRadius: roundness,
+              ...webBubbleConstraints,
+            },
+          }}
+          textStyle={{
+            left: { color: colors.onSecondary },
+            right: { color: colors.onPrimary },
+          }}
+          renderMessageText={(msgProps: MessageTextProps<IMessage>) => (
+            <View
+              style={{
+                paddingVertical: 10,
+                ...(Platform.OS === 'web' ? { minWidth: 0, maxWidth: '100%' } : {}),
+              }}
+            >
+              <MessageText
+                {...msgProps}
+                textStyle={[
+                  msgProps.textStyle,
+                  Platform.OS === 'web'
+                    ? ({ wordBreak: 'break-word', overflowWrap: 'anywhere' } as const)
+                    : undefined,
+                ]}
+              />
+            </View>
+          )}
+        />
+      )
+    },
     [colors, roundness],
   )
 
@@ -452,10 +486,12 @@ const styles = StyleSheet.create({
   },
   groundingContainer: {
     paddingHorizontal: 8,
-    paddingBottom: 8,
+    paddingBottom: Platform.OS === 'web' ? 0 : 8,
     gap: 6,
     overflow: 'hidden',
     width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
   },
   citationRow: {
     flexDirection: 'row',
@@ -473,8 +509,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   searchSuggestions: {
-    minHeight: 48,
     backgroundColor: 'transparent',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
   },
   headerTitle: {
     flexDirection: 'row',
