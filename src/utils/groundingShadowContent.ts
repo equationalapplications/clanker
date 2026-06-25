@@ -73,8 +73,11 @@ const GROUNDING_URL_ATTRS = new Set(['href', 'src'])
 
 function isAllowedGroundingAttribute(tagName: string, attributeName: string): boolean {
   const lowerName = attributeName.toLowerCase()
-  if (lowerName.startsWith('on') || lowerName.startsWith('data-') || lowerName.startsWith('aria-')) {
-    return lowerName.startsWith('aria-') || lowerName.startsWith('data-')
+  if (lowerName.startsWith('on')) {
+    return false
+  }
+  if (lowerName.startsWith('aria-') || lowerName.startsWith('data-')) {
+    return true
   }
   if (GROUNDING_GLOBAL_ALLOWED_ATTRS.has(lowerName)) {
     return true

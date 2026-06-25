@@ -29,6 +29,18 @@ describe('stripExecutableGroundingMarkup', () => {
     const html = '<scr<script>ipt>alert(1)</scr</script>ipt>'
     expect(stripExecutableGroundingMarkup(html)).toBe('')
   })
+
+  it('removes embed-capable elements', () => {
+    const html =
+      '<iframe src="https://evil.example"></iframe><object data="x"></object><embed src="x"><div>ok</div>'
+    expect(stripExecutableGroundingMarkup(html)).toBe('<div>ok</div>')
+  })
+
+  it('removes resource-loading head tags', () => {
+    const html =
+      '<link rel="stylesheet" href="https://evil.example/style.css"><meta http-equiv="refresh" content="0"><base href="https://evil.example/"><div>ok</div>'
+    expect(stripExecutableGroundingMarkup(html)).toBe('<div>ok</div>')
+  })
 })
 
 describe('sanitizeGroundingHtmlLinksRegex', () => {
@@ -41,6 +53,55 @@ describe('sanitizeGroundingHtmlLinksRegex', () => {
     const html = '<a href="https://example.com">good</a>'
     expect(sanitizeGroundingHtmlLinksRegex(html)).toBe('<a href="https://example.com">good</a>')
   })
+
+  it('removes unsafe img src values', () => {
+    const html = '<img alt="track" src="javascript:alert(1)">'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe('<img alt="track">')
+  })
+
+  it('keeps safe http(s) img src values', () => {
+    const html = '<img alt="icon" src="https://example.com/icon.png">'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe(
+      '<img alt="icon" src="https://example.com/icon.png">',
+    )
+  })
+
+  it('does not match data-href or data-src attribute names', () => {
+    const html =
+      '<a data-href="javascript:alert(1)">x</a><img data-src="javascript:alert(2)" alt="y">'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe(
+      '<a data-href="javascript:alert(1)">x</a><img data-src="javascript:alert(2)" alt="y">',
+    )
+  })
+
+  it('removes href when the last duplicate is unsafe', () => {
+    const html = '<a href="https://example.com" href="javascript:alert(1)">bad</a>'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe('<a>bad</a>')
+  })
+
+  it('keeps href when the last duplicate is safe', () => {
+    const html = '<a href="javascript:alert(1)" href="https://example.com">good</a>'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe(
+      '<a href="https://example.com">good</a>',
+    )
+  })
+
+  it('removes src when the last duplicate is unsafe', () => {
+    const html = '<img alt="x" src="https://example.com/icon.png" src="javascript:alert(1)">'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe('<img alt="x">')
+  })
+
+  it('keeps src when the last duplicate is safe on self-closing img', () => {
+    const html = '<img alt="x" src="javascript:alert(1)" src="https://example.com/icon.png" />'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe(
+      '<img alt="x" src="https://example.com/icon.png" />',
+    )
+  })
+
+  it('sanitizes xlink:href on anchor tags', () => {
+    const html = '<a xlink:href="javascript:alert(1)">bad</a>'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe('<a>bad</a>')
+  })
 })
 
 describe('sanitizeGroundingHtmlForNative', () => {
@@ -48,5 +109,19 @@ describe('sanitizeGroundingHtmlForNative', () => {
     const html =
       '<a href="javascript:alert(1)" onclick="alert(2)">x</a><script>alert(3)</script>'
     expect(sanitizeGroundingHtmlForNative(html)).toBe('<a>x</a>')
+  })
+
+  it('removes embed-capable elements and external stylesheet links', () => {
+    const html =
+      '<link rel="stylesheet" href="https://evil.example/style.css"><iframe src="https://evil.example"></iframe><div class="row">Suggestion</div>'
+    expect(sanitizeGroundingHtmlForNative(html)).toBe('<div class="row">Suggestion</div>')
+  })
+
+  it('strips base tags and unsafe img src while preserving safe markup', () => {
+    const html =
+      '<base href="https://evil.example/"><img src="javascript:alert(1)" alt="x"><img src="https://cdn.example/icon.png" alt="icon"><a href="https://example.com">go</a>'
+    expect(sanitizeGroundingHtmlForNative(html)).toBe(
+      '<img alt="x"><img src="https://cdn.example/icon.png" alt="icon"><a href="https://example.com">go</a>',
+    )
   })
 })
