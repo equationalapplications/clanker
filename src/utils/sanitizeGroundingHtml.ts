@@ -1,6 +1,6 @@
 import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
 
-const SCRIPT_TAG_RE = /<script\b[^<]*(?:(?!<\/script\s*>)<[^<]*)*<\/script\s*>/gi
+const SCRIPT_TAG_RE = /<script\b[^<]*(?:(?!<\/script[^>]*>)<[^<]*)*<\/script[^>]*>/gi
 const SCRIPT_SELF_CLOSING_RE = /<script\b[^>]*\/?>/gi
 const INLINE_EVENT_HANDLER_RE = /\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi
 const ANCHOR_TAG_RE = /<a\b([^>]*)>/gi

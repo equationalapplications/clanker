@@ -20,6 +20,11 @@ describe('stripExecutableGroundingMarkup', () => {
     expect(stripExecutableGroundingMarkup(html)).toBe('<div>ok</div><span>more</span>')
   })
 
+  it('removes script tags with junk between the tag name and closing angle bracket', () => {
+    const html = '<div>ok</div><script>alert(1)</script\t\n bar><span>more</span>'
+    expect(stripExecutableGroundingMarkup(html)).toBe('<div>ok</div><span>more</span>')
+  })
+
   it('removes nested script tag obfuscation', () => {
     const html = '<scr<script>ipt>alert(1)</scr</script>ipt>'
     expect(stripExecutableGroundingMarkup(html)).toBe('')
