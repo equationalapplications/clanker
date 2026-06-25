@@ -100,8 +100,11 @@ export async function sendMessage(
     const createdAt = Date.now()
     const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
+    // OR IGNORE: a persisted/resumed mutation (see PersistQueryClientProvider in app/_layout.tsx)
+    // can replay the same client-generated id after a paused mutation is restored. The replay
+    // carries identical content, so a duplicate insert is a no-op, not an error.
     await db.runAsync(
-        `INSERT INTO messages 
+        `INSERT OR IGNORE INTO messages
      (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, characterId, userId, characterId, text, createdAt, messageData, 0, 1, 0, 0],
@@ -139,7 +142,7 @@ export async function saveAIMessage(
     const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
     await db.runAsync(
-        `INSERT INTO messages
+        `INSERT OR IGNORE INTO messages
      (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited, synced_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, characterId, characterId, userId, text, createdAt, messageData, 0, 1, 0, 0, syncedAt ?? null],

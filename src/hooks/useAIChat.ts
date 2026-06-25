@@ -189,6 +189,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
               name: character.name,
               avatar: character.appearance || undefined,
             },
+            // Google Search grounding ToS: persist + display the citation/search
+            // suggestions Gemini returns. Without this the cloud-agent path drops it.
+            ...(agentResult.groundingMetadata
+              ? { groundingMetadata: agentResult.groundingMetadata }
+              : {}),
           },
         )
 
