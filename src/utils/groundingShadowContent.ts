@@ -152,7 +152,7 @@ export function mountGroundingShadowContent(host: HTMLElement, html: string): Sh
   const shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' })
   shadow.innerHTML = formatGroundingShadowHtml(html)
 
-  if (!shadow.querySelector('[data-grounding-host-layout="true"]')) {
+  if (!shadow.querySelector('style[data-grounding-host-layout="true"]')) { 
     const layoutStyle = document.createElement('style')
     layoutStyle.setAttribute('data-grounding-host-layout', 'true')
     layoutStyle.textContent = GROUNDING_SHADOW_HOST_CSS
