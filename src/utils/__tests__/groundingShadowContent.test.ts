@@ -19,8 +19,17 @@ describe('sanitizeGroundingHtmlLinks', () => {
 
     expect(headMarkup).toContain('.chip')
     expect(bodyHtml).not.toContain('<script')
+    expect(bodyHtml).not.toContain('alert(1)')
     expect(bodyHtml).toContain('<a>bad</a>')
     expect(bodyHtml).toContain('good</a>')
+  })
+
+  it('preserves svg viewBox on allowed svg elements', () => {
+    const { bodyHtml } = sanitizeGroundingHtmlLinks(
+      '<svg viewBox="0 0 24 24"><path d="M0 0"/></svg>',
+    )
+
+    expect(bodyHtml).toContain('viewBox="0 0 24 24"')
   })
 
   it('removes embed-capable elements and external stylesheet links', () => {

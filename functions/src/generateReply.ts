@@ -402,6 +402,7 @@ function getTextGenerator(): GenerateTextFn {
           candidateCount: candidates.length,
         },
       );
+      break;
     }
 
     throw new HttpsError("internal", "Model returned an empty response.");

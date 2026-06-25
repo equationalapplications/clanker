@@ -63,8 +63,11 @@ const GROUNDING_TAG_ALLOWED_ATTRS: Record<string, ReadonlySet<string>> = {
   a: new Set(['href', 'rel', 'target']),
   img: new Set(['alt', 'decoding', 'height', 'loading', 'src', 'width']),
   path: new Set(['d', 'fill', 'stroke', 'stroke-width']),
-  svg: new Set(['fill', 'height', 'viewBox', 'width', 'xmlns']),
+  svg: new Set(['fill', 'height', 'viewbox', 'width', 'xmlns']),
 }
+
+/** Disallowed tags whose contents must not be preserved when removed. */
+const GROUNDING_REMOVE_ENTIRELY_TAGS = new Set(['script', 'style'])
 
 const GROUNDING_URL_ATTRS = new Set(['href', 'src'])
 
@@ -107,7 +110,11 @@ function sanitizeGroundingElementTree(root: ParentNode): void {
   for (const element of Array.from(root.querySelectorAll('*'))) {
     const tagName = element.tagName.toLowerCase()
     if (!GROUNDING_ALLOWED_BODY_TAGS.has(tagName)) {
-      unwrapDisallowedElement(element)
+      if (GROUNDING_REMOVE_ENTIRELY_TAGS.has(tagName)) {
+        element.remove()
+      } else {
+        unwrapDisallowedElement(element)
+      }
       continue
     }
 

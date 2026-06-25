@@ -26,10 +26,9 @@ const webMessageTextWrapStyle = {
   overflowWrap: 'anywhere',
 } as TextStyle
 
-/** WebViews in inverted lists can paint over sibling rows unless clipping is disabled. */
-const groundingListViewProps: Pick<FlatListProps<unknown>, 'removeClippedSubviews'> = {
-  removeClippedSubviews: false,
-}
+/** Native WebViews in inverted lists can paint over sibling rows unless clipping is disabled. */
+const groundingListViewProps: Pick<FlatListProps<unknown>, 'removeClippedSubviews'> | undefined =
+  Platform.OS === 'web' ? undefined : { removeClippedSubviews: false }
 
 interface ChatViewProps {
   characterId: string
