@@ -65,6 +65,43 @@ describe('sanitizeGroundingHtmlLinksRegex', () => {
       '<img alt="icon" src="https://example.com/icon.png">',
     )
   })
+
+  it('does not match data-href or data-src attribute names', () => {
+    const html =
+      '<a data-href="javascript:alert(1)">x</a><img data-src="javascript:alert(2)" alt="y">'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe(
+      '<a data-href="javascript:alert(1)">x</a><img data-src="javascript:alert(2)" alt="y">',
+    )
+  })
+
+  it('removes href when the last duplicate is unsafe', () => {
+    const html = '<a href="https://example.com" href="javascript:alert(1)">bad</a>'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe('<a>bad</a>')
+  })
+
+  it('keeps href when the last duplicate is safe', () => {
+    const html = '<a href="javascript:alert(1)" href="https://example.com">good</a>'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe(
+      '<a href="https://example.com">good</a>',
+    )
+  })
+
+  it('removes src when the last duplicate is unsafe', () => {
+    const html = '<img alt="x" src="https://example.com/icon.png" src="javascript:alert(1)">'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe('<img alt="x">')
+  })
+
+  it('keeps src when the last duplicate is safe on self-closing img', () => {
+    const html = '<img alt="x" src="javascript:alert(1)" src="https://example.com/icon.png" />'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe(
+      '<img alt="x" src="https://example.com/icon.png" />',
+    )
+  })
+
+  it('sanitizes xlink:href on anchor tags', () => {
+    const html = '<a xlink:href="javascript:alert(1)">bad</a>'
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe('<a>bad</a>')
+  })
 })
 
 describe('sanitizeGroundingHtmlForNative', () => {
