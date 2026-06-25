@@ -1,7 +1,11 @@
-import { useMemo, type CSSProperties } from 'react'
-import type { StyleProp, ViewStyle } from 'react-native'
-import { StyleSheet } from 'react-native'
-import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import {
+  applyHorizontalWheelToScrollport,
+  measureShadowLayout,
+  mountGroundingShadowContent,
+  stopBubbleScrollCapture,
+} from '~/utils/groundingShadowContent'
 
 interface GroundingHtmlProps {
   /** Gemini's searchEntryPoint.renderedContent — the Google Search Suggestions HTML. */
@@ -9,62 +13,148 @@ interface GroundingHtmlProps {
   style?: StyleProp<ViewStyle>
 }
 
-/** Strip executable markup and non-http(s) hrefs before sandboxed iframe render. */
-function sanitizeGroundingHtmlLinks(html: string): string {
-  const doc = new DOMParser().parseFromString(html, 'text/html')
-  for (const script of Array.from(doc.querySelectorAll('script'))) {
-    script.remove()
-  }
-  for (const element of Array.from(doc.querySelectorAll('*'))) {
-    for (const attribute of Array.from(element.attributes)) {
-      if (attribute.name.toLowerCase().startsWith('on')) {
-        element.removeAttribute(attribute.name)
-      }
-    }
-  }
-  for (const anchor of Array.from(doc.querySelectorAll('a[href]'))) {
-    const href = anchor.getAttribute('href')
-    if (!href || !isSafeHttpUrl(href)) {
-      anchor.removeAttribute('href')
-    } else {
-      anchor.setAttribute('target', '_blank')
-      anchor.setAttribute('rel', 'noopener noreferrer')
-    }
-  }
-  // DOMParser hoists <style> / stylesheet <link> into <head>; re-include them so
-  // Search Suggestions CSS is not dropped when we inject into iframe srcDoc.
-  const headMarkup = Array.from(doc.head.querySelectorAll('style, link[rel="stylesheet"]'))
-    .map((el) => el.outerHTML)
-    .join('')
-  return headMarkup + doc.body.innerHTML
-}
+const LAYOUT_REMEASURE_DELAYS_MS = [0, 100, 400, 800] as const
 
 /**
- * Web renderer for the grounding "Search Suggestions" HTML. react-native-webview
- * has no web implementation, so we render the HTML in a sandboxed <iframe>:
- *   - no `allow-scripts` → scripts in the HTML never execute; native strips
- *     executable markup before enabling JS for height measurement only.
- *   - `allow-popups` + `allow-popups-to-escape-sandbox` + an injected
- *     `<base target="_blank">` so source links open as normal top-level pages
- *     in a new tab instead of navigating inside the sandbox.
- *   - unsafe hrefs are stripped before injection (mirrors native isSafeHttpUrl).
+ * Web renderer for the grounding "Search Suggestions" HTML.
  *
- * The content itself is shown verbatim as required by the Google Search grounding
- * Terms of Use; only link target behavior and href allowlisting are adjusted.
+ * Google recommends shadow DOM so widget CSS stays isolated. Content width is
+ * measured at probe width, then the widget sits in an explicit-width sizer so
+ * the outer scrollport (overflow-x: auto) can pan horizontally. Height follows
+ * the widget naturally so there is no empty space below the row.
  */
 export function GroundingHtml({ html, style }: GroundingHtmlProps) {
-  const srcDoc = useMemo(
-    () => `<base target="_blank">${sanitizeGroundingHtmlLinks(html)}`,
-    [html],
-  )
-  const flattenedStyle = StyleSheet.flatten(style) as CSSProperties
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const hostRef = useRef<HTMLDivElement>(null)
+  const mountedRef = useRef(false)
+  const syncRafRef = useRef<number | null>(null)
+  const [contentWidth, setContentWidth] = useState(0)
+
+  const syncLayout = useCallback(() => {
+    const host = hostRef.current
+    const shadow = host?.shadowRoot
+    if (!mountedRef.current || !host || !shadow) {
+      return
+    }
+    setContentWidth(measureShadowLayout(host, shadow).contentWidth)
+  }, [])
+
+  const scheduleSync = useCallback(() => {
+    syncLayout()
+    if (syncRafRef.current !== null) {
+      cancelAnimationFrame(syncRafRef.current)
+    }
+    syncRafRef.current = requestAnimationFrame(() => {
+      syncRafRef.current = null
+      syncLayout()
+    })
+  }, [syncLayout])
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host || typeof host.attachShadow !== 'function') {
+      return
+    }
+
+    mountedRef.current = true
+    const shadow = mountGroundingShadowContent(host, html)
+    scheduleSync()
+
+    const timeouts = LAYOUT_REMEASURE_DELAYS_MS.map((delayMs) =>
+      window.setTimeout(scheduleSync, delayMs),
+    )
+
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(scheduleSync) : null
+    resizeObserver?.observe(host)
+
+    const onShadowWheel = (event: Event) => {
+      if (!(event instanceof WheelEvent)) {
+        return
+      }
+      const scrollEl = scrollRef.current
+      if (!scrollEl) {
+        return
+      }
+      if (applyHorizontalWheelToScrollport(event, scrollEl)) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+    }
+
+    shadow.addEventListener('wheel', onShadowWheel, { capture: true, passive: false })
+
+    return () => {
+      mountedRef.current = false
+      if (syncRafRef.current !== null) {
+        cancelAnimationFrame(syncRafRef.current)
+        syncRafRef.current = null
+      }
+      for (const timeoutId of timeouts) {
+        window.clearTimeout(timeoutId)
+      }
+      resizeObserver?.disconnect()
+      shadow.removeEventListener('wheel', onShadowWheel, { capture: true })
+      shadow.innerHTML = ''
+    }
+  }, [html, scheduleSync])
+
+  useEffect(() => {
+    const scrollEl = scrollRef.current
+    if (!scrollEl) {
+      return
+    }
+
+    const onWheel = (event: WheelEvent) => {
+      if (applyHorizontalWheelToScrollport(event, scrollEl)) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+    }
+
+    scrollEl.addEventListener('wheel', onWheel, { capture: true, passive: false })
+    return () => scrollEl.removeEventListener('wheel', onWheel, { capture: true })
+  }, [contentWidth])
+
+  const captureBubblePress = useCallback((event: SyntheticEvent) => {
+    stopBubbleScrollCapture(event)
+  }, [])
+
+  const flattenedStyle = (StyleSheet.flatten(style) ?? {}) as CSSProperties
+  const { minHeight: _minHeight, height: _height, ...containerStyle } = flattenedStyle
+
+  const sizerWidth = contentWidth > 0 ? `${contentWidth}px` : '100%'
+
   return (
-    <iframe
-      title="Search sources"
-      srcDoc={srcDoc}
-      sandbox="allow-popups allow-popups-to-escape-sandbox"
-      referrerPolicy="no-referrer"
-      style={{ border: 0, width: '100%', backgroundColor: 'transparent', ...flattenedStyle }}
-    />
+    <div
+      ref={scrollRef}
+      style={{
+        width: '100%',
+        maxWidth: '100%',
+        minWidth: 0,
+        overflowX: 'auto',
+        overflowY: 'hidden',
+        boxSizing: 'border-box',
+        WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-x',
+        ...containerStyle,
+      }}
+      onMouseDown={captureBubblePress}
+    >
+      <div
+        style={{
+          width: sizerWidth,
+          minWidth: '100%',
+        }}
+      >
+        <div
+          ref={hostRef}
+          style={{
+            display: 'block',
+            width: '100%',
+          }}
+        />
+      </div>
+    </div>
   )
 }

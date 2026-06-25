@@ -314,6 +314,23 @@ export function buildToolsForRequest(tools?: ToolDeclaration[]): Tool[] {
   return buildAuthorizedToolsArray([googleSearchManifest], []).map(toGenAITool);
 }
 
+const NON_RETRYABLE_EMPTY_RESPONSE_FINISH_REASONS = new Set([
+  "MAX_TOKENS",
+  "SAFETY",
+  "RECITATION",
+  "BLOCKLIST",
+  "PROHIBITED_CONTENT",
+  "SPII",
+  "MALFORMED_FUNCTION_CALL",
+]);
+
+function isRetryableEmptyResponseFinishReason(finishReason: string | undefined): boolean {
+  if (!finishReason || finishReason === "FINISH_REASON_UNSPECIFIED" || finishReason === "OTHER") {
+    return true;
+  }
+  return !NON_RETRYABLE_EMPTY_RESPONSE_FINISH_REASONS.has(finishReason);
+}
+
 function getTextGenerator(): GenerateTextFn {
   if (textGenerator) {
     return textGenerator;
@@ -327,38 +344,64 @@ function getTextGenerator(): GenerateTextFn {
     const ai = getGenAIClient();
     const tools = buildToolsForRequest(input.tools);
 
-    const result = await ai.models.generateContent({
-      model: DEFAULT_MODEL,
-      contents: input.contents as Content[],
-      config: {
-        systemInstruction: input.systemInstruction,
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
-        thinkingConfig: { thinkingBudget: 0 },
-        tools,
-      },
-    });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await ai.models.generateContent({
+        model: DEFAULT_MODEL,
+        contents: input.contents as Content[],
+        config: {
+          systemInstruction: input.systemInstruction,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          thinkingConfig: { thinkingBudget: 0 },
+          tools,
+        },
+      });
 
-    if (result.functionCalls && result.functionCalls.length > 0) {
-      return {
-        functionCalls: result.functionCalls.map((fc) => ({
-          name: fc.name ?? "",
-          args: fc.args as Record<string, unknown> | undefined,
-        })),
-      };
-    }
-
-    const candidates = result.candidates ?? [];
-
-    for (const candidate of candidates) {
-      const parts = candidate.content?.parts ?? [];
-      const text = parts
-        .map((part) => (typeof part.text === "string" ? part.text : ""))
-        .join("")
-        .trim();
-
-      if (text.length > 0) {
-        return { text, groundingMetadata: candidate.groundingMetadata };
+      if (result.functionCalls && result.functionCalls.length > 0) {
+        return {
+          functionCalls: result.functionCalls.map((fc) => ({
+            name: fc.name ?? "",
+            args: fc.args as Record<string, unknown> | undefined,
+          })),
+        };
       }
+
+      const candidates = result.candidates ?? [];
+
+      for (const candidate of candidates) {
+        const parts = candidate.content?.parts ?? [];
+        const text = parts
+          .map((part) => (typeof part.text === "string" ? part.text : ""))
+          .join("")
+          .trim();
+
+        if (text.length > 0) {
+          return { text, groundingMetadata: candidate.groundingMetadata };
+        }
+      }
+
+      const finishReasons = candidates.map((c) => c.finishReason ?? null);
+      const shouldRetry =
+        attempt === 0 &&
+        (candidates.length === 0 ||
+          candidates.some((candidate) => isRetryableEmptyResponseFinishReason(candidate.finishReason)));
+
+      if (shouldRetry) {
+        logger.warn("generateReply empty model response, retrying once", {
+          finishReasons,
+          candidateCount: candidates.length,
+        });
+        continue;
+      }
+
+      logger.error(
+        attempt === 0
+          ? "generateReply model returned empty response with non-retryable finish reason"
+          : "generateReply model returned empty response after retry",
+        {
+          finishReasons,
+          candidateCount: candidates.length,
+        },
+      );
     }
 
     throw new HttpsError("internal", "Model returned an empty response.");
@@ -455,7 +498,7 @@ function parseInput(data: unknown): {
   const rawHistory = payload?.unsyncedHistory;
   let unsyncedHistory: SyncMessage[] | undefined;
 
-  if (rawHistory !== undefined) {
+  if (rawHistory != null) {
     if (!Array.isArray(rawHistory)) {
       throw new HttpsError("invalid-argument", "unsyncedHistory must be an array when provided.");
     }
