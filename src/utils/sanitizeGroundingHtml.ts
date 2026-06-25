@@ -4,7 +4,9 @@ const SCRIPT_TAG_RE = /<script\b[^<]*(?:(?!<\/script[^>]*>)<[^<]*)*<\/script[^>]
 const SCRIPT_SELF_CLOSING_RE = /<script\b[^>]*\/?>/gi
 const INLINE_EVENT_HANDLER_RE = /\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi
 const ANCHOR_TAG_RE = /<a\b([^>]*)>/gi
+const IMG_TAG_RE = /<img\b([^>]*)>/gi
 const HREF_ATTR_RE = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i
+const SRC_ATTR_RE = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i
 
 /** Repeat replace until stable — avoids CodeQL incomplete-sanitization bypasses. */
 function replaceUntilStable(html: string, pattern: RegExp): string {
@@ -27,26 +29,34 @@ export function stripExecutableGroundingMarkup(html: string): string {
     result,
     /<(?:iframe|object|embed|frame|frameset)\b[^>]*>(?:[\s\S]*?<\/(?:iframe|object|embed|frame|frameset)\s*>)?/gi,
   )
-  result = replaceUntilStable(result, /<(?:link|meta)\b[^>]*>/gi)
+  result = replaceUntilStable(result, /<(?:link|meta|base)\b[^>]*>/gi)
   return result
 }
 
-/** Strip unsafe hrefs from anchor tags (native path; web uses DOMParser). */
+function stripUnsafeUrlAttribute(
+  tagName: 'a' | 'img',
+  attrs: string,
+  urlAttrRe: RegExp,
+): string {
+  const urlMatch = attrs.match(urlAttrRe)
+  if (!urlMatch) {
+    return `<${tagName}${attrs}>`
+  }
+
+  const url = urlMatch[1] ?? urlMatch[2] ?? urlMatch[3] ?? ''
+  if (!isSafeHttpUrl(url)) {
+    const cleanedAttrs = attrs.replace(urlAttrRe, '').trim()
+    return cleanedAttrs ? `<${tagName} ${cleanedAttrs}>` : `<${tagName}>`
+  }
+
+  return `<${tagName}${attrs}>`
+}
+
+/** Strip unsafe hrefs and img src values (native path; web uses DOMParser). */
 export function sanitizeGroundingHtmlLinksRegex(html: string): string {
-  return html.replace(ANCHOR_TAG_RE, (_, attrs: string) => {
-    const hrefMatch = attrs.match(HREF_ATTR_RE)
-    if (!hrefMatch) {
-      return `<a${attrs}>`
-    }
-
-    const href = hrefMatch[1] ?? hrefMatch[2] ?? hrefMatch[3] ?? ''
-    if (!isSafeHttpUrl(href)) {
-      const cleanedAttrs = attrs.replace(HREF_ATTR_RE, '').trim()
-      return cleanedAttrs ? `<a ${cleanedAttrs}>` : '<a>'
-    }
-
-    return `<a${attrs}>`
-  })
+  return html
+    .replace(ANCHOR_TAG_RE, (_, attrs: string) => stripUnsafeUrlAttribute('a', attrs, HREF_ATTR_RE))
+    .replace(IMG_TAG_RE, (_, attrs: string) => stripUnsafeUrlAttribute('img', attrs, SRC_ATTR_RE))
 }
 
 /** Defense-in-depth sanitization before rendering grounding HTML on native WebViews. */
