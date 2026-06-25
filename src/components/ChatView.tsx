@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   searchSuggestions: {
-    height: 44,
+    height: 85,
     backgroundColor: 'transparent',
   },
   headerTitle: {

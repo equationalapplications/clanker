@@ -1,4 +1,5 @@
 import type { StyleProp, ViewStyle } from 'react-native'
+import { StyleSheet } from 'react-native'
 
 interface GroundingHtmlProps {
   /** Gemini's searchEntryPoint.renderedContent — the Google Search Suggestions HTML. */
@@ -17,15 +18,16 @@ interface GroundingHtmlProps {
  * The content itself is shown verbatim as required by the Google Search grounding
  * Terms of Use; only link target behavior is adjusted.
  */
-export function GroundingHtml({ html }: GroundingHtmlProps) {
-  const srcDoc = `<base target="_blank" rel="noopener noreferrer">${html}`
+export function GroundingHtml({ html, style }: GroundingHtmlProps) {
+  const srcDoc = `<base target="_blank">${html}`
+  const flattenedStyle = StyleSheet.flatten(style) as React.CSSProperties
   return (
     <iframe
       title="Search sources"
       srcDoc={srcDoc}
-      sandbox="allow-popups allow-popups-to-escape-sandbox"
+      sandbox="allow-popups"
       referrerPolicy="no-referrer"
-      style={{ border: 0, width: '100%', height: 44, backgroundColor: 'transparent' }}
+      style={{ border: 0, width: '100%', backgroundColor: 'transparent', ...flattenedStyle }}
     />
   )
 }
