@@ -86,10 +86,18 @@ export async function generateChatReply({
 
   await appCheckReady
 
-  const payload: Record<string, unknown> = {
-    referenceId,
-    unsyncedHistory,
-    characterId,
+  // Omit undefined optional fields: Firebase web SDK encode() turns undefined into
+  // null, and generateReply rejects null for array-typed optional fields.
+  const payload: Record<string, unknown> = {}
+
+  if (referenceId !== undefined) {
+    payload.referenceId = referenceId
+  }
+  if (unsyncedHistory !== undefined) {
+    payload.unsyncedHistory = unsyncedHistory
+  }
+  if (characterId !== undefined) {
+    payload.characterId = characterId
   }
 
   if (trimmedPrompt) {

@@ -787,6 +787,34 @@ test("generateReplyHandler rejects unsyncedHistory entries with non-user roles",
   });
 });
 
+test("generateReplyHandler treats null unsyncedHistory as absent (Firebase web encodes undefined as null)", async () => {
+  const auth = buildAuth();
+
+  await withServiceMocks(async () => {
+    const user = buildUser(auth);
+
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
+    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.getCredits = async () => 4;
+
+    const result = await generateReplyHandler(
+      {
+        auth,
+        data: {
+          ...buildStructuredRequestData('hello'),
+          unsyncedHistory: null,
+        },
+      } as never,
+      {
+        generateText: async () => ({ text: "reply" }),
+      }
+    );
+
+    assert.equal(result.reply, "reply");
+  });
+});
+
 test("generateReplyHandler validates character ownership before bulk inserting unsyncedHistory", async () => {
   const auth = buildAuth();
 

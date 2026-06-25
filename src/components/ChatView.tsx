@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
+import type { FlatListProps, TextStyle } from 'react-native'
 import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
 import { useSelector } from '@xstate/react'
@@ -19,6 +20,15 @@ import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/
 import type { Character } from '~/services/characterService'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
+
+const webMessageTextWrapStyle = {
+  wordBreak: 'break-word',
+  overflowWrap: 'anywhere',
+} as TextStyle
+
+/** Native WebViews in inverted lists can paint over sibling rows unless clipping is disabled. */
+const groundingListViewProps: Pick<FlatListProps<unknown>, 'removeClippedSubviews'> | undefined =
+  Platform.OS === 'web' ? undefined : { removeClippedSubviews: false }
 
 interface ChatViewProps {
   characterId: string
@@ -132,24 +142,60 @@ function ChatViewContent({
   )
 
   const renderBubble = useCallback(
-    (props: any) => (
-      <Bubble
-        {...props}
-        wrapperStyle={{
-          left: { backgroundColor: colors.secondary, borderRadius: roundness },
-          right: { backgroundColor: colors.primary, borderRadius: roundness },
-        }}
-        textStyle={{
-          left: { color: colors.onSecondary },
-          right: { color: colors.onPrimary },
-        }}
-        renderMessageText={(msgProps: MessageTextProps<IMessage>) => (
-          <View style={{ paddingVertical: 10 }}>
-            <MessageText {...msgProps} />
-          </View>
-        )}
-      />
-    ),
+    (props: any) => {
+      const hasGrounding = Boolean(
+        (props.currentMessage as GroundedIMessage | undefined)?.groundingMetadata,
+      )
+      const webBubbleConstraints =
+        Platform.OS === 'web'
+          ? ({ maxWidth: '80%', minWidth: 0, overflow: 'hidden' } as const)
+          : {}
+
+      return (
+        <Bubble
+          {...props}
+          touchableProps={
+            Platform.OS === 'web' && hasGrounding ? { disabled: true } : undefined
+          }
+          wrapperStyle={{
+            left: {
+              backgroundColor: colors.secondary,
+              borderRadius: roundness,
+              ...webBubbleConstraints,
+            },
+            right: {
+              backgroundColor: colors.primary,
+              borderRadius: roundness,
+              ...webBubbleConstraints,
+            },
+          }}
+          textStyle={{
+            left: { color: colors.onSecondary },
+            right: { color: colors.onPrimary },
+          }}
+          renderMessageText={(msgProps: MessageTextProps<IMessage>) => (
+            <View
+              style={{
+                paddingVertical: 10,
+                ...(Platform.OS === 'web' ? { minWidth: 0, maxWidth: '100%' } : {}),
+              }}
+            >
+              <MessageText
+                {...msgProps}
+                textStyle={
+                  Platform.OS === 'web'
+                    ? {
+                        left: [msgProps.textStyle?.left, webMessageTextWrapStyle],
+                        right: [msgProps.textStyle?.right, webMessageTextWrapStyle],
+                      }
+                    : msgProps.textStyle
+                }
+              />
+            </View>
+          )}
+        />
+      )
+    },
     [colors, roundness],
   )
 
@@ -332,6 +378,7 @@ function ChatViewContent({
         renderCustomView={renderCustomView}
         isCustomViewBottom
         messageIdGenerator={() => `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`}
+        listViewProps={groundingListViewProps}
         renderAvatarOnTop
         messagesContainerStyle={styles.messagesContainer}
         minInputToolbarHeight={56}
@@ -445,8 +492,12 @@ const styles = StyleSheet.create({
   },
   groundingContainer: {
     paddingHorizontal: 8,
-    paddingBottom: 8,
+    paddingBottom: Platform.OS === 'web' ? 0 : 8,
     gap: 6,
+    overflow: 'hidden',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
   },
   citationRow: {
     flexDirection: 'row',
@@ -464,8 +515,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   searchSuggestions: {
-    height: 85,
     backgroundColor: 'transparent',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
   },
   headerTitle: {
     flexDirection: 'row',

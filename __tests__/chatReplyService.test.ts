@@ -47,6 +47,35 @@ describe('generateChatReply', () => {
     expect(mockGenerateReplyFn).toHaveBeenCalledWith({ prompt: 'hi', referenceId: 'abc' })
   })
 
+  it('omits undefined optional fields from the callable payload', async () => {
+    mockGenerateReplyFn.mockResolvedValue({
+      data: {
+        reply: 'Hello',
+        verifiedAt: '2026-01-01T00:00:00.000Z',
+      },
+    })
+
+    const resultPromise = generateChatReply({
+      contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+      systemInstruction: 'Be concise.',
+    })
+
+    if (!resolveAppCheck) {
+      throw new Error('Expected appCheckReady resolver to be set')
+    }
+    resolveAppCheck()
+
+    await resultPromise
+
+    expect(mockGenerateReplyFn).toHaveBeenCalledWith({
+      contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+      systemInstruction: 'Be concise.',
+    })
+    expect(mockGenerateReplyFn.mock.calls[0][0]).not.toHaveProperty('unsyncedHistory')
+    expect(mockGenerateReplyFn.mock.calls[0][0]).not.toHaveProperty('characterId')
+    expect(mockGenerateReplyFn.mock.calls[0][0]).not.toHaveProperty('referenceId')
+  })
+
   it('forwards structured contents and systemInstruction to the callable payload', async () => {
     mockGenerateReplyFn.mockResolvedValue({
       data: {
