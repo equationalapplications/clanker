@@ -102,6 +102,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   ios: {
     bundleIdentifier: 'com.equationalapplications.clanker',
+    deploymentTarget: '16.4',
     googleServicesFile: getGoogleServiceInfoPlist(),
     supportsTablet: true,
     usesAppleSignIn: true,
