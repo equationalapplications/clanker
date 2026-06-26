@@ -184,6 +184,8 @@ describe('ChatView accessibility', () => {
       isGeneratingResponse: false,
       escalationState: 'idle',
       error: null,
+      activeTool: null,
+      streamingMessage: null,
     })
     withLoggedInUser()
   })
@@ -418,6 +420,27 @@ describe('ChatView accessibility', () => {
     expect(capturedGiftedChatProps.alwaysShowSend).toBe(false)
   })
 
+  it('shows tool activity in the status banner when activeTool is set', () => {
+    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+    mockUseAIChat.mockReturnValue({
+      messages: [],
+      sendMessage: jest.fn(),
+      isGeneratingResponse: true,
+      escalationState: 'idle',
+      error: null,
+      activeTool: 'wiki_read',
+      streamingMessage: null,
+    })
+
+    let tree: any
+    act(() => { tree = create(<ChatView characterId="char-1" />) })
+
+    const statusTexts = tree.root.findAll(
+      (n: any) => n.props.accessibilityLabel === 'Reading your memory',
+    )
+    expect(statusTexts.length).toBeGreaterThan(0)
+  })
+
   it('GiftedChat keeps the send slot visible while generating a response', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
     mockUseAIChat.mockReturnValue({
@@ -426,6 +449,8 @@ describe('ChatView accessibility', () => {
       isGeneratingResponse: true,
       escalationState: 'idle',
       error: null,
+      activeTool: null,
+      streamingMessage: null,
     })
 
     act(() => { create(<ChatView characterId="char-1" />) })
