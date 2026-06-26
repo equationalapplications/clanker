@@ -1,47 +1,18 @@
-# 📖 Check Documentation
+# Docs
+- Read README links for implementation details.
+- Read exact Expo docs at https://docs.expo.dev/versions/v56.0.0/ before writing code.
 
-  1. Check the README for relevant documentation links
-  2. Read the linked documentation file(s) for implementation details
+# Checks
+- After changing `root` or `functions/`, run: `npm run typecheck && npm run lint && npm run test`
 
-# Run Checks
+# Git & Commits
+- **Flow**: feature → `staging` → `main` (via PRs only).
+- **Commits**: Use Conventional Commits.
+  - `feat`: Minor bump (OTA)
+  - `fix`: Patch bump (OTA)
+  - `BREAKING CHANGE`: Major bump (Native build required)
+- **Length**: Max 100 characters per line (header, body, and footer).
 
-  After changing the expo app (root) or cloud functions (functions/), run these checks:
-
-  ```bash
-  npm run typecheck
-  npm run lint
-  npm run test
-  ```
-
-# Update Documentation
-
-  1. **Create detailed docs in `/docs` folder** - All comprehensive documentation lives in individual markdown files in the `docs/` directory. Use descriptive filenames like `FEATURE_NAME.md` or `SYSTEM_NAME.md` in SCREAMING_SNAKE_CASE.
-
-  2. **Add summary + link to README** - After creating a user-facing doc in `docs/` (not under `docs/superpowers/`), add a brief summary and link in `README.md` under the appropriate section. Exclude `docs/superpowers/` — agent specs/plans are not README-indexed.
-
-  3. **Keep README concise** - The README should be a high-level overview and index. Detailed implementation details belong in individual doc files, not the README.
-
-# Git Workflow & Versioning
-
-  **Branch Strategy**: Two-branch promotion flow: `staging` → `main`. Feature branches merge into `staging` via PR. All changes go through PRs (no direct commits to protected branches).
-
-  **Commit Format**: Use [Conventional Commits](https://www.conventionalcommits.org/) - commits drive semantic-release which auto-versions the app.
-
-  ```bash
-  feat(scope): add new feature        # Minor bump (1.0.0 → 1.1.0) - OTA update
-  fix(scope): resolve bug             # Patch bump (1.0.0 → 1.0.1) - OTA update
-  BREAKING CHANGE: a change that requires a build of native packages # Major bump (1.0.0 → 2.0.0) - NATIVE BUILD REQUIRED
-  ```
-
-  **Commit Message Line Length Limits** (enforced by commitlint):
-  - Header (first line): max **100 characters**
-  - Body lines: max **100 characters** each
-  - Footer lines: max **100 characters** each
-
-# Pull Request Template
-
-  When creating a pull request, **always use the PR template** located at `.github/pull_request_template.md`.
-
-# Copilot PR Review Guidelines
-
-   In feature branch -> staging PRs, if package.json, package-lock.json, or CHANGELOG.md have changes but match the main branch, they were likely created by semantic-release. Do not flag them.
+# PRs & Reviews
+- **Template**: Always use `.github/pull_request_template.md`.
+- **Copilot**: Ignore `package.json`, `package-lock.json`, and `CHANGELOG.md` changes in staging PRs if they match `main` (these are semantic-release artifacts).
