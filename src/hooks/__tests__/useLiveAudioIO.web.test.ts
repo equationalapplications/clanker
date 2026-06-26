@@ -446,6 +446,28 @@ describe('error handling', () => {
     expect(mockCtx.close).toHaveBeenCalledTimes(1)
   })
 
+  it('clears audio context refs when AudioWorklet fails so playChunk is a no-op', async () => {
+    mockCtx.audioWorklet.addModule.mockRejectedValue(new Error('Not supported'))
+
+    const { result } = renderHook(() => useLiveAudioIO())
+    await act(async () => { await result.current.startRecording() })
+
+    await act(async () => { await result.current.playChunk(makeSilentChunk()) })
+
+    expect(mockCtx.createBuffer).not.toHaveBeenCalled()
+  })
+
+  it('does not throw when AudioContext.close rejects during stopRecording', async () => {
+    mockCtx.close.mockRejectedValue(new Error('Already closed'))
+
+    const { result } = renderHook(() => useLiveAudioIO())
+    await act(async () => { await result.current.startRecording() })
+
+    expect(() => {
+      act(() => { result.current.stopRecording() })
+    }).not.toThrow()
+  })
+
   it('stops stream and closes context when graph setup fails after getUserMedia', async () => {
     const track = makeMockTrack()
     mockStream = makeMockStream([track])

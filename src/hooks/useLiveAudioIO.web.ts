@@ -14,16 +14,17 @@ export interface UseLiveAudioIOReturn {
   onAudioChunk: (cb: (chunk: string) => void) => () => void
 }
 
-// Inlined as Blob URL — bypasses Metro bundler static asset pipeline entirely.
-// Accumulates 320 samples (20ms @ 16kHz) before posting to avoid excess IPC.
-// NOTE: The spread in btoa(String.fromCharCode(...)) is safe at 640 bytes (320 samples × 2),
-// well under the ~65,535 argument call-stack limit. If chunk size ever increases to ≥1s,
-// replace with a for-loop encoder to avoid "Maximum call stack size exceeded".
-const WORKLET_PROCESSOR_CODE = `
+const TARGET_SAMPLE_RATE = 16000
+const CHUNK_DURATION_SEC = 0.02 // 20ms — matches native LiveAudioStream buffer cadence
+
+/** Inlined as Blob URL — bypasses Metro bundler static asset pipeline entirely. */
+function buildWorkletProcessorCode(chunkSize: number): string {
+  return `
 class PcmCaptureProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this._buffer = new Int16Array(320);
+    this._chunkSize = ${chunkSize};
+    this._buffer = new Int16Array(this._chunkSize);
     this._offset = 0;
   }
   process(inputs) {
@@ -33,9 +34,9 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
       const s = Math.max(-1, Math.min(1, input[i]));
       // Asymmetric multiply matches Int16 range [-32768, 32767]
       this._buffer[this._offset++] = s < 0 ? s * 32768 : s * 32767;
-      if (this._offset === 320) {
+      if (this._offset === this._chunkSize) {
         this.port.postMessage(this._buffer.buffer, [this._buffer.buffer]);
-        this._buffer = new Int16Array(320);
+        this._buffer = new Int16Array(this._chunkSize);
         this._offset = 0;
       }
     }
@@ -44,6 +45,13 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
 }
 registerProcessor('pcm-capture-processor', PcmCaptureProcessor);
 `
+}
+
+function closeAudioContextSilently(ctx: AudioContext | null | undefined): void {
+  void ctx?.close().catch(() => {
+    // Already closed or rejected — teardown should stay silent
+  })
+}
 
 export function useLiveAudioIO(): UseLiveAudioIOReturn {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle')
@@ -64,7 +72,7 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
     streamRef.current?.getTracks().forEach((t) => t.stop())
     workletNodeRef.current?.disconnect()
     sourceNodeRef.current?.disconnect()
-    void audioCtxRef.current?.close()
+    closeAudioContextSilently(audioCtxRef.current)
     streamRef.current = null
     workletNodeRef.current = null
     sourceNodeRef.current = null
@@ -106,14 +114,18 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
       })
       streamRef.current = stream
 
-      const audioCtx = new AudioContext({ sampleRate: 16000 })
+      const audioCtx = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE })
       audioCtxRef.current = audioCtx
       if (audioCtx.state === 'suspended') {
         await audioCtx.resume()
       }
 
+      // sampleRate is a hint only — size chunks from the context's actual rate so each
+      // post is always ~20ms of captured audio regardless of device rate.
+      const chunkSize = Math.round(audioCtx.sampleRate * CHUNK_DURATION_SEC)
+
       const blobUrl = URL.createObjectURL(
-        new Blob([WORKLET_PROCESSOR_CODE], { type: 'application/javascript' }),
+        new Blob([buildWorkletProcessorCode(chunkSize)], { type: 'application/javascript' }),
       )
       try {
         await audioCtx.audioWorklet.addModule(blobUrl)
@@ -121,7 +133,9 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
         setError('Browser does not support AudioWorklet. Use Chrome, Firefox, or Safari 15+.')
         setRecordingState('error')
         stream.getTracks().forEach((t) => t.stop())
-        await audioCtx.close()
+        closeAudioContextSilently(audioCtx)
+        streamRef.current = null
+        audioCtxRef.current = null
         return false
       } finally {
         URL.revokeObjectURL(blobUrl)
@@ -132,7 +146,7 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
 
       workletNode.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
         const int16 = new Int16Array(event.data)
-        // 640 bytes — safe for spread; see comment on WORKLET_PROCESSOR_CODE above
+        // Spread is safe for 20ms chunks (≤~2 KB at 48kHz), well under call-stack limits
         const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)))
         chunkListenersRef.current.forEach((cb) => cb(base64))
       }

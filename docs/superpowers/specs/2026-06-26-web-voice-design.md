@@ -15,7 +15,7 @@ Phase 1 delivered the XState machine and controller hook for native iOS/Android 
 
 Phase 3 replaces that stub with a real implementation using the Web Audio API. The constraint is not the web platform itself — it fully supports raw PCM capture and playback — but that `expo-audio` and `react-native-live-audio-stream` (the native abstractions used in `useLiveAudioIO.ts`) do not run on web. The fix is a web-specific implementation that satisfies the same `UseLiveAudioIOReturn` interface using browser-native APIs.
 
-**No other files change.** `liveVoiceMachine.ts`, `useLiveVoiceChat.ts`, the Talk tab UI, and the cloud agent backend are all platform-agnostic and untouched.
+**No other runtime/product code changes.** Tests and this spec/plan are updated in the same PR. `liveVoiceMachine.ts`, `useLiveVoiceChat.ts`, the Talk tab UI, and the cloud agent backend are all platform-agnostic and untouched.
 
 ---
 
@@ -82,7 +82,7 @@ If the browser ignores the `sampleRate: 16000` hint (rare on modern desktop brow
 
 ### Worklet Processor (inlined as Blob)
 
-The processor accumulates incoming `Float32Array` frames into a 320-sample buffer (= 20ms at 16kHz), then converts and posts:
+The processor accumulates incoming `Float32Array` frames into a buffer sized from the context's actual sample rate (`Math.round(sampleRate * 0.02)` = 20ms), then converts and posts:
 
 ```javascript
 // Inlined as a template string — loaded via Blob URL
@@ -279,8 +279,11 @@ The Web Audio API has no implementation in Node.js/jsdom. Tests mock the constru
 | File | Change |
 |---|---|
 | `src/hooks/useLiveAudioIO.web.ts` | Replace stub with full Web Audio API implementation |
+| `src/hooks/__tests__/useLiveAudioIO.web.test.ts` | Unit tests for capture, playback, errors, cleanup |
+| `docs/superpowers/specs/2026-06-26-web-voice-design.md` | Phase 3 spec (this document) |
+| `docs/superpowers/plans/2026-06-26-web-voice.md` | Phase 3 implementation plan |
 
-No other files change.
+No other runtime/product code changes.
 
 ---
 
