@@ -114,7 +114,7 @@ export function GroundingHtml({ html, style }: GroundingHtmlProps) {
 
     scrollEl.addEventListener('wheel', onWheel, { capture: true, passive: false })
     return () => scrollEl.removeEventListener('wheel', onWheel, { capture: true })
-  }, [contentWidth])
+  }, [])
 
   const captureBubblePress = useCallback((event: SyntheticEvent) => {
     stopBubbleScrollCapture(event)

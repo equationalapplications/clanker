@@ -21,6 +21,36 @@ import type { Character } from '~/services/characterService'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
+function toolStatusLabel(toolName: string): string {
+  switch (toolName) {
+    case 'wiki_read':
+      return '⏳ Reading your memory…'
+    case 'google_search':
+      return '⏳ Searching the web…'
+    case 'wiki_write':
+      return '⏳ Updating memory…'
+    case 'document_search':
+      return '⏳ Searching documents…'
+    default:
+      return `⏳ Using ${toolName.replace(/_/g, ' ')}…`
+  }
+}
+
+function toolStatusAccessibilityLabel(toolName: string): string {
+  switch (toolName) {
+    case 'wiki_read':
+      return 'Reading your memory'
+    case 'google_search':
+      return 'Searching the web'
+    case 'wiki_write':
+      return 'Updating memory'
+    case 'document_search':
+      return 'Searching documents'
+    default:
+      return `Using ${toolName.replace(/_/g, ' ')}`
+  }
+}
+
 const webMessageTextWrapStyle = {
   wordBreak: 'break-word',
   overflowWrap: 'anywhere',
@@ -69,11 +99,13 @@ function ChatViewContent({
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
 
-  const { messages, sendMessage, escalationState, isGeneratingResponse } = useAIChat({
+  const { messages, sendMessage, escalationState, isGeneratingResponse, activeTool, streamingMessage } = useAIChat({
     characterId,
     userId: currentUserId,
     character: toAIChatCharacter(character),
   })
+
+  const displayMessages = streamingMessage ? [streamingMessage, ...messages] : messages
 
   const chatUser: User = {
     _id: currentUserId,
@@ -335,7 +367,7 @@ function ChatViewContent({
 
   return (
     <View style={styles.container}>
-      {(wikiStatus.ingesting || wikiStatus.librarian || isGeneratingResponse || documentPhase !== null) && (
+      {(wikiStatus.ingesting || wikiStatus.librarian || isGeneratingResponse || documentPhase !== null || activeTool) && (
         <View
           accessibilityLiveRegion="polite"
           accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
@@ -361,13 +393,24 @@ function ChatViewContent({
           {escalationState === 'escalating' && (
             <Text style={styles.statusText} accessibilityLabel="Thinking deeply">🧠 Thinking deeply…</Text>
           )}
-          {isGeneratingResponse && escalationState !== 'escalating' && (
+          {activeTool && (
+            <Text
+              style={styles.statusText}
+              accessibilityLabel={toolStatusAccessibilityLabel(activeTool)}
+            >
+              {toolStatusLabel(activeTool)}
+            </Text>
+          )}
+          {isGeneratingResponse &&
+            escalationState !== 'escalating' &&
+            !activeTool &&
+            !streamingMessage?.text && (
             <Text style={styles.statusText} accessibilityLabel="Thinking">💭 Thinking…</Text>
           )}
         </View>
       )}
       <GiftedChat
-        messages={messages}
+        messages={displayMessages}
         onSend={handleSend}
         user={chatUser}
         renderComposer={renderComposer}

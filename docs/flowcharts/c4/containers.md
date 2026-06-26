@@ -20,7 +20,7 @@ C4Container
 
   System_Boundary(gcp_b, "Google Cloud") {
     Container(cloudsql, "Cloud SQL", "PostgreSQL", "Users, credits, subscriptions; cloud character backup; wiki/task mirror for save_to_cloud characters.")
-    Container(cloudagent, "Cloud Agent", "Cloud Run (Node.js/Express + Google ADK)", "Stateless ADK agent. Escalated chat for cloud-synced characters. Verified via Firebase ID tokens.")
+    Container(cloudagent, "Cloud Agent", "Cloud Run (Node.js/Express + Google ADK)", "Stateless ADK agent. Escalated chat for cloud-synced characters via WebSocket /agent/stream (token + tool streaming) with HTTP /agent/run fallback. Verified via Firebase ID tokens.")
   }
 
   System_Ext(gemini, "Vertex AI (Gemini)", "LLM completions (model selected server-side)")
@@ -30,7 +30,7 @@ C4Container
   Rel(user, app, "Uses", "HTTPS / native")
   Rel(app, auth, "Sign-in and token refresh")
   Rel(app, functions, "generateReply (edge agent + fallback), bootstrap, wiki, media, character sync")
-  Rel(app, cloudagent, "Escalated chat for cloud-synced characters", "HTTPS POST /agent/run + Bearer token")
+  Rel(app, cloudagent, "Escalated chat for cloud-synced characters", "WebSocket /agent/stream (HTTP /agent/run fallback) + Bearer token")
   Rel(app, sqlite, "All local reads and writes")
   Rel(app, stripe, "Checkout session redirect (web)")
   Rel(app, revenuecat, "Native IAP (SDK)")
@@ -48,7 +48,7 @@ C4Container
 Priority order in `useAIChat` after send:
 
 1. **Edge resolved** — `useEdgeAgent` loop returns text; each iteration billed via `generateReply`.
-2. **Cloud Agent** — `callCloudAgent` when character is cloud-synced (or dev sandbox) and `EXPO_PUBLIC_CLOUD_AGENT_URL` is set.
+2. **Cloud Agent** — `callCloudAgent` tries WebSocket `/agent/stream` first (streaming tokens and tool events); falls back to HTTP `POST /agent/run` on connection or auth failure. Used when character is cloud-synced (or dev sandbox) and `EXPO_PUBLIC_CLOUD_AGENT_URL` is set.
 3. **Firebase fallback** — `sendMessageWithAIResponse` → `generateReply` with optional unsynced history.
 
 See [Edge Agent](../../EDGE_AGENT.md) and [AI & Chat](../../ai-and-chat.md).

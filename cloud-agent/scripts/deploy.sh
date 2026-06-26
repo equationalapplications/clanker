@@ -32,6 +32,8 @@ DEPLOY_ARGS=(
   --project "${PROJECT_ID}"
   --image "${IMAGE}"
   --region "${REGION}"
+  --memory 512Mi
+  --timeout 540
   --set-env-vars "GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION}"
   # GEMINI_API_KEY secret was deleted (embeddings.ts migrated to Vertex AI ADC);
   # remove the dangling secret-backed env var carried forward from prior revisions.
