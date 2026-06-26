@@ -270,8 +270,12 @@ export async function handleWsUpgrade(
     } catch (err) {
       console.error('agent_run handler error:', err)
       await refundIfNeeded()
-      ws.send(JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message: 'Internal server error' }))
-      ws.close(1011, 'Internal error')
+      try {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message: 'Internal server error' }))
+        }
+      } catch { /* ignore send errors */ }
+      try { ws.close(1011, 'Internal error') } catch { /* ignore close errors */ }
     }
   }
 
