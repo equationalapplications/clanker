@@ -302,7 +302,7 @@ export function createApp(options: AppOptions) {
 }
 
 export function attachAgentStreamWebSocket(server: Server, options: AppOptions): void {
-  const { verifyToken, db, wsHandlerOptions } = options
+  const { verifyToken, db, wsHandlerOptions, creditService } = options
   const wss = new WebSocketServer({ noServer: true })
 
   server.on('upgrade', (req, socket, head) => {
@@ -311,6 +311,7 @@ export function attachAgentStreamWebSocket(server: Server, options: AppOptions):
         void handleWsUpgrade(ws, req, {
           db,
           verifyToken,
+          creditService,
           ...wsHandlerOptions,
         })
       })
