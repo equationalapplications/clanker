@@ -128,7 +128,13 @@ async function runViaWebSocket(
 
     const handleClose = () => {
       if (settled) return
-      settle(() => resolve({ reply, toolCalls, usageSnapshot }))
+      settle(() => {
+        if (!usageSnapshot) {
+          reject(new Error('WebSocket closed before receiving usage_snapshot'))
+          return
+        }
+        resolve({ reply, toolCalls, usageSnapshot })
+      })
     }
 
     const handleOpen = () => {
