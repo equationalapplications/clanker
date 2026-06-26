@@ -24,6 +24,7 @@ export const characters = pgTable('characters', {
   traits: text('traits'),
   emotions: text('emotions'),
   context: text('context'),
+  voice: text('voice'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({

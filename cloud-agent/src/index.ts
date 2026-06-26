@@ -17,6 +17,7 @@ import type { DrizzleClient } from './db/client.js'
 import { createCreditService } from './services/creditService.js'
 import type { CreditService } from './services/creditService.js'
 import { handleWsUpgrade, type WsHandlerOptions } from './handlers/wsAgentHandler.js'
+import { handleLiveWsUpgrade, type WsLiveHandlerOptions } from './handlers/wsLiveAgentHandler.js'
 import { z } from 'zod'
 
 const contentSchema = z.object({
@@ -37,12 +38,13 @@ export interface RunAgentParams {
   embed: (text: string) => Promise<number[]>
 }
 
-interface AppOptions {
+export interface AppOptions {
   verifyToken: (token: string) => Promise<{ uid: string }>
   db: DrizzleClient
   runAgentFn: (params: RunAgentParams) => Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }>
   creditService?: CreditService
   wsHandlerOptions?: Partial<WsHandlerOptions>
+  wsLiveHandlerOptions?: Partial<WsLiveHandlerOptions>
 }
 
 // ── Real agent runner (production) ────────────────────────────────────────────
@@ -301,19 +303,21 @@ export function createApp(options: AppOptions) {
   return app
 }
 
-export function attachAgentStreamWebSocket(server: Server, options: AppOptions): void {
-  const { verifyToken, db, wsHandlerOptions, creditService } = options
-  const wss = new WebSocketServer({ noServer: true })
+export function attachWebSocketRoutes(server: Server, options: AppOptions): void {
+  const { verifyToken, db, wsHandlerOptions, wsLiveHandlerOptions, creditService } = options
+  const streamWss = new WebSocketServer({ noServer: true })
+  const liveWss = new WebSocketServer({ noServer: true })
 
   server.on('upgrade', (req, socket, head) => {
-    if (req.url === '/agent/stream') {
-      wss.handleUpgrade(req, socket, head, (ws) => {
-        void handleWsUpgrade(ws, req, {
-          db,
-          verifyToken,
-          creditService,
-          ...wsHandlerOptions,
-        })
+    const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname
+
+    if (pathname === '/agent/stream') {
+      streamWss.handleUpgrade(req, socket, head, (ws) => {
+        void handleWsUpgrade(ws, req, { db, verifyToken, creditService, ...wsHandlerOptions })
+      })
+    } else if (pathname === '/agent/live') {
+      liveWss.handleUpgrade(req, socket, head, (ws) => {
+        void handleLiveWsUpgrade(ws, req, { db, verifyToken, creditService, ...wsLiveHandlerOptions })
       })
     } else {
       socket.destroy()
@@ -349,5 +353,5 @@ if (process.env.NODE_ENV !== 'test') {
   const server = app.listen(Number(port), '0.0.0.0', () => {
     console.log(`Cloud Agent listening on port ${port}`)
   })
-  attachAgentStreamWebSocket(server, appOptions)
+  attachWebSocketRoutes(server, appOptions)
 }

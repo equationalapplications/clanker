@@ -272,7 +272,7 @@ export const liveVoiceMachine = createMachine(
       ),
 
       websocketActor: fromCallback<LiveVoiceEvent, { characterId: string }>(
-        ({ sendBack, receive }) => {
+        ({ sendBack, receive, input }) => {
           let ws: WebSocket | null = null
           let cleanedUp = false
 

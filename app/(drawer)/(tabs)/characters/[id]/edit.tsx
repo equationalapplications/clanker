@@ -27,7 +27,7 @@ import {
   buildCharacterShareUrl,
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
-import { DEFAULT_VOICE, GEMINI_VOICES } from '~/constants/geminiVoices'
+import { DEFAULT_VOICE, GEMINI_LIVE_VOICES } from '~/constants/geminiVoices'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 
 export default function EditCharacterScreen() {
@@ -443,19 +443,16 @@ export default function EditCharacterScreen() {
                 disabled={!canEdit}
                 style={styles.voiceButton}
               >
-                {(() => {
-                  const style = GEMINI_VOICES.find((v) => v.name === voice)?.style
-                  return style ? `${voice} — ${style}` : voice
-                })()}
+                {voice}
               </Button>
             }
           >
-            {GEMINI_VOICES.map((v) => (
+            {GEMINI_LIVE_VOICES.map((v) => (
               <Menu.Item
-                key={v.name}
-                title={`${v.name} — ${v.style}`}
+                key={v}
+                title={v}
                 onPress={() => {
-                  setVoice(v.name)
+                  setVoice(v)
                   setVoiceMenuVisible(false)
                 }}
               />

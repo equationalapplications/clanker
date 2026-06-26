@@ -62,7 +62,7 @@ const mockCreditService = {
   getBalance: async (_userId: string): Promise<number> => 42,
 }
 
-const { createApp, attachAgentStreamWebSocket } = await import('./index.js')
+const { createApp, attachWebSocketRoutes } = await import('./index.js')
 
 function startServer(app: ReturnType<typeof createApp>, wsOptions?: { mockStreamReply?: string }): Promise<{
   server: Server
@@ -70,15 +70,16 @@ function startServer(app: ReturnType<typeof createApp>, wsOptions?: { mockStream
   close: () => Promise<void>
 }> {
   const db = makeMockDb([[mockUser], [mockCharacter], []])
+  const appOptions = {
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: mockCreditService,
+    wsHandlerOptions: wsOptions,
+  }
   return new Promise((resolve, reject) => {
     const server = createServer(app)
-    attachAgentStreamWebSocket(server, {
-      verifyToken: mockVerify,
-      db,
-      runAgentFn: mockRunAgent,
-      creditService: mockCreditService,
-      wsHandlerOptions: wsOptions,
-    })
+    attachWebSocketRoutes(server, appOptions)
     server.listen(0, '127.0.0.1', () => {
       const addr = server.address()
       if (!addr || typeof addr !== 'object') {
