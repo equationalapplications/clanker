@@ -1,6 +1,7 @@
 # Docs
 - Read README links for implementation details.
 - Read exact Expo docs at https://docs.expo.dev/versions/v56.0.0/ before writing code.
+- Hand-written docs in `docs/` use **kebab-case** filenames (e.g. `edge-agent.md`). Auto-generated flowcharts in `docs/flowcharts/` use ALL CAPS.
 
 # Checks
 - After changing `root` or `functions/`, run: `npm run typecheck && npm run lint && npm run test`

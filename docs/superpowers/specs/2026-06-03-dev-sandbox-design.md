@@ -1,6 +1,6 @@
 # Dev Sandbox Design
 
-> **⚠️ DEPRECATED — historical record only.** Mock auth and local cloud-agent routing are still valid; the **local-Gemini inference path described below was removed during the BYOI proxy migration**. See **[Edge Agent](../../EDGE_AGENT.md)** and [AI & Chat](../../ai-and-chat.md#local-development-cloud-agent).
+> **⚠️ DEPRECATED — historical record only.** Mock auth and local cloud-agent routing are still valid; the **local-Gemini inference path described below was removed during the BYOI proxy migration**. See **[Edge Agent](../../edge-agent.md)** and [AI & Chat](../../ai-and-chat.md#local-development-cloud-agent).
 
 **Date:** 2026-06-03  
 **Status:** Implemented

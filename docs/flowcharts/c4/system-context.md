@@ -47,4 +47,4 @@ Live voice uses a separate path from text chat:
 
 > **Note:** The `/agent/live` Cloud Agent handler is deployed separately from the client.
 
-See [Edge Agent](../../EDGE_AGENT.md) and [AI & Chat](../../ai-and-chat.md).
+See [Edge Agent](../../edge-agent.md) and [AI & Chat](../../ai-and-chat.md).
