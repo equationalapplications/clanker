@@ -211,6 +211,15 @@ export async function callCloudAgent(
   try {
     return await runViaWebSocket(payload, callbacks)
   } catch (wsErr) {
+    const msg = wsErr instanceof Error ? wsErr.message : String(wsErr)
+    const shouldFallbackToHttp =
+      msg === 'WebSocket connection error' ||
+      msg === 'WebSocket connection timeout' ||
+      msg === 'WebSocket auth timeout' ||
+      msg.startsWith('WebSocket error: UNAUTHORIZED')
+
+    if (!shouldFallbackToHttp) throw wsErr
+
     console.warn('WebSocket failed, falling back to HTTP:', wsErr)
     return await runViaHttp(payload)
   }
