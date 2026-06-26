@@ -29,7 +29,7 @@ The frontend communicates with Cloud Run `/agent/live` endpoint via WebSocket. A
 
 | Event | Payload | Purpose |
 |-------|---------|---------|
-| **Auth Handshake** | `{ "type": "auth", "token": "<firebase-id-token>" }` | Authenticate WebSocket connection |
+| **Auth Handshake** | `{ "type": "auth", "token": "<firebase-id-token>", "characterId": "<uuid>" }` | Authenticate WebSocket connection; `characterId` required so server can load voice config before opening Gemini session |
 | **Audio Input** | `{ "type": "audio_input", "data": "<base64-16kHz-PCM>" }` | Stream user's voice from microphone (20ms chunks); server detects VAD/barge-in |
 | **Session End** | `{ "type": "end_session" }` | Gracefully close connection |
 
@@ -37,6 +37,7 @@ The frontend communicates with Cloud Run `/agent/live` endpoint via WebSocket. A
 
 | Event | Payload | Purpose |
 |-------|---------|---------|
+| **Session Ready** | `{ "type": "session_ready", "remainingCredits": <number> }` | Auth verified + Gemini bidi session open; client MUST NOT send `audio_input` before this event |
 | **Audio Output** | `{ "type": "audio_output", "data": "<base64-24kHz-PCM>" }` | Stream AI's synthesized voice to speaker (20ms chunks) |
 | **Transcript Token** | `{ "type": "transcript_token", "role": "user" \| "model", "text": "<incremental-text>" }` | Live transcript word-by-word (accumulate in UI) |
 | **Tool Start** | `{ "type": "tool_start", "name": "<tool-name>" }` | Show UI banner "⏳ Reading your memory..." |
@@ -77,9 +78,9 @@ XState v5 machine orchestrates the entire voice session lifecycle: pre-call sync
                 ▼
 ┌─────────────────────────────────────────────────┐
 │             connecting                          │
-│ (WebSocket open, send auth payload)             │
+│ (WebSocket open → send auth; await session_ready)│
 └───────────────┬─────────────────────────────────┘
-                │ SOCKET_OPENED
+                │ SESSION_READY
                 ▼
 ┌─────────────────────────────────────────────────┐
 │                live                             │
@@ -134,6 +135,7 @@ type LiveVoiceEvent =
 
   // Server-originated (forwarded by controller hook)
   | { type: 'SOCKET_OPENED' }
+  | { type: 'SESSION_READY'; remainingCredits: number }
   | { type: 'AUDIO_OUTPUT'; data: string }  // base64
   | { type: 'TRANSCRIPT_TOKEN'; role: 'user' | 'model'; text: string }
   | { type: 'TOOL_START'; name: string }
@@ -157,8 +159,12 @@ type LiveVoiceEvent =
 - On success → transition to `connecting`
 - On error → transition to `error`
 
-**connecting → live (on SOCKET_OPENED)**
-- Send `{ type: 'auth', token: firebaseToken }` over WebSocket
+**connecting (on SOCKET_OPENED)**
+- Send `{ type: 'auth', token: firebaseToken, characterId }` over WebSocket
+- Remain in `connecting`; do NOT send audio yet
+
+**connecting → live (on SESSION_READY)**
+- Set `remainingCredits` from event payload
 - Begin accepting `AUDIO_INPUT` events from mic
 - Begin buffering incoming `AUDIO_OUTPUT` for playback
 
@@ -405,8 +411,9 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn
    ↓ machine: idle → syncing_memory
 6. await wiki.exportDump([characterId]) + wikiSync()
    ↓ machine: syncing_memory → connecting
-7. Open WebSocket, send auth
-   ↓ machine: connecting → live (on SOCKET_OPENED)
+7. Open WebSocket → send auth (with characterId) on SOCKET_OPENED
+   ↓ await session_ready from server
+   ↓ machine: connecting → live (on SESSION_READY)
 ```
 
 ### Lifecycle: endCall()

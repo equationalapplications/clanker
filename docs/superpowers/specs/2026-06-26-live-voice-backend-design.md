@@ -30,7 +30,7 @@ Phase 2 builds the Cloud Run `/agent/live` WebSocket proxy. It authenticates the
 
 | File | Change |
 |------|--------|
-| `cloud-agent/src/index.ts` | Add `attachLiveAgentWebSocket()` alongside existing `attachAgentStreamWebSocket()` |
+| `cloud-agent/src/index.ts` | Replace two separate upgrade listeners with single centralized `attachWebSocketRoutes()` router; remove `else { socket.destroy() }` from stream handler |
 | `src/constants/geminiVoices.ts` | Replace 30-voice TTS list with 5 Live API voices |
 | `app/(drawer)/(tabs)/characters/[id]/edit.tsx` | Update voice picker to use new `GEMINI_LIVE_VOICES` constant |
 
@@ -141,7 +141,7 @@ await ai.live.connect({
       }
     },
     tools: [{ functionDeclarations: declarations }, { googleSearch: {} }],
-    responseModalities: ['AUDIO', 'TEXT'],
+    responseModalities: ['AUDIO'],   // Live API supports one modality; transcripts come via inputAudioTranscription/outputAudioTranscription
     inputAudioTranscription: {},
     outputAudioTranscription: {},
   },
@@ -191,13 +191,17 @@ const adkTools = [
   setReminderTool(db, userId, characterId),
 ]
 
-const declarations = adkTools.map(zodToFunctionDeclaration)
-const executors = new Map(adkTools.map(t => [t.name, t.execute.bind(t)]))
+const declarations = adkTools.map(t => t._getDeclaration())
+const executors = new Map(
+  adkTools.map(t => [
+    t.name,
+    // FunctionTool.execute is private; cast matches existing test patterns in the codebase
+    (t as unknown as { execute: (args: unknown) => Promise<unknown> }).execute.bind(t),
+  ])
+)
 ```
 
-### `zodToFunctionDeclaration(tool: FunctionTool): FunctionDeclaration`
-
-Converts each tool's zod `parameters` schema to Gemini's OpenAPI-style JSON schema format (`{ type: 'OBJECT', properties: {...}, required: [...] }`). Uses `zod-to-json-schema` (already transitively available via `@google/adk`).
+> **Why `_getDeclaration()` not `zodToFunctionDeclaration`:** `FunctionTool._getDeclaration()` is the ADK-native path — it produces exactly the `FunctionDeclaration` the model already receives via ADK, so schema output is guaranteed consistent. `FunctionTool.execute` is `private`; the cast is the same pattern used by existing tool tests. No `zod-to-json-schema` dependency needed.
 
 ### Notes
 
@@ -213,26 +217,26 @@ Converts each tool's zod `parameters` schema to Gemini's OpenAPI-style JSON sche
 
 ```typescript
 case 'audio_input': {
-  const pcmBytes = Buffer.from(payload.data, 'base64')
   geminiSession.sendRealtimeInput({
-    media: { data: pcmBytes, mimeType: 'audio/pcm;rate=16000' }
+    media: { data: payload.data, mimeType: 'audio/pcm;rate=16000' }
   })
   break
 }
 ```
 
-> **Implementation note:** `sendRealtimeInput()` is confirmed in `@google/genai` v1.50.1 type definitions (line 9953). If the installed version differs, fall back to the equivalent `session.send({ realtimeInput: { media: ... } })` form.
+> **`sendRealtimeInput()` confirmed** in `@google/genai` v1.50.1 type definitions (line 9953). Pass `payload.data` (base64 string) directly — `BlobImageUnion.data` is typed as `string`, so decoding to `Buffer` first is both wrong and wasteful.
 
 ### `handleGeminiMessage(msg: LiveServerMessage)`
 
 ```
 msg.serverContent.modelTurn.parts
-  ├─ inlineData (audio bytes)
-  │   └─ base64-encode → ws.send({ type: 'audio_output', data })
-  └─ text
-      └─ ws.send({ type: 'transcript_token', role: 'model', text })
+  └─ inlineData (audio bytes)
+      └─ base64-encode → ws.send({ type: 'audio_output', data })
 
-msg.serverContent.inputTranscript.text
+msg.serverContent.outputTranscription.text
+  └─ ws.send({ type: 'transcript_token', role: 'model', text })
+
+msg.serverContent.inputTranscription.text
   └─ ws.send({ type: 'transcript_token', role: 'user', text })
 
 msg.serverContent.interrupted === true
@@ -241,6 +245,8 @@ msg.serverContent.interrupted === true
 msg.toolCall
   └─ tool execution interceptor (Section 7)
 ```
+
+> **Transcript field names:** `@google/genai` v1.50.1 (genai.d.ts lines 7679/7684) uses `inputTranscription` / `outputTranscription` (type `Transcription { text: string }`). The field `inputTranscript` does not exist. With `native-audio-dialog`, model spoken text arrives via `outputTranscription`, not `modelTurn.parts` text — those parts carry audio `inlineData` only.
 
 ### `handleGeminiClose()`
 
@@ -416,25 +422,41 @@ Update the voice picker to iterate `GEMINI_LIVE_VOICES`. No migration needed —
 
 ## 12. `index.ts` Registration
 
+> **Upgrade listener conflict:** The existing `attachAgentStreamWebSocket` currently has an `else { socket.destroy() }` branch that destroys any non-`/agent/stream` socket — meaning a naively separate `server.on('upgrade')` listener for `/agent/live` would never fire. Both routes must be handled inside **one shared upgrade listener**.
+
+Replace the two separate `attachAgent*WebSocket` calls with a single centralized router:
+
 ```typescript
-export function attachLiveAgentWebSocket(server: Server, options: AppOptions): void {
-  const wss = new WebSocketServer({ noServer: true })
-  server.on('upgrade', (req, socket, head) => {
-    if (req.url === '/agent/live') {
-      wss.handleUpgrade(req, socket, head, (ws) => {
-        void handleLiveWsUpgrade(ws, req, options)
-      })
-    }
-    // /agent/stream handled by existing attachAgentStreamWebSocket — no change
-  })
-}
+// Replace attachAgentStreamWebSocket body — remove its else-destroy branch.
+// Both WSS instances are created once, routing happens in one shared listener.
+
+const streamWss = new WebSocketServer({ noServer: true })
+const liveWss   = new WebSocketServer({ noServer: true })
+
+server.on('upgrade', (req, socket, head) => {
+  const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname
+
+  if (pathname === '/agent/stream') {
+    streamWss.handleUpgrade(req, socket, head, (ws) => {
+      void handleWsUpgrade(ws, req, { db, verifyToken, creditService, ...wsHandlerOptions })
+    })
+  } else if (pathname === '/agent/live') {
+    liveWss.handleUpgrade(req, socket, head, (ws) => {
+      void handleLiveWsUpgrade(ws, req, { db, verifyToken, creditService })
+    })
+  } else {
+    socket.destroy()
+  }
+})
 ```
 
-Call site in entry point (alongside existing):
+This replaces both `attachAgentStreamWebSocket` and the new `attachLiveAgentWebSocket` — the routing logic lives in one place. **`attachAgentStreamWebSocket` must be updated (not left unchanged) to remove its own `upgrade` listener and `else destroy` branch.**
+
+Call site in entry point:
 
 ```typescript
-attachAgentStreamWebSocket(server, appOptions)
-attachLiveAgentWebSocket(server, appOptions)
+// Single call replaces both attachAgent*WebSocket invocations
+attachWebSocketRoutes(server, appOptions)
 ```
 
 ---
@@ -443,7 +465,7 @@ attachLiveAgentWebSocket(server, appOptions)
 
 ### Unit — `liveToolAdapter.test.ts`
 - `buildLiveTools()` returns declaration count matching tool list length
-- `zodToFunctionDeclaration` produces valid `{ type: 'OBJECT', properties, required }` for each tool
+- `_getDeclaration()` produces a valid `FunctionDeclaration` with `{ name, description, parameters }` for each tool
 - `executors` map contains every declared tool name
 - `resolveVoice('Umbriel')` → `'Aoede'`
 - `resolveVoice('Puck')` → `'Puck'`
@@ -463,6 +485,7 @@ Inject mock Gemini session via handler options (same pattern as `mockStreamReply
 - `end_session` from client → `session_ended` ack + socket closed
 - Client WS close → billing timer cleared (spy on `clearInterval`)
 - Gemini close callback → `GEMINI_DISCONNECTED` error + session closed
+- Upgrade router: simultaneous `WS` connections to `/agent/stream` and `/agent/live` both succeed (neither socket destroyed)
 
 ---
 
