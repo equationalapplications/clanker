@@ -129,10 +129,9 @@ interface LiveVoiceMachineContext {
 type LiveVoiceEvent =
   // User-initiated
   | { type: 'START_CALL' }
-  | { type: 'AUDIO_INPUT'; data: Uint8Array }
-  | { type: 'BARGE_IN' }
+  | { type: 'AUDIO_INPUT'; data: string }  // base64-encoded PCM
   | { type: 'END_CALL' }
-  
+
   // Server-originated (forwarded by controller hook)
   | { type: 'SOCKET_OPENED' }
   | { type: 'AUDIO_OUTPUT'; data: string }  // base64
@@ -142,11 +141,12 @@ type LiveVoiceEvent =
   | { type: 'USAGE_SNAPSHOT'; remainingCredits: number }
   | { type: 'AUDIO_INTERRUPTED' }
   | { type: 'SESSION_ENDED' }
-  
+
   // Error handling
   | { type: 'SOCKET_ERROR'; message: string }
   | { type: 'SOCKET_CLOSED' }
   | { type: 'RETRY' }
+  | { type: 'SEND_END_SESSION' }
 ```
 
 ### Key Transitions
@@ -172,28 +172,26 @@ type LiveVoiceEvent =
 
 **live (on USAGE_SNAPSHOT)**
 - Update `remainingCredits` in context
-- If `remainingCredits <= 0`, transition to `error` with code `credit_exhausted`
+- If `remainingCredits <= 0`, transition to `saving_to_db` with `socketError: 'credit_exhausted'`
 
 **live → saving_to_db (on END_CALL)**
-- Send `{ type: 'end_session' }` over WebSocket
-- Stop recording (signal to controller hook)
-- Preserve transcript in context
-- Await `SESSION_ENDED` event from server
+- WebSocket actor cleanup: send `{ type: 'end_session' }` and close socket
+- Stop recording (controller hook responsibility)
+- Preserve transcript in context; transition immediately to `saving_to_db`
 
-**saving_to_db → idle (on SESSION_ENDED)**
-- Invoke action: call `saveAIMessage(characterId, userId, transcript)`
-- Transition to idle
+**saving_to_db → idle (actor completes)**
+- Fire-and-forget: `saveAIMessage` / `sendMessage` per transcript entry (no await)
+- Reset transcript, activeTool, socketError, retryCount on transition to idle
 
 **Any state → error (on SOCKET_ERROR or SOCKET_CLOSED)**
 - Capture error message in context
 - Preserve transcript (never discard)
-- Set `retryCount = 0`
 
-**error → connecting (on RETRY)**
+**error → syncing_memory (on RETRY)**
 - Exponential backoff: 0.5s, 1s, 2s, 4s, 8s (max)
-- Increment `retryCount`
+- Increment `retryCount`; re-enter full pre-call sync before reconnecting
 - If `retryCount >= maxRetries`, stay in error (manual retry only)
-- Otherwise, attempt to reconnect WebSocket
+- `retryCount` resets to 0 on successful entry to `live` or after `saving_to_db`
 
 ### Injected Actions
 

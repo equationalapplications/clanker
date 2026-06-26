@@ -17,6 +17,7 @@ function getLiveWsUrl(): string {
   )
 }
 
+/** Persistent state managed by liveVoiceMachine across the call lifecycle. */
 export interface LiveVoiceMachineContext {
   characterId: string
   userId: string
@@ -44,6 +45,7 @@ export type LiveVoiceEvent =
   | { type: 'SOCKET_CLOSED' }
   | { type: 'SEND_END_SESSION' }
 
+/** Input provided when spawning liveVoiceMachine via useMachine. */
 export interface LiveVoiceMachineInput {
   characterId: string
   userId: string
@@ -53,6 +55,10 @@ export interface LiveVoiceMachineInput {
 const MAX_RETRIES = 5
 const RETRY_DELAYS_MS = [500, 1000, 2000, 4000, 8000]
 
+/**
+ * XState machine orchestrating the live voice call lifecycle:
+ * idle → syncing_memory → session (connecting → live) → saving_to_db → idle.
+ */
 export const liveVoiceMachine = createMachine(
   {
     id: 'liveVoiceMachine',
@@ -91,6 +97,9 @@ export const liveVoiceMachine = createMachine(
             }),
           },
         },
+        on: {
+          END_CALL: { target: 'idle' },
+        },
       },
 
       session: {
@@ -114,9 +123,11 @@ export const liveVoiceMachine = createMachine(
           connecting: {
             on: {
               SOCKET_OPENED: { target: 'live' },
+              END_CALL: { target: '#liveVoiceMachine.saving_to_db' },
             },
           },
           live: {
+            entry: assign({ retryCount: () => 0 }),
             on: {
               AUDIO_INPUT: {
                 actions: sendTo('websocket', ({ event }) => event),
@@ -169,11 +180,11 @@ export const liveVoiceMachine = createMachine(
           }),
           onDone: {
             target: 'idle',
-            actions: assign({ transcript: () => [], activeTool: () => null, socketError: () => null }),
+            actions: assign({ transcript: () => [], activeTool: () => null, socketError: () => null, retryCount: () => 0 }),
           },
           onError: {
             target: 'idle',
-            actions: assign({ transcript: () => [], activeTool: () => null }),
+            actions: assign({ transcript: () => [], activeTool: () => null, retryCount: () => 0 }),
           },
         },
       },
@@ -183,7 +194,7 @@ export const liveVoiceMachine = createMachine(
           RETRY: [
             {
               guard: ({ context }) => context.retryCount < MAX_RETRIES,
-              target: 'session',
+              target: 'syncing_memory',
               actions: assign({
                 retryCount: ({ context }) => context.retryCount + 1,
                 socketError: () => null,
@@ -196,7 +207,7 @@ export const liveVoiceMachine = createMachine(
             {
               guard: ({ context }) =>
                 context.retryCount < MAX_RETRIES && context.socketError !== 'credit_exhausted',
-              target: 'session',
+              target: 'syncing_memory',
               actions: assign({
                 retryCount: ({ context }) => context.retryCount + 1,
                 socketError: () => null,
@@ -268,14 +279,15 @@ export const liveVoiceMachine = createMachine(
             ws = null
           }
 
-          getCurrentUser()
-            ?.getIdToken()
+          const user = getCurrentUser()
+          if (!user) {
+            sendBack({ type: 'SOCKET_ERROR', message: 'No authenticated user' })
+            return
+          }
+          user
+            .getIdToken()
             .then((token) => {
               if (cleanedUp) return
-              if (!token) {
-                sendBack({ type: 'SOCKET_ERROR', message: 'No authenticated user' })
-                return
-              }
               const url = getLiveWsUrl()
               ws = new WebSocket(url)
 
@@ -338,9 +350,13 @@ export const liveVoiceMachine = createMachine(
                 String(msg._id),
                 { user: msg.user, createdAt: msg.createdAt },
                 Date.now(),
-              )
+              ).catch((err: unknown) => {
+                console.error('[saveTranscriptActor] saveAIMessage failed', err)
+              })
             } else {
-              void sendMessage(characterId, userId, msg.text, String(msg._id))
+              void sendMessage(characterId, userId, msg.text, String(msg._id)).catch((err: unknown) => {
+                console.error('[saveTranscriptActor] sendMessage failed', err)
+              })
             }
           }
         },

@@ -5,11 +5,13 @@ import LiveAudioStream from 'react-native-live-audio-stream'
 export type RecordingState = 'idle' | 'recording' | 'error'
 export type PlaybackState = 'idle' | 'playing' | 'buffering'
 
+/** Audio I/O state and controls for live PCM streaming and chunked playback. */
 export interface UseLiveAudioIOReturn {
   recordingState: RecordingState
   playbackState: PlaybackState
   error: string | null
-  startRecording: () => Promise<void>
+  /** Requests mic permission, initialises LiveAudioStream, and starts recording. Returns true on success. */
+  startRecording: () => Promise<boolean>
   stopRecording: () => void
   playChunk: (base64PCM: string) => Promise<void>
   clearPlaybackQueue: () => void
@@ -20,6 +22,7 @@ const PCM_SAMPLE_RATE = 16000
 const PCM_CHANNELS = 1
 const PCM_BITS_PER_SAMPLE = 16
 
+/** Manages 16 kHz PCM mic input via LiveAudioStream and 24 kHz chunked PCM playback via expo-audio. */
 export function useLiveAudioIO(): UseLiveAudioIOReturn {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle')
   const [playbackState, setPlaybackState] = useState<PlaybackState>('idle')
@@ -60,15 +63,14 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
     }
   }, [releasePlayer])
 
-  const startRecording = useCallback(async () => {
-    const permission = await requestRecordingPermissionsAsync()
-    if (!permission.granted) {
-      setError('Microphone permission required. Enable in Settings.')
-      setRecordingState('error')
-      return
-    }
-
+  const startRecording = useCallback(async (): Promise<boolean> => {
     try {
+      const permission = await requestRecordingPermissionsAsync()
+      if (!permission.granted) {
+        setError('Microphone permission required. Enable in Settings.')
+        setRecordingState('error')
+        return false
+      }
       LiveAudioStream.init({
         sampleRate: PCM_SAMPLE_RATE,
         channels: PCM_CHANNELS,
@@ -80,9 +82,11 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
       LiveAudioStream.start()
       setError(null)
       setRecordingState('recording')
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start recording')
       setRecordingState('error')
+      return false
     }
   }, [])
 
@@ -118,7 +122,7 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
         }
       })
 
-      player.play()
+      void player.play()
     }
   }, [])
 

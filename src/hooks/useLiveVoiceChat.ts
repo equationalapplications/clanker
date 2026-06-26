@@ -10,6 +10,7 @@ import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 import { useLiveAudioIO } from '~/hooks/useLiveAudioIO'
 import { liveVoiceMachine, type LiveVoiceEvent } from '~/machines/liveVoiceMachine'
 
+/** Return value of useLiveVoiceChat — exposes machine state and call controls. */
 export interface UseLiveVoiceChatReturn {
   isConnecting: boolean
   isLive: boolean
@@ -26,6 +27,7 @@ export interface UseLiveVoiceChatReturn {
 
 const MIN_CREDITS_FOR_CALL = 2
 
+/** Controller hook that wires liveVoiceMachine to hardware I/O, app lifecycle, and navigation. */
 export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   const authService = useAuthMachine()
   const currentUser = useSelector(authService, (s) => s.context.user)
@@ -34,6 +36,8 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   const navigation = useNavigation()
 
   const audioIO = useLiveAudioIO()
+  const audioIORef = useRef(audioIO)
+  audioIORef.current = audioIO
 
   const machineWithAudio = useMemo(
     () =>
@@ -41,15 +45,16 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
         actions: {
           playIncomingAudio: ({ event }: { event: LiveVoiceEvent }) => {
             if (event.type === 'AUDIO_OUTPUT') {
-              void audioIO.playChunk(event.data)
+              void audioIORef.current.playChunk(event.data)
             }
           },
           flushAudioPlayback: () => {
-            audioIO.clearPlaybackQueue()
+            audioIORef.current.clearPlaybackQueue()
           },
         },
       }),
-    [audioIO],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   )
 
   const [state, send] = useMachine(machineWithAudio, {
@@ -70,6 +75,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
 
   const endCall = useCallback(() => {
     audioIO.stopRecording()
+    audioIO.clearPlaybackQueue()
     send({ type: 'END_CALL' })
   }, [audioIO, send])
 
@@ -115,8 +121,8 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
       return
     }
 
-    await audioIO.startRecording()
-    if (audioIO.recordingState === 'error') return // permission denied
+    const started = await audioIO.startRecording()
+    if (!started) return
 
     send({ type: 'START_CALL' })
   }, [audioIO, character, characterId, remainingCredits, send])
@@ -140,7 +146,11 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   // AppState backgrounding → end call
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState.match(/inactive|background/) && state.matches({ session: 'live' })) {
+      const hasActiveCall =
+        state.matches('syncing_memory') ||
+        state.matches({ session: 'connecting' }) ||
+        state.matches({ session: 'live' })
+      if (nextAppState.match(/inactive|background/) && hasActiveCall) {
         endCallRef.current()
       }
     })

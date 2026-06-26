@@ -79,7 +79,7 @@ describe('useLiveVoiceChat', () => {
     jest.mocked(liveVoiceMachine.provide).mockReturnValue(liveVoiceMachine as never)
     const snapshot = makeIdleSnapshot()
     mockUseMachine.mockReturnValue([snapshot, mockSend, { subscribe: jest.fn(), getSnapshot: () => snapshot }])
-    mockUseSelector.mockReturnValue('user1')
+    mockUseSelector.mockReturnValue({ uid: 'user1' })
     mockAddEventListener.mockReturnValue({ remove: jest.fn() })
   })
 
@@ -147,7 +147,7 @@ describe('useLiveVoiceChat', () => {
   test('startCall sends START_CALL to machine when all checks pass', async () => {
     mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
-    mockStartRecording.mockResolvedValue(undefined)
+    mockStartRecording.mockResolvedValue(true)
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
     await act(async () => {
