@@ -1,3 +1,20 @@
+# [30.6.0](https://github.com/equationalapplications/clanker/compare/v30.5.5...v30.6.0) (2026-06-26)
+
+
+### Bug Fixes
+
+* **agent:** address PR review feedback for WebSocket streaming ([f4af08f](https://github.com/equationalapplications/clanker/commit/f4af08f12b747cda88abbd3a3bedb74e413509f5))
+* **cloud-agent:** pass abortSignal to ADK runner on WS disconnect ([0a5923c](https://github.com/equationalapplications/clanker/commit/0a5923cf90e91c6a272411d5cccbe5650e2e13fe))
+* **cloud-agent:** repair rate-limit test mock DB select chaining ([629b989](https://github.com/equationalapplications/clanker/commit/629b9892a14824143de3366fe0f17b670f130a79))
+* **grounding:** harden native sanitizer and address review nits ([936609a](https://github.com/equationalapplications/clanker/commit/936609a7cd4b228fe0a66a6fdcc0d50f4ddf1ad8))
+* **grounding:** harden URL attribute regex and duplicate handling ([4c0e207](https://github.com/equationalapplications/clanker/commit/4c0e20719e19f9e9c4a204d09de68c6c84680865))
+
+
+### Features
+
+* **chat:** show WebSocket tool status and streaming tokens in UI ([772d787](https://github.com/equationalapplications/clanker/commit/772d787565ee884e3196b6059de2b8144435bc52))
+* **cloud-agent:** add WebSocket agent streaming with HTTP fallback ([4cec5d4](https://github.com/equationalapplications/clanker/commit/4cec5d4fc2faa7617cede8e69fb288969d802738))
+
 ## [30.5.5](https://github.com/equationalapplications/clanker/compare/v30.5.4...v30.5.5) (2026-06-25)
 
 
