@@ -36,8 +36,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   const navigation = useNavigation()
 
   const audioIO = useLiveAudioIO()
-  const audioIORef = useRef(audioIO)
-  audioIORef.current = audioIO
+  const { playChunk, clearPlaybackQueue } = audioIO
 
   const machineWithAudio = useMemo(
     () =>
@@ -45,16 +44,15 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
         actions: {
           playIncomingAudio: ({ event }: { event: LiveVoiceEvent }) => {
             if (event.type === 'AUDIO_OUTPUT') {
-              void audioIORef.current.playChunk(event.data)
+              void playChunk(event.data)
             }
           },
           flushAudioPlayback: () => {
-            audioIORef.current.clearPlaybackQueue()
+            clearPlaybackQueue()
           },
         },
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [playChunk, clearPlaybackQueue],
   )
 
   const [state, send] = useMachine(machineWithAudio, {
