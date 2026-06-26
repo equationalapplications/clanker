@@ -1,7 +1,7 @@
 # Web Voice Support — Phase 3 Specification
 
 **Date:** 2026-06-26
-**Status:** Ready for implementation
+**Status:** Implemented
 **Project:** Clanker Cloud Agent
 **Feature:** Real-time voice support on web via Web Audio API
 **Scope:** `src/hooks/useLiveAudioIO.web.ts` only
