@@ -76,6 +76,16 @@ export async function handleWsUpgrade(
       return
     }
 
+    if (hasRun) {
+      ws.send(JSON.stringify({
+        type: 'error',
+        code: 'INVALID_REQUEST',
+        message: 'Only one agent_run per connection is allowed',
+      }))
+      ws.close(4400, 'agent_run already started')
+      return
+    }
+
     try {
       const parseResult = agentRunSchema.safeParse(JSON.parse(data.toString()))
       if (!parseResult.success) {
@@ -83,6 +93,8 @@ export async function handleWsUpgrade(
         ws.close(4400, 'Invalid payload')
         return
       }
+
+      hasRun = true
 
       const { message, characterId, unsyncedHistory = [], history: rawHistory = [], timezone = 'UTC' } = parseResult.data
       const history = rawHistory as Content[]
