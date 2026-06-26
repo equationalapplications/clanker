@@ -1,3 +1,21 @@
+# [30.7.0](https://github.com/equationalapplications/clanker/compare/v30.6.0...v30.7.0) (2026-06-26)
+
+
+### Bug Fixes
+
+* **live-voice:** add END_CALL in error state; fix stale test name ([bcc0569](https://github.com/equationalapplications/clanker/commit/bcc05691cc3ec8942008e2a0686c32bf3f9e2ad1))
+* **live-voice:** address CodeRabbit and Copilot review findings ([7e35654](https://github.com/equationalapplications/clanker/commit/7e35654001157a870749c0f3eb50dce7a7892ace))
+* **live-voice:** address Copilot review on Talk tab and audio hooks ([5615082](https://github.com/equationalapplications/clanker/commit/561508227919da6d9349a1c785ba749b0cee124d))
+* **live-voice:** address PR review on billing, tools, and voice UI ([422d8d5](https://github.com/equationalapplications/clanker/commit/422d8d5143745dadad38bc145010b88633b3f9a6))
+* **live-voice:** await session_ready before transitioning to live state ([86016fa](https://github.com/equationalapplications/clanker/commit/86016faaee39506bb76772b1a767e92aec83d5c4))
+* **live-voice:** replace ref-during-render with stable useCallback deps ([5774d60](https://github.com/equationalapplications/clanker/commit/5774d6035b7aca1e9b918db410281ebdb5ffa907))
+
+
+### Features
+
+* **live-voice:** add /agent/live WebSocket proxy and tool adapter ([4eebc25](https://github.com/equationalapplications/clanker/commit/4eebc25436cbf8698ffeed7da1149163e3a7fbf7))
+* **talk:** add Gemini Live voice chat via XState machine and audio hooks ([c695ab0](https://github.com/equationalapplications/clanker/commit/c695ab0e367c085f390f1720c09e33f3d7e6b6bf))
+
 # [30.6.0](https://github.com/equationalapplications/clanker/compare/v30.5.5...v30.6.0) (2026-06-26)
 
 
