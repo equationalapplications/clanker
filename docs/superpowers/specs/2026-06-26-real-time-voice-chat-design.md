@@ -1,6 +1,7 @@
 # Real-Time Voice Chat Specification
 
 **Date:** 2026-06-26  
+**Status:** Implemented
 **Project:** Clanker Cloud Agent  
 **Feature:** Gemini Live API Voice Chat Integration  
 **Scope:** Frontend `useLiveVoiceChat` hook architecture (client-side only; server `/agent/live` handler is separate task)
