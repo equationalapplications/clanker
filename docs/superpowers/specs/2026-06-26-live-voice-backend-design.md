@@ -1,7 +1,7 @@
 # Live Voice Backend — Phase 2 Specification
 
 **Date:** 2026-06-26  
-**Status:** Ready for implementation  
+**Status:** Implemented
 **Project:** Clanker Cloud Agent  
 **Feature:** Gemini Live API WebSocket Proxy (`/agent/live`)  
 **Scope:** Cloud Run backend handler, tool adapter, voice resolution, frontend voice list update  
