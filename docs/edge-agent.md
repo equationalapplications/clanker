@@ -6,6 +6,8 @@ The edge agent is Clanker's on-device orchestration layer for chat. It runs a mu
 
 This matches the app-wide AI access policy in [AI & Chat](ai-and-chat.md): production runtime makes no client-side GenAI model calls. Type-only `@google/genai` imports are allowed; developer-only eval harnesses (`npm run edge-evals`) are excluded.
 
+**Talk tab live voice** is a separate path: continuous Gemini Live over Cloud Agent `/agent/live`, not the edge agent loop. See **[Real-Time Voice Chat](real-time-voice-chat.md)**.
+
 ---
 
 ## Architecture
@@ -124,4 +126,5 @@ For local cloud-agent iteration, set `EXPO_PUBLIC_CLOUD_AGENT_URL` to your Docke
 ## Related Documentation
 
 - [AI & Chat](ai-and-chat.md) — `generateReply` contract, wiki memory, cloud-agent local dev
+- [Real-Time Voice Chat](real-time-voice-chat.md) — Talk tab Gemini Live sessions (`/agent/live`), separate from edge agent
 - [Billing & Credits](billing-and-credits.md) — credit ledger and subscription tiers

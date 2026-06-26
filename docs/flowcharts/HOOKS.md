@@ -37,6 +37,11 @@ graph LR
   useInitializeApp --> crashlyticsService
   useInitializeApp --> googleSignin
   useIsPremium --> useCurrentPlan
+  useLiveVoiceChat --> useMachines
+  useLiveVoiceChat --> useCharacters
+  useLiveVoiceChat --> useCurrentPlan
+  useLiveVoiceChat --> useLiveAudioIO
+  useLiveVoiceChat --> liveVoiceMachine
   useMessages --> useMachines
   useMessages --> messageService
   useUser --> useMachines
@@ -45,10 +50,5 @@ graph LR
   useUserCredits --> useMachines
   useUserCredits --> useAuthSnapshot
   useUserCredits --> useBootstrapRefresh
-  useVoiceChat --> useMachines
-  useVoiceChat --> useCharacters
-  useVoiceChat --> useMessages
-  useVoiceChat --> useCurrentPlan
-  useVoiceChat --> voiceChatService
   useWebCheckoutSync.web --> googleSignin
 ```

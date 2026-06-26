@@ -1,6 +1,6 @@
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Text } from 'react-native-paper'
@@ -17,23 +17,31 @@ import { useCharacter, useCharacters } from '~/hooks/useCharacters'
 import { useMostRecentMessage } from '~/hooks/useMessages'
 import { useCharacterMachine } from '~/hooks/useMachines'
 import CharacterAvatar from '~/components/CharacterAvatar'
-import { useVoiceChat } from '~/hooks/useVoiceChat'
+import { useLiveVoiceChat } from '~/hooks/useLiveVoiceChat'
 
 const AVATAR_SIZE = 200
 const GLOW_SIZE = AVATAR_SIZE + 60
 
 function TalkView({ characterId }: { characterId: string }) {
   const { data: character } = useCharacter(characterId)
-  const { voiceState, transcription, replyText, error, startListening, cancel } = useVoiceChat(characterId)
+  const {
+    isConnecting,
+    isLive,
+    isSyncing,
+    error,
+    transcript,
+    activeTool,
+    isPlayingAudio,
+    startCall,
+    endCall,
+  } = useLiveVoiceChat(characterId)
   const navigation = useNavigation()
 
   const glowScale = useSharedValue(1)
   const glowOpacity = useSharedValue(0)
 
-  const isPlaying = voiceState === 'playing'
-
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlayingAudio) {
       glowOpacity.value = withTiming(0.7, { duration: 250 })
       glowScale.value = withRepeat(
         withTiming(1.15, { duration: 900, easing: Easing.inOut(Easing.ease) }),
@@ -46,63 +54,27 @@ function TalkView({ characterId }: { characterId: string }) {
       glowOpacity.value = withTiming(0, { duration: 250 })
       glowScale.value = withTiming(1, { duration: 250 })
     }
-  }, [isPlaying, glowOpacity, glowScale])
+  }, [isPlayingAudio, glowOpacity, glowScale])
 
   const glowAnimatedStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
     transform: [{ scale: glowScale.value }],
   }))
 
-  // Keep latest `cancel` in a ref so the focus effect cleanup runs only on
-  // blur/unmount, not every time `cancel` identity changes (which happens on
-  // every voiceState change and would otherwise cancel the in-flight session
-  // immediately after `startListening`).
-  const cancelRef = useRef(cancel)
-  useEffect(() => {
-    cancelRef.current = cancel
-  }, [cancel])
-
-  useEffect(() => {
-    const unsubscribeBlur = navigation.addListener?.('blur', () => {
-      cancelRef.current()
-    })
-    
-    return () => {
-      cancelRef.current()
-      unsubscribeBlur?.()
-    }
-  }, [navigation])
-
-  const canEdit = voiceState === 'idle' || voiceState === 'error'
-  const showSpinner = voiceState === 'processing'
-  const isBusy =
-    voiceState === 'listening' ||
-    voiceState === 'transcribing' ||
-    voiceState === 'processing' ||
-    voiceState === 'playing'
-  const statusText = (() => {
-    if (error) return error
-    if (voiceState === 'listening') return transcription || 'Listening…'
-    if (voiceState === 'transcribing') return transcription || 'Listening…'
-    if (voiceState === 'processing') return transcription || 'Thinking…'
-    if (voiceState === 'playing') return replyText || 'Speaking…'
-    return 'Tap the mic to talk'
-  })()
-
   React.useLayoutEffect(() => {
     if (!character) return
     const drawerNav = navigation.getParent()?.getParent()
-    
+
     const setHeader = () => {
       drawerNav?.setOptions({
         headerTitle: () => (
           <View style={styles.headerTitle}>
             <Pressable
-              onPress={canEdit ? () => router.push(`/characters/${characterId}/edit`) : undefined}
-              disabled={!canEdit}
+              onPress={!isLive ? () => router.push(`/characters/${characterId}/edit`) : undefined}
+              disabled={isLive}
               accessibilityRole="button"
-              accessibilityState={{ disabled: !canEdit }}
-              accessibilityLabel={canEdit ? `Edit ${character.name}` : character.name}
+              accessibilityState={{ disabled: isLive }}
+              accessibilityLabel={!isLive ? `Edit ${character.name}` : character.name}
             >
               <CharacterAvatar size={40} imageUrl={character.avatar} characterName={character.name} />
             </Pressable>
@@ -113,20 +85,35 @@ function TalkView({ characterId }: { characterId: string }) {
         ),
       })
     }
-    
+
     setHeader()
-    
     const unsubscribeFocus = navigation.addListener?.('focus', setHeader)
     const unsubscribeBlur = navigation.addListener?.('blur', () => {
       drawerNav?.setOptions({ headerTitle: 'Chat' })
     })
-    
+
     return () => {
       unsubscribeFocus?.()
       unsubscribeBlur?.()
       drawerNav?.setOptions({ headerTitle: 'Chat' })
     }
-  }, [character, canEdit, characterId, navigation])
+  }, [character, isLive, characterId, navigation])
+
+  const isBusy = isConnecting || isLive || isSyncing
+  const showSpinner = isSyncing || isConnecting
+
+  const statusText = (() => {
+    if (error) return error
+    if (isSyncing) return 'Syncing memory…'
+    if (isConnecting) return 'Connecting…'
+    if (isLive && isPlayingAudio) return transcript[transcript.length - 1]?.text ?? 'Speaking…'
+    if (isLive && activeTool) return `⏳ ${activeTool.replace(/_/g, ' ')}…`
+    if (isLive) {
+      const lastUserMsg = [...transcript].reverse().find((m) => m.user._id !== characterId)
+      return lastUserMsg?.text ?? 'Listening…'
+    }
+    return 'Tap the mic to talk'
+  })()
 
   if (!character) {
     return (
@@ -147,32 +134,36 @@ function TalkView({ characterId }: { characterId: string }) {
         />
       </View>
 
-      <View
-        style={styles.statusWrap}
-        accessibilityLiveRegion="polite"
-      >
+      <View style={styles.statusWrap} accessibilityLiveRegion="polite">
         {showSpinner ? <ActivityIndicator size="small" style={styles.spinner} /> : null}
         <Text style={[styles.statusText, error ? styles.errorText : null]}>{statusText}</Text>
       </View>
 
       <View style={styles.buttonWrap}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Talk"
-          onPress={startListening}
-          disabled={isBusy}
-          style={[styles.micButton, isBusy ? styles.micButtonDisabled : null]}
-        >
-          {voiceState === 'playing' ? (
-            <MaterialCommunityIcons name="volume-high" size={36} color="#ffffff" />
-          ) : voiceState === 'listening' || voiceState === 'transcribing' ? (
-            <MaterialCommunityIcons name="microphone" size={36} color="#ffffff" />
-          ) : voiceState === 'processing' ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <MaterialCommunityIcons name="microphone" size={36} color="#ffffff" />
-          )}
-        </Pressable>
+        {isLive ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="End Call"
+            onPress={endCall}
+            style={[styles.micButton, styles.endCallButton]}
+          >
+            <MaterialCommunityIcons name="phone-hangup" size={36} color="#ffffff" />
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Start Voice Call"
+            onPress={startCall}
+            disabled={isBusy}
+            style={[styles.micButton, isBusy ? styles.micButtonDisabled : null]}
+          >
+            {showSpinner ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <MaterialCommunityIcons name="microphone" size={36} color="#ffffff" />
+            )}
+          </Pressable>
+        )}
       </View>
     </View>
   )
@@ -293,5 +284,8 @@ const styles = StyleSheet.create({
   },
   micButtonDisabled: {
     opacity: 0.75,
+  },
+  endCallButton: {
+    backgroundColor: '#b00020',
   },
 })

@@ -1,6 +1,6 @@
 # Cloud Ontology & Graph Traversal (Phase 1) — Design Spec
 
-> **⚠️ PARTIALLY SUPERSEDED.** Cloud schema/sync/agent tools in this spec remain accurate. The claim that `generateReply` "must not gain" a tool loop is outdated — phase 2 added stateless per-round `functionCalls` support; the loop stays client-side. See **[Edge Agent](../../EDGE_AGENT.md)**.
+> **⚠️ PARTIALLY SUPERSEDED.** Cloud schema/sync/agent tools in this spec remain accurate. The claim that `generateReply` "must not gain" a tool loop is outdated — phase 2 added stateless per-round `functionCalls` support; the loop stays client-side. See **[Edge Agent](../../edge-agent.md)**.
 
 Date: 2026-06-23
 Status: Implemented
