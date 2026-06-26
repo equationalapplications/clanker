@@ -27,7 +27,7 @@ import {
   buildCharacterShareUrl,
   buildNativeCharacterShareLink,
 } from '~/utilities/characterShare'
-import { DEFAULT_VOICE, GEMINI_LIVE_VOICES } from '~/constants/geminiVoices'
+import { DEFAULT_VOICE, GEMINI_LIVE_VOICES, resolveLiveVoice } from '~/constants/geminiVoices'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 
 export default function EditCharacterScreen() {
@@ -443,7 +443,10 @@ export default function EditCharacterScreen() {
                 disabled={!canEdit}
                 style={styles.voiceButton}
               >
-                {voice}
+                {(() => {
+                  const resolved = resolveLiveVoice(voice)
+                  return resolved === voice ? voice : `${resolved} (was ${voice})`
+                })()}
               </Button>
             }
           >

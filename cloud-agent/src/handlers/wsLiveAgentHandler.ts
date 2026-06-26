@@ -73,6 +73,7 @@ export async function handleLiveWsUpgrade(
     : 'UTC'
 
   let billingTimer: ReturnType<typeof setInterval> | null = null
+  let billingInFlight = false
   let geminiSession: GeminiSession | null = null
   let isAuthenticated = false
   let userId: string | null = null
@@ -170,9 +171,13 @@ export async function handleLiveWsUpgrade(
         result = { error: err instanceof Error ? err.message : 'Tool execution failed' }
       }
 
-      geminiSession?.sendToolResponse({
-        functionResponses: [{ id: call.id, name: call.name, response: { output: result } }],
-      })
+      try {
+        geminiSession?.sendToolResponse({
+          functionResponses: [{ id: call.id, name: call.name, response: { output: result } }],
+        })
+      } catch (err) {
+        console.error('[live tools] sendToolResponse failed:', err)
+      }
 
       try { ws.send(JSON.stringify({ type: 'tool_end', name: call.name })) } catch { /* ignore */ }
     }
@@ -252,6 +257,8 @@ export async function handleLiveWsUpgrade(
       }
 
       billingTimer = setInterval(() => {
+        if (billingInFlight) return
+        billingInFlight = true
         void (async () => {
           try {
             await cs.spendCredit(userId!)
@@ -275,6 +282,8 @@ export async function handleLiveWsUpgrade(
             } else {
               console.error('[live billing] unexpected spendCredit error:', err)
             }
+          } finally {
+            billingInFlight = false
           }
         })()
       }, billingIntervalMs)

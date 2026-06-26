@@ -386,6 +386,98 @@ test('billing tick with INSUFFICIENT_CREDITS sends usage_snapshot(0) + error + c
   await close()
 })
 
+test('billing ticks do not overlap when spendCredit is slow', async () => {
+  let spendCalls = 0
+  const cs = {
+    ...mockCreditService,
+    spendCredit: async (): Promise<string> => {
+      spendCalls++
+      await new Promise((resolve) => setTimeout(resolve, 120))
+      return 'mock-txid'
+    },
+  }
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: cs,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 40,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string }
+      if (msg.type === 'session_ready') {
+        setTimeout(() => {
+          clearTimeout(timeout)
+          assert.ok(spendCalls <= 3, `expected at most 3 spend calls, got ${spendCalls}`)
+          ws.close()
+          resolve()
+        }, 250)
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('sendToolResponse failure still completes tool_end without unhandled rejection', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const throwingConnect = async (cfg: Parameters<typeof mock.connect>[0]): Promise<MockGeminiSession> => {
+    const session = await mock.connect(cfg)
+    return {
+      ...session,
+      sendToolResponse() {
+        throw new Error('session closed')
+      },
+    }
+  }
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: throwingConnect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string; name?: string }
+      if (msg.type === 'session_ready') {
+        mock.triggerMessage({
+          toolCall: {
+            functionCalls: [{ id: 'call-1', name: 'get_current_time', args: {} }],
+          },
+        })
+      }
+      if (msg.type === 'tool_end' && msg.name === 'get_current_time') {
+        clearTimeout(timeout)
+        ws.close()
+        resolve()
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
 test('end_session sends session_ended and closes', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter]])
   const mock = makeMockLiveConnect()
