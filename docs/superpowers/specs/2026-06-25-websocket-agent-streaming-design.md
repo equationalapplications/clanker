@@ -36,8 +36,10 @@ Replace the single-awaited HTTP response model of `/agent/run` with server-sent 
 | `cloud-agent/src/index.ts` | Extract HTTP `/agent/run` handler core logic into `agentCore.ts`. Attach WebSocket server via `ws` library on `/agent/stream`. Keep HTTP handler unchanged for regression safety. |
 | `cloud-agent/src/agent.ts` | Move `buildAgent(...)` function to `agentCore.ts`. Re-export from there in tests and HTTP handler. |
 | `cloud-agent/package.json` | Add `ws` dependency (native WebSocket library). |
-| `src/services/cloudAgentService.ts` (frontend) | Add WebSocket fallback: if WebSocket connection or auth handshake fails, retry with `POST /agent/run` HTTP endpoint. Mid-stream drops show error toast; user manually retries. |
-| Cloud Run deployment config (e.g., `cloudbuild.yaml`, `app.yaml`) | Set container memory: **512MiB** (up from prior), request timeout: **540 seconds** (9 minutes). Rationale: ADK multi-step tool execution (wiki reads, web searches, task management) requires sustained memory and long timeout to avoid premature Cloud Run eviction. Precedent: `convertDocumentText` callable. |
+| `src/services/cloudAgentService.ts` (frontend) | Add WebSocket client with optional streaming callbacks (`onToken`, `onToolStart`, `onToolEnd`). If WebSocket connection or auth handshake fails, retry with `POST /agent/run` HTTP endpoint. Mid-stream drops show error toast; user manually retries. |
+| `src/hooks/useAIChat.ts` | Capture WebSocket stream events via `callCloudAgent` callbacks; expose `activeTool: string \| null` and `streamingMessage: IMessage \| null` for real-time UI updates during the Cloud Agent path. |
+| `src/components/ChatView.tsx` | Read `activeTool` from the hook and render a dynamic status indicator in the existing top banner (`accessibilityLiveRegion="polite"`). Prepend `streamingMessage` to GiftedChat messages so reply text streams token-by-token. |
+| Cloud Run deployment config (`cloud-agent/scripts/deploy.sh`) | Set container memory: **512MiB** (up from prior), request timeout: **540 seconds** (9 minutes). Rationale: ADK multi-step tool execution (wiki reads, web searches, task management) requires sustained memory and long timeout to avoid premature Cloud Run eviction. Precedent: `convertDocumentText` callable. |
 
 ---
 
@@ -196,6 +198,30 @@ try {
 
 ---
 
+### Frontend UI — Real-Time Tool & Token Display
+
+**`useAIChat.ts`**
+- During the Cloud Agent path, pass streaming callbacks to `callCloudAgent`:
+  - `onToolStart(name)` → set `activeTool = name`
+  - `onToolEnd(name)` → set `activeTool = null`
+  - `onToken(text)` → append to `streamingMessage.text`
+- Initialize `streamingMessage` as a temporary character-authored `IMessage` when the cloud request starts; clear `activeTool` and `streamingMessage` in `onMutate` / `onSettled`.
+- Return `{ activeTool, streamingMessage }` alongside existing hook values.
+
+**`ChatView.tsx`**
+- Merge `streamingMessage` into GiftedChat: `displayMessages = streamingMessage ? [streamingMessage, ...messages] : messages`.
+- In the existing top banner container (`accessibilityLiveRegion="polite"`), render tool-specific status when `activeTool` is set:
+
+| Tool name | Banner text |
+|---|---|
+| `wiki_read` | ⏳ Reading your memory… |
+| `google_search` | ⏳ Searching the web… |
+| *(other)* | ⏳ Using {tool_name}… |
+
+- Suppress the generic "💭 Thinking…" banner once `activeTool` is set or `streamingMessage.text` is non-empty (tool/status or streamed tokens provide feedback instead).
+
+---
+
 ### Error Codes & Handling
 
 | Code | Condition | HTTP Status (if applicable) | Socket Close Code |
@@ -259,7 +285,9 @@ timeout: 540s
   - Auth failure path (invalid token, timeout)
   - Mid-stream disconnect → refund
   - Pre-agent error → refund
-  - Event serialization (tool_start, token, usage_snapshot)
+  - Event serialization (tool_start, tool_end, token, usage_snapshot)
+  - `useAIChat` streaming callbacks wired to `callCloudAgent`
+  - `ChatView` banner renders `activeTool` labels; GiftedChat shows `streamingMessage`
 
 ### Integration Tests
 - HTTP `/agent/run` continues to pass all existing tests (regression guard)

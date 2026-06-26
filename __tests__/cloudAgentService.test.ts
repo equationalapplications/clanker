@@ -226,6 +226,10 @@ describe('callCloudAgent', () => {
   })
 
   it('uses WebSocket when connection succeeds', async () => {
+    const onToolStart = jest.fn()
+    const onToolEnd = jest.fn()
+    const onToken = jest.fn()
+
     class SuccessWebSocket {
       static CONNECTING = 0
       static OPEN = 1
@@ -239,7 +243,16 @@ describe('callCloudAgent', () => {
           queueMicrotask(() => {
             listener(new Event('open'))
             this.emit('message', {
-              data: JSON.stringify({ type: 'token', text: 'WS reply' }),
+              data: JSON.stringify({ type: 'tool_start', name: 'wiki_read' }),
+            })
+            this.emit('message', {
+              data: JSON.stringify({ type: 'token', text: 'WS ' }),
+            })
+            this.emit('message', {
+              data: JSON.stringify({ type: 'tool_end', name: 'wiki_read' }),
+            })
+            this.emit('message', {
+              data: JSON.stringify({ type: 'token', text: 'reply' }),
             })
             this.emit('message', {
               data: JSON.stringify({ type: 'usage_snapshot', remainingCredits: 5 }),
@@ -264,9 +277,16 @@ describe('callCloudAgent', () => {
 
     ;(global as unknown as { WebSocket: typeof SuccessWebSocket }).WebSocket = SuccessWebSocket
     const { callCloudAgent } = loadWithMocks()
-    const result = await callCloudAgent({ message: 'Hello', characterId: 'char-123' })
+    const result = await callCloudAgent(
+      { message: 'Hello', characterId: 'char-123' },
+      { onToolStart, onToolEnd, onToken },
+    )
 
     expect(mockFetch).not.toHaveBeenCalled()
+    expect(onToolStart).toHaveBeenCalledWith('wiki_read')
+    expect(onToolEnd).toHaveBeenCalledWith('wiki_read')
+    expect(onToken).toHaveBeenCalledWith('WS ')
+    expect(onToken).toHaveBeenCalledWith('reply')
     expect(result.reply).toBe('WS reply')
     expect(result.usageSnapshot).toEqual({ remainingCredits: 5 })
 

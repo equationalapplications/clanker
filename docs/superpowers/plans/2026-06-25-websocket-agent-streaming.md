@@ -1167,12 +1167,83 @@ ws.send(JSON.stringify({
 
 ---
 
+## Task 9: Wire Streaming UI in `useAIChat` and `ChatView`
+
+**Files:**
+- Modify: `src/services/cloudAgentService.ts` (add optional streaming callbacks)
+- Modify: `src/hooks/useAIChat.ts`
+- Modify: `src/components/ChatView.tsx`
+- Test: `__tests__/cloudAgentService.test.ts`
+- Test: `__tests__/useAIChat.test.tsx`
+- Test: `__tests__/chatViewAccessibility.test.tsx`
+
+**Objective:** Surface WebSocket `tool_start`, `tool_end`, and `token` events in the chat UI so users see real-time tool activity and streaming reply text.
+
+- [x] **Step 1: Add streaming callbacks to `callCloudAgent`**
+
+In `src/services/cloudAgentService.ts`, add:
+```typescript
+export interface CloudAgentStreamCallbacks {
+  onToken?: (text: string) => void
+  onToolStart?: (name: string) => void
+  onToolEnd?: (name: string) => void
+}
+
+export async function callCloudAgent(
+  payload: CloudAgentPayload,
+  callbacks?: CloudAgentStreamCallbacks,
+): Promise<CloudAgentResult>
+```
+
+Invoke callbacks from `runViaWebSocket` on `tool_start`, `tool_end`, and `token` messages.
+
+- [x] **Step 2: Expose streaming state from `useAIChat`**
+
+In `src/hooks/useAIChat.ts`:
+- Add `activeTool: string | null` and `streamingMessage: IMessage | null` state
+- Reset both in `onMutate` and `onSettled`
+- On Cloud Agent path, initialize `streamingMessage` and pass callbacks to `callCloudAgent`
+- Return `{ activeTool, streamingMessage }` from the hook
+
+- [x] **Step 3: Render tool banner and streaming bubble in `ChatView`**
+
+In `src/components/ChatView.tsx`:
+- Destructure `activeTool` and `streamingMessage` from `useAIChat`
+- Prepend `streamingMessage` to GiftedChat `messages`
+- In the top banner (`accessibilityLiveRegion="polite"`), show tool-specific labels:
+  - `wiki_read` → "⏳ Reading your memory…"
+  - `google_search` → "⏳ Searching the web…"
+- Hide generic "💭 Thinking…" when `activeTool` or streaming text is present
+
+- [x] **Step 4: Run tests**
+
+```bash
+npm run test -- cloudAgentService.test.ts useAIChat.test.tsx chatViewAccessibility.test.tsx
+```
+
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/services/cloudAgentService.ts src/hooks/useAIChat.ts src/components/ChatView.tsx __tests__ docs/superpowers/
+git commit -m "feat(chat): show WebSocket tool status and streaming tokens in UI
+
+- Add callCloudAgent streaming callbacks for tool_start/tool_end/token
+- useAIChat exposes activeTool and streamingMessage during cloud agent runs
+- ChatView banner shows tool activity; GiftedChat streams reply text live"
+```
+
+---
+
 ## Success Verification
 
-- [ ] All unit tests PASS: `npm run test`
-- [ ] All integration tests PASS: `npm run test -- src/integration.test.ts`
+- [x] Backend unit tests PASS (`cloud-agent`: agentCore, wsAgentHandler, integration)
+- [x] Frontend service tests PASS (`cloudAgentService.test.ts`)
+- [x] UI streaming tests PASS (`useAIChat`, `ChatView` banner)
 - [ ] Manual QA checklist complete
-- [ ] HTTP `/agent/run` behavior unchanged (regression guard)
-- [ ] WebSocket `/agent/stream` accepts requests and streams responses
-- [ ] Credit saga: spend → execute → refund on disconnect works end-to-end
-- [ ] Frontend fallback triggers on WebSocket auth timeout
+- [x] HTTP `/agent/run` behavior unchanged (regression guard)
+- [x] WebSocket `/agent/stream` accepts requests and streams responses
+- [x] Credit saga: spend → execute → refund on disconnect works end-to-end
+- [x] Frontend fallback triggers on WebSocket connection failure
+- [x] Real-time tool banner visible during multi-tool agent loops

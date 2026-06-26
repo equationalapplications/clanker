@@ -24,6 +24,12 @@ export interface CloudAgentResult {
   groundingMetadata?: GroundingMetadata
 }
 
+export interface CloudAgentStreamCallbacks {
+  onToken?: (text: string) => void
+  onToolStart?: (name: string) => void
+  onToolEnd?: (name: string) => void
+}
+
 const AUTH_TIMEOUT_MS = 5000
 
 function getCloudAgentBaseUrl(): string {
@@ -90,7 +96,10 @@ export async function runViaHttp(payload: CloudAgentPayload): Promise<CloudAgent
   }
 }
 
-async function runViaWebSocket(payload: CloudAgentPayload): Promise<CloudAgentResult> {
+async function runViaWebSocket(
+  payload: CloudAgentPayload,
+  callbacks?: CloudAgentStreamCallbacks,
+): Promise<CloudAgentResult> {
   const token = await getCurrentUser()?.getIdToken()
   if (!token) throw new Error('No authenticated user')
 
@@ -163,8 +172,12 @@ async function runViaWebSocket(payload: CloudAgentPayload): Promise<CloudAgentRe
 
         if (msg.type === 'tool_start' && msg.name && !toolCalls.includes(msg.name)) {
           toolCalls.push(msg.name)
+          callbacks?.onToolStart?.(msg.name)
+        } else if (msg.type === 'tool_end' && msg.name) {
+          callbacks?.onToolEnd?.(msg.name)
         } else if (msg.type === 'token' && msg.text) {
           reply += msg.text
+          callbacks?.onToken?.(msg.text)
         } else if (msg.type === 'usage_snapshot') {
           const remaining = msg.remainingCredits
           usageSnapshot =
@@ -191,9 +204,12 @@ async function runViaWebSocket(payload: CloudAgentPayload): Promise<CloudAgentRe
   })
 }
 
-export async function callCloudAgent(payload: CloudAgentPayload): Promise<CloudAgentResult> {
+export async function callCloudAgent(
+  payload: CloudAgentPayload,
+  callbacks?: CloudAgentStreamCallbacks,
+): Promise<CloudAgentResult> {
   try {
-    return await runViaWebSocket(payload)
+    return await runViaWebSocket(payload, callbacks)
   } catch (wsErr) {
     console.warn('WebSocket failed, falling back to HTTP:', wsErr)
     return await runViaHttp(payload)

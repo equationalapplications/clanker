@@ -36,6 +36,8 @@ interface UseAIChatReturn {
   isGeneratingResponse: boolean
   error: string | null
   escalationState: EscalationState
+  activeTool: string | null
+  streamingMessage: IMessage | null
 }
 
 /**
@@ -47,6 +49,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const authService = useAuthMachine()
   const [error, setError] = useState<string | null>(null)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [activeTool, setActiveTool] = useState<string | null>(null)
+  const [streamingMessage, setStreamingMessage] = useState<IMessage | null>(null)
   const messages = useChatMessages({ id: characterId, userId, pauseRefetch: isSendingMessage })
 
   const characterWiki = useCharacterWiki(character.id)
@@ -171,12 +175,35 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           createdAt: t.created_at,
         }))
 
-        const agentResult = await callCloudAgent({
-          message: message.text,
-          characterId: cloudCharacterId,
-          history,
-          unsyncedHistory,
+        setActiveTool(null)
+        setStreamingMessage({
+          _id: `streaming_${Date.now()}`,
+          text: '',
+          createdAt: new Date(),
+          user: {
+            _id: character.id,
+            name: character.name,
+            avatar: character.appearance || undefined,
+          },
         })
+
+        const agentResult = await callCloudAgent(
+          {
+            message: message.text,
+            characterId: cloudCharacterId,
+            history,
+            unsyncedHistory,
+          },
+          {
+            onToolStart: (name) => setActiveTool(name),
+            onToolEnd: () => setActiveTool(null),
+            onToken: (text) => {
+              setStreamingMessage((prev) =>
+                prev ? { ...prev, text: `${prev.text ?? ''}${text}` } : prev,
+              )
+            },
+          },
+        )
 
         const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
         const aiMessageData: Partial<GroundedIMessage> = {
@@ -267,6 +294,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     // Optimistic update: Add user message immediately
     onMutate: async (message) => {
       setIsSendingMessage(true)
+      setActiveTool(null)
+      setStreamingMessage(null)
 
       await queryClient.cancelQueries({
         queryKey: messageKeys.list(characterId, userId),
@@ -293,6 +322,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
     onSettled: () => {
       setIsSendingMessage(false)
+      setActiveTool(null)
+      setStreamingMessage(null)
     },
 
     onSuccess: (result) => {
@@ -392,5 +423,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     isGeneratingResponse: aiMessageMutation.isPending,
     error,
     escalationState: aiMessageMutation.isPending ? edgeAgent.escalationState : 'idle',
+    activeTool,
+    streamingMessage,
   }
 }

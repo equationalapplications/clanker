@@ -508,6 +508,11 @@ describe('useAIChat', () => {
           history: expect.any(Array),
           unsyncedHistory: expect.any(Array),
         }),
+        expect.objectContaining({
+          onToolStart: expect.any(Function),
+          onToolEnd: expect.any(Function),
+          onToken: expect.any(Function),
+        }),
       )
       expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
     })
@@ -532,6 +537,39 @@ describe('useAIChat', () => {
           unsyncedHistory: [
             { type: 'task', id: 't1', title: 'Buy milk', status: 'pending', createdAt: 1000 },
           ],
+        }),
+        expect.objectContaining({
+          onToolStart: expect.any(Function),
+          onToolEnd: expect.any(Function),
+          onToken: expect.any(Function),
+        }),
+      )
+    })
+
+    it('passes streaming callbacks to callCloudAgent', async () => {
+      mockCallCloudAgent.mockImplementation(async (_payload, callbacks) => {
+        callbacks?.onToolStart?.('wiki_read')
+        callbacks?.onToken?.('Hello')
+        callbacks?.onToolEnd?.('wiki_read')
+        return { reply: 'Hello', toolCalls: ['wiki_read'] }
+      })
+      const hook = renderUseAIChat({ save_to_cloud: 1 })
+
+      await act(async () => {
+        await hook.sendMessage({
+          _id: 'msg-stream-1',
+          text: 'Stream please',
+          createdAt: new Date('2026-06-02T00:00:00.000Z'),
+          user: { _id: 'user-1' },
+        } as any)
+      })
+
+      expect(mockCallCloudAgent).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Stream please' }),
+        expect.objectContaining({
+          onToolStart: expect.any(Function),
+          onToolEnd: expect.any(Function),
+          onToken: expect.any(Function),
         }),
       )
     })
@@ -624,6 +662,11 @@ describe('useAIChat', () => {
         expect.objectContaining({
           message: 'Dev sandbox chat',
           characterId: '22222222-2222-4222-8222-222222222222',
+        }),
+        expect.objectContaining({
+          onToolStart: expect.any(Function),
+          onToolEnd: expect.any(Function),
+          onToken: expect.any(Function),
         }),
       )
       expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
