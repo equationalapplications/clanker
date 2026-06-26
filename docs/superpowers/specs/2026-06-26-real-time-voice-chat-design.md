@@ -29,8 +29,7 @@ The frontend communicates with Cloud Run `/agent/live` endpoint via WebSocket. A
 | Event | Payload | Purpose |
 |-------|---------|---------|
 | **Auth Handshake** | `{ "type": "auth", "token": "<firebase-id-token>" }` | Authenticate WebSocket connection |
-| **Audio Input** | `{ "type": "audio_input", "data": "<base64-16kHz-PCM>" }` | Stream user's voice from microphone (20ms chunks) |
-| **Barge-In Signal** | `{ "type": "barge_in" }` | Flush server's audio playback queue (user interrupted) |
+| **Audio Input** | `{ "type": "audio_input", "data": "<base64-16kHz-PCM>" }` | Stream user's voice from microphone (20ms chunks); server detects VAD/barge-in |
 | **Session End** | `{ "type": "end_session" }` | Gracefully close connection |
 
 ### Server → Client (Backend Sends)
@@ -300,7 +299,7 @@ clearPlaybackQueue():
   - Called when audio_interrupted event received
 ```
 
-**Implementation detail:** To avoid audio stutters between chunks, concatenate smaller PCM chunks into 1-2 second buffers before playback, or use a native streaming library that supports continuous, appendable buffers.
+**Implementation detail:** To avoid audio stutters between chunks without introducing latency, use a native streaming library (like `react-native-live-audio-stream`) that supports continuous, appendable PCM buffers on the native side. If forced to concatenate in JS, keep the buffer tight: 100-200ms maximum (avoid >500ms latency that destroys natural conversation flow).
 
 ### Error Handling
 
@@ -586,6 +585,8 @@ Machine cleanup:
   - WebSocket terminated
   - Transcript saved before cleanup complete
 ```
+
+**Critical:** The `saveAIMessage` database call in the XState exit action must be fire-and-forget (does not await React state updates). Prevents memory leak warnings if component unmounts before async database write completes.
 
 ---
 
