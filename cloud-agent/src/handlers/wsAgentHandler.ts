@@ -52,7 +52,7 @@ export async function handleWsUpgrade(
   let isCompleted = false
   let abortController: AbortController | null = null
   let activeTxId: string | null = null
-
+  let hasRun = false
   authTimer = setTimeout(() => {
     if (!userId) {
       ws.close(4001, 'Auth timeout')
