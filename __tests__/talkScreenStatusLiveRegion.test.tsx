@@ -34,14 +34,18 @@ jest.mock('~/hooks/useMessages', () => ({
   useMostRecentMessage: () => ({ data: { character_id: 'char-1' }, isLoading: false }),
 }))
 
-jest.mock('~/hooks/useVoiceChat', () => ({
-  useVoiceChat: () => ({
-    voiceState: 'idle',
-    transcription: '',
-    replyText: '',
+jest.mock('~/hooks/useLiveVoiceChat', () => ({
+  useLiveVoiceChat: () => ({
+    isConnecting: false,
+    isLive: false,
+    isSyncing: false,
     error: null,
-    startListening: jest.fn(),
-    cancel: jest.fn(),
+    transcript: [],
+    activeTool: null,
+    isPlayingAudio: false,
+    startCall: jest.fn(),
+    endCall: jest.fn(),
+    cancelCall: jest.fn(),
   }),
 }))
 

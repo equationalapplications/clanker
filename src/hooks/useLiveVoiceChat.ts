@@ -1,0 +1,186 @@
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { Alert, AppState } from 'react-native'
+import { useMachine, useSelector } from '@xstate/react'
+import { router, type Href } from 'expo-router'
+import { useNavigation } from 'expo-router/react-navigation'
+import type { IMessage } from 'react-native-gifted-chat'
+import { useCharacter } from '~/hooks/useCharacters'
+import { useAuthMachine } from '~/hooks/useMachines'
+import { useCurrentPlan } from '~/hooks/useCurrentPlan'
+import { useLiveAudioIO } from '~/hooks/useLiveAudioIO'
+import { liveVoiceMachine, type LiveVoiceEvent } from '~/machines/liveVoiceMachine'
+
+export interface UseLiveVoiceChatReturn {
+  isConnecting: boolean
+  isLive: boolean
+  isSyncing: boolean
+  error: string | null
+  transcript: IMessage[]
+  activeTool: string | null
+  remainingCredits: number
+  isPlayingAudio: boolean
+  startCall: () => Promise<void>
+  endCall: () => void
+  cancelCall: () => void
+}
+
+const MIN_CREDITS_FOR_CALL = 2
+
+export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
+  const authService = useAuthMachine()
+  const currentUser = useSelector(authService, (s) => s.context.user)
+  const { data: character } = useCharacter(characterId)
+  const { remainingCredits } = useCurrentPlan()
+  const navigation = useNavigation()
+
+  const audioIO = useLiveAudioIO()
+
+  const machineWithAudio = useMemo(
+    () =>
+      liveVoiceMachine.provide({
+        actions: {
+          playIncomingAudio: ({ event }: { event: LiveVoiceEvent }) => {
+            if (event.type === 'AUDIO_OUTPUT') {
+              void audioIO.playChunk(event.data)
+            }
+          },
+          flushAudioPlayback: () => {
+            audioIO.clearPlaybackQueue()
+          },
+        },
+      }),
+    [audioIO],
+  )
+
+  const [state, send] = useMachine(machineWithAudio, {
+    input: {
+      characterId,
+      userId: currentUser?.uid ?? '',
+      initialCredits: typeof remainingCredits === 'number' ? remainingCredits : 0,
+    },
+  })
+
+  // Mic → machine: forward audio chunks as AUDIO_INPUT events
+  useEffect(() => {
+    const unsubscribe = audioIO.onAudioChunk((chunk) => {
+      send({ type: 'AUDIO_INPUT', data: chunk })
+    })
+    return unsubscribe
+  }, [audioIO, send])
+
+  const endCall = useCallback(() => {
+    audioIO.stopRecording()
+    send({ type: 'END_CALL' })
+  }, [audioIO, send])
+
+  const cancelCall = useCallback(() => {
+    audioIO.stopRecording()
+    audioIO.clearPlaybackQueue()
+    send({ type: 'END_CALL' })
+  }, [audioIO, send])
+
+  const startCall = useCallback(async () => {
+    if (!character) return
+
+    if (!character.voice) {
+      Alert.alert(
+        'No Voice Set',
+        'This character has no voice selected. Go to character settings to choose one.',
+        [
+          { text: 'Cancel' },
+          { text: 'Edit Character', onPress: () => router.push(`/characters/${characterId}/edit`) },
+        ],
+      )
+      return
+    }
+
+    if (typeof remainingCredits === 'number' && remainingCredits < MIN_CREDITS_FOR_CALL) {
+      Alert.alert(
+        'Insufficient Credits',
+        'Live voice calls require credits. Purchase more to continue.',
+        [{ text: 'Cancel' }, { text: 'Get More', onPress: () => router.push('/subscribe') }],
+      )
+      return
+    }
+
+    if (!character.save_to_cloud) {
+      Alert.alert(
+        'Cloud Sync Required',
+        'Live voice chat needs cloud sync enabled so your AI can access your memory. Enable it in character settings.',
+        [
+          { text: 'Cancel' },
+          { text: 'Enable Sync', onPress: () => router.push(`/characters/${characterId}/edit` as Href) },
+        ],
+      )
+      return
+    }
+
+    await audioIO.startRecording()
+    if (audioIO.recordingState === 'error') return // permission denied
+
+    send({ type: 'START_CALL' })
+  }, [audioIO, character, characterId, remainingCredits, send])
+
+  // Navigation blur → end call
+  const endCallRef = useRef(endCall)
+  useEffect(() => {
+    endCallRef.current = endCall
+  }, [endCall])
+
+  useEffect(() => {
+    const unsubscribeBlur = navigation.addListener?.('blur', () => {
+      endCallRef.current()
+    })
+    return () => {
+      endCallRef.current()
+      unsubscribeBlur?.()
+    }
+  }, [navigation])
+
+  // AppState backgrounding → end call
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState.match(/inactive|background/) && state.matches({ session: 'live' })) {
+        endCallRef.current()
+      }
+    })
+    return () => subscription.remove()
+  }, [state])
+
+  const isConnecting = state.matches({ session: 'connecting' })
+  const isLive = state.matches({ session: 'live' })
+  const isSyncing = state.matches('syncing_memory')
+  const errorState = state.matches('error')
+  const error = errorState
+    ? state.context.socketError === 'credit_exhausted'
+      ? 'Out of credits. Tap to get more.'
+      : (state.context.socketError ?? 'Connection error')
+    : audioIO.error
+
+  return useMemo(
+    () => ({
+      isConnecting,
+      isLive,
+      isSyncing,
+      error,
+      transcript: state.context.transcript,
+      activeTool: state.context.activeTool,
+      remainingCredits: state.context.remainingCredits,
+      isPlayingAudio: audioIO.playbackState === 'playing',
+      startCall,
+      endCall,
+      cancelCall,
+    }),
+    [
+      isConnecting,
+      isLive,
+      isSyncing,
+      error,
+      state.context,
+      audioIO.playbackState,
+      startCall,
+      endCall,
+      cancelCall,
+    ],
+  )
+}
