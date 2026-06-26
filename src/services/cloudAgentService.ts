@@ -138,6 +138,7 @@ async function runViaWebSocket(
     }
 
     const handleOpen = () => {
+      clearTimeout(authTimeout)
       ws.send(JSON.stringify({ type: 'auth', token }))
       ws.send(JSON.stringify({
         type: 'agent_run',
@@ -147,12 +148,6 @@ async function runViaWebSocket(
         unsyncedHistory,
         timezone,
       }))
-      authTimeout = setTimeout(() => {
-        settle(() => {
-          try { ws.close() } catch { /* ignore */ }
-          reject(new Error('WebSocket auth timeout'))
-        })
-      }, AUTH_TIMEOUT_MS)
     }
 
     const handleMessage = (event: MessageEvent) => {
