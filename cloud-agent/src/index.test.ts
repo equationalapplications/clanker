@@ -44,9 +44,11 @@ function makeMockDb(queryRowSets: InsertedRow[][] = []) {
             rows = phase === 1 ? [mockCharacter] : phase === 0 ? [mockUser] : []
           }
           const p = Promise.resolve(rows)
-          return Object.assign(p, {
+          const withLimit = Object.assign(p, {
             limit: (_n: unknown) => Promise.resolve(rows),
-            orderBy: (_ord: unknown) => Promise.resolve(rows),
+          })
+          return Object.assign(withLimit, {
+            orderBy: (_ord: unknown) => withLimit,
           })
         },
       }),
@@ -291,7 +293,8 @@ test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', asyn
 // ── Rate limiter ──────────────────────────────────────────────────────────────
 
 test('POST /agent/run rate-limits after 20 requests in 60s window', async () => {
-  const db = makeMockDb()
+  // Cycle user → character → wiki rows per request (queryWikiContext adds a 3rd select).
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   for (let i = 0; i < 20; i++) {
     const res = await request(app)
