@@ -207,7 +207,14 @@ async function runViaWebSocket(
     ws.addEventListener('message', handleMessage)
     ws.addEventListener('error', handleError)
     ws.addEventListener('close', handleClose)
-  })
+
+    // Guard against sockets that never reach `open`.
+    authTimeout = setTimeout(() => {
+      settle(() => {
+        try { ws.close() } catch { /* ignore */ }
+        reject(new Error('WebSocket connection timeout'))
+      })
+    }, AUTH_TIMEOUT_MS)
 }
 
 export async function callCloudAgent(
