@@ -51,19 +51,24 @@ function formatTag(tagName: 'a' | 'img', attrs: string, selfClosing = false): st
   return selfClosing ? `<${tagName} ${trimmed} />` : `<${tagName} ${trimmed}>`
 }
 
+function cloneRegExp(re: RegExp): RegExp {
+  return new RegExp(re.source, re.flags)
+}
+
 function stripUnsafeUrlAttribute(
   tagName: 'a' | 'img',
   attrs: string,
   urlAttrRe: RegExp,
 ): string {
-  const matches = [...attrs.matchAll(urlAttrRe)]
+  const attrRe = cloneRegExp(urlAttrRe)
+  const matches = [...attrs.matchAll(attrRe)]
   if (matches.length === 0) {
     return `<${tagName}${attrs}>`
   }
 
   const lastMatch = matches[matches.length - 1]
   const url = lastMatch[1] ?? lastMatch[2] ?? lastMatch[3] ?? ''
-  const strippedAttrs = attrs.replace(urlAttrRe, '').replace(/\s{2,}/g, ' ').trim()
+  const strippedAttrs = attrs.replace(cloneRegExp(urlAttrRe), '').replace(/\s{2,}/g, ' ').trim()
   const { body, selfClosing } = splitSelfClosing(strippedAttrs)
 
   if (!isSafeHttpUrl(url)) {

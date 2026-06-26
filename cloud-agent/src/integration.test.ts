@@ -22,9 +22,11 @@ function makeMockDb(queryRowSets: InsertedRow[][] = []) {
           if (callIndex >= queryRowSets.length) callIndex = 0
           const rows = queryRowSets[callIndex++] ?? []
           const p = Promise.resolve(rows)
-          return Object.assign(p, {
+          const withLimit = Object.assign(p, {
             limit: (_n: unknown) => Promise.resolve(rows),
-            orderBy: (_ord: unknown) => Promise.resolve(rows),
+          })
+          return Object.assign(withLimit, {
+            orderBy: (_ord: unknown) => withLimit,
           })
         },
       }),

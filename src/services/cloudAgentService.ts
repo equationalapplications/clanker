@@ -126,10 +126,15 @@ async function runViaWebSocket(
       fn()
     }
 
-    const handleClose = () => {
+    const handleClose = (event: Event) => {
       if (settled) return
       settle(() => {
         if (!usageSnapshot) {
+          const closeEvent = event as CloseEvent
+          if (closeEvent.code === 4001) {
+            reject(new Error('WebSocket auth timeout'))
+            return
+          }
           reject(new Error('WebSocket closed before receiving usage_snapshot'))
           return
         }

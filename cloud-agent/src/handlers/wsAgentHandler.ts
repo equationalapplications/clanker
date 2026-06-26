@@ -55,6 +55,11 @@ export async function handleWsUpgrade(
   let hasRun = false
   authTimer = setTimeout(() => {
     if (!userId) {
+      try {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Auth timeout' }))
+        }
+      } catch { /* ignore send errors */ }
       ws.close(4001, 'Auth timeout')
     }
   }, AUTH_TIMEOUT_MS)
@@ -286,6 +291,7 @@ export async function handleWsUpgrade(
     try {
       const payload = JSON.parse(data.toString()) as { type?: string; token?: string }
       if (payload.type !== 'auth' || !payload.token) {
+        ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Invalid auth payload' }))
         ws.close(4001, 'Invalid auth payload')
         return
       }
