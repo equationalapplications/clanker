@@ -26,6 +26,7 @@ jest.mock('react-native-live-audio-stream', () => ({
     stop: (...a: unknown[]) => mockRecorderStop(...a),
     on: (_event: string, cb: (data: string) => void) => {
       mockOnDataCallback = cb
+      return { remove: jest.fn() }
     },
   },
 }))

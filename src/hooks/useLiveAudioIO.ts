@@ -53,11 +53,12 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
       console.warn('[useLiveAudioIO] setAudioModeAsync failed', err)
     })
 
-    LiveAudioStream.on('data', (data: string) => {
+    const subscription = LiveAudioStream.on('data', (data: string) => {
       chunkListenersRef.current.forEach((cb) => cb(data))
-    })
+    }) as { remove: () => void } | undefined
 
     return () => {
+      subscription?.remove()
       LiveAudioStream.stop()
       releasePlayer()
     }

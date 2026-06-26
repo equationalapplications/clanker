@@ -1,6 +1,6 @@
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Text } from 'react-native-paper'
@@ -60,11 +60,6 @@ function TalkView({ characterId }: { characterId: string }) {
     opacity: glowOpacity.value,
     transform: [{ scale: glowScale.value }],
   }))
-
-  const endCallRef = useRef(endCall)
-  useEffect(() => {
-    endCallRef.current = endCall
-  }, [endCall])
 
   React.useLayoutEffect(() => {
     if (!character) return

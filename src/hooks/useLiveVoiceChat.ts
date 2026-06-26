@@ -36,7 +36,8 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   const navigation = useNavigation()
 
   const audioIO = useLiveAudioIO()
-  const { playChunk, clearPlaybackQueue } = audioIO
+  const { playChunk, clearPlaybackQueue, stopRecording } = audioIO
+  const userId = currentUser?.uid ?? ''
 
   const machineWithAudio = useMemo(
     () =>
@@ -52,13 +53,13 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
           },
         },
       }),
-    [playChunk, clearPlaybackQueue],
+    [playChunk, clearPlaybackQueue, userId],
   )
 
   const [state, send] = useMachine(machineWithAudio, {
     input: {
       characterId,
-      userId: currentUser?.uid ?? '',
+      userId,
       initialCredits: typeof remainingCredits === 'number' ? remainingCredits : 0,
     },
   })
@@ -85,6 +86,8 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
 
   const startCall = useCallback(async () => {
     if (!character) return
+
+    if (!userId) return
 
     if (!character.voice) {
       Alert.alert(
@@ -123,7 +126,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
     if (!started) return
 
     send({ type: 'START_CALL' })
-  }, [audioIO, character, characterId, remainingCredits, send])
+  }, [audioIO, character, characterId, remainingCredits, send, userId])
 
   // Navigation blur → end call
   const endCallRef = useRef(endCall)
@@ -158,7 +161,16 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   const isConnecting = state.matches({ session: 'connecting' })
   const isLive = state.matches({ session: 'live' })
   const isSyncing = state.matches('syncing_memory')
+  const isSaving = state.matches('saving_to_db')
   const errorState = state.matches('error')
+
+  // Stop mic/playback when the machine exits the live session without an explicit endCall
+  useEffect(() => {
+    if (errorState || isSaving) {
+      stopRecording()
+      clearPlaybackQueue()
+    }
+  }, [errorState, isSaving, stopRecording, clearPlaybackQueue])
   const error = errorState
     ? state.context.socketError === 'credit_exhausted'
       ? 'Out of credits. Tap to get more.'
