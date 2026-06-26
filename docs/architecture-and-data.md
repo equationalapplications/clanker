@@ -19,6 +19,9 @@
 | `authMachine` | `src/machines/authMachine.ts` | Firebase auth bootstrap, Cloud SQL user/subscription state, sign-out |
 | `termsMachine` | `src/machines/termsMachine.ts` | Check and record Terms of Service acceptance |
 | `characterMachine` | `src/machines/characterMachine.ts` | Character CRUD with optimistic updates and rollback |
+| `liveVoiceMachine` | `src/machines/liveVoiceMachine.ts` | Talk tab live voice: pre-call wiki sync, WebSocket session, transcript persistence |
+
+The **Talk tab** uses `liveVoiceMachine` (via `useLiveVoiceChat`) for continuous voice calls over Cloud Agent `/agent/live`. That flow is independent of the text-chat edge agent loop in `useAIChat` / `useEdgeAgent` — it owns its own WebSocket lifecycle, audio I/O, and end-of-call SQLite persistence. See [Real-Time Voice Chat](real-time-voice-chat.md).
 
 **When to add a new machine:** Create for features with two or more of: multiple sequential async steps, optimistic updates with rollback, complex conditional transitions, long-running background work, explicit loading/idle/error/success states needing isolated testing. Simple one-shot operations should use TanStack Query mutations instead.
 
