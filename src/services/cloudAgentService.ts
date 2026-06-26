@@ -210,6 +210,7 @@ async function runViaWebSocket(
         reject(new Error('WebSocket connection timeout'))
       })
     }, AUTH_TIMEOUT_MS)
+  })
 }
 
 export async function callCloudAgent(

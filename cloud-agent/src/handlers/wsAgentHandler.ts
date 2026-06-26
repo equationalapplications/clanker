@@ -195,6 +195,7 @@ export async function handleWsUpgrade(
           userId,
           sessionId,
           newMessage: { role: 'user', parts: [{ text: message }] },
+          abortSignal: abortController.signal,
         })
 
         let lastToolName: string | null = null
