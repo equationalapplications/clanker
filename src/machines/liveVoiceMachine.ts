@@ -191,6 +191,7 @@ export const liveVoiceMachine = createMachine(
 
       error: {
         on: {
+          END_CALL: { target: 'idle' },
           RETRY: [
             {
               guard: ({ context }) => context.retryCount < MAX_RETRIES,

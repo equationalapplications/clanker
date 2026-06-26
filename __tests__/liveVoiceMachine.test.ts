@@ -246,7 +246,7 @@ describe('liveVoiceMachine', () => {
     expect(actor.getSnapshot().context.socketError).toBe('Network unreachable')
   })
 
-  test('RETRY from error → session.connecting, increments retryCount', async () => {
+  test('RETRY from error → syncing_memory → session.connecting, increments retryCount', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
     jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
