@@ -1,7 +1,7 @@
 # WebSocket Agent Streaming — Design Spec
 
 **Date:** 2026-06-25
-**Status:** Approved
+**Status:** Implemented
 
 ---
 

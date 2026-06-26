@@ -1,6 +1,28 @@
 const mockFetch = jest.fn()
 global.fetch = mockFetch
 
+class FailingWebSocket {
+  static CONNECTING = 0
+  static OPEN = 1
+  static CLOSING = 2
+  static CLOSED = 3
+  readyState = FailingWebSocket.CONNECTING
+
+  addEventListener(type: string, listener: (ev: unknown) => void) {
+    if (type === 'error') {
+      queueMicrotask(() => listener(new Event('error')))
+    }
+  }
+
+  removeEventListener() {}
+
+  send() {}
+
+  close() {}
+}
+
+;(global as unknown as { WebSocket: typeof FailingWebSocket }).WebSocket = FailingWebSocket
+
 // Helper to create module with specific mocks
 function loadWithMocks({ hasCurrentUser = true, token = 'firebase-id-token' } = {}) {
   jest.resetModules()
@@ -185,5 +207,69 @@ describe('callCloudAgent', () => {
         expect.any(Object),
       )
     })
+  })
+
+  it('falls back to HTTP when WebSocket connection fails', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'HTTP fallback reply',
+        toolCalls: [],
+        usageSnapshot: { remainingCredits: 10 },
+      }),
+    })
+    const { callCloudAgent } = loadWithMocks()
+    const result = await callCloudAgent({ message: 'Hello', characterId: 'char-123' })
+    expect(mockFetch).toHaveBeenCalled()
+    expect(result.reply).toBe('HTTP fallback reply')
+    expect(result.usageSnapshot).toEqual({ remainingCredits: 10 })
+  })
+
+  it('uses WebSocket when connection succeeds', async () => {
+    class SuccessWebSocket {
+      static CONNECTING = 0
+      static OPEN = 1
+      readyState = SuccessWebSocket.CONNECTING
+      private listeners = new Map<string, Set<(ev: unknown) => void>>()
+
+      addEventListener(type: string, listener: (ev: unknown) => void) {
+        if (!this.listeners.has(type)) this.listeners.set(type, new Set())
+        this.listeners.get(type)!.add(listener)
+        if (type === 'open') {
+          queueMicrotask(() => {
+            listener(new Event('open'))
+            this.emit('message', {
+              data: JSON.stringify({ type: 'token', text: 'WS reply' }),
+            })
+            this.emit('message', {
+              data: JSON.stringify({ type: 'usage_snapshot', remainingCredits: 5 }),
+            })
+            this.emit('close', { type: 'close' })
+          })
+        }
+      }
+
+      removeEventListener(type: string, listener: (ev: unknown) => void) {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      private emit(type: string, ev: unknown) {
+        for (const listener of this.listeners.get(type) ?? []) listener(ev)
+      }
+
+      send() {}
+
+      close() {}
+    }
+
+    ;(global as unknown as { WebSocket: typeof SuccessWebSocket }).WebSocket = SuccessWebSocket
+    const { callCloudAgent } = loadWithMocks()
+    const result = await callCloudAgent({ message: 'Hello', characterId: 'char-123' })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(result.reply).toBe('WS reply')
+    expect(result.usageSnapshot).toEqual({ remainingCredits: 5 })
+
+    ;(global as unknown as { WebSocket: typeof FailingWebSocket }).WebSocket = FailingWebSocket
   })
 })

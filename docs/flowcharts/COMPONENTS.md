@@ -22,8 +22,9 @@ graph LR
   CreditCounterIcon --> useUserCredits
   CreditsDisplay --> useUserCredits
   CreditsDisplay --> useBootstrapRefresh
+  GroundingHtml --> sanitizeGroundingHtml
   GroundingHtml --> isSafeHttpUrl
-  GroundingHtml.web --> isSafeHttpUrl
+  GroundingHtml.web --> groundingShadowContent
   ComingSoonSection --> useFloatingCardAnimation
   FeaturesSection --> useFloatingCardAnimation
   HeroSection --> useMachines

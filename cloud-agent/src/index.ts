@@ -1,17 +1,22 @@
 import express, { Request, Response, NextFunction } from 'express'
+import type { Server } from 'http'
 import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import admin from 'firebase-admin'
-import { eq, and, isNull, sql } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
 import type { Content, GroundingMetadata } from '@google/genai'
+import { WebSocketServer } from 'ws'
 import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
-import { users, characters, llmWikiEvents, llmWikiEntries, tasks } from './db/schema.js'
+import { assembleSystemInstruction, queryWikiContext } from './services/agentCore.js'
+import { bulkInsertUnsynced } from './services/unsyncedHistory.js'
+import { users, characters } from './db/schema.js'
 import { embedText } from './db/embeddings.js'
 import type { DrizzleClient } from './db/client.js'
 import { createCreditService } from './services/creditService.js'
 import type { CreditService } from './services/creditService.js'
+import { handleWsUpgrade, type WsHandlerOptions } from './handlers/wsAgentHandler.js'
 import { z } from 'zod'
 
 const contentSchema = z.object({
@@ -37,180 +42,7 @@ interface AppOptions {
   db: DrizzleClient
   runAgentFn: (params: RunAgentParams) => Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }>
   creditService?: CreditService
-}
-
-type UnsyncedTask = { type: 'task'; id: string; title: string; status: string; createdAt: number }
-type UnsyncedWikiEntry = { type: 'wiki_entry'; id: string; title: string; body: string; confidence?: string; sourceType?: string; createdAt: number; updatedAt: number }
-type UnsyncedWikiEvent = { type: 'wiki_event'; id: string; eventType: string; summary: string; createdAt: number }
-type UnsyncedItem = UnsyncedTask | UnsyncedWikiEntry | UnsyncedWikiEvent
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-// Maps local SQLite task status 'pending' to cloud-side 'open'; local uses
-// 'pending' as the default but Cloud SQL tasks only allow ('open','done','abandoned').
-// Clamps to allowed values to prevent constraint violations.
-function toCloudStatus(status: string): string {
-  const normalized = status === 'pending' ? 'open' : (status || 'open')
-  return ['open', 'done', 'abandoned'].includes(normalized) ? normalized : 'open'
-}
-
-// Accepts both second and millisecond epoch timestamps.
-// If value > 1e10 (Nov 2286 in seconds), assume milliseconds.
-function toCloudTimestamp(epoch: number): Date {
-  return new Date(epoch > 1e10 ? epoch : epoch * 1000)
-}
-
-async function bulkInsertUnsynced(
-  db: DrizzleClient,
-  userId: string,
-  characterId: string,
-  items: unknown[],
-  embed: (text: string) => Promise<number[]>,
-): Promise<void> {
-  const taskRows: {
-    id: string;
-    characterId: string;
-    userId: string;
-    title: string;
-    status: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }[] = []
-  const wikiEntryItems: UnsyncedWikiEntry[] = []
-  const wikiRows: {
-    id: string;
-    entityId: string;
-    userId: string;
-    eventType: string;
-    summary: string;
-    createdAt: number;
-  }[] = []
-
-  for (const raw of items) {
-    if (typeof raw !== 'object' || raw === null) continue
-    const item = raw as UnsyncedItem
-    if (item.type === 'task') {
-      if (typeof item.id !== 'string' || !item.id.trim()) continue
-      if (typeof item.title !== 'string' || !item.title.trim()) continue
-      if (typeof item.createdAt !== 'number') continue
-      taskRows.push({
-        id: item.id.trim(),
-        characterId,
-        userId,
-        title: item.title.trim(),
-        status: toCloudStatus(item.status),
-        createdAt: toCloudTimestamp(item.createdAt),
-        updatedAt: new Date(),
-      })
-    } else if (item.type === 'wiki_entry') {
-      if (typeof item.id !== 'string' || !item.id.trim()) continue
-      if (typeof item.body !== 'string' || !item.body.trim()) continue
-      if (typeof item.createdAt !== 'number' || typeof item.updatedAt !== 'number') continue
-      wikiEntryItems.push(item)
-    } else if (item.type === 'wiki_event') {
-      if (typeof item.id !== 'string' || !item.id.trim()) continue
-      if (typeof item.summary !== 'string' || !item.summary.trim()) continue
-      if (typeof item.createdAt !== 'number') continue
-      const allowedEvents = ['observation', 'decision', 'action', 'outcome'] as const
-      type AllowedEvent = (typeof allowedEvents)[number]
-      const eventType = allowedEvents.includes(item.eventType as AllowedEvent)
-        ? item.eventType
-        : 'observation'
-      wikiRows.push({
-        id: item.id.trim(),
-        entityId: characterId,
-        userId,
-        eventType,
-        summary: item.summary.trim(),
-        createdAt: toCloudTimestamp(item.createdAt).getTime(),
-      })
-    }
-  }
-
-  if (taskRows.length > 0) {
-    await db.insert(tasks).values(taskRows).onConflictDoNothing()
-  }
-
-  if (wikiEntryItems.length > 0) {
-    const wikiEntryRows = await Promise.all(
-      wikiEntryItems.map(async (item) => {
-        let embedding: number[] | null = null
-        try { embedding = await embed(item.body.trim()) } catch { /* log, insert with null */ }
-        return {
-          id: item.id.trim(), entityId: characterId, userId,
-          title: (item.title ?? '').trim() || item.body.trim().slice(0, 64),
-          body: item.body.trim(),
-          tags: [],
-          confidence: item.confidence === 'certain' ? 'certain' : 'inferred',
-          sourceType: item.sourceType ?? 'agent_inferred',
-          embedding,
-          createdAt: toCloudTimestamp(item.createdAt).getTime(),
-          updatedAt: toCloudTimestamp(item.updatedAt).getTime(),
-        }
-      }),
-    )
-    await db.insert(llmWikiEntries).values(wikiEntryRows).onConflictDoNothing()
-  }
-
-  if (wikiRows.length > 0) {
-    await db.insert(llmWikiEvents).values(wikiRows).onConflictDoNothing()
-  }
-}
-
-async function queryWikiContext(
-  db: DrizzleClient,
-  query: string,
-  userId: string,
-  characterId: string,
-  embed: (text: string) => Promise<number[]>,
-): Promise<string> {
-  const normalizedQuery = query.trim().slice(0, 200)
-  if (!normalizedQuery) return ''
-
-  try {
-    const vec = await embed(normalizedQuery)
-    const rows = await db
-      .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
-      .from(llmWikiEntries)
-      .where(and(
-        eq(llmWikiEntries.entityId, characterId),
-        eq(llmWikiEntries.userId, userId),
-        isNull(llmWikiEntries.deletedAt),
-      ))
-      .orderBy(sql`${llmWikiEntries.embedding} <=> ${JSON.stringify(vec)}::vector`)
-      .limit(5)
-    return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
-  } catch {
-    // embedText failed — fall back to full-text search
-    const rows = await db
-      .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
-      .from(llmWikiEntries)
-      .where(and(
-        eq(llmWikiEntries.entityId, characterId),
-        eq(llmWikiEntries.userId, userId),
-        isNull(llmWikiEntries.deletedAt),
-        sql`to_tsvector('english', coalesce(${llmWikiEntries.title}, '') || ' ' || coalesce(${llmWikiEntries.body}, '')) @@ websearch_to_tsquery('english', ${normalizedQuery})`,
-      ))
-      .limit(5)
-    return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
-  }
-}
-
-function assembleSystemInstruction(
-  character: { name: string; appearance: string | null; traits: string | null; emotions: string | null; context: string | null },
-  wikiContext: string,
-): string {
-  return [
-    `You are ${character.name}, a virtual friend.`,
-    character.appearance && `Appearance: ${character.appearance}`,
-    character.traits && `Traits: ${character.traits}`,
-    character.emotions && `Emotions: ${character.emotions}`,
-    character.context && `Context: ${character.context}`,
-    `\nInstructions:\n- Stay in character as ${character.name} at all times\n- Never reveal you are an AI\n- Respond naturally and conversationally\n- Keep responses concise (1-3 sentences) unless depth is needed`,
-    wikiContext && `\nKnown facts about the user:\n${wikiContext}`,
-  ]
-    .filter(Boolean)
-    .join('\n')
+  wsHandlerOptions?: Partial<WsHandlerOptions>
 }
 
 // ── Real agent runner (production) ────────────────────────────────────────────
@@ -469,6 +301,25 @@ export function createApp(options: AppOptions) {
   return app
 }
 
+export function attachAgentStreamWebSocket(server: Server, options: AppOptions): void {
+  const { verifyToken, db, wsHandlerOptions } = options
+  const wss = new WebSocketServer({ noServer: true })
+
+  server.on('upgrade', (req, socket, head) => {
+    if (req.url === '/agent/stream') {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        void handleWsUpgrade(ws, req, {
+          db,
+          verifyToken,
+          ...wsHandlerOptions,
+        })
+      })
+    } else {
+      socket.destroy()
+    }
+  })
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 if (process.env.NODE_ENV !== 'test') {
@@ -486,16 +337,16 @@ if (process.env.NODE_ENV !== 'test') {
   if (!isMockAuth && !admin.apps.length) admin.initializeApp()
 
   const db = await getDb()
-  const app = createApp({
-    verifyToken: isMockAuth
-      ? async (_token: string) => ({ uid: 'local_test_user_123' })
-      : (token) => admin.auth().verifyIdToken(token).then((d) => ({ uid: d.uid })),
-    db,
-    runAgentFn: runAgentReal,
-  })
+  const verifyToken = isMockAuth
+    ? async (_token: string) => ({ uid: 'local_test_user_123' })
+    : (token: string) => admin.auth().verifyIdToken(token).then((d) => ({ uid: d.uid }))
+  const appOptions = { verifyToken, db, runAgentFn: runAgentReal }
+
+  const app = createApp(appOptions)
 
   const port = process.env.PORT ?? '8080'
-  app.listen(Number(port), '0.0.0.0', () => {
+  const server = app.listen(Number(port), '0.0.0.0', () => {
     console.log(`Cloud Agent listening on port ${port}`)
   })
+  attachAgentStreamWebSocket(server, appOptions)
 }

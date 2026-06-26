@@ -34,8 +34,15 @@ function makeMockDb(queryRowSets: InsertedRow[][] = []) {
     select: (_fields?: unknown) => ({
       from: (_table: unknown) => ({
         where: (_cond: unknown) => {
-          if (callIndex >= queryRowSets.length) callIndex = 0
-          const rows = queryRowSets[callIndex++] ?? []
+          let rows: InsertedRow[]
+          if (queryRowSets.length > 0) {
+            if (callIndex >= queryRowSets.length) callIndex = 0
+            rows = queryRowSets[callIndex++] ?? []
+          } else {
+            const phase = callIndex % 4
+            callIndex++
+            rows = phase === 1 ? [mockCharacter] : phase === 0 ? [mockUser] : []
+          }
           const p = Promise.resolve(rows)
           return Object.assign(p, {
             limit: (_n: unknown) => Promise.resolve(rows),
@@ -284,7 +291,7 @@ test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', asyn
 // ── Rate limiter ──────────────────────────────────────────────────────────────
 
 test('POST /agent/run rate-limits after 20 requests in 60s window', async () => {
-  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+  const db = makeMockDb()
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   for (let i = 0; i < 20; i++) {
     const res = await request(app)
