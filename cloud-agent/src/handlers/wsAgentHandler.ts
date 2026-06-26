@@ -260,8 +260,12 @@ export async function handleWsUpgrade(
         if (!isCompleted) {
           await refundIfNeeded()
         }
-        ws.send(JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message: 'Agent execution failed' }))
-        ws.close(1011, 'Execution failed')
+        try {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message: 'Agent execution failed' }))
+          }
+        } catch { /* ignore send errors */ }
+        try { ws.close(1011, 'Execution failed') } catch { /* ignore close errors */ }
       }
     } catch (err) {
       console.error('agent_run handler error:', err)
