@@ -34,6 +34,7 @@ export type LiveVoiceEvent =
   | { type: 'END_CALL' }
   | { type: 'RETRY' }
   | { type: 'SOCKET_OPENED' }
+  | { type: 'SESSION_READY'; remainingCredits: number }
   | { type: 'AUDIO_OUTPUT'; data: string }
   | { type: 'TRANSCRIPT_TOKEN'; role: 'user' | 'model'; text: string }
   | { type: 'TOOL_START'; name: string }
@@ -122,7 +123,11 @@ export const liveVoiceMachine = createMachine(
         states: {
           connecting: {
             on: {
-              SOCKET_OPENED: { target: 'live' },
+              SOCKET_OPENED: {},
+              SESSION_READY: {
+                target: 'live',
+                actions: assign({ remainingCredits: ({ event }) => event.remainingCredits }),
+              },
               END_CALL: { target: '#liveVoiceMachine.saving_to_db' },
             },
           },
@@ -293,7 +298,7 @@ export const liveVoiceMachine = createMachine(
               ws = new WebSocket(url)
 
               ws.onopen = () => {
-                ws!.send(JSON.stringify({ type: 'auth', token }))
+                ws!.send(JSON.stringify({ type: 'auth', token, characterId: input.characterId }))
                 sendBack({ type: 'SOCKET_OPENED' })
               }
 

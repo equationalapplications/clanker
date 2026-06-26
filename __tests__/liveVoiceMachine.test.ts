@@ -74,10 +74,10 @@ describe('liveVoiceMachine', () => {
     return actor
   }
 
-  function advanceToLive(actor: ReturnType<typeof spawn>) {
+  function advanceToLive(actor: ReturnType<typeof spawn>, credits = 10) {
     actor.send({ type: 'START_CALL' })
     return waitFor(actor, (s) => s.matches({ session: 'connecting' }), WAIT).then(() => {
-      actor.send({ type: 'SOCKET_OPENED' })
+      actor.send({ type: 'SESSION_READY', remainingCredits: credits })
       return waitFor(actor, (s) => s.matches({ session: 'live' }), WAIT)
     })
   }
