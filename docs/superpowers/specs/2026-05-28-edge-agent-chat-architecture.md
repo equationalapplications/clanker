@@ -1,6 +1,6 @@
 # Edge Agent Chat Architecture — Spec
 
-> **⚠️ DEPRECATED — historical record only.** This spec describes the pre-BYOI design (client-side `@google/genai` + `EXPO_PUBLIC_GEMINI_API_KEY`). The current architecture is documented in **[Edge Agent](../../EDGE_AGENT.md)**. Do not implement from this file.
+> **⚠️ DEPRECATED — historical record only.** This spec describes the pre-BYOI design (client-side `@google/genai` + `EXPO_PUBLIC_GEMINI_API_KEY`). The current architecture is documented in **[Edge Agent](../../edge-agent.md)**. Do not implement from this file.
 
 **Date:** 2026-05-28
 **Status:** Implemented

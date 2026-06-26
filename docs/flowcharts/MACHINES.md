@@ -13,6 +13,9 @@ graph LR
   characterMachine --> defaultAvatarService
   characterMachine --> wikiOrchestrator
   characterMachine --> ensureDevSandboxCharacter
+  liveVoiceMachine --> wikiService
+  liveVoiceMachine --> apiClient
+  liveVoiceMachine --> messageDatabase
   termsMachine --> apiClient
   termsMachine --> bootstrapSession
   wikiMachine --> wikiService

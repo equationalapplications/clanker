@@ -86,6 +86,7 @@
     "react-native-gesture-handler": "~2.31.1",
     "react-native-gifted-chat": "^2.8.1",
     "react-native-keyboard-controller": "1.21.6",
+    "react-native-live-audio-stream": "^1.1.1",
     "react-native-paper": "^5.15.3",
     "react-native-purchases": "^10.3.0",
     "react-native-reanimated": "4.3.1",
