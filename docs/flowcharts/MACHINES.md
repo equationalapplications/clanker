@@ -15,7 +15,11 @@ graph LR
   characterMachine --> ensureDevSandboxCharacter
   liveVoiceMachine --> wikiService
   liveVoiceMachine --> apiClient
+  liveVoiceMachine --> wikiSourceType
   liveVoiceMachine --> messageDatabase
+  liveVoiceMachine --> characterDatabase
+  liveVoiceMachine --> groundingMetadata
+  liveVoiceMachine --> aiChatService
   termsMachine --> apiClient
   termsMachine --> bootstrapSession
   wikiMachine --> wikiService

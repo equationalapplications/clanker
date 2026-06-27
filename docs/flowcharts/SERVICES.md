@@ -17,6 +17,7 @@ graph LR
   characterService --> defaultAvatarService
   characterSyncService --> characterDatabase
   characterSyncService --> wikiService
+  characterSyncService --> wikiSourceType
   characterSyncService --> apiClient
   characterSyncService --> wikiOrchestrator
   characterSyncService --> ensureDevSandboxCharacter
