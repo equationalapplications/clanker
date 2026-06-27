@@ -345,6 +345,91 @@ test('toolCall triggers tool_start, executor, sendToolResponse, tool_end in orde
   await close()
 })
 
+test('inline functionCall in modelTurn parts triggers tool execution when id is present', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string; name?: string }
+      if (msg.type === 'session_ready') {
+        mock.triggerMessage({
+          serverContent: {
+            modelTurn: {
+              parts: [{ functionCall: { id: 'inline-call-1', name: 'get_current_time', args: {} } }],
+            },
+          },
+        })
+      }
+      if (msg.type === 'tool_end' && msg.name === 'get_current_time') {
+        clearTimeout(timeout)
+        assert.equal(mock.toolResponses.length, 1)
+        assert.equal(mock.toolResponses[0]!.functionResponses[0]!.id, 'inline-call-1')
+        ws.close()
+        resolve()
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('inline functionCall without id is skipped', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string }
+      if (msg.type === 'session_ready') {
+        mock.triggerMessage({
+          serverContent: {
+            modelTurn: {
+              parts: [{ functionCall: { name: 'get_current_time', args: {} } }],
+            },
+          },
+        })
+        setTimeout(() => {
+          clearTimeout(timeout)
+          assert.equal(mock.toolResponses.length, 0)
+          ws.close()
+          resolve()
+        }, 100)
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
 test('groundingMetadata in serverContent forwards grounding_metadata to client', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter]])
   const mock = makeMockLiveConnect()

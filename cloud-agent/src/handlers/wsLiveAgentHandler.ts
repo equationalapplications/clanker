@@ -134,11 +134,19 @@ export async function handleLiveWsUpgrade(
             } catch { /* ignore */ }
           }
           if (part.functionCall?.name) {
-            inlineFunctionCalls.push({
-              id: part.functionCall.id ?? '',
-              name: part.functionCall.name,
-              args: part.functionCall.args,
-            })
+            const callId = part.functionCall.id
+            if (!callId) {
+              console.warn(
+                '[live tools] skipping inline functionCall without id:',
+                part.functionCall.name,
+              )
+            } else {
+              inlineFunctionCalls.push({
+                id: callId,
+                name: part.functionCall.name,
+                args: part.functionCall.args,
+              })
+            }
           }
         }
       }

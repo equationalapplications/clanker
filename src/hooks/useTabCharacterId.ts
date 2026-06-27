@@ -27,8 +27,13 @@ export function useTabCharacterId(): {
     ? characters?.find((c) => c.cloud_id === DEV_CLOUD_CHARACTER_ID)?.id
     : undefined
 
+  const validatedActiveCharacterId =
+    activeCharacterId && characters?.some((c) => c.id === activeCharacterId)
+      ? activeCharacterId
+      : undefined
+
   const characterId =
-    activeCharacterId ??
+    validatedActiveCharacterId ??
     mostRecentMessage?.character_id ??
     devLinkedCharacterId ??
     defaultCharacterId ??
