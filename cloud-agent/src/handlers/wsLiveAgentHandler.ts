@@ -4,6 +4,7 @@ import admin from 'firebase-admin'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { GoogleGenAI } from '@google/genai'
+import type { GroundingMetadata } from '@google/genai'
 import type { DrizzleClient } from '../db/client.js'
 import { users, characters } from '../db/schema.js'
 import { embedText } from '../db/embeddings.js'
@@ -11,6 +12,7 @@ import { assembleSystemInstruction } from '../services/agentCore.js'
 import { buildLiveTools, resolveVoice } from '../services/liveToolAdapter.js'
 import { createCreditService } from '../services/creditService.js'
 import type { CreditService } from '../services/creditService.js'
+import { hasGroundingData } from '../groundingMetadata.js'
 
 type GeminiSession = {
   sendRealtimeInput(input: { audio: { data: string; mimeType: string } }): void
@@ -108,10 +110,11 @@ export async function handleLiveWsUpgrade(
     console.log('[gemini live] message keys:', Object.keys(msg))
     const m = msg as {
       serverContent?: {
-        modelTurn?: { parts?: Array<{ inlineData?: { data: string } }> }
+        modelTurn?: { parts?: Array<{ inlineData?: { data: string }; functionCall?: { id?: string; name?: string; args?: unknown } }> }
         outputTranscription?: { text?: string }
         inputTranscription?: { text?: string }
         interrupted?: boolean
+        groundingMetadata?: unknown
       }
       toolCall?: {
         functionCalls?: Array<{ id: string; name: string; args?: unknown }>
@@ -122,6 +125,7 @@ export async function handleLiveWsUpgrade(
 
     if (m.serverContent) {
       const sc = m.serverContent
+      const inlineFunctionCalls: Array<{ id: string; name: string; args?: unknown }> = []
       if (sc.modelTurn?.parts) {
         for (const part of sc.modelTurn.parts) {
           if (part.inlineData?.data) {
@@ -129,7 +133,17 @@ export async function handleLiveWsUpgrade(
               ws.send(JSON.stringify({ type: 'audio_output', data: part.inlineData.data }))
             } catch { /* ignore */ }
           }
+          if (part.functionCall?.name) {
+            inlineFunctionCalls.push({
+              id: part.functionCall.id ?? '',
+              name: part.functionCall.name,
+              args: part.functionCall.args,
+            })
+          }
         }
+      }
+      if (inlineFunctionCalls.length > 0) {
+        void handleToolCalls(inlineFunctionCalls)
       }
       if (sc.outputTranscription?.text) {
         try {
@@ -143,6 +157,14 @@ export async function handleLiveWsUpgrade(
       }
       if (sc.interrupted) {
         try { ws.send(JSON.stringify({ type: 'audio_interrupted' })) } catch { /* ignore */ }
+      }
+      if (hasGroundingData(sc.groundingMetadata as GroundingMetadata | undefined)) {
+        try {
+          ws.send(JSON.stringify({
+            type: 'grounding_metadata',
+            groundingMetadata: sc.groundingMetadata,
+          }))
+        } catch { /* ignore */ }
       }
     }
 
@@ -269,7 +291,7 @@ export async function handleLiveWsUpgrade(
           config: {
             systemInstruction,
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
-            tools: [{ functionDeclarations: declarations }],
+            tools: [{ functionDeclarations: declarations }, { googleSearch: {} }],
             responseModalities: ['AUDIO'],
             inputAudioTranscription: {},
             outputAudioTranscription: {},

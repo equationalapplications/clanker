@@ -309,6 +309,40 @@ describe('liveVoiceMachine', () => {
     expect(actor.getSnapshot().context.transcript).toHaveLength(0)
   })
 
+  test('END_CALL clears groundingMetadata so citations do not leak into the next session', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    saveAIMessage.mockResolvedValue(undefined)
+
+    const googleHtml = '<style>.gs-chip{color:#1a73e8}</style><div>Suggestions</div>'
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({
+      type: 'GROUNDING_METADATA',
+      groundingMetadata: { searchEntryPoint: { renderedContent: googleHtml } },
+    })
+    expect(actor.getSnapshot().context.groundingMetadata?.searchEntryPoint?.renderedContent).toBe(googleHtml)
+
+    actor.send({ type: 'END_CALL' })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT)
+
+    expect(actor.getSnapshot().context.groundingMetadata).toBeNull()
+  })
+
   test('SOCKET_ERROR → error state with message', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)

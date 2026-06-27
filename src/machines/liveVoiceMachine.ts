@@ -1,11 +1,13 @@
 import { createMachine, assign, fromPromise, fromCallback, sendTo } from 'xstate'
 import type { IMessage } from 'react-native-gifted-chat'
+import type { GroundingMetadata } from '@google/genai'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import type { WikiSyncDump } from '~/services/apiClient'
 import { saveAIMessage, sendMessage } from '~/database/messageDatabase'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { getCharacter } from '~/database/characterDatabase'
+import { parseGroundingMetadata } from '~/services/groundingMetadata'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -27,6 +29,7 @@ export interface LiveVoiceMachineContext {
   userId: string
   transcript: IMessage[]
   activeTool: string | null
+  groundingMetadata: GroundingMetadata | null
   remainingCredits: number
   socketError: string | null
   retryCount: number
@@ -43,6 +46,7 @@ export type LiveVoiceEvent =
   | { type: 'TRANSCRIPT_TOKEN'; role: 'user' | 'model'; text: string }
   | { type: 'TOOL_START'; name: string }
   | { type: 'TOOL_END'; name: string }
+  | { type: 'GROUNDING_METADATA'; groundingMetadata?: unknown }
   | { type: 'USAGE_SNAPSHOT'; remainingCredits: number }
   | { type: 'AUDIO_INTERRUPTED' }
   | { type: 'SESSION_ENDED' }
@@ -79,6 +83,7 @@ export const liveVoiceMachine = createMachine(
       userId: input.userId,
       transcript: [],
       activeTool: null,
+      groundingMetadata: null,
       remainingCredits: input.initialCredits ?? 0,
       socketError: null,
       retryCount: 0,
@@ -167,6 +172,14 @@ export const liveVoiceMachine = createMachine(
               TOOL_END: {
                 actions: assign({ activeTool: () => null }),
               },
+              GROUNDING_METADATA: {
+                actions: assign({
+                  groundingMetadata: ({ event }) => {
+                    if (event.type !== 'GROUNDING_METADATA') return null
+                    return parseGroundingMetadata(event.groundingMetadata) ?? null
+                  },
+                }),
+              },
               USAGE_SNAPSHOT: [
                 {
                   guard: ({ event }) => event.remainingCredits <= 0,
@@ -200,11 +213,22 @@ export const liveVoiceMachine = createMachine(
           }),
           onDone: {
             target: 'idle',
-            actions: assign({ transcript: () => [], activeTool: () => null, socketError: () => null, retryCount: () => 0 }),
+            actions: assign({
+              transcript: () => [],
+              activeTool: () => null,
+              groundingMetadata: () => null,
+              socketError: () => null,
+              retryCount: () => 0,
+            }),
           },
           onError: {
             target: 'idle',
-            actions: assign({ transcript: () => [], activeTool: () => null, retryCount: () => 0 }),
+            actions: assign({
+              transcript: () => [],
+              activeTool: () => null,
+              groundingMetadata: () => null,
+              retryCount: () => 0,
+            }),
           },
         },
       },
