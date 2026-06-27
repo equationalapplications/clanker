@@ -7,6 +7,11 @@ import {userRepository} from "./services/userRepository.js";
 import {creditService as defaultCreditService} from "./services/creditService.js";
 import {getDb} from "./db/cloudSql.js";
 import {llmWikiEntries, llmWikiTasks, llmWikiEvents, llmWikiEdges, llmWikiOntology, characters} from "./db/schema.js";
+import {
+  normalizeSourceTypeForExport,
+  normalizeSourceTypeForStorage,
+  VALID_SYNC_SOURCE_TYPES,
+} from "./wikiSourceType.js";
 
 const DEFAULT_REGION = "us-central1";
 
@@ -100,7 +105,7 @@ const WIKI_EVENTS_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const VALID_CONFIDENCE = new Set(["certain", "inferred", "tentative"]);
-const VALID_SOURCE_TYPE = new Set(["user_stated", "agent_inferred", "user_confirmed", "user_document"]);
+const VALID_SOURCE_TYPE = VALID_SYNC_SOURCE_TYPES;
 
 function assertString(value: unknown, label: string): void {
   if (typeof value !== "string" || value.length === 0) {
@@ -197,7 +202,7 @@ function validateFact(fact: unknown, entityId: string, label: string): void {
     if (typeof f.source_type !== "string" || !VALID_SOURCE_TYPE.has(f.source_type as string)) {
       throw new HttpsError(
         "invalid-argument",
-        `${label}.source_type must be one of: user_stated, agent_inferred, user_confirmed, user_document.`
+        `${label}.source_type must be one of: user_stated, user_confirmed, agent_inferred, user_document, librarian_inferred, immutable_document.`
       );
     }
   }
@@ -520,7 +525,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       body: r.body,
       confidence: r.confidence,
       tags: (r.tags ?? []) as string[],
-      source_type: r.source_type ?? null,
+      source_type: normalizeSourceTypeForExport(r.source_type ?? null),
       source_ref: r.source_ref ?? null,
       source_hash: r.source_hash ?? null,
       last_accessed_at: r.last_accessed_at != null ? Number(r.last_accessed_at) : null,
@@ -603,7 +608,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               tags: f.tags,
               sourceRef: f.source_ref ?? null,
               sourceHash: f.source_hash ?? null,
-              sourceType: f.source_type ?? "agent_inferred",
+              sourceType: normalizeSourceTypeForStorage(f.source_type),
               lastAccessedAt: f.last_accessed_at ?? null,
               accessCount: f.access_count ?? 0,
               createdAt: f.created_at,

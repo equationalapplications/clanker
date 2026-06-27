@@ -32,6 +32,10 @@ import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { getWiki } from '~/services/wikiService'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
+import {
+    mapFactSourceTypesForCloudSync,
+    mapFactSourceTypesFromCloud,
+} from '~/services/wikiSourceType'
 
 const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -127,7 +131,9 @@ async function syncWikiForCloud(
                     generatedAt: localDump.generatedAt,
                     entities: {
                         [cloudId]: {
-                            facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudId })),
+                            facts: mapFactSourceTypesForCloudSync(
+                                localBundle.facts.map((f) => ({ ...f, entity_id: cloudId })),
+                            ),
                             tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudId })),
                             events: localBundle.events.map((e) => ({ ...e, entity_id: cloudId })),
                             edges: localBundle.edges?.map((e) => ({ ...e, entity_id: cloudId })) ?? [],
@@ -158,7 +164,7 @@ async function syncWikiForCloud(
                     generatedAt: remoteDump.generatedAt,
                     entities: {
                         [char.id]: {
-                            facts: cloudBundle.facts,
+                            facts: mapFactSourceTypesFromCloud(cloudBundle.facts),
                             tasks: cloudBundle.tasks,
                             events: cloudBundle.events,
                             edges: cloudBundle.edges?.map((e) => ({ ...e, entity_id: char.id })) ?? [],

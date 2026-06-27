@@ -3,8 +3,13 @@ import type { IMessage } from 'react-native-gifted-chat'
 import type { GroundingMetadata } from '@google/genai'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
+import {
+  mapFactSourceTypesForCloudSync,
+  mapFactSourceTypesFromCloud,
+} from '~/services/wikiSourceType'
 import type { WikiSyncDump } from '~/services/apiClient'
 import { saveAIMessage, sendMessage, resolveCreatedAtMs } from '~/database/messageDatabase'
+import { resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { getCharacter } from '~/database/characterDatabase'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
@@ -345,7 +350,9 @@ export const liveVoiceMachine = createMachine(
             generatedAt: localDump.generatedAt,
             entities: {
               [cloudId]: {
-                facts: (localBundle.facts ?? []).map((f) => ({ ...f, entity_id: cloudId })),
+                facts: mapFactSourceTypesForCloudSync(
+                  (localBundle.facts ?? []).map((f) => ({ ...f, entity_id: cloudId })),
+                ),
                 tasks: (localBundle.tasks ?? []).map((t) => ({ ...t, entity_id: cloudId })),
                 events: (localBundle.events ?? []).map((e) => ({ ...e, entity_id: cloudId })),
                 edges: (localBundle.edges ?? []).map((e) => ({ ...e, entity_id: cloudId })),
@@ -361,7 +368,9 @@ export const liveVoiceMachine = createMachine(
               generatedAt: remoteDump.generatedAt,
               entities: {
                 [input.characterId]: {
-                  facts: (cloudBundle.facts ?? []).map((f) => ({ ...f, entity_id: input.characterId })),
+                  facts: mapFactSourceTypesFromCloud(
+                    (cloudBundle.facts ?? []).map((f) => ({ ...f, entity_id: input.characterId })),
+                  ),
                   tasks: (cloudBundle.tasks ?? []).map((t) => ({ ...t, entity_id: input.characterId })),
                   events: (cloudBundle.events ?? []).map((e) => ({ ...e, entity_id: input.characterId })),
                   edges: (cloudBundle.edges ?? []).map((e) => ({ ...e, entity_id: input.characterId })),
@@ -402,7 +411,13 @@ export const liveVoiceMachine = createMachine(
               ws = new WebSocket(url)
 
               ws.onopen = () => {
-                ws!.send(JSON.stringify({ type: 'auth', token, characterId: input.characterId }))
+                ws!.send(
+                  JSON.stringify({
+                    type: 'auth',
+                    token,
+                    characterId: resolveCloudAgentCharacterId(input.characterId),
+                  }),
+                )
                 sendBack({ type: 'SOCKET_OPENED' })
               }
 
