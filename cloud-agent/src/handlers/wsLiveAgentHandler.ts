@@ -22,7 +22,7 @@ type GeminiSession = {
 
 type LiveConnectCfg = {
   model: string
-  callbacks: { onmessage: (msg: unknown) => void; onclose: () => void; onerror?: (e: ErrorEvent) => void }
+  callbacks: { onmessage: (msg: unknown) => void; onclose: () => void; onerror?: (e: unknown) => void }
   config: unknown
 }
 
@@ -101,7 +101,11 @@ export async function handleLiveWsUpgrade(
   }, AUTH_TIMEOUT_MS)
 
   function handleGeminiMessage(msg: unknown): void {
-    console.log('[gemini live] message keys:', Object.keys(msg as object))
+    if (msg === null || typeof msg !== 'object') {
+      console.warn('[gemini live] ignoring non-object message:', msg)
+      return
+    }
+    console.log('[gemini live] message keys:', Object.keys(msg))
     const m = msg as {
       serverContent?: {
         modelTurn?: { parts?: Array<{ inlineData?: { data: string } }> }
@@ -260,7 +264,7 @@ export async function handleLiveWsUpgrade(
           callbacks: {
             onmessage: handleGeminiMessage,
             onclose: handleGeminiClose,
-            onerror: (e: ErrorEvent) => { console.error('[gemini live] error event:', e) },
+            onerror: (e: unknown) => { console.error('[gemini live] error event:', e) },
           },
           config: {
             systemInstruction,

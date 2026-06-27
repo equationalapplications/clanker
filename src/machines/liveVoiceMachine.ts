@@ -280,9 +280,9 @@ export const liveVoiceMachine = createMachine(
             generatedAt: localDump.generatedAt,
             entities: {
               [cloudId]: {
-                facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudId })),
-                tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudId })),
-                events: localBundle.events.map((e) => ({ ...e, entity_id: cloudId })),
+                facts: (localBundle.facts ?? []).map((f) => ({ ...f, entity_id: cloudId })),
+                tasks: (localBundle.tasks ?? []).map((t) => ({ ...t, entity_id: cloudId })),
+                events: (localBundle.events ?? []).map((e) => ({ ...e, entity_id: cloudId })),
                 edges: (localBundle.edges ?? []).map((e) => ({ ...e, entity_id: cloudId })),
               },
             },
@@ -296,9 +296,9 @@ export const liveVoiceMachine = createMachine(
               generatedAt: remoteDump.generatedAt,
               entities: {
                 [input.characterId]: {
-                  facts: cloudBundle.facts,
-                  tasks: cloudBundle.tasks,
-                  events: cloudBundle.events,
+                  facts: (cloudBundle.facts ?? []).map((f) => ({ ...f, entity_id: input.characterId })),
+                  tasks: (cloudBundle.tasks ?? []).map((t) => ({ ...t, entity_id: input.characterId })),
+                  events: (cloudBundle.events ?? []).map((e) => ({ ...e, entity_id: input.characterId })),
                   edges: (cloudBundle.edges ?? []).map((e) => ({ ...e, entity_id: input.characterId })),
                 },
               },

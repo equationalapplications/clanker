@@ -63,7 +63,7 @@ function makeMockLiveConnect() {
   let session: MockGeminiSession | null = null
 
   const connect = async (cfg: {
-    callbacks: { onmessage: (m: unknown) => void; onclose: () => void; onerror?: (e: ErrorEvent) => void }
+    callbacks: { onmessage: (m: unknown) => void; onclose: () => void; onerror?: (e: unknown) => void }
   }): Promise<MockGeminiSession> => {
     _onmessage = cfg.callbacks.onmessage
     _onclose = cfg.callbacks.onclose

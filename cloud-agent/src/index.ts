@@ -9,6 +9,7 @@ import type { Content, GroundingMetadata } from '@google/genai'
 import { WebSocketServer } from 'ws'
 import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
+import { hasGroundingData } from './groundingMetadata.js'
 import { assembleSystemInstruction, queryWikiContext } from './services/agentCore.js'
 import { bulkInsertUnsynced } from './services/unsyncedHistory.js'
 import { users, characters } from './db/schema.js'
@@ -48,15 +49,6 @@ export interface AppOptions {
 }
 
 // ── Real agent runner (production) ────────────────────────────────────────────
-
-function hasGroundingData(metadata: GroundingMetadata | undefined): metadata is GroundingMetadata {
-  return !!metadata && (
-    (Array.isArray(metadata.webSearchQueries) && metadata.webSearchQueries.length > 0) ||
-    (Array.isArray(metadata.groundingChunks) && metadata.groundingChunks.length > 0) ||
-    (Array.isArray(metadata.groundingSupports) && metadata.groundingSupports.length > 0) ||
-    typeof metadata.searchEntryPoint?.renderedContent === 'string'
-  )
-}
 
 export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
   const { db, userId, characterId, systemInstruction, message, history, timezone, embed } = params

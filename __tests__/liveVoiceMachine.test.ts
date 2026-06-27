@@ -1,3 +1,6 @@
+jest.mock('~/database/characterDatabase', () => ({
+  getCharacter: jest.fn(),
+}))
 jest.mock('~/services/wikiService', () => ({
   getWiki: jest.fn(),
 }))
@@ -32,15 +35,26 @@ beforeAll(() => {
 
 import { createActor, waitFor } from 'xstate'
 import { liveVoiceMachine } from '~/machines/liveVoiceMachine'
+import { getCharacter } from '~/database/characterDatabase'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import { getCurrentUser } from '~/config/firebaseConfig'
 
 const WAIT = { timeout: 3000 }
+const CLOUD_CHAR_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+
+function makeCharacterMock(cloudId = CLOUD_CHAR_ID) {
+  return { cloud_id: cloudId }
+}
 
 function makeWikiMock() {
   return {
-    exportDump: jest.fn().mockResolvedValue({ generatedAt: 0, entities: {} }),
+    exportDump: jest.fn().mockResolvedValue({
+      generatedAt: 0,
+      entities: {
+        char1: { facts: [], tasks: [], events: [], edges: [] },
+      },
+    }),
     importDump: jest.fn().mockResolvedValue(undefined),
   }
 }
@@ -60,6 +74,7 @@ describe('liveVoiceMachine', () => {
 
   beforeEach(() => {
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+    jest.mocked(getCharacter).mockResolvedValue(makeCharacterMock() as never)
   })
 
   afterEach(() => {
@@ -90,7 +105,16 @@ describe('liveVoiceMachine', () => {
   test('START_CALL → syncing_memory and calls wiki.exportDump + wikiSync', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
@@ -117,7 +141,16 @@ describe('liveVoiceMachine', () => {
   test('TRANSCRIPT_TOKEN same role concatenates text', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
@@ -134,7 +167,16 @@ describe('liveVoiceMachine', () => {
   test('TRANSCRIPT_TOKEN role switch creates new message', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
@@ -152,7 +194,16 @@ describe('liveVoiceMachine', () => {
   test('TOOL_START sets activeTool, TOOL_END clears it', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
@@ -168,7 +219,16 @@ describe('liveVoiceMachine', () => {
   test('USAGE_SNAPSHOT updates remainingCredits', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn({ initialCredits: 10 })
@@ -181,7 +241,16 @@ describe('liveVoiceMachine', () => {
   test('USAGE_SNAPSHOT with 0 credits → saving_to_db', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
@@ -206,7 +275,16 @@ describe('liveVoiceMachine', () => {
   test('END_CALL → saving_to_db → idle, calls saveAIMessage for model turns', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
@@ -234,7 +312,16 @@ describe('liveVoiceMachine', () => {
   test('SOCKET_ERROR → error state with message', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
@@ -249,7 +336,16 @@ describe('liveVoiceMachine', () => {
   test('RETRY from error → syncing_memory → session.connecting, increments retryCount', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
