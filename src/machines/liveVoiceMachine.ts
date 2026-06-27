@@ -467,21 +467,30 @@ export const liveVoiceMachine = createMachine(
               user: msg.user,
               createdAt,
             }
-            if (isAI) {
-              const grounded = msg as GroundedIMessage
-              if (grounded.groundingMetadata) {
-                additionalData.groundingMetadata = grounded.groundingMetadata
+            try {
+              if (isAI) {
+                const grounded = msg as GroundedIMessage
+                if (grounded.groundingMetadata) {
+                  additionalData.groundingMetadata = grounded.groundingMetadata
+                }
+                await saveAIMessage(
+                  characterId,
+                  userId,
+                  msg.text,
+                  String(msg._id),
+                  additionalData,
+                  Date.now(),
+                )
+              } else {
+                await sendMessage(characterId, userId, msg.text, String(msg._id), additionalData)
               }
-              await saveAIMessage(
+            } catch (error) {
+              console.warn('saveTranscriptActor: failed to persist message', {
                 characterId,
-                userId,
-                msg.text,
-                String(msg._id),
-                additionalData,
-                Date.now(),
-              )
-            } else {
-              await sendMessage(characterId, userId, msg.text, String(msg._id), additionalData)
+                messageId: String(msg._id),
+                isAI,
+                error,
+              })
             }
           }
         },

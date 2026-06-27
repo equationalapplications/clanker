@@ -488,6 +488,48 @@ describe('liveVoiceMachine', () => {
     expect(actor.getSnapshot().context.groundingMetadata).toBeNull()
   })
 
+  test('saveTranscript partial failure still persists remaining messages and clears context', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const { saveAIMessage, sendMessage } = jest.requireMock('~/database/messageDatabase') as {
+      saveAIMessage: jest.Mock
+      sendMessage: jest.Mock
+    }
+    sendMessage.mockRejectedValueOnce(new Error('user save failed'))
+    saveAIMessage.mockResolvedValue(undefined)
+
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'user', text: 'Question' })
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'Answer' })
+    actor.send({ type: 'END_CALL' })
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT)
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    expect(saveAIMessage).toHaveBeenCalledTimes(1)
+    expect(warnSpy).toHaveBeenCalledWith(
+      'saveTranscriptActor: failed to persist message',
+      expect.objectContaining({ characterId: 'char1', isAI: false }),
+    )
+    warnSpy.mockRestore()
+  })
+
   test('saveTranscript failure → idle clears transcript, groundingMetadata, and socketError', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
