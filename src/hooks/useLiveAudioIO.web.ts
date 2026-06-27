@@ -103,6 +103,9 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
 
   const startRecording = useCallback(async (): Promise<boolean> => {
     try {
+      if (streamRef.current || audioCtxRef.current) {
+        return true
+      }
       if (!navigator.mediaDevices?.getUserMedia) {
         setError('Microphone access requires a secure connection (HTTPS).')
         setRecordingState('error')
