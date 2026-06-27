@@ -48,7 +48,7 @@ const mockCreditService = {
 }
 
 type MockGeminiSession = {
-  sendRealtimeInput: (i: { media: { data: string; mimeType: string } }) => void
+  sendRealtimeInput: (i: { audio: { data: string; mimeType: string } }) => void
   sendToolResponse: (r: {
     functionResponses: Array<{ id: string; name: string; response: { output: unknown } }>
   }) => void
@@ -56,14 +56,14 @@ type MockGeminiSession = {
 }
 
 function makeMockLiveConnect() {
-  const realtimeInputs: Array<{ media: { data: string; mimeType: string } }> = []
+  const realtimeInputs: Array<{ audio: { data: string; mimeType: string } }> = []
   const toolResponses: Array<{ functionResponses: Array<{ id: string; name: string; response: { output: unknown } }> }> = []
   let _onmessage: ((msg: unknown) => void) | null = null
   let _onclose: (() => void) | null = null
   let session: MockGeminiSession | null = null
 
   const connect = async (cfg: {
-    callbacks: { onmessage: (m: unknown) => void; onclose: () => void }
+    callbacks: { onmessage: (m: unknown) => void; onclose: () => void; onerror?: (e: ErrorEvent) => void }
   }): Promise<MockGeminiSession> => {
     _onmessage = cfg.callbacks.onmessage
     _onclose = cfg.callbacks.onclose
@@ -281,8 +281,8 @@ test('audio_input calls sendRealtimeInput with correct MIME type', async () => {
         setTimeout(() => {
           clearTimeout(timeout)
           assert.equal(mock.realtimeInputs.length, 1)
-          assert.equal(mock.realtimeInputs[0]!.media.data, 'AAAA')
-          assert.equal(mock.realtimeInputs[0]!.media.mimeType, 'audio/pcm;rate=16000')
+          assert.equal(mock.realtimeInputs[0]!.audio.data, 'AAAA')
+          assert.equal(mock.realtimeInputs[0]!.audio.mimeType, 'audio/pcm;rate=16000')
           ws.close()
           resolve()
         }, 50)

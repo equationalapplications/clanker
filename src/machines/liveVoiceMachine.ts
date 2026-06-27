@@ -5,6 +5,9 @@ import { wikiSync } from '~/services/apiClient'
 import type { WikiSyncDump } from '~/services/apiClient'
 import { saveAIMessage, sendMessage } from '~/database/messageDatabase'
 import { getCurrentUser } from '~/config/firebaseConfig'
+import { getCharacter } from '~/database/characterDatabase'
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function getLiveWsUrl(): string {
   const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
@@ -20,6 +23,7 @@ function getLiveWsUrl(): string {
 /** Persistent state managed by liveVoiceMachine across the call lifecycle. */
 export interface LiveVoiceMachineContext {
   characterId: string
+  cloudCharacterId: string | null
   userId: string
   transcript: IMessage[]
   activeTool: string | null
@@ -71,6 +75,7 @@ export const liveVoiceMachine = createMachine(
     initial: 'idle',
     context: ({ input }) => ({
       characterId: input.characterId,
+      cloudCharacterId: null,
       userId: input.userId,
       transcript: [],
       activeTool: null,
@@ -88,8 +93,18 @@ export const liveVoiceMachine = createMachine(
       syncing_memory: {
         invoke: {
           src: 'syncMemoryActor',
-          input: ({ context }) => ({ characterId: context.characterId }),
-          onDone: { target: 'session' },
+          input: ({ context }) => ({ characterId: context.characterId, userId: context.userId }),
+          onDone: [
+            {
+              guard: ({ event }) => !event.output?.cloudCharacterId,
+              target: 'error',
+              actions: assign({ socketError: () => 'Character not synced to cloud. Enable sync in character settings.' }),
+            },
+            {
+              target: 'session',
+              actions: assign({ cloudCharacterId: ({ event }) => event.output.cloudCharacterId }),
+            },
+          ],
           onError: {
             target: 'error',
             actions: assign({
@@ -107,7 +122,7 @@ export const liveVoiceMachine = createMachine(
         invoke: {
           id: 'websocket',
           src: 'websocketActor',
-          input: ({ context }) => ({ characterId: context.characterId }),
+          input: ({ context }) => ({ characterId: context.cloudCharacterId! }),
         },
         initial: 'connecting',
         on: {
@@ -197,22 +212,13 @@ export const liveVoiceMachine = createMachine(
       error: {
         on: {
           END_CALL: { target: 'idle' },
+          START_CALL: {
+            target: 'syncing_memory',
+            actions: assign({ socketError: () => null, retryCount: () => 0, cloudCharacterId: () => null }),
+          },
           RETRY: [
             {
               guard: ({ context }) => context.retryCount < MAX_RETRIES,
-              target: 'syncing_memory',
-              actions: assign({
-                retryCount: ({ context }) => context.retryCount + 1,
-                socketError: () => null,
-              }),
-            },
-          ],
-        },
-        after: {
-          RETRY_DELAY: [
-            {
-              guard: ({ context }) =>
-                context.retryCount < MAX_RETRIES && context.socketError !== 'credit_exhausted',
               target: 'syncing_memory',
               actions: assign({
                 retryCount: ({ context }) => context.retryCount + 1,
@@ -259,15 +265,48 @@ export const liveVoiceMachine = createMachine(
     },
     actors: {
       syncMemoryActor: fromPromise(
-        async ({ input }: { input: { characterId: string } }) => {
+        async ({ input }: { input: { characterId: string; userId: string } }): Promise<{ cloudCharacterId: string | null }> => {
           const wiki = getWiki()
           if (!wiki) throw new Error('Wiki not initialized')
-          const local = await wiki.exportDump([input.characterId])
-          const result = await wikiSync({ dump: local as WikiSyncDump })
+
+          const char = await getCharacter(input.characterId, input.userId)
+          const cloudId = char?.cloud_id && UUID_REGEX.test(char.cloud_id) ? char.cloud_id : null
+          if (!cloudId) return { cloudCharacterId: null }
+
+          const localDump = await wiki.exportDump([input.characterId])
+          const localBundle = localDump.entities[input.characterId] ?? { facts: [], tasks: [], events: [], edges: [] }
+
+          const cloudDump: WikiSyncDump = {
+            generatedAt: localDump.generatedAt,
+            entities: {
+              [cloudId]: {
+                facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudId })),
+                tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudId })),
+                events: localBundle.events.map((e) => ({ ...e, entity_id: cloudId })),
+                edges: (localBundle.edges ?? []).map((e) => ({ ...e, entity_id: cloudId })),
+              },
+            },
+          }
+
+          const result = await wikiSync({ dump: cloudDump })
           const remoteDump = result.data.remoteDump
           if (remoteDump && Object.keys(remoteDump.entities ?? {}).length > 0) {
-            await wiki.importDump(remoteDump as Parameters<typeof wiki.importDump>[0], { merge: true })
+            const cloudBundle = remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [], edges: [] }
+            const mappedDump = {
+              generatedAt: remoteDump.generatedAt,
+              entities: {
+                [input.characterId]: {
+                  facts: cloudBundle.facts,
+                  tasks: cloudBundle.tasks,
+                  events: cloudBundle.events,
+                  edges: (cloudBundle.edges ?? []).map((e) => ({ ...e, entity_id: input.characterId })),
+                },
+              },
+            }
+            await wiki.importDump(mappedDump as Parameters<typeof wiki.importDump>[0], { merge: true })
           }
+
+          return { cloudCharacterId: cloudId }
         },
       ),
 
