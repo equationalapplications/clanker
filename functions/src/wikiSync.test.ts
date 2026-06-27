@@ -742,6 +742,24 @@ test("wikiSync: rejects invalid source_type value", async () => {
   await rejectsFact(user, auth, buildFact(TEST_ENTITY_UUID, {source_type: "bad_type"}), /source_type must be one of/);
 });
 
+test("wikiSync: accepts v4 source_type values", async () => {
+  const auth = buildAuth();
+  const user = buildUser(auth);
+  const fact = buildFact(TEST_ENTITY_UUID, {source_type: "librarian_inferred"});
+  const request = {auth, data: {dump: buildDumpWithFact(fact)}};
+  const validateEntityOwnership = async () => {};
+  const fetchMergedDump = async () => ({generatedAt: Date.now(), entities: {}});
+  const upsertData = async () => {};
+  const result = await wikiSyncHandler(request as unknown as CallableRequest, {
+    upsertData,
+    validateEntityOwnership,
+    fetchMergedDump,
+    getUser: async () => user,
+    creditService: defaultCreditService,
+  });
+  assert.ok(result.remoteDump, "should return remoteDump");
+});
+
 test("wikiSync: rejects float last_accessed_at", async () => {
   const auth = buildAuth();
   const user = buildUser(auth);

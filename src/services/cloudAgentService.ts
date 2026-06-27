@@ -1,3 +1,4 @@
+import { resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
 import type { Content, GroundingMetadata } from '@google/genai'
@@ -111,6 +112,7 @@ async function runViaWebSocket(
     const ws = new WebSocket(wsUrl)
     let reply = ''
     const toolCalls: string[] = []
+    let groundingMetadata: GroundingMetadata | undefined
     let usageSnapshot: { remainingCredits: number } | null = null
     let settled = false
     let authTimeout: ReturnType<typeof setTimeout>
@@ -138,7 +140,7 @@ async function runViaWebSocket(
           reject(new Error('WebSocket closed before receiving usage_snapshot'))
           return
         }
-        resolve({ reply, toolCalls, usageSnapshot })
+        resolve({ reply, toolCalls, usageSnapshot, groundingMetadata })
       })
     }
 
@@ -184,6 +186,13 @@ async function runViaWebSocket(
         } else if (msg.type === 'token' && msg.text) {
           reply += msg.text
           callbacks?.onToken?.(msg.text)
+        } else if (msg.type === 'grounding_metadata') {
+          const parsed = parseGroundingMetadata(
+            (msg as { groundingMetadata?: unknown }).groundingMetadata,
+          )
+          if (parsed) {
+            groundingMetadata = parsed
+          }
         } else if (msg.type === 'usage_snapshot') {
           const remaining = msg.remainingCredits
           usageSnapshot =
@@ -222,8 +231,13 @@ export async function callCloudAgent(
   payload: CloudAgentPayload,
   callbacks?: CloudAgentStreamCallbacks,
 ): Promise<CloudAgentResult> {
+  const resolvedPayload: CloudAgentPayload = {
+    ...payload,
+    characterId: resolveCloudAgentCharacterId(payload.characterId),
+  }
+
   try {
-    return await runViaWebSocket(payload, callbacks)
+    return await runViaWebSocket(resolvedPayload, callbacks)
   } catch (wsErr) {
     const msg = wsErr instanceof Error ? wsErr.message : String(wsErr)
     const shouldFallbackToHttp =
@@ -235,6 +249,6 @@ export async function callCloudAgent(
     if (!shouldFallbackToHttp) throw wsErr
 
     console.warn('WebSocket failed, falling back to HTTP:', wsErr)
-    return await runViaHttp(payload)
+    return await runViaHttp(resolvedPayload)
   }
 }

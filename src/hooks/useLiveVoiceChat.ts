@@ -4,6 +4,7 @@ import { useMachine, useSelector } from '@xstate/react'
 import { router, type Href } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import type { IMessage } from 'react-native-gifted-chat'
+import type { GroundingMetadata } from '@google/genai'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
@@ -18,6 +19,7 @@ export interface UseLiveVoiceChatReturn {
   error: string | null
   transcript: IMessage[]
   activeTool: string | null
+  groundingMetadata: GroundingMetadata | null
   remainingCredits: number
   isPlayingAudio: boolean
   startCall: () => Promise<void>
@@ -185,6 +187,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
       error,
       transcript: state.context.transcript,
       activeTool: state.context.activeTool,
+      groundingMetadata: state.context.groundingMetadata,
       remainingCredits: state.context.remainingCredits,
       isPlayingAudio: audioIO.playbackState === 'playing',
       startCall,

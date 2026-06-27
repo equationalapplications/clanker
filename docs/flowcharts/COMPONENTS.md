@@ -14,6 +14,7 @@ graph LR
   ChatView --> isSafeHttpUrl
   ChatView --> useMachines
   ChatView --> useCharacters
+  ChatView --> useActiveCharacterId
   CombinedSubscriptionButton --> useCurrentPlan
   CookieConsentBanner --> CookieConsentContext
   CookieConsentContext --> crashlyticsService

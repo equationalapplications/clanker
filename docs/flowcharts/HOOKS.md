@@ -23,12 +23,12 @@ graph LR
   useBootstrapRefresh --> useMachines
   useCachedResources --> index
   useCharacterWiki --> wikiOrchestrator
+  useCharacterWiki --> wikiSourceType
   useCharacterWiki --> apiClient
   useCharacters --> useMachines
   useCurrentPlan --> useMachines
   useEdgeAgent --> CharacterPromptBuilder
   useEdgeAgent --> edgeToolExecutors
-  useEdgeAgent --> ensureDevSandboxCharacter
   useEdgeAgent --> chatReplyService
   useImageGeneration --> useMachines
   useImageGeneration --> imageGenerationService
@@ -44,6 +44,11 @@ graph LR
   useLiveVoiceChat --> liveVoiceMachine
   useMessages --> useMachines
   useMessages --> messageService
+  useTabCharacterId --> useActiveCharacterId
+  useTabCharacterId --> useMessages
+  useTabCharacterId --> useCharacters
+  useTabCharacterId --> useMachines
+  useTabCharacterId --> ensureDevSandboxCharacter
   useUser --> useMachines
   useUser --> useBootstrapRefresh
   useUser --> userService

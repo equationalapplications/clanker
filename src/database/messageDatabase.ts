@@ -56,6 +56,21 @@ interface ExpectedMessageRow {
   syncedAt?: number | null
 }
 
+export function resolveCreatedAtMs(additionalData?: Partial<IMessage>): number {
+  const value = additionalData?.createdAt
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.getTime()
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value)
+    if (!Number.isNaN(parsed)) return parsed
+  }
+  return Date.now()
+}
+
 async function resolveInsertConflict(
   db: Awaited<ReturnType<typeof getDatabase>>,
   id: string,
@@ -116,7 +131,7 @@ export async function getMessages(
         `SELECT * FROM messages 
      WHERE character_id = ? 
      AND (sender_user_id = ? OR recipient_user_id = ?)
-     ORDER BY created_at DESC 
+     ORDER BY created_at DESC, rowid DESC 
      LIMIT ? OFFSET ?`,
         [characterId, userId, userId, limit, offset],
     )
@@ -151,7 +166,7 @@ export async function sendMessage(
     const db = await getDatabase()
 
     const id = messageId || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const createdAt = Date.now()
+    const createdAt = resolveCreatedAtMs(additionalData)
     const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
     // ON CONFLICT DO NOTHING: a persisted/resumed mutation (see PersistQueryClientProvider in
@@ -203,7 +218,7 @@ export async function saveAIMessage(
     const db = await getDatabase()
 
     const id = messageId || `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const createdAt = Date.now()
+    const createdAt = resolveCreatedAtMs(additionalData)
     const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
     const insertResult = await db.runAsync(
@@ -331,7 +346,7 @@ export async function getLastMessage(
         `SELECT * FROM messages 
      WHERE character_id = ? 
      AND (sender_user_id = ? OR recipient_user_id = ?)
-     ORDER BY created_at DESC 
+     ORDER BY created_at DESC, rowid DESC 
      LIMIT 1`,
         [characterId, userId, userId],
     )
@@ -354,7 +369,7 @@ export async function searchMessages(
      WHERE character_id = ? 
      AND (sender_user_id = ? OR recipient_user_id = ?)
      AND text LIKE ?
-     ORDER BY created_at DESC 
+     ORDER BY created_at DESC, rowid DESC 
      LIMIT 50`,
         [characterId, userId, userId, `%${searchText}%`],
     )
@@ -428,7 +443,7 @@ export async function getMessagesForContextSummary(
         `SELECT * FROM messages 
      WHERE character_id = ? 
      AND (sender_user_id = ? OR recipient_user_id = ?)
-     ORDER BY created_at DESC 
+     ORDER BY created_at DESC, rowid DESC 
      LIMIT ?`,
         [characterId, userId, userId, limit],
     )

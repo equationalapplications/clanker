@@ -68,12 +68,17 @@ beforeEach(() => {
 })
 
 describe('useEdgeAgent', () => {
-  it('escalates immediately in dev sandbox without calling generateReply', async () => {
+  it('calls generateReply in dev sandbox instead of skipping the edge loop', async () => {
     mockIsDevSandboxEnabled.mockReturnValue(true)
     process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://localhost:8080'
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'Hello from edge',
+      functionCalls: undefined,
+      ...usageFields,
+    })
 
     const { result } = renderHook(() =>
-      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
     let response: { escalated: boolean; text?: string } | undefined
@@ -81,10 +86,13 @@ describe('useEdgeAgent', () => {
       response = await result.current.sendMessage('Hi there')
     })
 
-    expect(response).toEqual({ escalated: true, usageSnapshot: null })
-    expect(mockGenerateChatReply).not.toHaveBeenCalled()
-    expect(result.current.escalationState).toBe('escalating')
-    expect(result.current.isThinking).toBe(false)
+    expect(mockGenerateChatReply).toHaveBeenCalled()
+    expect(response).toEqual({
+      escalated: false,
+      text: 'Hello from edge',
+      usageSnapshot: usageFields,
+    })
+    expect(result.current.escalationState).toBe('idle')
   })
 
   it('returns escalated:false and text when the model returns a text reply with no functionCalls', async () => {

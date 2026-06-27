@@ -15,5 +15,5 @@
   },
   "compileOnSave": true,
   "include": ["src", "../shared"],
-  "exclude": ["../shared/**/*.test.ts"]
+  "exclude": ["../shared/**/*.test.ts", "../shared/localCloudAgent.ts"]
 }

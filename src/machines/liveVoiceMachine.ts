@@ -1,10 +1,40 @@
 import { createMachine, assign, fromPromise, fromCallback, sendTo } from 'xstate'
 import type { IMessage } from 'react-native-gifted-chat'
+import type { GroundingMetadata } from '@google/genai'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
+import {
+  mapFactSourceTypesForCloudSync,
+  mapFactSourceTypesFromCloud,
+} from '~/services/wikiSourceType'
 import type { WikiSyncDump } from '~/services/apiClient'
-import { saveAIMessage, sendMessage } from '~/database/messageDatabase'
+import { saveAIMessage, sendMessage, resolveCreatedAtMs } from '~/database/messageDatabase'
+import { resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
 import { getCurrentUser } from '~/config/firebaseConfig'
+import { getCharacter } from '~/database/characterDatabase'
+import { parseGroundingMetadata } from '~/services/groundingMetadata'
+import type { GroundedIMessage } from '~/services/aiChatService'
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function attachGroundingToTranscript(
+  transcript: IMessage[],
+  characterId: string,
+  grounding: GroundingMetadata,
+): GroundedIMessage[] {
+  const next = [...transcript] as GroundedIMessage[]
+  let lastModelIdx = -1
+  for (let i = next.length - 1; i >= 0; i--) {
+    if (next[i]!.user._id === characterId) {
+      lastModelIdx = i
+      break
+    }
+  }
+  if (lastModelIdx >= 0) {
+    next[lastModelIdx] = { ...next[lastModelIdx]!, groundingMetadata: grounding }
+  }
+  return next
+}
 
 function getLiveWsUrl(): string {
   const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
@@ -20,9 +50,11 @@ function getLiveWsUrl(): string {
 /** Persistent state managed by liveVoiceMachine across the call lifecycle. */
 export interface LiveVoiceMachineContext {
   characterId: string
+  cloudCharacterId: string | null
   userId: string
   transcript: IMessage[]
   activeTool: string | null
+  groundingMetadata: GroundingMetadata | null
   remainingCredits: number
   socketError: string | null
   retryCount: number
@@ -39,6 +71,7 @@ export type LiveVoiceEvent =
   | { type: 'TRANSCRIPT_TOKEN'; role: 'user' | 'model'; text: string }
   | { type: 'TOOL_START'; name: string }
   | { type: 'TOOL_END'; name: string }
+  | { type: 'GROUNDING_METADATA'; groundingMetadata?: unknown }
   | { type: 'USAGE_SNAPSHOT'; remainingCredits: number }
   | { type: 'AUDIO_INTERRUPTED' }
   | { type: 'SESSION_ENDED' }
@@ -71,9 +104,11 @@ export const liveVoiceMachine = createMachine(
     initial: 'idle',
     context: ({ input }) => ({
       characterId: input.characterId,
+      cloudCharacterId: null,
       userId: input.userId,
       transcript: [],
       activeTool: null,
+      groundingMetadata: null,
       remainingCredits: input.initialCredits ?? 0,
       socketError: null,
       retryCount: 0,
@@ -88,8 +123,18 @@ export const liveVoiceMachine = createMachine(
       syncing_memory: {
         invoke: {
           src: 'syncMemoryActor',
-          input: ({ context }) => ({ characterId: context.characterId }),
-          onDone: { target: 'session' },
+          input: ({ context }) => ({ characterId: context.characterId, userId: context.userId }),
+          onDone: [
+            {
+              guard: ({ event }) => !event.output?.cloudCharacterId,
+              target: 'error',
+              actions: assign({ socketError: () => 'Character not synced to cloud. Enable sync in character settings.' }),
+            },
+            {
+              target: 'session',
+              actions: assign({ cloudCharacterId: ({ event }) => event.output.cloudCharacterId }),
+            },
+          ],
           onError: {
             target: 'error',
             actions: assign({
@@ -107,7 +152,7 @@ export const liveVoiceMachine = createMachine(
         invoke: {
           id: 'websocket',
           src: 'websocketActor',
-          input: ({ context }) => ({ characterId: context.characterId }),
+          input: ({ context }) => ({ characterId: context.cloudCharacterId! }),
         },
         initial: 'connecting',
         on: {
@@ -152,6 +197,20 @@ export const liveVoiceMachine = createMachine(
               TOOL_END: {
                 actions: assign({ activeTool: () => null }),
               },
+              GROUNDING_METADATA: {
+                actions: assign({
+                  groundingMetadata: ({ event }) => {
+                    if (event.type !== 'GROUNDING_METADATA') return null
+                    return parseGroundingMetadata(event.groundingMetadata) ?? null
+                  },
+                  transcript: ({ context, event }) => {
+                    if (event.type !== 'GROUNDING_METADATA') return context.transcript
+                    const parsed = parseGroundingMetadata(event.groundingMetadata)
+                    if (!parsed) return context.transcript
+                    return attachGroundingToTranscript(context.transcript, context.characterId, parsed)
+                  },
+                }),
+              },
               USAGE_SNAPSHOT: [
                 {
                   guard: ({ event }) => event.remainingCredits <= 0,
@@ -185,11 +244,23 @@ export const liveVoiceMachine = createMachine(
           }),
           onDone: {
             target: 'idle',
-            actions: assign({ transcript: () => [], activeTool: () => null, socketError: () => null, retryCount: () => 0 }),
+            actions: assign({
+              transcript: () => [],
+              activeTool: () => null,
+              groundingMetadata: () => null,
+              socketError: () => null,
+              retryCount: () => 0,
+            }),
           },
           onError: {
             target: 'idle',
-            actions: assign({ transcript: () => [], activeTool: () => null, retryCount: () => 0 }),
+            actions: assign({
+              transcript: () => [],
+              activeTool: () => null,
+              groundingMetadata: () => null,
+              socketError: () => null,
+              retryCount: () => 0,
+            }),
           },
         },
       },
@@ -197,22 +268,13 @@ export const liveVoiceMachine = createMachine(
       error: {
         on: {
           END_CALL: { target: 'idle' },
+          START_CALL: {
+            target: 'syncing_memory',
+            actions: assign({ socketError: () => null, retryCount: () => 0, cloudCharacterId: () => null }),
+          },
           RETRY: [
             {
               guard: ({ context }) => context.retryCount < MAX_RETRIES,
-              target: 'syncing_memory',
-              actions: assign({
-                retryCount: ({ context }) => context.retryCount + 1,
-                socketError: () => null,
-              }),
-            },
-          ],
-        },
-        after: {
-          RETRY_DELAY: [
-            {
-              guard: ({ context }) =>
-                context.retryCount < MAX_RETRIES && context.socketError !== 'credit_exhausted',
               target: 'syncing_memory',
               actions: assign({
                 retryCount: ({ context }) => context.retryCount + 1,
@@ -247,6 +309,15 @@ export const liveVoiceMachine = createMachine(
             },
           ]
         },
+        groundingMetadata: ({ context, event }) => {
+          if (event.type !== 'TRANSCRIPT_TOKEN') return context.groundingMetadata
+          const msgUserId = event.role === 'user' ? context.userId : context.characterId
+          const last = context.transcript[context.transcript.length - 1]
+          if (!last || last.user._id !== msgUserId) {
+            return null
+          }
+          return context.groundingMetadata
+        },
       }),
       // Injected by controller hook - these are no-ops in the machine definition
       playIncomingAudio: () => {},
@@ -259,15 +330,52 @@ export const liveVoiceMachine = createMachine(
     },
     actors: {
       syncMemoryActor: fromPromise(
-        async ({ input }: { input: { characterId: string } }) => {
+        async ({ input }: { input: { characterId: string; userId: string } }): Promise<{ cloudCharacterId: string | null }> => {
           const wiki = getWiki()
           if (!wiki) throw new Error('Wiki not initialized')
-          const local = await wiki.exportDump([input.characterId])
-          const result = await wikiSync({ dump: local as WikiSyncDump })
+
+          const char = await getCharacter(input.characterId, input.userId)
+          const cloudId = char?.cloud_id && UUID_REGEX.test(char.cloud_id) ? char.cloud_id : null
+          if (!cloudId) return { cloudCharacterId: null }
+
+          const localDump = await wiki.exportDump([input.characterId])
+          const localBundle = localDump.entities[input.characterId] ?? { facts: [], tasks: [], events: [], edges: [] }
+
+          const cloudDump: WikiSyncDump = {
+            generatedAt: localDump.generatedAt,
+            entities: {
+              [cloudId]: {
+                facts: mapFactSourceTypesForCloudSync(
+                  (localBundle.facts ?? []).map((f) => ({ ...f, entity_id: cloudId })),
+                ),
+                tasks: (localBundle.tasks ?? []).map((t) => ({ ...t, entity_id: cloudId })),
+                events: (localBundle.events ?? []).map((e) => ({ ...e, entity_id: cloudId })),
+                edges: (localBundle.edges ?? []).map((e) => ({ ...e, entity_id: cloudId })),
+              },
+            },
+          }
+
+          const result = await wikiSync({ dump: cloudDump })
           const remoteDump = result.data.remoteDump
           if (remoteDump && Object.keys(remoteDump.entities ?? {}).length > 0) {
-            await wiki.importDump(remoteDump as Parameters<typeof wiki.importDump>[0], { merge: true })
+            const cloudBundle = remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [], edges: [] }
+            const mappedDump = {
+              generatedAt: remoteDump.generatedAt,
+              entities: {
+                [input.characterId]: {
+                  facts: mapFactSourceTypesFromCloud(
+                    (cloudBundle.facts ?? []).map((f) => ({ ...f, entity_id: input.characterId })),
+                  ),
+                  tasks: (cloudBundle.tasks ?? []).map((t) => ({ ...t, entity_id: input.characterId })),
+                  events: (cloudBundle.events ?? []).map((e) => ({ ...e, entity_id: input.characterId })),
+                  edges: (cloudBundle.edges ?? []).map((e) => ({ ...e, entity_id: input.characterId })),
+                },
+              },
+            }
+            await wiki.importDump(mappedDump as Parameters<typeof wiki.importDump>[0], { merge: true })
           }
+
+          return { cloudCharacterId: cloudId }
         },
       ),
 
@@ -298,7 +406,13 @@ export const liveVoiceMachine = createMachine(
               ws = new WebSocket(url)
 
               ws.onopen = () => {
-                ws!.send(JSON.stringify({ type: 'auth', token, characterId: input.characterId }))
+                ws!.send(
+                  JSON.stringify({
+                    type: 'auth',
+                    token,
+                    characterId: resolveCloudAgentCharacterId(input.characterId),
+                  }),
+                )
                 sendBack({ type: 'SOCKET_OPENED' })
               }
 
@@ -345,23 +459,37 @@ export const liveVoiceMachine = createMachine(
           input: { characterId: string; userId: string; transcript: IMessage[] }
         }) => {
           const { characterId, userId, transcript } = input
-          for (const msg of transcript) {
+          for (let i = 0; i < transcript.length; i++) {
+            const msg = transcript[i]!
             const isAI = msg.user._id !== userId
-            if (isAI) {
-              // Fire-and-forget: do not await, component may be unmounted
-              void saveAIMessage(
+            const createdAt = new Date(resolveCreatedAtMs({ createdAt: msg.createdAt }) + i)
+            const additionalData: Partial<GroundedIMessage> = {
+              user: msg.user,
+              createdAt,
+            }
+            try {
+              if (isAI) {
+                const grounded = msg as GroundedIMessage
+                if (grounded.groundingMetadata) {
+                  additionalData.groundingMetadata = grounded.groundingMetadata
+                }
+                await saveAIMessage(
+                  characterId,
+                  userId,
+                  msg.text,
+                  String(msg._id),
+                  additionalData,
+                  Date.now(),
+                )
+              } else {
+                await sendMessage(characterId, userId, msg.text, String(msg._id), additionalData)
+              }
+            } catch (error) {
+              console.warn('saveTranscriptActor: failed to persist message', {
                 characterId,
-                userId,
-                msg.text,
-                String(msg._id),
-                { user: msg.user, createdAt: msg.createdAt },
-                Date.now(),
-              ).catch((err: unknown) => {
-                console.error('[saveTranscriptActor] saveAIMessage failed', err)
-              })
-            } else {
-              void sendMessage(characterId, userId, msg.text, String(msg._id)).catch((err: unknown) => {
-                console.error('[saveTranscriptActor] sendMessage failed', err)
+                messageId: String(msg._id),
+                isAI,
+                error,
               })
             }
           }

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
@@ -18,6 +18,7 @@ import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
 import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
 import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/aiChatService'
 import type { Character } from '~/services/characterService'
+import { setActiveCharacterId } from '~/hooks/useActiveCharacterId'
 
 const defaultAvatarUrl = 'https://via.placeholder.com/150'
 
@@ -454,6 +455,12 @@ export default function ChatView({ characterId }: ChatViewProps) {
   }))
   const currentUserId = user?.uid
   const { data: character, isLoading: characterLoading } = useCharacter(characterId)
+
+  useEffect(() => {
+    if (characterId) {
+      setActiveCharacterId(characterId)
+    }
+  }, [characterId])
 
   if (characterLoading) {
     return (

@@ -113,6 +113,32 @@ The old "edge-resolved = free" policy is retired. Edge resolution only skips the
 
 ## Local Development
 
+### Hybrid mode (recommended)
+
+Use real Firebase login against `clanker-prod` (or staging) for `generateReply`, App Check, and bootstrap — while routing cloud-agent escalation and Talk tab live voice to local Docker:
+
+```bash
+# .env.development.local
+EXPO_PUBLIC_CLOUD_AGENT_URL=http://<YOUR_LAN_IP>:8080
+# EXPO_PUBLIC_USE_MOCK_AUTH unset or false
+```
+
+Start local backend:
+
+```bash
+docker compose -f docker-compose.local.yml up -d
+docker compose -f docker-compose.local.yml exec cloud-agent npx tsx scripts/seedLocal.ts
+npx expo start -w
+```
+
+When `EXPO_PUBLIC_CLOUD_AGENT_URL` points at localhost or a private LAN IP, dev builds automatically rewrite outbound cloud-agent `characterId` values to the seeded `DEV_CLOUD_CHARACTER_ID` in local Postgres. No need to seed your production character UUIDs locally.
+
+Chat follows the same escalation pattern as production: edge loop via `generateReply` first, then cloud-agent on model escalation.
+
+### Legacy mock-auth mode
+
+`EXPO_PUBLIC_USE_MOCK_AUTH=true` bypasses Firebase Auth. This **cannot** call production `generateReply` (the Firebase SDK has no real auth token). Prefer hybrid mode for edge-loop testing.
+
 ### Dev sandbox (`EXPO_PUBLIC_USE_MOCK_AUTH`)
 
 Mock auth bypasses Firebase login and returns a fake bootstrap snapshot. It does **not** bypass `generateReply` or enable client-side Gemini calls. Chat inference still goes through the Firebase callable (or staging functions when using hybrid mode).

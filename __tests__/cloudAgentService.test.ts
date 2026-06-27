@@ -48,7 +48,10 @@ describe('callCloudAgent', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockFetch.mockReset()
-    process.env = { ...OLD_ENV, EXPO_PUBLIC_CLOUD_AGENT_URL: 'http://10.0.0.1:8080' }
+    process.env = {
+      ...OLD_ENV,
+      EXPO_PUBLIC_CLOUD_AGENT_URL: 'https://clanker-cloud-agent.example.run.app',
+    }
   })
 
   afterEach(() => {
@@ -85,7 +88,7 @@ describe('callCloudAgent', () => {
     })
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://10.0.0.1:8080/agent/run',
+      'https://clanker-cloud-agent.example.run.app/agent/run',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
@@ -147,6 +150,28 @@ describe('callCloudAgent', () => {
     expect(result.usageSnapshot).toEqual({ remainingCredits: 42 })
   })
 
+  it('parses and forwards groundingMetadata from HTTP response', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        reply: 'Grounded reply',
+        toolCalls: [],
+        groundingMetadata: {
+          webSearchQueries: ['weather in Tokyo'],
+          groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+          searchEntryPoint: { renderedContent: '<div>suggestions</div>' },
+        },
+      }),
+    })
+    const { callCloudAgent } = loadWithMocks()
+    const result = await callCloudAgent({ message: 'hi', characterId: 'char-1' })
+    expect(result.groundingMetadata).toEqual({
+      webSearchQueries: ['weather in Tokyo'],
+      groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+      searchEntryPoint: { renderedContent: '<div>suggestions</div>' },
+    })
+  })
+
   it('returns usageSnapshot: null when usageSnapshot is absent from response', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
@@ -186,6 +211,25 @@ describe('callCloudAgent', () => {
     await expect(
       callCloudAgent({ message: 'hi', characterId: 'char-1' }),
     ).rejects.toThrow('Invalid Cloud Agent response')
+  })
+
+  describe('local Docker character routing', () => {
+    it('rewrites characterId to DEV_CLOUD_CHARACTER_ID for local cloud-agent URLs', async () => {
+      process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://192.168.1.80:8080'
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ reply: 'Local reply', toolCalls: [] }),
+      })
+      const { callCloudAgent } = loadWithMocks()
+
+      await callCloudAgent({
+        message: 'hi',
+        characterId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      })
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
+      expect(body.characterId).toBe('22222222-2222-4222-8222-222222222222')
+    })
   })
 
   describe('backward-compatible URL normalization', () => {
@@ -289,6 +333,63 @@ describe('callCloudAgent', () => {
     expect(onToken).toHaveBeenCalledWith('reply')
     expect(result.reply).toBe('WS reply')
     expect(result.usageSnapshot).toEqual({ remainingCredits: 5 })
+
+    ;(global as unknown as { WebSocket: typeof FailingWebSocket }).WebSocket = FailingWebSocket
+  })
+
+  it('forwards groundingMetadata from WebSocket grounding_metadata event', async () => {
+    const groundingMetadata = {
+      webSearchQueries: ['weather in Tokyo'],
+      groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+      searchEntryPoint: { renderedContent: '<div>suggestions</div>' },
+    }
+
+    class GroundingWebSocket {
+      static CONNECTING = 0
+      static OPEN = 1
+      readyState = GroundingWebSocket.CONNECTING
+      private listeners = new Map<string, Set<(ev: unknown) => void>>()
+
+      addEventListener(type: string, listener: (ev: unknown) => void) {
+        if (!this.listeners.has(type)) this.listeners.set(type, new Set())
+        this.listeners.get(type)!.add(listener)
+        if (type === 'open') {
+          queueMicrotask(() => {
+            listener(new Event('open'))
+            this.emit('message', {
+              data: JSON.stringify({ type: 'token', text: 'Grounded reply' }),
+            })
+            this.emit('message', {
+              data: JSON.stringify({ type: 'grounding_metadata', groundingMetadata }),
+            })
+            this.emit('message', {
+              data: JSON.stringify({ type: 'usage_snapshot', remainingCredits: 3 }),
+            })
+            this.emit('close', { type: 'close' })
+          })
+        }
+      }
+
+      removeEventListener(type: string, listener: (ev: unknown) => void) {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      private emit(type: string, ev: unknown) {
+        for (const listener of this.listeners.get(type) ?? []) listener(ev)
+      }
+
+      send() {}
+
+      close() {}
+    }
+
+    ;(global as unknown as { WebSocket: typeof GroundingWebSocket }).WebSocket = GroundingWebSocket
+    const { callCloudAgent } = loadWithMocks()
+    const result = await callCloudAgent({ message: 'What is the weather?', characterId: 'char-123' })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(result.reply).toBe('Grounded reply')
+    expect(result.groundingMetadata).toEqual(groundingMetadata)
 
     ;(global as unknown as { WebSocket: typeof FailingWebSocket }).WebSocket = FailingWebSocket
   })

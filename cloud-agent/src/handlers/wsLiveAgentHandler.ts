@@ -4,6 +4,7 @@ import admin from 'firebase-admin'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { GoogleGenAI } from '@google/genai'
+import type { GroundingMetadata } from '@google/genai'
 import type { DrizzleClient } from '../db/client.js'
 import { users, characters } from '../db/schema.js'
 import { embedText } from '../db/embeddings.js'
@@ -11,9 +12,10 @@ import { assembleSystemInstruction } from '../services/agentCore.js'
 import { buildLiveTools, resolveVoice } from '../services/liveToolAdapter.js'
 import { createCreditService } from '../services/creditService.js'
 import type { CreditService } from '../services/creditService.js'
+import { hasGroundingData } from '../groundingMetadata.js'
 
 type GeminiSession = {
-  sendRealtimeInput(input: { media: { data: string; mimeType: string } }): void
+  sendRealtimeInput(input: { audio: { data: string; mimeType: string } }): void
   sendToolResponse(response: {
     functionResponses: Array<{ id: string; name: string; response: { output: unknown } }>
   }): void
@@ -22,7 +24,7 @@ type GeminiSession = {
 
 type LiveConnectCfg = {
   model: string
-  callbacks: { onmessage: (msg: unknown) => void; onclose: () => void }
+  callbacks: { onmessage: (msg: unknown) => void; onclose: () => void; onerror?: (e: unknown) => void }
   config: unknown
 }
 
@@ -43,6 +45,10 @@ export interface WsLiveHandlerOptions {
 
 const AUTH_TIMEOUT_MS = 5000
 
+const isGeminiLiveDebug =
+  process.env.GEMINI_LIVE_DEBUG === 'true' ||
+  (!process.env.K_SERVICE && process.env.NODE_ENV !== 'production')
+
 async function defaultLiveConnect(cfg: LiveConnectCfg): Promise<GeminiSession> {
   const project = [
     process.env.GCLOUD_PROJECT,
@@ -50,7 +56,8 @@ async function defaultLiveConnect(cfg: LiveConnectCfg): Promise<GeminiSession> {
     process.env.GOOGLE_CLOUD_PROJECT,
   ].map((v) => v?.trim()).find((v): v is string => Boolean(v))
   if (!project) throw new Error('Missing GCP project env for Gemini Live')
-  const location = process.env.GOOGLE_CLOUD_LOCATION?.trim() || 'us-central1'
+  // Gemini Live is only available in us-central1; ignore GOOGLE_CLOUD_LOCATION (may be 'global')
+  const location = 'us-central1'
   const ai = new GoogleGenAI({ vertexai: true, project, location })
   return ai.live.connect(cfg as Parameters<typeof ai.live.connect>[0]) as Promise<GeminiSession>
 }
@@ -100,20 +107,31 @@ export async function handleLiveWsUpgrade(
   }, AUTH_TIMEOUT_MS)
 
   function handleGeminiMessage(msg: unknown): void {
+    if (msg === null || typeof msg !== 'object') {
+      console.warn('[gemini live] ignoring non-object message:', msg)
+      return
+    }
+    if (isGeminiLiveDebug) {
+      console.log('[gemini live] message keys:', Object.keys(msg))
+    }
     const m = msg as {
       serverContent?: {
-        modelTurn?: { parts?: Array<{ inlineData?: { data: string } }> }
+        modelTurn?: { parts?: Array<{ inlineData?: { data: string }; functionCall?: { id?: string; name?: string; args?: unknown } }> }
         outputTranscription?: { text?: string }
         inputTranscription?: { text?: string }
         interrupted?: boolean
+        groundingMetadata?: unknown
       }
       toolCall?: {
         functionCalls?: Array<{ id: string; name: string; args?: unknown }>
       }
+      goAway?: { timeLeft?: string }
+      setupComplete?: unknown
     }
 
     if (m.serverContent) {
       const sc = m.serverContent
+      const inlineFunctionCalls: Array<{ id: string; name: string; args?: unknown }> = []
       if (sc.modelTurn?.parts) {
         for (const part of sc.modelTurn.parts) {
           if (part.inlineData?.data) {
@@ -121,7 +139,25 @@ export async function handleLiveWsUpgrade(
               ws.send(JSON.stringify({ type: 'audio_output', data: part.inlineData.data }))
             } catch { /* ignore */ }
           }
+          if (part.functionCall?.name) {
+            const callId = part.functionCall.id
+            if (!callId) {
+              console.warn(
+                '[live tools] skipping inline functionCall without id:',
+                part.functionCall.name,
+              )
+            } else {
+              inlineFunctionCalls.push({
+                id: callId,
+                name: part.functionCall.name,
+                args: part.functionCall.args,
+              })
+            }
+          }
         }
+      }
+      if (inlineFunctionCalls.length > 0) {
+        void handleToolCalls(inlineFunctionCalls)
       }
       if (sc.outputTranscription?.text) {
         try {
@@ -136,14 +172,37 @@ export async function handleLiveWsUpgrade(
       if (sc.interrupted) {
         try { ws.send(JSON.stringify({ type: 'audio_interrupted' })) } catch { /* ignore */ }
       }
+      if (hasGroundingData(sc.groundingMetadata as GroundingMetadata | undefined)) {
+        try {
+          ws.send(JSON.stringify({
+            type: 'grounding_metadata',
+            groundingMetadata: sc.groundingMetadata,
+          }))
+        } catch { /* ignore */ }
+      }
     }
 
     if (m.toolCall?.functionCalls?.length) {
       void handleToolCalls(m.toolCall.functionCalls)
     }
+
+    if ((m as { error?: unknown }).error) {
+      console.error('[gemini live] error field in message:', (m as { error?: unknown }).error)
+    }
+
+    if (m.goAway) {
+      console.error('[gemini live] goAway received:', m.goAway)
+    }
+
+    if (m.setupComplete !== undefined) {
+      if (isGeminiLiveDebug) {
+        console.log('[gemini live] setupComplete received')
+      }
+    }
   }
 
-  function handleGeminiClose(): void {
+  function handleGeminiClose(e?: { code?: number; reason?: string }): void {
+    console.error('[gemini live] connection closed', { code: e?.code, reason: e?.reason })
     try {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
@@ -239,8 +298,12 @@ export async function handleLiveWsUpgrade(
 
       try {
         geminiSession = await liveConnect({
-          model: 'gemini-2.5-flash-preview-native-audio-dialog',
-          callbacks: { onmessage: handleGeminiMessage, onclose: handleGeminiClose },
+          model: 'gemini-live-2.5-flash-native-audio',
+          callbacks: {
+            onmessage: handleGeminiMessage,
+            onclose: handleGeminiClose,
+            onerror: (e: unknown) => { console.error('[gemini live] error event:', e) },
+          },
           config: {
             systemInstruction,
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
@@ -306,7 +369,7 @@ export async function handleLiveWsUpgrade(
         case 'audio_input':
           if (payload.data && geminiSession) {
             geminiSession.sendRealtimeInput({
-              media: { data: payload.data, mimeType: 'audio/pcm;rate=16000' },
+              audio: { data: payload.data, mimeType: 'audio/pcm;rate=16000' },
             })
           }
           break

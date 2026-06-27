@@ -1,13 +1,20 @@
+jest.mock('~/database/characterDatabase', () => ({
+  getCharacter: jest.fn(),
+}))
 jest.mock('~/services/wikiService', () => ({
   getWiki: jest.fn(),
 }))
 jest.mock('~/services/apiClient', () => ({
   wikiSync: jest.fn(),
 }))
-jest.mock('~/database/messageDatabase', () => ({
-  saveAIMessage: jest.fn(),
-  sendMessage: jest.fn(),
-}))
+jest.mock('~/database/messageDatabase', () => {
+  const actual = jest.requireActual<typeof import('~/database/messageDatabase')>('~/database/messageDatabase')
+  return {
+    ...actual,
+    saveAIMessage: jest.fn(),
+    sendMessage: jest.fn(),
+  }
+})
 jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(),
 }))
@@ -32,15 +39,26 @@ beforeAll(() => {
 
 import { createActor, waitFor } from 'xstate'
 import { liveVoiceMachine } from '~/machines/liveVoiceMachine'
+import { getCharacter } from '~/database/characterDatabase'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import { getCurrentUser } from '~/config/firebaseConfig'
 
 const WAIT = { timeout: 3000 }
+const CLOUD_CHAR_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+
+function makeCharacterMock(cloudId = CLOUD_CHAR_ID) {
+  return { cloud_id: cloudId }
+}
 
 function makeWikiMock() {
   return {
-    exportDump: jest.fn().mockResolvedValue({ generatedAt: 0, entities: {} }),
+    exportDump: jest.fn().mockResolvedValue({
+      generatedAt: 0,
+      entities: {
+        char1: { facts: [], tasks: [], events: [], edges: [] },
+      },
+    }),
     importDump: jest.fn().mockResolvedValue(undefined),
   }
 }
@@ -60,6 +78,7 @@ describe('liveVoiceMachine', () => {
 
   beforeEach(() => {
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+    jest.mocked(getCharacter).mockResolvedValue(makeCharacterMock() as never)
   })
 
   afterEach(() => {
@@ -90,7 +109,16 @@ describe('liveVoiceMachine', () => {
   test('START_CALL → syncing_memory and calls wiki.exportDump + wikiSync', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
@@ -117,7 +145,16 @@ describe('liveVoiceMachine', () => {
   test('TRANSCRIPT_TOKEN same role concatenates text', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
@@ -134,7 +171,16 @@ describe('liveVoiceMachine', () => {
   test('TRANSCRIPT_TOKEN role switch creates new message', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
@@ -152,7 +198,16 @@ describe('liveVoiceMachine', () => {
   test('TOOL_START sets activeTool, TOOL_END clears it', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
@@ -168,7 +223,16 @@ describe('liveVoiceMachine', () => {
   test('USAGE_SNAPSHOT updates remainingCredits', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn({ initialCredits: 10 })
@@ -181,7 +245,16 @@ describe('liveVoiceMachine', () => {
   test('USAGE_SNAPSHOT with 0 credits → saving_to_db', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
@@ -203,10 +276,160 @@ describe('liveVoiceMachine', () => {
     expect(actor.getSnapshot().context.remainingCredits).toBe(0)
   })
 
+  test('GROUNDING_METADATA attaches to the last model transcript message', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const googleHtml = '<style>.gs-chip{color:#1a73e8}</style><div>Suggestions</div>'
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'It is sunny today.' })
+    actor.send({
+      type: 'GROUNDING_METADATA',
+      groundingMetadata: {
+        searchEntryPoint: { renderedContent: googleHtml },
+        groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+      },
+    })
+
+    const { transcript } = actor.getSnapshot().context
+    expect(transcript).toHaveLength(1)
+    expect(transcript[0].text).toBe('It is sunny today.')
+    expect(
+      (transcript[0] as { groundingMetadata?: { searchEntryPoint?: { renderedContent?: string } } })
+        .groundingMetadata?.searchEntryPoint?.renderedContent,
+    ).toBe(googleHtml)
+  })
+
+  test('END_CALL persists groundingMetadata on saved AI messages', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    saveAIMessage.mockResolvedValue(undefined)
+
+    const googleHtml = '<div>Suggestions</div>'
+    const groundingMetadata = {
+      searchEntryPoint: { renderedContent: googleHtml },
+      groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+    }
+
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'Here is what I found.' })
+    actor.send({ type: 'GROUNDING_METADATA', groundingMetadata })
+    actor.send({ type: 'END_CALL' })
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT)
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(saveAIMessage).toHaveBeenCalledWith(
+      'char1',
+      'user1',
+      'Here is what I found.',
+      expect.any(String),
+      expect.objectContaining({
+        groundingMetadata,
+      }),
+      expect.any(Number),
+    )
+  })
+
+  test('END_CALL saves transcript turns in order with original timestamps', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const saveOrder: string[] = []
+    const { saveAIMessage, sendMessage } = jest.requireMock('~/database/messageDatabase') as {
+      saveAIMessage: jest.Mock
+      sendMessage: jest.Mock
+    }
+    sendMessage.mockImplementation(async () => {
+      saveOrder.push('user')
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+    saveAIMessage.mockImplementation(async () => {
+      saveOrder.push('ai')
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'user', text: 'First question' })
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'First answer' })
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'user', text: 'Second question' })
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'Second answer' })
+    actor.send({ type: 'END_CALL' })
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT)
+
+    expect(saveOrder).toEqual(['user', 'ai', 'user', 'ai'])
+    expect(sendMessage).toHaveBeenCalledWith(
+      'char1',
+      'user1',
+      'First question',
+      expect.any(String),
+      expect.objectContaining({ createdAt: expect.any(Date) }),
+    )
+    expect(saveAIMessage).toHaveBeenLastCalledWith(
+      'char1',
+      'user1',
+      'Second answer',
+      expect.any(String),
+      expect.objectContaining({ createdAt: expect.any(Date) }),
+      expect.any(Number),
+    )
+  })
+
   test('END_CALL → saving_to_db → idle, calls saveAIMessage for model turns', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
@@ -231,10 +454,133 @@ describe('liveVoiceMachine', () => {
     expect(actor.getSnapshot().context.transcript).toHaveLength(0)
   })
 
+  test('END_CALL clears groundingMetadata so citations do not leak into the next session', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    saveAIMessage.mockResolvedValue(undefined)
+
+    const googleHtml = '<style>.gs-chip{color:#1a73e8}</style><div>Suggestions</div>'
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({
+      type: 'GROUNDING_METADATA',
+      groundingMetadata: { searchEntryPoint: { renderedContent: googleHtml } },
+    })
+    expect(actor.getSnapshot().context.groundingMetadata?.searchEntryPoint?.renderedContent).toBe(googleHtml)
+
+    actor.send({ type: 'END_CALL' })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT)
+
+    expect(actor.getSnapshot().context.groundingMetadata).toBeNull()
+  })
+
+  test('saveTranscript partial failure still persists remaining messages and clears context', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const { saveAIMessage, sendMessage } = jest.requireMock('~/database/messageDatabase') as {
+      saveAIMessage: jest.Mock
+      sendMessage: jest.Mock
+    }
+    sendMessage.mockRejectedValueOnce(new Error('user save failed'))
+    saveAIMessage.mockResolvedValue(undefined)
+
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'user', text: 'Question' })
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'Answer' })
+    actor.send({ type: 'END_CALL' })
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT)
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    expect(saveAIMessage).toHaveBeenCalledTimes(1)
+    expect(warnSpy).toHaveBeenCalledWith(
+      'saveTranscriptActor: failed to persist message',
+      expect.objectContaining({ characterId: 'char1', isAI: false }),
+    )
+    warnSpy.mockRestore()
+  })
+
+  test('saveTranscript failure → idle clears transcript, groundingMetadata, and socketError', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    saveAIMessage.mockRejectedValue(new Error('save failed'))
+
+    const googleHtml = '<style>.gs-chip{color:#1a73e8}</style><div>Suggestions</div>'
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'Hello!' })
+    actor.send({
+      type: 'GROUNDING_METADATA',
+      groundingMetadata: { searchEntryPoint: { renderedContent: googleHtml } },
+    })
+    actor.send({ type: 'END_CALL' })
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT)
+    await new Promise((r) => setTimeout(r, 50))
+
+    const ctx = actor.getSnapshot().context
+    expect(ctx.transcript).toHaveLength(0)
+    expect(ctx.groundingMetadata).toBeNull()
+    expect(ctx.socketError).toBeNull()
+  })
+
   test('SOCKET_ERROR → error state with message', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
@@ -249,7 +595,16 @@ describe('liveVoiceMachine', () => {
   test('RETRY from error → syncing_memory → session.connecting, increments retryCount', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
-    jest.mocked(wikiSync).mockResolvedValue({ data: { remoteDump: { generatedAt: 0, entities: {} } } } as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
     const actor = spawn()
