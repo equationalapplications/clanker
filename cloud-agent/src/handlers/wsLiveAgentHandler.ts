@@ -13,7 +13,7 @@ import { createCreditService } from '../services/creditService.js'
 import type { CreditService } from '../services/creditService.js'
 
 type GeminiSession = {
-  sendRealtimeInput(input: { media: { data: string; mimeType: string } }): void
+  sendRealtimeInput(input: { audio: { data: string; mimeType: string } }): void
   sendToolResponse(response: {
     functionResponses: Array<{ id: string; name: string; response: { output: unknown } }>
   }): void
@@ -22,7 +22,7 @@ type GeminiSession = {
 
 type LiveConnectCfg = {
   model: string
-  callbacks: { onmessage: (msg: unknown) => void; onclose: () => void }
+  callbacks: { onmessage: (msg: unknown) => void; onclose: () => void; onerror?: (e: unknown) => void }
   config: unknown
 }
 
@@ -50,7 +50,8 @@ async function defaultLiveConnect(cfg: LiveConnectCfg): Promise<GeminiSession> {
     process.env.GOOGLE_CLOUD_PROJECT,
   ].map((v) => v?.trim()).find((v): v is string => Boolean(v))
   if (!project) throw new Error('Missing GCP project env for Gemini Live')
-  const location = process.env.GOOGLE_CLOUD_LOCATION?.trim() || 'us-central1'
+  // Gemini Live is only available in us-central1; ignore GOOGLE_CLOUD_LOCATION (may be 'global')
+  const location = 'us-central1'
   const ai = new GoogleGenAI({ vertexai: true, project, location })
   return ai.live.connect(cfg as Parameters<typeof ai.live.connect>[0]) as Promise<GeminiSession>
 }
@@ -100,6 +101,11 @@ export async function handleLiveWsUpgrade(
   }, AUTH_TIMEOUT_MS)
 
   function handleGeminiMessage(msg: unknown): void {
+    if (msg === null || typeof msg !== 'object') {
+      console.warn('[gemini live] ignoring non-object message:', msg)
+      return
+    }
+    console.log('[gemini live] message keys:', Object.keys(msg))
     const m = msg as {
       serverContent?: {
         modelTurn?: { parts?: Array<{ inlineData?: { data: string } }> }
@@ -110,6 +116,8 @@ export async function handleLiveWsUpgrade(
       toolCall?: {
         functionCalls?: Array<{ id: string; name: string; args?: unknown }>
       }
+      goAway?: { timeLeft?: string }
+      setupComplete?: unknown
     }
 
     if (m.serverContent) {
@@ -141,9 +149,22 @@ export async function handleLiveWsUpgrade(
     if (m.toolCall?.functionCalls?.length) {
       void handleToolCalls(m.toolCall.functionCalls)
     }
+
+    if ((m as { error?: unknown }).error) {
+      console.error('[gemini live] error field in message:', (m as { error?: unknown }).error)
+    }
+
+    if (m.goAway) {
+      console.error('[gemini live] goAway received:', m.goAway)
+    }
+
+    if (m.setupComplete !== undefined) {
+      console.log('[gemini live] setupComplete received')
+    }
   }
 
-  function handleGeminiClose(): void {
+  function handleGeminiClose(e?: { code?: number; reason?: string }): void {
+    console.error('[gemini live] connection closed', { code: e?.code, reason: e?.reason })
     try {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
@@ -239,12 +260,16 @@ export async function handleLiveWsUpgrade(
 
       try {
         geminiSession = await liveConnect({
-          model: 'gemini-2.5-flash-preview-native-audio-dialog',
-          callbacks: { onmessage: handleGeminiMessage, onclose: handleGeminiClose },
+          model: 'gemini-live-2.5-flash-native-audio',
+          callbacks: {
+            onmessage: handleGeminiMessage,
+            onclose: handleGeminiClose,
+            onerror: (e: unknown) => { console.error('[gemini live] error event:', e) },
+          },
           config: {
             systemInstruction,
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
-            tools: [{ functionDeclarations: declarations }, { googleSearch: {} }],
+            tools: [{ functionDeclarations: declarations }],
             responseModalities: ['AUDIO'],
             inputAudioTranscription: {},
             outputAudioTranscription: {},
@@ -306,7 +331,7 @@ export async function handleLiveWsUpgrade(
         case 'audio_input':
           if (payload.data && geminiSession) {
             geminiSession.sendRealtimeInput({
-              media: { data: payload.data, mimeType: 'audio/pcm;rate=16000' },
+              audio: { data: payload.data, mimeType: 'audio/pcm;rate=16000' },
             })
           }
           break

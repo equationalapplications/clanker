@@ -121,6 +121,67 @@ test('accepts valid auth token and streams agent reply', async () => {
   await close()
 })
 
+test('streams grounding_metadata before usage_snapshot when mock grounding is provided', async () => {
+  const groundingMetadata = {
+    webSearchQueries: ['weather in Tokyo'],
+    groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+    searchEntryPoint: { renderedContent: '<div>suggestions</div>' },
+  }
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const { server, close } = createTestWsServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'firebase-uid' }),
+    mockStreamReply: 'Hello from WebSocket',
+    mockGroundingMetadata: groundingMetadata,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    let reply = ''
+    let sawGrounding = false
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid-token' }))
+      ws.send(JSON.stringify({
+        type: 'agent_run',
+        message: 'hello',
+        characterId: CHAR_UUID,
+      }))
+    })
+
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as {
+        type: string
+        text?: string
+        groundingMetadata?: typeof groundingMetadata
+      }
+      if (msg.type === 'token' && msg.text) reply += msg.text
+      if (msg.type === 'grounding_metadata') {
+        sawGrounding = true
+        assert.deepEqual(msg.groundingMetadata, groundingMetadata)
+      }
+      if (msg.type === 'usage_snapshot') {
+        clearTimeout(timeout)
+        assert.equal(reply, 'Hello from WebSocket')
+        assert.equal(sawGrounding, true)
+        ws.close()
+      }
+    })
+
+    ws.on('close', () => {
+      clearTimeout(timeout)
+      resolve()
+    })
+
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
 test('rejects invalid token with 4001 close code', async () => {
   const db = makeMockDb()
   const { server, close } = createTestWsServer({

@@ -111,6 +111,7 @@ async function runViaWebSocket(
     const ws = new WebSocket(wsUrl)
     let reply = ''
     const toolCalls: string[] = []
+    let groundingMetadata: GroundingMetadata | undefined
     let usageSnapshot: { remainingCredits: number } | null = null
     let settled = false
     let authTimeout: ReturnType<typeof setTimeout>
@@ -138,7 +139,7 @@ async function runViaWebSocket(
           reject(new Error('WebSocket closed before receiving usage_snapshot'))
           return
         }
-        resolve({ reply, toolCalls, usageSnapshot })
+        resolve({ reply, toolCalls, usageSnapshot, groundingMetadata })
       })
     }
 
@@ -184,6 +185,13 @@ async function runViaWebSocket(
         } else if (msg.type === 'token' && msg.text) {
           reply += msg.text
           callbacks?.onToken?.(msg.text)
+        } else if (msg.type === 'grounding_metadata') {
+          const parsed = parseGroundingMetadata(
+            (msg as { groundingMetadata?: unknown }).groundingMetadata,
+          )
+          if (parsed) {
+            groundingMetadata = parsed
+          }
         } else if (msg.type === 'usage_snapshot') {
           const remaining = msg.remainingCredits
           usageSnapshot =

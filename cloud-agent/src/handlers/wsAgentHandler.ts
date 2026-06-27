@@ -4,7 +4,8 @@ import admin from 'firebase-admin'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
-import type { Content } from '@google/genai'
+import type { Content, GroundingMetadata } from '@google/genai'
+import { hasGroundingData } from '../groundingMetadata.js'
 import type { DrizzleClient } from '../db/client.js'
 import { users, characters } from '../db/schema.js'
 import { embedText } from '../db/embeddings.js'
@@ -33,6 +34,8 @@ export interface WsHandlerOptions {
   verifyToken?: (token: string) => Promise<{ uid: string }>
   /** Test hook: bypass ADK and stream canned events */
   mockStreamReply?: string
+  /** Test hook: grounding payload emitted with mockStreamReply */
+  mockGroundingMetadata?: GroundingMetadata
 }
 
 const AUTH_TIMEOUT_MS = 5000
@@ -142,6 +145,12 @@ export async function handleWsUpgrade(
 
       if (options.mockStreamReply !== undefined) {
         ws.send(JSON.stringify({ type: 'token', text: options.mockStreamReply }))
+        if (options.mockGroundingMetadata && hasGroundingData(options.mockGroundingMetadata)) {
+          ws.send(JSON.stringify({
+            type: 'grounding_metadata',
+            groundingMetadata: options.mockGroundingMetadata,
+          }))
+        }
         let newBalance: number | null = null
         try {
           newBalance = await cs.getBalance(userId)
@@ -204,6 +213,7 @@ export async function handleWsUpgrade(
         })
 
         let lastToolName: string | null = null
+        let groundingMetadata: GroundingMetadata | undefined
 
         for await (const event of events) {
           if (abortController.signal.aborted) {
@@ -211,6 +221,10 @@ export async function handleWsUpgrade(
           }
           if (event.errorCode || event.errorMessage) {
             throw new Error(`ADK error (${event.errorCode}): ${event.errorMessage}`)
+          }
+
+          if (hasGroundingData(event.groundingMetadata)) {
+            groundingMetadata = event.groundingMetadata
           }
 
           if (event.content?.parts) {
@@ -244,6 +258,13 @@ export async function handleWsUpgrade(
           if (isFinalResponse(event)) {
             break
           }
+        }
+
+        if (groundingMetadata) {
+          ws.send(JSON.stringify({
+            type: 'grounding_metadata',
+            groundingMetadata,
+          }))
         }
 
         let newBalance: number | null = null
