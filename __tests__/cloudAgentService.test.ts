@@ -48,7 +48,10 @@ describe('callCloudAgent', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockFetch.mockReset()
-    process.env = { ...OLD_ENV, EXPO_PUBLIC_CLOUD_AGENT_URL: 'http://10.0.0.1:8080' }
+    process.env = {
+      ...OLD_ENV,
+      EXPO_PUBLIC_CLOUD_AGENT_URL: 'https://clanker-cloud-agent.example.run.app',
+    }
   })
 
   afterEach(() => {
@@ -85,7 +88,7 @@ describe('callCloudAgent', () => {
     })
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://10.0.0.1:8080/agent/run',
+      'https://clanker-cloud-agent.example.run.app/agent/run',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
@@ -208,6 +211,25 @@ describe('callCloudAgent', () => {
     await expect(
       callCloudAgent({ message: 'hi', characterId: 'char-1' }),
     ).rejects.toThrow('Invalid Cloud Agent response')
+  })
+
+  describe('local Docker character routing', () => {
+    it('rewrites characterId to DEV_CLOUD_CHARACTER_ID for local cloud-agent URLs', async () => {
+      process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://192.168.1.80:8080'
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ reply: 'Local reply', toolCalls: [] }),
+      })
+      const { callCloudAgent } = loadWithMocks()
+
+      await callCloudAgent({
+        message: 'hi',
+        characterId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      })
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
+      expect(body.characterId).toBe('22222222-2222-4222-8222-222222222222')
+    })
   })
 
   describe('backward-compatible URL normalization', () => {

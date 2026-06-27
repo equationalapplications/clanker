@@ -4,6 +4,10 @@ import type { IngestArgs, ForgetArgs } from '~/machines/wikiMachine'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import { wikiSync } from '~/services/apiClient'
 import type { WikiSyncBundle } from '~/services/apiClient'
+import {
+  mapFactSourceTypesForCloudSync,
+  mapFactSourceTypesFromCloud,
+} from '~/services/wikiSourceType'
 import { reportError } from '~/utilities/reportError'
 
 type CharacterWikiOperation = 'reading' | 'writing' | 'ingesting' | 'forgetting' | 'syncing'
@@ -195,7 +199,9 @@ export function useCharacterWiki(entityId: string) {
               generatedAt: localDump.generatedAt,
               entities: {
                 [cloudEntityId]: {
-                  facts: localBundle.facts.map((f) => ({ ...f, entity_id: cloudEntityId })),
+                  facts: mapFactSourceTypesForCloudSync(
+                    localBundle.facts.map((f) => ({ ...f, entity_id: cloudEntityId })),
+                  ),
                   tasks: localBundle.tasks.map((t) => ({ ...t, entity_id: cloudEntityId })),
                   events: localBundle.events.map((e) => ({ ...e, entity_id: cloudEntityId })),
                   edges: localBundle.edges?.map((e) => ({ ...e, entity_id: cloudEntityId })) ?? [],
@@ -226,7 +232,7 @@ export function useCharacterWiki(entityId: string) {
               generatedAt: remoteDump.generatedAt,
               entities: {
                 [entityId]: {
-                  facts: cloudBundle.facts,
+                  facts: mapFactSourceTypesFromCloud(cloudBundle.facts),
                   tasks: cloudBundle.tasks,
                   events: cloudBundle.events,
                   edges: cloudBundle.edges?.map((e) => ({ ...e, entity_id: entityId })) ?? [],
