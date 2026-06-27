@@ -8,8 +8,36 @@ import { saveAIMessage, sendMessage } from '~/database/messageDatabase'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { getCharacter } from '~/database/characterDatabase'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
+import type { GroundedIMessage } from '~/services/aiChatService'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function attachGroundingToTranscript(
+  transcript: IMessage[],
+  characterId: string,
+  grounding: GroundingMetadata,
+): GroundedIMessage[] {
+  const next = [...transcript] as GroundedIMessage[]
+  let lastModelIdx = -1
+  for (let i = next.length - 1; i >= 0; i--) {
+    if (next[i]!.user._id === characterId) {
+      lastModelIdx = i
+      break
+    }
+  }
+  if (lastModelIdx >= 0) {
+    next[lastModelIdx] = { ...next[lastModelIdx]!, groundingMetadata: grounding }
+  } else {
+    next.push({
+      _id: `live_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      text: '',
+      createdAt: new Date(),
+      user: { _id: characterId },
+      groundingMetadata: grounding,
+    })
+  }
+  return next
+}
 
 function getLiveWsUrl(): string {
   const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
@@ -178,6 +206,12 @@ export const liveVoiceMachine = createMachine(
                     if (event.type !== 'GROUNDING_METADATA') return null
                     return parseGroundingMetadata(event.groundingMetadata) ?? null
                   },
+                  transcript: ({ context, event }) => {
+                    if (event.type !== 'GROUNDING_METADATA') return context.transcript
+                    const parsed = parseGroundingMetadata(event.groundingMetadata)
+                    if (!parsed) return context.transcript
+                    return attachGroundingToTranscript(context.transcript, context.characterId, parsed)
+                  },
                 }),
               },
               USAGE_SNAPSHOT: [
@@ -276,6 +310,15 @@ export const liveVoiceMachine = createMachine(
               user: { _id: msgUserId },
             },
           ]
+        },
+        groundingMetadata: ({ context, event }) => {
+          if (event.type !== 'TRANSCRIPT_TOKEN') return context.groundingMetadata
+          const msgUserId = event.role === 'user' ? context.userId : context.characterId
+          const last = context.transcript[context.transcript.length - 1]
+          if (!last || last.user._id !== msgUserId) {
+            return null
+          }
+          return context.groundingMetadata
         },
       }),
       // Injected by controller hook - these are no-ops in the machine definition
@@ -411,13 +454,21 @@ export const liveVoiceMachine = createMachine(
           for (const msg of transcript) {
             const isAI = msg.user._id !== userId
             if (isAI) {
+              const grounded = msg as GroundedIMessage
+              const additionalData: Partial<GroundedIMessage> = {
+                user: msg.user,
+                createdAt: msg.createdAt,
+              }
+              if (grounded.groundingMetadata) {
+                additionalData.groundingMetadata = grounded.groundingMetadata
+              }
               // Fire-and-forget: do not await, component may be unmounted
               void saveAIMessage(
                 characterId,
                 userId,
                 msg.text,
                 String(msg._id),
-                { user: msg.user, createdAt: msg.createdAt },
+                additionalData,
                 Date.now(),
               ).catch((err: unknown) => {
                 console.error('[saveTranscriptActor] saveAIMessage failed', err)

@@ -272,6 +272,89 @@ describe('liveVoiceMachine', () => {
     expect(actor.getSnapshot().context.remainingCredits).toBe(0)
   })
 
+  test('GROUNDING_METADATA attaches to the last model transcript message', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const googleHtml = '<style>.gs-chip{color:#1a73e8}</style><div>Suggestions</div>'
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'It is sunny today.' })
+    actor.send({
+      type: 'GROUNDING_METADATA',
+      groundingMetadata: {
+        searchEntryPoint: { renderedContent: googleHtml },
+        groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+      },
+    })
+
+    const { transcript } = actor.getSnapshot().context
+    expect(transcript).toHaveLength(1)
+    expect(transcript[0].text).toBe('It is sunny today.')
+    expect(
+      (transcript[0] as { groundingMetadata?: { searchEntryPoint?: { renderedContent?: string } } })
+        .groundingMetadata?.searchEntryPoint?.renderedContent,
+    ).toBe(googleHtml)
+  })
+
+  test('END_CALL persists groundingMetadata on saved AI messages', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    saveAIMessage.mockResolvedValue(undefined)
+
+    const googleHtml = '<div>Suggestions</div>'
+    const groundingMetadata = {
+      searchEntryPoint: { renderedContent: googleHtml },
+      groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+    }
+
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'Here is what I found.' })
+    actor.send({ type: 'GROUNDING_METADATA', groundingMetadata })
+    actor.send({ type: 'END_CALL' })
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT)
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(saveAIMessage).toHaveBeenCalledWith(
+      'char1',
+      'user1',
+      'Here is what I found.',
+      expect.any(String),
+      expect.objectContaining({
+        groundingMetadata,
+      }),
+      expect.any(Number),
+    )
+  })
+
   test('END_CALL → saving_to_db → idle, calls saveAIMessage for model turns', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
