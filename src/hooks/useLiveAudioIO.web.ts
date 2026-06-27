@@ -135,8 +135,8 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
         return false
       }
 
-      // sampleRate is a hint only — size chunks from the context's actual rate so each
-      // post is always ~20ms of captured audio regardless of device rate.
+      // Size chunks from the context's actual sample rate so each post is ~20ms.
+      // (We currently require the context to honor TARGET_SAMPLE_RATE above.)
       const chunkSize = Math.round(audioCtx.sampleRate * CHUNK_DURATION_SEC)
 
       const blobUrl = URL.createObjectURL(
