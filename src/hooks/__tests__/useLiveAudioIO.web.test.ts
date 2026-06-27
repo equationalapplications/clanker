@@ -26,6 +26,7 @@ let mockWorkletNode: {
 
 let mockCtx: {
   state: AudioContextState
+  sampleRate: number
   currentTime: number
   destination: Record<string, never>
   audioWorklet: { addModule: jest.Mock }
@@ -51,6 +52,7 @@ beforeEach(() => {
 
   mockCtx = {
     state: 'running',
+    sampleRate: 16000,
     currentTime: 0,
     destination: {},
     audioWorklet: { addModule: jest.fn().mockResolvedValue(undefined) },
@@ -417,6 +419,20 @@ describe('error handling', () => {
     expect(started).toBe(false)
     expect(result.current.recordingState).toBe('error')
     expect(result.current.error).toBe('Microphone access requires a secure connection (HTTPS).')
+  })
+
+  it('sets error and returns false when AudioContext sampleRate is not 16kHz', async () => {
+    mockCtx.sampleRate = 48000
+
+    const { result } = renderHook(() => useLiveAudioIO())
+    let started: boolean | undefined
+    await act(async () => { started = await result.current.startRecording() })
+
+    expect(started).toBe(false)
+    expect(result.current.recordingState).toBe('error')
+    expect(result.current.error).toBe(
+      'Browser did not honor 16000Hz AudioContext sampleRate (got 48000Hz).',
+    )
   })
 
   it('sets error and returns false when AudioWorklet is not supported', async () => {
