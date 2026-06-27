@@ -7,10 +7,14 @@ jest.mock('~/services/wikiService', () => ({
 jest.mock('~/services/apiClient', () => ({
   wikiSync: jest.fn(),
 }))
-jest.mock('~/database/messageDatabase', () => ({
-  saveAIMessage: jest.fn(),
-  sendMessage: jest.fn(),
-}))
+jest.mock('~/database/messageDatabase', () => {
+  const actual = jest.requireActual<typeof import('~/database/messageDatabase')>('~/database/messageDatabase')
+  return {
+    ...actual,
+    saveAIMessage: jest.fn(),
+    sendMessage: jest.fn(),
+  }
+})
 jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(),
 }))
@@ -351,6 +355,64 @@ describe('liveVoiceMachine', () => {
       expect.objectContaining({
         groundingMetadata,
       }),
+      expect.any(Number),
+    )
+  })
+
+  test('END_CALL saves transcript turns in order with original timestamps', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const saveOrder: string[] = []
+    const { saveAIMessage, sendMessage } = jest.requireMock('~/database/messageDatabase') as {
+      saveAIMessage: jest.Mock
+      sendMessage: jest.Mock
+    }
+    sendMessage.mockImplementation(async () => {
+      saveOrder.push('user')
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+    saveAIMessage.mockImplementation(async () => {
+      saveOrder.push('ai')
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'user', text: 'First question' })
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'First answer' })
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'user', text: 'Second question' })
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'Second answer' })
+    actor.send({ type: 'END_CALL' })
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT)
+
+    expect(saveOrder).toEqual(['user', 'ai', 'user', 'ai'])
+    expect(sendMessage).toHaveBeenCalledWith(
+      'char1',
+      'user1',
+      'First question',
+      expect.any(String),
+      expect.objectContaining({ createdAt: expect.any(Date) }),
+    )
+    expect(saveAIMessage).toHaveBeenLastCalledWith(
+      'char1',
+      'user1',
+      'Second answer',
+      expect.any(String),
+      expect.objectContaining({ createdAt: expect.any(Date) }),
       expect.any(Number),
     )
   })

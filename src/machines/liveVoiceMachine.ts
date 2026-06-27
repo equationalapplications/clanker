@@ -4,7 +4,7 @@ import type { GroundingMetadata } from '@google/genai'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import type { WikiSyncDump } from '~/services/apiClient'
-import { saveAIMessage, sendMessage } from '~/database/messageDatabase'
+import { saveAIMessage, sendMessage, resolveCreatedAtMs } from '~/database/messageDatabase'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { getCharacter } from '~/database/characterDatabase'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
@@ -451,32 +451,36 @@ export const liveVoiceMachine = createMachine(
           input: { characterId: string; userId: string; transcript: IMessage[] }
         }) => {
           const { characterId, userId, transcript } = input
-          for (const msg of transcript) {
+          for (let i = 0; i < transcript.length; i++) {
+            const msg = transcript[i]!
             const isAI = msg.user._id !== userId
-            if (isAI) {
-              const grounded = msg as GroundedIMessage
-              const additionalData: Partial<GroundedIMessage> = {
-                user: msg.user,
-                createdAt: msg.createdAt,
+            const createdAt = new Date(resolveCreatedAtMs({ createdAt: msg.createdAt }) + i)
+            const additionalData: Partial<GroundedIMessage> = {
+              user: msg.user,
+              createdAt,
+            }
+            try {
+              if (isAI) {
+                const grounded = msg as GroundedIMessage
+                if (grounded.groundingMetadata) {
+                  additionalData.groundingMetadata = grounded.groundingMetadata
+                }
+                await saveAIMessage(
+                  characterId,
+                  userId,
+                  msg.text,
+                  String(msg._id),
+                  additionalData,
+                  Date.now(),
+                )
+              } else {
+                await sendMessage(characterId, userId, msg.text, String(msg._id), additionalData)
               }
-              if (grounded.groundingMetadata) {
-                additionalData.groundingMetadata = grounded.groundingMetadata
-              }
-              // Fire-and-forget: do not await, component may be unmounted
-              void saveAIMessage(
-                characterId,
-                userId,
-                msg.text,
-                String(msg._id),
-                additionalData,
-                Date.now(),
-              ).catch((err: unknown) => {
-                console.error('[saveTranscriptActor] saveAIMessage failed', err)
-              })
-            } else {
-              void sendMessage(characterId, userId, msg.text, String(msg._id)).catch((err: unknown) => {
-                console.error('[saveTranscriptActor] sendMessage failed', err)
-              })
+            } catch (err: unknown) {
+              console.error(
+                `[saveTranscriptActor] ${isAI ? 'saveAIMessage' : 'sendMessage'} failed`,
+                err,
+              )
             }
           }
         },
