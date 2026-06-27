@@ -32,14 +32,6 @@ function attachGroundingToTranscript(
   }
   if (lastModelIdx >= 0) {
     next[lastModelIdx] = { ...next[lastModelIdx]!, groundingMetadata: grounding }
-  } else {
-    next.push({
-      _id: `live_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      text: '',
-      createdAt: new Date(),
-      user: { _id: characterId },
-      groundingMetadata: grounding,
-    })
   }
   return next
 }
