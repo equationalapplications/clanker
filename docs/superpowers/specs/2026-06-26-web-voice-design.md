@@ -78,8 +78,7 @@ const audioCtx = new AudioContext({ sampleRate: 16000 })
 
 Created lazily inside `startRecording()` — browsers require a user gesture before `AudioContext` can be created. Closed in `stopRecording()` and on hook unmount.
 
-If the browser ignores the `sampleRate: 16000` hint (rare on modern desktop browsers), the worklet will still run but send audio at the wrong sample rate. Gemini's VAD may still function but audio quality will degrade. This is an acceptable known limitation documented in the hook's JSDoc.
-
+If the browser ignores the `sampleRate: 16000` hint (rare on modern desktop browsers), the hook currently **fails** with an error and stops the mic stream, since Gemini Live expects 16 kHz PCM input. (A future improvement would be resampling rather than failing.)
 ### Worklet Processor (inlined as Blob)
 
 The processor accumulates incoming `Float32Array` frames into a buffer sized from the context's actual sample rate (`Math.round(sampleRate * 0.02)` = 20ms), then converts and posts:
