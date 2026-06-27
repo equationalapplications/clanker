@@ -61,10 +61,13 @@ function makeMockLiveConnect() {
   let _onmessage: ((msg: unknown) => void) | null = null
   let _onclose: (() => void) | null = null
   let session: MockGeminiSession | null = null
+  let lastConnectConfig: unknown = null
 
   const connect = async (cfg: {
+    config?: unknown
     callbacks: { onmessage: (m: unknown) => void; onclose: () => void; onerror?: (e: unknown) => void }
   }): Promise<MockGeminiSession> => {
+    lastConnectConfig = cfg
     _onmessage = cfg.callbacks.onmessage
     _onclose = cfg.callbacks.onclose
     session = {
@@ -82,6 +85,7 @@ function makeMockLiveConnect() {
     triggerMessage: (msg: unknown) => _onmessage?.(msg),
     triggerClose: () => _onclose?.(),
     getSession: () => session,
+    getLastConnectConfig: () => lastConnectConfig,
   }
 }
 
@@ -331,6 +335,256 @@ test('toolCall triggers tool_start, executor, sendToolResponse, tool_end in orde
         assert.equal(mock.toolResponses[0]!.functionResponses[0]!.id, 'call-1')
         assert.equal(mock.toolResponses[0]!.functionResponses[0]!.name, 'get_current_time')
         assert.deepEqual(events, ['start:get_current_time', 'end:get_current_time'])
+        ws.close()
+        resolve()
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('inline functionCall in modelTurn parts triggers tool execution when id is present', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string; name?: string }
+      if (msg.type === 'session_ready') {
+        mock.triggerMessage({
+          serverContent: {
+            modelTurn: {
+              parts: [{ functionCall: { id: 'inline-call-1', name: 'get_current_time', args: {} } }],
+            },
+          },
+        })
+      }
+      if (msg.type === 'tool_end' && msg.name === 'get_current_time') {
+        clearTimeout(timeout)
+        assert.equal(mock.toolResponses.length, 1)
+        assert.equal(mock.toolResponses[0]!.functionResponses[0]!.id, 'inline-call-1')
+        ws.close()
+        resolve()
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('inline functionCall without id is skipped', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string }
+      if (msg.type === 'session_ready') {
+        mock.triggerMessage({
+          serverContent: {
+            modelTurn: {
+              parts: [{ functionCall: { name: 'get_current_time', args: {} } }],
+            },
+          },
+        })
+        setTimeout(() => {
+          clearTimeout(timeout)
+          assert.equal(mock.toolResponses.length, 0)
+          ws.close()
+          resolve()
+        }, 100)
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('groundingMetadata in serverContent forwards grounding_metadata to client', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  const groundingMetadata = {
+    webSearchQueries: ['weather today'],
+    groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
+    searchEntryPoint: { renderedContent: '<div>Suggestions</div>' },
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string; groundingMetadata?: unknown }
+      if (msg.type === 'session_ready') {
+        mock.triggerMessage({ serverContent: { groundingMetadata } })
+      }
+      if (msg.type === 'grounding_metadata') {
+        clearTimeout(timeout)
+        assert.deepEqual(msg.groundingMetadata, groundingMetadata)
+        ws.close()
+        resolve()
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('searchEntryPoint-only groundingMetadata forwards grounding_metadata to client', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  const googleHtml = '<style>.gs-chip{color:#1a73e8}</style><div class="gs-chip">Try this</div>'
+  const groundingMetadata = {
+    searchEntryPoint: { renderedContent: googleHtml },
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string; groundingMetadata?: unknown }
+      if (msg.type === 'session_ready') {
+        mock.triggerMessage({ serverContent: { groundingMetadata } })
+      }
+      if (msg.type === 'grounding_metadata') {
+        clearTimeout(timeout)
+        assert.deepEqual(msg.groundingMetadata, groundingMetadata)
+        ws.close()
+        resolve()
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('empty serverContent groundingMetadata does not emit grounding_metadata', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    const received: string[] = []
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string }
+      received.push(msg.type)
+      if (msg.type === 'session_ready') {
+        mock.triggerMessage({ serverContent: { groundingMetadata: {} } })
+        mock.triggerMessage({ serverContent: {} })
+        setTimeout(() => {
+          clearTimeout(timeout)
+          assert.equal(received.includes('grounding_metadata'), false)
+          ws.close()
+          resolve()
+        }, 50)
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('liveConnect config includes googleSearch alongside functionDeclarations', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string }
+      if (msg.type === 'session_ready') {
+        clearTimeout(timeout)
+        const cfg = mock.getLastConnectConfig() as { config?: { tools?: unknown[] } } | null
+        const tools = cfg?.config?.tools as Array<Record<string, unknown>> | undefined
+        assert.ok(Array.isArray(tools), 'expected tools array in liveConnect config')
+        assert.ok(
+          tools!.some((t) => Array.isArray(t.functionDeclarations) && t.functionDeclarations.length > 0),
+          'expected functionDeclarations tool entry',
+        )
+        assert.ok(
+          tools!.some((t) => t.googleSearch !== undefined),
+          'expected googleSearch tool entry',
+        )
         ws.close()
         resolve()
       }

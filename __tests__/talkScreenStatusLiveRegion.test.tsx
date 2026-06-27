@@ -30,8 +30,12 @@ jest.mock('~/hooks/useCharacters', () => ({
   }),
 }))
 
-jest.mock('~/hooks/useMessages', () => ({
-  useMostRecentMessage: () => ({ data: { character_id: 'char-1' }, isLoading: false }),
+jest.mock('~/hooks/useTabCharacterId', () => ({
+  useTabCharacterId: () => ({
+    characterId: 'char-1',
+    isLoading: false,
+    isCreatingDefault: false,
+  }),
 }))
 
 jest.mock('~/hooks/useLiveVoiceChat', () => ({
@@ -42,6 +46,7 @@ jest.mock('~/hooks/useLiveVoiceChat', () => ({
     error: null,
     transcript: [],
     activeTool: null,
+    groundingMetadata: null,
     isPlayingAudio: false,
     startCall: jest.fn(),
     endCall: jest.fn(),

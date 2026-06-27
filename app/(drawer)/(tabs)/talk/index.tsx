@@ -1,10 +1,17 @@
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import React, { useEffect } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { Text } from 'react-native-paper'
-import { useSelector } from '@xstate/react'
 import Animated, {
   cancelAnimation,
   Easing,
@@ -13,14 +20,65 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated'
-import { useCharacter, useCharacters } from '~/hooks/useCharacters'
-import { useMostRecentMessage } from '~/hooks/useMessages'
-import { useCharacterMachine } from '~/hooks/useMachines'
+import type { GroundingMetadata } from '@google/genai'
+import { useCharacter } from '~/hooks/useCharacters'
+import { useTabCharacterId } from '~/hooks/useTabCharacterId'
 import CharacterAvatar from '~/components/CharacterAvatar'
+import { GroundingHtml } from '~/components/GroundingHtml'
 import { useLiveVoiceChat } from '~/hooks/useLiveVoiceChat'
+import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
 
 const AVATAR_SIZE = 200
 const GLOW_SIZE = AVATAR_SIZE + 60
+
+function TalkGroundingDisplay({ metadata }: { metadata: GroundingMetadata }) {
+  const chunks = metadata.groundingChunks ?? []
+  const renderedContent = metadata.searchEntryPoint?.renderedContent
+
+  if (chunks.length === 0 && !renderedContent) {
+    return null
+  }
+
+  return (
+    <View style={styles.groundingContainer}>
+      {chunks.length > 0 && (
+        <View
+          style={styles.citationRow}
+          accessibilityRole={Platform.OS === 'web' ? ('list' as any) : undefined}
+          accessibilityLabel="Search sources"
+        >
+          {chunks.map((chunk, index) => {
+            const uri = chunk.web?.uri
+            const title = chunk.web?.title ?? uri
+            if (!uri || !title || !isSafeHttpUrl(uri)) {
+              return null
+            }
+            return (
+              <TouchableOpacity
+                key={`${uri}-${index}`}
+                style={styles.citationChip}
+                onPress={() => {
+                  void Linking.openURL(uri).catch((error) => {
+                    console.warn('Failed to open citation URL', error)
+                  })
+                }}
+                accessibilityRole="link"
+                accessibilityLabel={title}
+              >
+                <Text style={styles.citationChipText} numberOfLines={1}>
+                  {title}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      )}
+      {renderedContent ? (
+        <GroundingHtml html={renderedContent} style={styles.searchSuggestions} />
+      ) : null}
+    </View>
+  )
+}
 
 function TalkView({ characterId }: { characterId: string }) {
   const { data: character } = useCharacter(characterId)
@@ -31,6 +89,7 @@ function TalkView({ characterId }: { characterId: string }) {
     error,
     transcript,
     activeTool,
+    groundingMetadata,
     isPlayingAudio,
     startCall,
     endCall,
@@ -139,6 +198,8 @@ function TalkView({ characterId }: { characterId: string }) {
         <Text style={[styles.statusText, error ? styles.errorText : null]}>{statusText}</Text>
       </View>
 
+      {groundingMetadata ? <TalkGroundingDisplay metadata={groundingMetadata} /> : null}
+
       <View style={styles.buttonWrap}>
         {isLive ? (
           <Pressable
@@ -170,13 +231,7 @@ function TalkView({ characterId }: { characterId: string }) {
 }
 
 export default function TalkTabScreen() {
-  const { data: mostRecentMessage, isLoading: isLoadingMessage } = useMostRecentMessage()
-  const { characters, isLoading: isLoadingCharacters } = useCharacters()
-  const characterService = useCharacterMachine()
-  const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
-
-  const isLoading = isLoadingMessage || isLoadingCharacters
-  const characterId = mostRecentMessage?.character_id ?? characters?.[0]?.id
+  const { characterId, isLoading, isCreatingDefault } = useTabCharacterId()
 
   if (isCreatingDefault) {
     return (
@@ -206,7 +261,7 @@ export default function TalkTabScreen() {
     )
   }
 
-  return <TalkView characterId={characterId} />
+  return <TalkView key={characterId} characterId={characterId} />
 }
 
 const styles = StyleSheet.create({
@@ -269,6 +324,32 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#b00020',
+  },
+  groundingContainer: {
+    width: '100%',
+    maxWidth: 480,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  citationRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  citationChip: {
+    maxWidth: '100%',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  citationChipText: {
+    fontSize: 13,
+    color: '#1565c0',
+  },
+  searchSuggestions: {
+    width: '100%',
   },
   buttonWrap: {
     alignItems: 'center',

@@ -1,13 +1,43 @@
 import { createMachine, assign, fromPromise, fromCallback, sendTo } from 'xstate'
 import type { IMessage } from 'react-native-gifted-chat'
+import type { GroundingMetadata } from '@google/genai'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import type { WikiSyncDump } from '~/services/apiClient'
-import { saveAIMessage, sendMessage } from '~/database/messageDatabase'
+import { saveAIMessage, sendMessage, resolveCreatedAtMs } from '~/database/messageDatabase'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { getCharacter } from '~/database/characterDatabase'
+import { parseGroundingMetadata } from '~/services/groundingMetadata'
+import type { GroundedIMessage } from '~/services/aiChatService'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function attachGroundingToTranscript(
+  transcript: IMessage[],
+  characterId: string,
+  grounding: GroundingMetadata,
+): GroundedIMessage[] {
+  const next = [...transcript] as GroundedIMessage[]
+  let lastModelIdx = -1
+  for (let i = next.length - 1; i >= 0; i--) {
+    if (next[i]!.user._id === characterId) {
+      lastModelIdx = i
+      break
+    }
+  }
+  if (lastModelIdx >= 0) {
+    next[lastModelIdx] = { ...next[lastModelIdx]!, groundingMetadata: grounding }
+  } else {
+    next.push({
+      _id: `live_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      text: '',
+      createdAt: new Date(),
+      user: { _id: characterId },
+      groundingMetadata: grounding,
+    })
+  }
+  return next
+}
 
 function getLiveWsUrl(): string {
   const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
@@ -27,6 +57,7 @@ export interface LiveVoiceMachineContext {
   userId: string
   transcript: IMessage[]
   activeTool: string | null
+  groundingMetadata: GroundingMetadata | null
   remainingCredits: number
   socketError: string | null
   retryCount: number
@@ -43,6 +74,7 @@ export type LiveVoiceEvent =
   | { type: 'TRANSCRIPT_TOKEN'; role: 'user' | 'model'; text: string }
   | { type: 'TOOL_START'; name: string }
   | { type: 'TOOL_END'; name: string }
+  | { type: 'GROUNDING_METADATA'; groundingMetadata?: unknown }
   | { type: 'USAGE_SNAPSHOT'; remainingCredits: number }
   | { type: 'AUDIO_INTERRUPTED' }
   | { type: 'SESSION_ENDED' }
@@ -79,6 +111,7 @@ export const liveVoiceMachine = createMachine(
       userId: input.userId,
       transcript: [],
       activeTool: null,
+      groundingMetadata: null,
       remainingCredits: input.initialCredits ?? 0,
       socketError: null,
       retryCount: 0,
@@ -167,6 +200,20 @@ export const liveVoiceMachine = createMachine(
               TOOL_END: {
                 actions: assign({ activeTool: () => null }),
               },
+              GROUNDING_METADATA: {
+                actions: assign({
+                  groundingMetadata: ({ event }) => {
+                    if (event.type !== 'GROUNDING_METADATA') return null
+                    return parseGroundingMetadata(event.groundingMetadata) ?? null
+                  },
+                  transcript: ({ context, event }) => {
+                    if (event.type !== 'GROUNDING_METADATA') return context.transcript
+                    const parsed = parseGroundingMetadata(event.groundingMetadata)
+                    if (!parsed) return context.transcript
+                    return attachGroundingToTranscript(context.transcript, context.characterId, parsed)
+                  },
+                }),
+              },
               USAGE_SNAPSHOT: [
                 {
                   guard: ({ event }) => event.remainingCredits <= 0,
@@ -200,11 +247,20 @@ export const liveVoiceMachine = createMachine(
           }),
           onDone: {
             target: 'idle',
-            actions: assign({ transcript: () => [], activeTool: () => null, socketError: () => null, retryCount: () => 0 }),
+            actions: assign({
+              transcript: () => [],
+              activeTool: () => null,
+              groundingMetadata: () => null,
+              socketError: () => null,
+              retryCount: () => 0,
+            }),
           },
           onError: {
             target: 'idle',
-            actions: assign({ transcript: () => [], activeTool: () => null, retryCount: () => 0 }),
+            actions: assign({
+              activeTool: () => null,
+              retryCount: () => 0,
+            }),
           },
         },
       },
@@ -252,6 +308,15 @@ export const liveVoiceMachine = createMachine(
               user: { _id: msgUserId },
             },
           ]
+        },
+        groundingMetadata: ({ context, event }) => {
+          if (event.type !== 'TRANSCRIPT_TOKEN') return context.groundingMetadata
+          const msgUserId = event.role === 'user' ? context.userId : context.characterId
+          const last = context.transcript[context.transcript.length - 1]
+          if (!last || last.user._id !== msgUserId) {
+            return null
+          }
+          return context.groundingMetadata
         },
       }),
       // Injected by controller hook - these are no-ops in the machine definition
@@ -384,24 +449,29 @@ export const liveVoiceMachine = createMachine(
           input: { characterId: string; userId: string; transcript: IMessage[] }
         }) => {
           const { characterId, userId, transcript } = input
-          for (const msg of transcript) {
+          for (let i = 0; i < transcript.length; i++) {
+            const msg = transcript[i]!
             const isAI = msg.user._id !== userId
+            const createdAt = new Date(resolveCreatedAtMs({ createdAt: msg.createdAt }) + i)
+            const additionalData: Partial<GroundedIMessage> = {
+              user: msg.user,
+              createdAt,
+            }
             if (isAI) {
-              // Fire-and-forget: do not await, component may be unmounted
-              void saveAIMessage(
+              const grounded = msg as GroundedIMessage
+              if (grounded.groundingMetadata) {
+                additionalData.groundingMetadata = grounded.groundingMetadata
+              }
+              await saveAIMessage(
                 characterId,
                 userId,
                 msg.text,
                 String(msg._id),
-                { user: msg.user, createdAt: msg.createdAt },
+                additionalData,
                 Date.now(),
-              ).catch((err: unknown) => {
-                console.error('[saveTranscriptActor] saveAIMessage failed', err)
-              })
+              )
             } else {
-              void sendMessage(characterId, userId, msg.text, String(msg._id)).catch((err: unknown) => {
-                console.error('[saveTranscriptActor] sendMessage failed', err)
-              })
+              await sendMessage(characterId, userId, msg.text, String(msg._id), additionalData)
             }
           }
         },
