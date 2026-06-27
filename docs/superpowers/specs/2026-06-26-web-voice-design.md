@@ -15,7 +15,7 @@ Phase 1 delivered the XState machine and controller hook for native iOS/Android 
 
 Phase 3 replaces that stub with a real implementation using the Web Audio API. The constraint is not the web platform itself — it fully supports raw PCM capture and playback — but that `expo-audio` and `react-native-live-audio-stream` (the native abstractions used in `useLiveAudioIO.ts`) do not run on web. The fix is a web-specific implementation that satisfies the same `UseLiveAudioIOReturn` interface using browser-native APIs.
 
-**No other runtime/product code changes.** Tests and this spec/plan are updated in the same PR. `liveVoiceMachine.ts`, `useLiveVoiceChat.ts`, the Talk tab UI, and the cloud agent backend are all platform-agnostic and untouched.
+Phase 3 focuses on `src/hooks/useLiveAudioIO.web.ts`; other live voice flow/UI/backend work may evolve in parallel. Tests and this spec/plan are updated alongside the hook implementation.
 
 ---
 
