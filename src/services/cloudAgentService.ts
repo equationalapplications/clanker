@@ -1,3 +1,4 @@
+import { resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
 import type { Content, GroundingMetadata } from '@google/genai'
@@ -230,8 +231,13 @@ export async function callCloudAgent(
   payload: CloudAgentPayload,
   callbacks?: CloudAgentStreamCallbacks,
 ): Promise<CloudAgentResult> {
+  const resolvedPayload: CloudAgentPayload = {
+    ...payload,
+    characterId: resolveCloudAgentCharacterId(payload.characterId),
+  }
+
   try {
-    return await runViaWebSocket(payload, callbacks)
+    return await runViaWebSocket(resolvedPayload, callbacks)
   } catch (wsErr) {
     const msg = wsErr instanceof Error ? wsErr.message : String(wsErr)
     const shouldFallbackToHttp =
@@ -243,6 +249,6 @@ export async function callCloudAgent(
     if (!shouldFallbackToHttp) throw wsErr
 
     console.warn('WebSocket failed, falling back to HTTP:', wsErr)
-    return await runViaHttp(payload)
+    return await runViaHttp(resolvedPayload)
   }
 }

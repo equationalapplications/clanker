@@ -7,8 +7,6 @@ import { buildSystemInstruction, buildContentHistory } from '~/services/Characte
 import { createEdgeToolExecutors } from '~/services/edgeToolExecutors'
 import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
 import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
-import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
-
 export type EscalationState = 'idle' | 'escalating'
 
 export interface EdgeAgentSendResult {
@@ -75,11 +73,6 @@ export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, 
       ]
 
       try {
-        if (isDevSandboxEnabled() && process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
-          setEscalationState('escalating')
-          return { escalated: true, usageSnapshot: latestUsageSnapshot }
-        }
-
         let iterations = 0
 
         while (iterations < MAX_ITERATIONS) {
