@@ -1,3 +1,24 @@
+## [30.7.1](https://github.com/equationalapplications/clanker/compare/v30.7.0...v30.7.1) (2026-06-27)
+
+
+### Bug Fixes
+
+* address PR 481 review feedback on character validation and transcript save ([0dd6b94](https://github.com/equationalapplications/clanker/commit/0dd6b94191905a05bce37cd61679da76a9a8bc58))
+* address PR review feedback for live tools and character selection ([4275a80](https://github.com/equationalapplications/clanker/commit/4275a804f54c92c7b34e6fb83780a95590704c1f))
+* **cloud-agent:** exclude app-only localCloudAgent from tsc build ([79703bd](https://github.com/equationalapplications/clanker/commit/79703bd5c40601983525a9400bf4bfbe9a8a7c32))
+* **dev-sandbox:** hybrid local dev mirrors production escalation flow ([0df6be2](https://github.com/equationalapplications/clanker/commit/0df6be2d95a05f495c8e705fa1406401e415a958))
+* **live-voice:** address PR 483 review feedback ([3d50eb7](https://github.com/equationalapplications/clanker/commit/3d50eb706969bcce733c03a20d8a11e539b6ee53))
+* **live-voice:** address PR reviews and restore grounding citations ([79be42d](https://github.com/equationalapplications/clanker/commit/79be42df0db3c4629edbcdfeb803098100d773d8))
+* **live-voice:** fix entity key remapping, auth UUID, model name, and audio field ([80d1d82](https://github.com/equationalapplications/clanker/commit/80d1d822e1c6e145dd36acbdc7ecd4b46f20b58e))
+* **live-voice:** persist search grounding metadata on saved voice replies ([3cd110c](https://github.com/equationalapplications/clanker/commit/3cd110c5351e45b0586df227e88eb977b029d942))
+* **live-voice:** preserve transcript order when saving Talk messages to Chat ([6661477](https://github.com/equationalapplications/clanker/commit/666147775c14b240e3004ccdcd4c47ed4867a0d5))
+* **live-voice:** sync Talk character with Chat and surface search grounding ([0ce00f2](https://github.com/equationalapplications/clanker/commit/0ce00f21aca0b2cca6167ea40118c8b501abafa8))
+* **test:** mock AudioContext sampleRate for web live audio tests ([0419c6f](https://github.com/equationalapplications/clanker/commit/0419c6f9e49c8af24c81c3d6bd58dd62d3b5d9a9))
+* **voice:** best-effort per-message transcript persistence ([0bf4dbc](https://github.com/equationalapplications/clanker/commit/0bf4dbcd24a2cca513a0b306db2aa1b820467933))
+* **web-voice:** address PR review on cleanup and chunk sizing ([f798686](https://github.com/equationalapplications/clanker/commit/f7986865dab80f15184874c5f6632e5176449c2c))
+* **web-voice:** implement useLiveAudioIO.web with AudioWorklet I/O ([52cdb3d](https://github.com/equationalapplications/clanker/commit/52cdb3d8698f9dc22171ad5c2287ef4b848bd534))
+* **wiki-sync:** bridge v4 source_type values across wiki sync ([a3fe612](https://github.com/equationalapplications/clanker/commit/a3fe612c3aa802be7b84d0e008456cca6bdb34f5))
+
 # [30.7.0](https://github.com/equationalapplications/clanker/compare/v30.6.0...v30.7.0) (2026-06-26)
 
 
