@@ -2,7 +2,7 @@
 export function mapSourceTypeForCloudSync(
   sourceType: string | null | undefined,
 ): string | null | undefined {
-  if (sourceType == null) return sourceType;
+  if (sourceType == null) return sourceType
   switch (sourceType) {
     case 'librarian_inferred':
       return 'agent_inferred'
