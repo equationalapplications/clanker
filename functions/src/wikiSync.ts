@@ -202,7 +202,7 @@ function validateFact(fact: unknown, entityId: string, label: string): void {
     if (typeof f.source_type !== "string" || !VALID_SOURCE_TYPE.has(f.source_type as string)) {
       throw new HttpsError(
         "invalid-argument",
-        `${label}.source_type must be one of: user_stated, user_confirmed, agent_inferred, user_document, librarian_inferred, immutable_document.`
+        `${label}.source_type must be one of: ${[...VALID_SOURCE_TYPE].join(", ")}.`
       );
     }
   }
