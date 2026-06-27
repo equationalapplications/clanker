@@ -45,6 +45,10 @@ export interface WsLiveHandlerOptions {
 
 const AUTH_TIMEOUT_MS = 5000
 
+const isGeminiLiveDebug =
+  process.env.GEMINI_LIVE_DEBUG === 'true' ||
+  (!process.env.K_SERVICE && process.env.NODE_ENV !== 'production')
+
 async function defaultLiveConnect(cfg: LiveConnectCfg): Promise<GeminiSession> {
   const project = [
     process.env.GCLOUD_PROJECT,
@@ -107,7 +111,9 @@ export async function handleLiveWsUpgrade(
       console.warn('[gemini live] ignoring non-object message:', msg)
       return
     }
-    console.log('[gemini live] message keys:', Object.keys(msg))
+    if (isGeminiLiveDebug) {
+      console.log('[gemini live] message keys:', Object.keys(msg))
+    }
     const m = msg as {
       serverContent?: {
         modelTurn?: { parts?: Array<{ inlineData?: { data: string }; functionCall?: { id?: string; name?: string; args?: unknown } }> }
@@ -189,7 +195,9 @@ export async function handleLiveWsUpgrade(
     }
 
     if (m.setupComplete !== undefined) {
-      console.log('[gemini live] setupComplete received')
+      if (isGeminiLiveDebug) {
+        console.log('[gemini live] setupComplete received')
+      }
     }
   }
 

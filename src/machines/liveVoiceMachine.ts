@@ -263,7 +263,10 @@ export const liveVoiceMachine = createMachine(
           onError: {
             target: 'idle',
             actions: assign({
+              transcript: () => [],
               activeTool: () => null,
+              groundingMetadata: () => null,
+              socketError: () => null,
               retryCount: () => 0,
             }),
           },

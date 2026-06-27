@@ -488,6 +488,44 @@ describe('liveVoiceMachine', () => {
     expect(actor.getSnapshot().context.groundingMetadata).toBeNull()
   })
 
+  test('saveTranscript failure → idle clears transcript, groundingMetadata, and socketError', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    saveAIMessage.mockRejectedValue(new Error('save failed'))
+
+    const googleHtml = '<style>.gs-chip{color:#1a73e8}</style><div>Suggestions</div>'
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'model', text: 'Hello!' })
+    actor.send({
+      type: 'GROUNDING_METADATA',
+      groundingMetadata: { searchEntryPoint: { renderedContent: googleHtml } },
+    })
+    actor.send({ type: 'END_CALL' })
+
+    await waitFor(actor, (s) => s.matches('idle'), WAIT)
+    await new Promise((r) => setTimeout(r, 50))
+
+    const ctx = actor.getSnapshot().context
+    expect(ctx.transcript).toHaveLength(0)
+    expect(ctx.groundingMetadata).toBeNull()
+    expect(ctx.socketError).toBeNull()
+  })
+
   test('SOCKET_ERROR → error state with message', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
