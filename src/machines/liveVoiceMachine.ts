@@ -258,9 +258,7 @@ export const liveVoiceMachine = createMachine(
           onError: {
             target: 'idle',
             actions: assign({
-              transcript: () => [],
               activeTool: () => null,
-              groundingMetadata: () => null,
               retryCount: () => 0,
             }),
           },
@@ -459,28 +457,21 @@ export const liveVoiceMachine = createMachine(
               user: msg.user,
               createdAt,
             }
-            try {
-              if (isAI) {
-                const grounded = msg as GroundedIMessage
-                if (grounded.groundingMetadata) {
-                  additionalData.groundingMetadata = grounded.groundingMetadata
-                }
-                await saveAIMessage(
-                  characterId,
-                  userId,
-                  msg.text,
-                  String(msg._id),
-                  additionalData,
-                  Date.now(),
-                )
-              } else {
-                await sendMessage(characterId, userId, msg.text, String(msg._id), additionalData)
+            if (isAI) {
+              const grounded = msg as GroundedIMessage
+              if (grounded.groundingMetadata) {
+                additionalData.groundingMetadata = grounded.groundingMetadata
               }
-            } catch (err: unknown) {
-              console.error(
-                `[saveTranscriptActor] ${isAI ? 'saveAIMessage' : 'sendMessage'} failed`,
-                err,
+              await saveAIMessage(
+                characterId,
+                userId,
+                msg.text,
+                String(msg._id),
+                additionalData,
+                Date.now(),
               )
+            } else {
+              await sendMessage(characterId, userId, msg.text, String(msg._id), additionalData)
             }
           }
         },
