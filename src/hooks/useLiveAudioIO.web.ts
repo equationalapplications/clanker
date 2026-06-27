@@ -123,6 +123,18 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
         await audioCtx.resume()
       }
 
+      if (audioCtx.sampleRate !== TARGET_SAMPLE_RATE) {
+        setError(
+          `Browser did not honor ${TARGET_SAMPLE_RATE}Hz AudioContext sampleRate (got ${audioCtx.sampleRate}Hz).`,
+        )
+        setRecordingState('error')
+        stream.getTracks().forEach((t) => t.stop())
+        closeAudioContextSilently(audioCtx)
+        streamRef.current = null
+        audioCtxRef.current = null
+        return false
+      }
+
       // sampleRate is a hint only — size chunks from the context's actual rate so each
       // post is always ~20ms of captured audio regardless of device rate.
       const chunkSize = Math.round(audioCtx.sampleRate * CHUNK_DURATION_SEC)
