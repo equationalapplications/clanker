@@ -1,3 +1,22 @@
+# [30.8.0](https://github.com/equationalapplications/clanker/compare/v30.7.1...v30.8.0) (2026-06-28)
+
+
+### Bug Fixes
+
+* **chat:** derive avatar initials from multi-word names ([5d0b659](https://github.com/equationalapplications/clanker/commit/5d0b65958b53e5a58b593a77e462f06c4cce2648))
+* **chat:** replace dead via.placeholder.com fallback with Avatar.Text initials ([668507e](https://github.com/equationalapplications/clanker/commit/668507efea8dfb7fae95e19653201bcc4fe458b3))
+* **ios:** patch expo-two-way-audio for Expo SDK 56 Swift build errors ([cbdcbfa](https://github.com/equationalapplications/clanker/commit/cbdcbfa748b55d0ff776aef371c804eadbe82070))
+* **lint:** remove unnecessary userId dep from useMemo in useLiveVoiceChat ([fa5b810](https://github.com/equationalapplications/clanker/commit/fa5b81041e4ca62359c68c5e7bc2616d6fff7b73))
+* **live-voice:** scope USER_CHANGED to idle and error states ([aaa93f7](https://github.com/equationalapplications/clanker/commit/aaa93f7c6479f908179777d39a89b076470d1481))
+* **pr:** address CodeRabbit review on PR [#486](https://github.com/equationalapplications/clanker/issues/486) ([743e302](https://github.com/equationalapplications/clanker/commit/743e302c45d13c0bd19548c9f3b4c25b0592ebaf))
+* **voice:** re-entry guard on startRecording, pin native module version ([bd2317e](https://github.com/equationalapplications/clanker/commit/bd2317eeeb4a3da871323d5a92e3329bb6a1abc4))
+* **voice:** skip wikiSync in dev sandbox when starting live call ([cb0bcf9](https://github.com/equationalapplications/clanker/commit/cb0bcf9f92edcdfd32a724ab7b0c5aa1695ac490))
+
+
+### Features
+
+* **voice:** unified duplex native audio via expo-two-way-audio ([6c156d6](https://github.com/equationalapplications/clanker/commit/6c156d6e15b8a6a5814b3f1fc6162a25c8765140))
+
 ## [30.7.1](https://github.com/equationalapplications/clanker/compare/v30.7.0...v30.7.1) (2026-06-27)
 
 
