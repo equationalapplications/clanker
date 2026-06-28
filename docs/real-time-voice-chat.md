@@ -49,7 +49,7 @@ Talk tab: Start Call
 |---|---|
 | `useLiveVoiceChat` | Controller: pre-flight checks, wires machine + audio, exposes Talk tab state |
 | `liveVoiceMachine` | XState v5 lifecycle: sync → connect → live → save → idle; WebSocket actor |
-| `useLiveAudioIO` | Hardware: 16 kHz mic uplink (`react-native-live-audio-stream`), 24 kHz PCM playback queue (`expo-audio`), barge-in flush |
+| `useLiveAudioIO` | Hardware: unified duplex mic + playback via `@speechmatics/expo-two-way-audio`, 24→16 kHz resample, barge-in flush |
 
 **Key files:**
 
@@ -73,12 +73,14 @@ Transcript tokens with the same role are concatenated into one message. `usage_s
 
 ## Audio
 
+**Native audio (Talk tab):** Uses `@speechmatics/expo-two-way-audio` (MIT, stock, Speechmatics-maintained) as a unified duplex module for microphone capture and PCM playback. Hardware AEC is enabled on both iOS (`VoiceProcessingIO`) and Android (linked `AudioRecord`/`AudioTrack` session). Downlink audio is resampled from 24 kHz to 16 kHz in `src/utils/audioResample.ts` before enqueue. Wire protocol (24 kHz base64 downlink, 16 kHz uplink) is unchanged.
+
 | Direction | Format | Library |
 |---|---|---|
-| Mic uplink | 16 kHz, mono, 16-bit PCM | `react-native-live-audio-stream` |
-| Speaker downlink | 24 kHz PCM chunks | `expo-audio` playback queue |
+| Mic uplink | 16 kHz, mono, 16-bit PCM | `@speechmatics/expo-two-way-audio` |
+| Speaker downlink | 24 kHz PCM chunks (resampled to 16 kHz) | `@speechmatics/expo-two-way-audio` |
 
-`react-native-live-audio-stream` is a **native module**. OTA updates are not enough after install—rebuild the dev client or production app (`npm run build:dev-a`, `build:dev-i`, or EAS equivalent).
+**Native rebuild required** — `@speechmatics/expo-two-way-audio` is a native module. OTA updates are insufficient. Rebuild dev client after install (`npm run build:dev-a`, `build:dev-i`, or EAS equivalent).
 
 ---
 
