@@ -79,6 +79,7 @@ export type LiveVoiceEvent =
   | { type: 'SOCKET_ERROR'; message: string }
   | { type: 'SOCKET_CLOSED' }
   | { type: 'SEND_END_SESSION' }
+  | { type: 'USER_CHANGED'; userId: string }
 
 /** Input provided when spawning liveVoiceMachine via useMachine. */
 export interface LiveVoiceMachineInput {
@@ -114,6 +115,13 @@ export const liveVoiceMachine = createMachine(
       socketError: null,
       retryCount: 0,
     }),
+    on: {
+      USER_CHANGED: {
+        actions: assign({
+          userId: ({ event }) => event.userId,
+        }),
+      },
+    },
     states: {
       idle: {
         on: {

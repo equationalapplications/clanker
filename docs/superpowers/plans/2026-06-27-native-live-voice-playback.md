@@ -41,6 +41,8 @@ useMicrophonePermissions()
 - No `stopPlayback()` — `restart()` used for barge-in/clear
 - Mic data is `Uint8Array`, not base64 — adapter converts with `btoa`
 
+**Playback state contract:** The stock module has no `isPlaying()` or `stopPlayback()`. `TwoWayAudioAdapter.isPlaying()` is implemented via a JS byte-count timer (`_playbackEndTime`). `useLiveAudioIO` polls `adapter.isPlaying()` to derive `playbackState`. Barge-in uses `restart()`, not `stopPlayback()`.
+
 ---
 
 ## File Map

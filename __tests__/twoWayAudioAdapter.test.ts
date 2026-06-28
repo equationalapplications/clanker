@@ -86,6 +86,38 @@ describe('TwoWayAudioAdapter', () => {
     expect(Array.from(decoded)).toEqual(Array.from(testData))
   })
 
+  test('startRecording returns false when toggleRecording fails', async () => {
+    const removeMock = jest.fn()
+    mockAddEventListener.mockReturnValue({ remove: removeMock })
+    mockToggleRecording.mockReturnValue(false)
+    const result = await adapter.startRecording(jest.fn())
+    expect(result).toBe(false)
+    expect(removeMock).toHaveBeenCalled()
+  })
+
+  test('startRecording removes mic listener when toggleRecording throws', async () => {
+    const removeMock = jest.fn()
+    mockAddEventListener.mockReturnValue({ remove: removeMock })
+    mockToggleRecording.mockImplementation(() => {
+      throw new Error('toggle failed')
+    })
+    await expect(adapter.startRecording(jest.fn())).rejects.toThrow('toggle failed')
+    expect(removeMock).toHaveBeenCalled()
+  })
+
+  test('playChunk buffers leftover bytes across calls for aligned resampling', () => {
+    const chunk1 = new Uint8Array(4)
+    const chunk2 = new Uint8Array(2)
+    const b64a = btoa(String.fromCharCode(...chunk1))
+    const b64b = btoa(String.fromCharCode(...chunk2))
+
+    adapter.playChunk(b64a)
+    expect(mockPlayPCMData).not.toHaveBeenCalled()
+
+    adapter.playChunk(b64b)
+    expect(mockPlayPCMData).toHaveBeenCalledTimes(1)
+  })
+
   test('stopRecording calls toggleRecording(false) and removes mic listener', async () => {
     const removeMock = jest.fn()
     mockAddEventListener.mockReturnValue({ remove: removeMock })

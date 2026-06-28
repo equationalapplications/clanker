@@ -50,7 +50,7 @@ Phase 1 design already called for native streaming playback. Implementation dive
 3. **Stable 16 kHz mic uplink** while agent audio plays (same rates as today’s wire protocol).
 4. **No filesystem writes** on the hot path during a live call.
 5. **Preserve `UseLiveAudioIOReturn`** — `useLiveVoiceChat` and `liveVoiceMachine` require no protocol changes.
-6. **Correct `playbackState` / avatar glow** — prefer native `isPlaying` / queue state over JS timers.
+6. **Correct `playbackState` / avatar glow** — poll adapter `isPlaying()` (byte-count timer); stock module has no playback-state API.
 7. **Native rebuild** — explicitly **not** OTA-only.
 
 ## 4. Non-Goals
@@ -122,7 +122,7 @@ Without cancellation, the microphone captures 24 kHz speaker output. Gemini Live
 
 | | |
 |---|---|
-| **Pros** | **Officially maintained** Speechmatics package; no fork; MIT-licensed; Expo 56 tested; unified duplex → hardware AEC; `stopPlayback`/`isPlaying` present; resample is pure-JS, unit-testable, fractions of a ms per chunk |
+| **Pros** | **Officially maintained** Speechmatics package; no fork; MIT-licensed; Expo 56 tested; unified duplex → hardware AEC; adapter-managed playback state; resample is pure-JS, unit-testable, fractions of a ms per chunk |
 | **Cons** | 24→16 kHz downsample = wideband (16 kHz) vs super-wideband (24 kHz) playback quality. Perceptible only on high-fidelity headphones; inaudible on phone speaker. Adapter adds ~5 lines of math. |
 | **Verdict** | **Adopt for v1.** |
 
@@ -209,7 +209,7 @@ liveVoiceMachine  ──AUDIO_OUTPUT──▶  useLiveVoiceChat.playChunk()
                                    │  IN:  onMicrophoneData   │
                                    │       16kHz → base64     │
                                    │  OUT: playPCMData(16kHz) │
-                                   │       stopPlayback()     │
+                                   │       restart() (barge-in)│
                                    │  AEC: unified session    │
                                    └──────────────────────────┘
 ```
@@ -232,7 +232,7 @@ export interface TwoWayAudioAdapter {
   playChunk(base64Pcm: string): void
   /** Barge-in: stop speaker immediately and clear queue. */
   clearPlaybackQueue(): void
-  /** Native playback active (preferred over JS byte timer). */
+  /** Adapter byte-count timer — stock module has no playback-state API. */
   isPlaying(): boolean
   /** Full teardown on unmount / end call. */
   tearDown(): Promise<void>
@@ -280,7 +280,7 @@ Behavior must match web semantics where possible. **`UseLiveAudioIOReturn` uncha
 | `stopRecording()` | `adapter.stopRecording()` |
 | First `playChunk()` | `playChunk` on adapter; set `playbackState = 'playing'` |
 | Subsequent `playChunk()` | `playChunk` only |
-| `clearPlaybackQueue()` | `adapter.clearPlaybackQueue()` → `stopPlayback()`; `playbackState = 'idle'` |
+| `clearPlaybackQueue()` | `adapter.clearPlaybackQueue()` → `restart()`; `playbackState = 'idle'` |
 | `AUDIO_INTERRUPTED` | Same as `clearPlaybackQueue()` — already wired in `useLiveVoiceChat` |
 | `endCall` / unmount | `tearDown()` |
 | Malformed base64 | Log warning, skip chunk |
@@ -289,9 +289,9 @@ Behavior must match web semantics where possible. **`UseLiveAudioIOReturn` uncha
 
 **`PlaybackState` type** is `'idle' | 'playing' | 'buffering'`. The `'buffering'` variant is **not used on the native path** — the stock module enqueues synchronously. Set only `'idle'` and `'playing'`; `'buffering'` remains in the type for web/future use.
 
-**Primary:** poll or subscribe to adapter `isPlaying()` when chunks are enqueued. Stock module exposes `isPlaying` — use it.
+**Primary:** poll `adapter.isPlaying()` when chunks are enqueued. The adapter implements this via a JS byte-count timer (`_playbackEndTime`) — the stock module exposes no `isPlaying()` or idle signal.
 
-**Fallback:** rolling byte-count timer (single timer for queue drain) — same technique as spec v1 §9, but **only if module lacks idle signal**.
+**Not used on native path:** rolling byte-count timer in the hook directly — the timer lives inside `TwoWayAudioAdapter.isPlaying()`.
 
 Do **not** use `expo-audio` `didJustFinish`.
 

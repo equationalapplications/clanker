@@ -66,6 +66,14 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
     },
   })
 
+  const syncedUserIdRef = useRef(userId)
+  useEffect(() => {
+    if (userId && userId !== syncedUserIdRef.current) {
+      send({ type: 'USER_CHANGED', userId })
+    }
+    syncedUserIdRef.current = userId
+  }, [userId, send])
+
   // Mic → machine: forward audio chunks as AUDIO_INPUT events
   useEffect(() => {
     const unsubscribe = audioIO.onAudioChunk((chunk) => {

@@ -9,13 +9,13 @@ const mockClearPlaybackQueue = jest.fn()
 const mockIsPlaying = jest.fn()
 const mockTearDown = jest.fn()
 
-let capturedOnChunk: ((base64: string) => void) | null = null
+let mockCapturedOnChunk: ((base64: string) => void) | null = null
 
 jest.mock('~/native/twoWayAudioAdapter', () => ({
   TwoWayAudioAdapter: jest.fn().mockImplementation(() => ({
     initialize: mockInitialize,
     startRecording: (cb: (base64: string) => void) => {
-      capturedOnChunk = cb
+      mockCapturedOnChunk = cb
       return mockStartRecording(cb)
     },
     stopRecording: mockStopRecording,
@@ -49,7 +49,7 @@ async function mountHarness(): Promise<ReturnType<typeof create>> {
 describe('useLiveAudioIO', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    capturedOnChunk = null
+    mockCapturedOnChunk = null
     activeRenderer = null
     mockInitialize.mockResolvedValue(undefined)
     mockStartRecording.mockResolvedValue(true)
@@ -109,7 +109,7 @@ describe('useLiveAudioIO', () => {
     })
 
     act(() => {
-      capturedOnChunk?.('base64audiodata')
+      mockCapturedOnChunk?.('base64audiodata')
     })
 
     expect(received).toEqual(['base64audiodata'])
@@ -128,7 +128,7 @@ describe('useLiveAudioIO', () => {
     })
 
     act(() => {
-      capturedOnChunk?.('chunk1')
+      mockCapturedOnChunk?.('chunk1')
     })
 
     expect(received1).toEqual(['chunk1'])
@@ -147,7 +147,7 @@ describe('useLiveAudioIO', () => {
     unsub()
 
     act(() => {
-      capturedOnChunk?.('after-unsub')
+      mockCapturedOnChunk?.('after-unsub')
     })
 
     expect(received).toEqual([])
