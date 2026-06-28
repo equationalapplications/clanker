@@ -1,4 +1,4 @@
-import { resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
+import { getCloudAgentBaseUrl, resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
 import type { Content, GroundingMetadata } from '@google/genai'
@@ -33,11 +33,6 @@ export interface CloudAgentStreamCallbacks {
 
 const AUTH_TIMEOUT_MS = 5000
 
-function getCloudAgentBaseUrl(): string {
-  const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
-  if (!baseUrl) throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL is not configured')
-  return baseUrl.replace(/\/agent\/run\/?$/, '').replace(/\/$/, '')
-}
 
 function mapWebSocketError(code: string, message: string): Error {
   if (code === 'INSUFFICIENT_CREDITS') {

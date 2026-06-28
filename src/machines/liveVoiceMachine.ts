@@ -10,8 +10,9 @@ import {
 } from '~/services/wikiSourceType'
 import type { WikiSyncDump } from '~/services/apiClient'
 import { saveAIMessage, sendMessage, resolveCreatedAtMs } from '~/database/messageDatabase'
-import { resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
+import { getCloudAgentBaseUrl, resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
 import { getCurrentUser } from '~/config/firebaseConfig'
+import { reportError } from '~/utilities/reportError'
 import { getCharacter } from '~/database/characterDatabase'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
 import type { GroundedIMessage } from '~/services/aiChatService'
@@ -38,14 +39,8 @@ function attachGroundingToTranscript(
 }
 
 function getLiveWsUrl(): string {
-  const baseUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
-  if (!baseUrl) throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL is not configured')
-  return (
-    baseUrl
-      .replace(/\/agent\/(run|stream)\/?$/, '')
-      .replace(/\/$/, '')
-      .replace(/^https?/, (m) => (m === 'https' ? 'wss' : 'ws')) + '/agent/live'
-  )
+  const base = getCloudAgentBaseUrl()
+  return base.replace(/^https?/, (m) => (m === 'https' ? 'wss' : 'ws')) + '/agent/live'
 }
 
 /** Persistent state managed by liveVoiceMachine across the call lifecycle. */
@@ -420,40 +415,50 @@ export const liveVoiceMachine = createMachine(
             .getIdToken()
             .then((token) => {
               if (cleanedUp) return
-              const url = getLiveWsUrl()
-              ws = new WebSocket(url)
+              try {
+                const url = getLiveWsUrl()
+                ws = new WebSocket(url)
 
-              ws.onopen = () => {
-                ws!.send(
-                  JSON.stringify({
-                    type: 'auth',
-                    token,
-                    characterId: resolveCloudAgentCharacterId(input.characterId),
-                  }),
-                )
-                sendBack({ type: 'SOCKET_OPENED' })
-              }
-
-              ws.onmessage = (event) => {
-                try {
-                  const msg = JSON.parse(event.data as string) as { type: string } & Record<string, unknown>
-                  const xstateType =
-                    msg.type === 'error' ? 'SOCKET_ERROR' : msg.type.toUpperCase()
-                  sendBack({ ...msg, type: xstateType } as LiveVoiceEvent)
-                } catch {
-                  // ignore malformed messages
+                ws.onopen = () => {
+                  ws!.send(
+                    JSON.stringify({
+                      type: 'auth',
+                      token,
+                      characterId: resolveCloudAgentCharacterId(input.characterId),
+                    }),
+                  )
+                  sendBack({ type: 'SOCKET_OPENED' })
                 }
-              }
 
-              ws.onerror = () => {
-                if (!cleanedUp) sendBack({ type: 'SOCKET_ERROR', message: 'WebSocket connection error' })
-              }
+                ws.onmessage = (event) => {
+                  try {
+                    const msg = JSON.parse(event.data as string) as { type: string } & Record<string, unknown>
+                    const xstateType =
+                      msg.type === 'error' ? 'SOCKET_ERROR' : msg.type.toUpperCase()
+                    sendBack({ ...msg, type: xstateType } as LiveVoiceEvent)
+                  } catch {
+                    // ignore malformed messages
+                  }
+                }
 
-              ws.onclose = () => {
-                if (!cleanedUp) sendBack({ type: 'SOCKET_CLOSED' })
+                ws.onerror = () => {
+                  if (!cleanedUp) sendBack({ type: 'SOCKET_ERROR', message: 'WebSocket connection error' })
+                }
+
+                ws.onclose = () => {
+                  if (!cleanedUp) sendBack({ type: 'SOCKET_CLOSED' })
+                }
+              } catch (setupErr: unknown) {
+                reportError(setupErr, 'websocketActor: WebSocket setup')
+                if (!cleanedUp)
+                  sendBack({
+                    type: 'SOCKET_ERROR',
+                    message: setupErr instanceof Error ? setupErr.message : 'WebSocket setup failed',
+                  })
               }
             })
-            .catch(() => {
+            .catch((authErr: unknown) => {
+              reportError(authErr, 'websocketActor: getIdToken')
               if (!cleanedUp) sendBack({ type: 'SOCKET_ERROR', message: 'Failed to retrieve auth token' })
             })
 
