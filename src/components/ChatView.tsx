@@ -21,6 +21,18 @@ import type { Character } from '~/services/characterService'
 import { setActiveCharacterId } from '~/hooks/useActiveCharacterId'
 
 
+function getInitials(name?: string): string {
+  return (
+    name
+      ?.trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('') || '?'
+  ).toUpperCase()
+}
+
 function toolStatusLabel(toolName: string): string {
   switch (toolName) {
     case 'wiki_read':
@@ -432,9 +444,7 @@ function ChatViewContent({
           const accessibilityLabel = isUser
             ? (displayName ? `${displayName}'s avatar` : 'Your avatar')
             : `${characterName}'s avatar`
-          const initials = isUser
-            ? (displayName?.[0] ?? '?').toUpperCase()
-            : (characterName?.[0] ?? '?').toUpperCase()
+          const initials = isUser ? getInitials(displayName) : getInitials(characterName)
           if (avatarUri) {
             return (
               <Avatar.Image
