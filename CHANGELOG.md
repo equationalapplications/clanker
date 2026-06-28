@@ -1,3 +1,11 @@
+## [30.8.1](https://github.com/equationalapplications/clanker/compare/v30.8.0...v30.8.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* **live-voice:** resolve cloud-agent URL for production EAS builds ([aa96a30](https://github.com/equationalapplications/clanker/commit/aa96a30f034e75995d76a22618bc1608a38d676f))
+* **live-voice:** validate dev URL and guard WebSocket handlers ([0d1da40](https://github.com/equationalapplications/clanker/commit/0d1da40ebd52d8b2069d488b47bf7804117750e7))
+
 # [30.8.0](https://github.com/equationalapplications/clanker/compare/v30.7.1...v30.8.0) (2026-06-28)
 
 
