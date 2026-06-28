@@ -18,6 +18,9 @@ jest.mock('~/database/messageDatabase', () => {
 jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(),
 }))
+jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+  isDevSandboxEnabled: jest.fn(() => false),
+}))
 
 class MockWebSocket {
   static OPEN = 1
@@ -43,6 +46,7 @@ import { getCharacter } from '~/database/characterDatabase'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import { getCurrentUser } from '~/config/firebaseConfig'
+import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
 
 const WAIT = { timeout: 3000 }
 const CLOUD_CHAR_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -77,6 +81,7 @@ describe('liveVoiceMachine', () => {
   let actors: ReturnType<typeof spawnMachine>[] = []
 
   beforeEach(() => {
+    jest.mocked(isDevSandboxEnabled).mockReturnValue(false)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
     jest.mocked(getCharacter).mockResolvedValue(makeCharacterMock() as never)
   })
@@ -140,6 +145,19 @@ describe('liveVoiceMachine', () => {
 
     await waitFor(actor, (s) => s.matches('error'), WAIT)
     expect(actor.getSnapshot().context.socketError).toBe('sync failed')
+  })
+
+  test('dev sandbox skips wikiSync and proceeds to session', async () => {
+    jest.mocked(isDevSandboxEnabled).mockReturnValue(true)
+
+    const actor = spawn()
+    actor.send({ type: 'START_CALL' })
+
+    await waitFor(actor, (s) => s.matches({ session: 'connecting' }), WAIT)
+
+    expect(getWiki).not.toHaveBeenCalled()
+    expect(wikiSync).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.cloudCharacterId).toBe(CLOUD_CHAR_ID)
   })
 
   test('TRANSCRIPT_TOKEN same role concatenates text', async () => {

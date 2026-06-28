@@ -1,0 +1,39 @@
+diff --git a/node_modules/@speechmatics/expo-two-way-audio/ios/ExpoTwoWayAudioModule.swift b/node_modules/@speechmatics/expo-two-way-audio/ios/ExpoTwoWayAudioModule.swift
+index 1634369..7392baa 100644
+--- a/node_modules/@speechmatics/expo-two-way-audio/ios/ExpoTwoWayAudioModule.swift
++++ b/node_modules/@speechmatics/expo-two-way-audio/ios/ExpoTwoWayAudioModule.swift
+@@ -122,7 +122,7 @@ public class ExpoTwoWayAudioModule: Module {
+             EXPermissionsMethodsDelegate.getPermissionWithPermissionsManager(
+                 self.appContext?.permissions,
+                 withRequester: MicrophonePermissionRequester.self,
+-                resolve: promise.resolver,
++                resolve: promise.legacyResolver,
+                 reject: promise.legacyRejecter
+             )
+         }
+@@ -131,7 +131,7 @@ public class ExpoTwoWayAudioModule: Module {
+             EXPermissionsMethodsDelegate.askForPermission(
+                 withPermissionsManager: self.appContext?.permissions,
+                 withRequester: MicrophonePermissionRequester.self,
+-                resolve: promise.resolver,
++                resolve: promise.legacyResolver,
+                 reject: promise.legacyRejecter
+             )
+         }
+diff --git a/node_modules/@speechmatics/expo-two-way-audio/ios/MicrophonePermissionRequester.swift b/node_modules/@speechmatics/expo-two-way-audio/ios/MicrophonePermissionRequester.swift
+index fb81f46..0697f79 100644
+--- a/node_modules/@speechmatics/expo-two-way-audio/ios/MicrophonePermissionRequester.swift
++++ b/node_modules/@speechmatics/expo-two-way-audio/ios/MicrophonePermissionRequester.swift
+@@ -15,11 +15,7 @@ class MicrophonePermissionRequester: NSObject, EXPermissionsRequester {
+     var status: EXPermissionStatus
+ 
+     guard (Bundle.main.infoDictionary?["NSMicrophoneUsageDescription"]) != nil else {
+-      EXFatal(EXErrorWithMessage("""
+-        This app is missing NSMicrophoneUsageDescription, so audio services will fail.
+-        Add one of these keys to your bundle's Info.plist.
+-      """))
+-      return ["status": EXPermissionStatusDenied]
++      fatalError("This app is missing NSMicrophoneUsageDescription, so audio services will fail. Add this key to your bundle's Info.plist.")
+     }
+ 
+     switch systemStatus {

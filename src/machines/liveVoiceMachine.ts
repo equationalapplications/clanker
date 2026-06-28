@@ -1,6 +1,7 @@
 import { createMachine, assign, fromPromise, fromCallback, sendTo } from 'xstate'
 import type { IMessage } from 'react-native-gifted-chat'
 import type { GroundingMetadata } from '@google/genai'
+import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import {
@@ -331,12 +332,18 @@ export const liveVoiceMachine = createMachine(
     actors: {
       syncMemoryActor: fromPromise(
         async ({ input }: { input: { characterId: string; userId: string } }): Promise<{ cloudCharacterId: string | null }> => {
-          const wiki = getWiki()
-          if (!wiki) throw new Error('Wiki not initialized')
-
           const char = await getCharacter(input.characterId, input.userId)
           const cloudId = char?.cloud_id && UUID_REGEX.test(char.cloud_id) ? char.cloud_id : null
           if (!cloudId) return { cloudCharacterId: null }
+
+          // Mock auth has no Firebase ID token; wikiSync would 401 against production callables.
+          // Local cloud-agent reads seeded Postgres — skip remote memory sync in dev sandbox.
+          if (isDevSandboxEnabled()) {
+            return { cloudCharacterId: cloudId }
+          }
+
+          const wiki = getWiki()
+          if (!wiki) throw new Error('Wiki not initialized')
 
           const localDump = await wiki.exportDump([input.characterId])
           const localBundle = localDump.entities[input.characterId] ?? { facts: [], tasks: [], events: [], edges: [] }
