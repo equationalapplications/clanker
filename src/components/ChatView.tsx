@@ -20,7 +20,18 @@ import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/
 import type { Character } from '~/services/characterService'
 import { setActiveCharacterId } from '~/hooks/useActiveCharacterId'
 
-const defaultAvatarUrl = 'https://via.placeholder.com/150'
+
+function getInitials(name?: string): string {
+  return (
+    name
+      ?.trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('') || '?'
+  ).toUpperCase()
+}
 
 function toolStatusLabel(toolName: string): string {
   switch (toolName) {
@@ -111,7 +122,7 @@ function ChatViewContent({
   const chatUser: User = {
     _id: currentUserId,
     name: userDisplayName || '',
-    avatar: userPhotoUrl || defaultAvatarUrl,
+    avatar: userPhotoUrl || undefined,
   }
 
   const navigation = useNavigation()
@@ -364,7 +375,7 @@ function ChatViewContent({
     [],
   )
 
-  const characterAvatar = character.avatar || defaultAvatarUrl
+  const characterAvatar = character.avatar || null
 
   return (
     <View style={styles.container}>
@@ -428,17 +439,29 @@ function ChatViewContent({
         minInputToolbarHeight={56}
         renderAvatar={(props) => {
           const isUser = props.currentMessage?.user._id === currentUserId
-          const avatarUri = isUser ? (chatUser.avatar as string) : (characterAvatar as string)
+          const avatarUri = isUser ? (chatUser.avatar as string | undefined) : (characterAvatar as string | null)
           const displayName = userDisplayName?.trim()
           const accessibilityLabel = isUser
             ? (displayName ? `${displayName}'s avatar` : 'Your avatar')
             : `${characterName}'s avatar`
+          const initials = isUser ? getInitials(displayName) : getInitials(characterName)
+          if (avatarUri) {
+            return (
+              <Avatar.Image
+                accessible
+                accessibilityRole="image"
+                size={36}
+                source={{ uri: avatarUri }}
+                accessibilityLabel={accessibilityLabel}
+              />
+            )
+          }
           return (
-            <Avatar.Image
+            <Avatar.Text
               accessible
               accessibilityRole="image"
               size={36}
-              source={{ uri: avatarUri }}
+              label={initials}
               accessibilityLabel={accessibilityLabel}
             />
           )

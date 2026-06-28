@@ -92,6 +92,8 @@ jest.mock('react-native-paper', () => {
     Avatar: {
       Image: (props: any) =>
         React.createElement('View', { testID: 'avatar-img', ...props }),
+      Text: (props: any) =>
+        React.createElement('View', { testID: 'avatar-img', ...props }),
     },
   }
 })
