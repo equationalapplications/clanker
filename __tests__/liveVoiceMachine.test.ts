@@ -111,6 +111,38 @@ describe('liveVoiceMachine', () => {
     expect(actor.getSnapshot().matches('idle')).toBe(true)
   })
 
+  test('USER_CHANGED updates userId in idle', () => {
+    const actor = spawn({ userId: '' })
+    actor.send({ type: 'USER_CHANGED', userId: 'user-hydrated' })
+    expect(actor.getSnapshot().context.userId).toBe('user-hydrated')
+  })
+
+  test('USER_CHANGED is ignored during live session', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'user', text: 'Hi' })
+    actor.send({ type: 'USER_CHANGED', userId: 'user-2' })
+
+    const { transcript, userId } = actor.getSnapshot().context
+    expect(userId).toBe('user1')
+    expect(transcript[0]?.user._id).toBe('user1')
+  })
+
   test('START_CALL → syncing_memory and calls wiki.exportDump + wikiSync', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)

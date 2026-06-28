@@ -115,16 +115,14 @@ export const liveVoiceMachine = createMachine(
       socketError: null,
       retryCount: 0,
     }),
-    on: {
-      USER_CHANGED: {
-        actions: assign({
-          userId: ({ event }) => event.userId,
-        }),
-      },
-    },
     states: {
       idle: {
         on: {
+          USER_CHANGED: {
+            actions: assign({
+              userId: ({ event }) => event.userId,
+            }),
+          },
           START_CALL: { target: 'syncing_memory' },
         },
       },
@@ -276,6 +274,11 @@ export const liveVoiceMachine = createMachine(
 
       error: {
         on: {
+          USER_CHANGED: {
+            actions: assign({
+              userId: ({ event }) => event.userId,
+            }),
+          },
           END_CALL: { target: 'idle' },
           START_CALL: {
             target: 'syncing_memory',
