@@ -55,7 +55,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
           },
         },
       }),
-    [playChunk, clearPlaybackQueue, userId],
+    [playChunk, clearPlaybackQueue],
   )
 
   const [state, send] = useMachine(machineWithAudio, {
