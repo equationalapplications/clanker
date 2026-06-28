@@ -57,6 +57,8 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
 
   const startRecording = useCallback(async (): Promise<boolean> => {
     const adapter = adapterRef.current
+    if (recordingState === 'recording') return true
+
     try {
       const ok = await adapter.startRecording((chunk) => {
         chunkListenersRef.current.forEach((cb) => cb(chunk))
@@ -74,7 +76,7 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn {
       setRecordingState('error')
       return false
     }
-  }, [])
+  }, [recordingState])
 
   const stopRecording = useCallback(() => {
     adapterRef.current.stopRecording()

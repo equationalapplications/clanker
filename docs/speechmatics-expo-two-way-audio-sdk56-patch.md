@@ -8,7 +8,7 @@ Two Swift compilation errors surface:
 
 ### 1. Type mismatch — `ExpoTwoWayAudioModule.swift` line 125
 
-```
+```text
 cannot convert value of type 'Promise.ResolveClosure' (aka '(JavaScriptValue) -> ()') to expected argument type 'EXPromiseResolveBlock'
 ```
 
@@ -16,7 +16,7 @@ cannot convert value of type 'Promise.ResolveClosure' (aka '(JavaScriptValue) ->
 
 ### 2. Missing symbols — `MicrophonePermissionRequester.swift` line 18
 
-```
+```text
 cannot find 'EXFatal' in scope
 cannot find 'EXErrorWithMessage' in scope
 ```
@@ -72,7 +72,7 @@ fatalError("This app is missing NSMicrophoneUsageDescription, so audio services 
 
 Changes are persisted via `patch-package`:
 
-```
+```text
 patches/@speechmatics+expo-two-way-audio+0.1.2.patch
 ```
 

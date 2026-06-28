@@ -30,6 +30,8 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   }
 
   async startRecording(onChunk: (base64: string) => void): Promise<boolean> {
+    if (this._micSub !== null) return true
+
     const perm = await requestMicrophonePermissionsAsync()
     if (!perm.granted) return false
 

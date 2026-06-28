@@ -48,7 +48,7 @@
     "@react-native-firebase/crashlytics": "^23.8.8",
     "@react-native-firebase/functions": "^23.8.8",
     "@react-native-google-signin/google-signin": "^16.1.2",
-    "@speechmatics/expo-two-way-audio": "^0.1.2",
+    "@speechmatics/expo-two-way-audio": "0.1.2",
     "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-query-persist-client": "^5.101.0",
     "@xstate/react": "^6.1.0",

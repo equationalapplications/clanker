@@ -186,7 +186,7 @@ Rationale:
 
 ## 9. Architecture
 
-```
+```text
 Gemini Live (cloud-agent /agent/live)
         │  audio_output { base64 PCM 24kHz }
         ▼
