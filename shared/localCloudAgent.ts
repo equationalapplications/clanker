@@ -36,6 +36,30 @@ export function isLocalCloudAgentUrl(baseUrl?: string): boolean {
   }
 }
 
+const PROD_CLOUD_AGENT_URL = 'https://clanker-cloud-agent-zbvqu57cca-uc.a.run.app'
+
+/**
+ * Returns the cloud-agent base URL (no trailing slash, no path suffix).
+ * Production builds use the hardcoded Cloud Run URL.
+ * Dev builds require EXPO_PUBLIC_CLOUD_AGENT_URL (set in .env.development.local).
+ */
+export function getCloudAgentBaseUrl(): string {
+  if (!isDevBuild()) return PROD_CLOUD_AGENT_URL
+  const devUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
+  if (!devUrl) throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL is not configured for local dev')
+  const normalized = normalizeCloudAgentBaseUrl(devUrl)
+  let parsed: URL
+  try {
+    parsed = new URL(normalized)
+  } catch {
+    throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL must be a valid http(s) URL')
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL must use http:// or https://')
+  }
+  return normalized
+}
+
 /**
  * In dev builds pointed at local Docker, route cloud-agent calls to the seeded
  * DEV_CLOUD_CHARACTER_ID so escalation/live voice work without seeding prod IDs.
