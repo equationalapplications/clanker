@@ -417,10 +417,12 @@ export const liveVoiceMachine = createMachine(
               if (cleanedUp) return
               try {
                 const url = getLiveWsUrl()
-                ws = new WebSocket(url)
+                const socket = new WebSocket(url)
+                ws = socket
 
-                ws.onopen = () => {
-                  ws!.send(
+                socket.onopen = () => {
+                  if (cleanedUp || ws !== socket) return
+                  socket.send(
                     JSON.stringify({
                       type: 'auth',
                       token,
@@ -430,7 +432,8 @@ export const liveVoiceMachine = createMachine(
                   sendBack({ type: 'SOCKET_OPENED' })
                 }
 
-                ws.onmessage = (event) => {
+                socket.onmessage = (event) => {
+                  if (cleanedUp || ws !== socket) return
                   try {
                     const msg = JSON.parse(event.data as string) as { type: string } & Record<string, unknown>
                     const xstateType =
@@ -441,12 +444,14 @@ export const liveVoiceMachine = createMachine(
                   }
                 }
 
-                ws.onerror = () => {
-                  if (!cleanedUp) sendBack({ type: 'SOCKET_ERROR', message: 'WebSocket connection error' })
+                socket.onerror = () => {
+                  if (cleanedUp || ws !== socket) return
+                  sendBack({ type: 'SOCKET_ERROR', message: 'WebSocket connection error' })
                 }
 
-                ws.onclose = () => {
-                  if (!cleanedUp) sendBack({ type: 'SOCKET_CLOSED' })
+                socket.onclose = () => {
+                  if (cleanedUp || ws !== socket) return
+                  sendBack({ type: 'SOCKET_CLOSED' })
                 }
               } catch (setupErr: unknown) {
                 reportError(setupErr, 'websocketActor: WebSocket setup')
