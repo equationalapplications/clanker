@@ -109,6 +109,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         'Allow Clanker to access your photo library to set a character avatar.',
+      UIBackgroundModes: ['audio'],
     },
     associatedDomains: ['applinks:clanker-ai.com', 'applinks:www.clanker-ai.com'],
     config: {
@@ -200,15 +201,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         microphonePermission: 'Allow Clanker to access your microphone for voice conversations.',
         speechRecognitionPermission: 'Allow Clanker to transcribe your speech for voice conversations.',
-      },
-    ],
-    [
-      'expo-audio',
-      {
-        microphonePermission:
-          'Allow Clanker to access your microphone for voice conversations.',
-        enableBackgroundPlayback: true,
-        enableBackgroundRecording: false,
       },
     ],
     [

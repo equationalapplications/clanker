@@ -55,7 +55,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
           },
         },
       }),
-    [playChunk, clearPlaybackQueue, userId],
+    [playChunk, clearPlaybackQueue],
   )
 
   const [state, send] = useMachine(machineWithAudio, {
@@ -65,6 +65,14 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
       initialCredits: typeof remainingCredits === 'number' ? remainingCredits : 0,
     },
   })
+
+  const syncedUserIdRef = useRef(userId)
+  useEffect(() => {
+    if (userId && userId !== syncedUserIdRef.current) {
+      send({ type: 'USER_CHANGED', userId })
+    }
+    syncedUserIdRef.current = userId
+  }, [userId, send])
 
   // Mic → machine: forward audio chunks as AUDIO_INPUT events
   useEffect(() => {

@@ -18,6 +18,9 @@ jest.mock('~/database/messageDatabase', () => {
 jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(),
 }))
+jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+  isDevSandboxEnabled: jest.fn(() => false),
+}))
 
 class MockWebSocket {
   static OPEN = 1
@@ -43,6 +46,7 @@ import { getCharacter } from '~/database/characterDatabase'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import { getCurrentUser } from '~/config/firebaseConfig'
+import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
 
 const WAIT = { timeout: 3000 }
 const CLOUD_CHAR_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -77,6 +81,7 @@ describe('liveVoiceMachine', () => {
   let actors: ReturnType<typeof spawnMachine>[] = []
 
   beforeEach(() => {
+    jest.mocked(isDevSandboxEnabled).mockReturnValue(false)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
     jest.mocked(getCharacter).mockResolvedValue(makeCharacterMock() as never)
   })
@@ -104,6 +109,38 @@ describe('liveVoiceMachine', () => {
   test('starts in idle', () => {
     const actor = spawn()
     expect(actor.getSnapshot().matches('idle')).toBe(true)
+  })
+
+  test('USER_CHANGED updates userId in idle', () => {
+    const actor = spawn({ userId: '' })
+    actor.send({ type: 'USER_CHANGED', userId: 'user-hydrated' })
+    expect(actor.getSnapshot().context.userId).toBe('user-hydrated')
+  })
+
+  test('USER_CHANGED is ignored during live session', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const actor = spawn()
+    await advanceToLive(actor)
+
+    actor.send({ type: 'TRANSCRIPT_TOKEN', role: 'user', text: 'Hi' })
+    actor.send({ type: 'USER_CHANGED', userId: 'user-2' })
+
+    const { transcript, userId } = actor.getSnapshot().context
+    expect(userId).toBe('user1')
+    expect(transcript[0]?.user._id).toBe('user1')
   })
 
   test('START_CALL → syncing_memory and calls wiki.exportDump + wikiSync', async () => {
@@ -140,6 +177,19 @@ describe('liveVoiceMachine', () => {
 
     await waitFor(actor, (s) => s.matches('error'), WAIT)
     expect(actor.getSnapshot().context.socketError).toBe('sync failed')
+  })
+
+  test('dev sandbox skips wikiSync and proceeds to session', async () => {
+    jest.mocked(isDevSandboxEnabled).mockReturnValue(true)
+
+    const actor = spawn()
+    actor.send({ type: 'START_CALL' })
+
+    await waitFor(actor, (s) => s.matches({ session: 'connecting' }), WAIT)
+
+    expect(getWiki).not.toHaveBeenCalled()
+    expect(wikiSync).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.cloudCharacterId).toBe(CLOUD_CHAR_ID)
   })
 
   test('TRANSCRIPT_TOKEN same role concatenates text', async () => {

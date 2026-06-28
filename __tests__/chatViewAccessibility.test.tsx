@@ -92,6 +92,8 @@ jest.mock('react-native-paper', () => {
     Avatar: {
       Image: (props: any) =>
         React.createElement('View', { testID: 'avatar-img', ...props }),
+      Text: (props: any) =>
+        React.createElement('View', { testID: 'avatar-text', ...props }),
     },
   }
 })
@@ -367,9 +369,9 @@ describe('ChatView accessibility', () => {
     let avatarTree: any
     act(() => { avatarTree = create(avatarEl) })
 
-    const avatarImg = avatarTree.root.find((n: any) => n.props.testID === 'avatar-img')
-    expect(avatarImg.props.accessibilityLabel).toContain('Nova')
-    expect(avatarImg.props.accessibilityRole).toBe('image')
+    const avatarText = avatarTree.root.find((n: any) => n.props.testID === 'avatar-text')
+    expect(avatarText.props.accessibilityLabel).toContain('Nova')
+    expect(avatarText.props.accessibilityRole).toBe('image')
   })
 
   it('renderAvatar: user avatar carries the user display name as accessibility label', () => {
@@ -386,9 +388,9 @@ describe('ChatView accessibility', () => {
     let avatarTree: any
     act(() => { avatarTree = create(avatarEl) })
 
-    const avatarImg = avatarTree.root.find((n: any) => n.props.testID === 'avatar-img')
-    expect(avatarImg.props.accessibilityLabel).toContain('Test')
-    expect(avatarImg.props.accessibilityRole).toBe('image')
+    const avatarText = avatarTree.root.find((n: any) => n.props.testID === 'avatar-text')
+    expect(avatarText.props.accessibilityLabel).toContain('Test')
+    expect(avatarText.props.accessibilityRole).toBe('image')
   })
 
   // ── web platform: status role on sign-in-required state ───────────────────
