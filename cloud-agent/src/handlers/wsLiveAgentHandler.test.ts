@@ -929,3 +929,179 @@ test('attachWebSocketRoutes: /agent/stream and /agent/live both accept connectio
     httpServer.close((err) => (err ? reject(err) : resolve()))
   })
 })
+
+test('pushToLive falls back to Expo Push when voice WS is closed', { timeout: 5000 }, async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+
+  const expoPushCalls: Array<{ token: string; sessionId: string; taskId: string; text: string }> = []
+  const mockFcmDispatcher = {
+    wakeExtension: async () => {},
+    sendApprovalCard: async () => {},
+    sendTaskComplete: async (token: string, sessionId: string, taskId: string, text: string) => {
+      expoPushCalls.push({ token, sessionId, taskId, text })
+    },
+    sendProactive: async () => {},
+  }
+
+  let watchTaskCallback: ((task: unknown) => void) | null = null
+  const mockFirestoreSession = {
+    getActiveDevice: async () => ({ deviceId: 'd1', fcmToken: 'fcm-tok', deviceName: 'Mac' }),
+    createSession: async () => {},
+    writeTask: async () => {},
+    closeSession: async () => {},
+    writeTaskResult: async () => {},
+    getTask: async () => ({ status: 'pending' }),
+    getSession: async () => ({ browserInstanceId: null, browserConnectedAt: null }),
+    abortPendingTaskIfOffline: async () => false,
+    watchTask: (_uid: string, _sid: string, _tid: string, cb: (task: unknown) => void) => {
+      watchTaskCallback = cb
+      return () => {}
+    },
+  }
+
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'fb-uid-1' }),
+    liveConnect: mock.connect,
+    getExpoPushToken: async () => 'ExponentPushToken[test]',
+    browserBridge: {
+      firebaseUid: 'fb-uid-1',
+      userId: 'user-uuid-1',
+      firestoreSession: mockFirestoreSession as never,
+      fcmDispatcher: mockFcmDispatcher as never,
+      creditService: mockCreditService,
+      instanceId: 'inst-1',
+      wakeTimeoutMs: 50,
+      textTimeoutMs: 500,
+    },
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 4500)
+
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+
+    ws.on('message', (raw) => {
+      const msg = JSON.parse(raw.toString()) as { type: string }
+      if (msg.type !== 'session_ready') return
+
+      // Simulate Gemini invoking browser_action
+      mock.triggerMessage({
+        toolCall: {
+          functionCalls: [{ id: 'call-1', name: 'browser_action', args: {
+            actionSummary: 'Extract price',
+            intent: { action: { type: 'extract', selector: '.price', label: 'price' } },
+          }}],
+        },
+      })
+
+      // Close the WS before the task result arrives
+      setTimeout(() => ws.close(), 20)
+    })
+
+    ws.on('close', async () => {
+      // Task result arrives after WS is closed
+      await new Promise((r) => setTimeout(r, 100))
+      watchTaskCallback?.({ status: 'complete', result: { data: { price: '$340' }, activeUrl: 'https://example.com' }, error: null })
+
+      await new Promise((r) => setTimeout(r, 100))
+
+      clearTimeout(timeout)
+      try {
+        assert.equal(expoPushCalls.length, 1, 'sendTaskComplete should be called once')
+        assert.equal(expoPushCalls[0].token, 'ExponentPushToken[test]')
+        assert.match(expoPushCalls[0].text, /\$340|complete/i)
+        resolve()
+      } catch (e) {
+        reject(e)
+      }
+    })
+
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('pushToLive uses DB lookup for expoPushToken when getExpoPushToken not injected', { timeout: 5000 }, async () => {
+  const expoPushRow = [{ expoPushToken: 'ExponentPushToken[db]' }]
+  const db = makeMockDb([[mockUser], [mockCharacter], expoPushRow])
+
+  const proactiveCalls: Array<{ token: string }> = []
+  const mockFcmDispatcher = {
+    wakeExtension: async () => {},
+    sendTaskComplete: async (token: string) => { proactiveCalls.push({ token }) },
+    sendProactive: async () => {},
+  }
+
+  let watchTaskCallback: ((task: unknown) => void) | null = null
+  const mockFirestoreSession = {
+    getActiveDevice: async () => ({ deviceId: 'd1', fcmToken: 'tok', deviceName: 'Mac' }),
+    createSession: async () => {},
+    writeTask: async () => {},
+    closeSession: async () => {},
+    writeTaskResult: async () => {},
+    getTask: async () => ({ status: 'pending' }),
+    getSession: async () => ({ browserInstanceId: null, browserConnectedAt: null }),
+    abortPendingTaskIfOffline: async () => false,
+    watchTask: (_u: string, _s: string, _t: string, cb: (task: unknown) => void) => {
+      watchTaskCallback = cb
+      return () => {}
+    },
+  }
+
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'fb-uid-2' }),
+    liveConnect: mock.connect,
+    browserBridge: {
+      firebaseUid: 'fb-uid-2',
+      userId: 'user-uuid-1',
+      firestoreSession: mockFirestoreSession as never,
+      fcmDispatcher: mockFcmDispatcher as never,
+      creditService: mockCreditService,
+      instanceId: 'inst-2',
+      wakeTimeoutMs: 50,
+      textTimeoutMs: 500,
+    },
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 4500)
+    ws.on('open', () => ws.send(JSON.stringify({ type: 'auth', token: 'v', characterId: CHAR_UUID })))
+    ws.on('message', (raw) => {
+      const msg = JSON.parse(raw.toString()) as { type: string }
+      if (msg.type !== 'session_ready') return
+      mock.triggerMessage({
+        toolCall: { functionCalls: [{ id: 'c2', name: 'browser_action', args: {
+          actionSummary: 'Extract', intent: { action: { type: 'extract', selector: '.p', label: 'p' } },
+        }}] },
+      })
+      setTimeout(() => ws.close(), 20)
+    })
+    ws.on('close', async () => {
+      await new Promise((r) => setTimeout(r, 100))
+      watchTaskCallback?.({ status: 'complete', result: { data: { p: 'x' }, activeUrl: 'https://a.com' }, error: null, intent: { action: { type: 'extract', selector: '.p' } } })
+      await new Promise((r) => setTimeout(r, 100))
+      clearTimeout(timeout)
+      try {
+        assert.equal(proactiveCalls.length, 1)
+        assert.equal(proactiveCalls[0].token, 'ExponentPushToken[db]')
+        resolve()
+      } catch (e) { reject(e) }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
