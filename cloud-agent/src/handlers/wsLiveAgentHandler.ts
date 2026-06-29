@@ -16,6 +16,7 @@ import { hasGroundingData } from '../groundingMetadata.js'
 import { defaultFcmDispatcher } from '../services/fcmDispatcher.js'
 import { defaultFirestoreSession } from '../services/firestoreSession.js'
 import { INSTANCE_ID } from '../services/instanceId.js'
+import { getExpoPushToken as dbGetExpoPushToken } from './expoPushToken.js'
 
 export interface BillingControllerOpts {
   spend: () => void
@@ -69,6 +70,8 @@ export interface WsLiveHandlerOptions {
   billingIntervalMs?: number
   _clearInterval?: (id: ReturnType<typeof setInterval> | undefined) => void
   browserBridge?: Omit<import('../tools/browserAction.js').BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling' | 'registerLiveCall'>
+  /** Injectable for testing; defaults to DB lookup. */
+  getExpoPushToken?: (firebaseUid: string) => Promise<string | null>
 }
 
 const AUTH_TIMEOUT_MS = 5000
@@ -387,15 +390,30 @@ export async function handleLiveWsUpgrade(
               activeBrowserCallId = null
             }
           },
-          pushToLive: (taskId: string, text: string) => {
+          pushToLive: (taskId: string, bridgeSessionId: string, text: string) => {
             const callId = browserCallByTaskId.get(taskId)
             if (!callId) return
             browserCallByTaskId.delete(taskId)
-            try {
-              geminiSession?.sendToolResponse({
-                functionResponses: [{ id: callId, name: 'browser_action', response: { output: text } }],
-              })
-            } catch { /* ignore */ }
+            const sessionOpen = geminiSession !== null && ws.readyState === WebSocket.OPEN
+            if (sessionOpen) {
+              try {
+                geminiSession!.sendToolResponse({
+                  functionResponses: [{ id: callId, name: 'browser_action', response: { output: text } }],
+                })
+              } catch { /* ignore */ }
+              return
+            }
+            // Voice session already closed — deliver result via Expo Push fallback.
+            if (bridgeBase?.fcmDispatcher && bridgeBase.firebaseUid) {
+              const fwd = bridgeBase.fcmDispatcher
+              const fbUid = bridgeBase.firebaseUid
+              const getToken = options.getExpoPushToken ?? ((uid: string) => dbGetExpoPushToken(options.db, uid))
+              void getToken(fbUid)
+                .then(async (token) => {
+                  if (token) await fwd.sendTaskComplete(token, bridgeSessionId, taskId, text)
+                })
+                .catch((err) => console.error('[pushToLive Expo fallback]', err))
+            }
           },
         })
         : buildLiveTools(db, userId, characterId, embedText, timezone)

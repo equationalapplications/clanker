@@ -64,6 +64,17 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
         priority: 'normal',
       })
     },
+
+    async sendProactive(expoPushToken: string, sessionId: string, taskId: string, body: string): Promise<void> {
+      await expoPush({
+        to: expoPushToken,
+        title: 'Clanker noticed something',
+        body,
+        data: { type: 'PROACTIVE_TASK', sessionId, taskId, deepLink: '/talk' },
+        categoryIdentifier: 'BROWSER_ACTION_APPROVAL',
+        priority: 'high',
+      })
+    },
   }
 }
 

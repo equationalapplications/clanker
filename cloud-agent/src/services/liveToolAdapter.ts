@@ -34,7 +34,7 @@ export function buildLiveTools(
   embed: EmbedFn,
   timezone: string,
   bridge?: Omit<BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling' | 'registerLiveCall'> & {
-    pushToLive?: (taskId: string, t: string) => void
+    pushToLive?: (taskId: string, sessionId: string, t: string) => void
     pauseBilling?: () => void
     resumeBilling?: () => void
     registerLiveCall?: (taskId: string) => void

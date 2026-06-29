@@ -7,6 +7,7 @@ export const AUTH_APPROVAL_TTL_MS = 5 * 60 * 1000
 export interface AuthApprovalObserverDeps {
   fs: FirestoreSession
   fcmDispatcher?: FcmDispatcher
+  verifyToken: (token: string) => Promise<{ uid: string }>
   getExpoPushToken?: (uid: string) => Promise<string | null>
   firebaseUid: string
   sessionId: string
@@ -75,6 +76,14 @@ export function startAuthApprovalObserver(deps: AuthApprovalObserverDeps): void 
 
     if (auth.status === 'approved') {
       settle(async () => {
+        try {
+          const decoded = await deps.verifyToken(auth.approvalToken ?? '')
+          if (decoded.uid !== deps.firebaseUid) throw new Error('UID mismatch')
+        } catch {
+          await abortTask('AUTH_DENIED', 'Approval token invalid. The action was not completed.')
+          return
+        }
+
         if (deps.fcmDispatcher && deps.deviceFcmToken) {
           try {
             await deps.fcmDispatcher.wakeExtension(deps.deviceFcmToken, deps.sessionId, deps.taskId, true)

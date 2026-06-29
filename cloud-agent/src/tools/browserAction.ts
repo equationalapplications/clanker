@@ -18,7 +18,7 @@ export interface BrowserActionDeps {
   pauseBilling?: () => void
   resumeBilling?: () => void
   // Voice-only: push the final result into the live Gemini session.
-  pushToLive?: (taskId: string, text: string) => void
+  pushToLive?: (taskId: string, sessionId: string, text: string) => void
   /** Voice-only: correlate an in-flight browser_action tool call with its taskId. */
   registerLiveCall?: (taskId: string) => void
   wakeTimeoutMs?: number  // default 12_000
@@ -173,7 +173,7 @@ export function browserActionTool(
       // Voice: resolve final result out-of-band into the live session; return interim now.
       void waitForTerminalTask().then((task) => {
         deps.resumeBilling?.()
-        deps.pushToLive?.(taskId, formatResult(task))
+        deps.pushToLive?.(taskId, sessionId, formatResult(task))
       })
       return 'Sent the task to your browser. I\'ll read the result aloud when it arrives.'
     },

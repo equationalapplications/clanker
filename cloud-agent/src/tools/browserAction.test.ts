@@ -124,7 +124,7 @@ test('voice execution timeout resumes billing and pushes timeout message', async
     firestoreSession: fs,
     textTimeoutMs: 30,
     resumeBilling: () => { resumed = true },
-    pushToLive: (_taskId: string, text: string) => { pushed.push(text) },
+    pushToLive: (_taskId: string, _sessionId: string, text: string) => { pushed.push(text) },
   })
   const tool = browserActionTool(deps as never, { trigger: 'voice', preBilled: false })
   await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
@@ -157,7 +157,7 @@ test('voice path: awaiting_auth narrates pause, resumes billing, ends turn (no E
     fcmDispatcher: { wakeExtension: async () => {} } as never,
     creditService: { spendCredit: async () => 'tx1', refundCredit: async () => {} } as never,
     instanceId: 'i-test',
-    pushToLive: (_taskId: string, msg: string) => { pushed.push(msg) },
+    pushToLive: (_taskId: string, _sessionId: string, msg: string) => { pushed.push(msg) },
     pauseBilling: () => {},
     resumeBilling: () => { resumed = true },
     wakeTimeoutMs: 50,

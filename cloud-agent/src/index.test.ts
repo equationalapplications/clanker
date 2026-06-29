@@ -438,3 +438,44 @@ test('POST /agent/run captures X-Timezone header and passes it to runAgentFn', a
     .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(capturedTimezone, 'America/Chicago')
 })
+
+test('POST /agent/browser/scheduler-trigger returns 401 with no secret', async () => {
+  const savedSecret = process.env.SCHEDULER_SECRET
+  process.env.SCHEDULER_SECRET = 'test-scheduler-secret-for-index'
+  try {
+    const db = makeMockDb()
+    const app = createApp({
+      verifyToken: async () => ({ uid: 'uid' }),
+      db,
+      runAgentFn: async () => ({ reply: 'ok', toolCalls: [] }),
+    })
+    const res = await request(app)
+      .post('/agent/browser/scheduler-trigger')
+      .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'p' }, actionSummary: 'Extract', notificationBody: 'Done' })
+    assert.equal(res.status, 401)
+  } finally {
+    if (savedSecret === undefined) delete process.env.SCHEDULER_SECRET
+    else process.env.SCHEDULER_SECRET = savedSecret
+  }
+})
+
+test('POST /agent/browser/scheduler-trigger returns 503 when SCHEDULER_SECRET not set', async () => {
+  const saved = process.env.SCHEDULER_SECRET
+  delete process.env.SCHEDULER_SECRET
+  try {
+    const db = makeMockDb()
+    const app = createApp({
+      verifyToken: async () => ({ uid: 'uid' }),
+      db,
+      runAgentFn: async () => ({ reply: 'ok', toolCalls: [] }),
+    })
+    const res = await request(app)
+      .post('/agent/browser/scheduler-trigger')
+      .set('Authorization', 'Bearer anything')
+      .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'p' }, actionSummary: 'Extract', notificationBody: 'Done' })
+    assert.equal(res.status, 503)
+  } finally {
+    if (saved === undefined) delete process.env.SCHEDULER_SECRET
+    else process.env.SCHEDULER_SECRET = saved
+  }
+})

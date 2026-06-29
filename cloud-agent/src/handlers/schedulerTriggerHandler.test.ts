@@ -1,0 +1,233 @@
+// cloud-agent/src/handlers/schedulerTriggerHandler.test.ts
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import express from 'express'
+import request from 'supertest'
+import { createSchedulerTriggerHandler } from './schedulerTriggerHandler.js'
+import type { TaskDoc } from '../../../shared/dsl-types.js'
+
+const SECRET = 'test-scheduler-secret-abc'
+
+function buildApp(overrides: {
+  getActiveDevice?: () => Promise<unknown>
+  createSession?: () => Promise<void>
+  watchTask?: (uid: string, sid: string, tid: string, cb: (t: TaskDoc) => void) => () => void
+  sendProactive?: (token: string, sid: string, tid: string, body: string) => Promise<void>
+  getExpoPushToken?: (uid: string) => Promise<string | null>
+  resolveUserId?: (uid: string) => Promise<string | null>
+  spendCredit?: () => Promise<string>
+  refundCredit?: () => Promise<void>
+  abortPendingTaskIfOffline?: () => Promise<boolean>
+  writeTaskResult?: () => Promise<void>
+} = {}) {
+  const creditCalls = { spend: 0, refund: 0 }
+  const mockFs = {
+    getActiveDevice: overrides.getActiveDevice ?? (async () => ({ deviceId: 'd1', fcmToken: 'fcm-tok', deviceName: 'Mac' })),
+    createSession: overrides.createSession ?? (async () => {}),
+    writeTask: async () => {},
+    closeSession: async () => {},
+    abortPendingTaskIfOffline: overrides.abortPendingTaskIfOffline ?? (async () => true),
+    writeTaskResult: overrides.writeTaskResult ?? (async () => {}),
+    watchTask: overrides.watchTask ?? ((_u: string, _s: string, _t: string, cb: (t: TaskDoc) => void) => {
+      setTimeout(() => cb({ status: 'complete', result: { data: { price: '$340' }, activeUrl: 'https://x.com' }, error: null, intent: { action: { type: 'extract', selector: '.p' } } } as unknown as TaskDoc), 5)
+      return () => {}
+    }),
+  }
+
+  const proactiveCalls: Array<{ token: string; sid: string; tid: string; body: string }> = []
+  const mockFcm = {
+    wakeExtension: async () => {},
+    sendProactive: overrides.sendProactive ?? (async (token: string, sid: string, tid: string, body: string) => {
+      proactiveCalls.push({ token, sid, tid, body })
+    }),
+  }
+
+  const mockCredit = {
+    spendCredit: overrides.spendCredit ?? (async () => { creditCalls.spend++; return 'tx1' }),
+    refundCredit: overrides.refundCredit ?? (async () => { creditCalls.refund++ }),
+  }
+
+  const handler = createSchedulerTriggerHandler(
+    mockFs as never,
+    mockFcm as never,
+    overrides.getExpoPushToken ?? (async () => 'ExponentPushToken[sched]'),
+    mockCredit as never,
+    overrides.resolveUserId ?? (async () => 'user-db-id'),
+    { secret: SECRET, schedulerTimeoutMs: 200 },
+  )
+
+  const app = express()
+  app.use(express.json())
+  app.post('/agent/browser/scheduler-trigger', handler)
+
+  return { app, proactiveCalls, creditCalls }
+}
+
+test('returns 401 with no Authorization header', async () => {
+  const { app } = buildApp()
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'price' }, actionSummary: 'Extract', notificationBody: 'Done' })
+  assert.equal(res.status, 401)
+})
+
+test('returns 401 with wrong secret', async () => {
+  const { app } = buildApp()
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', 'Bearer wrong-secret')
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'price' }, actionSummary: 'Extract', notificationBody: 'Done' })
+  assert.equal(res.status, 401)
+})
+
+test('returns 422 when no active device', async () => {
+  const { app, creditCalls } = buildApp({ getActiveDevice: async () => null })
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'price' }, actionSummary: 'Extract', notificationBody: 'Done' })
+  assert.equal(res.status, 422)
+  assert.match(res.body.error, /no active device/i)
+  assert.equal(creditCalls.spend, 0)
+})
+
+test('returns 422 for blocked host', async () => {
+  const { app, creditCalls } = buildApp()
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({ uid: 'u1', action: { type: 'open_tab', url: 'chrome://settings' }, actionSummary: 'Open', notificationBody: 'Done' })
+  assert.equal(res.status, 422)
+  assert.match(res.body.error, /HOST_NOT_ALLOWED/i)
+  assert.equal(creditCalls.spend, 0)
+})
+
+test('returns 422 for actions that require approval', async () => {
+  const { app, creditCalls } = buildApp()
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({
+      uid: 'u1',
+      action: { type: 'click', selector: '#submit-order-btn', label: 'Submit Payment', tier: 'stateful' },
+      actionSummary: 'Submit payment of $42.99 on amazon.com',
+      notificationBody: 'Done',
+    })
+  assert.equal(res.status, 422)
+  assert.match(res.body.error, /REQUIRES_AUTH/i)
+  assert.equal(creditCalls.spend, 0)
+})
+
+test('returns 402 when user has insufficient credits', async () => {
+  const { app, creditCalls } = buildApp({
+    spendCredit: async () => { throw new Error('INSUFFICIENT_CREDITS') },
+  })
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.price', label: 'price' }, actionSummary: 'Extract price', notificationBody: 'Price check done.' })
+  assert.equal(res.status, 402)
+  assert.match(res.body.error, /insufficient credits/i)
+  assert.equal(creditCalls.spend, 0)
+})
+
+test('returns 422 when user not found', async () => {
+  const { app, creditCalls } = buildApp({ resolveUserId: async () => null })
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'price' }, actionSummary: 'Extract', notificationBody: 'Done' })
+  assert.equal(res.status, 422)
+  assert.match(res.body.error, /user not found/i)
+  assert.equal(creditCalls.spend, 0)
+})
+
+test('returns 200 and sends Expo Push on successful task', async () => {
+  const { app, proactiveCalls, creditCalls } = buildApp()
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.price', label: 'price' }, actionSummary: 'Extract price', notificationBody: 'Price check done.' })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.ok, true)
+  assert.ok(res.body.sessionId)
+  assert.ok(res.body.taskId)
+  assert.equal(proactiveCalls.length, 1)
+  assert.equal(proactiveCalls[0].token, 'ExponentPushToken[sched]')
+  assert.equal(proactiveCalls[0].body, 'Price check done.')
+  assert.equal(creditCalls.spend, 1)
+  assert.equal(creditCalls.refund, 0)
+})
+
+test('returns 200 with failure body when task fails', async () => {
+  const { app, proactiveCalls, creditCalls } = buildApp({
+    watchTask: (_u: string, _s: string, _t: string, cb: (t: TaskDoc) => void) => {
+      setTimeout(() => cb({ status: 'failed', result: null, error: { code: 'SELECTOR_NOT_FOUND', message: 'not found', failedAction: { type: 'extract', selector: '.p' } as never }, intent: { action: { type: 'extract', selector: '.p' } } } as unknown as TaskDoc), 5)
+      return () => {}
+    },
+  })
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.price', label: 'price' }, actionSummary: 'Extract price', notificationBody: 'Price check done.' })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.status, 'failed')
+  assert.equal(proactiveCalls.length, 1)
+  assert.match(proactiveCalls[0].body, /SELECTOR_NOT_FOUND|failed/i)
+  assert.equal(creditCalls.spend, 1)
+  assert.equal(creditCalls.refund, 0)
+})
+
+test('returns 504 and no Expo Push on timeout', async () => {
+  const { app, proactiveCalls, creditCalls } = buildApp({
+    watchTask: () => () => {},
+    abortPendingTaskIfOffline: async () => false,
+  })
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.price', label: 'price' }, actionSummary: 'Extract price', notificationBody: 'Price check done.' })
+  assert.equal(res.status, 504)
+  assert.equal(proactiveCalls.length, 0)
+  assert.equal(creditCalls.spend, 1)
+  assert.equal(creditCalls.refund, 0)
+})
+
+test('refunds credit on timeout when extension never connected', async () => {
+  const { app, creditCalls } = buildApp({
+    watchTask: () => () => {},
+    abortPendingTaskIfOffline: async () => true,
+  })
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.price', label: 'price' }, actionSummary: 'Extract price', notificationBody: 'Price check done.' })
+  assert.equal(res.status, 504)
+  assert.equal(creditCalls.spend, 1)
+  assert.equal(creditCalls.refund, 1)
+})
+
+test('returns 200 without Expo Push when no token registered', async () => {
+  const { app, proactiveCalls } = buildApp({
+    getExpoPushToken: async () => null,
+  })
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.price', label: 'price' }, actionSummary: 'Extract price', notificationBody: 'Price check done.' })
+  assert.equal(res.status, 200)
+  assert.equal(proactiveCalls.length, 0)
+})
+
+test('refunds credit when setup fails after spend', async () => {
+  const { app, creditCalls } = buildApp({
+    createSession: async () => { throw new Error('firestore write failed') },
+  })
+  const res = await request(app)
+    .post('/agent/browser/scheduler-trigger')
+    .set('Authorization', `Bearer ${SECRET}`)
+    .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'price' }, actionSummary: 'Extract', notificationBody: 'Done' })
+  assert.equal(res.status, 500)
+  assert.equal(creditCalls.spend, 1)
+  assert.equal(creditCalls.refund, 1)
+})

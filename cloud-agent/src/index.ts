@@ -25,6 +25,7 @@ import { defaultFcmDispatcher } from './services/fcmDispatcher.js'
 import { upsertDeviceRecord } from './services/deviceUpsert.js'
 import { upsertExpoPushToken, getExpoPushToken } from './handlers/expoPushToken.js'
 import { handleApproveAction } from './handlers/approveAction.js'
+import { createSchedulerTriggerHandler, isSchedulerAuthorized } from './handlers/schedulerTriggerHandler.js'
 import { INSTANCE_ID } from './services/instanceId.js'
 import { z } from 'zod'
 
@@ -216,6 +217,14 @@ export function createApp(options: AppOptions) {
     handler: rateLimitHandler,
   })
 
+  const schedulerTriggerLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: rateLimitHandler,
+  })
+
   app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     try {
       const parseResult = z
@@ -384,6 +393,34 @@ export function createApp(options: AppOptions) {
       console.error('approve-action error:', err)
       res.status(500).json({ error: 'Internal server error' })
     }
+  })
+
+  app.post('/agent/browser/scheduler-trigger', schedulerTriggerLimiter, async (req: Request, res: Response): Promise<void> => {
+    const secret = process.env.SCHEDULER_SECRET
+    if (!secret) {
+      res.status(503).json({ error: 'Scheduler trigger not configured' })
+      return
+    }
+    if (!isSchedulerAuthorized(req, secret)) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+    if (!browserBridgeAvailable) {
+      res.status(503).json({ error: 'Browser bridge unavailable' })
+      return
+    }
+    const handler = createSchedulerTriggerHandler(
+      defaultFirestoreSession(),
+      defaultFcmDispatcher(),
+      (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
+      cs,
+      async (firebaseUid: string) => {
+        const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
+        return u?.id ?? null
+      },
+      { secret },
+    )
+    return handler(req, res)
   })
 
   return app

@@ -168,7 +168,7 @@ test('watchAuth approved → sends FCM wake with resume', async () => {
   ws.emitJson({ type: 'awaiting_auth', taskId: 't1', haltedStepIndex: 0 })
   await new Promise((r) => setTimeout(r, 20))
 
-  authWatcher!({ status: 'approved', approvalToken: null, approvedAt: null, expiresAt: 0, actionSummary: '' })
+  authWatcher!({ status: 'approved', approvalToken: 'valid-approval-token', approvedAt: null, expiresAt: 0, actionSummary: '' })
   await new Promise((r) => setTimeout(r, 20))
 
   assert.equal(fcmWakes.length, 1)
