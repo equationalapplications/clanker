@@ -23,11 +23,16 @@ export async function upsertDeviceRecord(
   const now = admin.firestore.Timestamp.now()
   const existing = await ref.get()
   await ref.set({
+    deviceId: body.deviceId,
     fcmToken: body.fcmToken,
     deviceName: body.deviceName,
     active: true,
     lastSeenAt: now,
-    ...(body.isPaused !== undefined ? { isPaused: body.isPaused } : {}),
+    ...(body.isPaused !== undefined
+      ? { isPaused: body.isPaused }
+      : !existing.exists
+        ? { isPaused: false }
+        : {}),
     ...(!existing.exists ? { registeredAt: now } : {}),
   }, { merge: true })
 }

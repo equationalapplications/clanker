@@ -119,9 +119,10 @@ export function handleBrowserWsUpgrade(
   }
 
   async function onResult(raw: unknown): Promise<void> {
-    if (!authed || !firebaseUid || !sessionId) return
+    if (!authed || !firebaseUid || !sessionId || !dispatchedIntent) return
     const r = resultFrameSchema.safeParse(raw)
     if (r.success) {
+      if (r.data.taskId !== dispatchedIntent.taskId) { ws.close(4001, 'Task mismatch'); return }
       let data = r.data.data
       let activeUrl = r.data.activeUrl
       if (isResume) {
@@ -144,6 +145,7 @@ export function handleBrowserWsUpgrade(
     }
     const e = taskErrorFrameSchema.safeParse(raw)
     if (e.success) {
+      if (e.data.taskId !== dispatchedIntent.taskId) { ws.close(4001, 'Task mismatch'); return }
       const result: TaskResult = {
         taskId: e.data.taskId, status: 'failed', data: {}, activeUrl: '',
         error: { code: e.data.code, message: e.data.message, failedAction: e.data.failedAction },
@@ -170,15 +172,6 @@ export function handleBrowserWsUpgrade(
 
     await fs.haltForAuth(firebaseUid, sessionId, taskId, haltedStepIndex, actionSummary, partialData, partialActiveUrl)
 
-    if (fwd && options.getExpoPushToken) {
-      const expoPushToken = await options.getExpoPushToken(firebaseUid)
-      if (expoPushToken) {
-        await fwd.sendApprovalCard(expoPushToken, sessionId, taskId, actionSummary).catch(
-          (err) => console.error('sendApprovalCard failed:', err),
-        )
-      }
-    }
-
     const deviceFcmToken = options.getDeviceFcmToken
       ? await options.getDeviceFcmToken(firebaseUid, deviceId!)
       : null
@@ -192,11 +185,19 @@ export function handleBrowserWsUpgrade(
       return
     }
 
+    if (fwd && options.getExpoPushToken) {
+      const expoPushToken = await options.getExpoPushToken(firebaseUid)
+      if (expoPushToken) {
+        await fwd.sendApprovalCard(expoPushToken, sessionId, taskId, actionSummary).catch(
+          (err) => console.error('sendApprovalCard failed:', err),
+        )
+      }
+    }
+
     // Observer lifetime is independent of this WebSocket — extension closes WS on halt.
     startAuthApprovalObserver({
       fs,
       fcmDispatcher: fwd,
-      verifyToken,
       getExpoPushToken: options.getExpoPushToken,
       firebaseUid,
       sessionId,

@@ -116,6 +116,7 @@ test('awaiting_auth frame calls haltForAuth and sendApprovalCard', async () => {
       sendTaskComplete: async () => {},
     },
     getExpoPushToken: async () => 'ExponentPushToken[mobile]',
+    getDeviceFcmToken: async () => 'gcm-tok-123',
   })
   handleBrowserWsUpgrade(ws as never, {} as never, options as never)
   ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'd1' })
@@ -129,11 +130,10 @@ test('awaiting_auth frame calls haltForAuth and sendApprovalCard', async () => {
   assert.equal(summary, 'Submit payment')
 })
 
-test('watchAuth approved → verifies token → sends FCM wake with resume', async () => {
+test('watchAuth approved → sends FCM wake with resume', async () => {
   const ws = new FakeWs()
   let authWatcher: ((auth: Record<string, unknown>) => void) | null = null
   const fcmWakes: unknown[] = []
-  const verifyTokenCalls: string[] = []
 
   const pendingIntent = {
     version: '1', taskId: 't1', sessionId: SESSION_ID, requiresAuth: true,
@@ -142,7 +142,6 @@ test('watchAuth approved → verifies token → sends FCM wake with resume', asy
     ] },
   }
   const { options } = deps({
-    verifyToken: async (t: string) => { verifyTokenCalls.push(t); return { uid: 'fb-uid' } },
     firestoreSession: {
       getSession: async () => ({ status: 'pending' }),
       getFirstTask: async () => ({ status: 'pending', intent: pendingIntent }),
@@ -169,10 +168,9 @@ test('watchAuth approved → verifies token → sends FCM wake with resume', asy
   ws.emitJson({ type: 'awaiting_auth', taskId: 't1', haltedStepIndex: 0 })
   await new Promise((r) => setTimeout(r, 20))
 
-  authWatcher!({ status: 'approved', approvalToken: 'approval-id-token', approvedAt: null, expiresAt: 0, actionSummary: '' })
+  authWatcher!({ status: 'approved', approvalToken: null, approvedAt: null, expiresAt: 0, actionSummary: '' })
   await new Promise((r) => setTimeout(r, 20))
 
-  assert.ok(verifyTokenCalls.includes('approval-id-token'))
   assert.equal(fcmWakes.length, 1)
   const [, , , resume] = fcmWakes[0] as [string, string, string, boolean]
   assert.equal(resume, true)
@@ -220,8 +218,9 @@ test('watchAuth denied → aborts task and sends session_end', async () => {
 
   const sent = ws.sent.map((s: string) => JSON.parse(s) as { type: string })
   assert.ok(sent.some((s) => s.type === 'session_end'))
-  const writeResult = (results[0] as unknown[])[3] as { status: string; error: { message: string } }
+  const writeResult = (results[0] as unknown[])[3] as { status: string; error: { code: string; message: string } }
   assert.equal(writeResult.status, 'aborted')
+  assert.equal(writeResult.error.code, 'AUTH_DENIED')
   assert.match(writeResult.error.message, /denied/i)
   assert.equal(taskCompletes.length, 1)
 })

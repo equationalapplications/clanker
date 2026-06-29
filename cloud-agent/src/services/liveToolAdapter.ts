@@ -33,8 +33,11 @@ export function buildLiveTools(
   characterId: string,
   embed: EmbedFn,
   timezone: string,
-  bridge?: Omit<BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling'> & {
-    pushToLive?: (t: string) => void; pauseBilling?: () => void; resumeBilling?: () => void
+  bridge?: Omit<BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling' | 'registerLiveCall'> & {
+    pushToLive?: (taskId: string, t: string) => void
+    pauseBilling?: () => void
+    resumeBilling?: () => void
+    registerLiveCall?: (taskId: string) => void
   },
 ): LiveToolSet {
   const adkTools: FunctionTool[] = [

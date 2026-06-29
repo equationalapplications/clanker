@@ -51,7 +51,7 @@ export function createFirestoreSession(db: FirestoreLike) {
       const snap = await db.collection(devicesPath(uid))
         .where('active', '==', true)
         .orderBy('lastSeenAt', 'desc')
-        .limit(10)
+        .limit(50)
         .get()
       const eligible = snap.docs.filter((d) => {
         const data = d.data() as unknown as DeviceDoc
@@ -119,6 +119,22 @@ export function createFirestoreSession(db: FirestoreLike) {
       await db.doc(taskPath(uid, sid, tid)).update({
         status: result.status, result, error: result.error ?? null, updatedAt: now(),
       })
+    },
+
+    /** Abort a pending task only if it has not connected yet. Returns true when aborted. */
+    async abortPendingTaskIfOffline(
+      uid: string,
+      sid: string,
+      tid: string,
+      result: TaskResult,
+    ): Promise<boolean> {
+      const task = await this.getTask(uid, sid, tid)
+      if (task.status !== 'pending') return false
+      const session = await this.getSession(uid, sid)
+      const connected = session.browserInstanceId != null || session.browserConnectedAt != null
+      if (connected) return false
+      await this.writeTaskResult(uid, sid, tid, result)
+      return true
     },
 
     // Per-task listener. Returns unsubscribe. Used by the voice-side instance.

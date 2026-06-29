@@ -71,3 +71,20 @@ test('sendTaskComplete POSTs correct Expo Push payload', async () => {
   assert.equal(data.taskId, 'tid1')
   assert.equal(data.deepLink, '/talk')
 })
+
+test('expoPush rejects ticket-level errors in a 200 response', async () => {
+  const fakeFetch = async () => ({
+    ok: true,
+    json: async () => ({ data: [{ status: 'error', message: 'DeviceNotRegistered' }] }),
+  })
+
+  const dispatcher = createFcmDispatcher(
+    { send: async () => 'msg-id' },
+    fakeFetch as unknown as typeof fetch,
+  )
+
+  await assert.rejects(
+    () => dispatcher.sendTaskComplete('ExponentPushToken[bad]', 'sid', 'tid', 'done'),
+    /ticket error/i,
+  )
+})

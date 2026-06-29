@@ -17,11 +17,11 @@ jest.mock('../shared/localCloudAgent', () => ({
 }))
 
 import * as TaskManager from 'expo-task-manager'
-import { setupBrowserActionApproval } from '~/hooks/useBrowserActionApproval'
+import * as Notifications from 'expo-notifications'
+import { APPROVAL_TASK, setupBrowserActionApproval } from '~/hooks/useBrowserActionApproval'
 
 describe('setupBrowserActionApproval', () => {
   it('registers BROWSER_ACTION_APPROVAL notification category', async () => {
-    const Notifications = require('expo-notifications') as { setNotificationCategoryAsync: jest.Mock }
     await setupBrowserActionApproval()
     expect(Notifications.setNotificationCategoryAsync).toHaveBeenCalledWith(
       'BROWSER_ACTION_APPROVAL',
@@ -34,5 +34,6 @@ describe('setupBrowserActionApproval', () => {
       'BROWSER_ACTION_APPROVAL_RESPONSE',
       expect.any(Function),
     )
+    expect(Notifications.registerTaskAsync).toHaveBeenCalledWith(APPROVAL_TASK)
   })
 })

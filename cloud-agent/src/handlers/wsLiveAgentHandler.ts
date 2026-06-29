@@ -68,7 +68,7 @@ export interface WsLiveHandlerOptions {
   liveConnect?: (cfg: LiveConnectCfg) => Promise<GeminiSession>
   billingIntervalMs?: number
   _clearInterval?: (id: ReturnType<typeof setInterval> | undefined) => void
-  browserBridge?: Omit<import('../tools/browserAction.js').BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling'>
+  browserBridge?: Omit<import('../tools/browserAction.js').BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling' | 'registerLiveCall'>
 }
 
 const AUTH_TIMEOUT_MS = 5000
@@ -114,7 +114,8 @@ export async function handleLiveWsUpgrade(
   let userId: string | null = null
   let liveSessionKey: string | null = null
   let toolExecutors = new Map<string, (args: unknown) => Promise<unknown>>()
-  let pendingBrowserActionCallId: string | null = null
+  let activeBrowserCallId: string | null = null
+  const browserCallByTaskId = new Map<string, string>()
 
   function clearAndClose(): void {
     if (billingController !== null) {
@@ -256,10 +257,10 @@ export async function handleLiveWsUpgrade(
       try {
         const executor = toolExecutors.get(call.name)
         if (!executor) throw new Error(`Unknown tool: ${call.name}`)
-        if (call.name === 'browser_action') pendingBrowserActionCallId = call.id
+        if (call.name === 'browser_action') activeBrowserCallId = call.id
         result = await executor(call.args ?? {})
       } catch (err) {
-        if (call.name === 'browser_action') pendingBrowserActionCallId = null
+        if (call.name === 'browser_action') activeBrowserCallId = null
         result = { error: err instanceof Error ? err.message : 'Tool execution failed' }
       }
 
@@ -380,10 +381,16 @@ export async function handleLiveWsUpgrade(
           ...bridgeBase,
           pauseBilling: () => billingController?.pause(),
           resumeBilling: () => billingController?.resume(),
-          pushToLive: (text: string) => {
-            const callId = pendingBrowserActionCallId
+          registerLiveCall: (taskId: string) => {
+            if (activeBrowserCallId) {
+              browserCallByTaskId.set(taskId, activeBrowserCallId)
+              activeBrowserCallId = null
+            }
+          },
+          pushToLive: (taskId: string, text: string) => {
+            const callId = browserCallByTaskId.get(taskId)
             if (!callId) return
-            pendingBrowserActionCallId = null
+            browserCallByTaskId.delete(taskId)
             try {
               geminiSession?.sendToolResponse({
                 functionResponses: [{ id: callId, name: 'browser_action', response: { output: text } }],

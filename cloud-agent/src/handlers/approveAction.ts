@@ -4,7 +4,6 @@ interface ApproveActionBody {
   sessionId: string
   taskId: string
   approve: boolean
-  idToken: string
 }
 
 interface FirestoreLite {
@@ -20,7 +19,6 @@ export async function handleApproveAction(
   if (body.approve) {
     await db.doc(authPath).update({
       status: 'approved',
-      approvalToken: body.idToken,
       approvedAt: admin.firestore?.Timestamp?.now?.() ?? new Date(),
     })
   } else {

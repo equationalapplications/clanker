@@ -41,6 +41,7 @@ const bridgeErrorCodeSchema = z.enum([
   'HOST_PERMISSION_REQUIRED',
   'EXTENSION_OFFLINE',
   'AUTH_TIMEOUT',
+  'AUTH_DENIED',
   'EXECUTION_ERROR',
   'EXECUTION_TIMEOUT',
 ])

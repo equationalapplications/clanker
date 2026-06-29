@@ -372,11 +372,12 @@ export function createApp(options: AppOptions) {
 
     const authHeader = req.headers.authorization ?? ''
     const rawToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : ''
+    if (!rawToken) { res.status(401).json({ error: 'Unauthorized' }); return }
     try {
       await handleApproveAction(
         admin.firestore() as unknown as { doc(p: string): { update(d: Record<string, unknown>): Promise<void> } },
         req.uid!,
-        { ...parsed.data, idToken: rawToken },
+        parsed.data,
       )
       res.json({ ok: true })
     } catch (err) {
@@ -418,7 +419,7 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
           verifyToken,
           resolveUserId: async (firebaseUid: string) => {
             const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
-            return u?.id ?? null
+            return u ? firebaseUid : null
           },
           getExpoPushToken: (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
           getDeviceFcmToken: async (uid: string, deviceId: string) => {

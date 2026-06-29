@@ -18,6 +18,18 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
         signal: controller.signal,
       })
       if (!res.ok) throw new Error(`Expo Push failed: ${res.status}`)
+      const body = await res.json() as {
+        errors?: unknown[]
+        data?: Array<{ status: string; message?: string; details?: unknown }> | { status: string; message?: string; details?: unknown }
+      }
+      if (body.errors?.length) {
+        throw new Error(`Expo Push request error: ${JSON.stringify(body.errors)}`)
+      }
+      const tickets = Array.isArray(body.data) ? body.data : body.data ? [body.data] : []
+      const ticketError = tickets.find((t) => t.status === 'error')
+      if (ticketError) {
+        throw new Error(`Expo Push ticket error: ${ticketError.message ?? JSON.stringify(ticketError.details)}`)
+      }
     } finally {
       clearTimeout(timeout)
     }

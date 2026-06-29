@@ -18,6 +18,7 @@ function baseDeps(over: Record<string, unknown> = {}) {
         writeTaskResult: async () => {},
         getTask: async () => ({ status: 'pending' }),
         getSession: async () => ({ browserInstanceId: null, browserConnectedAt: null }),
+        abortPendingTaskIfOffline: async () => true,
         closeSession: async () => {},
         watchTask: (_u: string, _s: string, _t: string, cb: (d: unknown) => void) => {
           setTimeout(() => cb({ status: 'complete', result: { data: { price: '$5' }, activeUrl: 'https://x' } }), 5)
@@ -91,8 +92,7 @@ test('text path returns the completed result string', async () => {
 test('voice wake timeout (no connect) refunds and reports offline', async () => {
   const fs = {
     ...baseDeps().deps.firestoreSession,
-    getTask: async () => ({ status: 'pending' }),
-    getSession: async () => ({ browserInstanceId: null, browserConnectedAt: null }),
+    abortPendingTaskIfOffline: async () => true,
     watchTask: (_u: string, _s: string, _t: string, cb: (d: unknown) => void) => {
       setTimeout(() => cb({ status: 'failed', result: null, error: { code: 'EXTENSION_OFFLINE', message: 'offline' } }), 60)
       return () => {}
@@ -111,15 +111,20 @@ test('voice wake timeout (no connect) refunds and reports offline', async () => 
 test('voice execution timeout resumes billing and pushes timeout message', async () => {
   let resumed = false
   const pushed: string[] = []
+  let wroteTimeout = false
   const fs = {
     ...baseDeps().deps.firestoreSession,
+    writeTaskResult: async (...args: unknown[]) => {
+      const result = (args[3] as { error?: { code?: string } })
+      if (result.error?.code === 'EXECUTION_TIMEOUT') wroteTimeout = true
+    },
     watchTask: () => () => {},
   }
   const { deps } = baseDeps({
     firestoreSession: fs,
     textTimeoutMs: 30,
     resumeBilling: () => { resumed = true },
-    pushToLive: (text: string) => { pushed.push(text) },
+    pushToLive: (_taskId: string, text: string) => { pushed.push(text) },
   })
   const tool = browserActionTool(deps as never, { trigger: 'voice', preBilled: false })
   await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
@@ -127,6 +132,7 @@ test('voice execution timeout resumes billing and pushes timeout message', async
   })
   await new Promise((r) => setTimeout(r, 50))
   assert.equal(resumed, true)
+  assert.equal(wroteTimeout, true)
   assert.match(pushed[0] ?? '', /EXECUTION_TIMEOUT|30s/i)
 })
 
@@ -151,7 +157,7 @@ test('voice path: awaiting_auth narrates pause, resumes billing, ends turn (no E
     fcmDispatcher: { wakeExtension: async () => {} } as never,
     creditService: { spendCredit: async () => 'tx1', refundCredit: async () => {} } as never,
     instanceId: 'i-test',
-    pushToLive: (msg: string) => { pushed.push(msg) },
+    pushToLive: (_taskId: string, msg: string) => { pushed.push(msg) },
     pauseBilling: () => {},
     resumeBilling: () => { resumed = true },
     wakeTimeoutMs: 50,

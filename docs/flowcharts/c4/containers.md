@@ -40,12 +40,12 @@ C4Container
   Rel(app, stripe, "Checkout session redirect (web)")
   Rel(app, revenuecat, "Native IAP (SDK)")
   Rel(extension, auth, "Sign-in via offscreen Firebase Auth SDK")
-  Rel(extension, cloudagent, "Wake-and-Connect task execution", "WebSocket /agent/browser + POST /agent/browser/register-device + Bearer token")
+  Rel(extension, cloudagent, "Wake-and-Connect task execution", "WebSocket /agent/browser (initial auth frame with Firebase ID token); POST /agent/browser/register-device + Bearer token")
   Rel(stripe, functions, "Checkout/subscription webhooks")
   Rel(revenuecat, functions, "Purchase webhooks")
   Rel(functions, cloudsql, "Users, credits, subscriptions, wiki cloud mirror")
   Rel(functions, gemini, "LLM calls (generateReply, wikiLlm, summarizeText, generateImage, …)")
-  Rel(cloudagent, auth, "Verify Firebase ID token (mobile, extension, approval tokens)")
+  Rel(cloudagent, auth, "Verify Firebase ID token (mobile HTTP routes, extension browser WS auth frame)")
   Rel(cloudagent, firestore, "Session/task/device coordination", "Firebase Admin SDK")
   Rel(cloudagent, cloudsql, "Character data, tasks, wiki events, credits (Drizzle ORM)")
   Rel(cloudagent, gemini, "LLM calls via Google ADK (text, voice, browser_action)")
@@ -87,7 +87,7 @@ Three-node async loop. Voice WS and browser WS may land on different Cloud Run i
 4. **Result** — Extension returns `task_result` via WS; Cloud Agent writes to Firestore; voice-side `watchTask` listener delivers to Gemini Live (or text path `await`s with 30s cap).
 5. **Teardown** — `session_end` frame; extension closes WS and offscreen auth doc; service worker suspends.
 
-**Phase 2+ approval path:** Extension halts on destructive action → auth doc in Firestore → Expo Push approval card → mobile writes approval → FCM re-wake with `resume: true`.
+**Phase 2+ approval path:** Extension halts on destructive action → auth doc in Firestore → Expo Push approval card → mobile approves via HTTP `/agent/browser/approve-action` → observer re-wakes extension with `resume: true`.
 
 > **Note:** `sessionBridge.voiceWs` / `browserWs` are same-instance shortcuts only. Primary result delivery is always the Firestore `watchTask` listener on the voice-side instance.
 

@@ -27,7 +27,11 @@ function makeFakeDb(calls?: Array<{ path: string; data: Record<string, unknown>;
       const coll = {
         where() { return coll },
         orderBy() { return coll },
-        limit() { return coll },
+        limit(n: number) {
+          coll._limit = n
+          return coll
+        },
+        _limit: 50,
         async get() {
           if (path.endsWith('/tasks')) {
             const docs = [...store.entries()]
@@ -37,8 +41,9 @@ function makeFakeDb(calls?: Array<{ path: string; data: Record<string, unknown>;
             return { empty: docs.length === 0, docs }
           }
           const docs = [...store.entries()]
-            .filter(([k, v]) => k.startsWith(path + '/') && v.active === true && (v as { isPaused?: boolean }).isPaused !== true)
+            .filter(([k, v]) => k.startsWith(path + '/') && v.active === true)
             .sort((a, b) => Number(b[1].lastSeenAt ?? 0) - Number(a[1].lastSeenAt ?? 0))
+            .slice(0, coll._limit)
             .map(([k, v]) => ({ id: k.split('/').pop()!, data: () => v }))
           return { empty: docs.length === 0, docs }
         },
@@ -122,6 +127,29 @@ test('getActiveDevice returns most-recent active unpaused device', async () => {
   const d = await fs.getActiveDevice('u1')
   assert.equal(d?.fcmToken, 'new')
   assert.equal(d?.deviceId, 'd2')
+})
+
+test('getActiveDevice finds older unpaused device when recent docs are paused', async () => {
+  const { db, store } = makeFakeDb()
+  for (let i = 0; i < 11; i++) {
+    store.set(`users/u1/devices/p${i}`, {
+      fcmToken: `paused-${i}`,
+      deviceName: 'Paused',
+      active: true,
+      isPaused: true,
+      lastSeenAt: 100 + i,
+    })
+  }
+  store.set('users/u1/devices/eligible', {
+    fcmToken: 'eligible',
+    deviceName: 'Work',
+    active: true,
+    isPaused: false,
+    lastSeenAt: 1,
+  })
+  const fs = createFirestoreSession(db as never)
+  const d = await fs.getActiveDevice('u1')
+  assert.equal(d?.fcmToken, 'eligible')
 })
 
 test('writeTaskResult sets terminal status + result', async () => {

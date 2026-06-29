@@ -20,7 +20,6 @@ function baseDeps(over: Record<string, unknown> = {}) {
       wakeExtension: async (...a: unknown[]) => { pushes.push({ type: 'wake', args: a }) },
       sendTaskComplete: async (...a: unknown[]) => { pushes.push({ type: 'complete', args: a }) },
     },
-    verifyToken: async () => ({ uid: 'uid1' }),
     getExpoPushToken: async () => 'ExponentPushToken[x]',
     firebaseUid: 'uid1',
     sessionId: 'sid1',
@@ -47,23 +46,18 @@ test('denied writes aborted + sendTaskComplete and unsubscribes', async () => {
   assert.equal(results.length, 1)
   const result = (results[0] as unknown[])[3] as { status: string; error: { code: string; message: string } }
   assert.equal(result.status, 'aborted')
-  assert.equal(result.error.code, 'AUTH_TIMEOUT')
+  assert.equal(result.error.code, 'AUTH_DENIED')
   assert.match(result.error.message, /denied/i)
   assert.equal(pushes.length, 1)
   assert.equal((pushes[0] as { type: string }).type, 'complete')
   assert.ok(getUnsubbed())
 })
 
-test('approved verifies token and sends FCM resume wake', async () => {
-  const { deps, getWatcher, pushes } = baseDeps({
-    verifyToken: async (t: string) => {
-      assert.equal(t, 'approval-tok')
-      return { uid: 'uid1' }
-    },
-  })
+test('approved sends FCM resume wake without token verification', async () => {
+  const { deps, getWatcher, pushes } = baseDeps()
   startAuthApprovalObserver(deps as never)
 
-  getWatcher()!({ status: 'approved', approvalToken: 'approval-tok', approvedAt: null, expiresAt: 0, actionSummary: '' })
+  getWatcher()!({ status: 'approved', approvalToken: null, approvedAt: null, expiresAt: 0, actionSummary: '' })
   await new Promise((r) => setTimeout(r, 10))
 
   assert.equal(pushes.length, 1)
@@ -81,12 +75,13 @@ test('failed FCM wake aborts task instead of resolving', async () => {
   })
   startAuthApprovalObserver(deps as never)
 
-  getWatcher()!({ status: 'approved', approvalToken: 'approval-tok', approvedAt: null, expiresAt: 0, actionSummary: '' })
+  getWatcher()!({ status: 'approved', approvalToken: null, approvedAt: null, expiresAt: 0, actionSummary: '' })
   await new Promise((r) => setTimeout(r, 20))
 
   assert.ok(results.length >= 1)
-  const result = (results[0] as unknown[])[3] as { status: string; error: { message: string } }
+  const result = (results[0] as unknown[])[3] as { status: string; error: { code: string; message: string } }
   assert.equal(result.status, 'aborted')
+  assert.equal(result.error.code, 'EXECUTION_ERROR')
   assert.match(result.error.message, /wake/i)
 })
 
@@ -100,20 +95,5 @@ test('5-minute TTL aborts with AUTH_TIMEOUT and sendTaskComplete', async () => {
   const result = (results[0] as unknown[])[3] as { error: { code: string; message: string } }
   assert.equal(result.error.code, 'AUTH_TIMEOUT')
   assert.match(result.error.message, /timed out/i)
-  assert.equal(pushes.length, 1)
-})
-
-test('invalid approval token aborts and notifies mobile', async () => {
-  const { deps, getWatcher, results, pushes } = baseDeps({
-    verifyToken: async () => { throw new Error('bad token') },
-  })
-  startAuthApprovalObserver(deps as never)
-
-  getWatcher()!({ status: 'approved', approvalToken: 'bad', approvedAt: null, expiresAt: 0, actionSummary: '' })
-  await new Promise((r) => setTimeout(r, 10))
-
-  assert.equal(results.length, 1)
-  const result = (results[0] as unknown[])[3] as { error: { message: string } }
-  assert.match(result.error.message, /invalid/i)
   assert.equal(pushes.length, 1)
 })

@@ -18,7 +18,9 @@ export interface BrowserActionDeps {
   pauseBilling?: () => void
   resumeBilling?: () => void
   // Voice-only: push the final result into the live Gemini session.
-  pushToLive?: (text: string) => void
+  pushToLive?: (taskId: string, text: string) => void
+  /** Voice-only: correlate an in-flight browser_action tool call with its taskId. */
+  registerLiveCall?: (taskId: string) => void
   wakeTimeoutMs?: number  // default 12_000
   textTimeoutMs?: number  // default 30_000
 }
@@ -43,6 +45,7 @@ function formatResult(task: TaskDoc): string {
   }
   const code = task.error?.code ?? task.result?.error?.code ?? 'EXECUTION_ERROR'
   if (code === 'EXTENSION_OFFLINE') return 'Your browser extension appears to be offline.'
+  if (code === 'AUTH_DENIED') return 'Action was denied.'
   return `Browser task failed (${code}): ${task.error?.message ?? task.result?.error?.message ?? 'unknown error'}`
 }
 
@@ -72,6 +75,7 @@ export function browserActionTool(
       const sessionId = crypto.randomUUID()
       const taskId = crypto.randomUUID()
       const action = intent.action as TaskIntent['action']
+      deps.registerLiveCall?.(taskId)
 
       const blocked = findBlockedNavigation(action)
       if (blocked) {
@@ -119,14 +123,11 @@ export function browserActionTool(
       let settled = false
       async function enforceWakeTimeout(): Promise<void> {
         if (settled) return
-        const task = await fs.getTask(deps.firebaseUid, sessionId, taskId)
-        const session = await fs.getSession(deps.firebaseUid, sessionId)
-        const connected = task.status === 'executing' || session.browserInstanceId != null || session.browserConnectedAt != null
-        if (!connected && task.status === 'pending') {
-          await fs.writeTaskResult(deps.firebaseUid, sessionId, taskId, {
-            taskId, status: 'failed', data: {}, activeUrl: '',
-            error: { code: 'EXTENSION_OFFLINE', message: 'Browser extension did not connect', failedAction: action as never },
-          })
+        const aborted = await fs.abortPendingTaskIfOffline(deps.firebaseUid, sessionId, taskId, {
+          taskId, status: 'failed', data: {}, activeUrl: '',
+          error: { code: 'EXTENSION_OFFLINE', message: 'Browser extension did not connect', failedAction: action as never },
+        })
+        if (aborted) {
           if (txId) { try { await deps.creditService.refundCredit(deps.userId, txId) } catch { /* logged */ } }
           await fs.closeSession(deps.firebaseUid, sessionId, 'aborted')
         }
@@ -135,10 +136,18 @@ export function browserActionTool(
       // 6. Result delivery.
       const waitForTerminalTask = () => new Promise<TaskDoc>((resolve) => {
         const timeout = setTimeout(() => {
-          settled = true
-          clearTimeout(wakeTimer)
-          unsub()
-          resolve(executionTimeoutTask())
+          void (async () => {
+            settled = true
+            clearTimeout(wakeTimer)
+            unsub()
+            await fs.writeTaskResult(deps.firebaseUid, sessionId, taskId, {
+              taskId, status: 'failed', data: {}, activeUrl: '',
+              error: { code: 'EXECUTION_TIMEOUT', message: 'Browser task exceeded 30s', failedAction: action as never },
+            })
+            if (txId) { try { await deps.creditService.refundCredit(deps.userId, txId) } catch { /* logged */ } }
+            await fs.closeSession(deps.firebaseUid, sessionId, 'aborted')
+            resolve(executionTimeoutTask())
+          })()
         }, textTimeoutMs)
 
         const unsub = fs.watchTask(deps.firebaseUid, sessionId, taskId, (task) => {
@@ -164,7 +173,7 @@ export function browserActionTool(
       // Voice: resolve final result out-of-band into the live session; return interim now.
       void waitForTerminalTask().then((task) => {
         deps.resumeBilling?.()
-        deps.pushToLive?.(formatResult(task))
+        deps.pushToLive?.(taskId, formatResult(task))
       })
       return 'Sent the task to your browser. I\'ll read the result aloud when it arrives.'
     },

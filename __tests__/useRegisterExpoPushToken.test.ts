@@ -26,7 +26,14 @@ describe('useRegisterExpoPushToken', () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/agent/user/expo-push-token'),
-        expect.objectContaining({ method: 'POST' }),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            authorization: 'Bearer id-tok',
+            'content-type': 'application/json',
+          }),
+          body: JSON.stringify({ expoPushToken: 'ExponentPushToken[test]' }),
+        }),
       )
     })
   })

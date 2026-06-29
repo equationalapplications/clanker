@@ -11,13 +11,14 @@ test('handleApproveAction writes approved to auth doc', async () => {
   }
 
   await handleApproveAction(fakeDb as never, 'uid1', {
-    sessionId: 'sid1', taskId: 'tid1', approve: true, idToken: 'raw-token',
+    sessionId: 'sid1', taskId: 'tid1', approve: true,
   })
 
   assert.equal(updates.length, 1)
   assert.equal(updates[0].path, 'users/uid1/sessions/sid1/auth/tid1')
   assert.equal(updates[0].data.status, 'approved')
-  assert.equal(updates[0].data.approvalToken, 'raw-token')
+  assert.ok(updates[0].data.approvedAt)
+  assert.equal('approvalToken' in updates[0].data, false)
 })
 
 test('handleApproveAction writes denied to auth doc', async () => {
@@ -29,7 +30,7 @@ test('handleApproveAction writes denied to auth doc', async () => {
   }
 
   await handleApproveAction(fakeDb as never, 'uid1', {
-    sessionId: 'sid1', taskId: 'tid1', approve: false, idToken: '',
+    sessionId: 'sid1', taskId: 'tid1', approve: false,
   })
 
   assert.equal(updates[0].data.status, 'denied')
