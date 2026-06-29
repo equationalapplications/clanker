@@ -1,7 +1,7 @@
 # MV3 Browser Extension Remote Agent Bridge — Design Spec
 
 **Date:** 2026-06-29
-**Status:** Approved
+**Status:** Partially Implemented
 **Supersedes:** `2026-04-24-browser-extension-remote-agent-design.md` (April draft — replaced by this spec)
 
 ---
@@ -188,7 +188,9 @@ This 30s cap covers both the 12s durable wake timeout and up to 18s of execution
 | Voice (`/agent/live`) | `billingTimer` runs per wall-clock interval — **must be paused** on `browser_action` invocation, resumed on tool return | `spendCredit(uid)` after device found; covers wake + execution latency |
 | Text (`/agent/run`) | No timer — HTTP handler spends 1 credit before ADK runs | Skip `spendCredit` — turn already billed |
 
-**Timer pause contract (voice path):** `wsLiveAgentHandler` exposes `pauseBilling()` / `resumeBilling()`. The `browser_action` tool handler calls `pauseBilling()` immediately after `getActiveDevice` succeeds (before FCM dispatch) and `resumeBilling()` when `watchTask` resolves or the durable wake timeout fires. Without this pause, the user is charged per-interval for every second spent waiting for extension wake and execution — silent double-billing.
+**Timer pause contract (voice path):** `wsLiveAgentHandler` exposes `pauseBilling()` / `resumeBilling()`. The `browser_action` tool handler calls `pauseBilling()` immediately after `getActiveDevice` succeeds (before FCM dispatch) and `resumeBilling()` when `watchTask` resolves, the durable wake timeout fires (`EXTENSION_OFFLINE`), or the voice execution timeout fires (`EXECUTION_TIMEOUT`). Without this pause, the user is charged per-interval for every second spent waiting for extension wake and execution — silent double-billing.
+
+**Voice Path Timeout:** The voice path returns an interim tool response immediately and delivers the final result out-of-band via `pushToLive`. Like the text path, the out-of-band `watchTask` await is wrapped in a `Promise.race` with the same 30s hard cap. If the extension connects but hangs, `resumeBilling()` still runs and the user hears the `EXECUTION_TIMEOUT` message. No credit refund on `EXECUTION_TIMEOUT`.
 
 Refund on `EXTENSION_OFFLINE` (durable wake timeout) or other pre-execution failures applies only when a credit was spent (voice path). No refund for execution errors (`SELECTOR_NOT_FOUND`, `EXECUTION_TIMEOUT`, etc.) — the extension connected and attempted the task. No credit spent when no device is registered.
 
@@ -377,7 +379,7 @@ Phase 1 supports a single active desktop. The Cloud Agent resolves the wake targ
 | Device found, not paused | FCM wake → durable timeout; `spendCredit` only on voice path (text path pre-billed) |
 | Multiple active devices (Phase 2+) | Most recently seen wins until explicit primary-device selection is added |
 
-Extension updates `lastSeenAt` on every successful WS auth via `POST /agent/browser/register-device` upsert.
+Extension updates `lastSeenAt` on every successful WS auth via `POST /agent/browser/register-device` upsert. The extension re-POSTs on `session_ready` (after the Cloud Agent accepts the auth frame) so `lastSeenAt` reflects active bridge sessions, not only install/sign-in.
 
 ### Security Rules
 
@@ -467,6 +469,14 @@ Both layers share a single regex constant in `shared/constants.ts` to prevent ru
 // shared/constants.ts
 export const DESTRUCTIVE_ACTION_PATTERN =
   /submit|delete|pay|confirm|send|checkout|transfer|remove|cancel subscription/i
+
+export function classifyActionLabel(label: string | undefined | null): 'safe' | 'requires_auth' { /* ... */ }
+
+/** Layer 1 — inspects actionSummary, step labels, and selectors. */
+export function intentRequiresAuth(
+  actionSummary: string,
+  action: SingleAction | SequenceAction,
+): boolean { /* ... */ }
 ```
 
 **Layer 1 — Cloud Coordinator** (on intent generation): Sets `requiresAuth: true` if action label or selector matches `DESTRUCTIVE_ACTION_PATTERN`.
@@ -654,6 +664,8 @@ Voice authorization (LLM ASR interpretation) is explicitly excluded from the app
 
 ## Cloud Agent Changes
 
+`browser_action` and bridge WebSocket routes are wired only when Firebase Admin is initialized (`admin.apps.length > 0`). Local/test runs without Admin omit the tool so handlers do not call `admin.firestore()` or `admin.messaging()`.
+
 ### New Files
 
 ```
@@ -707,10 +719,11 @@ const browserAuthSchema = z.object({
   deviceId: z.string().min(1),
 })
 
-// After auth: verify token → validate deviceId in Firestore
+// After auth: verify token → validate deviceId in Firestore (active && !isPaused)
 // → markBrowserConnected(uid, sessionId, INSTANCE_ID)  // Firestore + task status: executing
 // → send session_ready
 // → sessionBridge.registerBrowser(uid, sessionId, ws)  // same-instance shortcut only
+// → read pending task via firestoreSession.getFirstTask(uid, sessionId)
 // → dispatch pending task to extension via ws.send()
 // → on result frame: writeTaskResult to Firestore (Admin SDK)
 // → on WS close: sessionBridge.deregister(uid, sessionId)
@@ -905,6 +918,8 @@ export async function closeOffscreen(): Promise<void> { /* closeDocument after s
 
 `FIREBASE_API_KEY` is safe to embed in the extension bundle — it is a public identifier, not a secret. Firebase Security Rules enforce actual access control. App Check on extension REST calls is a Phase 2 hardening item.
 
+Extension `env.ts` values are injected at build time by `extension/esbuild.mjs` from repo-root `.env` / `.env.development.local` (`EXPO_PUBLIC_FIREBASE_*`, `EXPO_PUBLIC_CLOUD_AGENT_URL`), matching the mobile app. Unset vars fall back to `REPLACE_*` placeholders for unpacked dev loads before the first configured build.
+
 ### Chrome GCM Push Registration
 
 Standard `firebase/messaging` SDK requires a web origin and a `firebase-messaging-sw.js` file — neither available in an MV3 extension. Use Chrome's native `chrome.gcm` API instead. Firebase Admin SDK is fully backwards-compatible with GCM registration tokens.
@@ -939,6 +954,7 @@ On GCM WAKE_AND_CONNECT message:
   → auth-bridge.ensureOffscreen()
   → idToken = auth-bridge.requestIdToken()
   → ws-client.connect(sessionId, idToken, deviceId)
+  → On session_ready: POST /agent/browser/register-device (refreshes lastSeenAt)
   → On session_ready: task-dispatcher.dispatch(task)
   → ws-client starts internal setInterval ping loop (every 20s while WS open)
   → If no pong within 5s: ws-client.reconnect()

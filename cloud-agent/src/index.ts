@@ -366,7 +366,8 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
           },
           validateDevice: async (uid: string, deviceId: string) => {
             const doc = await admin.firestore().doc(`users/${uid}/devices/${deviceId}`).get()
-            return doc.exists && (doc.data()?.active === true)
+            const data = doc.data()
+            return doc.exists && data?.active === true && data?.isPaused !== true
           },
           instanceId: INSTANCE_ID,
         })

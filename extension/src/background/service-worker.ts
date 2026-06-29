@@ -13,15 +13,23 @@ async function getDeviceId(): Promise<string> {
   return id
 }
 
-async function registerDevice(gcmToken: string): Promise<void> {
+async function upsertDeviceRegistration(idToken: string, gcmToken: string): Promise<void> {
   const deviceId = await getDeviceId()
-  const idToken = await requestIdToken().catch(() => null)
-  if (!idToken) return
   await fetch(`${CLOUD_BASE_URL}/agent/browser/register-device`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${idToken}` },
-    body: JSON.stringify({ fcmToken: gcmToken, deviceId, deviceName: `${navigator.platform} — Chrome` }),
+    body: JSON.stringify({
+      fcmToken: gcmToken,
+      deviceId,
+      deviceName: `${navigator.platform} — Chrome`,
+    }),
   })
+}
+
+async function registerDevice(gcmToken: string): Promise<void> {
+  const idToken = await requestIdToken().catch(() => null)
+  if (!idToken) return
+  await upsertDeviceRegistration(idToken, gcmToken)
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -49,6 +57,11 @@ async function wakeAndConnect(sessionId: string): Promise<void> {
 
   const client = createWsClient({
     url: CLOUD_WS_URL, idToken, sessionId, deviceId,
+    onSessionReady: () => {
+      void chrome.storage.local.get('gcmToken').then(({ gcmToken }) => {
+        if (gcmToken) void upsertDeviceRegistration(idToken, gcmToken as string)
+      })
+    },
     onTask: (intent) => {
       void (async () => {
         const result = await dispatchTask(intent, injector)

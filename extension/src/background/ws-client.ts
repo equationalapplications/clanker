@@ -16,6 +16,7 @@ export interface WsClientOpts {
   deviceId: string
   onTask: (intent: TaskIntent) => void
   onSessionEnd: () => void
+  onSessionReady?: () => void
   WebSocketImpl?: new (url: string) => SocketLike
   pingIntervalMs?: number
 }
@@ -39,6 +40,7 @@ export function createWsClient(opts: WsClientOpts) {
         let msg: { type?: string; intent?: TaskIntent }
         try { msg = JSON.parse(e.data) } catch { return }
         if (msg.type === 'task' && msg.intent) opts.onTask(msg.intent)
+        else if (msg.type === 'session_ready') opts.onSessionReady?.()
         else if (msg.type === 'session_end') { stopPing(); opts.onSessionEnd() }
       }
       sock.onclose = () => { stopPing() }

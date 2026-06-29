@@ -4,7 +4,7 @@ import type { FirestoreSession } from '../services/firestoreSession.js'
 import type { FcmDispatcher } from '../services/fcmDispatcher.js'
 import type { CreditService } from '../services/creditService.js'
 import type { TaskIntent, TaskDoc } from '../../../shared/dsl-types.js'
-import { DESTRUCTIVE_ACTION_PATTERN } from '../../../shared/constants.js'
+import { intentRequiresAuth } from '../../../shared/constants.js'
 
 export interface BrowserActionDeps {
   uid: string
@@ -39,6 +39,13 @@ function formatResult(task: TaskDoc): string {
   const code = task.error?.code ?? task.result?.error?.code ?? 'EXECUTION_ERROR'
   if (code === 'EXTENSION_OFFLINE') return 'Your browser extension appears to be offline.'
   return `Browser task failed (${code}): ${task.error?.message ?? task.result?.error?.message ?? 'unknown error'}`
+}
+
+function executionTimeoutTask(): TaskDoc {
+  return {
+    status: 'failed',
+    error: { code: 'EXECUTION_TIMEOUT', message: 'Browser task exceeded 30s' },
+  } as unknown as TaskDoc
 }
 
 export function browserActionTool(
@@ -76,7 +83,7 @@ export function browserActionTool(
 
       // 3. Build intent + persist.
       const action = intent.action as TaskIntent['action']
-      const requiresAuth = DESTRUCTIVE_ACTION_PATTERN.test(actionSummary)
+      const requiresAuth = intentRequiresAuth(actionSummary, action)
       const taskIntent: TaskIntent = { version: '1', taskId, sessionId, requiresAuth, actionSummary, action }
       await fs.createSession(deps.uid, sessionId, { status: 'pending', trigger: context.trigger, voiceInstanceId: deps.instanceId })
       await fs.writeTask(deps.uid, sessionId, taskId, taskIntent)
@@ -112,19 +119,18 @@ export function browserActionTool(
         return unsub
       }
 
+      const waitForTerminalTask = () => Promise.race<TaskDoc>([
+        new Promise<TaskDoc>((resolve) => watch(resolve)),
+        new Promise<TaskDoc>((_, reject) =>
+          setTimeout(() => reject(new Error('EXECUTION_TIMEOUT')), textTimeoutMs)),
+      ]).catch(() => executionTimeoutTask())
+
       if (context.trigger === 'text') {
-        const result = await Promise.race<TaskDoc>([
-          new Promise<TaskDoc>((resolve) => watch(resolve)),
-          new Promise<TaskDoc>((_, reject) =>
-            setTimeout(() => reject(new Error('EXECUTION_TIMEOUT')), textTimeoutMs)),
-        ]).catch(() => ({
-          status: 'failed', error: { code: 'EXECUTION_TIMEOUT', message: 'Browser task exceeded 30s' },
-        } as unknown as TaskDoc))
-        return formatResult(result)
+        return formatResult(await waitForTerminalTask())
       }
 
       // Voice: resolve final result out-of-band into the live session; return interim now.
-      void new Promise<TaskDoc>((resolve) => watch(resolve)).then((task) => {
+      void waitForTerminalTask().then((task) => {
         deps.resumeBilling?.()
         deps.pushToLive?.(formatResult(task))
       })

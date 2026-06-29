@@ -94,3 +94,25 @@ test('voice wake timeout (no connect) refunds and reports offline', async () => 
   assert.equal(calls.refund, 1)
   assert.match(out, /sent|offline|browser/i)
 })
+
+test('voice execution timeout resumes billing and pushes timeout message', async () => {
+  let resumed = false
+  const pushed: string[] = []
+  const fs = {
+    ...baseDeps().deps.firestoreSession,
+    watchTask: () => () => {},
+  }
+  const { deps } = baseDeps({
+    firestoreSession: fs,
+    textTimeoutMs: 30,
+    resumeBilling: () => { resumed = true },
+    pushToLive: (text: string) => { pushed.push(text) },
+  })
+  const tool = browserActionTool(deps as never, { trigger: 'voice', preBilled: false })
+  await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    actionSummary: 'x', intent: { action: { type: 'read_dom', selector: 'body' } },
+  })
+  await new Promise((r) => setTimeout(r, 50))
+  assert.equal(resumed, true)
+  assert.match(pushed[0] ?? '', /EXECUTION_TIMEOUT|30s/i)
+})

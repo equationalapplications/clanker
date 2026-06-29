@@ -53,6 +53,23 @@ test('routes task and session_end frames', () => {
   client.close()
 })
 
+test('session_ready invokes onSessionReady', () => {
+  let sock!: FakeSocket
+  const WebSocketImpl = class extends FakeSocket {
+    constructor(_url: string) { super(); sock = this }
+  }
+  let ready = false
+  const client = createWsClient({
+    url: 'wss://x', idToken: 'tok', sessionId: 's1', deviceId: 'd1',
+    WebSocketImpl: WebSocketImpl as never,
+    onTask: () => {}, onSessionEnd: () => {}, onSessionReady: () => { ready = true },
+  })
+  client.connect(); sock.fireOpen()
+  sock.fireMessage({ type: 'session_ready', sessionId: 's1' })
+  assert.equal(ready, true)
+  client.close()
+})
+
 test('sendResult emits task_result frame', () => {
   let sock!: FakeSocket
   const WebSocketImpl = class extends FakeSocket {
