@@ -196,14 +196,24 @@ export function createApp(options: AppOptions) {
     }
   }
 
+  const rateLimitHandler = (_req: Request, res: Response) => {
+    res.status(429).json({ error: 'Too many requests. Please try again later.' })
+  }
+
   const agentRunLimiter = rateLimit({
     windowMs: 60 * 1000,
     limit: 20,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
-    handler: (_req: Request, res: Response) => {
-      res.status(429).json({ error: 'Too many requests. Please try again later.' })
-    },
+    handler: rateLimitHandler,
+  })
+
+  const authRouteLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: rateLimitHandler,
   })
 
   app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
@@ -318,7 +328,7 @@ export function createApp(options: AppOptions) {
     await upsertDeviceRecord(admin.firestore(), uid, body)
   })
 
-  app.post('/agent/browser/register-device', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+  app.post('/agent/browser/register-device', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     if (usesDefaultDeviceUpsert && !browserBridgeAvailable) {
       res.status(503).json({ error: 'Browser bridge unavailable' })
       return
@@ -339,7 +349,7 @@ export function createApp(options: AppOptions) {
     }
   })
 
-  app.post('/agent/user/expo-push-token', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+  app.post('/agent/user/expo-push-token', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     const parsed = z.object({ expoPushToken: z.string().min(1) }).safeParse(req.body)
     if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
     try {
@@ -351,7 +361,7 @@ export function createApp(options: AppOptions) {
     }
   })
 
-  app.post('/agent/browser/approve-action', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+  app.post('/agent/browser/approve-action', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     if (!browserBridgeAvailable) { res.status(503).json({ error: 'Browser bridge unavailable' }); return }
     const parsed = z.object({
       sessionId: z.string().uuid(),

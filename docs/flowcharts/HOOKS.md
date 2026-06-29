@@ -47,6 +47,7 @@ graph LR
   useLiveVoiceChat --> twoWayAudioAdapter
   useMessages --> useMachines
   useMessages --> messageService
+  useRegisterExpoPushToken --> googleSignin
   useTabCharacterId --> useActiveCharacterId
   useTabCharacterId --> useMessages
   useTabCharacterId --> useCharacters

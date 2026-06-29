@@ -355,6 +355,7 @@ Enable HA when: single-zone maintenance/restart downtime is unacceptable, or rev
 | 14 | `0013_cloud_agent_tasks.sql` | Cloud agent task tracking |
 | 15 | `0015_organizations.sql` | `organizations`/`organization_members` tables |
 | 16 | `0016_llm_wiki_graph.sql` | `llm_wiki_edges`/`llm_wiki_ontology` tables |
+| 17 | `0017_expo_push_token.sql` | `users.expo_push_token` column for Expo Push (bridge Phase 2) |
 
 > **Gap:** `0014_pgvector_wiki_embeddings.sql` is on disk but **not yet applied** to `clanker-prod` (verified via `information_schema.columns` — `llm_wiki_entries.embedding` does not exist). Unrelated to the three specs in this deploy; flagged here, not applied as part of it.
 
