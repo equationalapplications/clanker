@@ -1,7 +1,7 @@
 # MV3 Browser Extension Remote Agent Bridge — Design Spec
 
 **Date:** 2026-06-29
-**Revised:** 2026-06-29 (ADK tool wiring, contextual billing, INSTANCE_ID, Firestore rules, manifest polish, billing timer pause, 30s text-path timeout, EXECUTION_TIMEOUT, isPaused device field, approval identity wording, dep cleanup, risk table hardening)
+**Status:** Approved
 **Supersedes:** `2026-04-24-browser-extension-remote-agent-design.md` (April draft — replaced by this spec)
 
 ---
