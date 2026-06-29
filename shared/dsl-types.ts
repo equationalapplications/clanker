@@ -66,6 +66,8 @@ export interface TaskDoc {
   error: TaskResult['error'] | null
   authRequired: boolean
   haltedStepIndex: number | null
+  partialData?: Record<string, string>
+  partialActiveUrl?: string
   createdAt: unknown
   updatedAt: unknown
 }
@@ -78,4 +80,14 @@ export interface DeviceDoc {
   lastSeenAt?: unknown
   active: boolean
   isPaused: boolean
+}
+
+export type AuthStatus = 'pending' | 'approved' | 'denied'
+
+export interface AuthDoc {
+  status: AuthStatus
+  actionSummary: string
+  expiresAt: unknown // Firestore Timestamp
+  approvedAt: unknown | null
+  approvalToken: string | null
 }

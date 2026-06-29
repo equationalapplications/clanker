@@ -41,7 +41,7 @@ chrome.runtime.onInstalled.addListener(() => {
 })
 
 chrome.gcm.onMessage.addListener((message) => {
-  const data = message.data as { type?: string; sessionId?: string; taskId?: string }
+  const data = message.data as { type?: string; sessionId?: string; taskId?: string; resume?: string }
   if (data.type !== 'WAKE_AND_CONNECT' || !data.sessionId) return
   void wakeAndConnect(data.sessionId)
 })
@@ -64,7 +64,15 @@ async function wakeAndConnect(sessionId: string): Promise<void> {
     },
     onTask: (intent) => {
       void (async () => {
-        const result = await dispatchTask(intent, injector)
+        const outcome = await dispatchTask(intent, injector)
+        if (outcome.status === 'awaiting_auth') {
+          client.sendAwaitingAuth(outcome.taskId, outcome.haltedStepIndex, outcome.partialData, outcome.partialActiveUrl)
+          await appendActionLog(intent, 'awaiting_auth')
+          client.close()
+          void closeOffscreen()
+          return
+        }
+        const result = outcome as import('../shared/dsl-types.js').TaskResult
         await appendActionLog(intent, result.status)
         client.sendResult(result)
       })()

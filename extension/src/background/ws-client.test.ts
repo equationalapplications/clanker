@@ -86,3 +86,22 @@ test('sendResult emits task_result frame', () => {
   assert.deepEqual(frame.data, { a: 'b' })
   client.close()
 })
+
+test('sendAwaitingAuth sends correct frame', () => {
+  let sock!: FakeSocket
+  const WebSocketImpl = class extends FakeSocket {
+    constructor(_url: string) { super(); sock = this }
+  }
+  const client = createWsClient({
+    url: 'wss://x', idToken: 'tok', sessionId: 's1', deviceId: 'd1',
+    WebSocketImpl: WebSocketImpl as never,
+    onTask: () => {}, onSessionEnd: () => {},
+  })
+  client.connect(); sock.fireOpen()
+  client.sendAwaitingAuth('t1', 2)
+  const frame = JSON.parse(sock.sent.find((s) => JSON.parse(s).type === 'awaiting_auth') ?? '{}') as { type: string; taskId: string; haltedStepIndex: number }
+  assert.equal(frame.type, 'awaiting_auth')
+  assert.equal(frame.taskId, 't1')
+  assert.equal(frame.haltedStepIndex, 2)
+  client.close()
+})

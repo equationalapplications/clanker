@@ -129,3 +129,73 @@ test('voice execution timeout resumes billing and pushes timeout message', async
   assert.equal(resumed, true)
   assert.match(pushed[0] ?? '', /EXECUTION_TIMEOUT|30s/i)
 })
+
+test('voice path: awaiting_auth narrates pause, resumes billing, ends turn (no EXECUTION_TIMEOUT)', async () => {
+  const pushed: string[] = []
+  let resumed = false
+  let taskWatcher: ((t: Record<string, unknown>) => void) | null = null
+  let unsubbed = false
+
+  const tool = browserActionTool({
+    firebaseUid: 'fb-uid',
+    userId: 'user-id',
+    firestoreSession: {
+      getActiveDevice: async () => ({ deviceId: 'd1', fcmToken: 'tok', deviceName: 'Mac' }),
+      createSession: async () => {},
+      writeTask: async () => {},
+      closeSession: async () => {},
+      getTask: async () => ({ status: 'awaiting_auth', intent: {} as never }),
+      getSession: async () => ({ status: 'routing', browserInstanceId: 'i' }),
+      watchTask: (_u: string, _s: string, _t: string, cb: (t: Record<string, unknown>) => void) => { taskWatcher = cb; return () => { unsubbed = true } },
+    } as never,
+    fcmDispatcher: { wakeExtension: async () => {} } as never,
+    creditService: { spendCredit: async () => 'tx1', refundCredit: async () => {} } as never,
+    instanceId: 'i-test',
+    pushToLive: (msg: string) => { pushed.push(msg) },
+    pauseBilling: () => {},
+    resumeBilling: () => { resumed = true },
+    wakeTimeoutMs: 50,
+    textTimeoutMs: 200,
+  }, { trigger: 'voice', preBilled: false })
+
+  await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ actionSummary: 'Submit form', intent: { action: { type: 'click', selector: '#s', tier: 'stateful' } } })
+
+  await new Promise((r) => setTimeout(r, 20))
+  taskWatcher!({ status: 'awaiting_auth' })
+  await new Promise((r) => setTimeout(r, 20))
+
+  assert.ok(pushed.some((m) => m.toLowerCase().includes('pause') || m.toLowerCase().includes('phone')))
+  assert.ok(resumed, 'billing must resume at the pause')
+  assert.ok(unsubbed, 'watchTask listener must be torn down')
+
+  await new Promise((r) => setTimeout(r, 250))
+  assert.ok(!pushed.some((m) => m.toLowerCase().includes('timeout') || m.toLowerCase().includes('30s')))
+})
+
+test('text path: awaiting_auth returns a phone-approval message', async () => {
+  let taskWatcher: ((t: Record<string, unknown>) => void) | null = null
+  const tool = browserActionTool({
+    firebaseUid: 'fb-uid',
+    userId: 'user-id',
+    firestoreSession: {
+      getActiveDevice: async () => ({ deviceId: 'd1', fcmToken: 'tok', deviceName: 'Mac' }),
+      createSession: async () => {},
+      writeTask: async () => {},
+      closeSession: async () => {},
+      getTask: async () => ({ status: 'awaiting_auth', intent: {} as never }),
+      getSession: async () => ({ status: 'routing', browserInstanceId: 'i' }),
+      watchTask: (_u: string, _s: string, _t: string, cb: (t: Record<string, unknown>) => void) => { taskWatcher = cb; return () => {} },
+    } as never,
+    fcmDispatcher: { wakeExtension: async () => {} } as never,
+    creditService: { spendCredit: async () => 'tx1', refundCredit: async () => {} } as never,
+    instanceId: 'i-test',
+    wakeTimeoutMs: 50,
+    textTimeoutMs: 200,
+  }, { trigger: 'text', preBilled: true })
+
+  const p = (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ actionSummary: 'Submit form', intent: { action: { type: 'click', selector: '#s', tier: 'stateful' } } })
+  await new Promise((r) => setTimeout(r, 20))
+  taskWatcher!({ status: 'awaiting_auth' })
+  const out = await p
+  assert.match(out, /phone|approve/i)
+})

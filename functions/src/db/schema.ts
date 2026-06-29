@@ -14,6 +14,7 @@ export const users = pgTable('users', {
   firebaseUid: text('firebase_uid').unique().notNull(),
   email: text('email').unique().notNull(),
   displayName: text('display_name'),
+  expoPushToken: text('expo_push_token'),
   avatarUrl: text('avatar_url'),
   isProfilePublic: boolean('is_profile_public').notNull().default(false),
   defaultCharacterId: uuid('default_character_id'),

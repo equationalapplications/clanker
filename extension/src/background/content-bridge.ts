@@ -41,16 +41,17 @@ export function createInjector(): Injector {
       if (!match?.id) throw new Error('EXECUTION_ERROR: no tab for host')
       await chrome.tabs.update(match.id, { active: true })
     },
-    async runInActiveTab(action: SingleAction) {
+    async runInActiveTab(action: SingleAction, ctx: { skipLayerTwo?: boolean } = {}) {
       const tab = await activeTab()
       if (tab.url) await ensureHost(tab.url)
       const [res] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: runActionInPage as unknown as (...a: unknown[]) => unknown,
-        args: [action],
+        args: [action, ctx],
       })
-      const out = res?.result as { data: Record<string, string>; activeUrl: string } | undefined
+      const out = res?.result as { data: Record<string, string>; activeUrl: string } | { awaitingAuth: true } | undefined
       if (!out) throw new Error('EXECUTION_ERROR: empty injection result')
+      if ('awaitingAuth' in out) return { awaitingAuth: true as const }
       return out
     },
   }
