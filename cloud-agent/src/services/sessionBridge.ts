@@ -21,6 +21,12 @@ export function createSessionBridge() {
     registerBrowser(uid: string, sessionId: string, ws: WebSocket): void { ensure(uid, sessionId).browserWs = ws },
     registerVoice(uid: string, sessionId: string, ws: WebSocket): void { ensure(uid, sessionId).voiceWs = ws },
     getSession(uid: string, sessionId: string): SessionState | undefined { return map.get(key(uid, sessionId)) },
+    deregisterBrowser(uid: string, sessionId: string): void {
+      const s = map.get(key(uid, sessionId))
+      if (!s) return
+      s.browserWs = null
+      if (!s.voiceWs && !s.firestoreUnsub) map.delete(key(uid, sessionId))
+    },
     deregister(uid: string, sessionId: string): void {
       const s = map.get(key(uid, sessionId))
       try { s?.firestoreUnsub?.() } catch { /* ignore */ }

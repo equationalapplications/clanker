@@ -23,6 +23,17 @@ test('voice + browser co-registration on same key', () => {
   assert.equal(s?.browserWs, br)
 })
 
+test('deregisterBrowser clears browserWs but keeps voice side', () => {
+  const b = createSessionBridge()
+  const v = fakeWs(); const br = fakeWs()
+  b.registerVoice('u1', 's1', v)
+  b.registerBrowser('u1', 's1', br)
+  b.deregisterBrowser('u1', 's1')
+  const s = b.getSession('u1', 's1')
+  assert.equal(s?.browserWs, null)
+  assert.equal(s?.voiceWs, v)
+})
+
 test('deregister removes the entry', () => {
   const b = createSessionBridge()
   b.registerBrowser('u1', 's1', fakeWs())

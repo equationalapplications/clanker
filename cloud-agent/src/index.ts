@@ -22,6 +22,7 @@ import { handleLiveWsUpgrade, type WsLiveHandlerOptions } from './handlers/wsLiv
 import { handleBrowserWsUpgrade } from './handlers/wsBrowserAgentHandler.js'
 import { defaultFirestoreSession } from './services/firestoreSession.js'
 import { defaultFcmDispatcher } from './services/fcmDispatcher.js'
+import { upsertDeviceRecord } from './services/deviceUpsert.js'
 import { INSTANCE_ID } from './services/instanceId.js'
 import { z } from 'zod'
 
@@ -308,19 +309,18 @@ export function createApp(options: AppOptions) {
     }
   })
 
+  const usesDefaultDeviceUpsert = !options.upsertDevice
+  const browserBridgeAvailable = admin.apps.length > 0
+
   const upsertDevice = options.upsertDevice ?? (async (uid, body) => {
-    const fs = admin.firestore()
-    await fs.doc(`users/${uid}/devices/${body.deviceId}`).set({
-      fcmToken: body.fcmToken,
-      deviceName: body.deviceName,
-      active: true,
-      isPaused: body.isPaused ?? false,
-      lastSeenAt: admin.firestore.Timestamp.now(),
-      registeredAt: admin.firestore.Timestamp.now(),
-    }, { merge: true })
+    await upsertDeviceRecord(admin.firestore(), uid, body)
   })
 
   app.post('/agent/browser/register-device', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    if (usesDefaultDeviceUpsert && !browserBridgeAvailable) {
+      res.status(503).json({ error: 'Browser bridge unavailable' })
+      return
+    }
     const parsed = z.object({
       fcmToken: z.string().min(1),
       deviceId: z.string().min(1),
@@ -342,6 +342,7 @@ export function createApp(options: AppOptions) {
 
 export function attachWebSocketRoutes(server: Server, options: AppOptions): void {
   const { verifyToken, db, wsHandlerOptions, wsLiveHandlerOptions, creditService } = options
+  const browserBridgeAvailable = admin.apps.length > 0
   const streamWss = new WebSocketServer({ noServer: true })
   const liveWss = new WebSocketServer({ noServer: true })
   const browserWss = new WebSocketServer({ noServer: true })
@@ -358,6 +359,10 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
         void handleLiveWsUpgrade(ws, req, { db, verifyToken, creditService, ...wsLiveHandlerOptions })
       })
     } else if (pathname === '/agent/browser') {
+      if (!browserBridgeAvailable) {
+        socket.destroy()
+        return
+      }
       browserWss.handleUpgrade(req, socket, head, (ws) => {
         handleBrowserWsUpgrade(ws, req, {
           firestoreSession: defaultFirestoreSession(),

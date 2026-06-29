@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { SingleAction } from './dsl-types.js'
 
-const singleActionSchema = z.discriminatedUnion('type', [
+export const singleActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('open_tab'), url: z.string().url() }),
   z.object({ type: z.literal('focus_tab'), host: z.string().min(1) }),
   z.object({ type: z.literal('extract'), selector: z.string().min(1), label: z.string().optional() }),
@@ -34,6 +34,24 @@ export function validateTaskIntent(input: unknown): ValidatedTaskIntent {
 
 const READ_ONLY = new Set(['extract', 'summarize_visible_text', 'read_dom'])
 const NAVIGATION = new Set(['open_tab', 'focus_tab', 'scroll'])
+
+const bridgeErrorCodeSchema = z.enum([
+  'SELECTOR_NOT_FOUND',
+  'HOST_NOT_ALLOWED',
+  'HOST_PERMISSION_REQUIRED',
+  'EXTENSION_OFFLINE',
+  'AUTH_TIMEOUT',
+  'EXECUTION_ERROR',
+  'EXECUTION_TIMEOUT',
+])
+
+export const taskErrorFrameSchema = z.object({
+  type: z.literal('task_error'),
+  taskId: z.string(),
+  code: bridgeErrorCodeSchema,
+  message: z.string(),
+  failedAction: singleActionSchema,
+})
 
 export function actionTier(action: SingleAction): 'read_only' | 'navigation' | 'stateful' {
   if (READ_ONLY.has(action.type)) return 'read_only'

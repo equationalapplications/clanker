@@ -83,7 +83,7 @@ test('rejects auth when deviceId invalid', async () => {
   const ws = new FakeWs()
   const { options } = deps({ validateDevice: async () => false })
   handleBrowserWsUpgrade(ws as never, {} as never, options as never)
-  ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: 's1', deviceId: 'bad' })
+  ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'bad' })
   await new Promise((r) => setTimeout(r, 20))
   assert.equal(ws.closed?.code, 4001)
 })

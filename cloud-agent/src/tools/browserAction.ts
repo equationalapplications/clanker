@@ -84,19 +84,32 @@ export function browserActionTool(
       // 2. Contextual billing.
       deps.pauseBilling?.()
       let txId: string | null = null
+      let sessionCreated = false
       if (!context.preBilled) {
         try { txId = await deps.creditService.spendCredit(deps.userId) }
         catch { deps.resumeBilling?.(); return 'You are out of credits for browser actions.' }
       }
 
-      // 3. Build intent + persist.
-      const requiresAuth = intentRequiresAuth(actionSummary, action)
-      const taskIntent: TaskIntent = { version: '1', taskId, sessionId, requiresAuth, actionSummary, action }
-      await fs.createSession(deps.firebaseUid, sessionId, { status: 'pending', trigger: context.trigger, voiceInstanceId: deps.instanceId })
-      await fs.writeTask(deps.firebaseUid, sessionId, taskId, taskIntent)
+      try {
+        // 3. Build intent + persist.
+        const requiresAuth = intentRequiresAuth(actionSummary, action)
+        const taskIntent: TaskIntent = { version: '1', taskId, sessionId, requiresAuth, actionSummary, action }
+        await fs.createSession(deps.firebaseUid, sessionId, { status: 'pending', trigger: context.trigger, voiceInstanceId: deps.instanceId })
+        sessionCreated = true
+        await fs.writeTask(deps.firebaseUid, sessionId, taskId, taskIntent)
 
-      // 4. Wake.
-      await deps.fcmDispatcher.wakeExtension(device.fcmToken, sessionId, taskId)
+        // 4. Wake.
+        await deps.fcmDispatcher.wakeExtension(device.fcmToken, sessionId, taskId)
+      } catch (err) {
+        if (txId) {
+          try { await deps.creditService.refundCredit(deps.userId, txId) } catch { /* logged */ }
+        }
+        if (sessionCreated) {
+          try { await fs.closeSession(deps.firebaseUid, sessionId, 'aborted') } catch { /* ignore */ }
+        }
+        deps.resumeBilling?.()
+        throw err
+      }
 
       // 5. Durable wake timeout (queries Firestore, never sessionBridge).
       const wakeTimer = setTimeout(() => { void enforceWakeTimeout() }, wakeTimeoutMs)
@@ -117,20 +130,24 @@ export function browserActionTool(
       }
 
       // 6. Result delivery.
-      const watch = (resolve: (task: TaskDoc) => void) => {
+      const waitForTerminalTask = () => new Promise<TaskDoc>((resolve) => {
+        const timeout = setTimeout(() => {
+          settled = true
+          clearTimeout(wakeTimer)
+          unsub()
+          resolve(executionTimeoutTask())
+        }, textTimeoutMs)
+
         const unsub = fs.watchTask(deps.firebaseUid, sessionId, taskId, (task) => {
           if (task.status === 'complete' || task.status === 'failed' || task.status === 'aborted') {
-            settled = true; clearTimeout(wakeTimer); unsub(); resolve(task)
+            settled = true
+            clearTimeout(timeout)
+            clearTimeout(wakeTimer)
+            unsub()
+            resolve(task)
           }
         })
-        return unsub
-      }
-
-      const waitForTerminalTask = () => Promise.race<TaskDoc>([
-        new Promise<TaskDoc>((resolve) => watch(resolve)),
-        new Promise<TaskDoc>((_, reject) =>
-          setTimeout(() => reject(new Error('EXECUTION_TIMEOUT')), textTimeoutMs)),
-      ]).catch(() => executionTimeoutTask())
+      })
 
       if (context.trigger === 'text') {
         return formatResult(await waitForTerminalTask())

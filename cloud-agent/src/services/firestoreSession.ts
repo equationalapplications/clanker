@@ -1,6 +1,11 @@
 import admin from 'firebase-admin'
 import type { TaskIntent, TaskResult, SessionDoc, TaskDoc, DeviceDoc } from '../../../shared/dsl-types.js'
 
+export interface FirestoreBatch {
+  update(path: string, data: Record<string, unknown>): void
+  commit(): Promise<void>
+}
+
 // Structural subset of firebase-admin Firestore we use. Lets tests inject a fake.
 export interface FirestoreLike {
   doc(path: string): {
@@ -10,6 +15,7 @@ export interface FirestoreLike {
     onSnapshot?(cb: (snap: { exists: boolean; data(): Record<string, unknown> | undefined }) => void): () => void
   }
   collection(path: string): CollectionQuery
+  batch?(): FirestoreBatch
 }
 
 export interface CollectionQuery {
@@ -43,12 +49,15 @@ export function createFirestoreSession(db: FirestoreLike) {
     async getActiveDevice(uid: string): Promise<{ deviceId: string; fcmToken: string; deviceName: string } | null> {
       const snap = await db.collection(devicesPath(uid))
         .where('active', '==', true)
-        .where('isPaused', '==', false)
         .orderBy('lastSeenAt', 'desc')
-        .limit(1)
+        .limit(10)
         .get()
-      if (snap.empty) return null
-      const d = snap.docs[0]
+      const eligible = snap.docs.filter((d) => {
+        const data = d.data() as unknown as DeviceDoc
+        return data.isPaused !== true
+      })
+      if (eligible.length === 0) return null
+      const d = eligible[0]
       const data = d.data() as unknown as DeviceDoc
       return { deviceId: d.id, fcmToken: data.fcmToken, deviceName: data.deviceName }
     },
@@ -67,10 +76,19 @@ export function createFirestoreSession(db: FirestoreLike) {
     },
 
     async markBrowserConnected(uid: string, sid: string, browserInstanceId: string, taskId: string): Promise<void> {
-      await db.doc(sessionPath(uid, sid)).update({
+      const sessionUpdate = {
         status: 'routing', browserInstanceId, browserConnectedAt: now(),
-      })
-      await db.doc(taskPath(uid, sid, taskId)).update({ status: 'executing', updatedAt: now() })
+      }
+      const taskUpdate = { status: 'executing', updatedAt: now() }
+      if (db.batch) {
+        const batch = db.batch()
+        batch.update(sessionPath(uid, sid), sessionUpdate)
+        batch.update(taskPath(uid, sid, taskId), taskUpdate)
+        await batch.commit()
+        return
+      }
+      await db.doc(sessionPath(uid, sid)).update(sessionUpdate)
+      await db.doc(taskPath(uid, sid, taskId)).update(taskUpdate)
     },
 
     async closeSession(uid: string, sid: string, status: 'closed' | 'aborted'): Promise<void> {
@@ -116,5 +134,19 @@ export function createFirestoreSession(db: FirestoreLike) {
 export type FirestoreSession = ReturnType<typeof createFirestoreSession>
 
 export function defaultFirestoreSession(): FirestoreSession {
-  return createFirestoreSession(admin.firestore() as unknown as FirestoreLike)
+  const raw = admin.firestore()
+  const db: FirestoreLike = {
+    doc: (path) => raw.doc(path) as FirestoreLike['doc'] extends (p: string) => infer R ? R : never,
+    collection: (path) => raw.collection(path) as unknown as CollectionQuery,
+    batch: () => {
+      const batch = raw.batch()
+      return {
+        update(path: string, data: Record<string, unknown>) {
+          batch.update(raw.doc(path), data)
+        },
+        commit: async () => { await batch.commit() },
+      }
+    },
+  }
+  return createFirestoreSession(db)
 }

@@ -114,6 +114,7 @@ export async function handleLiveWsUpgrade(
   let userId: string | null = null
   let liveSessionKey: string | null = null
   let toolExecutors = new Map<string, (args: unknown) => Promise<unknown>>()
+  let pendingBrowserActionCallId: string | null = null
 
   function clearAndClose(): void {
     if (billingController !== null) {
@@ -255,8 +256,10 @@ export async function handleLiveWsUpgrade(
       try {
         const executor = toolExecutors.get(call.name)
         if (!executor) throw new Error(`Unknown tool: ${call.name}`)
+        if (call.name === 'browser_action') pendingBrowserActionCallId = call.id
         result = await executor(call.args ?? {})
       } catch (err) {
+        if (call.name === 'browser_action') pendingBrowserActionCallId = null
         result = { error: err instanceof Error ? err.message : 'Tool execution failed' }
       }
 
@@ -378,9 +381,12 @@ export async function handleLiveWsUpgrade(
           pauseBilling: () => billingController?.pause(),
           resumeBilling: () => billingController?.resume(),
           pushToLive: (text: string) => {
+            const callId = pendingBrowserActionCallId
+            if (!callId) return
+            pendingBrowserActionCallId = null
             try {
               geminiSession?.sendToolResponse({
-                functionResponses: [{ id: crypto.randomUUID(), name: 'browser_action', response: { output: text } }],
+                functionResponses: [{ id: callId, name: 'browser_action', response: { output: text } }],
               })
             } catch { /* ignore */ }
           },

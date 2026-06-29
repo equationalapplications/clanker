@@ -4,7 +4,8 @@ import admin from 'firebase-admin'
 import { z } from 'zod'
 import type { FirestoreSession } from '../services/firestoreSession.js'
 import { sessionBridge } from '../services/sessionBridge.js'
-import type { TaskResult, SingleAction, BridgeErrorCode } from '../../../shared/dsl-types.js'
+import type { TaskResult } from '../../../shared/dsl-types.js'
+import { taskErrorFrameSchema } from '../../../shared/dsl-schema.js'
 
 const browserAuthSchema = z.object({
   type: z.literal('auth'),
@@ -20,13 +21,6 @@ const resultFrameSchema = z.object({
   activeUrl: z.string(),
 })
 
-const errorFrameSchema = z.object({
-  type: z.literal('task_error'),
-  taskId: z.string(),
-  code: z.string(),
-  message: z.string(),
-  failedAction: z.unknown(),
-})
 
 export interface BrowserWsOptions {
   firestoreSession: FirestoreSession
@@ -68,7 +62,10 @@ export function handleBrowserWsUpgrade(
     if (!(await validateDevice(resolved, deviceId))) { ws.close(4001, 'Unknown device'); return }
 
     const session = await fs.getSession(resolved, sid)
-    if (session.status === 'closed') { ws.close(4001, 'Session closed'); return }
+    if (session.status === 'closed' || session.status === 'aborted') {
+      ws.close(4001, 'Session closed')
+      return
+    }
 
     firebaseUid = resolved; sessionId = sid; authed = true
     clearTimeout(authTimer)
@@ -91,14 +88,14 @@ export function handleBrowserWsUpgrade(
       ws.send(JSON.stringify({ type: 'session_end' }))
       return
     }
-    const e = errorFrameSchema.safeParse(raw)
+    const e = taskErrorFrameSchema.safeParse(raw)
     if (e.success) {
       const result: TaskResult = {
         taskId: e.data.taskId, status: 'failed', data: {}, activeUrl: '',
         error: {
-          code: e.data.code as BridgeErrorCode,
+          code: e.data.code,
           message: e.data.message,
-          failedAction: e.data.failedAction as SingleAction,
+          failedAction: e.data.failedAction,
         },
       }
       await fs.writeTaskResult(firebaseUid, sessionId, e.data.taskId, result)
@@ -111,13 +108,19 @@ export function handleBrowserWsUpgrade(
     try { parsed = JSON.parse(data.toString()) } catch { return }
     const type = (parsed as { type?: string }).type
     if (type === 'ping') { ws.send(JSON.stringify({ type: 'pong' })); return }
-    if (!authed) { void onAuth(parsed); return }
-    if (type === 'task_result' || type === 'task_error') { void onResult(parsed); return }
+    if (!authed) {
+      void onAuth(parsed).catch(() => ws.close(1011, 'Internal error'))
+      return
+    }
+    if (type === 'task_result' || type === 'task_error') {
+      void onResult(parsed).catch(() => ws.close(1011, 'Internal error'))
+      return
+    }
   })
 
   ws.on('close', () => {
     clearTimeout(authTimer)
-    if (firebaseUid && sessionId) sessionBridge.deregister(firebaseUid, sessionId)
+    if (firebaseUid && sessionId) sessionBridge.deregisterBrowser(firebaseUid, sessionId)
   })
   ws.on('error', () => { clearTimeout(authTimer) })
 }

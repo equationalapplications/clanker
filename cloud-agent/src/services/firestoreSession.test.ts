@@ -36,13 +36,24 @@ function makeFakeDb() {
             return { empty: docs.length === 0, docs }
           }
           const docs = [...store.entries()]
-            .filter(([k, v]) => k.startsWith(path + '/') && v.active === true && v.isPaused === false)
+            .filter(([k, v]) => k.startsWith(path + '/') && v.active === true && (v as { isPaused?: boolean }).isPaused !== true)
             .sort((a, b) => Number(b[1].lastSeenAt ?? 0) - Number(a[1].lastSeenAt ?? 0))
             .map(([k, v]) => ({ id: k.split('/').pop()!, data: () => v }))
           return { empty: docs.length === 0, docs }
         },
       }
       return coll
+    },
+    batch() {
+      const ops: Array<{ path: string; data: Record<string, unknown> }> = []
+      return {
+        update(path: string, data: Record<string, unknown>) { ops.push({ path, data }) },
+        async commit() {
+          for (const { path, data } of ops) {
+            store.set(path, { ...(store.get(path) ?? {}), ...data })
+          }
+        },
+      }
     },
   }
   return { db, store }
@@ -87,6 +98,15 @@ test('getActiveDevice skips paused devices', async () => {
   store.set('users/u1/devices/d1', { fcmToken: 'tok', deviceName: 'Mac', active: true, isPaused: true, lastSeenAt: 5 })
   const fs = createFirestoreSession(db as never)
   assert.equal(await fs.getActiveDevice('u1'), null)
+})
+
+test('getActiveDevice treats missing isPaused as active', async () => {
+  const { db, store } = makeFakeDb()
+  store.set('users/u1/devices/d1', { fcmToken: 'tok', deviceName: 'Mac', active: true, lastSeenAt: 5 })
+  const fs = createFirestoreSession(db as never)
+  const d = await fs.getActiveDevice('u1')
+  assert.equal(d?.deviceId, 'd1')
+  assert.equal(d?.fcmToken, 'tok')
 })
 
 test('getActiveDevice returns most-recent active unpaused device', async () => {
