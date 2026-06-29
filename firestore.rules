@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{uid}/sessions/{sessionId} {
+      allow read: if request.auth.uid == uid;
+      allow write: if false; // Admin SDK only
+
+      match /tasks/{taskId} {
+        allow read: if request.auth.uid == uid;
+        allow write: if false; // Admin SDK only
+      }
+
+      match /auth/{taskId} {
+        allow read: if request.auth.uid == uid;
+        // Phase 2 approval writes; created by Admin SDK only.
+        allow update: if request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'approvedAt']);
+      }
+    }
+
+    match /users/{uid}/devices/{deviceId} {
+      allow read: if request.auth.uid == uid;
+      allow write: if false; // Admin SDK only (register-device upsert)
+    }
+  }
+}

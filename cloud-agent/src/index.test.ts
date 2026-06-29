@@ -188,20 +188,26 @@ test('POST /agent/run returns 400 when characterId is not a valid UUID', async (
   assert.equal(res.status, 400)
 })
 
-test('POST /agent/run passes DB user UUID (not Firebase UID) to runAgentFn', async () => {
+test('POST /agent/run passes DB user UUID and Firebase UID to runAgentFn', async () => {
   // Query order: [user lookup, character lookup, wiki context]
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
   let capturedUserId = ''
+  let capturedFirebaseUid = ''
   const app = createApp({
     verifyToken: mockVerify,
     db,
-    runAgentFn: async (params) => { capturedUserId = params.userId; return { reply: 'ok', toolCalls: [] } },
+    runAgentFn: async (params) => {
+      capturedUserId = params.userId
+      capturedFirebaseUid = params.firebaseUid
+      return { reply: 'ok', toolCalls: [] }
+    },
   })
   await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
     .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(capturedUserId, mockUser.id)
+  assert.equal(capturedFirebaseUid, mockUser.firebaseUid)
 })
 
 test('POST /agent/run returns reply from runAgentFn', async () => {

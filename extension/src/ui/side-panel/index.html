@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Clanker Desktop Bridge</title>
+<style>body{font:14px system-ui;margin:12px;width:300px} .row{margin:6px 0} button{padding:6px 10px} ul{padding-left:16px}</style>
+</head><body>
+  <h3>Clanker Desktop Bridge</h3>
+  <div class="row" id="status">Status: ○ Idle</div>
+  <div class="row" id="account">Account: (signed out)</div>
+  <div class="row" id="device">Device: —</div>
+  <div class="row"><button id="signin">Sign In</button> <button id="signout" hidden>Sign Out</button></div>
+  <div class="row"><button id="pause">Pause Remote Actions</button></div>
+  <div class="row"><button id="grant" hidden>Grant Access</button></div>
+  <h4>Recent Actions</h4>
+  <ul id="log"></ul>
+  <script type="module" src="panel.js"></script>
+</body></html>

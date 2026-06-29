@@ -12,6 +12,7 @@ export const users = pgTable('users', {
   firebaseUid: text('firebase_uid').unique().notNull(),
   email: text('email').unique().notNull(),
   displayName: text('display_name'),
+  expoPushToken: text('expo_push_token'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

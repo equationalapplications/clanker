@@ -19,7 +19,16 @@ import { createCreditService } from './services/creditService.js'
 import type { CreditService } from './services/creditService.js'
 import { handleWsUpgrade, type WsHandlerOptions } from './handlers/wsAgentHandler.js'
 import { handleLiveWsUpgrade, type WsLiveHandlerOptions } from './handlers/wsLiveAgentHandler.js'
+import { handleBrowserWsUpgrade } from './handlers/wsBrowserAgentHandler.js'
+import { defaultFirestoreSession } from './services/firestoreSession.js'
+import { defaultFcmDispatcher } from './services/fcmDispatcher.js'
+import { upsertDeviceRecord } from './services/deviceUpsert.js'
+import { upsertExpoPushToken, getExpoPushToken } from './handlers/expoPushToken.js'
+import { handleApproveAction } from './handlers/approveAction.js'
+import { INSTANCE_ID } from './services/instanceId.js'
 import { z } from 'zod'
+
+export { INSTANCE_ID } from './services/instanceId.js'
 
 const contentSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -31,6 +40,7 @@ const contentSchema = z.object({
 export interface RunAgentParams {
   db: DrizzleClient
   userId: string
+  firebaseUid: string
   characterId: string
   systemInstruction: string
   message: string
@@ -46,13 +56,22 @@ export interface AppOptions {
   creditService?: CreditService
   wsHandlerOptions?: Partial<WsHandlerOptions>
   wsLiveHandlerOptions?: Partial<WsLiveHandlerOptions>
+  upsertDevice?: (uid: string, body: { fcmToken: string; deviceId: string; deviceName: string; isPaused?: boolean }) => Promise<void>
 }
 
 // ── Real agent runner (production) ────────────────────────────────────────────
 
 export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
-  const { db, userId, characterId, systemInstruction, message, history, timezone, embed } = params
-  const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed)
+  const { db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed } = params
+  const bridge = admin.apps.length ? {
+    firebaseUid,
+    userId,
+    firestoreSession: defaultFirestoreSession(),
+    fcmDispatcher: defaultFcmDispatcher(),
+    creditService: createCreditService(db),
+    instanceId: INSTANCE_ID,
+  } : undefined
+  const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed, bridge)
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
 
@@ -177,14 +196,24 @@ export function createApp(options: AppOptions) {
     }
   }
 
+  const rateLimitHandler = (_req: Request, res: Response) => {
+    res.status(429).json({ error: 'Too many requests. Please try again later.' })
+  }
+
   const agentRunLimiter = rateLimit({
     windowMs: 60 * 1000,
     limit: 20,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
-    handler: (_req: Request, res: Response) => {
-      res.status(429).json({ error: 'Too many requests. Please try again later.' })
-    },
+    handler: rateLimitHandler,
+  })
+
+  const authRouteLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: rateLimitHandler,
   })
 
   app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
@@ -255,7 +284,7 @@ export function createApp(options: AppOptions) {
       // 2. EXECUTE — refund on ADK failure
       let result: { reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }
       try {
-        result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history, timezone, embed: embedText })
+        result = await runAgentFn({ db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed: embedText })
       } catch (adkErr) {
         try {
           await cs.refundCredit(userId, txId)
@@ -292,13 +321,80 @@ export function createApp(options: AppOptions) {
     }
   })
 
+  const usesDefaultDeviceUpsert = !options.upsertDevice
+  const browserBridgeAvailable = admin.apps.length > 0
+
+  const upsertDevice = options.upsertDevice ?? (async (uid, body) => {
+    await upsertDeviceRecord(admin.firestore(), uid, body)
+  })
+
+  app.post('/agent/browser/register-device', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    if (usesDefaultDeviceUpsert && !browserBridgeAvailable) {
+      res.status(503).json({ error: 'Browser bridge unavailable' })
+      return
+    }
+    const parsed = z.object({
+      fcmToken: z.string().min(1),
+      deviceId: z.string().min(1),
+      deviceName: z.string().min(1),
+      isPaused: z.boolean().optional(),
+    }).safeParse(req.body)
+    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
+    try {
+      await upsertDevice(req.uid!, parsed.data)
+      res.json({ ok: true })
+    } catch (err) {
+      console.error('register-device error:', err)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
+  app.post('/agent/user/expo-push-token', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    const parsed = z.object({ expoPushToken: z.string().min(1) }).safeParse(req.body)
+    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
+    try {
+      await upsertExpoPushToken(db, req.uid!, parsed.data.expoPushToken)
+      res.json({ ok: true })
+    } catch (err) {
+      console.error('expo-push-token upsert error:', err)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
+  app.post('/agent/browser/approve-action', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    if (!browserBridgeAvailable) { res.status(503).json({ error: 'Browser bridge unavailable' }); return }
+    const parsed = z.object({
+      sessionId: z.string().uuid(),
+      taskId: z.string().min(1),
+      approve: z.boolean(),
+    }).safeParse(req.body)
+    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
+
+    const authHeader = req.headers.authorization ?? ''
+    const rawToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : ''
+    if (!rawToken) { res.status(401).json({ error: 'Unauthorized' }); return }
+    try {
+      await handleApproveAction(
+        admin.firestore() as unknown as { doc(p: string): { update(d: Record<string, unknown>): Promise<void> } },
+        req.uid!,
+        parsed.data,
+      )
+      res.json({ ok: true })
+    } catch (err) {
+      console.error('approve-action error:', err)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
   return app
 }
 
 export function attachWebSocketRoutes(server: Server, options: AppOptions): void {
   const { verifyToken, db, wsHandlerOptions, wsLiveHandlerOptions, creditService } = options
+  const browserBridgeAvailable = admin.apps.length > 0
   const streamWss = new WebSocketServer({ noServer: true })
   const liveWss = new WebSocketServer({ noServer: true })
+  const browserWss = new WebSocketServer({ noServer: true })
 
   server.on('upgrade', (req, socket, head) => {
     const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname
@@ -310,6 +406,34 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
     } else if (pathname === '/agent/live') {
       liveWss.handleUpgrade(req, socket, head, (ws) => {
         void handleLiveWsUpgrade(ws, req, { db, verifyToken, creditService, ...wsLiveHandlerOptions })
+      })
+    } else if (pathname === '/agent/browser') {
+      if (!browserBridgeAvailable) {
+        socket.destroy()
+        return
+      }
+      browserWss.handleUpgrade(req, socket, head, (ws) => {
+        handleBrowserWsUpgrade(ws, req, {
+          firestoreSession: defaultFirestoreSession(),
+          fcmDispatcher: defaultFcmDispatcher(),
+          verifyToken,
+          resolveUserId: async (firebaseUid: string) => {
+            const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
+            return u ? firebaseUid : null
+          },
+          getExpoPushToken: (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
+          getDeviceFcmToken: async (uid: string, deviceId: string) => {
+            const snap = await admin.firestore().doc(`users/${uid}/devices/${deviceId}`).get()
+            if (!snap.exists) return null
+            return (snap.data()?.fcmToken as string) ?? null
+          },
+          validateDevice: async (firebaseUid: string, deviceId: string) => {
+            const doc = await admin.firestore().doc(`users/${firebaseUid}/devices/${deviceId}`).get()
+            const data = doc.data()
+            return doc.exists && data?.active === true && data?.isPaused !== true
+          },
+          instanceId: INSTANCE_ID,
+        })
       })
     } else {
       socket.destroy()
