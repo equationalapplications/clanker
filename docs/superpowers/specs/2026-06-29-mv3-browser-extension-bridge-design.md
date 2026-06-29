@@ -1,7 +1,7 @@
 # MV3 Browser Extension Remote Agent Bridge — Design Spec
 
 **Date:** 2026-06-29
-**Revised:** 2026-06-29 (durable wake timeouts, strict Firestore rules, offscreen Firebase Auth, device selection)
+**Revised:** 2026-06-29 (ADK tool wiring, contextual billing, INSTANCE_ID, Firestore rules, manifest polish, billing timer pause, 30s text-path timeout, EXECUTION_TIMEOUT, isPaused device field, approval identity wording, dep cleanup, risk table hardening)
 **Supersedes:** `2026-04-24-browser-extension-remote-agent-design.md` (April draft — replaced by this spec)
 
 ---
@@ -26,7 +26,7 @@ This feature introduces greenfield infrastructure not present in the Clanker rep
 | **Firestore** (Native mode) | Session/task/auth coordination bus; replaces in-memory cross-instance routing | GCP console — enable in existing Firebase project |
 | **Firestore Security Rules** | Tenant isolation; client read-only on tasks; server-owned writes | Deploy via `firebase deploy --only firestore:rules` |
 | **FCM Sender ID** | `chrome.gcm.register()` in extension | Firebase console → Project Settings → Cloud Messaging |
-| **Cloud Agent Firestore Admin SDK** | `firestoreSession.ts` read/write helpers | Add `@google-cloud/firestore` to `cloud-agent` |
+| **Cloud Agent Firestore Admin SDK** | `firestoreSession.ts` read/write helpers | Use `admin.firestore()` via existing `firebase-admin` — no additional dep required |
 | **Expo Push** (Phase 2+) | Approval cards, async task completion | `expo-notifications` in mobile app; token registration pipeline |
 
 **Not in scope today:** Cloud Agent uses Postgres/Drizzle for agent data and `firebase-admin` for auth verification only. Mobile app has no push notification infrastructure. The extension directory does not exist.
@@ -73,42 +73,52 @@ Three-node async loop. All cross-node communication is event-driven through Fire
 
 **`sessionBridge` scope:** The in-memory session map exists for same-instance optimization only. Browser task results are always written to Firestore first; the voice-side instance picks them up via its own Firestore listener. `voiceWs` in `sessionBridge` is not the primary result-delivery path — Firestore is.
 
+**Per-container instance identity:** `K_REVISION` identifies a deployment revision, not an individual Cloud Run container. A module-scoped constant is generated once per process:
+
+```typescript
+// cloud-agent/src/index.ts (or sessionBridge.ts)
+export const INSTANCE_ID = crypto.randomUUID()
+```
+
+Used for `voiceInstanceId` (session doc) and `browserInstanceId` (`markBrowserConnected`). Enables true per-container tracking for same-instance shortcuts and observability.
+
 ---
 
 ## Triggering Browser Tasks: `browser_action` Tool
 
 Gemini Live has no knowledge of the browser extension without an explicit tool in its schema. The `browser_action` tool is the sole trigger that initiates the Wake-and-Connect pipeline from the voice or text agent.
 
-### Tool Schema
+### Tool Implementation (ADK `FunctionTool`)
 
-Injected into `buildLiveTools` in `cloud-agent/src/services/liveToolAdapter.ts` when the user connects to `/agent/live`:
+`browser_action` is **not** registered in `shared/agent-tools-spec.ts`. That file is consumed only by the edge agent (`useEdgeAgent`) and Firebase `generateReply` — `getSchemasForCloud()` has no callers in the Cloud Agent path. Gemini Live and `/agent/run` both inject tools via ADK `FunctionTool` objects.
+
+Implemented in `cloud-agent/src/tools/browserAction.ts` as an ADK `FunctionTool` with a strict Zod parameter schema (mirrors the Task DSL envelope). Dual-wired into both agent entry points:
+
+| Entry point | Injection site | File |
+|-------------|----------------|------|
+| Voice (`/agent/live`) | `adkTools` array in `buildLiveTools` | `cloud-agent/src/services/liveToolAdapter.ts` |
+| Text (`/agent/run`) | `tools` array in `buildAgent` | `cloud-agent/src/services/agentCore.ts` |
+
+The edge agent cannot invoke `browser_action` — it requires Cloud Agent, Firestore coordination, and a registered desktop extension. Text chat reaches it via `/agent/run` (cloud escalation) or live voice on `/agent/live`.
 
 ```typescript
-{
-  name: "browser_action",
-  description: "Execute a task on the user's authenticated desktop browser. Use when the user asks you to read, summarize, navigate, or interact with content on their screen.",
-  parameters: {
-    type: "object",
-    properties: {
-      actionSummary: {
-        type: "string",
-        description: "Human-readable description of what you are about to do. Phase 1: audit log + voice narration. Phase 2+: shown in approval card."
-      },
-      intent: {
-        type: "object",
-        description: "Task DSL payload specifying the action to perform.",
-        properties: {
-          action: { type: "object", description: "SingleAction or SequenceAction — see Task DSL spec." }
-        },
-        required: ["action"]
-      }
-    },
-    required: ["actionSummary", "intent"]
-  }
-}
+// cloud-agent/src/tools/browserAction.ts — Zod schema (excerpt)
+const browserActionSchema = z.object({
+  actionSummary: z.string().describe(
+    'Human-readable description of what you are about to do. Phase 1: audit log + voice narration. Phase 2+: shown in approval card.',
+  ),
+  intent: z.object({
+    action: z.record(z.unknown()).describe('SingleAction or SequenceAction — see Task DSL spec.'),
+  }),
+})
+
+export function browserActionTool(
+  deps: BrowserActionDeps,
+  context: { trigger: 'voice' | 'text'; preBilled: boolean },
+): FunctionTool { /* ... */ }
 ```
 
-Added to `shared/agent-tools-spec.ts` with **`tier: 'cloud-only'`** and exposed via `getSchemasForCloud()`. The edge agent cannot invoke `browser_action` — it requires Cloud Agent, Firestore coordination, and a registered desktop extension. Text chat reaches it through cloud escalation (`/agent/run` or live voice on `/agent/live`), not `getSchemasForEdge()`.
+`BrowserActionDeps` bundles `firestoreSession`, `fcmDispatcher`, `creditService`, and `uid`. The `context` parameter drives contextual billing (see below).
 
 **`actionSummary` in Phase 1:** Audit log and voice narration only (e.g. "Checking the article on your browser…"). No approval UI until Phase 2.
 
@@ -117,26 +127,33 @@ Added to `shared/agent-tools-spec.ts` with **`tier: 'cloud-only'`** and exposed 
 The tool handler is the **sole owner** of bridge `sessionId` and `taskId` generation. Each `browser_action` call creates a new bridge session — independent of the Gemini Live WS connection ID.
 
 ```
-Gemini Live calls browser_action({ actionSummary, intent })
-  → Cloud Agent tool handler:
+Gemini calls browser_action({ actionSummary, intent })
+  → browserActionTool.execute():
       1. sessionId = crypto.randomUUID()
          taskId   = crypto.randomUUID()
       2. device = firestoreSession.getActiveDevice(uid)
          → if null: return tool_response error immediately (NO credit spent):
               "No browser extension is paired. Install the Clanker Desktop Bridge extension."
-      3. txId = creditService.spendCredit(uid)     // 1 credit per browser task
+      3. Billing (contextual — see Billing section):
+         if context.preBilled (text /agent/run): skip spendCredit
+         else (voice /agent/live): txId = creditService.spendCredit(uid)
       4. firestoreSession.createSession(uid, sessionId, {
            status: 'pending', trigger: 'voice' | 'text',
-           voiceInstanceId: process.env.K_REVISION ?? 'local',
+           voiceInstanceId: INSTANCE_ID,
          })
       5. Build TaskIntent { version: '1', taskId, sessionId, requiresAuth, actionSummary, action }
       6. firestoreSession.writeTask(uid, sessionId, taskId, taskIntent)  // status: pending
       7. fcmDispatcher.wakeExtension(device.fcmToken, sessionId, taskId)
-      8. firestoreSession.watchTask(uid, sessionId, taskId, onResult)  ← voice-side listener
-      9. Start 12s durable wake timeout (see Wake Timeout section)
-     10. Return tool_response to Gemini Live:
+      8. Start 12s durable wake timeout (see Wake Timeout section)
+      9. Result delivery (path-dependent):
+         VOICE: register watchTask listener; return interim tool_response:
            "Sent task to your browser. I'll read the result when it arrives."
+         TEXT:  await watchTask promise via 30s Promise.race (see Text Path Timeout);
+                return formatted result/error as tool_response string directly
+```
 
+**Voice path (`onResult` callback):**
+```
   onResult(taskDoc):
     → if status == "complete":
         format result as tool_response content
@@ -147,9 +164,33 @@ Gemini Live calls browser_action({ actionSummary, intent })
         teardown Firestore listener
 ```
 
+**Text path (`/agent/run`):** The ADK `InMemoryRunner` expects a synchronous tool return. The executor `await`s a `watchTask` promise that resolves when the task doc reaches a terminal status (`complete` | `failed` | `aborted`). No interim response; the final tool return feeds directly into the agent's text synthesis.
+
+**Text Path Timeout:** The HTTP request must resolve before the GCP HTTP(S) Load Balancer backend service timeout drops the connection. Default GCP LB backend timeout is **30 seconds** (configurable, but do not assume higher without an explicit infra change). The `watchTask` await is therefore wrapped in a `Promise.race` with a 30s hard cap:
+
+```typescript
+const result = await Promise.race([
+  watchTaskPromise(uid, sessionId, taskId),
+  new Promise<never>((_, reject) =>
+    setTimeout(() => reject({ code: 'EXECUTION_TIMEOUT', message: 'Browser task exceeded 30s' }), 30_000)
+  ),
+])
+```
+
+This 30s cap covers both the 12s durable wake timeout and up to 18s of execution time — sufficient for all Phase 1 read-only actions. If the extension connects but hangs (content script crash, execution freeze), this timeout fires `EXECUTION_TIMEOUT` and unblocks the HTTP request cleanly. No credit refund on `EXECUTION_TIMEOUT` — the extension connected and attempted the task.
+
 **Cross-instance result delivery:** The voice-side handler owns the per-task `watchTask` listener. When the browser-side instance writes the result to Firestore, the voice-side listener fires on its own instance — no direct socket-to-socket communication required. This is the correct cross-instance path; `sessionBridge.voiceWs` is only checked as a short-circuit when both sockets happen to land on the same instance.
 
-**Credit billing:** `browser_action` deducts 1 credit only after a registered active device is found (step 3). Refund on `EXTENSION_OFFLINE` (durable wake timeout) or other pre-execution failures. No refund for execution errors (`SELECTOR_NOT_FOUND`, etc.) — the extension connected and attempted the task. No credit spent when no device is registered.
+**Credit billing (contextual):**
+
+| Invocation context | Timer billing | `browser_action` flat billing |
+|--------------------|--------------|-------------------------------|
+| Voice (`/agent/live`) | `billingTimer` runs per wall-clock interval — **must be paused** on `browser_action` invocation, resumed on tool return | `spendCredit(uid)` after device found; covers wake + execution latency |
+| Text (`/agent/run`) | No timer — HTTP handler spends 1 credit before ADK runs | Skip `spendCredit` — turn already billed |
+
+**Timer pause contract (voice path):** `wsLiveAgentHandler` exposes `pauseBilling()` / `resumeBilling()`. The `browser_action` tool handler calls `pauseBilling()` immediately after `getActiveDevice` succeeds (before FCM dispatch) and `resumeBilling()` when `watchTask` resolves or the durable wake timeout fires. Without this pause, the user is charged per-interval for every second spent waiting for extension wake and execution — silent double-billing.
+
+Refund on `EXTENSION_OFFLINE` (durable wake timeout) or other pre-execution failures applies only when a credit was spent (voice path). No refund for execution errors (`SELECTOR_NOT_FOUND`, `EXECUTION_TIMEOUT`, etc.) — the extension connected and attempted the task. No credit spent when no device is registered.
 
 ---
 
@@ -198,7 +239,7 @@ The extension receives `sessionId` and `taskId` in the FCM payload and must echo
 8.  [Extension → Cloud Agent] WS auth frame:
       { type: "auth", idToken, sessionId, deviceId }
 9.  [Cloud Agent / browser-side instance] verifies token + validates deviceId
-10. [Cloud Agent] markBrowserConnected(uid, sessionId, browserInstanceId)
+10. [Cloud Agent] markBrowserConnected(uid, sessionId, INSTANCE_ID)
       → session doc: { status: 'routing', browserInstanceId, browserConnectedAt }
       → task doc: { status: 'executing' }   // cancels durable wake timeout
 11. [Cloud Agent → Extension] { type: "session_ready", sessionId }
@@ -311,9 +352,12 @@ Approval TTL (5 min) matches Expo Push `ttl: 300`. Expired approval card vanishe
   "deviceName": "Home Mac — Chrome",
   "registeredAt": "<timestamp>",
   "lastSeenAt": "<timestamp>",
-  "active": true
+  "active": true,
+  "isPaused": false
 }
 ```
+
+`isPaused` is written by the side panel "Pause Remote Actions" toggle via `POST /agent/browser/register-device` upsert (same endpoint, `isPaused` field added to request body). `getActiveDevice` checks `isPaused` before returning — a paused device returns `null`, preventing credit spend and FCM dispatch. User receives a tool error: "Remote browser actions are paused. Enable them from the Clanker Desktop Bridge extension."
 
 ### Device Selection
 
@@ -321,14 +365,16 @@ Phase 1 supports a single active desktop. The Cloud Agent resolves the wake targ
 
 ```typescript
 // firestoreSession.getActiveDevice(uid)
-// Query: users/{uid}/devices where active === true, orderBy lastSeenAt desc, limit 1
+// Query: users/{uid}/devices where active === true AND isPaused === false,
+//        orderBy lastSeenAt desc, limit 1
 // Returns: { deviceId, fcmToken, deviceName } | null
 ```
 
 | Outcome | Behavior |
 |---------|----------|
 | No device doc | Return tool error immediately; **no credit spent** |
-| Device found | `spendCredit` → FCM wake → durable timeout |
+| Device found but `isPaused: true` | Return tool error immediately; **no credit spent** |
+| Device found, not paused | FCM wake → durable timeout; `spendCredit` only on voice path (text path pre-billed) |
 | Multiple active devices (Phase 2+) | Most recently seen wins until explicit primary-device selection is added |
 
 Extension updates `lastSeenAt` on every successful WS auth via `POST /agent/browser/register-device` upsert.
@@ -354,19 +400,15 @@ service cloud.firestore {
 
   match /users/{uid}/sessions/{sessionId}/auth/{taskId} {
     allow read: if request.auth.uid == uid;
-  // Mobile writes approval decisions only — Cloud Agent verifies approvalToken before resume
-    allow create: if request.auth.uid == uid
-      && request.resource.data.keys().hasOnly(['status', 'approvalToken', 'approvedAt'])
-      && request.resource.data.status in ['approved', 'denied'];
+    // Auth doc created by Admin SDK (haltForAuth). Mobile updates approval decisions only.
     allow update: if request.auth.uid == uid
-      && request.resource.data.status in ['approved', 'denied'];
+      && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['status', 'approvalToken', 'approvedAt']);
   }
 
   match /users/{uid}/devices/{deviceId} {
     allow read: if request.auth.uid == uid;
-    allow create, update: if request.auth.uid == uid
-      && request.resource.data.keys().hasAll(['fcmToken', 'deviceName', 'active']);
-    allow delete: if request.auth.uid == uid;
+    allow write: if false;  // Admin SDK only (POST /agent/browser/register-device upsert)
   }
 
   }
@@ -419,15 +461,24 @@ interface SequenceAction {
 
 ### Destructive Action Classifier (two-layer)
 
-**Layer 1 — Cloud Coordinator** (on intent generation): Sets `requiresAuth: true` if action label or selector matches `/submit|delete|pay|confirm|send|checkout|transfer/`.
-
-**Layer 2 — Extension local validator** (defense-in-depth, runs before execution): Inspects live DOM — button text, `form[action]`, ARIA role — against same pattern list. Can escalate `requiresAuth` to `true`; can never downgrade it. Mitigates LLM misclassification of destructive elements.
+Both layers share a single regex constant in `shared/constants.ts` to prevent rule drift:
 
 ```typescript
+// shared/constants.ts
+export const DESTRUCTIVE_ACTION_PATTERN =
+  /submit|delete|pay|confirm|send|checkout|transfer|remove|cancel subscription/i
+```
+
+**Layer 1 — Cloud Coordinator** (on intent generation): Sets `requiresAuth: true` if action label or selector matches `DESTRUCTIVE_ACTION_PATTERN`.
+
+**Layer 2 — Extension local validator** (defense-in-depth, runs before execution): Inspects live DOM — button text, `form[action]`, ARIA role — against the same constant. Can escalate `requiresAuth` to `true`; can never downgrade it. Mitigates LLM misclassification of destructive elements.
+
+```typescript
+import { DESTRUCTIVE_ACTION_PATTERN } from '../../shared/constants'
+
 function classifyElement(el: Element): "safe" | "requires_auth" {
   const text = (el.textContent ?? "").toLowerCase()
-  const destructivePatterns = /submit|delete|pay|confirm|send|checkout|transfer|remove|cancel subscription/
-  if (destructivePatterns.test(text)) return "requires_auth"
+  if (DESTRUCTIVE_ACTION_PATTERN.test(text)) return "requires_auth"
   if (el.closest("form") && el.matches("[type=submit]")) return "requires_auth"
   return "safe"
 }
@@ -484,7 +535,7 @@ interface TaskResult {
   activeUrl: string;
   error?: {
     code: "SELECTOR_NOT_FOUND" | "HOST_NOT_ALLOWED" | "HOST_PERMISSION_REQUIRED"
-         | "EXTENSION_OFFLINE" | "AUTH_TIMEOUT" | "EXECUTION_ERROR";
+         | "EXTENSION_OFFLINE" | "AUTH_TIMEOUT" | "EXECUTION_ERROR" | "EXECUTION_TIMEOUT";
     message: string;
     failedAction: SingleAction;
   };
@@ -501,6 +552,7 @@ interface TaskResult {
 | `EXTENSION_OFFLINE` | Durable wake timeout — no `browserConnectedAt` within 12s | 1 |
 | `AUTH_TIMEOUT` | Destructive action approval expired (Phase 2) | 2 |
 | `EXECUTION_ERROR` | Unclassified runtime failure in content script | 1 |
+| `EXECUTION_TIMEOUT` | Extension connected but task did not reach terminal status within 30s (text path LB ceiling); extension connected and attempted so no refund | 1 |
 
 `HOST_PERMISSION_REQUIRED` is recoverable (user grants, re-asks). `HOST_NOT_ALLOWED` is not — the coordinator refuses before FCM dispatch.
 
@@ -596,7 +648,7 @@ Expo notification category registered at app startup:
 }
 ```
 
-Voice authorization (LLM ASR interpretation) is explicitly excluded from the approval path. All destructive actions require a physical UI tap. Verbal "yes" during a live call is probabilistic — the tap provides deterministic, auditable, cryptographic proof of intent.
+Voice authorization (LLM ASR interpretation) is explicitly excluded from the approval path. All destructive actions require a physical UI tap. Verbal "yes" during a live call is probabilistic — the tap provides **deterministic proof of identity**: the authenticated user's Firebase UID physically tapped the button, scoped strictly to the specific `auth/{taskId}` document path and the 5-minute TTL. The `approvalToken` proves who, not what — the auth doc's Firestore path and `actionSummary` field carry the action binding.
 
 ---
 
@@ -606,17 +658,29 @@ Voice authorization (LLM ASR interpretation) is explicitly excluded from the app
 
 ```
 cloud-agent/src/
+  tools/
+    browserAction.ts           # ADK FunctionTool — Wake-and-Connect pipeline + contextual billing
   handlers/
     wsBrowserAgentHandler.ts     # /agent/browser WS upgrade handler
   services/
     sessionBridge.ts             # in-memory session map per Cloud Run instance
     fcmDispatcher.ts             # FCM silent push + Expo Push REST
     firestoreSession.ts          # Firestore read/write helpers
+
+shared/
+  constants.ts                   # DESTRUCTIVE_ACTION_PATTERN (shared by cloud + extension)
 ```
 
 ### Billing
 
-`browser_action` deducts 1 credit via `creditService.spendCredit(uid)` **only after** `getActiveDevice(uid)` returns a registered device — consistent with every other agent tool path (`generateReply`, cloud-agent `/run`). Refund on `EXTENSION_OFFLINE` (durable wake timeout) or other pre-execution failures. No refund for execution errors (`SELECTOR_NOT_FOUND`, etc.) — the extension connected and attempted the task. **No credit spent** when no active device is registered.
+`browser_action` uses **contextual billing** to avoid double-charging on the text path:
+
+| Path | Timer billing | `browser_action` flat billing |
+|------|--------------|-------------------------------|
+| Voice (`/agent/live`) | Timer-billed per wall-clock interval — **paused** during `browser_action`, resumed on return | `spendCredit(uid)` after `getActiveDevice` succeeds |
+| Text (`POST /agent/run`) | 1 credit spent before ADK runs | Skip `spendCredit` — pass `{ preBilled: true }` into `browserActionTool` |
+
+See "Credit billing (contextual)" in the Tool Invocation Flow section for the `pauseBilling()` / `resumeBilling()` contract. Refund on `EXTENSION_OFFLINE` or other pre-execution failures applies only when a credit was spent (voice path). No refund for execution errors — the extension connected and attempted the task. **No credit spent** when no active device is registered or when `isPaused: true` (see Device document).
 
 ### New HTTP Endpoint: `POST /agent/browser/register-device`
 
@@ -644,7 +708,7 @@ const browserAuthSchema = z.object({
 })
 
 // After auth: verify token → validate deviceId in Firestore
-// → markBrowserConnected(uid, sessionId, browserInstanceId)  // Firestore + task status: executing
+// → markBrowserConnected(uid, sessionId, INSTANCE_ID)  // Firestore + task status: executing
 // → send session_ready
 // → sessionBridge.registerBrowser(uid, sessionId, ws)  // same-instance shortcut only
 // → dispatch pending task to extension via ws.send()
@@ -767,12 +831,10 @@ extension/
   "content_scripts": [],
 
   "permissions": [
-    "activeTab",
     "scripting",
     "storage",
     "sidePanel",
     "notifications",
-    "alarms",
     "gcm",
     "offscreen"
   ],
@@ -794,7 +856,7 @@ extension/
 
 `content_scripts` is empty — scripts injected programmatically via `chrome.scripting.executeScript` only during active tasks. Extension never touches DOM between tasks.
 
-`optional_host_permissions` — Chrome prompts user per-host on first task targeting a new site. Avoids broad-permission rejection from CWS review.
+`optional_host_permissions` — Chrome prompts user per-host on first task targeting a new site. Avoids broad-permission rejection from CWS review. `activeTab` is intentionally omitted — it requires a user gesture (e.g. clicking the extension icon) and is unavailable during FCM background wake; `scripting` + granted `optional_host_permissions` cover programmatic injection.
 
 `gcm` — required for `chrome.gcm.register()` / `chrome.gcm.onMessage` (FCM wake). `offscreen` — required for `chrome.offscreen.createDocument()` (Firebase Auth SDK host).
 
@@ -815,8 +877,8 @@ Service Worker (every wake):
        → chrome.offscreen.hasDocument() ? skip
        → chrome.offscreen.createDocument({
             url: 'offscreen/auth.html',
-            reasons: ['DOM_SCRAPING', 'BLOBS'],
-            justification: 'Firebase Auth token minting',
+            reasons: ['DOM_PARSER'],
+            justification: 'Required to host Firebase Web Auth SDK which relies on DOM storage APIs',
           })
   2. auth-bridge.requestIdToken()
        → chrome.runtime.sendMessage({ target: 'offscreen-auth', type: 'GET_ID_TOKEN' })
@@ -878,18 +940,18 @@ On GCM WAKE_AND_CONNECT message:
   → idToken = auth-bridge.requestIdToken()
   → ws-client.connect(sessionId, idToken, deviceId)
   → On session_ready: task-dispatcher.dispatch(task)
-
-On chrome.alarms (heartbeat while WS active, every 20s):
-  → ws-client.ping()
+  → ws-client starts internal setInterval ping loop (every 20s while WS open)
   → If no pong within 5s: ws-client.reconnect()
 
 On WS SESSION_END:
-  → ws-client.close()
+  → ws-client.close()  // clears ping interval
   → auth-bridge.closeOffscreen()
   → Service worker suspends
 ```
 
 Service worker never touches DOM. All DOM work is in content scripts injected per-task. Sign-out in side panel calls Firebase `signOut()` in the offscreen doc and clears `deviceId` from storage.
+
+**WS heartbeat:** Do not use `chrome.alarms` for heartbeat — Chrome enforces a 30s minimum period on persisted alarms in some contexts. Instead, `ws-client.ts` maintains an internal `setInterval` ping loop while the WebSocket is open; Chromium allows this as long as the socket remains active.
 
 ### Host Permission Grant Flow
 
@@ -984,10 +1046,10 @@ Action log: last 50 entries in `chrome.storage.local`. "Pause Remote Actions" wr
 ### Unit — Cloud Agent
 
 - `wsBrowserAgentHandler`: auth timeout, invalid deviceId rejection, task dispatch, SESSION_END teardown, markBrowserConnected
-- `firestoreSession`: durable wake timeout (Firestore query, not sessionBridge), getActiveDevice no-credit path
+- `browserActionTool`: contextual billing (voice spends, text skips), device-not-found no-credit path, sync `await watchTask` on text path
 - `sessionBridge`: register/deregister, voice+browser co-registration, same-instance shortcut only
 - `fcmDispatcher`: FCM payload shape, Expo Push REST call (mock fetch)
-- `firestoreSession`: read/write helpers (mock Firestore Admin SDK)
+- `firestoreSession`: durable wake timeout (Firestore query, not sessionBridge), getActiveDevice no-credit path, read/write helpers (mock Firestore Admin SDK)
 - Task DSL schema validator: valid/invalid intents, tier classification
 
 ### Unit — Extension
@@ -1016,7 +1078,7 @@ Action log: last 50 entries in `chrome.storage.local`. "Pause Remote Actions" wr
 ### Policy Preflight (before CWS submission)
 
 - No remote executable code paths (verify `manifest.json` CSP, no `eval`)
-- Permission justification documented for every `manifest.json` entry (including `gcm`, `offscreen`)
+- Permission justification documented for every `manifest.json` entry (including `gcm`, `offscreen`; `activeTab` and `alarms` intentionally omitted)
 - Privacy disclosures match runtime behavior
 - `optional_host_permissions` grant flow reviewable by Chrome team
 - `content_scripts: []` confirmed empty — no declarative DOM access
@@ -1033,6 +1095,8 @@ Action log: last 50 entries in `chrome.storage.local`. "Pause Remote Actions" wr
 | Selector brittleness on SPAs / React apps | High | Phase 2 site adapters; voice-guided correction flow; `SELECTOR_NOT_FOUND` surfaces clearly via voice |
 | Firestore listener scaling on Cloud Run | Low | Listeners are per-session; torn down on SESSION_END; Firestore TTL cleans orphans; monitor in Cloud Monitoring |
 | Service worker suspension mid-sequence during auth pause | Low | `haltedStepIndex` persisted to Firestore before halt; resume on re-wake (Phase 2) |
+| `chrome.gcm` legacy API deprecation | Low | Chrome deprecated `chrome.gcm` in favor of VAPID Web Push; no removal date announced but monitor Chrome deprecation notices; prepare to migrate if MV3 gains stable push support without offscreen workarounds |
+| Cloud Run instance scale-down mid wake-timeout | Low | Voice-side `setTimeout` lives on accepting instance; if instance terminates before 12s, timeout never fires; acceptable backstop — Firestore +30min TTL cleans orphaned task and session docs |
 
 ---
 
@@ -1042,4 +1106,4 @@ Action log: last 50 entries in `chrome.storage.local`. "Pause Remote Actions" wr
 2. Phase 3: Cloud Scheduler task format — same TaskIntent DSL, or new envelope?
 3. Phase 4: CWS listing — single-purpose "Clanker" listing, or separate developer extension?
 
-**Resolved (2026-06-29):** Extension Firebase Auth uses offscreen document + `browserLocalPersistence` (not `stsTokenManager` / Secure Token REST). `browser_action` is `cloud-only`.
+**Resolved (2026-06-29):** Extension Firebase Auth uses offscreen document + `browserLocalPersistence` (not `stsTokenManager` / Secure Token REST). `browser_action` is implemented as an ADK `FunctionTool` in `cloud-agent/src/tools/browserAction.ts` — not in `agent-tools-spec.ts`. Text path (`/agent/run`) blocks synchronously on `watchTask`; voice path uses async listener + interim response. Contextual billing prevents double-charge on text turns. `INSTANCE_ID` (per-container UUID) replaces `K_REVISION` for instance tracking.
