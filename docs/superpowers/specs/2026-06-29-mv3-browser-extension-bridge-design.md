@@ -52,6 +52,73 @@ Three-node async loop. All cross-node communication is event-driven through Fire
 
 **Key invariant:** Cloud Run instances never communicate directly. All cross-socket routing flows through Firestore. Voice session and browser session are independently owned by whichever instance accepted the WS upgrade — they rendezvous only through Firestore documents.
 
+**`sessionBridge` scope:** The in-memory session map exists for same-instance optimization only. Browser task results are always written to Firestore first; the voice-side instance picks them up via its own Firestore listener. `voiceWs` in `sessionBridge` is not the primary result-delivery path — Firestore is.
+
+---
+
+## Triggering Browser Tasks: `browser_action` Tool
+
+Gemini Live has no knowledge of the browser extension without an explicit tool in its schema. The `browser_action` tool is the sole trigger that initiates the Wake-and-Connect pipeline from the voice or text agent.
+
+### Tool Schema
+
+Injected into `buildLiveTools` in `cloud-agent/src/services/liveToolAdapter.ts` when the user connects to `/agent/live`:
+
+```typescript
+{
+  name: "browser_action",
+  description: "Execute a task on the user's authenticated desktop browser. Use when the user asks you to read, summarize, navigate, or interact with content on their screen.",
+  parameters: {
+    type: "object",
+    properties: {
+      actionSummary: {
+        type: "string",
+        description: "Human-readable description of what you are about to do, shown to the user for confirmation."
+      },
+      intent: {
+        type: "object",
+        description: "Task DSL payload specifying the action to perform.",
+        properties: {
+          action: { type: "object", description: "SingleAction or SequenceAction — see Task DSL spec." }
+        },
+        required: ["action"]
+      }
+    },
+    required: ["actionSummary", "intent"]
+  }
+}
+```
+
+Also added to `shared/agent-tools-spec.ts` (`getSchemasForEdge`) so text-chat edge agent can invoke browser tasks.
+
+### Tool Invocation Flow
+
+```
+Gemini Live calls browser_action({ actionSummary, intent })
+  → Cloud Agent tool handler:
+      1. creditService.spendCredit(uid)            // 1 credit per browser task
+      2. Build TaskIntent (version, taskId, sessionId, requiresAuth, actionSummary, action)
+      3. firestoreSession.writeTask(uid, sessionId, taskIntent)
+      4. fcmDispatcher.wakeExtension(fcmToken, sessionId, taskId)
+      5. firestoreSession.watchTasks(uid, sessionId, taskId, onResult)  ← voice-side listener
+      6. Start 12s wake timeout
+      7. Return tool_response to Gemini Live:
+           "Sent task to your browser. I'll read the result when it arrives."
+
+  onResult(taskDoc):
+    → if status == "complete":
+        format result as tool_response content
+        push into Gemini Live session (streams to voice)
+        teardown Firestore listener
+    → if status == "failed" | "aborted":
+        push error message into Gemini Live session
+        teardown Firestore listener
+```
+
+**Cross-instance result delivery:** The voice-side handler owns the `watchTasks` listener. When the browser-side instance writes the result to Firestore, the voice-side listener fires on its own instance — no direct socket-to-socket communication required. This is the correct cross-instance path; `sessionBridge.voiceWs` is only checked as a short-circuit when both sockets happen to land on the same instance.
+
+**Credit billing:** `browser_action` deducts 1 credit at invocation (before FCM dispatch), consistent with every other agent tool path. Refund on `EXTENSION_OFFLINE` or wake timeout.
+
 ---
 
 ## Session Lifecycle: Wake-and-Connect
@@ -90,9 +157,11 @@ Cloud Coordinator per session:
 9.  [Cloud Agent] cancels wake timeout; registers browserWs in sessionBridge
 10. [Cloud Agent] reads pending task from Firestore, sends to extension via WS
 11. [Extension] executes Task DSL, returns result via WS
-12. [Cloud Agent] writes result to Firestore; routes to voice socket or Expo Push
-13. [Cloud Agent → Extension] { type: "session_end" }
-14. [Extension] closes WS; service worker suspends
+12. [Cloud Agent / browser-side instance] writes result to Firestore task doc
+13. [Cloud Agent / voice-side instance] watchTasks listener fires; pushes result into Gemini Live
+    (If voice session closed: voice-side sends Expo Push instead)
+14. [Cloud Agent → Extension] { type: "session_end" }
+15. [Extension] closes WS; service worker suspends
 ```
 
 ### Wake Timeout
@@ -103,17 +172,18 @@ If extension WS does not authenticate within 12 seconds of FCM dispatch:
 setTimeout(async () => {
   const session = sessionBridge.getSession(uid, sessionId)
   if (!session?.browserWs) {
+    // Write failure to Firestore — voice-side watchTasks listener delivers error to Gemini Live
     await firestoreSession.writeTaskResult(uid, sessionId, taskId, {
       status: 'failed',
       error: { code: 'EXTENSION_OFFLINE', message: 'Browser extension did not connect', failedAction: intent.action }
     })
-    session?.voiceWs?.send(JSON.stringify({
-      type: 'tool_end',
-      result: 'Your browser extension appears to be offline.'
-    }))
+    // Refund credit — task never executed
+    await cs.refundCredit(uid, txId)
     sessionBridge.deregister(uid, sessionId)
   }
 }, 12_000)
+// Voice-side watchTasks listener (registered at tool invocation) picks up the
+// failed status and speaks: "Your browser extension appears to be offline."
 ```
 
 ---
@@ -415,6 +485,10 @@ cloud-agent/src/
     firestoreSession.ts          # Firestore read/write helpers
 ```
 
+### Billing
+
+`browser_action` tool invocation deducts 1 credit via `creditService.spendCredit(uid)` before FCM dispatch — consistent with every other agent tool path (`generateReply`, cloud-agent `/run`). Refund on `EXTENSION_OFFLINE` (wake timeout) or pre-execution failure. No refund for execution errors (`SELECTOR_NOT_FOUND`, etc.) — the extension connected and attempted the task.
+
 ### New HTTP Endpoint: `POST /agent/browser/register-device`
 
 ```typescript
@@ -465,7 +539,7 @@ const browserAuthSchema = z.object({
 ```typescript
 interface SessionState {
   sessionId: string;
-  voiceWs: WebSocket | null;
+  voiceWs: WebSocket | null;   // same-instance shortcut only; may be null cross-instance
   browserWs: WebSocket | null;
   firestoreUnsub: (() => void) | null;
 }
@@ -478,7 +552,7 @@ export function getSession(uid: string, sessionId: string): SessionState | undef
 export function deregister(uid: string, sessionId: string): void
 ```
 
-`wsLiveAgentHandler` calls `registerVoice` on auth so browser task results can be routed back to an active voice session on the same instance.
+`wsLiveAgentHandler` calls `registerVoice` on auth as a same-instance shortcut. The primary result delivery path is always the voice-side `watchTasks` Firestore listener — `voiceWs` is only used when both sockets land on the same instance.
 
 ### `fcmDispatcher.ts`
 
@@ -571,22 +645,71 @@ extension/
 }
 ```
 
+**Manifest key note:** The `key` field holds the extension's _public_ key and is safe to commit. The corresponding private `.pem` file (used to sign the extension and maintain a stable CWS extension ID) must never be committed to version control — store in 1Password or equivalent.
+
 `content_scripts` is empty — scripts injected programmatically via `chrome.scripting.executeScript` only during active tasks. Extension never touches DOM between tasks.
 
 `optional_host_permissions` — Chrome prompts user per-host on first task targeting a new site. Avoids broad-permission rejection from CWS review.
 
+### Firebase Auth Token Strategy in MV3 Service Workers
+
+The standard Firebase Web SDK's `signInWithPopup` and `getIdToken` cannot run in an MV3 background service worker — there is no DOM, no popup context, and the SW may be suspended at any time. The solution is a two-stage approach: side panel handles the login once; service worker mints fresh tokens on demand via REST.
+
+```
+Side Panel (one-time login):
+  1. User opens side panel, signs in via standard Firebase Auth popup flow
+  2. Side panel extracts user.stsTokenManager.refreshToken (long-lived, ~1 year)
+  3. Side panel writes refreshToken to chrome.storage.local (encrypted)
+  4. Side panel writes deviceId (generated UUID) to chrome.storage.local
+
+Service Worker (every wake):
+  1. Reads refreshToken from chrome.storage.local
+  2. POST https://securetoken.googleapis.com/v1/token?key=FIREBASE_API_KEY
+       body: { grant_type: "refresh_token", refresh_token: <refreshToken> }
+  3. Response: { id_token: <fresh idToken>, expires_in: 3600 }
+  4. Uses idToken in WS auth frame and Firestore fetch calls
+```
+
+`FIREBASE_API_KEY` is safe to embed in the extension bundle — it is a public identifier, not a secret. Firebase Security Rules and App Check enforce actual access control.
+
+### Chrome GCM Push Registration
+
+Standard `firebase/messaging` SDK requires a web origin and a `firebase-messaging-sw.js` file — neither available in an MV3 extension. Use Chrome's native `chrome.gcm` API instead. Firebase Admin SDK is fully backwards-compatible with GCM registration tokens.
+
+```
+On install:
+  chrome.gcm.register([FIREBASE_SENDER_ID], (registrationToken) => {
+    // registrationToken is a GCM token — Admin SDK messaging().send() accepts it natively
+    chrome.storage.local.set({ gcmToken: registrationToken })
+    // POST /agent/browser/register-device with { fcmToken: registrationToken, deviceId, deviceName }
+  })
+
+On incoming GCM message (replaces FCM push listener):
+  chrome.gcm.onMessage.addListener((message) => {
+    if (message.data.type === 'WAKE_AND_CONNECT') {
+      // begin ws-client.connect() flow
+    }
+  })
+```
+
+The `fcmToken` field in `users/{uid}/devices/{deviceId}` stores a GCM registration token. No rename needed — Firebase Admin SDK treats them identically.
+
 ### Service Worker Responsibilities
 
 ```
-On install/startup:
-  → Load deviceId + credentials from chrome.storage.local
-  → Register Web Push (FCM) subscription
-  → POST /agent/browser/register-device if fcmToken changed
+On install:
+  → chrome.gcm.register([FIREBASE_SENDER_ID]) → store gcmToken
+  → Generate deviceId (UUID) → store in chrome.storage.local
+  → POST /agent/browser/register-device { gcmToken, deviceId, deviceName }
 
-On FCM WAKE_AND_CONNECT push:
-  → ws-client.connect(sessionId)
-  → On session_ready: fetch pending task from Firestore (via fetch + Firebase ID token)
-  → task-dispatcher.dispatch(task)
+On startup (service worker wakes):
+  → Load deviceId, refreshToken from chrome.storage.local
+  → Mint fresh Firebase idToken via Secure Token REST API
+
+On GCM WAKE_AND_CONNECT message:
+  → Mint fresh idToken (if not already minted this wake cycle)
+  → ws-client.connect(sessionId, idToken, deviceId)
+  → On session_ready: task-dispatcher.dispatch(task)
 
 On chrome.alarms (heartbeat while WS active, every 20s):
   → ws-client.ping()
@@ -659,7 +782,7 @@ Action log: last 50 entries in `chrome.storage.local`. "Pause Remote Actions" wr
 **In scope:**
 - Device pairing: Firebase Auth + FCM token registration (`/agent/browser/register-device`)
 - Wake-and-Connect lifecycle: FCM → WS auth → task dispatch → SESSION_END
-- Task DSL read-only tier: `extract`, `summarize_visible_text`, `open_tab`, `scroll`
+- Task DSL read-only + navigation tiers: `extract`, `summarize_visible_text`, `read_dom`, `open_tab`, `focus_tab`, `scroll`
 - Context streaming: extension → Firestore → Cloud Agent → voice/text response
 - Fail-closed error handling: `SELECTOR_NOT_FOUND`, `HOST_NOT_ALLOWED`, `EXTENSION_OFFLINE`, `HOST_PERMISSION_REQUIRED`
 - Wake Timeout (12s offline detection)
@@ -680,7 +803,7 @@ Action log: last 50 entries in `chrome.storage.local`. "Pause Remote Actions" wr
 
 | Phase | Scope | Gate |
 |-------|-------|------|
-| 1 | Read-only bridge: pairing, WS, extract/summarize, error handling | 5 E2E extract tasks pass |
+| 1 | Read-only + navigation bridge: pairing, WS, all 6 Phase 1 actions, billing, error handling | 5 E2E extract/summarize tasks pass |
 | 2 | Stateful actions: fill_field, click, FCM approval card, haltedStepIndex resume | Approval flow validated on staging payment form |
 | 3 | Proactive: Cloud Scheduler triggers, Expo Push async completion | 1 working scheduled monitoring task |
 | 4 | CWS submission | Policy preflight checklist passes, store listing approved |
