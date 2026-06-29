@@ -19,7 +19,13 @@ import { createCreditService } from './services/creditService.js'
 import type { CreditService } from './services/creditService.js'
 import { handleWsUpgrade, type WsHandlerOptions } from './handlers/wsAgentHandler.js'
 import { handleLiveWsUpgrade, type WsLiveHandlerOptions } from './handlers/wsLiveAgentHandler.js'
+import { handleBrowserWsUpgrade } from './handlers/wsBrowserAgentHandler.js'
+import { defaultFirestoreSession } from './services/firestoreSession.js'
+import { defaultFcmDispatcher } from './services/fcmDispatcher.js'
+import { INSTANCE_ID } from './services/instanceId.js'
 import { z } from 'zod'
+
+export { INSTANCE_ID } from './services/instanceId.js'
 
 const contentSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -46,13 +52,21 @@ export interface AppOptions {
   creditService?: CreditService
   wsHandlerOptions?: Partial<WsHandlerOptions>
   wsLiveHandlerOptions?: Partial<WsLiveHandlerOptions>
+  upsertDevice?: (uid: string, body: { fcmToken: string; deviceId: string; deviceName: string; isPaused?: boolean }) => Promise<void>
 }
 
 // ── Real agent runner (production) ────────────────────────────────────────────
 
 export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
   const { db, userId, characterId, systemInstruction, message, history, timezone, embed } = params
-  const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed)
+  const bridge = admin.apps.length ? {
+    uid: userId,
+    firestoreSession: defaultFirestoreSession(),
+    fcmDispatcher: defaultFcmDispatcher(),
+    creditService: createCreditService(db),
+    instanceId: INSTANCE_ID,
+  } : undefined
+  const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed, bridge)
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
 
@@ -292,6 +306,35 @@ export function createApp(options: AppOptions) {
     }
   })
 
+  const upsertDevice = options.upsertDevice ?? (async (uid, body) => {
+    const fs = admin.firestore()
+    await fs.doc(`users/${uid}/devices/${body.deviceId}`).set({
+      fcmToken: body.fcmToken,
+      deviceName: body.deviceName,
+      active: true,
+      isPaused: body.isPaused ?? false,
+      lastSeenAt: admin.firestore.Timestamp.now(),
+      registeredAt: admin.firestore.Timestamp.now(),
+    }, { merge: true })
+  })
+
+  app.post('/agent/browser/register-device', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    const parsed = z.object({
+      fcmToken: z.string().min(1),
+      deviceId: z.string().min(1),
+      deviceName: z.string().min(1),
+      isPaused: z.boolean().optional(),
+    }).safeParse(req.body)
+    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
+    try {
+      await upsertDevice(req.uid!, parsed.data)
+      res.json({ ok: true })
+    } catch (err) {
+      console.error('register-device error:', err)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
   return app
 }
 
@@ -299,6 +342,7 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
   const { verifyToken, db, wsHandlerOptions, wsLiveHandlerOptions, creditService } = options
   const streamWss = new WebSocketServer({ noServer: true })
   const liveWss = new WebSocketServer({ noServer: true })
+  const browserWss = new WebSocketServer({ noServer: true })
 
   server.on('upgrade', (req, socket, head) => {
     const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname
@@ -310,6 +354,22 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
     } else if (pathname === '/agent/live') {
       liveWss.handleUpgrade(req, socket, head, (ws) => {
         void handleLiveWsUpgrade(ws, req, { db, verifyToken, creditService, ...wsLiveHandlerOptions })
+      })
+    } else if (pathname === '/agent/browser') {
+      browserWss.handleUpgrade(req, socket, head, (ws) => {
+        handleBrowserWsUpgrade(ws, req, {
+          firestoreSession: defaultFirestoreSession(),
+          verifyToken,
+          resolveUserId: async (firebaseUid: string) => {
+            const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
+            return u?.id ?? null
+          },
+          validateDevice: async (uid: string, deviceId: string) => {
+            const doc = await admin.firestore().doc(`users/${uid}/devices/${deviceId}`).get()
+            return doc.exists && (doc.data()?.active === true)
+          },
+          instanceId: INSTANCE_ID,
+        })
       })
     } else {
       socket.destroy()

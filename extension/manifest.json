@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Clanker Desktop Bridge",
+  "version": "0.1.0",
+  "description": "Lets your Clanker agent perform web tasks you request on this browser.",
+  "background": { "service_worker": "background/service-worker.js", "type": "module" },
+  "content_scripts": [],
+  "permissions": ["scripting", "storage", "sidePanel", "notifications", "gcm", "offscreen"],
+  "optional_host_permissions": ["<all_urls>"],
+  "side_panel": { "default_path": "ui/side-panel/index.html" },
+  "action": {
+    "default_popup": "ui/popup/index.html",
+    "default_icon": { "16": "icons/icon-16.png", "48": "icons/icon-48.png" }
+  }
+}
