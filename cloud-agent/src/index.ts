@@ -23,6 +23,8 @@ import { handleBrowserWsUpgrade } from './handlers/wsBrowserAgentHandler.js'
 import { defaultFirestoreSession } from './services/firestoreSession.js'
 import { defaultFcmDispatcher } from './services/fcmDispatcher.js'
 import { upsertDeviceRecord } from './services/deviceUpsert.js'
+import { upsertExpoPushToken, getExpoPushToken } from './handlers/expoPushToken.js'
+import { handleApproveAction } from './handlers/approveAction.js'
 import { INSTANCE_ID } from './services/instanceId.js'
 import { z } from 'zod'
 
@@ -337,6 +339,40 @@ export function createApp(options: AppOptions) {
     }
   })
 
+  app.post('/agent/user/expo-push-token', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    const parsed = z.object({ expoPushToken: z.string().min(1) }).safeParse(req.body)
+    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
+    try {
+      await upsertExpoPushToken(db, req.uid!, parsed.data.expoPushToken)
+      res.json({ ok: true })
+    } catch (err) {
+      console.error('expo-push-token upsert error:', err)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
+  app.post('/agent/browser/approve-action', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    const parsed = z.object({
+      sessionId: z.string().uuid(),
+      taskId: z.string().min(1),
+      approve: z.boolean(),
+    }).safeParse(req.body)
+    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
+
+    const rawToken = req.headers.authorization?.replace('Bearer ', '') ?? ''
+    try {
+      await handleApproveAction(
+        admin.firestore() as unknown as { doc(p: string): { update(d: Record<string, unknown>): Promise<void> } },
+        req.uid!,
+        { ...parsed.data, idToken: rawToken },
+      )
+      res.json({ ok: true })
+    } catch (err) {
+      console.error('approve-action error:', err)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
   return app
 }
 
@@ -366,10 +402,17 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
       browserWss.handleUpgrade(req, socket, head, (ws) => {
         handleBrowserWsUpgrade(ws, req, {
           firestoreSession: defaultFirestoreSession(),
+          fcmDispatcher: defaultFcmDispatcher(),
           verifyToken,
           resolveUserId: async (firebaseUid: string) => {
             const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
             return u ? firebaseUid : null
+          },
+          getExpoPushToken: (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
+          getDeviceFcmToken: async (uid: string, deviceId: string) => {
+            const snap = await admin.firestore().doc(`users/${uid}/devices/${deviceId}`).get()
+            if (!snap.exists) return null
+            return (snap.data()?.fcmToken as string) ?? null
           },
           validateDevice: async (firebaseUid: string, deviceId: string) => {
             const doc = await admin.firestore().doc(`users/${firebaseUid}/devices/${deviceId}`).get()

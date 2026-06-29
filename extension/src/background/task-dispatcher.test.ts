@@ -49,3 +49,42 @@ test('selector failure → failed result with code', async () => {
   assert.equal(res.status, 'failed')
   assert.equal(res.error?.code, 'SELECTOR_NOT_FOUND')
 })
+
+import type { TaskIntent } from '../shared/dsl-types.js'
+
+const baseIntent: TaskIntent = {
+  version: '1', taskId: 't1', sessionId: 's1',
+  requiresAuth: true, actionSummary: 'Submit',
+  action: { type: 'sequence', steps: [
+    { type: 'extract', selector: '.price', label: 'price' },
+    { type: 'click', selector: '#buy', label: 'Buy', tier: 'stateful' },
+  ] },
+}
+
+test('dispatchTask halts with awaiting_auth when step returns awaitingAuth', async () => {
+  let stepIdx = 0
+  const inj = {
+    runInActiveTab: async () => {
+      if (stepIdx++ === 1) return { awaitingAuth: true as const }
+      return { data: { price: '$10' }, activeUrl: 'https://x.com' }
+    },
+    openTab: async () => {},
+    focusTab: async () => {},
+  } as never
+
+  const outcome = await dispatchTask(baseIntent, inj)
+  assert.equal(outcome.status, 'awaiting_auth')
+  assert.equal((outcome as { haltedStepIndex: number }).haltedStepIndex, 1)
+})
+
+test('dispatchTask completes when no step requires auth', async () => {
+  const inj = {
+    runInActiveTab: async () => ({ data: { price: '$10' }, activeUrl: 'https://x.com' }),
+    openTab: async () => {},
+    focusTab: async () => {},
+  } as never
+
+  const intent: TaskIntent = { ...baseIntent, requiresAuth: false, action: { type: 'extract', selector: '.p', label: 'p' } }
+  const outcome = await dispatchTask(intent, inj)
+  assert.equal(outcome.status, 'complete')
+})

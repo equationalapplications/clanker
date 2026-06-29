@@ -40,6 +40,7 @@ function deps(over: Record<string, unknown> = {}) {
       validateDevice: async () => true,
       instanceId: 'i-test',
       authTimeoutMs: 50,
+      authApprovalTtlMs: 60_000,
       ...over,
     },
   }
@@ -86,4 +87,215 @@ test('rejects auth when deviceId invalid', async () => {
   ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'bad' })
   await new Promise((r) => setTimeout(r, 20))
   assert.equal(ws.closed?.code, 4001)
+})
+
+test('awaiting_auth frame calls haltForAuth and sendApprovalCard', async () => {
+  const ws = new FakeWs()
+  const calls: Record<string, unknown[]> = { halt: [], approval: [] }
+  const pendingIntent = {
+    version: '1', taskId: 't1', sessionId: SESSION_ID, requiresAuth: true,
+    actionSummary: 'Submit payment', action: { type: 'sequence', steps: [
+      { type: 'open_tab', url: 'https://shop.com' },
+      { type: 'click', selector: '#buy', label: 'Buy Now', tier: 'stateful' },
+    ] },
+  }
+  const { options } = deps({
+    firestoreSession: {
+      getSession: async () => ({ status: 'pending' }),
+      getFirstTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      getTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      markBrowserConnected: async () => {},
+      writeTaskResult: async () => {},
+      closeSession: async () => {},
+      haltForAuth: async (...a: unknown[]) => { calls.halt.push(a) },
+      watchAuth: () => () => {},
+    },
+    fcmDispatcher: {
+      wakeExtension: async () => {},
+      sendApprovalCard: async (...a: unknown[]) => { calls.approval.push(a) },
+      sendTaskComplete: async () => {},
+    },
+    getExpoPushToken: async () => 'ExponentPushToken[mobile]',
+  })
+  handleBrowserWsUpgrade(ws as never, {} as never, options as never)
+  ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'd1' })
+  await new Promise((r) => setTimeout(r, 20))
+  ws.emitJson({ type: 'awaiting_auth', taskId: 't1', haltedStepIndex: 1 })
+  await new Promise((r) => setTimeout(r, 20))
+  assert.equal(calls.halt.length, 1)
+  assert.equal(calls.approval.length, 1)
+  const [, , , haltIdx, summary] = calls.halt[0] as [string, string, string, number, string]
+  assert.equal(haltIdx, 1)
+  assert.equal(summary, 'Submit payment')
+})
+
+test('watchAuth approved → verifies token → sends FCM wake with resume', async () => {
+  const ws = new FakeWs()
+  let authWatcher: ((auth: Record<string, unknown>) => void) | null = null
+  const fcmWakes: unknown[] = []
+  const verifyTokenCalls: string[] = []
+
+  const pendingIntent = {
+    version: '1', taskId: 't1', sessionId: SESSION_ID, requiresAuth: true,
+    actionSummary: 'Submit payment', action: { type: 'sequence', steps: [
+      { type: 'click', selector: '#buy', tier: 'stateful' },
+    ] },
+  }
+  const { options } = deps({
+    verifyToken: async (t: string) => { verifyTokenCalls.push(t); return { uid: 'fb-uid' } },
+    firestoreSession: {
+      getSession: async () => ({ status: 'pending' }),
+      getFirstTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      getTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      markBrowserConnected: async () => {},
+      writeTaskResult: async () => {},
+      closeSession: async () => {},
+      haltForAuth: async () => {},
+      watchAuth: (_u: string, _s: string, _t: string, cb: (a: Record<string, unknown>) => void) => {
+        authWatcher = cb; return () => {}
+      },
+    },
+    fcmDispatcher: {
+      wakeExtension: async (...a: unknown[]) => { fcmWakes.push(a) },
+      sendApprovalCard: async () => {},
+      sendTaskComplete: async () => {},
+    },
+    getExpoPushToken: async () => 'ExponentPushToken[mobile]',
+    getDeviceFcmToken: async () => 'gcm-tok-123',
+  })
+  handleBrowserWsUpgrade(ws as never, {} as never, options as never)
+  ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'd1' })
+  await new Promise((r) => setTimeout(r, 20))
+  ws.emitJson({ type: 'awaiting_auth', taskId: 't1', haltedStepIndex: 0 })
+  await new Promise((r) => setTimeout(r, 20))
+
+  authWatcher!({ status: 'approved', approvalToken: 'approval-id-token', approvedAt: null, expiresAt: 0, actionSummary: '' })
+  await new Promise((r) => setTimeout(r, 20))
+
+  assert.ok(verifyTokenCalls.includes('approval-id-token'))
+  assert.equal(fcmWakes.length, 1)
+  const [, , , resume] = fcmWakes[0] as [string, string, string, boolean]
+  assert.equal(resume, true)
+})
+
+test('watchAuth denied → aborts task and sends session_end', async () => {
+  const ws = new FakeWs()
+  let authWatcher: ((auth: Record<string, unknown>) => void) | null = null
+  const results: unknown[] = []
+  const taskCompletes: unknown[] = []
+
+  const pendingIntent = {
+    version: '1', taskId: 't1', sessionId: SESSION_ID, requiresAuth: true,
+    actionSummary: 'Submit', action: { type: 'click', selector: '#s', tier: 'stateful' },
+  }
+  const { options } = deps({
+    firestoreSession: {
+      getSession: async () => ({ status: 'pending' }),
+      getFirstTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      getTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      markBrowserConnected: async () => {},
+      writeTaskResult: async (...a: unknown[]) => { results.push(a) },
+      closeSession: async () => {},
+      haltForAuth: async () => {},
+      watchAuth: (_u: string, _s: string, _t: string, cb: (a: Record<string, unknown>) => void) => {
+        authWatcher = cb; return () => {}
+      },
+    },
+    fcmDispatcher: {
+      wakeExtension: async () => {},
+      sendApprovalCard: async () => {},
+      sendTaskComplete: async (...a: unknown[]) => { taskCompletes.push(a) },
+    },
+    getExpoPushToken: async () => 'ExponentPushToken[mobile]',
+    getDeviceFcmToken: async () => null,
+  })
+  handleBrowserWsUpgrade(ws as never, {} as never, options as never)
+  ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'd1' })
+  await new Promise((r) => setTimeout(r, 20))
+  ws.emitJson({ type: 'awaiting_auth', taskId: 't1', haltedStepIndex: 0 })
+  await new Promise((r) => setTimeout(r, 20))
+
+  authWatcher!({ status: 'denied', approvalToken: null, approvedAt: null, expiresAt: 0, actionSummary: '' })
+  await new Promise((r) => setTimeout(r, 20))
+
+  const sent = ws.sent.map((s: string) => JSON.parse(s) as { type: string })
+  assert.ok(sent.some((s) => s.type === 'session_end'))
+  const writeResult = (results[0] as unknown[])[3] as { status: string; error: { message: string } }
+  assert.equal(writeResult.status, 'aborted')
+  assert.match(writeResult.error.message, /denied/i)
+  assert.equal(taskCompletes.length, 1)
+})
+
+test('auth observer survives WS close after awaiting_auth', async () => {
+  const ws = new FakeWs()
+  let authWatcher: ((auth: Record<string, unknown>) => void) | null = null
+  const fcmWakes: unknown[] = []
+
+  const pendingIntent = {
+    version: '1', taskId: 't1', sessionId: SESSION_ID, requiresAuth: true,
+    actionSummary: 'Submit', action: { type: 'click', selector: '#s', tier: 'stateful' },
+  }
+  const { options } = deps({
+    verifyToken: async () => ({ uid: 'fb-uid' }),
+    firestoreSession: {
+      getSession: async () => ({ status: 'pending' }),
+      getFirstTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      getTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      markBrowserConnected: async () => {},
+      writeTaskResult: async () => {},
+      closeSession: async () => {},
+      haltForAuth: async () => {},
+      watchAuth: (_u: string, _s: string, _t: string, cb: (a: Record<string, unknown>) => void) => {
+        authWatcher = cb; return () => {}
+      },
+    },
+    fcmDispatcher: {
+      wakeExtension: async (...a: unknown[]) => { fcmWakes.push(a) },
+      sendApprovalCard: async () => {},
+      sendTaskComplete: async () => {},
+    },
+    getExpoPushToken: async () => 'ExponentPushToken[mobile]',
+    getDeviceFcmToken: async () => 'gcm-tok-123',
+  })
+  handleBrowserWsUpgrade(ws as never, {} as never, options as never)
+  ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'd1' })
+  await new Promise((r) => setTimeout(r, 20))
+  ws.emitJson({ type: 'awaiting_auth', taskId: 't1', haltedStepIndex: 0 })
+  await new Promise((r) => setTimeout(r, 20))
+
+  ws.close()
+  await new Promise((r) => setTimeout(r, 10))
+
+  authWatcher!({ status: 'approved', approvalToken: 'approval-id-token', approvedAt: null, expiresAt: 0, actionSummary: '' })
+  await new Promise((r) => setTimeout(r, 20))
+
+  assert.equal(fcmWakes.length, 1)
+  const [, , , resume] = fcmWakes[0] as [string, string, string, boolean]
+  assert.equal(resume, true)
+})
+
+test('resume from awaiting_auth sets requiresAuth false for single stateful action', async () => {
+  const ws = new FakeWs()
+  const singleClickIntent = {
+    version: '1', taskId: 't1', sessionId: SESSION_ID, requiresAuth: true,
+    actionSummary: 'Submit', action: { type: 'click', selector: '#s', tier: 'stateful' },
+  }
+  const { options } = deps({
+    firestoreSession: {
+      getSession: async () => ({ status: 'pending_auth' }),
+      getFirstTask: async () => ({
+        status: 'awaiting_auth', haltedStepIndex: 0, intent: singleClickIntent,
+      }),
+      getTask: async () => ({ status: 'awaiting_auth', intent: singleClickIntent }),
+      markBrowserConnected: async () => {},
+      writeTaskResult: async () => {},
+      closeSession: async () => {},
+    },
+  })
+  handleBrowserWsUpgrade(ws as never, {} as never, options as never)
+  ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'd1' })
+  await new Promise((r) => setTimeout(r, 20))
+
+  const taskFrame = ws.sent.map((s) => JSON.parse(s)).find((f) => f.type === 'task') as { intent: { requiresAuth: boolean } }
+  assert.equal(taskFrame.intent.requiresAuth, false)
 })

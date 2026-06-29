@@ -79,3 +79,13 @@ export interface DeviceDoc {
   active: boolean
   isPaused: boolean
 }
+
+export type AuthStatus = 'pending' | 'approved' | 'denied'
+
+export interface AuthDoc {
+  status: AuthStatus
+  actionSummary: string
+  expiresAt: unknown // Firestore Timestamp
+  approvedAt: unknown | null
+  approvalToken: string | null
+}

@@ -36,6 +36,9 @@ import {
   useCharacterMachine,
   useTermsMachine,
 } from '~/hooks/useMachines'
+import { useRegisterExpoPushToken } from '~/hooks/useRegisterExpoPushToken'
+import { useBrowserActionApproval } from '~/hooks/useBrowserActionApproval'
+import Constants from 'expo-constants'
 
 /**
  * Wires cross-machine coordination in one place.
@@ -132,6 +135,13 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
 
     return () => subscription.remove()
   }, [authService])
+
+  const isSignedIn = useSelector(authService, (state) => state.matches('signedIn'))
+  useRegisterExpoPushToken({
+    enabled: isSignedIn,
+    projectId: Constants.expoConfig?.extra?.eas?.projectId ?? '',
+  })
+  useBrowserActionApproval()
 
   return <>{children}</>
 }

@@ -33,6 +33,9 @@ const browserActionSchema = z.object({
 })
 
 function formatResult(task: TaskDoc): string {
+  if (task.status === 'awaiting_auth') {
+    return "I've paused this action. Approve it on your phone and I'll finish — I'll let you know when it's done."
+  }
   if (task.status === 'complete' && task.result) {
     const data = task.result.data ?? {}
     const body = Object.keys(data).length ? JSON.stringify(data) : '(no extracted data)'
@@ -139,7 +142,12 @@ export function browserActionTool(
         }, textTimeoutMs)
 
         const unsub = fs.watchTask(deps.firebaseUid, sessionId, taskId, (task) => {
-          if (task.status === 'complete' || task.status === 'failed' || task.status === 'aborted') {
+          if (
+            task.status === 'awaiting_auth' ||
+            task.status === 'complete' ||
+            task.status === 'failed' ||
+            task.status === 'aborted'
+          ) {
             settled = true
             clearTimeout(timeout)
             clearTimeout(wakeTimer)

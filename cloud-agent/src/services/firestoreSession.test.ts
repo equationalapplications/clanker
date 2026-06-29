@@ -3,12 +3,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 // Minimal in-memory Firestore double. Path string → doc data.
-function makeFakeDb() {
+function makeFakeDb(calls?: Array<{ path: string; data: Record<string, unknown>; opts?: unknown }>) {
   const store = new Map<string, Record<string, unknown>>()
   function docRef(path: string) {
     return {
       path,
       async set(data: Record<string, unknown>, opts?: { merge?: boolean }) {
+        calls?.push({ path, data, opts })
         store.set(path, opts?.merge ? { ...(store.get(path) ?? {}), ...data } : data)
       },
       async get() {
@@ -141,4 +142,49 @@ test('getFirstTask returns the first task doc', async () => {
   })
   const t = await fs.getFirstTask('u1', 's1')
   assert.equal(t?.intent.taskId, 't1')
+})
+
+test('haltForAuth writes task awaiting_auth + session pending_auth + auth doc pending', async () => {
+  const calls: Array<{ path: string; data: Record<string, unknown>; opts?: unknown }> = []
+  const { db } = makeFakeDb(calls)
+  const fs = createFirestoreSession(db as never)
+
+  await fs.createSession('uid1', 'sid1', { status: 'routing', trigger: 'voice', voiceInstanceId: 'i1' })
+  await fs.writeTask('uid1', 'sid1', 'tid1', {
+    version: '1', taskId: 'tid1', sessionId: 'sid1', requiresAuth: true,
+    actionSummary: 'Submit payment', action: { type: 'click', selector: '#buy', tier: 'stateful' },
+  })
+  await fs.haltForAuth('uid1', 'sid1', 'tid1', 2, 'Submit payment')
+
+  const authCall = calls.find((c) => c.path === 'users/uid1/sessions/sid1/auth/tid1')
+
+  const task = await fs.getTask('uid1', 'sid1', 'tid1')
+  const session = await fs.getSession('uid1', 'sid1')
+  assert.equal(task.status, 'awaiting_auth')
+  assert.equal(task.haltedStepIndex, 2)
+  assert.equal(session.status, 'pending_auth')
+  assert.equal(authCall?.data.status, 'pending')
+  assert.equal(authCall?.data.actionSummary, 'Submit payment')
+  assert.ok(authCall?.data.expiresAt)
+})
+
+test('watchAuth calls callback when auth doc snapshot fires', async () => {
+  let snapCb: ((s: { exists: boolean; data(): Record<string, unknown> }) => void) | null = null
+  const db = {
+    doc: (path: string) => ({
+      set: async () => {},
+      get: async () => ({ exists: false, data: () => undefined }),
+      update: async () => {},
+      onSnapshot: (cb: typeof snapCb) => { snapCb = cb; return () => {} },
+    }),
+    collection: (_path: string) => ({ where: () => ({ orderBy: () => ({ limit: () => ({ get: async () => ({ empty: true, docs: [] }) }) }) }) }),
+  } as unknown as import('./firestoreSession.js').FirestoreLike
+
+  const fs = createFirestoreSession(db)
+  const received: unknown[] = []
+  const unsub = fs.watchAuth('uid1', 'sid1', 'tid1', (auth) => received.push(auth))
+
+  snapCb!({ exists: true, data: () => ({ status: 'approved', approvalToken: 'tok', approvedAt: null, actionSummary: 'x', expiresAt: 0 }) })
+  assert.equal(received.length, 1)
+  unsub()
 })

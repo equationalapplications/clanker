@@ -52,6 +52,9 @@ export function createWsClient(opts: WsClientOpts) {
         sock?.send(JSON.stringify({ type: 'task_error', taskId: result.taskId, code: result.error?.code, message: result.error?.message, failedAction: result.error?.failedAction }))
       }
     },
+    sendAwaitingAuth(taskId: string, haltedStepIndex: number): void {
+      sock?.send(JSON.stringify({ type: 'awaiting_auth', taskId, haltedStepIndex }))
+    },
     close() { stopPing(); try { sock?.close() } catch { /* ignore */ } },
   }
 }

@@ -1,5 +1,5 @@
 import admin from 'firebase-admin'
-import type { TaskIntent, TaskResult, SessionDoc, TaskDoc, DeviceDoc } from '../../../shared/dsl-types.js'
+import type { TaskIntent, TaskResult, SessionDoc, TaskDoc, DeviceDoc, AuthDoc } from '../../../shared/dsl-types.js'
 
 export interface FirestoreBatch {
   update(path: string, data: Record<string, unknown>): void
@@ -126,6 +126,37 @@ export function createFirestoreSession(db: FirestoreLike) {
       if (!ref.onSnapshot) throw new Error('watchTask requires onSnapshot support')
       return ref.onSnapshot((snap) => {
         if (snap.exists) cb(snap.data() as unknown as TaskDoc)
+      })
+    },
+
+    async haltForAuth(uid: string, sid: string, tid: string, haltedStepIndex: number, actionSummary: string): Promise<void> {
+      const AUTH_TTL_MS = 5 * 60 * 1000
+      const authPath = `users/${uid}/sessions/${sid}/auth/${tid}`
+      const expiresAt = admin.firestore?.Timestamp
+        ? admin.firestore.Timestamp.fromMillis(Date.now() + AUTH_TTL_MS)
+        : (Date.now() + AUTH_TTL_MS as unknown)
+
+      if (db.batch) {
+        const batch = db.batch()
+        batch.update(taskPath(uid, sid, tid), { status: 'awaiting_auth', haltedStepIndex, updatedAt: now() })
+        batch.update(sessionPath(uid, sid), { status: 'pending_auth' })
+        await batch.commit()
+      } else {
+        await db.doc(taskPath(uid, sid, tid)).update({ status: 'awaiting_auth', haltedStepIndex, updatedAt: now() })
+        await db.doc(sessionPath(uid, sid)).update({ status: 'pending_auth' })
+      }
+      await db.doc(authPath).set({
+        status: 'pending', actionSummary, expiresAt,
+        approvedAt: null, approvalToken: null,
+      })
+    },
+
+    watchAuth(uid: string, sid: string, tid: string, cb: (auth: AuthDoc) => void): () => void {
+      const authPath = `users/${uid}/sessions/${sid}/auth/${tid}`
+      const ref = db.doc(authPath)
+      if (!ref.onSnapshot) throw new Error('watchAuth requires onSnapshot support')
+      return ref.onSnapshot((snap) => {
+        if (snap.exists) cb(snap.data() as unknown as AuthDoc)
       })
     },
   }
