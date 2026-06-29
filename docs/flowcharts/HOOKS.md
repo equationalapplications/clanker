@@ -37,11 +37,14 @@ graph LR
   useInitializeApp --> crashlyticsService
   useInitializeApp --> googleSignin
   useIsPremium --> useCurrentPlan
+  useLiveAudioIO --> twoWayAudioAdapter
+  useLiveAudioIO.web --> twoWayAudioAdapter
   useLiveVoiceChat --> useMachines
   useLiveVoiceChat --> useCharacters
   useLiveVoiceChat --> useCurrentPlan
   useLiveVoiceChat --> useLiveAudioIO
   useLiveVoiceChat --> liveVoiceMachine
+  useLiveVoiceChat --> twoWayAudioAdapter
   useMessages --> useMachines
   useMessages --> messageService
   useTabCharacterId --> useActiveCharacterId
