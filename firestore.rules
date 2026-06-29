@@ -16,7 +16,7 @@ service cloud.firestore {
         // Phase 2 approval writes; created by Admin SDK only.
         allow update: if request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['status', 'approvedAt']);
+               .hasOnly(['status', 'approvedAt', 'approvalToken']);
       }
     }
 
