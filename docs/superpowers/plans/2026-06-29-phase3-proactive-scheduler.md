@@ -4,7 +4,7 @@
 
 **Goal:** Add Cloud Scheduler–triggered proactive browser tasks that fire without a user session, and Expo Push fallback delivery when the voice session closes before a browser task result arrives.
 
-**Architecture:** A new `POST /agent/browser/scheduler-trigger` endpoint accepts OIDC-scoped bearer secrets from Cloud Scheduler, creates a bridge session, wakes the extension via FCM, synchronously waits up to 60 s for the result, then sends an Expo Push notification via `sendProactive`. Separately, `pushToLive` in `wsLiveAgentHandler` gains a fallback path: when the Gemini session has already closed, the result is delivered via `sendTaskComplete` Expo Push instead of being silently dropped.
+**Architecture:** A new `POST /agent/browser/scheduler-trigger` endpoint accepts Bearer `SCHEDULER_SECRET` auth from Cloud Scheduler, creates a bridge session, wakes the extension via FCM, synchronously waits up to 60 s for the result, then sends an Expo Push notification via `sendProactive`. Separately, `pushToLive` in `wsLiveAgentHandler` gains a fallback path: when the Gemini session has already closed, the result is delivered via `sendTaskComplete` Expo Push instead of being silently dropped.
 
 **Tech Stack:** Node.js 22, TypeScript, Express, Firebase Admin SDK, Expo Push REST API, `node:test` + `node:assert/strict`, `supertest`
 
@@ -23,7 +23,7 @@
 | Create | `cloud-agent/src/handlers/schedulerTriggerHandler.ts` | HTTP handler for Cloud Scheduler trigger endpoint |
 | Create | `cloud-agent/src/handlers/schedulerTriggerHandler.test.ts` | Unit + HTTP tests for scheduler handler |
 | Modify | `cloud-agent/src/index.ts` | Register `POST /agent/browser/scheduler-trigger` |
-| Modify | `cloud-agent/src/index.test.ts` | Test route 401 on bad secret, 202 on valid request |
+| Modify | `cloud-agent/src/index.test.ts` | Test route 401 on bad secret, 503 when `SCHEDULER_SECRET` unset |
 
 ---
 
@@ -436,6 +436,8 @@ function buildApp(overrides: {
     mockFs as never,
     mockFcm as never,
     overrides.getExpoPushToken ?? (async () => 'ExponentPushToken[sched]'),
+    mockCredit as never,
+    overrides.resolveUserId ?? (async () => 'user-db-id'),
     { secret: SECRET, schedulerTimeoutMs: 200 },
   )
 
@@ -594,7 +596,9 @@ function watchTaskPromise(
 export function createSchedulerTriggerHandler(
   fs: FirestoreSession,
   fcm: Pick<FcmDispatcher, 'wakeExtension' | 'sendProactive'>,
-  getExpoPushToken: (uid: string) => Promise<string | null>,
+  getExpoPushToken: (firebaseUid: string) => Promise<string | null>,
+  creditService: Pick<CreditService, 'spendCredit' | 'refundCredit'>,
+  resolveUserId: (firebaseUid: string) => Promise<string | null>,
   opts: SchedulerTriggerOptions,
 ) {
   const timeoutMs = opts.schedulerTimeoutMs ?? 60_000
@@ -783,7 +787,12 @@ In `createApp`, after the `POST /agent/browser/approve-action` route block (befo
     const handler = createSchedulerTriggerHandler(
       defaultFirestoreSession(),
       defaultFcmDispatcher(),
-      (uid: string) => getExpoPushToken(db, uid),
+      (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
+      cs,
+      async (firebaseUid: string) => {
+        const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
+        return u?.id ?? null
+      },
       { secret },
     )
     return handler(req, res)
@@ -935,7 +944,8 @@ This task configures the GCP-side infrastructure. It is manual and not automated
 In GCP Console → Cloud Run → `cloud-agent` service → Edit & Deploy New Revision → Variables & Secrets:
 
 Add environment variable:
-```
+
+```bash
 SCHEDULER_SECRET = <generate a long random secret, e.g. openssl rand -hex 32>
 ```
 
@@ -945,7 +955,7 @@ Store the secret in 1Password as `cloud-agent/SCHEDULER_SECRET`.
 
 In GCP Console → Cloud Scheduler → Create Job:
 
-```
+```text
 Name:        browser-bridge-price-monitor
 Region:      us-central1
 Frequency:   0 * * * *   (hourly, adjust per use case)
@@ -998,5 +1008,5 @@ This is the Phase 3 gate: **1 working scheduled monitoring task**.
 **Type consistency:**
 - `sendProactive(expoPushToken, sessionId, taskId, body)` — consistent between Task 1 (definition) and Task 4 (usage)
 - `pushToLive(taskId, sessionId, text)` — consistent between Task 2 (definition change) and Task 3 (usage)
-- `createSchedulerTriggerHandler(fs, fcm, getExpoPushToken, opts)` — consistent between Task 4 (definition) and Task 5 (wiring)
+- `createSchedulerTriggerHandler(fs, fcm, getExpoPushToken, creditService, resolveUserId, opts)` — consistent between Task 4 (definition) and Task 5 (wiring)
 - `FcmDispatcher` type is `ReturnType<typeof createFcmDispatcher>` — adding `sendProactive` to the factory auto-updates the type

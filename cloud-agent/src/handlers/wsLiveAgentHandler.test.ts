@@ -977,56 +977,58 @@ test('pushToLive falls back to Expo Push when voice WS is closed', { timeout: 50
       textTimeoutMs: 500,
     },
   })
-  const port = await listen(server)
+  try {
+    const port = await listen(server)
 
-  await new Promise<void>((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
-    const timeout = setTimeout(() => reject(new Error('test timeout')), 4500)
+    await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+      const timeout = setTimeout(() => reject(new Error('test timeout')), 4500)
 
-    ws.on('open', () => {
-      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
-    })
-
-    ws.on('message', (raw) => {
-      const msg = JSON.parse(raw.toString()) as { type: string }
-      if (msg.type !== 'session_ready') return
-
-      // Simulate Gemini invoking browser_action
-      mock.triggerMessage({
-        toolCall: {
-          functionCalls: [{ id: 'call-1', name: 'browser_action', args: {
-            actionSummary: 'Extract price',
-            intent: { action: { type: 'extract', selector: '.price', label: 'price' } },
-          }}],
-        },
+      ws.on('open', () => {
+        ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
       })
 
-      // Close the WS before the task result arrives
-      setTimeout(() => ws.close(), 20)
+      ws.on('message', (raw) => {
+        const msg = JSON.parse(raw.toString()) as { type: string }
+        if (msg.type !== 'session_ready') return
+
+        // Simulate Gemini invoking browser_action
+        mock.triggerMessage({
+          toolCall: {
+            functionCalls: [{ id: 'call-1', name: 'browser_action', args: {
+              actionSummary: 'Extract price',
+              intent: { action: { type: 'extract', selector: '.price', label: 'price' } },
+            }}],
+          },
+        })
+
+        // Close the WS before the task result arrives
+        setTimeout(() => ws.close(), 20)
+      })
+
+      ws.on('close', async () => {
+        // Task result arrives after WS is closed
+        await new Promise((r) => setTimeout(r, 100))
+        watchTaskCallback?.({ status: 'complete', result: { data: { price: '$340' }, activeUrl: 'https://example.com' }, error: null })
+
+        await new Promise((r) => setTimeout(r, 100))
+
+        clearTimeout(timeout)
+        try {
+          assert.equal(expoPushCalls.length, 1, 'sendTaskComplete should be called once')
+          assert.equal(expoPushCalls[0].token, 'ExponentPushToken[test]')
+          assert.match(expoPushCalls[0].text, /\$340|complete/i)
+          resolve()
+        } catch (e) {
+          reject(e)
+        }
+      })
+
+      ws.on('error', reject)
     })
-
-    ws.on('close', async () => {
-      // Task result arrives after WS is closed
-      await new Promise((r) => setTimeout(r, 100))
-      watchTaskCallback?.({ status: 'complete', result: { data: { price: '$340' }, activeUrl: 'https://example.com' }, error: null })
-
-      await new Promise((r) => setTimeout(r, 100))
-
-      clearTimeout(timeout)
-      try {
-        assert.equal(expoPushCalls.length, 1, 'sendTaskComplete should be called once')
-        assert.equal(expoPushCalls[0].token, 'ExponentPushToken[test]')
-        assert.match(expoPushCalls[0].text, /\$340|complete/i)
-        resolve()
-      } catch (e) {
-        reject(e)
-      }
-    })
-
-    ws.on('error', reject)
-  })
-
-  await close()
+  } finally {
+    await close()
+  }
 })
 
 test('pushToLive uses DB lookup for expoPushToken when getExpoPushToken not injected', { timeout: 5000 }, async () => {
@@ -1073,35 +1075,37 @@ test('pushToLive uses DB lookup for expoPushToken when getExpoPushToken not inje
       textTimeoutMs: 500,
     },
   })
-  const port = await listen(server)
+  try {
+    const port = await listen(server)
 
-  await new Promise<void>((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
-    const timeout = setTimeout(() => reject(new Error('test timeout')), 4500)
-    ws.on('open', () => ws.send(JSON.stringify({ type: 'auth', token: 'v', characterId: CHAR_UUID })))
-    ws.on('message', (raw) => {
-      const msg = JSON.parse(raw.toString()) as { type: string }
-      if (msg.type !== 'session_ready') return
-      mock.triggerMessage({
-        toolCall: { functionCalls: [{ id: 'c2', name: 'browser_action', args: {
-          actionSummary: 'Extract', intent: { action: { type: 'extract', selector: '.p', label: 'p' } },
-        }}] },
+    await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+      const timeout = setTimeout(() => reject(new Error('test timeout')), 4500)
+      ws.on('open', () => ws.send(JSON.stringify({ type: 'auth', token: 'v', characterId: CHAR_UUID })))
+      ws.on('message', (raw) => {
+        const msg = JSON.parse(raw.toString()) as { type: string }
+        if (msg.type !== 'session_ready') return
+        mock.triggerMessage({
+          toolCall: { functionCalls: [{ id: 'c2', name: 'browser_action', args: {
+            actionSummary: 'Extract', intent: { action: { type: 'extract', selector: '.p', label: 'p' } },
+          }}] },
+        })
+        setTimeout(() => ws.close(), 20)
       })
-      setTimeout(() => ws.close(), 20)
+      ws.on('close', async () => {
+        await new Promise((r) => setTimeout(r, 100))
+        watchTaskCallback?.({ status: 'complete', result: { data: { p: 'x' }, activeUrl: 'https://a.com' }, error: null, intent: { action: { type: 'extract', selector: '.p' } } })
+        await new Promise((r) => setTimeout(r, 100))
+        clearTimeout(timeout)
+        try {
+          assert.equal(proactiveCalls.length, 1)
+          assert.equal(proactiveCalls[0].token, 'ExponentPushToken[db]')
+          resolve()
+        } catch (e) { reject(e) }
+      })
+      ws.on('error', reject)
     })
-    ws.on('close', async () => {
-      await new Promise((r) => setTimeout(r, 100))
-      watchTaskCallback?.({ status: 'complete', result: { data: { p: 'x' }, activeUrl: 'https://a.com' }, error: null, intent: { action: { type: 'extract', selector: '.p' } } })
-      await new Promise((r) => setTimeout(r, 100))
-      clearTimeout(timeout)
-      try {
-        assert.equal(proactiveCalls.length, 1)
-        assert.equal(proactiveCalls[0].token, 'ExponentPushToken[db]')
-        resolve()
-      } catch (e) { reject(e) }
-    })
-    ws.on('error', reject)
-  })
-
-  await close()
+  } finally {
+    await close()
+  }
 })

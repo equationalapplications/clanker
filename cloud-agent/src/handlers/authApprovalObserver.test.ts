@@ -20,6 +20,7 @@ function baseDeps(over: Record<string, unknown> = {}) {
       wakeExtension: async (...a: unknown[]) => { pushes.push({ type: 'wake', args: a }) },
       sendTaskComplete: async (...a: unknown[]) => { pushes.push({ type: 'complete', args: a }) },
     },
+    verifyToken: async () => ({ uid: 'uid1' }),
     getExpoPushToken: async () => 'ExponentPushToken[x]',
     firebaseUid: 'uid1',
     sessionId: 'sid1',
@@ -53,11 +54,11 @@ test('denied writes aborted + sendTaskComplete and unsubscribes', async () => {
   assert.ok(getUnsubbed())
 })
 
-test('approved sends FCM resume wake without token verification', async () => {
+test('approved verifies token and sends FCM resume wake', async () => {
   const { deps, getWatcher, pushes } = baseDeps()
   startAuthApprovalObserver(deps as never)
 
-  getWatcher()!({ status: 'approved', approvalToken: null, approvedAt: null, expiresAt: 0, actionSummary: '' })
+  getWatcher()!({ status: 'approved', approvalToken: 'valid-token', approvedAt: null, expiresAt: 0, actionSummary: '' })
   await new Promise((r) => setTimeout(r, 10))
 
   assert.equal(pushes.length, 1)
@@ -75,7 +76,7 @@ test('failed FCM wake aborts task instead of resolving', async () => {
   })
   startAuthApprovalObserver(deps as never)
 
-  getWatcher()!({ status: 'approved', approvalToken: null, approvedAt: null, expiresAt: 0, actionSummary: '' })
+  getWatcher()!({ status: 'approved', approvalToken: 'valid-token', approvedAt: null, expiresAt: 0, actionSummary: '' })
   await new Promise((r) => setTimeout(r, 20))
 
   assert.ok(results.length >= 1)
@@ -83,6 +84,23 @@ test('failed FCM wake aborts task instead of resolving', async () => {
   assert.equal(result.status, 'aborted')
   assert.equal(result.error.code, 'EXECUTION_ERROR')
   assert.match(result.error.message, /wake/i)
+})
+
+test('invalid approval token aborts task with AUTH_DENIED', async () => {
+  const { deps, getWatcher, results, pushes } = baseDeps({
+    verifyToken: async () => { throw new Error('invalid token') },
+  })
+  startAuthApprovalObserver(deps as never)
+
+  getWatcher()!({ status: 'approved', approvalToken: 'bad-token', approvedAt: null, expiresAt: 0, actionSummary: '' })
+  await new Promise((r) => setTimeout(r, 20))
+
+  assert.equal(results.length, 1)
+  const result = (results[0] as unknown[])[3] as { status: string; error: { code: string; message: string } }
+  assert.equal(result.status, 'aborted')
+  assert.equal(result.error.code, 'AUTH_DENIED')
+  assert.match(result.error.message, /invalid/i)
+  assert.equal(pushes.length, 1)
 })
 
 test('5-minute TTL aborts with AUTH_TIMEOUT and sendTaskComplete', async () => {

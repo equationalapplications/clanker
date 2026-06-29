@@ -4,7 +4,8 @@ import type { Request, Response } from 'express'
 import type { FirestoreSession } from '../services/firestoreSession.js'
 import type { FcmDispatcher } from '../services/fcmDispatcher.js'
 import type { CreditService } from '../services/creditService.js'
-import type { TaskDoc, SingleAction, SequenceAction } from '../../../shared/dsl-types.js'
+import type { TaskDoc } from '../../../shared/dsl-types.js'
+import { singleActionSchema } from '../../../shared/dsl-schema.js'
 import { intentRequiresAuth } from '../../../shared/constants.js'
 import { findBlockedNavigation } from '../../../shared/hostPolicy.js'
 import { INSTANCE_ID } from '../services/instanceId.js'
@@ -15,9 +16,17 @@ export interface SchedulerTriggerOptions {
   schedulerTimeoutMs?: number
 }
 
+const schedulerActionSchema = z.union([
+  singleActionSchema,
+  z.object({
+    type: z.literal('sequence'),
+    steps: z.array(singleActionSchema).min(1),
+  }),
+])
+
 const schedulerBodySchema = z.object({
   uid: z.string().min(1),
-  action: z.record(z.string(), z.unknown()),
+  action: schedulerActionSchema,
   actionSummary: z.string().min(1),
   notificationBody: z.string().min(1),
 })
@@ -86,15 +95,14 @@ export function createSchedulerTriggerHandler(
     }
 
     const { uid, action, actionSummary, notificationBody } = parsed.data
-    const typedAction = action as SingleAction | SequenceAction
 
-    const blocked = findBlockedNavigation(typedAction)
+    const blocked = findBlockedNavigation(action)
     if (blocked) {
       res.status(422).json({ error: `HOST_NOT_ALLOWED: ${blocked.message}` })
       return
     }
 
-    if (intentRequiresAuth(actionSummary, typedAction)) {
+    if (intentRequiresAuth(actionSummary, action)) {
       res.status(422).json({
         error: 'REQUIRES_AUTH: Scheduled tasks cannot include actions that require approval',
       })
@@ -151,7 +159,7 @@ export function createSchedulerTriggerHandler(
       sessionId,
       requiresAuth: false,
       actionSummary,
-      action: typedAction,
+      action,
     }
 
     try {
@@ -179,7 +187,7 @@ export function createSchedulerTriggerHandler(
           error: {
             code: 'EXTENSION_OFFLINE',
             message: 'Browser extension did not connect',
-            failedAction: typedAction as never,
+            failedAction: action as never,
           },
         })
       } catch { /* ignore */ }
@@ -191,7 +199,7 @@ export function createSchedulerTriggerHandler(
             error: {
               code: 'EXECUTION_TIMEOUT',
               message: 'Scheduler task timed out',
-              failedAction: typedAction as never,
+              failedAction: action as never,
             },
           })
         } catch { /* ignore */ }

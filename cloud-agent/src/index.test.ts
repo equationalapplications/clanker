@@ -454,23 +454,28 @@ test('POST /agent/browser/scheduler-trigger returns 401 with no secret', async (
       .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'p' }, actionSummary: 'Extract', notificationBody: 'Done' })
     assert.equal(res.status, 401)
   } finally {
-    process.env.SCHEDULER_SECRET = savedSecret
+    if (savedSecret === undefined) delete process.env.SCHEDULER_SECRET
+    else process.env.SCHEDULER_SECRET = savedSecret
   }
 })
 
 test('POST /agent/browser/scheduler-trigger returns 503 when SCHEDULER_SECRET not set', async () => {
   const saved = process.env.SCHEDULER_SECRET
   delete process.env.SCHEDULER_SECRET
-  const db = makeMockDb()
-  const app = createApp({
-    verifyToken: async () => ({ uid: 'uid' }),
-    db,
-    runAgentFn: async () => ({ reply: 'ok', toolCalls: [] }),
-  })
-  const res = await request(app)
-    .post('/agent/browser/scheduler-trigger')
-    .set('Authorization', 'Bearer anything')
-    .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'p' }, actionSummary: 'Extract', notificationBody: 'Done' })
-  assert.equal(res.status, 503)
-  process.env.SCHEDULER_SECRET = saved
+  try {
+    const db = makeMockDb()
+    const app = createApp({
+      verifyToken: async () => ({ uid: 'uid' }),
+      db,
+      runAgentFn: async () => ({ reply: 'ok', toolCalls: [] }),
+    })
+    const res = await request(app)
+      .post('/agent/browser/scheduler-trigger')
+      .set('Authorization', 'Bearer anything')
+      .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'p' }, actionSummary: 'Extract', notificationBody: 'Done' })
+    assert.equal(res.status, 503)
+  } finally {
+    if (saved === undefined) delete process.env.SCHEDULER_SECRET
+    else process.env.SCHEDULER_SECRET = saved
+  }
 })

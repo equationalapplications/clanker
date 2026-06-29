@@ -408,9 +408,11 @@ export async function handleLiveWsUpgrade(
               const fwd = bridgeBase.fcmDispatcher
               const fbUid = bridgeBase.firebaseUid
               const getToken = options.getExpoPushToken ?? ((uid: string) => dbGetExpoPushToken(options.db, uid))
-              void getToken(fbUid).then((token) => {
-                if (token) void fwd.sendTaskComplete(token, bridgeSessionId, taskId, text)
-              }).catch((err) => console.error('[pushToLive Expo fallback]', err))
+              void getToken(fbUid)
+                .then(async (token) => {
+                  if (token) await fwd.sendTaskComplete(token, bridgeSessionId, taskId, text)
+                })
+                .catch((err) => console.error('[pushToLive Expo fallback]', err))
             }
           },
         })
