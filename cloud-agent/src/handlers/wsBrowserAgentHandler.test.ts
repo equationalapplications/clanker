@@ -28,7 +28,7 @@ function deps(over: Record<string, unknown> = {}) {
     calls,
     options: {
       verifyToken: async () => ({ uid: 'fb-uid' }),
-      resolveUserId: async () => 'u1',
+      resolveUserId: async () => 'fb-uid',
       firestoreSession: {
         getSession: async () => ({ status: 'pending' }),
         getFirstTask: async () => ({ status: 'pending', intent: pendingIntent }),

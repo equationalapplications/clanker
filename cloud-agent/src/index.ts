@@ -37,6 +37,7 @@ const contentSchema = z.object({
 export interface RunAgentParams {
   db: DrizzleClient
   userId: string
+  firebaseUid: string
   characterId: string
   systemInstruction: string
   message: string
@@ -58,9 +59,10 @@ export interface AppOptions {
 // ── Real agent runner (production) ────────────────────────────────────────────
 
 export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
-  const { db, userId, characterId, systemInstruction, message, history, timezone, embed } = params
+  const { db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed } = params
   const bridge = admin.apps.length ? {
-    uid: userId,
+    firebaseUid,
+    userId,
     firestoreSession: defaultFirestoreSession(),
     fcmDispatcher: defaultFcmDispatcher(),
     creditService: createCreditService(db),
@@ -269,7 +271,7 @@ export function createApp(options: AppOptions) {
       // 2. EXECUTE — refund on ADK failure
       let result: { reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }
       try {
-        result = await runAgentFn({ db, userId, characterId, systemInstruction, message, history, timezone, embed: embedText })
+        result = await runAgentFn({ db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed: embedText })
       } catch (adkErr) {
         try {
           await cs.refundCredit(userId, txId)
@@ -362,10 +364,10 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
           verifyToken,
           resolveUserId: async (firebaseUid: string) => {
             const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
-            return u?.id ?? null
+            return u ? firebaseUid : null
           },
-          validateDevice: async (uid: string, deviceId: string) => {
-            const doc = await admin.firestore().doc(`users/${uid}/devices/${deviceId}`).get()
+          validateDevice: async (firebaseUid: string, deviceId: string) => {
+            const doc = await admin.firestore().doc(`users/${firebaseUid}/devices/${deviceId}`).get()
             const data = doc.data()
             return doc.exists && data?.active === true && data?.isPaused !== true
           },

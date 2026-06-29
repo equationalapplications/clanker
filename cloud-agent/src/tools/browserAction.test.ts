@@ -9,7 +9,8 @@ function baseDeps(over: Record<string, unknown> = {}) {
   return {
     calls,
     deps: {
-      uid: 'u1',
+      firebaseUid: 'fb-u1',
+      userId: 'u1',
       firestoreSession: {
         getActiveDevice: async () => ({ deviceId: 'd1', fcmToken: 'tok', deviceName: 'Mac' }),
         createSession: async () => {},
@@ -32,6 +33,18 @@ function baseDeps(over: Record<string, unknown> = {}) {
     },
   }
 }
+
+test('blocked host → HOST_NOT_ALLOWED, no credit spent', async () => {
+  const { deps, calls } = baseDeps()
+  const tool = browserActionTool(deps as never, { trigger: 'text', preBilled: true })
+  const out = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    actionSummary: 'x', intent: { action: { type: 'open_tab', url: 'chrome://settings' } },
+  })
+  assert.match(out, /HOST_NOT_ALLOWED/i)
+  assert.equal(calls.spend, 0)
+  assert.equal(calls.wake, 0)
+  assert.equal(calls.writeTask, 0)
+})
 
 test('no device → tool error, no credit spent', async () => {
   const { deps, calls } = baseDeps({

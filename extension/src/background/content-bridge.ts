@@ -6,14 +6,19 @@ function originPattern(url: string): string {
   try { return new URL(url).origin + '/*' } catch { return url }
 }
 
+const HOST_PERMISSION_NOTIFICATION = 'host-permission'
+
 async function ensureHost(url: string): Promise<void> {
-  const origins = [originPattern(url)]
+  const origin = originPattern(url)
+  const origins = [origin]
   if (await chrome.permissions.contains({ origins })) return
-  chrome.notifications.create({
+  const host = new URL(url).host
+  await chrome.storage.local.set({ pendingHost: host, pendingOrigin: origin })
+  chrome.notifications.create(HOST_PERMISSION_NOTIFICATION, {
     type: 'basic',
     iconUrl: 'icons/icon-48.png',
     title: 'Clanker needs access',
-    message: `Clanker needs access to ${new URL(url).host}. Click to grant.`,
+    message: `Clanker needs access to ${host}. Click to grant.`,
   })
   throw new Error('HOST_PERMISSION_REQUIRED')
 }

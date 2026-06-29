@@ -82,3 +82,9 @@ async function appendActionLog(intent: TaskIntent, status: string): Promise<void
 }
 
 chrome.action?.onClicked?.addListener?.(() => { void chrome.sidePanel.open({ windowId: chrome.windows?.WINDOW_ID_CURRENT }) })
+
+chrome.notifications.onClicked.addListener((notificationId) => {
+  if (notificationId === 'host-permission') {
+    void chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT })
+  }
+})

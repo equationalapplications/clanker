@@ -5,9 +5,11 @@ import type { FcmDispatcher } from '../services/fcmDispatcher.js'
 import type { CreditService } from '../services/creditService.js'
 import type { TaskIntent, TaskDoc } from '../../../shared/dsl-types.js'
 import { intentRequiresAuth } from '../../../shared/constants.js'
+import { findBlockedNavigation } from '../../../shared/hostPolicy.js'
 
 export interface BrowserActionDeps {
-  uid: string
+  firebaseUid: string
+  userId: string
   firestoreSession: FirestoreSession
   fcmDispatcher: FcmDispatcher
   creditService: CreditService
@@ -66,9 +68,15 @@ export function browserActionTool(
 
       const sessionId = crypto.randomUUID()
       const taskId = crypto.randomUUID()
+      const action = intent.action as TaskIntent['action']
+
+      const blocked = findBlockedNavigation(action)
+      if (blocked) {
+        return `Browser task blocked (HOST_NOT_ALLOWED): ${blocked.message}`
+      }
 
       // 1. Resolve device BEFORE spending credit.
-      const device = await fs.getActiveDevice(deps.uid)
+      const device = await fs.getActiveDevice(deps.firebaseUid)
       if (!device) {
         return 'No browser extension is paired. Install the Clanker Desktop Bridge extension, or it may be paused — enable it from the extension.'
       }
@@ -77,16 +85,15 @@ export function browserActionTool(
       deps.pauseBilling?.()
       let txId: string | null = null
       if (!context.preBilled) {
-        try { txId = await deps.creditService.spendCredit(deps.uid) }
+        try { txId = await deps.creditService.spendCredit(deps.userId) }
         catch { deps.resumeBilling?.(); return 'You are out of credits for browser actions.' }
       }
 
       // 3. Build intent + persist.
-      const action = intent.action as TaskIntent['action']
       const requiresAuth = intentRequiresAuth(actionSummary, action)
       const taskIntent: TaskIntent = { version: '1', taskId, sessionId, requiresAuth, actionSummary, action }
-      await fs.createSession(deps.uid, sessionId, { status: 'pending', trigger: context.trigger, voiceInstanceId: deps.instanceId })
-      await fs.writeTask(deps.uid, sessionId, taskId, taskIntent)
+      await fs.createSession(deps.firebaseUid, sessionId, { status: 'pending', trigger: context.trigger, voiceInstanceId: deps.instanceId })
+      await fs.writeTask(deps.firebaseUid, sessionId, taskId, taskIntent)
 
       // 4. Wake.
       await deps.fcmDispatcher.wakeExtension(device.fcmToken, sessionId, taskId)
@@ -96,22 +103,22 @@ export function browserActionTool(
       let settled = false
       async function enforceWakeTimeout(): Promise<void> {
         if (settled) return
-        const task = await fs.getTask(deps.uid, sessionId, taskId)
-        const session = await fs.getSession(deps.uid, sessionId)
+        const task = await fs.getTask(deps.firebaseUid, sessionId, taskId)
+        const session = await fs.getSession(deps.firebaseUid, sessionId)
         const connected = task.status === 'executing' || session.browserInstanceId != null || session.browserConnectedAt != null
         if (!connected && task.status === 'pending') {
-          await fs.writeTaskResult(deps.uid, sessionId, taskId, {
+          await fs.writeTaskResult(deps.firebaseUid, sessionId, taskId, {
             taskId, status: 'failed', data: {}, activeUrl: '',
             error: { code: 'EXTENSION_OFFLINE', message: 'Browser extension did not connect', failedAction: action as never },
           })
-          if (txId) { try { await deps.creditService.refundCredit(deps.uid, txId) } catch { /* logged */ } }
-          await fs.closeSession(deps.uid, sessionId, 'aborted')
+          if (txId) { try { await deps.creditService.refundCredit(deps.userId, txId) } catch { /* logged */ } }
+          await fs.closeSession(deps.firebaseUid, sessionId, 'aborted')
         }
       }
 
       // 6. Result delivery.
       const watch = (resolve: (task: TaskDoc) => void) => {
-        const unsub = fs.watchTask(deps.uid, sessionId, taskId, (task) => {
+        const unsub = fs.watchTask(deps.firebaseUid, sessionId, taskId, (task) => {
           if (task.status === 'complete' || task.status === 'failed' || task.status === 'aborted') {
             settled = true; clearTimeout(wakeTimer); unsub(); resolve(task)
           }

@@ -19,6 +19,7 @@ test(
     const { reply, toolCalls } = await runAgentReal({
       db: mockDb,
       userId: 'live-test-user',
+      firebaseUid: 'live-test-firebase-uid',
       characterId: 'live-test-character',
       systemInstruction:
         'You are a helpful assistant. You must call tools before answering when the user asks for live or current information. ' +

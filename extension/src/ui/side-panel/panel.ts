@@ -25,9 +25,22 @@ $('pause').addEventListener('click', async () => {
 })
 
 $('grant').addEventListener('click', async () => {
-  const { pendingHost } = await chrome.storage.local.get('pendingHost')
-  if (pendingHost) await chrome.permissions.request({ origins: [`https://${pendingHost}/*`] })
+  const { pendingHost, pendingOrigin } = await chrome.storage.local.get(['pendingHost', 'pendingOrigin'])
+  if (!pendingHost) return
+  const origin = (pendingOrigin as string | undefined) ?? `https://${pendingHost}/*`
+  const granted = await chrome.permissions.request({ origins: [origin] })
+  if (granted) await chrome.storage.local.remove(['pendingHost', 'pendingOrigin'])
+  void syncGrantButton()
 })
+
+async function syncGrantButton(): Promise<void> {
+  const { pendingHost } = await chrome.storage.local.get('pendingHost')
+  const grant = $('grant') as HTMLButtonElement
+  grant.hidden = !pendingHost
+  if (pendingHost) grant.textContent = `Grant Access to ${pendingHost}`
+}
+void syncGrantButton()
+chrome.storage.onChanged.addListener((c) => { if (c.pendingHost) void syncGrantButton() })
 
 async function registerThisDevice(): Promise<void> {
   const idToken = await auth.currentUser!.getIdToken()

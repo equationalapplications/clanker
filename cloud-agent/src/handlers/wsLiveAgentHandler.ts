@@ -364,7 +364,8 @@ export async function handleLiveWsUpgrade(
       billingControllers.set(liveSessionKey, billingController)
 
       const bridgeBase = options.browserBridge ?? (admin.apps.length ? {
-        uid: userId,
+        firebaseUid: uid,
+        userId: userId!,
         firestoreSession: defaultFirestoreSession(),
         fcmDispatcher: defaultFcmDispatcher(),
         creditService: cs,

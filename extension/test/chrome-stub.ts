@@ -11,7 +11,7 @@ export function installChromeStub(over: Record<string, unknown> = {}): void {
     offscreen: { hasDocument: async () => false, createDocument: async () => {}, closeDocument: async () => {} },
     scripting: { executeScript: async () => [{ result: undefined }] },
     permissions: { contains: async () => true, request: async () => true },
-    notifications: { create: () => {} },
+    notifications: { create: () => {}, onClicked: { addListener: (_l: Listener) => {} } },
     tabs: { create: async () => ({ id: 1 }), query: async () => [{ id: 1, url: 'https://x' }], update: async () => ({}) },
     sidePanel: { open: async () => {} },
     ...over,

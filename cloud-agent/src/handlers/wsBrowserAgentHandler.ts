@@ -32,7 +32,7 @@ export interface BrowserWsOptions {
   firestoreSession: FirestoreSession
   verifyToken?: (token: string) => Promise<{ uid: string }>
   resolveUserId?: (firebaseUid: string) => Promise<string | null>
-  validateDevice?: (uid: string, deviceId: string) => Promise<boolean>
+  validateDevice?: (firebaseUid: string, deviceId: string) => Promise<boolean>
   instanceId: string
   authTimeoutMs?: number
 }
@@ -50,7 +50,7 @@ export function handleBrowserWsUpgrade(
   const authTimeoutMs = options.authTimeoutMs ?? 5000
 
   let authed = false
-  let uid: string | null = null
+  let firebaseUid: string | null = null
   let sessionId: string | null = null
 
   const authTimer = setTimeout(() => {
@@ -70,24 +70,24 @@ export function handleBrowserWsUpgrade(
     const session = await fs.getSession(resolved, sid)
     if (session.status === 'closed') { ws.close(4001, 'Session closed'); return }
 
-    uid = resolved; sessionId = sid; authed = true
+    firebaseUid = resolved; sessionId = sid; authed = true
     clearTimeout(authTimer)
 
-    const pendingTask = await fs.getFirstTask(uid, sid)
+    const pendingTask = await fs.getFirstTask(firebaseUid, sid)
     if (!pendingTask) { ws.close(4001, 'No pending task'); return }
 
-    await fs.markBrowserConnected(uid, sid, options.instanceId, pendingTask.intent.taskId)
-    sessionBridge.registerBrowser(uid, sid, ws)
+    await fs.markBrowserConnected(firebaseUid, sid, options.instanceId, pendingTask.intent.taskId)
+    sessionBridge.registerBrowser(firebaseUid, sid, ws)
     ws.send(JSON.stringify({ type: 'session_ready', sessionId: sid }))
     ws.send(JSON.stringify({ type: 'task', intent: pendingTask.intent }))
   }
 
   async function onResult(raw: unknown): Promise<void> {
-    if (!authed || !uid || !sessionId) return
+    if (!authed || !firebaseUid || !sessionId) return
     const r = resultFrameSchema.safeParse(raw)
     if (r.success) {
       const result: TaskResult = { taskId: r.data.taskId, status: 'complete', data: r.data.data, activeUrl: r.data.activeUrl }
-      await fs.writeTaskResult(uid, sessionId, r.data.taskId, result)
+      await fs.writeTaskResult(firebaseUid, sessionId, r.data.taskId, result)
       ws.send(JSON.stringify({ type: 'session_end' }))
       return
     }
@@ -101,7 +101,7 @@ export function handleBrowserWsUpgrade(
           failedAction: e.data.failedAction as SingleAction,
         },
       }
-      await fs.writeTaskResult(uid, sessionId, e.data.taskId, result)
+      await fs.writeTaskResult(firebaseUid, sessionId, e.data.taskId, result)
       ws.send(JSON.stringify({ type: 'session_end' }))
     }
   }
@@ -117,7 +117,7 @@ export function handleBrowserWsUpgrade(
 
   ws.on('close', () => {
     clearTimeout(authTimer)
-    if (uid && sessionId) sessionBridge.deregister(uid, sessionId)
+    if (firebaseUid && sessionId) sessionBridge.deregister(firebaseUid, sessionId)
   })
   ws.on('error', () => { clearTimeout(authTimer) })
 }
