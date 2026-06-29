@@ -1,3 +1,22 @@
+# [30.9.0](https://github.com/equationalapplications/clanker/compare/v30.8.1...v30.9.0) (2026-06-29)
+
+
+### Bug Fixes
+
+* **bridge/p2:** address CodeRabbit review feedback on PR [#491](https://github.com/equationalapplications/clanker/issues/491) ([3fe2c20](https://github.com/equationalapplications/clanker/commit/3fe2c20b5eb9da0cc1c9cbdd10b22fb42a1d910c))
+* **bridge:** address PR [#492](https://github.com/equationalapplications/clanker/issues/492) review feedback ([0da765e](https://github.com/equationalapplications/clanker/commit/0da765ef7de55db427443d5dc574669322120a10))
+* **bridge:** address PR 490 CodeRabbit review feedback ([60b4cdc](https://github.com/equationalapplications/clanker/commit/60b4cdc4a434f371088b3f11af3d6fcdba8d72fe))
+* **bridge:** harden Phase 1 bridge from review findings ([66f11db](https://github.com/equationalapplications/clanker/commit/66f11db9e59e39c777a21098696d537e766224ae))
+* **bridge:** rate-limit auth bridge routes and refresh docs ([864f06a](https://github.com/equationalapplications/clanker/commit/864f06a9522b1945b22ee5db534a98945ce66f01))
+* **bridge:** resolve Phase 1 gaps — UID split, host blocklist, grant UX ([8c17163](https://github.com/equationalapplications/clanker/commit/8c17163dea1a0a2def3383adfcc3b8235f2430a3))
+* **ci:** run bridge node:test suites outside Jest ([3d915db](https://github.com/equationalapplications/clanker/commit/3d915dbdd9e94b3b597b7a0a415df77416453ede))
+
+
+### Features
+
+* **bridge/p2:** stateful actions with mobile approval flow ([57d860b](https://github.com/equationalapplications/clanker/commit/57d860b75f7d24c18b01bdae8efdad9c22811671))
+* **bridge:** add Phase 1 MV3 read-only browser extension bridge ([32382e1](https://github.com/equationalapplications/clanker/commit/32382e16349b0806ed061c441bb720ff51798c4e))
+
 ## [30.8.1](https://github.com/equationalapplications/clanker/compare/v30.8.0...v30.8.1) (2026-06-28)
 
 
