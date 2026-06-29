@@ -72,6 +72,34 @@ test('sendTaskComplete POSTs correct Expo Push payload', async () => {
   assert.equal(data.deepLink, '/talk')
 })
 
+test('sendProactive POSTs PROACTIVE_TASK Expo Push payload', async () => {
+  const fetched: Array<{ body: unknown }> = []
+  const fakeFetch = async (_url: string, opts: RequestInit) => {
+    fetched.push({ body: JSON.parse(opts.body as string) })
+    return { ok: true, json: async () => ({ data: [{ status: 'ok' }] }) }
+  }
+
+  const dispatcher = createFcmDispatcher(
+    { send: async () => 'msg-id' },
+    fakeFetch as unknown as typeof fetch,
+  )
+
+  await dispatcher.sendProactive('ExponentPushToken[abc]', 'sid1', 'tid1', 'Price dropped to $340.')
+
+  assert.equal(fetched.length, 1)
+  const body = fetched[0].body as Record<string, unknown>
+  assert.equal(body.to, 'ExponentPushToken[abc]')
+  assert.equal(body.title, 'Clanker noticed something')
+  assert.equal(body.body, 'Price dropped to $340.')
+  assert.equal(body.categoryIdentifier, 'BROWSER_ACTION_APPROVAL')
+  assert.equal(body.priority, 'high')
+  const data = body.data as Record<string, string>
+  assert.equal(data.type, 'PROACTIVE_TASK')
+  assert.equal(data.sessionId, 'sid1')
+  assert.equal(data.taskId, 'tid1')
+  assert.equal(data.deepLink, '/talk')
+})
+
 test('expoPush rejects ticket-level errors in a 200 response', async () => {
   const fakeFetch = async () => ({
     ok: true,
