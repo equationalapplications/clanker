@@ -14,15 +14,11 @@ interface ExtensionEnv {
 
 declare const __EXTENSION_ENV__: ExtensionEnv | undefined
 
-const ENV: ExtensionEnv = __EXTENSION_ENV__ ?? {
-  FIREBASE_API_KEY: 'REPLACE_FIREBASE_API_KEY',
-  FIREBASE_AUTH_DOMAIN: 'REPLACE.firebaseapp.com',
-  FIREBASE_PROJECT_ID: 'REPLACE',
-  FIREBASE_APP_ID: 'REPLACE',
-  FIREBASE_SENDER_ID: 'REPLACE_FCM_SENDER_ID',
-  CLOUD_BASE_URL: 'https://REPLACE-cloud-agent-url',
-  CLOUD_WS_URL: 'wss://REPLACE-cloud-agent-url/agent/browser',
+if (!__EXTENSION_ENV__) {
+  throw new Error('Extension must be built before loading: run `npm run build` in extension/')
 }
+
+const ENV: ExtensionEnv = __EXTENSION_ENV__
 
 export const FIREBASE_CONFIG = {
   apiKey: ENV.FIREBASE_API_KEY,
