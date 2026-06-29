@@ -78,9 +78,13 @@ export function startAuthApprovalObserver(deps: AuthApprovalObserverDeps): void 
         }
 
         if (deps.fcmDispatcher && deps.deviceFcmToken) {
-          await deps.fcmDispatcher.wakeExtension(deps.deviceFcmToken, deps.sessionId, deps.taskId, true).catch(
-            (err) => console.error('FCM resume wake failed:', err),
-          )
+          try {
+            await deps.fcmDispatcher.wakeExtension(deps.deviceFcmToken, deps.sessionId, deps.taskId, true)
+          } catch (err) {
+            console.error('FCM resume wake failed:', err)
+            await abortTask('Failed to wake the extension after approval. The action was not completed.')
+            return
+          }
         }
         deps.onResolved?.()
       })

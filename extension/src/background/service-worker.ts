@@ -66,7 +66,7 @@ async function wakeAndConnect(sessionId: string): Promise<void> {
       void (async () => {
         const outcome = await dispatchTask(intent, injector)
         if (outcome.status === 'awaiting_auth') {
-          client.sendAwaitingAuth(outcome.taskId, outcome.haltedStepIndex)
+          client.sendAwaitingAuth(outcome.taskId, outcome.haltedStepIndex, outcome.partialData, outcome.partialActiveUrl)
           await appendActionLog(intent, 'awaiting_auth')
           client.close()
           void closeOffscreen()

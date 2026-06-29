@@ -352,6 +352,7 @@ export function createApp(options: AppOptions) {
   })
 
   app.post('/agent/browser/approve-action', requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    if (!browserBridgeAvailable) { res.status(503).json({ error: 'Browser bridge unavailable' }); return }
     const parsed = z.object({
       sessionId: z.string().uuid(),
       taskId: z.string().min(1),
@@ -359,7 +360,8 @@ export function createApp(options: AppOptions) {
     }).safeParse(req.body)
     if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
 
-    const rawToken = req.headers.authorization?.replace('Bearer ', '') ?? ''
+    const authHeader = req.headers.authorization ?? ''
+    const rawToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : ''
     try {
       await handleApproveAction(
         admin.firestore() as unknown as { doc(p: string): { update(d: Record<string, unknown>): Promise<void> } },
@@ -406,7 +408,7 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
           verifyToken,
           resolveUserId: async (firebaseUid: string) => {
             const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
-            return u ? firebaseUid : null
+            return u?.id ?? null
           },
           getExpoPushToken: (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
           getDeviceFcmToken: async (uid: string, deviceId: string) => {

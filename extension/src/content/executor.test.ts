@@ -92,6 +92,14 @@ test('fill_field throws SELECTOR_NOT_FOUND when element missing', async () => {
   )
 })
 
+test('fill_field throws SELECTOR_NOT_FOUND when element is not a form control', async () => {
+  const { doc, win } = dom('<div id="notinput">text</div>')
+  await assert.rejects(
+    () => runAction({ type: 'fill_field', selector: '#notinput', value: 'x', tier: 'stateful' }, doc, win, {}),
+    /SELECTOR_NOT_FOUND/,
+  )
+})
+
 test('click throws SELECTOR_NOT_FOUND when element missing', async () => {
   const { doc, win } = dom('<div></div>')
   await assert.rejects(

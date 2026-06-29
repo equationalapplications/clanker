@@ -8,7 +8,8 @@ export async function upsertExpoPushToken(
   firebaseUid: string,
   expoPushToken: string,
 ): Promise<void> {
-  await db.update(users).set({ expoPushToken }).where(eq(users.firebaseUid, firebaseUid))
+  const rows = await db.update(users).set({ expoPushToken }).where(eq(users.firebaseUid, firebaseUid)).returning({ id: users.id })
+  if (rows.length === 0) throw new Error('USER_NOT_FOUND')
 }
 
 export async function getExpoPushToken(

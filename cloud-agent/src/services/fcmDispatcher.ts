@@ -8,12 +8,19 @@ const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
 
 export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof fetch = fetch) {
   async function expoPush(payload: Record<string, unknown>): Promise<void> {
-    const res = await fetchImpl(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    if (!res.ok) throw new Error(`Expo Push failed: ${res.status}`)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+    try {
+      const res = await fetchImpl(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      })
+      if (!res.ok) throw new Error(`Expo Push failed: ${res.status}`)
+    } finally {
+      clearTimeout(timeout)
+    }
   }
 
   return {

@@ -27,6 +27,8 @@ const awaitingAuthFrameSchema = z.object({
   type: z.literal('awaiting_auth'),
   taskId: z.string(),
   haltedStepIndex: z.number().int().nonnegative(),
+  partialData: z.record(z.string(), z.string()).optional(),
+  partialActiveUrl: z.string().optional(),
 })
 
 export interface BrowserWsOptions {
@@ -120,7 +122,14 @@ export function handleBrowserWsUpgrade(
     if (!authed || !firebaseUid || !sessionId) return
     const r = resultFrameSchema.safeParse(raw)
     if (r.success) {
-      const result: TaskResult = { taskId: r.data.taskId, status: 'complete', data: r.data.data, activeUrl: r.data.activeUrl }
+      let data = r.data.data
+      let activeUrl = r.data.activeUrl
+      if (isResume) {
+        const task = await fs.getTask(firebaseUid, sessionId, r.data.taskId)
+        data = { ...(task.partialData ?? {}), ...data }
+        activeUrl = activeUrl || task.partialActiveUrl || ''
+      }
+      const result: TaskResult = { taskId: r.data.taskId, status: 'complete', data, activeUrl }
       await fs.writeTaskResult(firebaseUid, sessionId, r.data.taskId, result)
       if (isResume && fwd && options.getExpoPushToken) {
         const expoPushToken = await options.getExpoPushToken(firebaseUid)
@@ -148,10 +157,18 @@ export function handleBrowserWsUpgrade(
     if (!authed || !firebaseUid || !sessionId || !dispatchedIntent) return
     const parsed = awaitingAuthFrameSchema.safeParse(raw)
     if (!parsed.success) return
-    const { taskId, haltedStepIndex } = parsed.data
+    const { taskId, haltedStepIndex, partialData, partialActiveUrl } = parsed.data
+
+    if (taskId !== dispatchedIntent.taskId) { ws.close(4001, 'Task mismatch'); return }
+    if (dispatchedIntent.action.type === 'sequence') {
+      if (haltedStepIndex >= dispatchedIntent.action.steps.length) { ws.close(4001, 'Invalid haltedStepIndex'); return }
+    } else if (haltedStepIndex !== 0) {
+      ws.close(4001, 'Invalid haltedStepIndex'); return
+    }
+
     const actionSummary = dispatchedIntent.actionSummary
 
-    await fs.haltForAuth(firebaseUid, sessionId, taskId, haltedStepIndex, actionSummary)
+    await fs.haltForAuth(firebaseUid, sessionId, taskId, haltedStepIndex, actionSummary, partialData, partialActiveUrl)
 
     if (fwd && options.getExpoPushToken) {
       const expoPushToken = await options.getExpoPushToken(firebaseUid)
@@ -165,6 +182,15 @@ export function handleBrowserWsUpgrade(
     const deviceFcmToken = options.getDeviceFcmToken
       ? await options.getDeviceFcmToken(firebaseUid, deviceId!)
       : null
+
+    if (!deviceFcmToken) {
+      await fs.writeTaskResult(firebaseUid, sessionId, taskId, {
+        taskId, status: 'aborted', data: {}, activeUrl: '',
+        error: { code: 'EXECUTION_ERROR', message: 'No device FCM token — cannot resume after approval.', failedAction: dispatchedIntent.action as never },
+      })
+      sendSessionEndIfOpen()
+      return
+    }
 
     // Observer lifetime is independent of this WebSocket — extension closes WS on halt.
     startAuthApprovalObserver({

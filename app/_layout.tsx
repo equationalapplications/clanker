@@ -139,7 +139,7 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
   const isSignedIn = useSelector(authService, (state) => state.matches('signedIn'))
   useRegisterExpoPushToken({
     enabled: isSignedIn,
-    projectId: Constants.expoConfig?.extra?.eas?.projectId ?? '',
+    projectId: Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId ?? '',
   })
   useBrowserActionApproval()
 

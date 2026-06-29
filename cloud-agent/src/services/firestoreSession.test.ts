@@ -46,12 +46,16 @@ function makeFakeDb(calls?: Array<{ path: string; data: Record<string, unknown>;
       return coll
     },
     batch() {
-      const ops: Array<{ path: string; data: Record<string, unknown> }> = []
+      const ops: Array<{ op: 'update' | 'set'; path: string; data: Record<string, unknown> }> = []
       return {
-        update(path: string, data: Record<string, unknown>) { ops.push({ path, data }) },
+        update(path: string, data: Record<string, unknown>) { ops.push({ op: 'update', path, data }) },
+        set(path: string, data: Record<string, unknown>) {
+          calls?.push({ path, data })
+          ops.push({ op: 'set', path, data })
+        },
         async commit() {
-          for (const { path, data } of ops) {
-            store.set(path, { ...(store.get(path) ?? {}), ...data })
+          for (const { op, path, data } of ops) {
+            store.set(path, op === 'set' ? data : { ...(store.get(path) ?? {}), ...data })
           }
         },
       }

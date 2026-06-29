@@ -75,6 +75,7 @@ test('dispatchTask halts with awaiting_auth when step returns awaitingAuth', asy
   const outcome = await dispatchTask(baseIntent, inj)
   assert.equal(outcome.status, 'awaiting_auth')
   assert.equal((outcome as { haltedStepIndex: number }).haltedStepIndex, 1)
+  assert.deepEqual((outcome as { partialData: Record<string, string> }).partialData, { price: '$10' })
 })
 
 test('dispatchTask completes when no step requires auth', async () => {

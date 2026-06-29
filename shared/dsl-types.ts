@@ -66,6 +66,8 @@ export interface TaskDoc {
   error: TaskResult['error'] | null
   authRequired: boolean
   haltedStepIndex: number | null
+  partialData?: Record<string, string>
+  partialActiveUrl?: string
   createdAt: unknown
   updatedAt: unknown
 }

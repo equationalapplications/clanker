@@ -72,6 +72,24 @@ test('approved verifies token and sends FCM resume wake', async () => {
   assert.equal(wakeArgs[3], true)
 })
 
+test('failed FCM wake aborts task instead of resolving', async () => {
+  const { deps, getWatcher, results } = baseDeps({
+    fcmDispatcher: {
+      wakeExtension: async () => { throw new Error('FCM error') },
+      sendTaskComplete: async () => {},
+    },
+  })
+  startAuthApprovalObserver(deps as never)
+
+  getWatcher()!({ status: 'approved', approvalToken: 'approval-tok', approvedAt: null, expiresAt: 0, actionSummary: '' })
+  await new Promise((r) => setTimeout(r, 20))
+
+  assert.ok(results.length >= 1)
+  const result = (results[0] as unknown[])[3] as { status: string; error: { message: string } }
+  assert.equal(result.status, 'aborted')
+  assert.match(result.error.message, /wake/i)
+})
+
 test('5-minute TTL aborts with AUTH_TIMEOUT and sendTaskComplete', async () => {
   const { deps, results, pushes } = baseDeps({ authApprovalTtlMs: 30 })
   startAuthApprovalObserver(deps as never)

@@ -207,7 +207,7 @@ test('watchAuth denied → aborts task and sends session_end', async () => {
       sendTaskComplete: async (...a: unknown[]) => { taskCompletes.push(a) },
     },
     getExpoPushToken: async () => 'ExponentPushToken[mobile]',
-    getDeviceFcmToken: async () => null,
+    getDeviceFcmToken: async () => 'gcm-tok-123',
   })
   handleBrowserWsUpgrade(ws as never, {} as never, options as never)
   ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'd1' })
@@ -224,6 +224,64 @@ test('watchAuth denied → aborts task and sends session_end', async () => {
   assert.equal(writeResult.status, 'aborted')
   assert.match(writeResult.error.message, /denied/i)
   assert.equal(taskCompletes.length, 1)
+})
+
+test('null deviceFcmToken aborts task immediately on awaiting_auth', async () => {
+  const ws = new FakeWs()
+  const results: unknown[] = []
+  const pendingIntent = {
+    version: '1', taskId: 't1', sessionId: SESSION_ID, requiresAuth: true,
+    actionSummary: 'Submit', action: { type: 'click', selector: '#s', tier: 'stateful' },
+  }
+  const { options } = deps({
+    firestoreSession: {
+      getSession: async () => ({ status: 'pending' }),
+      getFirstTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      getTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      markBrowserConnected: async () => {},
+      writeTaskResult: async (...a: unknown[]) => { results.push(a) },
+      closeSession: async () => {},
+      haltForAuth: async () => {},
+    },
+    fcmDispatcher: { wakeExtension: async () => {}, sendApprovalCard: async () => {}, sendTaskComplete: async () => {} },
+    getExpoPushToken: async () => null,
+    getDeviceFcmToken: async () => null,
+  })
+  handleBrowserWsUpgrade(ws as never, {} as never, options as never)
+  ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'd1' })
+  await new Promise((r) => setTimeout(r, 20))
+  ws.emitJson({ type: 'awaiting_auth', taskId: 't1', haltedStepIndex: 0 })
+  await new Promise((r) => setTimeout(r, 20))
+
+  const sent = ws.sent.map((s: string) => JSON.parse(s) as { type: string })
+  assert.ok(sent.some((s) => s.type === 'session_end'))
+  const writeResult = (results[0] as unknown[])[3] as { status: string }
+  assert.equal(writeResult.status, 'aborted')
+})
+
+test('awaiting_auth with mismatched taskId closes WS 4001', async () => {
+  const ws = new FakeWs()
+  const pendingIntent = {
+    version: '1', taskId: 't1', sessionId: SESSION_ID, requiresAuth: true,
+    actionSummary: 'Submit', action: { type: 'click', selector: '#s', tier: 'stateful' },
+  }
+  const { options } = deps({
+    firestoreSession: {
+      getSession: async () => ({ status: 'pending' }),
+      getFirstTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      getTask: async () => ({ status: 'pending', intent: pendingIntent }),
+      markBrowserConnected: async () => {},
+      writeTaskResult: async () => {},
+      closeSession: async () => {},
+    },
+  })
+  handleBrowserWsUpgrade(ws as never, {} as never, options as never)
+  ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'd1' })
+  await new Promise((r) => setTimeout(r, 20))
+  ws.emitJson({ type: 'awaiting_auth', taskId: 'wrong-task', haltedStepIndex: 0 })
+  await new Promise((r) => setTimeout(r, 20))
+
+  assert.equal(ws.closed?.code, 4001)
 })
 
 test('auth observer survives WS close after awaiting_auth', async () => {

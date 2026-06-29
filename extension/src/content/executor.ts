@@ -36,9 +36,14 @@ export async function runAction(
     case 'fill_field': {
       const el = doc.querySelector(action.selector)
       if (!el) throw new Error('SELECTOR_NOT_FOUND')
+      const tag = el.tagName.toLowerCase()
+      if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') throw new Error('SELECTOR_NOT_FOUND')
       if (!ctx.skipLayerTwo && classifyElement(el) === 'requires_auth') return { awaitingAuth: true }
-      ;(el as HTMLInputElement).value = action.value
-      const EventCtor = (el.ownerDocument?.defaultView ?? globalThis).Event
+      const view = el.ownerDocument?.defaultView ?? globalThis
+      const proto = (view as typeof globalThis).HTMLInputElement?.prototype
+      const nativeSetter = proto ? Object.getOwnPropertyDescriptor(proto, 'value')?.set : undefined
+      if (nativeSetter) { nativeSetter.call(el, action.value) } else { ;(el as HTMLInputElement).value = action.value }
+      const EventCtor = (view as typeof globalThis).Event
       el.dispatchEvent(new EventCtor('input', { bubbles: true }))
       el.dispatchEvent(new EventCtor('change', { bubbles: true }))
       return { data: {}, activeUrl }

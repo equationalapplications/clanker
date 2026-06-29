@@ -1959,14 +1959,14 @@ git commit -m "feat(bridge/p2): notification category BROWSER_ACTION_APPROVAL + 
 - [ ] **Step 1: Locate the rules file**
 
 ```bash
-find /Users/equationalapplications/code/src/github.com/equationalapplications/clanker -name "firestore.rules" | grep -v node_modules
+find . -name "firestore.rules" | grep -v node_modules
 ```
 
 - [ ] **Step 2: Update the auth doc rules**
 
 Find the `match /users/{uid}/sessions/{sessionId}/auth/{taskId}` block and replace with:
 
-```
+```firestore
 match /users/{uid}/sessions/{sessionId}/auth/{taskId} {
   allow read: if request.auth.uid == uid;
   // Admin SDK creates the auth doc (haltForAuth). Mobile writes approval decision only.

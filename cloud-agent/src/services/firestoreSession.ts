@@ -3,6 +3,7 @@ import type { TaskIntent, TaskResult, SessionDoc, TaskDoc, DeviceDoc, AuthDoc } 
 
 export interface FirestoreBatch {
   update(path: string, data: Record<string, unknown>): void
+  set(path: string, data: Record<string, unknown>): void
   commit(): Promise<void>
 }
 
@@ -129,26 +130,26 @@ export function createFirestoreSession(db: FirestoreLike) {
       })
     },
 
-    async haltForAuth(uid: string, sid: string, tid: string, haltedStepIndex: number, actionSummary: string): Promise<void> {
+    async haltForAuth(uid: string, sid: string, tid: string, haltedStepIndex: number, actionSummary: string, partialData?: Record<string, string>, partialActiveUrl?: string): Promise<void> {
       const AUTH_TTL_MS = 5 * 60 * 1000
       const authPath = `users/${uid}/sessions/${sid}/auth/${tid}`
       const expiresAt = admin.firestore?.Timestamp
         ? admin.firestore.Timestamp.fromMillis(Date.now() + AUTH_TTL_MS)
         : (Date.now() + AUTH_TTL_MS as unknown)
+      const authDoc = { status: 'pending', actionSummary, expiresAt, approvedAt: null, approvalToken: null }
+      const taskUpdate = { status: 'awaiting_auth', haltedStepIndex, partialData: partialData ?? {}, partialActiveUrl: partialActiveUrl ?? '', updatedAt: now() }
 
       if (db.batch) {
         const batch = db.batch()
-        batch.update(taskPath(uid, sid, tid), { status: 'awaiting_auth', haltedStepIndex, updatedAt: now() })
+        batch.update(taskPath(uid, sid, tid), taskUpdate)
         batch.update(sessionPath(uid, sid), { status: 'pending_auth' })
+        batch.set(authPath, authDoc)
         await batch.commit()
       } else {
-        await db.doc(taskPath(uid, sid, tid)).update({ status: 'awaiting_auth', haltedStepIndex, updatedAt: now() })
+        await db.doc(taskPath(uid, sid, tid)).update(taskUpdate)
         await db.doc(sessionPath(uid, sid)).update({ status: 'pending_auth' })
+        await db.doc(authPath).set(authDoc)
       }
-      await db.doc(authPath).set({
-        status: 'pending', actionSummary, expiresAt,
-        approvedAt: null, approvalToken: null,
-      })
     },
 
     watchAuth(uid: string, sid: string, tid: string, cb: (auth: AuthDoc) => void): () => void {
@@ -174,6 +175,9 @@ export function defaultFirestoreSession(): FirestoreSession {
       return {
         update(path: string, data: Record<string, unknown>) {
           batch.update(raw.doc(path), data)
+        },
+        set(path: string, data: Record<string, unknown>) {
+          batch.set(raw.doc(path), data)
         },
         commit: async () => { await batch.commit() },
       }

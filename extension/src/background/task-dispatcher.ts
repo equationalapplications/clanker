@@ -6,7 +6,7 @@ export interface Injector {
   focusTab(host: string): Promise<void>
 }
 
-export type AwaitingAuthOutcome = { status: 'awaiting_auth'; taskId: string; haltedStepIndex: number }
+export type AwaitingAuthOutcome = { status: 'awaiting_auth'; taskId: string; haltedStepIndex: number; partialData: Record<string, string>; partialActiveUrl: string }
 export type DispatchOutcome = TaskResult | AwaitingAuthOutcome
 
 function knownCode(msg: string): BridgeErrorCode {
@@ -31,7 +31,7 @@ export async function dispatchTask(intent: TaskIntent, inj: Injector): Promise<D
       const ctx = { skipLayerTwo: skipLayerTwoForFirst && i === 0 }
       const out = await inj.runInActiveTab(step, ctx)
       if ('awaitingAuth' in out) {
-        return { status: 'awaiting_auth', taskId: intent.taskId, haltedStepIndex: i }
+        return { status: 'awaiting_auth', taskId: intent.taskId, haltedStepIndex: i, partialData: data, partialActiveUrl: activeUrl }
       }
       Object.assign(data, out.data)
       activeUrl = out.activeUrl || activeUrl
