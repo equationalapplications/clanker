@@ -40,5 +40,11 @@ jobs:
       - name: 🧪 Test with Jest
         run: npm run test
 
+      - name: 🧪 Test shared bridge (node:test)
+        run: cd cloud-agent && npm ci && node --import tsx/esm --test ../shared/constants.test.ts ../shared/dsl-schema.test.ts ../shared/hostPolicy.test.ts
+
+      - name: 🧪 Test Desktop Bridge extension
+        run: cd extension && npm ci && npm test
+
       - name: 🧪 Test Cloud Agent
-        run: cd cloud-agent && npm ci && npm test
+        run: cd cloud-agent && npm test

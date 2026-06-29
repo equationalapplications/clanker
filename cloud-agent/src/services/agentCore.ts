@@ -9,6 +9,8 @@ import { setReminderTool } from '../tools/reminders.js'
 import type { DrizzleClient } from '../db/client.js'
 import { llmWikiEntries } from '../db/schema.js'
 
+import { browserActionTool, type BrowserActionDeps } from '../tools/browserAction.js'
+
 export function buildAgent(
   db: DrizzleClient,
   userId: string,
@@ -16,26 +18,29 @@ export function buildAgent(
   systemInstruction: string,
   timezone: string,
   embed: (text: string) => Promise<number[]>,
+  bridge?: BrowserActionDeps,
 ): LlmAgent {
+  const tools = [
+    getCurrentTimeTool(timezone),
+    wikiReadTool(db, userId, characterId, embed),
+    wikiWriteTool(db, userId, characterId, embed),
+    wikiGetOntologyManifestTool(db, userId, characterId),
+    wikiTraverseGraphTool(db, userId, characterId),
+    createTaskTool(db, userId, characterId),
+    listTasksTool(db, userId, characterId),
+    updateTaskTool(db, userId, characterId),
+    completeTaskTool(db, userId, characterId),
+    deleteTaskTool(db, userId, characterId),
+    documentSearchTool(db, userId, characterId),
+    setReminderTool(db, userId, characterId),
+    GOOGLE_SEARCH,
+  ]
+  if (bridge) tools.push(browserActionTool(bridge, { trigger: 'text', preBilled: true }))
   return new LlmAgent({
     name: 'clanker-cloud-agent',
     model: 'gemini-3.5-flash',
     instruction: systemInstruction,
-    tools: [
-      getCurrentTimeTool(timezone),
-      wikiReadTool(db, userId, characterId, embed),
-      wikiWriteTool(db, userId, characterId, embed),
-      wikiGetOntologyManifestTool(db, userId, characterId),
-      wikiTraverseGraphTool(db, userId, characterId),
-      createTaskTool(db, userId, characterId),
-      listTasksTool(db, userId, characterId),
-      updateTaskTool(db, userId, characterId),
-      completeTaskTool(db, userId, characterId),
-      deleteTaskTool(db, userId, characterId),
-      documentSearchTool(db, userId, characterId),
-      setReminderTool(db, userId, characterId),
-      GOOGLE_SEARCH,
-    ],
+    tools,
   })
 }
 

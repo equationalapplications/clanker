@@ -13,6 +13,33 @@ import { buildLiveTools, resolveVoice } from '../services/liveToolAdapter.js'
 import { createCreditService } from '../services/creditService.js'
 import type { CreditService } from '../services/creditService.js'
 import { hasGroundingData } from '../groundingMetadata.js'
+import { defaultFcmDispatcher } from '../services/fcmDispatcher.js'
+import { defaultFirestoreSession } from '../services/firestoreSession.js'
+import { INSTANCE_ID } from '../services/instanceId.js'
+
+export interface BillingControllerOpts {
+  spend: () => void
+  intervalMs: number
+  setIntervalFn?: typeof setInterval
+  clearIntervalFn?: typeof clearInterval
+}
+
+export function makeBillingController(opts: BillingControllerOpts) {
+  const setI = opts.setIntervalFn ?? setInterval
+  const clearI = opts.clearIntervalFn ?? clearInterval
+  let timer: ReturnType<typeof setInterval> | null = null
+  let paused = false
+  return {
+    start() { timer = setI(() => { if (!paused) opts.spend() }, opts.intervalMs) },
+    pause() { paused = true },
+    resume() { paused = false },
+    stop() { if (timer !== null) { clearI(timer); timer = null } },
+  }
+}
+export type BillingController = ReturnType<typeof makeBillingController>
+
+const billingControllers = new Map<string, BillingController>()
+export function getBillingController(key: string): BillingController | undefined { return billingControllers.get(key) }
 
 type GeminiSession = {
   sendRealtimeInput(input: { audio: { data: string; mimeType: string } }): void
@@ -41,6 +68,7 @@ export interface WsLiveHandlerOptions {
   liveConnect?: (cfg: LiveConnectCfg) => Promise<GeminiSession>
   billingIntervalMs?: number
   _clearInterval?: (id: ReturnType<typeof setInterval> | undefined) => void
+  browserBridge?: Omit<import('../tools/browserAction.js').BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling'>
 }
 
 const AUTH_TIMEOUT_MS = 5000
@@ -79,17 +107,20 @@ export async function handleLiveWsUpgrade(
     ? req.headers['x-timezone'].trim()
     : 'UTC'
 
-  let billingTimer: ReturnType<typeof setInterval> | null = null
+  let billingController: BillingController | null = null
   let billingInFlight = false
   let geminiSession: GeminiSession | null = null
   let isAuthenticated = false
   let userId: string | null = null
+  let liveSessionKey: string | null = null
   let toolExecutors = new Map<string, (args: unknown) => Promise<unknown>>()
+  let pendingBrowserActionCallId: string | null = null
 
   function clearAndClose(): void {
-    if (billingTimer !== null) {
-      clearIntervalFn(billingTimer)
-      billingTimer = null
+    if (billingController !== null) {
+      billingController.stop()
+      if (liveSessionKey) billingControllers.delete(liveSessionKey)
+      billingController = null
     }
     try { geminiSession?.close() } catch { /* ignore */ }
     try {
@@ -225,8 +256,10 @@ export async function handleLiveWsUpgrade(
       try {
         const executor = toolExecutors.get(call.name)
         if (!executor) throw new Error(`Unknown tool: ${call.name}`)
+        if (call.name === 'browser_action') pendingBrowserActionCallId = call.id
         result = await executor(call.args ?? {})
       } catch (err) {
+        if (call.name === 'browser_action') pendingBrowserActionCallId = null
         result = { error: err instanceof Error ? err.message : 'Tool execution failed' }
       }
 
@@ -291,35 +324,8 @@ export async function handleLiveWsUpgrade(
       }
 
       const voiceName = resolveVoice(character.voice)
-      const { declarations, executors } = buildLiveTools(db, userId, characterId, embedText, timezone)
-      toolExecutors = executors
 
-      const systemInstruction = assembleSystemInstruction(character, '')
-
-      try {
-        geminiSession = await liveConnect({
-          model: 'gemini-live-2.5-flash-native-audio',
-          callbacks: {
-            onmessage: handleGeminiMessage,
-            onclose: handleGeminiClose,
-            onerror: (e: unknown) => { console.error('[gemini live] error event:', e) },
-          },
-          config: {
-            systemInstruction,
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
-            tools: [{ functionDeclarations: declarations }, { googleSearch: {} }],
-            responseModalities: ['AUDIO'],
-            inputAudioTranscription: {},
-            outputAudioTranscription: {},
-          },
-        })
-      } catch {
-        ws.send(JSON.stringify({ type: 'error', code: 'GEMINI_UNAVAILABLE', message: 'Failed to connect to Gemini' }))
-        ws.close(1011, 'Gemini unavailable')
-        return
-      }
-
-      billingTimer = setInterval(() => {
+      const spendOnce = () => {
         if (billingInFlight) return
         billingInFlight = true
         void (async () => {
@@ -349,7 +355,71 @@ export async function handleLiveWsUpgrade(
             billingInFlight = false
           }
         })()
-      }, billingIntervalMs)
+      }
+
+      billingController = makeBillingController({
+        spend: spendOnce,
+        intervalMs: billingIntervalMs,
+        clearIntervalFn: clearIntervalFn as never,
+      })
+
+      liveSessionKey = `${userId}:${crypto.randomUUID()}`
+      billingControllers.set(liveSessionKey, billingController)
+
+      const bridgeBase = options.browserBridge ?? (admin.apps.length ? {
+        firebaseUid: uid,
+        userId: userId!,
+        firestoreSession: defaultFirestoreSession(),
+        fcmDispatcher: defaultFcmDispatcher(),
+        creditService: cs,
+        instanceId: INSTANCE_ID,
+      } : undefined)
+
+      const { declarations, executors } = bridgeBase
+        ? buildLiveTools(db, userId, characterId, embedText, timezone, {
+          ...bridgeBase,
+          pauseBilling: () => billingController?.pause(),
+          resumeBilling: () => billingController?.resume(),
+          pushToLive: (text: string) => {
+            const callId = pendingBrowserActionCallId
+            if (!callId) return
+            pendingBrowserActionCallId = null
+            try {
+              geminiSession?.sendToolResponse({
+                functionResponses: [{ id: callId, name: 'browser_action', response: { output: text } }],
+              })
+            } catch { /* ignore */ }
+          },
+        })
+        : buildLiveTools(db, userId, characterId, embedText, timezone)
+      toolExecutors = executors
+
+      const systemInstruction = assembleSystemInstruction(character, '')
+
+      try {
+        geminiSession = await liveConnect({
+          model: 'gemini-live-2.5-flash-native-audio',
+          callbacks: {
+            onmessage: handleGeminiMessage,
+            onclose: handleGeminiClose,
+            onerror: (e: unknown) => { console.error('[gemini live] error event:', e) },
+          },
+          config: {
+            systemInstruction,
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
+            tools: [{ functionDeclarations: declarations }, { googleSearch: {} }],
+            responseModalities: ['AUDIO'],
+            inputAudioTranscription: {},
+            outputAudioTranscription: {},
+          },
+        })
+      } catch {
+        ws.send(JSON.stringify({ type: 'error', code: 'GEMINI_UNAVAILABLE', message: 'Failed to connect to Gemini' }))
+        ws.close(1011, 'Gemini unavailable')
+        return
+      }
+
+      billingController.start()
 
       isAuthenticated = true
       ws.send(JSON.stringify({ type: 'session_ready', remainingCredits: balance }))

@@ -9,6 +9,7 @@ import {
 } from '../tools/tasks.js'
 import { documentSearchTool } from '../tools/documents.js'
 import { setReminderTool } from '../tools/reminders.js'
+import { browserActionTool, type BrowserActionDeps } from '../tools/browserAction.js'
 import type { DrizzleClient } from '../db/client.js'
 
 type EmbedFn = (text: string) => Promise<number[]>
@@ -32,6 +33,9 @@ export function buildLiveTools(
   characterId: string,
   embed: EmbedFn,
   timezone: string,
+  bridge?: Omit<BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling'> & {
+    pushToLive?: (t: string) => void; pauseBilling?: () => void; resumeBilling?: () => void
+  },
 ): LiveToolSet {
   const adkTools: FunctionTool[] = [
     getCurrentTimeTool(timezone),
@@ -47,6 +51,9 @@ export function buildLiveTools(
     documentSearchTool(db, userId, characterId),
     setReminderTool(db, userId, characterId),
   ]
+  if (bridge) {
+    adkTools.push(browserActionTool(bridge, { trigger: 'voice', preBilled: false }))
+  }
 
   const declarations = adkTools.map((t) => t._getDeclaration() as FunctionDeclaration)
 

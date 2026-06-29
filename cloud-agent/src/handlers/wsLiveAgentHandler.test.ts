@@ -3,7 +3,7 @@ import test from 'node:test'
 import { createServer, type Server } from 'node:http'
 import { WebSocket, WebSocketServer } from 'ws'
 import type { DrizzleClient } from '../db/client.js'
-import { handleLiveWsUpgrade, type WsLiveHandlerOptions } from './wsLiveAgentHandler.js'
+import { handleLiveWsUpgrade, makeBillingController, type WsLiveHandlerOptions } from './wsLiveAgentHandler.js'
 import { createApp, attachWebSocketRoutes, type AppOptions } from '../index.js'
 
 // ── Mock helpers ─────────────────────────────────────────────────────────────
@@ -119,6 +119,24 @@ function listen(server: Server): Promise<number> {
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+test('pauseBilling stops the interval from spending; resume restarts', () => {
+  let spends = 0
+  const fakeSetInterval = (fn: () => void) => { ;(fakeSetInterval as unknown as { fn: () => void }).fn = fn; return 1 as unknown as ReturnType<typeof setInterval> }
+  const ctrl = makeBillingController({
+    spend: () => { spends++ },
+    setIntervalFn: fakeSetInterval as never,
+    clearIntervalFn: () => {},
+    intervalMs: 1000,
+  })
+  ctrl.start()
+  ;(fakeSetInterval as unknown as { fn: () => void }).fn() // tick → spend
+  ctrl.pause()
+  ;(fakeSetInterval as unknown as { fn: () => void }).fn() // tick while paused → no spend
+  ctrl.resume()
+  ;(fakeSetInterval as unknown as { fn: () => void }).fn() // tick → spend
+  assert.equal(spends, 2)
+})
 
 test('auth timeout closes with 4001', { timeout: 8000 }, async () => {
   const db = makeMockDb()
