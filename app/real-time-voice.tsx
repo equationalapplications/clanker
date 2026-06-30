@@ -1,3 +1,8 @@
+/**
+ * Dev / in-app navigation fallback for /real-time-voice.
+ * Production hosting serves public/real-time-voice/index.html (static, SEO-friendly)
+ * before the SPA catch-all rewrite. See firebase.json cleanUrls + public/.
+ */
 import Head from 'expo-router/head'
 import RealTimeVoicePage from '~/components/LandingPage/RealTimeVoicePage'
 
