@@ -1,7 +1,14 @@
 import React from 'react'
 import { create, act } from 'react-test-renderer'
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }))
+jest.mock('expo-router', () => {
+  const React = require('react')
+  return {
+    useRouter: () => ({ push: jest.fn() }),
+    Link: ({ children, href, ...props }: any) =>
+      React.createElement('Link', { href, ...props }, children),
+  }
+})
 jest.mock('~/hooks/useMachines', () => ({ useAuthMachine: jest.fn() }))
 jest.mock('@xstate/react', () => ({ useSelector: (_: any, sel: any) => sel({ context: { user: null }, matches: () => false }) }))
 jest.mock('react-native-reanimated', () => {
@@ -23,6 +30,8 @@ jest.mock('react-native', () => {
     Platform: { OS: 'ios', select: (spec: any) => spec.ios ?? spec.default },
     StyleSheet: { create: (s: any) => s, flatten: (s: any) => s },
     View: ({ children, style }: any) => React.createElement('View', { style }, children),
+    Pressable: ({ children, onPress, ...props }: any) =>
+      React.createElement('Pressable', { onPress, ...props }, children),
     useWindowDimensions: () => ({ width: 390, height: 844 }),
   }
 })

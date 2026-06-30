@@ -1,4 +1,4 @@
-import { StyleSheet, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, View, Pressable, useWindowDimensions } from 'react-native'
 import { useEffect } from 'react'
 import { Button, useTheme } from 'react-native-paper'
 import { Image } from 'expo-image'
@@ -123,7 +123,7 @@ export default function HeroSection() {
         {/* New-feature announcement pill */}
         <Animated.View entering={FadeInDown.delay(50).duration(600)}>
           <Link href={'/real-time-voice' as Href} asChild>
-            <View
+            <Pressable
               accessibilityRole="link"
               accessibilityLabel="New: Live, real-time voice calls. Learn more."
               style={[
@@ -134,7 +134,7 @@ export default function HeroSection() {
               <MonoText style={[styles.announceText, { color: colors.onSecondaryContainer }]}>
                 ✨ New: Live, Real-Time Voice Calls →
               </MonoText>
-            </View>
+            </Pressable>
           </Link>
         </Animated.View>
 

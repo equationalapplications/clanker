@@ -110,6 +110,7 @@ export default function RealTimeVoicePage() {
               style={IFRAME_STYLE}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
             />
           ) : (
             <Pressable
