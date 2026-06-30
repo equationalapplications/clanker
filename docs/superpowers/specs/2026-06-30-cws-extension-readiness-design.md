@@ -193,20 +193,32 @@ Host access is entirely optional and user-granted per-site at runtime. The exten
 
 ### 2.3 Privacy Policy Addendum
 
-Add to `clanker-ai.com/privacy` under a "Browser Extension" section:
+Add to `clanker-ai.com/privacy` as a **dedicated section with this exact heading** so the CWS reviewer finds it without scanning. The Limited Use Disclosure in item 4 is a Chrome Web Store hard requirement — do not omit or paraphrase it.
 
 ```
-CLANKER DESKTOP BRIDGE — BROWSER EXTENSION
+## Clanker Browser Extension Data Usage
 
-Data accessed: The extension reads page content (text, DOM elements) only during an active task explicitly requested by the user through the Clanker mobile app. It does not passively monitor browsing activity, collect URLs visited, or access pages between tasks.
+The Clanker Chrome Extension acts as a secure bridge between your desktop browser
+and the Clanker AI ecosystem. To comply with the Chrome Web Store User Data Policy,
+we explicitly state the following:
 
-Data transmitted: Task results (extracted text, page summaries) are transmitted over an encrypted WebSocket connection to the user's Clanker account on Google Cloud Run. No data is transmitted to third parties.
+**Single Purpose:** The sole purpose of the extension is to allow the Clanker AI
+to read, summarize, and interact with the web pages you explicitly command it to.
 
-Data stored locally: The extension stores the following in chrome.storage.local: a device identifier (UUID), a Firebase Cloud Messaging registration token, a pause flag, and a log of the last 50 action types and statuses (no page content). Auth tokens are stored in an offscreen document's DOM storage and are scoped to the extension origin.
+**Data Collection:** The extension only extracts text, URLs, and DOM structure from
+your active tab when a specific task is triggered (either via scheduled automation
+or remote command). We do not passively track your browsing history or monitor
+background tabs.
 
-Permissions: All host permissions are optional and must be explicitly granted by the user per-site. The extension requests host access only when a user-triggered task targets a site not yet granted.
+**Data Transmission:** Extracted page data is transmitted securely to our cloud
+infrastructure strictly to process your AI prompt.
 
-User control: Users can pause all remote actions, revoke host permissions, or sign out at any time from the extension's side panel.
+**Limited Use Disclosure:** The extension's use and transfer to any other app of
+information received from Google APIs will adhere to the Chrome Web Store User Data
+Policy, including the Limited Use requirements.
+
+**No Data Sale:** We do not sell your browser data to third parties. Your data is
+not used for advertising, creditworthiness, or lending purposes.
 ```
 
 ---
