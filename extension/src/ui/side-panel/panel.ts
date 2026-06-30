@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth/web-extension'
 import { FIREBASE_CONFIG, CLOUD_BASE_URL, FIREBASE_SENDER_ID } from '../../env.js'
+import { renderLogEntries } from './render-log.js'
 
 const app = initializeApp(FIREBASE_CONFIG)
 const auth = getAuth(app)
@@ -84,8 +85,7 @@ async function syncPauseToCloud(isPaused: boolean): Promise<void> {
 
 async function renderLog(): Promise<void> {
   const { actionLog = [] } = await chrome.storage.local.get('actionLog')
-  ;($('log')).innerHTML = (actionLog as Array<{ ts: number; action: string; status: string }>)
-    .map((e) => `<li>${new Date(e.ts).toLocaleTimeString()} ${e.action} ${e.status === 'complete' ? '✓' : '✕'}</li>`).join('')
+  renderLogEntries($('log'), actionLog as Array<{ ts: number; action: string; status: string }>)
 }
 void renderLog()
 chrome.storage.onChanged.addListener((c) => { if (c.actionLog) void renderLog() })

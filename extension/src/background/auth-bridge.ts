@@ -4,8 +4,12 @@ export async function ensureOffscreen(): Promise<void> {
   if (await chrome.offscreen.hasDocument()) return
   await chrome.offscreen.createDocument({
     url: OFFSCREEN_PATH,
-    reasons: ['DOM_PARSER' as chrome.offscreen.Reason],
-    justification: 'Required to host Firebase Web Auth SDK which relies on DOM storage APIs',
+    reasons: ['LOCAL_STORAGE' as chrome.offscreen.Reason],
+    justification:
+      'Hosts Firebase Auth Web SDK (firebase/auth/web-extension). MV3 service workers ' +
+      'cannot access DOM storage APIs required for auth token persistence. ' +
+      'The offscreen document provides this context without exposing credentials ' +
+      'to the service worker global scope.',
   })
 }
 
