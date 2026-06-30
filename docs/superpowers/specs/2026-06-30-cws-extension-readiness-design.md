@@ -26,7 +26,7 @@ Three files, five changes. No new features, no refactoring beyond scope.
 
 ### 1.1 `extension/manifest.json` — 3 additions
 
-#### a) Add `icons` field
+#### a) Add `icons` field and update `action.default_icon`
 
 Files `icon-16.png`, `icon-48.png`, `icon-128.png` already exist in `extension/icons/`. The manifest does not declare them. CWS upload pipeline reads `icons.128` as the store listing icon — submission is blocked without it.
 
@@ -35,6 +35,19 @@ Files `icon-16.png`, `icon-48.png`, `icon-128.png` already exist in `extension/i
   "16": "icons/icon-16.png",
   "48": "icons/icon-48.png",
   "128": "icons/icon-128.png"
+}
+```
+
+Also add `128` to `action.default_icon` (current manifest only lists 16 and 48 — omitting 128 renders a blurry toolbar icon on hi-DPI displays):
+
+```json
+"action": {
+  "default_popup": "ui/popup/index.html",
+  "default_icon": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
 }
 ```
 
@@ -88,7 +101,7 @@ for (const entry of actionLog as Array<{ ts: number; action: string; status: str
 
 ---
 
-### 1.3 `extension/src/background/auth-bridge.ts:6` — sharpen `offscreen` justification
+### 1.3 `extension/src/background/auth-bridge.ts:8` — sharpen `offscreen` justification
 
 `DOM_PARSER` is the accepted community workaround for Firebase Auth in MV3 (Chrome has no `INDEXEDDB` offscreen reason). The reason value stays. The `justification` string is what Chrome reviewers actually read — the current string is too vague to satisfy a reviewer who must approve the offscreen document use.
 
@@ -125,7 +138,7 @@ Remote browser bridge for Clanker AI. Lets your AI assistant perform web tasks y
 
 **Detailed description:**
 ```
-Clanker Desktop Bridge connects your Clanker AI assistant (iOS) to your desktop browser so it can help you with web tasks you explicitly request — reading articles, extracting data, opening tabs, and (with your approval) filling fields or clicking buttons.
+Clanker Desktop Bridge connects your Clanker AI assistant (iOS and Android) to your desktop browser so it can help you with web tasks you explicitly request — reading articles, extracting data, opening tabs, and (with your approval) filling fields or clicking buttons.
 
 HOW IT WORKS
 When you ask Clanker to do something on your browser, the app sends a silent notification to this extension. The extension wakes, authenticates, and performs only the task you requested. It then goes idle. It does not run in the background between tasks.
