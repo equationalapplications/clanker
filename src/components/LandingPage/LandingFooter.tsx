@@ -1,6 +1,6 @@
 import { View, StyleSheet, Pressable, Linking, Platform } from 'react-native'
 import { Text, useTheme } from 'react-native-paper'
-import { Link, type Href } from 'expo-router'
+import { Link } from 'expo-router'
 import { useCookieConsent } from '~/components/CookieConsent'
 
 export default function LandingFooter() {
@@ -11,11 +11,18 @@ export default function LandingFooter() {
 
   return (
     <View style={styles.footer}>
-      <Link href={'/real-time-voice' as Href} asChild>
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => {
+          if (Platform.OS === 'web') {
+            window.location.assign('/real-time-voice')
+          }
+        }}
+      >
         <Text variant="bodySmall" style={linkStyle}>
           Real-Time Voice
         </Text>
-      </Link>
+      </Pressable>
       <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
       <Link href="/terms" asChild>
         <Text variant="bodySmall" style={linkStyle}>

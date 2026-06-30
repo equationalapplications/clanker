@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clanker — Design, chat with, and call your own AI characters</title>
+    <meta
+      name="description"
+      content="Clanker lets you design AI characters with unique personalities, chat with them, and call them in real time with natural voice conversations. Build a character, give it a voice, and talk hands-free."
+    />
+    <link rel="canonical" href="https://clanker-ai.com/welcome" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://clanker-ai.com/welcome" />
+    <meta property="og:title" content="Clanker — Your own AI characters, with real-time voice" />
+    <meta
+      property="og:description"
+      content="Design AI characters with unique personalities, chat with them, and call them in real time with natural, uninterrupted voice conversations."
+    />
+    <meta property="og:image" content="https://clanker-ai.com/og-image.png" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="500" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Clanker — Your own AI characters, with real-time voice" />
+    <meta
+      name="twitter:description"
+      content="Design AI characters, chat with them, and call them in real time with natural, uninterrupted voice conversations."
+    />
+    <meta name="twitter:image" content="https://clanker-ai.com/og-image.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Clanker",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "iOS, Android, Web",
+        "description": "Design AI characters with unique personalities, chat with them, and call them in real time with natural voice conversations.",
+        "url": "https://clanker-ai.com/",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
+
+    <style>
+      :root {
+        --primary: #835400;
+        --on-primary: #ffffff;
+        --background: #fffbff;
+        --on-background: #1f1b16;
+        --surface: #fffbff;
+        --surface-variant: #f0e0d0;
+        --on-surface-variant: #4f4539;
+        --outline: #817568;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--background);
+        color: var(--on-background);
+        line-height: 1.6;
+      }
+      a { color: var(--primary); }
+      .skip-link {
+        position: absolute; top: -9999px; left: 0; padding: 8px 16px;
+        background: #fff; color: #000; font-weight: bold; text-decoration: none;
+        border-radius: 4px; z-index: 9999;
+      }
+      .skip-link:focus { top: 8px; left: 8px; }
+      .hero { max-width: 760px; margin: 0 auto; padding: 48px 24px; text-align: center; }
+      .hero img { width: 120px; height: 120px; margin: 0 auto 16px; display: block; }
+      h1 { color: var(--primary); font-size: clamp(2rem, 5vw, 2.75rem); line-height: 1.15; margin: 0 0 16px; }
+      .lead { font-size: 1.125rem; margin: 0 0 28px; opacity: 0.9; }
+      .pill {
+        display: inline-block; margin-bottom: 24px; padding: 6px 14px;
+        border: 1px solid var(--primary); border-radius: 999px;
+        background: var(--surface-variant); color: var(--on-surface-variant);
+        font-size: 0.85rem; font-weight: 600; text-decoration: none;
+      }
+      .cta-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        padding: 12px 24px; border-radius: 999px; font-size: 1rem; font-weight: 600;
+        text-decoration: none; border: 2px solid transparent; cursor: pointer;
+      }
+      .btn-primary { background: var(--primary); color: var(--on-primary); }
+      .btn-primary:hover, .btn-primary:focus { background: #6a4300; }
+      .btn-outline { background: transparent; color: var(--primary); border-color: var(--primary); }
+      .btn-outline:hover, .btn-outline:focus { background: rgba(131, 84, 0, 0.08); }
+      .video-section { padding: 0 24px 48px; max-width: 900px; margin: 0 auto; text-align: center; }
+      .video-frame {
+        width: 100%; max-width: 800px; margin: 0 auto; aspect-ratio: 16 / 9;
+        border-radius: 16px; overflow: hidden; background: #1a1a1a; position: relative;
+      }
+      .video-frame iframe { width: 100%; height: 100%; border: none; }
+      .video-poster { display: block; width: 100%; height: 100%; object-fit: cover; }
+      .video-overlay {
+        position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 8px;
+        background: rgba(0, 0, 0, 0.45); color: #fff; text-decoration: none;
+        font-weight: 700; font-size: 1rem;
+      }
+      .features { background: var(--surface-variant); padding: 64px 24px; }
+      .features-inner { max-width: 960px; margin: 0 auto; text-align: center; }
+      h2 { font-size: clamp(1.5rem, 4vw, 2rem); margin: 0 0 32px; }
+      .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
+      .card {
+        background: var(--surface); border-radius: 16px; padding: 28px 20px;
+        width: 280px; max-width: 100%; flex: 1 1 280px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      }
+      .card h3 { margin: 12px 0 8px; font-size: 1.1rem; }
+      .card p { margin: 0; color: var(--on-surface-variant); font-size: 0.95rem; }
+      .card-icon { font-size: 2rem; line-height: 1; }
+      .bottom-cta { padding: 56px 24px; text-align: center; }
+      .bottom-cta h2 { margin-bottom: 20px; }
+      footer {
+        padding: 24px 16px; text-align: center; font-size: 0.875rem;
+        color: var(--outline); border-top: 1px solid var(--surface-variant);
+      }
+      footer a { color: var(--outline); }
+      footer span { margin: 0 4px; }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <main id="main-content">
+      <section class="hero">
+        <img src="/og-image.png" alt="Clanker" width="120" height="120" />
+        <a class="pill" href="/real-time-voice">✨ New: Live, Real-Time Voice Calls →</a>
+        <h1>Your own AI characters — now with real-time voice</h1>
+        <p class="lead">
+          Design AI characters with unique personalities, chat with them anywhere, and call them in
+          real time with natural, uninterrupted voice conversations. Build a character, give it a
+          voice, and talk hands-free.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="/sign-in?redirect=/chat">Try the App</a>
+          <a class="btn btn-outline" href="/real-time-voice">Explore Live Voice</a>
+        </div>
+      </section>
+
+      <section class="video-section" aria-labelledby="video-heading">
+        <h2 id="video-heading">See Clanker in action</h2>
+        <div class="video-frame">
+          <iframe
+            title="Clanker demo"
+            src="https://www.youtube.com/embed/6aictXUK_lw"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+          ></iframe>
+        </div>
+      </section>
+
+      <section class="features" aria-labelledby="features-heading">
+        <div class="features-inner">
+          <h2 id="features-heading">Everything you need to bring a character to life</h2>
+          <div class="grid">
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">📞</div>
+              <h3>Live, Real-Time Voice Calls</h3>
+              <p>
+                Natural, uninterrupted conversations that feel like a real phone call. Hands-free,
+                interruptible, with live web and memory tools. Just 1 credit per minute.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">🤖</div>
+              <h3>Build Your Character</h3>
+              <p>
+                Give your AI a name, appearance, personality, emotional range, and backstory.
+                Generate a unique portrait avatar with AI — no art skills needed.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">💬</div>
+              <h3>Real AI Conversations</h3>
+              <p>
+                Chat with characters that remember their personality. Long conversations are
+                summarized automatically so your Clanker stays in character.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">☁️</div>
+              <h3>Share &amp; Sync</h3>
+              <p>
+                Save characters to the cloud and sync across all your devices. Share any character
+                via link — anyone can open it instantly.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">🧠</div>
+              <h3>Wiki-Based Memory</h3>
+              <p>
+                Your assistant reconciles conflicting information to stay consistent, maintaining a
+                compounding knowledge base without prompt bloat.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">📄</div>
+              <h3>Personal Assistant</h3>
+              <p>
+                Upload documents — PDFs, Word docs, and images — and your assistant builds
+                foundational knowledge from them and evolves as you add more.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="bottom-cta">
+        <h2>Ready to meet your character?</h2>
+        <a class="btn btn-primary" href="/sign-in?redirect=/chat">Get started free</a>
+      </section>
+    </main>
+
+    <footer>
+      <a href="/welcome">About Clanker</a>
+      <span>·</span>
+      <a href="/real-time-voice">Real-Time Voice</a>
+      <span>·</span>
+      <a href="/terms">Terms and Conditions</a>
+      <span>·</span>
+      <a href="/privacy">Privacy Policy</a>
+      <span>·</span>
+      <a href="https://equationalapplications.com/" rel="noopener noreferrer"
+        >Equational Applications LLC</a
+      >
+    </footer>
+  </body>
+</html>

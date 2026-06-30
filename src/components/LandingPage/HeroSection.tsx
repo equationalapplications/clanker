@@ -1,8 +1,8 @@
-import { StyleSheet, View, Pressable, useWindowDimensions } from 'react-native'
+import { StyleSheet, View, Pressable, Platform, useWindowDimensions } from 'react-native'
 import { useEffect } from 'react'
 import { Button, useTheme } from 'react-native-paper'
 import { Image } from 'expo-image'
-import { Link, useRouter, type Href } from 'expo-router'
+import { useRouter } from 'expo-router'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -122,20 +122,23 @@ export default function HeroSection() {
       <View style={styles.center}>
         {/* New-feature announcement pill */}
         <Animated.View entering={FadeInDown.delay(50).duration(600)}>
-          <Link href={'/real-time-voice' as Href} asChild>
-            <Pressable
-              accessibilityRole="link"
-              accessibilityLabel="New: Live, real-time voice calls. Learn more."
-              style={[
-                styles.announcePill,
-                { backgroundColor: colors.secondaryContainer, borderColor: colors.primary },
-              ]}
-            >
-              <MonoText style={[styles.announceText, { color: colors.onSecondaryContainer }]}>
-                ✨ New: Live, Real-Time Voice Calls →
-              </MonoText>
-            </Pressable>
-          </Link>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="New: Live, real-time voice calls. Learn more."
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                window.location.assign('/real-time-voice')
+              }
+            }}
+            style={[
+              styles.announcePill,
+              { backgroundColor: colors.secondaryContainer, borderColor: colors.primary },
+            ]}
+          >
+            <MonoText style={[styles.announceText, { color: colors.onSecondaryContainer }]}>
+              ✨ New: Live, Real-Time Voice Calls →
+            </MonoText>
+          </Pressable>
         </Animated.View>
 
         {/* Title with glow halo + shiver */}

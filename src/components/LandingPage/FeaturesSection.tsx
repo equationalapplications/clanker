@@ -1,6 +1,5 @@
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, Platform } from 'react-native'
 import { Text, Card, useTheme } from 'react-native-paper'
-import { Link, type Href } from 'expo-router'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFloatingCardAnimation } from '~/hooks/useFloatingCardAnimation'
@@ -10,7 +9,7 @@ const FEATURES = [
     icon: 'phone-in-talk' as const,
     title: 'Live, Real-Time Voice Calls',
     body: 'Experience natural, uninterrupted conversations that feel exactly like a real phone call. Talk hands-free on speakerphone, interrupt your character seamlessly if you change your mind, and listen as they search the web or check your shared memory mid-conversation. (Live voice sessions cost just 1 credit per minute.)',
-    learnMoreHref: '/real-time-voice' as Href,
+    learnMoreHref: '/real-time-voice',
     isNew: true,
   },
   {
@@ -93,16 +92,19 @@ function FeatureCard({
             {feat.body}
           </Text>
           {'learnMoreHref' in feat && feat.learnMoreHref ? (
-            <Link href={feat.learnMoreHref} asChild>
-              <Text
-                variant="labelLarge"
-                style={{ color: colors.primary, marginTop: 4 }}
-                accessibilityRole="link"
-                accessibilityLabel={`Learn more about ${feat.title}`}
-              >
-                Learn more →
-              </Text>
-            </Link>
+            <Text
+              variant="labelLarge"
+              onPress={() => {
+                if (Platform.OS === 'web') {
+                  window.location.assign(feat.learnMoreHref as string)
+                }
+              }}
+              style={{ color: colors.primary, marginTop: 4 }}
+              accessibilityRole="link"
+              accessibilityLabel={`Learn more about ${feat.title}`}
+            >
+              Learn more →
+            </Text>
           ) : null}
         </Card.Content>
       </Card>
