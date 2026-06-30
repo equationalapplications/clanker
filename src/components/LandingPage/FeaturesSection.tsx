@@ -1,10 +1,18 @@
 import { View, StyleSheet } from 'react-native'
 import { Text, Card, useTheme } from 'react-native-paper'
+import { Link, type Href } from 'expo-router'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFloatingCardAnimation } from '~/hooks/useFloatingCardAnimation'
 
 const FEATURES = [
+  {
+    icon: 'phone-in-talk' as const,
+    title: 'Live, Real-Time Voice Calls',
+    body: 'Experience natural, uninterrupted conversations that feel exactly like a real phone call. Talk hands-free on speakerphone, interrupt your character seamlessly if you change your mind, and listen as they search the web or check your shared memory mid-conversation. (Live voice sessions cost just 1 credit per minute.)',
+    learnMoreHref: '/real-time-voice' as Href,
+    isNew: true,
+  },
   {
     icon: 'robot-outline' as const,
     title: 'Build Your Character',
@@ -14,11 +22,6 @@ const FEATURES = [
     icon: 'chat-outline' as const,
     title: 'Real AI Conversations',
     body: 'Chat with characters that actually remember their personality. Long conversation memory is automatically summarized so your Clanker stays in character.',
-  },
-  {
-    icon: 'microphone-outline' as const,
-    title: 'Talk to Your Character',
-    body: 'Tap the mic and speak. Your character replies in their own voice. Voice replies cost 2 credits each.',
   },
   {
     icon: 'cloud-sync-outline' as const,
@@ -46,14 +49,34 @@ function FeatureCard({
 }) {
   const { colors } = useTheme()
   const cardAnimStyle = useFloatingCardAnimation(index)
+  const isNew = 'isNew' in feat && feat.isNew === true
 
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 150).duration(500)}
       style={[styles.cardWrap, cardAnimStyle]}
     >
-      <Card style={[styles.card, { backgroundColor: colors.surface }]} elevation={1}>
-        <Card.Content style={styles.cardContent}>
+      <Card
+        style={[
+          styles.card,
+          { backgroundColor: colors.surface },
+          isNew && { borderColor: colors.primary, borderWidth: 1 },
+        ]}
+        elevation={isNew ? 3 : 1}
+      >
+        {isNew ? (
+          <View style={styles.badgeRow}>
+            <View
+              style={[styles.badge, { backgroundColor: colors.primary }]}
+              accessibilityRole="text"
+              accessibilityLabel="New feature"
+              accessible
+            >
+              <Text style={[styles.badgeText, { color: colors.onPrimary }]}>New</Text>
+            </View>
+          </View>
+        ) : null}
+        <Card.Content style={[styles.cardContent, isNew && styles.cardContentWithBadge]}>
           <MaterialCommunityIcons
             name={feat.icon}
             size={36}
@@ -69,6 +92,18 @@ function FeatureCard({
           <Text variant="bodyMedium" style={{ color: colors.onSurfaceVariant }}>
             {feat.body}
           </Text>
+          {'learnMoreHref' in feat && feat.learnMoreHref ? (
+            <Link href={feat.learnMoreHref} asChild>
+              <Text
+                variant="labelLarge"
+                style={{ color: colors.primary, marginTop: 4 }}
+                accessibilityRole="link"
+                accessibilityLabel={`Learn more about ${feat.title}`}
+              >
+                Learn more →
+              </Text>
+            </Link>
+          ) : null}
         </Card.Content>
       </Card>
     </Animated.View>
@@ -122,11 +157,32 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
   },
+  badgeRow: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 1,
+  },
+  badge: {
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
   cardContent: {
     alignItems: 'center',
     paddingVertical: 28,
     paddingHorizontal: 20,
     gap: 12,
+  },
+  cardContentWithBadge: {
+    paddingTop: 44,
   },
   icon: {
     marginBottom: 4,

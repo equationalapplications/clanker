@@ -311,6 +311,7 @@ function RootLayoutNav() {
             headerBackTitle: 'Back',
           }}
         />
+        <Stack.Screen name="real-time-voice" options={{ headerShown: false }} />
         <Stack.Screen name="checkout/success" options={{ headerShown: false }} />
         <Stack.Screen name="checkout/cancel" options={{ headerShown: false }} />
       </Stack>

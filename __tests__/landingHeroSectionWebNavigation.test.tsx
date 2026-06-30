@@ -50,11 +50,16 @@ jest.mock('expo-image', () => ({
   Image: 'Image',
 }))
 
-jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    push: (...args: any[]) => mockPush(...args),
-  }),
-}))
+jest.mock('expo-router', () => {
+  const React = require('react')
+  return {
+    useRouter: () => ({
+      push: (...args: any[]) => mockPush(...args),
+    }),
+    Link: ({ children, href, ...props }: any) =>
+      React.createElement('Link', { href, ...props }, children),
+  }
+})
 
 jest.mock('react-native-reanimated', () => {
   const React = require('react')

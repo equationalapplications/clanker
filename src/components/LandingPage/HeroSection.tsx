@@ -2,7 +2,7 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useEffect } from 'react'
 import { Button, useTheme } from 'react-native-paper'
 import { Image } from 'expo-image'
-import { useRouter } from 'expo-router'
+import { Link, useRouter, type Href } from 'expo-router'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -120,6 +120,24 @@ export default function HeroSection() {
 
       {/* Center content */}
       <View style={styles.center}>
+        {/* New-feature announcement pill */}
+        <Animated.View entering={FadeInDown.delay(50).duration(600)}>
+          <Link href={'/real-time-voice' as Href} asChild>
+            <View
+              accessibilityRole="link"
+              accessibilityLabel="New: Live, real-time voice calls. Learn more."
+              style={[
+                styles.announcePill,
+                { backgroundColor: colors.secondaryContainer, borderColor: colors.primary },
+              ]}
+            >
+              <MonoText style={[styles.announceText, { color: colors.onSecondaryContainer }]}>
+                ✨ New: Live, Real-Time Voice Calls →
+              </MonoText>
+            </View>
+          </Link>
+        </Animated.View>
+
         {/* Title with glow halo + shiver */}
         <Animated.View
           entering={FadeInDown.delay(100).duration(600)}
@@ -130,7 +148,7 @@ export default function HeroSection() {
 
         <Animated.View entering={FadeInDown.delay(250).duration(600)}>
           <MonoText style={[styles.tagline, { color: colors.onBackground }]}>
-            Design, chat with, and share your own AI characters
+            Design, chat with, call, and share your own AI characters
           </MonoText>
         </Animated.View>
 
@@ -184,6 +202,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     gap: 4,
+  },
+  announcePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  announceText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   titleWrap: {
     paddingHorizontal: 16,

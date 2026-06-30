@@ -1,6 +1,6 @@
 import { View, StyleSheet, Pressable, Linking, Platform } from 'react-native'
 import { Text, useTheme } from 'react-native-paper'
-import { Link } from 'expo-router'
+import { Link, type Href } from 'expo-router'
 import { useCookieConsent } from '~/components/CookieConsent'
 
 export default function LandingFooter() {
@@ -11,6 +11,12 @@ export default function LandingFooter() {
 
   return (
     <View style={styles.footer}>
+      <Link href={'/real-time-voice' as Href} asChild>
+        <Text variant="bodySmall" style={linkStyle}>
+          Real-Time Voice
+        </Text>
+      </Link>
+      <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
       <Link href="/terms" asChild>
         <Text variant="bodySmall" style={linkStyle}>
           Terms and Conditions
