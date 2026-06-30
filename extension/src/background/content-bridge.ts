@@ -1,6 +1,5 @@
 import type { SingleAction } from '../shared/dsl-types.js'
 import type { Injector } from './task-dispatcher.js'
-import { runActionInPage } from '../content/executor.js'
 
 function originPattern(url: string): string {
   try { return new URL(url).origin + '/*' } catch { return url }
@@ -29,6 +28,39 @@ async function activeTab(): Promise<{ id: number; url: string }> {
   return { id: tab.id, url: tab.url ?? '' }
 }
 
+type ContentResponse =
+  | { data: Record<string, string>; activeUrl: string }
+  | { awaitingAuth: true }
+  | { error: string }
+
+function sendActionToTab(
+  tabId: number,
+  action: SingleAction,
+  ctx: { skipLayerTwo?: boolean },
+): Promise<{ data: Record<string, string>; activeUrl: string } | { awaitingAuth: true }> {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, { type: 'CLANKER_RUN_ACTION', action, ctx }, (response: ContentResponse | undefined) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error('EXECUTION_ERROR: ' + (chrome.runtime.lastError.message ?? 'no response from content script')))
+        return
+      }
+      if (!response) {
+        reject(new Error('EXECUTION_ERROR: empty response from content script'))
+        return
+      }
+      if ('error' in response) {
+        reject(new Error(response.error))
+        return
+      }
+      if ('awaitingAuth' in response) {
+        resolve({ awaitingAuth: true as const })
+        return
+      }
+      resolve(response)
+    })
+  })
+}
+
 export function createInjector(): Injector {
   return {
     async openTab(url: string) {
@@ -44,15 +76,12 @@ export function createInjector(): Injector {
     async runInActiveTab(action: SingleAction, ctx: { skipLayerTwo?: boolean } = {}) {
       const tab = await activeTab()
       if (tab.url) await ensureHost(tab.url)
-      const [res] = await chrome.scripting.executeScript({
+      // Inject the executor content script (idempotent — guarded by window.__clankerInjected)
+      await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: runActionInPage as unknown as (...a: unknown[]) => unknown,
-        args: [action, ctx],
+        files: ['content/executor.js'],
       })
-      const out = res?.result as { data: Record<string, string>; activeUrl: string } | { awaitingAuth: true } | undefined
-      if (!out) throw new Error('EXECUTION_ERROR: empty injection result')
-      if ('awaitingAuth' in out) return { awaitingAuth: true as const }
-      return out
+      return sendActionToTab(tab.id, action, ctx)
     },
   }
 }

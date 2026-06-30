@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth'
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth/web-extension'
 import { FIREBASE_CONFIG, CLOUD_BASE_URL, FIREBASE_SENDER_ID } from '../../env.js'
 
 const app = initializeApp(FIREBASE_CONFIG)
@@ -8,13 +8,19 @@ const $ = (id: string) => document.getElementById(id)!
 
 onAuthStateChanged(auth, (user) => {
   ;($('account')).textContent = `Account: ${user?.email ?? '(signed out)'}`
-  ;($('signin') as HTMLButtonElement).hidden = !!user
+  ;($('signin-form') as HTMLDivElement).hidden = !!user
   ;($('signout') as HTMLButtonElement).hidden = !user
+  ;($('retry-register') as HTMLButtonElement).hidden = !user
   if (user) void registerThisDevice()
 })
 
-$('signin').addEventListener('click', () => { void signInWithPopup(auth, new GoogleAuthProvider()) })
+$('signin').addEventListener('click', () => {
+  const email = ($('email') as HTMLInputElement).value.trim()
+  const password = ($('password') as HTMLInputElement).value
+  void signInWithEmailAndPassword(auth, email, password).catch((e) => alert(e.message))
+})
 $('signout').addEventListener('click', () => { void signOut(auth); void chrome.storage.local.remove('deviceId') })
+$('retry-register').addEventListener('click', () => { void registerThisDevice() })
 
 $('pause').addEventListener('click', async () => {
   const { paused } = await chrome.storage.local.get('paused')
@@ -43,17 +49,23 @@ void syncGrantButton()
 chrome.storage.onChanged.addListener((c) => { if (c.pendingHost) void syncGrantButton() })
 
 async function registerThisDevice(): Promise<void> {
-  const idToken = await auth.currentUser!.getIdToken()
-  const { deviceId: existing, gcmToken } = await chrome.storage.local.get(['deviceId', 'gcmToken'])
+  const user = auth.currentUser
+  if (!user) return
+  ;($('device')).textContent = 'Device: registering...'
+  const idToken = await user.getIdToken()
+  const { deviceId: existing, gcmToken: cached } = await chrome.storage.local.get(['deviceId', 'gcmToken'])
   const deviceId = (existing as string) ?? crypto.randomUUID()
   if (!existing) await chrome.storage.local.set({ deviceId })
-  let token = gcmToken as string | undefined
-  if (!token) token = await new Promise<string>((res) => chrome.gcm.register([FIREBASE_SENDER_ID], (t) => res(t)))
-  await fetch(`${CLOUD_BASE_URL}/agent/browser/register-device`, {
+  // Register immediately with cached GCM token or polling placeholder.
+  // This avoids holding the auth token while waiting for slow GCM negotiation.
+  const fcmToken = (cached as string | undefined) ?? `polling:${deviceId}`
+  const res = await fetch(`${CLOUD_BASE_URL}/agent/browser/register-device`, {
     method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${idToken}` },
-    body: JSON.stringify({ fcmToken: token, deviceId, deviceName: `${navigator.platform} — Chrome` }),
+    body: JSON.stringify({ fcmToken, deviceId, deviceName: `${navigator.platform} — Chrome` }),
   })
-  ;($('device')).textContent = `Device: ${navigator.platform} — Chrome`
+  if (!res.ok) { ;($('device')).textContent = `Device: registration failed (${res.status})`; return }
+  const mode = cached ? '' : ' (polling mode — GCM unavailable)'
+  ;($('device')).textContent = `Device: ${navigator.platform} — Chrome (registered${mode})`
 }
 
 async function syncPauseToCloud(isPaused: boolean): Promise<void> {

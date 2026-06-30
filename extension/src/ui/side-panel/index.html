@@ -6,7 +6,13 @@
   <div class="row" id="status">Status: ○ Idle</div>
   <div class="row" id="account">Account: (signed out)</div>
   <div class="row" id="device">Device: —</div>
-  <div class="row"><button id="signin">Sign In</button> <button id="signout" hidden>Sign Out</button></div>
+  <div class="row"><button id="retry-register" hidden>Retry Registration</button></div>
+  <div id="signin-form" class="row">
+    <input id="email" type="email" placeholder="Email" style="width:180px;padding:4px"><br>
+    <input id="password" type="password" placeholder="Password" style="width:180px;padding:4px;margin-top:4px"><br>
+    <button id="signin" style="margin-top:4px">Sign In</button>
+  </div>
+  <div class="row"><button id="signout" hidden>Sign Out</button></div>
   <div class="row"><button id="pause">Pause Remote Actions</button></div>
   <div class="row"><button id="grant" hidden>Grant Access</button></div>
   <h4>Recent Actions</h4>

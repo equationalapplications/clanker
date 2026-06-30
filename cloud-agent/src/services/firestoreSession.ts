@@ -176,6 +176,19 @@ export function createFirestoreSession(db: FirestoreLike) {
         if (snap.exists) cb(snap.data() as unknown as AuthDoc)
       })
     },
+
+    async getPendingSchedulerSession(uid: string): Promise<{ sessionId: string; taskId: string | null } | null> {
+      const snap = await db.collection(`users/${uid}/sessions`)
+        .where('status', '==', 'pending')
+        .orderBy('createdAt', 'asc')
+        .limit(1)
+        .get()
+      if (snap.empty) return null
+      const sid = snap.docs[0].id
+      const taskSnap = await db.collection(`users/${uid}/sessions/${sid}/tasks`).limit(1).get()
+      const taskId = taskSnap.empty ? null : taskSnap.docs[0].id
+      return { sessionId: sid, taskId }
+    },
   }
 }
 
