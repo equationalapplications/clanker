@@ -1,3 +1,19 @@
+# [30.11.0](https://github.com/equationalapplications/clanker/compare/v30.10.0...v30.11.0) (2026-06-30)
+
+
+### Bug Fixes
+
+* address PR review feedback on static pages and web DB lifecycle ([574cff9](https://github.com/equationalapplications/clanker/commit/574cff96956fb80256df072deaffffeb74004e3b))
+* **landing:** address PR 499 review feedback ([ed953bc](https://github.com/equationalapplications/clanker/commit/ed953bc9a6a1f842501e0eeeabbdef16fe01830a))
+* **web:** opfs startup recovery and welcome page icon ([737f03f](https://github.com/equationalapplications/clanker/commit/737f03fdc2ebedbc183d8000660e75696429f7af))
+
+
+### Features
+
+* **landing:** promote real-time voice on home and promo page ([fd55703](https://github.com/equationalapplications/clanker/commit/fd55703de37e9199fa715d79f7dd0f1e18cde041))
+* **landing:** serve /real-time-voice as static HTML for SEO ([c046dce](https://github.com/equationalapplications/clanker/commit/c046dcea1608d2c8839e5d58832ea4b83c0c5b9d))
+* **landing:** static marketing pages and remove React voice route ([e725142](https://github.com/equationalapplications/clanker/commit/e7251426ac3bc1583ffe33728de9c5bb363d7aee))
+
 # [30.10.0](https://github.com/equationalapplications/clanker/compare/v30.9.0...v30.10.0) (2026-06-30)
 
 
