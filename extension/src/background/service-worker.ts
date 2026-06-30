@@ -33,10 +33,9 @@ async function registerDevice(gcmToken: string): Promise<void> {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.gcm.register([FIREBASE_SENDER_ID], (gcmToken) => {
-    if (chrome.runtime.lastError) { console.error(chrome.runtime.lastError); return }
-    void chrome.storage.local.set({ gcmToken })
-    void registerDevice(gcmToken)
+  chrome.gcm.register([FIREBASE_SENDER_ID], (registrationToken) => {
+    if (chrome.runtime.lastError || !registrationToken) return
+    void chrome.storage.local.set({ gcmToken: registrationToken }).then(() => registerDevice(registrationToken))
   })
 })
 

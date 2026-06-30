@@ -1,7 +1,7 @@
 # MV3 Browser Extension Remote Agent Bridge — Design Spec
 
 **Date:** 2026-06-29
-**Status:** Partially Implemented
+**Status:** Implemented
 **Supersedes:** `2026-04-24-browser-extension-remote-agent-design.md` (April draft — replaced by this spec)
 
 ---
@@ -27,7 +27,7 @@ This feature introduces greenfield infrastructure not present in the Clanker rep
 | **Firestore Security Rules** | Tenant isolation; client read-only on tasks; server-owned writes | Deploy via `firebase deploy --only firestore:rules` |
 | **FCM Sender ID** | `chrome.gcm.register()` in extension | Firebase console → Project Settings → Cloud Messaging |
 | **Cloud Agent Firestore Admin SDK** | `firestoreSession.ts` read/write helpers | Use `admin.firestore()` via existing `firebase-admin` — no additional dep required |
-| **Expo Push** (Phase 2+) | Approval cards, async task completion | `expo-notifications` in mobile app; token registration pipeline |
+| **Expo Push** | Approval cards for stateful actions, async task completion | `expo-notifications` in mobile app; token registration pipeline |
 
 **Not in scope today:** Cloud Agent uses Postgres/Drizzle for agent data and `firebase-admin` for auth verification only. Mobile app has no push notification infrastructure. The extension directory does not exist.
 
@@ -845,6 +845,7 @@ extension/
 
   "permissions": [
     "scripting",
+    "tabs",
     "storage",
     "sidePanel",
     "notifications",
@@ -1024,12 +1025,14 @@ Action log: last 50 entries in `chrome.storage.local`. "Pause Remote Actions" wr
 
 ## MVP Scope & Phasing
 
-### Phase 1 — MVP (Read-Only Bridge)
+### Phase 1 — MVP
 
 **In scope:**
 - Device pairing: Firebase Auth + FCM token registration (`/agent/browser/register-device`)
 - Wake-and-Connect lifecycle: FCM → WS auth → task dispatch → SESSION_END
-- Task DSL read-only + navigation tiers: `extract`, `summarize_visible_text`, `read_dom`, `open_tab`, `focus_tab`, `scroll`
+- Task DSL read + navigation tiers: `extract`, `summarize_visible_text`, `read_dom`, `open_tab`, `focus_tab`, `scroll`
+- Stateful actions with Layer-2 classifier gate: `fill_field`, `click` (halt + approval flow on destructive elements)
+- FCM approval card + Expo Push pipeline; `haltedStepIndex` sequence resume
 - Context streaming: extension → Firestore → Cloud Agent → voice/text response
 - Fail-closed error handling: `SELECTOR_NOT_FOUND`, `HOST_NOT_ALLOWED`, `EXTENSION_OFFLINE`, `HOST_PERMISSION_REQUIRED`
 - Wake Timeout (12s offline detection)
@@ -1037,9 +1040,6 @@ Action log: last 50 entries in `chrome.storage.local`. "Pause Remote Actions" wr
 - Host permission grant flow (notification + side panel button)
 
 **Out of scope (Phase 2+):**
-- Stateful actions: `fill_field`, `click`
-- FCM approval card + Expo Push pipeline
-- `haltedStepIndex` sequence resume
 - Proactive / Cloud Scheduler triggered tasks
 - Multi-device pairing
 - Auto-retry after host permission grant
@@ -1050,10 +1050,9 @@ Action log: last 50 entries in `chrome.storage.local`. "Pause Remote Actions" wr
 
 | Phase | Scope | Gate |
 |-------|-------|------|
-| 1 | Read-only + navigation bridge: pairing, WS, all 6 Phase 1 actions, billing, error handling | 5 E2E extract/summarize tasks pass |
-| 2 | Stateful actions: fill_field, click, FCM approval card, haltedStepIndex resume | Approval flow validated on staging payment form |
-| 3 | Proactive: Cloud Scheduler triggers, Expo Push async completion | 1 working scheduled monitoring task |
-| 4 | CWS submission | Policy preflight checklist passes, store listing approved |
+| 1 | Full bridge: pairing, WS, all DSL actions, stateful fill/click with approval flow, billing, error handling | 5 E2E extract/summarize tasks pass + 1 approval flow validated |
+| 2 | Proactive: Cloud Scheduler triggers, Expo Push async completion | 1 working scheduled monitoring task |
+| 3 | CWS submission | Policy preflight checklist passes, store listing approved |
 
 ---
 

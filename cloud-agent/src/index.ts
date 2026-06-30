@@ -25,6 +25,7 @@ import { defaultFcmDispatcher } from './services/fcmDispatcher.js'
 import { upsertDeviceRecord } from './services/deviceUpsert.js'
 import { upsertExpoPushToken, getExpoPushToken } from './handlers/expoPushToken.js'
 import { handleApproveAction } from './handlers/approveAction.js'
+import { createSchedulerTriggerHandler, createRequireSchedulerSecret } from './handlers/schedulerTriggerHandler.js'
 import { INSTANCE_ID } from './services/instanceId.js'
 import { z } from 'zod'
 
@@ -216,6 +217,14 @@ export function createApp(options: AppOptions) {
     handler: rateLimitHandler,
   })
 
+  const schedulerTriggerLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: rateLimitHandler,
+  })
+
   app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     try {
       const parseResult = z
@@ -384,6 +393,38 @@ export function createApp(options: AppOptions) {
       console.error('approve-action error:', err)
       res.status(500).json({ error: 'Internal server error' })
     }
+  })
+
+  let schedulerHandler: ReturnType<typeof createSchedulerTriggerHandler> | undefined
+
+  app.post('/agent/browser/scheduler-trigger', schedulerTriggerLimiter, (req: Request, res: Response, next: NextFunction): void => {
+    const secret = process.env.SCHEDULER_SECRET
+    if (!secret) {
+      res.status(503).json({ error: 'Scheduler trigger not configured' })
+      return
+    }
+    createRequireSchedulerSecret(secret)(req, res, next)
+  }, (req: Request, res: Response, next: NextFunction): void => {
+    if (!browserBridgeAvailable) {
+      res.status(503).json({ error: 'Browser bridge unavailable' })
+      return
+    }
+    next()
+  }, (req: Request, res: Response): void => {
+    if (!schedulerHandler) {
+      schedulerHandler = createSchedulerTriggerHandler(
+        defaultFirestoreSession(),
+        defaultFcmDispatcher(),
+        (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
+        cs,
+        async (firebaseUid: string) => {
+          const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
+          return u?.id ?? null
+        },
+        { schedulerTimeoutMs: 90_000 },
+      )
+    }
+    void schedulerHandler(req, res)
   })
 
   return app

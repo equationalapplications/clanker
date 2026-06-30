@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { JSDOM } from 'jsdom'
-import { runAction } from './executor.js'
+import { runAction, type ActionOutcome } from './executor.js'
 
 function ctx(html: string) {
   const dom = new JSDOM(html, { url: 'https://example.com/' })
@@ -15,13 +15,13 @@ function ctx(html: string) {
 test('extract action returns data record', async () => {
   const c = ctx('<span class="p">$9</span>')
   const r = await runAction({ type: 'extract', selector: '.p', label: 'price' }, c.doc, c.win as never)
-  assert.deepEqual(r.data, { price: '$9' })
+  assert.deepEqual((r as ActionOutcome).data, { price: '$9' })
 })
 
 test('read_dom returns html under read_dom key', async () => {
   const c = ctx('<div id="x"><i>z</i></div>')
   const r = await runAction({ type: 'read_dom', selector: '#x' }, c.doc, c.win as never)
-  assert.match(r.data.read_dom, /<i>z<\/i>/)
+  assert.match((r as ActionOutcome).data.read_dom, /<i>z<\/i>/)
 })
 
 test('scroll down moves the viewport', async () => {

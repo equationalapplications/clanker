@@ -37,7 +37,7 @@ test('sequence runs steps in order and merges data', async () => {
     inj as never,
   )
   assert.deepEqual(inj.seen, ['open_tab', 'extract', 'summarize_visible_text'])
-  assert.deepEqual(res.data, { total: '$9', summary: 'hi' })
+  assert.deepEqual((res as TaskResult).data, { total: '$9', summary: 'hi' })
 })
 
 test('selector failure → failed result with code', async () => {
@@ -50,7 +50,7 @@ test('selector failure → failed result with code', async () => {
   assert.equal(res.error?.code, 'SELECTOR_NOT_FOUND')
 })
 
-import type { TaskIntent } from '../shared/dsl-types.js'
+import type { TaskIntent, TaskResult } from '../shared/dsl-types.js'
 
 const baseIntent: TaskIntent = {
   version: '1', taskId: 't1', sessionId: 's1',

@@ -5,6 +5,8 @@
 
 # Checks
 - After changing `root` or `functions/`, run: `npm run typecheck && npm run lint && npm run test`
+- After changing `cloud-agent/`, run: `cd cloud-agent && npm run typecheck && npm test`
+- After changing `extension/`, run: `cd extension && npm run typecheck && npm test`
 
 # Git & Commits
 - **Flow**: feature → `staging` → `main` (via PRs only).

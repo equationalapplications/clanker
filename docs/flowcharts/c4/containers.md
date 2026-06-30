@@ -9,7 +9,7 @@ C4Container
   Person(user, "User", "Mobile voice/text user; desktop Chrome user with paired extension")
 
   System_Boundary(clanker_b, "Clanker") {
-    Container(app, "Clanker App", "Expo React Native (shared mobile/web)", "UI plus edge agent orchestration (useEdgeAgent) for text chat; Talk tab live voice via XState + WebSocket /agent/live. Expo Push receiver and approval UI (Phase 2+). 90%+ shared code across mobile and web.")
+    Container(app, "Clanker App", "Expo React Native (shared mobile/web)", "UI plus edge agent orchestration (useEdgeAgent) for text chat; Talk tab live voice via XState + WebSocket /agent/live. Expo Push receiver and browser-action approval UI. 90%+ shared code across mobile and web.")
     Container(extension, "Desktop Bridge Extension", "MV3 Chrome extension", "Idle until FCM wake. Service worker opens /agent/browser WebSocket, dispatches Task DSL to content scripts. Firebase Auth via offscreen document; device pairing via register-device.")
     Container(sqlite, "Local SQLite", "expo-sqlite", "Offline-first store: messages, characters, wiki/memory (expo-llm-wiki), and tasks. Messages never leave device.")
   }
@@ -26,14 +26,14 @@ C4Container
   }
 
   System_Ext(gemini, "Vertex AI (Gemini)", "LLM completions (model selected server-side)")
-  System_Ext(expo_push, "Expo Push", "Mobile push — approval cards and async task completion (Phase 2+)")
+  System_Ext(expo_push, "Expo Push", "Mobile push — approval cards (Phase 1); async task completion when voice session closed (Phase 2+)")
   System_Ext(revenuecat, "RevenueCat", "Mobile IAP (native SDK)")
   System_Ext(stripe, "Stripe", "Web subscription payments")
 
   Rel(user, app, "Uses", "HTTPS / native")
   Rel(user, extension, "Pairs device, grants host permissions", "Chrome side panel")
   Rel(app, auth, "Sign-in and token refresh")
-  Rel(app, firestore, "Read sessions/tasks; write auth approvals (Phase 2+)", "Firebase client SDK")
+  Rel(app, firestore, "Read sessions/tasks; write auth approvals", "Firebase client SDK")
   Rel(app, functions, "generateReply (edge agent + fallback), bootstrap, wiki, media, character sync")
   Rel(app, cloudagent, "Escalated text chat and live voice", "WebSocket /agent/stream or /agent/live (HTTP /agent/run text fallback) + Bearer token")
   Rel(app, sqlite, "All local reads and writes")
@@ -50,7 +50,7 @@ C4Container
   Rel(cloudagent, cloudsql, "Character data, tasks, wiki events, credits (Drizzle ORM)")
   Rel(cloudagent, gemini, "LLM calls via Google ADK (text, voice, browser_action)")
   Rel(cloudagent, extension, "FCM WAKE_AND_CONNECT silent push", "Firebase Admin messaging()")
-  Rel(cloudagent, expo_push, "Approval cards, async task complete (Phase 2+)", "REST")
+  Rel(cloudagent, expo_push, "Approval cards; async task complete when voice closed (Phase 2+)", "REST")
 ```
 
 ## Text chat routing (summary)
@@ -87,8 +87,8 @@ Three-node async loop. Voice WS and browser WS may land on different Cloud Run i
 4. **Result** — Extension returns `task_result` via WS; Cloud Agent writes to Firestore; voice-side `watchTask` listener delivers to Gemini Live (or text path `await`s with 30s cap).
 5. **Teardown** — `session_end` frame; extension closes WS and offscreen auth doc; service worker suspends.
 
-**Phase 2+ approval path:** Extension halts on destructive action → auth doc in Firestore → Expo Push approval card → mobile approves via HTTP `/agent/browser/approve-action` → observer re-wakes extension with `resume: true`.
+**Approval path (Phase 1):** Extension halts on destructive action → auth doc in Firestore → Expo Push approval card → mobile approves via HTTP `/agent/browser/approve-action` → observer re-wakes extension with `resume: true`.
 
 > **Note:** `sessionBridge.voiceWs` / `browserWs` are same-instance shortcuts only. Primary result delivery is always the Firestore `watchTask` listener on the voice-side instance.
 
-See [Edge Agent](../../edge-agent.md), [AI & Chat](../../ai-and-chat.md), and the [MV3 Browser Extension Bridge design spec](../../superpowers/specs/2026-06-29-mv3-browser-extension-bridge-design.md).
+See [Browser Bridge](../../browser-bridge.md), [Edge Agent](../../edge-agent.md), [AI & Chat](../../ai-and-chat.md), and the [MV3 Browser Extension Bridge design spec](../../superpowers/specs/2026-06-29-mv3-browser-extension-bridge-design.md).

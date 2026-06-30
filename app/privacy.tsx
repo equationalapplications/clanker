@@ -1,6 +1,7 @@
 import { StyleSheet, ScrollView, View } from 'react-native'
 import { Text, useTheme } from 'react-native-paper'
 import { PRIVACY } from '~/config/privacyConfig'
+import { PolicyMarkdown } from '~/components/PolicyMarkdown'
 
 export default function Privacy() {
   const { colors } = useTheme()
@@ -25,7 +26,7 @@ export default function Privacy() {
 
       <View style={styles.separator} />
       <ScrollView contentContainerStyle={styles.scrollView}>
-        <Text>{PRIVACY.privacy}</Text>
+        <PolicyMarkdown content={PRIVACY.privacy} />
       </ScrollView>
     </View>
   )

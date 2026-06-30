@@ -322,9 +322,29 @@ Fixes #456
 ### Running Tests
 
 ```bash
-npm test                # Run all tests
+npm test                # Run all tests (Expo app)
 npm run test:watch      # Run tests in watch mode
 ```
+
+### Cloud Agent Tests
+
+```bash
+cd cloud-agent
+npm run typecheck
+npm test
+```
+
+### Desktop Bridge Extension Tests
+
+```bash
+cd extension
+npm install             # first time only
+npm run typecheck
+npm test
+npm run build           # esbuild → dist/ for unpacked Chrome load
+```
+
+The root `npm run typecheck` excludes `extension/` and `cloud-agent/` — run each package's typecheck separately. Root `tsconfig.json` excludes those directories; they have their own `tsconfig.json` files.
 
 ### Writing Tests
 

@@ -198,6 +198,7 @@ export function handleBrowserWsUpgrade(
     startAuthApprovalObserver({
       fs,
       fcmDispatcher: fwd,
+      verifyToken,
       getExpoPushToken: options.getExpoPushToken,
       firebaseUid,
       sessionId,

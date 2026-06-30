@@ -25,11 +25,26 @@ test('openTab requires host permission; throws HOST_PERMISSION_REQUIRED when abs
 test('runInActiveTab returns the injected script result', async () => {
   installChromeStub({
     permissions: { contains: async () => true, request: async () => true },
-    tabs: { query: async () => [{ id: 7, url: 'https://x.com/a' }], create: async () => ({ id: 1 }), update: async () => ({}) },
-    scripting: { executeScript: async () => [{ result: { data: { price: '$3' }, activeUrl: 'https://x.com/a' } }] },
+    runtime: {
+      sendMessage: async () => undefined,
+      onMessage: { addListener: () => {} },
+      getURL: (p: string) => p,
+      lastError: undefined,
+    },
+    tabs: {
+      query: async () => [{ id: 7, url: 'https://x.com/a' }],
+      create: async () => ({ id: 1 }),
+      update: async () => ({}),
+      sendMessage: (_tabId: number, msg: { type: string }, cb: (response: unknown) => void) => {
+        assert.equal(msg.type, 'CLANKER_RUN_ACTION')
+        cb({ data: { price: '$3' }, activeUrl: 'https://x.com/a' })
+      },
+    },
+    scripting: { executeScript: async () => [] },
   })
   const { createInjector } = await import('./content-bridge.js')
   const inj = createInjector()
   const out = await inj.runInActiveTab({ type: 'extract', selector: '.p', label: 'price' })
+  assert.ok('data' in out)
   assert.deepEqual(out.data, { price: '$3' })
 })

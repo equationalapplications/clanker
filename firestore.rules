@@ -16,7 +16,11 @@ service cloud.firestore {
         // Phase 2 approval writes; created by Admin SDK only.
         allow update: if request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['status', 'approvedAt']);
+               .hasOnly(['status', 'approvedAt', 'approvalToken'])
+          && (request.resource.data.status == 'denied'
+              || (request.resource.data.status == 'approved'
+                  && request.resource.data.approvalToken is string
+                  && request.resource.data.approvalToken.size() > 0));
       }
     }
 

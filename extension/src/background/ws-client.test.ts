@@ -98,7 +98,7 @@ test('sendAwaitingAuth sends correct frame', () => {
     onTask: () => {}, onSessionEnd: () => {},
   })
   client.connect(); sock.fireOpen()
-  client.sendAwaitingAuth('t1', 2)
+  client.sendAwaitingAuth('t1', 2, {}, '')
   const frame = JSON.parse(sock.sent.find((s) => JSON.parse(s).type === 'awaiting_auth') ?? '{}') as { type: string; taskId: string; haltedStepIndex: number }
   assert.equal(frame.type, 'awaiting_auth')
   assert.equal(frame.taskId, 't1')

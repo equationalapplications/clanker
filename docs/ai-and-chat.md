@@ -8,6 +8,8 @@ For the on-device edge agent loop (client orchestration + secured `generateReply
 
 For continuous voice calls on the Talk tab (Gemini Live via Cloud Agent `/agent/live`), see **[Real-Time Voice Chat](real-time-voice-chat.md)**.
 
+For cross-device browser tasks via the Desktop Bridge extension (`browser_action` tool), see **[Browser Bridge](browser-bridge.md)**.
+
 ---
 
 ## Chat Response Pipeline

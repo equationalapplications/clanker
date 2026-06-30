@@ -5,11 +5,24 @@
   "description": "Lets your Clanker agent perform web tasks you request on this browser.",
   "background": { "service_worker": "background/service-worker.js", "type": "module" },
   "content_scripts": [],
-  "permissions": ["scripting", "storage", "sidePanel", "notifications", "gcm", "offscreen"],
+  "gcm_sender_id": "54051268985",
+  "permissions": ["scripting", "tabs", "storage", "sidePanel", "notifications", "gcm", "offscreen"],
   "optional_host_permissions": ["<all_urls>"],
   "side_panel": { "default_path": "ui/side-panel/index.html" },
   "action": {
     "default_popup": "ui/popup/index.html",
-    "default_icon": { "16": "icons/icon-16.png", "48": "icons/icon-48.png" }
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
   }
 }
