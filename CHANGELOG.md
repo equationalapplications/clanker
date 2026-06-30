@@ -1,3 +1,28 @@
+# [30.10.0](https://github.com/equationalapplications/clanker/compare/v30.9.0...v30.10.0) (2026-06-30)
+
+
+### Bug Fixes
+
+* address PR 498 review feedback on scheduler idempotency and fallbacks ([d12ad20](https://github.com/equationalapplications/clanker/commit/d12ad2096e67865183ad401886b63d49213f9157))
+* **bridge:** address PR 494 review feedback on scheduler and auth ([5f72fdd](https://github.com/equationalapplications/clanker/commit/5f72fdd7894a8b5649c7cfe2b74057c44b9d46b3))
+* **bridge:** address PR review feedback for pending-session polling ([1ce2477](https://github.com/equationalapplications/clanker/commit/1ce2477c429698e54f890fffadc32f86c0a4d714))
+* **bridge:** align extension, docs, and drop pending-session poll ([cfa6205](https://github.com/equationalapplications/clanker/commit/cfa62059f411960386012a5ff4f21d686256e31e))
+* **cloud-agent:** rate-limit scheduler trigger auth for CodeQL ([484c5fd](https://github.com/equationalapplications/clanker/commit/484c5fd0461c9509867bdfc01c4137736ee77f86))
+* **extension:** address PR 497 review feedback ([8a5834b](https://github.com/equationalapplications/clanker/commit/8a5834b07da427457abb014dcd98be5a9608380b))
+* **extension:** require build-injected env at load time ([35eeb69](https://github.com/equationalapplications/clanker/commit/35eeb691b2bfca65ba3c3697b37fd3c2868385ae))
+* **extension:** update content-bridge test for sendMessage flow ([19e618d](https://github.com/equationalapplications/clanker/commit/19e618d519089b00a88d2eeecf705a9df69b5b6b))
+* **firestore:** allow approvalToken in auth doc client updates ([7dbabf7](https://github.com/equationalapplications/clanker/commit/7dbabf7e7eea1997a54608d771cd96bb1b52b0b5))
+
+
+### Features
+
+* **bridge:** complete Phase 4 E2E validation of MV3 browser extension bridge ([968a0f8](https://github.com/equationalapplications/clanker/commit/968a0f8c2e5bcc8ed68e4529e504047d026bf5f4))
+* **cloud-agent:** add Cloud Scheduler trigger handler and route ([9259c7f](https://github.com/equationalapplications/clanker/commit/9259c7f2c0ca1769ca769e35b8faff6315e2dab3))
+* **cloud-agent:** add sendProactive to fcm dispatcher ([24de69d](https://github.com/equationalapplications/clanker/commit/24de69d69ac36f3a549473bd6eda804574b7065d))
+* **cloud-agent:** implement Expo Push fallback for closed voice sessions ([5ed9c11](https://github.com/equationalapplications/clanker/commit/5ed9c1182f6c91a02809193ca27a264264ba572f))
+* **extension:** prepare CWS submission readiness ([6875b45](https://github.com/equationalapplications/clanker/commit/6875b45a7b8547cf18f53e4f67f0e2b8e1c8c35e))
+* **privacy:** add browser extension data usage section, bump to v1.5 ([21d4eab](https://github.com/equationalapplications/clanker/commit/21d4eab7c747a1586c9749e07b590666d04488c8))
+
 # [30.9.0](https://github.com/equationalapplications/clanker/compare/v30.8.1...v30.9.0) (2026-06-29)
 
 
