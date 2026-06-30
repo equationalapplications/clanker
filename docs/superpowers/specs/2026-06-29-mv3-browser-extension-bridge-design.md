@@ -27,7 +27,7 @@ This feature introduces greenfield infrastructure not present in the Clanker rep
 | **Firestore Security Rules** | Tenant isolation; client read-only on tasks; server-owned writes | Deploy via `firebase deploy --only firestore:rules` |
 | **FCM Sender ID** | `chrome.gcm.register()` in extension | Firebase console → Project Settings → Cloud Messaging |
 | **Cloud Agent Firestore Admin SDK** | `firestoreSession.ts` read/write helpers | Use `admin.firestore()` via existing `firebase-admin` — no additional dep required |
-| **Expo Push** (Phase 2+) | Approval cards, async task completion | `expo-notifications` in mobile app; token registration pipeline |
+| **Expo Push** | Approval cards for stateful actions, async task completion | `expo-notifications` in mobile app; token registration pipeline |
 
 **Not in scope today:** Cloud Agent uses Postgres/Drizzle for agent data and `firebase-admin` for auth verification only. Mobile app has no push notification infrastructure. The extension directory does not exist.
 
@@ -845,6 +845,7 @@ extension/
 
   "permissions": [
     "scripting",
+    "tabs",
     "storage",
     "sidePanel",
     "notifications",
