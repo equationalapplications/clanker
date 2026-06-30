@@ -14,6 +14,15 @@ import {
 } from './schema'
 
 import { initWiki } from '~/services/wikiService'
+import {
+    clearOpfsAutoReloadFlag,
+    tryAutoReloadForOpfsConflict,
+} from './opfsRecovery'
+import { installSqliteWorkerTracker } from './sqliteWebWorker'
+
+if (Platform.OS === 'web') {
+    installSqliteWorkerTracker()
+}
 
 let db: SQLite.SQLiteDatabase | null = null
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null
@@ -28,19 +37,56 @@ function isOPFSLockError(error: unknown): boolean {
     return (
         msg.includes('NoModificationAllowedError') ||
         msg.includes('createSyncAccessHandle') ||
-        msg.includes('Access Handles cannot be created')
+        msg.includes('Access Handles cannot be created') ||
+        msg.includes('Invalid VFS state') ||
+        msg.includes('timed out waiting for browser storage')
     )
+}
+
+const OPEN_DATABASE_TIMEOUT_MS = 10_000
+
+async function openDatabaseWithTimeout(name: string): Promise<SQLite.SQLiteDatabase> {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    try {
+        return await Promise.race([
+            SQLite.openDatabaseAsync(name),
+            new Promise<never>((_, reject) => {
+                timeoutId = setTimeout(
+                    () =>
+                        reject(
+                            new Error(
+                                `Database "${name}" timed out waiting for browser storage`,
+                            ),
+                        ),
+                    OPEN_DATABASE_TIMEOUT_MS,
+                )
+            }),
+        ])
+    } finally {
+        if (timeoutId !== undefined) clearTimeout(timeoutId)
+    }
+}
+
+/** User-actionable storage conflict (OPFS lock or poisoned expo-sqlite worker). */
+export function isDatabaseStorageConflictError(error: Error | null | undefined): boolean {
+    if (!error) return false
+    if (error.message.includes('locked in browser storage')) return true
+    return isOPFSLockError(error)
 }
 
 async function openDatabaseAsyncWithRetry(
     name: string,
-    retries = 5,
-    baseDelayMs = 300,
+    retries = 8,
+    baseDelayMs = 500,
 ): Promise<SQLite.SQLiteDatabase> {
     let lastError: unknown
     for (let attempt = 0; attempt < retries; attempt++) {
         try {
-            return await SQLite.openDatabaseAsync(name)
+            const database = await openDatabaseWithTimeout(name)
+            if (Platform.OS === 'web') {
+                clearOpfsAutoReloadFlag()
+            }
+            return database
         } catch (error) {
             lastError = error
             if (!isOPFSLockError(error)) throw error
@@ -49,6 +95,11 @@ async function openDatabaseAsyncWithRetry(
         }
     }
     if (Platform.OS === 'web' && isOPFSLockError(lastError)) {
+        if (tryAutoReloadForOpfsConflict()) {
+            await new Promise(() => {
+                /* reload in progress */
+            })
+        }
         console.error(
             `[DB] Retries exhausted while opening "${name}". Preserving existing OPFS data and aborting instead of deleting the database.`,
         )

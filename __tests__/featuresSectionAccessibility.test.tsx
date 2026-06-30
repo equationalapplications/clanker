@@ -53,9 +53,9 @@ jest.mock('@expo/vector-icons', () => {
 import FeaturesSection from '~/components/LandingPage/FeaturesSection'
 
 const FEATURE_TITLES = [
+  'Live, Real-Time Voice Calls',
   'Build Your Character',
   'Real AI Conversations',
-  'Talk to Your Character',
   'Share & Sync',
   'Personal Assistant',
   'Wiki-Based Memory',

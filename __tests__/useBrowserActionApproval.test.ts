@@ -3,6 +3,10 @@ jest.mock('expo-notifications', () => ({
   registerTaskAsync: jest.fn().mockResolvedValue(true),
 }))
 
+jest.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
+}))
+
 jest.mock('expo-task-manager', () => ({
   defineTask: jest.fn(),
   isTaskDefined: jest.fn().mockReturnValue(false),
@@ -35,5 +39,16 @@ describe('setupBrowserActionApproval', () => {
       expect.any(Function),
     )
     expect(Notifications.registerTaskAsync).toHaveBeenCalledWith(APPROVAL_TASK)
+  })
+
+  it('no-ops on web', async () => {
+    const { Platform } = require('react-native') as { Platform: { OS: string } }
+    Platform.OS = 'web'
+    jest.clearAllMocks()
+
+    await setupBrowserActionApproval()
+
+    expect(Notifications.setNotificationCategoryAsync).not.toHaveBeenCalled()
+    expect(Notifications.registerTaskAsync).not.toHaveBeenCalled()
   })
 })

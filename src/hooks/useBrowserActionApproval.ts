@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Platform } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import { BackgroundNotificationTaskResult } from 'expo-notifications'
 import * as TaskManager from 'expo-task-manager'
@@ -41,6 +42,8 @@ if (!TaskManager.isTaskDefined(APPROVAL_TASK)) {
 }
 
 export async function setupBrowserActionApproval(): Promise<void> {
+  if (Platform.OS === 'web') return
+
   await Notifications.setNotificationCategoryAsync('BROWSER_ACTION_APPROVAL', [
     {
       identifier: 'APPROVE',
@@ -59,6 +62,7 @@ export async function setupBrowserActionApproval(): Promise<void> {
 
 export function useBrowserActionApproval(): void {
   useEffect(() => {
+    if (Platform.OS === 'web') return
     void setupBrowserActionApproval()
   }, [])
 }

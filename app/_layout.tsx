@@ -25,6 +25,8 @@ import { setupNetworkManager } from '~/config/networkManager'
 import NetInfo from '@react-native-community/netinfo'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import useCachedResources from '~/hooks/useCachedResources'
+import { useWebDatabaseLifecycle } from '~/database/webLifecycle'
+import { isDatabaseStorageConflictError } from '~/database'
 import { useInitializeApp } from '~/hooks/useInitializeApp'
 import { authMachine } from '~/machines/authMachine'
 import { termsMachine } from '~/machines/termsMachine'
@@ -321,6 +323,7 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const { isLoadingComplete, dbInitFailed, dbInitError } = useCachedResources()
+  useWebDatabaseLifecycle()
 
   if (!isLoadingComplete) {
     return (
@@ -331,13 +334,16 @@ export default function RootLayout() {
   }
 
   if (dbInitFailed) {
-    const isTabConflict = dbInitError?.message?.includes('locked in browser storage')
+    const isStorageConflict = isDatabaseStorageConflictError(dbInitError)
     return (
       <View style={styles.loadingContainer}>
-        {isTabConflict ? (
+        {isStorageConflict ? (
           <>
             <Text style={styles.errorText}>Clanker is already open in another tab.</Text>
-            <Text style={styles.errorSubText}>Close the other tab, then reload this page.</Text>
+            <Text style={styles.errorSubText}>
+              Close the other tab, then reload this page. If you just navigated here from a
+              marketing page, a quick reload usually fixes it.
+            </Text>
             <Pressable
               style={styles.reloadButton}
               onPress={() => (globalThis as any).location?.reload?.()}
