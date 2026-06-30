@@ -30,6 +30,7 @@ graph LR
   FeaturesSection --> useFloatingCardAnimation
   HeroSection --> useMachines
   LandingFooter --> CookieConsentContext
+  RealTimeVoicePage --> useMachines
   SubscribeButton --> useBootstrapRefresh
   ThemeProvider --> SettingsContext
   ConfirmationModal --> confirmationValidation
