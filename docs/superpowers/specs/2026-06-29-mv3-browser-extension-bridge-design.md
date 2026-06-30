@@ -1,7 +1,7 @@
 # MV3 Browser Extension Remote Agent Bridge — Design Spec
 
 **Date:** 2026-06-29
-**Status:** Partially Implemented
+**Status:** Implemented
 **Supersedes:** `2026-04-24-browser-extension-remote-agent-design.md` (April draft — replaced by this spec)
 
 ---
