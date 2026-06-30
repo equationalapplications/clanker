@@ -28,8 +28,9 @@
     "test:watch": "node -e \"const p=require('path');process.env.NODE_OPTIONS=(process.env.NODE_OPTIONS?process.env.NODE_OPTIONS+' ':'')+('--require '+p.resolve('./jest.preload.cjs'));const{spawnSync}=require('child_process');const r=spawnSync(process.platform==='win32'?'jest.cmd':'jest',['--watch',...process.argv.slice(2)],{stdio:'inherit',env:process.env});process.exit(r.status??0);\" --",
     "edge-evals": "node -e \"const p=require('path');process.env.NODE_OPTIONS=(process.env.NODE_OPTIONS?process.env.NODE_OPTIONS+' ':'')+('--require '+p.resolve('./jest.preload.cjs'));const{spawnSync}=require('child_process');const r=spawnSync(process.platform==='win32'?'jest.cmd':'jest',['--config','jest.evals.config.js','--runInBand',...process.argv.slice(2)],{stdio:'inherit',env:process.env});process.exit(r.status??0);\" --",
     "docs:charts": "node scripts/generate-charts.js",
+    "generate:static-pages": "node scripts/generate-static-pages.js",
     "adb": "adb reverse tcp:8081 tcp:8081",
-    "predeploy": "npx expo export --platform web --clear",
+    "predeploy": "npm run generate:static-pages && npx expo export --platform web --clear",
     "deploy-hosting": "npm run predeploy && firebase deploy --only hosting",
     "ota": "node -e \"const { spawnSync } = require('child_process'); const easBranch = process.argv[2] || 'production'; const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx'; const result = spawnSync(cmd, ['--yes', 'eas-cli', 'update', '--auto', '--non-interactive', '--branch', easBranch, '--message', 'OTA update', '--environment', 'production'], { stdio: 'inherit' }); process.exit(result.status ?? 1);\" --",
     "update": "npm run deploy-hosting && npm run ota"

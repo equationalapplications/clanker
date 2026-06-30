@@ -59,6 +59,15 @@ credentials.json
 plan.md
 firebase-debug.log
 
+# Generated static public pages (single source of truth: src/config/*Config.ts)
+# Regenerated on predeploy via scripts/generate-static-pages.js. Falls back to the
+# Expo Router screens if absent, so they are safe to keep out of version control.
+public/privacy/
+public/terms/
+public/sitemap.xml
+public/robots.txt
+public/clanker-icon.png
+
 # Git worktrees
 .worktrees/
 .codegraph/

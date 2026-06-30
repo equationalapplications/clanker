@@ -26,14 +26,23 @@ export default function WebIndex() {
         <title>Clanker — Design, chat with, and share your own AI characters</title>
         <meta
           name="description"
-          content="Create AI characters, chat with them, and buy credits for voice, image generation, and more. 300 credits/month or 100 credits for $10."
+          content="Create AI characters, chat with them, and talk in real time with live voice calls. Hands-free conversations with web search and shared memory. 1 credit per minute for live voice."
         />
         <meta property="og:title" content="Clanker" />
         <meta
           property="og:description"
-          content="Create custom AI characters with unique personalities, chat with them, and share them with anyone."
+          content="Design AI characters with unique personalities, chat with them, and call them in real time with natural, uninterrupted voice conversations."
         />
         <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://clanker-ai.com/" />
+        <meta property="og:image" content="https://clanker-ai.com/og-image.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Clanker" />
+        <meta
+          name="twitter:description"
+          content="Design AI characters, chat with them, and call them in real time with natural, uninterrupted voice conversations."
+        />
+        <meta name="twitter:image" content="https://clanker-ai.com/og-image.png" />
       </Head>
       {user ? <Redirect href="/chat" /> : <LandingPage />}
     </>

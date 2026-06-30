@@ -11,6 +11,19 @@ export default function LandingFooter() {
 
   return (
     <View style={styles.footer}>
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => {
+          if (Platform.OS === 'web') {
+            window.location.assign('/real-time-voice')
+          }
+        }}
+      >
+        <Text variant="bodySmall" style={linkStyle}>
+          Real-Time Voice
+        </Text>
+      </Pressable>
+      <Text variant="bodySmall" style={{ color: colors.outline }}> · </Text>
       <Link href="/terms" asChild>
         <Text variant="bodySmall" style={linkStyle}>
           Terms and Conditions

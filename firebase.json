@@ -6,6 +6,7 @@
   "hosting": {
     "site": "clanker-prod",
     "public": "dist",
+    "cleanUrls": true,
     "ignore": [
       "firebase.json",
       "**/.git/**",
