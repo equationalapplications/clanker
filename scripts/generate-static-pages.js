@@ -340,8 +340,19 @@ Sitemap: ${SITE}/sitemap.xml
   writeFile('robots.txt', robots)
 }
 
+function copyStaticAssets() {
+  const iconSrc = path.join(ROOT, 'assets/icon.png')
+  const iconDest = path.join(PUBLIC_DIR, 'clanker-icon.png')
+  if (!fs.existsSync(iconSrc)) {
+    throw new Error(`Missing app icon for static pages: ${iconSrc}`)
+  }
+  fs.copyFileSync(iconSrc, iconDest)
+  console.log('Copied assets/icon.png → public/clanker-icon.png')
+}
+
 function main() {
   console.log('Generating static public pages…')
+  copyStaticAssets()
   const privacy = generatePrivacy()
   const terms = generateTerms()
   generateSitemap({ privacy, terms })

@@ -73,7 +73,22 @@
       }
       .skip-link:focus { top: 8px; left: 8px; }
       .hero { max-width: 760px; margin: 0 auto; padding: 48px 24px; text-align: center; }
-      .hero img { width: 120px; height: 120px; margin: 0 auto 16px; display: block; }
+      .hero-logo {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--background);
+        border-radius: 28px;
+      }
+      .hero-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+      }
       h1 { color: var(--primary); font-size: clamp(2rem, 5vw, 2.75rem); line-height: 1.15; margin: 0 0 16px; }
       .lead { font-size: 1.125rem; margin: 0 0 28px; opacity: 0.9; }
       .pill {
@@ -132,7 +147,9 @@
 
     <main id="main-content">
       <section class="hero">
-        <img src="/og-image.png" alt="Clanker" width="120" height="120" />
+        <div class="hero-logo">
+          <img src="/clanker-icon.png" alt="Clanker" width="120" height="120" />
+        </div>
         <a class="pill" href="/real-time-voice">✨ New: Live, Real-Time Voice Calls →</a>
         <h1>Your own AI characters — now with real-time voice</h1>
         <p class="lead">
