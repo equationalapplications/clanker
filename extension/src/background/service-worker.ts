@@ -32,6 +32,8 @@ async function registerDevice(gcmToken: string): Promise<void> {
   await upsertDeviceRegistration(idToken, gcmToken)
 }
 
+const wakingSessions = new Set<string>()
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('session-poll', { periodInMinutes: 1 })
 })
@@ -52,7 +54,9 @@ async function pollPendingSession(): Promise<void> {
     })
     if (!res.ok) return
     const { sessionId } = await res.json() as { sessionId: string | null }
-    if (sessionId) void wakeAndConnect(sessionId)
+    if (!sessionId || wakingSessions.has(sessionId)) return
+    wakingSessions.add(sessionId)
+    void wakeAndConnect(sessionId).finally(() => wakingSessions.delete(sessionId))
   } catch { /* network error, retry next alarm */ }
 }
 

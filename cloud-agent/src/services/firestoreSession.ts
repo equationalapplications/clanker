@@ -41,6 +41,22 @@ function ttl() {
     : (Date.now() + SESSION_TTL_MS as unknown)
 }
 
+function timestampMs(value: unknown): number | null {
+  if (value == null) return null
+  if (typeof value === 'number') return value
+  if (typeof value === 'object') {
+    const ts = value as { toMillis?: () => number; seconds?: number; nanoseconds?: number }
+    if (typeof ts.toMillis === 'function') return ts.toMillis()
+    if (typeof ts.seconds === 'number') return ts.seconds * 1000 + (ts.nanoseconds ?? 0) / 1e6
+  }
+  return null
+}
+
+function isSessionExpired(session: SessionDoc, nowMs = Date.now()): boolean {
+  const expiresMs = timestampMs(session.expiresAt)
+  return expiresMs !== null && expiresMs <= nowMs
+}
+
 export function createFirestoreSession(db: FirestoreLike) {
   const sessionPath = (uid: string, sid: string) => `users/${uid}/sessions/${sid}`
   const taskPath = (uid: string, sid: string, tid: string) => `users/${uid}/sessions/${sid}/tasks/${tid}`
@@ -181,13 +197,18 @@ export function createFirestoreSession(db: FirestoreLike) {
       const snap = await db.collection(`users/${uid}/sessions`)
         .where('status', '==', 'pending')
         .orderBy('createdAt', 'asc')
-        .limit(1)
+        .limit(10)
         .get()
       if (snap.empty) return null
-      const sid = snap.docs[0].id
-      const taskSnap = await db.collection(`users/${uid}/sessions/${sid}/tasks`).limit(1).get()
-      const taskId = taskSnap.empty ? null : taskSnap.docs[0].id
-      return { sessionId: sid, taskId }
+      for (const doc of snap.docs) {
+        const session = doc.data() as unknown as SessionDoc
+        if (isSessionExpired(session)) continue
+        const sid = doc.id
+        const taskSnap = await db.collection(`users/${uid}/sessions/${sid}/tasks`).limit(1).get()
+        if (taskSnap.empty) continue
+        return { sessionId: sid, taskId: taskSnap.docs[0].id }
+      }
+      return null
     },
   }
 }

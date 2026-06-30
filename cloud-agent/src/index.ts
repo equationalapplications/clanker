@@ -427,7 +427,7 @@ export function createApp(options: AppOptions) {
     if (!browserBridgeAvailable) { res.json({ sessionId: null }); return }
     try {
       const result = await defaultFirestoreSession().getPendingSchedulerSession(req.uid!)
-      res.json(result ?? { sessionId: null })
+      res.json({ sessionId: result?.sessionId ?? null })
     } catch (err) {
       console.error('pending-session error:', err)
       res.status(500).json({ error: 'Internal server error' })

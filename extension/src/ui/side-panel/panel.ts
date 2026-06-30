@@ -52,20 +52,24 @@ async function registerThisDevice(): Promise<void> {
   const user = auth.currentUser
   if (!user) return
   ;($('device')).textContent = 'Device: registering...'
-  const idToken = await user.getIdToken()
-  const { deviceId: existing, gcmToken: cached } = await chrome.storage.local.get(['deviceId', 'gcmToken'])
-  const deviceId = (existing as string) ?? crypto.randomUUID()
-  if (!existing) await chrome.storage.local.set({ deviceId })
-  // Register immediately with cached GCM token or polling placeholder.
-  // This avoids holding the auth token while waiting for slow GCM negotiation.
-  const fcmToken = (cached as string | undefined) ?? `polling:${deviceId}`
-  const res = await fetch(`${CLOUD_BASE_URL}/agent/browser/register-device`, {
-    method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${idToken}` },
-    body: JSON.stringify({ fcmToken, deviceId, deviceName: `${navigator.platform} — Chrome` }),
-  })
-  if (!res.ok) { ;($('device')).textContent = `Device: registration failed (${res.status})`; return }
-  const mode = cached ? '' : ' (polling mode — GCM unavailable)'
-  ;($('device')).textContent = `Device: ${navigator.platform} — Chrome (registered${mode})`
+  try {
+    const idToken = await user.getIdToken()
+    const { deviceId: existing, gcmToken: cached } = await chrome.storage.local.get(['deviceId', 'gcmToken'])
+    const deviceId = (existing as string) ?? crypto.randomUUID()
+    if (!existing) await chrome.storage.local.set({ deviceId })
+    // Register immediately with cached GCM token or polling placeholder.
+    // This avoids holding the auth token while waiting for slow GCM negotiation.
+    const fcmToken = (cached as string | undefined) ?? `polling:${deviceId}`
+    const res = await fetch(`${CLOUD_BASE_URL}/agent/browser/register-device`, {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ fcmToken, deviceId, deviceName: `${navigator.platform} — Chrome` }),
+    })
+    if (!res.ok) { ;($('device')).textContent = `Device: registration failed (${res.status})`; return }
+    const mode = cached ? '' : ' (polling mode — GCM unavailable)'
+    ;($('device')).textContent = `Device: ${navigator.platform} — Chrome (registered${mode})`
+  } catch {
+    ;($('device')).textContent = 'Device: registration failed'
+  }
 }
 
 async function syncPauseToCloud(isPaused: boolean): Promise<void> {
