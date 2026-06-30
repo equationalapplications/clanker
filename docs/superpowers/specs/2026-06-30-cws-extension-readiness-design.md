@@ -132,12 +132,12 @@ Copy-paste ready for the CWS developer dashboard.
 **Extension name:** `Clanker Desktop Bridge`
 
 **Short description (132-char max):**
-```
+```text
 Remote browser bridge for Clanker AI. Lets your AI assistant perform web tasks you explicitly request on this browser.
 ```
 
 **Detailed description:**
-```
+```text
 Clanker Desktop Bridge connects your Clanker AI assistant (iOS and Android) to your desktop browser so it can help you with web tasks you explicitly request — reading articles, extracting data, opening tabs, and (with your approval) filling fields or clicking buttons.
 
 HOW IT WORKS
@@ -160,37 +160,37 @@ No browsing data is collected or sold. Task results are sent only to your own Cl
 One entry per permission, formatted for the CWS dashboard justification fields.
 
 **`scripting`**
-```
+```text
 Injects the task executor into the active tab during a user-triggered task. Scripts are injected programmatically per-task only — never declared in content_scripts, never running between tasks.
 ```
 
 **`tabs`**
-```
+```text
 The Clanker extension acts as a remote bridge for the user's mobile AI assistant. Because tasks are triggered remotely via background Google Cloud Messaging (FCM) pushes rather than direct clicks on the extension icon, we cannot rely on the activeTab permission (which requires a manual user gesture). We require the tabs permission to use chrome.tabs.query() to locate the user's active tab for script injection during these background wakes, as well as chrome.tabs.create() and chrome.tabs.update() to allow the AI to open and focus new web pages as explicitly commanded by the user.
 ```
 
 **`storage`**
-```
+```text
 Stores device ID, GCM registration token, pause state, action log (last 50 entries), and pending host permission state in chrome.storage.local. No browsing history or page content is stored.
 ```
 
 **`sidePanel`**
-```
+```text
 Provides the primary user interface: sign-in, device registration status, action log, pause toggle, and the host permission grant button. chrome.permissions.request() requires a user gesture — the side panel Grant Access button provides it.
 ```
 
 **`notifications`**
-```
+```text
 Shows a single notification when the extension lacks permission to access a host that a user-requested task targets. The notification prompts the user to open the side panel and tap Grant Access. No other notification types are used.
 ```
 
 **`gcm`**
-```
+```text
 Registers with Firebase Cloud Messaging via chrome.gcm.register() and listens for incoming silent pushes via chrome.gcm.onMessage. FCM is the sole mechanism that wakes the extension when the user's Clanker assistant has a task ready. Without this permission the extension cannot receive tasks from the mobile app.
 ```
 
 **`offscreen`**
-```
+```text
 Hosts the Firebase Auth Web SDK (firebase/auth/web-extension) in an offscreen document. MV3 service workers cannot access DOM storage APIs required for auth token persistence. The offscreen document is created only during an active bridge session and closed immediately after SESSION_END.
 ```
 
@@ -198,7 +198,7 @@ Hosts the Firebase Auth Web SDK (firebase/auth/web-extension) in an offscreen do
 
 Note: the CWS dashboard does not have a standalone justification field for `optional_host_permissions`. Paste this text into the **"Single purpose description"** field and ensure it also appears in the detailed store description above.
 
-```
+```text
 Host access is entirely optional and user-granted per-site at runtime. The extension cannot declare a fixed list of hosts at install time because the user's AI assistant may target any site the user requests. Chrome prompts the user the first time a new host is needed. The user explicitly taps a "Grant Access" button in the side panel (a required user gesture — chrome.permissions.request() cannot be called from a service worker). Users can revoke permissions at any time via chrome://extensions. No host permission is ever requested proactively or silently.
 ```
 
@@ -208,7 +208,7 @@ Host access is entirely optional and user-granted per-site at runtime. The exten
 
 Add to `clanker-ai.com/privacy` as a **dedicated section with this exact heading** so the CWS reviewer finds it without scanning. The Limited Use Disclosure in item 4 is a Chrome Web Store hard requirement — do not omit or paraphrase it.
 
-```
+```text
 ## Clanker Browser Extension Data Usage
 
 The Clanker Chrome Extension acts as a secure bridge between your desktop browser

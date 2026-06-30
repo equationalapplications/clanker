@@ -4,7 +4,7 @@ export async function ensureOffscreen(): Promise<void> {
   if (await chrome.offscreen.hasDocument()) return
   await chrome.offscreen.createDocument({
     url: OFFSCREEN_PATH,
-    reasons: ['DOM_PARSER' as chrome.offscreen.Reason],
+    reasons: ['LOCAL_STORAGE' as chrome.offscreen.Reason],
     justification:
       'Hosts Firebase Auth Web SDK (firebase/auth/web-extension). MV3 service workers ' +
       'cannot access DOM storage APIs required for auth token persistence. ' +

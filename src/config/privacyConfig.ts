@@ -69,18 +69,29 @@ Third parties: When you start a Stripe checkout, you are redirected to Stripe
 on stripe.com; cookies set during that flow are governed by Stripe's privacy
 notice, not ours.
 
-Clanker Browser Extension Data Usage
-The Clanker Chrome Extension acts as a secure bridge between your desktop browser and the Clanker AI ecosystem. To comply with the Chrome Web Store User Data Policy, we explicitly state the following:
+## Clanker Browser Extension Data Usage
 
-Single Purpose: The sole purpose of the extension is to allow the Clanker AI to read, summarize, and interact with the web pages you explicitly command it to.
+The Clanker Chrome Extension acts as a secure bridge between your desktop browser
+and the Clanker AI ecosystem. To comply with the Chrome Web Store User Data Policy,
+we explicitly state the following:
 
-Data Collection: The extension only extracts text, URLs, and DOM structure from your active tab when a specific task is triggered (either via scheduled automation or remote command). We do not passively track your browsing history or monitor background tabs.
+**Single Purpose:** The sole purpose of the extension is to allow the Clanker AI
+to read, summarize, and interact with the web pages you explicitly command it to.
 
-Data Transmission: Extracted page data is transmitted securely to our cloud infrastructure strictly to process your AI prompt.
+**Data Collection:** The extension only extracts text, URLs, and DOM structure from
+your active tab when a specific task is triggered (either via scheduled automation
+or remote command). We do not passively track your browsing history or monitor
+background tabs.
 
-Limited Use Disclosure: The extension's use and transfer to any other app of information received from Google APIs will adhere to the Chrome Web Store User Data Policy, including the Limited Use requirements.
+**Data Transmission:** Extracted page data is transmitted securely to our cloud
+infrastructure strictly to process your AI prompt.
 
-No Data Sale: We do not sell your browser data to third parties. Your data is not used for advertising, creditworthiness, or lending purposes.
+**Limited Use Disclosure:** The extension's use and transfer to any other app of
+information received from Google APIs will adhere to the Chrome Web Store User Data
+Policy, including the Limited Use requirements.
+
+**No Data Sale:** We do not sell your browser data to third parties. Your data is
+not used for advertising, creditworthiness, or lending purposes.
 
 Retention of Information
 We may retain your information for as long as necessary to provide and improve the App, to

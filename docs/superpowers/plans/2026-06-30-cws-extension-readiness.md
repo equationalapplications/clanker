@@ -213,12 +213,12 @@ async function renderLog(): Promise<void> {
 - [ ] **Step 4: Verify no other `innerHTML` writes remain in extension source**
 
 ```bash
-grep -n "innerHTML\s*=" extension/src/**/*.ts
+grep -RIn "innerHTML[[:space:]]*=" extension/src
 ```
 
 Expected output contains only `dom-extractor.ts` (a read, not a write):
 
-```
+```text
 extension/src/content/dom-extractor.ts:10:  const el = document.createElement('div'); el.innerHTML = html
 ```
 
@@ -475,7 +475,7 @@ not used for advertising, creditworthiness, or lending purposes.
 - [ ] `dist/manifest.json` has `action.default_icon.128`
 - [ ] `dist/manifest.json` has `content_security_policy.extension_pages`
 - [ ] `dist/manifest.json` has `key` field (from 1Password `.pem`)
-- [ ] `grep -n "innerHTML\s*=" extension/dist/ui/side-panel/panel.js` returns no output
+- [ ] `grep -RIn "innerHTML[[:space:]]*=" extension/dist/ui/side-panel/panel.js` returns no output
 - [ ] `auth-bridge.ts` justification string names `firebase/auth/web-extension` and explains service worker constraint
 - [ ] Privacy policy live at `clanker-ai.com/privacy` with `## Clanker Browser Extension Data Usage` heading
 - [ ] All permission justifications filled in CWS dashboard
