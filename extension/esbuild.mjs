@@ -54,26 +54,31 @@ const extensionEnv = {
   CLOUD_WS_URL: cloudWs,
 }
 
-const entries = {
+const esmEntries = {
   'background/service-worker': 'src/background/service-worker.ts',
   'offscreen/auth': 'src/offscreen/auth.ts',
-  'content/executor': 'src/content/executor.ts',
   'ui/side-panel/panel': 'src/ui/side-panel/panel.ts',
   'ui/popup/popup': 'src/ui/popup/popup.ts',
 }
 
 mkdirSync('dist', { recursive: true })
 
-await build({
-  entryPoints: entries,
+const sharedBuildOpts = {
   outdir: 'dist',
   bundle: true,
-  format: 'esm',
   target: 'chrome120',
   sourcemap: true,
-  define: {
-    __EXTENSION_ENV__: JSON.stringify(extensionEnv),
-  },
+  define: { __EXTENSION_ENV__: JSON.stringify(extensionEnv) },
+}
+
+await build({ ...sharedBuildOpts, entryPoints: esmEntries, format: 'esm' })
+
+// Content script injected via files — must be IIFE (not ES module) so Chrome can inject
+// it into the page's isolated world and the message listener runs immediately.
+await build({
+  ...sharedBuildOpts,
+  entryPoints: { 'content/executor': 'src/content/bridge-listener.ts' },
+  format: 'iife',
 })
 
 for (const f of ['manifest.json']) cpSync(f, `dist/${f}`)

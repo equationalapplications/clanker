@@ -165,7 +165,6 @@ export function createSchedulerTriggerHandler(
     try {
       await fs.createSession(uid, sessionId, { status: 'pending', trigger: 'scheduler', voiceInstanceId: INSTANCE_ID })
       await fs.writeTask(uid, sessionId, taskId, taskIntent)
-      await fcm.wakeExtension(device.fcmToken, sessionId, taskId)
     } catch (err) {
       console.error('[scheduler-trigger] setup error:', err)
       if (txId) {
@@ -174,6 +173,15 @@ export function createSchedulerTriggerHandler(
       try { await fs.closeSession(uid, sessionId, 'aborted') } catch { /* ignore */ }
       res.status(500).json({ error: 'Internal server error' })
       return
+    }
+
+    // FCM wake is best-effort — extension falls back to alarm-based polling.
+    if (!device.fcmToken.startsWith('polling:')) {
+      try {
+        await fcm.wakeExtension(device.fcmToken, sessionId, taskId)
+      } catch (err) {
+        console.warn('[scheduler-trigger] FCM wake failed, extension will poll:', err instanceof Error ? err.message : err)
+      }
     }
 
     let task: TaskDoc | null = null

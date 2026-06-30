@@ -32,13 +32,33 @@ async function registerDevice(gcmToken: string): Promise<void> {
   await upsertDeviceRegistration(idToken, gcmToken)
 }
 
+const wakingSessions = new Set<string>()
+
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.gcm.register([FIREBASE_SENDER_ID], (gcmToken) => {
-    if (chrome.runtime.lastError) { console.error(chrome.runtime.lastError); return }
-    void chrome.storage.local.set({ gcmToken })
-    void registerDevice(gcmToken)
-  })
+  chrome.alarms.create('session-poll', { periodInMinutes: 1 })
 })
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== 'session-poll') return
+  void pollPendingSession()
+})
+
+async function pollPendingSession(): Promise<void> {
+  const { paused } = await chrome.storage.local.get('paused')
+  if (paused) return
+  let idToken: string
+  try { idToken = await requestIdToken() } catch { return }
+  try {
+    const res = await fetch(`${CLOUD_BASE_URL}/agent/browser/pending-session`, {
+      headers: { authorization: `Bearer ${idToken}` },
+    })
+    if (!res.ok) return
+    const { sessionId } = await res.json() as { sessionId: string | null }
+    if (!sessionId || wakingSessions.has(sessionId)) return
+    wakingSessions.add(sessionId)
+    void wakeAndConnect(sessionId).finally(() => wakingSessions.delete(sessionId))
+  } catch { /* network error, retry next alarm */ }
+}
 
 chrome.gcm.onMessage.addListener((message) => {
   const data = message.data as { type?: string; sessionId?: string; taskId?: string; resume?: string }
