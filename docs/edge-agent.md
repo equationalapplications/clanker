@@ -8,6 +8,8 @@ This matches the app-wide AI access policy in [AI & Chat](ai-and-chat.md): produ
 
 **Talk tab live voice** is a separate path: continuous Gemini Live over Cloud Agent `/agent/live`, not the edge agent loop. See **[Real-Time Voice Chat](real-time-voice-chat.md)**.
 
+**Desktop browser tasks** are a separate path: Cloud Agent `browser_action` tool wakes the MV3 Desktop Bridge extension. The edge agent does not register or execute `browser_action` — it requires Cloud Agent, Firestore coordination, and a paired extension. See **[Browser Bridge](browser-bridge.md)**.
+
 ---
 
 ## Architecture
@@ -81,6 +83,8 @@ After the edge loop, `useAIChat` routes in priority order:
 
 `escalate_to_cloud_agent` is only advertised in tool schemas when `isCloudSynced` is true (`character.save_to_cloud`). Local-only characters cannot escalate via that tool.
 
+Cloud Agent escalation (and live voice) can invoke `browser_action` for desktop browser tasks. The edge agent loop never sees this tool — it is injected only in Cloud Agent ADK tool sets (`liveToolAdapter.ts`, `agentCore.ts`).
+
 ### Escalation phantom tools
 
 `set_reminder` is cloud-only; the edge executor returns a sentinel that triggers escalation when cloud sync is enabled.
@@ -152,5 +156,6 @@ For local cloud-agent iteration, set `EXPO_PUBLIC_CLOUD_AGENT_URL` to your Docke
 ## Related Documentation
 
 - [AI & Chat](ai-and-chat.md) — `generateReply` contract, wiki memory, cloud-agent local dev
+- [Browser Bridge](browser-bridge.md) — Desktop extension, `browser_action`, Wake-and-Connect (cloud-only)
 - [Real-Time Voice Chat](real-time-voice-chat.md) — Talk tab Gemini Live sessions (`/agent/live`), separate from edge agent
 - [Billing & Credits](billing-and-credits.md) — credit ledger and subscription tiers

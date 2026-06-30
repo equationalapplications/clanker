@@ -23,6 +23,8 @@
 
 The **Talk tab** uses `liveVoiceMachine` (via `useLiveVoiceChat`) for continuous voice calls over Cloud Agent `/agent/live`. That flow is independent of the text-chat edge agent loop in `useAIChat` / `useEdgeAgent` — it owns its own WebSocket lifecycle, audio I/O, and end-of-call SQLite persistence. See [Real-Time Voice Chat](real-time-voice-chat.md).
 
+**Browser bridge coordination** uses **Firestore** (not local SQLite). Cloud Agent writes session, task, device, and auth docs under `users/{uid}/` for cross-device browser tasks triggered by `browser_action`. The mobile app reads session/task docs and writes approval decisions; the Desktop Bridge extension pairs via `POST /agent/browser/register-device`. Local SQLite remains the store for chat messages, characters, and wiki — browser task state lives in Firestore until the session ends. See [Browser Bridge](browser-bridge.md).
+
 **When to add a new machine:** Create for features with two or more of: multiple sequential async steps, optimistic updates with rollback, complex conditional transitions, long-running background work, explicit loading/idle/error/success states needing isolated testing. Simple one-shot operations should use TanStack Query mutations instead.
 
 **How to add a new machine:**

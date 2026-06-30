@@ -6,8 +6,8 @@
   "background": { "service_worker": "background/service-worker.js", "type": "module" },
   "content_scripts": [],
   "gcm_sender_id": "54051268985",
-  "permissions": ["scripting", "tabs", "storage", "sidePanel", "notifications", "gcm", "offscreen", "alarms"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": ["scripting", "tabs", "storage", "sidePanel", "notifications", "gcm", "offscreen"],
+  "optional_host_permissions": ["<all_urls>"],
   "side_panel": { "default_path": "ui/side-panel/index.html" },
   "action": {
     "default_popup": "ui/popup/index.html",
