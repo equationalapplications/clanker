@@ -84,8 +84,13 @@ async function syncPauseToCloud(isPaused: boolean): Promise<void> {
 
 async function renderLog(): Promise<void> {
   const { actionLog = [] } = await chrome.storage.local.get('actionLog')
-  ;($('log')).innerHTML = (actionLog as Array<{ ts: number; action: string; status: string }>)
-    .map((e) => `<li>${new Date(e.ts).toLocaleTimeString()} ${e.action} ${e.status === 'complete' ? '✓' : '✕'}</li>`).join('')
+  const logEl = $('log')
+  logEl.textContent = ''
+  for (const entry of actionLog as Array<{ ts: number; action: string; status: string }>) {
+    const li = document.createElement('li')
+    li.textContent = `${new Date(entry.ts).toLocaleTimeString()} ${entry.action} ${entry.status === 'complete' ? '✓' : '✕'}`
+    logEl.appendChild(li)
+  }
 }
 void renderLog()
 chrome.storage.onChanged.addListener((c) => { if (c.actionLog) void renderLog() })

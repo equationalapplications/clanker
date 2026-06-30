@@ -1,7 +1,7 @@
 # CWS Extension Readiness — Design Spec
 
 **Date:** 2026-06-30
-**Status:** Ready for implementation
+**Status:** Implemented
 **Scope:** Chrome Web Store submission preparation only — no new features
 **Supersedes:** nothing — supplements `2026-06-29-mv3-browser-extension-bridge-design.md` (Phase 3 gate)
 
