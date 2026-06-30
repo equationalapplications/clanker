@@ -400,10 +400,12 @@ export async function handleLiveWsUpgrade(
                 geminiSession!.sendToolResponse({
                   functionResponses: [{ id: callId, name: 'browser_action', response: { output: text } }],
                 })
-              } catch { /* ignore */ }
-              return
+                return
+              } catch (err) {
+                console.warn('[pushToLive] live tool response failed, falling back to Expo Push:', err)
+              }
             }
-            // Voice session already closed — deliver result via Expo Push fallback.
+            // Voice session closed or live delivery failed — deliver via Expo Push fallback.
             if (bridgeBase?.fcmDispatcher && bridgeBase.firebaseUid) {
               const fwd = bridgeBase.fcmDispatcher
               const fbUid = bridgeBase.firebaseUid

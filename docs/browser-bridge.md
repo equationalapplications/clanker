@@ -48,7 +48,7 @@ Bridge routes are registered only when Firebase Admin is initialized (`admin.app
 
 ## Wake-and-Connect Lifecycle
 
-```
+```text
 FCM WAKE_AND_CONNECT
   → extension service worker wakes
   → offscreen Firebase Auth → idToken

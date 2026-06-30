@@ -8,6 +8,15 @@ function makeFakeDb(calls?: Array<{ path: string; data: Record<string, unknown>;
   function docRef(path: string) {
     return {
       path,
+      async create(data: Record<string, unknown>) {
+        if (store.has(path)) {
+          const err = new Error('Already exists') as Error & { code: number }
+          err.code = 6
+          throw err
+        }
+        calls?.push({ path, data })
+        store.set(path, data)
+      },
       async set(data: Record<string, unknown>, opts?: { merge?: boolean }) {
         calls?.push({ path, data, opts })
         store.set(path, opts?.merge ? { ...(store.get(path) ?? {}), ...data } : data)
@@ -70,6 +79,16 @@ function makeFakeDb(calls?: Array<{ path: string; data: Record<string, unknown>;
 }
 
 const { createFirestoreSession } = await import('./firestoreSession.js')
+
+test('reserveSchedulerRun returns duplicate for same runKey', async () => {
+  const { db } = makeFakeDb()
+  const fs = createFirestoreSession(db as never)
+  const ids = { sessionId: 's1', taskId: 't1' }
+  assert.equal(await fs.reserveSchedulerRun('u1', 'run-a', ids), 'reserved')
+  assert.equal(await fs.reserveSchedulerRun('u1', 'run-a', { sessionId: 's2', taskId: 't2' }), 'duplicate')
+  const existing = await fs.getSchedulerRun('u1', 'run-a')
+  assert.deepEqual(existing, ids)
+})
 
 test('createSession + getSession round-trip', async () => {
   const { db } = makeFakeDb()

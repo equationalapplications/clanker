@@ -964,6 +964,7 @@ URL:         https://<cloud-agent-url>/agent/browser/scheduler-trigger
 HTTP method: POST
 Body:        {
                "uid": "<firebase_uid_of_target_user>",
+               "runKey": "<cloud-scheduler-job-name>-<execution-id>",
                "action": {
                  "type": "extract",
                  "selector": ".price",
@@ -974,6 +975,7 @@ Body:        {
              }
 Auth header: Add header
              Authorization: Bearer <SCHEDULER_SECRET from Step 7.1>
+             Content-Type: application/json
 ```
 
 - [ ] **Step 7.3: Trigger the job manually and verify end-to-end**

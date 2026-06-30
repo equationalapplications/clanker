@@ -24,6 +24,7 @@ const schedulerActionSchema = z.union([
 
 const schedulerBodySchema = z.object({
   uid: z.string().min(1),
+  runKey: z.string().min(1),
   action: schedulerActionSchema,
   actionSummary: z.string().min(1),
   notificationBody: z.string().min(1),
@@ -105,7 +106,7 @@ export function createSchedulerTriggerHandler(
       return
     }
 
-    const { uid, action, actionSummary, notificationBody } = parsed.data
+    const { uid, runKey, action, actionSummary, notificationBody } = parsed.data
 
     const blocked = findBlockedNavigation(action)
     if (blocked) {
@@ -148,61 +149,95 @@ export function createSchedulerTriggerHandler(
       return
     }
 
-    let txId: string | null = null
+    const sessionId = crypto.randomUUID()
+    const taskId = crypto.randomUUID()
+
+    let isDuplicateRun = false
     try {
-      txId = await creditService.spendCredit(userId)
+      const reservation = await fs.reserveSchedulerRun(uid, runKey, { sessionId, taskId })
+      isDuplicateRun = reservation === 'duplicate'
     } catch (err) {
-      const msg = err instanceof Error ? err.message : ''
-      if (msg === 'INSUFFICIENT_CREDITS') {
-        res.status(402).json({ error: 'Insufficient credits' })
-        return
-      }
-      console.error('[scheduler-trigger] spendCredit error:', err)
+      console.error('[scheduler-trigger] reserveSchedulerRun error:', err)
       res.status(500).json({ error: 'Internal server error' })
       return
     }
 
-    const sessionId = crypto.randomUUID()
-    const taskId = crypto.randomUUID()
+    let activeSessionId: string = sessionId
+    let activeTaskId: string = taskId
+
+    if (isDuplicateRun) {
+      try {
+        const existing = await fs.getSchedulerRun(uid, runKey)
+        if (!existing) {
+          res.status(500).json({ error: 'Internal server error' })
+          return
+        }
+        activeSessionId = existing.sessionId
+        activeTaskId = existing.taskId
+      } catch (err) {
+        console.error('[scheduler-trigger] getSchedulerRun error:', err)
+        res.status(500).json({ error: 'Internal server error' })
+        return
+      }
+    }
+
+    let txId: string | null = null
+    if (!isDuplicateRun) {
+      try {
+        txId = await creditService.spendCredit(userId)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : ''
+        if (msg === 'INSUFFICIENT_CREDITS') {
+          res.status(402).json({ error: 'Insufficient credits' })
+          return
+        }
+        console.error('[scheduler-trigger] spendCredit error:', err)
+        res.status(500).json({ error: 'Internal server error' })
+        return
+      }
+    }
+
     const taskIntent = {
       version: '1' as const,
-      taskId,
-      sessionId,
+      taskId: activeTaskId,
+      sessionId: activeSessionId,
       requiresAuth: false,
       actionSummary,
       action,
     }
 
-    try {
-      await fs.createSession(uid, sessionId, { status: 'pending', trigger: 'scheduler', voiceInstanceId: INSTANCE_ID })
-      await fs.writeTask(uid, sessionId, taskId, taskIntent)
-    } catch (err) {
-      console.error('[scheduler-trigger] setup error:', err)
-      if (txId) {
-        try { await creditService.refundCredit(userId, txId) } catch { /* logged */ }
-      }
-      try { await fs.closeSession(uid, sessionId, 'aborted') } catch { /* ignore */ }
-      res.status(500).json({ error: 'Internal server error' })
-      return
-    }
-
-    // FCM wake is best-effort — extension falls back to alarm-based polling.
-    if (!device.fcmToken.startsWith('polling:')) {
+    if (!isDuplicateRun) {
       try {
-        await fcm.wakeExtension(device.fcmToken, sessionId, taskId)
+        await fs.createSession(uid, activeSessionId, { status: 'pending', trigger: 'scheduler', voiceInstanceId: INSTANCE_ID })
+        await fs.writeTask(uid, activeSessionId, activeTaskId, taskIntent)
       } catch (err) {
-        console.warn('[scheduler-trigger] FCM wake failed, extension will poll:', err instanceof Error ? err.message : err)
+        console.error('[scheduler-trigger] setup error:', err)
+        if (txId) {
+          try { await creditService.refundCredit(userId, txId) } catch { /* logged */ }
+        }
+        try { await fs.closeSession(uid, activeSessionId, 'aborted') } catch { /* ignore */ }
+        res.status(500).json({ error: 'Internal server error' })
+        return
+      }
+
+      // FCM wake is best-effort — extension falls back to alarm-based polling.
+      if (!device.fcmToken.startsWith('polling:')) {
+        try {
+          await fcm.wakeExtension(device.fcmToken, activeSessionId, activeTaskId)
+        } catch (err) {
+          console.warn('[scheduler-trigger] FCM wake failed, extension will poll:', err instanceof Error ? err.message : err)
+        }
       }
     }
 
     let task: TaskDoc | null = null
     try {
-      task = await waitForTerminalTask(fs, uid, sessionId, taskId, timeoutMs)
+      task = await waitForTerminalTask(fs, uid, activeSessionId, activeTaskId, timeoutMs)
     } catch {
       let abortedOffline = false
       try {
-        abortedOffline = await fs.abortPendingTaskIfOffline(uid, sessionId, taskId, {
-          taskId, status: 'failed', data: {}, activeUrl: '',
+        abortedOffline = await fs.abortPendingTaskIfOffline(uid, activeSessionId, activeTaskId, {
+          taskId: activeTaskId, status: 'failed', data: {}, activeUrl: '',
           error: {
             code: 'EXTENSION_OFFLINE',
             message: 'Browser extension did not connect',
@@ -213,8 +248,8 @@ export function createSchedulerTriggerHandler(
 
       if (!abortedOffline) {
         try {
-          await fs.writeTaskResult(uid, sessionId, taskId, {
-            taskId, status: 'failed', data: {}, activeUrl: '',
+          await fs.writeTaskResult(uid, activeSessionId, activeTaskId, {
+            taskId: activeTaskId, status: 'failed', data: {}, activeUrl: '',
             error: {
               code: 'EXECUTION_TIMEOUT',
               message: 'Scheduler task timed out',
@@ -224,30 +259,32 @@ export function createSchedulerTriggerHandler(
         } catch { /* ignore */ }
       }
 
-      if (abortedOffline && txId) {
+      if (!isDuplicateRun && abortedOffline && txId) {
         try { await creditService.refundCredit(userId, txId) } catch { /* logged */ }
       }
 
-      try { await fs.closeSession(uid, sessionId, 'aborted') } catch { /* ignore */ }
-      res.status(504).json({ error: 'Task timed out', sessionId, taskId })
+      try { await fs.closeSession(uid, activeSessionId, 'aborted') } catch { /* ignore */ }
+      res.status(504).json({ error: 'Task timed out', sessionId: activeSessionId, taskId: activeTaskId })
       return
     }
 
-    try { await fs.closeSession(uid, sessionId, 'closed') } catch { /* ignore */ }
+    try { await fs.closeSession(uid, activeSessionId, 'closed') } catch { /* ignore */ }
 
     const pushBody = task.status === 'complete'
       ? notificationBody
       : `Browser task failed (${task.error?.code ?? 'unknown'}). Tap to check.`
 
-    try {
-      const expoPushToken = await getExpoPushToken(uid)
-      if (expoPushToken) {
-        await fcm.sendProactive(expoPushToken, sessionId, taskId, pushBody)
+    if (!isDuplicateRun) {
+      try {
+        const expoPushToken = await getExpoPushToken(uid)
+        if (expoPushToken) {
+          await fcm.sendProactive(expoPushToken, activeSessionId, activeTaskId, pushBody)
+        }
+      } catch (err) {
+        console.error('[scheduler-trigger] sendProactive error:', err)
       }
-    } catch (err) {
-      console.error('[scheduler-trigger] sendProactive error:', err)
     }
 
-    res.json({ ok: true, sessionId, taskId, status: task.status })
+    res.json({ ok: true, sessionId: activeSessionId, taskId: activeTaskId, status: task.status })
   }
 }

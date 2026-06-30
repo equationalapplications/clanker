@@ -11,6 +11,7 @@ export interface FirestoreBatch {
 export interface FirestoreLike {
   doc(path: string): {
     set(data: Record<string, unknown>, opts?: { merge?: boolean }): Promise<unknown>
+    create?(data: Record<string, unknown>): Promise<unknown>
     get(): Promise<{ exists: boolean; data(): Record<string, unknown> | undefined }>
     update(data: Record<string, unknown>): Promise<unknown>
     onSnapshot?(cb: (snap: { exists: boolean; data(): Record<string, unknown> | undefined }) => void): () => void
@@ -45,6 +46,7 @@ export function createFirestoreSession(db: FirestoreLike) {
   const sessionPath = (uid: string, sid: string) => `users/${uid}/sessions/${sid}`
   const taskPath = (uid: string, sid: string, tid: string) => `users/${uid}/sessions/${sid}/tasks/${tid}`
   const devicesPath = (uid: string) => `users/${uid}/devices`
+  const schedulerRunPath = (uid: string, runKey: string) => `users/${uid}/schedulerRuns/${runKey}`
 
   return {
     async getActiveDevice(uid: string): Promise<{ deviceId: string; fcmToken: string; deviceName: string } | null> {
@@ -168,6 +170,46 @@ export function createFirestoreSession(db: FirestoreLike) {
       }
     },
 
+    /**
+     * Atomically reserve a scheduler run key before spending credit or creating tasks.
+     * Returns existing session/task IDs when Cloud Scheduler retries a prior execution.
+     */
+    async reserveSchedulerRun(
+      uid: string,
+      runKey: string,
+      ids: { sessionId: string; taskId: string },
+    ): Promise<'reserved' | 'duplicate'> {
+      const ref = db.doc(schedulerRunPath(uid, runKey))
+      const payload = { sessionId: ids.sessionId, taskId: ids.taskId, createdAt: now() }
+      if (ref.create) {
+        try {
+          await ref.create(payload)
+          return 'reserved'
+        } catch (err: unknown) {
+          const code = (err as { code?: number | string })?.code
+          if (code === 6 || code === 'already-exists' || code === 'ALREADY_EXISTS') {
+            return 'duplicate'
+          }
+          throw err
+        }
+      }
+      const existing = await ref.get()
+      if (existing.exists) return 'duplicate'
+      await ref.set(payload)
+      return 'reserved'
+    },
+
+    async getSchedulerRun(
+      uid: string,
+      runKey: string,
+    ): Promise<{ sessionId: string; taskId: string } | null> {
+      const doc = await db.doc(schedulerRunPath(uid, runKey)).get()
+      if (!doc.exists) return null
+      const data = doc.data() as { sessionId?: string; taskId?: string }
+      if (!data.sessionId || !data.taskId) return null
+      return { sessionId: data.sessionId, taskId: data.taskId }
+    },
+
     watchAuth(uid: string, sid: string, tid: string, cb: (auth: AuthDoc) => void): () => void {
       const authPath = `users/${uid}/sessions/${sid}/auth/${tid}`
       const ref = db.doc(authPath)
@@ -184,7 +226,13 @@ export type FirestoreSession = ReturnType<typeof createFirestoreSession>
 export function defaultFirestoreSession(): FirestoreSession {
   const raw = admin.firestore()
   const db: FirestoreLike = {
-    doc: (path) => raw.doc(path) as FirestoreLike['doc'] extends (p: string) => infer R ? R : never,
+    doc: (path) => {
+      const ref = raw.doc(path)
+      return {
+        ...(ref as FirestoreLike['doc'] extends (p: string) => infer R ? R : never),
+        create: (data: Record<string, unknown>) => ref.create(data),
+      }
+    },
     collection: (path) => raw.collection(path) as unknown as CollectionQuery,
     batch: () => {
       const batch = raw.batch()
