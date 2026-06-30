@@ -2,8 +2,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import express from 'express'
+import { rateLimit } from 'express-rate-limit'
 import request from 'supertest'
-import { createSchedulerTriggerHandler } from './schedulerTriggerHandler.js'
+import { createSchedulerTriggerHandler, createRequireSchedulerSecret } from './schedulerTriggerHandler.js'
 import type { TaskDoc } from '../../../shared/dsl-types.js'
 
 const SECRET = 'test-scheduler-secret-abc'
@@ -53,12 +54,18 @@ function buildApp(overrides: {
     overrides.getExpoPushToken ?? (async () => 'ExponentPushToken[sched]'),
     mockCredit as never,
     overrides.resolveUserId ?? (async () => 'user-db-id'),
-    { secret: SECRET, schedulerTimeoutMs: 200 },
+    { schedulerTimeoutMs: 200 },
   )
 
   const app = express()
   app.use(express.json())
-  app.post('/agent/browser/scheduler-trigger', handler)
+  const testLimiter = rateLimit({ windowMs: 60_000, limit: 1_000 })
+  app.post(
+    '/agent/browser/scheduler-trigger',
+    testLimiter,
+    createRequireSchedulerSecret(SECRET),
+    handler,
+  )
 
   return { app, proactiveCalls, creditCalls }
 }

@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import type { FirestoreSession } from '../services/firestoreSession.js'
 import type { FcmDispatcher } from '../services/fcmDispatcher.js'
 import type { CreditService } from '../services/creditService.js'
@@ -11,8 +11,6 @@ import { findBlockedNavigation } from '../../../shared/hostPolicy.js'
 import { INSTANCE_ID } from '../services/instanceId.js'
 
 export interface SchedulerTriggerOptions {
-  /** SCHEDULER_SECRET env var value — requests must Bearer-match this */
-  secret: string
   schedulerTimeoutMs?: number
 }
 
@@ -46,6 +44,24 @@ export function isSchedulerAuthorized(req: Request, secret: string): boolean {
   const authHeader = req.headers.authorization ?? ''
   const token = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : ''
   return Boolean(token && constantTimeEquals(token, secret))
+}
+
+/** Bearer SCHEDULER_SECRET check — mount after a rate limiter in production routes. */
+export function createRequireSchedulerSecret(secret: string) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!isSchedulerAuthorized(req, secret)) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+    next()
+  }
+}
+
+function scheduledActionNeedsApproval(
+  actionSummary: string,
+  action: z.infer<typeof schedulerActionSchema>,
+): boolean {
+  return intentRequiresAuth(actionSummary, action)
 }
 
 function waitForTerminalTask(
@@ -83,11 +99,6 @@ export function createSchedulerTriggerHandler(
   const timeoutMs = opts.schedulerTimeoutMs ?? 60_000
 
   return async (req: Request, res: Response): Promise<void> => {
-    if (!isSchedulerAuthorized(req, opts.secret)) {
-      res.status(401).json({ error: 'Unauthorized' })
-      return
-    }
-
     const parsed = schedulerBodySchema.safeParse(req.body)
     if (!parsed.success) {
       res.status(400).json({ error: 'Invalid request body' })
@@ -102,7 +113,7 @@ export function createSchedulerTriggerHandler(
       return
     }
 
-    if (intentRequiresAuth(actionSummary, action)) {
+    if (scheduledActionNeedsApproval(actionSummary, action)) {
       res.status(422).json({
         error: 'REQUIRES_AUTH: Scheduled tasks cannot include actions that require approval',
       })
