@@ -27,6 +27,7 @@
   ],
   "exclude": [
     "functions",
-    "cloud-agent"
+    "cloud-agent",
+    "extension"
   ]
 }

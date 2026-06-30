@@ -12,7 +12,7 @@ C4Context
 
   System_Ext(firebase, "Firebase", "Auth, Firestore session/task coordination bus, Cloud Functions (generateReply BYOI proxy, bootstrap, wiki LLM/sync, media callables, payment webhooks), FCM sender for extension wake")
   System_Ext(cloudagent, "Cloud Agent", "Stateless ADK agent on Cloud Run. Text: WebSocket /agent/stream with HTTP /agent/run fallback. Voice: WebSocket /agent/live (Gemini Live API). Browser bridge: /agent/browser WebSocket (auth frame with Firebase ID token), browser_action tool, Firestore session/task coordination via watchTask, FCM wake dispatch")
-  System_Ext(expo_push, "Expo Push", "Mobile push notifications — approval cards and async task completion (Phase 2+)")
+  System_Ext(expo_push, "Expo Push", "Mobile push — approval cards (Phase 1); async task completion when voice session closed (Phase 2+)")
   System_Ext(google, "Google Sign-In", "OAuth identity provider (via Firebase Auth)")
   System_Ext(gemini, "Vertex AI (Gemini)", "LLM completions. Called only by Cloud Functions and Cloud Agent — never by the client")
   System_Ext(stripe, "Stripe", "Web subscription payments and checkout")
@@ -29,7 +29,7 @@ C4Context
   Rel(stripe, firebase, "Purchase webhooks")
   Rel(revenuecat, firebase, "Purchase webhooks")
   Rel(cloudagent, firebase, "Firestore session/task writes (Admin SDK), FCM silent push to extension, Firebase ID token verification")
-  Rel(cloudagent, expo_push, "Approval cards and async task notifications (Phase 2+)", "REST exp.host/--/api/v2/push/send")
+  Rel(cloudagent, expo_push, "Approval cards; async task notifications when voice closed (Phase 2+)", "REST exp.host/--/api/v2/push/send")
   Rel(cloudagent, gemini, "LLM calls via Google ADK (text, voice, browser_action tool)")
 ```
 
@@ -56,8 +56,8 @@ Cross-device browser tasks use a three-node async loop. Cloud Run instances neve
 1. **Trigger** — Gemini invokes `browser_action` on `/agent/live` (voice) or `/agent/run` (text). Cloud Agent creates session + task docs in Firestore, resolves paired device, and dispatches FCM `WAKE_AND_CONNECT`.
 2. **Wake-and-Connect** — MV3 service worker wakes on FCM, mints Firebase ID token via offscreen auth bridge, opens WebSocket `/agent/browser`, and executes the Task DSL in the user's browser.
 3. **Result delivery** — Extension returns results via WS → Cloud Agent writes to Firestore → voice-side `watchTask` listener pushes into Gemini Live (or text path awaits synchronously). If the voice session is closed, Expo Push delivers async completion (Phase 2+).
-4. **Approval (Phase 2+)** — Destructive actions halt execution; mobile user taps Approve/Deny on an Expo Push card; server writes approval decision to Firestore; Cloud Agent observer resumes the extension via FCM.
+4. **Approval (Phase 1)** — Destructive actions halt execution; mobile user taps Approve/Deny on an Expo Push card; server writes approval decision to Firestore; Cloud Agent observer resumes the extension via FCM.
 
 > **Note:** Cloud Agent `/agent/live` and `/agent/browser` handlers are deployed on Cloud Run. Firestore replaces in-memory cross-instance routing for browser task coordination.
 
-See [Edge Agent](../../edge-agent.md), [AI & Chat](../../ai-and-chat.md), and the [MV3 Browser Extension Bridge design spec](../../superpowers/specs/2026-06-29-mv3-browser-extension-bridge-design.md).
+See [Browser Bridge](../../browser-bridge.md), [Edge Agent](../../edge-agent.md), [AI & Chat](../../ai-and-chat.md), and the [MV3 Browser Extension Bridge design spec](../../superpowers/specs/2026-06-29-mv3-browser-extension-bridge-design.md).

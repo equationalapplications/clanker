@@ -18,6 +18,23 @@ Handled provider-side: Stripe, Apple App Store, and Google Play manage refund me
 
 ---
 
+## Browser Action Billing
+
+The `browser_action` tool (Desktop Bridge extension) uses **contextual billing** to avoid double-charging:
+
+| Path | Timer billing | `browser_action` flat billing |
+|------|--------------|-------------------------------|
+| Voice (`/agent/live`) | Wall-clock timer **paused** during wake + execution | `spendCredit` after paired device found |
+| Text (`POST /agent/run`) | N/A — 1 credit pre-spent per turn | Skip `spendCredit` (`preBilled: true`) |
+
+**No credit spent** when no paired device is registered or when the device is paused (`isPaused: true`).
+
+**Refunds:** Voice path refunds the `browser_action` credit on `EXTENSION_OFFLINE` (12s wake timeout, extension never connected). No refund on execution errors (`SELECTOR_NOT_FOUND`, `EXECUTION_TIMEOUT`, etc.) — the extension connected and attempted the task.
+
+See **[Browser Bridge](browser-bridge.md)** for the full billing and lifecycle context.
+
+---
+
 ## First Login Credits
 
 New users receive **50 free credits** upon their first login, seeded by the Cloud SQL bootstrap flow.

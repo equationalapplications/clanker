@@ -71,6 +71,19 @@ Transcript tokens with the same role are concatenated into one message. `usage_s
 
 ---
 
+## Browser Actions During Live Calls
+
+Gemini Live can invoke the `browser_action` tool during an active call. When triggered:
+
+1. Cloud Agent creates Firestore session/task docs and wakes the Desktop Bridge extension via FCM
+2. The live billing timer is **paused** while waiting for extension wake and execution (resumed when the task completes, times out, or the extension is offline)
+3. Voice path returns an interim tool response immediately; the final result is pushed into the Gemini Live session via `pushToLive` when the Firestore task reaches a terminal status
+4. If the voice session closes before the result arrives, Cloud Agent can deliver async completion via Expo Push (Phase 2+)
+
+Text chat reaches the same tool via Cloud Agent `POST /agent/run` (synchronous `watchTask` with 30s cap). See **[Browser Bridge](browser-bridge.md)** for the full Wake-and-Connect lifecycle, Task DSL, pairing, and approval flow.
+
+---
+
 ## Audio
 
 **Native audio (Talk tab):** Uses `@speechmatics/expo-two-way-audio` (MIT, stock, Speechmatics-maintained) as a unified duplex module for microphone capture and PCM playback. Hardware AEC is enabled on both iOS (`VoiceProcessingIO`) and Android (linked `AudioRecord`/`AudioTrack` session). Downlink audio is resampled from 24 kHz to 16 kHz in `src/utils/audioResample.ts` before enqueue. Wire protocol (24 kHz base64 downlink, 16 kHz uplink) is unchanged.
@@ -98,6 +111,7 @@ Set `EXPO_PUBLIC_CLOUD_AGENT_URL` for runtime WebSocket URL derivation (see `liv
 
 ## Related Docs
 
+- **[Browser Bridge](browser-bridge.md)** — Desktop extension tasks during live calls (`browser_action`, billing pause)
 - **[AI & Chat](ai-and-chat.md)** — Text chat pipeline, wiki memory, Cloud Agent text paths
 - **[Edge Agent](edge-agent.md)** — On-device text tool loop (separate from voice)
 - **[Billing & Credits](billing-and-credits.md)** — Credit ledger and subscriptions
