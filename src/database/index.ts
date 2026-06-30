@@ -32,14 +32,18 @@ type DatabaseExecutor = Pick<
     'execAsync' | 'runAsync' | 'getAllAsync' | 'getFirstAsync'
 >
 
+function isDatabaseOpenTimeoutError(error: unknown): boolean {
+    const msg = error instanceof Error ? error.message : String(error)
+    return msg.includes('timed out waiting for browser storage')
+}
+
 function isOPFSLockError(error: unknown): boolean {
     const msg = error instanceof Error ? error.message : String(error)
     return (
         msg.includes('NoModificationAllowedError') ||
         msg.includes('createSyncAccessHandle') ||
         msg.includes('Access Handles cannot be created') ||
-        msg.includes('Invalid VFS state') ||
-        msg.includes('timed out waiting for browser storage')
+        msg.includes('Invalid VFS state')
     )
 }
 
@@ -67,11 +71,11 @@ async function openDatabaseWithTimeout(name: string): Promise<SQLite.SQLiteDatab
     }
 }
 
-/** User-actionable storage conflict (OPFS lock or poisoned expo-sqlite worker). */
+/** User-actionable storage conflict (OPFS lock, open timeout, or poisoned expo-sqlite worker). */
 export function isDatabaseStorageConflictError(error: Error | null | undefined): boolean {
     if (!error) return false
     if (error.message.includes('locked in browser storage')) return true
-    return isOPFSLockError(error)
+    return isOPFSLockError(error) || isDatabaseOpenTimeoutError(error)
 }
 
 async function openDatabaseAsyncWithRetry(
@@ -89,6 +93,7 @@ async function openDatabaseAsyncWithRetry(
             return database
         } catch (error) {
             lastError = error
+            if (isDatabaseOpenTimeoutError(error)) throw error
             if (!isOPFSLockError(error)) throw error
             console.warn(`[DB] OPFS lock on attempt ${attempt + 1}/${retries}, retrying…`)
             await new Promise((resolve) => setTimeout(resolve, baseDelayMs * (attempt + 1)))

@@ -2,13 +2,11 @@ import { useEffect } from 'react'
 import { closeDatabase } from './index'
 import { terminateSqliteWebWorker } from './sqliteWebWorker'
 
-async function releaseWebDatabaseLocks(): Promise<void> {
-  try {
-    await closeDatabase()
-  } catch (error) {
-    console.warn('[DB] Failed to close database on pagehide:', error)
-  }
+function releaseWebDatabaseLocks(): void {
   terminateSqliteWebWorker()
+  void closeDatabase().catch((error) => {
+    console.warn('[DB] Failed to close database on pagehide:', error)
+  })
 }
 
 /**
@@ -20,7 +18,7 @@ export function useWebDatabaseLifecycle(): void {
     if (typeof window === 'undefined') return
 
     const handlePageHide = (): void => {
-      void releaseWebDatabaseLocks()
+      releaseWebDatabaseLocks()
     }
 
     const handlePageShow = (event: PageTransitionEvent): void => {

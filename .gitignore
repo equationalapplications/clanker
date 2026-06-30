@@ -66,6 +66,7 @@ public/privacy/
 public/terms/
 public/sitemap.xml
 public/robots.txt
+public/clanker-icon.png
 
 # Git worktrees
 .worktrees/
