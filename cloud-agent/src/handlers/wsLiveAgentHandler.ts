@@ -8,7 +8,7 @@ import type { GroundingMetadata } from '@google/genai'
 import type { DrizzleClient } from '../db/client.js'
 import { users, characters } from '../db/schema.js'
 import { embedText } from '../db/embeddings.js'
-import { assembleSystemInstruction } from '../services/agentCore.js'
+import { assembleSystemInstruction, queryWikiContext } from '../services/agentCore.js'
 import { buildLiveTools, resolveVoice } from '../services/liveToolAdapter.js'
 import { createCreditService } from '../services/creditService.js'
 import type { CreditService } from '../services/creditService.js'
@@ -60,6 +60,8 @@ const liveAuthSchema = z.object({
   type: z.literal('auth'),
   token: z.string().min(1),
   characterId: z.string().uuid(),
+  memoryQuery: z.string().trim().max(2000).optional(),
+  recentChatContext: z.string().trim().max(2000).optional(),
 })
 
 export interface WsLiveHandlerOptions {
@@ -290,7 +292,7 @@ export async function handleLiveWsUpgrade(
         return
       }
 
-      const { token, characterId } = parseResult.data
+      const { token, characterId, memoryQuery, recentChatContext } = parseResult.data
 
       let uid: string
       try {
@@ -421,7 +423,32 @@ export async function handleLiveWsUpgrade(
         : buildLiveTools(db, userId, characterId, embedText, timezone)
       toolExecutors = executors
 
-      const systemInstruction = assembleSystemInstruction(character, '')
+      let wikiContext = ''
+      const memoryAnchor = memoryQuery?.trim() ?? ''
+      if (memoryAnchor) {
+        try {
+          let timeoutId: ReturnType<typeof setTimeout> | undefined
+          wikiContext = await Promise.race([
+            queryWikiContext(db, memoryAnchor, userId, characterId, embedText),
+            new Promise<string>((_, reject) => {
+              timeoutId = setTimeout(
+                () => reject(new Error('queryWikiContext timed out after 5000ms')),
+                5_000,
+              )
+            }),
+          ]).finally(() => {
+            if (timeoutId !== undefined) clearTimeout(timeoutId)
+          })
+        } catch (err) {
+          console.warn('[live] queryWikiContext failed, starting without preloaded memory:', err)
+        }
+      }
+
+      const systemInstruction = assembleSystemInstruction(
+        character,
+        wikiContext,
+        recentChatContext?.trim() || memoryAnchor,
+      )
 
       try {
         geminiSession = await liveConnect({

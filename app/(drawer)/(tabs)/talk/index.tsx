@@ -86,6 +86,7 @@ function TalkView({ characterId }: { characterId: string }) {
     isConnecting,
     isLive,
     isSyncing,
+    syncPhase,
     error,
     transcript,
     activeTool,
@@ -163,7 +164,9 @@ function TalkView({ characterId }: { characterId: string }) {
 
   const statusText = (() => {
     if (error) return error
-    if (isSyncing) return 'Syncing memory…'
+    if (isSyncing && syncPhase === 'saving_observations') return 'Saving observations…'
+    if (isSyncing && syncPhase === 'syncing_cloud') return 'Syncing memory…'
+    if (isSyncing) return 'Preparing memory…'
     if (isConnecting) return 'Connecting…'
     if (isLive && isPlayingAudio) return transcript[transcript.length - 1]?.text ?? 'Speaking…'
     if (isLive && activeTool) return `⏳ ${activeTool.replace(/_/g, ' ')}…`

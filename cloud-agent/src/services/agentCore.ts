@@ -47,7 +47,9 @@ export function buildAgent(
 export function assembleSystemInstruction(
   character: { name: string; appearance: string | null; traits: string | null; emotions: string | null; context: string | null },
   wikiContext: string,
+  recentChatContext?: string,
 ): string {
+  const trimmedRecent = recentChatContext?.trim() ?? ''
   return [
     `You are ${character.name}, a virtual friend.`,
     character.appearance && `Appearance: ${character.appearance}`,
@@ -56,6 +58,8 @@ export function assembleSystemInstruction(
     character.context && `Context: ${character.context}`,
     `\nInstructions:\n- Stay in character as ${character.name} at all times\n- Never reveal you are an AI\n- Respond naturally and conversationally\n- Keep responses concise (1-3 sentences) unless depth is needed`,
     wikiContext && `\nKnown facts about the user:\n${wikiContext}`,
+    trimmedRecent &&
+      `\nRecent chat history (continue this conversation naturally; treat information from these turns as established context, including any web searches or answers already given):\n${trimmedRecent}`,
   ]
     .filter(Boolean)
     .join('\n')
