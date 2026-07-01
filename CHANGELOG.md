@@ -1,3 +1,16 @@
+# [30.12.0](https://github.com/equationalapplications/clanker/compare/v30.11.0...v30.12.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* clear approval token on deny and read _isLocal from notification data ([c232c85](https://github.com/equationalapplications/clanker/commit/c232c853206c346fca04854936a1f81275a6411b))
+* pin @babel/core to v7 after dependabot babel 8 bump ([a0e3382](https://github.com/equationalapplications/clanker/commit/a0e33822243cd20e9cc8725d38fae5d0146989d0))
+
+
+### Features
+
+* **web:** enable Expo web push with VAPID config ([bccbbea](https://github.com/equationalapplications/clanker/commit/bccbbea8fce49b2926130c1c23144ab88988e432))
+
 # [30.11.0](https://github.com/equationalapplications/clanker/compare/v30.10.0...v30.11.0) (2026-06-30)
 
 
