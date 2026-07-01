@@ -10,6 +10,6 @@ graph LR
   index --> wikiService
   messageDatabase --> index
   taskDatabase --> index
-  webLifecycle.web --> index
   webLifecycle.web --> sqliteWebWorker
+  webLifecycle.web --> index
 ```
