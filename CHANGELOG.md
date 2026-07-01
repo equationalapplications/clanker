@@ -1,3 +1,25 @@
+# [30.13.0](https://github.com/equationalapplications/clanker/compare/v30.12.0...v30.13.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* address PR 509 review feedback across billing and voice handoff ([3f9abd6](https://github.com/equationalapplications/clanker/commit/3f9abd6013cbe717066127b43bd292fca47d44ec))
+* **billing:** address Stripe webhook review feedback on PR 508 ([b4d499a](https://github.com/equationalapplications/clanker/commit/b4d499a3f35990e067a389c2f0994133f0df0a53))
+* **billing:** harden stripe dedupe leases and legacy refund tracking ([8690510](https://github.com/equationalapplications/clanker/commit/8690510c06109fc4aa34e01df6f8c6e6fdd7dec2))
+* **billing:** make webhook dedupe concurrent-safe and fix refund rounding ([f55f3ed](https://github.com/equationalapplications/clanker/commit/f55f3ed03bb6336b3a28a0492782da1c41217bb1))
+* **credits:** align spec and tests with allocations refund contract ([608d9a6](https://github.com/equationalapplications/clanker/commit/608d9a617866b33619cef56eba117501c3c80c53))
+* **credits:** return spend allocations for reversible refunds ([0af5f9f](https://github.com/equationalapplications/clanker/commit/0af5f9fb7aebb1b9c9c865d30b5fc9b225c4ce0f))
+* **credits:** spend across fragmented rows and align billing policy ([83bce09](https://github.com/equationalapplications/clanker/commit/83bce09d0e6a26d8d1d4e8cbb9fd7fd89074114f))
+* **talk:** address PR review feedback on timeouts and truncation ([d2665a4](https://github.com/equationalapplications/clanker/commit/d2665a4892aa9386d6cdeb2bd69dfe278d90d681))
+* **talk:** announce credit count to screen readers ([8cee99f](https://github.com/equationalapplications/clanker/commit/8cee99fd5ee58ed142ddb86d8fabf66da1386716))
+* **talk:** bridge Chat memory into live voice sessions ([e768dd5](https://github.com/equationalapplications/clanker/commit/e768dd56fe6d8d2f91973d9c51bc0d89cd6d5598))
+
+
+### Features
+
+* **billing:** harden cross-platform subscriptions and webhook idempotency ([f08ddd6](https://github.com/equationalapplications/clanker/commit/f08ddd6e0fbee91a483d50c81db7c568d996a101))
+* **credits:** reconcile live-voice spends and show in-call balance ([026ce81](https://github.com/equationalapplications/clanker/commit/026ce81e7a5580757e51f3e11bec4878b0f4ee92))
+
 # [30.12.0](https://github.com/equationalapplications/clanker/compare/v30.11.0...v30.12.0) (2026-07-01)
 
 
