@@ -111,7 +111,12 @@ export default function CreditsDisplay({
       }
     } catch (e: any) {
       console.error(e)
-      setErrorMessage('Purchase failed. Please try again.')
+      const firebaseCode = typeof e?.code === 'string' ? e.code : undefined
+      setErrorMessage(
+        firebaseCode === 'functions/already-exists' && typeof e?.message === 'string'
+          ? e.message
+          : 'Purchase failed. Please try again.'
+      )
       if (Platform.OS === 'web') {
         resetPurchaseState()
       }

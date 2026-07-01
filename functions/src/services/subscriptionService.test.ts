@@ -176,3 +176,99 @@ test('getOrCreateDefaultSubscription does not add signup credits when existing u
   assert.equal(addCreditsWasCalled, false);
   assert.equal(selectCalls, 3);
 });
+
+test('upsertSubscription writes subscriptionProvider and cancelAtPeriodEnd on insert and update', async () => {
+  let insertValues: Record<string, unknown> | null = null;
+  let updateSet: Record<string, unknown> | null = null;
+
+  const fakeDb = {
+    insert: () => ({
+      values: (values: Record<string, unknown>) => {
+        insertValues = values;
+        return {
+          onConflictDoUpdate: (args: { set: Record<string, unknown> }) => {
+            updateSet = args.set;
+            return {
+              returning: async () => [{ ...values, ...args.set }],
+            };
+          },
+        };
+      },
+    }),
+  };
+
+  const service = createSubscriptionService({ getDb: async () => fakeDb as never });
+
+  await service.upsertSubscription({
+    userId: 'user-1',
+    planTier: 'monthly_20',
+    planStatus: 'active',
+    subscriptionProvider: 'stripe',
+    cancelAtPeriodEnd: true,
+  });
+
+  assert.equal((insertValues as { subscriptionProvider?: unknown } | null)?.subscriptionProvider, 'stripe');
+  assert.equal((insertValues as { cancelAtPeriodEnd?: unknown } | null)?.cancelAtPeriodEnd, true);
+  assert.equal((updateSet as { subscriptionProvider?: unknown } | null)?.subscriptionProvider, 'stripe');
+  assert.equal((updateSet as { cancelAtPeriodEnd?: unknown } | null)?.cancelAtPeriodEnd, true);
+});
+
+test('upsertSubscription passing null for subscriptionProvider clears it on update', async () => {
+  let updateSet: Record<string, unknown> | null = null;
+
+  const fakeDb = {
+    insert: () => ({
+      values: (values: Record<string, unknown>) => ({
+        onConflictDoUpdate: (args: { set: Record<string, unknown> }) => {
+          updateSet = args.set;
+          return { returning: async () => [{ ...values, ...args.set }] };
+        },
+      }),
+    }),
+  };
+
+  const service = createSubscriptionService({ getDb: async () => fakeDb as never });
+
+  await service.upsertSubscription({
+    userId: 'user-1',
+    planTier: 'free',
+    planStatus: 'cancelled',
+    subscriptionProvider: null,
+  });
+
+  assert.equal((updateSet as { subscriptionProvider?: unknown } | null)?.subscriptionProvider, null);
+});
+
+test('findUserIdByStripeCustomerId returns the matching userId', async () => {
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ userId: 'user-42' }],
+        }),
+      }),
+    }),
+  };
+
+  const service = createSubscriptionService({ getDb: async () => fakeDb as never });
+  const userId = await service.findUserIdByStripeCustomerId('cus_123');
+
+  assert.equal(userId, 'user-42');
+});
+
+test('findUserIdByStripeCustomerId returns null when no match', async () => {
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [],
+        }),
+      }),
+    }),
+  };
+
+  const service = createSubscriptionService({ getDb: async () => fakeDb as never });
+  const userId = await service.findUserIdByStripeCustomerId('cus_missing');
+
+  assert.equal(userId, null);
+});

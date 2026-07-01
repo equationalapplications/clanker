@@ -1,7 +1,7 @@
 # Billing Hardening (Stripe + RevenueCat) — Design Spec
 
 **Date:** 2026-07-01
-**Status:** Approved
+**Status:** Implemented
 **Source:** External code review of the Stripe + RevenueCat billing integration (subscriptions + PAYG credit packs)
 
 ---

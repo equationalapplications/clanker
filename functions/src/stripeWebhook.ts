@@ -10,6 +10,7 @@ import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import type {UpsertSubscriptionParams} from "./services/subscriptionService.js";
+import {stripeEventDedupeService} from "./services/stripeEventDedupeService.js";
 import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS} from "./constants/credits.js";
 
 // Initialize the Admin SDK if not already initialized
@@ -25,10 +26,13 @@ type UserLookup = {
 interface StripeWebhookDeps {
   findUserByEmail: (email: string) => Promise<UserLookup | null>;
   findUserByFirebaseUid: (firebaseUid: string) => Promise<UserLookup | null>;
+  findUserByStripeCustomerId: (customerId: string) => Promise<UserLookup | null>;
   upsertSubscription: (params: UpsertSubscriptionParams) => Promise<void>;
   renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
+  markEventProcessed: (eventId: string) => Promise<boolean>;
+  unmarkEventProcessed: (eventId: string) => Promise<void>;
 }
 
 const defaultDeps: StripeWebhookDeps = {
@@ -46,6 +50,17 @@ const defaultDeps: StripeWebhookDeps = {
     }
     return {id: user.id, email: user.email};
   },
+  async findUserByStripeCustomerId(customerId: string) {
+    const userId = await subscriptionService.findUserIdByStripeCustomerId(customerId);
+    if (!userId) {
+      return null;
+    }
+    const user = await userRepository.findUserById(userId);
+    if (!user) {
+      return null;
+    }
+    return {id: user.id, email: user.email};
+  },
   async upsertSubscription(params: UpsertSubscriptionParams) {
     await subscriptionService.upsertSubscription(params);
   },
@@ -57,6 +72,12 @@ const defaultDeps: StripeWebhookDeps = {
   },
   async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
     await creditService.adjustCredits(userId, delta, reason, referenceId);
+  },
+  async markEventProcessed(eventId: string) {
+    return stripeEventDedupeService.markEventProcessed(eventId);
+  },
+  async unmarkEventProcessed(eventId: string) {
+    await stripeEventDedupeService.unmarkEventProcessed(eventId);
   },
 };
 
@@ -138,9 +159,18 @@ export function getCreditPackQuantityFromInvoice(
 }
 
 function getStripeClient(): Stripe {
+  if (stripeClientFactoryForTests) {
+    return stripeClientFactoryForTests();
+  }
   const secretKey = validateAndNormalizeStripeSecretKey(process.env.STRIPE_SECRET_KEY);
 
   return new Stripe(secretKey);
+}
+
+let stripeClientFactoryForTests: (() => Stripe) | null = null;
+
+export function setStripeClientFactoryForTests(factory: (() => Stripe) | null): void {
+  stripeClientFactoryForTests = factory;
 }
 
 export function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status):
@@ -213,6 +243,13 @@ export const stripeWebhookHandler = async (
 
   logger.info("Received Stripe event", {type: event.type, id: event.id});
 
+  const isNewEvent = await deps.markEventProcessed(event.id);
+  if (!isNewEvent) {
+    logger.info("Stripe event already processed, skipping", {type: event.type, id: event.id});
+    res.status(200).json({received: true});
+    return;
+  }
+
   try {
     const priceIds = getRequiredStripePriceIds();
 
@@ -248,6 +285,7 @@ export const stripeWebhookHandler = async (
 
     res.status(200).json({received: true});
   } catch (err) {
+    await deps.unmarkEventProcessed(event.id);
     logger.error("Error processing Stripe webhook", {err, eventType: event.type});
     // Return a non-2xx status for unexpected processing failures so Stripe retries.
     res.status(500).json({received: false, error: "Processing error logged"});
@@ -312,6 +350,8 @@ async function handleCheckoutCompleted(
         planStatus: "active",
         stripeSubscriptionId: subscriptionId,
         stripeCustomerId: customerId,
+        subscriptionProvider: "stripe",
+        cancelAtPeriodEnd: false,
       });
 
       if (subscriptionId) {
@@ -384,15 +424,29 @@ export async function handleSubscriptionUpdated(
     return;
   }
 
-  // Fetch customer to get their email
   const customer = await stripe.customers.retrieve(customerId);
-  if (customer.deleted || !customer.email) {
-    logger.warn("customer.subscription.updated: no customer email", {customerId});
+  if (customer.deleted) {
+    logger.warn("customer.subscription.updated: customer deleted", {customerId});
     return;
   }
 
-  const user = await deps.findUserByEmail(customer.email);
-  if (!user) return;
+  let user = customer.email ? await deps.findUserByEmail(customer.email) : null;
+
+  if (!user) {
+    const firebaseUid = typeof customer.metadata?.firebase_uid === "string" ? customer.metadata.firebase_uid : undefined;
+    if (firebaseUid) {
+      user = await deps.findUserByFirebaseUid(firebaseUid);
+    }
+  }
+
+  if (!user) {
+    user = await deps.findUserByStripeCustomerId(customerId);
+  }
+
+  if (!user) {
+    logger.warn("customer.subscription.updated: unable to resolve user via email, metadata, or stored customer id", {customerId});
+    return;
+  }
 
   const planStatus = mapStripeSubscriptionStatus(sub.status);
 
@@ -402,6 +456,8 @@ export async function handleSubscriptionUpdated(
     planStatus,
     stripeSubscriptionId: sub.id,
     stripeCustomerId: customerId,
+    subscriptionProvider: "stripe",
+    cancelAtPeriodEnd: (sub as unknown as {cancel_at_period_end?: boolean}).cancel_at_period_end ?? false,
   });
 
   logger.info("customer.subscription.updated: subscription synced", {
@@ -429,7 +485,7 @@ export async function handleSubscriptionUpdated(
   }
 }
 
-async function handleSubscriptionDeleted(
+export async function handleSubscriptionDeleted(
   sub: Stripe.Subscription,
   stripe: Stripe,
   deps: StripeWebhookDeps
@@ -440,13 +496,28 @@ async function handleSubscriptionDeleted(
     return;
   }
   const customer = await stripe.customers.retrieve(customerId);
-  if (customer.deleted || !customer.email) {
-    logger.warn("customer.subscription.deleted: no customer email", {subId: sub.id});
+  if (customer.deleted) {
+    logger.warn("customer.subscription.deleted: customer deleted", {subId: sub.id});
     return;
   }
 
-  const user = await deps.findUserByEmail(customer.email);
-  if (!user) return;
+  let user = customer.email ? await deps.findUserByEmail(customer.email) : null;
+
+  if (!user) {
+    const firebaseUid = typeof customer.metadata?.firebase_uid === "string" ? customer.metadata.firebase_uid : undefined;
+    if (firebaseUid) {
+      user = await deps.findUserByFirebaseUid(firebaseUid);
+    }
+  }
+
+  if (!user) {
+    user = await deps.findUserByStripeCustomerId(customerId);
+  }
+
+  if (!user) {
+    logger.warn("customer.subscription.deleted: unable to resolve user via email, metadata, or stored customer id", {subId: sub.id, customerId});
+    return;
+  }
 
   await deps.upsertSubscription({
     userId: user.id,
@@ -454,6 +525,8 @@ async function handleSubscriptionDeleted(
     planStatus: "cancelled",
     stripeSubscriptionId: sub.id,
     stripeCustomerId: customerId,
+    subscriptionProvider: null,
+    cancelAtPeriodEnd: false,
   });
 
   logger.info("customer.subscription.deleted: subscription cancelled", {
@@ -523,7 +596,7 @@ export async function handleInvoicePaymentSucceeded(
   }
 }
 
-async function handleChargeRefunded(
+export async function handleChargeRefunded(
   stripe: Stripe,
   charge: Stripe.Charge,
   priceIds: StripePriceIds,
@@ -556,22 +629,29 @@ async function handleChargeRefunded(
   }
 
   if (creditPackQty > 0) {
-    await deps.adjustCredits(
-      user.id,
-      -(CREDIT_PACK_AMOUNT * creditPackQty),
-      "stripe_refund",
-      charge.id
-    );
-    logger.info("charge.refunded: credits deducted", {
-      email: customerEmail,
-      credits: CREDIT_PACK_AMOUNT * creditPackQty,
-    });
+    const refundRatio = charge.amount > 0 ? charge.amount_refunded / charge.amount : 0;
+    const creditsToDeduct = Math.floor(CREDIT_PACK_AMOUNT * creditPackQty * refundRatio);
+    if (creditsToDeduct > 0) {
+      await deps.adjustCredits(
+        user.id,
+        -creditsToDeduct,
+        "stripe_refund",
+        `${charge.id}_${charge.amount_refunded}`
+      );
+      logger.info("charge.refunded: credits deducted", {
+        email: customerEmail,
+        credits: creditsToDeduct,
+        refundRatio,
+      });
+    }
   } else if (isSubscriptionRefund) {
     // For subscription refunds, cancel the subscription
     await deps.upsertSubscription({
       userId: user.id,
       planTier: "free",
       planStatus: "cancelled",
+      subscriptionProvider: null,
+      cancelAtPeriodEnd: false,
     });
     logger.info("charge.refunded: subscription cancelled", {email: customerEmail});
   } else {

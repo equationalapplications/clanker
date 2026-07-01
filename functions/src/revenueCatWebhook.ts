@@ -45,16 +45,26 @@ function constantTimeEquals(provided: string | null, expected: string): boolean 
   }
 }
 
+export interface RevenueCatUpsertParams {
+  userId: string;
+  planTier: "free" | "monthly_20" | "monthly_50" | "payg";
+  planStatus: "active" | "cancelled" | "expired";
+  renewalAt?: Date | null;
+  subscriptionProvider?: "stripe" | "revenuecat" | null;
+  cancelAtPeriodEnd?: boolean;
+}
+
+interface ExistingSubscriptionLookup {
+  planTier: string;
+  planStatus: string;
+  subscriptionProvider: string | null;
+}
+
 interface RevenueCatDeps {
   findUserByFirebaseUid: (firebaseUid: string) => Promise<{id: string} | null>;
   getOrCreateUserByFirebaseUid?: (firebaseUid: string) => Promise<{id: string} | null>;
-  upsertSubscription: (
-    userId: string,
-    planTier: "free" | "monthly_20" | "monthly_50" | "payg",
-    planStatus: "active" | "cancelled" | "expired",
-    renewalAt?: Date | null,
-    stripeSubscriptionId?: string | null
-  ) => Promise<void>;
+  getSubscription: (userId: string) => Promise<ExistingSubscriptionLookup | null>;
+  upsertSubscription: (params: RevenueCatUpsertParams) => Promise<void>;
   renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
 }
@@ -95,14 +105,24 @@ const defaultDeps: RevenueCatDeps = {
       throw err;
     }
   },
-  async upsertSubscription(userId, planTier, planStatus, renewalAt, stripeSubscriptionId) {
+  async upsertSubscription(params: RevenueCatUpsertParams) {
     await subscriptionService.upsertSubscription({
-      userId,
-      planTier,
-      planStatus,
-      billingCycleEnd: renewalAt,
-      stripeSubscriptionId,
+      userId: params.userId,
+      planTier: params.planTier,
+      planStatus: params.planStatus,
+      billingCycleEnd: params.renewalAt,
+      subscriptionProvider: params.subscriptionProvider,
+      cancelAtPeriodEnd: params.cancelAtPeriodEnd,
     });
+  },
+  async getSubscription(userId: string) {
+    const sub = await subscriptionService.getSubscription(userId);
+    if (!sub) return null;
+    return {
+      planTier: sub.planTier,
+      planStatus: sub.planStatus,
+      subscriptionProvider: sub.subscriptionProvider,
+    };
   },
   async renewSubscriptionCredits(userId: string, amount: number, expiresAt: Date, referenceId: string) {
     return creditService.renewSubscriptionCredits(userId, amount, expiresAt, referenceId);
@@ -357,12 +377,28 @@ export const revenueCatWebhookHandler = async (
             new Date(expiration_at_ms) : null;
           const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
 
-          await deps.upsertSubscription(
-            cloudUser.id,
-            tier,
-            "active",
-            renewalAt
-          );
+          const existingSubscription = await deps.getSubscription(cloudUser.id);
+          if (
+            existingSubscription &&
+            existingSubscription.subscriptionProvider === "stripe" &&
+            existingSubscription.planStatus === "active" &&
+            existingSubscription.planTier !== "free"
+          ) {
+            logger.warn("billing_provider_collision: RevenueCat purchase granted while an active Stripe subscription exists", {
+              app_user_id,
+              existingTier: existingSubscription.planTier,
+              newTier: tier,
+            });
+          }
+
+          await deps.upsertSubscription({
+            userId: cloudUser.id,
+            planTier: tier,
+            planStatus: "active",
+            renewalAt,
+            subscriptionProvider: "revenuecat",
+            cancelAtPeriodEnd: false,
+          });
 
           if (renewalAt && original_transaction_id && typeof expiration_at_ms === 'number') {
             // Use a per-cycle key: original_transaction_id alone would block all future renewals
@@ -377,13 +413,22 @@ export const revenueCatWebhookHandler = async (
             type,
           });
         } else if (isRevenueCatCreditPackProduct(product_id)) {
+          if (!original_transaction_id) {
+            logger.warn("RevenueCat: credit-pack event missing original_transaction_id, rejecting so RevenueCat retries", {
+              app_user_id,
+              product_id,
+              type,
+            });
+            res.status(503).json({received: false, error: "Missing original_transaction_id"});
+            return;
+          }
           const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
           await deps.addCredits(
             cloudUser.id,
             CREDIT_PACK_AMOUNT,
             expiresAt,
             'one_time',
-            original_transaction_id ?? undefined
+            original_transaction_id
           );
           logger.info("RevenueCat: credits added", {app_user_id, credits: CREDIT_PACK_AMOUNT});
         }
@@ -396,12 +441,28 @@ export const revenueCatWebhookHandler = async (
             new Date(expiration_at_ms) : null;
           const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
 
-          await deps.upsertSubscription(
-            cloudUser.id,
-            tier,
-            "active",
-            renewalAt
-          );
+          const existingSubscription = await deps.getSubscription(cloudUser.id);
+          if (
+            existingSubscription &&
+            existingSubscription.subscriptionProvider === "stripe" &&
+            existingSubscription.planStatus === "active" &&
+            existingSubscription.planTier !== "free"
+          ) {
+            logger.warn("billing_provider_collision: RevenueCat product change granted while an active Stripe subscription exists", {
+              app_user_id,
+              existingTier: existingSubscription.planTier,
+              newTier: tier,
+            });
+          }
+
+          await deps.upsertSubscription({
+            userId: cloudUser.id,
+            planTier: tier,
+            planStatus: "active",
+            renewalAt,
+            subscriptionProvider: "revenuecat",
+            cancelAtPeriodEnd: false,
+          });
 
           // No credit renewal on plan change — credits are granted on RENEWAL events.
           // Granting here would double-credit users who change plans mid-cycle.
@@ -415,13 +476,22 @@ export const revenueCatWebhookHandler = async (
       }
       case "NON_RENEWING_PURCHASE": {
         if (isRevenueCatCreditPackProduct(product_id)) {
+          if (!original_transaction_id) {
+            logger.warn("RevenueCat: non-renewing credit-pack event missing original_transaction_id, rejecting so RevenueCat retries", {
+              app_user_id,
+              product_id,
+              type,
+            });
+            res.status(503).json({received: false, error: "Missing original_transaction_id"});
+            return;
+          }
           const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
           await deps.addCredits(
             cloudUser.id,
             CREDIT_PACK_AMOUNT,
             expiresAt,
             'one_time',
-            original_transaction_id ?? undefined
+            original_transaction_id
           );
           logger.info("RevenueCat: non-renewing credits added", {app_user_id});
         }
@@ -433,19 +503,27 @@ export const revenueCatWebhookHandler = async (
           const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
             new Date(expiration_at_ms) : null;
           const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
-          await deps.upsertSubscription(
-            cloudUser.id,
-            tier,
-            "active",
-            renewalAt
-          );
+          await deps.upsertSubscription({
+            userId: cloudUser.id,
+            planTier: tier,
+            planStatus: "active",
+            renewalAt,
+            subscriptionProvider: "revenuecat",
+            cancelAtPeriodEnd: true,
+          });
           logger.info("RevenueCat: subscription cancellation recorded (auto-renew off, entitlement still active)", {
             app_user_id,
             product_id,
             tier,
           });
         } else {
-          await deps.upsertSubscription(cloudUser.id, "free", "cancelled");
+          await deps.upsertSubscription({
+            userId: cloudUser.id,
+            planTier: "free",
+            planStatus: "cancelled",
+            subscriptionProvider: null,
+            cancelAtPeriodEnd: false,
+          });
           logger.warn("RevenueCat: cancellation for unknown product, defaulting to free/cancelled", {
             app_user_id,
             product_id,
@@ -454,7 +532,13 @@ export const revenueCatWebhookHandler = async (
         break;
       }
       case "EXPIRATION": {
-        await deps.upsertSubscription(cloudUser.id, "free", "expired");
+        await deps.upsertSubscription({
+          userId: cloudUser.id,
+          planTier: "free",
+          planStatus: "expired",
+          subscriptionProvider: null,
+          cancelAtPeriodEnd: false,
+        });
         logger.info("RevenueCat: subscription expired", {app_user_id, product_id});
         break;
       }

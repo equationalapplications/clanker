@@ -16,6 +16,11 @@ Credits and subscriptions are shared across platforms. Web uses Stripe for payme
 
 Handled provider-side: Stripe, Apple App Store, and Google Play manage refund mechanics. Webhook handlers sync resulting state back to Cloud SQL `subscriptions` automatically — no local transaction table required.
 
+### Subscription Ownership & Auto-Renew
+
+- `subscriptions.subscription_provider` (`'stripe' | 'revenuecat' | NULL`) tracks which platform currently owns an active paid subscription. `purchasePackageStripe` rejects a new web subscription checkout if the caller already has an active RevenueCat-owned subscription (`already-exists` error). RevenueCat purchases cannot be blocked before the store charges the user, so a bypass/race is resolved by granting the entitlement anyway and logging a `billing_provider_collision` warning for manual reconciliation.
+- `subscriptions.cancel_at_period_end` (boolean) is `true` when an active subscription will not renew — set directly from Stripe's `cancel_at_period_end` field on `customer.subscription.updated`, and set on RevenueCat `CANCELLATION` for a known product. Exposed to the client via bootstrap/`exchangeToken` as `subscription.cancelAtPeriodEnd`.
+
 ### Credit Consumption
 
 Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-tool turn costs more); turn-based cloud-agent text calls charge a **flat 1 per turn**. Live voice is billed separately on a 60-second timer. This difference is intentional.
@@ -94,10 +99,12 @@ New users receive **50 free credits** upon their first login, seeded by the Clou
 | `checkout.session.completed` (credit pack) | Grant 100 credits expiring 31 days from now |
 | `customer.subscription.updated` (renewal) | Grant 300 credits expiring at `current_period_end` (referenceId = `sub_${sub.id}_${periodEnd}` for idempotency); expire old subscription credits |
 | `invoice.payment_succeeded` (credit pack fallback) | Grant 100 credits expiring 31 days from now |
-| `charge.refunded` | Deduct credits |
+| `charge.refunded` | Deduct credits, prorated by `amount_refunded / amount` for partial refunds |
 | `customer.subscription.deleted` | No credit action — credits expire naturally at `expires_at` |
 
 **Idempotency guard must run before expiring old credits or performing any other DB writes. Guard first, write second.**
+
+All Stripe events are deduped via a `processed_stripe_events(event_id)` table checked before dispatch — a replayed event returns 200 immediately without re-running its handler. If handler dispatch throws, the dedupe row is deleted before the 500 response so Stripe's retry isn't silently swallowed.
 
 ### Price ID → Tier Mapping
 
@@ -129,6 +136,8 @@ RevenueCat sends an `Authorization: Bearer <secret>` header. The handler verifie
 | `NON_RENEWING_PURCHASE` | Credit pack → add credits. |
 | `CANCELLATION` | Known subscription → keep `plan_status = 'active'` with auto-renew off. Unknown → fall back to `plan_tier = 'free'`, `plan_status = 'cancelled'`. |
 | `EXPIRATION` | Upsert `plan_tier = 'free'`, `plan_status = 'expired'`. |
+
+"Auto-renew off" above is now a real column (`cancel_at_period_end = true`), not just a description — see Subscription Ownership & Auto-Renew.
 
 ### Product ID → Tier Mapping
 
