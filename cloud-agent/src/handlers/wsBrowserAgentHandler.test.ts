@@ -331,7 +331,7 @@ test('auth observer survives WS close after awaiting_auth', async () => {
   assert.equal(resume, true)
 })
 
-test('resume from awaiting_auth sets requiresAuth false for single stateful action', async () => {
+test('resume from awaiting_auth sets authApproved true for single stateful action', async () => {
   const ws = new FakeWs()
   const singleClickIntent = {
     version: '1', taskId: 't1', sessionId: SESSION_ID, requiresAuth: true,
@@ -353,6 +353,7 @@ test('resume from awaiting_auth sets requiresAuth false for single stateful acti
   ws.emitJson({ type: 'auth', idToken: 'tok', sessionId: SESSION_ID, deviceId: 'd1' })
   await new Promise((r) => setTimeout(r, 20))
 
-  const taskFrame = ws.sent.map((s) => JSON.parse(s)).find((f) => f.type === 'task') as { intent: { requiresAuth: boolean } }
-  assert.equal(taskFrame.intent.requiresAuth, false)
+  const taskFrame = ws.sent.map((s) => JSON.parse(s)).find((f) => f.type === 'task') as { intent: { requiresAuth: boolean; authApproved?: boolean } }
+  assert.equal(taskFrame.intent.authApproved, true)
+  assert.equal(taskFrame.intent.requiresAuth, true)
 })
