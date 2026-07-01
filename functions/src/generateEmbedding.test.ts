@@ -159,3 +159,34 @@ test("generateEmbedding: wraps embedder errors as HttpsError internal", async ()
     }
   );
 });
+
+test("generateEmbedding: throttles a single user after too many requests within the window", async () => {
+  const auth = buildAuth();
+  const request = { auth, data: { text: "hello" } };
+
+  // Throttle limit is 20 requests/minute per user.
+  for (let i = 0; i < 20; i++) {
+    await generateEmbeddingHandler(request as unknown as CallableRequest, { embedder: mockEmbedder });
+  }
+
+  await assert.rejects(
+    () => generateEmbeddingHandler(request as unknown as CallableRequest, { embedder: mockEmbedder }),
+    (err: HttpsError) => {
+      assert.equal(err.code, "resource-exhausted");
+      return true;
+    }
+  );
+});
+
+test("generateEmbedding: does not throttle a different user", async () => {
+  const throttledAuth = buildAuth();
+  const throttledRequest = { auth: throttledAuth, data: { text: "hello" } };
+  for (let i = 0; i < 20; i++) {
+    await generateEmbeddingHandler(throttledRequest as unknown as CallableRequest, { embedder: mockEmbedder });
+  }
+
+  const otherAuth = buildAuth();
+  const otherRequest = { auth: otherAuth, data: { text: "hello" } };
+  const result = await generateEmbeddingHandler(otherRequest as unknown as CallableRequest, { embedder: mockEmbedder });
+  assert.deepEqual(result.embedding, MOCK_EMBEDDING);
+});

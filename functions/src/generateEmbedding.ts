@@ -18,6 +18,46 @@ const ALLOWED_TASK_TYPES = new Set<GenerateEmbeddingTaskType>([
   "SEMANTIC_SIMILARITY",
 ]);
 
+// Per-user request throttle, mirrors the pattern in generateImage.ts.
+// Note: instance-level memory only; does not enforce limits across Cloud Run instances.
+const THROTTLE_WINDOW_MS = 60_000;
+const THROTTLE_MAX_REQUESTS = 20;
+const THROTTLE_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const throttleBuckets = new Map<string, number[]>();
+
+function startThrottleCleanupTimer(): void {
+  const timer = setInterval(() => {
+    const now = Date.now();
+    for (const [firebaseUid, timestamps] of throttleBuckets.entries()) {
+      const recent = timestamps.filter((timestamp) => now - timestamp < THROTTLE_WINDOW_MS);
+      if (recent.length === 0) {
+        throttleBuckets.delete(firebaseUid);
+      } else if (recent.length !== timestamps.length) {
+        throttleBuckets.set(firebaseUid, recent);
+      }
+    }
+  }, THROTTLE_CLEANUP_INTERVAL_MS);
+  timer.unref();
+}
+
+startThrottleCleanupTimer();
+
+function assertWithinRateLimit(firebaseUid: string): void {
+  const now = Date.now();
+  const timestamps = throttleBuckets.get(firebaseUid) ?? [];
+  const recent = timestamps.filter((timestamp) => now - timestamp < THROTTLE_WINDOW_MS);
+
+  if (recent.length >= THROTTLE_MAX_REQUESTS) {
+    throw new HttpsError(
+      "resource-exhausted",
+      "Too many embedding requests. Please wait and retry."
+    );
+  }
+
+  recent.push(now);
+  throttleBuckets.set(firebaseUid, recent);
+}
+
 let _appCredential: Credential | null = null;
 
 export interface GenerateEmbeddingRequest {
@@ -84,6 +124,8 @@ export const generateEmbeddingHandler = async (
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
+
+  assertWithinRateLimit(request.auth.uid);
 
   const data = request.data;
   if (!data || typeof data !== "object" || Array.isArray(data)) {

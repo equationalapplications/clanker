@@ -39,7 +39,11 @@ export function requireAdmin(request: CallableRequest): AdminContext {
   const actorEmail = typeof token.email === "string" ? token.email.toLowerCase() : null;
 
   const claimIsAdmin = token.admin === true;
-  const emailAllowed = actorEmail ? ADMIN_ALLOWLIST_EMAILS.has(actorEmail) : false;
+  // Require email_verified so an attacker can't self-register an unverified
+  // account matching an allowlisted admin email to gain admin access.
+  const emailAllowed = actorEmail && token.email_verified === true
+    ? ADMIN_ALLOWLIST_EMAILS.has(actorEmail)
+    : false;
   const uidAllowed = ADMIN_ALLOWLIST_UIDS.has(actorUid);
 
   if (!claimIsAdmin && !emailAllowed && !uidAllowed) {
