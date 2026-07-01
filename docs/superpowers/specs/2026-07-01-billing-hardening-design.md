@@ -1,7 +1,7 @@
 # Billing Hardening (Stripe + RevenueCat) — Design Spec
 
 **Date:** 2026-07-01
-**Status:** Draft
+**Status:** Approved
 **Source:** External code review of the Stripe + RevenueCat billing integration (subscriptions + PAYG credit packs)
 
 ---
@@ -50,13 +50,13 @@ No foreign keys — this is a pure dedupe log, not tied to a user.
 
 `purchasePackageStripe` (onCall), before creating a Checkout Session for a *subscription* price (not PAYG credit pack): look up the caller's Cloud SQL subscription row. If `plan_status === 'active' && plan_tier !== 'free' && subscription_provider === 'revenuecat'`, reject the callable with a client-facing error such as "You already have an active subscription on mobile — manage it in the App Store or Play Store." No Stripe API call is made, so no charge risk.
 
-### Mobile (RevenueCat) — best-effort client gate, no server-side prevention possible
+### Mobile (RevenueCat) — gate already exists, verify with a test
 
-RevenueCat purchases go through the native store billing sheet (`Purchases.purchasePackage`), which charges the user *before* our backend is involved. We cannot block the charge server-side. Mitigation:
+RevenueCat purchases go through the native store billing sheet (`Purchases.purchasePackage`), which charges the user *before* our backend is involved — we cannot block the charge server-side. However, the mobile purchase screen (`app/(drawer)/subscribe.tsx`) already hides the `monthly_20` purchase button whenever `useIsPremium()` is true (`app/(drawer)/subscribe.tsx:111`), and `useIsPremium` (`src/hooks/useIsPremium.ts` → `useCurrentPlan`) is provider-agnostic: it's `true` for any active `monthly_20`/`monthly_50` subscription regardless of whether it came from Stripe or RevenueCat. So a user with an active Stripe subscription already cannot reach the RevenueCat purchase button on mobile — no new client code needed. (`SubscribeButton.tsx`/`CombinedSubscriptionButton.tsx` are dead code, not reachable from any screen, and are not part of this fix.)
 
-- `subscriptionProvider` is added to the `SubscriptionSnapshot` returned by bootstrap/`exchangeToken`, alongside existing `planTier`/`planStatus`.
-- `SubscribeButton` (and any other purchase entry point) checks this client-side before calling `purchaseProduct`: if `planStatus === 'active' && planTier !== 'free' && subscriptionProvider === 'stripe'`, show an alert and skip the purchase call instead of opening the store sheet.
-- This is best-effort only — a stale client cache or a bypass could still let a store purchase go through.
+Add a regression test asserting `subscribe.tsx` hides the `monthly_20` button when `isPremium` is true, so this existing protection can't silently regress. `subscriptionProvider` therefore does **not** need to reach the client at all — it's a server-only column. Only `cancelAtPeriodEnd` is exposed to the client (see Fix #6).
+
+The web purchase screen (`src/components/CreditsDisplay.tsx`, rendered by `subscribe.tsx` on web) has **no** such gate — the subscribe button is always shown regardless of plan status. This is exactly why the server-side hard block above is required for web and not optional.
 
 ### Webhook race / bypass handling (defense-in-depth)
 
@@ -129,7 +129,7 @@ This guard must run **before** dispatch (guard first, side effects second — co
 - **Stripe `customer.subscription.updated`**: map the Stripe event payload's own `subscription.cancel_at_period_end` boolean directly onto the column on every update — Stripe already tracks this natively, so no derived logic is needed here, just pass the value through in the `upsertSubscription` call.
 - **Stripe `checkout.session.completed`** (new subscription): `cancel_at_period_end = false`.
 
-Exposed in `SubscriptionSnapshot` (client bootstrap payload) alongside `subscriptionProvider`, so the UI can render "Ends on X" instead of inferring it from `plan_status` alone.
+Exposed in `SubscriptionSnapshot` (client bootstrap payload) so the UI can render "Ends on X" instead of inferring it from `plan_status` alone. (`subscriptionProvider` itself stays server-only — see Fix #1 mobile section.)
 
 ---
 
@@ -145,4 +145,4 @@ Exposed in `SubscriptionSnapshot` (client bootstrap payload) alongside `subscrip
 ## Open Implementation Details (to resolve in the plan, not here)
 
 - Exact wording of the web-side rejection error surfaced to the client in `makePackagePurchase.ts`.
-- Test coverage for: web block (existing active RevenueCat sub), RevenueCat webhook race granting anyway + warning log, missing-`original_transaction_id` non-2xx, partial-refund proration math (incl. `charge.amount === 0` guard), Stripe customer fallback chain (both steps), `processed_stripe_events` dedupe skipping a replayed event, **dedupe row deleted on handler failure so Stripe retry still works**, `cancel_at_period_end` transitions for both providers, `subscription_provider` nulled on all four termination branches (`handleSubscriptionDeleted`, `handleChargeRefunded` sub-refund, RevenueCat `EXPIRATION`, RevenueCat `CANCELLATION` unknown-product).
+- Test coverage for: web block (existing active RevenueCat sub), mobile `subscribe.tsx` hides `monthly_20` button when `isPremium` is true regardless of provider, RevenueCat webhook race granting anyway + warning log, missing-`original_transaction_id` non-2xx, partial-refund proration math (incl. `charge.amount === 0` guard), Stripe customer fallback chain (both steps), `processed_stripe_events` dedupe skipping a replayed event, **dedupe row deleted on handler failure so Stripe retry still works**, `cancel_at_period_end` transitions for both providers, `subscription_provider` nulled on all four termination branches (`handleSubscriptionDeleted`, `handleChargeRefunded` sub-refund, RevenueCat `EXPIRATION`, RevenueCat `CANCELLATION` unknown-product).
