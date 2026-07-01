@@ -386,7 +386,7 @@ export function createApp(options: AppOptions) {
       await handleApproveAction(
         admin.firestore() as unknown as { doc(p: string): { update(d: Record<string, unknown>): Promise<void> } },
         req.uid!,
-        parsed.data,
+        { ...parsed.data, approvalToken: rawToken },
       )
       res.json({ ok: true })
     } catch (err) {
