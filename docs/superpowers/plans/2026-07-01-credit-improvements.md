@@ -380,3 +380,7 @@ git commit -m "docs(billing): add per-action Credit Consumption table as single 
 - **Cloud-agent `spendCredit` not modified:** correct — it only ever spends 1, which cannot fragment, so the #1 fix does not apply there.
 - **Type consistency:** `spendCredits` return type stays `Promise<string | null>`; `firstTouchedId` is `string | null` and is only returned after the `firstTouchedId === null` guard, so the non-null path returns `string`. Callers (`generateVoiceReply`, wiki/memory/character functions) are unchanged.
 - **Import hygiene:** `gte` removed from `creditService.ts` imports in Task 1; no other use exists in that file.
+
+---
+
+Generated from spec `docs/superpowers/specs/2026-07-01-credit-improvements-design.md` (retroactively written after implementation in PR #506).
