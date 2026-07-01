@@ -1,4 +1,4 @@
-import { eq, sql, and, or, isNull, gt, ne } from 'drizzle-orm';
+import { eq, sql, and, or, isNull, gt, ne, like } from 'drizzle-orm';
 import * as logger from 'firebase-functions/logger';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { getDb } from '../db/cloudSql.js';
@@ -429,6 +429,32 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
         await syncSubscriptionCache(tx, userId);
         return true;
       });
+    },
+
+    async getLastProcessedChargeRefundTotal(chargeId: string): Promise<number> {
+      const db = await deps.getDb();
+      const prefix = `${chargeId}_`;
+      const rows = await db
+        .select({ referenceId: creditTransactions.referenceId })
+        .from(creditTransactions)
+        .where(
+          and(
+            eq(creditTransactions.reason, 'stripe_refund'),
+            like(creditTransactions.referenceId, `${chargeId}_%`)
+          )
+        );
+
+      let maxRefunded = 0;
+      for (const row of rows) {
+        if (!row.referenceId?.startsWith(prefix)) {
+          continue;
+        }
+        const refundedAmount = Number(row.referenceId.slice(prefix.length));
+        if (Number.isFinite(refundedAmount) && refundedAmount > maxRefunded) {
+          maxRefunded = refundedAmount;
+        }
+      }
+      return maxRefunded;
     },
 
     async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string): Promise<number> {

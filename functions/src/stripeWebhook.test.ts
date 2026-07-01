@@ -243,7 +243,8 @@ test("handleInvoicePaymentSucceeded renews subscription credits only on subscrip
     addCredits: async () => {},
     adjustCredits: async () => {},
     markEventProcessed: async () => true,
-    unmarkEventProcessed: async () => {},
+    isEventProcessed: async () => false,
+    getLastProcessedChargeRefundTotal: async () => 0,
   } as never);
 
   assert.deepEqual(renewalArgs, {
@@ -287,7 +288,8 @@ test("handleSubscriptionUpdated renews credits when planStatus is active", async
     addCredits: async () => {},
     adjustCredits: async () => {},
     markEventProcessed: async () => true,
-    unmarkEventProcessed: async () => {},
+    isEventProcessed: async () => false,
+    getLastProcessedChargeRefundTotal: async () => 0,
   } as never);
 
   assert.deepEqual(renewalArgs, {
@@ -328,7 +330,8 @@ test("handleSubscriptionUpdated does not renew credits when planStatus is not ac
     addCredits: async () => {},
     adjustCredits: async () => {},
     markEventProcessed: async () => true,
-    unmarkEventProcessed: async () => {},
+    isEventProcessed: async () => false,
+    getLastProcessedChargeRefundTotal: async () => 0,
   } as never);
 
   assert.equal(renewalCalled, false);
@@ -361,8 +364,9 @@ test("stripeWebhookHandler skips dispatch and returns 200 for an already-process
     renewSubscriptionCredits: async () => false,
     addCredits: async () => {},
     adjustCredits: async () => {},
-    markEventProcessed: async () => false,
-    unmarkEventProcessed: async () => {},
+    isEventProcessed: async () => true,
+    markEventProcessed: async () => { throw new Error("should not mark duplicate events"); },
+    getLastProcessedChargeRefundTotal: async () => 0,
   };
 
   await stripeWebhookHandler(
@@ -375,7 +379,7 @@ test("stripeWebhookHandler skips dispatch and returns 200 for an already-process
   assert.equal(dispatched, false);
 });
 
-test("stripeWebhookHandler unmarks the event when handler dispatch throws, so Stripe can retry", async (t) => {
+test("stripeWebhookHandler does not mark the event when handler dispatch throws, so Stripe can retry", async (t) => {
   const res = createResponseRecorder();
   const event = {
     id: "evt_fail_1",
@@ -384,7 +388,7 @@ test("stripeWebhookHandler unmarks the event when handler dispatch throws, so St
   } as unknown as Stripe.Event;
   stubConstructEvent(t, event);
 
-  let unmarkedEventId: string | null = null;
+  let markedEventId: string | null = null;
   const stripeProto = Object.getPrototypeOf(new Stripe("sk_test_123").customers);
   t.mock.method(stripeProto, "retrieve", async () => { throw new Error("Cloud SQL unavailable"); });
 
@@ -396,8 +400,9 @@ test("stripeWebhookHandler unmarks the event when handler dispatch throws, so St
     renewSubscriptionCredits: async () => false,
     addCredits: async () => {},
     adjustCredits: async () => {},
-    markEventProcessed: async () => true,
-    unmarkEventProcessed: async (eventId: string) => { unmarkedEventId = eventId; },
+    isEventProcessed: async () => false,
+    markEventProcessed: async (eventId: string) => { markedEventId = eventId; return true; },
+    getLastProcessedChargeRefundTotal: async () => 0,
   };
 
   await stripeWebhookHandler(
@@ -407,7 +412,7 @@ test("stripeWebhookHandler unmarks the event when handler dispatch throws, so St
   );
 
   assert.equal(res.statusCode, 500);
-  assert.equal(unmarkedEventId, "evt_fail_1");
+  assert.equal(markedEventId, null);
 });
 
 test("handleSubscriptionUpdated falls back to metadata.firebase_uid when customer has no email", async () => {
@@ -648,6 +653,7 @@ test("handleChargeRefunded deducts the full amount on a full refund", async () =
     adjustCredits: async (_userId: string, delta: number, reason: string, referenceId?: string) => {
       adjustArgs = {delta, reason, referenceId};
     },
+    getLastProcessedChargeRefundTotal: async () => 0,
   } as never);
 
   assert.deepEqual(adjustArgs, {delta: -100, reason: "stripe_refund", referenceId: "ch_123_1000"});
@@ -688,6 +694,7 @@ test("handleChargeRefunded prorates a partial refund", async () => {
     renewSubscriptionCredits: async () => false,
     addCredits: async () => {},
     adjustCredits: async (_userId: string, delta: number) => { adjustArgs = {delta}; },
+    getLastProcessedChargeRefundTotal: async () => 0,
   } as never);
 
   assert.deepEqual(adjustArgs, {delta: -20});
@@ -728,6 +735,7 @@ test("handleChargeRefunded does not call adjustCredits when charge.amount is 0",
     renewSubscriptionCredits: async () => false,
     addCredits: async () => {},
     adjustCredits: async () => { adjustCalled = true; },
+    getLastProcessedChargeRefundTotal: async () => 0,
   } as never);
 
   assert.equal(adjustCalled, false);
@@ -765,6 +773,7 @@ test("handleChargeRefunded nulls subscriptionProvider on a subscription refund",
     renewSubscriptionCredits: async () => false,
     addCredits: async () => {},
     adjustCredits: async () => {},
+    getLastProcessedChargeRefundTotal: async () => 0,
   } as never);
 
   assert.equal(upsertCalls[0]?.subscriptionProvider, null);
@@ -772,6 +781,7 @@ test("handleChargeRefunded nulls subscriptionProvider on a subscription refund",
 
 test("handleChargeRefunded uses a per-refund referenceId so sequential partial refunds do not collide", async () => {
   const adjustCalls: Array<{delta: number; referenceId?: string}> = [];
+  const processedRefundTotals: Record<string, number> = {};
 
   const mockStripe = {
     invoices: {
@@ -792,8 +802,17 @@ test("handleChargeRefunded uses a per-refund referenceId so sequential partial r
     upsertSubscription: async () => {},
     renewSubscriptionCredits: async () => false,
     addCredits: async () => {},
+    getLastProcessedChargeRefundTotal: async (chargeId: string) => processedRefundTotals[chargeId] ?? 0,
     adjustCredits: async (_userId: string, delta: number, _reason: string, referenceId?: string) => {
       adjustCalls.push({delta, referenceId});
+      if (referenceId) {
+        const separatorIndex = referenceId.lastIndexOf("_");
+        const chargeId = referenceId.slice(0, separatorIndex);
+        const amountRefunded = Number(referenceId.slice(separatorIndex + 1));
+        if (Number.isFinite(amountRefunded)) {
+          processedRefundTotals[chargeId] = Math.max(processedRefundTotals[chargeId] ?? 0, amountRefunded);
+        }
+      }
     },
   } as never;
 
@@ -821,5 +840,46 @@ test("handleChargeRefunded uses a per-refund referenceId so sequential partial r
 
   assert.equal(adjustCalls.length, 2);
   assert.deepEqual(adjustCalls[0], {delta: -20, referenceId: "ch_partial_200"});
-  assert.deepEqual(adjustCalls[1], {delta: -50, referenceId: "ch_partial_500"});
+  assert.deepEqual(adjustCalls[1], {delta: -30, referenceId: "ch_partial_500"});
+});
+
+test("handleSubscriptionDeleted falls back to stored stripe_customer_id when Stripe customer is deleted", async () => {
+  let upsertArgs: UpsertSubscriptionParams | null = null;
+  let customerIdLookedUp: string | null = null;
+
+  const sub = {
+    id: "sub_deleted_customer",
+    customer: "cus_deleted",
+  } as unknown as Stripe.Subscription;
+
+  const mockStripe = {
+    customers: {
+      retrieve: async (_id: string) => ({ deleted: true }),
+    },
+  } as unknown as Stripe;
+
+  await handleSubscriptionDeleted(sub, mockStripe, {
+    findUserByEmail: async () => { throw new Error("should not lookup by email for deleted customer"); },
+    findUserByFirebaseUid: async () => { throw new Error("should not lookup by firebase uid for deleted customer"); },
+    findUserByStripeCustomerId: async (customerId: string) => {
+      customerIdLookedUp = customerId;
+      return {id: "user-1", email: "user@example.com"};
+    },
+    upsertSubscription: async (params: UpsertSubscriptionParams) => { upsertArgs = params; },
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    getLastProcessedChargeRefundTotal: async () => 0,
+  } as never);
+
+  assert.equal(customerIdLookedUp, "cus_deleted");
+  assert.deepEqual(upsertArgs, {
+    userId: "user-1",
+    planTier: "free",
+    planStatus: "cancelled",
+    stripeSubscriptionId: "sub_deleted_customer",
+    stripeCustomerId: "cus_deleted",
+    subscriptionProvider: null,
+    cancelAtPeriodEnd: false,
+  });
 });

@@ -2,6 +2,43 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createStripeEventDedupeService } from './stripeEventDedupeService.js';
 
+test('isEventProcessed returns true after markEventProcessed inserts the row', async () => {
+  const inserted = new Set<string>();
+
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => {
+            const eventId = 'evt_1';
+            return inserted.has(eventId) ? [{ eventId }] : [];
+          },
+        }),
+      }),
+    }),
+    insert: () => ({
+      values: (values: { eventId: string }) => ({
+        onConflictDoNothing: () => ({
+          returning: async () => {
+            if (inserted.has(values.eventId)) {
+              return [];
+            }
+            inserted.add(values.eventId);
+            return [{ eventId: values.eventId }];
+          },
+        }),
+      }),
+    }),
+    delete: () => ({ where: async () => {} }),
+  };
+
+  const service = createStripeEventDedupeService({ getDb: async () => fakeDb as never });
+
+  assert.equal(await service.isEventProcessed('evt_1'), false);
+  await service.markEventProcessed('evt_1');
+  assert.equal(await service.isEventProcessed('evt_1'), true);
+});
+
 test('markEventProcessed returns true on first insert, false on duplicate', async () => {
   const inserted = new Set<string>();
 
