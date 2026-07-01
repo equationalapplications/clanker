@@ -66,6 +66,8 @@ function buildSubscription(
     nextExpiryDate: null,
     documentsIngestedCount: 0,
     documentsIngestedDate: null,
+    subscriptionProvider: null,
+    cancelAtPeriodEnd: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

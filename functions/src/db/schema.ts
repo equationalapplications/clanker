@@ -42,12 +42,20 @@ export const subscriptions = pgTable('subscriptions', {
   nextExpiryDate: timestamp('next_expiry_date', { withTimezone: true }).default(sql`NULL`),
   documentsIngestedCount: integer('documents_ingested_count').notNull().default(0),
   documentsIngestedDate: text('documents_ingested_date'),
+  subscriptionProvider: text('subscription_provider'),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
   planTierCheck: check('plan_tier_check', sql`${table.planTier} IN ('free', 'monthly_20', 'monthly_50', 'payg')`),
   planStatusCheck: check('plan_status_check', sql`${table.planStatus} IN ('active', 'cancelled', 'expired')`),
+  subscriptionProviderCheck: check('subscription_provider_check', sql`${table.subscriptionProvider} IN ('stripe', 'revenuecat')`),
 }));
+
+export const processedStripeEvents = pgTable('processed_stripe_events', {
+  eventId: text('event_id').primaryKey(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const creditTransactions = pgTable('credit_transactions', {
   id: uuid('id').primaryKey().defaultRandom(),

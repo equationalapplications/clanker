@@ -40,7 +40,7 @@
 - **Backend**: Firebase Functions + Cloud SQL (PostgreSQL)
 - **AI**: Google Cloud Vertex AI
 - **State Management**: React Query (TanStack Query)
-- **Payments**: Stripe
+- **Payments**: Stripe (web) + RevenueCat (iOS/Android)
 - **UI Components**: React Native Paper, Gifted Chat
 
 ## 🤝 Contributing

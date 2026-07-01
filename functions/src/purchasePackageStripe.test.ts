@@ -187,7 +187,7 @@ test("purchasePackageStripeHandler fails fast when Stripe secret key has invalid
           data: {
             priceId: "price_monthly_50",
           },
-        } as never),
+        } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never),
       (err: unknown) =>
         err instanceof HttpsError &&
         err.code === "failed-precondition" &&
@@ -213,7 +213,7 @@ test("purchasePackageStripeHandler fails fast when Stripe secret key is missing"
           data: {
             priceId: "price_monthly_50",
           },
-        } as never),
+        } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never),
       (err: unknown) =>
         err instanceof HttpsError &&
         err.code === "failed-precondition" &&
@@ -243,7 +243,7 @@ test("purchasePackageStripeHandler uses subscription mode for recurring Stripe p
         data: {
           priceId: "price_monthly_20",
         },
-      } as never);
+      } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never);
 
       assert.equal(result, "https://checkout.stripe.test/session_123");
       assert.equal(createCheckoutSessionMock.mock.calls.length, 1);
@@ -284,7 +284,7 @@ test("purchasePackageStripeHandler warns when Stripe price type mismatches local
           data: {
             priceId: "price_monthly_20",
           },
-        } as never);
+        } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never);
       }
     );
 
@@ -339,7 +339,7 @@ test("purchasePackageStripeHandler creates a customer when none exists", async (
         data: {
           priceId: "price_monthly_20",
         },
-      } as never);
+      } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never);
 
       assert.equal(result, "https://checkout.stripe.test/new_123");
       assert.equal(listCustomersMock.mock.calls.length, 1);
@@ -374,7 +374,7 @@ test("purchasePackageStripeHandler rejects users without an email address", asyn
             data: {
               priceId: "price_monthly_20",
             },
-          } as never),
+          } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never),
         (err: unknown) =>
           err instanceof HttpsError &&
           err.code === "failed-precondition" &&
@@ -407,7 +407,7 @@ test("purchasePackageStripeHandler fails when Stripe checkout session has no URL
             data: {
               priceId: "price_monthly_20",
             },
-          } as never),
+          } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never),
         (err: unknown) =>
           err instanceof HttpsError &&
           err.code === "internal" &&
@@ -436,7 +436,7 @@ test("purchasePackageStripeHandler sends metadata and client_reference_id to che
         data: {
           priceId: "price_monthly_20",
         },
-      } as never);
+      } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never);
 
       const payload = createCheckoutSessionMock.mock.calls[0].arguments[0] as {
         client_reference_id: string;
@@ -476,7 +476,7 @@ test("purchasePackageStripeHandler appends attemptId to checkout return URLs and
             priceId: "price_monthly_20",
             attemptId: "attempt_123",
           },
-        } as never);
+        } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never);
       }
     );
 
@@ -522,7 +522,7 @@ test("purchasePackageStripeHandler keeps UUID-like attemptId accepted and propag
           priceId: "price_monthly_20",
           attemptId,
         },
-      } as never);
+      } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never);
     }
   );
 
@@ -538,4 +538,71 @@ test("purchasePackageStripeHandler keeps UUID-like attemptId accepted and propag
   assert.equal(successUrl.searchParams.get("attemptId"), attemptId);
   assert.equal(cancelUrl.searchParams.get("attemptId"), attemptId);
   assert.equal(payload.metadata.attemptId, attemptId);
+});
+
+test("purchasePackageStripeHandler rejects subscription purchase when an active RevenueCat subscription already exists", async (t) => {
+  await withAdminAuthStub(async () => ({email: "user@example.com"}), async () => {
+    await assert.rejects(
+      async () => purchasePackageStripeHandler(
+        {auth: {uid: "firebase-uid-1"}, data: {priceId: "price_monthly_20"}} as never,
+        {
+          userRepository: {
+            findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+          },
+          subscriptionService: {
+            getSubscription: async () => ({
+              planStatus: "active",
+              planTier: "monthly_20",
+              subscriptionProvider: "revenuecat",
+            }),
+          },
+        } as never
+      ),
+      (err: unknown) => err instanceof HttpsError && err.code === "already-exists"
+    );
+  });
+});
+
+test("purchasePackageStripeHandler allows a credit-pack purchase even with an active RevenueCat subscription", async (t) => {
+  stubHandlerDeps(t, "one_time", "sess_payg", "https://checkout.stripe.com/payg");
+
+  await withAdminAuthStub(async () => ({email: "user@example.com"}), async () => {
+    const url = await purchasePackageStripeHandler(
+      {auth: {uid: "firebase-uid-1"}, data: {priceId: "price_credit_pack"}} as never,
+      {
+        userRepository: {
+          findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+        },
+        subscriptionService: {
+          getSubscription: async () => ({
+            planStatus: "active",
+            planTier: "monthly_20",
+            subscriptionProvider: "revenuecat",
+          }),
+        },
+      } as never
+    );
+
+    assert.equal(url, "https://checkout.stripe.com/payg");
+  });
+});
+
+test("purchasePackageStripeHandler allows subscription purchase when Cloud SQL user has no subscription row yet", async (t) => {
+  stubHandlerDeps(t, "recurring", "sess_new", "https://checkout.stripe.com/new");
+
+  await withAdminAuthStub(async () => ({email: "user@example.com"}), async () => {
+    const url = await purchasePackageStripeHandler(
+      {auth: {uid: "firebase-uid-1"}, data: {priceId: "price_monthly_20"}} as never,
+      {
+        userRepository: {
+          findUserByFirebaseUid: async () => null,
+        },
+        subscriptionService: {
+          getSubscription: async () => { throw new Error("should not be called"); },
+        },
+      } as never
+    );
+
+    assert.equal(url, "https://checkout.stripe.com/new");
+  });
 });

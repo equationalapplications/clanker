@@ -96,6 +96,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
     termsVersion: null,
     termsAcceptedAt: null,
     nextExpiryDate: null,
+    cancelAtPeriodEnd: false,
   };
 
   const mockDeps = {
@@ -147,6 +148,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       termsVersion: mockSubscription.termsVersion,
       termsAcceptedAt: mockSubscription.termsAcceptedAt,
       nextExpiryDate: mockSubscription.nextExpiryDate,
+      cancelAtPeriodEnd: mockSubscription.cancelAtPeriodEnd,
     },
   });
 });
@@ -172,6 +174,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
     termsVersion: "v1",
     termsAcceptedAt: new Date(),
     nextExpiryDate: new Date("2026-01-01T00:00:00.000Z"),
+    cancelAtPeriodEnd: true,
   };
 
   const mockDeps = {
@@ -221,6 +224,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       termsVersion: mockSubscription.termsVersion,
       termsAcceptedAt: mockSubscription.termsAcceptedAt.toISOString(),
       nextExpiryDate: mockSubscription.nextExpiryDate?.toISOString(),
+      cancelAtPeriodEnd: mockSubscription.cancelAtPeriodEnd,
     },
   });
 });

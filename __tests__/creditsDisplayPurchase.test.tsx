@@ -177,6 +177,49 @@ describe('CreditsDisplay purchase flows', () => {
     expect(JSON.stringify(tree.toJSON())).toContain('Purchase failed. Please try again.')
   })
 
+  it('shows the server-provided message when subscribe is blocked by an existing mobile subscription', async () => {
+    const blockedError = Object.assign(
+      new Error('You already have an active subscription on mobile. Manage it in the App Store or Play Store.'),
+      { code: 'functions/already-exists' }
+    )
+    mockMakePackagePurchase.mockRejectedValueOnce(blockedError)
+    const CreditsDisplay = require('~/components/CreditsDisplay').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<CreditsDisplay />)
+    })
+
+    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
+
+    await act(async () => {
+      await subscribeButton.props.onPress()
+    })
+
+    expect(JSON.stringify(tree.toJSON())).toContain(
+      'You already have an active subscription on mobile. Manage it in the App Store or Play Store.'
+    )
+  })
+
+  it('shows the generic message for a non-business-rule error code', async () => {
+    const genericError = Object.assign(new Error('boom'), { code: 'functions/internal' })
+    mockMakePackagePurchase.mockRejectedValueOnce(genericError)
+    const CreditsDisplay = require('~/components/CreditsDisplay').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<CreditsDisplay />)
+    })
+
+    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
+
+    await act(async () => {
+      await subscribeButton.props.onPress()
+    })
+
+    expect(JSON.stringify(tree.toJSON())).toContain('Purchase failed. Please try again.')
+  })
+
   it('refreshes bootstrap and clears loading after native subscription purchase', async () => {
     __setJestPlatformOS('ios')
     mockMakePackagePurchase.mockResolvedValueOnce({ appUserId: 'user-1' })
