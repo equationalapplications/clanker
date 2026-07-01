@@ -64,7 +64,7 @@ If the RevenueCat webhook fires while an active Stripe-provider subscription alr
 
 ### `upsertSubscription` signature change
 
-`subscriptionService.upsertSubscription` and both webhook `deps.upsertSubscription` call sites gain a `subscriptionProvider: 'stripe' | 'revenuecat'` parameter, written whenever `planTier !== 'free'`. Existing Stripe call sites pass `'stripe'`; RevenueCat call sites pass `'revenuecat'`. Free/cancelled transitions (`handleSubscriptionDeleted`, RevenueCat `EXPIRATION`) may leave the provider field as-is or null it — implementation detail to confirm in the plan, but it must not block a subsequent purchase on the *other* platform once the current subscription has actually ended.
+`subscriptionService.upsertSubscription` and both webhook `deps.upsertSubscription` call sites gain a `subscriptionProvider: 'stripe' | 'revenuecat' | null` parameter, written whenever the subscription's ownership changes. Existing Stripe call sites pass `'stripe'`; RevenueCat call sites pass `'revenuecat'`. On full termination (`handleSubscriptionDeleted`, RevenueCat `EXPIRATION`) the call explicitly passes `null`, clearing the column rather than leaving a stale provider string behind — the DB should reflect that nobody currently owns the subscription, so a future gate check never trips on a leftover value from a long-ended subscription.
 
 ---
 
@@ -134,5 +134,4 @@ Exposed in `SubscriptionSnapshot` (client bootstrap payload) alongside `subscrip
 ## Open Implementation Details (to resolve in the plan, not here)
 
 - Exact wording of the web-side rejection error surfaced to the client in `makePackagePurchase.ts`.
-- Whether `subscription_provider` is nulled or left stale when a subscription fully ends (`handleSubscriptionDeleted`, RevenueCat `EXPIRATION`) — must not block a legitimate future purchase on the other platform.
-- Test coverage for: web block (existing active RevenueCat sub), RevenueCat webhook race granting anyway + warning log, missing-`original_transaction_id` non-2xx, partial-refund proration math, Stripe customer fallback chain (both steps), `processed_stripe_events` dedupe skipping a replayed event, `cancel_at_period_end` transitions for both providers.
+- Test coverage for: web block (existing active RevenueCat sub), RevenueCat webhook race granting anyway + warning log, missing-`original_transaction_id` non-2xx, partial-refund proration math, Stripe customer fallback chain (both steps), `processed_stripe_events` dedupe skipping a replayed event, `cancel_at_period_end` transitions for both providers, `subscription_provider` nulled on `handleSubscriptionDeleted`/`EXPIRATION`.
