@@ -162,6 +162,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       baseUrl: '/',
     },
   },
+  notification: {
+    vapidPublicKey:
+      process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY,
+    serviceWorkerPath: '/expo-service-worker.js',
+  },
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
