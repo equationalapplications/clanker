@@ -42,6 +42,7 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
     firebaseUid: auth.uid,
     email: auth.token.email,
     displayName: null,
+    expoPushToken: null,
     avatarUrl: null,
     isProfilePublic: false,
     defaultCharacterId: null,
