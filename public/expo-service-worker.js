@@ -57,7 +57,7 @@ self.addEventListener('notificationclick', (event) => {
           client.postMessage({
             origin: 'selected',
             data: event.notification.data,
-            remote: !event.notification._isLocal,
+            remote: !event.notification.data?._isLocal,
           })
           return
         }
@@ -67,7 +67,7 @@ self.addEventListener('notificationclick', (event) => {
       appClient?.postMessage({
         origin: 'selected',
         data: event.notification.data,
-        remote: !event.notification._isLocal,
+        remote: !event.notification.data?._isLocal,
       })
     })(),
   )

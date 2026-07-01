@@ -34,4 +34,5 @@ test('handleApproveAction writes denied to auth doc', async () => {
   })
 
   assert.equal(updates[0].data.status, 'denied')
+  assert.ok('approvalToken' in updates[0].data)
 })

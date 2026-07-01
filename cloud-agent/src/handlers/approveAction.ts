@@ -24,6 +24,9 @@ export async function handleApproveAction(
       approvalToken: body.approvalToken,
     })
   } else {
-    await db.doc(authPath).update({ status: 'denied' })
+    await db.doc(authPath).update({
+      status: 'denied',
+      approvalToken: admin.firestore.FieldValue.delete(),
+    })
   }
 }
