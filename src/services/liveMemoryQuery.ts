@@ -26,7 +26,7 @@ export function buildMemoryQueryFromMessages(messages: IMessage[], userId: strin
     .filter(Boolean)
   if (userTexts.length === 0) return ''
 
-  return userTexts.join('\n').slice(0, LIVE_CHAT_HANDOFF_MAX_CHARS)
+  return userTexts.join('\n').slice(-LIVE_CHAT_HANDOFF_MAX_CHARS)
 }
 
 /**
@@ -45,7 +45,7 @@ export function buildRecentChatContextFromMessages(
     const role = msg.user._id === userId ? 'User' : characterName
     return `${role}: ${msg.text}`
   })
-  return lines.join('\n').slice(0, LIVE_CHAT_HANDOFF_MAX_CHARS)
+  return lines.join('\n').slice(-LIVE_CHAT_HANDOFF_MAX_CHARS)
 }
 
 export async function buildLiveChatHandoff(

@@ -1,4 +1,4 @@
-type CharacterWikiOperation = 'reading' | 'writing' | 'ingesting' | 'forgetting' | 'syncing'
+export type CharacterWikiOperation = 'reading' | 'writing' | 'ingesting' | 'forgetting' | 'syncing'
 
 const emptyOperationTail = (): Record<CharacterWikiOperation, Promise<void>> => ({
   reading: Promise.resolve(),

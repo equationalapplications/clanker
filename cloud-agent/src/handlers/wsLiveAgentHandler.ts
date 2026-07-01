@@ -427,7 +427,18 @@ export async function handleLiveWsUpgrade(
       const memoryAnchor = memoryQuery?.trim() ?? ''
       if (memoryAnchor) {
         try {
-          wikiContext = await queryWikiContext(db, memoryAnchor, userId, characterId, embedText)
+          let timeoutId: ReturnType<typeof setTimeout> | undefined
+          wikiContext = await Promise.race([
+            queryWikiContext(db, memoryAnchor, userId, characterId, embedText),
+            new Promise<string>((_, reject) => {
+              timeoutId = setTimeout(
+                () => reject(new Error('queryWikiContext timed out after 5000ms')),
+                5_000,
+              )
+            }),
+          ]).finally(() => {
+            if (timeoutId !== undefined) clearTimeout(timeoutId)
+          })
         } catch (err) {
           console.warn('[live] queryWikiContext failed, starting without preloaded memory:', err)
         }

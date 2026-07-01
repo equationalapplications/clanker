@@ -5,6 +5,7 @@ import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import {
   resetCharacterWikiEntityQueuesForTests,
   tailForEntity,
+  type CharacterWikiOperation,
 } from '~/services/characterWikiQueue'
 import { wikiSync } from '~/services/apiClient'
 import type { WikiSyncBundle } from '~/services/apiClient'
@@ -13,8 +14,6 @@ import {
   mapFactSourceTypesFromCloud,
 } from '~/services/wikiSourceType'
 import { reportError } from '~/utilities/reportError'
-
-type CharacterWikiOperation = 'reading' | 'writing' | 'ingesting' | 'forgetting' | 'syncing'
 
 const DEFAULT_OPERATION_TIMEOUT_MS = 60_000
 

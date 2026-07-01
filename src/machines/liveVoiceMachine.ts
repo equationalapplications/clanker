@@ -21,6 +21,20 @@ import { buildLiveChatHandoff } from '~/services/liveMemoryQuery'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
+const LIVE_MEMORY_FLUSH_TIMEOUT_MS = 8_000
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    }),
+  ]).finally(() => {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  })
+}
+
 export type LiveVoiceSyncPhase = 'saving_observations' | 'syncing_cloud' | null
 
 function attachGroundingToTranscript(
@@ -392,8 +406,16 @@ export const liveVoiceMachine = createMachine(
         }: {
           input: { characterId: string; userId: string }
         }): Promise<{ memoryQuery: string; recentChatContext: string }> => {
-          await awaitPendingWikiWrites(input.characterId)
-          return buildLiveChatHandoff(input.characterId, input.userId)
+          await withTimeout(
+            awaitPendingWikiWrites(input.characterId),
+            LIVE_MEMORY_FLUSH_TIMEOUT_MS,
+            'awaitPendingWikiWrites',
+          )
+          return withTimeout(
+            buildLiveChatHandoff(input.characterId, input.userId),
+            LIVE_MEMORY_FLUSH_TIMEOUT_MS,
+            'buildLiveChatHandoff',
+          )
         },
       ),
 

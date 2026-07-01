@@ -41,6 +41,31 @@ describe('buildMemoryQueryFromMessages', () => {
     expect(buildMemoryQueryFromMessages(sampleMessages, 'user-1')).toBe('What is the weather?')
   })
 
+  test('keeps the most recent user turns when truncating', () => {
+    const oldTurn = `OLD_MARKER_${'x'.repeat(1500)}`
+    const recentTurn = `RECENT_MARKER_${'y'.repeat(600)}`
+    const messages = [
+      {
+        _id: '1',
+        text: oldTurn,
+        createdAt: new Date('2026-01-01T10:00:00Z'),
+        user: { _id: 'user-1' },
+      },
+      {
+        _id: '2',
+        text: recentTurn,
+        createdAt: new Date('2026-01-01T10:01:00Z'),
+        user: { _id: 'user-1' },
+      },
+    ]
+
+    const query = buildMemoryQueryFromMessages(messages, 'user-1')
+
+    expect(query.length).toBe(2000)
+    expect(query).toContain('RECENT_MARKER')
+    expect(query).not.toContain('OLD_MARKER')
+  })
+
   test('joins multiple user turns from the recent window', () => {
     const messages = [
       {
@@ -82,13 +107,19 @@ describe('buildRecentChatContextFromMessages', () => {
     expect(query).toBe('User: What is the weather?\nFrodo: It is sunny in Austin.')
   })
 
-  test('truncates very long transcripts', () => {
+  test('truncates very long transcripts while keeping the newest content', () => {
     const query = buildRecentChatContextFromMessages(
       [
         {
           _id: '1',
-          text: 'a'.repeat(3000),
-          createdAt: new Date(),
+          text: `OLD_MARKER_${'a'.repeat(1500)}`,
+          createdAt: new Date('2026-01-01T10:00:00Z'),
+          user: { _id: userId },
+        },
+        {
+          _id: '2',
+          text: `RECENT_MARKER_${'b'.repeat(600)}`,
+          createdAt: new Date('2026-01-01T10:01:00Z'),
           user: { _id: userId },
         },
       ],
@@ -96,6 +127,8 @@ describe('buildRecentChatContextFromMessages', () => {
     )
 
     expect(query.length).toBe(2000)
+    expect(query).toContain('RECENT_MARKER')
+    expect(query).not.toContain('OLD_MARKER')
   })
 })
 
