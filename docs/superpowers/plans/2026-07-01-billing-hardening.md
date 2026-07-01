@@ -674,6 +674,8 @@ to:
 
 (Only the `try`/`catch` wrapper and the new guard change — the `switch` body's cases are untouched here; they change in later tasks.)
 
+Note: `deps.markEventProcessed(event.id)` runs *outside* the `try`/`catch`, by design — if the dedupe insert itself throws (e.g. a transient Cloud SQL blip), the error propagates uncaught, which Express/Firebase Functions turns into an unhandled rejection → 500 response, so Stripe still retries. The only cost is that this specific failure mode skips the handler's own `logger.error` call and structured `{received: false, ...}` body. Accepted tradeoff — not worth wrapping in a second try/catch for a rare, already-retried failure path.
+
 - [ ] **Step 4: Update every existing test's deps object to include the two new dependencies**
 
 Every existing test in `functions/src/stripeWebhook.test.ts` that constructs a deps object (search for `adjustCredits: async () => {},` — there are 3 occurrences per the file as read) needs two more lines added directly after `adjustCredits`:
@@ -893,7 +895,19 @@ with:
 
 Note the rest of the function references `customer.email` in `logger.info` calls further down — those remain valid since `customer.email` may now legitimately be `null`; that's fine for a log field.
 
-- [ ] **Step 4: Apply the same fallback chain to `handleSubscriptionDeleted`**
+- [ ] **Step 4: Export `handleSubscriptionDeleted` and apply the same fallback chain**
+
+`handleSubscriptionDeleted` is currently not exported (unlike `handleSubscriptionUpdated` and, after Task 7, `handleChargeRefunded`), so it can't be unit-tested directly yet — needed for the provider-nulling test in Step 4a below. In `functions/src/stripeWebhook.ts`, change:
+
+```typescript
+async function handleSubscriptionDeleted(
+```
+
+to:
+
+```typescript
+export async function handleSubscriptionDeleted(
+```
 
 Replace:
 
@@ -966,10 +980,65 @@ with:
 
 (`subscriptionProvider: null` and `cancelAtPeriodEnd: false` here implement part of Fix #1/#6 — this is the natural place to add them since we're already touching this call site.)
 
+- [ ] **Step 4a: Add a direct test for `handleSubscriptionDeleted`'s provider-nulling (closes a coverage gap the spec explicitly calls out)**
+
+Add `handleSubscriptionDeleted` to the test file's import block:
+
+```typescript
+import {
+  getCreditPackQuantityFromInvoice,
+  getInvoiceLineItemPriceId,
+  mapStripeSubscriptionStatus,
+  stripeWebhookHandler,
+  handleInvoicePaymentSucceeded,
+  handleSubscriptionUpdated,
+  handleSubscriptionDeleted,
+} from "./stripeWebhook.js";
+```
+
+Add this test to `functions/src/stripeWebhook.test.ts`:
+
+```typescript
+test("handleSubscriptionDeleted nulls subscriptionProvider and resets to free/cancelled", async () => {
+  let upsertArgs: {planTier?: unknown; planStatus?: unknown; subscriptionProvider?: unknown; cancelAtPeriodEnd?: unknown} | null = null;
+
+  const sub = {
+    id: "sub_abc",
+    customer: "cus_123",
+  } as unknown as Stripe.Subscription;
+
+  const mockStripe = {
+    customers: {
+      retrieve: async (_id: string) => ({ deleted: false, email: "user@example.com" }),
+    },
+  } as unknown as Stripe;
+
+  await handleSubscriptionDeleted(sub, mockStripe, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async (params) => { upsertArgs = params; },
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+  } as never);
+
+  assert.deepEqual(upsertArgs, {
+    userId: "user-1",
+    planTier: "free",
+    planStatus: "cancelled",
+    stripeSubscriptionId: "sub_abc",
+    stripeCustomerId: "cus_123",
+    subscriptionProvider: null,
+    cancelAtPeriodEnd: false,
+  });
+});
+```
+
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `cd functions && npm run build && npm test -- --test-name-pattern="handleSubscriptionUpdated|handleSubscriptionDeleted"`
-Expected: PASS (all existing + 3 new tests)
+Expected: PASS (all existing + 4 new tests, including the provider-nulling test from Step 4a)
 
 - [ ] **Step 6: Commit**
 
@@ -1130,7 +1199,7 @@ to:
 export async function handleChargeRefunded(
 ```
 
-Add to the test file's import block:
+Add `handleChargeRefunded` to the test file's import block (which by this point, after Task 5's Step 4a, already includes `handleSubscriptionDeleted`):
 
 ```typescript
 import {
@@ -1140,6 +1209,7 @@ import {
   stripeWebhookHandler,
   handleInvoicePaymentSucceeded,
   handleSubscriptionUpdated,
+  handleSubscriptionDeleted,
   handleChargeRefunded,
 } from "./stripeWebhook.js";
 ```
@@ -1518,12 +1588,45 @@ After the `SUBSCRIPTION_PRICE_IDS` set is built and the `priceId`/`attemptId` va
 
 Finally, since `onCall`'s handler is invoked by the framework with only `request`, update the export at the bottom to keep passing just `request` there (it already does — `handler` is called as `(request) => handler(request)`-equivalent via direct reference; confirm the existing `purchasePackageStripe = onCall({...}, handler)` line is unchanged, since `handler`'s second parameter has a default and Firebase only ever supplies one argument).
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 4: Neutralize the new block in every existing test that reaches it**
+
+`functions/src/db/cloudSql.ts:53` throws unconditionally in test env: `'Direct database access not allowed in test environment.'` Any existing test that uses `priceId: "price_monthly_20"` and gets past the `ALLOWED_PRICE_IDS` check (i.e. doesn't reject earlier for auth/attemptId/unknown-priceId/missing-config reasons) will now call the real `userRepository.findUserByFirebaseUid` → `getDb()` → **throw**, before ever reaching the behavior each test was written to exercise. This is not a maybe — it is guaranteed to break these 8 tests, all of which currently call `purchasePackageStripeHandler({...} as never)` with a single argument:
+
+- `"purchasePackageStripeHandler uses subscription mode for recurring Stripe prices"` (line 227)
+- `"purchasePackageStripeHandler warns when Stripe price type mismatches local mode expectation"` (line 258)
+- `"purchasePackageStripeHandler creates a customer when none exists"` (line 309)
+- `"purchasePackageStripeHandler rejects users without an email address"` (line 356) — this one reaches the new block *before* its own email check, since the block runs earlier in the handler than the email fetch
+- `"purchasePackageStripeHandler fails when Stripe checkout session has no URL"` (line 389)
+- `"purchasePackageStripeHandler sends metadata and client_reference_id to checkout session"` (line 420)
+- `"purchasePackageStripeHandler appends attemptId to checkout return URLs and metadata"` (line 453)
+- `"purchasePackageStripeHandler keeps UUID-like attemptId accepted and propagated"` (line 503)
+
+Every one of these calls ends with the pattern `} as never);` or `} as never),`. In each of the 8 locations above, change the call from one argument to two — for example, the call at line 227 currently reads:
+
+```typescript
+      const result = await purchasePackageStripeHandler({
+        auth: {uid: "firebase-uid-1"},
+        data: {priceId: "price_monthly_20"},
+      } as never);
+```
+
+Change it to:
+
+```typescript
+      const result = await purchasePackageStripeHandler({
+        auth: {uid: "firebase-uid-1"},
+        data: {priceId: "price_monthly_20"},
+      } as never, {userRepository: {findUserByFirebaseUid: async () => null}} as never);
+```
+
+(i.e. append `, {userRepository: {findUserByFirebaseUid: async () => null}} as never` immediately before the final closing `)` of the call, whether it ends in `} as never);` or `} as never),`). `findUserByFirebaseUid` returning `null` means `cloudUser` is falsy, so `subscriptionService.getSubscription` is never invoked — no need to also stub `subscriptionService` in these 8 sites. Apply this exact one-argument-to-two-argument edit at all 8 locations listed above; do not change any other test (the ones using `price_monthly_50` or `price_unknown`, or that reject before the price-id check, never reach the new block and are unaffected).
+
+- [ ] **Step 5: Run tests to verify they pass**
 
 Run: `cd functions && npm run build && npm test -- --test-name-pattern="purchasePackageStripeHandler"`
-Expected: PASS (all existing tests + 3 new ones — existing tests don't pass a `deps` argument, so they exercise the real `userRepository`/`subscriptionService` defaults; since those tests use price ids that are credit-pack or don't reach Cloud SQL in a way that throws, confirm none of them regress. If any existing test now fails because it unexpectedly hits the real Cloud SQL-backed `userRepository.findUserByFirebaseUid` default, that test must be updated to pass a `deps` override with `userRepository.findUserByFirebaseUid: async () => null` — this makes the new block a no-op, matching that test's original intent.)
+Expected: PASS (all existing tests, now neutralized against the new block, + the 3 new tests from Step 1)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add functions/src/purchasePackageStripe.ts functions/src/purchasePackageStripe.test.ts
@@ -1728,7 +1831,7 @@ with:
               product_id,
               type,
             });
-            res.status(422).json({received: false, error: "Missing original_transaction_id"});
+            res.status(503).json({received: false, error: "Missing original_transaction_id"});
             return;
           }
           const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
@@ -1853,7 +1956,7 @@ with:
               product_id,
               type,
             });
-            res.status(422).json({received: false, error: "Missing original_transaction_id"});
+            res.status(503).json({received: false, error: "Missing original_transaction_id"});
             return;
           }
           const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
@@ -2140,7 +2243,7 @@ test("revenueCatWebhookHandler rejects a credit-pack event missing original_tran
     }
   );
 
-  assert.equal(res.statusCode, 422);
+  assert.equal(res.statusCode, 503);
   assert.equal(addCreditsCalled, false);
 });
 
@@ -2170,7 +2273,7 @@ test("revenueCatWebhookHandler rejects a NON_RENEWING_PURCHASE credit-pack event
     }
   );
 
-  assert.equal(res.statusCode, 422);
+  assert.equal(res.statusCode, 503);
   assert.equal(addCreditsCalled, false);
 });
 ```
