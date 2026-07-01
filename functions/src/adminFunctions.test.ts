@@ -31,6 +31,24 @@ test("adminListUsersHandler rejects non-admin callers", async () => {
   );
 });
 
+test("adminListUsersHandler rejects allowlisted email with unverified email", async () => {
+  await assert.rejects(
+    async () =>
+      adminListUsersHandler({
+        auth: {
+          uid: "firebase-attacker-1",
+          token: {
+            uid: "firebase-attacker-1",
+            email: "admin@example.com",
+            email_verified: false,
+          },
+        },
+        data: {},
+      } as never),
+    (err: unknown) => err instanceof HttpsError && err.code === "permission-denied"
+  );
+});
+
 test("adminListUsersHandler rejects malformed auth token payload", async () => {
   await assert.rejects(
     async () =>
@@ -54,6 +72,7 @@ test("adminSetUserCreditsHandler validates reason", async () => {
           token: {
             uid: "firebase-admin-1",
             email: "admin@example.com",
+            email_verified: true,
           },
         },
         data: {
@@ -75,6 +94,7 @@ test("adminSetUserCreditsHandler rejects credits above DB integer limit", async 
           token: {
             uid: "firebase-admin-1",
             email: "admin@example.com",
+            email_verified: true,
           },
         },
         data: {
@@ -97,6 +117,7 @@ test("adminSetUserSubscriptionHandler rejects invalid renewalDate", async () => 
           token: {
             uid: "firebase-admin-1",
             email: "admin@example.com",
+            email_verified: true,
           },
         },
         data: {
@@ -121,6 +142,7 @@ test("adminSetUserSubscriptionHandler rejects invalid plan values", async () => 
           token: {
             uid: "firebase-admin-1",
             email: "admin@example.com",
+            email_verified: true,
           },
         },
         data: {
@@ -174,6 +196,7 @@ test("adminDeleteUserHandler validates userId", async () => {
           token: {
             uid: "firebase-admin-1",
             email: "admin@example.com",
+            email_verified: true,
           },
         },
         data: {
