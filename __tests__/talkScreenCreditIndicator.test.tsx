@@ -87,7 +87,11 @@ function baseReturn(overrides: Record<string, unknown>) {
 function findCreditNode(tree: any) {
   return tree.root
     .findAll((n: any) => n.type === 'Text')
-    .find((n: any) => n.props.accessibilityLabel === 'Credits remaining')
+    .find(
+      (n: any) =>
+        typeof n.props.accessibilityLabel === 'string' &&
+        n.props.accessibilityLabel.endsWith(' remaining'),
+    )
 }
 
 describe('Talk screen credit indicator', () => {
@@ -104,7 +108,18 @@ describe('Talk screen credit indicator', () => {
     act(() => { tree = create(<TalkTabScreen />) })
     const node = findCreditNode(tree)
     expect(node).toBeDefined()
-    expect(node.props.children).toEqual([8, ' credits'])
+    expect(node.props.children).toBe('8 credits')
+    expect(node.props.accessibilityLabel).toBe('8 credits remaining')
+  })
+
+  it('uses singular credit copy for a count of one', () => {
+    Object.assign(liveVoiceReturn, baseReturn({ isLive: true, remainingCredits: 1 }))
+    let tree: any
+    act(() => { tree = create(<TalkTabScreen />) })
+    const node = findCreditNode(tree)
+    expect(node).toBeDefined()
+    expect(node.props.children).toBe('1 credit')
+    expect(node.props.accessibilityLabel).toBe('1 credit remaining')
   })
 
   it('applies low-credit emphasis at or below the threshold', () => {

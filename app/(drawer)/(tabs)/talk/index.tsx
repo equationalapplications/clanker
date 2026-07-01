@@ -205,13 +205,13 @@ function TalkView({ characterId }: { characterId: string }) {
 
       {isLive || isConnecting ? (
         <Text
-          accessibilityLabel="Credits remaining"
+          accessibilityLabel={`${remainingCredits} credit${remainingCredits === 1 ? '' : 's'} remaining`}
           style={[
             styles.creditCount,
             remainingCredits <= LOW_CREDIT_THRESHOLD ? styles.creditCountLow : null,
           ]}
         >
-          {remainingCredits} credits
+          {`${remainingCredits} credit${remainingCredits === 1 ? '' : 's'}`}
         </Text>
       ) : null}
 
