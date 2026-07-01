@@ -14,6 +14,8 @@ export interface UpsertSubscriptionParams {
   stripeCustomerId?: string | null;
   billingCycleStart?: Date | null;
   billingCycleEnd?: Date | null;
+  subscriptionProvider?: 'stripe' | 'revenuecat' | null;
+  cancelAtPeriodEnd?: boolean;
 }
 
 interface SubscriptionServiceDeps {
@@ -82,6 +84,8 @@ export const createSubscriptionService = (
           stripeCustomerId: params.stripeCustomerId,
           billingCycleStart: params.billingCycleStart,
           billingCycleEnd: params.billingCycleEnd,
+          subscriptionProvider: params.subscriptionProvider,
+          cancelAtPeriodEnd: params.cancelAtPeriodEnd ?? false,
         })
         .onConflictDoUpdate({
           target: subscriptions.userId,
@@ -93,11 +97,23 @@ export const createSubscriptionService = (
             stripeCustomerId: params.stripeCustomerId !== undefined ? params.stripeCustomerId : sql`${subscriptions.stripeCustomerId}`,
             billingCycleStart: params.billingCycleStart !== undefined ? params.billingCycleStart : sql`${subscriptions.billingCycleStart}`,
             billingCycleEnd: params.billingCycleEnd !== undefined ? params.billingCycleEnd : sql`${subscriptions.billingCycleEnd}`,
+            subscriptionProvider: params.subscriptionProvider !== undefined ? params.subscriptionProvider : sql`${subscriptions.subscriptionProvider}`,
+            cancelAtPeriodEnd: params.cancelAtPeriodEnd !== undefined ? params.cancelAtPeriodEnd : sql`${subscriptions.cancelAtPeriodEnd}`,
             updatedAt: new Date(),
           }
         })
         .returning();
       return upserted;
+    },
+
+    async findUserIdByStripeCustomerId(stripeCustomerId: string): Promise<string | null> {
+      const db = await deps.getDb();
+      const result = await db
+        .select({ userId: subscriptions.userId })
+        .from(subscriptions)
+        .where(eq(subscriptions.stripeCustomerId, stripeCustomerId))
+        .limit(1);
+      return result[0]?.userId ?? null;
     },
 
     async acceptTerms(userId: string, version: string, acceptedAt: Date) {

@@ -21,6 +21,7 @@ export interface SubscriptionSnapshot {
   termsVersion: string | null
   termsAcceptedAt: string | null
   nextExpiryDate: string | null
+  cancelAtPeriodEnd?: boolean
 }
 
 export interface BootstrapResponse {

@@ -9,13 +9,14 @@ import { useCharacter } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 import { useLiveAudioIO } from '~/hooks/useLiveAudioIO'
-import { liveVoiceMachine, type LiveVoiceEvent } from '~/machines/liveVoiceMachine'
+import { liveVoiceMachine, type LiveVoiceEvent, type LiveVoiceSyncPhase } from '~/machines/liveVoiceMachine'
 
 /** Return value of useLiveVoiceChat — exposes machine state and call controls. */
 export interface UseLiveVoiceChatReturn {
   isConnecting: boolean
   isLive: boolean
   isSyncing: boolean
+  syncPhase: LiveVoiceSyncPhase
   error: string | null
   transcript: IMessage[]
   activeTool: string | null
@@ -65,6 +66,28 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
       initialCredits: typeof remainingCredits === 'number' ? remainingCredits : 0,
     },
   })
+
+  // Reconcile live-voice credit ticks back to the auth machine so the header
+  // badge and CreditsDisplay reflect voice spends live and after a call.
+  // The socket USAGE_SNAPSHOT carries no server timestamp, so we synthesize a
+  // client ISO time (same as the cloud-agent path in useAIChat); successive
+  // ticks are monotonic and pass applyUsageSnapshotIfNewer. The ref stores the
+  // previous value and gates on prev !== current, which skips the initial seed
+  // and is safe against StrictMode double-firing.
+  const prevCreditsRef = useRef(state.context.remainingCredits)
+  useEffect(() => {
+    const current = state.context.remainingCredits
+    if (prevCreditsRef.current === current) return
+    prevCreditsRef.current = current
+    authService.send({
+      type: 'USAGE_SNAPSHOT_RECEIVED',
+      source: 'liveVoice',
+      remainingCredits: current,
+      planTier: null,
+      planStatus: null,
+      verifiedAt: new Date().toISOString(),
+    })
+  }, [state.context.remainingCredits, authService])
 
   const syncedUserIdRef = useRef(userId)
   useEffect(() => {
@@ -171,6 +194,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   const isConnecting = state.matches({ session: 'connecting' })
   const isLive = state.matches({ session: 'live' })
   const isSyncing = state.matches('syncing_memory')
+  const syncPhase = state.context.syncPhase
   const isSaving = state.matches('saving_to_db')
   const errorState = state.matches('error')
 
@@ -192,6 +216,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
       isConnecting,
       isLive,
       isSyncing,
+      syncPhase,
       error,
       transcript: state.context.transcript,
       activeTool: state.context.activeTool,
@@ -206,6 +231,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
       isConnecting,
       isLive,
       isSyncing,
+      syncPhase,
       error,
       state.context,
       audioIO.playbackState,

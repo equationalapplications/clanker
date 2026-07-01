@@ -30,6 +30,7 @@ import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
 
 const AVATAR_SIZE = 200
 const GLOW_SIZE = AVATAR_SIZE + 60
+const LOW_CREDIT_THRESHOLD = 5
 
 function TalkGroundingDisplay({ metadata }: { metadata: GroundingMetadata }) {
   const chunks = metadata.groundingChunks ?? []
@@ -86,11 +87,13 @@ function TalkView({ characterId }: { characterId: string }) {
     isConnecting,
     isLive,
     isSyncing,
+    syncPhase,
     error,
     transcript,
     activeTool,
     groundingMetadata,
     isPlayingAudio,
+    remainingCredits,
     startCall,
     endCall,
   } = useLiveVoiceChat(characterId)
@@ -163,7 +166,9 @@ function TalkView({ characterId }: { characterId: string }) {
 
   const statusText = (() => {
     if (error) return error
-    if (isSyncing) return 'Syncing memory…'
+    if (isSyncing && syncPhase === 'saving_observations') return 'Saving observations…'
+    if (isSyncing && syncPhase === 'syncing_cloud') return 'Syncing memory…'
+    if (isSyncing) return 'Preparing memory…'
     if (isConnecting) return 'Connecting…'
     if (isLive && isPlayingAudio) return transcript[transcript.length - 1]?.text ?? 'Speaking…'
     if (isLive && activeTool) return `⏳ ${activeTool.replace(/_/g, ' ')}…`
@@ -197,6 +202,18 @@ function TalkView({ characterId }: { characterId: string }) {
         {showSpinner ? <ActivityIndicator size="small" style={styles.spinner} /> : null}
         <Text style={[styles.statusText, error ? styles.errorText : null]}>{statusText}</Text>
       </View>
+
+      {isLive || isConnecting ? (
+        <Text
+          accessibilityLabel={`${remainingCredits} credit${remainingCredits === 1 ? '' : 's'} remaining`}
+          style={[
+            styles.creditCount,
+            remainingCredits <= LOW_CREDIT_THRESHOLD ? styles.creditCountLow : null,
+          ]}
+        >
+          {`${remainingCredits} credit${remainingCredits === 1 ? '' : 's'}`}
+        </Text>
+      ) : null}
 
       {groundingMetadata ? <TalkGroundingDisplay metadata={groundingMetadata} /> : null}
 
@@ -324,6 +341,16 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#b00020',
+  },
+  creditCount: {
+    fontSize: 13,
+    opacity: 0.7,
+    marginTop: 4,
+  },
+  creditCountLow: {
+    color: '#b00020',
+    opacity: 1,
+    fontWeight: '600',
   },
   groundingContainer: {
     width: '100%',

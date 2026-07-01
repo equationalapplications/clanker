@@ -9,7 +9,7 @@ import { buildAuthorizedToolsArray, googleSearchManifest } from "@equationalappl
 import type { GeminiToolEntry } from "@equationalapplications/core-llm-tools";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
-import { creditService } from "./services/creditService.js";
+import { creditService, type CreditSpendAllocation } from "./services/creditService.js";
 import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 import { getDb } from "./db/cloudSql.js";
@@ -535,14 +535,14 @@ function parseInput(data: unknown): {
 async function chargeForReply(
   userId: string,
   credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
-): Promise<{transactionId: string; remainingCredits: number}> {
-  const transactionId = await credits.spendCredits(userId, 1);
-  if (transactionId === null) {
+): Promise<{ spendAllocations: CreditSpendAllocation[]; remainingCredits: number }> {
+  const spendAllocations = await credits.spendCredits(userId, 1);
+  if (spendAllocations === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
 
   const remainingCredits = await credits.getCredits(userId);
-  return { transactionId, remainingCredits };
+  return { spendAllocations, remainingCredits };
 }
 
 
@@ -643,12 +643,12 @@ const handler = async (
   const generateText = options.generateText ?? getTextGenerator();
 
   let reply: string;
-  let transactionId: string | null = null;
+  let spendAllocations: CreditSpendAllocation[] | null = null;
   let remainingCredits = 0;
 
   try {
     const charge = await chargeForReply(user.id, credits);
-    transactionId = charge.transactionId;
+    spendAllocations = charge.spendAllocations;
     remainingCredits = charge.remainingCredits;
 
     const generated = await generateText({
@@ -692,13 +692,13 @@ const handler = async (
       ...usageSnapshot,
     };
   } catch (error) {
-    if (transactionId) {
+    if (spendAllocations) {
       try {
-        await credits.refundCredit(user.id, transactionId, 1);
+        await credits.refundCredit(user.id, spendAllocations);
       } catch (refundError) {
         logger.error("Failed to refund credits after generateReply failure", {
           userId: user.id,
-          transactionId,
+          spendAllocations,
           error: refundError,
         });
       }

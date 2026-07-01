@@ -5,7 +5,7 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import { GoogleGenAI } from "@google/genai";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
-import { creditService } from "./services/creditService.js";
+import { creditService, type CreditSpendAllocation } from "./services/creditService.js";
 import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
@@ -122,15 +122,13 @@ function parseInput(data: unknown): {prompt: string} {
 
 async function chargeForImage(
   userId: string,
-  credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
-): Promise<{ transactionId: string; remainingCredits: number }> {
-  const transactionId = await credits.spendCredits(userId, 1);
-  if (transactionId === null) {
+  credits: Pick<typeof creditService, 'spendCredits'>
+): Promise<CreditSpendAllocation[]> {
+  const spendAllocations = await credits.spendCredits(userId, 1);
+  if (spendAllocations === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
-
-  const remainingCredits = await credits.getCredits(userId);
-  return { transactionId, remainingCredits };
+  return spendAllocations;
 }
 
 
@@ -324,13 +322,12 @@ const handler = async (
   const generateImage = options.generateImage ?? getImageGenerator();
 
   let imageResult: GeneratedImageResult;
-  let transactionId: string | null = null;
+  let spendAllocations: CreditSpendAllocation[] | null = null;
   let remainingCredits = 0;
 
   try {
-    const charge = await chargeForImage(user.id, credits);
-    transactionId = charge.transactionId;
-    remainingCredits = charge.remainingCredits;
+    spendAllocations = await chargeForImage(user.id, credits);
+    remainingCredits = await credits.getCredits(user.id);
 
     imageResult = await generateImage(prompt);
 
@@ -371,13 +368,13 @@ const handler = async (
       ...usageSnapshot,
     };
   } catch (error) {
-    if (transactionId) {
+    if (spendAllocations) {
       try {
-        await credits.refundCredit(user.id, transactionId, 1);
+        await credits.refundCredit(user.id, spendAllocations);
       } catch (refundError) {
         logger.error("Failed to refund credits after generateImage failure", {
           userId: user.id,
-          transactionId,
+          spendAllocations,
           error: refundError,
         });
       }

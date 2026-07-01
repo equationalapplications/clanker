@@ -18,8 +18,8 @@ const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingm
 const VALID_BASE64 = Buffer.from('hello world').toString('base64');
 
 function makeDeps(options: {
-  spendCreditsImpl?: (userId: string, amount: number) => Promise<string | null>;
-  refundCreditImpl?: (userId: string, transactionId: string, amount: number) => Promise<void>;
+  spendCreditsImpl?: (userId: string, amount: number) => Promise<import('./services/creditService.js').CreditSpendAllocation[] | null>;
+  refundCreditImpl?: (userId: string, allocations: import('./services/creditService.js').CreditSpendAllocation[]) => Promise<void>;
   convertDocxImpl?: (buffer: Buffer) => Promise<string>;
   generateFromGeminiImpl?: (mimeType: string, base64: string) => Promise<string>;
 } = {}) {
@@ -38,7 +38,7 @@ function makeDeps(options: {
       }),
     },
     creditService: {
-      spendCredits: options.spendCreditsImpl ?? (async () => 'mock-tx-id'),
+      spendCredits: options.spendCreditsImpl ?? (async () => [{ transactionId: 'mock-tx-id', amount: 1 }]),
       refundCredit: options.refundCreditImpl ?? (async () => {}),
     },
     convertDocx: options.convertDocxImpl ?? (async () => 'Converted docx text.'),
@@ -131,7 +131,7 @@ describe('convertDocumentTextHandler', () => {
     const deps = makeDeps({
       spendCreditsImpl: async () => {
         spendCalled = true;
-        return 'tx';
+        return [{ transactionId: 'tx', amount: 1 }];
       },
     });
     await assert.rejects(() =>

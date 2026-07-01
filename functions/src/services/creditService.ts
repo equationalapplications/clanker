@@ -1,4 +1,4 @@
-import { eq, sql, and, or, isNull, gt, gte, ne } from 'drizzle-orm';
+import { eq, sql, and, or, isNull, gt, ne, like } from 'drizzle-orm';
 import * as logger from 'firebase-functions/logger';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { getDb } from '../db/cloudSql.js';
@@ -7,6 +7,11 @@ import type { TransactionType } from '../db/schema.js';
 import type * as schema from '../db/schema.js';
 
 type DbTx = NodePgDatabase<typeof schema>;
+
+export type CreditSpendAllocation = {
+  transactionId: string;
+  amount: number;
+};
 
 const UNIQUE_VIOLATION_CODE = '23505';
 
@@ -119,7 +124,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       });
     },
 
-    async spendCredits(userId: string, amount: number): Promise<string | null> {
+    async spendCredits(userId: string, amount: number): Promise<CreditSpendAllocation[] | null> {
       const db = await deps.getDb();
       try {
         return await db.transaction(async (tx: DbTx) => {
@@ -162,31 +167,38 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
             .where(
               and(
                 eq(creditTransactions.userId, userId),
-                gte(creditTransactions.remainingBalance, amount),
+                gt(creditTransactions.remainingBalance, 0),
                 or(
                   isNull(creditTransactions.expiresAt),
                   gt(creditTransactions.expiresAt, sql`NOW()`)
                 )
               )
             )
-            .orderBy(sql`${creditTransactions.expiresAt} NULLS LAST`)
-            .limit(1)
+            .orderBy(sql`${creditTransactions.expiresAt} NULLS LAST`, creditTransactions.id)
             .for('update');
 
-          if (rows.length === 0) {
-            // Net balance was sufficient but no single row holds >= amount; credits are fragmented.
-            logger.warn('spendCredits: net balance sufficient but no single qualifying row', { userId, amount, net: netResult[0]?.total });
+          let remaining = amount;
+          const allocations: CreditSpendAllocation[] = [];
+          for (const row of rows) {
+            if (remaining <= 0) break;
+            const take = Math.min(Number(row.remainingBalance), remaining);
+            await tx
+              .update(creditTransactions)
+              .set({ remainingBalance: sql`${creditTransactions.remainingBalance} - ${take}` })
+              .where(eq(creditTransactions.id, row.id));
+            allocations.push({ transactionId: row.id, amount: take });
+            remaining -= take;
+          }
+
+          if (remaining > 0 || allocations.length === 0) {
+            // Net balance passed under lock but rows could not cover it — should be unreachable.
+            logger.warn('spendCredits: net balance sufficient but rows could not cover amount', { userId, amount, net: netResult[0]?.total });
             throw new InsufficientCreditsError();
           }
 
-          await tx
-            .update(creditTransactions)
-            .set({ remainingBalance: sql`${creditTransactions.remainingBalance} - ${amount}` })
-            .where(eq(creditTransactions.id, rows[0].id));
-
           await syncSubscriptionCache(tx, userId);
 
-          return rows[0].id;
+          return allocations;
         }, { isolationLevel: 'read committed' });
       } catch (error) {
         if (error instanceof InsufficientCreditsError) {
@@ -329,38 +341,44 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       });
     },
 
-    async refundCredit(userId: string, transactionId: string, amount: number): Promise<void> {
+    async refundCredit(userId: string, allocations: CreditSpendAllocation[]): Promise<void> {
+      if (allocations.length === 0) {
+        return;
+      }
+
       const db = await deps.getDb();
       await db.transaction(async (tx: DbTx) => {
-        // Single atomic UPDATE: expiry guard lives in the WHERE clause so the
-        // SELECT-then-UPDATE race (a concurrent renewal expiring the row between the two ops) cannot occur.
-        const updated = await tx
-          .update(creditTransactions)
-          .set({ remainingBalance: sql`${creditTransactions.remainingBalance} + ${amount}` })
-          .where(
-            and(
-              eq(creditTransactions.id, transactionId),
-              eq(creditTransactions.userId, userId),
-              or(
-                isNull(creditTransactions.expiresAt),
-                gt(creditTransactions.expiresAt, sql`NOW()`)
+        for (const { transactionId, amount } of allocations) {
+          // Single atomic UPDATE: expiry guard lives in the WHERE clause so the
+          // SELECT-then-UPDATE race (a concurrent renewal expiring the row between the two ops) cannot occur.
+          const updated = await tx
+            .update(creditTransactions)
+            .set({ remainingBalance: sql`${creditTransactions.remainingBalance} + ${amount}` })
+            .where(
+              and(
+                eq(creditTransactions.id, transactionId),
+                eq(creditTransactions.userId, userId),
+                or(
+                  isNull(creditTransactions.expiresAt),
+                  gt(creditTransactions.expiresAt, sql`NOW()`)
+                )
               )
             )
-          )
-          .returning({ id: creditTransactions.id });
+            .returning({ id: creditTransactions.id });
 
-        if (updated.length === 0) {
-          // Original row expired between spend and refund (e.g. subscription renewal expired the pool).
-          // Insert a non-expiring compensation so credits remain accessible to the user.
-          await tx.insert(creditTransactions).values({
-            userId,
-            delta: amount,
-            reason: 'refund_compensation',
-            initialAmount: amount,
-            remainingBalance: amount,
-            transactionType: 'legacy',
-            expiresAt: null,
-          });
+          if (updated.length === 0) {
+            // Original row expired between spend and refund (e.g. subscription renewal expired the pool).
+            // Insert a non-expiring compensation so credits remain accessible to the user.
+            await tx.insert(creditTransactions).values({
+              userId,
+              delta: amount,
+              reason: 'refund_compensation',
+              initialAmount: amount,
+              remainingBalance: amount,
+              transactionType: 'legacy',
+              expiresAt: null,
+            });
+          }
         }
 
         await syncSubscriptionCache(tx, userId);
@@ -411,6 +429,47 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
         await syncSubscriptionCache(tx, userId);
         return true;
       });
+    },
+
+    async getLastProcessedChargeRefundTotal(chargeId: string): Promise<number> {
+      const db = await deps.getDb();
+
+      const legacyRows = await db
+        .select({ referenceId: creditTransactions.referenceId })
+        .from(creditTransactions)
+        .where(
+          and(
+            eq(creditTransactions.reason, 'stripe_refund'),
+            eq(creditTransactions.referenceId, chargeId),
+          ),
+        )
+        .limit(1);
+      if (legacyRows.length > 0) {
+        return Number.MAX_SAFE_INTEGER;
+      }
+
+      const prefix = `${chargeId}_`;
+      const rows = await db
+        .select({ referenceId: creditTransactions.referenceId })
+        .from(creditTransactions)
+        .where(
+          and(
+            eq(creditTransactions.reason, 'stripe_refund'),
+            like(creditTransactions.referenceId, `${chargeId}_%`)
+          )
+        );
+
+      let maxRefunded = 0;
+      for (const row of rows) {
+        if (!row.referenceId?.startsWith(prefix)) {
+          continue;
+        }
+        const refundedAmount = Number(row.referenceId.slice(prefix.length));
+        if (Number.isFinite(refundedAmount) && refundedAmount > maxRefunded) {
+          maxRefunded = refundedAmount;
+        }
+      }
+      return maxRefunded;
     },
 
     async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string): Promise<number> {

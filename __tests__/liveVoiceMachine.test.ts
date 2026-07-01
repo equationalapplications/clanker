@@ -21,6 +21,15 @@ jest.mock('~/config/firebaseConfig', () => ({
 jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
   isDevSandboxEnabled: jest.fn(() => false),
 }))
+jest.mock('~/services/characterWikiQueue', () => ({
+  awaitPendingWikiWrites: jest.fn().mockResolvedValue(undefined),
+}))
+jest.mock('~/services/liveMemoryQuery', () => ({
+  buildLiveChatHandoff: jest.fn().mockResolvedValue({
+    memoryQuery: 'recent question',
+    recentChatContext: 'User: recent question\nFrodo: recent answer',
+  }),
+}))
 
 class MockWebSocket {
   static OPEN = 1
@@ -47,6 +56,8 @@ import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { awaitPendingWikiWrites } from '~/services/characterWikiQueue'
+import { buildLiveChatHandoff } from '~/services/liveMemoryQuery'
 
 const WAIT = { timeout: 3000 }
 const CLOUD_CHAR_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -163,8 +174,14 @@ describe('liveVoiceMachine', () => {
 
     await waitFor(actor, (s) => s.matches({ session: 'connecting' }), WAIT)
 
+    expect(awaitPendingWikiWrites).toHaveBeenCalledWith('char1')
+    expect(buildLiveChatHandoff).toHaveBeenCalledWith('char1', 'user1')
     expect(wiki.exportDump).toHaveBeenCalledWith(['char1'])
     expect(wikiSync).toHaveBeenCalled()
+    expect(actor.getSnapshot().context.memoryQuery).toBe('recent question')
+    expect(actor.getSnapshot().context.recentChatContext).toBe(
+      'User: recent question\nFrodo: recent answer',
+    )
   })
 
   test('failed wikiSync → error state', async () => {

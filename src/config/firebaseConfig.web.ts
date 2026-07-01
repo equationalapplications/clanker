@@ -134,15 +134,12 @@ const functionsInstance: Functions = getFunctions(firebaseApp, 'us-central1')
 const exchangeToken = httpsCallable(functionsInstance, 'exchangeToken')
 
 const generateReplyFn = httpsCallable(functionsInstance, 'generateReply')
-const generateVoiceReplyFn = httpsCallable(functionsInstance, 'generateVoiceReply')
 
 const generateImageFn = httpsCallable(functionsInstance, 'generateImage')
 
 const summarizeTextFn = httpsCallable(functionsInstance, 'summarizeText')
 
 const purchasePackageStripe = httpsCallable(functionsInstance, 'purchasePackageStripe')
-
-const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
 
 const adminListUsersFn = httpsCallable(functionsInstance, 'adminListUsers')
 const adminSetUserCreditsFn = httpsCallable(functionsInstance, 'adminSetUserCredits')
@@ -177,11 +174,9 @@ export {
   signOut,
   exchangeToken,
   generateReplyFn,
-  generateVoiceReplyFn,
   generateImageFn,
   summarizeTextFn,
   purchasePackageStripe,
-  spendCreditsFn,
   adminListUsersFn,
   adminSetUserCreditsFn,
   adminSetUserSubscriptionFn,

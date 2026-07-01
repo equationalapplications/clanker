@@ -25,7 +25,7 @@ jest.mock('~/services/apiClient', () => ({
 }))
 
 import { act, renderHook } from '@testing-library/react'
-import { useCharacterWiki, _resetCharacterWikiEntityQueuesForTests } from '~/hooks/useCharacterWiki'
+import { useCharacterWiki, _resetCharacterWikiEntityQueuesForTests, awaitPendingWikiWrites } from '~/hooks/useCharacterWiki'
 import { useWiki } from '@equationalapplications/expo-llm-wiki'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import { wikiSync } from '~/services/apiClient'
@@ -294,5 +294,9 @@ describe('useCharacterWiki', () => {
       { node_types: [{ type: 'person', description: 'a person' }], edge_types: [] },
       { mode: 'emergent' },
     )
+  })
+
+  test('awaitPendingWikiWrites resolves immediately when no writes are queued', async () => {
+    await expect(awaitPendingWikiWrites('unused-char')).resolves.toBeUndefined()
   })
 })

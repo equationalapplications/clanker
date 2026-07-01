@@ -4,6 +4,8 @@ import admin from "firebase-admin";
 import Stripe from "stripe";
 import { getStripePriceIds, getStripeCheckoutUrls } from "./runtimeConfig.js";
 import { validateAndNormalizeStripeSecretKey } from "./stripeConfig.js";
+import { userRepository } from "./services/userRepository.js";
+import { subscriptionService } from "./services/subscriptionService.js";
 
 type LoggerLike = Pick<typeof logger, "error" | "warn" | "info">;
 const defaultLogger: LoggerLike = logger;
@@ -79,7 +81,10 @@ async function getOrCreateStripeCustomer(
     return customer.id;
 }
 
-const handler = async (request: CallableRequest) => {
+const handler = async (
+    request: CallableRequest,
+    deps: {userRepository: typeof userRepository; subscriptionService: typeof subscriptionService} = {userRepository, subscriptionService}
+) => {
     if (!request.auth) {
         activeLogger.error("Unauthenticated request to purchasePackageStripe");
         throw new HttpsError("unauthenticated", "Authentication required.");
@@ -140,6 +145,24 @@ const handler = async (request: CallableRequest) => {
     const attemptId = typeof data.attemptId === "string" ? data.attemptId.trim() : undefined;
     if (!ALLOWED_PRICE_IDS.has(priceId)) {
         throw new HttpsError("invalid-argument", `Unknown priceId: ${priceId}`);
+    }
+
+    if (SUBSCRIPTION_PRICE_IDS.has(priceId)) {
+        const cloudUser = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
+        if (cloudUser) {
+            const existingSubscription = await deps.subscriptionService.getSubscription(cloudUser.id);
+            if (
+                existingSubscription &&
+                existingSubscription.planStatus === "active" &&
+                existingSubscription.planTier !== "free" &&
+                existingSubscription.subscriptionProvider === "revenuecat"
+            ) {
+                throw new HttpsError(
+                    "already-exists",
+                    "You already have an active subscription on mobile. Manage it in the App Store or Play Store."
+                );
+            }
+        }
     }
 
     const stripe = getStripeClient();
@@ -224,5 +247,5 @@ export const purchasePackageStripe = onCall(
         enforceAppCheck: true,
         secrets: ["STRIPE_SECRET_KEY"],
     },
-    handler
+    (request) => handler(request)
 );

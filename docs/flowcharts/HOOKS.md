@@ -22,6 +22,7 @@ graph LR
   useAvatarUpload --> localImageStorageService
   useBootstrapRefresh --> useMachines
   useCachedResources --> index
+  useCharacterWiki --> characterWikiQueue
   useCharacterWiki --> wikiOrchestrator
   useCharacterWiki --> wikiSourceType
   useCharacterWiki --> apiClient

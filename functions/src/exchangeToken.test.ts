@@ -22,6 +22,7 @@ test("exchangeTokenHandler normalizes token email before repository lookup", asy
     firebaseUid: "firebase-uid-normalized-email",
     email: "normalized@example.com",
     displayName: null,
+    expoPushToken: null,
     avatarUrl: null,
     isProfilePublic: false,
     defaultCharacterId: null,
@@ -95,6 +96,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
     termsVersion: null,
     termsAcceptedAt: null,
     nextExpiryDate: null,
+    cancelAtPeriodEnd: false,
   };
 
   const mockDeps = {
@@ -146,6 +148,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       termsVersion: mockSubscription.termsVersion,
       termsAcceptedAt: mockSubscription.termsAcceptedAt,
       nextExpiryDate: mockSubscription.nextExpiryDate,
+      cancelAtPeriodEnd: mockSubscription.cancelAtPeriodEnd,
     },
   });
 });
@@ -171,6 +174,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
     termsVersion: "v1",
     termsAcceptedAt: new Date(),
     nextExpiryDate: new Date("2026-01-01T00:00:00.000Z"),
+    cancelAtPeriodEnd: true,
   };
 
   const mockDeps = {
@@ -220,6 +224,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       termsVersion: mockSubscription.termsVersion,
       termsAcceptedAt: mockSubscription.termsAcceptedAt.toISOString(),
       nextExpiryDate: mockSubscription.nextExpiryDate?.toISOString(),
+      cancelAtPeriodEnd: mockSubscription.cancelAtPeriodEnd,
     },
   });
 });
@@ -293,6 +298,7 @@ test("exchangeTokenHandler returns null termsAcceptedAt as null", async () => {
     firebaseUid: "firebase-uid-null",
     email: "null@example.com",
     displayName: null,
+    expoPushToken: null,
     avatarUrl: null,
     isProfilePublic: false,
     defaultCharacterId: null,
@@ -347,6 +353,7 @@ test("exchangeTokenHandler does not reset credits when default subscription crea
     firebaseUid: "firebase-uid-race",
     email: "race@example.com",
     displayName: null,
+    expoPushToken: null,
     avatarUrl: null,
     isProfilePublic: false,
     defaultCharacterId: null,
@@ -536,6 +543,7 @@ test("exchangeTokenHandler throws when required user timestamps are missing", as
     firebaseUid: "firebase-uid-missing-ts",
     email: "missing-ts@example.com",
     displayName: null,
+    expoPushToken: null,
     avatarUrl: null,
     isProfilePublic: false,
     defaultCharacterId: null,

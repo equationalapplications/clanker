@@ -7,20 +7,12 @@ export {
 } from "./generateReply.js";
 
 export {
-  generateVoiceReply,
-} from "./generateVoiceReply.js";
-
-export {
   generateImage,
 } from "./generateImage.js";
 
 export {
   summarizeText,
 } from "./summarizeText.js";
-
-export {
-  spendCredits,
-} from "./spendCredits.js";
 
 export {
   stripeWebhook,

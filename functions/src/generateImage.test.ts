@@ -13,6 +13,7 @@ type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionServ
 const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity;
 const originalGetSubscription = subscriptionService.getSubscription;
 const originalSpendCredits = creditService.spendCredits;
+const originalRefundCredit = creditService.refundCredit;
 const originalGetCredits = creditService.getCredits;
 
 let authCounter = 0;
@@ -35,6 +36,7 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
     firebaseUid: auth.uid,
     email: auth.token.email,
     displayName: null,
+    expoPushToken: null,
     avatarUrl: null,
     isProfilePublic: false,
     defaultCharacterId: null,
@@ -64,6 +66,8 @@ function buildSubscription(
     nextExpiryDate: null,
     documentsIngestedCount: 0,
     documentsIngestedDate: null,
+    subscriptionProvider: null,
+    cancelAtPeriodEnd: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -76,6 +80,7 @@ async function withServiceMocks(run: () => Promise<void>) {
     userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
     subscriptionService.getSubscription = originalGetSubscription;
     creditService.spendCredits = originalSpendCredits;
+    creditService.refundCredit = originalRefundCredit;
     creditService.getCredits = originalGetCredits;
   }
 }
@@ -94,7 +99,7 @@ test("generateImageHandler validates prompt", async () => {
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
     creditService.getCredits = async () => 2;
 
     await assert.rejects(
@@ -130,7 +135,7 @@ test("generateImageHandler spends one credit for payg users", async () => {
     creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 1);
-      return 'mock-tx-id';
+      return [{ transactionId: 'mock-tx-id', amount: 1 }];
     };
     creditService.getCredits = async () => 2;
 
@@ -173,12 +178,11 @@ test("generateImageHandler rejects unsupported mime type from model and refunds 
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return 'mock-tx-id';
+      return [{ transactionId: 'mock-tx-id', amount: 1 }];
     };
-    creditService.refundCredit = async (userId, transactionId, amount) => {
+    creditService.refundCredit = async (userId, allocations) => {
       assert.equal(userId, user.id);
-      assert.equal(transactionId, 'mock-tx-id');
-      assert.equal(amount, 1);
+      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 1 }]);
       refundCalls += 1;
     };
     creditService.getCredits = async () => 2;
@@ -257,7 +261,7 @@ test("generateImageHandler allows cancelled plans to spend remaining credits", a
     creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 1);
-      return 'mock-tx-id';
+      return [{ transactionId: 'mock-tx-id', amount: 1 }];
     };
     creditService.getCredits = async () => 2;
 
@@ -359,12 +363,11 @@ test("generateImageHandler refunds credit when generation fails", async () => {
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return 'mock-tx-id';
+      return [{ transactionId: 'mock-tx-id', amount: 1 }];
     };
-    creditService.refundCredit = async (userId, transactionId, amount) => {
+    creditService.refundCredit = async (userId, allocations) => {
       assert.equal(userId, user.id);
-      assert.equal(transactionId, 'mock-tx-id');
-      assert.equal(amount, 1);
+      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 1 }]);
       refundCalls += 1;
     };
     creditService.getCredits = async () => 2;
@@ -400,7 +403,7 @@ test("generateImageHandler maps identity conflicts to failed-precondition", asyn
       throw new Error("Existing user email is linked to a different Firebase UID.");
     };
     subscriptionService.getSubscription = async () => buildSubscription("unused-user", "payg", 1);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
     creditService.getCredits = async () => 0;
 
     await assert.rejects(
@@ -436,12 +439,11 @@ test("generateImageHandler maps Vertex IAM permission denial to failed-precondit
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return 'mock-tx-id';
+      return [{ transactionId: 'mock-tx-id', amount: 1 }];
     };
-    creditService.refundCredit = async (userId, transactionId, amount) => {
+    creditService.refundCredit = async (userId, allocations) => {
       assert.equal(userId, user.id);
-      assert.equal(transactionId, 'mock-tx-id');
-      assert.equal(amount, 1);
+      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 1 }]);
       refundCalls += 1;
     };
     creditService.getCredits = async () => 2;

@@ -47,7 +47,9 @@ export function buildAgent(
 export function assembleSystemInstruction(
   character: { name: string; appearance: string | null; traits: string | null; emotions: string | null; context: string | null },
   wikiContext: string,
+  recentChatContext?: string,
 ): string {
+  const trimmedRecent = recentChatContext?.trim() ?? ''
   return [
     `You are ${character.name}, a virtual friend.`,
     character.appearance && `Appearance: ${character.appearance}`,
@@ -56,6 +58,8 @@ export function assembleSystemInstruction(
     character.context && `Context: ${character.context}`,
     `\nInstructions:\n- Stay in character as ${character.name} at all times\n- Never reveal you are an AI\n- Respond naturally and conversationally\n- Keep responses concise (1-3 sentences) unless depth is needed`,
     wikiContext && `\nKnown facts about the user:\n${wikiContext}`,
+    trimmedRecent &&
+      `\nRecent chat history (continue this conversation naturally; treat information from these turns as established context, including any web searches or answers already given):\n${trimmedRecent}`,
   ]
     .filter(Boolean)
     .join('\n')
@@ -67,12 +71,21 @@ export async function queryWikiContext(
   userId: string,
   characterId: string,
   embed: (text: string) => Promise<number[]>,
+  signal?: AbortSignal,
 ): Promise<string> {
+  const throwIfAborted = (): void => {
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError')
+    }
+  }
+
   const normalizedQuery = query.trim().slice(0, 200)
   if (!normalizedQuery) return ''
 
   try {
+    throwIfAborted()
     const vec = await embed(normalizedQuery)
+    throwIfAborted()
     const rows = await db
       .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
       .from(llmWikiEntries)
@@ -84,7 +97,11 @@ export async function queryWikiContext(
       .orderBy(sql`${llmWikiEntries.embedding} <=> ${JSON.stringify(vec)}::vector`)
       .limit(5)
     return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
+    throwIfAborted()
     const rows = await db
       .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
       .from(llmWikiEntries)
