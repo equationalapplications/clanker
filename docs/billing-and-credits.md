@@ -18,7 +18,7 @@ Handled provider-side: Stripe, Apple App Store, and Google Play manage refund me
 
 ### Credit Consumption
 
-Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-tool turn costs more); the cloud-agent charges a **flat 1 per turn**. This edge-vs-cloud difference is intentional.
+Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-tool turn costs more); turn-based cloud-agent text calls charge a **flat 1 per turn**. Live voice is billed separately on a 60-second timer. This difference is intentional.
 
 | Action | Path | Cost | Refund on failure |
 |---|---|---|---|

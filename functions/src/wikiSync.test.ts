@@ -37,7 +37,7 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
 
 
 const defaultCreditService = {
-  spendCredits: async () => "tx-123",
+  spendCredits: async () => [{ transactionId: "tx-123", amount: 1 }],
   refundCredit: async () => {},
 };
 
@@ -428,7 +428,7 @@ test("wikiSync: refunds credits on upsert failure", async () => {
       validateEntityOwnership: async () => {},
       fetchMergedDump: async () => ({ generatedAt: Date.now(), entities: {} }),
       creditService: {
-        spendCredits: async () => "tx-123",
+        spendCredits: async () => [{ transactionId: "tx-123", amount: 1 }],
         refundCredit: async () => { refunded = true; },
       },
     }),

@@ -8,7 +8,7 @@ import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { userRepository } from './services/userRepository.js';
-import { creditService } from './services/creditService.js';
+import { creditService, type CreditSpendAllocation } from './services/creditService.js';
 import { getDb } from './db/cloudSql.js';
 import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
 
@@ -1495,10 +1495,10 @@ export const memoryWriteHandler = async (
   const ownsCharacter = await hasOwnedCloudCharacter(deps, characterId, identity.userId);
   const seedEntries = ownsCharacter ? await loadWriteSeed(deps, characterId, identity.userId, identity.firebaseUid) : [];
 
-  let transactionId: string | null = null;
+  let spendAllocations: CreditSpendAllocation[] | null = null;
   try {
-    transactionId = await deps.creditService.spendCredits(identity.userId, 1);
-    if (transactionId === null) {
+    spendAllocations = await deps.creditService.spendCredits(identity.userId, 1);
+    if (spendAllocations === null) {
       throw new HttpsError('failed-precondition', 'Insufficient credits.');
     }
 
@@ -1513,13 +1513,13 @@ export const memoryWriteHandler = async (
 
     return { diff };
   } catch (error) {
-    if (transactionId) {
+    if (spendAllocations) {
       try {
-        await deps.creditService.refundCredit(identity.userId, transactionId, 1);
+        await deps.creditService.refundCredit(identity.userId, spendAllocations);
       } catch (refundError) {
         logger.error('Failed to refund credits after memoryWrite failure', {
           userId: identity.userId,
-          transactionId,
+          spendAllocations,
           error: refundError,
         });
       }
@@ -1556,10 +1556,10 @@ export const memoryHealHandler = async (
     };
   }
 
-  let transactionId: string | null = null;
+  let spendAllocations: CreditSpendAllocation[] | null = null;
   try {
-    transactionId = await deps.creditService.spendCredits(identity.userId, 1);
-    if (transactionId === null) {
+    spendAllocations = await deps.creditService.spendCredits(identity.userId, 1);
+    if (spendAllocations === null) {
       throw new HttpsError('failed-precondition', 'Insufficient credits.');
     }
 
@@ -1576,13 +1576,13 @@ export const memoryHealHandler = async (
       diff,
     };
   } catch (error) {
-    if (transactionId) {
+    if (spendAllocations) {
       try {
-        await deps.creditService.refundCredit(identity.userId, transactionId, 1);
+        await deps.creditService.refundCredit(identity.userId, spendAllocations);
       } catch (refundError) {
         logger.error('Failed to refund credits after memoryHeal failure', {
           userId: identity.userId,
-          transactionId,
+          spendAllocations,
           error: refundError,
         });
       }

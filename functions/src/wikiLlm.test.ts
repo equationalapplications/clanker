@@ -129,7 +129,7 @@ test("wikiLlm: returns generated text when credits are available", async () => {
     generateText: mockGenerateText,
     getUser: async () => user,
     creditService: {
-      spendCredits: async () => "tx-123",
+      spendCredits: async () => [{ transactionId: "tx-123", amount: 1 }],
       refundCredit: async () => {},
     },
   });
@@ -155,7 +155,7 @@ test("wikiLlm: refunds credit when generateText fails", async () => {
       getUser: async () => user,
       generateText: async () => { throw new Error("Vertex failed"); },
       creditService: {
-        spendCredits: async () => "tx-123",
+        spendCredits: async () => [{ transactionId: "tx-123", amount: 1 }],
         refundCredit: async () => { refunded = true; },
       },
     }),

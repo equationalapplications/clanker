@@ -5,7 +5,7 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import { GoogleGenAI } from "@google/genai";
 import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
-import {creditService} from "./services/creditService.js";
+import {creditService, type CreditSpendAllocation} from "./services/creditService.js";
 import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
@@ -299,14 +299,14 @@ function parseInput(data: unknown): {
 async function chargeForVoiceReply(
   userId: string,
   credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
-): Promise<{ txId: string; remainingCredits: number }> {
-  const txId = await credits.spendCredits(userId, 2);
-  if (txId === null) {
+): Promise<{ spendAllocations: CreditSpendAllocation[]; remainingCredits: number }> {
+  const spendAllocations = await credits.spendCredits(userId, 2);
+  if (spendAllocations === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits to complete voice reply.");
   }
 
   const remainingCredits = await credits.getCredits(userId);
-  return { txId, remainingCredits };
+  return { spendAllocations, remainingCredits };
 }
 
 
@@ -364,12 +364,12 @@ const handler = async (
   const synthesizeSpeech = options.synthesizeSpeech ?? getSpeechSynthesizer();
 
   let rawReplyText: string;
-  let spentTransactionId: string | null = null;
+  let spentAllocations: CreditSpendAllocation[] | null = null;
   let remainingCredits = 0;
 
   try {
     const charge = await chargeForVoiceReply(user.id, credits);
-    spentTransactionId = charge.txId;
+    spentAllocations = charge.spendAllocations;
     remainingCredits = charge.remainingCredits;
 
     rawReplyText = (await generateText(input.prompt)).trim();
@@ -397,13 +397,13 @@ const handler = async (
       ...usageSnapshot,
     };
   } catch (error) {
-    if (spentTransactionId) {
+    if (spentAllocations) {
       try {
-        await credits.refundCredit(user.id, spentTransactionId, 2);
+        await credits.refundCredit(user.id, spentAllocations);
       } catch (refundError) {
         logger.error("Failed to refund credits after voice reply failure", {
           userId: user.id,
-          transactionId: spentTransactionId,
+          spendAllocations: spentAllocations,
           error: refundError,
         });
       }

@@ -184,8 +184,8 @@ export async function convertDocumentTextHandler(
   });
 
   // 4. Charge 1 credit before conversion; refunded on any failure below.
-  const transactionId = await deps.creditService.spendCredits(user.id, 1);
-  if (!transactionId) {
+  const spendAllocations = await deps.creditService.spendCredits(user.id, 1);
+  if (!spendAllocations) {
     throw new HttpsError('failed-precondition', 'Insufficient credits to convert document.');
   }
 
@@ -230,15 +230,15 @@ export async function convertDocumentTextHandler(
       error,
     });
     try {
-      await deps.creditService.refundCredit(user.id, transactionId, 1);
+      await deps.creditService.refundCredit(user.id, spendAllocations);
       logger.warn('convertDocumentText refunded credit after conversion failure', {
         userId: user.id,
-        transactionId,
+        spendAllocations,
       });
     } catch (refundError) {
       logger.error('convertDocumentText failed to refund credit after failure', {
         userId: user.id,
-        transactionId,
+        spendAllocations,
         error: refundError instanceof Error ? refundError.message : String(refundError),
       });
     }
