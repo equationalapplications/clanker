@@ -4,6 +4,7 @@ interface ApproveActionBody {
   sessionId: string
   taskId: string
   approve: boolean
+  approvalToken: string
 }
 
 interface FirestoreLite {
@@ -20,8 +21,12 @@ export async function handleApproveAction(
     await db.doc(authPath).update({
       status: 'approved',
       approvedAt: admin.firestore?.Timestamp?.now?.() ?? new Date(),
+      approvalToken: body.approvalToken,
     })
   } else {
-    await db.doc(authPath).update({ status: 'denied' })
+    await db.doc(authPath).update({
+      status: 'denied',
+      approvalToken: admin.firestore.FieldValue.delete(),
+    })
   }
 }

@@ -22,6 +22,7 @@ export const taskIntentSchema = z.object({
   taskId: z.string().min(1),
   sessionId: z.string().min(1),
   requiresAuth: z.boolean(),
+  authApproved: z.boolean().optional(),
   actionSummary: z.string(),
   action: z.union([singleActionSchema, sequenceActionSchema]),
 })

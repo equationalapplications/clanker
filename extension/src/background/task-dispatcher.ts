@@ -18,7 +18,7 @@ function knownCode(msg: string): BridgeErrorCode {
 
 export async function dispatchTask(intent: TaskIntent, inj: Injector): Promise<DispatchOutcome> {
   const steps: SingleAction[] = intent.action.type === 'sequence' ? intent.action.steps : [intent.action]
-  const skipLayerTwoForFirst = !intent.requiresAuth && steps.length > 0 &&
+  const skipLayerTwoForFirst = intent.authApproved === true && steps.length > 0 &&
     (steps[0].type === 'fill_field' || steps[0].type === 'click')
 
   const data: Record<string, string> = {}

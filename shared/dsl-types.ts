@@ -21,6 +21,8 @@ export interface TaskIntent {
   taskId: string
   sessionId: string
   requiresAuth: boolean
+  /** Set only by the server-side approval resume path after explicit user approval. Never derived from tool arguments. */
+  authApproved?: boolean
   actionSummary: string
   action: SingleAction | SequenceAction
 }

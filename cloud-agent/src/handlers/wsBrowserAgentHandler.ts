@@ -104,11 +104,11 @@ export function handleBrowserWsUpgrade(
       if (orig.type === 'sequence' && pendingTask.haltedStepIndex != null) {
         resumeIntent = {
           ...pendingTask.intent,
-          requiresAuth: false,
+          authApproved: true,
           action: { type: 'sequence', steps: orig.steps.slice(pendingTask.haltedStepIndex) },
         }
       } else {
-        resumeIntent = { ...pendingTask.intent, requiresAuth: false }
+        resumeIntent = { ...pendingTask.intent, authApproved: true }
       }
     }
 

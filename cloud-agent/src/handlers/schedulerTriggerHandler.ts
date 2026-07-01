@@ -201,7 +201,7 @@ export function createSchedulerTriggerHandler(
       version: '1' as const,
       taskId: activeTaskId,
       sessionId: activeSessionId,
-      requiresAuth: false,
+      requiresAuth: intentRequiresAuth(actionSummary, action),
       actionSummary,
       action,
     }
