@@ -1,3 +1,10 @@
+## [30.13.1](https://github.com/equationalapplications/clanker/compare/v30.13.0...v30.13.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* **security:** require email_verified for admin allowlist, throttle generateEmbedding ([3e3fb0a](https://github.com/equationalapplications/clanker/commit/3e3fb0a6643e2165b6feb2d28fc4085fef46d20e))
+
 # [30.13.0](https://github.com/equationalapplications/clanker/compare/v30.12.0...v30.13.0) (2026-07-01)
 
 
