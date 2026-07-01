@@ -623,3 +623,30 @@ test('renewSubscriptionCredits returns true, inserts credits first, then expires
   assert.equal(grantedNewCredits, true);
   assert.equal(expiredOldCredits, true);
 });
+
+// ---------------------------------------------------------------------------
+// getLastProcessedChargeRefundTotal — delta-based partial refund tracking
+// ---------------------------------------------------------------------------
+
+test('getLastProcessedChargeRefundTotal treats legacy chargeId-only referenceId as fully processed', async () => {
+  let selectCount = 0;
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => {
+            selectCount++;
+            if (selectCount === 1) {
+              return [{ referenceId: 'ch_legacy' }];
+            }
+            return [];
+          },
+        }),
+      }),
+    }),
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  const total = await service.getLastProcessedChargeRefundTotal('ch_legacy');
+  assert.equal(total, Number.MAX_SAFE_INTEGER);
+});

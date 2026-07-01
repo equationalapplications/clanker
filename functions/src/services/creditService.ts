@@ -433,6 +433,21 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
 
     async getLastProcessedChargeRefundTotal(chargeId: string): Promise<number> {
       const db = await deps.getDb();
+
+      const legacyRows = await db
+        .select({ referenceId: creditTransactions.referenceId })
+        .from(creditTransactions)
+        .where(
+          and(
+            eq(creditTransactions.reason, 'stripe_refund'),
+            eq(creditTransactions.referenceId, chargeId),
+          ),
+        )
+        .limit(1);
+      if (legacyRows.length > 0) {
+        return Number.MAX_SAFE_INTEGER;
+      }
+
       const prefix = `${chargeId}_`;
       const rows = await db
         .select({ referenceId: creditTransactions.referenceId })

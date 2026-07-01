@@ -35,6 +35,7 @@ interface StripeWebhookDeps {
   markEventProcessed: (eventId: string) => Promise<boolean>;
   completeEventProcessed: (eventId: string) => Promise<void>;
   unmarkEventProcessed: (eventId: string) => Promise<void>;
+  expireProcessingClaim: (eventId: string) => Promise<void>;
   getLastProcessedChargeRefundTotal: (chargeId: string) => Promise<number>;
 }
 
@@ -87,6 +88,9 @@ const defaultDeps: StripeWebhookDeps = {
   },
   async unmarkEventProcessed(eventId: string) {
     await stripeEventDedupeService.unmarkEventProcessed(eventId);
+  },
+  async expireProcessingClaim(eventId: string) {
+    await stripeEventDedupeService.expireProcessingClaim(eventId);
   },
   async getLastProcessedChargeRefundTotal(chargeId: string) {
     return creditService.getLastProcessedChargeRefundTotal(chargeId);
@@ -330,10 +334,18 @@ export const stripeWebhookHandler = async (
     try {
       await deps.unmarkEventProcessed(event.id);
     } catch (unmarkErr) {
-      logger.error("Failed to unmark Stripe event after processing error; retry may re-dispatch", {
+      logger.error("Failed to unmark Stripe event after processing error; expiring claim for retry", {
         eventId: event.id,
         err: unmarkErr,
       });
+      try {
+        await deps.expireProcessingClaim(event.id);
+      } catch (expireErr) {
+        logger.error("Failed to expire Stripe event claim after unmark failure", {
+          eventId: event.id,
+          err: expireErr,
+        });
+      }
     }
     logger.error("Error processing Stripe webhook", {err, eventType: event.type});
     // Return a non-2xx status for unexpected processing failures so Stripe retries.
