@@ -34,3 +34,19 @@ test('assembleSystemInstruction includes character name and context', () => {
   assert.ok(instruction.includes('Appearance: Tall'))
   assert.ok(instruction.includes('User likes painting'))
 })
+
+test('assembleSystemInstruction includes recent chat history when provided', () => {
+  const instruction = assembleSystemInstruction(
+    {
+      name: 'Alice',
+      appearance: null,
+      traits: null,
+      emotions: null,
+      context: null,
+    },
+    '',
+    'User: What happened in the news?\nAlice: A major storm is approaching.',
+  )
+  assert.ok(instruction.includes('Recent chat history'))
+  assert.ok(instruction.includes('major storm is approaching'))
+})

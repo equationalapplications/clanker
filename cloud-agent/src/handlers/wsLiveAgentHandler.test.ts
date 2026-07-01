@@ -278,6 +278,93 @@ test('valid auth sends session_ready with balance', async () => {
   await close()
 })
 
+test('memoryQuery preloads wiki context into the live system instruction', async () => {
+  const db = makeMockDb([
+    [mockUser],
+    [mockCharacter],
+    [{ title: 'Weather in Austin', body: 'Sunny and 72F today' }],
+  ])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({
+        type: 'auth',
+        token: 'valid',
+        characterId: CHAR_UUID,
+        memoryQuery: 'User: What is the weather in Austin?',
+      }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string }
+      if (msg.type === 'session_ready') {
+        clearTimeout(timeout)
+        const cfg = mock.getLastConnectConfig() as { config?: { systemInstruction?: string } }
+        assert.match(cfg.config?.systemInstruction ?? '', /Known facts about the user/)
+        assert.match(cfg.config?.systemInstruction ?? '', /Weather in Austin/)
+        ws.close()
+        resolve()
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('recentChatContext injects verbatim chat turns into the live system instruction', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+  })
+  const port = await listen(server)
+
+  const recentChatContext =
+    'User: What is the weather in Austin?\nAlice: It is sunny and 72F today.'
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({
+        type: 'auth',
+        token: 'valid',
+        characterId: CHAR_UUID,
+        recentChatContext,
+      }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string }
+      if (msg.type === 'session_ready') {
+        clearTimeout(timeout)
+        const cfg = mock.getLastConnectConfig() as { config?: { systemInstruction?: string } }
+        assert.match(cfg.config?.systemInstruction ?? '', /Recent chat history/)
+        assert.match(cfg.config?.systemInstruction ?? '', /sunny and 72F today/)
+        ws.close()
+        resolve()
+      }
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
 test('audio_input calls sendRealtimeInput with correct MIME type', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter]])
   const mock = makeMockLiveConnect()

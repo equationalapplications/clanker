@@ -16,8 +16,12 @@ import { reportError } from '~/utilities/reportError'
 import { getCharacter } from '~/database/characterDatabase'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
 import type { GroundedIMessage } from '~/services/aiChatService'
+import { awaitPendingWikiWrites } from '~/services/characterWikiQueue'
+import { buildLiveChatHandoff } from '~/services/liveMemoryQuery'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export type LiveVoiceSyncPhase = 'saving_observations' | 'syncing_cloud' | null
 
 function attachGroundingToTranscript(
   transcript: IMessage[],
@@ -54,6 +58,9 @@ export interface LiveVoiceMachineContext {
   remainingCredits: number
   socketError: string | null
   retryCount: number
+  syncPhase: LiveVoiceSyncPhase
+  memoryQuery: string
+  recentChatContext: string
 }
 
 export type LiveVoiceEvent =
@@ -109,6 +116,9 @@ export const liveVoiceMachine = createMachine(
       remainingCredits: input.initialCredits ?? 0,
       socketError: null,
       retryCount: 0,
+      syncPhase: null,
+      memoryQuery: '',
+      recentChatContext: '',
     }),
     states: {
       idle: {
@@ -123,30 +133,66 @@ export const liveVoiceMachine = createMachine(
       },
 
       syncing_memory: {
-        invoke: {
-          src: 'syncMemoryActor',
-          input: ({ context }) => ({ characterId: context.characterId, userId: context.userId }),
-          onDone: [
-            {
-              guard: ({ event }) => !event.output?.cloudCharacterId,
-              target: 'error',
-              actions: assign({ socketError: () => 'Character not synced to cloud. Enable sync in character settings.' }),
-            },
-            {
-              target: 'session',
-              actions: assign({ cloudCharacterId: ({ event }) => event.output.cloudCharacterId }),
-            },
-          ],
-          onError: {
-            target: 'error',
-            actions: assign({
-              socketError: ({ event }) =>
-                event.error instanceof Error ? event.error.message : 'Memory sync failed',
-            }),
-          },
-        },
+        initial: 'flushing_writes',
+        entry: assign({ syncPhase: () => 'saving_observations' as const }),
+        exit: assign({ syncPhase: () => null }),
         on: {
           END_CALL: { target: 'idle' },
+        },
+        states: {
+          flushing_writes: {
+            invoke: {
+              src: 'flushWikiWritesActor',
+              input: ({ context }) => ({
+                characterId: context.characterId,
+                userId: context.userId,
+              }),
+              onDone: {
+                target: 'syncing_cloud',
+                actions: assign({
+                  memoryQuery: ({ event }) => event.output.memoryQuery,
+                  recentChatContext: ({ event }) => event.output.recentChatContext,
+                }),
+              },
+              onError: {
+                target: '#liveVoiceMachine.error',
+                actions: assign({
+                  socketError: ({ event }) =>
+                    event.error instanceof Error ? event.error.message : 'Memory sync failed',
+                }),
+              },
+            },
+          },
+          syncing_cloud: {
+            entry: assign({ syncPhase: () => 'syncing_cloud' as const }),
+            invoke: {
+              src: 'syncMemoryActor',
+              input: ({ context }) => ({ characterId: context.characterId, userId: context.userId }),
+              onDone: [
+                {
+                  guard: ({ event }) => !event.output?.cloudCharacterId,
+                  target: '#liveVoiceMachine.error',
+                  actions: assign({
+                    socketError: () =>
+                      'Character not synced to cloud. Enable sync in character settings.',
+                  }),
+                },
+                {
+                  target: '#liveVoiceMachine.session',
+                  actions: assign({
+                    cloudCharacterId: ({ event }) => event.output.cloudCharacterId,
+                  }),
+                },
+              ],
+              onError: {
+                target: '#liveVoiceMachine.error',
+                actions: assign({
+                  socketError: ({ event }) =>
+                    event.error instanceof Error ? event.error.message : 'Memory sync failed',
+                }),
+              },
+            },
+          },
         },
       },
 
@@ -154,7 +200,11 @@ export const liveVoiceMachine = createMachine(
         invoke: {
           id: 'websocket',
           src: 'websocketActor',
-          input: ({ context }) => ({ characterId: context.cloudCharacterId! }),
+          input: ({ context }) => ({
+            characterId: context.cloudCharacterId!,
+            memoryQuery: context.memoryQuery,
+            recentChatContext: context.recentChatContext,
+          }),
         },
         initial: 'connecting',
         on: {
@@ -336,6 +386,17 @@ export const liveVoiceMachine = createMachine(
         RETRY_DELAYS_MS[Math.min(context.retryCount, RETRY_DELAYS_MS.length - 1)],
     },
     actors: {
+      flushWikiWritesActor: fromPromise(
+        async ({
+          input,
+        }: {
+          input: { characterId: string; userId: string }
+        }): Promise<{ memoryQuery: string; recentChatContext: string }> => {
+          await awaitPendingWikiWrites(input.characterId)
+          return buildLiveChatHandoff(input.characterId, input.userId)
+        },
+      ),
+
       syncMemoryActor: fromPromise(
         async ({ input }: { input: { characterId: string; userId: string } }): Promise<{ cloudCharacterId: string | null }> => {
           const char = await getCharacter(input.characterId, input.userId)
@@ -392,7 +453,7 @@ export const liveVoiceMachine = createMachine(
         },
       ),
 
-      websocketActor: fromCallback<LiveVoiceEvent, { characterId: string }>(
+      websocketActor: fromCallback<LiveVoiceEvent, { characterId: string; memoryQuery: string; recentChatContext: string }>(
         ({ sendBack, receive, input }) => {
           let ws: WebSocket | null = null
           let cleanedUp = false
@@ -427,6 +488,8 @@ export const liveVoiceMachine = createMachine(
                       type: 'auth',
                       token,
                       characterId: resolveCloudAgentCharacterId(input.characterId),
+                      ...(input.memoryQuery ? { memoryQuery: input.memoryQuery } : {}),
+                      ...(input.recentChatContext ? { recentChatContext: input.recentChatContext } : {}),
                     }),
                   )
                   sendBack({ type: 'SOCKET_OPENED' })

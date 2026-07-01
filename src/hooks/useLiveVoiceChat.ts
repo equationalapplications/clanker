@@ -9,13 +9,14 @@ import { useCharacter } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 import { useLiveAudioIO } from '~/hooks/useLiveAudioIO'
-import { liveVoiceMachine, type LiveVoiceEvent } from '~/machines/liveVoiceMachine'
+import { liveVoiceMachine, type LiveVoiceEvent, type LiveVoiceSyncPhase } from '~/machines/liveVoiceMachine'
 
 /** Return value of useLiveVoiceChat — exposes machine state and call controls. */
 export interface UseLiveVoiceChatReturn {
   isConnecting: boolean
   isLive: boolean
   isSyncing: boolean
+  syncPhase: LiveVoiceSyncPhase
   error: string | null
   transcript: IMessage[]
   activeTool: string | null
@@ -171,6 +172,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   const isConnecting = state.matches({ session: 'connecting' })
   const isLive = state.matches({ session: 'live' })
   const isSyncing = state.matches('syncing_memory')
+  const syncPhase = state.context.syncPhase
   const isSaving = state.matches('saving_to_db')
   const errorState = state.matches('error')
 
@@ -192,6 +194,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
       isConnecting,
       isLive,
       isSyncing,
+      syncPhase,
       error,
       transcript: state.context.transcript,
       activeTool: state.context.activeTool,
@@ -206,6 +209,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
       isConnecting,
       isLive,
       isSyncing,
+      syncPhase,
       error,
       state.context,
       audioIO.playbackState,

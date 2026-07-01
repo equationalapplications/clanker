@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useWiki, WikiBusyError, type EntityStatus, type MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import type { IngestArgs, ForgetArgs } from '~/machines/wikiMachine'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
+import {
+  resetCharacterWikiEntityQueuesForTests,
+  tailForEntity,
+} from '~/services/characterWikiQueue'
 import { wikiSync } from '~/services/apiClient'
 import type { WikiSyncBundle } from '~/services/apiClient'
 import {
@@ -14,30 +18,12 @@ type CharacterWikiOperation = 'reading' | 'writing' | 'ingesting' | 'forgetting'
 
 const DEFAULT_OPERATION_TIMEOUT_MS = 60_000
 
-const emptyOperationTail = (): Record<CharacterWikiOperation, Promise<void>> => ({
-  reading: Promise.resolve(),
-  writing: Promise.resolve(),
-  ingesting: Promise.resolve(),
-  forgetting: Promise.resolve(),
-  syncing: Promise.resolve(),
-})
-
-/** Per-entity queues so concurrent hook instances share one serialized chain per op. */
-const entityOperationQueues = new Map<string, Record<CharacterWikiOperation, Promise<void>>>()
-
-function tailForEntity(entityId: string) {
-  let tail = entityOperationQueues.get(entityId)
-  if (!tail) {
-    tail = emptyOperationTail()
-    entityOperationQueues.set(entityId, tail)
-  }
-  return tail
-}
-
 /** For tests only — clears cross-hook serialization state. */
 export function _resetCharacterWikiEntityQueuesForTests() {
-  entityOperationQueues.clear()
+  resetCharacterWikiEntityQueuesForTests()
 }
+
+export { awaitPendingWikiWrites } from '~/services/characterWikiQueue'
 
 /**
  * Waits for an actor to complete a specific operation. Rejects if the operation
