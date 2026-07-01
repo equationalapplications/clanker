@@ -24,7 +24,7 @@ New migration `functions/drizzle/0018_billing_hardening.sql` (hand-written, not 
 
 | Column | Type | Default | Purpose |
 |---|---|---|---|
-| `subscription_provider` | `text`, nullable | `NULL` | `'stripe' \| 'revenuecat'`. Identifies which platform currently owns the active paid subscription. Written every time a paid tier is upserted; left untouched on non-billing updates (e.g. terms acceptance). |
+| `subscription_provider` | `text`, nullable | `NULL` | `'stripe' \| 'revenuecat'`. Identifies which platform currently owns the active paid subscription. Set to the owning provider whenever a paid tier is upserted, and explicitly `NULL`ed on any transition to free/cancelled/expired. Left untouched only on non-billing updates that don't go through `upsertSubscription` (e.g. terms acceptance). |
 | `cancel_at_period_end` | `boolean` | `false` | True when the subscription is active but will not renew (Stripe `cancel_at_period_end` flag, or RevenueCat `CANCELLATION`). Reset to `false` on any new active purchase/renewal. |
 
 Add a check constraint on `subscription_provider`: `IN ('stripe', 'revenuecat')` (nullable, so free-tier/no-subscription rows stay `NULL`).
@@ -64,7 +64,16 @@ If the RevenueCat webhook fires while an active Stripe-provider subscription alr
 
 ### `upsertSubscription` signature change
 
-`subscriptionService.upsertSubscription` and both webhook `deps.upsertSubscription` call sites gain a `subscriptionProvider: 'stripe' | 'revenuecat' | null` parameter, written whenever the subscription's ownership changes. Existing Stripe call sites pass `'stripe'`; RevenueCat call sites pass `'revenuecat'`. On full termination (`handleSubscriptionDeleted`, RevenueCat `EXPIRATION`) the call explicitly passes `null`, clearing the column rather than leaving a stale provider string behind — the DB should reflect that nobody currently owns the subscription, so a future gate check never trips on a leftover value from a long-ended subscription.
+`subscriptionService.upsertSubscription` and both webhook `deps.upsertSubscription` call sites gain a `subscriptionProvider: 'stripe' | 'revenuecat' | null` parameter, written whenever the subscription's ownership changes. Paid-tier upserts pass the owning provider (`'stripe'` on Stripe call sites, `'revenuecat'` on RevenueCat call sites).
+
+**Every branch that transitions the row to free/cancelled/expired must pass `null`**, clearing the column rather than leaving a stale provider string behind, so a future gate check never trips on a leftover value from a long-ended subscription. Those branches are:
+
+- Stripe `handleSubscriptionDeleted` (→ free/cancelled)
+- Stripe `handleChargeRefunded` subscription-refund branch (→ free/cancelled)
+- RevenueCat `EXPIRATION` (→ free/expired)
+- RevenueCat `CANCELLATION` unknown-product fallback (→ free/cancelled)
+
+Note: RevenueCat `CANCELLATION` for a *known* product keeps the paid tier active (auto-renew off) — it does **not** null the provider; it keeps `'revenuecat'` and sets `cancel_at_period_end = true` (see Fix #6).
 
 ---
 
@@ -101,7 +110,9 @@ Only if both fail does the handler log a warning and no-op, same as today.
 
 **Problem:** There is no event-level dedupe; correctness relies entirely on per-grant `referenceId` guards inside `addCredits`/`renewSubscriptionCredits`. The `charge.refunded` subscription-cancellation branch and plain `upsertSubscription` calls have no guard at all — naturally idempotent today only by coincidence.
 
-**Fix:** `processed_stripe_events` table (see Schema Changes). At the top of `stripeWebhookHandler`, after signature verification succeeds, attempt `INSERT INTO processed_stripe_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING`. If the insert affects 0 rows, the event was already processed — return `200` immediately without dispatching to a handler. If it affects 1 row, proceed to the existing `switch (event.type)` dispatch as today.
+**Fix:** `processed_stripe_events` table (see Schema Changes). At the top of `stripeWebhookHandler`, after signature verification succeeds, attempt `INSERT INTO processed_stripe_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING` (via a `subscriptionService`/repo method, not raw SQL — the codebase uses Drizzle). If the insert affects 0 rows, the event was already processed — return `200` immediately without dispatching to a handler. If it affects 1 row, proceed to the existing `switch (event.type)` dispatch.
+
+**Retry-safety requirement (do not regress the existing 500-retry behavior):** the current handler returns a non-2xx on unexpected processing errors specifically so Stripe *retries* (e.g. transient Cloud SQL unavailability). A naive insert-first guard breaks this — the `event_id` would already be recorded, so the retry gets skipped and the side effects never complete. Therefore: if handler dispatch throws, **delete the just-inserted `event_id` row before returning the 500** (only when this invocation is the one that inserted it — i.e. the insert affected 1 row). That preserves concurrent-delivery dedupe *and* keeps transient-failure retries working. A successful dispatch leaves the row in place.
 
 This guard must run **before** dispatch (guard first, side effects second — consistent with the existing "guard first, write second" rule already used for credit renewals).
 
@@ -134,4 +145,4 @@ Exposed in `SubscriptionSnapshot` (client bootstrap payload) alongside `subscrip
 ## Open Implementation Details (to resolve in the plan, not here)
 
 - Exact wording of the web-side rejection error surfaced to the client in `makePackagePurchase.ts`.
-- Test coverage for: web block (existing active RevenueCat sub), RevenueCat webhook race granting anyway + warning log, missing-`original_transaction_id` non-2xx, partial-refund proration math, Stripe customer fallback chain (both steps), `processed_stripe_events` dedupe skipping a replayed event, `cancel_at_period_end` transitions for both providers, `subscription_provider` nulled on `handleSubscriptionDeleted`/`EXPIRATION`.
+- Test coverage for: web block (existing active RevenueCat sub), RevenueCat webhook race granting anyway + warning log, missing-`original_transaction_id` non-2xx, partial-refund proration math (incl. `charge.amount === 0` guard), Stripe customer fallback chain (both steps), `processed_stripe_events` dedupe skipping a replayed event, **dedupe row deleted on handler failure so Stripe retry still works**, `cancel_at_period_end` transitions for both providers, `subscription_provider` nulled on all four termination branches (`handleSubscriptionDeleted`, `handleChargeRefunded` sub-refund, RevenueCat `EXPIRATION`, RevenueCat `CANCELLATION` unknown-product).
