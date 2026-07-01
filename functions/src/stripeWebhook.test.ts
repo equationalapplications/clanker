@@ -364,8 +364,8 @@ test("stripeWebhookHandler skips dispatch and returns 200 for an already-process
     renewSubscriptionCredits: async () => false,
     addCredits: async () => {},
     adjustCredits: async () => {},
-    isEventProcessed: async () => true,
-    markEventProcessed: async () => { throw new Error("should not mark duplicate events"); },
+    markEventProcessed: async () => false,
+    unmarkEventProcessed: async () => { throw new Error("should not unmark duplicate events"); },
     getLastProcessedChargeRefundTotal: async () => 0,
   };
 
@@ -379,7 +379,7 @@ test("stripeWebhookHandler skips dispatch and returns 200 for an already-process
   assert.equal(dispatched, false);
 });
 
-test("stripeWebhookHandler does not mark the event when handler dispatch throws, so Stripe can retry", async (t) => {
+test("stripeWebhookHandler unmarks the event when handler dispatch throws, so Stripe can retry", async (t) => {
   const res = createResponseRecorder();
   const event = {
     id: "evt_fail_1",
@@ -389,6 +389,7 @@ test("stripeWebhookHandler does not mark the event when handler dispatch throws,
   stubConstructEvent(t, event);
 
   let markedEventId: string | null = null;
+  let unmarkedEventId: string | null = null;
   const stripeProto = Object.getPrototypeOf(new Stripe("sk_test_123").customers);
   t.mock.method(stripeProto, "retrieve", async () => { throw new Error("Cloud SQL unavailable"); });
 
@@ -400,8 +401,8 @@ test("stripeWebhookHandler does not mark the event when handler dispatch throws,
     renewSubscriptionCredits: async () => false,
     addCredits: async () => {},
     adjustCredits: async () => {},
-    isEventProcessed: async () => false,
     markEventProcessed: async (eventId: string) => { markedEventId = eventId; return true; },
+    unmarkEventProcessed: async (eventId: string) => { unmarkedEventId = eventId; },
     getLastProcessedChargeRefundTotal: async () => 0,
   };
 
@@ -412,7 +413,8 @@ test("stripeWebhookHandler does not mark the event when handler dispatch throws,
   );
 
   assert.equal(res.statusCode, 500);
-  assert.equal(markedEventId, null);
+  assert.equal(markedEventId, "evt_fail_1");
+  assert.equal(unmarkedEventId, "evt_fail_1");
 });
 
 test("handleSubscriptionUpdated falls back to metadata.firebase_uid when customer has no email", async () => {
@@ -841,6 +843,67 @@ test("handleChargeRefunded uses a per-refund referenceId so sequential partial r
   assert.equal(adjustCalls.length, 2);
   assert.deepEqual(adjustCalls[0], {delta: -20, referenceId: "ch_partial_200"});
   assert.deepEqual(adjustCalls[1], {delta: -30, referenceId: "ch_partial_500"});
+});
+
+test("handleChargeRefunded cumulative proration deducts full grant after many small partial refunds", async () => {
+  const adjustCalls: Array<{delta: number; referenceId?: string}> = [];
+  const processedRefundTotals: Record<string, number> = {};
+
+  const mockStripe = {
+    invoices: {
+      retrieve: async () => ({
+        parent: {subscription_details: {subscription: null}},
+        lines: {data: [{
+          quantity: 1,
+          pricing: {price_details: {price: "price_credit_pack"}},
+        }]},
+      }),
+    },
+  } as unknown as Stripe;
+
+  const deps = {
+    findUserByEmail: async (email: string) => ({id: "user-1", email}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    getLastProcessedChargeRefundTotal: async (chargeId: string) => processedRefundTotals[chargeId] ?? 0,
+    adjustCredits: async (_userId: string, delta: number, _reason: string, referenceId?: string) => {
+      adjustCalls.push({delta, referenceId});
+      if (referenceId) {
+        const separatorIndex = referenceId.lastIndexOf("_");
+        const chargeId = referenceId.slice(0, separatorIndex);
+        const amountRefunded = Number(referenceId.slice(separatorIndex + 1));
+        if (Number.isFinite(amountRefunded)) {
+          processedRefundTotals[chargeId] = Math.max(processedRefundTotals[chargeId] ?? 0, amountRefunded);
+        }
+      }
+    },
+  } as never;
+
+  const priceIds = {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  };
+
+  const chargeBase = {
+    id: "ch_many_partial",
+    amount: 333,
+    billing_details: {email: "user@example.com"},
+    invoice: "in_many_partial",
+  };
+
+  for (const amountRefunded of [111, 222, 333]) {
+    await handleChargeRefunded(mockStripe, {
+      ...chargeBase,
+      amount_refunded: amountRefunded,
+    } as unknown as Stripe.Charge, priceIds, deps);
+  }
+
+  const totalDeducted = adjustCalls.reduce((sum, call) => sum + call.delta, 0);
+  assert.equal(totalDeducted, -100);
 });
 
 test("handleSubscriptionDeleted falls back to stored stripe_customer_id when Stripe customer is deleted", async () => {

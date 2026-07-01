@@ -33,6 +33,7 @@ interface StripeWebhookDeps {
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
   isEventProcessed: (eventId: string) => Promise<boolean>;
   markEventProcessed: (eventId: string) => Promise<boolean>;
+  unmarkEventProcessed: (eventId: string) => Promise<void>;
   getLastProcessedChargeRefundTotal: (chargeId: string) => Promise<number>;
 }
 
@@ -79,6 +80,9 @@ const defaultDeps: StripeWebhookDeps = {
   },
   async markEventProcessed(eventId: string) {
     return stripeEventDedupeService.markEventProcessed(eventId);
+  },
+  async unmarkEventProcessed(eventId: string) {
+    await stripeEventDedupeService.unmarkEventProcessed(eventId);
   },
   async getLastProcessedChargeRefundTotal(chargeId: string) {
     return creditService.getLastProcessedChargeRefundTotal(chargeId);
@@ -274,7 +278,8 @@ export const stripeWebhookHandler = async (
 
   logger.info("Received Stripe event", {type: event.type, id: event.id});
 
-  if (await deps.isEventProcessed(event.id)) {
+  const isNewEvent = await deps.markEventProcessed(event.id);
+  if (!isNewEvent) {
     logger.info("Stripe event already processed, skipping", {type: event.type, id: event.id});
     res.status(200).json({received: true});
     return;
@@ -313,9 +318,9 @@ export const stripeWebhookHandler = async (
       logger.info("Unhandled Stripe event type", {type: event.type});
     }
 
-    await deps.markEventProcessed(event.id);
     res.status(200).json({received: true});
   } catch (err) {
+    await deps.unmarkEventProcessed(event.id);
     logger.error("Error processing Stripe webhook", {err, eventType: event.type});
     // Return a non-2xx status for unexpected processing failures so Stripe retries.
     res.status(500).json({received: false, error: "Processing error logged"});
@@ -638,8 +643,14 @@ export async function handleChargeRefunded(
       return;
     }
 
-    const refundRatio = charge.amount > 0 ? deltaRefunded / charge.amount : 0;
-    const creditsToDeduct = Math.floor(CREDIT_PACK_AMOUNT * creditPackQty * refundRatio);
+    const totalCredits = CREDIT_PACK_AMOUNT * creditPackQty;
+    const targetTotalDeduction = charge.amount > 0
+      ? Math.floor(totalCredits * (charge.amount_refunded / charge.amount))
+      : 0;
+    const previousTargetDeduction = charge.amount > 0
+      ? Math.floor(totalCredits * (previouslyRefunded / charge.amount))
+      : 0;
+    const creditsToDeduct = targetTotalDeduction - previousTargetDeduction;
     if (creditsToDeduct > 0) {
       await deps.adjustCredits(
         user.id,
@@ -650,7 +661,7 @@ export async function handleChargeRefunded(
       logger.info("charge.refunded: credits deducted", {
         chargeId: charge.id,
         credits: creditsToDeduct,
-        refundRatio,
+        amountRefunded: charge.amount_refunded,
       });
     }
   } else if (isSubscriptionRefund) {
