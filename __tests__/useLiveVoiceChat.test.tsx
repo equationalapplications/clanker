@@ -12,6 +12,7 @@ const mockPlayChunk = jest.fn()
 const mockClearPlaybackQueue = jest.fn()
 const mockOnAudioChunk = jest.fn().mockReturnValue(() => {})
 const mockSend = jest.fn()
+const mockAuthSend = jest.fn()
 const mockUseMachine = jest.fn()
 const mockAddEventListener = jest.fn()
 
@@ -28,7 +29,7 @@ jest.mock('expo-router/react-navigation', () => ({
   useNavigation: () => ({ addListener: jest.fn().mockReturnValue(jest.fn()) }),
 }))
 jest.mock('~/hooks/useCharacters', () => ({ useCharacter: (...a: unknown[]) => mockUseCharacter(...a) }))
-jest.mock('~/hooks/useMachines', () => ({ useAuthMachine: () => ({}) }))
+jest.mock('~/hooks/useMachines', () => ({ useAuthMachine: () => ({ send: mockAuthSend }) }))
 jest.mock('~/hooks/useCurrentPlan', () => ({ useCurrentPlan: (...a: unknown[]) => mockUseCurrentPlan(...a) }))
 jest.mock('@xstate/react', () => ({
   useSelector: (...a: unknown[]) => mockUseSelector(...a),
@@ -226,5 +227,68 @@ describe('useLiveVoiceChat', () => {
     expect(hookRef!.activeTool).toBe('wiki_read')
     expect(hookRef!.remainingCredits).toBe(8)
     expect(hookRef!.transcript).toHaveLength(1)
+  })
+
+  test('does not dispatch USAGE_SNAPSHOT_RECEIVED on initial seed', async () => {
+    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
+
+    await act(async () => {
+      create(<TestHarness onMount={() => {}} />)
+    })
+
+    expect(mockAuthSend).not.toHaveBeenCalled()
+  })
+
+  test('dispatches USAGE_SNAPSHOT_RECEIVED when live remainingCredits changes', async () => {
+    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
+
+    let root: ReturnType<typeof create>
+    await act(async () => {
+      root = create(<TestHarness onMount={() => {}} />)
+    })
+
+    // Simulate a per-minute socket tick: machine now reports 9 credits.
+    const tickSnapshot = {
+      matches: (pattern: unknown) => {
+        if (typeof pattern === 'object' && pattern !== null) {
+          return (pattern as Record<string, string>)['session'] === 'live'
+        }
+        return false
+      },
+      context: { transcript: [], activeTool: null, remainingCredits: 9, socketError: null },
+    }
+    mockUseMachine.mockReturnValue([tickSnapshot, mockSend, { subscribe: jest.fn(), getSnapshot: () => tickSnapshot }])
+
+    await act(async () => {
+      root!.update(<TestHarness onMount={() => {}} />)
+    })
+
+    expect(mockAuthSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'USAGE_SNAPSHOT_RECEIVED',
+        source: 'liveVoice',
+        remainingCredits: 9,
+        planTier: null,
+        verifiedAt: expect.any(String),
+      }),
+    )
+  })
+
+  test('does not re-dispatch when remainingCredits is unchanged across renders', async () => {
+    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
+
+    let root: ReturnType<typeof create>
+    await act(async () => {
+      root = create(<TestHarness onMount={() => {}} />)
+    })
+
+    await act(async () => {
+      root!.update(<TestHarness onMount={() => {}} />)
+    })
+
+    expect(mockAuthSend).not.toHaveBeenCalled()
   })
 })

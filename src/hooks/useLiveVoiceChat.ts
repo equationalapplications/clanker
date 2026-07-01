@@ -67,6 +67,28 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
     },
   })
 
+  // Reconcile live-voice credit ticks back to the auth machine so the header
+  // badge and CreditsDisplay reflect voice spends live and after a call.
+  // The socket USAGE_SNAPSHOT carries no server timestamp, so we synthesize a
+  // client ISO time (same as the cloud-agent path in useAIChat); successive
+  // ticks are monotonic and pass applyUsageSnapshotIfNewer. The ref stores the
+  // previous value and gates on prev !== current, which skips the initial seed
+  // and is safe against StrictMode double-firing.
+  const prevCreditsRef = useRef(state.context.remainingCredits)
+  useEffect(() => {
+    const current = state.context.remainingCredits
+    if (prevCreditsRef.current === current) return
+    prevCreditsRef.current = current
+    authService.send({
+      type: 'USAGE_SNAPSHOT_RECEIVED',
+      source: 'liveVoice',
+      remainingCredits: current,
+      planTier: null,
+      planStatus: null,
+      verifiedAt: new Date().toISOString(),
+    })
+  }, [state.context.remainingCredits, authService])
+
   const syncedUserIdRef = useRef(userId)
   useEffect(() => {
     if (userId && userId !== syncedUserIdRef.current) {
