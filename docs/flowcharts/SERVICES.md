@@ -28,14 +28,12 @@ graph LR
   cloudAgentService --> groundingMetadata
   edgeToolExecutors --> wikiService
   edgeToolExecutors --> taskDatabase
+  liveMemoryQuery --> aiChatService
+  liveMemoryQuery --> messageDatabase
+  liveMemoryQuery --> characterDatabase
   localImageStorageService --> index
   messageService --> messageDatabase
   userService --> apiClient
-  voiceChatService --> messageService
-  voiceChatService --> voiceReplyService
-  voiceChatService --> messageDatabase
-  voiceChatService --> aiChatService
-  voiceChatService --> useMessages
   wikiLlmProvider --> ensureDevSandboxCharacter
   wikiLlmProvider --> apiClient
   wikiOrchestrator --> wikiService
