@@ -43,7 +43,8 @@ export function buildRecentChatContextFromMessages(
 
   const lines = recent.map((msg) => {
     const role = msg.user._id === userId ? 'User' : characterName
-    return `${role}: ${msg.text}`
+    const normalizedText = msg.text.replace(/\s*\n+\s*/g, ' ').trim()
+    return `${role}: ${normalizedText}`
   })
   return lines.join('\n').slice(-LIVE_CHAT_HANDOFF_MAX_CHARS)
 }

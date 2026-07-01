@@ -50,12 +50,18 @@ export const subscriptions = pgTable('subscriptions', {
   planTierCheck: check('plan_tier_check', sql`${table.planTier} IN ('free', 'monthly_20', 'monthly_50', 'payg')`),
   planStatusCheck: check('plan_status_check', sql`${table.planStatus} IN ('active', 'cancelled', 'expired')`),
   subscriptionProviderCheck: check('subscription_provider_check', sql`${table.subscriptionProvider} IN ('stripe', 'revenuecat')`),
+  stripeCustomerIdUnique: uniqueIndex('subscriptions_stripe_customer_id_unique')
+    .on(table.stripeCustomerId)
+    .where(sql`${table.stripeCustomerId} IS NOT NULL`),
 }));
 
 export const processedStripeEvents = pgTable('processed_stripe_events', {
   eventId: text('event_id').primaryKey(),
+  status: text('status').notNull().default('processing'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  statusCheck: check('processed_stripe_events_status_check', sql`${table.status} IN ('processing', 'completed')`),
+}));
 
 export const creditTransactions = pgTable('credit_transactions', {
   id: uuid('id').primaryKey().defaultRandom(),

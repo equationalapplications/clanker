@@ -33,7 +33,7 @@
 
 ## Task 1: Fix multi-row spend (#1)
 
-Currently `spendCredits(userId, amount)` passes a net-balance check, then selects **one** row with `remaining_balance >= amount`. When a user's balance is fragmented across rows (e.g. 1 signup + 1 subscription credit, net = 2) no single row holds 2, so a `generateVoiceReply` spend of 2 spuriously returns `null` → "Insufficient credits". Fix: after the net check passes under the row lock, deduct across the earliest-expiring rows in a loop.
+Currently `spendCredits(userId, amount)` passes a net-balance check, then selects **one** row with `remaining_balance >= amount`. When a user's balance is fragmented across rows (e.g. 1 signup + 1 subscription credit, net = 2) no single row holds 2, so a multi-credit spend spuriously returns `null` → "Insufficient credits". Fix: after the net check passes under the row lock, deduct across the earliest-expiring rows in a loop.
 
 **Refund contract note:** `spendCredits` returns `CreditSpendAllocation[] | null` — one `{ transactionId, amount }` per row debited, with amounts summing to the spent total. `refundCredit(userId, allocations)` restores each row by its debited amount so multi-row spends are fully reversible.
 
@@ -95,7 +95,10 @@ test('spendCredits spends across multiple rows when balance is fragmented', asyn
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
   const result = await service.spendCredits('user-1', 2);
-  assert.equal(result, 'tx-early');       // earliest row id returned for refund
+  assert.deepEqual(result, [
+    { transactionId: 'tx-early', amount: 1 },
+    { transactionId: 'tx-late', amount: 1 },
+  ]);
   assert.equal(decrementCount, 2);        // both fragmented rows decremented
 });
 ```
@@ -129,7 +132,7 @@ Replace lines 159-189 of `functions/src/services/creditService.ts` (the block fr
             .for('update');
 
           let remaining = amount;
-          let firstTouchedId: string | null = null;
+          const allocations: Array<{ transactionId: string; amount: number }> = [];
           for (const row of rows) {
             if (remaining <= 0) break;
             const take = Math.min(Number(row.remainingBalance), remaining);
@@ -137,11 +140,11 @@ Replace lines 159-189 of `functions/src/services/creditService.ts` (the block fr
               .update(creditTransactions)
               .set({ remainingBalance: sql`${creditTransactions.remainingBalance} - ${take}` })
               .where(eq(creditTransactions.id, row.id));
-            if (firstTouchedId === null) firstTouchedId = row.id;
+            allocations.push({ transactionId: row.id, amount: take });
             remaining -= take;
           }
 
-          if (remaining > 0 || firstTouchedId === null) {
+          if (remaining > 0 || allocations.length === 0) {
             // Net balance passed under lock but rows could not cover it — should be unreachable.
             logger.warn('spendCredits: net balance sufficient but rows could not cover amount', { userId, amount, net: netResult[0]?.total });
             throw new InsufficientCreditsError();
@@ -149,7 +152,7 @@ Replace lines 159-189 of `functions/src/services/creditService.ts` (the block fr
 
           await syncSubscriptionCache(tx, userId);
 
-          return firstTouchedId;
+          return allocations;
 ```
 
 The `gte` import is now unused. Remove `gte` from the import on line 1: change `import { eq, sql, and, or, isNull, gt, gte, ne } from 'drizzle-orm';` to `import { eq, sql, and, or, isNull, gt, ne } from 'drizzle-orm';`.
@@ -345,7 +348,6 @@ Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-to
 |---|---|---|---|
 | Text chat reply | `generateReply` (Functions) | 1 / round-trip (incl. tool rounds) | Yes |
 | Image generation | `generateImage` | 1 | Yes |
-| One-shot voice reply | `generateVoiceReply` | 2 | Yes |
 | Document text conversion | `convertDocumentText` | 1 | Yes |
 | Wiki LLM / sync, memory write/heal | `wikiLlm`, `wikiSync`, `memoryWrite`, `memoryHeal` | 1 each | Yes |
 | Agent turn (text) | cloud-agent `POST /agent/run` | 1 / turn (flat) | Yes |
@@ -378,7 +380,7 @@ git commit -m "docs(billing): add per-action Credit Consumption table as single 
 
 - **Spec coverage:** #1 (Task 1), #5 (Task 2), #2 (Task 3), #4 (Task 4), #10 (Task 5). All four scoped items + both product decisions covered.
 - **Cloud-agent `spendCredit` not modified:** correct — it only ever spends 1, which cannot fragment, so the #1 fix does not apply there.
-- **Type consistency:** `spendCredits` returns `Promise<CreditSpendAllocation[] | null>`; callers pass the allocation array to `refundCredit(userId, allocations)` on failure (`generateVoiceReply`, wiki/memory/character functions updated accordingly).
+- **Type consistency:** `spendCredits` returns `Promise<CreditSpendAllocation[] | null>`; callers pass the allocation array to `refundCredit(userId, allocations)` on failure (wiki/memory/character functions updated accordingly).
 - **Import hygiene:** `gte` removed from `creditService.ts` imports in Task 1; no other use exists in that file.
 
 ---

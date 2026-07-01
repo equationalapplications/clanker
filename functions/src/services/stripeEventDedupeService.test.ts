@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createStripeEventDedupeService } from './stripeEventDedupeService.js';
 
-test('isEventProcessed returns true after markEventProcessed inserts the row', async () => {
-  const inserted = new Set<string>();
+type EventRow = { eventId: string; status: 'processing' | 'completed' };
+
+function makeFakeDb() {
+  const rows = new Map<string, EventRow>();
 
   const fakeDb = {
     select: () => ({
@@ -11,74 +13,72 @@ test('isEventProcessed returns true after markEventProcessed inserts the row', a
         where: () => ({
           limit: async () => {
             const eventId = 'evt_1';
-            return inserted.has(eventId) ? [{ eventId }] : [];
+            const row = rows.get(eventId);
+            return row ? [{ status: row.status }] : [];
           },
         }),
       }),
     }),
     insert: () => ({
-      values: (values: { eventId: string }) => ({
+      values: (values: EventRow) => ({
         onConflictDoNothing: () => ({
           returning: async () => {
-            if (inserted.has(values.eventId)) {
+            if (rows.has(values.eventId)) {
               return [];
             }
-            inserted.add(values.eventId);
+            rows.set(values.eventId, values);
             return [{ eventId: values.eventId }];
           },
         }),
       }),
     }),
-    delete: () => ({ where: async () => {} }),
+    update: () => ({
+      set: (values: Partial<EventRow>) => ({
+        where: async () => {
+          const row = rows.get('evt_1');
+          if (row) {
+            rows.set('evt_1', { ...row, ...values });
+          }
+        },
+      }),
+    }),
+    delete: () => ({
+      where: async () => {
+        rows.delete('evt_1');
+      },
+    }),
+    rows,
   };
 
+  return fakeDb;
+}
+
+test('isEventProcessed returns true only after completeEventProcessed', async () => {
+  const fakeDb = makeFakeDb();
   const service = createStripeEventDedupeService({ getDb: async () => fakeDb as never });
 
   assert.equal(await service.isEventProcessed('evt_1'), false);
-  await service.markEventProcessed('evt_1');
+  assert.equal(await service.markEventProcessed('evt_1'), true);
+  assert.equal(await service.isEventProcessed('evt_1'), false);
+  await service.completeEventProcessed('evt_1');
   assert.equal(await service.isEventProcessed('evt_1'), true);
 });
 
-test('markEventProcessed returns true on first insert, false on duplicate', async () => {
-  const inserted = new Set<string>();
-
-  const fakeDb = {
-    insert: () => ({
-      values: (values: { eventId: string }) => ({
-        onConflictDoNothing: () => ({
-          returning: async () => {
-            if (inserted.has(values.eventId)) {
-              return [];
-            }
-            inserted.add(values.eventId);
-            return [{ eventId: values.eventId }];
-          },
-        }),
-      }),
-    }),
-    delete: () => ({ where: async () => {} }),
-  };
-
+test('markEventProcessed returns true on first insert, false on completed duplicate, true on processing retry', async () => {
+  const fakeDb = makeFakeDb();
   const service = createStripeEventDedupeService({ getDb: async () => fakeDb as never });
 
   assert.equal(await service.markEventProcessed('evt_1'), true);
+  assert.equal(await service.markEventProcessed('evt_1'), true);
+  await service.completeEventProcessed('evt_1');
   assert.equal(await service.markEventProcessed('evt_1'), false);
-  assert.equal(await service.markEventProcessed('evt_2'), true);
 });
 
 test('unmarkEventProcessed deletes the row', async () => {
-  let deletedEventId: string | null = null;
-
-  const fakeDb = {
-    delete: () => ({
-      where: async () => {
-        deletedEventId = 'evt_1';
-      },
-    }),
-  };
-
+  const fakeDb = makeFakeDb();
   const service = createStripeEventDedupeService({ getDb: async () => fakeDb as never });
-  await service.unmarkEventProcessed('evt_1');
 
-  assert.equal(deletedEventId, 'evt_1');
+  await service.markEventProcessed('evt_1');
+  await service.unmarkEventProcessed('evt_1');
+  assert.equal(fakeDb.rows.has('evt_1'), false);
 });

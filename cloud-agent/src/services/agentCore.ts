@@ -71,12 +71,21 @@ export async function queryWikiContext(
   userId: string,
   characterId: string,
   embed: (text: string) => Promise<number[]>,
+  signal?: AbortSignal,
 ): Promise<string> {
+  const throwIfAborted = (): void => {
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError')
+    }
+  }
+
   const normalizedQuery = query.trim().slice(0, 200)
   if (!normalizedQuery) return ''
 
   try {
+    throwIfAborted()
     const vec = await embed(normalizedQuery)
+    throwIfAborted()
     const rows = await db
       .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
       .from(llmWikiEntries)
@@ -88,7 +97,11 @@ export async function queryWikiContext(
       .orderBy(sql`${llmWikiEntries.embedding} <=> ${JSON.stringify(vec)}::vector`)
       .limit(5)
     return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
+    throwIfAborted()
     const rows = await db
       .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
       .from(llmWikiEntries)

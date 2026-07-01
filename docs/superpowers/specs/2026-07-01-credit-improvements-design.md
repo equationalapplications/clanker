@@ -112,7 +112,6 @@ Add a **Credit Consumption** table to `docs/billing-and-credits.md` immediately 
 |---|---|---|---|
 | Text chat reply | `generateReply` (Functions) | 1 / round-trip (incl. tool rounds) | Yes |
 | Image generation | `generateImage` | 1 | Yes |
-| One-shot voice reply | `generateVoiceReply` | 2 | Yes |
 | Document text conversion | `convertDocumentText` | 1 | Yes |
 | Wiki LLM / sync, memory write/heal | `wikiLlm`, `wikiSync`, `memoryWrite`, `memoryHeal` | 1 each | Yes |
 | Agent turn (text) | cloud-agent `POST /agent/run` | 1 / turn (flat) | Yes |

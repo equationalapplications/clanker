@@ -14,6 +14,7 @@ const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity
 const originalGetSubscription = subscriptionService.getSubscription;
 const originalGetOrCreateDefaultSubscription = subscriptionService.getOrCreateDefaultSubscription;
 const originalSpendCredits = creditService.spendCredits;
+const originalRefundCredit = creditService.refundCredit;
 const originalGetCredits = creditService.getCredits;
 
 let authCounter = 0;
@@ -102,6 +103,7 @@ async function withServiceMocks(run: () => Promise<void>) {
     subscriptionService.getSubscription = originalGetSubscription;
     subscriptionService.getOrCreateDefaultSubscription = originalGetOrCreateDefaultSubscription;
     creditService.spendCredits = originalSpendCredits;
+    creditService.refundCredit = originalRefundCredit;
     creditService.getCredits = originalGetCredits;
   }
 }

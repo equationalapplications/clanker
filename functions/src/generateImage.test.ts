@@ -13,6 +13,7 @@ type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionServ
 const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity;
 const originalGetSubscription = subscriptionService.getSubscription;
 const originalSpendCredits = creditService.spendCredits;
+const originalRefundCredit = creditService.refundCredit;
 const originalGetCredits = creditService.getCredits;
 
 let authCounter = 0;
@@ -79,6 +80,7 @@ async function withServiceMocks(run: () => Promise<void>) {
     userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
     subscriptionService.getSubscription = originalGetSubscription;
     creditService.spendCredits = originalSpendCredits;
+    creditService.refundCredit = originalRefundCredit;
     creditService.getCredits = originalGetCredits;
   }
 }

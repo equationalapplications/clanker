@@ -107,6 +107,27 @@ describe('buildRecentChatContextFromMessages', () => {
     expect(query).toBe('User: What is the weather?\nFrodo: It is sunny in Austin.')
   })
 
+  test('normalizes multiline message text onto a single transcript line per turn', () => {
+    const messages = [
+      {
+        _id: '1',
+        text: 'Line one\nLine two',
+        createdAt: new Date('2026-01-01T10:00:00Z'),
+        user: { _id: userId },
+      },
+      {
+        _id: '2',
+        text: 'Reply\nwith\nbreaks',
+        createdAt: new Date('2026-01-01T10:01:00Z'),
+        user: { _id: 'char-1' },
+      },
+    ]
+
+    expect(buildRecentChatContextFromMessages(messages, userId, 'Frodo')).toBe(
+      'User: Line one Line two\nFrodo: Reply with breaks',
+    )
+  })
+
   test('truncates very long transcripts while keeping the newest content', () => {
     const query = buildRecentChatContextFromMessages(
       [

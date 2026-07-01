@@ -122,15 +122,13 @@ function parseInput(data: unknown): {prompt: string} {
 
 async function chargeForImage(
   userId: string,
-  credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
-): Promise<{ spendAllocations: CreditSpendAllocation[]; remainingCredits: number }> {
+  credits: Pick<typeof creditService, 'spendCredits'>
+): Promise<CreditSpendAllocation[]> {
   const spendAllocations = await credits.spendCredits(userId, 1);
   if (spendAllocations === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
-
-  const remainingCredits = await credits.getCredits(userId);
-  return { spendAllocations, remainingCredits };
+  return spendAllocations;
 }
 
 
@@ -328,9 +326,8 @@ const handler = async (
   let remainingCredits = 0;
 
   try {
-    const charge = await chargeForImage(user.id, credits);
-    spendAllocations = charge.spendAllocations;
-    remainingCredits = charge.remainingCredits;
+    spendAllocations = await chargeForImage(user.id, credits);
+    remainingCredits = await credits.getCredits(user.id);
 
     imageResult = await generateImage(prompt);
 

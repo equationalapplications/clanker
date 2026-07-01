@@ -365,6 +365,7 @@ test("stripeWebhookHandler skips dispatch and returns 200 for an already-process
     addCredits: async () => {},
     adjustCredits: async () => {},
     markEventProcessed: async () => false,
+    completeEventProcessed: async () => { throw new Error("should not complete duplicate events"); },
     unmarkEventProcessed: async () => { throw new Error("should not unmark duplicate events"); },
     getLastProcessedChargeRefundTotal: async () => 0,
   };
@@ -402,6 +403,7 @@ test("stripeWebhookHandler unmarks the event when handler dispatch throws, so St
     addCredits: async () => {},
     adjustCredits: async () => {},
     markEventProcessed: async (eventId: string) => { markedEventId = eventId; return true; },
+    completeEventProcessed: async () => {},
     unmarkEventProcessed: async (eventId: string) => { unmarkedEventId = eventId; },
     getLastProcessedChargeRefundTotal: async () => 0,
   };

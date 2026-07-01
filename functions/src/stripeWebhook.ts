@@ -33,6 +33,7 @@ interface StripeWebhookDeps {
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
   isEventProcessed: (eventId: string) => Promise<boolean>;
   markEventProcessed: (eventId: string) => Promise<boolean>;
+  completeEventProcessed: (eventId: string) => Promise<void>;
   unmarkEventProcessed: (eventId: string) => Promise<void>;
   getLastProcessedChargeRefundTotal: (chargeId: string) => Promise<number>;
 }
@@ -80,6 +81,9 @@ const defaultDeps: StripeWebhookDeps = {
   },
   async markEventProcessed(eventId: string) {
     return stripeEventDedupeService.markEventProcessed(eventId);
+  },
+  async completeEventProcessed(eventId: string) {
+    await stripeEventDedupeService.completeEventProcessed(eventId);
   },
   async unmarkEventProcessed(eventId: string) {
     await stripeEventDedupeService.unmarkEventProcessed(eventId);
@@ -212,17 +216,19 @@ async function resolveUserForStripeCustomer(
     return deps.findUserByStripeCustomerId(customerId);
   }
 
-  let user = customer.email ? await deps.findUserByEmail(customer.email) : null;
+  let user = await deps.findUserByStripeCustomerId(customerId);
 
   if (!user) {
-    const firebaseUid = typeof customer.metadata?.firebase_uid === "string" ? customer.metadata.firebase_uid : undefined;
-    if (firebaseUid) {
-      user = await deps.findUserByFirebaseUid(firebaseUid);
+    if (customer.email) {
+      user = await deps.findUserByEmail(customer.email);
     }
-  }
 
-  if (!user) {
-    user = await deps.findUserByStripeCustomerId(customerId);
+    if (!user) {
+      const firebaseUid = typeof customer.metadata?.firebase_uid === "string" ? customer.metadata.firebase_uid : undefined;
+      if (firebaseUid) {
+        user = await deps.findUserByFirebaseUid(firebaseUid);
+      }
+    }
   }
 
   return user;
@@ -318,9 +324,17 @@ export const stripeWebhookHandler = async (
       logger.info("Unhandled Stripe event type", {type: event.type});
     }
 
+    await deps.completeEventProcessed(event.id);
     res.status(200).json({received: true});
   } catch (err) {
-    await deps.unmarkEventProcessed(event.id);
+    try {
+      await deps.unmarkEventProcessed(event.id);
+    } catch (unmarkErr) {
+      logger.error("Failed to unmark Stripe event after processing error; retry may re-dispatch", {
+        eventId: event.id,
+        err: unmarkErr,
+      });
+    }
     logger.error("Error processing Stripe webhook", {err, eventType: event.type});
     // Return a non-2xx status for unexpected processing failures so Stripe retries.
     res.status(500).json({received: false, error: "Processing error logged"});
@@ -480,7 +494,8 @@ export async function handleSubscriptionUpdated(
   });
 
   logger.info("customer.subscription.updated: subscription synced", {
-    email: user.email,
+    userId: user.id,
+    customerId,
     tier,
     planStatus,
   });
@@ -498,7 +513,7 @@ export async function handleSubscriptionUpdated(
         renewed
           ? "customer.subscription.updated: subscription credits renewed"
           : "customer.subscription.updated: subscription credits already granted (idempotent)",
-        { email: user.email, tier }
+        { userId: user.id, customerId, tier }
       );
     }
   }
@@ -533,7 +548,8 @@ export async function handleSubscriptionDeleted(
   });
 
   logger.info("customer.subscription.deleted: subscription cancelled", {
-    email: user.email,
+    userId: user.id,
+    customerId,
   });
 }
 
@@ -673,7 +689,7 @@ export async function handleChargeRefunded(
       subscriptionProvider: null,
       cancelAtPeriodEnd: false,
     });
-    logger.info("charge.refunded: subscription cancelled", {email: customerEmail});
+    logger.info("charge.refunded: subscription cancelled", {userId: user.id, chargeId: charge.id});
   } else {
     logger.warn("charge.refunded: unable to classify refund", {
       email: customerEmail,

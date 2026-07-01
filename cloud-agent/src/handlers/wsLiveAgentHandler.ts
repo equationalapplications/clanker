@@ -426,15 +426,16 @@ export async function handleLiveWsUpgrade(
       let wikiContext = ''
       const memoryAnchor = memoryQuery?.trim() ?? ''
       if (memoryAnchor) {
+        const abortController = new AbortController()
         try {
           let timeoutId: ReturnType<typeof setTimeout> | undefined
           wikiContext = await Promise.race([
-            queryWikiContext(db, memoryAnchor, userId, characterId, embedText),
+            queryWikiContext(db, memoryAnchor, userId, characterId, embedText, abortController.signal),
             new Promise<string>((_, reject) => {
-              timeoutId = setTimeout(
-                () => reject(new Error('queryWikiContext timed out after 5000ms')),
-                5_000,
-              )
+              timeoutId = setTimeout(() => {
+                abortController.abort()
+                reject(new Error('queryWikiContext timed out after 5000ms'))
+              }, 5_000)
             }),
           ]).finally(() => {
             if (timeoutId !== undefined) clearTimeout(timeoutId)
