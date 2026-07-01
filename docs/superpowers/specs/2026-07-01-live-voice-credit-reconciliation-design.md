@@ -71,8 +71,11 @@ authService.send({
   Successive dispatches within a session are monotonically increasing, so they pass the
   `applyUsageSnapshotIfNewer` gate (`incomingTs > currentTs`; value may decrease, floored at 0).
 - **Skip the seed dispatch.** The machine's `initialCredits` seed equals the pre-call auth balance
-  already in `subscription.currentCredits`. Guard with a ref so the effect fires only on *changes
-  driven by socket ticks*, not the initial mount value — avoids a redundant no-op dispatch.
+  already in `subscription.currentCredits`. Guard with a ref that stores the **previous**
+  `remainingCredits` value (not a "has mounted" boolean) and dispatch only when `prev !== current`.
+  This skips the initial seed and is bulletproof against React's double-firing of `useEffect`
+  (StrictMode), since a repeated run with an unchanged value is a no-op. Seed the ref with the
+  initial `remainingCredits` so the first real socket tick is the first dispatch.
 - **Teardown is covered automatically.** The last socket tick before `END_CALL` was already
   dispatched. The exhaustion path sets `remainingCredits: 0` (`liveVoiceMachine.ts:285`) before
   transitioning to `saving_to_db`, so the zero is dispatched too. No separate teardown hook needed.
