@@ -1,7 +1,7 @@
 # Live-Voice Credit Reconciliation & In-Call Indicator — Design Spec
 
 **Date:** 2026-07-01
-**Status:** Draft
+**Status:** Approved
 **Follows:** `2026-07-01-credit-improvements-design.md` (PR #506) — a post-ship review of that work found voice spends never reach the credit UI.
 
 ---

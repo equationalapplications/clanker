@@ -30,6 +30,7 @@ import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
 
 const AVATAR_SIZE = 200
 const GLOW_SIZE = AVATAR_SIZE + 60
+const LOW_CREDIT_THRESHOLD = 5
 
 function TalkGroundingDisplay({ metadata }: { metadata: GroundingMetadata }) {
   const chunks = metadata.groundingChunks ?? []
@@ -92,6 +93,7 @@ function TalkView({ characterId }: { characterId: string }) {
     activeTool,
     groundingMetadata,
     isPlayingAudio,
+    remainingCredits,
     startCall,
     endCall,
   } = useLiveVoiceChat(characterId)
@@ -200,6 +202,18 @@ function TalkView({ characterId }: { characterId: string }) {
         {showSpinner ? <ActivityIndicator size="small" style={styles.spinner} /> : null}
         <Text style={[styles.statusText, error ? styles.errorText : null]}>{statusText}</Text>
       </View>
+
+      {isLive || isConnecting ? (
+        <Text
+          accessibilityLabel="Credits remaining"
+          style={[
+            styles.creditCount,
+            remainingCredits <= LOW_CREDIT_THRESHOLD ? styles.creditCountLow : null,
+          ]}
+        >
+          {remainingCredits} credits
+        </Text>
+      ) : null}
 
       {groundingMetadata ? <TalkGroundingDisplay metadata={groundingMetadata} /> : null}
 
@@ -327,6 +341,16 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#b00020',
+  },
+  creditCount: {
+    fontSize: 13,
+    opacity: 0.7,
+    marginTop: 4,
+  },
+  creditCountLow: {
+    color: '#b00020',
+    opacity: 1,
+    fontWeight: '600',
   },
   groundingContainer: {
     width: '100%',
