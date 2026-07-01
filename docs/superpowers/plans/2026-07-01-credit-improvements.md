@@ -35,7 +35,7 @@
 
 Currently `spendCredits(userId, amount)` passes a net-balance check, then selects **one** row with `remaining_balance >= amount`. When a user's balance is fragmented across rows (e.g. 1 signup + 1 subscription credit, net = 2) no single row holds 2, so a `generateVoiceReply` spend of 2 spuriously returns `null` → "Insufficient credits". Fix: after the net check passes under the row lock, deduct across the earliest-expiring rows in a loop.
 
-**Refund contract note:** `spendCredits` still returns a single `txId` (the earliest row touched). `refundCredit(userId, txId, amount)` adds the full `amount` back to that one row. For a multi-row spend the *total* balance is restored correctly; only the expiry-bucket attribution is approximate. This is acceptable — `generateVoiceReply` (amount = 2) is the only >1 caller, and fragmented balances are rare.
+**Refund contract note:** `spendCredits` returns `CreditSpendAllocation[] | null` — one `{ transactionId, amount }` per row debited, with amounts summing to the spent total. `refundCredit(userId, allocations)` restores each row by its debited amount so multi-row spends are fully reversible.
 
 **Files:**
 - Modify: `functions/src/services/creditService.ts` (`spendCredits`, lines 159-189)
@@ -378,7 +378,7 @@ git commit -m "docs(billing): add per-action Credit Consumption table as single 
 
 - **Spec coverage:** #1 (Task 1), #5 (Task 2), #2 (Task 3), #4 (Task 4), #10 (Task 5). All four scoped items + both product decisions covered.
 - **Cloud-agent `spendCredit` not modified:** correct — it only ever spends 1, which cannot fragment, so the #1 fix does not apply there.
-- **Type consistency:** `spendCredits` return type stays `Promise<string | null>`; `firstTouchedId` is `string | null` and is only returned after the `firstTouchedId === null` guard, so the non-null path returns `string`. Callers (`generateVoiceReply`, wiki/memory/character functions) are unchanged.
+- **Type consistency:** `spendCredits` returns `Promise<CreditSpendAllocation[] | null>`; callers pass the allocation array to `refundCredit(userId, allocations)` on failure (`generateVoiceReply`, wiki/memory/character functions updated accordingly).
 - **Import hygiene:** `gte` removed from `creditService.ts` imports in Task 1; no other use exists in that file.
 
 ---

@@ -351,7 +351,7 @@ test("generateVoiceReplyHandler passes only cleaned replyText to synthesizeSpeec
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 2 }];
     creditService.getCredits = async () => 3;
 
     let synthesizeSpeechInput: string | undefined;
@@ -391,7 +391,7 @@ test("generateVoiceReplyHandler returns non-empty audioBase64 in payload", async
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 2 }];
     creditService.getCredits = async () => 3;
 
     const result = await generateVoiceReplyHandler(
@@ -435,7 +435,7 @@ test("generateVoiceReplyHandler works with raw PCM from synthesizeSpeech mock", 
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 2 }];
     creditService.getCredits = async () => 3;
 
     // Create a minimal valid PCM buffer (100 bytes of zeros)

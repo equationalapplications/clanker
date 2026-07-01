@@ -37,16 +37,15 @@ After the existing net-balance check passes under the `subscriptions` row lock:
 2. Lock rows `FOR UPDATE`.
 3. Loop rows, deducting `min(row.remaining_balance, remaining)` per row until `amount` is satisfied or rows exhausted.
 4. Early-exit when `remaining <= 0` to avoid no-op `UPDATE ... - 0` on trailing locked rows.
-5. Return `firstTouchedId` — the `id` of the earliest-expiring row touched.
+5. Return `allocations` — an array of `{ transactionId, amount }` for each row debited.
 
 If net balance was sufficient under lock but rows could not cover the amount, log a warning and throw `InsufficientCreditsError` (should be unreachable given the net check).
 
 ### Refund contract
 
-- `spendCredits` still returns a single `txId` (`firstTouchedId`).
-- `refundCredit(userId, txId, amount)` adds the full `amount` back to that one row.
-- For multi-row spends, **total balance is restored correctly**; only expiry-bucket attribution is approximate.
-- **Accepted tradeoff:** `generateVoiceReply` (amount = 2) is the only >1 caller; fragmented balances are rare.
+- `spendCredits` returns `CreditSpendAllocation[] | null` — one entry per row debited, with amounts summing to the spent total.
+- `refundCredit(userId, allocations)` restores each row by its debited `amount`.
+- Multi-row spends are fully reversible: credits return to the exact rows they were taken from.
 
 ### What changes
 
@@ -57,9 +56,8 @@ If net balance was sufficient under lock but rows could not cover the amount, lo
 
 ### What does NOT change
 
-- `spendCredits` return type: `Promise<string | null>`
-- Callers (`generateVoiceReply`, wiki/memory/character functions) — unchanged
 - Cloud-agent `spendCredit` — fixed 1-credit spends only
+- Wiki/memory/character callers — still pass through allocations to `refundCredit` on failure
 
 ---
 
@@ -130,7 +128,8 @@ Existing **Browser Action Billing** `Refunds:` line already lists `EXECUTION_TIM
 
 ## Implementation Notes (post-ship)
 
-- **`id` tiebreaker:** `ORDER BY expires_at NULLS LAST, id` added during implementation for deterministic spend order and predictable `firstTouchedId` when expiry values tie.
+- **`id` tiebreaker:** `ORDER BY expires_at NULLS LAST, id` added during implementation for deterministic spend order when expiry values tie.
+- **Allocations-based refunds:** During implementation, `firstTouchedId` was replaced with per-row `CreditSpendAllocation[]` so `refundCredit` restores exact rows rather than collapsing to the earliest bucket.
 - **Test fixture hygiene:** Functions test mocks updated with `expoPushToken: null` after `users.expo_push_token` was added to schema (`generateImage`, `generateReply`, `generateVoiceReply`, `wikiLlm`, `wikiSync`, `exchangeToken` tests).
 
 ---
