@@ -86,8 +86,6 @@ const summarizeTextFn = httpsCallable(functionsInstance, 'summarizeText')
 
 const purchasePackageStripe = httpsCallable(functionsInstance, 'purchasePackageStripe')
 
-const spendCreditsFn = httpsCallable(functionsInstance, 'spendCredits')
-
 const adminListUsersFn = httpsCallable(functionsInstance, 'adminListUsers')
 const adminSetUserCreditsFn = httpsCallable(functionsInstance, 'adminSetUserCredits')
 const adminSetUserSubscriptionFn = httpsCallable(functionsInstance, 'adminSetUserSubscription')
@@ -124,7 +122,6 @@ export {
   generateImageFn,
   summarizeTextFn,
   purchasePackageStripe,
-  spendCreditsFn,
   adminListUsersFn,
   adminSetUserCreditsFn,
   adminSetUserSubscriptionFn,

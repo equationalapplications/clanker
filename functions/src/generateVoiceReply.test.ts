@@ -42,6 +42,7 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
     firebaseUid: auth.uid,
     email: auth.token.email,
     displayName: null,
+    expoPushToken: null,
     avatarUrl: null,
     isProfilePublic: false,
     defaultCharacterId: null,
@@ -110,7 +111,7 @@ test("generateVoiceReplyHandler rejects missing prompt", async () => {
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
     creditService.getCredits = async () => 3;
 
     await assert.rejects(
@@ -131,7 +132,7 @@ test("generateVoiceReplyHandler rejects missing characterVoice", async () => {
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
     creditService.getCredits = async () => 3;
 
     await assert.rejects(
@@ -152,7 +153,7 @@ test("generateVoiceReplyHandler rejects prompt exceeding max length", async () =
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
     creditService.getCredits = async () => 3;
 
     await assert.rejects(
@@ -205,7 +206,7 @@ test("generateVoiceReplyHandler spends 2 credits for payg users", async () => {
     creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
       assert.equal(amount, 2);
-      return 'mock-tx-id';
+      return [{ transactionId: 'mock-tx-id', amount: 2 }];
     };
     creditService.getCredits = async () => 3;
 
@@ -270,12 +271,11 @@ test("generateVoiceReplyHandler refunds credits when text generation fails", asy
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return 'mock-tx-id';
+      return [{ transactionId: 'mock-tx-id', amount: 2 }];
     };
-    creditService.refundCredit = async (userId, txId, amount) => {
+    creditService.refundCredit = async (userId, allocations) => {
       assert.equal(userId, user.id);
-      assert.equal(txId, 'mock-tx-id');
-      assert.equal(amount, 2);
+      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 2 }]);
       refundCalls += 1;
     };
     creditService.getCredits = async () => 3;
@@ -311,12 +311,11 @@ test("generateVoiceReplyHandler refunds credits when speech synthesis fails", as
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return 'mock-tx-id';
+      return [{ transactionId: 'mock-tx-id', amount: 2 }];
     };
-    creditService.refundCredit = async (userId, txId, amount) => {
+    creditService.refundCredit = async (userId, allocations) => {
       assert.equal(userId, user.id);
-      assert.equal(txId, 'mock-tx-id');
-      assert.equal(amount, 2);
+      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 2 }]);
       refundCalls += 1;
     };
     creditService.getCredits = async () => 3;
@@ -352,7 +351,7 @@ test("generateVoiceReplyHandler passes only cleaned replyText to synthesizeSpeec
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 2 }];
     creditService.getCredits = async () => 3;
 
     let synthesizeSpeechInput: string | undefined;
@@ -392,7 +391,7 @@ test("generateVoiceReplyHandler returns non-empty audioBase64 in payload", async
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 2 }];
     creditService.getCredits = async () => 3;
 
     const result = await generateVoiceReplyHandler(
@@ -415,7 +414,7 @@ test("generateVoiceReplyHandler maps identity conflicts to failed-precondition",
       throw new Error("Existing user email is linked to a different Firebase UID.");
     };
     subscriptionService.getSubscription = async () => buildSubscription("unused-user", "payg", 5);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
     creditService.getCredits = async () => 3;
 
     await assert.rejects(
@@ -436,7 +435,7 @@ test("generateVoiceReplyHandler works with raw PCM from synthesizeSpeech mock", 
     const user = buildUser(auth);
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => 'mock-tx-id';
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 2 }];
     creditService.getCredits = async () => 3;
 
     // Create a minimal valid PCM buffer (100 bytes of zeros)

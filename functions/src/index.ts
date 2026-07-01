@@ -19,10 +19,6 @@ export {
 } from "./summarizeText.js";
 
 export {
-  spendCredits,
-} from "./spendCredits.js";
-
-export {
   stripeWebhook,
 } from "./stripeWebhook.js";
 

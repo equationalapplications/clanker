@@ -1,6 +1,5 @@
 jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(),
-  spendCreditsFn: jest.fn(),
 }))
 
 jest.mock('~/services/apiClient', () => ({

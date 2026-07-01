@@ -2,7 +2,7 @@ import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/
 import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { characterService, CharacterOwnershipError } from './services/characterService.js';
-import { creditService } from './services/creditService.js';
+import { creditService, type CreditSpendAllocation } from './services/creditService.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 import { DEFAULT_VOICE } from './constants/voiceDefaults.js';
 
@@ -159,10 +159,10 @@ export const syncCharacterHandler = async (
     throw new HttpsError('not-found', 'User not found.');
   }
 
-  let transactionId: string | null = null;
+  let spendAllocations: CreditSpendAllocation[] | null = null;
   try {
-    transactionId = await actualDeps.creditService.spendCredits(user.id, 1);
-    if (transactionId === null) {
+    spendAllocations = await actualDeps.creditService.spendCredits(user.id, 1);
+    if (spendAllocations === null) {
       throw new HttpsError('failed-precondition', 'Insufficient credits.');
     }
 
@@ -184,13 +184,13 @@ export const syncCharacterHandler = async (
 
     return serializeCharacter(upserted as unknown as Record<string, unknown>, request.auth.uid);
   } catch (error) {
-    if (transactionId) {
+    if (spendAllocations) {
       try {
-        await actualDeps.creditService.refundCredit(user.id, transactionId, 1);
+        await actualDeps.creditService.refundCredit(user.id, spendAllocations);
       } catch (refundError) {
         logger.error('Failed to refund credits after syncCharacter failure', {
           userId: user.id,
-          transactionId,
+          spendAllocations,
           error: refundError,
         });
       }

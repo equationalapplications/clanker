@@ -244,6 +244,35 @@ test('zero credits at open closes with 4402', async () => {
   await close()
 })
 
+test('one credit at open closes with 4402', async () => {
+  const db = makeMockDb([[mockUser]])
+  const cs = { ...mockCreditService, getBalance: async () => 1 }
+  const mock = makeMockLiveConnect()
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: cs,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('close', (code) => {
+      clearTimeout(timeout)
+      assert.equal(code, 4402)
+      resolve()
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
 test('valid auth sends session_ready with balance', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter]])
   const cs = { ...mockCreditService, getBalance: async () => 77 }

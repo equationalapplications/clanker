@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { assertIdempotentDeltaMatch, createCreditService } from './creditService.js';
+import { assertIdempotentDeltaMatch, createCreditService, type CreditSpendAllocation } from './creditService.js';
 
 // ---------------------------------------------------------------------------
 // assertIdempotentDeltaMatch (unchanged helper)
@@ -111,7 +111,7 @@ test('spendCredits returns null when no qualifying creditTransactions row found'
     },
   };
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<string | null>, _opts?: unknown) => fn(fakeTx),
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>, _opts?: unknown) => fn(fakeTx),
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
@@ -148,6 +148,7 @@ test('spendCredits returns transactionId and decrements balance on qualifying ro
             limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
             orderBy: () => ({
               limit: () => ({ for: async () => rows }),
+              for: async () => rows,
             }),
           }),
         }),
@@ -168,15 +169,71 @@ test('spendCredits returns transactionId and decrements balance on qualifying ro
     }),
   };
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<string | null>, _opts?: unknown) => fn(fakeTx),
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>, _opts?: unknown) => fn(fakeTx),
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
   const result = await service.spendCredits('user-1', 1);
-  assert.equal(result, 'tx-abc');
+  assert.deepEqual(result, [{ transactionId: 'tx-abc', amount: 1 }]);
   assert.equal(updatedId, 'tx-abc');
   assert.equal(cacheUpdated, true);
   assert.equal(selectIdx, 6);
+});
+
+test('spendCredits spends across multiple rows when balance is fragmented', async () => {
+  let decrementCount = 0;
+
+  // select() call order:
+  // 1. subscriptions FOR UPDATE lock
+  // 2. net balance check → 2 (>= amount)
+  // 3. spend rows FOR UPDATE → two rows of 1 each (fragmented)
+  // 4. syncSubscriptionCache total
+  // 5. syncSubscriptionCache nextExpiry
+  // 6. syncSubscriptionCache existing sub
+  const selectQueue: unknown[][] = [
+    [{ userId: 'user-1' }],
+    [{ total: 2 }],
+    [{ id: 'tx-early', remainingBalance: 1 }, { id: 'tx-late', remainingBalance: 1 }],
+    [{ total: 0 }],
+    [{ minExpiry: null }],
+    [],
+  ];
+  let selectIdx = 0;
+
+  const fakeTx = {
+    select: () => {
+      const rows = selectQueue[selectIdx++] ?? [];
+      return {
+        from: () => ({
+          where: () => Object.assign(Promise.resolve(rows), {
+            limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
+            orderBy: () => ({ for: async () => rows }),
+          }),
+        }),
+      };
+    },
+    update: () => ({
+      set: (vals: Record<string, unknown>) => ({
+        where: async () => {
+          if (vals && 'remainingBalance' in vals) decrementCount++;
+        },
+      }),
+    }),
+    insert: () => ({
+      values: () => ({ onConflictDoNothing: (_opts?: unknown) => ({}) }),
+    }),
+  };
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>, _opts?: unknown) => fn(fakeTx),
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  const result = await service.spendCredits('user-1', 2);
+  assert.deepEqual(result, [
+    { transactionId: 'tx-early', amount: 1 },
+    { transactionId: 'tx-late', amount: 1 },
+  ]);
+  assert.equal(decrementCount, 2);        // both fragmented rows decremented
 });
 
 // ---------------------------------------------------------------------------
@@ -250,7 +307,7 @@ test('refundCredit increments remaining_balance on the specified row', async () 
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
-  await service.refundCredit('user-1', 'tx-abc', 1);
+  await service.refundCredit('user-1', [{ transactionId: 'tx-abc', amount: 1 }]);
   assert.equal(returningCalled, true);
 });
 
@@ -286,11 +343,52 @@ test('refundCredit inserts compensation row when original transaction is expired
   };
 
   const service = createCreditService({ getDb: async () => fakeDb as never });
-  await service.refundCredit('user-1', 'tx-expired', 1);
+  await service.refundCredit('user-1', [{ transactionId: 'tx-expired', amount: 1 }]);
   assert.ok(insertedValues, 'compensation row should be inserted');
   assert.equal((insertedValues as Record<string, unknown>).remainingBalance, 1);
   assert.equal((insertedValues as Record<string, unknown>).expiresAt, null);
   assert.equal((insertedValues as Record<string, unknown>).reason, 'refund_compensation');
+});
+
+test('refundCredit restores each fragmented spend row by allocation', async () => {
+  let updateCalls = 0;
+
+  let selectCount = 0;
+  const fakeTx = {
+    update: () => ({
+      set: () => ({
+        where: () => Object.assign(Promise.resolve(undefined), {
+          returning: async () => {
+            updateCalls += 1;
+            return [{ id: 'matched' }];
+          },
+        }),
+      }),
+    }),
+    insert: () => ({ values: async () => {} }),
+    select: () => {
+      selectCount++;
+      return {
+        from: () => ({
+          where: () => {
+            const rows = selectCount % 2 !== 0 ? [{ total: 2 }] : [{ minExpiry: null }];
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+          },
+        }),
+      };
+    },
+  };
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  await service.refundCredit('user-1', [
+    { transactionId: 'tx-early', amount: 1 },
+    { transactionId: 'tx-late', amount: 1 },
+  ]);
+
+  assert.equal(updateCalls, 2);
 });
 
 // ---------------------------------------------------------------------------

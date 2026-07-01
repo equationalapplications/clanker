@@ -156,8 +156,8 @@ export const wikiLlmHandler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const transactionId = await credits.spendCredits(user.id, 1);
-  if (transactionId === null) {
+  const spendAllocations = await credits.spendCredits(user.id, 1);
+  if (spendAllocations === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
 
@@ -171,11 +171,11 @@ export const wikiLlmHandler = async (
   } catch (error) {
     logger.error("wikiLlm model call failed", {userId: user.id, error});
     try {
-      await credits.refundCredit(user.id, transactionId, 1);
+      await credits.refundCredit(user.id, spendAllocations);
     } catch (refundError) {
       logger.error("Failed to refund credits after wikiLlm failure", {
         userId: user.id,
-        transactionId,
+        spendAllocations,
         error: refundError,
       });
     }

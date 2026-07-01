@@ -98,7 +98,7 @@ function buildDeps(options?: {
       }),
     },
     creditService: {
-      spendCredits: async () => 'mock-tx-id',
+      spendCredits: async () => [{ transactionId: 'mock-tx-id', amount: 1 }],
       refundCredit: async () => {},
     },
     getDb: async () => ({
@@ -237,7 +237,7 @@ test("memoryHealHandler refunds credit when heal processing fails", async () => 
         {
           ...buildDeps(),
           creditService: {
-            spendCredits: async () => 'tx-abc',
+            spendCredits: async () => [{ transactionId: 'tx-abc', amount: 1 }],
             refundCredit: async () => {
               refunded = true;
             },

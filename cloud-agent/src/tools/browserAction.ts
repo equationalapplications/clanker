@@ -144,7 +144,6 @@ export function browserActionTool(
               taskId, status: 'failed', data: {}, activeUrl: '',
               error: { code: 'EXECUTION_TIMEOUT', message: 'Browser task exceeded 30s', failedAction: action as never },
             })
-            if (txId) { try { await deps.creditService.refundCredit(deps.userId, txId) } catch { /* logged */ } }
             await fs.closeSession(deps.firebaseUid, sessionId, 'aborted')
             resolve(executionTimeoutTask())
           })()
