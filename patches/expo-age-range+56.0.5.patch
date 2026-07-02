@@ -1,0 +1,53 @@
+diff --git a/node_modules/expo-age-range/ios/AgeRangeModule.swift b/node_modules/expo-age-range/ios/AgeRangeModule.swift
+index 8dafec6..c012b15 100644
+--- a/node_modules/expo-age-range/ios/AgeRangeModule.swift
++++ b/node_modules/expo-age-range/ios/AgeRangeModule.swift
+@@ -47,43 +47,14 @@ public class AgeRangeModule: Module, @unchecked Sendable {
+       }
+     }
+ 
+-    AsyncFunction("showSignificantUpdateAcknowledgmentAsync") { (updateDescription: String) in
+-      guard #available(iOS 26.4, *) else {
+-        return
+-      }
+-
+-      let windowScene: UIWindowScene? = await MainActor.run { [appContext] in
+-        appContext?.utilities?.currentViewController()?.view?.window?.windowScene
+-      }
+-
+-      guard let windowScene else {
+-        throw AgeRangeNoViewControllerException()
+-      }
+-
+-      do {
+-        try await AgeRangeService.shared.showSignificantUpdateAcknowledgment(in: windowScene, updateDescription: updateDescription)
+-      } catch AgeRangeService.Error.notAvailable {
+-        throw AgeRangeNotAvailableException()
+-      }
++    AsyncFunction("showSignificantUpdateAcknowledgmentAsync") { (_: String) in
++      // iOS 26.4+ only. Stubbed for Xcode SDK < 26.4 — see patches/expo-age-range+56.0.5.patch
++      return
+     }
+ 
+     AsyncFunction("getRequiredRegulatoryFeaturesAsync") { () -> [String]? in
+-      guard #available(iOS 26.4, *) else {
+-        return nil
+-      }
+-      do {
+-        let features = try await AgeRangeService.shared.requiredRegulatoryFeatures
+-        return features.compactMap { feature -> String? in
+-          switch feature {
+-          case .declaredAgeRangeRequired: "declaredAgeRangeRequired"
+-          case .significantAppChangeRequiresAdultNotification: "significantAppChangeRequiresAdultNotification"
+-          case .significantAppChangeRequiresParentalConsent: "significantAppChangeRequiresParentalConsent"
+-          @unknown default: nil
+-          }
+-        }
+-      } catch AgeRangeService.Error.notAvailable {
+-        throw AgeRangeNotAvailableException()
+-      }
++      // iOS 26.4+ only. Stubbed for Xcode SDK < 26.4 — see patches/expo-age-range+56.0.5.patch
++      return nil
+     }
+   }
+ }
