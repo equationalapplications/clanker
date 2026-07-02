@@ -50,6 +50,7 @@ beforeAll(() => {
 })
 
 import { createActor, waitFor } from 'xstate'
+import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { liveVoiceMachine } from '~/machines/liveVoiceMachine'
 import { getCharacter } from '~/database/characterDatabase'
 import { getWiki } from '~/services/wikiService'
@@ -182,6 +183,39 @@ describe('liveVoiceMachine', () => {
     expect(actor.getSnapshot().context.recentChatContext).toBe(
       'User: recent question\nFrodo: recent answer',
     )
+  })
+
+  test('syncMemoryActor retries importDump when the wiki librarian job still holds the lock', async () => {
+    const wiki = makeWikiMock()
+    let importAttempts = 0
+    wiki.importDump.mockImplementation(() => {
+      importAttempts += 1
+      if (importAttempts < 3) {
+        return Promise.reject(new WikiBusyError('librarian', 'char1'))
+      }
+      return Promise.resolve(undefined)
+    })
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const actor = spawn({ syncBusyRetryDelayMs: 5 })
+    actor.send({ type: 'START_CALL' })
+
+    await waitFor(actor, (s) => s.matches({ session: 'connecting' }), WAIT)
+
+    expect(importAttempts).toBe(3)
+    expect(actor.getSnapshot().context.socketError).toBeNull()
+    expect(actor.getSnapshot().context.cloudCharacterId).toBe(CLOUD_CHAR_ID)
   })
 
   test('failed wikiSync → error state', async () => {

@@ -27,6 +27,7 @@ import { upsertExpoPushToken, getExpoPushToken } from './handlers/expoPushToken.
 import { handleApproveAction } from './handlers/approveAction.js'
 import { createSchedulerTriggerHandler, createRequireSchedulerSecret } from './handlers/schedulerTriggerHandler.js'
 import { INSTANCE_ID } from './services/instanceId.js'
+import { mapAgentExecutionError } from './utils/agentExecutionError.js'
 import { z } from 'zod'
 
 export { INSTANCE_ID } from './services/instanceId.js'
@@ -267,12 +268,16 @@ export function createApp(options: AppOptions) {
       })
     } catch (err) {
       console.error('agent/run error:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Internal server error'
-      // Treat Cloud Run (K_SERVICE) as production by default since Cloud Run
-      // does not typically set NODE_ENV. Leak details only in dev/test envs.
       const isProd = !!process.env.K_SERVICE || process.env.NODE_ENV === 'production'
+      if (isProd) {
+        res.status(500).json({ error: 'Internal server error' })
+        return
+      }
+      const mapped = mapAgentExecutionError(err)
       res.status(500).json({
-        error: isProd ? 'Internal server error' : errorMessage,
+        error: err instanceof Error ? err.message : 'Internal server error',
+        code: mapped.code,
+        message: mapped.message,
       })
     }
   })

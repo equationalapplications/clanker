@@ -540,7 +540,7 @@ test("purchasePackageStripeHandler keeps UUID-like attemptId accepted and propag
   assert.equal(payload.metadata.attemptId, attemptId);
 });
 
-test("purchasePackageStripeHandler rejects subscription purchase when an active RevenueCat subscription already exists", async (t) => {
+test("purchasePackageStripeHandler rejects subscription purchase when an active RevenueCat subscription already exists", async () => {
   await withAdminAuthStub(async () => ({email: "user@example.com"}), async () => {
     await assert.rejects(
       async () => purchasePackageStripeHandler(

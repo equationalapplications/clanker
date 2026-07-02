@@ -1,4 +1,9 @@
-import { getCloudAgentBaseUrl, resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
+import { getCloudAgentBaseUrl, isLocalCloudAgentUrl, resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
+import {
+  GCP_CREDENTIALS_DEV_CONSOLE_HINT,
+  GCP_CREDENTIALS_EXPIRED_CODE,
+  isLikelyGcpCredentialsError,
+} from '../../shared/gcpCredentialsDev'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
 import type { Content, GroundingMetadata } from '@google/genai'
@@ -33,8 +38,34 @@ export interface CloudAgentStreamCallbacks {
 
 const AUTH_TIMEOUT_MS = 5000
 
+function isClientDevBuild(): boolean {
+  if (typeof __DEV__ !== 'undefined') return __DEV__
+  return process.env.NODE_ENV !== 'production'
+}
+
+/** Dev-only: log actionable hints when local cloud-agent fails on Vertex AI auth. */
+export function warnCloudAgentDevHint(errorOrMessage: unknown, code?: string): void {
+  if (!isClientDevBuild() || !isLocalCloudAgentUrl()) return
+
+  if (code === GCP_CREDENTIALS_EXPIRED_CODE || isLikelyGcpCredentialsError(errorOrMessage)) {
+    console.warn(`[Dev] ${GCP_CREDENTIALS_DEV_CONSOLE_HINT}`)
+    return
+  }
+
+  const message = typeof errorOrMessage === 'string' ? errorOrMessage : ''
+  if (code === 'INTERNAL_ERROR' && message === 'Agent execution failed') {
+    console.warn(
+      '[Dev] Local cloud-agent failed during agent execution. ' +
+        'Expired Vertex AI credentials are a common cause. Try:\n' +
+        '  gcloud auth application-default login\n' +
+        '  gcloud auth application-default set-quota-project clanker-prod\n' +
+        '  GCP_PROJECT=clanker-prod docker compose -f docker-compose.local.yml restart cloud-agent',
+    )
+  }
+}
 
 function mapWebSocketError(code: string, message: string): Error {
+  warnCloudAgentDevHint(message, code)
   if (code === 'INSUFFICIENT_CREDITS') {
     return new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS')
   }
@@ -62,6 +93,18 @@ export async function runViaHttp(payload: CloudAgentPayload): Promise<CloudAgent
   }
 
   if (!response.ok) {
+    let errorBody: { error?: string; code?: string; message?: string } | null = null
+    try {
+      errorBody = (await response.json()) as { error?: string; code?: string; message?: string }
+    } catch {
+      errorBody = null
+    }
+    warnCloudAgentDevHint(
+      errorBody?.code === 'INTERNAL_ERROR'
+        ? errorBody?.message ?? errorBody?.error
+        : errorBody?.error ?? errorBody?.message,
+      errorBody?.code,
+    )
     throw new Error(`Cloud Agent responded with ${response.status}`)
   }
 
