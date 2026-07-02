@@ -28,7 +28,7 @@ export interface UseLiveVoiceChatReturn {
   cancelCall: () => void
 }
 
-const MIN_CREDITS_FOR_CALL = 2
+const MIN_CREDITS_FOR_CALL = 5
 
 /** Controller hook that wires liveVoiceMachine to hardware I/O, app lifecycle, and navigation. */
 export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {

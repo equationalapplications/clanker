@@ -2,10 +2,18 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import {applicationDefault} from "firebase-admin/app";
 import type {Credential} from "firebase-admin/app";
+import type {DecodedIdToken} from "firebase-admin/auth";
+import { userRepository } from "./services/userRepository.js";
+import { creditService } from "./services/creditService.js";
 
 const DEFAULT_REGION = "us-central1";
 const MODEL_ID = "text-embedding-004";
 const MAX_TEXT_LENGTH = 8_000;
+const EMBEDDING_CHARS_PER_CREDIT = 50_000;
+
+export function computeEmbeddingCreditCost(textLength: number): number {
+  return Math.ceil(textLength / EMBEDDING_CHARS_PER_CREDIT);
+}
 // Keep in sync with GenerateEmbeddingTaskType in src/services/apiClient.ts
 export type GenerateEmbeddingTaskType =
   | "RETRIEVAL_DOCUMENT"
@@ -71,6 +79,8 @@ export interface GenerateEmbeddingResponse {
 
 export interface EmbeddingOptions {
   embedder?: (text: string, taskType: string) => Promise<number[]>;
+  userRepository?: Pick<typeof userRepository, "getOrCreateUserByFirebaseIdentity">;
+  creditService?: Pick<typeof creditService, "spendCredits" | "refundCredit">;
 }
 
 async function defaultEmbedder(text: string, taskType: string): Promise<number[]> {
@@ -157,15 +167,42 @@ export const generateEmbeddingHandler = async (
     taskType = rawTaskType as GenerateEmbeddingTaskType;
   }
 
+  const trimmedText = text.trim();
+  const users = options.userRepository ?? userRepository;
+  const credits = options.creditService ?? creditService;
+  const decoded = request.auth.token as DecodedIdToken;
+
+  const email = typeof decoded.email === "string" ? decoded.email.trim() : "";
+  if (!email) {
+    throw new HttpsError("failed-precondition", "Firebase user email is required.");
+  }
+
+  const user = await users.getOrCreateUserByFirebaseIdentity({
+    firebaseUid: request.auth.uid,
+    email,
+    displayName: decoded.name,
+  });
+
+  const cost = computeEmbeddingCreditCost(trimmedText.length);
+  const spendAllocations = await credits.spendCredits(user.id, cost);
+  if (!spendAllocations) {
+    throw new HttpsError("failed-precondition", "Insufficient credits to generate embedding.");
+  }
+
   const embedder = options.embedder ?? defaultEmbedder;
   let embedding: number[];
   try {
-    embedding = await embedder(text.trim(), taskType);
+    embedding = await embedder(trimmedText, taskType);
   } catch (error) {
     logger.error("generateEmbedding: embedder failed", {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
+    try {
+      await credits.refundCredit(user.id, spendAllocations);
+    } catch (refundError) {
+      logger.error("Failed to refund credits after generateEmbedding failure", {userId: user.id, error: refundError});
+    }
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", "Failed to generate embedding.");
   }

@@ -1,29 +1,37 @@
 import { sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../db/client.js'
 
+export type CreditSpendAllocation = {
+  transactionId: string
+  amount: number
+}
+
 export type CreditService = {
-  spendCredit: (userId: string) => Promise<string>
-  refundCredit: (userId: string, txId: string) => Promise<void>
+  spendCredit: (userId: string, amount?: number) => Promise<CreditSpendAllocation[]>
+  refundCredit: (userId: string, allocations: CreditSpendAllocation[]) => Promise<void>
   getBalance: (userId: string) => Promise<number>
+}
+
+function assertPositiveCreditAmount(amount: number): void {
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    throw new Error('INVALID_CREDIT_AMOUNT')
+  }
 }
 
 export function createCreditService(db: DrizzleClient): CreditService {
   return {
-    async spendCredit(userId: string): Promise<string> {
-      // Match functions lock order to prevent deadlocks:
+    async spendCredit(userId: string, amount = 1): Promise<CreditSpendAllocation[]> {
+      assertPositiveCreditAmount(amount)
+      // Match functions/ lock order to prevent deadlocks:
       // 1. Ensure subscriptions row exists and lock it first
       // 2. Then lock and update credit_transactions
-      // This matches functions/src/services/creditService.ts lock ordering.
-
       return await db.transaction(async (tx) => {
-        // Ensure subscriptions row exists (ON CONFLICT DO NOTHING is idempotent)
         await tx.execute(sql`
           INSERT INTO subscriptions (user_id, current_credits)
           VALUES (${userId}, 0)
           ON CONFLICT (user_id) DO NOTHING
         `)
 
-        // Lock the subscriptions row first
         await tx.execute(sql`
           SELECT user_id FROM subscriptions
           WHERE user_id = ${userId}
@@ -38,36 +46,39 @@ export function createCreditService(db: DrizzleClient): CreditService {
             AND (expires_at IS NULL OR expires_at > NOW())
         `)
         const netCredits = Number(netResult.rows[0]?.total ?? 0)
-        if (netCredits < 1) {
+        if (netCredits < amount) {
           throw new Error('INSUFFICIENT_CREDITS')
         }
 
-        // Atomically selects the earliest-expiring row with remaining_balance >= 1
-        // and decrements it. Returns 0 rows if no qualifying row exists.
-        // Two concurrent requests with 1 credit: PostgreSQL row locking ensures
-        // only one succeeds; the second sees remaining_balance = 0 and returns 0 rows.
-        const spendResult = await tx.execute<{ id: string }>(sql`
-          UPDATE credit_transactions
-          SET remaining_balance = remaining_balance - 1
+        // Lock every qualifying row FIFO (expiring soonest first), then allocate
+        // the requested amount across as many rows as needed.
+        const rows = await tx.execute<{ id: string; remaining_balance: string }>(sql`
+          SELECT id, remaining_balance FROM credit_transactions
           WHERE user_id = ${userId}
-            AND remaining_balance >= 1
+            AND remaining_balance > 0
             AND (expires_at IS NULL OR expires_at > NOW())
-            AND id = (
-              SELECT id FROM credit_transactions
-              WHERE user_id = ${userId}
-                AND remaining_balance >= 1
-                AND (expires_at IS NULL OR expires_at > NOW())
-              ORDER BY expires_at ASC NULLS LAST
-              LIMIT 1 FOR UPDATE
-            )
-          RETURNING id
+          ORDER BY expires_at ASC NULLS LAST, id ASC
+          FOR UPDATE
         `)
 
-        if (spendResult.rows.length === 0) {
-          throw new Error('INSUFFICIENT_CREDITS')
+        let remaining = amount
+        const allocations: CreditSpendAllocation[] = []
+        for (const row of rows.rows) {
+          if (remaining <= 0) break
+          const take = Math.min(Number(row.remaining_balance), remaining)
+          await tx.execute(sql`
+            UPDATE credit_transactions
+            SET remaining_balance = remaining_balance - ${take}
+            WHERE id = ${row.id}
+          `)
+          allocations.push({ transactionId: row.id, amount: take })
+          remaining -= take
         }
 
-        const txId = spendResult.rows[0].id
+        if (remaining > 0 || allocations.length === 0) {
+          // Net balance passed under lock but rows could not cover it — should be unreachable.
+          throw new Error('INSUFFICIENT_CREDITS')
+        }
 
         // Update subscriptions cache (row is already locked)
         try {
@@ -86,12 +97,18 @@ export function createCreditService(db: DrizzleClient): CreditService {
           console.warn(`subscriptions.current_credits decrement failed user=${userId}`, err)
         }
 
-        return txId
+        return allocations
       })
     },
 
-    async refundCredit(userId: string, txId: string): Promise<void> {
-      // Match functions lock order: lock subscriptions first, then credit_transactions
+    async refundCredit(userId: string, allocations: CreditSpendAllocation[]): Promise<void> {
+      if (allocations.length === 0) {
+        return
+      }
+      for (const { amount } of allocations) {
+        assertPositiveCreditAmount(amount)
+      }
+
       await db.transaction(async (tx) => {
         await tx.execute(sql`
           INSERT INTO subscriptions (user_id, current_credits)
@@ -105,29 +122,25 @@ export function createCreditService(db: DrizzleClient): CreditService {
           FOR UPDATE
         `)
 
-        const updated = await tx.execute<{ id: string }>(sql`
-          UPDATE credit_transactions
-          SET remaining_balance = remaining_balance + 1
-          WHERE id = ${txId}
-            AND user_id = ${userId}
-            AND (expires_at IS NULL OR expires_at > NOW())
-          RETURNING id
-        `)
-
-        if (updated.rows.length === 0) {
-          // Original row expired between spend and refund; insert a non-expiring compensation
-          await tx.execute(sql`
-            INSERT INTO credit_transactions (
-              user_id,
-              delta,
-              reason,
-              initial_amount,
-              remaining_balance,
-              transaction_type,
-              expires_at
-            )
-            VALUES (${userId}, 1, 'refund_compensation', 1, 1, 'legacy', NULL)
+        for (const { transactionId, amount } of allocations) {
+          const updated = await tx.execute<{ id: string }>(sql`
+            UPDATE credit_transactions
+            SET remaining_balance = remaining_balance + ${amount}
+            WHERE id = ${transactionId}
+              AND user_id = ${userId}
+              AND (expires_at IS NULL OR expires_at > NOW())
+            RETURNING id
           `)
+
+          if (updated.rows.length === 0) {
+            // Original row expired between spend and refund; insert a non-expiring compensation.
+            await tx.execute(sql`
+              INSERT INTO credit_transactions (
+                user_id, delta, reason, initial_amount, remaining_balance, transaction_type, expires_at
+              )
+              VALUES (${userId}, ${amount}, 'refund_compensation', ${amount}, ${amount}, 'legacy', NULL)
+            `)
+          }
         }
 
         try {
@@ -142,7 +155,6 @@ export function createCreditService(db: DrizzleClient): CreditService {
             WHERE user_id = ${userId}
           `)
         } catch (err) {
-          // Best-effort cache sync; credit_transactions is the source of truth.
           console.warn(`subscriptions.current_credits increment failed user=${userId}`, err)
         }
       })

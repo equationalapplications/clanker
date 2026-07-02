@@ -4,12 +4,11 @@ import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import admin from 'firebase-admin'
 import { eq, and } from 'drizzle-orm'
-import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
+import { InMemoryRunner, createEvent, createEventActions } from '@google/adk'
 import type { Content, GroundingMetadata } from '@google/genai'
 import { WebSocketServer } from 'ws'
 import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
-import { hasGroundingData } from './groundingMetadata.js'
 import { assembleSystemInstruction, queryWikiContext } from './services/agentCore.js'
 import { bulkInsertUnsynced } from './services/unsyncedHistory.js'
 import { users, characters } from './db/schema.js'
@@ -17,6 +16,7 @@ import { embedText } from './db/embeddings.js'
 import type { DrizzleClient } from './db/client.js'
 import { createCreditService } from './services/creditService.js'
 import type { CreditService } from './services/creditService.js'
+import { assertAgentTurnCredits, AgentInsufficientCreditsError, consumeAgentEvents } from './services/agentEventLoop.js'
 import { handleWsUpgrade, type WsHandlerOptions } from './handlers/wsAgentHandler.js'
 import { handleLiveWsUpgrade, type WsLiveHandlerOptions } from './handlers/wsLiveAgentHandler.js'
 import { handleBrowserWsUpgrade } from './handlers/wsBrowserAgentHandler.js'
@@ -48,6 +48,7 @@ export interface RunAgentParams {
   history: Content[]
   timezone: string
   embed: (text: string) => Promise<number[]>
+  creditService: Pick<CreditService, 'spendCredit' | 'refundCredit'>
 }
 
 export interface AppOptions {
@@ -63,7 +64,7 @@ export interface AppOptions {
 // ── Real agent runner (production) ────────────────────────────────────────────
 
 export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
-  const { db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed } = params
+  const { db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed, creditService } = params
   const bridge = admin.apps.length ? {
     firebaseUid,
     userId,
@@ -102,39 +103,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{ reply: str
     newMessage: { role: 'user', parts: [{ text: message }] },
   })
 
-  let reply = ''
-  const toolCalls: string[] = []
-  // Google Search grounding ToS requires surfacing the citation/search-suggestions
-  // Gemini returns. ADK exposes it as event.groundingMetadata (Event extends
-  // LlmResponse). Keep the last non-empty one — it rides the final response event.
-  let groundingMetadata: GroundingMetadata | undefined
-  for await (const event of events) {
-    if (event.errorCode || event.errorMessage) {
-      throw new Error(`ADK error (${event.errorCode ?? 'unknown'}): ${event.errorMessage ?? 'no message'}`)
-    }
-    if (event.content?.parts) {
-      for (const part of event.content.parts) {
-        if ('functionCall' in part) {
-          const fc = (part as { functionCall?: { name?: string } }).functionCall
-          if (fc?.name) toolCalls.push(fc.name)
-        }
-      }
-    }
-    if (hasGroundingData(event.groundingMetadata)) {
-      groundingMetadata = event.groundingMetadata
-    }
-    if (isFinalResponse(event) && event.content?.parts) {
-      reply = event.content.parts
-        .filter((p) => 'text' in p)
-        .map((p) => (p as { text: string }).text)
-        .join('')
-    }
-  }
-
-  if (!reply.trim()) {
-    throw new Error('ADK returned an empty final reply')
-  }
-  return { reply, toolCalls, groundingMetadata }
+  return consumeAgentEvents(events, userId, creditService)
 }
 
 // ── App factory ───────────────────────────────────────────────────────────────
@@ -255,19 +224,6 @@ export function createApp(options: AppOptions) {
       )
       if (!character) { res.status(404).json({ error: 'Character not found' }); return }
 
-      // SPEND FIRST — fail fast with 402 before any non-essential work or writes
-      let txId: string
-      try {
-        txId = await cs.spendCredit(userId)
-      } catch (creditErr: unknown) {
-        const msg = creditErr instanceof Error ? creditErr.message : ''
-        if (msg === 'INSUFFICIENT_CREDITS') {
-          res.status(402).json({ error: 'Insufficient credits' })
-          return
-        }
-        throw creditErr
-      }
-
       if (unsyncedHistory.length > 0) {
         try {
           await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory, embedText)
@@ -277,33 +233,24 @@ export function createApp(options: AppOptions) {
         }
       }
 
-      let wikiContext: string
-      let systemInstruction: string
       try {
-        wikiContext = await queryWikiContext(db, message, userId, characterId, embedText)
-        systemInstruction = assembleSystemInstruction(character, wikiContext)
-      } catch (preAgentErr) {
-        try {
-          await cs.refundCredit(userId, txId)
-        } catch (refundErr) {
-          console.error(`[CRITICAL] refundCredit failed user=${userId} txId=${txId}`, refundErr)
+        await assertAgentTurnCredits(userId, cs)
+      } catch (creditErr) {
+        if (creditErr instanceof AgentInsufficientCreditsError) {
+          res.status(402).json({ error: 'Insufficient credits' })
+          return
         }
-        throw preAgentErr
-      }
-      // 2. EXECUTE — refund on ADK failure
-      let result: { reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }
-      try {
-        result = await runAgentFn({ db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed: embedText })
-      } catch (adkErr) {
-        try {
-          await cs.refundCredit(userId, txId)
-        } catch (refundErr) {
-          console.error(`[CRITICAL] refundCredit failed user=${userId} txId=${txId}`, refundErr)
-        }
-        throw adkErr
+        throw creditErr
       }
 
-      // 3. GET BALANCE — graceful degrade if this fails
+      const wikiContext = await queryWikiContext(db, message, userId, characterId, embedText)
+      const systemInstruction = assembleSystemInstruction(character, wikiContext)
+
+      // Credit spend happens per internal ADK loop iteration inside runAgentFn
+      // (see services/agentEventLoop.ts) — refund-on-failure is handled there too.
+      const result = await runAgentFn({ db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed: embedText, creditService: cs })
+
+      // GET BALANCE — graceful degrade if this fails
       let newBalance: number | null = null
       try {
         newBalance = await cs.getBalance(userId)
@@ -311,7 +258,7 @@ export function createApp(options: AppOptions) {
         console.warn(`getBalance failed user=${userId}, returning null snapshot`, balErr)
       }
 
-      // 4. RESPOND
+      // RESPOND
       res.json({
         reply: result.reply,
         toolCalls: result.toolCalls,

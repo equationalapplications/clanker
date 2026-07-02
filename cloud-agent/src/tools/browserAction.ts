@@ -2,7 +2,7 @@ import { FunctionTool } from '@google/adk'
 import { z } from 'zod'
 import type { FirestoreSession } from '../services/firestoreSession.js'
 import type { FcmDispatcher } from '../services/fcmDispatcher.js'
-import type { CreditService } from '../services/creditService.js'
+import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
 import type { TaskIntent, TaskDoc } from '../../../shared/dsl-types.js'
 import { intentRequiresAuth } from '../../../shared/constants.js'
 import { findBlockedNavigation } from '../../../shared/hostPolicy.js'
@@ -90,10 +90,10 @@ export function browserActionTool(
 
       // 2. Contextual billing.
       deps.pauseBilling?.()
-      let txId: string | null = null
+      let allocations: CreditSpendAllocation[] | null = null
       let sessionCreated = false
       if (!context.preBilled) {
-        try { txId = await deps.creditService.spendCredit(deps.userId) }
+        try { allocations = await deps.creditService.spendCredit(deps.userId) }
         catch { deps.resumeBilling?.(); return 'You are out of credits for browser actions.' }
       }
 
@@ -108,8 +108,15 @@ export function browserActionTool(
         // 4. Wake.
         await deps.fcmDispatcher.wakeExtension(device.fcmToken, sessionId, taskId)
       } catch (err) {
-        if (txId) {
-          try { await deps.creditService.refundCredit(deps.userId, txId) } catch { /* logged */ }
+        if (allocations) {
+          try {
+            await deps.creditService.refundCredit(deps.userId, allocations)
+          } catch (refundErr) {
+            console.warn('[browser_action] refundCredit failed after dispatch error:', {
+              allocations,
+              error: refundErr instanceof Error ? refundErr.message : refundErr,
+            })
+          }
         }
         if (sessionCreated) {
           try { await fs.closeSession(deps.firebaseUid, sessionId, 'aborted') } catch { /* ignore */ }
@@ -128,7 +135,16 @@ export function browserActionTool(
           error: { code: 'EXTENSION_OFFLINE', message: 'Browser extension did not connect', failedAction: action as never },
         })
         if (aborted) {
-          if (txId) { try { await deps.creditService.refundCredit(deps.userId, txId) } catch { /* logged */ } }
+          if (allocations) {
+            try {
+              await deps.creditService.refundCredit(deps.userId, allocations)
+            } catch (refundErr) {
+              console.warn('[browser_action] refundCredit failed after offline abort:', {
+                allocations,
+                error: refundErr instanceof Error ? refundErr.message : refundErr,
+              })
+            }
+          }
           await fs.closeSession(deps.firebaseUid, sessionId, 'aborted')
         }
       }

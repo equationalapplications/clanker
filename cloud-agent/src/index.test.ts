@@ -82,8 +82,8 @@ const mockRunAgent = async (_params: RunAgentParams): Promise<{ reply: string; t
 })
 
 const mockCreditService = {
-  spendCredit: async (_userId: string): Promise<string> => 'mock-txid',
-  refundCredit: async (_userId: string, _txId: string): Promise<void> => {},
+  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 1 }],
+  refundCredit: async (_userId: string, _allocations: { transactionId: string; amount: number }[]): Promise<void> => {},
   getBalance: async (_userId: string): Promise<number> => 42,
 }
 
@@ -319,61 +319,26 @@ test('POST /agent/run rate-limits after 20 requests in 60s window', async () => 
 
 // ── Credit service integration ────────────────────────────────────────────────
 
-test('POST /agent/run returns 402 when spendCredit throws INSUFFICIENT_CREDITS', async () => {
+test('POST /agent/run returns 402 when balance is zero before agent starts', async () => {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
   const cs = {
     ...mockCreditService,
-    spendCredit: async (_userId: string): Promise<string> => {
-      throw new Error('INSUFFICIENT_CREDITS')
-    },
+    getBalance: async (_userId: string) => 0,
   }
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: cs })
+  let agentCalled = false
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: async () => { agentCalled = true; return { reply: 'ok', toolCalls: [] } },
+    creditService: cs,
+  })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
     .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(res.status, 402)
   assert.deepEqual(res.body, { error: 'Insufficient credits' })
-})
-
-test('POST /agent/run calls refundCredit and returns 500 when runAgentFn throws', async () => {
-  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  let refundCalled = false
-  const cs = {
-    ...mockCreditService,
-    refundCredit: async (_userId: string, _txId: string): Promise<void> => { refundCalled = true },
-  }
-  const failingAgent = async (_params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> => {
-    throw new Error('ADK error (unknown): vertex safety block')
-  }
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: failingAgent, creditService: cs })
-  const res = await request(app)
-    .post('/agent/run')
-    .set('Authorization', 'Bearer valid-token')
-    .send({ message: 'hello', characterId: CHAR_UUID })
-  assert.equal(res.status, 500)
-  assert.ok(refundCalled, 'expected refundCredit to be called')
-  assert.match((res.body as { error: string }).error, /ADK error/)
-})
-
-test('POST /agent/run swallows refundCredit failure and still returns 500 with ADK error', async () => {
-  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const cs = {
-    ...mockCreditService,
-    refundCredit: async (_userId: string, _txId: string): Promise<void> => {
-      throw new Error('connection lost during refund')
-    },
-  }
-  const failingAgent = async (_params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> => {
-    throw new Error('ADK error (unknown): vertex failed')
-  }
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: failingAgent, creditService: cs })
-  const res = await request(app)
-    .post('/agent/run')
-    .set('Authorization', 'Bearer valid-token')
-    .send({ message: 'hello', characterId: CHAR_UUID })
-  assert.equal(res.status, 500)
-  assert.match((res.body as { error: string }).error, /ADK error/)
+  assert.ok(!agentCalled, 'runAgentFn must not be called when balance is zero')
 })
 
 test('POST /agent/run returns usageSnapshot.remainingCredits on success', async () => {
@@ -401,26 +366,6 @@ test('POST /agent/run returns usageSnapshot: null and 200 when getBalance throws
     .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(res.status, 200)
   assert.equal((res.body as { usageSnapshot: unknown }).usageSnapshot, null)
-})
-
-test('POST /agent/run does not call runAgentFn when spendCredit throws INSUFFICIENT_CREDITS', async () => {
-  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const cs = {
-    ...mockCreditService,
-    spendCredit: async (_userId: string): Promise<string> => { throw new Error('INSUFFICIENT_CREDITS') },
-  }
-  let agentCalled = false
-  const app = createApp({
-    verifyToken: mockVerify,
-    db,
-    runAgentFn: async (params) => { agentCalled = true; return { reply: 'ok', toolCalls: [] } },
-    creditService: cs,
-  })
-  await request(app)
-    .post('/agent/run')
-    .set('Authorization', 'Bearer valid-token')
-    .send({ message: 'hello', characterId: CHAR_UUID })
-  assert.ok(!agentCalled, 'runAgentFn must not be called when credits are insufficient')
 })
 
 test('POST /agent/run captures X-Timezone header and passes it to runAgentFn', async () => {
