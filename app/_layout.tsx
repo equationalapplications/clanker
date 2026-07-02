@@ -74,7 +74,7 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
   const previousCharacterUserIdRef = useRef<string | null>(null)
   const previousSignedInRef = useRef(false)
   useEffect(() => {
-    const subscription = authService.subscribe((state) => {
+    const syncCharacterFromAuth = (state: ReturnType<typeof authService.getSnapshot>) => {
       const userId = state.context.user?.uid ?? null
       if (userId !== previousCharacterUserIdRef.current) {
         previousCharacterUserIdRef.current = userId
@@ -86,13 +86,19 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
         characterService.send({ type: 'LOAD' })
       }
       previousSignedInRef.current = isSignedIn
-    })
+    }
+
+    // subscribe() only fires on future transitions; mock auth can finish bootstrapping
+    // before this effect runs, leaving characterMachine stuck at userId=null.
+    syncCharacterFromAuth(authService.getSnapshot())
+
+    const subscription = authService.subscribe(syncCharacterFromAuth)
     return subscription.unsubscribe
   }, [authService, characterService])
 
   // authMachine → termsMachine: forward auth state changes (deduplicated)
   useEffect(() => {
-    const subscription = authService.subscribe((state) => {
+    const syncTermsFromAuth = (state: ReturnType<typeof authService.getSnapshot>) => {
       const firebaseUserId = state.context.user?.uid ?? null
       const dbUserId = state.context.dbUser?.id ?? null
       const subscription = state.context.subscription
@@ -122,8 +128,11 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
         previousAuthSnapshotRef.current = nextAuthSnapshot
         termsService.send({ type: 'AUTH_STATE_CHANGED', authState: state })
       }
-    })
+    }
 
+    syncTermsFromAuth(authService.getSnapshot())
+
+    const subscription = authService.subscribe(syncTermsFromAuth)
     return subscription.unsubscribe
   }, [authService, termsService])
 

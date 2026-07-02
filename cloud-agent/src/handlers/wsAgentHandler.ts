@@ -18,6 +18,7 @@ import {
   AgentInsufficientCreditsError,
   consumeAgentEvents,
 } from '../services/agentEventLoop.js'
+import { mapAgentExecutionError } from '../utils/agentExecutionError.js'
 
 const contentSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -241,7 +242,8 @@ export async function handleWsUpgrade(
         ws.close(1000, 'Agent execution complete')
       } catch (adkErr) {
         console.error('ADK execution error:', adkErr)
-        safeSend({ type: 'error', code: 'INTERNAL_ERROR', message: 'Agent execution failed' })
+        const mapped = mapAgentExecutionError(adkErr)
+        safeSend({ type: 'error', code: mapped.code, message: mapped.message })
         try { ws.close(1011, 'Execution failed') } catch { /* ignore close errors */ }
       }
     } catch (err) {

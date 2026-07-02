@@ -1,7 +1,11 @@
 import {
   DEV_CLOUD_CHARACTER_ID,
 } from '../shared/dev-sandbox'
-import { isLocalCloudAgentUrl, resolveCloudAgentCharacterId } from '../shared/localCloudAgent'
+import {
+  getCloudAgentBaseUrl,
+  isLocalCloudAgentUrl,
+  resolveCloudAgentCharacterId,
+} from '../shared/localCloudAgent'
 
 const PROD_CHAR_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 
@@ -21,6 +25,30 @@ describe('isLocalCloudAgentUrl', () => {
 
   it('returns false for empty input', () => {
     expect(isLocalCloudAgentUrl('')).toBe(false)
+  })
+})
+
+describe('getCloudAgentBaseUrl', () => {
+  it('rejects production Cloud Run URL when mock auth is enabled', () => {
+    const previousUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
+    const previousMockAuth = process.env.EXPO_PUBLIC_USE_MOCK_AUTH
+    process.env.EXPO_PUBLIC_CLOUD_AGENT_URL =
+      'https://clanker-cloud-agent-zbvqu57cca-uc.a.run.app'
+    process.env.EXPO_PUBLIC_USE_MOCK_AUTH = 'true'
+    try {
+      expect(() => getCloudAgentBaseUrl()).toThrow(/mock_token_123/)
+    } finally {
+      if (previousUrl === undefined) {
+        delete process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
+      } else {
+        process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = previousUrl
+      }
+      if (previousMockAuth === undefined) {
+        delete process.env.EXPO_PUBLIC_USE_MOCK_AUTH
+      } else {
+        process.env.EXPO_PUBLIC_USE_MOCK_AUTH = previousMockAuth
+      }
+    }
   })
 })
 

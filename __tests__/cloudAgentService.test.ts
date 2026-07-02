@@ -124,6 +124,31 @@ describe('callCloudAgent', () => {
     ).rejects.toThrow('Cloud Agent responded with 401')
   })
 
+  it('logs a dev hint when local cloud-agent reports expired GCP credentials', async () => {
+    process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://192.168.1.80:8080'
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({
+        code: 'GCP_CREDENTIALS_EXPIRED',
+        message: 'Vertex AI credentials expired or missing',
+        error: 'ADK error: invalid_rapt',
+      }),
+    })
+    const { callCloudAgent } = loadWithMocks()
+
+    await expect(callCloudAgent({ message: 'hi', characterId: 'char-1' })).rejects.toThrow(
+      'Cloud Agent responded with 500',
+    )
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('gcloud auth application-default login'),
+    )
+
+    warnSpy.mockRestore()
+  })
+
   it('throws CLOUD_AGENT_INSUFFICIENT_CREDITS when server returns 402', async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 402 })
     const { callCloudAgent } = loadWithMocks()
