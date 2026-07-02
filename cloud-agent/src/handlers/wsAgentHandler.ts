@@ -60,29 +60,37 @@ export async function handleWsUpgrade(
   let isCompleted = false
   let abortController: AbortController | null = null
   let hasRun = false
+
+  /** Send that can't throw — a disconnected/closing socket must never be mistaken for an ADK processing error. */
+  const safeSend = (payload: unknown) => {
+    try {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload))
+      }
+    } catch (err) {
+      console.error('ws.send failed:', err)
+    }
+  }
+
   authTimer = setTimeout(() => {
     if (!userId) {
-      try {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Auth timeout' }))
-        }
-      } catch { /* ignore send errors */ }
+      safeSend({ type: 'error', code: 'UNAUTHORIZED', message: 'Auth timeout' })
       ws.close(4001, 'Auth timeout')
     }
   }, AUTH_TIMEOUT_MS)
 
   const handleAgentRunMessage = async (data: WebSocket.RawData) => {
     if (!userId) {
-      ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Not authenticated' }))
+      safeSend({ type: 'error', code: 'UNAUTHORIZED', message: 'Not authenticated' })
       return
     }
 
     if (hasRun) {
-      ws.send(JSON.stringify({
+      safeSend({
         type: 'error',
         code: 'INVALID_REQUEST',
         message: 'Only one agent_run per connection is allowed',
-      }))
+      })
       ws.close(4400, 'agent_run already started')
       return
     }
@@ -90,7 +98,7 @@ export async function handleWsUpgrade(
     try {
       const parseResult = agentRunSchema.safeParse(JSON.parse(data.toString()))
       if (!parseResult.success) {
-        ws.send(JSON.stringify({ type: 'error', code: 'INVALID_REQUEST', message: 'Invalid payload' }))
+        safeSend({ type: 'error', code: 'INVALID_REQUEST', message: 'Invalid payload' })
         ws.close(4400, 'Invalid payload')
         return
       }
@@ -104,7 +112,7 @@ export async function handleWsUpgrade(
         await assertAgentTurnCredits(userId, cs)
       } catch (creditErr) {
         if (creditErr instanceof AgentInsufficientCreditsError) {
-          ws.send(JSON.stringify({ type: 'error', code: 'INSUFFICIENT_CREDITS', message: 'Insufficient credits' }))
+          safeSend({ type: 'error', code: 'INSUFFICIENT_CREDITS', message: 'Insufficient credits' })
           ws.close(4402, 'Insufficient credits')
           return
         }
@@ -118,7 +126,7 @@ export async function handleWsUpgrade(
         and(eq(characters.id, characterId), eq(characters.userId, userId)),
       )
       if (!character) {
-        ws.send(JSON.stringify({ type: 'error', code: 'CHARACTER_NOT_FOUND', message: 'Character not found' }))
+        safeSend({ type: 'error', code: 'CHARACTER_NOT_FOUND', message: 'Character not found' })
         ws.close(4404, 'Character not found')
         return
       }
@@ -132,12 +140,12 @@ export async function handleWsUpgrade(
       }
 
       if (options.mockStreamReply !== undefined) {
-        ws.send(JSON.stringify({ type: 'token', text: options.mockStreamReply }))
+        safeSend({ type: 'token', text: options.mockStreamReply })
         if (options.mockGroundingMetadata && hasGroundingData(options.mockGroundingMetadata)) {
-          ws.send(JSON.stringify({
+          safeSend({
             type: 'grounding_metadata',
             groundingMetadata: options.mockGroundingMetadata,
-          }))
+          })
         }
         let newBalance: number | null = null
         try {
@@ -145,10 +153,10 @@ export async function handleWsUpgrade(
         } catch (balErr) {
           console.warn('getBalance failed:', balErr)
         }
-        ws.send(JSON.stringify({
+        safeSend({
           type: 'usage_snapshot',
           remainingCredits: newBalance ?? 0,
-        }))
+        })
         isCompleted = true
         ws.close(1000, 'Agent execution complete')
         return
@@ -160,7 +168,7 @@ export async function handleWsUpgrade(
         systemInstruction = assembleSystemInstruction(character, wikiContext)
       } catch (preAgentErr) {
         console.error('Failed to prepare context:', preAgentErr)
-        ws.send(JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message: 'Failed to prepare context' }))
+        safeSend({ type: 'error', code: 'INTERNAL_ERROR', message: 'Failed to prepare context' })
         ws.close(1011, 'Internal error')
         return
       }
@@ -200,21 +208,21 @@ export async function handleWsUpgrade(
         const result = await consumeAgentEvents(events, userId, cs, {
           shouldAbort: () => abortController!.signal.aborted,
           onToken: (text) => {
-            ws.send(JSON.stringify({ type: 'token', text }))
+            safeSend({ type: 'token', text })
           },
           onToolStart: (name) => {
-            ws.send(JSON.stringify({ type: 'tool_start', name }))
+            safeSend({ type: 'tool_start', name })
           },
           onToolEnd: (name) => {
-            ws.send(JSON.stringify({ type: 'tool_end', name }))
+            safeSend({ type: 'tool_end', name })
           },
         })
 
         if (result.groundingMetadata) {
-          ws.send(JSON.stringify({
+          safeSend({
             type: 'grounding_metadata',
             groundingMetadata: result.groundingMetadata,
-          }))
+          })
         }
 
         let newBalance: number | null = null
@@ -224,29 +232,21 @@ export async function handleWsUpgrade(
           console.warn('getBalance failed:', balErr)
         }
 
-        ws.send(JSON.stringify({
+        safeSend({
           type: 'usage_snapshot',
           remainingCredits: newBalance ?? 0,
-        }))
+        })
 
         isCompleted = true
         ws.close(1000, 'Agent execution complete')
       } catch (adkErr) {
         console.error('ADK execution error:', adkErr)
-        try {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message: 'Agent execution failed' }))
-          }
-        } catch { /* ignore send errors */ }
+        safeSend({ type: 'error', code: 'INTERNAL_ERROR', message: 'Agent execution failed' })
         try { ws.close(1011, 'Execution failed') } catch { /* ignore close errors */ }
       }
     } catch (err) {
       console.error('agent_run handler error:', err)
-      try {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message: 'Internal server error' }))
-        }
-      } catch { /* ignore send errors */ }
+      safeSend({ type: 'error', code: 'INTERNAL_ERROR', message: 'Internal server error' })
       try { ws.close(1011, 'Internal error') } catch { /* ignore close errors */ }
     }
   }

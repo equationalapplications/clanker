@@ -88,10 +88,18 @@ export async function consumeAgentEvents(
     hooks?.onToken?.(text)
   }
 
+  const endActiveTool = () => {
+    if (lastToolName) {
+      hooks?.onToolEnd?.(lastToolName)
+      lastToolName = null
+    }
+  }
+
   try {
     for await (const event of events) {
       if (hooks?.shouldAbort?.()) {
         degraded = true
+        endActiveTool()
         break
       }
 
@@ -121,6 +129,7 @@ export async function consumeAgentEvents(
           const msg = creditErr instanceof Error ? creditErr.message : ''
           if (msg === 'INSUFFICIENT_CREDITS') {
             degraded = true
+            endActiveTool()
             break
           }
           throw creditErr
@@ -128,6 +137,7 @@ export async function consumeAgentEvents(
 
         if (loopCount === MAX_LOOP_ITERATIONS) {
           degraded = true
+          endActiveTool()
           break
         }
       }

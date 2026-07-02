@@ -233,9 +233,6 @@ export function createApp(options: AppOptions) {
         }
       }
 
-      const wikiContext = await queryWikiContext(db, message, userId, characterId, embedText)
-      const systemInstruction = assembleSystemInstruction(character, wikiContext)
-
       try {
         await assertAgentTurnCredits(userId, cs)
       } catch (creditErr) {
@@ -245,6 +242,9 @@ export function createApp(options: AppOptions) {
         }
         throw creditErr
       }
+
+      const wikiContext = await queryWikiContext(db, message, userId, characterId, embedText)
+      const systemInstruction = assembleSystemInstruction(character, wikiContext)
 
       // Credit spend happens per internal ADK loop iteration inside runAgentFn
       // (see services/agentEventLoop.ts) — refund-on-failure is handled there too.
