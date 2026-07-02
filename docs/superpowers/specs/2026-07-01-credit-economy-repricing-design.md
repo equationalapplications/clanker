@@ -52,7 +52,7 @@ needed here, only call-site changes.
 | `generateImage` | `generateImage.ts:127` | `spendCredits(userId, 1)` → `spendCredits(userId, 2)` |
 | `summarizeText` | `summarizeText.ts` | **New.** Add `spendCredits(userId, 1)` before the Vertex call; `refundCredit` in the existing `catch` around `generateSummary` (handler.ts:155-163). Currently fully unbilled — no chunking exists (single call, ≤16k chars in, one summary out), so the whole call is billed as 1 unit. No block-splitting added. |
 | `generateEmbedding` | `generateEmbedding.ts` | **New.** Add `spendCredits(userId, Math.ceil(text.length / 50_000))` before the Vertex call; `refundCredit` on failure. `MAX_TEXT_LENGTH` stays `8_000` (unchanged) — the formula always resolves to `1` under that cap today. Shipped as-is anyway: future-proofing for when the cap is raised (e.g. larger-context embedding model or chunking is added later), at which point multi-credit billing activates automatically with no further billing-logic change. |
-| `generateReply` | `generateReply.ts:539` | Split by the existing grounded/standard branch already in the code (`generateReply.ts:300-315`, `toGenAITool`/`buildToolsForRequest`): caller passes explicit `tools` → standard → `spendCredits(userId, 1)`. Caller passes no `tools` (defaults to `googleSearchManifest`) → grounded → `spendCredits(userId, 3)`. |
+| `generateReply` | `generateReply.ts:535,539,650` | Cost keys off the existing grounded/standard distinction (`generateReply.ts:310-313`, `buildToolsForRequest`): explicit `tools` → standard → 1; no `tools` (defaults to `googleSearchManifest`) → grounded → 3. **Signature change required:** the spend lives in `chargeForReply(userId, credits)` (line 535-539), which currently has **no access to `tools`**. `tools` is parsed in the handler (line 569) and `chargeForReply` is called at line 650. Thread an `isGrounded: boolean` (or the `tools` value) param into `chargeForReply` — computed at the call site as `!tools || tools.length === 0` — and spend `isGrounded ? 3 : 1`. This is not a one-line change at the spend site; it's a small signature plumb from handler → `chargeForReply`. |
 
 All four use the existing spend-first / refund-in-catch pattern already proven in
 convertDocumentText, generateImage, and generateReply — no new error-handling shape.
@@ -127,14 +127,23 @@ New signature: `spendCredit(userId: string, amount = 1): Promise<string[]>` (arr
 `credit_transactions` row ids, one or more). `refundCredit(userId: string, txIds: string[]):
 Promise<void>` refunds the full set atomically in one transaction.
 
-**Ripple:** every existing caller of `spendCredit`/`refundCredit` in cloud-agent changes from a
-single `string` txId to a `string[]`:
-- `POST /agent/run` (Section B) — `amount` always 1 per call now, single-element array, refund logic
-  updated to pass/spread the array instead of one txId.
+**Ripple — every existing caller** of `spendCredit`/`refundCredit` in cloud-agent changes from a
+single `string` txId to a `string[]`. Full caller inventory (verified by grep, not assumed):
+- `index.ts:261,287,299` (`POST /agent/run`, Section B) — `amount` always 1 per call now,
+  single-element array; refund logic updated to pass/spread the array instead of one txId.
 - `wsLiveAgentHandler.ts:339` — `cs.spendCredit(userId, 5)`, one atomic call/transaction per tick
   (not five sequential 1-credit calls — avoids N+1 query thrashing on a hot 60s-recurring path).
-- `wsAgentHandler.ts`, `wsBrowserAgentHandler.ts`, `schedulerTriggerHandler.ts` — signature-only
-  update (still `amount = 1`), test mocks updated to return/accept arrays.
+- `tools/browserAction.ts:96,112,131` — **the actual browser_action spend site** (not the ws
+  browser handler). Uses `spendCredit(deps.userId)` (default `amount = 1`) and `refundCredit(userId,
+  txId)` in two places; `txId: string | null` local becomes `string[] | null`. Signature-only
+  update, but it **won't typecheck** if missed.
+- `wsAgentHandler.ts:112,131,175` (+ `refundCredit` at 73) and `schedulerTriggerHandler.ts:187,216,263`
+  (+ `Pick<CreditService,...>` type at 96) — signature-only update (still `amount = 1`).
+- Test mocks in `index.test.ts`, `wsAgentHandler.test.ts`, `wsLiveAgentHandler.test.ts`,
+  `schedulerTriggerHandler.test.ts`, `browserAction.test.ts` updated to return/accept arrays.
+
+`wsBrowserAgentHandler.ts` has **no** `spendCredit` reference — it delegates billing to the
+`browser_action` tool (`tools/browserAction.ts`). Not a caller; do not touch.
 
 This duplicates FIFO-allocation SQL logic across two codebases (functions/ and cloud-agent/) rather
 than sharing it — accepted tradeoff to keep the services decoupled and avoid an internal RPC hop on
