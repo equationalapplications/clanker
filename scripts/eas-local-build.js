@@ -10,7 +10,8 @@
  *   npm run build:prod-a   # Android production
  *   npm run build:dev-a    # Android development
  *   npm run build:prod-i   # iOS production
- *   npm run build:dev-i    # iOS development
+ *   npm run build:dev-i    # iOS development (device)
+ *   npm run build:dev-sim  # iOS development (simulator)
  *
  * Or directly:
  *   node scripts/eas-local-build.js --platform android --profile production
