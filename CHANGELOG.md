@@ -1,3 +1,13 @@
+## [30.14.1](https://github.com/equationalapplications/clanker/compare/v30.14.0...v30.14.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* address PR [#516](https://github.com/equationalapplications/clanker/issues/516) review findings ([ab7ce60](https://github.com/equationalapplications/clanker/commit/ab7ce602373b82eb7f36386e83a6f2f1495d3468))
+* address PR 516 review — single importDump timeout, doc 0018 ([80c9e40](https://github.com/equationalapplications/clanker/commit/80c9e4019d848d6534f6774a9d78f6b0f03fed9f))
+* dev environment for local Android dev with cloud-agent ([fc61d3f](https://github.com/equationalapplications/clanker/commit/fc61d3f314f6bfd1fda3ac40f45a837a4db48391))
+* **voice:** retry importDump on wiki librarian lock during Talk sync ([0dad7d0](https://github.com/equationalapplications/clanker/commit/0dad7d0ec43e0ca54bdb0814e1f9215ccd5ec0cd))
+
 # [30.14.0](https://github.com/equationalapplications/clanker/compare/v30.13.1...v30.14.0) (2026-07-02)
 
 
