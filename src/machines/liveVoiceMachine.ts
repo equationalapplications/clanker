@@ -52,6 +52,10 @@ async function importDumpWithBusyRetry(
 ): Promise<void> {
   const startedAt = Date.now()
   for (;;) {
+    if (Date.now() - startedAt >= LIVE_MEMORY_FLUSH_TIMEOUT_MS) {
+      throw new Error(`importDump timed out after ${LIVE_MEMORY_FLUSH_TIMEOUT_MS}ms`)
+    }
+
     try {
       await wiki.importDump(dump, { merge: true })
       return
