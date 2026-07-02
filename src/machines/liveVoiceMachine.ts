@@ -524,14 +524,10 @@ export const liveVoiceMachine = createMachine(
                 },
               },
             }
-            await withTimeout(
-              importDumpWithBusyRetry(
-                wiki,
-                mappedDump as Parameters<typeof wiki.importDump>[0],
-                input.syncBusyRetryDelayMs,
-              ),
-              LIVE_MEMORY_FLUSH_TIMEOUT_MS,
-              'importDump',
+            await importDumpWithBusyRetry(
+              wiki,
+              mappedDump as Parameters<typeof wiki.importDump>[0],
+              input.syncBusyRetryDelayMs,
             )
           }
 
