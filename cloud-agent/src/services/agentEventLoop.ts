@@ -60,11 +60,13 @@ export async function assertAgentTurnCredits(
 }
 
 /**
- * Consumes one ADK agent run's event stream, billing 1 credit per internal
- * tool-call loop iteration (capped at MAX_LOOP_ITERATIONS) instead of a flat
- * per-turn charge. Hitting the cap, or running out of credits mid-loop, stops
- * the stream early and returns a graceful fallback reply rather than throwing —
- * only a genuine ADK error refunds the credits already spent this turn.
+ * Consumes one ADK agent run's event stream, billing 1 credit per completed
+ * model turn (capped at MAX_LOOP_ITERATIONS) instead of a flat per-turn
+ * charge: a plain conversational reply with no tool call is 1 loop; a tool
+ * call followed by its synthesis reply is 2. Hitting the cap, or running out
+ * of credits mid-loop, stops the stream early and returns a graceful fallback
+ * reply rather than throwing — only a genuine ADK error refunds the credits
+ * already spent this turn.
  */
 export async function consumeAgentEvents(
   events: AsyncIterable<AdkEvent>,
@@ -95,6 +97,30 @@ export async function consumeAgentEvents(
     }
   }
 
+  /** Bills one loop iteration. Returns false when the turn must stop (cap hit or credits exhausted). */
+  const chargeLoopIteration = async (): Promise<boolean> => {
+    loopCount += 1
+    try {
+      const allocations = await creditService.spendCredit(userId)
+      spentAllocations.push(...allocations)
+    } catch (creditErr) {
+      const msg = creditErr instanceof Error ? creditErr.message : ''
+      if (msg === 'INSUFFICIENT_CREDITS') {
+        degraded = true
+        endActiveTool()
+        return false
+      }
+      throw creditErr
+    }
+
+    if (loopCount === MAX_LOOP_ITERATIONS) {
+      degraded = true
+      endActiveTool()
+      return false
+    }
+    return true
+  }
+
   try {
     for await (const event of events) {
       if (hooks?.shouldAbort?.()) {
@@ -107,7 +133,9 @@ export async function consumeAgentEvents(
         throw new Error(`ADK error (${event.errorCode ?? 'unknown'}): ${event.errorMessage ?? 'no message'}`)
       }
 
-      if (eventHasFunctionCall(event)) {
+      const hasFunctionCall = eventHasFunctionCall(event)
+
+      if (hasFunctionCall) {
         for (const part of event.content!.parts!) {
           if ('functionCall' in part) {
             const fc = (part as { functionCall?: { name?: string } }).functionCall
@@ -122,28 +150,10 @@ export async function consumeAgentEvents(
           }
         }
 
-        loopCount += 1
-        try {
-          const allocations = await creditService.spendCredit(userId)
-          spentAllocations.push(...allocations)
-        } catch (creditErr) {
-          const msg = creditErr instanceof Error ? creditErr.message : ''
-          if (msg === 'INSUFFICIENT_CREDITS') {
-            degraded = true
-            endActiveTool()
-            break
-          }
-          throw creditErr
-        }
-
-        if (loopCount === MAX_LOOP_ITERATIONS) {
-          degraded = true
-          endActiveTool()
-          break
-        }
+        if (!(await chargeLoopIteration())) break
       }
 
-      if (lastToolName && event.content && !event.content.parts?.some((p) => 'functionCall' in p)) {
+      if (lastToolName && event.content && !hasFunctionCall) {
         hooks?.onToolEnd?.(lastToolName)
         lastToolName = null
       }
@@ -166,8 +176,14 @@ export async function consumeAgentEvents(
         }
       }
 
-      if (isFinalResponse(event) && event.content?.parts) {
+      const isFinal = isFinalResponse(event) && !!event.content?.parts
+      if (isFinal) {
         reply = text
+        // Tool-call turns are billed above; this bills the no-tool-call and
+        // final-synthesis turns, so every completed model turn costs 1 credit.
+        if (!hasFunctionCall) {
+          if (!(await chargeLoopIteration())) break
+        }
       }
     }
 

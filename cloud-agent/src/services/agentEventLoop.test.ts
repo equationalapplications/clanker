@@ -45,7 +45,7 @@ test('assertAgentTurnCredits passes when getBalance throws (graceful degrade)', 
   )
 })
 
-test('consumeAgentEvents spends 1 credit per functionCall-bearing event and returns the final reply', async () => {
+test('consumeAgentEvents bills the tool-call loop and the final-synthesis loop separately', async () => {
   const spendCalls: string[] = []
   const cs = {
     spendCredit: async (userId: string) => {
@@ -56,10 +56,26 @@ test('consumeAgentEvents spends 1 credit per functionCall-bearing event and retu
   }
   const events = toAsyncIterable([functionCallEvent('get_current_time'), textEvent('It is 3pm.')])
   const result = await consumeAgentEvents(events, 'user-1', cs)
-  assert.equal(spendCalls.length, 1)
-  assert.deepEqual(spendCalls, ['user-1'])
+  assert.equal(spendCalls.length, 2)
+  assert.deepEqual(spendCalls, ['user-1', 'user-1'])
   assert.equal(result.reply, 'It is 3pm.')
   assert.deepEqual(result.toolCalls, ['get_current_time'])
+})
+
+test('consumeAgentEvents bills 1 credit for a plain conversational reply with no tool call', async () => {
+  const spendCalls: string[] = []
+  const cs = {
+    spendCredit: async (userId: string) => {
+      spendCalls.push(userId)
+      return [{ transactionId: `tx-${spendCalls.length}`, amount: 1 }] as CreditSpendAllocation[]
+    },
+    refundCredit: async () => {},
+  }
+  const events = toAsyncIterable([textEvent('Hello there!')])
+  const result = await consumeAgentEvents(events, 'user-1', cs)
+  assert.equal(spendCalls.length, 1)
+  assert.equal(result.reply, 'Hello there!')
+  assert.deepEqual(result.toolCalls, [])
 })
 
 test('consumeAgentEvents hard-stops at 5 loop iterations and returns a fallback reply', async () => {

@@ -71,9 +71,16 @@ ADK library.
 
 ### New behavior
 
-Move credit deduction **inside** the `for await` loop. On each iteration that yields a tool-call
-(`functionCall` part detected, mirroring the existing `toolCalls.push(fc.name)` logic at line 119),
-spend 1 credit via `cs.spendCredit(userId)` and increment `loopCount`.
+Move credit deduction **inside** the `for await` loop. Bill 1 credit per **completed model turn**,
+not just per tool call: on each iteration that yields a tool-call (`functionCall` part detected,
+mirroring the existing `toolCalls.push(fc.name)` logic at line 119), spend 1 credit via
+`cs.spendCredit(userId)` and increment `loopCount`; separately, on the final-response event
+(`isFinalResponse(event)`) when that same event carries no tool call, also spend 1 credit and
+increment `loopCount`. A plain conversational reply with no tool call is one billed loop (1 credit
+total); a turn with one tool call followed by its synthesis reply is two billed loops (2 credits
+total) — a tool call and its synthesis are billed independently because each is a separate round
+trip to the model. Fixes a gap in the original design where a no-tool-call reply cost 0 credits
+because deduction only fired inside the `functionCall` branch.
 
 - **Loop cap — hard stop.** At `loopCount === 5`, stop consuming the event stream (`events.return?.()`
   if the ADK async generator supports it, else `break`) instead of letting ADK continue. Force
@@ -98,8 +105,9 @@ spend 1 credit via `cs.spendCredit(userId)` and increment `loopCount`.
 The primary text-agent transport is `/agent/stream` (WebSocket), not `POST /agent/run`. It must use
 the same per-loop metering as HTTP. `wsAgentHandler.ts` delegates its ADK event loop to
 `consumeAgentEvents` (in `services/agentEventLoop.ts`) with streaming hooks (`onToken`, `onToolStart`,
-`onToolEnd`) so tokens and tool events are emitted live while billing 1 credit per internal loop
-iteration (capped at 5). The flat 1-credit upfront `spendCredit` on WebSocket is removed.
+`onToolEnd`) so tokens and tool events are emitted live while billing 1 credit per completed model
+turn — tool-call turns and the no-tool-call/final-synthesis turn each bill independently (capped at
+5 total). The flat 1-credit upfront `spendCredit` on WebSocket is removed.
 
 ### `browser_action` interaction (verify, don't redesign)
 
