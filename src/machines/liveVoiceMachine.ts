@@ -1,8 +1,10 @@
 import { createMachine, assign, fromPromise, fromCallback, sendTo } from 'xstate'
 import type { IMessage } from 'react-native-gifted-chat'
 import type { GroundingMetadata } from '@google/genai'
+import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
 import { getWiki } from '~/services/wikiService'
+import type { Wiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import {
   mapFactSourceTypesForCloudSync,
@@ -33,6 +35,34 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]).finally(() => {
     if (timeoutId !== undefined) clearTimeout(timeoutId)
   })
+}
+
+const DEFAULT_SYNC_BUSY_RETRY_DELAY_MS = 1000
+
+/**
+ * The wiki's own auto-librarian job (fired fire-and-forget from ordinary text
+ * chat writes) can still be holding the entity's maintenance lock when Talk
+ * starts. importDump throws WikiBusyError in that case instead of queuing -
+ * retry until the lock clears rather than surfacing a raw error to the user.
+ */
+async function importDumpWithBusyRetry(
+  wiki: Wiki,
+  dump: Parameters<Wiki['importDump']>[0],
+  retryDelayMs: number,
+): Promise<void> {
+  for (;;) {
+    try {
+      await wiki.importDump(dump, { merge: true })
+      return
+    } catch (e) {
+      if (e instanceof WikiBusyError) {
+        console.warn(`[liveVoiceMachine] importDump busy (${e.message}), retrying in ${retryDelayMs}ms`)
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
+        continue
+      }
+      throw e
+    }
+  }
 }
 
 export type LiveVoiceSyncPhase = 'saving_observations' | 'syncing_cloud' | null
@@ -75,6 +105,7 @@ export interface LiveVoiceMachineContext {
   syncPhase: LiveVoiceSyncPhase
   memoryQuery: string
   recentChatContext: string
+  syncBusyRetryDelayMs: number
 }
 
 export type LiveVoiceEvent =
@@ -102,6 +133,8 @@ export interface LiveVoiceMachineInput {
   characterId: string
   userId: string
   initialCredits?: number
+  /** Delay before retrying importDump after a WikiBusyError. Default: 1000ms */
+  syncBusyRetryDelayMs?: number
 }
 
 const MAX_RETRIES = 5
@@ -133,6 +166,7 @@ export const liveVoiceMachine = createMachine(
       syncPhase: null,
       memoryQuery: '',
       recentChatContext: '',
+      syncBusyRetryDelayMs: input.syncBusyRetryDelayMs ?? DEFAULT_SYNC_BUSY_RETRY_DELAY_MS,
     }),
     states: {
       idle: {
@@ -181,7 +215,11 @@ export const liveVoiceMachine = createMachine(
             entry: assign({ syncPhase: () => 'syncing_cloud' as const }),
             invoke: {
               src: 'syncMemoryActor',
-              input: ({ context }) => ({ characterId: context.characterId, userId: context.userId }),
+              input: ({ context }) => ({
+                characterId: context.characterId,
+                userId: context.userId,
+                syncBusyRetryDelayMs: context.syncBusyRetryDelayMs,
+              }),
               onDone: [
                 {
                   guard: ({ event }) => !event.output?.cloudCharacterId,
@@ -420,7 +458,11 @@ export const liveVoiceMachine = createMachine(
       ),
 
       syncMemoryActor: fromPromise(
-        async ({ input }: { input: { characterId: string; userId: string } }): Promise<{ cloudCharacterId: string | null }> => {
+        async ({
+          input,
+        }: {
+          input: { characterId: string; userId: string; syncBusyRetryDelayMs: number }
+        }): Promise<{ cloudCharacterId: string | null }> => {
           const char = await getCharacter(input.characterId, input.userId)
           const cloudId = char?.cloud_id && UUID_REGEX.test(char.cloud_id) ? char.cloud_id : null
           if (!cloudId) return { cloudCharacterId: null }
@@ -468,7 +510,15 @@ export const liveVoiceMachine = createMachine(
                 },
               },
             }
-            await wiki.importDump(mappedDump as Parameters<typeof wiki.importDump>[0], { merge: true })
+            await withTimeout(
+              importDumpWithBusyRetry(
+                wiki,
+                mappedDump as Parameters<typeof wiki.importDump>[0],
+                input.syncBusyRetryDelayMs,
+              ),
+              LIVE_MEMORY_FLUSH_TIMEOUT_MS,
+              'importDump',
+            )
           }
 
           return { cloudCharacterId: cloudId }
