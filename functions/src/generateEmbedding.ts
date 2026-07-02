@@ -172,9 +172,14 @@ export const generateEmbeddingHandler = async (
   const credits = options.creditService ?? creditService;
   const decoded = request.auth.token as DecodedIdToken;
 
+  const email = typeof decoded.email === "string" ? decoded.email.trim() : "";
+  if (!email) {
+    throw new HttpsError("failed-precondition", "Firebase user email is required.");
+  }
+
   const user = await users.getOrCreateUserByFirebaseIdentity({
     firebaseUid: request.auth.uid,
-    email: typeof decoded.email === "string" ? decoded.email.trim() : "",
+    email,
     displayName: decoded.name,
   });
 
