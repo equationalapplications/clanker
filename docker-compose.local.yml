@@ -23,7 +23,7 @@ services:
       - CORS_ORIGIN=http://localhost:8081,http://localhost:8082
     # shared/ is volume-mounted from the host; symlink cloud-agent's node_modules so
     # shared/*.ts imports (e.g. dsl-schema → zod) resolve inside the container.
-    command: sh -c "ln -sf /app/cloud-agent/node_modules /app/shared/node_modules && npm run dev"
+    command: sh -c "rm -rf /app/shared/node_modules && ln -s /app/cloud-agent/node_modules /app/shared/node_modules && npm run dev"
     depends_on:
       postgres_db:
         condition: service_healthy
