@@ -1,3 +1,18 @@
+# [30.14.0](https://github.com/equationalapplications/clanker/compare/v30.13.1...v30.14.0) (2026-07-02)
+
+
+### Bug Fixes
+
+* address CodeRabbit findings on PR [#513](https://github.com/equationalapplications/clanker/issues/513) ([153bb7b](https://github.com/equationalapplications/clanker/commit/153bb7bfebd022531e69ce39cac4dcc7a5fc4e62))
+* **cloud-agent:** address PR review findings on agent event loop ([49d5039](https://github.com/equationalapplications/clanker/commit/49d50392e949b272e5530deab5839e1f5c78a30b))
+* **cloud-agent:** bill every completed model turn, not just tool calls ([1dfc042](https://github.com/equationalapplications/clanker/commit/1dfc0427d148ffc152c3cd2e23a9bfb45a67c573))
+* **functions:** guard missing Firebase email in generateEmbedding ([f9c6da5](https://github.com/equationalapplications/clanker/commit/f9c6da5142a0c0e7862f0f50197d3f5ff2dfdce4))
+
+
+### Features
+
+* **billing:** ship July 2026 credit economy repricing ([2243a5d](https://github.com/equationalapplications/clanker/commit/2243a5d515b91ecfa549e1634f44e2d0b3718773))
+
 ## [30.13.1](https://github.com/equationalapplications/clanker/compare/v30.13.0...v30.13.1) (2026-07-01)
 
 
