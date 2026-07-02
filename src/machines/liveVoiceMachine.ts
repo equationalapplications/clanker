@@ -50,17 +50,27 @@ async function importDumpWithBusyRetry(
   dump: Parameters<Wiki['importDump']>[0],
   retryDelayMs: number,
 ): Promise<void> {
+  const startedAt = Date.now()
   for (;;) {
     try {
       await wiki.importDump(dump, { merge: true })
       return
     } catch (e) {
-      if (e instanceof WikiBusyError) {
-        console.warn(`[liveVoiceMachine] importDump busy (${e.message}), retrying in ${retryDelayMs}ms`)
-        await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
-        continue
+      if (!(e instanceof WikiBusyError)) {
+        throw e
       }
-      throw e
+
+      const elapsedMs = Date.now() - startedAt
+      const remainingMs = LIVE_MEMORY_FLUSH_TIMEOUT_MS - elapsedMs
+      if (remainingMs <= 0) {
+        throw new Error(`importDump timed out after ${LIVE_MEMORY_FLUSH_TIMEOUT_MS}ms`)
+      }
+
+      const delayMs = Math.max(0, Math.min(retryDelayMs, remainingMs))
+      console.warn(
+        `[liveVoiceMachine] importDump busy (${e.message}), retrying in ${delayMs}ms`,
+      )
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
     }
   }
 }
