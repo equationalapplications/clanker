@@ -532,11 +532,16 @@ function parseInput(data: unknown): {
   return { prompt, contents, systemInstruction, tools, characterId, unsyncedHistory, referenceId };
 }
 
+function computeReplyCost(tools?: ToolDeclaration[]): number {
+  return tools && tools.length > 0 ? 1 : 3;
+}
+
 async function chargeForReply(
   userId: string,
-  credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>
+  credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>,
+  cost: number
 ): Promise<{ spendAllocations: CreditSpendAllocation[]; remainingCredits: number }> {
-  const spendAllocations = await credits.spendCredits(userId, 1);
+  const spendAllocations = await credits.spendCredits(userId, cost);
   if (spendAllocations === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
@@ -647,7 +652,9 @@ const handler = async (
   let remainingCredits = 0;
 
   try {
-    const charge = await chargeForReply(user.id, credits);
+    const cost = computeReplyCost(tools);
+
+    const charge = await chargeForReply(user.id, credits, cost);
     spendAllocations = charge.spendAllocations;
     remainingCredits = charge.remainingCredits;
 
@@ -667,7 +674,7 @@ const handler = async (
       return {
         reply: '',
         functionCalls: generated.functionCalls,
-        creditsSpent: 1,
+        creditsSpent: cost,
         remainingCredits,
         ...usageSnapshot,
       };
@@ -686,7 +693,7 @@ const handler = async (
 
     return {
       reply,
-      creditsSpent: 1,
+      creditsSpent: cost,
       remainingCredits,
       groundingMetadata: generated.groundingMetadata,
       ...usageSnapshot,

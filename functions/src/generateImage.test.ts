@@ -123,7 +123,7 @@ test("generateImageHandler validates prompt", async () => {
   });
 });
 
-test("generateImageHandler spends one credit for payg users", async () => {
+test("generateImageHandler spends two credits for payg users", async () => {
   const auth = buildAuth();
 
   await withServiceMocks(async () => {
@@ -134,8 +134,8 @@ test("generateImageHandler spends one credit for payg users", async () => {
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
-      assert.equal(amount, 1);
-      return [{ transactionId: 'mock-tx-id', amount: 1 }];
+      assert.equal(amount, 2);
+      return [{ transactionId: 'mock-tx-id', amount: 2 }];
     };
     creditService.getCredits = async () => 2;
 
@@ -157,7 +157,7 @@ test("generateImageHandler spends one credit for payg users", async () => {
 
     assert.equal(result.imageBase64, "aGVsbG8=");
     assert.equal(result.mimeType, "image/png");
-    assert.equal(result.creditsSpent, 1);
+    assert.equal(result.creditsSpent, 2);
     assert.equal(result.remainingCredits, 2);
     assert.equal(result.planTier, "payg");
     assert.equal(result.planStatus, "active");
@@ -178,11 +178,11 @@ test("generateImageHandler rejects unsupported mime type from model and refunds 
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async () => {
       spendCalls += 1;
-      return [{ transactionId: 'mock-tx-id', amount: 1 }];
+      return [{ transactionId: 'mock-tx-id', amount: 2 }];
     };
     creditService.refundCredit = async (userId, allocations) => {
       assert.equal(userId, user.id);
-      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 1 }]);
+      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 2 }]);
       refundCalls += 1;
     };
     creditService.getCredits = async () => 2;
@@ -260,8 +260,8 @@ test("generateImageHandler allows cancelled plans to spend remaining credits", a
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3, "cancelled");
     creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
-      assert.equal(amount, 1);
-      return [{ transactionId: 'mock-tx-id', amount: 1 }];
+      assert.equal(amount, 2);
+      return [{ transactionId: 'mock-tx-id', amount: 2 }];
     };
     creditService.getCredits = async () => 2;
 
@@ -281,7 +281,7 @@ test("generateImageHandler allows cancelled plans to spend remaining credits", a
       }
     );
 
-    assert.equal(result.creditsSpent, 1);
+    assert.equal(result.creditsSpent, 2);
     assert.equal(result.remainingCredits, 2);
     assert.equal(spendCalls, 1);
   });

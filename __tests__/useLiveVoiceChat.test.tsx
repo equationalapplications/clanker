@@ -125,6 +125,26 @@ describe('useLiveVoiceChat', () => {
     )
   })
 
+  test('startCall shows alert if credits are below the new gate of 5', async () => {
+    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 4 })
+
+    let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
+    await act(async () => {
+      create(<TestHarness onMount={(h) => { hookRef = h }} />)
+    })
+
+    await act(async () => {
+      await hookRef!.startCall()
+    })
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Insufficient Credits',
+      expect.any(String),
+      expect.any(Array),
+    )
+  })
+
   test('startCall shows alert if save_to_cloud is disabled', async () => {
     mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 0 } })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })

@@ -2,6 +2,8 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { GoogleGenAI } from "@google/genai";
+import { userRepository } from "./services/userRepository.js";
+import { creditService } from "./services/creditService.js";
 
 const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_REGION = "us-central1";
@@ -10,6 +12,7 @@ const DEFAULT_REGION = "us-central1";
 const GEMINI_LOCATION = "global";
 const MAX_INPUT_LENGTH = 16_000;
 const MAX_OUTPUT_TOKENS = 1_024;
+const SUMMARIZE_TEXT_COST = 1;
 
 interface SummarizeTextData {
   text: string;
@@ -24,6 +27,8 @@ type GenerateSummaryFn = (prompt: string) => Promise<string>;
 
 interface SummarizeTextOptions {
   generateSummary?: GenerateSummaryFn;
+  userRepository?: Pick<typeof userRepository, "getOrCreateUserByFirebaseIdentity">;
+  creditService?: Pick<typeof creditService, "spendCredits" | "refundCredit">;
 }
 
 function getProjectId(): string | undefined {
@@ -149,6 +154,20 @@ const handler = async (
   }
 
   const {text, maxCharacters} = parseInput(request.data);
+  const users = options.userRepository ?? userRepository;
+  const credits = options.creditService ?? creditService;
+
+  const user = await users.getOrCreateUserByFirebaseIdentity({
+    firebaseUid: request.auth.uid,
+    email: typeof decoded.email === "string" ? decoded.email.trim() : "",
+    displayName: decoded.name,
+  });
+
+  const spendAllocations = await credits.spendCredits(user.id, SUMMARIZE_TEXT_COST);
+  if (!spendAllocations) {
+    throw new HttpsError("failed-precondition", "Insufficient credits to summarize text.");
+  }
+
   const generateSummary = options.generateSummary ?? getSummaryGenerator();
 
   let summary: string;
@@ -156,6 +175,11 @@ const handler = async (
     summary = await generateSummary(buildPrompt(text, maxCharacters));
   } catch (error) {
     logger.error("summarizeText model call failed", {error});
+    try {
+      await credits.refundCredit(user.id, spendAllocations);
+    } catch (refundError) {
+      logger.error("Failed to refund credits after summarizeText failure", {userId: user.id, error: refundError});
+    }
     if (error instanceof HttpsError) {
       throw error;
     }
@@ -164,6 +188,11 @@ const handler = async (
 
   const normalizedSummary = truncateSummary(summary, maxCharacters);
   if (!normalizedSummary) {
+    try {
+      await credits.refundCredit(user.id, spendAllocations);
+    } catch (refundError) {
+      logger.error("Failed to refund credits after empty summarizeText result", {userId: user.id, error: refundError});
+    }
     throw new HttpsError("internal", "Model returned an empty summary.");
   }
 

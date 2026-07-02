@@ -183,8 +183,8 @@ export async function convertDocumentTextHandler(
     displayName: decoded.name,
   });
 
-  // 4. Charge 1 credit before conversion; refunded on any failure below.
-  const spendAllocations = await deps.creditService.spendCredits(user.id, 1);
+  // 4. Charge 2 credits before conversion; refunded on any failure below.
+  const spendAllocations = await deps.creditService.spendCredits(user.id, 2);
   if (!spendAllocations) {
     throw new HttpsError('failed-precondition', 'Insufficient credits to convert document.');
   }
