@@ -37,6 +37,8 @@ const MIGRATION_ORDER = [
   '0014_pgvector_wiki_embeddings.sql',
   '0015_organizations.sql',
   '0016_llm_wiki_graph.sql',
+  '0017_expo_push_token.sql',
+  '0018_billing_hardening.sql',
 ];
 
 /** seedLocal.ts creates schema through pgvector embeddings but not org/graph tables. */

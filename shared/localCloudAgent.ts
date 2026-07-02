@@ -43,6 +43,10 @@ const PROD_CLOUD_AGENT_URL = 'https://clanker-cloud-agent-zbvqu57cca-uc.a.run.ap
  * Production builds use the hardcoded Cloud Run URL.
  * Dev builds require EXPO_PUBLIC_CLOUD_AGENT_URL (set in .env.development.local).
  */
+function isDevSandboxMockAuth(): boolean {
+  return isDevBuild() && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true'
+}
+
 export function getCloudAgentBaseUrl(): string {
   if (!isDevBuild()) return PROD_CLOUD_AGENT_URL
   const devUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()
@@ -56,6 +60,13 @@ export function getCloudAgentBaseUrl(): string {
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new Error('EXPO_PUBLIC_CLOUD_AGENT_URL must use http:// or https://')
+  }
+  if (isDevSandboxMockAuth() && !isLocalCloudAgentUrl(normalized)) {
+    throw new Error(
+      'EXPO_PUBLIC_USE_MOCK_AUTH=true requires a local EXPO_PUBLIC_CLOUD_AGENT_URL ' +
+        '(e.g. http://<YOUR_LAN_IP>:8080 in .env.development.local). ' +
+        'Production Cloud Run rejects mock_token_123.',
+    )
   }
   return normalized
 }
