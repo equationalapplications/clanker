@@ -99,7 +99,12 @@ export async function runViaHttp(payload: CloudAgentPayload): Promise<CloudAgent
     } catch {
       errorBody = null
     }
-    warnCloudAgentDevHint(errorBody?.error ?? errorBody?.message, errorBody?.code)
+    warnCloudAgentDevHint(
+      errorBody?.code === 'INTERNAL_ERROR'
+        ? errorBody?.message ?? errorBody?.error
+        : errorBody?.error ?? errorBody?.message,
+      errorBody?.code,
+    )
     throw new Error(`Cloud Agent responded with ${response.status}`)
   }
 
