@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { NextFunction, Request, Response } from 'express'
 import type { FirestoreSession } from '../services/firestoreSession.js'
 import type { FcmDispatcher } from '../services/fcmDispatcher.js'
-import type { CreditService } from '../services/creditService.js'
+import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
 import type { TaskDoc } from '../../../shared/dsl-types.js'
 import { singleActionSchema } from '../../../shared/dsl-schema.js'
 import { intentRequiresAuth } from '../../../shared/constants.js'
@@ -181,10 +181,10 @@ export function createSchedulerTriggerHandler(
       }
     }
 
-    let txId: string | null = null
+    let allocations: CreditSpendAllocation[] | null = null
     if (!isDuplicateRun) {
       try {
-        txId = await creditService.spendCredit(userId)
+        allocations = await creditService.spendCredit(userId)
       } catch (err) {
         const msg = err instanceof Error ? err.message : ''
         if (msg === 'INSUFFICIENT_CREDITS') {
@@ -212,8 +212,8 @@ export function createSchedulerTriggerHandler(
         await fs.writeTask(uid, activeSessionId, activeTaskId, taskIntent)
       } catch (err) {
         console.error('[scheduler-trigger] setup error:', err)
-        if (txId) {
-          try { await creditService.refundCredit(userId, txId) } catch { /* logged */ }
+        if (allocations) {
+          try { await creditService.refundCredit(userId, allocations) } catch { /* logged */ }
         }
         try { await fs.closeSession(uid, activeSessionId, 'aborted') } catch { /* ignore */ }
         res.status(500).json({ error: 'Internal server error' })
@@ -259,8 +259,8 @@ export function createSchedulerTriggerHandler(
         } catch { /* ignore */ }
       }
 
-      if (!isDuplicateRun && abortedOffline && txId) {
-        try { await creditService.refundCredit(userId, txId) } catch { /* logged */ }
+      if (!isDuplicateRun && abortedOffline && allocations) {
+        try { await creditService.refundCredit(userId, allocations) } catch { /* logged */ }
       }
 
       try { await fs.closeSession(uid, activeSessionId, 'aborted') } catch { /* ignore */ }

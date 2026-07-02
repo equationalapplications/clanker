@@ -1,7 +1,7 @@
 # Credit Economy Repricing (July 2026) — Design Spec
 
 **Date:** 2026-07-01
-**Status:** Draft
+**Status:** Implemented
 **Supersedes (partially):** `2026-07-01-credit-improvements-design.md` (PR #506) documented cloud-agent
 `spendCredit` as "not modified — it only ever spends 1, which cannot fragment." This spec changes
 that: live voice moves from 1 to 5 credits/tick, which *can* span multiple `credit_transactions`
@@ -83,14 +83,23 @@ spend 1 credit via `cs.spendCredit(userId)` and increment `loopCount`.
   partway through a multi-tool turn (balance exhausted after N < 5 iterations), treat it the same as
   hitting the loop cap: stop consuming events, return the partial reply built so far, not a 500. The
   agent already did useful work; degrade gracefully rather than discarding it.
-- **Removed:** the single pre-loop `spendCredit` call and its dedicated refund-on-precheck-failure
-  path (lines 258-269). The first loop iteration's spend now serves as the balance gate — if the user
-  has 0 credits, the very first `spendCredit` call throws `INSUFFICIENT_CREDITS` before any tool
-  executes, functionally equivalent to today's pre-flight check but co-located with the metering
-  logic instead of duplicated.
+- **Pre-flight gate (both HTTP and WebSocket).** Before starting the ADK loop, call
+  `assertAgentTurnCredits(userId, cs)` — if `getBalance` returns `< 1`, reject immediately with HTTP
+  `402` (`POST /agent/run`) or WebSocket `INSUFFICIENT_CREDITS` + close `4402` (`/agent/stream`).
+  This preserves the client upsell funnel for users with zero credits. If `getBalance` itself fails,
+  skip the pre-flight check and let per-loop spend gate instead. Mid-loop exhaustion still degrades
+  gracefully (partial reply, no refund).
+- **Removed:** the single flat pre-loop `spendCredit` call. Per-loop metering replaces it.
 - **Refund scope on ADK error:** refund only the credits actually spent this turn (the accumulated
-  txIds from however many loop iterations completed), not a fixed "1 credit" — this is what the
-  Section C signature change (below) enables.
+  allocation array from however many loop iterations completed), not a fixed "1 credit".
+
+### WebSocket streaming path (`wsAgentHandler.ts`)
+
+The primary text-agent transport is `/agent/stream` (WebSocket), not `POST /agent/run`. It must use
+the same per-loop metering as HTTP. `wsAgentHandler.ts` delegates its ADK event loop to
+`consumeAgentEvents` (in `services/agentEventLoop.ts`) with streaming hooks (`onToken`, `onToolStart`,
+`onToolEnd`) so tokens and tool events are emitted live while billing 1 credit per internal loop
+iteration (capped at 5). The flat 1-credit upfront `spendCredit` on WebSocket is removed.
 
 ### `browser_action` interaction (verify, don't redesign)
 
@@ -137,8 +146,10 @@ single `string` txId to a `string[]`. Full caller inventory (verified by grep, n
   browser handler). Uses `spendCredit(deps.userId)` (default `amount = 1`) and `refundCredit(userId,
   txId)` in two places; `txId: string | null` local becomes `string[] | null`. Signature-only
   update, but it **won't typecheck** if missed.
-- `wsAgentHandler.ts:112,131,175` (+ `refundCredit` at 73) and `schedulerTriggerHandler.ts:187,216,263`
-  (+ `Pick<CreditService,...>` type at 96) — signature-only update (still `amount = 1`).
+- `wsAgentHandler.ts` — per-loop metering via `consumeAgentEvents` (same as HTTP); pre-flight
+  `assertAgentTurnCredits` replaces flat upfront `spendCredit`. Signature-only callers still use
+  `amount = 1` per iteration inside the loop.
+- `schedulerTriggerHandler.ts:187,216,263`
 - Test mocks in `index.test.ts`, `wsAgentHandler.test.ts`, `wsLiveAgentHandler.test.ts`,
   `schedulerTriggerHandler.test.ts`, `browserAction.test.ts` updated to return/accept arrays.
 
@@ -213,7 +224,8 @@ Two spots reference the stale "1 credit per minute" live-voice figure and need u
 - No rate-versioning, no grandfathering of in-flight sessions across the deploy boundary (hard
   cutover, see Overview).
 - `generateEmbedding`'s `MAX_TEXT_LENGTH` (stays `8_000`) — the `Math.ceil` formula ships now but
-  only becomes multi-credit-relevant if the cap is raised later.
+  only becomes multi-credit-relevant if the cap is raised later. `computeEmbeddingCreditCost` is
+  exported and unit-tested separately so the divisor is regression-covered even at the current cap.
 
 ---
 
@@ -222,7 +234,7 @@ Two spots reference the stale "1 credit per minute" live-voice figure and need u
 | Area | Test |
 |---|---|
 | Callables (A) | `summarizeText.test.ts`, `generateEmbedding.test.ts` — new spend/refund coverage (currently untested for billing since unbilled). `convertDocumentText.test.ts`, `generateImage.test.ts` — cost constant bump to 2. `generateReply.test.ts` — grounded (3) vs standard (1) branch, keyed off `tools` presence. |
-| Agent loop (B) | `cloud-agent/src/index.test.ts` — per-iteration spend, hard stop at loop 5 with forced summary, refund-on-ADK-error refunds only credits actually spent (not a fixed 1), mid-loop `INSUFFICIENT_CREDITS` degrades to partial reply instead of 500. `browserAction.test.ts` — confirm text-path `browser_action` still skips its own spend (`preBilled`) and isn't double- or un-billed under per-loop billing. |
+| Agent loop (B) | `agentEventLoop.test.ts` — per-iteration spend, hard stop at loop 5, mid-loop degrade, refund-on-ADK-error, pre-flight `assertAgentTurnCredits`. `index.test.ts` — HTTP 402 when balance is zero before agent starts. `wsAgentHandler.test.ts` — WS `INSUFFICIENT_CREDITS` when balance is zero; per-loop metering via shared `consumeAgentEvents`. `browserAction.test.ts` — text-path `browser_action` still skips its own spend (`preBilled`). |
 | Multi-row spend (C) | `cloud-agent/src/services/creditService.test.ts` — new: fragmented-balance 5-credit spend spans multiple rows atomically; insufficient net balance across all rows throws; refund of a multi-row txId array restores all rows. Existing single-credit callers updated to array-shaped return/refund calls: `index.test.ts`, `wsAgentHandler.test.ts`, `wsLiveAgentHandler.test.ts`, `schedulerTriggerHandler.test.ts`. |
 | Gate (C) | `wsLiveAgentHandler.test.ts` — connect gate rejects at balance 4, allows at 5. `useLiveVoiceChat` test (client) — `MIN_CREDITS_FOR_CALL` gate at 5. |
 | Docs (D) | Manual review — table matches Overview costs exactly, gate line says `≥ 5`. |

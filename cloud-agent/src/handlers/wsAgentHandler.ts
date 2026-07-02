@@ -3,7 +3,7 @@ import type { IncomingMessage } from 'http'
 import admin from 'firebase-admin'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
-import { InMemoryRunner, isFinalResponse, createEvent, createEventActions } from '@google/adk'
+import { InMemoryRunner, createEvent, createEventActions } from '@google/adk'
 import type { Content, GroundingMetadata } from '@google/genai'
 import { hasGroundingData } from '../groundingMetadata.js'
 import type { DrizzleClient } from '../db/client.js'
@@ -13,6 +13,11 @@ import { buildAgent, assembleSystemInstruction, queryWikiContext } from '../serv
 import { bulkInsertUnsynced } from '../services/unsyncedHistory.js'
 import { createCreditService } from '../services/creditService.js'
 import type { CreditService } from '../services/creditService.js'
+import {
+  assertAgentTurnCredits,
+  AgentInsufficientCreditsError,
+  consumeAgentEvents,
+} from '../services/agentEventLoop.js'
 
 const contentSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -54,7 +59,6 @@ export async function handleWsUpgrade(
   let authTimer: ReturnType<typeof setTimeout>
   let isCompleted = false
   let abortController: AbortController | null = null
-  let activeTxId: string | null = null
   let hasRun = false
   authTimer = setTimeout(() => {
     if (!userId) {
@@ -66,17 +70,6 @@ export async function handleWsUpgrade(
       ws.close(4001, 'Auth timeout')
     }
   }, AUTH_TIMEOUT_MS)
-
-  const refundIfNeeded = async () => {
-    if (userId && activeTxId && !isCompleted) {
-      try {
-        await cs.refundCredit(userId, activeTxId)
-      } catch (refundErr) {
-        console.error(`[CRITICAL] WS refundCredit failed user=${userId} txId=${activeTxId}`, refundErr)
-      }
-      activeTxId = null
-    }
-  }
 
   const handleAgentRunMessage = async (data: WebSocket.RawData) => {
     if (!userId) {
@@ -107,12 +100,10 @@ export async function handleWsUpgrade(
       const { message, characterId, unsyncedHistory = [], history: rawHistory = [], timezone = 'UTC' } = parseResult.data
       const history = rawHistory as Content[]
 
-      let txId: string
       try {
-        txId = await cs.spendCredit(userId)
-      } catch (creditErr: unknown) {
-        const msg = creditErr instanceof Error ? creditErr.message : ''
-        if (msg === 'INSUFFICIENT_CREDITS') {
+        await assertAgentTurnCredits(userId, cs)
+      } catch (creditErr) {
+        if (creditErr instanceof AgentInsufficientCreditsError) {
           ws.send(JSON.stringify({ type: 'error', code: 'INSUFFICIENT_CREDITS', message: 'Insufficient credits' }))
           ws.close(4402, 'Insufficient credits')
           return
@@ -120,7 +111,6 @@ export async function handleWsUpgrade(
         throw creditErr
       }
 
-      activeTxId = txId
       isCompleted = false
       abortController = new AbortController()
 
@@ -128,8 +118,6 @@ export async function handleWsUpgrade(
         and(eq(characters.id, characterId), eq(characters.userId, userId)),
       )
       if (!character) {
-        await cs.refundCredit(userId, txId)
-        activeTxId = null
         ws.send(JSON.stringify({ type: 'error', code: 'CHARACTER_NOT_FOUND', message: 'Character not found' }))
         ws.close(4404, 'Character not found')
         return
@@ -162,7 +150,6 @@ export async function handleWsUpgrade(
           remainingCredits: newBalance ?? 0,
         }))
         isCompleted = true
-        activeTxId = null
         ws.close(1000, 'Agent execution complete')
         return
       }
@@ -172,8 +159,6 @@ export async function handleWsUpgrade(
         const wikiContext = await queryWikiContext(db, message, userId, characterId, embedText)
         systemInstruction = assembleSystemInstruction(character, wikiContext)
       } catch (preAgentErr) {
-        await cs.refundCredit(userId, txId)
-        activeTxId = null
         console.error('Failed to prepare context:', preAgentErr)
         ws.send(JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message: 'Failed to prepare context' }))
         ws.close(1011, 'Internal error')
@@ -212,58 +197,23 @@ export async function handleWsUpgrade(
           abortSignal: abortController.signal,
         })
 
-        let lastToolName: string | null = null
-        let groundingMetadata: GroundingMetadata | undefined
+        const result = await consumeAgentEvents(events, userId, cs, {
+          shouldAbort: () => abortController!.signal.aborted,
+          onToken: (text) => {
+            ws.send(JSON.stringify({ type: 'token', text }))
+          },
+          onToolStart: (name) => {
+            ws.send(JSON.stringify({ type: 'tool_start', name }))
+          },
+          onToolEnd: (name) => {
+            ws.send(JSON.stringify({ type: 'tool_end', name }))
+          },
+        })
 
-        for await (const event of events) {
-          if (abortController.signal.aborted) {
-            throw new Error('Client disconnected')
-          }
-          if (event.errorCode || event.errorMessage) {
-            throw new Error(`ADK error (${event.errorCode}): ${event.errorMessage}`)
-          }
-
-          if (hasGroundingData(event.groundingMetadata)) {
-            groundingMetadata = event.groundingMetadata
-          }
-
-          if (event.content?.parts) {
-            for (const part of event.content.parts) {
-              if ('functionCall' in part) {
-                const fc = (part as { functionCall?: { name?: string } }).functionCall
-                if (fc?.name && lastToolName !== fc.name) {
-                  ws.send(JSON.stringify({ type: 'tool_start', name: fc.name }))
-                  lastToolName = fc.name
-                }
-              }
-            }
-          }
-
-          if (lastToolName && event.content && !event.content.parts?.some(p => 'functionCall' in p)) {
-            ws.send(JSON.stringify({ type: 'tool_end', name: lastToolName }))
-            lastToolName = null
-          }
-
-          if (event.content?.parts) {
-            for (const part of event.content.parts) {
-              if ('text' in part) {
-                const text = (part as { text: string }).text
-                if (text) {
-                  ws.send(JSON.stringify({ type: 'token', text }))
-                }
-              }
-            }
-          }
-
-          if (isFinalResponse(event)) {
-            break
-          }
-        }
-
-        if (groundingMetadata) {
+        if (result.groundingMetadata) {
           ws.send(JSON.stringify({
             type: 'grounding_metadata',
-            groundingMetadata,
+            groundingMetadata: result.groundingMetadata,
           }))
         }
 
@@ -280,13 +230,9 @@ export async function handleWsUpgrade(
         }))
 
         isCompleted = true
-        activeTxId = null
         ws.close(1000, 'Agent execution complete')
       } catch (adkErr) {
         console.error('ADK execution error:', adkErr)
-        if (!isCompleted) {
-          await refundIfNeeded()
-        }
         try {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message: 'Agent execution failed' }))
@@ -296,7 +242,6 @@ export async function handleWsUpgrade(
       }
     } catch (err) {
       console.error('agent_run handler error:', err)
-      await refundIfNeeded()
       try {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'error', code: 'INTERNAL_ERROR', message: 'Internal server error' }))
@@ -352,7 +297,6 @@ export async function handleWsUpgrade(
     clearTimeout(authTimer)
     if (abortController && !isCompleted) {
       abortController.abort()
-      void refundIfNeeded()
     }
   })
 

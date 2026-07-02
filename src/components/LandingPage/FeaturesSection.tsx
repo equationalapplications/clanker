@@ -8,7 +8,7 @@ const FEATURES = [
   {
     icon: 'phone-in-talk' as const,
     title: 'Live, Real-Time Voice Calls',
-    body: 'Experience natural, uninterrupted conversations that feel exactly like a real phone call. Talk hands-free on speakerphone, interrupt your character seamlessly if you change your mind, and listen as they search the web or check your shared memory mid-conversation. (Live voice sessions cost just 1 credit per minute.)',
+    body: 'Experience natural, uninterrupted conversations that feel exactly like a real phone call. Talk hands-free on speakerphone, interrupt your character seamlessly if you change your mind, and listen as they search the web or check your shared memory mid-conversation. (Live voice sessions cost 5 credits per minute.)',
     learnMoreHref: '/real-time-voice',
     isNew: true,
   },

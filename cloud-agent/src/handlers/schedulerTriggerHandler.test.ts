@@ -24,7 +24,7 @@ function buildApp(overrides: {
   sendProactive?: (token: string, sid: string, tid: string, body: string) => Promise<void>
   getExpoPushToken?: (uid: string) => Promise<string | null>
   resolveUserId?: (uid: string) => Promise<string | null>
-  spendCredit?: () => Promise<string>
+  spendCredit?: () => Promise<{ transactionId: string; amount: number }[]>
   refundCredit?: () => Promise<void>
   abortPendingTaskIfOffline?: () => Promise<boolean>
   writeTaskResult?: () => Promise<void>
@@ -64,7 +64,7 @@ function buildApp(overrides: {
   }
 
   const mockCredit = {
-    spendCredit: overrides.spendCredit ?? (async () => { creditCalls.spend++; return 'tx1' }),
+    spendCredit: overrides.spendCredit ?? (async () => { creditCalls.spend++; return [{ transactionId: 'tx1', amount: 1 }] }),
     refundCredit: overrides.refundCredit ?? (async () => { creditCalls.refund++ }),
   }
 

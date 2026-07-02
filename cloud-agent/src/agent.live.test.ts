@@ -30,6 +30,10 @@ test(
       history: [],
       timezone: 'America/New_York',
       embed: mockEmbed,
+      creditService: {
+        spendCredit: async () => [{ transactionId: 'live-test-tx', amount: 1 }],
+        refundCredit: async () => {},
+      },
     })
 
     assert.ok(toolCalls.includes('get_current_time'), 'expected get_current_time to be called')

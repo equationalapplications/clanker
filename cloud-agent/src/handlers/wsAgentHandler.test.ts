@@ -40,8 +40,8 @@ const mockCharacter = {
 const CHAR_UUID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 
 const mockCreditService = {
-  spendCredit: async (_userId: string): Promise<string> => 'mock-txid',
-  refundCredit: async (_userId: string, _txId: string): Promise<void> => {},
+  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 1 }],
+  refundCredit: async (_userId: string, _allocations: { transactionId: string; amount: number }[]): Promise<void> => {},
   getBalance: async (_userId: string): Promise<number> => 42,
 }
 
@@ -230,11 +230,11 @@ test('times out if auth message not sent within 5 seconds', { timeout: 10_000 },
   await close()
 })
 
-test('returns INSUFFICIENT_CREDITS error when spendCredit fails', async () => {
+test('returns INSUFFICIENT_CREDITS error when balance is zero before agent starts', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter]])
   const cs = {
     ...mockCreditService,
-    spendCredit: async (): Promise<string> => { throw new Error('INSUFFICIENT_CREDITS') },
+    getBalance: async () => 0,
   }
   const { server, close } = createTestWsServer({
     db,

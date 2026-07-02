@@ -26,7 +26,7 @@ export default function WebIndex() {
         <title>Clanker — Design, chat with, and share your own AI characters</title>
         <meta
           name="description"
-          content="Create AI characters, chat with them, and talk in real time with live voice calls. Hands-free conversations with web search and shared memory. 1 credit per minute for live voice."
+          content="Create AI characters, chat with them, and talk in real time with live voice calls. Hands-free conversations with web search and shared memory. 5 credits per minute for live voice."
         />
         <meta property="og:title" content="Clanker" />
         <meta

@@ -23,20 +23,23 @@ Handled provider-side: Stripe, Apple App Store, and Google Play manage refund me
 
 ### Credit Consumption
 
-Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-tool turn costs more); turn-based cloud-agent text calls charge a **flat 1 per turn**. Live voice is billed separately on a 60-second timer. This difference is intentional.
+Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-tool turn costs more); cloud-agent text turns charge **per internal tool-call loop iteration, capped at 5**. Live voice is billed separately on a 60-second timer. This difference is intentional.
 
 | Action | Path | Cost | Refund on failure |
 |---|---|---|---|
-| Text chat reply | `generateReply` (Functions) | 1 / round-trip (incl. tool rounds) | Yes |
-| Image generation | `generateImage` | 1 | Yes |
-| Document text conversion | `convertDocumentText` | 1 | Yes |
+| Text chat reply (grounded) | `generateReply` (Functions), no explicit `tools` (default googleSearch) | 3 / round-trip | Yes |
+| Text chat reply (standard) | `generateReply` (Functions), explicit `tools` supplied | 1 / round-trip | Yes |
+| Image generation | `generateImage` | 2 | Yes |
+| Document text conversion | `convertDocumentText` | 2 | Yes |
+| Summarization | `summarizeText` | 1 | Yes |
+| Embeddings | `generateEmbedding` | 1 / 50,000 characters (`Math.ceil`) | Yes |
 | Wiki LLM / sync, memory write/heal | `wikiLlm`, `wikiSync`, `memoryWrite`, `memoryHeal` | 1 each | Yes |
-| Agent turn (text) | cloud-agent `POST /agent/run` | 1 / turn (flat) | Yes |
-| Live voice | cloud-agent `/agent/live` | 1 / 60s timer | Partial minute not billed |
+| Agent turn (text) | cloud-agent `/agent/stream` (primary) and `POST /agent/run` (HTTP fallback) | 1 / internal tool-call loop iteration, max 5 | Yes (only credits actually spent this turn) |
+| Live voice | cloud-agent `/agent/live` | 5 / 60s timer | Partial minute not billed |
 | Scheduler trigger | cloud-agent scheduler-trigger | 1 (deduped) | Yes |
 | `browser_action` tool | contextual | Voice: 1; Text: pre-billed (skipped) | See Browser Action Billing |
 
-**Live voice connect gate:** a session requires a balance of **≥ 2** to start (enforced by both the client and the server). Billing runs on a 60-second timer, so a session shorter than the first tick is not billed.
+**Live voice connect gate:** a session requires a balance of **≥ 5** to start (enforced by both the client and the server). Billing runs on a 60-second timer, so a session shorter than the first tick is not billed.
 
 ---
 
