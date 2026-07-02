@@ -157,9 +157,14 @@ const handler = async (
   const users = options.userRepository ?? userRepository;
   const credits = options.creditService ?? creditService;
 
+  const email = typeof decoded.email === "string" ? decoded.email.trim() : "";
+  if (!email) {
+    throw new HttpsError("failed-precondition", "Firebase user email is required.");
+  }
+
   const user = await users.getOrCreateUserByFirebaseIdentity({
     firebaseUid: request.auth.uid,
-    email: typeof decoded.email === "string" ? decoded.email.trim() : "",
+    email,
     displayName: decoded.name,
   });
 
@@ -168,10 +173,9 @@ const handler = async (
     throw new HttpsError("failed-precondition", "Insufficient credits to summarize text.");
   }
 
-  const generateSummary = options.generateSummary ?? getSummaryGenerator();
-
   let summary: string;
   try {
+    const generateSummary = options.generateSummary ?? getSummaryGenerator();
     summary = await generateSummary(buildPrompt(text, maxCharacters));
   } catch (error) {
     logger.error("summarizeText model call failed", {error});

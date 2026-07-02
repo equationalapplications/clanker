@@ -109,7 +109,14 @@ export function browserActionTool(
         await deps.fcmDispatcher.wakeExtension(device.fcmToken, sessionId, taskId)
       } catch (err) {
         if (allocations) {
-          try { await deps.creditService.refundCredit(deps.userId, allocations) } catch { /* logged */ }
+          try {
+            await deps.creditService.refundCredit(deps.userId, allocations)
+          } catch (refundErr) {
+            console.warn('[browser_action] refundCredit failed after dispatch error:', {
+              allocations,
+              error: refundErr instanceof Error ? refundErr.message : refundErr,
+            })
+          }
         }
         if (sessionCreated) {
           try { await fs.closeSession(deps.firebaseUid, sessionId, 'aborted') } catch { /* ignore */ }
@@ -128,7 +135,16 @@ export function browserActionTool(
           error: { code: 'EXTENSION_OFFLINE', message: 'Browser extension did not connect', failedAction: action as never },
         })
         if (aborted) {
-          if (allocations) { try { await deps.creditService.refundCredit(deps.userId, allocations) } catch { /* logged */ } }
+          if (allocations) {
+            try {
+              await deps.creditService.refundCredit(deps.userId, allocations)
+            } catch (refundErr) {
+              console.warn('[browser_action] refundCredit failed after offline abort:', {
+                allocations,
+                error: refundErr instanceof Error ? refundErr.message : refundErr,
+              })
+            }
+          }
           await fs.closeSession(deps.firebaseUid, sessionId, 'aborted')
         }
       }

@@ -12,9 +12,16 @@ export type CreditService = {
   getBalance: (userId: string) => Promise<number>
 }
 
+function assertPositiveCreditAmount(amount: number): void {
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    throw new Error('INVALID_CREDIT_AMOUNT')
+  }
+}
+
 export function createCreditService(db: DrizzleClient): CreditService {
   return {
     async spendCredit(userId: string, amount = 1): Promise<CreditSpendAllocation[]> {
+      assertPositiveCreditAmount(amount)
       // Match functions/ lock order to prevent deadlocks:
       // 1. Ensure subscriptions row exists and lock it first
       // 2. Then lock and update credit_transactions
@@ -97,6 +104,9 @@ export function createCreditService(db: DrizzleClient): CreditService {
     async refundCredit(userId: string, allocations: CreditSpendAllocation[]): Promise<void> {
       if (allocations.length === 0) {
         return
+      }
+      for (const { amount } of allocations) {
+        assertPositiveCreditAmount(amount)
       }
 
       await db.transaction(async (tx) => {

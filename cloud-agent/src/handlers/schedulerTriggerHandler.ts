@@ -213,7 +213,14 @@ export function createSchedulerTriggerHandler(
       } catch (err) {
         console.error('[scheduler-trigger] setup error:', err)
         if (allocations) {
-          try { await creditService.refundCredit(userId, allocations) } catch { /* logged */ }
+          try {
+            await creditService.refundCredit(userId, allocations)
+          } catch (refundErr) {
+            console.warn('[scheduler-trigger] refundCredit failed during setup rollback:', {
+              allocations,
+              error: refundErr instanceof Error ? refundErr.message : refundErr,
+            })
+          }
         }
         try { await fs.closeSession(uid, activeSessionId, 'aborted') } catch { /* ignore */ }
         res.status(500).json({ error: 'Internal server error' })
@@ -260,7 +267,14 @@ export function createSchedulerTriggerHandler(
       }
 
       if (!isDuplicateRun && abortedOffline && allocations) {
-        try { await creditService.refundCredit(userId, allocations) } catch { /* logged */ }
+        try {
+          await creditService.refundCredit(userId, allocations)
+        } catch (refundErr) {
+          console.warn('[scheduler-trigger] refundCredit failed during offline rollback:', {
+            allocations,
+            error: refundErr instanceof Error ? refundErr.message : refundErr,
+          })
+        }
       }
 
       try { await fs.closeSession(uid, activeSessionId, 'aborted') } catch { /* ignore */ }

@@ -257,7 +257,7 @@ export async function handleWsUpgrade(
     try {
       const payload = JSON.parse(data.toString()) as { type?: string; token?: string }
       if (payload.type !== 'auth' || !payload.token) {
-        ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Invalid auth payload' }))
+        safeSend({ type: 'error', code: 'UNAUTHORIZED', message: 'Invalid auth payload' })
         ws.close(4001, 'Invalid auth payload')
         return
       }
@@ -267,7 +267,7 @@ export async function handleWsUpgrade(
 
       const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, uid))
       if (!dbUser) {
-        ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'User not found' }))
+        safeSend({ type: 'error', code: 'UNAUTHORIZED', message: 'User not found' })
         ws.close(4001, 'User not found')
         return
       }
@@ -275,7 +275,7 @@ export async function handleWsUpgrade(
       userId = dbUser.id
     } catch (err) {
       console.error('Auth failed:', err)
-      ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Token verification failed' }))
+      safeSend({ type: 'error', code: 'UNAUTHORIZED', message: 'Token verification failed' })
       ws.close(4001, 'Token verification failed')
     }
   }

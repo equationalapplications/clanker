@@ -114,6 +114,7 @@ export async function consumeAgentEvents(
             if (fc?.name) {
               toolCalls.push(fc.name)
               if (fc.name !== lastToolName) {
+                endActiveTool()
                 hooks?.onToolStart?.(fc.name)
                 lastToolName = fc.name
               }
