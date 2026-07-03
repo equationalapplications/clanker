@@ -17,14 +17,12 @@ export default function Support() {
   }
 
   const onPressExportGuide = async () => {
-    const url = 'https://equationalapplications.com/memory-export-with-okf'
-
     if (Platform.OS === 'web') {
-      window.location.assign(url)
+      window.location.assign('/memory-export-with-okf')
       return
     }
 
-    await Linking.openURL(url)
+    await Linking.openURL('https://equationalapplications.com/memory-export-with-okf')
   }
 
   return (

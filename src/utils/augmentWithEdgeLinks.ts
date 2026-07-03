@@ -39,7 +39,11 @@ function buildRelativeLink(sourcePath: string, targetPath: string): string | nul
 
 function extractFrontmatterId(content: string): string | null {
   if (!content.startsWith('---\n')) return null
-  const match = content.match(/^---\n[\s\S]*?\nid:\s*["']?([^"'\s]+)["']?/)
+  const frontmatterEnd = content.indexOf('\n---', 4)
+  if (frontmatterEnd === -1) return null
+
+  const frontmatter = content.slice(0, frontmatterEnd)
+  const match = frontmatter.match(/\nid:\s*["']?([^"'\s]+)["']?/)
   return match?.[1] ?? null
 }
 

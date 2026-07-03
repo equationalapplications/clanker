@@ -21,6 +21,43 @@ Body text`,
     expect(result[0].content).toContain('Body text')
   })
 
+  it('does not extract ids from the markdown body', () => {
+    const files: OkfFile[] = [
+      {
+        path: 'entities/char_1/facts/fact_abc.md',
+        content: `---
+type: fact
+title: "Source without id"
+---
+Example YAML:
+id: fact_abc`,
+      },
+      {
+        path: 'entities/char_1/facts/fact_xyz.md',
+        content: `---
+type: fact
+id: fact_xyz
+title: "Target"
+---
+Body B`,
+      },
+    ]
+
+    const edges = [
+      {
+        id: 'edge_1',
+        entity_id: 'char_1',
+        source_id: 'fact_abc',
+        target_id: 'fact_xyz',
+        edge_type: 'related_to',
+        created_at: 1234567890,
+      },
+    ]
+
+    const result = augmentWithEdgeLinks(files, edges)
+    expect(result[0].content).not.toContain('## Related')
+  })
+
   it('appends same-type links (fact to fact)', () => {
     const files: OkfFile[] = [
       {
