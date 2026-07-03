@@ -2,8 +2,8 @@ import { renderHook, act, waitFor } from '@testing-library/react-native'
 import { useExportCharacterOKF } from '../useExportCharacterOKF'
 import * as okfSave from '~/utilities/okfSave'
 
-jest.mock('@equationalapplications/expo-llm-wiki', () => ({
-  useWiki: () => ({
+jest.mock('@equationalapplications/expo-llm-wiki', () => {
+  const wiki = {
     exportDump: jest.fn().mockResolvedValue({
       generatedAt: 1783094400000,
       entities: {
@@ -27,34 +27,38 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
         },
       },
     }),
-  }),
-  formatOkfBundle: jest.fn().mockReturnValue({
-    files: [
-      {
-        path: 'index.md',
-        content: '# Root Index\n\nEntities: char_123',
-      },
-      {
-        path: 'entities/char_123/facts/fact_abc.md',
-        content: `---
+  }
+
+  return {
+    useWiki: () => wiki,
+    formatOkfBundle: jest.fn().mockReturnValue({
+      files: [
+        {
+          path: 'index.md',
+          content: '# Root Index\n\nEntities: char_123',
+        },
+        {
+          path: 'entities/char_123/facts/fact_abc.md',
+          content: `---
 type: fact
 id: fact_abc
 title: "Fact A"
 ---
 Body A`,
-      },
-      {
-        path: 'entities/char_123/facts/fact_xyz.md',
-        content: `---
+        },
+        {
+          path: 'entities/char_123/facts/fact_xyz.md',
+          content: `---
 type: fact
 id: fact_xyz
 title: "Fact B"
 ---
 Body B`,
-      },
-    ],
-  }),
-}))
+        },
+      ],
+    }),
+  }
+})
 
 jest.mock('~/utilities/okfSave')
 jest.mock('~/utilities/reportError', () => ({
@@ -115,6 +119,31 @@ describe('useExportCharacterOKF', () => {
 
     expect(factFile.content).toContain('## Related')
     expect(factFile.content).toContain('[related_to](./fact_xyz.md)')
+  })
+
+  it('keeps export callback stable while using the latest character name', async () => {
+    const { result, rerender } = renderHook<
+      ReturnType<typeof useExportCharacterOKF>,
+      { characterName: string }
+    >(
+      ({ characterName }) => useExportCharacterOKF('char_123', characterName),
+      { initialProps: { characterName: 'OriginalName' } },
+    )
+    const firstExportOkf = result.current.exportOkf
+
+    rerender({ characterName: 'RenamedCharacter' })
+
+    expect(result.current.exportOkf).toBe(firstExportOkf)
+
+    await act(async () => {
+      await result.current.exportOkf()
+    })
+
+    expect(okfSave.zipAndSaveOKF).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characterName: 'RenamedCharacter',
+      }),
+    )
   })
 
   it('handles export errors and sets error state', async () => {

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useWiki, formatOkfBundle } from '@equationalapplications/expo-llm-wiki'
 import { buildOkfReadmeContent } from '~/constants/okfReadmeContent'
 import { augmentWithEdgeLinks } from '~/utils/augmentWithEdgeLinks'
@@ -17,6 +17,11 @@ export function useExportCharacterOKF(characterId: string, characterName: string
   const [error, setError] = useState<Error | null>(null)
   const [lastResult, setLastResult] = useState<ExportResult | null>(null)
   const inFlightRef = useRef(false)
+  const characterNameRef = useRef(characterName)
+
+  useEffect(() => {
+    characterNameRef.current = characterName
+  }, [characterName])
 
   const exportOkf = useCallback(async () => {
     if (inFlightRef.current) return
@@ -43,7 +48,7 @@ export function useExportCharacterOKF(characterId: string, characterName: string
       ]
 
       await zipAndSaveOKF({
-        characterName,
+        characterName: characterNameRef.current,
         files: filesWithReadme,
       })
 
@@ -56,7 +61,7 @@ export function useExportCharacterOKF(characterId: string, characterName: string
       inFlightRef.current = false
       setIsExporting(false)
     }
-  }, [wiki, characterId, characterName])
+  }, [wiki, characterId])
 
   return { exportOkf, isExporting, error, lastResult }
 }
