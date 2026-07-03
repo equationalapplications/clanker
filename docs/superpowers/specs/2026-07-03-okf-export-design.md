@@ -1,7 +1,7 @@
 # Spec: OKF Export — Character Memory as Portable Bundle
 
 **Date:** 2026-07-03 (revised after self-review + public docs addendum)  
-**Status:** Approved
+**Status:** Implemented
 **Branch:** feat  
 **Related:** [@equationalapplications/core-okf](https://www.npmjs.com/package/@equationalapplications/core-okf), Cloud Ontology & Graph Traversal Design Spec (2026-06-23)
 

@@ -29,6 +29,7 @@ import {
 } from '~/utilities/characterShare'
 import { DEFAULT_VOICE, GEMINI_LIVE_VOICES, resolveLiveVoice } from '~/constants/geminiVoices'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { useExportCharacterOKF } from '~/hooks/useExportCharacterOKF'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -63,12 +64,19 @@ export default function EditCharacterScreen() {
   const [toastState, setToastState] = useState<{
     message: string
     requiresSubscription: boolean
+    onRetry?: () => void
   } | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
   const [isWikiSyncPending, setIsWikiSyncPending] = useState(false)
   const prevIsUpdatingRef = useRef(false)
   const prevIsCloudUnsyncingRef = useRef(false)
   const prevIsCloudSyncingRef = useRef(false)
+  const {
+    exportOkf,
+    isExporting,
+    error: exportError,
+    lastResult: exportResult,
+  } = useExportCharacterOKF(characterId, name || character?.name || 'character')
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -180,6 +188,31 @@ export default function EditCharacterScreen() {
   })
 
   const avatarError = uploadError || imageError
+
+  useEffect(() => {
+    if (!exportError) return
+
+    /* eslint-disable react-hooks/set-state-in-effect -- intentional: surface async export failure through existing snackbar state */
+    setToastState({
+      message: `Export failed: ${exportError.message}`,
+      requiresSubscription: false,
+      onRetry: exportOkf,
+    })
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [exportError, exportOkf])
+
+  useEffect(() => {
+    if (!exportResult) return
+
+    /* eslint-disable react-hooks/set-state-in-effect -- intentional: surface async export completion through existing snackbar state */
+    setToastState({
+      message: exportResult.isEmpty
+        ? 'Empty bundle exported. Add memories to enrich future exports.'
+        : 'Memory exported.',
+      requiresSubscription: false,
+    })
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [exportResult])
 
   const handleSave = () => {
     if (!id || !user?.uid) return
@@ -517,6 +550,17 @@ export default function EditCharacterScreen() {
 
           <Button
             mode="outlined"
+            icon="export-variant"
+            onPress={exportOkf}
+            disabled={isExporting}
+            loading={isExporting}
+            style={styles.shareButton}
+          >
+            Export Memory as OKF
+          </Button>
+
+          <Button
+            mode="outlined"
             icon="database-eye-outline"
             onPress={() => router.push(`/characters/${characterId}/memory` as Href)}
             style={styles.shareButton}
@@ -590,7 +634,11 @@ export default function EditCharacterScreen() {
         visible={toastState !== null}
         onDismiss={() => setToastState(null)}
         duration={4000}
-        action={undefined}
+        action={
+          toastState?.onRetry
+            ? { label: 'Retry', onPress: toastState.onRetry }
+            : undefined
+        }
       >
         {toastState?.message}
       </Snackbar>

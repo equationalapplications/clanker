@@ -1,0 +1,57 @@
+import { useCallback, useState } from 'react'
+import { useWiki, formatOkfBundle } from '@equationalapplications/expo-llm-wiki'
+import { buildOkfReadmeContent } from '~/constants/okfReadmeContent'
+import { augmentWithEdgeLinks } from '~/utils/augmentWithEdgeLinks'
+import { reportError } from '~/utilities/reportError'
+import { zipAndSaveOKF } from '~/utilities/okfSave'
+
+type OkfFile = ReturnType<typeof formatOkfBundle>['files'][number]
+
+interface ExportResult {
+  isEmpty: boolean
+}
+
+export function useExportCharacterOKF(characterId: string, characterName: string) {
+  const wiki = useWiki()
+  const [isExporting, setIsExporting] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const [lastResult, setLastResult] = useState<ExportResult | null>(null)
+
+  const exportOkf = useCallback(async () => {
+    setIsExporting(true)
+    setError(null)
+    setLastResult(null)
+
+    try {
+      const dump = await wiki.exportDump([characterId])
+      const entity = dump.entities[characterId]
+      const isEmpty =
+        !entity ||
+        (entity.facts.length === 0 &&
+          entity.tasks.length === 0 &&
+          entity.events.length === 0)
+
+      const { files } = formatOkfBundle(dump)
+      const augmented = augmentWithEdgeLinks(files, entity?.edges ?? [])
+      const filesWithReadme: OkfFile[] = [
+        ...augmented,
+        { path: 'README.md', content: buildOkfReadmeContent() },
+      ]
+
+      await zipAndSaveOKF({
+        characterName,
+        files: filesWithReadme,
+      })
+
+      setLastResult({ isEmpty })
+    } catch (err) {
+      const normalized = err instanceof Error ? err : new Error(String(err))
+      setError(normalized)
+      reportError(normalized, `okf-export:${characterId}`)
+    } finally {
+      setIsExporting(false)
+    }
+  }, [wiki, characterId, characterName])
+
+  return { exportOkf, isExporting, error, lastResult }
+}

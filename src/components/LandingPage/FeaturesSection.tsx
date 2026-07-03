@@ -13,6 +13,13 @@ const FEATURES = [
     isNew: true,
   },
   {
+    icon: 'export-variant' as const,
+    title: 'Own Your Data',
+    body: 'Export any character\'s complete memory - facts, tasks, and history - as an open, standard format (OKF). No walled garden. Your data works with any OKF-compatible tool.',
+    learnMoreHref: '/memory-export-with-okf',
+    isNew: true,
+  },
+  {
     icon: 'robot-outline' as const,
     title: 'Build Your Character',
     body: 'Give your AI a name, appearance, personality traits, emotional range, and backstory. Generate a unique portrait avatar with AI. No art skills needed.',
