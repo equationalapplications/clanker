@@ -1,7 +1,7 @@
 # Spec: OKF Export — Character Memory as Portable Bundle
 
 **Date:** 2026-07-03 (revised after self-review + public docs addendum)  
-**Status:** Design Complete  
+**Status:** Approved
 **Branch:** feat  
 **Related:** [@equationalapplications/core-okf](https://www.npmjs.com/package/@equationalapplications/core-okf), Cloud Ontology & Graph Traversal Design Spec (2026-06-23)
 
@@ -55,7 +55,7 @@ This matters: edges are a real, already-shipped part of the Cloud Ontology & Gra
 ## Goals
 
 - Client-side generation (local-first, offline-safe, zero server load) — via `wiki.exportDump()` + `formatOkfBundle`
-- Round-trip-safe graph edges (append markdown links `parseOkfBundle` can already parse back)
+- Round-trip-safe graph edges (append markdown links `parseOkfBundle` can already parse back) — **fidelity note:** verified against `parseOkfBundle`'s implementation that only `source_id`, `target_id`, and `edge_type` survive the round trip; the original edge's `id` and `created_at` are not recoverable from a markdown link and get regenerated (`generateId()`, `Date.now()`) on re-import. Acceptable for V1 since nothing downstream depends on edge identity persisting across an export/import cycle, but it's not a byte-for-byte round trip.
 - Support both web and mobile platforms (browser download + expo-file-system/expo-sharing)
 - V1 scope: facts + tasks + episodic log + edges. Defer ontology manifest serialization to Phase 2.
 - Communicate the feature publicly: landing page, FAQ, dedicated explainer page, privacy policy
@@ -127,7 +127,11 @@ No direct `core-okf` dependency required for this step — it's string building 
 
 ## Bundle Structure
 
-ZIP filename: `{character_name}_{YYYY-MM-DD}.okf.zip`
+ZIP filename: `{character_name}_{YYYY-MM-DD}.okf.zip`, where `character_name` is
+sanitized (`[^a-zA-Z0-9_-]` stripped, 80-char cap) before use — it's a
+user-editable field and flows directly into a native file path on mobile
+(`expo-file-system`), so an unsanitized `/` or other separator would break the
+write rather than just producing an ugly filename.
 
 Contents (single-character export, as produced by `formatOkfBundle` + our edge augmentation + README):
 
@@ -198,7 +202,7 @@ States:
 ```typescript
 import { useWiki, formatOkfBundle, type OkfFile } from '@equationalapplications/expo-llm-wiki'
 
-export function useExportCharacterOKF(characterId: string) {
+export function useExportCharacterOKF(characterId: string, characterName: string) {
   const wiki = useWiki()
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -211,8 +215,8 @@ export function useExportCharacterOKF(characterId: string) {
       const { files } = formatOkfBundle(dump)
       const edges = dump.entities[characterId]?.edges ?? []
       const augmented = augmentWithEdgeLinks(files, edges)
-      const withReadme = [...augmented, { path: 'README.md', content: OKF_README_CONTENT }]
-      await zipAndSave(withReadme, characterId)
+      const withReadme = [...augmented, { path: 'README.md', content: buildOkfReadmeContent() }]
+      await zipAndSaveOKF({ characterName, files: withReadme })
     } catch (err) {
       const normalized = err instanceof Error ? err : new Error(String(err))
       setError(normalized)
@@ -220,13 +224,13 @@ export function useExportCharacterOKF(characterId: string) {
     } finally {
       setIsExporting(false)
     }
-  }, [wiki, characterId])
+  }, [wiki, characterId, characterName])
 
   return { exportOkf, isExporting, error }
 }
 ```
 
-`augmentWithEdgeLinks(files, edges)` implements the id-extraction + relative-link logic described in [Edge Augmentation](#edge-augmentation).
+`augmentWithEdgeLinks(files, edges)` implements the id-extraction + relative-link logic described in [Edge Augmentation](#edge-augmentation). Note `characterName` is a second, required arg — it feeds `zipAndSaveOKF`'s filename builder, which the hook itself has no other source for.
 
 ## Error Handling
 
@@ -265,7 +269,7 @@ export function useExportCharacterOKF(characterId: string) {
 
 ## Testing Strategy
 
-1. **Unit:** edge-augmentation function (id extraction from frontmatter, same-type vs cross-type link paths, dangling-edge skip)
+1. **Unit:** edge-augmentation function (id extraction from frontmatter, same-type vs cross-type link paths, dangling-edge skip), plus a round-trip test that feeds augmented output through `parseOkfBundle` and asserts the reconstructed edges match — string-matching the appended markdown alone doesn't prove `parseOkfBundle` can actually read it back
 2. **Integration:** full flow — `exportDump()` → `formatOkfBundle()` → augment → zip → platform save (mocked filesystem/share APIs)
 3. **Platform:** web (blob download triggers correctly) and mobile (file written, share sheet invoked with correct URI)
 4. **Edge cases:** empty character (no facts/tasks/events), dangling edge, `jszip` failure, `expo-sharing` unavailable

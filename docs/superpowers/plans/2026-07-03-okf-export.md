@@ -84,7 +84,7 @@ Create `src/utils/__tests__/augmentWithEdgeLinks.test.ts`:
 
 ```typescript
 import { augmentWithEdgeLinks } from '../augmentWithEdgeLinks'
-import type { OkfFile } from '@equationalapplications/expo-llm-wiki'
+import { parseOkfBundle, type OkfFile } from '@equationalapplications/expo-llm-wiki'
 
 describe('augmentWithEdgeLinks', () => {
   it('extracts ids from concept file frontmatter', () => {
@@ -301,6 +301,57 @@ title: "Target"
     const countRelated = (content: string) => (content.match(/## Related/g) || []).length
     expect(countRelated(secondPass[0].content)).toBe(1)
   })
+
+  it('round-trips through parseOkfBundle: augmented links reconstruct as edges', () => {
+    // This is the actual claim the spec makes ("round-trip-safe graph edges") —
+    // asserting on the appended markdown string isn't enough, since a formatting
+    // change to extractMarkdownLinks's regex could still break real re-import
+    // while every string-contains assertion above kept passing.
+    const files: OkfFile[] = [
+      {
+        path: 'entities/char_1/facts/fact_abc.md',
+        content: `---
+type: fact
+id: fact_abc
+title: "Fact A"
+---
+Body A`,
+      },
+      {
+        path: 'entities/char_1/facts/fact_xyz.md',
+        content: `---
+type: fact
+id: fact_xyz
+title: "Fact B"
+---
+Body B`,
+      },
+    ]
+
+    const edges = [
+      {
+        id: 'edge_1',
+        entity_id: 'char_1',
+        source_id: 'fact_abc',
+        target_id: 'fact_xyz',
+        edge_type: 'related_to',
+        created_at: 1234567890,
+      },
+    ]
+
+    const augmented = augmentWithEdgeLinks(files, edges)
+    const reparsed = parseOkfBundle('char_1', augmented)
+
+    expect(reparsed.edges).toHaveLength(1)
+    expect(reparsed.edges[0]).toMatchObject({
+      source_id: 'fact_abc',
+      target_id: 'fact_xyz',
+      edge_type: 'related_to',
+    })
+    // Note: parseOkfBundle regenerates `id` and `created_at` on reconstructed
+    // edges (see spec's "Round-trip fidelity" note) — only source/target/type
+    // survive the round trip, so we don't assert on those two fields.
+  })
 })
 ```
 
@@ -378,9 +429,11 @@ export function augmentWithEdgeLinks(files: OkfFile[], edges: WikiEdge[]): OkfFi
       continue
     }
 
-    // Check if "## Related" already exists
-    const alreadyHasRelated = file.content.includes('## Related')
-    if (alreadyHasRelated) {
+    // Guard against double-augmentation using a dedicated marker, not a bare
+    // "## Related" text search — a fact body could legitimately contain that
+    // heading itself, which would silently swallow real edges.
+    const alreadyAugmented = file.content.includes('<!-- okf-edges-augmented -->')
+    if (alreadyAugmented) {
       augmented.push(file)
       continue
     }
@@ -424,8 +477,9 @@ export function augmentWithEdgeLinks(files: OkfFile[], edges: WikiEdge[]): OkfFi
       continue
     }
 
-    // Append "## Related" section
-    const relatedSection = `\n## Related\n\n${links.join('\n')}`
+    // Append "## Related" section, tagged with a marker so a second pass
+    // over the same file (e.g. re-running export) doesn't re-scan and skip.
+    const relatedSection = `\n<!-- okf-edges-augmented -->\n## Related\n\n${links.join('\n')}`
     const augmentedContent = file.content + relatedSection
 
     augmented.push({
@@ -479,7 +533,10 @@ export interface ZipOptions {
 
 function buildZipFilename(characterName: string): string {
   const dateStr = new Date().toISOString().split('T')[0] // YYYY-MM-DD
-  return `${characterName}_${dateStr}.okf.zip`
+  // Strip path separators and other filesystem-hostile chars — characterName
+  // is user-controlled and flows straight into a native file path below.
+  const safeName = characterName.replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 80) || 'character'
+  return `${safeName}_${dateStr}.okf.zip`
 }
 
 /**
@@ -528,7 +585,9 @@ export interface ZipOptions {
 
 function buildZipFilename(characterName: string): string {
   const dateStr = new Date().toISOString().split('T')[0] // YYYY-MM-DD
-  return `${characterName}_${dateStr}.okf.zip`
+  // Strip chars that are invalid/awkward in a downloaded filename across OSes.
+  const safeName = characterName.replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 80) || 'character'
+  return `${safeName}_${dateStr}.okf.zip`
 }
 
 /**
@@ -584,8 +643,14 @@ git commit -m "feat: implement platform-aware OKF save (web blob + mobile filesy
 
 Create `src/constants/okfReadmeContent.ts`:
 
+Note: this must be a function, not a module-level `const`. A `const` evaluates
+`new Date()` once at module load (app launch), so every export in that session
+would ship the same stale "Generated:" timestamp regardless of when the user
+actually clicked export.
+
 ```typescript
-export const OKF_README_CONTENT = `# Open Knowledge Format (OKF) Export
+export function buildOkfReadmeContent(): string {
+  return `# Open Knowledge Format (OKF) Export
 
 ## What's Inside
 
@@ -656,6 +721,7 @@ https://equationalapplications.com/memory-export-with-okf
 
 Generated: ${new Date().toISOString()}
 `.trim()
+}
 ```
 
 - [ ] **Step 2: Commit**
@@ -681,7 +747,7 @@ import { useCallback, useState } from 'react'
 import { useWiki, formatOkfBundle, type OkfFile } from '@equationalapplications/expo-llm-wiki'
 import { augmentWithEdgeLinks } from '~/utils/augmentWithEdgeLinks'
 import { zipAndSaveOKF } from '~/utilities/okfSave'
-import { OKF_README_CONTENT } from '~/constants/okfReadmeContent'
+import { buildOkfReadmeContent } from '~/constants/okfReadmeContent'
 import { reportError } from '~/utilities/reportError'
 
 interface WikiEdge {
@@ -713,10 +779,10 @@ export function useExportCharacterOKF(characterId: string, characterName: string
       const edges: WikiEdge[] = dump.entities[characterId]?.edges ?? []
       const augmented = augmentWithEdgeLinks(files, edges)
 
-      // Add README
+      // Add README (built fresh per export so the "Generated:" timestamp is accurate)
       const withReadme: OkfFile[] = [
         ...augmented,
-        { path: 'README.md', content: OKF_README_CONTENT },
+        { path: 'README.md', content: buildOkfReadmeContent() },
       ]
 
       // Zip and save
@@ -928,9 +994,12 @@ Create `public/memory-export-with-okf/index.html`:
   <p>
     OKF stands for <strong>Open Knowledge Format</strong>. It's an open standard for
     representing structured knowledge — facts, relationships, and events — in a
-    portable, human-readable format. Learn more at the
-    <a href="https://example.com/okf-spec" target="_blank">OKF specification</a>.
+    portable, human-readable format.
   </p>
+
+  <!-- TODO before merge: link to the real OKF spec URL (npm package readme for
+       @equationalapplications/core-okf, or wherever the format is documented) —
+       `https://example.com/okf-spec` is a placeholder and must not ship. -->
 
   <h2>What Can You Export?</h2>
   <p>When you export a character's memory as OKF, you get a ZIP file containing:</p>
@@ -1335,10 +1404,10 @@ git commit -m "test: add integration test for OKF export flow"
 - [ ] **Step 1: Start dev server**
 
 ```bash
-npm run dev
+npm run web
 ```
 
-Wait for server to start.
+Wait for server to start. (No `dev` script exists in this repo — `web` is the correct script, confirmed against `package.json`.)
 
 - [ ] **Step 2: Navigate to character settings**
 
@@ -1592,7 +1661,7 @@ gh pr create \
 
 - ✅ `WikiEdge` interface consistent across augmentation and hook
 - ✅ `OkfFile` interface matches `expo-llm-wiki` export
-- ✅ Platform string detection (`Platform.OS === 'web'`) uniform across okfSave
+- ✅ Platform resolved via `.ts`/`.web.ts` file split (Task 3) — no runtime `Platform.OS` branch in either file or the calling hook
 - ✅ Function names: `augmentWithEdgeLinks`, `zipAndSaveOKF`, `useExportCharacterOKF` (consistent camelCase)
 
 **Gaps or Missing Tasks:**
