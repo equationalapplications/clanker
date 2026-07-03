@@ -22,17 +22,24 @@ export async function zipAndSaveOKF(options: ZipOptions): Promise<void> {
     zip.file(file.path, file.content)
   }
 
-  const bytes = await zip.generateAsync({ type: 'uint8array' })
-  const output = new File(Paths.cache, zipFilename)
-  output.write(bytes)
-
   const canShare = await Sharing.isAvailableAsync()
   if (!canShare) {
     throw new Error('Sharing is not available on this device')
   }
 
-  await Sharing.shareAsync(output.uri, {
-    mimeType: 'application/zip',
-    dialogTitle: `Share ${zipFilename}`,
-  })
-}
+  const bytes = await zip.generateAsync({ type: 'uint8array' })
+  const output = new File(Paths.cache, zipFilename)
+  output.write(bytes)
+
+  try {
+    await Sharing.shareAsync(output.uri, {
+      mimeType: 'application/zip',
+      dialogTitle: `Share ${zipFilename}`,
+    })
+  } finally {
+    try {
+      output.delete()
+    } catch (cleanupErr) {
+      console.warn('Failed to clean up OKF export zip:', cleanupErr)
+    }
+  }
