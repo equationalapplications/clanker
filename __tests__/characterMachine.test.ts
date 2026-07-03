@@ -477,7 +477,7 @@ describe('default character creation', () => {
     const clankerCall = mockDb.createCharacter.mock.calls.find(
       ([_userId, data]) => data?.name === 'Clanker',
     )
-    expect(clankerCall?.[1]).toMatchObject({ voice: 'Umbriel' })
+    expect(clankerCall?.[1]).toMatchObject({ voice: 'Umbriel', save_to_cloud: true })
 
     actor.stop()
   })

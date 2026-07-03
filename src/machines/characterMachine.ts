@@ -56,6 +56,7 @@ const DEFAULT_CHARACTER_INSERT: CharacterInsert = {
   emotions: 'Calm, attentive, and eager to help.',
   context: 'A newly created companion character ready to chat and develop its personality.',
   voice: DEFAULT_VOICE,
+  save_to_cloud: true,
 }
 
 const createDefaultCharacterActor = fromPromise(
