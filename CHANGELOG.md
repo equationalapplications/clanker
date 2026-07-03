@@ -1,3 +1,13 @@
+## [30.14.2](https://github.com/equationalapplications/clanker/compare/v30.14.1...v30.14.2) (2026-07-03)
+
+
+### Bug Fixes
+
+* generation-safe Android barge-in and docs blockquote lint ([4ac07b0](https://github.com/equationalapplications/clanker/commit/4ac07b08c0b3d8d442e65249305c639f0e8fd7ae))
+* iOS simulator dev build + patch expo-age-range for SDK 26.2 ([86a2713](https://github.com/equationalapplications/clanker/commit/86a27132f471eefaf2c51b70017935f355f0fd22))
+* keep mic alive during native live voice barge-in ([5e3aa8f](https://github.com/equationalapplications/clanker/commit/5e3aa8fc778fbd56575a84e344c15f44f74acb8e))
+* repair malformed speechmatics patch for CI ([f9b60b6](https://github.com/equationalapplications/clanker/commit/f9b60b6dd6cca2ea98c64a3c0848e7f8634ace68))
+
 ## [30.14.1](https://github.com/equationalapplications/clanker/compare/v30.14.0...v30.14.1) (2026-07-02)
 
 
