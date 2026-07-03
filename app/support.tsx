@@ -16,6 +16,15 @@ export default function Support() {
     await Linking.openURL(mailtoUrl)
   }
 
+  const onPressExportGuide = async () => {
+    if (Platform.OS === 'web') {
+      window.location.assign('/memory-export-with-okf')
+      return
+    }
+
+    await Linking.openURL('https://equationalapplications.com/memory-export-with-okf')
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text variant="headlineMedium" style={styles.title}>
@@ -122,6 +131,20 @@ export default function Support() {
             Send a message to {SUPPORT_EMAIL} with your device type, app version, and a short
             description of the issue.
           </Text>
+
+          <Divider style={styles.divider} />
+
+          <Text variant="titleSmall" style={styles.question}>
+            {"Can I export my character's memory?"}
+          </Text>
+          <Text variant="bodyMedium" style={styles.bodyText}>
+            {'Yes - open Character Settings and tap "Export Memory as OKF" to download a '}
+            complete, standard-format backup of everything your character knows, including
+            its facts, tasks, and how they connect.
+          </Text>
+          <Button mode="text" onPress={onPressExportGuide} icon="open-in-new">
+            Data export guide
+          </Button>
         </Card.Content>
       </Card>
       <View style={styles.footerSpacing} />

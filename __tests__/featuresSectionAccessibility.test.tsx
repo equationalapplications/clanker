@@ -54,6 +54,7 @@ import FeaturesSection from '~/components/LandingPage/FeaturesSection'
 
 const FEATURE_TITLES = [
   'Live, Real-Time Voice Calls',
+  'Own Your Data',
   'Build Your Character',
   'Real AI Conversations',
   'Share & Sync',
@@ -68,9 +69,9 @@ describe('FeaturesSection accessibility', () => {
     act(() => { tree = create(<FeaturesSection />) })
   })
 
-  it('renders 6 feature icons', () => {
+  it('renders feature icons', () => {
     const icons = tree.root.findAllByType('MaterialCommunityIcons')
-    expect(icons.length).toBe(6)
+    expect(icons.length).toBe(FEATURE_TITLES.length)
   })
 
   it('each feature icon has accessibilityRole "image"', () => {

@@ -8,8 +8,8 @@ export interface PrivacyConfig {
 }
 
 export const PRIVACY: PrivacyConfig = {
-  version: '1.5',
-  lastUpdated: 'June 30, 2026',
+  version: '1.6',
+  lastUpdated: 'July 3, 2026',
   privacy: `
 Equational Applications LLC ("we", "us", "our") is committed to protecting your privacy.
 This privacy policy explains how we collect, use, and disclose information through our
@@ -111,6 +111,13 @@ constitutes your acceptance of those changes.
 Data Deletion
 If you wish to have your data deleted, please contact us at
 info@equationalapplications.com.
+
+Data Portability
+You can export your character's complete memory (facts, tasks, and interaction
+history, including how they relate to each other) at any time from Character
+Settings, in the Open Knowledge Format (OKF), an open standard. This self-serve
+export contains everything associated with that character's memory. You retain
+full control of your exported data.
 
 Contact Us
 If you have any questions or concerns about this privacy policy, please contact us at
