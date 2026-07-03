@@ -33,7 +33,7 @@ const { files } = formatOkfBundle(dump)                          // -> OkfFile[]
 
 Read directly from `core-llm-wiki/dist/index.mjs` — not inferred from docs:
 
-```
+```text
 index.md                              # root catalog (buildRootIndexMd), lists entities
 entities/{sanitized-entityId}/index.md
 entities/{sanitized-entityId}/log.md  # events, via buildLogMd; each entry links to its
@@ -137,7 +137,7 @@ write rather than just producing an ugly filename.
 
 Contents (single-character export, as produced by `formatOkfBundle` + our edge augmentation + README):
 
-```
+```text
 ├── index.md                              # root catalog (buildRootIndexMd), lists this entity
 ├── README.md                             # usage guide + OKF explanation (added by us)
 └── entities/
@@ -325,7 +325,7 @@ Wiring required:
 
 New compact Q&A pair in the existing FAQ `Card`, linking out to the dedicated page for full detail:
 
-```
+```text
 Q: Can I export my character's memory?
 A: Yes — open Character Settings and tap "Export Memory as OKF" to download
    a complete, standard-format backup of everything your character knows,
@@ -338,7 +338,7 @@ A: Yes — open Character Settings and tap "Export Memory as OKF" to download
 
 New short section near the existing "Data Deletion" section (~line 111 in `PRIVACY.privacy`):
 
-```
+```text
 Data Portability
 You can export your character's complete memory (facts, tasks, and interaction
 history, including how they relate to each other) at any time from Character

@@ -196,10 +196,14 @@ export default function EditCharacterScreen() {
     setToastState({
       message: `Export failed: ${exportError.message}`,
       requiresSubscription: false,
-      onRetry: exportOkf,
+      onRetry: () => {
+        if (!isExporting) {
+          void exportOkf()
+        }
+      },
     })
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [exportError, exportOkf])
+  }, [exportError, exportOkf, isExporting])
 
   useEffect(() => {
     if (!exportResult) return

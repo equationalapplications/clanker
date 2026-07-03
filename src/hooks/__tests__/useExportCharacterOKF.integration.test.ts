@@ -138,4 +138,31 @@ describe('useExportCharacterOKF', () => {
     expect(result.current.error?.message).toContain('ZIP generation failed')
     expect(result.current.lastResult).toBeNull()
   })
+
+  it('ignores concurrent export calls while one is in flight', async () => {
+    let resolveZip!: () => void
+    const zipStarted = new Promise<void>((resolveStarted) => {
+      ;(okfSave.zipAndSaveOKF as jest.Mock).mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveZip = resolve
+            resolveStarted()
+          }),
+      )
+    })
+    const { result } = renderHook(() =>
+      useExportCharacterOKF('char_123', 'TestChar'),
+    )
+
+    await act(async () => {
+      const firstExport = result.current.exportOkf()
+      const secondExport = result.current.exportOkf()
+      await zipStarted
+      resolveZip()
+      await Promise.all([firstExport, secondExport])
+    })
+
+    expect(okfSave.zipAndSaveOKF).toHaveBeenCalledTimes(1)
+    expect(result.current.lastResult).toEqual({ isEmpty: false })
+  })
 })
