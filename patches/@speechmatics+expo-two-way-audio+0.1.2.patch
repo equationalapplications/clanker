@@ -3,9 +3,11 @@ index 0103151..f67947a 100644
 --- a/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/AudioEngine.kt
 +++ b/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/AudioEngine.kt
 @@ -39,6 +39,8 @@ class AudioEngine (context: Context) {
+@@ -39,6 +39,9 @@ class AudioEngine (context: Context) {
      var isRecording = false
      private var isRecordingBeforePause = false
-     var isPlaying = false
+-    var isPlaying = false
++    @Volatile var isPlaying = false
 +    @Volatile private var playbackGeneration = 0
 +    @Volatile private var abortPlayback = false
  
