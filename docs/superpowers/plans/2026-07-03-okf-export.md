@@ -18,20 +18,29 @@
 
 **New files to create:**
 - `src/hooks/useExportCharacterOKF.ts` — React hook orchestrating dump → format → augment → zip → save
-- `src/utils/augmentWithEdgeLinks.ts` — Edge augmentation logic (frontmatter id extraction, relative-link building)
-- `src/utils/okfSave.ts` — Platform-aware save abstraction (web blob vs. mobile filesystem + share)
+- `src/utils/augmentWithEdgeLinks.ts` — Edge augmentation logic (frontmatter id extraction, relative-link building). Pure data transform, no I/O — belongs in `src/utils/` alongside `audioResample.ts`/`sanitizeGroundingHtml.ts`, not `src/utilities/`.
+- `src/utilities/okfSave.ts` — Native (mobile) save: `expo-file-system` write + `expo-sharing` share sheet
+- `src/utilities/okfSave.web.ts` — Web save: blob anchor download. Follows this repo's existing platform-split convention (see `kvStorage.ts`/`kvStorage.web.ts`, `checkoutChannel.ts`/`checkoutChannel.web.ts`) rather than a runtime `Platform.OS` branch inside one file.
 - `src/constants/okfReadmeContent.ts` — Static README.md text for bundle root
 - `src/utils/__tests__/augmentWithEdgeLinks.test.ts` — Unit tests for edge augmentation
 - `public/memory-export-with-okf/index.html` — New static explainer page
-- `docs/superpowers/plans/2026-07-03-okf-export.md` — This plan (saved after completion)
 
 **Files to modify:**
 - `package.json` — Add `jszip` and `expo-sharing` dependencies
-- `src/components/CharacterSettings.tsx` (or equivalent settings screen) — Add "Export Memory as OKF" button
+- `app/(drawer)/(tabs)/characters/[id]/edit.tsx` — Add "Export Memory as OKF" button. This is the real per-character settings screen (verified: already has cloud-sync/share actions, `toastState` + `Snackbar` pattern, and a `reportError` import — no separate `CharacterSettings.tsx` file exists)
 - `src/components/LandingPage/FeaturesSection.tsx` — Add OKF feature card
 - `app/support.tsx` — Add FAQ entry about export
 - `src/config/privacyConfig.ts` — Add "Data Portability" section
 - `scripts/generate-static-pages.js` — Wire new page into sitemap and nav
+
+**Verified against actual repo state (self-review, this pass):**
+- Test runner: `npm test -- <path>` (jest via `jest-expo` preset, config in `jest.config.js`) — confirmed working
+- Type check: `npm run typecheck` (not `type-check` — no such script exists)
+- No generic `npm run build` script exists. Closest equivalents: `npm run typecheck:generate` (expo web export + typecheck) or `npm run predeploy` (`generate:static-pages` + expo web export)
+- Error reporting: `~/utilities/reportError` (`reportError(error: unknown, context?: string)`), not `../utils/errorReporting` — confirmed via `tsconfig.json` (`~/*` → `./src/*`) and existing usage in `edit.tsx`
+- No `Toast` component exists in this codebase. Existing screens (`edit.tsx`, `profile.tsx`) use react-native-paper's `Snackbar` driven by local `toastState` — use that pattern, not an invented `Toast` import
+- `jszip` and `expo-sharing` confirmed NOT in `node_modules` — Task 1 install is required, not optional
+- Two utils directories exist: `src/utils/` (small, pure-function helpers) and `src/utilities/` (larger, includes the `.ts`/`.web.ts` platform-split convention) — placement above reflects which one each new file matches
 
 ---
 
@@ -449,15 +458,17 @@ git commit -m "feat: implement edge augmentation for OKF export"
 ## Task 3: Implement Platform-Aware Save Utility
 
 **Files:**
-- Create: `src/utils/okfSave.ts`
+- Create: `src/utilities/okfSave.ts` (native/mobile)
+- Create: `src/utilities/okfSave.web.ts` (web)
 
-- [ ] **Step 1: Write platform-aware save abstraction**
+This repo resolves platform-specific modules via Metro/webpack's `.web.ts` suffix convention (see `kvStorage.ts`/`kvStorage.web.ts`, `checkoutChannel.ts`/`checkoutChannel.web.ts` in `src/utilities/`) — both files export the same function signature, and the bundler picks the right one per platform. No runtime `Platform.OS` check needed in the calling code.
 
-Create `src/utils/okfSave.ts`:
+- [ ] **Step 1: Write the shared ZIP-building helper + native save**
+
+Create `src/utilities/okfSave.ts`:
 
 ```typescript
 import JSZip from 'jszip'
-import { Platform } from 'react-native'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 
@@ -466,67 +477,31 @@ export interface ZipOptions {
   files: Array<{ path: string; content: string }>
 }
 
+function buildZipFilename(characterName: string): string {
+  const dateStr = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+  return `${characterName}_${dateStr}.okf.zip`
+}
+
 /**
- * Save OKF bundle as ZIP.
- * Web: triggers blob download via anchor tag
- * Mobile: writes to device filesystem and opens share sheet
+ * Save OKF bundle as ZIP (native/mobile).
+ * Writes to app cache dir via expo-file-system, then opens the share sheet via expo-sharing.
  */
 export async function zipAndSaveOKF(options: ZipOptions): Promise<void> {
   const { characterName, files } = options
-  const dateStr = new Date().toISOString().split('T')[0] // YYYY-MM-DD
-  const zipFilename = `${characterName}_${dateStr}.okf.zip`
+  const zipFilename = buildZipFilename(characterName)
 
-  // Build ZIP
   const zip = new JSZip()
   for (const file of files) {
     zip.file(file.path, file.content)
   }
 
-  const blob = await zip.generateAsync({ type: 'blob' })
+  const base64 = await zip.generateAsync({ type: 'base64' })
 
-  if (Platform.OS === 'web') {
-    // Web: blob download
-    saveWebBlob(blob, zipFilename)
-  } else {
-    // Mobile: filesystem + share sheet
-    await saveMobileFile(blob, zipFilename)
-  }
-}
-
-function saveWebBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  document.body.appendChild(anchor)
-  anchor.click()
-  document.body.removeChild(anchor)
-  URL.revokeObjectURL(url)
-}
-
-async function saveMobileFile(blob: Blob, filename: string): Promise<void> {
-  // Convert blob to base64
-  const reader = new FileReader()
-  const base64Promise = new Promise<string>((resolve, reject) => {
-    reader.onload = () => {
-      const result = reader.result as string
-      // Extract base64 part (after "data:...;base64,")
-      const base64 = result.split(',')[1] || result
-      resolve(base64)
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
-
-  const base64 = await base64Promise
-
-  // Write to app's cache directory
-  const fileUri = `${FileSystem.cacheDirectory}${filename}`
+  const fileUri = `${FileSystem.cacheDirectory}${zipFilename}`
   await FileSystem.writeAsStringAsync(fileUri, base64, {
     encoding: FileSystem.EncodingType.Base64,
   })
 
-  // Open share sheet
   const canShare = await Sharing.isAvailableAsync()
   if (!canShare) {
     throw new Error('Sharing is not available on this device')
@@ -534,24 +509,67 @@ async function saveMobileFile(blob: Blob, filename: string): Promise<void> {
 
   await Sharing.shareAsync(fileUri, {
     mimeType: 'application/zip',
-    dialogTitle: `Share ${filename}`,
+    dialogTitle: `Share ${zipFilename}`,
   })
 }
 ```
 
-- [ ] **Step 2: Verify no import errors**
+- [ ] **Step 2: Write the web save variant**
+
+Create `src/utilities/okfSave.web.ts`:
+
+```typescript
+import JSZip from 'jszip'
+
+export interface ZipOptions {
+  characterName: string
+  files: Array<{ path: string; content: string }>
+}
+
+function buildZipFilename(characterName: string): string {
+  const dateStr = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+  return `${characterName}_${dateStr}.okf.zip`
+}
+
+/**
+ * Save OKF bundle as ZIP (web).
+ * Triggers a standard blob-anchor download.
+ */
+export async function zipAndSaveOKF(options: ZipOptions): Promise<void> {
+  const { characterName, files } = options
+  const zipFilename = buildZipFilename(characterName)
+
+  const zip = new JSZip()
+  for (const file of files) {
+    zip.file(file.path, file.content)
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' })
+
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = zipFilename
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+```
+
+- [ ] **Step 3: Verify no import errors**
 
 Run:
 ```bash
-npm run type-check
+npm run typecheck
 ```
 
-Expected: No TypeScript errors in `src/utils/okfSave.ts`.
+Expected: No TypeScript errors in either `okfSave.ts` or `okfSave.web.ts`.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add src/utils/okfSave.ts
+git add src/utilities/okfSave.ts src/utilities/okfSave.web.ts
 git commit -m "feat: implement platform-aware OKF save (web blob + mobile filesystem)"
 ```
 
@@ -661,10 +679,10 @@ Create `src/hooks/useExportCharacterOKF.ts`:
 ```typescript
 import { useCallback, useState } from 'react'
 import { useWiki, formatOkfBundle, type OkfFile } from '@equationalapplications/expo-llm-wiki'
-import { augmentWithEdgeLinks } from '../utils/augmentWithEdgeLinks'
-import { zipAndSaveOKF } from '../utils/okfSave'
-import { OKF_README_CONTENT } from '../constants/okfReadmeContent'
-import { reportError } from '../utils/errorReporting' // Adjust import path as needed
+import { augmentWithEdgeLinks } from '~/utils/augmentWithEdgeLinks'
+import { zipAndSaveOKF } from '~/utilities/okfSave'
+import { OKF_README_CONTENT } from '~/constants/okfReadmeContent'
+import { reportError } from '~/utilities/reportError'
 
 interface WikiEdge {
   id: string
@@ -722,7 +740,7 @@ export function useExportCharacterOKF(characterId: string, characterName: string
 - [ ] **Step 2: Verify types**
 
 ```bash
-npm run type-check
+npm run typecheck
 ```
 
 Expected: No TypeScript errors in the hook.
@@ -736,118 +754,76 @@ git commit -m "feat: add useExportCharacterOKF hook for orchestrating OKF export
 
 ---
 
-## Task 6: Add "Export Memory as OKF" Button to Character Settings
+## Task 6: Add "Export Memory as OKF" Button to Character Edit Screen
 
 **Files:**
-- Modify: Character settings component (e.g., `src/components/CharacterSettings.tsx` or equivalent)
+- Modify: `app/(drawer)/(tabs)/characters/[id]/edit.tsx`
 
-- [ ] **Step 1: Locate character settings component**
+This screen is the real per-character settings surface (confirmed by reading the file): it already has `characterId` (line 35, from `useLocalSearchParams`), a `name` state var (line 51), a `toastState`/`Snackbar` pattern (lines 63-65, 589-596) for user-facing messages, `reportError` already imported (line 25), and a "Sync Memory" button (lines 505-516) that's the closest existing analog — same `react-native-paper` `Button` component, same conditional-render-on-cloud-sync-state pattern, right next to where this new button belongs.
 
-Find the component file (likely in `src/components/` or `app/`):
+- [ ] **Step 1: Add hook import**
 
-```bash
-grep -r "Character Settings" src/components --include="*.tsx" --include="*.ts" | head -5
-```
-
-Or search for the file containing "Privacy" or "Data Management" settings button.
-
-- [ ] **Step 2: Add import and hook usage**
-
-In the settings component file, add:
+At the top of `app/(drawer)/(tabs)/characters/[id]/edit.tsx`, alongside the existing `~/hooks/*` imports (near line 31):
 
 ```typescript
-import { useExportCharacterOKF } from '../hooks/useExportCharacterOKF'
-import { Toast } from '../components/Toast' // Adjust import path as needed
+import { useExportCharacterOKF } from '~/hooks/useExportCharacterOKF'
 ```
 
-In the component's return JSX (in the data management / privacy section), add:
+- [ ] **Step 2: Wire up the hook inside the component**
 
-```jsx
-<ExportOKFButton
-  characterId={characterId}
-  characterName={characterName}
-/>
-```
-
-- [ ] **Step 3: Create ExportOKFButton subcomponent**
-
-In the same file (or a new file if preferred), add:
+Inside `EditCharacterScreen`, near the other hook calls (after line 49's `useCharacterWiki` call):
 
 ```typescript
-interface ExportOKFButtonProps {
-  characterId: string
-  characterName: string
-}
+const { exportOkf, isExporting, error: exportError } = useExportCharacterOKF(characterId, name || character?.name || 'character')
+```
 
-function ExportOKFButton({ characterId, characterName }: ExportOKFButtonProps) {
-  const { exportOkf, isExporting, error } = useExportCharacterOKF(characterId, characterName)
-  const [showError, setShowError] = useState(false)
+- [ ] **Step 3: Surface export errors via the existing toast state**
 
-  const handleExport = async () => {
-    await exportOkf()
-    if (error) {
-      setShowError(true)
-    }
+Add a `useEffect` near the other effects in the file to push `exportError` into the existing `toastState` mechanism (reusing the pattern already used for `updateError`/`unsyncError`/`cloudSyncError` — check how those are surfaced elsewhere in the file and follow the same approach):
+
+```typescript
+useEffect(() => {
+  if (exportError) {
+    setToastState({
+      message: `Export failed: ${exportError.message}`,
+      requiresSubscription: false,
+    })
   }
-
-  return (
-    <>
-      <button
-        onClick={handleExport}
-        disabled={isExporting}
-        className="export-okf-button"
-      >
-        {isExporting ? 'Generating bundle...' : 'Export Memory as OKF'}
-      </button>
-
-      {isExporting && <LoadingSpinner message="Generating bundle..." />}
-
-      {showError && error && (
-        <Toast
-          type="error"
-          title="Export failed"
-          message={error.message}
-          action={{
-            label: 'Retry',
-            onPress: handleExport,
-          }}
-          onDismiss={() => setShowError(false)}
-        />
-      )}
-    </>
-  )
-}
+}, [exportError])
 ```
 
-(Adjust spinner and toast components to match your codebase's UI library.)
+- [ ] **Step 4: Add the button next to "Sync Memory"**
 
-- [ ] **Step 4: Style the button**
+Immediately after the "Sync Memory" button block (lines 505-516), add:
 
-Add CSS/styled-component rules to match your settings screen design:
-
-```css
-.export-okf-button {
-  /* Adjust to match your button styling */
-  padding: 12px 16px;
-  background-color: #007aff; /* or your brand color */
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-}
-
-.export-okf-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+```tsx
+<Button
+  mode="outlined"
+  icon="export-variant"
+  onPress={exportOkf}
+  disabled={isExporting}
+  loading={isExporting}
+  style={styles.shareButton}
+>
+  Export Memory as OKF
+</Button>
 ```
 
-- [ ] **Step 5: Commit**
+(Reuses `styles.shareButton` — the same style already applied to "Share Character" and "Sync Memory" above it, so no new stylesheet entry is needed.)
+
+- [ ] **Step 5: Verify types**
 
 ```bash
-git add src/components/CharacterSettings.tsx  # (adjust filename)
-git commit -m "feat: add Export Memory as OKF button to character settings"
+npm run typecheck
+```
+
+Expected: No TypeScript errors.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add "app/(drawer)/(tabs)/characters/[id]/edit.tsx"
+git commit -m "feat: add Export Memory as OKF button to character edit screen"
 ```
 
 ---
@@ -882,7 +858,7 @@ Locate the `FEATURES` array in `FeaturesSection.tsx` and add this entry:
 - [ ] **Step 3: Verify no errors**
 
 ```bash
-npm run type-check
+npm run typecheck
 ```
 
 - [ ] **Step 4: Commit**
@@ -1075,7 +1051,7 @@ In the FAQ `Card` component (wherever existing Q&A pairs live), add:
 - [ ] **Step 3: Verify TypeScript**
 
 ```bash
-npm run type-check
+npm run typecheck
 ```
 
 - [ ] **Step 4: Commit**
@@ -1125,7 +1101,7 @@ lastUpdated: 'previous-date' // change to new date (e.g., '2026-07-03')
 - [ ] **Step 4: Verify no errors**
 
 ```bash
-npm run type-check
+npm run typecheck
 ```
 
 - [ ] **Step 5: Commit**
@@ -1195,7 +1171,11 @@ Create `src/hooks/__tests__/useExportCharacterOKF.integration.test.ts`:
 ```typescript
 import { renderHook, act, waitFor } from '@testing-library/react-native'
 import { useExportCharacterOKF } from '../useExportCharacterOKF'
-import * as okfSave from '../../utils/okfSave'
+import * as okfSave from '~/utilities/okfSave'
+
+// `~/` resolves via babel-plugin-module-resolver (babel.config.js), which
+// babel-jest also applies, so jest.mock() below targets the same module
+// specifier the hook itself imports — no relative-path drift between the two.
 
 // Mock dependencies
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
@@ -1246,7 +1226,7 @@ Body B`,
   }),
 }))
 
-jest.mock('../../utils/okfSave')
+jest.mock('~/utilities/okfSave')
 
 describe('useExportCharacterOKF', () => {
   beforeEach(() => {
@@ -1373,7 +1353,7 @@ Confirm "Export Memory as OKF" button is visible and enabled.
 Click the button. Verify:
 - Loading spinner appears
 - Spinner disappears after a few seconds
-- Success toast appears (or file download is triggered in browser)
+- Snackbar success message appears (or file download is triggered in browser)
 
 - [ ] **Step 5: Verify ZIP file**
 
@@ -1432,7 +1412,7 @@ User mentioned they prefer coffee.
 If possible, test export on a character with no facts/tasks/events. Verify:
 - Export completes successfully
 - ZIP structure is still valid (empty `facts/` and `tasks/` dirs)
-- Toast message: "Empty bundle exported..."
+- Snackbar message: "Empty bundle exported..."
 
 - [ ] **Step 9: Test error case (simulate failure)**
 
@@ -1501,16 +1481,18 @@ Expected: All tests pass (including new tests from Tasks 2 and 12).
 - [ ] **Step 2: Run type checker**
 
 ```bash
-npm run type-check
+npm run typecheck
 ```
 
 Expected: No TypeScript errors.
 
-- [ ] **Step 3: Build production bundle**
+- [ ] **Step 3: Build production web bundle + static pages**
 
 ```bash
-npm run build
+npm run predeploy
 ```
+
+(Runs `generate:static-pages` then `expo export --platform web --clear` — there is no separate generic `build` script in this repo.)
 
 Expected: Build succeeds with no errors.
 
