@@ -55,7 +55,7 @@ This matters: edges are a real, already-shipped part of the Cloud Ontology & Gra
 ## Goals
 
 - Client-side generation (local-first, offline-safe, zero server load) — via `wiki.exportDump()` + `formatOkfBundle`
-- Round-trip-safe graph edges (append markdown links `parseOkfBundle` can already parse back) — **fidelity note:** verified against `parseOkfBundle`'s implementation that only `source_id`, `target_id`, and `edge_type` survive the round trip; the original edge's `id` and `created_at` are not recoverable from a markdown link and get regenerated (`generateId()`, `Date.now()`) on re-import. Acceptable for V1 since nothing downstream depends on edge identity persisting across an export/import cycle, but it's not a byte-for-byte round trip.
+- Round-trip-safe graph edges (append markdown links `parseOkfBundle` can already parse back) — **fidelity note:** verified against `parseOkfBundle`'s implementation that only `source_id`, `target_id`, and `edge_type` survive the round trip; the original edge's `id` and `created_at` are not recoverable from a markdown link and get regenerated (`generateId()`, `Date.now()`) on re-import. Acceptable for V1 since nothing downstream depends on edge identity persisting across an export/import cycle, but it's not a byte-for-byte round trip. **Also note:** the appended `## Related` section becomes part of the fact's `body` on re-import (`parseOkfBundle` passes body through verbatim) — it's not stripped back out. A re-imported fact's body permanently contains its own edge links as visible markdown, and if edges change after export, a stale `## Related` block re-imports as stale text, not stale data. Acceptable for V1 since there's no re-import UI yet (see Non-Goals), but worth documenting before one ships.
 - Support both web and mobile platforms (browser download + expo-file-system/expo-sharing)
 - V1 scope: facts + tasks + episodic log + edges. Defer ontology manifest serialization to Phase 2.
 - Communicate the feature publicly: landing page, FAQ, dedicated explainer page, privacy policy
@@ -120,6 +120,8 @@ No direct `core-okf` dependency required for this step — it's string building 
 #### Fetch via `exportDump`, Not the Retrieval-Path `getMemoryBundle`
 
 **Why:** `getMemoryBundle` (used by `useMemoryBundle`, the existing chat-context hook) is a *retrieval* path — it may score, rank, or truncate results for prompt-context purposes. `exportDump`/`getFullBundle({ includeBlobs: true })` is the *completeness* path used by cloud-sync (`wikiMachine.ts`, `liveVoiceMachine.ts`) and is the correct source for "export everything this character knows."
+
+**Note:** `react-llm-wiki` (re-exported transitively through `expo-llm-wiki`) already ships a `useWikiExport()` hook wrapping `wiki.exportDump` with its own `isPending`/`error`/`lastResult` state (verified: `declare function useWikiExport(): { execute, lastResult, isPending, error }` in `react-llm-wiki/dist/index.d.ts`). `useExportCharacterOKF` calls `useWiki().exportDump` directly rather than composing `useWikiExport`, since this hook's own `isExporting`/`error`/`lastResult` need to reflect the *entire* pipeline (format + augment + zip + save), not just the dump-fetch step — reusing `useWikiExport`'s state would only cover the first of four stages and still require separate state for the rest. Not adopted in V1; worth reconsidering only if `useWikiExport` grows pipeline-stage awareness.
 
 #### Platform-Aware Save
 
@@ -194,29 +196,37 @@ Add button in settings near privacy/data management section:
 States:
 - **Enabled:** default
 - **Loading:** spinner modal ("Generating bundle...") while `isExporting`
-- **Success:** toast + platform save flow completes
-- **Error:** error toast with retry option
+- **Success:** toast + platform save flow completes. Hook must expose a success signal distinct from "no error" (e.g. a `lastResult`/`didExport` flag bumped on each successful run) — `error === null` is also true before the first export ever runs, so it can't drive a success toast on its own.
+- **Error:** error toast with retry option. The retry action must be wired into the Snackbar's `action` prop (`{ label: 'Retry', onPress: exportOkf }`), not left as `action={undefined}` — otherwise "with retry option" has no UI.
 
 ### Hook Implementation
 
 ```typescript
-import { useWiki, formatOkfBundle, type OkfFile } from '@equationalapplications/expo-llm-wiki'
+import { useWiki, formatOkfBundle } from '@equationalapplications/expo-llm-wiki'
+
+type OkfFile = ReturnType<typeof formatOkfBundle>['files'][number]
+
+type ExportResult = { isEmpty: boolean }
 
 export function useExportCharacterOKF(characterId: string, characterName: string) {
   const wiki = useWiki()
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  const [lastResult, setLastResult] = useState<ExportResult | null>(null)
 
   const exportOkf = useCallback(async () => {
     setIsExporting(true)
     setError(null)
     try {
       const dump = await wiki.exportDump([characterId])
+      const entity = dump.entities[characterId]
+      const isEmpty = !entity || (entity.facts.length === 0 && entity.tasks.length === 0 && entity.events.length === 0)
       const { files } = formatOkfBundle(dump)
-      const edges = dump.entities[characterId]?.edges ?? []
+      const edges = entity?.edges ?? []
       const augmented = augmentWithEdgeLinks(files, edges)
       const withReadme = [...augmented, { path: 'README.md', content: buildOkfReadmeContent() }]
       await zipAndSaveOKF({ characterName, files: withReadme })
+      setLastResult({ isEmpty })
     } catch (err) {
       const normalized = err instanceof Error ? err : new Error(String(err))
       setError(normalized)
@@ -226,18 +236,18 @@ export function useExportCharacterOKF(characterId: string, characterName: string
     }
   }, [wiki, characterId, characterName])
 
-  return { exportOkf, isExporting, error }
+  return { exportOkf, isExporting, error, lastResult }
 }
 ```
 
-`augmentWithEdgeLinks(files, edges)` implements the id-extraction + relative-link logic described in [Edge Augmentation](#edge-augmentation). Note `characterName` is a second, required arg — it feeds `zipAndSaveOKF`'s filename builder, which the hook itself has no other source for.
+`augmentWithEdgeLinks(files, edges)` implements the id-extraction + relative-link logic described in [Edge Augmentation](#edge-augmentation). Note `characterName` is a second, required arg — it feeds `zipAndSaveOKF`'s filename builder, which the hook itself has no other source for. `lastResult` is what the UI layer branches on to distinguish "success" (toast: done) from "success, but empty" (toast: "Empty bundle exported...") from "no export has run yet" (`null`, no toast) — `error === null` alone can't carry that distinction since it's also true before the first run.
 
 ## Error Handling
 
 ### Bundle Empty
 
 - `formatOkfBundle` on an empty entity still produces valid structure (empty facts/tasks dirs skipped naturally since no files are pushed, log.md may be empty)
-- Toast: "Empty bundle exported. Add memories to enrich future exports."
+- Toast: "Empty bundle exported. Add memories to enrich future exports." This requires the hook to detect emptiness (`dump.entities[characterId]` has zero facts, tasks, and events) and return a distinct result flag the UI branches on — it is not a separate error path, so it must not go through `setError`.
 
 ### Dangling Edges
 
@@ -311,6 +321,8 @@ Wiring required:
 
 ### 3. FAQ additions — `app/support.tsx`
 
+**Verified shape:** `app/support.tsx` has no `{question, answer}` array to append to — it's a hand-written FAQ `Card` with inline `<Text variant="titleSmall">` question / `<Text>` answer pairs (see the existing 8 pairs), and outbound links elsewhere in the file go through `Linking.openURL`, not `<a href>` (this is a React Native screen — a raw anchor tag doesn't render there). The new pair must follow the same pattern: a `Text` question, a `Text` answer, and if it links out, a pressable `Text`/`Button` wired to `Linking.openURL('https://equationalapplications.com/memory-export-with-okf')` — an **absolute** URL, since a bare `/memory-export-with-okf` has no meaning to `Linking.openURL` outside a browser context.
+
 New compact Q&A pair in the existing FAQ `Card`, linking out to the dedicated page for full detail:
 
 ```
@@ -320,7 +332,7 @@ A: Yes — open Character Settings and tap "Export Memory as OKF" to download
    including its facts, tasks, and how they connect. See our data export
    guide for details on what's included and how to use it.
 ```
-"data export guide" links to `/memory-export-with-okf`.
+"data export guide" opens `https://equationalapplications.com/memory-export-with-okf` via `Linking.openURL`.
 
 ### 4. Privacy policy — `src/config/privacyConfig.ts`
 
@@ -349,9 +361,9 @@ Bump `PRIVACY.version` (1.5 → 1.6) and `lastUpdated`. This alone regenerates `
 
 ## Dependencies
 
-- `@equationalapplications/expo-llm-wiki` (existing dependency; re-exports `formatOkfBundle`, `parseOkfBundle`, `MemoryDump`, `OkfFile` from `core-llm-wiki`; `useWiki()` exposes `exportDump` directly) — **no version bump or new install needed**
+- `@equationalapplications/expo-llm-wiki` (existing dependency; re-exports `formatOkfBundle`, `parseOkfBundle`, `MemoryDump`, `WikiEdge` from `core-llm-wiki`, plus `useWiki`/`useWikiExport` from `react-llm-wiki`) — **no version bump or new install needed**. **`OkfFile` is not re-exported** — `core-llm-wiki` imports it from `@equationalapplications/core-okf` internally but only re-exports `formatOkfBundle`/`parseOkfBundle` (which reference it structurally in their signatures), not the type itself. Since we're not taking a direct `core-okf` dependency (see below), derive it locally: `type OkfFile = ReturnType<typeof formatOkfBundle>['files'][number]`.
 - `jszip` — **not currently installed; must be added**
-- `expo-file-system` — already installed (`~56.0.7`)
+- `expo-file-system` — already installed, at **`~56.0.8`**, which is the v56 rewrite: the root `expo-file-system` export now only contains deprecated stubs (`writeAsStringAsync`, `cacheDirectory`, etc.) that **throw at runtime** ("Method ... imported from expo-file-system is deprecated ... This method will throw in runtime"), not just typecheck-clean legacy signatures. The native save path must use the new `File`/`Paths` class API (`new File(Paths.cache, filename).write(bytes)`), matching the pattern already used in this repo at `src/hooks/useAvatarUpload.ts` (`import { File } from 'expo-file-system'`).
 - `expo-sharing` — **not currently installed; must be added**
 - `@equationalapplications/core-okf` — **not needed as a direct dependency.** All required primitives are reached indirectly through `formatOkfBundle`; edge augmentation is done via plain string concatenation and frontmatter-id regex extraction, not `core-okf` calls.
 

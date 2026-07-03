@@ -84,7 +84,11 @@ Create `src/utils/__tests__/augmentWithEdgeLinks.test.ts`:
 
 ```typescript
 import { augmentWithEdgeLinks } from '../augmentWithEdgeLinks'
-import { parseOkfBundle, type OkfFile } from '@equationalapplications/expo-llm-wiki'
+import { parseOkfBundle, formatOkfBundle } from '@equationalapplications/expo-llm-wiki'
+
+// expo-llm-wiki doesn't re-export the OkfFile type itself (see
+// augmentWithEdgeLinks.ts) — derive it the same way the implementation does.
+type OkfFile = ReturnType<typeof formatOkfBundle>['files'][number]
 
 describe('augmentWithEdgeLinks', () => {
   it('extracts ids from concept file frontmatter', () => {
@@ -368,15 +372,19 @@ Expected: All tests FAIL with "augmentWithEdgeLinks is not exported".
 Create `src/utils/augmentWithEdgeLinks.ts`:
 
 ```typescript
-import type { OkfFile } from '@equationalapplications/expo-llm-wiki'
+import type { WikiEdge } from '@equationalapplications/expo-llm-wiki'
+import { formatOkfBundle } from '@equationalapplications/expo-llm-wiki'
 
-interface WikiEdge {
-  id: string
-  entity_id: string
-  source_id: string
-  target_id: string
-  edge_type: string
-  created_at: number
+// formatOkfBundle's own return type — core-llm-wiki imports OkfFile from
+// core-okf internally but doesn't re-export the type itself, and we don't
+// take a direct core-okf dependency (see spec's Dependencies section).
+type OkfFile = ReturnType<typeof formatOkfBundle>['files'][number]
+
+function isConceptFile(path: string): boolean {
+  if (!path.endsWith('.md')) return false
+  if (path === 'index.md' || path.endsWith('/index.md')) return false
+  if (path === 'log.md' || path.endsWith('/log.md')) return false
+  return true
 }
 
 export function augmentWithEdgeLinks(files: OkfFile[], edges: WikiEdge[]): OkfFile[] {
@@ -389,10 +397,16 @@ export function augmentWithEdgeLinks(files: OkfFile[], edges: WikiEdge[]): OkfFi
   const idToPath = new Map<string, string>()
   const idToType = new Map<string, 'facts' | 'tasks'>() // track if fact or task
 
-  // Extract ids from frontmatter using regex
-  const frontmatterIdRegex = /^---\n([\s\S]*?)\nid:\s*(\S+)/m
+  // Extract ids from frontmatter. No `m` flag and an anchored `^---\n` start —
+  // a bare `m`-flag match against the whole file can false-hit a `---`
+  // thematic break inside a fact body (e.g. a markdown hr), which would
+  // misattribute that file's id. Restricted to concept files (not
+  // index.md/log.md) since those have no `id:` frontmatter field to extract.
+  const frontmatterIdRegex = /^---\n([\s\S]*?)\nid:\s*(\S+)/
 
   for (const file of files) {
+    if (!isConceptFile(file.path)) continue
+    if (!file.content.startsWith('---\n')) continue
     const match = file.content.match(frontmatterIdRegex)
     if (match && match[2]) {
       const id = match[2]
@@ -461,12 +475,10 @@ export function augmentWithEdgeLinks(files: OkfFile[], edges: WikiEdge[]): OkfFi
         const targetFilename = targetPath.split('/').pop()!
         relativeLink = `./${targetFilename}`
       } else {
-        // Cross-type
+        // Cross-type (fact ↔ task) — always one level up, since this branch
+        // only runs when sourceType !== targetType
         const targetFilename = targetPath.split('/').pop()!
-        const targetDir = targetType === 'facts' ? 'facts' : 'tasks'
-        const currentDir = sourceType === 'facts' ? 'facts' : 'tasks'
-        const goUp = currentDir === targetDir ? '' : '../'
-        relativeLink = `${goUp}${targetDir}/${targetFilename}`
+        relativeLink = `../${targetType}/${targetFilename}`
       }
 
       links.push(`- [${edge.edge_type}](${relativeLink})`)
@@ -521,9 +533,11 @@ This repo resolves platform-specific modules via Metro/webpack's `.web.ts` suffi
 
 Create `src/utilities/okfSave.ts`:
 
+**Important:** the installed `expo-file-system` version is `~56.0.8` — the v56 rewrite. The root package export (`import * as FileSystem from 'expo-file-system'`) now only contains **deprecated stubs** for `writeAsStringAsync`/`cacheDirectory`/etc. that *typecheck* but **throw at runtime** ("Method writeAsStringAsync imported from expo-file-system is deprecated ... This method will throw in runtime."). Use the new `File`/`Paths` class API instead — this repo already does, in `src/hooks/useAvatarUpload.ts` (`import { File } from 'expo-file-system'`).
+
 ```typescript
 import JSZip from 'jszip'
-import * as FileSystem from 'expo-file-system'
+import { File, Paths } from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 
 export interface ZipOptions {
@@ -541,7 +555,8 @@ function buildZipFilename(characterName: string): string {
 
 /**
  * Save OKF bundle as ZIP (native/mobile).
- * Writes to app cache dir via expo-file-system, then opens the share sheet via expo-sharing.
+ * Writes to app cache dir via the expo-file-system File/Paths API, then opens
+ * the share sheet via expo-sharing.
  */
 export async function zipAndSaveOKF(options: ZipOptions): Promise<void> {
   const { characterName, files } = options
@@ -552,19 +567,17 @@ export async function zipAndSaveOKF(options: ZipOptions): Promise<void> {
     zip.file(file.path, file.content)
   }
 
-  const base64 = await zip.generateAsync({ type: 'base64' })
+  const bytes = await zip.generateAsync({ type: 'uint8array' })
 
-  const fileUri = `${FileSystem.cacheDirectory}${zipFilename}`
-  await FileSystem.writeAsStringAsync(fileUri, base64, {
-    encoding: FileSystem.EncodingType.Base64,
-  })
+  const file = new File(Paths.cache, zipFilename)
+  file.write(bytes)
 
   const canShare = await Sharing.isAvailableAsync()
   if (!canShare) {
     throw new Error('Sharing is not available on this device')
   }
 
-  await Sharing.shareAsync(fileUri, {
+  await Sharing.shareAsync(file.uri, {
     mimeType: 'application/zip',
     dialogTitle: `Share ${zipFilename}`,
   })
@@ -623,7 +636,7 @@ Run:
 npm run typecheck
 ```
 
-Expected: No TypeScript errors in either `okfSave.ts` or `okfSave.web.ts`.
+Expected: No TypeScript errors in either `okfSave.ts` or `okfSave.web.ts`. Note: typecheck alone does NOT catch the legacy-API runtime-throw issue described above — the deprecated `FileSystem.writeAsStringAsync` signature still typechecks, it just throws when actually called. That's why this step says "no import errors," not "verified working" — Task 14's manual mobile test is what actually exercises the write path.
 
 - [ ] **Step 4: Commit**
 
@@ -744,25 +757,26 @@ Create `src/hooks/useExportCharacterOKF.ts`:
 
 ```typescript
 import { useCallback, useState } from 'react'
-import { useWiki, formatOkfBundle, type OkfFile } from '@equationalapplications/expo-llm-wiki'
+import { useWiki, formatOkfBundle } from '@equationalapplications/expo-llm-wiki'
 import { augmentWithEdgeLinks } from '~/utils/augmentWithEdgeLinks'
 import { zipAndSaveOKF } from '~/utilities/okfSave'
 import { buildOkfReadmeContent } from '~/constants/okfReadmeContent'
 import { reportError } from '~/utilities/reportError'
 
-interface WikiEdge {
-  id: string
-  entity_id: string
-  source_id: string
-  target_id: string
-  edge_type: string
-  created_at: number
+// formatOkfBundle's own return type — core-llm-wiki doesn't re-export OkfFile
+// itself (see augmentWithEdgeLinks.ts), and we don't take a direct core-okf
+// dependency, so derive the file shape from the function that produces it.
+type OkfFile = ReturnType<typeof formatOkfBundle>['files'][number]
+
+interface ExportResult {
+  isEmpty: boolean
 }
 
 export function useExportCharacterOKF(characterId: string, characterName: string) {
   const wiki = useWiki()
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  const [lastResult, setLastResult] = useState<ExportResult | null>(null)
 
   const exportOkf = useCallback(async () => {
     setIsExporting(true)
@@ -771,12 +785,18 @@ export function useExportCharacterOKF(characterId: string, characterName: string
     try {
       // Fetch memory dump
       const dump = await wiki.exportDump([characterId])
+      const entity = dump.entities[characterId]
+
+      // isEmpty drives the "Empty bundle exported..." toast — this is a
+      // successful export, not an error, so it can't be signaled via `error`.
+      const isEmpty =
+        !entity || (entity.facts.length === 0 && entity.tasks.length === 0 && entity.events.length === 0)
 
       // Format into OKF structure
       const { files } = formatOkfBundle(dump)
 
       // Augment with edge links
-      const edges: WikiEdge[] = dump.entities[characterId]?.edges ?? []
+      const edges = entity?.edges ?? []
       const augmented = augmentWithEdgeLinks(files, edges)
 
       // Add README (built fresh per export so the "Generated:" timestamp is accurate)
@@ -790,6 +810,11 @@ export function useExportCharacterOKF(characterId: string, characterName: string
         characterName,
         files: withReadme,
       })
+
+      // Set after save succeeds — this is what the UI uses to distinguish
+      // "export just succeeded" from "no export has run yet" (both leave
+      // `error` at null, so `error === null` alone can't drive a success toast).
+      setLastResult({ isEmpty })
     } catch (err) {
       const normalized = err instanceof Error ? err : new Error(String(err))
       setError(normalized)
@@ -799,7 +824,7 @@ export function useExportCharacterOKF(characterId: string, characterName: string
     }
   }, [wiki, characterId, characterName])
 
-  return { exportOkf, isExporting, error }
+  return { exportOkf, isExporting, error, lastResult }
 }
 ```
 
@@ -840,12 +865,19 @@ import { useExportCharacterOKF } from '~/hooks/useExportCharacterOKF'
 Inside `EditCharacterScreen`, near the other hook calls (after line 49's `useCharacterWiki` call):
 
 ```typescript
-const { exportOkf, isExporting, error: exportError } = useExportCharacterOKF(characterId, name || character?.name || 'character')
+const {
+  exportOkf,
+  isExporting,
+  error: exportError,
+  lastResult: exportResult,
+} = useExportCharacterOKF(characterId, name || character?.name || 'character')
 ```
 
-- [ ] **Step 3: Surface export errors via the existing toast state**
+- [ ] **Step 3: Surface export errors and results via the existing toast state**
 
-Add a `useEffect` near the other effects in the file to push `exportError` into the existing `toastState` mechanism (reusing the pattern already used for `updateError`/`unsyncError`/`cloudSyncError` — check how those are surfaced elsewhere in the file and follow the same approach):
+`toastState` here is `{ message: string; requiresSubscription: boolean } | null` and is rendered by a `Snackbar` with `action={undefined}` (see file bottom) — there is currently no retry affordance on any toast in this screen. The spec calls for "error toast with retry option," so this task also extends `toastState` with an optional `onRetry` and wires it into the `Snackbar`'s `action` prop.
+
+Add a `useEffect` near the other effects in the file to push `exportError`/`exportResult` into the existing `toastState` mechanism (reusing the pattern already used for `updateError`/`unsyncError`/`cloudSyncError`):
 
 ```typescript
 useEffect(() => {
@@ -853,9 +885,48 @@ useEffect(() => {
     setToastState({
       message: `Export failed: ${exportError.message}`,
       requiresSubscription: false,
+      onRetry: exportOkf,
     })
   }
 }, [exportError])
+
+useEffect(() => {
+  if (exportResult) {
+    setToastState({
+      message: exportResult.isEmpty
+        ? 'Empty bundle exported. Add memories to enrich future exports.'
+        : 'Memory exported.',
+      requiresSubscription: false,
+    })
+  }
+}, [exportResult])
+```
+
+Extend the `toastState` type (declared near line 63) to add the optional retry field:
+
+```typescript
+const [toastState, setToastState] = useState<{
+  message: string
+  requiresSubscription: boolean
+  onRetry?: () => void
+} | null>(null)
+```
+
+And wire it into the `Snackbar` at the bottom of the file (currently `action={undefined}`):
+
+```tsx
+<Snackbar
+  visible={toastState !== null}
+  onDismiss={() => setToastState(null)}
+  duration={4000}
+  action={
+    toastState?.onRetry
+      ? { label: 'Retry', onPress: toastState.onRetry }
+      : undefined
+  }
+>
+  {toastState?.message}
+</Snackbar>
 ```
 
 - [ ] **Step 4: Add the button next to "Sync Memory"**
@@ -1090,32 +1161,48 @@ git commit -m "feat: add OKF export explainer page"
 
 - [ ] **Step 1: Locate FAQ structure**
 
-```bash
-grep -A 5 "Can I" app/support.tsx | head -20
-```
+**Verified against the real file:** `app/support.tsx` is a React Native screen (`import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native'`), not a web page — there is no `{question, answer}` array to append to. The FAQ is a single `Card` (`mode="contained"`) containing 8 hand-written pairs of `<Text variant="titleSmall" style={styles.question}>` (the question) followed by a `<Text>` (the answer). Outbound links elsewhere in the file go through `Linking.openURL(...)`, not `<a href>` — a raw anchor tag has no meaning on native and won't render there.
 
-Look for an existing FAQ card or QA structure.
+```bash
+grep -n "titleSmall\|Linking.openURL" app/support.tsx
+```
 
 - [ ] **Step 2: Add OKF export FAQ entry**
 
-In the FAQ `Card` component (wherever existing Q&A pairs live), add:
+**Verified:** this file has no `theme`/`useTheme` import and no existing inline-colored-text-as-link pattern — its only interactive affordance is `onPressEmail` (lines 7-17), a `Button` whose handler branches on `Platform.OS` (`window.location.assign` on web to stay in the same tab, `Linking.openURL` elsewhere). Match that pattern rather than inventing a new inline-link style.
+
+Add a platform-aware handler near `onPressEmail`:
 
 ```typescript
-{
-  question: 'Can I export my character\'s memory?',
-  answer: (
-    <>
-      Yes — open Character Settings and tap <strong>"Export Memory as OKF"</strong> to
-      download a complete, standard-format backup of everything your character knows,
-      including its facts, tasks, and how they connect. See our{' '}
-      <a href="/memory-export-with-okf">data export guide</a> for details on what's
-      included and how to use it.
-    </>
-  ),
+const onPressExportGuide = async () => {
+  const url = 'https://equationalapplications.com/memory-export-with-okf'
+
+  if (Platform.OS === 'web') {
+    window.location.assign(url)
+    return
+  }
+
+  await Linking.openURL(url)
 }
 ```
 
-(Adjust JSX structure to match your FAQ component's expected format.)
+Then, inside the same FAQ `Card.Content`, after the last existing question/answer pair, add a 9th pair following the exact pattern of its neighbors, plus a `Button` for the guide link (matching the "Email Support" button's shape):
+
+```tsx
+<Text variant="titleSmall" style={styles.question}>
+  Can I export my character's memory?
+</Text>
+<Text variant="bodyMedium" style={styles.bodyText}>
+  Yes — open Character Settings and tap "Export Memory as OKF" to download a
+  complete, standard-format backup of everything your character knows,
+  including its facts, tasks, and how they connect.
+</Text>
+<Button mode="text" onPress={onPressExportGuide} icon="open-in-new">
+  Data export guide
+</Button>
+```
+
+Note the link target is an **absolute** URL (`https://equationalapplications.com/memory-export-with-okf`), not a bare `/memory-export-with-okf` path — both `window.location.assign` and `Linking.openURL` need a full URL, not an app-internal route.
 
 - [ ] **Step 3: Verify TypeScript**
 
@@ -1253,6 +1340,14 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
       generatedAt: '2026-07-03T12:00:00Z',
       entities: {
         char_123: {
+          // facts/tasks/events must be present (even if some are empty) —
+          // the hook's isEmpty check reads .length off each of them.
+          facts: [
+            { id: 'fact_abc', title: 'Fact A' },
+            { id: 'fact_xyz', title: 'Fact B' },
+          ],
+          tasks: [],
+          events: [],
           edges: [
             {
               id: 'edge_1',
@@ -1439,7 +1534,7 @@ ls -la
 # index.md
 # README.md
 # entities/
-#   └── alice/
+#   └── {sanitized-character-id}/   # the entity/character id, not the display name — e.g. char_abc123, not "alice"
 #       ├── index.md
 #       ├── log.md
 #       ├── facts/
@@ -1456,7 +1551,7 @@ Open `README.md` and confirm it contains:
 
 - [ ] **Step 7: Verify edges are augmented**
 
-Open a fact file (e.g., `entities/alice/facts/fact_abc.md`) and confirm:
+Open a fact file (e.g., `entities/{character-id}/facts/fact_abc.md` — the directory is the character's id, not its display name) and confirm:
 - Frontmatter with `id:` field
 - Body text
 - "## Related" section with markdown links (if edges exist for that fact)
@@ -1659,11 +1754,19 @@ gh pr create \
 
 **Type Consistency:**
 
-- ✅ `WikiEdge` interface consistent across augmentation and hook
-- ✅ `OkfFile` interface matches `expo-llm-wiki` export
+- ✅ `WikiEdge` imported from `@equationalapplications/expo-llm-wiki` (real re-export, verified against `core-llm-wiki`'s export list) — no more locally-duplicated interface in augmentation utility and hook
+- ✅ `OkfFile` is NOT re-exported by `expo-llm-wiki` (verified: `core-llm-wiki` imports it from `core-okf` internally but doesn't re-export the type) — derived locally as `ReturnType<typeof formatOkfBundle>['files'][number]` in both `augmentWithEdgeLinks.ts` and the hook
 - ✅ Platform resolved via `.ts`/`.web.ts` file split (Task 3) — no runtime `Platform.OS` branch in either file or the calling hook
 - ✅ Function names: `augmentWithEdgeLinks`, `zipAndSaveOKF`, `useExportCharacterOKF` (consistent camelCase)
+- ✅ Native save (Task 3) uses the `File`/`Paths` class API, not the deprecated `writeAsStringAsync`/`cacheDirectory` root exports — those throw at runtime on the installed `expo-file-system@~56.0.8` despite typechecking cleanly
 
-**Gaps or Missing Tasks:**
+**Gaps or Missing Tasks (fixed after cross-check against installed packages and real repo files):**
 
-- None identified. All spec sections (data flow, architecture, errors, testing, public docs) have corresponding tasks.
+- Fixed: `OkfFile` was imported as if re-exported by `expo-llm-wiki` — it isn't; now derived from `formatOkfBundle`'s return type everywhere it's used (Tasks 2, 5)
+- Fixed: Task 3's native save used `expo-file-system` legacy `writeAsStringAsync`/`cacheDirectory`, which throw at runtime on the installed v56 — switched to the `File`/`Paths` API already used elsewhere in this repo (`useAvatarUpload.ts`)
+- Fixed: `augmentWithEdgeLinks`'s frontmatter-id regex used a bare `m` flag with no concept-file filter, so it could false-match a `---` thematic break inside a fact body or scan `log.md`/`index.md` — now filtered to concept files and anchored to the file start
+- Fixed: dead ternary in the cross-type link branch (`goUp` was always `'../'` in that branch) — simplified
+- Fixed: spec called for success and empty-bundle toasts (Task 13 manual-test steps 4 and 8 assert on them) but the hook only exposed `error`, and Task 6 wired only the error path — hook now returns `lastResult: { isEmpty }`, Task 6 wires a success/empty toast alongside the error one
+- Fixed: spec called for an error toast "with retry option" but the `Snackbar` in `edit.tsx` renders `action={undefined}` — Task 6 now threads an `onRetry` through `toastState` into the `Snackbar`'s `action` prop
+- Fixed: Task 9's FAQ snippet assumed a `{question, answer}` array and `<a href>` JSX; the real `app/support.tsx` is a React Native screen with hand-written `Text` pairs in a `Card` and `Linking.openURL`-based navigation (see its existing `onPressEmail`, which also branches on `Platform.OS` for web vs. native) — snippet rewritten to match, with an absolute URL since `Linking.openURL`/`window.location.assign` don't resolve app-relative paths
+- Fixed: Task 12's integration test mock for `dump.entities.char_123` only included `edges`, but the hook's new `isEmpty` check reads `.length` off `facts`/`tasks`/`events` — mock updated to include all three
