@@ -186,6 +186,17 @@ jest.mock('~/hooks/useCharacterWiki', () => ({
     hasChanged: jest.fn(),
   })),
 }))
+const mockExportOkf = jest.fn()
+const mockUseExportCharacterOKF = jest.fn((_characterId: string, _characterName: string) => ({
+  exportOkf: mockExportOkf,
+  isExporting: false,
+  error: null,
+  lastResult: null,
+}))
+jest.mock('~/hooks/useExportCharacterOKF', () => ({
+  useExportCharacterOKF: (characterId: string, characterName: string) =>
+    mockUseExportCharacterOKF(characterId, characterName),
+}))
 
 const mockUseCharacter = jest.mocked(useCharacter)
 const mockUseUpdateCharacter = jest.mocked(useUpdateCharacter)
@@ -226,6 +237,14 @@ beforeEach(() => {
   mockUpdate.mockReset()
   mockWikiSync.mockReset()
   mockCharacterWikiSync.mockClear()
+  mockExportOkf.mockReset()
+  mockUseExportCharacterOKF.mockReset()
+  mockUseExportCharacterOKF.mockReturnValue({
+    exportOkf: mockExportOkf,
+    isExporting: false,
+    error: null,
+    lastResult: null,
+  })
   mockWikiSync.mockResolvedValue({ data: { remoteDump: { generatedAt: Date.now(), entities: { 'cloud-id-1': { facts: [], tasks: [], events: [] } } } } })
   mockUseWiki.mockReturnValue(mockWikiInstance)
   mockWikiInstance.importDump.mockResolvedValue(undefined)
@@ -520,5 +539,50 @@ describe('EditCharacterScreen - Sync Memory button', () => {
       .find((b) => b.props.children === 'Sync Memory')
 
     expect(syncButton).toBeDefined()
+  })
+})
+
+describe('EditCharacterScreen - Export Memory button', () => {
+  it('calls OKF export when pressed', () => {
+    const character = makeCharacter()
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const exportButton = tree.root
+      .findAll((node) => String(node.type) === 'Button')
+      .find((b) => b.props.children === 'Export Memory as OKF')
+    expect(exportButton).toBeDefined()
+
+    act(() => {
+      exportButton!.props.onPress()
+    })
+
+    expect(mockExportOkf).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables export button while export is in progress', () => {
+    mockUseExportCharacterOKF.mockReturnValue({
+      exportOkf: mockExportOkf,
+      isExporting: true,
+      error: null,
+      lastResult: null,
+    })
+    const character = makeCharacter()
+    mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
+
+    let tree!: renderer.ReactTestRenderer
+    act(() => {
+      tree = renderer.create(React.createElement(EditCharacterScreen))
+    })
+
+    const exportButton = tree.root
+      .findAll((node) => String(node.type) === 'Button')
+      .find((b) => b.props.children === 'Export Memory as OKF')
+
+    expect(exportButton?.props.disabled).toBe(true)
   })
 })

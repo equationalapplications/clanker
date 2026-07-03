@@ -182,6 +182,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-secure-store',
+    'expo-sharing',
     'expo-router',
     'expo-sqlite',
     'expo-asset',

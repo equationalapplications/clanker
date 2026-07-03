@@ -211,6 +211,8 @@ const FOOTER = `
       <span>·</span>
       <a href="/real-time-voice">Real-Time Voice</a>
       <span>·</span>
+      <a href="/memory-export-with-okf">Memory Export</a>
+      <span>·</span>
       <a href="/terms">Terms and Conditions</a>
       <span>·</span>
       <a href="/privacy">Privacy Policy</a>
@@ -310,6 +312,7 @@ function generateSitemap({ privacy, terms }) {
     { loc: '/', priority: '1.0' },
     { loc: '/welcome', priority: '0.9' },
     { loc: '/real-time-voice', priority: '0.8' },
+    { loc: '/memory-export-with-okf', priority: '0.6' },
     { loc: '/privacy', priority: '0.4', lastmod: toIsoDate(privacy.lastUpdated) },
     { loc: '/terms', priority: '0.4', lastmod: toIsoDate(terms.lastUpdated) },
     { loc: '/support', priority: '0.5' },
