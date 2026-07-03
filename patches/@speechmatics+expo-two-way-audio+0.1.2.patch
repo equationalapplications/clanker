@@ -1,33 +1,37 @@
 diff --git a/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/AudioEngine.kt b/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/AudioEngine.kt
-index 0103151..9c7ddbb 100644
+index 0103151..f67947a 100644
 --- a/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/AudioEngine.kt
 +++ b/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/AudioEngine.kt
-@@ -39,6 +39,7 @@ class AudioEngine (context: Context) {
+@@ -39,6 +39,8 @@ class AudioEngine (context: Context) {
      var isRecording = false
      private var isRecordingBeforePause = false
      var isPlaying = false
++    @Volatile private var playbackGeneration = 0
 +    @Volatile private var abortPlayback = false
  
      // Callbacks
      var onMicDataCallback: ((ByteArray) -> Unit)? = null
-@@ -252,30 +253,34 @@ class AudioEngine (context: Context) {
+@@ -252,30 +254,35 @@ class AudioEngine (context: Context) {
      }
  
      fun playPCMData(data: ByteArray) {
 -        audioSampleQueue.add(data)
-+        synchronized(audioSampleQueue) {
++        val generation = synchronized(audioSampleQueue) {
 +            audioSampleQueue.add(data)
++            playbackGeneration
 +        }
          if (!isPlaying) {
-             playAudioFromSampleQueue()
+-            playAudioFromSampleQueue()
++            playAudioFromSampleQueue(generation)
          }
      }
  
-     private fun playAudioFromSampleQueue() {
+-    private fun playAudioFromSampleQueue() {
 -        executorServicePlayback.execute{
++    private fun playAudioFromSampleQueue(generation: Int = playbackGeneration) {
 +        executorServicePlayback.execute {
++            if (generation != playbackGeneration || abortPlayback) return@execute
              isPlaying = true
-+            abortPlayback = false
              try {
 -                while (audioSampleQueue.isNotEmpty()){
 -                    val data = audioSampleQueue.poll()
@@ -37,13 +41,13 @@ index 0103151..9c7ddbb 100644
 -                        onOutputVolumeCallback?.invoke(audioVolume)
 -                    }else{
 -                        break
-+                while (!abortPlayback) {
++                while (!abortPlayback && generation == playbackGeneration) {
 +                    val data: ByteArray?
 +                    synchronized(audioSampleQueue) {
 +                        data = audioSampleQueue.poll()
                      }
 +                    if (data == null) break
-+                    if (abortPlayback) break
++                    if (abortPlayback || generation != playbackGeneration) break
 +                    playSample(data)
 +                    val audioVolume = calculateRMSLevel(data)
 +                    onOutputVolumeCallback?.invoke(audioVolume)
@@ -57,19 +61,20 @@ index 0103151..9c7ddbb 100644
                  isPlaying = false
                  onOutputVolumeCallback?.invoke(0.0F)
              }
-@@ -310,6 +315,30 @@ class AudioEngine (context: Context) {
+@@ -310,6 +317,34 @@ class AudioEngine (context: Context) {
          audioTrack.play()
      }
  
 +    /** Stop scheduled agent audio immediately while keeping the mic alive (barge-in). */
 +    fun clearPlaybackQueueForBargeIn() {
 +        abortPlayback = true
++        synchronized(audioSampleQueue) {
++            playbackGeneration += 1
++            audioSampleQueue.clear()
++        }
 +        // All AudioTrack mutations must run on the playback executor so we never
 +        // pause/flush while another task on that thread is mid-write().
 +        executorServicePlayback.execute {
-+            synchronized(audioSampleQueue) {
-+                audioSampleQueue.clear()
-+            }
 +            try {
 +                audioTrack.pause()
 +                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -79,9 +84,12 @@ index 0103151..9c7ddbb 100644
 +            } catch (e: Exception) {
 +                Log.e("AudioEngine", "Error clearing playback queue", e)
 +            }
-+            isPlaying = false
 +            abortPlayback = false
++            isPlaying = false
 +            onOutputVolumeCallback?.invoke(0.0F)
++            if (synchronized(audioSampleQueue) { audioSampleQueue.isNotEmpty() }) {
++                playAudioFromSampleQueue()
++            }
 +        }
 +    }
 +

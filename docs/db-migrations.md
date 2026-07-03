@@ -19,7 +19,7 @@ There are two independent Postgres targets, each with its own migration runner:
 Both runners apply the same SQL files from `functions/drizzle/`.
 
 > **Important:** Production has no migration journal/tracking table. Migrations must be applied manually and tracked by hand — see "Applied Migrations" below. Before generating or applying migrations, verify `CLOUD_SQL_CONNECTION_NAME` points to the intended instance.
-
+>
 > **Journal desync:** `functions/drizzle/meta/_journal.json` is stuck at `0011_credits_redesign`, but hand-written migration files `0012`–`0018`+ already exist on disk. **Do not run `npx drizzle-kit generate`** — it will assign a conflicting number/tag against the stale journal. See "Workflow for Schema Changes" below.
 
 ---
