@@ -1,3 +1,15 @@
+# [30.15.0](https://github.com/equationalapplications/clanker/compare/v30.14.2...v30.15.0) (2026-07-03)
+
+
+### Bug Fixes
+
+* remove dead createNewCharacter function and unused import ([0b6dc06](https://github.com/equationalapplications/clanker/commit/0b6dc0622d7918499f7bebc650db5b0047a001ee))
+
+
+### Features
+
+* enable cloud sync by default for new characters ([5dd7504](https://github.com/equationalapplications/clanker/commit/5dd7504b13d572e292b942feec4db76cf6b1b362))
+
 ## [30.14.2](https://github.com/equationalapplications/clanker/compare/v30.14.1...v30.14.2) (2026-07-03)
 
 
