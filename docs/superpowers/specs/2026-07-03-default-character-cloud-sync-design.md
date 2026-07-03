@@ -1,7 +1,7 @@
 # Default Character Cloud Sync On By Default — Design Spec
 
 **Date:** 2026-07-03
-**Status:** Proposed
+**Status:** Implemented
 
 ---
 
