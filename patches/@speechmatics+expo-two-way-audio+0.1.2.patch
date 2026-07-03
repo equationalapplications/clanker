@@ -1,7 +1,148 @@
+diff --git a/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/AudioEngine.kt b/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/AudioEngine.kt
+index 0103151..5aa3df2 100644
+--- a/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/AudioEngine.kt
++++ b/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/AudioEngine.kt
+@@ -38,7 +38,9 @@ class AudioEngine (context: Context) {
+ 
+     var isRecording = false
+     private var isRecordingBeforePause = false
+-    var isPlaying = false
++    @Volatile var isPlaying = false
++    @Volatile private var playbackGeneration = 0
++    @Volatile private var abortPlayback = false
+ 
+     // Callbacks
+     var onMicDataCallback: ((ByteArray) -> Unit)? = null
+@@ -252,30 +254,35 @@ class AudioEngine (context: Context) {
+     }
+ 
+     fun playPCMData(data: ByteArray) {
+-        audioSampleQueue.add(data)
++        val generation = synchronized(audioSampleQueue) {
++            audioSampleQueue.add(data)
++            playbackGeneration
++        }
+         if (!isPlaying) {
+-            playAudioFromSampleQueue()
++            playAudioFromSampleQueue(generation)
+         }
+     }
+ 
+-    private fun playAudioFromSampleQueue() {
+-        executorServicePlayback.execute{
++    private fun playAudioFromSampleQueue(generation: Int = playbackGeneration) {
++        executorServicePlayback.execute {
++            if (generation != playbackGeneration || abortPlayback) return@execute
+             isPlaying = true
+             try {
+-                while (audioSampleQueue.isNotEmpty()){
+-                    val data = audioSampleQueue.poll()
+-                    if (data != null){
+-                        playSample(data)
+-                        val audioVolume = calculateRMSLevel(data)
+-                        onOutputVolumeCallback?.invoke(audioVolume)
+-                    }else{
+-                        break
++                while (!abortPlayback && generation == playbackGeneration) {
++                    val data: ByteArray?
++                    synchronized(audioSampleQueue) {
++                        data = audioSampleQueue.poll()
+                     }
++                    if (data == null) break
++                    if (abortPlayback || generation != playbackGeneration) break
++                    playSample(data)
++                    val audioVolume = calculateRMSLevel(data)
++                    onOutputVolumeCallback?.invoke(audioVolume)
+                 }
+-            }catch (e: Exception){
++            } catch (e: Exception) {
+                 Log.e("AudioEngine", "Error playing audio", e)
+                 e.printStackTrace()
+-            }finally {
++            } finally {
+                 isPlaying = false
+                 onOutputVolumeCallback?.invoke(0.0F)
+             }
+@@ -310,6 +317,34 @@ class AudioEngine (context: Context) {
+         audioTrack.play()
+     }
+ 
++    /** Stop scheduled agent audio immediately while keeping the mic alive (barge-in). */
++    fun clearPlaybackQueueForBargeIn() {
++        abortPlayback = true
++        synchronized(audioSampleQueue) {
++            playbackGeneration += 1
++            audioSampleQueue.clear()
++        }
++        // All AudioTrack mutations must run on the playback executor so we never
++        // pause/flush while another task on that thread is mid-write().
++        executorServicePlayback.execute {
++            try {
++                audioTrack.pause()
++                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
++                    audioTrack.flush()
++                }
++                audioTrack.play()
++            } catch (e: Exception) {
++                Log.e("AudioEngine", "Error clearing playback queue", e)
++            }
++            abortPlayback = false
++            isPlaying = false
++            onOutputVolumeCallback?.invoke(0.0F)
++            if (synchronized(audioSampleQueue) { audioSampleQueue.isNotEmpty() }) {
++                playAudioFromSampleQueue()
++            }
++        }
++    }
++
+     @SuppressLint("NewApi")
+     fun tearDown() {
+         stopRecording()
+diff --git a/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/ExpoTwoWayAudioModule.kt b/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/ExpoTwoWayAudioModule.kt
+index 303873e..a14b8dc 100644
+--- a/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/ExpoTwoWayAudioModule.kt
++++ b/node_modules/@speechmatics/expo-two-way-audio/android/src/main/java/expo/modules/twowayaudio/ExpoTwoWayAudioModule.kt
+@@ -52,7 +52,7 @@ class ExpoTwoWayAudioModule : Module() {
+          }
+ 
+          Function("restart") {
+-             audioEngine?.resumeRecordingAndPlayer()
++             audioEngine?.clearPlaybackQueueForBargeIn()
+              sendEvent(ON_RECORDING_CHANGE_EVENT, mapOf(
+                  "data" to (audioEngine?.isRecording ?: false)
+              ))
+diff --git a/node_modules/@speechmatics/expo-two-way-audio/ios/AudioEngine.swift b/node_modules/@speechmatics/expo-two-way-audio/ios/AudioEngine.swift
+index 46d6b22..0a089fc 100644
+--- a/node_modules/@speechmatics/expo-two-way-audio/ios/AudioEngine.swift
++++ b/node_modules/@speechmatics/expo-two-way-audio/ios/AudioEngine.swift
+@@ -276,6 +276,14 @@ class AudioEngine {
+         speechPlayer.play()
+     }
+ 
++    /// Stop scheduled agent audio immediately while keeping the mic/engine alive (barge-in).
++    func clearPlaybackQueueForBargeIn() {
++        speechPlayer.stop()
++        speechPlayer.reset()
++        updateOutputVolume()
++        checkEngineIsRunning()
++    }
++    
+     func tearDown() {
+         stopRecordingAndPlayer()
+         avAudioEngine.stop()
 diff --git a/node_modules/@speechmatics/expo-two-way-audio/ios/ExpoTwoWayAudioModule.swift b/node_modules/@speechmatics/expo-two-way-audio/ios/ExpoTwoWayAudioModule.swift
-index 1634369..7392baa 100644
+index 1634369..c0494a3 100644
 --- a/node_modules/@speechmatics/expo-two-way-audio/ios/ExpoTwoWayAudioModule.swift
 +++ b/node_modules/@speechmatics/expo-two-way-audio/ios/ExpoTwoWayAudioModule.swift
+@@ -97,7 +97,7 @@ public class ExpoTwoWayAudioModule: Module {
+         }
+ 
+         Function("restart") {
+-            self.audioEngine?.resumeRecordingAndPlayer()
++            self.audioEngine?.clearPlaybackQueueForBargeIn()
+             self.sendEvent(
+                 ON_RECORDING_CHANGE_EVENT_NAME,
+                 [
 @@ -122,7 +122,7 @@ public class ExpoTwoWayAudioModule: Module {
              EXPermissionsMethodsDelegate.getPermissionWithPermissionsManager(
                  self.appContext?.permissions,

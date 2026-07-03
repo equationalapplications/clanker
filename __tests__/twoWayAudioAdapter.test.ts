@@ -149,22 +149,39 @@ describe('TwoWayAudioAdapter', () => {
   })
 
   test('isPlaying() returns false initially', () => {
-    expect(adapter.isPlaying()).toBe(false)
+    jest.useFakeTimers()
+    try {
+      expect(adapter.isPlaying()).toBe(false)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   test('isPlaying() returns true immediately after playChunk', () => {
-    const raw = new Uint8Array(64)
-    const b64 = btoa(String.fromCharCode(...raw))
-    adapter.playChunk(b64)
-    expect(adapter.isPlaying()).toBe(true)
+    jest.useFakeTimers()
+    try {
+      jest.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+      const raw = new Uint8Array(192)
+      const b64 = btoa(String.fromCharCode(...raw))
+      adapter.playChunk(b64)
+      expect(adapter.isPlaying()).toBe(true)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   test('isPlaying() returns false after clearPlaybackQueue', () => {
-    const raw = new Uint8Array(64)
-    const b64 = btoa(String.fromCharCode(...raw))
-    adapter.playChunk(b64)
-    adapter.clearPlaybackQueue()
-    expect(adapter.isPlaying()).toBe(false)
+    jest.useFakeTimers()
+    try {
+      jest.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+      const raw = new Uint8Array(192)
+      const b64 = btoa(String.fromCharCode(...raw))
+      adapter.playChunk(b64)
+      adapter.clearPlaybackQueue()
+      expect(adapter.isPlaying()).toBe(false)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   test('tearDown calls module tearDown', async () => {
