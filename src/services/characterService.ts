@@ -9,7 +9,6 @@ import { getCurrentUser } from '~/config/firebaseConfig'
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 import * as characterDB from '../database/characterDatabase'
 import type { CharacterInsert, CharacterUpdate } from '../database/characterDatabase'
-import { loadDefaultAvatarBase64 } from './defaultAvatarService'
 
 export type { CharacterInsert, CharacterUpdate }
 
@@ -129,55 +128,6 @@ export const searchCharacters = async (userId: string, searchText: string): Prom
   } catch (error) {
     console.error('Error searching characters:', error)
     return []
-  }
-}
-
-/**
- * Create a new character with default values
- */
-export const createNewCharacter = async (): Promise<{ id: string }> => {
-  console.log('🏗️ createNewCharacter starting...')
-
-  const userId = getCurrentUser()?.uid
-  if (!userId) {
-    throw new Error('User not logged in')
-  }
-
-  try {
-    console.log('📝 Creating character with default values...')
-
-    let avatarData: string | undefined
-
-    // Best-effort avatar load: character creation should still succeed without it.
-    try {
-      avatarData = (await loadDefaultAvatarBase64()) || undefined
-    } catch (error) {
-      console.warn('⚠️ Failed to load default avatar; creating character without avatar_data', error)
-      avatarData = undefined
-    }
-
-    const character = await createCharacter({
-      name: 'Clanker',
-      appearance: 'A mysterious figure with an intriguing presence.',
-      traits: 'Curious, intelligent, and thoughtful.',
-      emotions: 'Calm and collected, with hints of excitement.',
-      context: 'A helpful companion ready for meaningful conversations.',
-      is_public: false,
-      avatar_data: avatarData,
-      voice: DEFAULT_VOICE,
-    })
-
-    if (!character) {
-      console.error('❌ Character creation returned null')
-      throw new Error('Failed to create character')
-    }
-
-    const result = { id: character.id }
-    console.log('✨ Returning character ID:', result)
-    return result
-  } catch (error) {
-    console.error('💥 Error in createNewCharacter:', error)
-    throw error
   }
 }
 
