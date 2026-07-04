@@ -1,3 +1,23 @@
+# [30.17.0](https://github.com/equationalapplications/clanker/compare/v30.16.0...v30.17.0) (2026-07-04)
+
+
+### Bug Fixes
+
+* **deps:** bump llm packages to 4.17.3 ([2f692c7](https://github.com/equationalapplications/clanker/commit/2f692c7cc8aa9511adb659a72e2c35afc07bf3f7))
+* **okf:** add explicit Cancel button to import preview modal ([1dc6549](https://github.com/equationalapplications/clanker/commit/1dc654978bafcbbc4a9ad96dfbad7a51d6c831e1))
+* **okf:** address CodeRabbit review feedback ([185801d](https://github.com/equationalapplications/clanker/commit/185801d71f4376ae20c6d403ec134e0e7740e1c5))
+* **okf:** harden import and export flows ([a70b894](https://github.com/equationalapplications/clanker/commit/a70b894837e3e7eca703cf1e9483649f29426244))
+* **okf:** keep export loading state through native save ([7e44ae3](https://github.com/equationalapplications/clanker/commit/7e44ae31778f04f1cefcb5b87125faf869aa3fd9))
+* **okf:** save Android exports to device via SAF ([77cbcae](https://github.com/equationalapplications/clanker/commit/77cbcae68c9839e43b054847b37e84b240713201))
+
+
+### Features
+
+* add okf import support with marketing pages and seo updates ([34366b0](https://github.com/equationalapplications/clanker/commit/34366b086453e04e40fdb4ea41652b03419b7fc5)), closes [#3](https://github.com/equationalapplications/clanker/issues/3) [#1](https://github.com/equationalapplications/clanker/issues/1) [#2](https://github.com/equationalapplications/clanker/issues/2) [#3](https://github.com/equationalapplications/clanker/issues/3)
+* **okf:** dedupe episodic events before a merge/replace restore ([1d8cfa1](https://github.com/equationalapplications/clanker/commit/1d8cfa142f2662186da37effa7f5bcd969849b42))
+* **okf:** wire clone (create-from-bundle) UI into character list screen ([d48ebe4](https://github.com/equationalapplications/clanker/commit/d48ebe4d102867069353cf80709180809cf4f8d7))
+* **okf:** wire restore (merge/replace) UI into character edit screen ([8b29007](https://github.com/equationalapplications/clanker/commit/8b2900793dd4e80e98f2965356450217ec2acc00))
+
 # [30.15.0](https://github.com/equationalapplications/clanker/compare/v30.14.2...v30.15.0) (2026-07-03)
 
 
