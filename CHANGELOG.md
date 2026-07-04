@@ -1,3 +1,16 @@
+# [30.19.0](https://github.com/equationalapplications/clanker/compare/v30.18.0...v30.19.0) (2026-07-04)
+
+
+### Bug Fixes
+
+* address PR review feedback for landing page unification ([f79a5ee](https://github.com/equationalapplications/clanker/commit/f79a5ee94b088d88b1101f477cb68ec020179b24))
+* escape double quotes in HTML attribute values ([37aa8e0](https://github.com/equationalapplications/clanker/commit/37aa8e0e85b89fd9c5786d373562a3d27a7fdc8d))
+
+
+### Features
+
+* unify landing page content across React and static welcome ([2205378](https://github.com/equationalapplications/clanker/commit/2205378f0de03407830a11f30136c52fc2204ff1))
+
 # [30.18.0](https://github.com/equationalapplications/clanker/compare/v30.17.0...v30.18.0) (2026-07-04)
 
 
