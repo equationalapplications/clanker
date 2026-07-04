@@ -13,6 +13,7 @@ const mockHasChanged = jest.fn().mockResolvedValue(true)
 const mockForget = jest.fn().mockResolvedValue(undefined)
 const mockIngest = jest.fn().mockResolvedValue({ chunks: 1 })
 const mockText = jest.fn()
+const mockBase64 = jest.fn()
 const mockRead = jest.fn()
 const mockWrite = jest.fn()
 const mockSync = jest.fn()
@@ -46,12 +47,8 @@ jest.mock('expo-file-system', () => ({
       this.uri = uri
     }
     text = mockText
+    base64 = mockBase64
   },
-  readAsStringAsync: jest.fn().mockResolvedValue(''),
-}))
-
-jest.mock('expo-file-system/legacy', () => ({
-  readAsStringAsync: jest.fn().mockResolvedValue(''),
 }))
 
 jest.mock('expo-crypto', () => ({
@@ -111,6 +108,7 @@ describe('ChatComposer', () => {
     mockWrite.mockReset()
     mockSync.mockReset()
     mockText.mockReset()
+    mockBase64.mockReset()
     mockConvertDocumentText.mockReset()
     mockFetch.mockReset()
     mockConvertDocumentText.mockResolvedValue({ data: { text: 'converted text', truncated: false } })
@@ -425,13 +423,12 @@ describe('ChatComposer', () => {
 
   it('delegates ingest flow through useCharacterWiki methods', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     const Crypto = require('expo-crypto')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockText.mockResolvedValue('hello world')
     Crypto.digestStringAsync.mockResolvedValue('hash123')
 
     const ChatComposer = require('~/components/ChatComposer').default
@@ -462,13 +459,12 @@ describe('ChatComposer', () => {
 
   it('converts PDF documents via convertDocumentText before ingesting (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     const Crypto = require('expo-crypto')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('base64-bytes')
+    mockBase64.mockResolvedValue('base64-bytes')
     Crypto.digestStringAsync.mockResolvedValue('hash456')
     mockConvertDocumentText.mockResolvedValue({ data: { text: 'transcribed pdf text', truncated: false } })
 
@@ -486,10 +482,8 @@ describe('ChatComposer', () => {
       await plusButton.props.onPress()
     })
 
-    expect(FileSystemLegacy.readAsStringAsync).toHaveBeenCalledWith(
-      'file://doc.pdf',
-      { encoding: 'base64' },
-    )
+    expect(mockBase64).toHaveBeenCalled()
+    expect(mockText).not.toHaveBeenCalled()
     expect(mockConvertDocumentText).toHaveBeenCalledWith({
       filename: 'doc.pdf',
       mimeType: 'application/pdf',
@@ -505,13 +499,12 @@ describe('ChatComposer', () => {
 
   it('converts PDF documents via convertDocumentText when mimeType is missing (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     const Crypto = require('expo-crypto')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('base64-bytes')
+    mockBase64.mockResolvedValue('base64-bytes')
     Crypto.digestStringAsync.mockResolvedValue('hash456')
     mockConvertDocumentText.mockResolvedValue({ data: { text: 'transcribed pdf text', truncated: false } })
 
@@ -529,10 +522,8 @@ describe('ChatComposer', () => {
       await plusButton.props.onPress()
     })
 
-    expect(FileSystemLegacy.readAsStringAsync).toHaveBeenCalledWith(
-      'file://doc.pdf',
-      { encoding: 'base64' },
-    )
+    expect(mockBase64).toHaveBeenCalled()
+    expect(mockText).not.toHaveBeenCalled()
     expect(mockConvertDocumentText).toHaveBeenCalledWith({
       filename: 'doc.pdf',
       mimeType: 'application/pdf',
@@ -634,12 +625,11 @@ describe('ChatComposer', () => {
 
   it('maps insufficient-credit error from convertDocumentText to a toast (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('base64-bytes')
+    mockBase64.mockResolvedValue('base64-bytes')
     mockConvertDocumentText.mockRejectedValue({ code: 'functions/failed-precondition', message: 'Insufficient credits to convert document.' })
 
     const ChatComposer = require('~/components/ChatComposer').default
@@ -662,12 +652,11 @@ describe('ChatComposer', () => {
 
   it('maps non-credit failed-precondition from convertDocumentText to a generic toast (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('base64-bytes')
+    mockBase64.mockResolvedValue('base64-bytes')
     mockConvertDocumentText.mockRejectedValue({
       code: 'functions/failed-precondition',
       message: 'Account setup incomplete.',
@@ -693,13 +682,12 @@ describe('ChatComposer', () => {
 
   it('emits phase transitions in order reading -> checking -> forgetting -> null, then ingest (native, non-convert)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
     })
     const calls: string[] = []
-    FileSystemLegacy.readAsStringAsync.mockImplementation(async () => {
+    mockText.mockImplementation(async () => {
       calls.push('read')
       return 'hello world'
     })
@@ -750,13 +738,12 @@ describe('ChatComposer', () => {
 
   it('emits converting phase before convertDocumentText, then continues through checking/forgetting (native, pdf)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
     })
     const calls: string[] = []
-    FileSystemLegacy.readAsStringAsync.mockImplementation(async () => {
+    mockBase64.mockImplementation(async () => {
       calls.push('readBase64')
       return 'base64-bytes'
     })
@@ -813,12 +800,11 @@ describe('ChatComposer', () => {
 
   it('resets phase to null and shows a toast when reading the file fails (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockRejectedValue(new Error('disk error'))
+    mockText.mockRejectedValue(new Error('disk error'))
 
     const onPhaseChange = jest.fn()
     const ChatComposer = require('~/components/ChatComposer').default
@@ -849,12 +835,11 @@ describe('ChatComposer', () => {
 
   it('resets phase to null and shows a toast when checking for changes fails (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockText.mockResolvedValue('hello world')
     mockHasChanged.mockRejectedValue(new Error('boom'))
 
     const onPhaseChange = jest.fn()
@@ -886,12 +871,11 @@ describe('ChatComposer', () => {
 
   it('resets phase to null without forgetting/ingesting when document is already up to date (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockText.mockResolvedValue('hello world')
     mockHasChanged.mockResolvedValue(false)
 
     const onPhaseChange = jest.fn()
@@ -923,12 +907,11 @@ describe('ChatComposer', () => {
 
   it('resets phase to null and shows a toast when removing the stale version fails (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockText.mockResolvedValue('hello world')
     mockHasChanged.mockResolvedValue(true)
     mockForget.mockRejectedValue(new Error('boom'))
 
@@ -961,12 +944,11 @@ describe('ChatComposer', () => {
 
   it('resets phase to null when document conversion fails (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('base64-bytes')
+    mockBase64.mockResolvedValue('base64-bytes')
     mockConvertDocumentText.mockRejectedValue({ code: 'functions/invalid-argument' })
 
     const onPhaseChange = jest.fn()
@@ -997,7 +979,6 @@ describe('ChatComposer', () => {
 
   it('rejects oversized files before any read (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://big.pdf', name: 'big.pdf', mimeType: 'application/pdf', size: 9_000_001 }],
@@ -1026,17 +1007,17 @@ describe('ChatComposer', () => {
 
     expect(capturedSnackbarProps.children).toBe('File too large.')
     expect(onPhaseChange).not.toHaveBeenCalled()
-    expect(FileSystemLegacy.readAsStringAsync).not.toHaveBeenCalled()
+    expect(mockText).not.toHaveBeenCalled()
+    expect(mockBase64).not.toHaveBeenCalled()
   })
 
   it('proceeds normally when asset.size is at or below the threshold (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://small.txt', name: 'small.txt', size: 9_000_000 }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockText.mockResolvedValue('hello world')
 
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
@@ -1059,7 +1040,6 @@ describe('ChatComposer', () => {
 
   it('ignores a superseded request when a second pick starts before the first resolves (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync
       .mockResolvedValueOnce({
         canceled: false,
@@ -1069,7 +1049,7 @@ describe('ChatComposer', () => {
         canceled: false,
         assets: [{ uri: 'file://second.txt', name: 'second.txt' }],
       })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockText.mockResolvedValue('hello world')
 
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
@@ -1096,12 +1076,11 @@ describe('ChatComposer', () => {
 
   it('ignores an in-flight request after the component unmounts (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockText.mockResolvedValue('hello world')
     let resolveForget: () => void = () => {}
     mockForget.mockImplementation(
       () => new Promise<void>((resolve) => {
@@ -1139,12 +1118,11 @@ describe('ChatComposer', () => {
 
   it('shows the spinner while a document phase is active, before isIngesting becomes true (native)', async () => {
     const DocumentPicker = require('expo-document-picker')
-    const FileSystemLegacy = require('expo-file-system/legacy')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
       assets: [{ uri: 'file://doc.txt', name: 'doc.txt' }],
     })
-    FileSystemLegacy.readAsStringAsync.mockResolvedValue('hello world')
+    mockText.mockResolvedValue('hello world')
     mockHasChanged.mockImplementation(() => new Promise(() => {})) // never resolves
 
     const ChatComposer = require('~/components/ChatComposer').default
