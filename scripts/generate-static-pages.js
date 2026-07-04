@@ -14,6 +14,7 @@
  * the Expo Router screens still render the same pages as a graceful fallback.
  */
 
+const { execSync } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 const ts = require('typescript')
@@ -297,8 +298,23 @@ function toIsoDate(humanDate) {
   return parsed.toISOString().slice(0, 10)
 }
 
-function lastmodFromMtime(filePath) {
+function lastmodFromFile(filePath) {
   if (!fs.existsSync(filePath)) return null
+
+  try {
+    const relPath = path.relative(ROOT, filePath)
+    const gitDate = execSync(`git log -1 --format=%cI -- "${relPath}"`, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim()
+    if (gitDate) {
+      return new Date(gitDate).toISOString().slice(0, 10)
+    }
+  } catch {
+    // Untracked or no git history — fall back to mtime.
+  }
+
   return new Date(fs.statSync(filePath).mtime).toISOString().slice(0, 10)
 }
 
@@ -393,7 +409,7 @@ function generateSitemap({ privacy, terms }) {
 
   const urls = pages
     .map((page) => {
-      const lastmod = page.lastmod ?? lastmodFromMtime(page.lastmodFile)
+      const lastmod = page.lastmod ?? lastmodFromFile(page.lastmodFile)
       const lastmodTag = lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''
       const changefreqTag = page.changefreq ? `\n    <changefreq>${page.changefreq}</changefreq>` : ''
       return `  <url>

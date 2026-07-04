@@ -35,7 +35,7 @@ export default function WebIndex() {
         <link rel="canonical" href="https://clanker-ai.com/welcome" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Clanker" />
-        <meta property="og:url" content="https://clanker-ai.com/" />
+        <meta property="og:url" content="https://clanker-ai.com/welcome" />
         <meta
           property="og:title"
           content="Clanker — AI Characters with Real-Time Voice & Google OKF Memory"
