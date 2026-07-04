@@ -89,6 +89,7 @@ export default function EditCharacterScreen() {
     handleCancel: handleImportCancel,
   } = useImportCharacterOKF()
   const prevDidImportRef = useRef(false)
+  const importErrorShownRef = useRef<Error | null>(null)
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -187,12 +188,13 @@ export default function EditCharacterScreen() {
   }, [didImport])
 
   useEffect(() => {
-    if (importError) {
+    if (importError && importError !== importErrorShownRef.current) {
       setToastState({
         message:
           (importError as Error & { displayMessage?: string }).displayMessage ?? importError.message,
         requiresSubscription: false,
       })
+      importErrorShownRef.current = importError
     }
   }, [importError])
 
@@ -616,7 +618,7 @@ export default function EditCharacterScreen() {
             icon="import"
             onPress={() => handlePickAndPreview(characterId)}
             disabled={isImportParsing || isImporting}
-            loading={isImportParsing || isImporting}
+            loading={isImportParsing}
             style={styles.shareButton}
           >
             Import OKF Backup
@@ -697,7 +699,7 @@ export default function EditCharacterScreen() {
             contentContainerStyle={[styles.shareModal, { backgroundColor: theme.colors.surface }]}
           >
             <Text variant="headlineSmall" style={styles.shareTitle}>
-              Preview Backup
+              Import OKF Backup
             </Text>
             {importPreview ? (
               <>
@@ -712,6 +714,8 @@ export default function EditCharacterScreen() {
                   onPress={() => {
                     void handleCommitImport(characterId, 'merge')
                   }}
+                  loading={isImporting}
+                  disabled={isImporting}
                   style={styles.previewButton}
                 >
                   Merge Backup
@@ -719,6 +723,8 @@ export default function EditCharacterScreen() {
                 <Button
                   mode="outlined"
                   onPress={handleReplaceConfirm}
+                  loading={isImporting}
+                  disabled={isImporting}
                   style={styles.previewButton}
                 >
                   Replace Memory

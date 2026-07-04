@@ -3,29 +3,34 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Live Real-Time Voice Calls — Clanker</title>
+    <title>Enhanced Privacy Mode — Keep AI Memory On Your Device — Clanker</title>
     <meta
       name="description"
-      content="Talk to your AI characters in real time with Clanker. Natural phone-call conversations, hands-free speakerphone, seamless interruptions, and live web and memory tools. 1 credit per minute."
+      content="Turn cloud sync off and run your Clanker AI character in enhanced privacy mode: its memories and chat history stay strictly on your device, never stored in our cloud database. Gemini still processes messages in the cloud to generate replies, but nothing is persisted."
     />
-    <link rel="canonical" href="https://clanker-ai.com/real-time-voice" />
+    <meta
+      name="keywords"
+      content="private AI, on-device AI, local AI memory, AI privacy, offline AI character, no cloud storage AI, private AI chat, enhanced privacy mode, local-first AI, Clanker"
+    />
+    <link rel="canonical" href="https://clanker-ai.com/privacy-mode" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://clanker-ai.com/real-time-voice" />
-    <meta property="og:title" content="Clanker — Live Real-Time Voice Calls" />
+    <meta property="og:site_name" content="Clanker" />
+    <meta property="og:url" content="https://clanker-ai.com/privacy-mode" />
+    <meta property="og:title" content="Clanker — Enhanced Privacy Mode (On-Device AI Memory)" />
     <meta
       property="og:description"
-      content="Experience natural, uninterrupted voice conversations with your AI characters. Hands-free, interruptible, and powered by live tools."
+      content="Turn cloud sync off and keep your AI character's memories and chat history strictly on your device — never stored in our cloud database."
     />
     <meta property="og:image" content="https://clanker-ai.com/og-image.png" />
     <meta property="og:image:width" content="1024" />
     <meta property="og:image:height" content="500" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Clanker — Live Real-Time Voice Calls" />
+    <meta name="twitter:title" content="Clanker — Enhanced Privacy Mode (On-Device AI Memory)" />
     <meta
       name="twitter:description"
-      content="Talk to your AI characters in real time — natural phone-call conversations, hands-free, interruptible, with live web and memory tools."
+      content="Keep your AI character's memories and chat history strictly on your device with cloud sync off — never stored in our cloud database."
     />
     <meta name="twitter:image" content="https://clanker-ai.com/og-image.png" />
 
@@ -33,9 +38,9 @@
       {
         "@context": "https://schema.org",
         "@type": "WebPage",
-        "name": "Clanker — Live Real-Time Voice Calls",
-        "description": "Talk to your AI characters in real time with natural, uninterrupted voice conversations.",
-        "url": "https://clanker-ai.com/real-time-voice",
+        "name": "Clanker — Enhanced Privacy Mode",
+        "description": "Run your AI character with cloud sync off so its memories and chat history stay strictly on your device and are never stored in Clanker's cloud database.",
+        "url": "https://clanker-ai.com/privacy-mode",
         "isPartOf": {
           "@type": "WebSite",
           "name": "Clanker",
@@ -55,7 +60,6 @@
         --on-surface-variant: #4f4539;
         --outline: #817568;
         --max-width: 760px;
-        --card-max: 320px;
       }
 
       * {
@@ -104,7 +108,6 @@
         margin-bottom: 16px;
         font-size: 14px;
         text-decoration: none;
-        align-self: flex-start;
       }
 
       h1 {
@@ -119,13 +122,6 @@
         font-size: 1.125rem;
         margin: 0;
         opacity: 0.9;
-      }
-
-      .pricing {
-        margin-top: 16px;
-        font-style: italic;
-        color: var(--on-surface-variant);
-        font-size: 0.95rem;
       }
 
       .cta-row {
@@ -170,75 +166,21 @@
         background: rgba(131, 84, 0, 0.08);
       }
 
-      .video-section,
-      .highlights,
-      .bottom-cta {
-        padding: 0 24px 48px;
-        max-width: 900px;
-        margin: 0 auto;
-        text-align: center;
-      }
-
       .highlights {
         background: var(--surface-variant);
-        padding-top: 64px;
-        padding-bottom: 64px;
-        max-width: none;
+        padding: 64px 24px;
       }
 
       .highlights-inner {
         max-width: 960px;
         margin: 0 auto;
+        text-align: center;
       }
 
       h2 {
         font-size: clamp(1.5rem, 4vw, 2rem);
         margin: 0 0 32px;
         font-weight: 700;
-      }
-
-      .video-frame {
-        width: 100%;
-        max-width: 800px;
-        margin: 0 auto;
-        aspect-ratio: 16 / 9;
-        border-radius: 16px;
-        overflow: hidden;
-        background: #1a1a1a;
-        position: relative;
-      }
-
-      .video-frame iframe {
-        width: 100%;
-        height: 100%;
-        border: none;
-      }
-
-      .video-poster {
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-
-      .video-overlay {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        background: rgba(0, 0, 0, 0.45);
-        color: #fff;
-        text-decoration: none;
-        font-weight: 700;
-        font-size: 1rem;
-      }
-
-      .video-overlay:hover,
-      .video-overlay:focus {
-        background: rgba(0, 0, 0, 0.55);
       }
 
       .grid {
@@ -256,6 +198,7 @@
         max-width: 100%;
         flex: 1 1 280px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        text-align: center;
       }
 
       .card h3 {
@@ -275,6 +218,50 @@
         line-height: 1;
       }
 
+      .prose {
+        max-width: var(--max-width);
+        margin: 0 auto;
+        padding: 48px 24px 0;
+      }
+
+      .prose h2 {
+        margin-bottom: 16px;
+        text-align: left;
+      }
+
+      .callout {
+        background: var(--surface-variant);
+        border-left: 4px solid var(--primary);
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin: 24px 0;
+      }
+
+      .callout p {
+        margin: 0;
+        color: var(--on-surface-variant);
+      }
+
+      .steps {
+        padding-left: 1.25rem;
+      }
+
+      .steps li {
+        margin: 8px 0;
+        color: var(--on-surface-variant);
+      }
+
+      .bottom-cta {
+        padding: 56px 24px;
+        text-align: center;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      .bottom-cta h2 {
+        margin-bottom: 20px;
+      }
+
       footer {
         padding: 24px 16px;
         text-align: center;
@@ -290,10 +277,6 @@
       footer span {
         margin: 0 4px;
       }
-
-      .bottom-cta h2 {
-        margin-bottom: 20px;
-      }
     </style>
   </head>
   <body>
@@ -301,97 +284,85 @@
 
     <main id="main-content">
       <section class="hero" aria-labelledby="page-title">
-        <a class="back-link" href="/">← Back to Clanker</a>
-        <h1 id="page-title">Live, Real-Time Voice Calls</h1>
+        <a class="back-link" href="/welcome">← Back to Clanker</a>
+        <h1 id="page-title">Enhanced Privacy Mode</h1>
         <p class="lead">
-          Experience natural, uninterrupted conversations that feel exactly like a real phone call.
-          Talk hands-free on speakerphone, interrupt your character seamlessly if you change your
-          mind, and listen as they search the web or check your shared memory mid-conversation.
+          Prefer to keep things private? Turn cloud sync off and your character runs in enhanced
+          privacy mode — its memories and chat history stay strictly on your device, never stored
+          in Clanker's cloud database. Your character, your data, your device.
         </p>
-        <p class="pricing">Live voice sessions cost just 1 credit per minute.</p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="/sign-in?redirect=/talk">Try Live Voice</a>
-        </div>
-      </section>
-
-      <section class="video-section" aria-labelledby="video-heading">
-        <h2 id="video-heading">See it in action</h2>
-        <div class="video-frame">
-          <iframe
-            title="Clanker real-time voice demo"
-            src="https://www.youtube.com/embed/RV-DKxpmy9k"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowfullscreen
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-          ></iframe>
+          <a class="btn btn-primary" href="/sign-in?redirect=/chat">Try the App</a>
+          <a class="btn btn-outline" href="/memory-export-with-okf">Back Up with OKF</a>
         </div>
       </section>
 
       <section class="highlights" aria-labelledby="highlights-heading">
         <div class="highlights-inner">
-          <h2 id="highlights-heading">Why you'll love it</h2>
+          <h2 id="highlights-heading">What stays on your device</h2>
           <div class="grid">
             <article class="card">
-              <div class="card-icon" aria-hidden="true">📞</div>
-              <h3>Feels like a real phone call</h3>
+              <div class="card-icon" aria-hidden="true">🔒</div>
+              <h3>Memories stay local</h3>
               <p>
-                Natural, uninterrupted back-and-forth — not tap-to-talk. Stay on speakerphone and
-                keep the conversation flowing.
+                With cloud sync off, everything your character learns — its facts, tasks, and
+                knowledge wiki — lives only in local storage on your device.
               </p>
             </article>
             <article class="card">
-              <div class="card-icon" aria-hidden="true">✋</div>
-              <h3>Interrupt anytime</h3>
+              <div class="card-icon" aria-hidden="true">💬</div>
+              <h3>Chat history stays local</h3>
               <p>
-                Change your mind mid-sentence? Barge in seamlessly. Your character listens and
-                adapts in real time.
+                Your conversation history isn't uploaded or stored in our cloud database. It stays
+                on your device unless you choose to sync.
               </p>
             </article>
             <article class="card">
-              <div class="card-icon" aria-hidden="true">🌐</div>
-              <h3>Tools mid-conversation</h3>
+              <div class="card-icon" aria-hidden="true">📴</div>
+              <h3>You choose per character</h3>
               <p>
-                Ask your character to search the web or check shared memory while you talk —
-                results come back spoken aloud.
-              </p>
-            </article>
-            <article class="card">
-              <div class="card-icon" aria-hidden="true">💳</div>
-              <h3>Simple pricing</h3>
-              <p>
-                Live voice sessions cost just 1 credit per minute. No surprise per-reply charges
-                during a call.
+                Privacy mode is a simple per-character toggle. Keep some characters local-only and
+                sync others across devices — it's up to you.
               </p>
             </article>
           </div>
         </div>
       </section>
 
-      <section class="video-section" aria-labelledby="explore-heading">
-        <h2 id="explore-heading">Explore more</h2>
-        <div class="grid">
-          <article class="card">
-            <div class="card-icon" aria-hidden="true">📦</div>
-            <h3><a href="/memory-export-with-okf">Import &amp; Export with Google OKF</a></h3>
-            <p>
-              Own your character's memory with the Open Knowledge Format from Google Cloud — edit
-              it in Obsidian, restore it, or clone a new character.
-            </p>
-          </article>
-          <article class="card">
-            <div class="card-icon" aria-hidden="true">🧠</div>
-            <h3><a href="/advanced-memory">Advanced Memory That Learns</a></h3>
-            <p>
-              Memory that grows from conversation, uploaded documents, and live web search — kept
-              consistent in a local-first knowledge wiki.
-            </p>
-          </article>
+      <section class="prose">
+        <h2>How enhanced privacy mode works</h2>
+        <p>
+          Every Clanker character has a <strong>Save to Cloud</strong> switch in its settings. Leave
+          it off and that character is local-first: its memories and chat history are written only
+          to your device's local storage, and are never copied into Clanker's cloud database or
+          shared across your other devices.
+        </p>
+        <ol class="steps">
+          <li>Open your character's settings.</li>
+          <li>Make sure <strong>Save to Cloud</strong> is turned off.</li>
+          <li>Chat as usual — everything stays on this device.</li>
+        </ol>
+
+        <h2>An honest note about AI processing</h2>
+        <div class="callout">
+          <p>
+            To generate replies, your messages are still sent to Google's Gemini models for
+            real-time processing in the cloud — that's how any modern AI assistant produces a
+            response. The important difference in privacy mode is that this data is
+            <strong>processed, not persisted</strong>: it is not saved to Clanker's cloud database,
+            and your character's memory and history remain only on your device.
+          </p>
         </div>
+        <p>
+          If you ever want a portable backup while staying local-first, you can
+          <a href="/memory-export-with-okf">export your character with Google's OKF</a> straight to
+          your own device or storage — no cloud account required.
+        </p>
       </section>
 
       <section class="bottom-cta" aria-labelledby="bottom-cta-heading">
-        <h2 id="bottom-cta-heading">Ready to talk to your character?</h2>
-        <a class="btn btn-primary" href="/sign-in?redirect=/talk">Get started free</a>
+        <h2 id="bottom-cta-heading">Keep it private, keep it yours</h2>
+        <a class="btn btn-primary" href="/sign-in?redirect=/chat">Get started free</a>
       </section>
     </main>
 
@@ -403,8 +374,6 @@
       <a href="/memory-export-with-okf">OKF Memory</a>
       <span>·</span>
       <a href="/advanced-memory">Advanced Memory</a>
-      <span>·</span>
-      <a href="/terms">Terms and Conditions</a>
       <span>·</span>
       <a href="/privacy">Privacy Policy</a>
       <span>·</span>

@@ -198,6 +198,19 @@ jest.mock('~/hooks/useExportCharacterOKF', () => ({
     mockUseExportCharacterOKF(characterId, characterName),
 }))
 
+jest.mock('~/hooks/useImportCharacterOKF', () => ({
+  useImportCharacterOKF: () => ({
+    preview: null,
+    isParsing: false,
+    isImporting: false,
+    error: null,
+    didImport: false,
+    handlePickAndPreview: jest.fn(),
+    handleCommitImport: jest.fn(),
+    handleCancel: jest.fn(),
+  }),
+}))
+
 const mockUseCharacter = jest.mocked(useCharacter)
 const mockUseUpdateCharacter = jest.mocked(useUpdateCharacter)
 

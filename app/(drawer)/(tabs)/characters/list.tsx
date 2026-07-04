@@ -21,6 +21,7 @@ export default function CharactersListScreen() {
   const [cloudSyncRequested, setCloudSyncRequested] = useState(false)
   const cloudSyncErrorAtRequestRef = useRef<unknown>(null)
   const didEnterCloudSyncStateRef = useRef(false)
+  const importErrorShownRef = useRef<Error | null>(null)
   const [toastState, setToastState] = useState<{
     message: string
     requiresSubscription: boolean
@@ -111,12 +112,13 @@ export default function CharactersListScreen() {
   }, [cloudSyncError, cloudSyncRequested, isCloudSyncing])
 
   useEffect(() => {
-    if (importError) {
+    if (importError && importError !== importErrorShownRef.current) {
       setToastState({
         message:
           (importError as Error & { displayMessage?: string }).displayMessage ?? importError.message,
         requiresSubscription: false,
       })
+      importErrorShownRef.current = importError
     }
   }, [importError])
 
