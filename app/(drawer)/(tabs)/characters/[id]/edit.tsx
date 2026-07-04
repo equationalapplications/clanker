@@ -723,6 +723,13 @@ export default function EditCharacterScreen() {
                 >
                   Replace Memory
                 </Button>
+                <Button
+                  mode="text"
+                  onPress={handleImportCancel}
+                  disabled={isImporting}
+                >
+                  Cancel
+                </Button>
               </>
             ) : null}
           </Modal>
