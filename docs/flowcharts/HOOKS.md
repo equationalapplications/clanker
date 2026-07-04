@@ -31,6 +31,8 @@ graph LR
   useEdgeAgent --> CharacterPromptBuilder
   useEdgeAgent --> edgeToolExecutors
   useEdgeAgent --> chatReplyService
+  useExportCharacterOKF --> augmentWithEdgeLinks
+  useExportCharacterOKF --> okfReadmeContent
   useImageGeneration --> useMachines
   useImageGeneration --> imageGenerationService
   useImageGeneration --> localImageStorageService

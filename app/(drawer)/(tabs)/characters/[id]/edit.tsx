@@ -30,6 +30,7 @@ import {
 import { DEFAULT_VOICE, GEMINI_LIVE_VOICES, resolveLiveVoice } from '~/constants/geminiVoices'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { useExportCharacterOKF } from '~/hooks/useExportCharacterOKF'
+import { useImportCharacterOKF } from '~/hooks/useImportCharacterOKF'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -77,6 +78,18 @@ export default function EditCharacterScreen() {
     error: exportError,
     lastResult: exportResult,
   } = useExportCharacterOKF(characterId, name || character?.name || 'character')
+  const {
+    preview: importPreview,
+    isParsing: isImportParsing,
+    isImporting,
+    error: importError,
+    didImport,
+    handlePickAndPreview,
+    handleCommitImport,
+    handleCancel: handleImportCancel,
+  } = useImportCharacterOKF()
+  const prevDidImportRef = useRef(false)
+  const importErrorShownRef = useRef<Error | null>(null)
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -167,6 +180,24 @@ export default function EditCharacterScreen() {
     prevIsCloudSyncingRef.current = isCloudSyncing
   }, [isUpdating, isCloudUnsyncing, isCloudSyncing, isSaving, updateError, unsyncError, cloudSyncError])
 
+  useEffect(() => {
+    if (didImport && !prevDidImportRef.current) {
+      setToastState({ message: 'Import complete.', requiresSubscription: false })
+    }
+    prevDidImportRef.current = didImport
+  }, [didImport])
+
+  useEffect(() => {
+    if (importError && importError !== importErrorShownRef.current) {
+      setToastState({
+        message:
+          (importError as Error & { displayMessage?: string }).displayMessage ?? importError.message,
+        requiresSubscription: false,
+      })
+      importErrorShownRef.current = importError
+    }
+  }, [importError])
+
   const {
     generateImage,
     isGenerating,
@@ -212,7 +243,9 @@ export default function EditCharacterScreen() {
     setToastState({
       message: exportResult.isEmpty
         ? 'Empty bundle exported. Add memories to enrich future exports.'
-        : 'Memory exported.',
+        : exportResult.saveLocation === 'documents'
+          ? 'Memory exported to Documents. Open the Files app → Documents to find it.'
+          : 'Memory exported.',
       requiresSubscription: false,
     })
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -302,6 +335,36 @@ export default function EditCharacterScreen() {
       return
     }
     setShowShareModal(true)
+  }
+
+  const handleImportPreviewDismiss = () => {
+    if (!isImporting) {
+      handleImportCancel()
+    }
+  }
+
+  const handleMergeConfirm = () => {
+    if (!canEdit) return
+    void handleCommitImport(characterId, 'merge')
+  }
+
+  const handleReplaceConfirm = () => {
+    if (!canEdit) return
+    Alert.alert(
+      'Replace Memory?',
+      'This replaces all facts, tasks, and relationships with the contents of this backup. Timeline events are not cleared and will be added alongside existing ones. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Replace',
+          style: 'destructive',
+          onPress: () => {
+            if (!canEdit) return
+            void handleCommitImport(characterId, 'replace')
+          },
+        },
+      ],
+    )
   }
 
   const handleShare = async () => {
@@ -565,6 +628,19 @@ export default function EditCharacterScreen() {
 
           <Button
             mode="outlined"
+            icon="import"
+            onPress={() => {
+              if (canEdit) handlePickAndPreview(characterId)
+            }}
+            disabled={!canEdit || isImportParsing || isImporting}
+            loading={isImportParsing}
+            style={styles.shareButton}
+          >
+            Import OKF Backup
+          </Button>
+
+          <Button
+            mode="outlined"
             icon="database-eye-outline"
             onPress={() => router.push(`/characters/${characterId}/memory` as Href)}
             style={styles.shareButton}
@@ -630,6 +706,51 @@ export default function EditCharacterScreen() {
             ) : (
               <Text variant="bodyMedium">No share link available yet.</Text>
             )}
+          </Modal>
+
+          <Modal
+            visible={!!importPreview}
+            onDismiss={handleImportPreviewDismiss}
+            contentContainerStyle={[styles.shareModal, { backgroundColor: theme.colors.surface }]}
+          >
+            <Text variant="headlineSmall" style={styles.shareTitle}>
+              Import OKF Backup
+            </Text>
+            {importPreview ? (
+              <>
+                <View style={styles.previewCountsContainer}>
+                  <Text variant="bodyMedium">Facts: {importPreview.facts}</Text>
+                  <Text variant="bodyMedium">Tasks: {importPreview.tasks}</Text>
+                  <Text variant="bodyMedium">Events: {importPreview.events}</Text>
+                  <Text variant="bodyMedium">Relationships: {importPreview.edges}</Text>
+                </View>
+                <Button
+                  mode="contained"
+                  onPress={handleMergeConfirm}
+                  loading={isImporting}
+                  disabled={!canEdit || isImporting}
+                  style={styles.previewButton}
+                >
+                  Merge Backup
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={handleReplaceConfirm}
+                  loading={isImporting}
+                  disabled={!canEdit || isImporting}
+                  style={styles.previewButton}
+                >
+                  Replace Memory
+                </Button>
+                <Button
+                  mode="text"
+                  onPress={handleImportCancel}
+                  disabled={isImporting}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : null}
           </Modal>
         </Portal>
       </ScrollView>
@@ -742,6 +863,14 @@ const styles = StyleSheet.create({
   },
   ownershipText: {
     opacity: 0.7,
+    marginBottom: 8,
+  },
+  previewCountsContainer: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  previewButton: {
+    alignSelf: 'stretch',
     marginBottom: 8,
   },
 })

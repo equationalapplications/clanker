@@ -15,6 +15,9 @@
   - `fix`: Patch bump (OTA)
   - `BREAKING CHANGE`: Major bump (Native build required)
 - **Length**: Max 100 characters per line (header, body, and footer).
+- **Release artifacts**: Do not manually bump the root `package.json` version or edit
+  `CHANGELOG.md` in PRs; semantic-release handles both. Dependency changes in
+  `package.json` and `package-lock.json` are allowed when the task requires them.
 
 # PRs & Reviews
 - **Template**: Always use `.github/pull_request_template.md`.

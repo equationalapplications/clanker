@@ -54,12 +54,11 @@ import FeaturesSection from '~/components/LandingPage/FeaturesSection'
 
 const FEATURE_TITLES = [
   'Live, Real-Time Voice Calls',
-  'Own Your Data',
+  'Import & Export with Google OKF',
+  'Advanced Memory That Learns',
   'Build Your Character',
   'Real AI Conversations',
   'Share & Sync',
-  'Personal Assistant',
-  'Wiki-Based Memory',
 ]
 
 describe('FeaturesSection accessibility', () => {

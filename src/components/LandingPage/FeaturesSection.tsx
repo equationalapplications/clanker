@@ -8,16 +8,22 @@ const FEATURES = [
   {
     icon: 'phone-in-talk' as const,
     title: 'Live, Real-Time Voice Calls',
-    body: 'Experience natural, uninterrupted conversations that feel exactly like a real phone call. Talk hands-free on speakerphone, interrupt your character seamlessly if you change your mind, and listen as they search the web or check your shared memory mid-conversation. (Live voice sessions cost 5 credits per minute.)',
+    body: 'Talk to your AI characters in real time with natural, uninterrupted voice that feels exactly like a human phone call. Speak hands-free on speakerphone, interrupt seamlessly whenever you change your mind, and hear your character search the web or check its memory mid-conversation. (Live voice sessions cost 5 credits per minute.)',
     learnMoreHref: '/real-time-voice',
     isNew: true,
   },
   {
     icon: 'export-variant' as const,
-    title: 'Own Your Data',
-    body: 'Export any character\'s complete memory - facts, tasks, and history - as an open, standard format (OKF). No walled garden. Your data works with any OKF-compatible tool.',
+    title: 'Import & Export with Google OKF',
+    body: 'Back up, restore, and share your character\'s complete memory using OKF — the Open Knowledge Format introduced by Google Cloud. Read and edit your character\'s facts and memories in any Markdown editor like Obsidian, then restore them or clone a brand-new character from the bundle. Truly own your data — no walled garden.',
     learnMoreHref: '/memory-export-with-okf',
     isNew: true,
+  },
+  {
+    icon: 'brain' as const,
+    title: 'Advanced Memory That Learns',
+    body: 'Your character learns and organizes facts automatically — from your conversations, uploaded documents (PDFs, Word docs, and images), and live web search. A local-first knowledge wiki reconciles conflicting information to stay consistent and accurate, building a compounding memory without prompt bloat.',
+    learnMoreHref: '/advanced-memory',
   },
   {
     icon: 'robot-outline' as const,
@@ -33,16 +39,6 @@ const FEATURES = [
     icon: 'cloud-sync-outline' as const,
     title: 'Share & Sync',
     body: 'Save characters to the cloud and sync across all your devices. Share any character via link. Anyone can open it instantly.',
-  },
-  {
-    icon: 'account-cog-outline' as const,
-    title: 'Personal Assistant',
-    body: 'Upload documents (including PDFs, Word docs, and images) and your personal assistant builds foundational knowledge from them. Share it with others and watch it evolve as you all add to its understanding.',
-  },
-  {
-    icon: 'brain' as const,
-    title: 'Wiki-Based Memory',
-    body: 'As your assistant learns more, it automatically reconciles conflicting information to stay consistent and accurate. Powered by our local-first LLM Wiki engine, your agent actively maintains a compounding knowledge base without prompt bloat.',
   },
 ]
 

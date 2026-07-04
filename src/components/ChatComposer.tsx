@@ -4,7 +4,7 @@ import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Snackbar, Portal, useTheme } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
-import { readAsStringAsync } from 'expo-file-system/legacy'
+import { File } from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
@@ -87,9 +87,8 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
       let fileContent: string
       try {
-        fileContent = isConvertType
-          ? await readAsStringAsync(uri, { encoding: 'base64' })
-          : await readAsStringAsync(uri)
+        const pickedFile = new File(uri)
+        fileContent = isConvertType ? await pickedFile.base64() : await pickedFile.text()
       } catch {
         if (isStaleRequest()) return
         setToastMessage('Failed to read file.')
