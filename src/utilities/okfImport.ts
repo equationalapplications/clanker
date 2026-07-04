@@ -70,6 +70,9 @@ export async function pickAndReadOkfBundle(): Promise<OkfFile[]> {
   // attacker-controlled header data — a crafted zip can lie about it — so it
   // only avoids decompression work for the obviously-oversized case. The
   // running actual-content-length check below is the real defense.
+  // WARNING: Relies on JSZip's private _data property (marked unstable).
+  // If JSZip removes or changes this, the optimization silently degrades
+  // (no early rejection for declared-size bombs) but actualTotal still enforces the cap.
   let declaredTotal = 0
   for (const [path, entry] of entries) {
     if (!isAllowedOkfPath(path)) continue

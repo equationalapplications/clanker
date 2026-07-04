@@ -38,10 +38,14 @@ async function shareFromCache(bytes: Uint8Array, zipFilename: string): Promise<v
   const output = new File(Paths.cache, zipFilename)
   output.write(bytes)
 
-  await Sharing.shareAsync(output.uri, {
-    mimeType: 'application/zip',
-    dialogTitle: `Share ${zipFilename}`,
-  })
+  try {
+    await Sharing.shareAsync(output.uri, {
+      mimeType: 'application/zip',
+      dialogTitle: `Share ${zipFilename}`,
+    })
+  } finally {
+    await output.delete()
+  }
 }
 
 function getAndroidFolderPickerInitialUri(): string {

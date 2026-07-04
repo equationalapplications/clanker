@@ -7,6 +7,7 @@ import { useCharacters, useCreateCharacter, useSyncCharacters } from '~/hooks/us
 import { CharacterCard } from '~/components/CharacterCard'
 import { useCharacterMachine, useAuthMachine } from '~/hooks/useMachines'
 import { createCharacter } from '~/database/characterDatabase'
+import { deleteCharacter } from '~/services/characterService'
 import { useImportCharacterOKF } from '~/hooks/useImportCharacterOKF'
 import { reportError } from '~/utilities/reportError'
 
@@ -58,8 +59,17 @@ export default function CharactersListScreen() {
     handlePickAndPreview(OKF_CLONE_PREVIEW_ENTITY_ID)
   }
 
-  const handleCloneCancel = () => {
+  const handleCloneCancel = async () => {
+    const characterId = clonedCharacterIdRef.current
     clonedCharacterIdRef.current = null
+    if (characterId && userId) {
+      try {
+        await deleteCharacter(characterId, userId)
+        characterService.send({ type: 'LOAD' })
+      } catch {
+        // ignore deletion errors during cancel
+      }
+    }
     handleImportCancel()
   }
 
@@ -70,7 +80,13 @@ export default function CharactersListScreen() {
   }
 
   const handleConfirmClone = async () => {
-    if (!userId) return
+    if (!userId) {
+      setToastState({
+        message: 'Please sign in to create characters from bundles.',
+        requiresSubscription: false,
+      })
+      return
+    }
     setIsCreatingClone(true)
     try {
       let characterId = clonedCharacterIdRef.current
@@ -253,7 +269,7 @@ export default function CharactersListScreen() {
               void handleConfirmClone()
             }}
             loading={isImporting || isCreatingClone}
-            disabled={isImporting || isCreatingClone}
+            disabled={isImporting || isCreatingClone || !userId}
             style={styles.cloneModalButton}
           >
             Create Character

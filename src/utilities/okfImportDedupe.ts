@@ -5,7 +5,8 @@ function utcDayKey(createdAt: number): string {
 }
 
 function eventDedupeKey(event: { event_type: string; summary: string; created_at: number }): string {
-  return `${event.event_type}|${event.summary}|${utcDayKey(event.created_at)}`
+  const escape = (s: string) => s.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')
+  return `${escape(event.event_type)}|${escape(event.summary)}|${utcDayKey(event.created_at)}`
 }
 
 export async function dedupeEventsAgainstExisting(

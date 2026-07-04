@@ -1,6 +1,6 @@
 {
   "name": "clanker",
-  "version": "30.15.0",
+  "version": "30.16.0",
   "main": "expo-router/entry",
   "scripts": {
     "build:prod-a": "node scripts/eas-local-build.js --platform android --profile production",
@@ -37,7 +37,7 @@
     "update": "npm run deploy-hosting && npm run ota"
   },
   "dependencies": {
-    "@equationalapplications/core-llm-tools": "^4.17.3",
+    "@equationalapplications/core-llm-tools": "4.17.3",
     "@equationalapplications/core-llm-wiki": "4.17.3",
     "@equationalapplications/expo-llm-wiki": "4.17.3",
     "@expo/metro-runtime": "~56.0.16",
