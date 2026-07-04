@@ -3,50 +3,13 @@ import { Text, Card, useTheme } from 'react-native-paper'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFloatingCardAnimation } from '~/hooks/useFloatingCardAnimation'
-
-const FEATURES = [
-  {
-    icon: 'phone-in-talk' as const,
-    title: 'Live, Real-Time Voice Calls',
-    body: 'Talk to your AI characters in real time with natural, uninterrupted voice that feels exactly like a human phone call. Speak hands-free on speakerphone, interrupt seamlessly whenever you change your mind, and hear your character search the web or check its memory mid-conversation. (Live voice sessions cost 5 credits per minute.)',
-    learnMoreHref: '/real-time-voice',
-    isNew: true,
-  },
-  {
-    icon: 'export-variant' as const,
-    title: 'Import & Export with Google OKF',
-    body: 'Back up, restore, and share your character\'s complete memory using OKF — the Open Knowledge Format introduced by Google Cloud. Read and edit your character\'s facts and memories in any Markdown editor like Obsidian, then restore them or clone a brand-new character from the bundle. Truly own your data — no walled garden.',
-    learnMoreHref: '/memory-export-with-okf',
-    isNew: true,
-  },
-  {
-    icon: 'brain' as const,
-    title: 'Advanced Memory That Learns',
-    body: 'Your character learns and organizes facts automatically — from your conversations, uploaded documents (PDFs, Word docs, and images), and live web search. A local-first knowledge wiki reconciles conflicting information to stay consistent and accurate, building a compounding memory without prompt bloat.',
-    learnMoreHref: '/advanced-memory',
-  },
-  {
-    icon: 'robot-outline' as const,
-    title: 'Build Your Character',
-    body: 'Give your AI a name, appearance, personality traits, emotional range, and backstory. Generate a unique portrait avatar with AI. No art skills needed.',
-  },
-  {
-    icon: 'chat-outline' as const,
-    title: 'Real AI Conversations',
-    body: 'Chat with characters that actually remember their personality. Long conversation memory is automatically summarized so your Clanker stays in character.',
-  },
-  {
-    icon: 'cloud-sync-outline' as const,
-    title: 'Share & Sync',
-    body: 'Save characters to the cloud and sync across all your devices. Share any character via link. Anyone can open it instantly.',
-  },
-]
+import { FEATURES, FEATURES_SECTION, type LandingFeature } from '~/config/landingConfig'
 
 function FeatureCard({
   feat,
   index,
 }: {
-  feat: (typeof FEATURES)[0]
+  feat: LandingFeature
   index: number
 }) {
   const { colors } = useTheme()
@@ -80,7 +43,7 @@ function FeatureCard({
         ) : null}
         <Card.Content style={[styles.cardContent, isNew && styles.cardContentWithBadge]}>
           <MaterialCommunityIcons
-            name={feat.icon}
+            name={feat.icon as keyof typeof MaterialCommunityIcons.glyphMap}
             size={36}
             color={colors.primary}
             style={styles.icon}
@@ -124,7 +87,7 @@ export default function FeaturesSection() {
         variant="headlineMedium"
         style={[styles.sectionTitle, { color: colors.onSurface }]}
       >
-        Your characters. Your conversations.
+        {FEATURES_SECTION.title}
       </Text>
       <View style={styles.grid}>
         {FEATURES.map((feat, i) => (

@@ -26,7 +26,6 @@ graph LR
   GroundingHtml --> sanitizeGroundingHtml
   GroundingHtml --> isSafeHttpUrl
   GroundingHtml.web --> groundingShadowContent
-  ComingSoonSection --> useFloatingCardAnimation
   FeaturesSection --> useFloatingCardAnimation
   HeroSection --> useMachines
   LandingFooter --> CookieConsentContext
