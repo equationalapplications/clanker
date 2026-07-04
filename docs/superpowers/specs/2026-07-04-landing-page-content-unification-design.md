@@ -45,10 +45,10 @@ Single source of truth:
   below)
 - `HERO` — announcement pill text/href, headline, tagline, CTA label (signed-in vs signed-out),
   sign-in button label
-- `FEATURES[]` — `{ icon: MaterialCommunityIconName, emoji: string, title, body, learnMoreHref?,
+- `FEATURES[]` — `{ icon: string, emoji: string, title, body, learnMoreHref?,
   isNew? }` — includes a new "Open Source" entry (`/open-source`) that today only exists in the
   static page
-- `VIDEO` — YouTube video id + section heading
+- `VIDEO` — YouTube video id, section heading, and iframe title
 - `FOOTER_LINKS[]` — full link set: Real-Time Voice, OKF Memory, Advanced Memory, Privacy Mode,
   Open Source, Support, Terms, Privacy, `/welcome` (self-link, "About Clanker"), Equational
   Applications LLC (external)

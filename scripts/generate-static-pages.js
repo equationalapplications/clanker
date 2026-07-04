@@ -447,7 +447,8 @@ function renderWelcomeFooter(footerLinks) {
     .map((link, index) => {
       const separator = index > 0 ? '\n      <span>·</span>\n      ' : ''
       const rel = link.external ? ' rel="noopener noreferrer"' : ''
-      return `${separator}<a href="${link.href}"${rel}>${escapeHtml(link.label)}</a>`
+      const target = link.external ? ' target="_blank"' : ''
+      return `${separator}<a href="${link.href}"${target}${rel}>${escapeHtml(link.label)}</a>`
     })
     .join('')
 }
@@ -570,7 +571,7 @@ function generateWelcome() {
             src="https://www.youtube.com/embed/${VIDEO.youtubeId}"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowfullscreen
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+            sandbox="allow-scripts allow-presentation allow-popups"
           ></iframe>
         </div>
       </section>

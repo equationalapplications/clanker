@@ -30,7 +30,7 @@ export default function VideoSection() {
           allow:
             'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
           allowFullScreen: true,
-          sandbox: 'allow-scripts allow-same-origin allow-presentation allow-popups',
+          sandbox: 'allow-scripts allow-presentation allow-popups',
           style: IFRAME_STYLE,
           'aria-label': VIDEO.iframeTitle,
         })}
