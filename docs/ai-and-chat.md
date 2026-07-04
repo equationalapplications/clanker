@@ -272,6 +272,8 @@ Summary flow (`triggerConversationSummary`) is unchanged. Wiki reads/writes run 
 - **Contradiction detection is best-effort:** LLM-assisted, not guaranteed
 - **No bootstrap on reconnect:** Workaround: log out/in
 
+See [OKF Import & Export](okf-import-export.md) for the restore/clone bundle format and its known gaps.
+
 ---
 
 ## Wiki State Machine Architecture

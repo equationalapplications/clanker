@@ -14,7 +14,6 @@ graph LR
   apiClient --> bootstrapSession
   characterService --> googleSignin
   characterService --> characterDatabase
-  characterService --> defaultAvatarService
   characterSyncService --> characterDatabase
   characterSyncService --> wikiService
   characterSyncService --> wikiSourceType

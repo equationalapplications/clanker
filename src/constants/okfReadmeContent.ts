@@ -44,9 +44,13 @@ Store this ZIP in your preferred cloud storage or external drive as a complete b
 
 If you use other OKF-compatible tools, import this ZIP into them. The standard format helps keep your data portable.
 
-### 4. Future Re-import
+### 4. Restore or Clone
 
-You can re-import this bundle back into Clanker in a future version via character settings.
+Bring this bundle back into Clanker any time from a character's settings
+("Import OKF Backup") or the characters list ("From Bundle"). Restoring
+merges new facts in (or replaces existing facts/tasks, if you choose Replace)
+into the *same* character; creating from a bundle clones everything into a
+*new* character instead.
 
 ## What's Not Included (V1)
 

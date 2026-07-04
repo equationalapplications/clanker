@@ -3,12 +3,13 @@ import { useWiki, formatOkfBundle } from '@equationalapplications/expo-llm-wiki'
 import { buildOkfReadmeContent } from '~/constants/okfReadmeContent'
 import { augmentWithEdgeLinks } from '~/utils/augmentWithEdgeLinks'
 import { reportError } from '~/utilities/reportError'
-import { zipAndSaveOKF } from '~/utilities/okfSave'
+import { OkfSaveCancelledError, zipAndSaveOKF } from '~/utilities/okfSave'
 
 type OkfFile = ReturnType<typeof formatOkfBundle>['files'][number]
 
 interface ExportResult {
   isEmpty: boolean
+  saveLocation?: 'documents' | 'share' | 'download'
 }
 
 export function useExportCharacterOKF(characterId: string, characterName: string) {
@@ -47,13 +48,16 @@ export function useExportCharacterOKF(characterId: string, characterName: string
         { path: 'README.md', content: buildOkfReadmeContent() },
       ]
 
-      await zipAndSaveOKF({
+      const saveResult = await zipAndSaveOKF({
         characterName: characterNameRef.current,
         files: filesWithReadme,
       })
 
-      setLastResult({ isEmpty })
+      setLastResult({ isEmpty, saveLocation: saveResult.saveLocation })
     } catch (err) {
+      if (err instanceof OkfSaveCancelledError) {
+        return
+      }
       const normalized = err instanceof Error ? err : new Error(String(err))
       setError(normalized)
       reportError(normalized, `okf-export:${characterId}`)
