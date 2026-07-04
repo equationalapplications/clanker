@@ -45,18 +45,19 @@ function extractEntityId(path: string): string | null {
 export async function pickAndReadOkfBundle(): Promise<OkfFile[]> {
   const pickerResult = await DocumentPicker.getDocumentAsync({
     copyToCacheDirectory: true,
-    type: ['application/zip', 'application/x-zip-compressed'],
+    type: '*/*',
   })
   if (pickerResult.canceled || !pickerResult.assets?.[0]) {
     throw new OkfPickCancelledError()
   }
 
   const asset = pickerResult.assets[0]
-  if (typeof asset.size === 'number' && asset.size > MAX_OKF_ZIP_RAW_BYTES) {
+  const pickedFile = new File(asset.uri)
+  const rawSize = typeof asset.size === 'number' ? asset.size : pickedFile.size
+  if (typeof rawSize !== 'number' || rawSize > MAX_OKF_ZIP_RAW_BYTES) {
     throw new Error('Bundle too large or malformed')
   }
 
-  const pickedFile = new File(asset.uri)
   const arrayBuffer = await pickedFile.arrayBuffer()
   const zip = await JSZip.loadAsync(arrayBuffer)
 

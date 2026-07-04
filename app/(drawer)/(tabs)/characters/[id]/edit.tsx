@@ -337,7 +337,19 @@ export default function EditCharacterScreen() {
     setShowShareModal(true)
   }
 
+  const handleImportPreviewDismiss = () => {
+    if (!isImporting) {
+      handleImportCancel()
+    }
+  }
+
+  const handleMergeConfirm = () => {
+    if (!canEdit) return
+    void handleCommitImport(characterId, 'merge')
+  }
+
   const handleReplaceConfirm = () => {
+    if (!canEdit) return
     Alert.alert(
       'Replace Memory?',
       'This replaces all facts, tasks, and relationships with the contents of this backup. Timeline events are not cleared and will be added alongside existing ones. This cannot be undone.',
@@ -347,6 +359,7 @@ export default function EditCharacterScreen() {
           text: 'Replace',
           style: 'destructive',
           onPress: () => {
+            if (!canEdit) return
             void handleCommitImport(characterId, 'replace')
           },
         },
@@ -616,8 +629,10 @@ export default function EditCharacterScreen() {
           <Button
             mode="outlined"
             icon="import"
-            onPress={() => handlePickAndPreview(characterId)}
-            disabled={isImportParsing || isImporting}
+            onPress={() => {
+              if (canEdit) handlePickAndPreview(characterId)
+            }}
+            disabled={!canEdit || isImportParsing || isImporting}
             loading={isImportParsing}
             style={styles.shareButton}
           >
@@ -695,7 +710,7 @@ export default function EditCharacterScreen() {
 
           <Modal
             visible={!!importPreview}
-            onDismiss={handleImportCancel}
+            onDismiss={handleImportPreviewDismiss}
             contentContainerStyle={[styles.shareModal, { backgroundColor: theme.colors.surface }]}
           >
             <Text variant="headlineSmall" style={styles.shareTitle}>
@@ -711,11 +726,9 @@ export default function EditCharacterScreen() {
                 </View>
                 <Button
                   mode="contained"
-                  onPress={() => {
-                    void handleCommitImport(characterId, 'merge')
-                  }}
+                  onPress={handleMergeConfirm}
                   loading={isImporting}
-                  disabled={isImporting}
+                  disabled={!canEdit || isImporting}
                   style={styles.previewButton}
                 >
                   Merge Backup
@@ -724,7 +737,7 @@ export default function EditCharacterScreen() {
                   mode="outlined"
                   onPress={handleReplaceConfirm}
                   loading={isImporting}
-                  disabled={isImporting}
+                  disabled={!canEdit || isImporting}
                   style={styles.previewButton}
                 >
                   Replace Memory

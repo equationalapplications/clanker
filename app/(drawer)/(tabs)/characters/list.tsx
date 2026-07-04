@@ -39,6 +39,7 @@ export default function CharactersListScreen() {
     handleCancel: handleImportCancel,
   } = useImportCharacterOKF()
   const [isCreatingClone, setIsCreatingClone] = useState(false)
+  const clonedCharacterIdRef = useRef<string | null>(null)
 
   // Navigate to edit page when creation completes
   useEffect(() => {
@@ -53,22 +54,40 @@ export default function CharactersListScreen() {
   }
 
   const handleCreateFromBundle = () => {
+    clonedCharacterIdRef.current = null
     handlePickAndPreview(OKF_CLONE_PREVIEW_ENTITY_ID)
+  }
+
+  const handleCloneCancel = () => {
+    clonedCharacterIdRef.current = null
+    handleImportCancel()
+  }
+
+  const handleCloneDismiss = () => {
+    if (!isImporting && !isCreatingClone) {
+      handleCloneCancel()
+    }
   }
 
   const handleConfirmClone = async () => {
     if (!userId) return
     setIsCreatingClone(true)
     try {
-      const newCharacter = await createCharacter(userId, {
-        name: 'Imported Character',
-        is_public: false,
-      })
-      if (!newCharacter) throw new Error('Failed to create character')
-      characterService.send({ type: 'LOAD' })
-      const imported = await handleCommitImport(newCharacter.id, 'clone')
+      let characterId = clonedCharacterIdRef.current
+      if (!characterId) {
+        const newCharacter = await createCharacter(userId, {
+          name: 'Imported Character',
+          is_public: false,
+        })
+        if (!newCharacter) throw new Error('Failed to create character')
+        characterId = newCharacter.id
+        clonedCharacterIdRef.current = characterId
+        characterService.send({ type: 'LOAD' })
+      }
+      const imported = await handleCommitImport(characterId, 'clone')
       if (imported) {
-        router.push(`/chat/${newCharacter.id}`)
+        clonedCharacterIdRef.current = null
+        router.push(`/chat/${characterId}`)
       }
     } catch (err) {
       reportError(err, 'okf-clone:create')
@@ -217,7 +236,7 @@ export default function CharactersListScreen() {
       <Portal>
         <Modal
           visible={importPreview !== null}
-          onDismiss={handleImportCancel}
+          onDismiss={handleCloneDismiss}
           contentContainerStyle={[styles.cloneModal, { backgroundColor: colors.surface }]}
         >
           <Text variant="headlineSmall" style={styles.cloneModalTitle}>
@@ -239,7 +258,7 @@ export default function CharactersListScreen() {
           >
             Create Character
           </Button>
-          <Button mode="text" onPress={handleImportCancel} disabled={isImporting || isCreatingClone}>
+          <Button mode="text" onPress={handleCloneCancel} disabled={isImporting || isCreatingClone}>
             Cancel
           </Button>
         </Modal>

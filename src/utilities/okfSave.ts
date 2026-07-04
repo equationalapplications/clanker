@@ -1,7 +1,7 @@
 import JSZip from 'jszip'
 import { InteractionManager, Platform } from 'react-native'
 import { File, Paths } from 'expo-file-system'
-import { StorageAccessFramework } from 'expo-file-system/legacy'
+import { EncodingType, StorageAccessFramework, writeAsStringAsync } from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 
 export interface ZipOptions {
@@ -59,7 +59,7 @@ function getAndroidFolderPickerInitialUri(): string {
 }
 
 async function saveOkfToAndroidDevice(
-  bytes: Uint8Array,
+  zipBase64: string,
   zipFilename: string,
 ): Promise<'saved' | 'cancelled'> {
   await waitForNativeUiReady()
@@ -77,8 +77,7 @@ async function saveOkfToAndroidDevice(
     'application/zip',
   )
 
-  const destFile = new File(fileUri)
-  destFile.write(bytes)
+  await writeAsStringAsync(fileUri, zipBase64, { encoding: EncodingType.Base64 })
   return 'saved'
 }
 
@@ -91,24 +90,17 @@ export async function zipAndSaveOKF(options: ZipOptions): Promise<OkfSaveResult>
     zip.file(file.path, file.content)
   }
 
-  const bytes = await zip.generateAsync({ type: 'uint8array' })
-
   if (Platform.OS === 'android') {
-    const saveResult = await saveOkfToAndroidDevice(bytes, zipFilename)
+    const zipBase64 = await zip.generateAsync({ type: 'base64' })
+    const saveResult = await saveOkfToAndroidDevice(zipBase64, zipFilename)
     if (saveResult === 'saved') {
       return { saveLocation: 'documents' }
     }
 
-    const canShare = await Sharing.isAvailableAsync()
-    if (!canShare) {
-      throw new OkfSaveCancelledError()
-    }
-
-    await waitForNativeUiReady()
-    await shareFromCache(bytes, zipFilename)
-    return { saveLocation: 'share' }
+    throw new OkfSaveCancelledError()
   }
 
+  const bytes = await zip.generateAsync({ type: 'uint8array' })
   const canShare = await Sharing.isAvailableAsync()
   if (!canShare) {
     throw new Error('Sharing is not available on this device')

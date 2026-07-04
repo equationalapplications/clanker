@@ -49,7 +49,7 @@ Concretely: if a user exports character A, then tries to "clone" that bundle int
 declare function parseOkfBundle(entityId: string, files: OkfFile[], options?: OkfImportOptions): MemoryDump
 ```
 
-Every fact/task/edge/event produced by `parseOkfBundle` already has `entity_id` set to whatever `entityId` you pass in — this is not something the remap step needs to rewrite itself. What `parseOkfBundle` does **not** do is regenerate the fact/task/edge/event `id` fields — those come straight from each concept file's frontmatter `id:` (`resolvedId`), i.e. the *original* character's ids. That's the collision surface described above.
+Every fact/task/edge/event produced by `parseOkfBundle` already has `entity_id` set to whatever `entityId` you pass in — this is not something the remap step needs to rewrite itself. For facts and tasks, what `parseOkfBundle` does **not** do is regenerate the `id` fields — those come straight from each concept file's frontmatter `id:` (`resolvedId`), i.e. the *original* character's ids. That's the collision surface described above.
 
 This simplifies the original draft's `cloneOkfDumpForEntity` step list — `entity_id` rewriting is a side effect of which `entityId` you pass to `parseOkfBundle`, not a separate rewrite pass.
 
@@ -73,7 +73,7 @@ Edges don't have this problem despite also getting fresh ids from `parseOkfBundl
 
 - Local-first import pipeline using `expo-document-picker` + `JSZip` (both already installed — `jszip@^3.10.1`, `expo-document-picker@~56.0.4` — no new dependency).
 - **Existing-Character Import (Restore):** "Merge" (default) or "Replace" (destructive, behind confirmation) into an existing character, via `wiki.importDump(parseOkfBundle(characterId, files), { merge })`.
-- **New-Character Import (Cloning):** create a new character seeded by a bundle, remapping fact/task/event ids so the import isn't silently gutted by the cross-entity collision guard described above.
+- **New-Character Import (Cloning):** create a new character seeded by a bundle, remapping fact/task ids and their relationship references so the import isn't silently gutted by the cross-entity collision guard described above.
 - Preview step (fact/task/event/edge counts, warnings) before any DB write.
 - Defend against untrusted zip input (bomb, malformed files) before it ever reaches `parseOkfBundle`.
 

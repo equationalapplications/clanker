@@ -46,6 +46,22 @@ function setupPicker(size = 1000) {
   )
 }
 
+function setupPickerWithoutSize(fileSize?: number) {
+  mockGetDocumentAsync.mockResolvedValue({
+    canceled: false,
+    assets: [{ uri: 'file://bundle.zip', name: 'bundle.zip' }],
+  } as any)
+  const pickedFile = {
+    size: fileSize,
+    arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(8)),
+  }
+  MockFile.mockImplementation(
+    () =>
+      pickedFile as any,
+  )
+  return pickedFile
+}
+
 describe('pickAndReadOkfBundle', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -56,9 +72,34 @@ describe('pickAndReadOkfBundle', () => {
     await expect(pickAndReadOkfBundle()).rejects.toBeInstanceOf(OkfPickCancelledError)
   })
 
+  it('uses a wildcard picker type so Android providers can show valid zip bundles', async () => {
+    setupPicker()
+    mockLoadAsync.mockResolvedValue({
+      files: { 'entities/char_1/facts/fact_a.md': mockZipEntry('---\nid: fact_a\n---\n') },
+    } as any)
+
+    await pickAndReadOkfBundle()
+
+    expect(mockGetDocumentAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        copyToCacheDirectory: true,
+        type: '*/*',
+      }),
+    )
+  })
+
   it('rejects before reading when the raw file size exceeds the cap', async () => {
     setupPicker(MAX_OKF_ZIP_RAW_BYTES + 1)
     await expect(pickAndReadOkfBundle()).rejects.toThrow('Bundle too large or malformed')
+    expect(mockLoadAsync).not.toHaveBeenCalled()
+  })
+
+  it('checks the cached file size before reading when picker size metadata is missing', async () => {
+    const pickedFile = setupPickerWithoutSize(MAX_OKF_ZIP_RAW_BYTES + 1)
+
+    await expect(pickAndReadOkfBundle()).rejects.toThrow('Bundle too large or malformed')
+
+    expect(pickedFile.arrayBuffer).not.toHaveBeenCalled()
     expect(mockLoadAsync).not.toHaveBeenCalled()
   })
 
