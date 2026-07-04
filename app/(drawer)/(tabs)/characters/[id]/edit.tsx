@@ -212,7 +212,9 @@ export default function EditCharacterScreen() {
     setToastState({
       message: exportResult.isEmpty
         ? 'Empty bundle exported. Add memories to enrich future exports.'
-        : 'Memory exported.',
+        : exportResult.saveLocation === 'documents'
+          ? 'Memory exported to Documents. Open the Files app → Documents to find it.'
+          : 'Memory exported.',
       requiresSubscription: false,
     })
     /* eslint-enable react-hooks/set-state-in-effect */

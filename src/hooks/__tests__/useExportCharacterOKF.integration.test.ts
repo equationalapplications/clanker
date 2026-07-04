@@ -68,7 +68,7 @@ jest.mock('~/utilities/reportError', () => ({
 describe('useExportCharacterOKF', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(okfSave.zipAndSaveOKF as jest.Mock).mockResolvedValue(undefined)
+    ;(okfSave.zipAndSaveOKF as jest.Mock).mockResolvedValue({ saveLocation: 'share' })
   })
 
   it('exports character memory and saves ZIP', async () => {
@@ -100,7 +100,7 @@ describe('useExportCharacterOKF', () => {
         ]),
       }),
     )
-    expect(result.current.lastResult).toEqual({ isEmpty: false })
+    expect(result.current.lastResult).toEqual({ isEmpty: false, saveLocation: 'share' })
   })
 
   it('augments files with edge links before zipping', async () => {
@@ -173,8 +173,8 @@ describe('useExportCharacterOKF', () => {
     const zipStarted = new Promise<void>((resolveStarted) => {
       ;(okfSave.zipAndSaveOKF as jest.Mock).mockImplementationOnce(
         () =>
-          new Promise<void>((resolve) => {
-            resolveZip = resolve
+          new Promise<{ saveLocation: 'share' }>((resolve) => {
+            resolveZip = () => resolve({ saveLocation: 'share' })
             resolveStarted()
           }),
       )
@@ -192,6 +192,6 @@ describe('useExportCharacterOKF', () => {
     })
 
     expect(okfSave.zipAndSaveOKF).toHaveBeenCalledTimes(1)
-    expect(result.current.lastResult).toEqual({ isEmpty: false })
+    expect(result.current.lastResult).toEqual({ isEmpty: false, saveLocation: 'share' })
   })
 })

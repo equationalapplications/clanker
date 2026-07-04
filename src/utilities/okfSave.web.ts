@@ -5,13 +5,19 @@ export interface ZipOptions {
   files: { path: string; content: string }[]
 }
 
+export type OkfSaveLocation = 'documents' | 'share' | 'download'
+
+export interface OkfSaveResult {
+  saveLocation: OkfSaveLocation
+}
+
 function buildZipFilename(characterName: string): string {
   const dateStr = new Date().toISOString().split('T')[0]
   const safeName = characterName.replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 80) || 'character'
   return `${safeName}_${dateStr}.okf.zip`
 }
 
-export async function zipAndSaveOKF(options: ZipOptions): Promise<void> {
+export async function zipAndSaveOKF(options: ZipOptions): Promise<OkfSaveResult> {
   const { characterName, files } = options
   const zipFilename = buildZipFilename(characterName)
 
@@ -33,4 +39,6 @@ export async function zipAndSaveOKF(options: ZipOptions): Promise<void> {
     document.body.removeChild(anchor)
     URL.revokeObjectURL(url)
   }
+
+  return { saveLocation: 'download' }
 }
