@@ -12,6 +12,7 @@
 - **[Browser Bridge](docs/browser-bridge.md)** — Clanker Desktop Bridge MV3 extension: cross-device web tasks via `browser_action`, Wake-and-Connect lifecycle, Firestore coordination, approval flow, pairing, and billing.
 - **[Real-Time Voice Chat](docs/real-time-voice-chat.md)** — Talk tab live voice calls via Gemini Live (`/agent/live` WebSocket), XState session lifecycle, audio I/O, pre-flight checks, and native build requirements.
 - **[Edge Agent](docs/edge-agent.md)** — On-device tool orchestration loop (BYOI proxy via `generateReply`), escalation paths, per-round billing, and security policy.
+- **[OKF Import & Export](docs/okf-import-export.md)** — Restore or clone a character's memory from a portable backup
 
 ### Billing & Credits
 - **[Billing & Credits](docs/billing-and-credits.md)** — First-login credits, Stripe and RevenueCat webhook event mappings, web checkout flow, Apple auto-renewable subscription consent, and multi-tab checkout robustness (localStorage + BroadcastChannel).
