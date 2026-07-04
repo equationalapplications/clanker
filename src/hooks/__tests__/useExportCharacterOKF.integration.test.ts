@@ -168,6 +168,39 @@ describe('useExportCharacterOKF', () => {
     expect(result.current.lastResult).toBeNull()
   })
 
+  it('keeps isExporting true until zipAndSaveOKF resolves', async () => {
+    let resolveZip!: () => void
+    const zipStarted = new Promise<void>((resolveStarted) => {
+      ;(okfSave.zipAndSaveOKF as jest.Mock).mockImplementationOnce(
+        () =>
+          new Promise<{ saveLocation: 'share' }>((resolve) => {
+            resolveZip = () => resolve({ saveLocation: 'share' })
+            resolveStarted()
+          }),
+      )
+    })
+    const { result } = renderHook(() =>
+      useExportCharacterOKF('char_123', 'TestChar'),
+    )
+
+    let exportPromise!: Promise<void>
+    await act(async () => {
+      exportPromise = result.current.exportOkf()
+      await zipStarted
+    })
+
+    await waitFor(() => {
+      expect(result.current.isExporting).toBe(true)
+    })
+
+    await act(async () => {
+      resolveZip()
+      await exportPromise
+    })
+
+    expect(result.current.isExporting).toBe(false)
+  })
+
   it('ignores concurrent export calls while one is in flight', async () => {
     let resolveZip!: () => void
     const zipStarted = new Promise<void>((resolveStarted) => {

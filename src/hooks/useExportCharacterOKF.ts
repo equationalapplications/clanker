@@ -48,8 +48,6 @@ export function useExportCharacterOKF(characterId: string, characterName: string
         { path: 'README.md', content: buildOkfReadmeContent() },
       ]
 
-      setIsExporting(false)
-
       const saveResult = await zipAndSaveOKF({
         characterName: characterNameRef.current,
         files: filesWithReadme,
