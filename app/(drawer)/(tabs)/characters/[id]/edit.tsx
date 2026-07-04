@@ -30,6 +30,7 @@ import {
 import { DEFAULT_VOICE, GEMINI_LIVE_VOICES, resolveLiveVoice } from '~/constants/geminiVoices'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { useExportCharacterOKF } from '~/hooks/useExportCharacterOKF'
+import { useImportCharacterOKF } from '~/hooks/useImportCharacterOKF'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -77,6 +78,17 @@ export default function EditCharacterScreen() {
     error: exportError,
     lastResult: exportResult,
   } = useExportCharacterOKF(characterId, name || character?.name || 'character')
+  const {
+    preview: importPreview,
+    isParsing: isImportParsing,
+    isImporting,
+    error: importError,
+    didImport,
+    handlePickAndPreview,
+    handleCommitImport,
+    handleCancel: handleImportCancel,
+  } = useImportCharacterOKF()
+  const prevDidImportRef = useRef(false)
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -166,6 +178,23 @@ export default function EditCharacterScreen() {
     prevIsCloudUnsyncingRef.current = isCloudUnsyncing
     prevIsCloudSyncingRef.current = isCloudSyncing
   }, [isUpdating, isCloudUnsyncing, isCloudSyncing, isSaving, updateError, unsyncError, cloudSyncError])
+
+  useEffect(() => {
+    if (didImport && !prevDidImportRef.current) {
+      setToastState({ message: 'Import complete.', requiresSubscription: false })
+    }
+    prevDidImportRef.current = didImport
+  }, [didImport])
+
+  useEffect(() => {
+    if (importError) {
+      setToastState({
+        message:
+          (importError as Error & { displayMessage?: string }).displayMessage ?? importError.message,
+        requiresSubscription: false,
+      })
+    }
+  }, [importError])
 
   const {
     generateImage,
@@ -304,6 +333,23 @@ export default function EditCharacterScreen() {
       return
     }
     setShowShareModal(true)
+  }
+
+  const handleReplaceConfirm = () => {
+    Alert.alert(
+      'Replace Memory?',
+      'This replaces all facts, tasks, and relationships with the contents of this backup. Timeline events are not cleared and will be added alongside existing ones. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Replace',
+          style: 'destructive',
+          onPress: () => {
+            void handleCommitImport(characterId, 'replace')
+          },
+        },
+      ],
+    )
   }
 
   const handleShare = async () => {
@@ -567,6 +613,17 @@ export default function EditCharacterScreen() {
 
           <Button
             mode="outlined"
+            icon="import"
+            onPress={() => handlePickAndPreview(characterId)}
+            disabled={isImportParsing || isImporting}
+            loading={isImportParsing || isImporting}
+            style={styles.shareButton}
+          >
+            Import OKF Backup
+          </Button>
+
+          <Button
+            mode="outlined"
             icon="database-eye-outline"
             onPress={() => router.push(`/characters/${characterId}/memory` as Href)}
             style={styles.shareButton}
@@ -632,6 +689,42 @@ export default function EditCharacterScreen() {
             ) : (
               <Text variant="bodyMedium">No share link available yet.</Text>
             )}
+          </Modal>
+
+          <Modal
+            visible={!!importPreview}
+            onDismiss={handleImportCancel}
+            contentContainerStyle={[styles.shareModal, { backgroundColor: theme.colors.surface }]}
+          >
+            <Text variant="headlineSmall" style={styles.shareTitle}>
+              Preview Backup
+            </Text>
+            {importPreview ? (
+              <>
+                <View style={styles.previewCountsContainer}>
+                  <Text variant="bodyMedium">Facts: {importPreview.facts}</Text>
+                  <Text variant="bodyMedium">Tasks: {importPreview.tasks}</Text>
+                  <Text variant="bodyMedium">Events: {importPreview.events}</Text>
+                  <Text variant="bodyMedium">Relationships: {importPreview.edges}</Text>
+                </View>
+                <Button
+                  mode="contained"
+                  onPress={() => {
+                    void handleCommitImport(characterId, 'merge')
+                  }}
+                  style={styles.previewButton}
+                >
+                  Merge Backup
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={handleReplaceConfirm}
+                  style={styles.previewButton}
+                >
+                  Replace Memory
+                </Button>
+              </>
+            ) : null}
           </Modal>
         </Portal>
       </ScrollView>
@@ -744,6 +837,14 @@ const styles = StyleSheet.create({
   },
   ownershipText: {
     opacity: 0.7,
+    marginBottom: 8,
+  },
+  previewCountsContainer: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  previewButton: {
+    alignSelf: 'stretch',
     marginBottom: 8,
   },
 })
