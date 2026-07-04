@@ -14,6 +14,7 @@
  * the Expo Router screens still render the same pages as a graceful fallback.
  */
 
+const { execSync } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 const ts = require('typescript')
@@ -211,7 +212,15 @@ const FOOTER = `
       <span>·</span>
       <a href="/real-time-voice">Real-Time Voice</a>
       <span>·</span>
-      <a href="/memory-export-with-okf">Memory Export</a>
+      <a href="/memory-export-with-okf">OKF Memory</a>
+      <span>·</span>
+      <a href="/advanced-memory">Advanced Memory</a>
+      <span>·</span>
+      <a href="/privacy-mode">Privacy Mode</a>
+      <span>·</span>
+      <a href="/open-source">Open Source</a>
+      <span>·</span>
+      <a href="/support">Support</a>
       <span>·</span>
       <a href="/terms">Terms and Conditions</a>
       <span>·</span>
@@ -231,14 +240,31 @@ function renderDocPage({ slug, pageTitle, h1, description, version, lastUpdated,
     <meta name="description" content="${description}" />
     <link rel="canonical" href="${canonical}" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Clanker" />
     <meta property="og:url" content="${canonical}" />
     <meta property="og:title" content="${pageTitle}" />
     <meta property="og:description" content="${description}" />
     <meta property="og:image" content="${SITE}/og-image.png" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="500" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${pageTitle}" />
     <meta name="twitter:description" content="${description}" />
     <meta name="twitter:image" content="${SITE}/og-image.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "${pageTitle}",
+        "description": "${description}",
+        "url": "${canonical}",
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": "Clanker",
+          "url": "${SITE}/"
+        }
+      }
+    </script>
     <style>${SHARED_CSS}
     </style>
   </head>
@@ -270,6 +296,26 @@ function toIsoDate(humanDate) {
   const parsed = new Date(humanDate)
   if (Number.isNaN(parsed.getTime())) return null
   return parsed.toISOString().slice(0, 10)
+}
+
+function lastmodFromFile(filePath) {
+  if (!fs.existsSync(filePath)) return null
+
+  try {
+    const relPath = path.relative(ROOT, filePath)
+    const gitDate = execSync(`git log -1 --format=%cI -- "${relPath}"`, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim()
+    if (gitDate) {
+      return new Date(gitDate).toISOString().slice(0, 10)
+    }
+  } catch {
+    // Untracked or no git history — fall back to mtime.
+  }
+
+  return new Date(fs.statSync(filePath).mtime).toISOString().slice(0, 10)
 }
 
 function generatePrivacy() {
@@ -308,23 +354,66 @@ function generateTerms() {
 }
 
 function generateSitemap({ privacy, terms }) {
+  const welcomePage = path.join(PUBLIC_DIR, 'welcome/index.html')
   const pages = [
-    { loc: '/', priority: '1.0' },
-    { loc: '/welcome', priority: '0.9' },
-    { loc: '/real-time-voice', priority: '0.9' },
-    { loc: '/memory-export-with-okf', priority: '0.8' },
-    { loc: '/advanced-memory', priority: '0.8' },
-    { loc: '/privacy-mode', priority: '0.7' },
-    { loc: '/privacy', priority: '0.4', lastmod: toIsoDate(privacy.lastUpdated) },
-    { loc: '/terms', priority: '0.4', lastmod: toIsoDate(terms.lastUpdated) },
-    { loc: '/support', priority: '0.5' },
+    { loc: '/welcome', changefreq: 'weekly', priority: '1.0', lastmodFile: welcomePage },
+    {
+      loc: '/real-time-voice',
+      changefreq: 'monthly',
+      priority: '0.9',
+      lastmodFile: path.join(PUBLIC_DIR, 'real-time-voice/index.html'),
+    },
+    {
+      loc: '/memory-export-with-okf',
+      changefreq: 'monthly',
+      priority: '0.8',
+      lastmodFile: path.join(PUBLIC_DIR, 'memory-export-with-okf/index.html'),
+    },
+    {
+      loc: '/advanced-memory',
+      changefreq: 'monthly',
+      priority: '0.8',
+      lastmodFile: path.join(PUBLIC_DIR, 'advanced-memory/index.html'),
+    },
+    {
+      loc: '/open-source',
+      changefreq: 'monthly',
+      priority: '0.8',
+      lastmodFile: path.join(PUBLIC_DIR, 'open-source/index.html'),
+    },
+    {
+      loc: '/privacy-mode',
+      changefreq: 'monthly',
+      priority: '0.7',
+      lastmodFile: path.join(PUBLIC_DIR, 'privacy-mode/index.html'),
+    },
+    {
+      loc: '/privacy',
+      changefreq: 'yearly',
+      priority: '0.4',
+      lastmod: toIsoDate(privacy.lastUpdated),
+    },
+    {
+      loc: '/terms',
+      changefreq: 'yearly',
+      priority: '0.4',
+      lastmod: toIsoDate(terms.lastUpdated),
+    },
+    {
+      loc: '/support',
+      changefreq: 'monthly',
+      priority: '0.5',
+      lastmodFile: path.join(PUBLIC_DIR, 'support/index.html'),
+    },
   ]
 
   const urls = pages
     .map((page) => {
-      const lastmod = page.lastmod ? `\n    <lastmod>${page.lastmod}</lastmod>` : ''
+      const lastmod = page.lastmod ?? lastmodFromFile(page.lastmodFile)
+      const lastmodTag = lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''
+      const changefreqTag = page.changefreq ? `\n    <changefreq>${page.changefreq}</changefreq>` : ''
       return `  <url>
-    <loc>${SITE}${page.loc}</loc>${lastmod}
+    <loc>${SITE}${page.loc}</loc>${lastmodTag}${changefreqTag}
     <priority>${page.priority}</priority>
   </url>`
     })
@@ -337,7 +426,8 @@ ${urls}
 `
   writeFile('sitemap.xml', sitemap)
 
-  const robots = `User-agent: *
+  const robots = `# https://www.robotstxt.org/robotstxt.html
+User-agent: *
 Allow: /
 
 Sitemap: ${SITE}/sitemap.xml
