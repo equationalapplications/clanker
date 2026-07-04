@@ -1,3 +1,15 @@
+# [30.18.0](https://github.com/equationalapplications/clanker/compare/v30.17.0...v30.18.0) (2026-07-04)
+
+
+### Bug Fixes
+
+* align SEO metadata and sitemap lastmod with review feedback ([ad15e77](https://github.com/equationalapplications/clanker/commit/ad15e77ad80393ebc8723d402b768860d8d882df))
+
+
+### Features
+
+* add public landing pages and SEO improvements ([045d67c](https://github.com/equationalapplications/clanker/commit/045d67cf02e141d4acc4ac94e3c5a41c34fa89e7))
+
 # [30.17.0](https://github.com/equationalapplications/clanker/compare/v30.16.0...v30.17.0) (2026-07-04)
 
 
