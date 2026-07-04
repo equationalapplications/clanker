@@ -26,13 +26,13 @@ export default function WebIndex() {
         <title>Clanker — AI Characters with Real-Time Voice & Google OKF Memory</title>
         <meta
           name="description"
-          content="Design AI characters and talk to them in real time with natural, human-like voice calls. Own your character's memory with Google's Open Knowledge Format (OKF) — edit it in Obsidian. Advanced memory learns from conversation, documents, and web search."
+          content="Design AI characters with real-time voice. Own memory with Google's OKF, edit in Obsidian, and memory that learns from chat, docs, and web search."
         />
         <meta
           name="keywords"
           content="AI characters, real-time voice AI, AI voice chat, Open Knowledge Format, OKF, Google OKF, AI memory, Obsidian AI, export AI character, AI companion, voice assistant"
         />
-        <link rel="canonical" href="https://clanker-ai.com/" />
+        <link rel="canonical" href="https://clanker-ai.com/welcome" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Clanker" />
         <meta property="og:url" content="https://clanker-ai.com/" />
@@ -42,7 +42,7 @@ export default function WebIndex() {
         />
         <meta
           property="og:description"
-          content="Talk to AI characters in real time with natural, human-like voice. Own your memory with Google's Open Knowledge Format (OKF) — edit it in Obsidian. Memory that learns from conversation, documents, and web search."
+          content="Design AI characters with real-time voice. Own memory with Google's OKF, edit in Obsidian, and memory that learns from chat, docs, and web search."
         />
         <meta property="og:image" content="https://clanker-ai.com/og-image.png" />
         <meta property="og:image:width" content="1024" />
@@ -54,7 +54,7 @@ export default function WebIndex() {
         />
         <meta
           name="twitter:description"
-          content="Talk to AI characters in real time with natural, human-like voice. Own your memory with Google's OKF format — edit it in Obsidian. Memory that learns from conversation, documents, and web search."
+          content="Design AI characters with real-time voice. Own memory with Google's OKF, edit in Obsidian, and memory that learns from chat, docs, and web search."
         />
         <meta name="twitter:image" content="https://clanker-ai.com/og-image.png" />
       </Head>
