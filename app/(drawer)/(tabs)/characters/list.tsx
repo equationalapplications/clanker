@@ -1,11 +1,16 @@
 import { View, StyleSheet, FlatList } from 'react-native'
-import { Text, Button, ActivityIndicator, Snackbar, IconButton } from 'react-native-paper'
+import { Text, Button, ActivityIndicator, Snackbar, IconButton, Portal, Modal, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacters, useCreateCharacter, useSyncCharacters } from '~/hooks/useCharacters'
 import { CharacterCard } from '~/components/CharacterCard'
-import { useCharacterMachine } from '~/hooks/useMachines'
+import { useCharacterMachine, useAuthMachine } from '~/hooks/useMachines'
+import { createCharacter } from '~/database/characterDatabase'
+import { useImportCharacterOKF } from '~/hooks/useImportCharacterOKF'
+import { reportError } from '~/utilities/reportError'
+
+const OKF_CLONE_PREVIEW_ENTITY_ID = 'okf-clone-preview'
 
 export default function CharactersListScreen() {
   const { characters, isLoading } = useCharacters()
@@ -20,6 +25,19 @@ export default function CharactersListScreen() {
     message: string
     requiresSubscription: boolean
   } | null>(null)
+  const { colors } = useTheme()
+  const authService = useAuthMachine()
+  const userId = useSelector(authService, (state) => state.context.user?.uid ?? null)
+  const {
+    preview: importPreview,
+    isParsing: isImportParsing,
+    isImporting,
+    error: importError,
+    handlePickAndPreview,
+    handleCommitImport,
+    handleCancel: handleImportCancel,
+  } = useImportCharacterOKF()
+  const [isCreatingClone, setIsCreatingClone] = useState(false)
 
   // Navigate to edit page when creation completes
   useEffect(() => {
@@ -31,6 +49,35 @@ export default function CharactersListScreen() {
 
   const handleCreateCharacter = () => {
     create({ name: 'New Character', is_public: false })
+  }
+
+  const handleCreateFromBundle = () => {
+    handlePickAndPreview(OKF_CLONE_PREVIEW_ENTITY_ID)
+  }
+
+  const handleConfirmClone = async () => {
+    if (!userId) return
+    setIsCreatingClone(true)
+    try {
+      const newCharacter = await createCharacter(userId, {
+        name: 'Imported Character',
+        is_public: false,
+      })
+      if (!newCharacter) throw new Error('Failed to create character')
+      characterService.send({ type: 'LOAD' })
+      const imported = await handleCommitImport(newCharacter.id, 'clone')
+      if (imported) {
+        router.push(`/chat/${newCharacter.id}`)
+      }
+    } catch (err) {
+      reportError(err, 'okf-clone:create')
+      setToastState({
+        message: 'Failed to create character from bundle.',
+        requiresSubscription: false,
+      })
+    } finally {
+      setIsCreatingClone(false)
+    }
   }
 
   const handleCloudSync = () => {
@@ -62,6 +109,16 @@ export default function CharactersListScreen() {
     didEnterCloudSyncStateRef.current = false
     setCloudSyncRequested(false)
   }, [cloudSyncError, cloudSyncRequested, isCloudSyncing])
+
+  useEffect(() => {
+    if (importError) {
+      setToastState({
+        message:
+          (importError as Error & { displayMessage?: string }).displayMessage ?? importError.message,
+        requiresSubscription: false,
+      })
+    }
+  }, [importError])
 
   if (isLoading) {
     return (
@@ -100,6 +157,15 @@ export default function CharactersListScreen() {
             disabled={isPending || isCreatingDefault}
           >
             New
+          </Button>
+          <Button
+            mode="outlined"
+            icon="file-import-outline"
+            onPress={handleCreateFromBundle}
+            disabled={isImportParsing || isImporting || isCreatingClone}
+            loading={isImportParsing}
+          >
+            From Bundle
           </Button>
         </View>
       </View>
@@ -145,6 +211,37 @@ export default function CharactersListScreen() {
       >
         {toastState?.message}
       </Snackbar>
+
+      <Portal>
+        <Modal
+          visible={importPreview !== null}
+          onDismiss={handleImportCancel}
+          contentContainerStyle={[styles.cloneModal, { backgroundColor: colors.surface }]}
+        >
+          <Text variant="headlineSmall" style={styles.cloneModalTitle}>
+            Create Character from Bundle
+          </Text>
+          <Text variant="bodyMedium">
+            {importPreview
+              ? `Ready to import ${importPreview.facts} facts, ${importPreview.tasks} tasks, ${importPreview.events} timeline events, ${importPreview.edges} relationships into a new character.`
+              : ''}
+          </Text>
+          <Button
+            mode="contained"
+            onPress={() => {
+              void handleConfirmClone()
+            }}
+            loading={isImporting || isCreatingClone}
+            disabled={isImporting || isCreatingClone}
+            style={styles.cloneModalButton}
+          >
+            Create Character
+          </Button>
+          <Button mode="text" onPress={handleImportCancel} disabled={isImporting || isCreatingClone}>
+            Cancel
+          </Button>
+        </Modal>
+      </Portal>
     </View>
   )
 }
@@ -187,5 +284,17 @@ const styles = StyleSheet.create({
   },
   emptySpinner: {
     marginTop: 12,
+  },
+  cloneModal: {
+    margin: 24,
+    padding: 24,
+    borderRadius: 12,
+    gap: 12,
+  },
+  cloneModalTitle: {
+    fontWeight: 'bold',
+  },
+  cloneModalButton: {
+    marginTop: 8,
   },
 })
