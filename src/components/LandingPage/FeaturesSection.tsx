@@ -15,7 +15,7 @@ const FEATURES = [
   {
     icon: 'export-variant' as const,
     title: 'Own Your Data',
-    body: 'Export any character\'s complete memory - facts, tasks, and history - as an open, standard format (OKF). No walled garden. Your data works with any OKF-compatible tool.',
+    body: 'Export any character\'s complete memory - facts, tasks, and history - as an open, standard format (OKF), and bring it back anytime: restore a backup into the same character, or clone it into a brand-new one. No walled garden. Your data works with any OKF-compatible tool.',
     learnMoreHref: '/memory-export-with-okf',
     isNew: true,
   },

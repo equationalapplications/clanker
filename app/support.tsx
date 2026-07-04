@@ -140,7 +140,9 @@ export default function Support() {
           <Text variant="bodyMedium" style={styles.bodyText}>
             {'Yes - open Character Settings and tap "Export Memory as OKF" to download a '}
             complete, standard-format backup of everything your character knows, including
-            its facts, tasks, and how they connect.
+            its facts, tasks, and how they connect. Bring it back anytime with{' '}
+            {'"Import OKF Backup" (restore into the same character) or "From Bundle" on the '}
+            characters list (clone into a new one).
           </Text>
           <Button mode="text" onPress={onPressExportGuide} icon="open-in-new">
             Data export guide
