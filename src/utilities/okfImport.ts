@@ -94,7 +94,7 @@ export async function pickAndReadOkfBundle(): Promise<OkfFile[]> {
     if (!isAllowedOkfPath(path)) continue
 
     const content = await entry.async('string')
-    actualTotal += content.length
+    actualTotal += new Blob([content]).size
     if (actualTotal > MAX_OKF_TOTAL_UNCOMPRESSED_BYTES) {
       throw new Error('Bundle too large or malformed')
     }
