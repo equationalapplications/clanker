@@ -1,5 +1,7 @@
 # Landing page content unification (`/` and `/welcome`)
 
+**Status:** Implemented
+
 ## Problem
 
 `/` (Expo Router SPA entry, `app/index.web.tsx` → `src/components/LandingPage/`) and `/welcome`

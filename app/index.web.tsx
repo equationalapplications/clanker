@@ -4,6 +4,7 @@ import { useSelector } from '@xstate/react'
 import LandingPage from '~/components/LandingPage'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { useAuthMachine } from '~/hooks/useMachines'
+import { SITE_META, SITE_BASE } from '~/config/landingConfig'
 
 export default function WebIndex() {
   const authService = useAuthMachine()
@@ -20,43 +21,27 @@ export default function WebIndex() {
     return <LoadingIndicator />
   }
 
+  const canonicalUrl = `${SITE_BASE}${SITE_META.canonicalPath}`
+
   return (
     <>
       <Head>
-        <title>Clanker — AI Characters with Real-Time Voice & Google OKF Memory</title>
-        <meta
-          name="description"
-          content="Design AI characters with real-time voice. Own memory with Google's OKF, edit in Obsidian, and memory that learns from chat, docs, and web search."
-        />
-        <meta
-          name="keywords"
-          content="AI characters, real-time voice AI, AI voice chat, Open Knowledge Format, OKF, Google OKF, AI memory, Obsidian AI, export AI character, AI companion, voice assistant"
-        />
-        <link rel="canonical" href="https://clanker-ai.com/welcome" />
+        <title>{SITE_META.title}</title>
+        <meta name="description" content={SITE_META.description} />
+        <meta name="keywords" content={SITE_META.keywords} />
+        <link rel="canonical" href={canonicalUrl} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Clanker" />
-        <meta property="og:url" content="https://clanker-ai.com/welcome" />
-        <meta
-          property="og:title"
-          content="Clanker — AI Characters with Real-Time Voice & Google OKF Memory"
-        />
-        <meta
-          property="og:description"
-          content="Design AI characters with real-time voice. Own memory with Google's OKF, edit in Obsidian, and memory that learns from chat, docs, and web search."
-        />
-        <meta property="og:image" content="https://clanker-ai.com/og-image.png" />
-        <meta property="og:image:width" content="1024" />
-        <meta property="og:image:height" content="500" />
+        <meta property="og:site_name" content={SITE_META.siteName} />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:title" content={SITE_META.title} />
+        <meta property="og:description" content={SITE_META.description} />
+        <meta property="og:image" content={SITE_META.ogImage} />
+        <meta property="og:image:width" content={String(SITE_META.ogImageWidth)} />
+        <meta property="og:image:height" content={String(SITE_META.ogImageHeight)} />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta
-          name="twitter:title"
-          content="Clanker — AI Characters with Real-Time Voice & Google OKF Memory"
-        />
-        <meta
-          name="twitter:description"
-          content="Design AI characters with real-time voice. Own memory with Google's OKF, edit in Obsidian, and memory that learns from chat, docs, and web search."
-        />
-        <meta name="twitter:image" content="https://clanker-ai.com/og-image.png" />
+        <meta name="twitter:title" content={SITE_META.title} />
+        <meta name="twitter:description" content={SITE_META.description} />
+        <meta name="twitter:image" content={SITE_META.ogImage} />
       </Head>
       {user ? <Redirect href="/chat" /> : <LandingPage />}
     </>
