@@ -87,6 +87,10 @@ function escapeHtml(value) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+function escapeHtmlAttr(value) {
+  return escapeHtml(value).replace(/"/g, '&quot;')
+}
+
 function inlineFormat(value) {
   let out = escapeHtml(value)
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -521,22 +525,22 @@ function generateWelcome() {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(SITE_META.title)}</title>
-    <meta name="description" content="${escapeHtml(SITE_META.description)}" />
-    <meta name="keywords" content="${escapeHtml(SITE_META.keywords)}" />
+    <meta name="description" content="${escapeHtmlAttr(SITE_META.description)}" />
+    <meta name="keywords" content="${escapeHtmlAttr(SITE_META.keywords)}" />
     <link rel="canonical" href="${canonical}" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="${escapeHtml(SITE_META.siteName)}" />
+    <meta property="og:site_name" content="${escapeHtmlAttr(SITE_META.siteName)}" />
     <meta property="og:url" content="${canonical}" />
-    <meta property="og:title" content="${escapeHtml(SITE_META.title)}" />
-    <meta property="og:description" content="${escapeHtml(SITE_META.description)}" />
+    <meta property="og:title" content="${escapeHtmlAttr(SITE_META.title)}" />
+    <meta property="og:description" content="${escapeHtmlAttr(SITE_META.description)}" />
     <meta property="og:image" content="${SITE_META.ogImage}" />
     <meta property="og:image:width" content="${SITE_META.ogImageWidth}" />
     <meta property="og:image:height" content="${SITE_META.ogImageHeight}" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${escapeHtml(SITE_META.title)}" />
-    <meta name="twitter:description" content="${escapeHtml(SITE_META.description)}" />
+    <meta name="twitter:title" content="${escapeHtmlAttr(SITE_META.title)}" />
+    <meta name="twitter:description" content="${escapeHtmlAttr(SITE_META.description)}" />
     <meta name="twitter:image" content="${SITE_META.ogImage}" />
 
     <script type="application/ld+json">
@@ -567,7 +571,7 @@ function generateWelcome() {
         <h2 id="video-heading">${escapeHtml(VIDEO.heading)}</h2>
         <div class="video-frame">
           <iframe
-            title="${escapeHtml(VIDEO.iframeTitle)}"
+            title="${escapeHtmlAttr(VIDEO.iframeTitle)}"
             src="https://www.youtube.com/embed/${VIDEO.youtubeId}"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowfullscreen
