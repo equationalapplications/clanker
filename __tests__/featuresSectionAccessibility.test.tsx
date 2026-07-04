@@ -51,15 +51,9 @@ jest.mock('@expo/vector-icons', () => {
 })
 
 import FeaturesSection from '~/components/LandingPage/FeaturesSection'
+import { FEATURES } from '~/config/landingConfig'
 
-const FEATURE_TITLES = [
-  'Live, Real-Time Voice Calls',
-  'Import & Export with Google OKF',
-  'Advanced Memory That Learns',
-  'Build Your Character',
-  'Real AI Conversations',
-  'Share & Sync',
-]
+const FEATURE_TITLES = FEATURES.map((feature) => feature.title)
 
 describe('FeaturesSection accessibility', () => {
   let tree: any

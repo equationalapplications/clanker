@@ -14,6 +14,7 @@ import Animated, {
 import { TitleText, MonoText } from '~/components/StyledText'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
+import { HERO } from '~/config/landingConfig'
 
 export default function HeroSection() {
   const { colors } = useTheme()
@@ -114,7 +115,7 @@ export default function HeroSection() {
           onPress={handleChatIntent}
           style={styles.signInBtn}
         >
-          {isSignedIn ? 'Open App' : 'Sign In'}
+          {isSignedIn ? HERO.signInButtonLabelSignedIn : HERO.signInButtonLabel}
         </Button>
       </View>
 
@@ -124,10 +125,10 @@ export default function HeroSection() {
         <Animated.View entering={FadeInDown.delay(50).duration(600)}>
           <Pressable
             accessibilityRole="link"
-            accessibilityLabel="New: Live, real-time voice calls. Learn more."
+            accessibilityLabel={HERO.announcement.accessibilityLabel}
             onPress={() => {
               if (Platform.OS === 'web') {
-                window.location.assign('/real-time-voice')
+                window.location.assign(HERO.announcement.href)
               }
             }}
             style={[
@@ -136,7 +137,7 @@ export default function HeroSection() {
             ]}
           >
             <MonoText style={[styles.announceText, { color: colors.onSecondaryContainer }]}>
-              ✨ New: Live, Real-Time Voice Calls →
+              {HERO.announcement.text}
             </MonoText>
           </Pressable>
         </Animated.View>
@@ -146,12 +147,12 @@ export default function HeroSection() {
           entering={FadeInDown.delay(100).duration(600)}
           style={[styles.titleWrap, glowShiverStyle]}
         >
-          <TitleText style={[styles.title, { color: colors.primary }]}>Clanker</TitleText>
+          <TitleText style={[styles.title, { color: colors.primary }]}>{HERO.headline}</TitleText>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(250).duration(600)}>
           <MonoText style={[styles.tagline, { color: colors.onBackground }]}>
-            Design, chat with, call, and share your own AI characters
+            {HERO.tagline}
           </MonoText>
         </Animated.View>
 
@@ -178,7 +179,7 @@ export default function HeroSection() {
             labelStyle={styles.ctaLabel}
             onPress={handleChatIntent}
           >
-            {isSignedIn ? 'Open App' : 'Try the App!'}
+            {isSignedIn ? HERO.ctaLabelSignedIn : HERO.ctaLabelSignedOut}
           </Button>
         </Animated.View>
       </View>

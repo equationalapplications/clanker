@@ -105,6 +105,7 @@ jest.mock('~/hooks/useMachines', () => ({
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
 import HeroSection from '~/components/LandingPage/HeroSection'
+import { HERO } from '~/config/landingConfig'
 
 describe('HeroSection Web Navigation', () => {
   beforeEach(() => {
@@ -178,7 +179,7 @@ describe('HeroSection Web Navigation', () => {
     const topBarButton = allButtons[0]
 
     // The button's children should contain "Open App" text
-    expect(topBarButton.props.children).toContain('Open App')
+    expect(topBarButton.props.children).toContain(HERO.signInButtonLabelSignedIn)
 
     // Click the button and verify it routes internally to /chat
     act(() => {

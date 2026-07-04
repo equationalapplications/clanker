@@ -7,7 +7,8 @@
  * copies them into dist/. Firebase `cleanUrls` serves these static files before
  * the SPA catch-all rewrite (see firebase.json).
  *
- * Single source of truth: src/config/privacyConfig.ts and src/config/termsConfig.ts.
+ * Single source of truth: src/config/privacyConfig.ts, src/config/termsConfig.ts,
+ * and src/config/landingConfig.ts.
  * Content is read by transpiling those TS modules in-memory (TypeScript compiler)
  * with a stubbed `react-native` so interpolations like ${APPLE_EULA_URL} resolve
  * without hardcoding. Generated outputs are gitignored; if this script is skipped,
@@ -84,6 +85,10 @@ function resolveTs(file) {
 
 function escapeHtml(value) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function escapeHtmlAttr(value) {
+  return escapeHtml(value).replace(/"/g, '&quot;')
 }
 
 function inlineFormat(value) {
@@ -353,6 +358,253 @@ function generateTerms() {
   return TERMS
 }
 
+const WELCOME_CSS = `
+      :root {
+        --primary: #835400;
+        --on-primary: #ffffff;
+        --background: #fffbff;
+        --on-background: #1f1b16;
+        --surface: #fffbff;
+        --surface-variant: #f0e0d0;
+        --on-surface-variant: #4f4539;
+        --outline: #817568;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--background);
+        color: var(--on-background);
+        line-height: 1.6;
+      }
+      a { color: var(--primary); }
+      .skip-link {
+        position: absolute; top: -9999px; left: 0; padding: 8px 16px;
+        background: #fff; color: #000; font-weight: bold; text-decoration: none;
+        border-radius: 4px; z-index: 9999;
+      }
+      .skip-link:focus { top: 8px; left: 8px; }
+      .hero { max-width: 760px; margin: 0 auto; padding: 48px 24px; text-align: center; }
+      .hero-logo {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--background);
+        border-radius: 28px;
+      }
+      .hero-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+      }
+      h1 { color: var(--primary); font-size: clamp(2rem, 5vw, 2.75rem); line-height: 1.15; margin: 0 0 16px; }
+      .lead { font-size: 1.125rem; margin: 0 0 28px; opacity: 0.9; }
+      .pill {
+        display: inline-block; margin-bottom: 24px; padding: 6px 14px;
+        border: 1px solid var(--primary); border-radius: 999px;
+        background: var(--surface-variant); color: var(--on-surface-variant);
+        font-size: 0.85rem; font-weight: 600; text-decoration: none;
+      }
+      .cta-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        padding: 12px 24px; border-radius: 999px; font-size: 1rem; font-weight: 600;
+        text-decoration: none; border: 2px solid transparent; cursor: pointer;
+      }
+      .btn-primary { background: var(--primary); color: var(--on-primary); }
+      .btn-primary:hover, .btn-primary:focus { background: #6a4300; }
+      .btn-outline { background: transparent; color: var(--primary); border-color: var(--primary); }
+      .btn-outline:hover, .btn-outline:focus { background: rgba(131, 84, 0, 0.08); }
+      .video-section { padding: 0 24px 48px; max-width: 900px; margin: 0 auto; text-align: center; }
+      .video-frame {
+        width: 100%; max-width: 800px; margin: 0 auto; aspect-ratio: 16 / 9;
+        border-radius: 16px; overflow: hidden; background: #1a1a1a; position: relative;
+      }
+      .video-frame iframe { width: 100%; height: 100%; border: none; }
+      .features { background: var(--surface-variant); padding: 64px 24px; }
+      .features-inner { max-width: 960px; margin: 0 auto; text-align: center; }
+      h2 { font-size: clamp(1.5rem, 4vw, 2rem); margin: 0 0 32px; }
+      .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
+      .card {
+        background: var(--surface); border-radius: 16px; padding: 28px 20px;
+        width: 280px; max-width: 100%; flex: 1 1 280px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      }
+      .card h3 { margin: 12px 0 8px; font-size: 1.1rem; }
+      .card p { margin: 0; color: var(--on-surface-variant); font-size: 0.95rem; }
+      .card-icon { font-size: 2rem; line-height: 1; }
+      .bottom-cta { padding: 56px 24px; text-align: center; }
+      .bottom-cta h2 { margin-bottom: 20px; }
+      footer {
+        padding: 24px 16px; text-align: center; font-size: 0.875rem;
+        color: var(--outline); border-top: 1px solid var(--surface-variant);
+      }
+      footer a { color: var(--outline); }
+      footer span { margin: 0 4px; }`
+
+function renderWelcomeFooter(footerLinks) {
+  return footerLinks
+    .map((link, index) => {
+      const separator = index > 0 ? '\n      <span>·</span>\n      ' : ''
+      const rel = link.external ? ' rel="noopener noreferrer"' : ''
+      const target = link.external ? ' target="_blank"' : ''
+      return `${separator}<a href="${link.href}"${target}${rel}>${escapeHtml(link.label)}</a>`
+    })
+    .join('')
+}
+
+function renderWelcomeFeatureCard(feature) {
+  const titleHtml = feature.learnMoreHref
+    ? `<h3><a href="${feature.learnMoreHref}">${escapeHtml(feature.title)}</a></h3>`
+    : `<h3>${escapeHtml(feature.title)}</h3>`
+
+  return `            <article class="card">
+              <div class="card-icon" aria-hidden="true">${feature.emoji}</div>
+              ${titleHtml}
+              <p>${escapeHtml(feature.body)}</p>
+            </article>`
+}
+
+function generateWelcome() {
+  const {
+    SITE_META,
+    SITE_BASE,
+    JSONLD,
+    HERO,
+    FEATURES,
+    FEATURES_SECTION,
+    VIDEO,
+    FOOTER_LINKS,
+  } = loadTsModule(path.join(ROOT, 'src/config/landingConfig.ts'))
+
+  const canonical = `${SITE_BASE}${SITE_META.canonicalPath}`
+  const jsonLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'SoftwareApplication',
+        name: JSONLD.softwareApplication.name,
+        applicationCategory: JSONLD.softwareApplication.applicationCategory,
+        operatingSystem: JSONLD.softwareApplication.operatingSystem,
+        description: JSONLD.softwareApplication.description,
+        url: JSONLD.softwareApplication.url,
+        featureList: JSONLD.softwareApplication.featureList,
+        offers: {
+          '@type': 'Offer',
+          price: JSONLD.softwareApplication.offers.price,
+          priceCurrency: JSONLD.softwareApplication.offers.priceCurrency,
+        },
+      },
+      {
+        '@type': 'VideoObject',
+        name: JSONLD.videoObject.name,
+        description: JSONLD.videoObject.description,
+        thumbnailUrl: JSONLD.videoObject.thumbnailUrl,
+        uploadDate: JSONLD.videoObject.uploadDate,
+        embedUrl: JSONLD.videoObject.embedUrl,
+        contentUrl: JSONLD.videoObject.contentUrl,
+        publisher: {
+          '@type': 'Organization',
+          name: JSONLD.videoObject.publisher.name,
+          url: JSONLD.videoObject.publisher.url,
+        },
+      },
+    ],
+  })
+
+  const featureCards = FEATURES.map(renderWelcomeFeatureCard).join('\n')
+  const footerHtml = renderWelcomeFooter(FOOTER_LINKS)
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(SITE_META.title)}</title>
+    <meta name="description" content="${escapeHtmlAttr(SITE_META.description)}" />
+    <meta name="keywords" content="${escapeHtmlAttr(SITE_META.keywords)}" />
+    <link rel="canonical" href="${canonical}" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="${escapeHtmlAttr(SITE_META.siteName)}" />
+    <meta property="og:url" content="${canonical}" />
+    <meta property="og:title" content="${escapeHtmlAttr(SITE_META.title)}" />
+    <meta property="og:description" content="${escapeHtmlAttr(SITE_META.description)}" />
+    <meta property="og:image" content="${SITE_META.ogImage}" />
+    <meta property="og:image:width" content="${SITE_META.ogImageWidth}" />
+    <meta property="og:image:height" content="${SITE_META.ogImageHeight}" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtmlAttr(SITE_META.title)}" />
+    <meta name="twitter:description" content="${escapeHtmlAttr(SITE_META.description)}" />
+    <meta name="twitter:image" content="${SITE_META.ogImage}" />
+
+    <script type="application/ld+json">
+      ${jsonLd}
+    </script>
+
+    <style>${WELCOME_CSS}
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <main id="main-content">
+      <section class="hero">
+        <div class="hero-logo">
+          <img src="/clanker-icon.png" alt="Clanker" width="120" height="120" />
+        </div>
+        <a class="pill" href="${HERO.announcement.href}">${escapeHtml(HERO.announcement.text)}</a>
+        <h1>${escapeHtml(HERO.headline)}</h1>
+        <p class="lead">${escapeHtml(HERO.tagline)}</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="${HERO.signInHref}">${escapeHtml(HERO.staticPrimaryCtaLabel)}</a>
+          <a class="btn btn-outline" href="${HERO.announcement.href}">${escapeHtml(HERO.staticSecondaryCtaLabel)}</a>
+        </div>
+      </section>
+
+      <section class="video-section" aria-labelledby="video-heading">
+        <h2 id="video-heading">${escapeHtml(VIDEO.heading)}</h2>
+        <div class="video-frame">
+          <iframe
+            title="${escapeHtmlAttr(VIDEO.iframeTitle)}"
+            src="https://www.youtube.com/embed/${VIDEO.youtubeId}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            sandbox="allow-scripts allow-presentation allow-popups"
+          ></iframe>
+        </div>
+      </section>
+
+      <section class="features" aria-labelledby="features-heading">
+        <div class="features-inner">
+          <h2 id="features-heading">${escapeHtml(FEATURES_SECTION.staticTitle)}</h2>
+          <div class="grid">
+${featureCards}
+          </div>
+        </div>
+      </section>
+
+      <section class="bottom-cta">
+        <h2>${escapeHtml(HERO.staticBottomCtaHeading)}</h2>
+        <a class="btn btn-primary" href="${HERO.signInHref}">${escapeHtml(HERO.staticBottomCtaLabel)}</a>
+      </section>
+    </main>
+
+    <footer>
+      ${footerHtml}
+    </footer>
+  </body>
+</html>
+`
+
+  writeFile('welcome/index.html', html)
+}
+
 function generateSitemap({ privacy, terms }) {
   const welcomePage = path.join(PUBLIC_DIR, 'welcome/index.html')
   const pages = [
@@ -450,6 +702,7 @@ function main() {
   copyStaticAssets()
   const privacy = generatePrivacy()
   const terms = generateTerms()
+  generateWelcome()
   generateSitemap({ privacy, terms })
   console.log('Done.')
 }
