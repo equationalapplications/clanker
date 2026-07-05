@@ -31,6 +31,12 @@ jest.mock('~/services/liveMemoryQuery', () => ({
   }),
 }))
 
+const mockLogEvent = jest.fn()
+
+jest.mock('~/services/analyticsService', () => ({
+  logEvent: (...args: unknown[]) => mockLogEvent(...args),
+}))
+
 class MockWebSocket {
   static OPEN = 1
   readyState = 0
@@ -117,6 +123,26 @@ describe('liveVoiceMachine', () => {
       return waitFor(actor, (s) => s.matches({ session: 'live' }), WAIT)
     })
   }
+
+  test('logs voice_session_started when the session becomes live', async () => {
+    const wiki = makeWikiMock()
+    jest.mocked(getWiki).mockReturnValue(wiki as never)
+    jest.mocked(wikiSync).mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 0,
+          entities: {
+            [CLOUD_CHAR_ID]: { facts: [], tasks: [], events: [], edges: [] },
+          },
+        },
+      },
+    } as never)
+    jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
+
+    const actor = spawn()
+    await advanceToLive(actor)
+    expect(mockLogEvent).toHaveBeenCalledWith('voice_session_started')
+  })
 
   test('starts in idle', () => {
     const actor = spawn()

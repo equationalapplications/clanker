@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import React, { useState } from 'react'
+import { logEvent } from '~/services/analyticsService'
 import { ScrollView, StyleSheet, View, Platform, Linking } from 'react-native'
 import { Card, Text, IconButton, Button, Snackbar, List, Divider } from 'react-native-paper'
 
@@ -29,6 +30,11 @@ export default function SubscribeScreen() {
   React.useLayoutEffect(() => {
     navigation.setOptions({ headerTitle: 'Subscribe' })
   }, [navigation])
+
+  React.useEffect(() => {
+    logEvent('subscribe_flow_started')
+  }, [])
+
   const { userPrivate } = useUserPrivateData()
   const credits = userPrivate?.credits || 0
   const [inFlightAction, setInFlightAction] = useState<'monthly_20' | 'payg' | 'restore' | null>(null)

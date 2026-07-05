@@ -44,6 +44,7 @@
     "@expo/vector-icons": "^15.1.1",
     "@google/genai": "^2.10.0",
     "@react-native-community/netinfo": "12.0.1",
+    "@react-native-firebase/analytics": "^23.8.8",
     "@react-native-firebase/app": "^23.4.1",
     "@react-native-firebase/app-check": "^23.8.8",
     "@react-native-firebase/auth": "^23.8.8",

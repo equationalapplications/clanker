@@ -40,6 +40,7 @@ import {
 } from '~/hooks/useMachines'
 import { useRegisterExpoPushToken } from '~/hooks/useRegisterExpoPushToken'
 import { useBrowserActionApproval } from '~/hooks/useBrowserActionApproval'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 import Constants from 'expo-constants'
 
 /**
@@ -179,6 +180,7 @@ function GlobalStateProvider({ children }: { children: React.ReactNode }) {
 function RootLayoutNav() {
   const { colors } = useTheme()
   useInitializeApp()
+  useScreenTracking()
   const authService = useAuthMachine()
   const characterService = useCharacterMachine()
   const { user, isLoading } = useSelector(authService, (state) => ({

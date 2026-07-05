@@ -34,6 +34,27 @@ jest.mock('@react-native-firebase/crashlytics', () => {
   }
 })
 
+jest.mock('@react-native-firebase/analytics', () => {
+  const mockAnalyticsInstance = {
+    setAnalyticsCollectionEnabled: jest.fn().mockResolvedValue(undefined),
+    setUserId: jest.fn().mockResolvedValue(undefined),
+  }
+
+  const getAnalytics = jest.fn(() => mockAnalyticsInstance)
+
+  return {
+    __esModule: true,
+    default: jest.fn(() => mockAnalyticsInstance),
+    getAnalytics,
+    logEvent: jest.fn(),
+    logScreenView: jest.fn(),
+    setAnalyticsCollectionEnabled: jest.fn((instance, enabled) =>
+      instance.setAnalyticsCollectionEnabled(enabled)
+    ),
+    setUserId: jest.fn((instance, userId) => instance.setUserId(userId)),
+  }
+})
+
 jest.mock('@react-native-firebase/app', () => {
   const mockApp = { name: 'mock-app' }
   return {

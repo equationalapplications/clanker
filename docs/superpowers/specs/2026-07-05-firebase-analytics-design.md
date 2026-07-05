@@ -10,6 +10,17 @@ Add Firebase Analytics to Clanker on all three platforms (iOS, Android, web) to 
 
 The repo already ships `@react-native-firebase/app` (plus Auth, Crashlytics, App Check, Functions) on native and the `firebase` JS SDK on web, with a platform-split config (`src/config/firebaseConfig.ts` / `firebaseConfig.web.ts`). `firebaseConfig.web.ts` already reads `EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID`. The cookie-consent system already has an `analytics` category that gates Crashlytics. This design extends those existing seams; no new vendors.
 
+This is a highly pragmatic, tightly scoped, defensively engineered specification: clean baseline metrics (DAU/MAU, retention, core funnel) without new vendor bloat — exactly what a buyer wants to see.
+
+## Design Rationale (key decisions)
+
+| Decision | Why |
+|----------|-----|
+| `google_analytics_adid_collection_enabled: false` | No ad attribution needed; avoids the ATT prompt, keeps Store privacy labels clean, and leaves UX uninterrupted |
+| Router-driven screen tracking (`usePathname()`) with native auto-screen off | Native GA4 auto-tracking captures UIViewController names that are meaningless in a JS/Expo Router app; router paths are unified and readable across iOS, Android, and web |
+| Fire-and-forget, self-swallowing service | Analytics is secondary; a telemetry failure must never cascade into a core app crash |
+| Console ops on day one (14-month retention, BigQuery export) | Data only collects forward — delaying console setup loses history forever |
+
 ## Approach Decision
 
 | Option | Verdict |
@@ -31,9 +42,34 @@ Public interface (identical on both platforms):
 logScreenView(screenName: string): void
 logEvent(name: string, params?: Record<string, unknown>): void
 setAnalyticsEnabled(enabled: boolean): Promise<void>
+setUserId(userId: string | null): Promise<void>
 ```
 
-All calls are fire-and-forget and internally try/caught: an analytics failure must never break app flow.
+All `log*` calls are fire-and-forget and internally try/caught: an analytics failure must never break app flow. `setAnalyticsEnabled` and `setUserId` are async but callers still use `void` — errors are swallowed inside the service.
+
+## User Identity (`setUserId`)
+
+Clanker runs on iOS, Android, and web. Without explicit user linking, the same person on web and iOS is counted as two users in MAU/DAU.
+
+Wire `setUserId` alongside the existing Crashlytics identity calls in `authMachine.ts`:
+
+- **On sign-in / bootstrap:** `setUserId(firebaseUid)` in `runIdentitySetupIfNeeded` (same site as `setCrashlyticsUserId`).
+- **On sign-out / session clear:** `setUserId(null)` in `clearSessionData`, `clearFailedBootstrapSession`, and the `signOut` actor cleanup (same sites as `setCrashlyticsUserId(null)`).
+
+Pass the Firebase Auth UID (not the Cloud SQL `dbUser.id`) — it is the only identifier shared across all three platforms. Never put email or other PII in analytics params.
+
+## Web Async Initialization
+
+On web, `isSupported()` from `firebase/analytics` returns `Promise<boolean>`. Analytics cannot initialize synchronously.
+
+The web wrapper must:
+
+1. Start initialization only when consent calls `setAnalyticsEnabled(true)` (unchanged).
+2. **Queue** `logScreenView` / `logEvent` calls that arrive while `isSupported()` or `getAnalytics()` is still in flight, then flush the queue once the instance is ready.
+3. **Queue** `setUserId` calls the same way — identity must not be lost if bootstrap fires before init resolves.
+4. Drop queued calls if `isSupported()` resolves `false` or init fails (unsupported browser, SSR, extension webview).
+
+Without queuing, early funnel events (`sign_up`, `terms_accepted`) fired in the same tick as consent acceptance would be silently dropped.
 
 ## Consent Wiring
 
@@ -98,13 +134,15 @@ Web: `EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID` env var populated once GA4 property e
 
 ## Testing
 
-- Unit tests for `analyticsService` (both platform impls): interface shape, fire-and-forget error swallowing, enable/disable passthrough — follows existing `crashlyticsService` test pattern.
+- Unit tests for `analyticsService` (both platform impls): interface shape, fire-and-forget error swallowing, enable/disable passthrough, `setUserId` set/clear — follows existing `crashlyticsService` test pattern.
+- Web unit tests: events and `setUserId` queued before async init completes are flushed after init; events before consent are dropped.
 - Unit test for consent wiring: analytics toggled with `choices.analytics`.
+- Unit tests for `authMachine.ts`: `setUserId` called on identity setup and cleared on sign-out (mirrors existing Crashlytics assertions).
 - Manual: Firebase DebugView smoke test on dev client (iOS + Android); web verified via GA debug network beacons in dev.
 
 ## Error Handling
 
-Every public method catches and drops its own errors (optionally reporting to Crashlytics on native). No analytics call may throw into calling code. `isSupported()` guard on web prevents crashes in unsupported browser contexts (SSR, old browsers, extension webviews).
+Every public method catches and drops its own errors (optionally reporting to Crashlytics on native). No analytics call may throw into calling code. On web, `isSupported()` guard prevents crashes in unsupported browser contexts (SSR, old browsers, extension webviews); failed init drains the queue without throwing.
 
 ## Out of Scope
 

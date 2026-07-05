@@ -11,6 +11,8 @@ const mockSignOutFromApple = jest.fn()
 const mockLoginRevenueCat = jest.fn()
 const mockLogoutRevenueCat = jest.fn()
 const mockSetCrashlyticsUserId = jest.fn()
+const mockLogEvent = jest.fn()
+const mockSetUserId = jest.fn().mockResolvedValue(undefined)
 const mockQueryClientClear = jest.fn()
 const mockKvStorePersisterRemoveClient = jest.fn()
 const mockClearSettings = jest.fn()
@@ -41,6 +43,11 @@ jest.mock('../src/config/revenueCatConfig', () => ({
 
 jest.mock('../src/services/crashlyticsService', () => ({
   setCrashlyticsUserId: mockSetCrashlyticsUserId,
+}))
+
+jest.mock('../src/services/analyticsService', () => ({
+  logEvent: mockLogEvent,
+  setUserId: mockSetUserId,
 }))
 
 jest.mock('../src/config/queryClient', () => ({
@@ -101,6 +108,68 @@ describe('authMachine', () => {
     expect(actor.getSnapshot().context.subscription).toEqual(bootstrapData.subscription)
     expect(actor.getSnapshot().context.error).toBeNull()
     expect(mockLoginRevenueCat).toHaveBeenCalledWith('firebase-123')
+    actor.stop()
+  })
+
+  it('logs sign_up when bootstrap returns a brand-new account (createdAt === updatedAt)', async () => {
+    const user = makeUser('firebase-new')
+    const bootstrapData = {
+      user: {
+        id: 'user-new',
+        firebaseUid: 'firebase-new',
+        email: 'new@example.com',
+        createdAt: '2026-07-05T00:00:00.000Z',
+        updatedAt: '2026-07-05T00:00:00.000Z',
+      },
+      subscription: { planTier: 'free', currentCredits: 100 },
+    }
+    mockBootstrapSession.mockResolvedValue(bootstrapData)
+
+    const actor = createActor(authMachine)
+    actor.start()
+    actor.send({ type: 'USER_FOUND', user: user as any } as any)
+
+    await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
+    expect(mockLogEvent).toHaveBeenCalledWith('sign_up', { platform: 'ios' })
+    actor.stop()
+  })
+
+  it('does not log sign_up for a returning account (createdAt !== updatedAt)', async () => {
+    const user = makeUser('firebase-returning')
+    const bootstrapData = {
+      user: {
+        id: 'user-returning',
+        firebaseUid: 'firebase-returning',
+        email: 'returning@example.com',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-07-05T00:00:00.000Z',
+      },
+      subscription: { planTier: 'free', currentCredits: 100 },
+    }
+    mockBootstrapSession.mockResolvedValue(bootstrapData)
+
+    const actor = createActor(authMachine)
+    actor.start()
+    actor.send({ type: 'USER_FOUND', user: user as any } as any)
+
+    await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
+    expect(mockLogEvent).not.toHaveBeenCalledWith('sign_up', expect.anything())
+    actor.stop()
+  })
+
+  it('calls setUserId with the Firebase UID on identity setup', async () => {
+    const user = makeUser('firebase-uid-analytics')
+    mockBootstrapSession.mockResolvedValue({
+      user: { id: 'user-1', firebaseUid: 'firebase-uid-analytics', email: 'a@example.com' },
+      subscription: { planTier: 'free', currentCredits: 100 },
+    })
+
+    const actor = createActor(authMachine)
+    actor.start()
+    actor.send({ type: 'USER_FOUND', user: user as any } as any)
+
+    await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
+    expect(mockSetUserId).toHaveBeenCalledWith('firebase-uid-analytics')
     actor.stop()
   })
 
