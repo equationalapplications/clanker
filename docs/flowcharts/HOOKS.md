@@ -38,6 +38,7 @@ graph LR
   useImageGeneration --> localImageStorageService
   useImageGeneration --> usageSnapshot
   useInitializeApp --> crashlyticsService
+  useInitializeApp --> analyticsService
   useInitializeApp --> googleSignin
   useIsPremium --> useCurrentPlan
   useLiveAudioIO --> twoWayAudioAdapter
