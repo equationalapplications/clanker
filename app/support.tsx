@@ -25,6 +25,15 @@ export default function Support() {
     await Linking.openURL('https://equationalapplications.com/memory-export-with-okf')
   }
 
+  const onPressRealTimeVoice = async () => {
+    if (Platform.OS === 'web') {
+      window.location.assign('/real-time-voice')
+      return
+    }
+
+    await Linking.openURL('https://clanker-ai.com/real-time-voice')
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text variant="headlineMedium" style={styles.title}>
@@ -94,12 +103,15 @@ export default function Support() {
           <Divider style={styles.divider} />
 
           <Text variant="titleSmall" style={styles.question}>
-            How do voice replies work and what do they cost?
+            How do chat and voice work and what do they cost?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            Open the Talk tab, tap the mic, and speak. Your character replies out loud in their
-            chosen voice. Voice replies cost 2 credits per reply, regardless of whether you are
-            on a monthly plan or using one-time credits.
+            Text chat in the Chat tab costs 1 credit per reply. Live real-time voice in the Talk
+            tab costs 5 credits per minute.{' '}
+            <Text style={styles.inlineLink} onPress={onPressRealTimeVoice}>
+              See how live voice works in action
+            </Text>
+            .
           </Text>
 
           <Divider style={styles.divider} />
@@ -185,6 +197,9 @@ const styles = StyleSheet.create({
   },
   bodyText: {
     lineHeight: 20,
+  },
+  inlineLink: {
+    textDecorationLine: 'underline',
   },
   contactEmailText: {
     marginBottom: 12,
