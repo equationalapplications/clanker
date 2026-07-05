@@ -138,6 +138,7 @@ export const VIDEO = {
   youtubeId: '6aictXUK_lw',
   heading: 'See Clanker in action',
   iframeTitle: 'Clanker demo',
+  iframeSandbox: 'allow-scripts allow-same-origin allow-presentation allow-popups',
 } as const
 
 export type FooterLink = {
