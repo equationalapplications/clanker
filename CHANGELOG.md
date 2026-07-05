@@ -1,3 +1,11 @@
+## [30.19.2](https://github.com/equationalapplications/clanker/compare/v30.19.1...v30.19.2) (2026-07-05)
+
+
+### Bug Fixes
+
+* align marketing and support copy for chat pricing ([34ba27b](https://github.com/equationalapplications/clanker/commit/34ba27b0d4f1a817b3b26276bcb642472faa0679))
+* clarify support voice link points to feature details ([59df45c](https://github.com/equationalapplications/clanker/commit/59df45c52b57cb2c9948a0652d8b6d3c004683e6))
+
 ## [30.19.1](https://github.com/equationalapplications/clanker/compare/v30.19.0...v30.19.1) (2026-07-05)
 
 
