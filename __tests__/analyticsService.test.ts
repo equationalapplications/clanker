@@ -16,6 +16,12 @@ jest.mock('@react-native-firebase/analytics', () => {
   }
 })
 
+jest.mock('~/utilities/kvStorage', () => ({
+  Storage: {
+    getItemSync: jest.fn().mockReturnValue(null),
+  },
+}))
+
 import {
   getAnalytics,
   logEvent as rnfbLogEvent,
@@ -23,13 +29,21 @@ import {
   setAnalyticsCollectionEnabled,
   setUserId as rnfbSetUserId,
 } from '@react-native-firebase/analytics'
-import { logEvent, logScreenView, setAnalyticsEnabled, setUserId } from '~/services/analyticsService'
+import { Storage } from '~/utilities/kvStorage'
+import {
+  initializeAnalytics,
+  logEvent,
+  logScreenView,
+  setAnalyticsEnabled,
+  setUserId,
+} from '~/services/analyticsService'
 
 const mockAnalyticsInstance = getAnalytics()
 
 describe('analyticsService (native)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.mocked(Storage.getItemSync).mockReturnValue(null)
     jest.mocked(setAnalyticsCollectionEnabled).mockResolvedValue(undefined)
     jest.mocked(rnfbSetUserId).mockResolvedValue(undefined)
   })
@@ -64,6 +78,18 @@ describe('analyticsService (native)', () => {
       throw new Error('boom')
     })
     expect(() => logEvent('x')).not.toThrow()
+  })
+
+  it('initializeAnalytics reads persisted setting and enables collection when set', async () => {
+    jest.mocked(Storage.getItemSync).mockReturnValue('1')
+    await initializeAnalytics()
+    expect(setAnalyticsCollectionEnabled).toHaveBeenCalledWith(mockAnalyticsInstance, true)
+  })
+
+  it('initializeAnalytics disables collection when setting is off', async () => {
+    jest.mocked(Storage.getItemSync).mockReturnValue('0')
+    await initializeAnalytics()
+    expect(setAnalyticsCollectionEnabled).toHaveBeenCalledWith(mockAnalyticsInstance, false)
   })
 
   it('setAnalyticsEnabled(true) calls setAnalyticsCollectionEnabled(instance, true)', async () => {

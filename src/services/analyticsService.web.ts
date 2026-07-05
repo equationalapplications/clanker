@@ -16,6 +16,7 @@ type PendingCall =
 let analyticsInstance: Analytics | null = null
 let analyticsInitPromise: Promise<Analytics | null> | null = null
 let analyticsEnabled = false
+let analyticsUnavailable = false
 let pendingCalls: PendingCall[] = []
 
 function executeCall(instance: Analytics, call: PendingCall): void {
@@ -42,7 +43,15 @@ function flushPending(instance: Analytics): void {
   pendingCalls = []
 }
 
+function markAnalyticsUnavailable(): void {
+  analyticsUnavailable = true
+  pendingCalls = []
+}
+
 function ensureAnalytics(): Promise<Analytics | null> {
+  if (analyticsUnavailable) {
+    return Promise.resolve(null)
+  }
   if (analyticsInstance) {
     return Promise.resolve(analyticsInstance)
   }
@@ -50,7 +59,7 @@ function ensureAnalytics(): Promise<Analytics | null> {
     analyticsInitPromise = isSupported()
       .then((supported) => {
         if (!supported) {
-          pendingCalls = []
+          markAnalyticsUnavailable()
           return null
         }
         analyticsInstance = getAnalytics(firebaseApp)
@@ -59,7 +68,7 @@ function ensureAnalytics(): Promise<Analytics | null> {
       })
       .catch((error) => {
         console.error('❌ Error initializing web analytics:', error)
-        pendingCalls = []
+        markAnalyticsUnavailable()
         return null
       })
   }
@@ -67,6 +76,7 @@ function ensureAnalytics(): Promise<Analytics | null> {
 }
 
 function enqueueOrRun(call: PendingCall): void {
+  if (analyticsUnavailable) return
   if (!analyticsEnabled && !analyticsInitPromise) return
   if (analyticsInstance) {
     try {
@@ -88,16 +98,25 @@ export function logEvent(name: string, params?: Record<string, unknown>): void {
   enqueueOrRun({ type: 'event', name, params })
 }
 
+export async function initializeAnalytics(): Promise<void> {}
+
 export async function setAnalyticsEnabled(enabled: boolean): Promise<void> {
   try {
-    analyticsEnabled = enabled
     if (enabled) {
-      const instance = await ensureAnalytics()
-      if (instance) {
-        setAnalyticsCollectionEnabled(instance, true)
+      analyticsEnabled = true
+      if (analyticsUnavailable) {
+        analyticsUnavailable = false
+        analyticsInitPromise = null
       }
+      const instance = await ensureAnalytics()
+      if (!instance) {
+        analyticsEnabled = false
+        return
+      }
+      setAnalyticsCollectionEnabled(instance, true)
       return
     }
+    analyticsEnabled = false
     if (analyticsInstance) {
       setAnalyticsCollectionEnabled(analyticsInstance, false)
     }
@@ -109,6 +128,7 @@ export async function setAnalyticsEnabled(enabled: boolean): Promise<void> {
 
 export async function setUserId(userId: string | null): Promise<void> {
   try {
+    if (analyticsUnavailable) return
     if (!analyticsEnabled && !analyticsInitPromise) return
     if (analyticsInstance) {
       setUserIdMod(analyticsInstance, userId)
@@ -127,5 +147,6 @@ export function __resetAnalyticsForTests(): void {
   analyticsInstance = null
   analyticsInitPromise = null
   analyticsEnabled = false
+  analyticsUnavailable = false
   pendingCalls = []
 }

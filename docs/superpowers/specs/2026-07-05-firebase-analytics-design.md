@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-05
 **Branch:** firebase-analytics
-**Status:** Approved — not yet implemented
+**Status:** Implemented (PR #534)
 
 ## Overview
 

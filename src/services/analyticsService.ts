@@ -5,6 +5,25 @@ import {
   setAnalyticsCollectionEnabled,
   setUserId as setUserIdMod,
 } from '@react-native-firebase/analytics'
+import { Storage } from '~/utilities/kvStorage'
+
+const ANALYTICS_KEY = 'setting:analytics'
+
+/**
+ * Read the persisted analytics preference and apply it to Firebase Analytics.
+ * Called once at app startup on native (web uses cookie consent instead).
+ */
+export async function initializeAnalytics(): Promise<void> {
+  try {
+    const raw = Storage.getItemSync(ANALYTICS_KEY)
+    const enabled = raw === '1'
+    await setAnalyticsCollectionEnabled(getAnalytics(), enabled)
+    console.log(`✅ Analytics initialized (enabled: ${enabled})`)
+  } catch (error) {
+    console.error('❌ Error initializing Analytics:', error)
+    throw error
+  }
+}
 
 export function logScreenView(screenName: string): void {
   try {

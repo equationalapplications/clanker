@@ -68,6 +68,28 @@ describe('analyticsService.web', () => {
     expect(setAnalyticsCollectionEnabled).not.toHaveBeenCalled()
   })
 
+  it('does not initialize analytics when isSupported() resolves false', async () => {
+    jest.mocked(isSupported).mockResolvedValue(false)
+    await setAnalyticsEnabled(true)
+    expect(getAnalytics).not.toHaveBeenCalled()
+    expect(setAnalyticsCollectionEnabled).not.toHaveBeenCalled()
+  })
+
+  it('does not queue logEvent calls after isSupported() resolves false', async () => {
+    jest.mocked(isSupported).mockResolvedValue(false)
+    await setAnalyticsEnabled(true)
+    logEvent('message_sent')
+    logEvent('sign_up')
+    expect(firebaseLogEvent).not.toHaveBeenCalled()
+  })
+
+  it('does not queue setUserId calls after isSupported() resolves false', async () => {
+    jest.mocked(isSupported).mockResolvedValue(false)
+    await setAnalyticsEnabled(true)
+    await setUserId('firebase-uid-123')
+    expect(firebaseSetUserId).not.toHaveBeenCalled()
+  })
+
   it('after enabling, logScreenView forwards a screen_view event with firebase_screen params', async () => {
     await setAnalyticsEnabled(true)
     logScreenView('home')
