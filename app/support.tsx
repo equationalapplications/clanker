@@ -107,11 +107,11 @@ export default function Support() {
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
             Text chat in the Chat tab costs 1 credit per reply. Live real-time voice in the Talk
-            tab costs 5 credits per minute — see{' '}
+            tab costs 5 credits per minute.{' '}
             <Text style={styles.inlineLink} onPress={onPressRealTimeVoice}>
-              Live Real-Time Voice Calls
-            </Text>{' '}
-            for details.
+              See how live voice works in action
+            </Text>
+            .
           </Text>
 
           <Divider style={styles.divider} />
