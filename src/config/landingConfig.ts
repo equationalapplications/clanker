@@ -88,7 +88,7 @@ export const FEATURES: LandingFeature[] = [
     icon: 'phone-in-talk',
     emoji: '📞',
     title: 'Live, Real-Time Voice Calls',
-    body: 'Talk to your AI characters in real time with natural, uninterrupted voice that feels exactly like a human phone call. Speak hands-free on speakerphone, interrupt seamlessly whenever you change your mind, and hear your character search the web or check its memory mid-conversation. (Live voice sessions cost 5 credits per minute.)',
+    body: 'Talk to your AI characters in real time with natural, uninterrupted voice that feels exactly like a human phone call. Speak hands-free on speakerphone, interrupt seamlessly whenever you change your mind, and hear your character search the web or check its memory mid-conversation.',
     learnMoreHref: '/real-time-voice',
     isNew: true,
   },
