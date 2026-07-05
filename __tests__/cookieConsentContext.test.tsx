@@ -5,12 +5,17 @@ import {
   useCookieConsent,
 } from '~/components/CookieConsent'
 import * as crashlyticsService from '~/services/crashlyticsService'
+import * as analyticsService from '~/services/analyticsService'
 
 jest.mock('~/services/crashlyticsService', () => ({
   initializeCrashlytics: jest.fn().mockResolvedValue(undefined),
   setCrashlyticsEnabled: jest.fn().mockResolvedValue(undefined),
   setCrashlyticsUserId: jest.fn().mockResolvedValue(undefined),
   logCrashlyticsError: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('~/services/analyticsService', () => ({
+  setAnalyticsEnabled: jest.fn().mockResolvedValue(undefined),
 }))
 
 function Probe({ onReady }: { onReady: (api: ReturnType<typeof useCookieConsent>) => void }) {
@@ -146,6 +151,48 @@ describe('CookieConsentContext', () => {
 
     act(() => api.savePreferences({ analytics: false }))
     expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(false)
+  })
+
+  it('acceptAll calls setAnalyticsEnabled(true)', () => {
+    let api: any
+    act(() => {
+      create(
+        <CookieConsentProvider>
+          <Probe onReady={(a) => { api = a }} />
+        </CookieConsentProvider>,
+      )
+    })
+    act(() => api.acceptAll())
+    expect(analyticsService.setAnalyticsEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('rejectAll calls setAnalyticsEnabled(false)', () => {
+    let api: any
+    act(() => {
+      create(
+        <CookieConsentProvider>
+          <Probe onReady={(a) => { api = a }} />
+        </CookieConsentProvider>,
+      )
+    })
+    act(() => api.rejectAll())
+    expect(analyticsService.setAnalyticsEnabled).toHaveBeenCalledWith(false)
+  })
+
+  it('savePreferences calls setAnalyticsEnabled with the analytics choice', () => {
+    let api: any
+    act(() => {
+      create(
+        <CookieConsentProvider>
+          <Probe onReady={(a) => { api = a }} />
+        </CookieConsentProvider>,
+      )
+    })
+    act(() => api.savePreferences({ analytics: true, marketing: false, preferences: false }))
+    expect(analyticsService.setAnalyticsEnabled).toHaveBeenCalledWith(true)
+
+    act(() => api.savePreferences({ analytics: false }))
+    expect(analyticsService.setAnalyticsEnabled).toHaveBeenCalledWith(false)
   })
 
   it('savePreferences enforces necessary:true even when caller passes necessary:false', () => {

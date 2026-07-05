@@ -2,9 +2,14 @@ import { createActor, waitFor } from 'xstate'
 import { TERMS } from '../src/config/termsConfig'
 
 const mockAcceptTermsFn = jest.fn()
+const mockLogEvent = jest.fn()
 
 jest.mock('../src/services/apiClient', () => ({
   acceptTermsFn: mockAcceptTermsFn,
+}))
+
+jest.mock('../src/services/analyticsService', () => ({
+  logEvent: mockLogEvent,
 }))
 
 const { termsMachine } = require('../src/machines/termsMachine')
@@ -28,6 +33,7 @@ function signedInAuthState(userId = 'db-user-1', subscription = {}) {
 describe('termsMachine', () => {
   beforeEach(() => {
     mockAcceptTermsFn.mockReset()
+    mockLogEvent.mockReset()
     mockAcceptTermsFn.mockResolvedValue({ data: { success: true } })
   })
 
@@ -85,6 +91,22 @@ describe('termsMachine', () => {
     await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
     expect(mockAcceptTermsFn).toHaveBeenCalledTimes(1)
     expect(actor.getSnapshot().context.error).toBeNull()
+    actor.stop()
+  })
+
+  it('logs terms_accepted when acceptance succeeds', async () => {
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', { termsVersion: null, termsAcceptedAt: null })
+    } as any)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    actor.send({ type: 'ACCEPT_TERMS' })
+    await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
+    expect(mockLogEvent).toHaveBeenCalledWith('terms_accepted', { is_update: false })
     actor.stop()
   })
 

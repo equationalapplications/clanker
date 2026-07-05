@@ -18,6 +18,7 @@ graph LR
   CombinedSubscriptionButton --> useCurrentPlan
   CookieConsentBanner --> CookieConsentContext
   CookieConsentContext --> crashlyticsService
+  CookieConsentContext --> analyticsService
   CookiePreferencesModal --> CookieConsentContext
   CreditCounterIcon --> useCurrentPlan
   CreditCounterIcon --> useUserCredits

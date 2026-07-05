@@ -7,12 +7,14 @@ graph LR
   authMachine --> appleSignin
   authMachine --> bootstrapSession
   authMachine --> crashlyticsService
+  authMachine --> analyticsService
   characterMachine --> characterService
   characterMachine --> characterDatabase
   characterMachine --> characterSyncService
   characterMachine --> defaultAvatarService
   characterMachine --> wikiOrchestrator
   characterMachine --> ensureDevSandboxCharacter
+  liveVoiceMachine --> analyticsService
   liveVoiceMachine --> ensureDevSandboxCharacter
   liveVoiceMachine --> wikiService
   liveVoiceMachine --> apiClient
@@ -24,6 +26,7 @@ graph LR
   liveVoiceMachine --> characterWikiQueue
   liveVoiceMachine --> liveMemoryQuery
   termsMachine --> apiClient
+  termsMachine --> analyticsService
   termsMachine --> bootstrapSession
   wikiMachine --> wikiService
 ```

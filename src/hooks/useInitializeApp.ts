@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 
 import { initializeGoogleSignIn } from '~/auth/googleSignin'
 import { initializeRevenueCat } from '~/config/revenueCatConfig'
+import { initializeAnalytics } from '~/services/analyticsService'
 import { initializeCrashlytics } from '~/services/crashlyticsService'
 import { reportError } from '~/utilities/reportError'
 
@@ -21,6 +22,13 @@ export function useInitializeApp() {
         await initializeCrashlytics()
       } catch (error) {
         reportError(error, 'initializeCrashlytics')
+      }
+
+      // --- Analytics Initialization (native settings toggle; web uses cookie consent) ---
+      try {
+        await initializeAnalytics()
+      } catch (error) {
+        reportError(error, 'initializeAnalytics')
       }
 
       // --- Google Sign-In Initialization ---

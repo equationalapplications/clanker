@@ -1,4 +1,5 @@
 import { createMachine, assign, fromPromise, fromCallback, sendTo } from 'xstate'
+import { logEvent } from '~/services/analyticsService'
 import type { IMessage } from 'react-native-gifted-chat'
 import type { GroundingMetadata } from '@google/genai'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
@@ -295,7 +296,10 @@ export const liveVoiceMachine = createMachine(
             },
           },
           live: {
-            entry: assign({ retryCount: () => 0 }),
+            entry: [
+              assign({ retryCount: () => 0 }),
+              () => logEvent('voice_session_started'),
+            ],
             on: {
               AUDIO_INPUT: {
                 actions: sendTo('websocket', ({ event }) => event),
