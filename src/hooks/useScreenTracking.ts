@@ -7,11 +7,11 @@ export function useScreenTracking(): void {
 
   useEffect(() => {
     let cancelled = false
-    void waitForAnalyticsInit().then(() => {
-      if (!cancelled) {
-        logScreenView(pathname)
-      }
-    })
+    void waitForAnalyticsInit()
+      .then(() => {
+        if (!cancelled) logScreenView(pathname)
+      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }
