@@ -1,3 +1,16 @@
+# [30.20.0](https://github.com/equationalapplications/clanker/compare/v30.19.2...v30.20.0) (2026-07-05)
+
+
+### Bug Fixes
+
+* **analytics:** address PR 535 review feedback ([6855bc2](https://github.com/equationalapplications/clanker/commit/6855bc27b366afde9ac76acf8641271eb0300c44))
+* wire native analytics consent and guard web init failures ([2b35bc5](https://github.com/equationalapplications/clanker/commit/2b35bc5f2fb843063c73aa5ab355f8111fdc28cc))
+
+
+### Features
+
+* add Firebase Analytics (GA4) across platforms ([8176195](https://github.com/equationalapplications/clanker/commit/817619592bc29aa720fdced35b54a83317038d6f))
+
 ## [30.19.2](https://github.com/equationalapplications/clanker/compare/v30.19.1...v30.19.2) (2026-07-05)
 
 
