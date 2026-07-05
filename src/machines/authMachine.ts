@@ -11,6 +11,7 @@ import { signInWithApple, AppleSignInResult, signOutFromApple } from '~/auth/app
 import { bootstrapSession, UserSnapshot, SubscriptionSnapshot } from '~/auth/bootstrapSession'
 import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
 import { setCrashlyticsUserId } from '~/services/crashlyticsService'
+import { logEvent, setUserId } from '~/services/analyticsService'
 import { queryClient } from '~/config/queryClient'
 import { kvStorePersister } from '~/config/queryPersister'
 import { clearSettings } from '~/utilities/settingsStorage'
@@ -202,6 +203,7 @@ export const authMachine = createMachine(
           onDone: {
             target: 'signedIn',
             actions: [
+              'logSignUpIfNewAccount',
               assign({
                 dbUser: ({ event }) => event.output.user,
                 subscription: ({ event }) => event.output.subscription,
@@ -318,6 +320,22 @@ export const authMachine = createMachine(
         }
         loginRevenueCat(uid)
         setCrashlyticsUserId(uid)
+        void setUserId(uid)
+      },
+      logSignUpIfNewAccount: ({ context, event }) => {
+        // Only evaluate on a fresh sign-in (dbUser not yet populated). Background
+        // refreshes (purchase/restore/foreground) re-enter this state from
+        // 'signedIn', where dbUser is already set, so they're skipped here.
+        if (context.dbUser !== null) return
+        const user = (event as { output?: { user?: { createdAt?: unknown; updatedAt?: unknown } } })
+          .output?.user
+        if (
+          typeof user?.createdAt === 'string' &&
+          typeof user?.updatedAt === 'string' &&
+          user.createdAt === user.updatedAt
+        ) {
+          logEvent('sign_up', { platform: Platform.OS })
+        }
       },
       applyTermsAcceptedLocal: assign({
         subscription: ({ context, event }) => {
@@ -389,6 +407,7 @@ export const authMachine = createMachine(
       clearSessionData: () => {
         Promise.all([
           setCrashlyticsUserId(null),
+          setUserId(null),
           logoutRevenueCat(),
           kvStorePersister.removeClient(),
         ]).catch((err) => console.error('clearSessionData failed:', err))
@@ -398,6 +417,7 @@ export const authMachine = createMachine(
         Promise.all([
           firebaseSignOut(),
           setCrashlyticsUserId(null),
+          setUserId(null),
           logoutRevenueCat(),
           kvStorePersister.removeClient(),
         ]).catch((err) => console.error('clearFailedBootstrapSession failed:', err))
@@ -501,6 +521,7 @@ export const authMachine = createMachine(
         }
 
         await runCleanupStep('setCrashlyticsUserId', () => setCrashlyticsUserId(null))
+        await runCleanupStep('setUserId', () => setUserId(null))
         await runCleanupStep('kvStorePersister.removeClient', () => kvStorePersister.removeClient())
         await runCleanupStep('clearSettings', () => {
           clearSettings()

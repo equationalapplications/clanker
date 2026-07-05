@@ -1,4 +1,5 @@
 import { createMachine, assign, fromPromise, fromCallback, sendTo } from 'xstate'
+import { logEvent } from '~/services/analyticsService'
 import type { IMessage } from 'react-native-gifted-chat'
 import type { GroundingMetadata } from '@google/genai'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
@@ -190,7 +191,10 @@ export const liveVoiceMachine = createMachine(
               userId: ({ event }) => event.userId,
             }),
           },
-          START_CALL: { target: 'syncing_memory' },
+          START_CALL: {
+            target: 'syncing_memory',
+            actions: () => logEvent('voice_session_started'),
+          },
         },
       },
 
@@ -393,7 +397,10 @@ export const liveVoiceMachine = createMachine(
           END_CALL: { target: 'idle' },
           START_CALL: {
             target: 'syncing_memory',
-            actions: assign({ socketError: () => null, retryCount: () => 0, cloudCharacterId: () => null }),
+            actions: [
+              assign({ socketError: () => null, retryCount: () => 0, cloudCharacterId: () => null }),
+              () => logEvent('voice_session_started'),
+            ],
           },
           RETRY: [
             {

@@ -7,6 +7,7 @@ import {
   clearSettings,
   useSettings,
 } from '~/contexts/SettingsContext'
+import * as analyticsService from '~/services/analyticsService'
 import * as crashlyticsService from '~/services/crashlyticsService'
 import { Storage } from '~/utilities/kvStorage'
 import { CONSENT_STORAGE_KEY } from '~/utilities/cookieConsentTypes'
@@ -29,6 +30,11 @@ jest.mock('~/services/crashlyticsService', () => ({
   setCrashlyticsEnabled: jest.fn().mockResolvedValue(undefined),
   setCrashlyticsUserId: jest.fn().mockResolvedValue(undefined),
   logCrashlyticsError: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('~/services/analyticsService', () => ({
+  initializeAnalytics: jest.fn().mockResolvedValue(undefined),
+  setAnalyticsEnabled: jest.fn().mockResolvedValue(undefined),
 }))
 
 function Probe({ onReady }: { onReady: (api: ReturnType<typeof useSettings>) => void }) {
@@ -237,7 +243,7 @@ describe('SettingsContext', () => {
     })
   })
 
-  describe('updateSetting analytics — Crashlytics gate', () => {
+  describe('updateSetting analytics — Crashlytics and Analytics gate', () => {
     it('calls setCrashlyticsEnabled(true) when analytics is enabled', () => {
       let api: any
       act(() => {
@@ -253,6 +259,7 @@ describe('SettingsContext', () => {
       act(() => api.updateSetting('analytics', true))
 
       expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(true)
+      expect(analyticsService.setAnalyticsEnabled).toHaveBeenCalledWith(true)
     })
 
     it('calls setCrashlyticsEnabled(false) when analytics is disabled', () => {
@@ -270,6 +277,7 @@ describe('SettingsContext', () => {
       act(() => api.updateSetting('analytics', false))
 
       expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(false)
+      expect(analyticsService.setAnalyticsEnabled).toHaveBeenCalledWith(false)
     })
   })
 })

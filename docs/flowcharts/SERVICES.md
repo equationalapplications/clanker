@@ -14,6 +14,7 @@ graph LR
   apiClient --> bootstrapSession
   characterService --> googleSignin
   characterService --> characterDatabase
+  characterService --> analyticsService
   characterSyncService --> characterDatabase
   characterSyncService --> wikiService
   characterSyncService --> wikiSourceType
@@ -32,6 +33,7 @@ graph LR
   liveMemoryQuery --> characterDatabase
   localImageStorageService --> index
   messageService --> messageDatabase
+  messageService --> analyticsService
   userService --> apiClient
   wikiLlmProvider --> ensureDevSandboxCharacter
   wikiLlmProvider --> apiClient

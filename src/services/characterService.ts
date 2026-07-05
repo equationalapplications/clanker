@@ -8,6 +8,7 @@
 import { getCurrentUser } from '~/config/firebaseConfig'
 import * as characterDB from '../database/characterDatabase'
 import type { CharacterInsert, CharacterUpdate } from '../database/characterDatabase'
+import { logEvent } from '~/services/analyticsService'
 
 export type { CharacterInsert, CharacterUpdate }
 
@@ -71,7 +72,9 @@ export const createCharacter = async (character: CharacterInsert): Promise<Chara
     throw new Error('User not logged in')
   }
   try {
-    return await characterDB.createCharacter(userId, character)
+    const created = await characterDB.createCharacter(userId, character)
+    logEvent('character_created')
+    return created
   } catch (error) {
     console.error('Error creating character:', error)
     throw error

@@ -5,6 +5,7 @@
 
 import { IMessage } from 'react-native-gifted-chat'
 import * as messageDB from '../database/messageDatabase'
+import { logEvent } from '~/services/analyticsService'
 
 /**
  * Get messages for a specific character conversation
@@ -34,6 +35,7 @@ export const sendMessage = async (
     const { _id, text, user: messageUser, ...additionalData } = message
 
     await messageDB.sendMessage(characterId, userId, text, String(_id), additionalData)
+    logEvent('message_sent')
   } catch (error) {
     console.error('Error sending message:', error)
     throw error

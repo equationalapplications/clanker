@@ -7,6 +7,7 @@ import React, {
 } from 'react'
 import { Appearance, Platform } from 'react-native'
 import { Storage } from '~/utilities/kvStorage'
+import { setAnalyticsEnabled } from '~/services/analyticsService'
 import { setCrashlyticsEnabled } from '~/services/crashlyticsService'
 import { useCookieConsent } from '~/components/CookieConsent'
 import { SettingKey, settingKey, readBoolSync } from '~/utilities/settingsStorage'
@@ -58,9 +59,10 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
             }
         }
 
-        // Side-effect: sync Crashlytics enabled state when analytics toggle changes
+        // Side-effect: sync Crashlytics and Analytics when analytics toggle changes
         if (key === 'analytics') {
             void setCrashlyticsEnabled(value)
+            void setAnalyticsEnabled(value)
         }
 
         setSettings((prev) => ({ ...prev, [key]: value }))

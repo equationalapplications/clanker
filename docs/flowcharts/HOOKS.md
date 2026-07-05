@@ -38,6 +38,7 @@ graph LR
   useImageGeneration --> localImageStorageService
   useImageGeneration --> usageSnapshot
   useInitializeApp --> crashlyticsService
+  useInitializeApp --> analyticsService
   useInitializeApp --> googleSignin
   useIsPremium --> useCurrentPlan
   useLiveAudioIO --> twoWayAudioAdapter
@@ -51,6 +52,7 @@ graph LR
   useMessages --> useMachines
   useMessages --> messageService
   useRegisterExpoPushToken --> googleSignin
+  useScreenTracking --> analyticsService
   useTabCharacterId --> useActiveCharacterId
   useTabCharacterId --> useMessages
   useTabCharacterId --> useCharacters

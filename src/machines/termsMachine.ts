@@ -1,6 +1,7 @@
 import { createMachine, assign, fromPromise, ActorRefFrom } from 'xstate'
 import { TERMS } from '~/config/termsConfig'
 import { acceptTermsFn } from '~/services/apiClient'
+import { logEvent } from '~/services/analyticsService'
 import type { SubscriptionSnapshot } from '~/auth/bootstrapSession'
 
 export interface TermsMachineContext {
@@ -82,6 +83,7 @@ export const termsMachine = createMachine(
           src: 'recordTermsAcceptance',
           onDone: {
             target: 'accepted',
+            actions: 'logTermsAccepted',
           },
           onError: {
             target: 'acceptanceRequired',
@@ -93,6 +95,11 @@ export const termsMachine = createMachine(
     },
   },
   {
+    actions: {
+      logTermsAccepted: ({ context }: { context: TermsMachineContext }) => {
+        logEvent('terms_accepted', { is_update: context.isUpdate })
+      },
+    },
     actors: {
       recordTermsAcceptance: fromPromise(async () => {
         try {
