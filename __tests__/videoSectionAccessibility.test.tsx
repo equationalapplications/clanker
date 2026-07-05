@@ -35,6 +35,7 @@ describe('VideoSection accessibility', () => {
     expect(iframe.props.title).toBe(VIDEO.iframeTitle)
     expect(iframe.props['aria-label']).toBe(VIDEO.iframeTitle)
     expect(iframe.props.src).toBe(`https://www.youtube.com/embed/${VIDEO.youtubeId}`)
+    expect(iframe.props.sandbox).toBe(VIDEO.iframeSandbox)
   })
 
   it('renders the section heading from config', () => {
