@@ -36,12 +36,14 @@ import {
   logScreenView,
   setAnalyticsEnabled,
   setUserId,
+  __resetAnalyticsForTests,
 } from '~/services/analyticsService'
 
 const mockAnalyticsInstance = getAnalytics()
 
 describe('analyticsService (native)', () => {
   beforeEach(() => {
+    __resetAnalyticsForTests()
     jest.clearAllMocks()
     jest.mocked(Storage.getItemSync).mockReturnValue(null)
     jest.mocked(setAnalyticsCollectionEnabled).mockResolvedValue(undefined)
@@ -112,9 +114,9 @@ describe('analyticsService (native)', () => {
     expect(rnfbSetUserId).toHaveBeenCalledWith(mockAnalyticsInstance, 'firebase-uid-123')
   })
 
-  it('setUserId(null) clears the user id with an empty string', async () => {
+  it('setUserId(null) clears the user id with null', async () => {
     await setUserId(null)
-    expect(rnfbSetUserId).toHaveBeenCalledWith(mockAnalyticsInstance, '')
+    expect(rnfbSetUserId).toHaveBeenCalledWith(mockAnalyticsInstance, null)
   })
 
   it('setUserId swallows errors instead of throwing/rejecting', async () => {

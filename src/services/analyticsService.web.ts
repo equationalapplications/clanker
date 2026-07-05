@@ -76,8 +76,7 @@ function ensureAnalytics(): Promise<Analytics | null> {
 }
 
 function enqueueOrRun(call: PendingCall): void {
-  if (analyticsUnavailable) return
-  if (!analyticsEnabled && !analyticsInitPromise) return
+  if (analyticsUnavailable || !analyticsEnabled) return
   if (analyticsInstance) {
     try {
       executeCall(analyticsInstance, call)
@@ -99,6 +98,10 @@ export function logEvent(name: string, params?: Record<string, unknown>): void {
 }
 
 export async function initializeAnalytics(): Promise<void> {}
+
+export function waitForAnalyticsInit(): Promise<void> {
+  return Promise.resolve()
+}
 
 export async function setAnalyticsEnabled(enabled: boolean): Promise<void> {
   try {
@@ -128,8 +131,7 @@ export async function setAnalyticsEnabled(enabled: boolean): Promise<void> {
 
 export async function setUserId(userId: string | null): Promise<void> {
   try {
-    if (analyticsUnavailable) return
-    if (!analyticsEnabled && !analyticsInitPromise) return
+    if (analyticsUnavailable || !analyticsEnabled) return
     if (analyticsInstance) {
       setUserIdMod(analyticsInstance, userId)
       return

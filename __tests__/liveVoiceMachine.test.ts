@@ -124,7 +124,7 @@ describe('liveVoiceMachine', () => {
     })
   }
 
-  test('logs voice_session_started when the session becomes live', async () => {
+  test('logs voice_session_started when the user starts a call', async () => {
     const wiki = makeWikiMock()
     jest.mocked(getWiki).mockReturnValue(wiki as never)
     jest.mocked(wikiSync).mockResolvedValue({
@@ -743,5 +743,6 @@ describe('liveVoiceMachine', () => {
     actor.send({ type: 'RETRY' })
     await waitFor(actor, (s) => s.matches({ session: 'connecting' }), WAIT)
     expect(actor.getSnapshot().context.retryCount).toBe(1)
+    expect(mockLogEvent).toHaveBeenCalledTimes(1)
   })
 })

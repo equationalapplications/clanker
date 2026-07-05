@@ -138,6 +138,20 @@ describe('analyticsService.web', () => {
     expect(setAnalyticsCollectionEnabled).toHaveBeenCalledWith(mockAnalyticsInstance, false)
   })
 
+  it('logEvent and setUserId are no-ops after disabling following a prior enable', async () => {
+    await setAnalyticsEnabled(true)
+    logEvent('message_sent')
+    expect(firebaseLogEvent).toHaveBeenCalled()
+    jest.mocked(firebaseLogEvent).mockClear()
+    jest.mocked(firebaseSetUserId).mockClear()
+
+    await setAnalyticsEnabled(false)
+    logEvent('message_sent')
+    await setUserId('firebase-uid-123')
+    expect(firebaseLogEvent).not.toHaveBeenCalled()
+    expect(firebaseSetUserId).not.toHaveBeenCalled()
+  })
+
   it('setAnalyticsEnabled(false) before ever enabling is a no-op, not a throw', async () => {
     await expect(setAnalyticsEnabled(false)).resolves.toBeUndefined()
     expect(setAnalyticsCollectionEnabled).not.toHaveBeenCalled()

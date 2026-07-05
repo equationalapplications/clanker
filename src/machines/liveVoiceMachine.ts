@@ -191,7 +191,10 @@ export const liveVoiceMachine = createMachine(
               userId: ({ event }) => event.userId,
             }),
           },
-          START_CALL: { target: 'syncing_memory' },
+          START_CALL: {
+            target: 'syncing_memory',
+            actions: () => logEvent('voice_session_started'),
+          },
         },
       },
 
@@ -296,10 +299,7 @@ export const liveVoiceMachine = createMachine(
             },
           },
           live: {
-            entry: [
-              assign({ retryCount: () => 0 }),
-              () => logEvent('voice_session_started'),
-            ],
+            entry: assign({ retryCount: () => 0 }),
             on: {
               AUDIO_INPUT: {
                 actions: sendTo('websocket', ({ event }) => event),
@@ -397,7 +397,10 @@ export const liveVoiceMachine = createMachine(
           END_CALL: { target: 'idle' },
           START_CALL: {
             target: 'syncing_memory',
-            actions: assign({ socketError: () => null, retryCount: () => 0, cloudCharacterId: () => null }),
+            actions: [
+              assign({ socketError: () => null, retryCount: () => 0, cloudCharacterId: () => null }),
+              () => logEvent('voice_session_started'),
+            ],
           },
           RETRY: [
             {
