@@ -63,6 +63,12 @@ function ensureAnalytics(): Promise<Analytics | null> {
           return null
         }
         analyticsInstance = getAnalytics(firebaseApp)
+        if (!analyticsEnabled) {
+          // Consent may have been revoked while initialization was in-flight.
+          setAnalyticsCollectionEnabled(analyticsInstance, false)
+          pendingCalls = []
+          return analyticsInstance
+        }
         flushPending(analyticsInstance)
         return analyticsInstance
       })

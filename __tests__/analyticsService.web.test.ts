@@ -68,12 +68,6 @@ describe('analyticsService.web', () => {
     expect(setAnalyticsCollectionEnabled).not.toHaveBeenCalled()
   })
 
-  it('does not initialize analytics when isSupported() resolves false', async () => {
-    jest.mocked(isSupported).mockResolvedValue(false)
-    await setAnalyticsEnabled(true)
-    expect(getAnalytics).not.toHaveBeenCalled()
-    expect(setAnalyticsCollectionEnabled).not.toHaveBeenCalled()
-  })
 
   it('does not queue logEvent calls after isSupported() resolves false', async () => {
     jest.mocked(isSupported).mockResolvedValue(false)

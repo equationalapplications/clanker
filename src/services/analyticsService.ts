@@ -33,7 +33,6 @@ export async function initializeAnalytics(): Promise<void> {
       console.log(`✅ Analytics initialized (enabled: ${enabled})`)
     } catch (error) {
       console.error('❌ Error initializing Analytics:', error)
-      throw error
     }
   })()
 
