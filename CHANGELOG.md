@@ -1,3 +1,10 @@
+## [30.19.1](https://github.com/equationalapplications/clanker/compare/v30.19.0...v30.19.1) (2026-07-05)
+
+
+### Bug Fixes
+
+* add allow-same-origin to YouTube iframe sandbox on landing pages ([deed46f](https://github.com/equationalapplications/clanker/commit/deed46f926f7142eb9cfff3e01b03c3e18464a0e))
+
 # [30.19.0](https://github.com/equationalapplications/clanker/compare/v30.18.0...v30.19.0) (2026-07-04)
 
 
