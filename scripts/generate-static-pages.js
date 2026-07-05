@@ -575,7 +575,7 @@ function generateWelcome() {
             src="https://www.youtube.com/embed/${VIDEO.youtubeId}"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowfullscreen
-            sandbox="allow-scripts allow-presentation allow-popups"
+            sandbox="${escapeHtmlAttr(VIDEO.iframeSandbox)}"
           ></iframe>
         </div>
       </section>
