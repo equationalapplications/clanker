@@ -123,7 +123,7 @@ describe('event id regeneration (profile v1)', () => {
       },
     } as never
     const result = remapOkfDumpIds(dump, 'e1')
-    const events = result.entities.e1.events as Array<{ id: string; related_entry_id: string | null }>
+    const events = result.entities.e1.events as { id: string; related_entry_id: string | null }[]
     expect(events.map((e) => e.id)).not.toContain('evt_original_1')
     expect(events.map((e) => e.id)).not.toContain('evt_original_2')
     expect(events.every((e) => e.id.startsWith('evt_'))).toBe(true)

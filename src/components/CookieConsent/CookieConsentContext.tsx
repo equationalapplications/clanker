@@ -2,6 +2,7 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react'
@@ -49,6 +50,14 @@ function buildRecord(choices: Record<CookieCategory, boolean>): CookieConsentRec
 export function CookieConsentProvider({ children }: { children: React.ReactNode }) {
   const [record, setRecord] = useState<CookieConsentRecord | null>(() => readConsent())
   const [isPreferencesOpen, setPreferencesOpen] = useState(false)
+
+  // Re-apply analytics/crashlytics when consent was saved in a prior session.
+  useEffect(() => {
+    const choices = record?.choices
+    if (!choices) return
+    void setCrashlyticsEnabled(choices.analytics === true)
+    void setAnalyticsEnabled(choices.analytics === true)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- bootstrap from initial persisted record only
 
   const persist = useCallback((choices: Record<CookieCategory, boolean>) => {
     const next = buildRecord(choices)

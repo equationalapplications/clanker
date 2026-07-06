@@ -21,7 +21,6 @@ export async function initializeCrashlytics(): Promise<void> {
         console.log(`✅ Crashlytics initialized (enabled: ${enabled})`)
     } catch (error) {
         console.error('❌ Error initializing Crashlytics:', error)
-        throw error
     }
 }
 

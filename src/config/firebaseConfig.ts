@@ -106,6 +106,7 @@ const generateEmbeddingFn = httpsCallable(functionsInstance, 'generateEmbedding'
 const convertDocumentTextFn = httpsCallable(functionsInstance, 'convertDocumentText', {
   timeout: 545_000,
 })
+const registerExpoPushTokenFn = httpsCallable(functionsInstance, 'registerExpoPushToken')
 
 export type FirebaseUser = FirebaseAuthTypes.User
 
@@ -127,6 +128,7 @@ export {
   adminResetUserStateFn,
   adminDeleteUserFn,
   convertDocumentTextFn,
+  registerExpoPushTokenFn,
   deleteMyAccountFn,
   updateUserProfileFn,
   acceptTermsFn,

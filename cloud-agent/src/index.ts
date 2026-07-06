@@ -23,7 +23,7 @@ import { handleBrowserWsUpgrade } from './handlers/wsBrowserAgentHandler.js'
 import { defaultFirestoreSession } from './services/firestoreSession.js'
 import { defaultFcmDispatcher } from './services/fcmDispatcher.js'
 import { upsertDeviceRecord } from './services/deviceUpsert.js'
-import { upsertExpoPushToken, getExpoPushToken } from './handlers/expoPushToken.js'
+import { getExpoPushToken } from './handlers/expoPushToken.js'
 import { handleApproveAction } from './handlers/approveAction.js'
 import { createSchedulerTriggerHandler, createRequireSchedulerSecret } from './handlers/schedulerTriggerHandler.js'
 import { INSTANCE_ID } from './services/instanceId.js'
@@ -306,18 +306,6 @@ export function createApp(options: AppOptions) {
       res.json({ ok: true })
     } catch (err) {
       console.error('register-device error:', err)
-      res.status(500).json({ error: 'Internal server error' })
-    }
-  })
-
-  app.post('/agent/user/expo-push-token', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
-    const parsed = z.object({ expoPushToken: z.string().min(1) }).safeParse(req.body)
-    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
-    try {
-      await upsertExpoPushToken(db, req.uid!, parsed.data.expoPushToken)
-      res.json({ ok: true })
-    } catch (err) {
-      console.error('expo-push-token upsert error:', err)
       res.status(500).json({ error: 'Internal server error' })
     }
   })
