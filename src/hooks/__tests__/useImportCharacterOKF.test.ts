@@ -38,6 +38,7 @@ const mockPickAndReadOkfBundle = jest.mocked(okfImport.pickAndReadOkfBundle)
 const mockParseOkfBundle = jest.mocked(parseOkfBundle)
 const mockRemapOkfDumpIds = jest.mocked(okfImportRemap.remapOkfDumpIds)
 const mockDedupeEventsAgainstExisting = jest.mocked(okfImportDedupe.dedupeEventsAgainstExisting)
+const mockScanExplicitEventIds = jest.mocked(okfImportDedupe.scanExplicitEventIds)
 
 // Get reference to mockImportDump from the mocked useWiki
 const mockWiki = jest.mocked(useWiki)()
@@ -61,6 +62,7 @@ describe('useImportCharacterOKF', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockDedupeEventsAgainstExisting.mockImplementation(async (_wiki, _id, dump) => dump)
+    mockScanExplicitEventIds.mockReturnValue(new Set())
     mockRemapOkfDumpIds.mockImplementation((dump) => dump)
   })
 
@@ -74,7 +76,38 @@ describe('useImportCharacterOKF', () => {
       await result.current.handlePickAndPreview('char_1')
     })
 
-    expect(result.current.preview).toEqual({ facts: 1, tasks: 1, events: 1, edges: 1 })
+    expect(result.current.preview).toEqual({
+      facts: 1,
+      tasks: 1,
+      events: 1,
+      edges: 1,
+      profile: 'legacy',
+      summarySnippet: null,
+    })
+  })
+
+  it('marks profile llm-wiki/1 and includes a summary snippet when present', async () => {
+    mockPickAndReadOkfBundle.mockResolvedValue([
+      { path: 'index.md', content: 'profile: llm-wiki/1\n\n# root' },
+    ])
+    mockParseOkfBundle.mockReturnValue({
+      ...buildDump('char_1'),
+      entities: {
+        char_1: {
+          ...buildDump('char_1').entities.char_1,
+          summary: '**Bold** summary',
+        },
+      },
+    })
+
+    const { result } = renderHook(() => useImportCharacterOKF())
+
+    await act(async () => {
+      await result.current.handlePickAndPreview('char_1')
+    })
+
+    expect(result.current.preview?.profile).toBe('llm-wiki/1')
+    expect(result.current.preview?.summarySnippet).toBe('Bold summary')
   })
 
   it('silently swallows a cancelled picker without setting an error', async () => {
@@ -107,7 +140,13 @@ describe('useImportCharacterOKF', () => {
     })
 
     expect(succeeded).toBe(true)
-    expect(mockDedupeEventsAgainstExisting).toHaveBeenCalledWith(expect.any(Object), 'char_1', expect.anything())
+    expect(mockScanExplicitEventIds).toHaveBeenCalled()
+    expect(mockDedupeEventsAgainstExisting).toHaveBeenCalledWith(
+      expect.any(Object),
+      'char_1',
+      expect.anything(),
+      expect.any(Set),
+    )
     expect(mockRemapOkfDumpIds).not.toHaveBeenCalled()
     expect(mockImportDump).toHaveBeenCalledWith(expect.anything(), { merge: true })
     expect(result.current.didImport).toBe(true)
