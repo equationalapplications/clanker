@@ -1,4 +1,26 @@
 import type { MemoryDump, WikiMemory } from '@equationalapplications/expo-llm-wiki'
+import type { OkfFile } from '~/utilities/okfImport'
+
+// Profile §7 id-comment grammar. The $ anchors per LINE — the m flag is
+// load-bearing: without it this matches at most one id (end of file).
+const EVENT_ID_COMMENT_PATTERN = /<!--\s*id:\s*(\S+)\s*-->\s*$/gm
+
+/**
+ * Explicit event ids present in the bundle's log.md as id comments.
+ * Events whose parsed id is in this set carry profile-1 identity; events
+ * outside it got a freshly generated id from parseOkfBundle and need the
+ * tuple fallback.
+ */
+export function scanExplicitEventIds(files: readonly OkfFile[]): Set<string> {
+  const ids = new Set<string>()
+  for (const file of files) {
+    if (file.path !== 'log.md' && !file.path.endsWith('/log.md')) continue
+    for (const match of file.content.matchAll(EVENT_ID_COMMENT_PATTERN)) {
+      ids.add(match[1])
+    }
+  }
+  return ids
+}
 
 function utcDayKey(createdAt: number): string {
   return new Date(createdAt).toISOString().slice(0, 10)

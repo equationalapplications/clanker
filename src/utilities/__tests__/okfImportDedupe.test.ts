@@ -1,5 +1,6 @@
-import { dedupeEventsAgainstExisting } from '../okfImportDedupe'
+import { dedupeEventsAgainstExisting, scanExplicitEventIds } from '../okfImportDedupe'
 import type { MemoryDump, WikiMemory } from '@equationalapplications/expo-llm-wiki'
+import { loadOkfFixture } from './okfFixtures'
 
 function buildDump(events: unknown[]): MemoryDump {
   return {
@@ -77,5 +78,44 @@ describe('dedupeEventsAgainstExisting', () => {
 
     expect(mockWiki.exportDump).not.toHaveBeenCalled()
     expect(result.entities.char_1.events).toHaveLength(0)
+  })
+})
+
+describe('scanExplicitEventIds', () => {
+  it('collects every id from a multi-line log, not just the last (multiline anchoring)', () => {
+    const files = [
+      {
+        path: 'entities/e1/log.md',
+        content: [
+          '## 2026-07-05',
+          '',
+          '- (observation) First <!-- id: evt_one -->',
+          '- (observation) No id on this line',
+          '- (action) Third   <!--   id:   evt_three   -->  ',
+        ].join('\n'),
+      },
+    ]
+    expect(scanExplicitEventIds(files)).toEqual(new Set(['evt_one', 'evt_three']))
+  })
+
+  it('finds ids in the golden-v1 fixture log', () => {
+    const ids = scanExplicitEventIds(loadOkfFixture('golden-v1'))
+    expect(ids).toEqual(new Set(['evt_golden_1', 'evt_golden_2']))
+  })
+
+  it('finds none in the legacy-profile-0 fixture', () => {
+    expect(scanExplicitEventIds(loadOkfFixture('legacy-profile-0')).size).toBe(0)
+  })
+
+  it('ignores non-log files', () => {
+    const files = [{ path: 'entities/e1/facts/f.md', content: 'x <!-- id: evt_nope -->' }]
+    expect(scanExplicitEventIds(files).size).toBe(0)
+  })
+
+  it('scans a log.md at the bundle root, not just nested entity logs', () => {
+    const files = [
+      { path: 'log.md', content: '- (observation) Root-level entry <!-- id: evt_root -->' },
+    ]
+    expect(scanExplicitEventIds(files)).toEqual(new Set(['evt_root']))
   })
 })
