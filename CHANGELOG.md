@@ -1,3 +1,12 @@
+## [30.21.1](https://github.com/equationalapplications/clanker/compare/v30.21.0...v30.21.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* auto-sync default characters and prevent duplicate cloud uploads ([79fed5b](https://github.com/equationalapplications/clanker/commit/79fed5b3454c29a932a3578c4d7416d59635866d))
+* **database:** include pending_cloud_id in bootstrap schema check ([a76d594](https://github.com/equationalapplications/clanker/commit/a76d5949b64708e258a6da2de0e13736fa290a4a))
+* use expo-crypto for UUID generation on Hermes ([c245578](https://github.com/equationalapplications/clanker/commit/c2455780eee5d6f86af64348f8cd7e9cc44119a6))
+
 # [30.21.0](https://github.com/equationalapplications/clanker/compare/v30.20.0...v30.21.0) (2026-07-06)
 
 
