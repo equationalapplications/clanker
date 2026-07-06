@@ -154,7 +154,8 @@ export default function Support() {
             complete, standard-format backup of everything your character knows, including
             its facts, tasks, and how they connect. Bring it back anytime with{' '}
             {'"Import OKF Backup" (restore into the same character) or "From Bundle" on the '}
-            characters list (clone into a new one).
+            characters list (clone into a new one). Restoring the same backup more than once
+            {" won't duplicate your character's timeline."}
           </Text>
           <Button mode="text" onPress={onPressExportGuide} icon="open-in-new">
             Data export guide

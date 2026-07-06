@@ -10,6 +10,12 @@ This ZIP contains your character's complete memory export, including:
 - **Timeline** - chronological log of events and interactions
 - **Connections** - explicit links showing how facts and tasks relate to each other
 
+This bundle conforms to the llm-wiki OKF profile, version 1 (see the root
+index.md "profile" key). Timeline entries carry stable ids, so restoring the
+same backup twice never duplicates your history, and edge links live in each
+entry's "## Related" section. Profile reference:
+https://github.com/equationalapplications/expo-llm-wiki/blob/main/docs/okf-profile.md
+
 ## File Layout
 
 \`\`\`
