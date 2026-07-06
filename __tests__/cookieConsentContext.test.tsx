@@ -4,6 +4,12 @@ import {
   CookieConsentProvider,
   useCookieConsent,
 } from '~/components/CookieConsent'
+import {
+  defaultAcceptChoices,
+  COOKIE_POLICY_VERSION,
+  CONSENT_TTL_MS,
+} from '~/utilities/cookieConsentTypes'
+import { writeConsent } from '~/utilities/cookieConsentStorage.web'
 import * as crashlyticsService from '~/services/crashlyticsService'
 import * as analyticsService from '~/services/analyticsService'
 
@@ -28,6 +34,28 @@ describe('CookieConsentContext', () => {
   beforeEach(() => {
     window.localStorage.clear()
     jest.clearAllMocks()
+  })
+
+  it('restores analytics from persisted consent on mount', () => {
+    const now = Date.now()
+    writeConsent({
+      policyVersion: COOKIE_POLICY_VERSION,
+      consentedAt: new Date(now).toISOString(),
+      expiresAt: new Date(now + CONSENT_TTL_MS).toISOString(),
+      regionMode: 'opt-in-strict',
+      choices: defaultAcceptChoices(),
+    })
+
+    act(() => {
+      create(
+        <CookieConsentProvider>
+          <Probe onReady={() => {}} />
+        </CookieConsentProvider>,
+      )
+    })
+
+    expect(analyticsService.setAnalyticsEnabled).toHaveBeenCalledWith(true)
+    expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(true)
   })
 
   it('shows banner when no consent exists', () => {

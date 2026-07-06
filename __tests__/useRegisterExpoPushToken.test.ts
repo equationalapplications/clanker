@@ -1,40 +1,100 @@
 import { renderHook, waitFor } from '@testing-library/react-native'
+import { Platform } from 'react-native'
+import Constants from 'expo-constants'
 import { useRegisterExpoPushToken } from '~/hooks/useRegisterExpoPushToken'
+
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    notification: { vapidPublicKey: 'test-vapid-key' },
+    scheme: 'com.equationalapplications.clanker',
+  },
+}))
+
+const defaultExpoConfig = {
+  notification: { vapidPublicKey: 'test-vapid-key' },
+  scheme: 'com.equationalapplications.clanker',
+}
+
+const mockRegisterExpoPushTokenFn = jest.fn().mockResolvedValue({ data: { ok: true } })
 
 jest.mock('expo-notifications', () => ({
   getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'undetermined' }),
   requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   getExpoPushTokenAsync: jest.fn().mockResolvedValue({ data: 'ExponentPushToken[test]' }),
+  getDevicePushTokenAsync: jest.fn().mockResolvedValue({
+    type: 'web',
+    data: {
+      endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
+      keys: { p256dh: 'p', auth: 'a' },
+    },
+  }),
   setNotificationCategoryAsync: jest.fn().mockResolvedValue(true),
 }))
 
 jest.mock('~/config/firebaseConfig', () => ({
+  appCheckReady: Promise.resolve(),
   getCurrentUser: jest.fn().mockReturnValue({ getIdToken: jest.fn().mockResolvedValue('id-tok') }),
-}))
-
-jest.mock('../shared/localCloudAgent', () => ({
-  getCloudAgentBaseUrl: () => 'https://agent.test',
+  registerExpoPushTokenFn: (...args: unknown[]) => mockRegisterExpoPushTokenFn(...args),
 }))
 
 describe('useRegisterExpoPushToken', () => {
   beforeEach(() => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }) as jest.Mock
+    Platform.OS = 'ios'
+    jest.mocked(Constants).expoConfig = { ...defaultExpoConfig } as unknown as typeof Constants.expoConfig
+    window.localStorage.clear()
+    mockRegisterExpoPushTokenFn.mockClear()
+    jest.clearAllMocks()
   })
 
-  it('registers token and POSTs to cloud agent', async () => {
+  it('registers native token via Firebase callable', async () => {
+    const Notifications = require('expo-notifications')
+
     renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'test-proj' }))
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/agent/user/expo-push-token'),
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            authorization: 'Bearer id-tok',
-            'content-type': 'application/json',
-          }),
-          body: JSON.stringify({ expoPushToken: 'ExponentPushToken[test]' }),
-        }),
-      )
+      expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({ projectId: 'test-proj' })
+      expect(mockRegisterExpoPushTokenFn).toHaveBeenCalledWith({ expoPushToken: 'ExponentPushToken[test]' })
     })
+  })
+
+  it('skips web registration when vapidPublicKey is not configured', async () => {
+    Platform.OS = 'web'
+    jest.mocked(Constants).expoConfig = {
+      notification: {},
+      scheme: 'com.equationalapplications.clanker',
+    } as unknown as typeof Constants.expoConfig
+    const Notifications = require('expo-notifications')
+
+    renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'test-proj' }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(Notifications.getDevicePushTokenAsync).not.toHaveBeenCalled()
+    expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled()
+    expect(mockRegisterExpoPushTokenFn).not.toHaveBeenCalled()
+  })
+
+  it('registers web push via Firebase callable', async () => {
+    Platform.OS = 'web'
+    const Notifications = require('expo-notifications')
+    window.localStorage.setItem('EXPO_NOTIFICATIONS_INSTALLATION_ID', 'install-1')
+
+    renderHook(() =>
+      useRegisterExpoPushToken({ enabled: true, projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e' }),
+    )
+    await waitFor(() => {
+      expect(Notifications.getDevicePushTokenAsync).toHaveBeenCalled()
+      expect(mockRegisterExpoPushTokenFn).toHaveBeenCalledWith({
+        webDevicePushToken: {
+          type: 'web',
+          data: {
+            endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
+            keys: { p256dh: 'p', auth: 'a' },
+          },
+        },
+        projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e',
+        applicationId: 'com.equationalapplications.clanker',
+        deviceId: 'install-1',
+      })
+    })
+    expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled()
   })
 })

@@ -71,3 +71,7 @@ export {
 export {
   generateEmbedding,
 } from "./generateEmbedding.js";
+
+export {
+  registerExpoPushToken,
+} from "./registerExpoPushToken.js";

@@ -163,8 +163,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   notification: {
-    vapidPublicKey:
-      process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY,
+    vapidPublicKey: process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY,
     serviceWorkerPath: '/expo-service-worker.js',
   },
   experiments: {
