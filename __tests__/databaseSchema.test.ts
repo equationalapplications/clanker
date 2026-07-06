@@ -78,6 +78,9 @@ describe('database schema migration guards', () => {
     // Migration 20: adds pending_cloud_id column — skipped if column already exists
     expect(MIGRATION_SKIP_GUARDS[20]).toEqual([{ table: 'characters', column: 'pending_cloud_id' }])
     expect(MIGRATIONS[20]).toContain('ALTER TABLE characters ADD COLUMN pending_cloud_id TEXT')
+    expect(LATEST_SCHEMA_REQUIRED_COLUMNS.characters).toEqual(
+      expect.arrayContaining(['pending_cloud_id']),
+    )
   })
 
   it('does not include old wiki memory tables in base schema', () => {

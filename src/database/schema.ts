@@ -22,6 +22,7 @@ export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
     'voice',
     'heal_checkpoint',
     'memory_checkpoint',
+    'pending_cloud_id',
   ],
   // wiki_entries removed — table no longer exists on fresh installs (package owns llm_wiki_* tables)
 }
