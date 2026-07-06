@@ -38,6 +38,7 @@ describe('dedupeEventsAgainstExisting', () => {
       mockWiki,
       'char_1',
       buildDump([duplicateFromBundle]),
+      new Set<string>(),
     )
 
     expect(result.entities.char_1.events).toHaveLength(0)
@@ -65,7 +66,12 @@ describe('dedupeEventsAgainstExisting', () => {
       exportDump: jest.fn().mockResolvedValue(buildDump([existingEvent])),
     } as unknown as WikiMemory
 
-    const result = await dedupeEventsAgainstExisting(mockWiki, 'char_1', buildDump([differentEvent]))
+    const result = await dedupeEventsAgainstExisting(
+      mockWiki,
+      'char_1',
+      buildDump([differentEvent]),
+      new Set<string>(),
+    )
 
     expect(result.entities.char_1.events).toHaveLength(1)
     expect((result.entities.char_1.events[0] as { id: string }).id).toBe('evt_different')
@@ -74,7 +80,7 @@ describe('dedupeEventsAgainstExisting', () => {
   it('skips the existing-events lookup entirely when the bundle has no events', async () => {
     const mockWiki = { exportDump: jest.fn() } as unknown as WikiMemory
 
-    const result = await dedupeEventsAgainstExisting(mockWiki, 'char_1', buildDump([]))
+    const result = await dedupeEventsAgainstExisting(mockWiki, 'char_1', buildDump([]), new Set<string>())
 
     expect(mockWiki.exportDump).not.toHaveBeenCalled()
     expect(result.entities.char_1.events).toHaveLength(0)
@@ -117,5 +123,65 @@ describe('scanExplicitEventIds', () => {
       { path: 'log.md', content: '- (observation) Root-level entry <!-- id: evt_root -->' },
     ]
     expect(scanExplicitEventIds(files)).toEqual(new Set(['evt_root']))
+  })
+})
+
+describe('id-first dedup (profile v1)', () => {
+  const baseEvent = (id: string, summary: string) => ({
+    id,
+    entity_id: 'e1',
+    event_type: 'observation',
+    summary,
+    related_entry_id: null,
+    created_at: Date.parse('2026-07-05T00:00:00.000Z'),
+  })
+
+  const wikiWithExisting = (events: unknown[]) =>
+    ({
+      exportDump: jest.fn().mockResolvedValue({
+        generatedAt: 0,
+        entities: { e1: { facts: [], tasks: [], events, edges: [] } },
+      }),
+    }) as never
+
+  const dumpWithEvents = (events: unknown[]) =>
+    ({
+      generatedAt: 0,
+      entities: { e1: { facts: [], tasks: [], events, edges: [] } },
+    }) as never
+
+  it('passes id-carrying events through even when tuple-identical to existing ones', async () => {
+    const wiki = wikiWithExisting([baseEvent('evt_existing', 'Same summary')])
+    const dump = dumpWithEvents([baseEvent('evt_new', 'Same summary')])
+    const result = await dedupeEventsAgainstExisting(wiki, 'e1', dump, new Set(['evt_new']))
+    expect(result.entities.e1.events.map((e: { id: string }) => e.id)).toEqual(['evt_new'])
+  })
+
+  it('tuple-dedupes events without explicit ids', async () => {
+    const wiki = wikiWithExisting([baseEvent('evt_existing', 'Same summary')])
+    const dump = dumpWithEvents([baseEvent('evt_regenerated', 'Same summary')])
+    const result = await dedupeEventsAgainstExisting(wiki, 'e1', dump, new Set())
+    expect(result.entities.e1.events).toEqual([])
+  })
+
+  it('handles mixed bundles per event', async () => {
+    const wiki = wikiWithExisting([baseEvent('evt_a', 'Dup summary')])
+    const dump = dumpWithEvents([
+      baseEvent('evt_stable', 'Dup summary'), // explicit id → keep
+      baseEvent('evt_fresh1', 'Dup summary'), // regenerated → tuple-dropped
+      baseEvent('evt_fresh2', 'Unique summary'), // regenerated → tuple-kept
+    ])
+    const result = await dedupeEventsAgainstExisting(wiki, 'e1', dump, new Set(['evt_stable']))
+    expect(result.entities.e1.events.map((e: { id: string }) => e.id)).toEqual([
+      'evt_stable',
+      'evt_fresh2',
+    ])
+  })
+
+  it('skips the exportDump read entirely when every event carries an explicit id', async () => {
+    const wiki = wikiWithExisting([])
+    const dump = dumpWithEvents([baseEvent('evt_x', 'S')])
+    await dedupeEventsAgainstExisting(wiki, 'e1', dump, new Set(['evt_x']))
+    expect((wiki as { exportDump: jest.Mock }).exportDump).not.toHaveBeenCalled()
   })
 })
