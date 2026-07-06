@@ -17,6 +17,12 @@ const runtimeVer = breakingChangeVersion + '.0.0'
 const formatError = (err: unknown): string =>
   err instanceof Error ? err.message : String(err)
 
+/** EAS local/cloud builds set EAS_BUILD_PROFILE; dev client runs omit it. */
+const isProductionPushBuild =
+  process.env.EAS_BUILD_PROFILE === 'production' ||
+  process.env.EAS_BUILD_PROFILE === 'staging' ||
+  process.env.EAS_BUILD_PROFILE === 'preview'
+
 const getGoogleServicesJson = () => {
   // Extract from base64 if provided via environment variable (local builds)
   if (process.env.GOOGLE_SERVICES_JSON_BASE64) {
@@ -190,6 +196,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/auth',
     '@react-native-firebase/crashlytics',
     '@react-native-firebase/app-check',
+    // Analytics autolinks via RNFBAnalytics (forceStaticLinking); no separate Expo plugin.
     'expo-font',
     'expo-image',
     'expo-splash-screen',
@@ -213,6 +220,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         "iosUrlScheme": process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME
       }
+    ],
+    [
+      'expo-notifications',
+      {
+        mode: isProductionPushBuild ? 'production' : 'development',
+        enableBackgroundRemoteNotifications: true,
+        color: '#1f9d55',
+      },
     ],
   ],
   extra: {

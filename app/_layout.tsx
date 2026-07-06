@@ -18,7 +18,7 @@ import {
   CookiePreferencesModal,
 } from '~/components/CookieConsent'
 import { Icon, useTheme } from 'react-native-paper'
-import { SettingsProvider } from '~/contexts/SettingsContext'
+import { SettingsProvider, useSettings } from '~/contexts/SettingsContext'
 import { queryClient } from '~/config/queryClient'
 import { kvStorePersister } from '~/config/queryPersister'
 import { setupNetworkManager } from '~/config/networkManager'
@@ -149,8 +149,9 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
   }, [authService])
 
   const isSignedIn = useSelector(authService, (state) => state.matches('signedIn'))
+  const { settings } = useSettings()
   useRegisterExpoPushToken({
-    enabled: isSignedIn,
+    enabled: isSignedIn && settings.notifications,
     projectId: Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId ?? '',
   })
   useBrowserActionApproval()
