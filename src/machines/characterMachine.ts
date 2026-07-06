@@ -46,6 +46,7 @@ interface CharacterContext {
   priorSaveToCloud: boolean | null
   priorCloudId: string | null
   pendingUnsyncId: string | null
+  attemptedRestore: boolean
 }
 
 const DEFAULT_CHARACTER_INSERT: CharacterInsert = {
@@ -123,6 +124,7 @@ export const characterMachine = createMachine(
       cloudUnsyncError: null,
       priorCloudId: null,
       pendingUnsyncId: null,
+      attemptedRestore: false,
     } as CharacterContext,
     on: {
       USER_CHANGED: {
@@ -139,6 +141,7 @@ export const characterMachine = createMachine(
           priorSaveToCloud: null,
           priorCloudId: null,
           pendingUnsyncId: null,
+          attemptedRestore: false,
         }),
       },
       LOAD: [
@@ -198,9 +201,35 @@ export const characterMachine = createMachine(
       checkingDefault: {
         always: [
           { target: 'idle', guard: 'hasCharacters' },
+          { target: 'restoringDefault', guard: 'shouldAttemptRestore' },
           { target: 'creatingDefault', guard: 'hasUserId' },
           { target: 'idle' },
         ],
+      },
+      // Reinstall/new-device case: recover an existing cloud-linked character before
+      // minting another local default, so a returning user doesn't accumulate a fresh
+      // "Clanker" every time local storage is wiped.
+      restoringDefault: {
+        on: { LOAD: {} },
+        invoke: {
+          id: 'restoreDefaultFromCloud',
+          src: 'restoreDefaultActor',
+          input: ({ context }) => ({ userId: context.userId }),
+          onDone: {
+            target: 'loading',
+            actions: assign({
+              attemptedRestore: true,
+              error: null,
+            }),
+          },
+          onError: {
+            target: 'creatingDefault',
+            actions: assign({
+              attemptedRestore: true,
+              error: ({ event }) => event.error as Error | null,
+            }),
+          },
+        },
       },
       creatingDefault: {
         on: { LOAD: {} },
@@ -208,13 +237,24 @@ export const characterMachine = createMachine(
           id: 'createDefaultCharacter',
           src: createDefaultCharacterActor,
           input: ({ context }) => ({ userId: context.userId }),
-          onDone: {
-            target: 'idle',
-            actions: assign({
-              characters: ({ context, event }) => [event.output, ...context.characters],
-              error: null,
-            }),
-          },
+          onDone: [
+            {
+              guard: ({ event }) =>
+                event.output.save_to_cloud === true && event.output.synced_to_cloud !== true,
+              target: 'cloudSyncing',
+              actions: assign({
+                characters: ({ context, event }) => [event.output, ...context.characters],
+                error: null,
+              }),
+            },
+            {
+              target: 'idle',
+              actions: assign({
+                characters: ({ context, event }) => [event.output, ...context.characters],
+                error: null,
+              }),
+            },
+          ],
           onError: {
             target: 'idle',
             actions: assign({
@@ -528,13 +568,24 @@ export const characterMachine = createMachine(
           await removeCharacterFromCloud(input.id, input.userId)
         },
       ),
+      restoreDefaultActor: fromPromise(
+        async ({ input }: { input: { userId: string | null } }) => {
+          if (!input.userId) throw new Error('User not logged in')
+          await restoreFromCloud(input.userId)
+        },
+      ),
     },
     guards: {
       hasCharacters: ({ context }) => context.characters.length > 0,
       hasUserId: ({ context }) => context.userId !== null,
+      shouldAttemptRestore: ({ context }) => context.userId !== null && !context.attemptedRestore,
       updateTurnedOnCloud: ({ context, event }) => {
-        const output = (event as { output?: { save_to_cloud?: boolean } }).output
-        return output?.save_to_cloud === true && context.priorSaveToCloud !== true
+        const output = (event as { output?: { save_to_cloud?: boolean; synced_to_cloud?: boolean } }).output
+        // Trigger sync whenever the saved character ends up cloud-enabled but not yet
+        // confirmed-synced — not just on a false→true toggle edge. Covers the case where
+        // save_to_cloud was already true (e.g. the default character) but no cloud record
+        // exists yet, which previously required an off/on toggle dance to fix.
+        return output?.save_to_cloud === true && output?.synced_to_cloud !== true
       },
       updateTurnedOffCloudWithCloudId: ({ context, event }) => {
         const output = (event as { output?: { save_to_cloud?: boolean } }).output

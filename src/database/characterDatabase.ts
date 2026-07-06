@@ -23,7 +23,8 @@ export interface LocalCharacter {
     updated_at: number
     synced_to_cloud: number // 0 or 1
     save_to_cloud: number // 0 or 1
-    cloud_id: string | null // remote ID if synced
+    cloud_id: string | null // remote ID once a sync has been confirmed
+    pending_cloud_id: string | null // stable id sent on every upload attempt, for idempotent retries
     deleted_at: number | null // null = active, timestamp = soft-deleted
     summary_checkpoint?: number | null // highest message count included in context summary
     heal_checkpoint?: number | null
@@ -85,6 +86,7 @@ function toAppFormat(char: LocalCharacter) {
         synced_to_cloud: char.synced_to_cloud === 1,
         save_to_cloud: char.save_to_cloud === 1,
         cloud_id: char.cloud_id,
+        pending_cloud_id: char.pending_cloud_id,
         summary_checkpoint: char.summary_checkpoint ?? 0,
         heal_checkpoint: char.heal_checkpoint ?? 0,
         memory_checkpoint: char.memory_checkpoint ?? 0,
@@ -122,6 +124,26 @@ export async function getCharacter(characterId: string, userId: string) {
 }
 
 /**
+ * Generate a plain (unprefixed) UUID v4, for values that must pass the
+ * backend's UUID_REGEX (e.g. pending_cloud_id, cloud character ids).
+ */
+function generateUuid(): string {
+    const uuid = globalThis.crypto?.randomUUID?.()
+    if (uuid) return uuid
+
+    if (globalThis.crypto?.getRandomValues) {
+        const bytes = new Uint8Array(16)
+        globalThis.crypto.getRandomValues(bytes)
+        bytes[6] = (bytes[6] & 0x0f) | 0x40
+        bytes[8] = (bytes[8] & 0x3f) | 0x80
+        const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+    }
+
+    throw new Error('Secure random generator unavailable for UUID generation.')
+}
+
+/**
  * Create a new character
  */
 export async function createCharacter(userId: string, data: CharacterInsert) {
@@ -129,11 +151,15 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
 
     const id = `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     const now = Date.now()
+    // Assigned upfront (regardless of save_to_cloud) so that if cloud sync is ever
+    // enabled, every upload attempt — including retries after a dropped response —
+    // sends the same id and the backend upserts in place instead of inserting a duplicate.
+    const pendingCloudId = generateUuid()
 
     await db.runAsync(
-        `INSERT INTO characters 
-     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint, owner_user_id, voice)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO characters
+     (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, pending_cloud_id, deleted_at, summary_checkpoint, owner_user_id, voice)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 
         [
             id,
@@ -151,7 +177,8 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
             now,
             0, // not synced to cloud initially
             data.save_to_cloud ? 1 : 0, // opt-in cloud save
-            null, // no cloud ID initially
+            null, // no confirmed cloud ID initially
+            pendingCloudId,
             null, // not deleted
             0, // no summarized messages yet
             userId,
@@ -317,6 +344,24 @@ export async function markCharacterSynced(localId: string, cloudId: string) {
 }
 
 /**
+ * Persist a pending_cloud_id for a character that doesn't have one yet
+ * (legacy rows created before this column existed). Only writes when the
+ * column is currently NULL so concurrent callers can't clobber each other
+ * with different generated ids.
+ */
+export async function setPendingCloudIdIfMissing(
+    characterId: string,
+    pendingCloudId: string,
+): Promise<void> {
+    const db = await getDatabase()
+
+    await db.runAsync(
+        'UPDATE characters SET pending_cloud_id = ? WHERE id = ? AND pending_cloud_id IS NULL',
+        [pendingCloudId, characterId],
+    )
+}
+
+/**
  * Clear cloud link for a character (used when unsyncing from cloud)
  * Sets cloud_id = NULL, synced_to_cloud = 0, save_to_cloud = 0, is_public = 0,
  * and refreshes updated_at.
@@ -396,9 +441,9 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
     await db.withTransactionAsync(async () => {
         for (const char of characters) {
             await db.runAsync(
-                `INSERT OR REPLACE INTO characters 
-         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, deleted_at, summary_checkpoint, owner_user_id, voice)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT OR REPLACE INTO characters
+         (id, user_id, name, avatar, avatar_data, avatar_mime_type, appearance, traits, emotions, context, is_public, created_at, updated_at, synced_to_cloud, save_to_cloud, cloud_id, pending_cloud_id, deleted_at, summary_checkpoint, owner_user_id, voice)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 
                 [
                     char.id,
@@ -417,6 +462,9 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
                     char.synced_to_cloud,
                     char.save_to_cloud,
                     char.cloud_id,
+                    // Restored/imported rows are already confirmed-synced under cloud_id;
+                    // mirror it as the pending id so future retries stay stable too.
+                    char.pending_cloud_id ?? char.cloud_id,
                     char.deleted_at ?? null,
                     char.summary_checkpoint ?? 0,
                     char.owner_user_id || char.user_id,

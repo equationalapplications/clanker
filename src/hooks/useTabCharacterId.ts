@@ -21,7 +21,10 @@ export function useTabCharacterId(): {
     authService,
     (s) => s.context.dbUser?.defaultCharacterId ?? null,
   )
-  const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
+  const isCreatingDefault = useSelector(
+    characterService,
+    (s) => s.matches('creatingDefault') || s.matches('restoringDefault'),
+  )
 
   const devLinkedCharacterId = isDevSandboxEnabled()
     ? characters?.find((c) => c.cloud_id === DEV_CLOUD_CHARACTER_ID)?.id

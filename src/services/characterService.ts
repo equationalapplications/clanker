@@ -32,6 +32,7 @@ export interface Character {
   synced_to_cloud?: boolean
   save_to_cloud?: boolean
   cloud_id?: string | null
+  pending_cloud_id?: string | null
 }
 
 /**
