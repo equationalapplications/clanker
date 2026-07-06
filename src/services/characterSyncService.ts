@@ -11,6 +11,7 @@
  */
 
 import { Storage } from '~/utilities/kvStorage'
+import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 import { normalizeVoice } from '~/constants/voiceDefaults'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
@@ -25,6 +26,7 @@ import {
     hardDeleteCharacterLocal,
     batchInsertCharacters,
     clearCharacterCloudLink,
+    setPendingCloudIdIfMissing,
     getCharacter,
     LocalCharacter,
 } from '../database/characterDatabase'
@@ -54,22 +56,7 @@ function reportWikiOpForCharacter(err: unknown, context: string, characterId: st
 }
 
 function generateLocalCharacterId() {
-    const uuid = globalThis.crypto?.randomUUID?.()
-    if (uuid) {
-        return `char_${uuid}`
-    }
-
-    if (globalThis.crypto?.getRandomValues) {
-        const bytes = new Uint8Array(16)
-        globalThis.crypto.getRandomValues(bytes)
-        bytes[6] = (bytes[6] & 0x0f) | 0x40
-        bytes[8] = (bytes[8] & 0x3f) | 0x80
-        const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
-        const fallbackUuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-        return `char_${fallbackUuid}`
-    }
-
-    throw new Error('Secure random generator unavailable for local character IDs.')
+    return `char_${generateSecureUuid()}`
 }
 
 export async function getLastSyncTime(): Promise<string | null> {
@@ -268,6 +255,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     synced_to_cloud: 1 as number,
                     save_to_cloud: 1 as number,
                     cloud_id: cloudChar.id,
+                    pending_cloud_id: cloudChar.id,
                     deleted_at: null as number | null,
                     summary_checkpoint: 0,
                     owner_user_id: localUserId,
@@ -307,7 +295,20 @@ async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
     if (unsynced.length === 0) return
 
     for (const char of unsynced) {
-        const cloudId = char.cloud_id && UUID_REGEX.test(char.cloud_id) ? char.cloud_id : null
+        // Confirmed cloud_id (from a prior successful sync) takes priority; otherwise fall
+        // back to the stable pending_cloud_id so every upload attempt — including retries
+        // after a dropped response — upserts the same remote row instead of inserting a
+        // new one each time. Legacy local rows created before pending_cloud_id existed
+        // get one generated and persisted here, on first sync attempt.
+        const confirmedCloudId = char.cloud_id && UUID_REGEX.test(char.cloud_id) ? char.cloud_id : null
+        let pendingCloudId = char.pending_cloud_id && UUID_REGEX.test(char.pending_cloud_id)
+            ? char.pending_cloud_id
+            : null
+        if (!confirmedCloudId && !pendingCloudId) {
+            pendingCloudId = generateSecureUuid()
+            await setPendingCloudIdIfMissing(char.id, pendingCloudId)
+        }
+        const cloudId = confirmedCloudId ?? pendingCloudId
 
         try {
             const result = await syncCharacterFn({
@@ -374,6 +375,7 @@ export async function importSharedCharacterFromCloud(
             synced_to_cloud: 1,
             save_to_cloud: 0,
             cloud_id: cloudCharacter.id,
+            pending_cloud_id: cloudCharacter.id,
             deleted_at: null,
             summary_checkpoint: 0,
             owner_user_id: cloudCharacter.ownerUserId || localUserId,
