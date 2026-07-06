@@ -40,7 +40,7 @@ Clanker is pinned to 4.17.3 and still runs the pre-profile workarounds. Three of
 
 `parseOkfBundle` output can't distinguish a preserved id from a freshly generated one. Rather than branch on the root `profile` key (coarse — a formatter can strip comments from a profile-1 log, and profile §7 says id handling is per-line), Clanker scans the log itself:
 
-- In `src/utilities/okfImport.ts` (or `okfImportDedupe.ts`), scan the cached bundle's `log.md` content with the profile §7 regex applied per line — `/<!--\s*id:\s*(\S+)\s*-->\s*$/` — collecting a `Set<string>` of explicit event ids.
+- In `src/utilities/okfImport.ts` (or `okfImportDedupe.ts`), scan the cached bundle's `log.md` content with the profile §7 regex, collecting a `Set<string>` of explicit event ids. The regex's `$` anchor is per-**line**, not per-file: the implementation MUST either split the content on newlines and test each line with `/<!--\s*id:\s*(\S+)\s*-->\s*$/`, or run `/<!--\s*id:\s*(\S+)\s*-->\s*$/gm` (multiline flag) over the whole string — a non-`m` regex against full file content anchors to end-of-file and finds at most one id.
 - `dedupeEventsAgainstExisting` gains that set as an argument and filters per event:
   - id ∈ explicit-id set → **pass through untouched**. Identity is the id; `EventRepository.addIgnoreDuplicate` makes re-import a no-op at the DB layer. No tuple check — two distinct profile-1 events may legitimately share a tuple.
   - id ∉ set (regenerated — legacy bundle or stripped comment) → existing tuple dedup `(event_type, summary, UTC-day)` against the target entity's current events.
@@ -48,7 +48,7 @@ Clanker is pinned to 4.17.3 and still runs the pre-profile workarounds. Three of
 
 ### 3. Clone: remap event ids (fixes the upgrade-blocking bug; amends import-spec "ID Remapping" step 4)
 
-`remapOkfDumpIds` additionally regenerates every event's `id` via the same `randomUUID()` used for facts/tasks. `related_entry_id` remapping is unchanged. Rationale inline in code comment: as of profile v1, event ids survive parsing, so a clone alongside a still-live source character would otherwise collide on the events table's id primary key and be silently dropped by `INSERT OR IGNORE`.
+`remapOkfDumpIds` additionally regenerates every event's `id` as `` `evt_${randomUUID()}` `` — the `evt_` prefix matches the upstream parser's own generation convention (`generateId('evt_')`), keeping regenerated ids shaped like every other event id in the ecosystem. `related_entry_id` remapping is unchanged. Rationale inline in code comment: as of profile v1, event ids survive parsing, so a clone alongside a still-live source character would otherwise collide on the events table's id primary key and be silently dropped by `INSERT OR IGNORE`.
 
 (Event ids are not referenced by anything else in the dump — no edge or fact points at an event — so regeneration needs no map, just fresh ids.)
 
@@ -68,7 +68,7 @@ Clanker is pinned to 4.17.3 and still runs the pre-profile workarounds. Three of
 
 - **Richer import preview:** the preview dialog adds, above the existing counts line:
   - Profile badge — "OKF profile: llm-wiki/1" vs "Legacy bundle (pre-profile)". Detection: root `index.md` frontmatter contains `profile: llm-wiki/1` (regex on the cached file content; display-only, no behavior branches on it — dedup branches per-event, §2).
-  - Summary snippet — first ~200 chars of `dump.entities[previewId].summary` when present, with "Memory summary included" label.
+  - Summary snippet — from `dump.entities[previewId].summary` when present, with "Memory summary included" label. The summary is **markdown**; a naive `.slice(0, 200)` can cut a token in half (unclosed `**`, dangling `[`) and break rendering. The snippet is therefore produced by stripping markdown to plain text first (drop emphasis/link/heading syntax — a small regex pass, not a markdown library) and clamping visually with the `Text` component's `numberOfLines` prop (React Native — no CSS `line-clamp` here); any residual character cap applies to the stripped plain text only.
 - **Summary display:** character edit screen (`app/(drawer)/(tabs)/characters/[id]/edit.tsx`) gains a read-only "Memory summary" section, rendered only when the wiki has a summary for the character — read via `wiki.getEntitySummary(characterId)` (new in 4.19.0, added by the summary-persistence spec precisely so display doesn't require a full blob-carrying `exportDump`). Placed near the existing import/export buttons.
 - **Public docs refresh:**
   - `public/memory-export-with-okf/index.html`: mention bundles now carry the versioned `llm-wiki/1` profile, stable event identity (no more duplicate timeline entries on repeated restores), and that summaries from other OKF tools (e.g. Curated Thoughts) survive round-trips.
@@ -88,7 +88,8 @@ Clanker is pinned to 4.17.3 and still runs the pre-profile workarounds. Three of
 - **Dedup:** mixed log (some lines with id comments, some without) — id-carrying events pass through even when tuple-identical to existing events; id-less events tuple-dedup as before; importing the same profile-1 bundle twice yields no duplicate event rows (DB-level assertion).
 - **Clone regression (the headline test):** export character A (profile-1), clone to character B while A still exists in the same DB → B's event count equals A's. This fails against unfixed `remapOkfDumpIds` on 4.18.x+.
 - **Export:** exported bundle contains exactly one `## Related` section per edge-bearing concept (regression against double-append), the profile key, and event id comments — asserted via `parseOkfBundle` round-trip, not string matching alone.
-- **Preview UX:** profile badge shows "legacy" for profile-0 fixture, "llm-wiki/1" for golden fixture; summary snippet renders when present.
+- **Preview UX:** profile badge shows "legacy" for profile-0 fixture, "llm-wiki/1" for golden fixture; summary snippet renders when present; snippet of a markdown-heavy summary (bold, links) contains no markdown syntax characters (regression for the mid-token slice hazard).
+- **Id-scan:** a `log.md` with several id-bearing lines yields every id, not just the last (regression for end-of-file anchoring); regenerated clone event ids carry the `evt_` prefix.
 - Existing suites updated: `augmentWithEdgeLinks` tests deleted with their subject; `okfImportDedupe`/`okfImportRemap`/hook tests amended per §§2–3.
 - CI: `npm run typecheck && npm run lint && npm run test`.
 
