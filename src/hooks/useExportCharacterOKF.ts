@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useWiki, formatOkfBundle } from '@equationalapplications/expo-llm-wiki'
 import { buildOkfReadmeContent } from '~/constants/okfReadmeContent'
-import { augmentWithEdgeLinks } from '~/utils/augmentWithEdgeLinks'
 import { reportError } from '~/utilities/reportError'
 import { OkfSaveCancelledError, zipAndSaveOKF } from '~/utilities/okfSave'
 
@@ -42,9 +41,8 @@ export function useExportCharacterOKF(characterId: string, characterName: string
           entity.events.length === 0)
 
       const { files } = formatOkfBundle(dump)
-      const augmented = augmentWithEdgeLinks(files, entity?.edges ?? [])
       const filesWithReadme: OkfFile[] = [
-        ...augmented,
+        ...files,
         { path: 'README.md', content: buildOkfReadmeContent() },
       ]
 

@@ -190,7 +190,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/app',
     '@react-native-firebase/auth',
     '@react-native-firebase/crashlytics',
-    '@react-native-firebase/analytics',
     '@react-native-firebase/app-check',
     'expo-font',
     'expo-image',

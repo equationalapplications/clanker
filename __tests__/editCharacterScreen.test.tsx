@@ -162,7 +162,10 @@ import EditCharacterScreen from '../app/(drawer)/(tabs)/characters/[id]/edit'
 
 const mockWikiSync = jest.requireMock('~/services/apiClient').wikiSync as jest.Mock
 const mockUseWiki = jest.requireMock('@equationalapplications/expo-llm-wiki').useWiki as jest.Mock
-const mockWikiInstance = { importDump: jest.fn().mockResolvedValue(undefined) }
+const mockWikiInstance = {
+  importDump: jest.fn().mockResolvedValue(undefined),
+  getEntitySummary: jest.fn().mockResolvedValue(null),
+}
 const mockCharacterWikiSync = jest.fn(async (...args: unknown[]) => {
   try {
     await mockWikiSync(...args)
@@ -261,6 +264,7 @@ beforeEach(() => {
   mockWikiSync.mockResolvedValue({ data: { remoteDump: { generatedAt: Date.now(), entities: { 'cloud-id-1': { facts: [], tasks: [], events: [] } } } } })
   mockUseWiki.mockReturnValue(mockWikiInstance)
   mockWikiInstance.importDump.mockResolvedValue(undefined)
+  mockWikiInstance.getEntitySummary.mockResolvedValue(null)
   mockUseSelector.mockReset()
   mockUseUpdateCharacter.mockReturnValue({ update: mockUpdate, isPending: false, error: null } as any)
   setupSelectors()
