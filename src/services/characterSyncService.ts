@@ -11,6 +11,7 @@
  */
 
 import { Storage } from '~/utilities/kvStorage'
+import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 import { normalizeVoice } from '~/constants/voiceDefaults'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
@@ -54,24 +55,8 @@ function reportWikiOpForCharacter(err: unknown, context: string, characterId: st
     reportError(new Error(`${detail}: ${String(err)}`), context)
 }
 
-function generateUuid(): string {
-    const uuid = globalThis.crypto?.randomUUID?.()
-    if (uuid) return uuid
-
-    if (globalThis.crypto?.getRandomValues) {
-        const bytes = new Uint8Array(16)
-        globalThis.crypto.getRandomValues(bytes)
-        bytes[6] = (bytes[6] & 0x0f) | 0x40
-        bytes[8] = (bytes[8] & 0x3f) | 0x80
-        const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
-        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-    }
-
-    throw new Error('Secure random generator unavailable for UUID generation.')
-}
-
 function generateLocalCharacterId() {
-    return `char_${generateUuid()}`
+    return `char_${generateSecureUuid()}`
 }
 
 export async function getLastSyncTime(): Promise<string | null> {
@@ -320,7 +305,7 @@ async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
             ? char.pending_cloud_id
             : null
         if (!confirmedCloudId && !pendingCloudId) {
-            pendingCloudId = generateUuid()
+            pendingCloudId = generateSecureUuid()
             await setPendingCloudIdIfMissing(char.id, pendingCloudId)
         }
         const cloudId = confirmedCloudId ?? pendingCloudId

@@ -6,6 +6,7 @@
 import { getDatabase } from './index'
 import { normalizeVoice } from '~/constants/voiceDefaults'
 import { sanitizeImageMimeType } from '~/utilities/imageMimeType'
+import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 
 export interface LocalCharacter {
     id: string
@@ -124,26 +125,6 @@ export async function getCharacter(characterId: string, userId: string) {
 }
 
 /**
- * Generate a plain (unprefixed) UUID v4, for values that must pass the
- * backend's UUID_REGEX (e.g. pending_cloud_id, cloud character ids).
- */
-function generateUuid(): string {
-    const uuid = globalThis.crypto?.randomUUID?.()
-    if (uuid) return uuid
-
-    if (globalThis.crypto?.getRandomValues) {
-        const bytes = new Uint8Array(16)
-        globalThis.crypto.getRandomValues(bytes)
-        bytes[6] = (bytes[6] & 0x0f) | 0x40
-        bytes[8] = (bytes[8] & 0x3f) | 0x80
-        const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
-        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-    }
-
-    throw new Error('Secure random generator unavailable for UUID generation.')
-}
-
-/**
  * Create a new character
  */
 export async function createCharacter(userId: string, data: CharacterInsert) {
@@ -154,7 +135,7 @@ export async function createCharacter(userId: string, data: CharacterInsert) {
     // Assigned upfront (regardless of save_to_cloud) so that if cloud sync is ever
     // enabled, every upload attempt — including retries after a dropped response —
     // sends the same id and the backend upserts in place instead of inserting a duplicate.
-    const pendingCloudId = generateUuid()
+    const pendingCloudId = generateSecureUuid()
 
     await db.runAsync(
         `INSERT INTO characters
