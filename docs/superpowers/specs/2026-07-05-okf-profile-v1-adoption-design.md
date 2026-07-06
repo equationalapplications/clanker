@@ -1,7 +1,7 @@
 # Spec: OKF Profile v1 Adoption — First-Class OKF Support
 
 **Date:** 2026-07-05
-**Status:** Approved
+**Status:** Implemented
 **Related:** `expo-llm-wiki/docs/okf-profile.md` (normative profile v1), `expo-llm-wiki/docs/superpowers/specs/2026-07-05-okf-profile-design.md` (design record), `expo-llm-wiki/docs/superpowers/specs/2026-07-05-okf-summary-persistence-design.md` (upstream prerequisite), `2026-07-03-okf-export-design.md`, `2026-07-04-okf-import-support-design.md` (both Implemented — this spec supersedes parts of each, called out inline)
 
 ## Problem
