@@ -1,3 +1,26 @@
+# [30.21.0](https://github.com/equationalapplications/clanker/compare/v30.20.0...v30.21.0) (2026-07-06)
+
+
+### Bug Fixes
+
+* add expo-notifications plugin for native push builds ([24d2648](https://github.com/equationalapplications/clanker/commit/24d26489d77bd30c5e781ee957abc07e8cdb5585))
+* address PR [#536](https://github.com/equationalapplications/clanker/issues/536) review feedback on docs and fixtures ([57cee8f](https://github.com/equationalapplications/clanker/commit/57cee8f501c22c07a727a33862630dd48a787b2c))
+* exclude vendored OKF fixtures from Prettier in CI ([902af03](https://github.com/equationalapplications/clanker/commit/902af036c1ea7dbfaf1d10400927a22014934f78))
+* harden web push installation id and jest Platform.OS overrides ([d2c4de9](https://github.com/equationalapplications/clanker/commit/d2c4de9cd2b3de1f27a69a43372501f1a89c5297))
+* regenerate event ids on clone remap — profile v1 preserves them ([df4453e](https://github.com/equationalapplications/clanker/commit/df4453e1f9f05f0907867b61ea49de9048c89ed1))
+* remove invalid RNFB analytics Expo config plugin ([09630b9](https://github.com/equationalapplications/clanker/commit/09630b9389ef50766b4a0e41b0b7c1224702fb56))
+* unify push token registration via Firebase callable ([35aa248](https://github.com/equationalapplications/clanker/commit/35aa2487ba9f0853bcf21c2eddcd74ecdc9a4e0b))
+
+
+### Features
+
+* add event-id scan and profile/summary preview utils ([558a694](https://github.com/equationalapplications/clanker/commit/558a694f476b703a3d57b84683db605df55fc5e6))
+* drop call-site edge augmentation — package emits ## Related natively ([9dc18ac](https://github.com/equationalapplications/clanker/commit/9dc18acc18c42bf2c715156fd0f0eb2363a1f971))
+* id-aware dedup wiring and profile/summary preview stats in import hook ([bb74942](https://github.com/equationalapplications/clanker/commit/bb74942ae17d55c4e393a6042871e1819ce64d95))
+* id-first event dedup with per-event tuple fallback ([e09020c](https://github.com/equationalapplications/clanker/commit/e09020c34002c23a02433f875e1e7d6a064b2167))
+* read-only memory summary section on character edit screen ([105bb94](https://github.com/equationalapplications/clanker/commit/105bb94bb75efbc05979b3165ad0b9d3a87ccea1))
+* show OKF profile badge and summary snippet in import previews ([cfd3fec](https://github.com/equationalapplications/clanker/commit/cfd3fec73125845e80ebc528e4f7e2d3b750a910))
+
 # [30.20.0](https://github.com/equationalapplications/clanker/compare/v30.19.2...v30.20.0) (2026-07-05)
 
 
