@@ -1523,7 +1523,7 @@ git commit -m "feat(cloud-agent): wire vault tools into text/voice agents and /a
 
 Inside `match /databases/{database}/documents`, after the devices block:
 
-```
+```text
     // Desktop vault bridge (docs/desktop-vault-bridge.md).
     // desktopTasks: Admin SDK only — tool calls write, socket-owning instance reads.
     match /users/{uid}/desktopTasks/{taskId} {

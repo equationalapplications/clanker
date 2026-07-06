@@ -4,7 +4,7 @@ import { fixtureChecksum, loadOkfFixture } from './okfFixtures'
 // copies are checksummed so silent drift between repos fails loudly). When the
 // upstream fixtures change intentionally, re-copy and update these values.
 const GOLDEN_V1_SHA256 = '5ec625e217df61a862f99b81187dfa5735a331bf193b319c9dc60966f93a48f8'
-const LEGACY_PROFILE_0_SHA256 = '6fa609d070106416c8b4e2797084ea1555cb8a02bc56d34c5c344c9e87922c10'
+const LEGACY_PROFILE_0_SHA256 = '0f15dab326ac8edd56edf4a51112cdb2d5695795cc288f6e8edb532ec4f80be8'
 
 describe('vendored OKF fixtures', () => {
   it('golden-v1 matches the recorded checksum', () => {

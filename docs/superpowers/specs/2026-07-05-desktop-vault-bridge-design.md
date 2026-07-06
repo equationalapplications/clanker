@@ -24,7 +24,7 @@ Tool-calling instance                     Socket-owning instance
   query_local_vault                          (holds CT WebSocket)
     │ 1. check device doc (online?)             │
     │ 2. write desktopTasks/{taskId} pending    │
-    │ 3. watchTask(taskId), 10s timeout         │ 4. snapshot listener fires
+    │ 3. watchTask(taskId), 12s timeout         │ 4. snapshot listener fires
     │                                           │ 5. send {taskId, tool, params} over WS
     │                                           │ 6. CT replies {taskId, result|error}
     │ 8. watchTask resolves ◄───────────────────│ 7. write result to task doc
@@ -43,7 +43,7 @@ Tool-calling instance                     Socket-owning instance
 1. Mobile/web Settings → Devices → **"Pair home computer"** → `POST /agent/desktop/pair` (`requireAuth`, `authRouteLimiter`) with `{ deviceName }`.
 2. Server generates `deviceId` (UUID) and a pairing token: 32 bytes CSPRNG, base64url (~43 chars). Returns `{ pairingToken, deviceId }` — **raw token appears exactly once in this response** and is never persisted raw or logged.
 3. Server writes:
-   - `users/{uid}/devices/{deviceId}`: `{ type: 'desktop', deviceName, isPaused: false, online: false, lastSeenAt: null, createdAt }` — **no token material here**; device docs may be client-readable under existing rules.
+   - `users/{uid}/devices/{deviceId}`: `{ type: 'desktop', deviceName, active: true, isPaused: false, online: false, lastSeenAt: null, createdAt }` — **no token material here**; device docs may be client-readable under existing rules.
    - `desktopPairings/{tokenHash}`: `{ uid, deviceId, createdAt }` where `tokenHash = sha256(pairingToken)` hex. Top-level collection, Admin SDK only, denied to all clients in `firestore.rules`.
 4. User pastes token into Curated Thoughts Settings (stored in OS keychain, per CT spec §6).
 5. Revocation: Settings → Devices → remove → `POST /agent/desktop/revoke` `{ deviceId }` deletes the device doc and its `desktopPairings` mapping (lookup by `deviceId` field query), and the socket-owning instance closes any live socket for that device (it observes the device-doc delete via its listener). Pause semantics reuse `isPaused` exactly like browser devices.

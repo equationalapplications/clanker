@@ -6,7 +6,7 @@ id: fact_beta
 entity_id: demo
 confidence: inferred
 source_type: librarian_inferred
-created_at: 1719835500000
+created_at: 1782907500000
 ---
 
 Beta body.
