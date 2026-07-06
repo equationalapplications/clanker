@@ -32,16 +32,23 @@ function getWebPushApplicationId(): string | undefined {
   )
 }
 
+function createInstallationId(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `install_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+  )
+}
+
 function getWebPushInstallationId(): string {
   try {
     let installationId = localStorage.getItem(WEB_INSTALLATION_ID_KEY)
     if (!installationId) {
-      installationId = crypto.randomUUID()
+      installationId = createInstallationId()
       localStorage.setItem(WEB_INSTALLATION_ID_KEY, installationId)
     }
     return installationId
   } catch {
-    return crypto.randomUUID()
+    return createInstallationId()
   }
 }
 

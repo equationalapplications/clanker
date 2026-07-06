@@ -1,5 +1,4 @@
 import { renderHook, waitFor } from '@testing-library/react-native'
-import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 import { useRegisterExpoPushToken } from '~/hooks/useRegisterExpoPushToken'
 
@@ -39,11 +38,15 @@ jest.mock('~/config/firebaseConfig', () => ({
 
 describe('useRegisterExpoPushToken', () => {
   beforeEach(() => {
-    Platform.OS = 'ios'
+    __setJestPlatformOS('ios')
     jest.mocked(Constants).expoConfig = { ...defaultExpoConfig } as unknown as typeof Constants.expoConfig
     window.localStorage.clear()
     mockRegisterExpoPushTokenFn.mockClear()
     jest.clearAllMocks()
+  })
+
+  afterEach(() => {
+    __resetJestPlatformOS()
   })
 
   it('registers native token via Firebase callable', async () => {
@@ -57,7 +60,7 @@ describe('useRegisterExpoPushToken', () => {
   })
 
   it('skips web registration when vapidPublicKey is not configured', async () => {
-    Platform.OS = 'web'
+    __setJestPlatformOS('web')
     jest.mocked(Constants).expoConfig = {
       notification: {},
       scheme: 'com.equationalapplications.clanker',
@@ -73,7 +76,7 @@ describe('useRegisterExpoPushToken', () => {
   })
 
   it('registers web push via Firebase callable', async () => {
-    Platform.OS = 'web'
+    __setJestPlatformOS('web')
     const Notifications = require('expo-notifications')
     window.localStorage.setItem('EXPO_NOTIFICATIONS_INSTALLATION_ID', 'install-1')
 
