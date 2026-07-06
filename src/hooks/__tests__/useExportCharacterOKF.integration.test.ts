@@ -1,4 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native'
+import { formatOkfBundle } from '@equationalapplications/expo-llm-wiki'
 import { useExportCharacterOKF } from '../useExportCharacterOKF'
 import * as okfSave from '~/utilities/okfSave'
 
@@ -14,16 +15,6 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => {
           ],
           tasks: [],
           events: [],
-          edges: [
-            {
-              id: 'edge_1',
-              entity_id: 'char_123',
-              source_id: 'fact_abc',
-              target_id: 'fact_xyz',
-              edge_type: 'related_to',
-              created_at: 1234567890,
-            },
-          ],
         },
       },
     }),
@@ -103,7 +94,7 @@ describe('useExportCharacterOKF', () => {
     expect(result.current.lastResult).toEqual({ isEmpty: false, saveLocation: 'share' })
   })
 
-  it('augments files with edge links before zipping', async () => {
+  it('passes formatOkfBundle files through unmodified, plus the README', async () => {
     const { result } = renderHook(() =>
       useExportCharacterOKF('char_123', 'TestChar'),
     )
@@ -113,12 +104,12 @@ describe('useExportCharacterOKF', () => {
     })
 
     const callArgs = (okfSave.zipAndSaveOKF as jest.Mock).mock.calls[0][0]
-    const factFile = callArgs.files.find((file: { path: string }) =>
-      file.path.includes('fact_abc.md'),
-    )
+    const { files: bundleFiles } = (formatOkfBundle as jest.Mock)()
 
-    expect(factFile.content).toContain('## Related')
-    expect(factFile.content).toContain('[related_to](./fact_xyz.md)')
+    expect(callArgs.files).toEqual([
+      ...bundleFiles,
+      { path: 'README.md', content: expect.any(String) },
+    ])
   })
 
   it('keeps export callback stable while using the latest character name', async () => {

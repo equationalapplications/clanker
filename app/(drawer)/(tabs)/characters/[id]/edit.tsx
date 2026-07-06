@@ -31,6 +31,7 @@ import { DEFAULT_VOICE, GEMINI_LIVE_VOICES, resolveLiveVoice } from '~/constants
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { useExportCharacterOKF } from '~/hooks/useExportCharacterOKF'
 import { useImportCharacterOKF } from '~/hooks/useImportCharacterOKF'
+import { useWiki } from '@equationalapplications/expo-llm-wiki'
 
 export default function EditCharacterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -88,8 +89,25 @@ export default function EditCharacterScreen() {
     handleCommitImport,
     handleCancel: handleImportCancel,
   } = useImportCharacterOKF()
+  const wiki = useWiki()
+  const [memorySummary, setMemorySummary] = useState<string | null>(null)
   const prevDidImportRef = useRef(false)
   const importErrorShownRef = useRef<Error | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    wiki
+      .getEntitySummary(characterId)
+      .then((summary) => {
+        if (!cancelled) setMemorySummary(summary)
+      })
+      .catch(() => {
+        /* display-only — a read failure just hides the section */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [wiki, characterId, didImport])
 
   // Track loaded values for dirty-state comparison
   const loadedValues = useMemo(() => {
@@ -639,6 +657,13 @@ export default function EditCharacterScreen() {
             Import OKF Backup
           </Button>
 
+          {memorySummary ? (
+            <View style={styles.memorySummarySection}>
+              <Text variant="titleSmall">Memory summary</Text>
+              <Text variant="bodyMedium">{memorySummary}</Text>
+            </View>
+          ) : null}
+
           <Button
             mode="outlined"
             icon="database-eye-outline"
@@ -718,6 +743,19 @@ export default function EditCharacterScreen() {
             </Text>
             {importPreview ? (
               <>
+                <Text variant="labelMedium" style={styles.previewProfile}>
+                  {importPreview.profile === 'llm-wiki/1'
+                    ? 'OKF profile: llm-wiki/1'
+                    : 'Legacy bundle (pre-profile)'}
+                </Text>
+                {importPreview.summarySnippet ? (
+                  <View style={styles.previewSummary}>
+                    <Text variant="labelMedium">Memory summary included</Text>
+                    <Text variant="bodySmall" numberOfLines={3}>
+                      {importPreview.summarySnippet}
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={styles.previewCountsContainer}>
                   <Text variant="bodyMedium">Facts: {importPreview.facts}</Text>
                   <Text variant="bodyMedium">Tasks: {importPreview.tasks}</Text>
@@ -864,6 +902,18 @@ const styles = StyleSheet.create({
   ownershipText: {
     opacity: 0.7,
     marginBottom: 8,
+  },
+  memorySummarySection: {
+    marginTop: 16,
+    gap: 4,
+  },
+  previewProfile: {
+    opacity: 0.7,
+    marginBottom: 8,
+  },
+  previewSummary: {
+    marginBottom: 12,
+    gap: 2,
   },
   previewCountsContainer: {
     gap: 8,

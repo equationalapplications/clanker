@@ -258,11 +258,26 @@ export default function CharactersListScreen() {
           <Text variant="headlineSmall" style={styles.cloneModalTitle}>
             Create Character from Bundle
           </Text>
-          <Text variant="bodyMedium">
-            {importPreview
-              ? `Ready to import ${importPreview.facts} facts, ${importPreview.tasks} tasks, ${importPreview.events} timeline events, ${importPreview.edges} relationships into a new character.`
-              : ''}
-          </Text>
+          {importPreview ? (
+            <>
+              <Text variant="labelMedium" style={styles.previewProfile}>
+                {importPreview.profile === 'llm-wiki/1'
+                  ? 'OKF profile: llm-wiki/1'
+                  : 'Legacy bundle (pre-profile)'}
+              </Text>
+              {importPreview.summarySnippet ? (
+                <View style={styles.previewSummary}>
+                  <Text variant="labelMedium">Memory summary included</Text>
+                  <Text variant="bodySmall" numberOfLines={3}>
+                    {importPreview.summarySnippet}
+                  </Text>
+                </View>
+              ) : null}
+              <Text variant="bodyMedium">
+                {`Ready to import ${importPreview.facts} facts, ${importPreview.tasks} tasks, ${importPreview.events} timeline events, ${importPreview.edges} relationships into a new character.`}
+              </Text>
+            </>
+          ) : null}
           <Button
             mode="contained"
             onPress={() => {
@@ -330,6 +345,14 @@ const styles = StyleSheet.create({
   },
   cloneModalTitle: {
     fontWeight: 'bold',
+  },
+  previewProfile: {
+    opacity: 0.7,
+    marginBottom: 8,
+  },
+  previewSummary: {
+    marginBottom: 12,
+    gap: 2,
   },
   cloneModalButton: {
     marginTop: 8,

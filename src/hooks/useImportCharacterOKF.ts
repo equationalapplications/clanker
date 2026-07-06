@@ -3,13 +3,16 @@ import { useWiki, parseOkfBundle, WikiBusyError } from '@equationalapplications/
 import { reportError } from '~/utilities/reportError'
 import { pickAndReadOkfBundle, OkfPickCancelledError, type OkfFile } from '~/utilities/okfImport'
 import { remapOkfDumpIds } from '~/utilities/okfImportRemap'
-import { dedupeEventsAgainstExisting } from '~/utilities/okfImportDedupe'
+import { dedupeEventsAgainstExisting, scanExplicitEventIds } from '~/utilities/okfImportDedupe'
+import { detectOkfProfile, markdownToPlainSnippet, type OkfProfile } from '~/utilities/okfPreview'
 
 export interface OkfPreviewStats {
   facts: number
   tasks: number
   events: number
   edges: number
+  profile: OkfProfile
+  summarySnippet: string | null
 }
 
 export type ImportMode = 'merge' | 'replace' | 'clone'
@@ -45,6 +48,8 @@ export function useImportCharacterOKF() {
         tasks: entity?.tasks.length ?? 0,
         events: entity?.events.length ?? 0,
         edges: entity?.edges?.length ?? 0,
+        profile: detectOkfProfile(files),
+        summarySnippet: entity?.summary ? markdownToPlainSnippet(entity.summary) : null,
       })
     } catch (err) {
       if (err instanceof OkfPickCancelledError) return
@@ -68,7 +73,8 @@ export function useImportCharacterOKF() {
         if (mode === 'clone') {
           dump = remapOkfDumpIds(dump, targetEntityId)
         } else {
-          dump = await dedupeEventsAgainstExisting(wiki, targetEntityId, dump)
+          const explicitEventIds = scanExplicitEventIds(filesRef.current)
+          dump = await dedupeEventsAgainstExisting(wiki, targetEntityId, dump, explicitEventIds)
         }
         await wiki.importDump(dump, mode === 'replace' ? { merge: false } : { merge: true })
         filesRef.current = null

@@ -3,15 +3,6 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { users } from '../db/schema.js'
 import type * as schema from '../db/schema.js'
 
-export async function upsertExpoPushToken(
-  db: NodePgDatabase<typeof schema>,
-  firebaseUid: string,
-  expoPushToken: string,
-): Promise<void> {
-  const rows = await db.update(users).set({ expoPushToken }).where(eq(users.firebaseUid, firebaseUid)).returning({ id: users.id })
-  if (rows.length === 0) throw new Error('USER_NOT_FOUND')
-}
-
 export async function getExpoPushToken(
   db: NodePgDatabase<typeof schema>,
   firebaseUid: string,

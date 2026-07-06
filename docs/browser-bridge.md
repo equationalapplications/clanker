@@ -102,7 +102,6 @@ Canonical types: `shared/dsl-types.ts` (mirrored in `extension/src/shared/dsl-ty
 |-------|---------|
 | `POST /agent/browser/register-device` | Upsert device doc (fcmToken, deviceId, deviceName, isPaused) |
 | `POST /agent/browser/approve-action` | Mobile approval/denial for destructive actions |
-| `POST /agent/user/expo-push-token` | Register Expo push token for approval cards |
 | `POST /agent/browser/scheduler-trigger` | Cloud Scheduler proactive tasks (Phase 2+) |
 | WebSocket `/agent/browser` | Extension auth frame, task dispatch, results |
 
