@@ -34,8 +34,8 @@ describe('database schema migration guards', () => {
     )
   })
 
-  it('bumps schema to v19 for tasks table migration', () => {
-    expect(SCHEMA_VERSION).toBe(19)
+  it('bumps schema to v20 for pending_cloud_id migration', () => {
+    expect(SCHEMA_VERSION).toBe(20)
     // Migration 13: adds source_hash — skipped if column exists OR wiki_entries table is missing
     expect(MIGRATION_SKIP_GUARDS[13]).toEqual([
       { table: 'wiki_entries', column: 'source_hash' },
@@ -75,6 +75,9 @@ describe('database schema migration guards', () => {
     expect(MIGRATION_SKIP_GUARDS[19]).toEqual([{ table: 'tasks', column: 'id' }])
     expect(MIGRATIONS[19]).toContain('CREATE TABLE IF NOT EXISTS tasks')
     expect(MIGRATIONS[19]).toContain('idx_tasks_character')
+    // Migration 20: adds pending_cloud_id column — skipped if column already exists
+    expect(MIGRATION_SKIP_GUARDS[20]).toEqual([{ table: 'characters', column: 'pending_cloud_id' }])
+    expect(MIGRATIONS[20]).toContain('ALTER TABLE characters ADD COLUMN pending_cloud_id TEXT')
   })
 
   it('does not include old wiki memory tables in base schema', () => {

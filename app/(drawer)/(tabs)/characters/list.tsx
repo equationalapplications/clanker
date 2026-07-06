@@ -17,7 +17,10 @@ export default function CharactersListScreen() {
   const { characters, isLoading } = useCharacters()
   const { create, isPending, pendingCharacterId } = useCreateCharacter()
   const characterService = useCharacterMachine()
-  const isCreatingDefault = useSelector(characterService, (s) => s.matches('creatingDefault'))
+  const isCreatingDefault = useSelector(
+    characterService,
+    (s) => s.matches('creatingDefault') || s.matches('restoringDefault'),
+  )
   const { sync, isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
   const [cloudSyncRequested, setCloudSyncRequested] = useState(false)
   const cloudSyncErrorAtRequestRef = useRef<unknown>(null)

@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 19
+export const SCHEMA_VERSION = 20
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -58,6 +58,7 @@ export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   16: [{ table: 'wiki_entries', skipIfTableMissing: true }],
   18: [{ table: 'messages', column: 'synced_at' }],
   19: [{ table: 'tasks', column: 'id' }],
+  20: [{ table: 'characters', column: 'pending_cloud_id' }],
 }
 
 /**
@@ -82,6 +83,7 @@ export const CREATE_TABLES = `
     synced_to_cloud INTEGER DEFAULT 0,
     save_to_cloud INTEGER DEFAULT 0,
     cloud_id TEXT,
+    pending_cloud_id TEXT,
     deleted_at INTEGER,
     summary_checkpoint INTEGER DEFAULT 0,
     owner_user_id TEXT NOT NULL DEFAULT '',
@@ -174,4 +176,8 @@ DROP TABLE IF EXISTS derived_synonyms`.trim(),
   FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_character ON tasks(character_id)`,
+  // Stable client-generated id sent on every cloud upload attempt (even before the
+  // first one succeeds), so retries upsert the same remote row instead of creating
+  // a new one each time. Distinct from cloud_id, which is only set once a sync is confirmed.
+  20: `ALTER TABLE characters ADD COLUMN pending_cloud_id TEXT;`,
 }

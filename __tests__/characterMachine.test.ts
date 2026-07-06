@@ -52,6 +52,7 @@ function makeCharacter(overrides: Partial<DbCharacter> = {}): DbCharacter {
     synced_to_cloud: false,
     save_to_cloud: false,
     cloud_id: null,
+    pending_cloud_id: null,
     summary_checkpoint: 0,
     heal_checkpoint: 0,
     memory_checkpoint: 0,
@@ -482,6 +483,37 @@ describe('default character creation', () => {
     actor.stop()
   })
 
+  it('auto-syncs a newly created default character that is cloud-enabled but not yet synced', async () => {
+    const defaultChar = makeCharacter({
+      id: 'default-1',
+      name: 'Clanker',
+      save_to_cloud: true,
+      synced_to_cloud: false,
+    })
+    mockDb.createCharacter.mockClear()
+    mockDb.createCharacter.mockResolvedValue(defaultChar)
+    // Reflects real DB state: empty until createCharacter has actually run, matching
+    // what loadCharactersActor would see on each reload (initial load, post-restore
+    // reload, and post-cloud-sync reload all re-query the same underlying store).
+    mockDb.getUserCharacters.mockImplementation(async () =>
+      mockDb.createCharacter.mock.calls.length > 0 ? [defaultChar] : [],
+    )
+    mockSyncService.syncAllToCloud.mockClear()
+
+    const actor = createActor(characterMachine)
+    actor.start()
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+
+    actor.send({ type: 'USER_CHANGED', userId: USER_ID })
+    // loading → checkingDefault → (restoringDefault) → creatingDefault → cloudSyncing → idle
+    // Mocks resolve instantly, so cloudSyncing may pass before waitFor observes it.
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+
+    expect(mockSyncService.syncAllToCloud).toHaveBeenCalledWith(USER_ID)
+    expect(mockDb.createCharacter).toHaveBeenCalledTimes(1)
+    actor.stop()
+  })
+
   it('lands in idle with error when default character creation fails', async () => {
     mockDb.getUserCharacters.mockResolvedValue([])
     mockDb.createCharacter.mockRejectedValue(new Error('create failed'))
@@ -496,6 +528,27 @@ describe('default character creation', () => {
     const snap = actor.getSnapshot()
     expect(snap.context.characters).toEqual([])
     expect(snap.context.error).toBeInstanceOf(Error)
+    actor.stop()
+  })
+
+  it('restores from cloud before minting a new default on a reinstall/empty local DB', async () => {
+    // Simulate a reinstall: local DB is empty, but the user has an existing
+    // cloud-linked character. restoreFromCloud should run first and repopulate it,
+    // so createCharacter (which would mint a duplicate "Clanker") is never called.
+    mockDb.getUserCharacters.mockResolvedValueOnce([]).mockResolvedValue([makeCharacter()])
+    mockSyncService.restoreFromCloud.mockResolvedValue(undefined)
+    mockDb.createCharacter.mockClear()
+
+    const actor = createActor(characterMachine)
+    actor.start()
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+
+    actor.send({ type: 'USER_CHANGED', userId: USER_ID })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+
+    expect(mockSyncService.restoreFromCloud).toHaveBeenCalledWith(USER_ID)
+    expect(mockDb.createCharacter).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.characters).toHaveLength(1)
     actor.stop()
   })
 })
@@ -541,8 +594,12 @@ describe('CLOUD_SYNC', () => {
     actor.stop()
   })
 
-  it('does not auto-sync after update when save_to_cloud already true', async () => {
-    const char = makeCharacter({ save_to_cloud: true, cloud_id: '00000000-0000-4000-8000-000000000001' })
+  it('does not auto-sync after update when character is already confirmed-synced', async () => {
+    const char = makeCharacter({
+      save_to_cloud: true,
+      synced_to_cloud: true,
+      cloud_id: '00000000-0000-4000-8000-000000000001',
+    })
     const actor = await bootWithUser([char])
 
     mockDb.getUserCharacters.mockResolvedValue([char])
@@ -550,6 +607,7 @@ describe('CLOUD_SYNC', () => {
 
     const updatedChar = makeCharacter({
       save_to_cloud: true,
+      synced_to_cloud: true,
       cloud_id: '00000000-0000-4000-8000-000000000001',
       name: 'Renamed',
     })

@@ -35,6 +35,7 @@ describe('batchInsertCharacters', () => {
       synced_to_cloud: 1,
       save_to_cloud: 1,
       cloud_id: 'cloud-1',
+      pending_cloud_id: 'cloud-1',
       deleted_at: null,
       summary_checkpoint: 0,
       owner_user_id: 'user-1',
