@@ -168,7 +168,7 @@ export function handleDesktopWsUpgrade(
     }
 
     if (pingSchema.safeParse(parsed).success) {
-      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pong' }))
+      if (socketOpen()) ws.send(JSON.stringify({ type: 'pong' }))
       if (authed && uid && deviceId && Date.now() - lastTouch >= lastSeenRefreshMs) {
         lastTouch = Date.now()
         void fs.touchDesktopDeviceLastSeen(uid, deviceId).catch((err: unknown) => {
