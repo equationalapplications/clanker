@@ -18,7 +18,7 @@ jest.mock('~/database/messageDatabase', () => {
 jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(),
 }))
-jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+jest.mock('~/auth/devSandboxFlag', () => ({
   isDevSandboxEnabled: jest.fn(() => false),
 }))
 jest.mock('~/services/characterWikiQueue', () => ({
@@ -62,7 +62,7 @@ import { getCharacter } from '~/database/characterDatabase'
 import { getWiki } from '~/services/wikiService'
 import { wikiSync } from '~/services/apiClient'
 import { getCurrentUser } from '~/config/firebaseConfig'
-import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { awaitPendingWikiWrites } from '~/services/characterWikiQueue'
 import { buildLiveChatHandoff } from '~/services/liveMemoryQuery'
 

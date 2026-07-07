@@ -21,7 +21,7 @@ import { toSyncMessage } from '~/services/syncMessage'
 import { callCloudAgent } from '~/services/cloudAgentService'
 import { listTasks } from '~/database/taskDatabase'
 import { buildContentHistory } from '~/services/CharacterPromptBuilder'
-import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { DEV_CLOUD_CHARACTER_ID } from '../../shared/dev-sandbox'
 
 interface UseAIChatProps {

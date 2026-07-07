@@ -14,7 +14,7 @@ import { onlineManager } from '@tanstack/react-query'
 import { IMessage } from 'react-native-gifted-chat'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { reportError } from '~/utilities/reportError'
-import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import type { SyncMessage } from '~/services/syncMessage'
 import type { GroundingMetadata } from '@google/genai'
 

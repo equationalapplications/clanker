@@ -7,12 +7,7 @@ import {
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 import { getDatabase } from '~/database/index'
 import { getCharacter, type LocalCharacter } from '~/database/characterDatabase'
-
-export function isDevSandboxEnabled(): boolean {
-  const isDevBuild =
-    typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production'
-  return isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true'
-}
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 
 /**
  * Ensures the local SQLite character is linked to the Docker Postgres seed character
