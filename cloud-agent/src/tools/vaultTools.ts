@@ -74,7 +74,7 @@ async function dispatchLocalIfConnected(
 ): Promise<void> {
   const conn = deps.desktopBridge?.get(deps.firebaseUid, deviceId)
   const ws = conn?.ws
-  if (!ws || ws.readyState !== (ws as WebSocket).OPEN) return
+if (!ws || ws.readyState !== 1) return
   await deps.firestoreSession.markDesktopTaskExecuting(deps.firebaseUid, taskId)
   ws.send(JSON.stringify({ type: 'task', taskId, tool: wireTool, params }))
 }
