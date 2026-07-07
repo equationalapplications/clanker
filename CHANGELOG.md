@@ -1,3 +1,16 @@
+# [30.22.0](https://github.com/equationalapplications/clanker/compare/v30.21.1...v30.22.0) (2026-07-07)
+
+
+### Bug Fixes
+
+* **desktop-vault-bridge:** complete review fixes ([2176336](https://github.com/equationalapplications/clanker/commit/2176336929de550a31e8adc229a66ee99ff16995))
+* **metro:** stop bundling .cjs modules as assets ([7438cba](https://github.com/equationalapplications/clanker/commit/7438cbaa87fda701ceb75ba0ada479f886fe2a04))
+
+
+### Features
+
+* **cloud-agent:** add desktop vault bridge for Curated Thoughts ([77808d1](https://github.com/equationalapplications/clanker/commit/77808d15afac64a99550ff37d9153c2e780be2ad))
+
 ## [30.21.1](https://github.com/equationalapplications/clanker/compare/v30.21.0...v30.21.1) (2026-07-06)
 
 
