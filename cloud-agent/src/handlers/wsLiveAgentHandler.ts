@@ -10,6 +10,8 @@ import { users, characters } from '../db/schema.js'
 import { embedText } from '../db/embeddings.js'
 import { assembleSystemInstruction, queryWikiContext } from '../services/agentCore.js'
 import { buildLiveTools, resolveVoice } from '../services/liveToolAdapter.js'
+import { createVaultToolDeps } from '../tools/vaultTools.js'
+import { desktopBridge } from '../services/desktopBridge.js'
 import { createCreditService } from '../services/creditService.js'
 import type { CreditService } from '../services/creditService.js'
 import { hasGroundingData } from '../groundingMetadata.js'
@@ -381,6 +383,14 @@ export async function handleLiveWsUpgrade(
         instanceId: INSTANCE_ID,
       } : undefined)
 
+      const vaultDeps = bridgeBase ? createVaultToolDeps({
+        firebaseUid: uid,
+        firestoreSession: bridgeBase.firestoreSession,
+        desktopBridge,
+        pauseBilling: () => billingController?.pause(),
+        resumeBilling: () => billingController?.resume(),
+      }) : undefined
+
       const { declarations, executors } = bridgeBase
         ? buildLiveTools(db, userId, characterId, embedText, timezone, {
           ...bridgeBase,
@@ -419,7 +429,7 @@ export async function handleLiveWsUpgrade(
                 .catch((err) => console.error('[pushToLive Expo fallback]', err))
             }
           },
-        })
+        }, vaultDeps)
         : buildLiveTools(db, userId, characterId, embedText, timezone)
       toolExecutors = executors
 
