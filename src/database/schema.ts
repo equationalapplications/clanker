@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 20
+export const SCHEMA_VERSION = 21
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -181,4 +181,9 @@ CREATE INDEX IF NOT EXISTS idx_tasks_character ON tasks(character_id)`,
   // first one succeeds), so retries upsert the same remote row instead of creating
   // a new one each time. Distinct from cloud_id, which is only set once a sync is confirmed.
   20: `ALTER TABLE characters ADD COLUMN pending_cloud_id TEXT;`,
+  // Umbriel was not in the app/server voice allow-list at the time, causing
+  // the server to silently fall back to Aoede. Characters still on that stale
+  // default get migrated to the new default and re-marked unsynced so the
+  // corrected voice propagates to the cloud row.
+  21: `UPDATE characters SET voice = '${DEFAULT_VOICE}', synced_to_cloud = 0 WHERE voice = 'Umbriel';`,
 }

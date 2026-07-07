@@ -23,20 +23,43 @@ import { getExpoPushToken as dbGetExpoPushToken } from './expoPushToken.js'
 export interface BillingControllerOpts {
   spend: () => void
   intervalMs: number
+  /** Delay before the first spend; a call ended within this window is free. */
+  graceMs?: number
   setIntervalFn?: typeof setInterval
   clearIntervalFn?: typeof clearInterval
+  setTimeoutFn?: typeof setTimeout
+  clearTimeoutFn?: typeof clearTimeout
 }
+
+const DEFAULT_BILLING_GRACE_MS = 1_000
 
 export function makeBillingController(opts: BillingControllerOpts) {
   const setI = opts.setIntervalFn ?? setInterval
   const clearI = opts.clearIntervalFn ?? clearInterval
+  const setT = opts.setTimeoutFn ?? setTimeout
+  const clearT = opts.clearTimeoutFn ?? clearTimeout
+  const graceMs = opts.graceMs ?? DEFAULT_BILLING_GRACE_MS
+  let graceTimer: ReturnType<typeof setTimeout> | null = null
   let timer: ReturnType<typeof setInterval> | null = null
   let paused = false
   return {
-    start() { timer = setI(() => { if (!paused) opts.spend() }, opts.intervalMs) },
+    // First spend after a short grace delay (instant hang-ups are free), then
+    // once per interval so calls shorter than one interval are still billed.
+    // Note: pause/resume does not affect the grace window; the first spend
+    // is always charged after graceMs unless the call ends first.
+    start() {
+      graceTimer = setT(() => {
+        graceTimer = null
+        opts.spend()
+        timer = setI(() => { if (!paused) opts.spend() }, opts.intervalMs)
+      }, graceMs)
+    },
     pause() { paused = true },
     resume() { paused = false },
-    stop() { if (timer !== null) { clearI(timer); timer = null } },
+    stop() {
+      if (graceTimer !== null) { clearT(graceTimer); graceTimer = null }
+      if (timer !== null) { clearI(timer); timer = null }
+    },
   }
 }
 export type BillingController = ReturnType<typeof makeBillingController>
@@ -72,7 +95,9 @@ export interface WsLiveHandlerOptions {
   verifyToken?: (token: string) => Promise<{ uid: string }>
   liveConnect?: (cfg: LiveConnectCfg) => Promise<GeminiSession>
   billingIntervalMs?: number
+  billingGraceMs?: number
   _clearInterval?: (id: ReturnType<typeof setInterval> | undefined) => void
+  _clearTimeout?: (id: ReturnType<typeof setTimeout> | undefined) => void
   browserBridge?: Omit<import('../tools/browserAction.js').BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling' | 'registerLiveCall'>
   /** Injectable for testing; defaults to DB lookup. */
   getExpoPushToken?: (firebaseUid: string) => Promise<string | null>
@@ -108,7 +133,9 @@ export async function handleLiveWsUpgrade(
     ((token: string) => admin.auth().verifyIdToken(token).then((d) => ({ uid: d.uid })))
   const liveConnect = options.liveConnect ?? defaultLiveConnect
   const billingIntervalMs = options.billingIntervalMs ?? 60_000
+  const billingGraceMs = options.billingGraceMs
   const clearIntervalFn = options._clearInterval ?? clearInterval
+  const clearTimeoutFn = options._clearTimeout ?? clearTimeout
 
   const timezone = typeof req.headers['x-timezone'] === 'string'
     ? req.headers['x-timezone'].trim()
@@ -375,7 +402,9 @@ export async function handleLiveWsUpgrade(
       billingController = makeBillingController({
         spend: spendOnce,
         intervalMs: billingIntervalMs,
+        ...(billingGraceMs !== undefined ? { graceMs: billingGraceMs } : {}),
         clearIntervalFn: clearIntervalFn as never,
+        clearTimeoutFn: clearTimeoutFn as never,
       })
 
       liveSessionKey = `${userId}:${crypto.randomUUID()}`

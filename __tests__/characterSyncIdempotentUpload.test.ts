@@ -52,7 +52,7 @@ function makeUnsyncedChar(overrides: Record<string, unknown> = {}) {
     traits: null,
     emotions: null,
     context: null,
-    voice: 'Umbriel',
+    voice: 'Aoede',
     is_public: false,
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',

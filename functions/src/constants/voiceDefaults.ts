@@ -1,1 +1,1 @@
-export const DEFAULT_VOICE = 'Umbriel';
+export const DEFAULT_VOICE = 'Aoede';
