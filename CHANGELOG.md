@@ -1,3 +1,13 @@
+## [30.22.1](https://github.com/equationalapplications/clanker/compare/v30.22.0...v30.22.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* **cloud-agent:** clear dispatched taskId on dispatch write failure ([bfd0148](https://github.com/equationalapplications/clanker/commit/bfd01482b9e898980fbd66d4f4a4ca93e788bb05))
+* **cloud-agent:** repair corrupted wsDesktopAgentHandler.ts (syntax error) ([ccddf8a](https://github.com/equationalapplications/clanker/commit/ccddf8a1d693bf87c7939d77ccdc33c257fa9c97)), closes [#545](https://github.com/equationalapplications/clanker/issues/545)
+* **desktop-vault-bridge:** guard markDesktopTaskExecuting against terminal-state overwrite ([2b1d299](https://github.com/equationalapplications/clanker/commit/2b1d2996ce36e4fb0706d342be1a860aa83d2bb4)), closes [#545](https://github.com/equationalapplications/clanker/issues/545)
+* **desktop-vault-bridge:** per-turn vault cap in voice, unify local dispatch ([8da9f83](https://github.com/equationalapplications/clanker/commit/8da9f83587ff433d2d29ebb5ce0ceade19c865db))
+
 # [30.22.0](https://github.com/equationalapplications/clanker/compare/v30.21.1...v30.22.0) (2026-07-07)
 
 
