@@ -23,7 +23,7 @@ Handled provider-side: Stripe, Apple App Store, and Google Play manage refund me
 
 ### Credit Consumption
 
-Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-tool turn costs more); cloud-agent text turns charge **per internal tool-call loop iteration, capped at 5**. Live voice is billed separately on a 60-second timer. This difference is intentional.
+Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-tool turn costs more); cloud-agent text turns charge **per internal tool-call loop iteration, capped at 5**. Live voice is billed separately on a 1-second-grace + 60-second timer. This difference is intentional.
 
 | Action | Path | Cost | Refund on failure |
 |---|---|---|---|
@@ -35,11 +35,11 @@ Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-to
 | Embeddings | `generateEmbedding` | 1 / 50,000 characters (`Math.ceil`) | Yes |
 | Wiki LLM / sync, memory write/heal | `wikiLlm`, `wikiSync`, `memoryWrite`, `memoryHeal` | 1 each | Yes |
 | Agent turn (text) | cloud-agent `/agent/stream` (primary) and `POST /agent/run` (HTTP fallback) | 1 / internal tool-call loop iteration, max 5 | Yes (only credits actually spent this turn) |
-| Live voice | cloud-agent `/agent/live` | 5 / 60s timer | Partial minute not billed |
+| Live voice | cloud-agent `/agent/live` | 5 at connect (after 1s grace), then 5 / 60s | Hang-up within 1s of connect is free; partial minute after that is billed |
 | Scheduler trigger | cloud-agent scheduler-trigger | 1 (deduped) | Yes |
 | `browser_action` tool | contextual | Voice: 1; Text: pre-billed (skipped) | See Browser Action Billing |
 
-**Live voice connect gate:** a session requires a balance of **≥ 5** to start (enforced by both the client and the server). Billing runs on a 60-second timer, so a session shorter than the first tick is not billed.
+**Live voice connect gate:** a session requires a balance of **≥ 5** to start (enforced by both the client and the server). The first 5-credit spend fires ~1 second after connect (`makeBillingController`'s grace delay) — a call ended within that grace window is free; anything longer is billed 5 credits immediately, then 5 more every 60 seconds.
 
 ---
 

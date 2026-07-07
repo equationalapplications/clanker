@@ -46,7 +46,7 @@ function makeCharacter(overrides: Partial<DbCharacter> = {}): DbCharacter {
     traits: null,
     emotions: null,
     context: null,
-    voice: 'Umbriel',
+    voice: 'Aoede',
     created_at: NOW,
     updated_at: NOW,
     synced_to_cloud: false,
@@ -474,11 +474,11 @@ describe('default character creation', () => {
 
     expect(actor.getSnapshot().context.characters).toEqual([defaultChar])
 
-    // Verify DEFAULT_CHARACTER_INSERT passes voice: 'Umbriel'
+    // Verify DEFAULT_CHARACTER_INSERT passes voice: 'Aoede'
     const clankerCall = mockDb.createCharacter.mock.calls.find(
       ([_userId, data]) => data?.name === 'Clanker',
     )
-    expect(clankerCall?.[1]).toMatchObject({ voice: 'Umbriel', save_to_cloud: true })
+    expect(clankerCall?.[1]).toMatchObject({ voice: 'Aoede', save_to_cloud: true })
 
     actor.stop()
   })

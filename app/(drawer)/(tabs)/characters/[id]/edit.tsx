@@ -561,10 +561,7 @@ export default function EditCharacterScreen() {
                 disabled={!canEdit}
                 style={styles.voiceButton}
               >
-                {(() => {
-                  const resolved = resolveLiveVoice(voice)
-                  return resolved === voice ? voice : `${resolved} (was ${voice})`
-                })()}
+                {resolveLiveVoice(voice)}
               </Button>
             }
           >

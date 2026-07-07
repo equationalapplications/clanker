@@ -123,6 +123,44 @@ function listen(server: Server): Promise<number> {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+test('first spend fires after the grace delay so short calls are billed', () => {
+  let spends = 0
+  let graceFn: (() => void) | null = null
+  let graceDelay: number | null = null
+  const ctrl = makeBillingController({
+    spend: () => { spends++ },
+    setIntervalFn: (() => 1) as never,
+    clearIntervalFn: () => {},
+    setTimeoutFn: ((fn: () => void, ms: number) => { graceFn = fn; graceDelay = ms; return 2 }) as never,
+    clearTimeoutFn: () => {},
+    intervalMs: 1000,
+    graceMs: 1000,
+  })
+  ctrl.start()
+  assert.equal(spends, 0) // nothing billed at connect
+  assert.equal(graceDelay, 1000)
+  graceFn!() // grace elapses → first spend
+  assert.equal(spends, 1)
+})
+
+test('stop() before the grace delay cancels the first spend (0-second call is free)', () => {
+  let spends = 0
+  let graceCleared = false
+  const ctrl = makeBillingController({
+    spend: () => { spends++ },
+    setIntervalFn: (() => 1) as never,
+    clearIntervalFn: () => {},
+    setTimeoutFn: (() => 2) as never,
+    clearTimeoutFn: () => { graceCleared = true },
+    intervalMs: 1000,
+    graceMs: 1000,
+  })
+  ctrl.start()
+  ctrl.stop()
+  assert.equal(spends, 0)
+  assert.ok(graceCleared)
+})
+
 test('pauseBilling stops the interval from spending; resume restarts', () => {
   let spends = 0
   const fakeSetInterval = (fn: () => void) => { ;(fakeSetInterval as unknown as { fn: () => void }).fn = fn; return 1 as unknown as ReturnType<typeof setInterval> }
@@ -130,15 +168,18 @@ test('pauseBilling stops the interval from spending; resume restarts', () => {
     spend: () => { spends++ },
     setIntervalFn: fakeSetInterval as never,
     clearIntervalFn: () => {},
+    setTimeoutFn: ((fn: () => void) => { fn(); return 2 }) as never, // grace elapses immediately → spend
+    clearTimeoutFn: () => {},
     intervalMs: 1000,
+    graceMs: 1000,
   })
-  ctrl.start()
+  ctrl.start() // grace spend
   ;(fakeSetInterval as unknown as { fn: () => void }).fn() // tick → spend
   ctrl.pause()
   ;(fakeSetInterval as unknown as { fn: () => void }).fn() // tick while paused → no spend
   ctrl.resume()
   ;(fakeSetInterval as unknown as { fn: () => void }).fn() // tick → spend
-  assert.equal(spends, 2)
+  assert.equal(spends, 3)
 })
 
 test('auth timeout closes with 4001', { timeout: 8000 }, async () => {
@@ -977,14 +1018,14 @@ test('end_session sends session_ended and closes', async () => {
   await close()
 })
 
-test('client WS close clears billing timer (clearInterval spy)', async () => {
+test('client WS close within the billing grace window clears the grace timer (clearTimeout spy)', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter]])
   const mock = makeMockLiveConnect()
-  let clearIntervalCalled = false
-  const origClearInterval = globalThis.clearInterval.bind(globalThis)
-  const patchedClearInterval = (id: ReturnType<typeof setInterval> | undefined) => {
-    if (id !== undefined) clearIntervalCalled = true
-    origClearInterval(id)
+  let clearTimeoutCalled = false
+  const origClearTimeout = globalThis.clearTimeout.bind(globalThis)
+  const patchedClearTimeout = (id: ReturnType<typeof setTimeout> | undefined) => {
+    if (id !== undefined) clearTimeoutCalled = true
+    origClearTimeout(id)
   }
 
   const { server, close } = createLiveTestServer({
@@ -993,7 +1034,8 @@ test('client WS close clears billing timer (clearInterval spy)', async () => {
     verifyToken: async () => ({ uid: 'uid' }),
     liveConnect: mock.connect,
     billingIntervalMs: 60_000,
-    _clearInterval: patchedClearInterval,
+    billingGraceMs: 60_000, // long enough that the grace timer is still pending when we close
+    _clearTimeout: patchedClearTimeout,
   })
   const port = await listen(server)
 
@@ -1012,7 +1054,55 @@ test('client WS close clears billing timer (clearInterval spy)', async () => {
     ws.on('close', () => {
       clearTimeout(timeout)
       setTimeout(() => {
-        assert.ok(clearIntervalCalled, 'expected clearInterval to be called on client close')
+        assert.ok(clearTimeoutCalled, 'expected clearTimeout to be called on client close within the grace window')
+        resolve()
+      }, 20)
+    })
+    ws.on('error', reject)
+  })
+
+  await close()
+})
+
+test('client WS close after the billing grace window clears the interval timer (clearInterval spy)', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const mock = makeMockLiveConnect()
+  let clearIntervalCalled = false
+  const origClearInterval = globalThis.clearInterval.bind(globalThis)
+  const patchedClearInterval = (id: ReturnType<typeof setInterval> | undefined) => {
+    if (id !== undefined) clearIntervalCalled = true
+    origClearInterval(id)
+  }
+
+  const { server, close } = createLiveTestServer({
+    db,
+    creditService: mockCreditService,
+    verifyToken: async () => ({ uid: 'uid' }),
+    liveConnect: mock.connect,
+    billingIntervalMs: 60_000,
+    billingGraceMs: 0,
+    _clearInterval: patchedClearInterval,
+  })
+  const port = await listen(server)
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid', characterId: CHAR_UUID }))
+    })
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string }
+      if (msg.type === 'session_ready') {
+        // Grace is 0ms, but still scheduled via setTimeout — give it a tick to fire
+        // and start the interval before we close.
+        setTimeout(() => ws.close(), 20)
+      }
+    })
+    ws.on('close', () => {
+      clearTimeout(timeout)
+      setTimeout(() => {
+        assert.ok(clearIntervalCalled, 'expected clearInterval to be called on client close after grace elapsed')
         resolve()
       }, 20)
     })
