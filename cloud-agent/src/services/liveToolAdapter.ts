@@ -20,7 +20,13 @@ export interface LiveToolSet {
   executors: Map<string, (args: unknown) => Promise<unknown>>
 }
 
-const LIVE_VOICES = new Set(['Aoede', 'Charon', 'Fenrir', 'Kore', 'Puck'])
+const LIVE_VOICES = new Set([
+  'Achernar', 'Achird', 'Algenib', 'Algieba', 'Alnilam', 'Aoede', 'Autonoe',
+  'Callirrhoe', 'Charon', 'Despina', 'Enceladus', 'Erinome', 'Fenrir', 'Gacrux',
+  'Iapetus', 'Kore', 'Laomedeia', 'Leda', 'Orus', 'Puck', 'Pulcherrima',
+  'Rasalgethi', 'Sadachbia', 'Sadaltager', 'Schedar', 'Sulafat', 'Umbriel',
+  'Vindemiatrix', 'Zephyr', 'Zubenelgenubi',
+])
 const LIVE_VOICE_FALLBACK = 'Aoede'
 
 export function resolveVoice(raw: string | null | undefined): string {

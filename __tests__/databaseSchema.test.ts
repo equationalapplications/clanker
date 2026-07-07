@@ -13,17 +13,22 @@ describe('database schema migration guards', () => {
   })
 
   it('includes voice column in base characters table', () => {
-    expect(CREATE_TABLES).toContain("voice TEXT NOT NULL DEFAULT 'Umbriel'")
+    expect(CREATE_TABLES).toContain("voice TEXT NOT NULL DEFAULT 'Aoede'")
   })
 
   it('adds voice column in migration 9', () => {
-    expect(MIGRATIONS[9]).toContain("DEFAULT 'Umbriel'")
+    expect(MIGRATIONS[9]).toContain("DEFAULT 'Aoede'")
     expect(MIGRATIONS[9]).not.toContain('UPDATE')
   })
 
   it('backfills voice in migration 10', () => {
-    expect(MIGRATIONS[10]).toContain("UPDATE characters SET voice = 'Umbriel'")
+    expect(MIGRATIONS[10]).toContain("UPDATE characters SET voice = 'Aoede'")
     expect(MIGRATIONS[10]).toContain("voice = ''")
+  })
+
+  it('migrates stale Umbriel default to Aoede in migration 21', () => {
+    expect(MIGRATIONS[21]).toContain("voice = 'Aoede'")
+    expect(MIGRATIONS[21]).toContain("voice = 'Umbriel'")
   })
 
   it('has migration guards for v11 and v12', () => {
@@ -34,8 +39,8 @@ describe('database schema migration guards', () => {
     )
   })
 
-  it('bumps schema to v20 for pending_cloud_id migration', () => {
-    expect(SCHEMA_VERSION).toBe(20)
+  it('bumps schema to v21 for pending_cloud_id and voice-default migrations', () => {
+    expect(SCHEMA_VERSION).toBe(21)
     // Migration 13: adds source_hash — skipped if column exists OR wiki_entries table is missing
     expect(MIGRATION_SKIP_GUARDS[13]).toEqual([
       { table: 'wiki_entries', column: 'source_hash' },

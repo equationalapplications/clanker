@@ -50,17 +50,17 @@ describe('batchInsertCharacters', () => {
     expect(values.at(-1)).toBe('Kore')
   })
 
-  it('defaults createCharacter voice to Umbriel when omitted', async () => {
+  it('defaults createCharacter voice to Aoede when omitted', async () => {
     await createCharacter('user-1', {
       name: 'New Character',
       is_public: false,
     })
 
     const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
-    expect(values.at(-1)).toBe('Umbriel')
+    expect(values.at(-1)).toBe('Aoede')
   })
 
-  it('defaults updateCharacter voice to Umbriel when null', async () => {
+  it('defaults updateCharacter voice to Aoede when null', async () => {
     mockGetFirstAsync
       .mockResolvedValueOnce({ id: 'char-1', user_id: 'user-1' })
       .mockResolvedValueOnce(null)
@@ -70,6 +70,6 @@ describe('batchInsertCharacters', () => {
     })
 
     const [, values] = mockRunAsync.mock.calls[0] as [string, unknown[]]
-    expect(values).toContain('Umbriel')
+    expect(values).toContain('Aoede')
   })
 })

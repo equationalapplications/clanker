@@ -7,7 +7,7 @@ const mockDb = {} as unknown as DrizzleClient
 const mockEmbed = async (_text: string): Promise<number[]> => []
 
 test('resolveVoice returns Aoede for unknown voice', () => {
-  assert.equal(resolveVoice('Umbriel'), 'Aoede')
+  assert.equal(resolveVoice('NotARealVoice'), 'Aoede')
 })
 
 test('resolveVoice returns Aoede for null', () => {
@@ -24,6 +24,7 @@ test('resolveVoice passes through valid Live API voice', () => {
   assert.equal(resolveVoice('Charon'), 'Charon')
   assert.equal(resolveVoice('Fenrir'), 'Fenrir')
   assert.equal(resolveVoice('Kore'), 'Kore')
+  assert.equal(resolveVoice('Umbriel'), 'Umbriel')
 })
 
 test('buildLiveTools returns 12 declarations', () => {

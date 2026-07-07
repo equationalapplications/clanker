@@ -405,7 +405,7 @@ describe('EditCharacterScreen - non-owner read-only', () => {
 })
 
 describe('EditCharacterScreen - voice selector', () => {
-  it('shows resolved live voice for legacy character voice', () => {
+  it('shows the character voice directly when it is a valid live voice', () => {
     const character = makeCharacter({ voice: 'Umbriel' })
     mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
 
@@ -416,7 +416,7 @@ describe('EditCharacterScreen - voice selector', () => {
 
     const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
     const voiceButton = buttons.find((b) =>
-      typeof b.props.children === 'string' && b.props.children === 'Aoede (was Umbriel)',
+      typeof b.props.children === 'string' && b.props.children === 'Umbriel',
     )
     expect(voiceButton).toBeDefined()
   })
@@ -431,7 +431,7 @@ describe('EditCharacterScreen - voice selector', () => {
     })
 
     const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
-    const voiceButton = buttons.find((b) => b.props.children === 'Aoede (was FutureVoice)')
+    const voiceButton = buttons.find((b) => b.props.children === 'Aoede')
     expect(voiceButton).toBeDefined()
   })
 
@@ -446,7 +446,7 @@ describe('EditCharacterScreen - voice selector', () => {
 
     const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
     const defaultVoiceButton = buttons.find((b) =>
-      typeof b.props.children === 'string' && b.props.children === 'Aoede (was Umbriel)',
+      typeof b.props.children === 'string' && b.props.children === 'Aoede',
     )
     expect(defaultVoiceButton).toBeDefined()
   })
@@ -463,7 +463,7 @@ describe('EditCharacterScreen - voice selector', () => {
     // Open the menu
     const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
     const voiceButton = buttons.find((b) =>
-      typeof b.props.children === 'string' && b.props.children === 'Aoede (was Umbriel)',
+      typeof b.props.children === 'string' && b.props.children === 'Umbriel',
     )
     act(() => {
       voiceButton!.props.onPress()

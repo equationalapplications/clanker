@@ -372,7 +372,7 @@ test("syncCharacterHandler ignores client-supplied createdAt and updatedAt", asy
   assert.equal(receivedPayloads[0]?.updatedAt, undefined);
 });
 
-test("syncCharacterHandler defaults null voice to Umbriel", async () => {
+test("syncCharacterHandler defaults null voice to Aoede", async () => {
   const receivedPayloads: Array<Record<string, unknown>> = [];
 
   await syncCharacterHandler(
@@ -399,7 +399,7 @@ test("syncCharacterHandler defaults null voice to Umbriel", async () => {
             id: "character-1",
             userId: "user-1",
             name: "Nova",
-            voice: "Umbriel",
+            voice: "Aoede",
             createdAt: new Date("2026-01-01T00:00:00.000Z"),
             updatedAt: new Date("2026-01-02T00:00:00.000Z"),
           } as never;
@@ -412,7 +412,7 @@ test("syncCharacterHandler defaults null voice to Umbriel", async () => {
     } as unknown as CharacterFunctionDeps
   );
 
-  assert.equal(receivedPayloads[0]?.voice, "Umbriel");
+  assert.equal(receivedPayloads[0]?.voice, "Aoede");
 });
 
 test("syncCharacterHandler leaves voice undefined when omitted", async () => {
@@ -458,7 +458,7 @@ test("syncCharacterHandler leaves voice undefined when omitted", async () => {
   assert.equal(receivedPayloads[0]?.voice, undefined);
 });
 
-test("syncCharacterHandler defaults empty voice string to Umbriel", async () => {
+test("syncCharacterHandler defaults empty voice string to Aoede", async () => {
   const receivedPayloads: Array<Record<string, unknown>> = [];
 
   await syncCharacterHandler(
@@ -485,7 +485,7 @@ test("syncCharacterHandler defaults empty voice string to Umbriel", async () => 
             id: "character-1",
             userId: "user-1",
             name: "Nova",
-            voice: "Umbriel",
+            voice: "Aoede",
             createdAt: new Date("2026-01-01T00:00:00.000Z"),
             updatedAt: new Date("2026-01-02T00:00:00.000Z"),
           } as never;
@@ -499,7 +499,7 @@ test("syncCharacterHandler defaults empty voice string to Umbriel", async () => 
   );
 
   assert.equal(receivedPayloads.length, 1);
-  assert.equal(receivedPayloads[0]?.voice, "Umbriel");
+  assert.equal(receivedPayloads[0]?.voice, "Aoede");
 });
 
 test("getUserCharactersHandler returns character timestamps as ISO strings", async () => {
