@@ -1,3 +1,18 @@
+# [30.23.0](https://github.com/equationalapplications/clanker/compare/v30.22.1...v30.23.0) (2026-07-07)
+
+
+### Bug Fixes
+
+* address PR [#548](https://github.com/equationalapplications/clanker/issues/548) review threads ([ed454e3](https://github.com/equationalapplications/clanker/commit/ed454e3f75d7cdbe3709eac0f31f7590bfb53052))
+* **privacy:** update deletion path in privacy policy and increment version ([2788fb9](https://github.com/equationalapplications/clanker/commit/2788fb97d985d9cb6a9b1af6a520248b5bc157db))
+* **test:** unfreeze characterVoiceMigration test from DEFAULT_VOICE constant ([9dd2da9](https://github.com/equationalapplications/clanker/commit/9dd2da9217b116795ad3cc94d9f4565abff34130))
+* **voice:** expand live-voice allow-list, fix Umbriel default landmine ([2440c6b](https://github.com/equationalapplications/clanker/commit/2440c6be39c6fb9e14cc5659b0089d9414682f72))
+
+
+### Features
+
+* **privacy:** update privacy policy, consent defaults, and account deletion flow ([be87bea](https://github.com/equationalapplications/clanker/commit/be87bea6d7a69a3a0da9cb02838217bfbb2f60ec))
+
 ## [30.22.1](https://github.com/equationalapplications/clanker/compare/v30.22.0...v30.22.1) (2026-07-07)
 
 
