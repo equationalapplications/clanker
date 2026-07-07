@@ -115,7 +115,10 @@ export function handleDesktopWsUpgrade(
               ws.send(JSON.stringify({ type: 'task', taskId, tool, params }))
             }
           })
-          .catch((err) => console.error('[desktop-bridge] dispatch failed:', taskId, err))
+          .catch((err) => {
+            dispatched.delete(taskId)
+            console.error('[desktop-bridge] dispatch failed:', taskId, err)
+          })
         return true
       }
 
