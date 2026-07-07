@@ -106,10 +106,27 @@ export function handleDesktopWsUpgrade(
       // same-instance shortcut (desktopBridge.get().dispatchTask): every task
       // sent over this socket enters `dispatched`, so the disconnect path can
       // fail it immediately, and concurrent dispatch attempts dedupe here.
-      const dispatchTask = (taskId: string, tool: string, params: Record<string, unknown>): boolean => {
-        if (!socketOpen() || dispatched.has(taskId)) return false
-        dispatched.add(taskId)
-        void fs.markDesktopTaskExecuting(uid!, taskId)
+const dispatchTask = (taskId: string, tool: string, params: Record<string, unknown>): boolean => {
+  if (dispatched.has(taskId)) return false
+  if (!socketOpen()) {
+    void fs.failDesktopTaskIfUnresolved(uid!, taskId, {
+      code: 'DESKTOP_DISCONNECTED', message: 'Desktop connection lost mid-call',
+    }).catch(() => { /* caller timeout covers */ })
+    return false
+  }
+  dispatched.add(taskId)
+  void fs.markDesktopTaskExecuting(uid!, taskId)
+    .then(() => {
+      if (socketOpen()) {
+        ws.send(JSON.stringify({ type: 'task', taskId, tool, params }))
+      }
+    })
+    .catch((err) => {
+      dispatched.delete(taskId)
+      console.error('[desktop-bridge] dispatch failed:', taskId, err)
+    })
+  return true
+}
           .then(() => {
             if (socketOpen()) {
               ws.send(JSON.stringify({ type: 'task', taskId, tool, params }))
