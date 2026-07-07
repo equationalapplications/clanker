@@ -1,7 +1,8 @@
 # Desktop Vault Bridge — Clanker Side (`/agent/desktop` + `query_local_vault`)
 
 **Date:** 2026-07-05
-**Status:** Approved (2026-07-06). The wire protocol in §5 is a frozen contract: Curated Thoughts v1.9.0 already conforms to it (`curated-thoughts/docs/superpowers/specs/2026-07-05-clanker-desktop-bridge-alignment-design.md`), so implementation must not deviate from §5 without a paired CT amendment.
+**Status:** Implemented
+ The wire protocol in §5 is a frozen contract: Curated Thoughts v1.9.0 already conforms to it (`curated-thoughts/docs/superpowers/specs/2026-07-05-clanker-desktop-bridge-alignment-design.md`), so implementation must not deviate from §5 without a paired CT amendment.
 **Amended:** 2026-07-06 architecture review — device-doc listener on revoke/pause (§5), timeout-aware call-cap decay (§7), liveness refresh cadence (§5), prompt-injection posture (§9).
 **Counterpart spec (approved):** `curated-thoughts/docs/superpowers/specs/2026-07-01-clanker-cloud-bridge-design.md` — defines the Curated Thoughts `CloudBridgeClient`, the five read-only tool contracts, and the §5 contract this spec implements.
 **Structural precedents in this repo:** `cloud-agent/src/handlers/wsBrowserAgentHandler.ts` (WS auth/lifecycle), `cloud-agent/src/tools/browserAction.ts` (fail-fast device resolution, contextual billing, durable `watchTask` result delivery), `docs/browser-bridge.md` (three-node architecture and Firestore-as-bus invariant).
@@ -126,8 +127,8 @@ Param schemas are copied from the CT tool contracts (`2026-06-23-mcp-wiki-graph-
 6. Format result for the model: JSON-stringified `result` (these are compact retrieval payloads — entries/chunks — not DOM dumps; no truncation in v1 beyond the existing model context limits).
 
 **Billing: no flat credit spend.** Decision: vault reads execute on the user's own hardware and return in sub-second steady state.
-- Text path: already pre-billed 1 credit/turn — no additional spend (same as `browser_action`'s `preBilled: true` path).
-- Voice path: `pauseBilling`/`resumeBilling` around the call (mirror `browser_action`) so wall-clock billing doesn't tick during a vault fetch, but **no** `spendCredit` — unlike `browser_action`, there is no scarce device wake or long execution to meter. Revisit only if per-turn chaining abuse shows up (the 5-call cap bounds it).
+- Text path: no additional spend — vault calls never call `spendCredit`.
+- Voice path: billed per minute of wall clock; `pauseBilling`/`resumeBilling` around the call (mirror `browser_action`) so the per-minute timer doesn't tick during a vault fetch, and **no** `spendCredit` — unlike `browser_action`, there is no scarce device wake or long execution to meter. Revisit only if per-turn chaining abuse shows up (the 5-call cap bounds it).
 
 **Chaining:** the agent may chain vault calls within a turn (e.g. `vault_wiki_search` → `vault_traverse_graph`), bounded by the 5-call cap plus the existing agent-loop iteration cap and the 30s text-path load-balancer ceiling. CT imposes no cap of its own (its spec §4).
 

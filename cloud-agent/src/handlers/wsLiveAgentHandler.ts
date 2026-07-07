@@ -10,7 +10,7 @@ import { users, characters } from '../db/schema.js'
 import { embedText } from '../db/embeddings.js'
 import { assembleSystemInstruction, queryWikiContext } from '../services/agentCore.js'
 import { buildLiveTools, resolveVoice } from '../services/liveToolAdapter.js'
-import { createVaultToolDeps } from '../tools/vaultTools.js'
+import { createVaultToolDeps, resetVaultTurnState, type VaultToolDeps } from '../tools/vaultTools.js'
 import { desktopBridge } from '../services/desktopBridge.js'
 import { createCreditService } from '../services/creditService.js'
 import type { CreditService } from '../services/creditService.js'
@@ -122,6 +122,7 @@ export async function handleLiveWsUpgrade(
   let liveSessionKey: string | null = null
   let toolExecutors = new Map<string, (args: unknown) => Promise<unknown>>()
   let activeBrowserCallId: string | null = null
+  let vaultDeps: VaultToolDeps | undefined
   const browserCallByTaskId = new Map<string, string>()
 
   function clearAndClose(): void {
@@ -159,6 +160,7 @@ export async function handleLiveWsUpgrade(
         outputTranscription?: { text?: string }
         inputTranscription?: { text?: string }
         interrupted?: boolean
+        turnComplete?: boolean
         groundingMetadata?: unknown
       }
       toolCall?: {
@@ -210,6 +212,11 @@ export async function handleLiveWsUpgrade(
       }
       if (sc.interrupted) {
         try { ws.send(JSON.stringify({ type: 'audio_interrupted' })) } catch { /* ignore */ }
+      }
+      // Spec §7: the vault call cap is per turn. Live sessions span many turns,
+      // so reset the budget (and any timeout decay) at each turn boundary.
+      if ((sc.turnComplete || sc.interrupted) && vaultDeps) {
+        resetVaultTurnState(vaultDeps)
       }
       if (hasGroundingData(sc.groundingMetadata as GroundingMetadata | undefined)) {
         try {
@@ -383,7 +390,7 @@ export async function handleLiveWsUpgrade(
         instanceId: INSTANCE_ID,
       } : undefined)
 
-      const vaultDeps = bridgeBase ? createVaultToolDeps({
+      vaultDeps = bridgeBase ? createVaultToolDeps({
         firebaseUid: uid,
         firestoreSession: bridgeBase.firestoreSession,
         desktopBridge,

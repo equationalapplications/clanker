@@ -1,6 +1,5 @@
 import { FunctionTool } from '@google/adk'
 import { z } from 'zod'
-import { WebSocket } from 'ws'
 import type { FirestoreSession, DesktopTaskDoc } from '../services/firestoreSession.js'
 import type { DesktopBridge } from '../services/desktopBridge.js'
 
@@ -65,18 +64,24 @@ function triggerCapDecay(deps: VaultToolDeps): void {
   deps.capDecay.maxAllowed = Math.min(deps.callsThisTurn.count + 1, deps.maxCallsPerTurn)
 }
 
-async function dispatchLocalIfConnected(
+/** Resets the per-turn call budget; live sessions call this at each turn boundary (spec §7). */
+export function resetVaultTurnState(deps: VaultToolDeps): void {
+  deps.callsThisTurn.count = 0
+  deps.capDecay.triggered = false
+  deps.capDecay.maxAllowed = deps.maxCallsPerTurn
+}
+
+// Same-instance shortcut goes through the handler's dispatchTask so the task
+// enters its `dispatched` set (fails DESKTOP_DISCONNECTED on socket close) and
+// dedupes against the pending-queue listener firing concurrently.
+function dispatchLocalIfConnected(
   deps: VaultToolDeps,
   deviceId: string,
   taskId: string,
   wireTool: string,
   params: Record<string, unknown>,
-): Promise<void> {
-  const conn = deps.desktopBridge?.get(deps.firebaseUid, deviceId)
-  const ws = conn?.ws
-  if (!ws || ws.readyState !== WebSocket.OPEN) return
-  await deps.firestoreSession.markDesktopTaskExecuting(deps.firebaseUid, taskId)
-  ws.send(JSON.stringify({ type: 'task', taskId, tool: wireTool, params }))
+): void {
+  deps.desktopBridge?.get(deps.firebaseUid, deviceId)?.dispatchTask(taskId, wireTool, params)
 }
 
 async function dispatchVaultCall(
@@ -97,7 +102,7 @@ async function dispatchVaultCall(
     deps.pauseBilling?.()
     const taskId = crypto.randomUUID()
     await fs.createDesktopTask(deps.firebaseUid, taskId, device.deviceId, wireTool, params)
-    await dispatchLocalIfConnected(deps, device.deviceId, taskId, wireTool, params)
+    dispatchLocalIfConnected(deps, device.deviceId, taskId, wireTool, params)
 
     const task = await new Promise<DesktopTaskDoc | null>((resolve) => {
       const timeout = setTimeout(() => {

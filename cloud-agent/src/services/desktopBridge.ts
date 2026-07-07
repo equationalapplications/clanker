@@ -3,6 +3,14 @@ import type { WebSocket } from 'ws'
 export interface DesktopConnection {
   ws: WebSocket
   generation: number
+  /**
+   * Dispatches a task over this socket via the owning handler: adds it to the
+   * handler's `dispatched` set (so socket close fails it DESKTOP_DISCONNECTED),
+   * dedupes against the pending-queue listener, marks the doc executing, sends
+   * the frame. Returns false if the socket is closed or the task was already
+   * dispatched.
+   */
+  dispatchTask: (taskId: string, tool: string, params: Record<string, unknown>) => boolean
 }
 
 const key = (uid: string, deviceId: string) => `${uid}:${deviceId}`
@@ -15,13 +23,13 @@ export function createDesktopBridge() {
   let nextGeneration = 1
   return {
     /** Registers ws for uid:deviceId, closing any previous socket. Returns the generation. */
-    register(uid: string, deviceId: string, ws: WebSocket): number {
+    register(uid: string, deviceId: string, ws: WebSocket, dispatchTask: DesktopConnection['dispatchTask']): number {
       const k = key(uid, deviceId)
       const prev = map.get(k)
       const generation = nextGeneration++
       // Store the replacement before closing the previous socket so its synchronous
       // `close` handler sees the new generation and deregister is a no-op (spec §5).
-      map.set(k, { ws, generation })
+      map.set(k, { ws, generation, dispatchTask })
       if (prev) {
         try { prev.ws.close(4000, 'Replaced by new connection') } catch { /* ignore */ }
       }
