@@ -3,7 +3,7 @@ import { useActiveCharacterId } from '~/hooks/useActiveCharacterId'
 import { useCharacters } from '~/hooks/useCharacters'
 import { useMostRecentMessage } from '~/hooks/useMessages'
 import { useAuthMachine, useCharacterMachine } from '~/hooks/useMachines'
-import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { DEV_CLOUD_CHARACTER_ID } from '../../shared/dev-sandbox'
 
 /** Resolves the character for Chat/Talk tabs: last viewed in Chat, then recent message, then defaults. */

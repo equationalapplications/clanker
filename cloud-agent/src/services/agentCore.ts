@@ -10,6 +10,7 @@ import type { DrizzleClient } from '../db/client.js'
 import { llmWikiEntries } from '../db/schema.js'
 
 import { browserActionTool, type BrowserActionDeps } from '../tools/browserAction.js'
+import { buildVaultTools, type VaultToolDeps } from '../tools/vaultTools.js'
 
 export function buildAgent(
   db: DrizzleClient,
@@ -19,6 +20,7 @@ export function buildAgent(
   timezone: string,
   embed: (text: string) => Promise<number[]>,
   bridge?: BrowserActionDeps,
+  vault?: VaultToolDeps,
 ): LlmAgent {
   const tools = [
     getCurrentTimeTool(timezone),
@@ -36,6 +38,7 @@ export function buildAgent(
     GOOGLE_SEARCH,
   ]
   if (bridge) tools.push(browserActionTool(bridge, { trigger: 'text', preBilled: true }))
+  if (vault) tools.push(...buildVaultTools(vault))
   return new LlmAgent({
     name: 'clanker-cloud-agent',
     model: 'gemini-3.5-flash',

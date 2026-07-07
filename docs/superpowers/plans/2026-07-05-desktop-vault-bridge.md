@@ -2,7 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement the Clanker side of the desktop vault bridge per `docs/superpowers/specs/2026-07-05-desktop-vault-bridge-design.md`: `/agent/desktop` persistent WebSocket with pairing-token auth, Firestore-routed task queue, and five `vault_*` ADK tools so the cloud agent can query a user's Curated Thoughts vault mid-turn.
+**Goal:** Implement the Clanker side of the desktop vault bridge per `docs/superpowers/specs/2026-07-05-desktop-vault-bridge-design.md` (amended 2026-07-06): `/agent/desktop` persistent WebSocket with pairing-token auth, Firestore-routed task queue, and five `vault_*` ADK tools so the cloud agent can query a user's Curated Thoughts vault mid-turn.
+
+**Amendments (2026-07-06) incorporated in this plan:**
+- Per-connection device-doc snapshot listener (revoke/pause → close 4001 + disconnect path)
+- `lastSeenAt` refresh cadence **40s** (every other 20s heartbeat), not 60s
+- Per-turn vault call-cap **decay to 1** after first `DESKTOP_TIMEOUT` or `DESKTOP_DISCONNECTED`
+- Injection-posture test: `browser_action` destructive classifier unchanged when vault precedes it in the same turn (spec §9)
 
 **Architecture:** Curated Thoughts holds a persistent outbound WS to `/agent/desktop`. The socket-owning Cloud Run instance runs a Firestore listener on `users/{uid}/desktopTasks` (pending, per device) and dispatches over its local socket; tool-calling instances write task docs and watch for results (12s timeout). A generation-guarded `desktopBridge` registry prevents stale disconnects from shadowing live connections. No FCM, no sessions — fail-fast on device presence.
 

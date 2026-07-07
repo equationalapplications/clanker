@@ -1,7 +1,8 @@
 # Desktop Vault Bridge — Clanker Side (`/agent/desktop` + `query_local_vault`)
 
 **Date:** 2026-07-05
-**Status:** Draft
+**Status:** Approved (2026-07-06). The wire protocol in §5 is a frozen contract: Curated Thoughts v1.9.0 already conforms to it (`curated-thoughts/docs/superpowers/specs/2026-07-05-clanker-desktop-bridge-alignment-design.md`), so implementation must not deviate from §5 without a paired CT amendment.
+**Amended:** 2026-07-06 architecture review — device-doc listener on revoke/pause (§5), timeout-aware call-cap decay (§7), liveness refresh cadence (§5), prompt-injection posture (§9).
 **Counterpart spec (approved):** `curated-thoughts/docs/superpowers/specs/2026-07-01-clanker-cloud-bridge-design.md` — defines the Curated Thoughts `CloudBridgeClient`, the five read-only tool contracts, and the §5 contract this spec implements.
 **Structural precedents in this repo:** `cloud-agent/src/handlers/wsBrowserAgentHandler.ts` (WS auth/lifecycle), `cloud-agent/src/tools/browserAction.ts` (fail-fast device resolution, contextual billing, durable `watchTask` result delivery), `docs/browser-bridge.md` (three-node architecture and Firestore-as-bus invariant).
 
@@ -66,7 +67,8 @@ Server hashes the token, reads `desktopPairings/{tokenHash}`. Unknown hash, miss
 1. Update device doc: `{ online: true, connectedInstanceId: instanceId, lastSeenAt: now }`.
 2. Register socket in `desktopBridge` registry keyed by `uid:deviceId`.
 3. Start a Firestore snapshot listener: `users/{uid}/desktopTasks` where `status == 'pending'` and `deviceId == deviceId`.
-4. Send `{ "type": "ready" }`.
+4. Start a second snapshot listener on the device doc itself (`users/{uid}/devices/{deviceId}`). Doc deleted (revoked) or `isPaused` flipped to `true` → close the socket (`4001`) and run the disconnect path. Without this listener, §4's revocation promise ("the socket-owning instance closes any live socket") has no mechanism, and a revoked device would keep serving queries for up to the Cloud Run WS ceiling (60 min).
+5. Send `{ "type": "ready" }`.
 
 If the same device connects twice (e.g. reconnect racing the dead socket), the new connection wins: the handler closes the previous socket for that `uid:deviceId` before registering. **Replacement race guard:** the disconnect path (§ below) is generation-checked — each registration stores a monotonically increasing generation (or the socket object identity) in the `desktopBridge` registry, and the close handler only marks the device offline if it still owns the current registration. A stale socket's deferred `close` event firing after the replacement has registered must be a no-op on the device doc; otherwise a live connection would be shadowed by `online: false`.
 
@@ -82,9 +84,9 @@ If the same device connects twice (e.g. reconnect racing the dead socket), the n
 
 All frames validated with zod; malformed frames are ignored pre-auth-style (auth frame errors close `4001`, post-auth malformed frames are dropped and logged).
 
-**Liveness:** device doc `lastSeenAt` is refreshed at most once per 60s (every third heartbeat) to bound Firestore write volume. No pong received by CT, or no ping received by Clanker, for 45s → each side treats the connection as dead (CT spec §4); Clanker's close handler runs the disconnect path.
+**Liveness:** device doc `lastSeenAt` is refreshed at most once per 40s (every other heartbeat) to bound Firestore write volume. *(Amended from 60s: against `getActiveDesktopDevice`'s 90s staleness filter, a 60s cadence left only a 30s margin — 1.5 heartbeats — so a single delayed Firestore write under load could make a live device look offline. 40s gives a 50s margin, ~2.5 heartbeats.)* No pong received by CT, or no ping received by Clanker, for 45s → each side treats the connection as dead (CT spec §4); Clanker's close handler runs the disconnect path.
 
-**Disconnect path (`close`/`error`):** deregister from `desktopBridge`, unsubscribe the task listener, update device doc `{ online: false, connectedInstanceId: null }`. In-flight tasks dispatched over this socket are failed immediately with `DESKTOP_DISCONNECTED` so the tool-calling instance's `watchTask` resolves without waiting out its timeout.
+**Disconnect path (`close`/`error`):** deregister from `desktopBridge`, unsubscribe both listeners (task queue and device doc), update device doc `{ online: false, connectedInstanceId: null }` (skipped if the doc was deleted by revocation). In-flight tasks dispatched over this socket are failed immediately with `DESKTOP_DISCONNECTED` so the tool-calling instance's `watchTask` resolves without waiting out its timeout.
 
 **Cloud Run constraint:** the WS lives at most one Cloud Run request timeout (60 min ceiling). CT's auto-reconnect (backoff 1s → 30s, per its spec) makes this a brief periodic offline window, not a failure mode. Session affinity is not required for correctness — only `connectedInstanceId` freshness.
 
@@ -117,7 +119,7 @@ Param schemas are copied from the CT tool contracts (`2026-06-23-mcp-wiki-graph-
 **Shared execute flow (mirrors `browserAction.ts` shape; all five tools delegate to one `dispatchVaultCall(wireTool, params)`):**
 
 1. `getActiveDesktopDevice(uid)` — none → return `'No home computer is connected. Open Curated Thoughts on your desktop, or check Settings → Devices.'` — **no credit spent, no task doc written**.
-2. Per-turn call cap: 5 across the whole `vault_*` family (shared counter in tool deps, created per turn like `BrowserActionDeps`). Over cap → return an error string instructing the model to answer with what it has.
+2. Per-turn call cap: 5 across the whole `vault_*` family (shared counter in tool deps, created per turn like `BrowserActionDeps`). Over cap → return an error string instructing the model to answer with what it has. **Timeout decay:** after the first `DESKTOP_TIMEOUT` or `DESKTOP_DISCONNECTED` in a turn, the remaining family budget drops to 1. Rationale: 5 calls × 12s timeout = 60s worst case against the 30s text-path load-balancer ceiling — two timed-out calls (offline-window race, cold embedder) would otherwise consume the whole turn. One retry after a timeout is useful (CT may have just reconnected); a third attempt never fits the budget.
 3. Write `desktopTasks/{taskId}` with `status: 'pending'` (doc carries the CT wire tool name).
 4. Same-instance shortcut: if `desktopBridge` holds the socket locally, dispatch immediately (still transition the doc `pending → executing` so the durable state is truthful).
 5. `watchTask` on the doc with a **12s timeout, configurable via deps** (like `wakeTimeoutMs` in `BrowserActionDeps`). Budget: CT's 10s per-call ceiling plus headroom for the two Firestore hops — snapshot listeners can lag 1–3s under load. Integration tests should record observed round-trip latency before any tightening. Timeout → mark doc `failed` (`DESKTOP_TIMEOUT`), return an apologetic error string.
@@ -157,14 +159,14 @@ No cron, no sweeper process: the TTL policy is the only scheduled mechanism, and
 - `desktopPairings` and `desktopTasks` are Admin-SDK-only; `firestore.rules` denies all client access. Device docs carry no secret material.
 - The channel is read-only by construction — no mutating tool is exposed, matching CT spec §6 ("enforced by simply not exposing any mutating tool").
 - `/agent/desktop/pair` and `/agent/desktop/revoke` sit behind `requireAuth` + `authRouteLimiter`. The WS auth path rate-limits failed auth frames per connection (single attempt, close on failure) and relies on Cloud Run ingress limits for connection floods.
-- Vault results are user-memory-grade content entering the prompt; the existing prompt-injection posture for `[MEMORY]` blocks applies (treat retrieved text as data, not instructions — same trust boundary as wiki memory today).
+- Vault results are user-memory-grade content entering the prompt; the existing prompt-injection posture for `[MEMORY]` blocks applies (treat retrieved text as data, not instructions). **The surface is larger than Clanker's own wiki memory:** vault content is arbitrary ingested documents — third-party PDFs, shared meeting notes — not text the user or agent authored. And the Gemini turn consuming a vault result also holds side-effecting tools (`browser_action` — with `fill_field`/`click` wire-stable — reminders, tasks), so an injection in a retrieved chunk could attempt to steer a subsequent tool call. The channel itself stays read-only; the mitigation for cross-tool steering is the existing destructive-action classifier and approval flow on `browser_action`. Implementation must verify (test) that the classifier path is unchanged when vault content precedes a browser call in the same turn.
 
 ## 10. Testing plan
 
 Mirrors existing test shapes; no new harness inventions:
 
-- `wsDesktopAgentHandler.test.ts` — auth frame validation, token-hash resolution, duplicate-connection replacement **including the generation-guard race (stale close after replacement must not mark the device offline)**, heartbeat, disconnect path, in-flight failure on close (pattern: `wsBrowserAgentHandler.test.ts` with fake `FirestoreLike`).
-- `vaultTools.test.ts` — ADK-name → wire-name mapping for all five tools, fail-fast no-device, shared per-turn cap across the family, timeout marking, result formatting, no-spend assertion on both paths (pattern: `browserAction.test.ts`).
+- `wsDesktopAgentHandler.test.ts` — auth frame validation, token-hash resolution, duplicate-connection replacement **including the generation-guard race (stale close after replacement must not mark the device offline)**, heartbeat, disconnect path, in-flight failure on close, **device-doc listener: revoke (doc delete) and pause (`isPaused: true`) each close the live socket `4001`** (pattern: `wsBrowserAgentHandler.test.ts` with fake `FirestoreLike`).
+- `vaultTools.test.ts` — ADK-name → wire-name mapping for all five tools, fail-fast no-device, shared per-turn cap across the family **including decay to 1 remaining call after the first timeout/disconnect**, timeout marking, result formatting, no-spend assertion on both paths (pattern: `browserAction.test.ts`).
 - `firestoreSession.test.ts` additions — `getActiveDesktopDevice` filtering (type/paused/online/staleness) and the `type !== 'desktop'` exclusion in `getActiveDevice`.
 - Integration smoke — `docker-compose.local.yml` stack + a scripted mock desktop client (Node `ws`) speaking the auth/task frames; end-to-end `wiki_search` round trip through `/agent/run`. Real Curated Thoughts pairing is the manual smoke test, per CT spec §7.
 
@@ -173,3 +175,4 @@ Mirrors existing test shapes; no new harness inventions:
 - CT-side `CloudBridgeClient` — already planned (`curated-thoughts/docs/superpowers/plans/2026-07-01-clanker-cloud-bridge-implementation.md`).
 - Settings → Devices UI in the mobile app (pair/revoke buttons calling the new routes) — small client PR, spec'd here only as the two routes.
 - Result caching, multi-desktop selection UX, write-back/review-queue wire path: all deferred.
+- Distinguishing revoked vs. paused vs. unknown-token on close `4001` (e.g. a close-reason payload) so CT can stop its 5-minute slow retry on a permanently dead token — acceptable v1 tradeoff per the CT alignment spec; revisit if rejected-handshake volume shows up in monitoring.

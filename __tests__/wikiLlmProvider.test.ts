@@ -1,4 +1,4 @@
-jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+jest.mock('~/auth/devSandboxFlag', () => ({
   isDevSandboxEnabled: jest.fn(() => false),
 }))
 
@@ -7,7 +7,7 @@ jest.mock('~/services/apiClient', () => ({
   generateEmbedding: jest.fn(),
 }))
 
-import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { wikiLlm, generateEmbedding } from '~/services/apiClient'
 import { createWikiLlmProvider } from '~/services/wikiLlmProvider'
 

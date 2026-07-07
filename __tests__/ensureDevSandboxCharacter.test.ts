@@ -14,7 +14,8 @@ import {
   DEV_CHARACTER_TRAITS,
   DEV_FIREBASE_UID,
 } from '../shared/dev-sandbox'
-import { ensureDevSandboxCharacter, isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { ensureDevSandboxCharacter } from '~/auth/ensureDevSandboxCharacter'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 
 const mockGetDatabase = getDatabase as jest.Mock
 const mockGetCharacter = getCharacter as jest.Mock

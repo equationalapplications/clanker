@@ -19,7 +19,7 @@ import {
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 import { loadDefaultAvatarBase64 } from '~/services/defaultAvatarService'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
-import { ensureDevSandboxCharacter, isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 
 // Events
 type CharacterEvent =
@@ -67,6 +67,7 @@ const createDefaultCharacterActor = fromPromise(
     }
 
     if (isDevSandboxEnabled()) {
+      const { ensureDevSandboxCharacter } = await import('~/auth/ensureDevSandboxCharacter')
       const devCharacterId = await ensureDevSandboxCharacter(input.userId)
       if (!devCharacterId) {
         throw new Error('Failed to provision dev sandbox character')

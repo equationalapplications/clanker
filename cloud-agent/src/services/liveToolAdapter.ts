@@ -10,6 +10,7 @@ import {
 import { documentSearchTool } from '../tools/documents.js'
 import { setReminderTool } from '../tools/reminders.js'
 import { browserActionTool, type BrowserActionDeps } from '../tools/browserAction.js'
+import { buildVaultTools, type VaultToolDeps } from '../tools/vaultTools.js'
 import type { DrizzleClient } from '../db/client.js'
 
 type EmbedFn = (text: string) => Promise<number[]>
@@ -39,6 +40,7 @@ export function buildLiveTools(
     resumeBilling?: () => void
     registerLiveCall?: (taskId: string) => void
   },
+  vault?: VaultToolDeps,
 ): LiveToolSet {
   const adkTools: FunctionTool[] = [
     getCurrentTimeTool(timezone),
@@ -56,6 +58,9 @@ export function buildLiveTools(
   ]
   if (bridge) {
     adkTools.push(browserActionTool(bridge, { trigger: 'voice', preBilled: false }))
+  }
+  if (vault) {
+    adkTools.push(...buildVaultTools(vault))
   }
 
   const declarations = adkTools.map((t) => t._getDeclaration() as FunctionDeclaration)

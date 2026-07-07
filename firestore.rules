@@ -28,5 +28,14 @@ service cloud.firestore {
       allow read: if request.auth.uid == uid;
       allow write: if false; // Admin SDK only (register-device upsert)
     }
+
+    // Desktop vault bridge (docs/desktop-vault-bridge.md).
+    // desktopTasks: Admin SDK only — tool calls write, socket-owning instance reads.
+    match /users/{uid}/desktopTasks/{taskId} {
+      allow read, write: if false;
+    }
+
+    // desktopPairings/{tokenHash} (top-level) is intentionally NOT matched here:
+    // default-deny already blocks clients; never add a client rule for it.
   }
 }

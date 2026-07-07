@@ -239,3 +239,191 @@ test('watchAuth calls callback when auth doc snapshot fires', async () => {
   assert.equal(received.length, 1)
   unsub()
 })
+
+// ── Desktop vault bridge additions ─────────────────────────────────────────
+function desktopFakeDb() {
+  const docs = new Map<string, Record<string, unknown>>()
+  const docWatchers = new Map<string, Array<(s: { exists: boolean; data(): Record<string, unknown> | undefined }) => void>>()
+  type ColWatcher = { filters: Array<[string, string, unknown]>; cb: (rows: Array<{ id: string; data(): Record<string, unknown> }>) => void }
+  const collectionWatchers = new Map<string, ColWatcher[]>()
+
+  function snapshotFor(path: string) {
+    const d = docs.get(path)
+    return { exists: d !== undefined, data: () => d }
+  }
+  function fireDoc(path: string) { for (const cb of docWatchers.get(path) ?? []) cb(snapshotFor(path)) }
+  function fireCollection(colPath: string) {
+    for (const w of collectionWatchers.get(colPath) ?? []) {
+      const rows = [...docs.entries()]
+        .filter(([p]) => p.startsWith(`${colPath}/`) && p.split('/').length === colPath.split('/').length + 1)
+        .filter(([, d]) => w.filters.every(([f, , v]) => (d as Record<string, unknown>)[f] === v))
+        .map(([p, d]) => ({ id: p.split('/').pop()!, data: () => d }))
+      w.cb(rows)
+    }
+  }
+
+  const db = {
+    doc(path: string) {
+      return {
+        set: async (data: Record<string, unknown>, opts?: { merge?: boolean }) => {
+          docs.set(path, opts?.merge ? { ...(docs.get(path) ?? {}), ...data } : data)
+          fireDoc(path); fireCollection(path.split('/').slice(0, -1).join('/'))
+        },
+        get: async () => snapshotFor(path),
+        update: async (data: Record<string, unknown>) => {
+          const cur = docs.get(path); if (!cur) throw new Error('NOT_FOUND')
+          docs.set(path, { ...cur, ...data })
+          fireDoc(path); fireCollection(path.split('/').slice(0, -1).join('/'))
+        },
+        onSnapshot: (cb: (s: { exists: boolean; data(): Record<string, unknown> | undefined }) => void) => {
+          const arr = docWatchers.get(path) ?? []; arr.push(cb); docWatchers.set(path, arr)
+          cb(snapshotFor(path))
+          return () => { docWatchers.set(path, (docWatchers.get(path) ?? []).filter((f) => f !== cb)) }
+        },
+      }
+    },
+    collection(colPath: string) {
+      const filters: Array<[string, string, unknown]> = []
+      const q = {
+        where(field: string, op: string, value: unknown) { filters.push([field, op, value]); return q },
+        orderBy() { return q },
+        limit() { return q },
+        async get() {
+          const rows = [...docs.entries()]
+            .filter(([p]) => p.startsWith(`${colPath}/`) && p.split('/').length === colPath.split('/').length + 1)
+            .filter(([, d]) => filters.every(([f, , v]) => (d as Record<string, unknown>)[f] === v))
+            .map(([p, d]) => ({ id: p.split('/').pop()!, data: () => d }))
+          return { empty: rows.length === 0, docs: rows }
+        },
+        onSnapshot(cb: (rows: Array<{ id: string; data(): Record<string, unknown> }>) => void) {
+          const w = { filters: [...filters], cb }
+          const arr = collectionWatchers.get(colPath) ?? []; arr.push(w); collectionWatchers.set(colPath, arr)
+          const rows = [...docs.entries()]
+            .filter(([p]) => p.startsWith(`${colPath}/`) && p.split('/').length === colPath.split('/').length + 1)
+            .filter(([, d]) => w.filters.every(([f, , v]) => (d as Record<string, unknown>)[f] === v))
+            .map(([p, d]) => ({ id: p.split('/').pop()!, data: () => d }))
+          cb(rows)
+          return () => { collectionWatchers.set(colPath, (collectionWatchers.get(colPath) ?? []).filter((x) => x !== w)) }
+        },
+      }
+      return q
+    },
+    _docs: docs,
+  }
+  return db
+}
+
+test('getActiveDevice excludes desktop-type devices', async () => {
+  const db = desktopFakeDb()
+  db._docs.set('users/u1/devices/desk1', { active: true, type: 'desktop', lastSeenAt: Date.now(), fcmToken: '', deviceName: 'Mac mini' })
+  db._docs.set('users/u1/devices/ext1', { active: true, lastSeenAt: Date.now() - 1000, fcmToken: 't', deviceName: 'Chrome' })
+  const fs = createFirestoreSession(db as never)
+  const device = await fs.getActiveDevice('u1')
+  assert.equal(device?.deviceId, 'ext1')
+})
+
+test('getActiveDesktopDevice returns fresh online desktop, ignores paused/stale/offline', async () => {
+  const now = Date.now()
+  const db = desktopFakeDb()
+  db._docs.set('users/u1/devices/stale', { active: true, type: 'desktop', online: true, lastSeenAt: now - 120_000, deviceName: 's' })
+  db._docs.set('users/u1/devices/paused', { active: true, type: 'desktop', online: true, isPaused: true, lastSeenAt: now, deviceName: 'p' })
+  db._docs.set('users/u1/devices/offline', { active: true, type: 'desktop', online: false, lastSeenAt: now, deviceName: 'o' })
+  db._docs.set('users/u1/devices/good', { active: true, type: 'desktop', online: true, lastSeenAt: now - 30_000, deviceName: 'Mac mini' })
+  db._docs.set('users/u1/devices/browser', { active: true, online: true, lastSeenAt: now, fcmToken: 't', deviceName: 'Chrome' })
+  const fs = createFirestoreSession(db as never)
+  const device = await fs.getActiveDesktopDevice('u1')
+  assert.equal(device?.deviceId, 'good')
+})
+
+test('desktop task lifecycle: create pending → executing → result, watchers fire', async () => {
+  const db = desktopFakeDb()
+  const fs = createFirestoreSession(db as never)
+  await fs.createDesktopTask('u1', 't1', 'desk1', 'wiki_search', { query: 'hiking' })
+
+  const seenPending: string[] = []
+  const unsubPending = fs.watchPendingDesktopTasks('u1', 'desk1', (tasks) => {
+    for (const t of tasks) seenPending.push(t.taskId)
+  })
+  await fs.createDesktopTask('u1', 't2', 'desk1', 'wiki_search', { query: 'x' })
+  assert.ok(seenPending.includes('t2'))
+
+  await fs.markDesktopTaskExecuting('u1', 't2')
+  const statuses: string[] = []
+  const unsubTask = fs.watchDesktopTask('u1', 't2', (t) => statuses.push(t.status))
+  await fs.writeDesktopTaskResult('u1', 't2', { status: 'complete', result: { hits: 3 } })
+  assert.ok(statuses.includes('complete'))
+  unsubPending(); unsubTask()
+})
+
+test('watchPendingDesktopTasks only surfaces pending tasks for the given device', async () => {
+  const db = desktopFakeDb()
+  const fs = createFirestoreSession(db as never)
+  await fs.createDesktopTask('u1', 'other-device', 'desk2', 'wiki_search', {})
+  await fs.createDesktopTask('u1', 'mine', 'desk1', 'wiki_search', {})
+  await fs.markDesktopTaskExecuting('u1', 'mine')
+  const seen: string[] = []
+  const unsub = fs.watchPendingDesktopTasks('u1', 'desk1', (tasks) => { for (const t of tasks) seen.push(t.taskId) })
+  await fs.createDesktopTask('u1', 'fresh', 'desk1', 'wiki_search', {})
+  assert.deepEqual(seen, ['fresh'])
+  unsub()
+})
+
+test('failDesktopTaskIfUnresolved fails pending/executing, skips terminal', async () => {
+  const db = desktopFakeDb()
+  const fs = createFirestoreSession(db as never)
+  await fs.createDesktopTask('u1', 't1', 'desk1', 'wiki_search', {})
+  assert.equal(await fs.failDesktopTaskIfUnresolved('u1', 't1', { code: 'DESKTOP_TIMEOUT', message: 'timeout' }), true)
+  assert.equal(await fs.failDesktopTaskIfUnresolved('u1', 't1', { code: 'DESKTOP_TIMEOUT', message: 'timeout' }), false)
+})
+
+test('desktop device online/offline/touch update device doc', async () => {
+  const db = desktopFakeDb()
+  db._docs.set('users/u1/devices/desk1', { active: true, type: 'desktop', online: false, deviceName: 'Mac mini' })
+  const fs = createFirestoreSession(db as never)
+  await fs.markDesktopDeviceOnline('u1', 'desk1', 'instance-A')
+  assert.equal(db._docs.get('users/u1/devices/desk1')?.online, true)
+  assert.equal(db._docs.get('users/u1/devices/desk1')?.connectedInstanceId, 'instance-A')
+  await fs.touchDesktopDeviceLastSeen('u1', 'desk1')
+  assert.ok(typeof db._docs.get('users/u1/devices/desk1')?.lastSeenAt !== 'undefined')
+  await fs.markDesktopDeviceOffline('u1', 'desk1', 'instance-A')
+  assert.equal(db._docs.get('users/u1/devices/desk1')?.online, false)
+  assert.equal(db._docs.get('users/u1/devices/desk1')?.connectedInstanceId, null)
+})
+
+test('watchPendingDesktopTasks emits existing pending tasks on subscribe', async () => {
+  const db = desktopFakeDb()
+  const fs = createFirestoreSession(db as never)
+  await fs.createDesktopTask('u1', 'queued', 'desk1', 'wiki_search', { query: 'pre-existing' })
+  const seen: string[] = []
+  const unsub = fs.watchPendingDesktopTasks('u1', 'desk1', (tasks) => { for (const t of tasks) seen.push(t.taskId) })
+  assert.deepEqual(seen, ['queued'])
+  unsub()
+})
+
+test('markDesktopDeviceOffline ignores stale instance disconnects', async () => {
+  const db = desktopFakeDb()
+  db._docs.set('users/u1/devices/desk1', {
+    active: true, type: 'desktop', online: true, connectedInstanceId: 'instance-B', deviceName: 'Mac mini',
+  })
+  const fs = createFirestoreSession(db as never)
+  await fs.markDesktopDeviceOffline('u1', 'desk1', 'instance-A')
+  assert.equal(db._docs.get('users/u1/devices/desk1')?.online, true)
+  assert.equal(db._docs.get('users/u1/devices/desk1')?.connectedInstanceId, 'instance-B')
+})
+
+test('writeDesktopTaskResult skips terminal overwrite races', async () => {
+  const db = desktopFakeDb()
+  const fs = createFirestoreSession(db as never)
+  await fs.createDesktopTask('u1', 't1', 'desk1', 'wiki_search', {})
+  await fs.writeDesktopTaskResult('u1', 't1', { status: 'complete', result: { ok: true } })
+  assert.equal(await fs.writeDesktopTaskResult('u1', 't1', { status: 'failed', error: { code: 'DESKTOP_TIMEOUT', message: 'late' } }), false)
+  assert.equal((db._docs.get('users/u1/desktopTasks/t1') as { status: string }).status, 'complete')
+})
+
+test('getDesktopDeviceDoc reports existence and pause state', async () => {
+  const db = desktopFakeDb()
+  db._docs.set('users/u1/devices/desk1', { type: 'desktop', isPaused: true })
+  const fs = createFirestoreSession(db as never)
+  assert.deepEqual(await fs.getDesktopDeviceDoc('u1', 'desk1'), { exists: true, isPaused: true })
+  assert.deepEqual(await fs.getDesktopDeviceDoc('u1', 'nope'), { exists: false, isPaused: false })
+})

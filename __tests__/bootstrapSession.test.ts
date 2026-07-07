@@ -8,8 +8,10 @@ jest.mock('~/config/firebaseConfig', () => ({
   appCheckReady: mockAppCheckReady,
 }))
 
-jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+jest.mock('~/auth/devSandboxFlag', () => ({
   isDevSandboxEnabled: jest.fn(() => process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true'),
+}))
+jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
   ensureDevSandboxCharacter: jest.fn(async () => '22222222-2222-4222-8222-222222222222'),
 }))
 

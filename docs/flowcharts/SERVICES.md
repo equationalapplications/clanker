@@ -4,7 +4,7 @@ _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
   edgeAgentEvals.int.test --> CharacterPromptBuilder
-  aiChatService --> ensureDevSandboxCharacter
+  aiChatService --> devSandboxFlag
   aiChatService --> messageDatabase
   aiChatService --> characterDatabase
   aiChatService --> summarizeTextService
@@ -20,7 +20,7 @@ graph LR
   characterSyncService --> wikiSourceType
   characterSyncService --> apiClient
   characterSyncService --> wikiOrchestrator
-  characterSyncService --> ensureDevSandboxCharacter
+  characterSyncService --> devSandboxFlag
   characterSyncService --> googleSignin
   characterSyncService --> voiceDefaults
   chatReplyService --> groundingMetadata
@@ -35,7 +35,7 @@ graph LR
   messageService --> messageDatabase
   messageService --> analyticsService
   userService --> apiClient
-  wikiLlmProvider --> ensureDevSandboxCharacter
+  wikiLlmProvider --> devSandboxFlag
   wikiLlmProvider --> apiClient
   wikiOrchestrator --> wikiService
   wikiService --> wikiLlmProvider

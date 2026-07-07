@@ -25,6 +25,7 @@ export interface CollectionQuery {
   orderBy(field: string, dir: 'asc' | 'desc'): CollectionQuery
   limit(n: number): CollectionQuery
   get(): Promise<{ empty: boolean; docs: Array<{ id: string; data(): Record<string, unknown> }> }>
+  onSnapshot?(cb: (docs: Array<{ id: string; data(): Record<string, unknown> }>) => void): () => void
 }
 
 export interface SessionMeta {
@@ -33,7 +34,30 @@ export interface SessionMeta {
   voiceInstanceId: string
 }
 
+export interface DesktopTaskError {
+  code: 'DESKTOP_TIMEOUT' | 'DESKTOP_DISCONNECTED' | 'TOOL_ERROR'
+  message: string
+}
+
+export interface DesktopTaskDoc {
+  taskId: string
+  deviceId: string
+  status: 'pending' | 'executing' | 'complete' | 'failed'
+  tool: string
+  params: Record<string, unknown>
+  result: unknown
+  error: DesktopTaskError | null
+}
+
 const SESSION_TTL_MS = 30 * 60 * 1000
+const DESKTOP_TASK_TTL_MS = 60 * 60 * 1000
+const DESKTOP_LIVENESS_MS = 90 * 1000
+
+function toMillis(v: unknown): number {
+  if (typeof v === 'number') return v
+  const t = v as { toMillis?: () => number } | null
+  return t?.toMillis?.() ?? 0
+}
 
 function now() { return admin.firestore?.Timestamp ? admin.firestore.Timestamp.now() : (Date.now() as unknown) }
 function ttl() {
@@ -46,6 +70,8 @@ export function createFirestoreSession(db: FirestoreLike) {
   const sessionPath = (uid: string, sid: string) => `users/${uid}/sessions/${sid}`
   const taskPath = (uid: string, sid: string, tid: string) => `users/${uid}/sessions/${sid}/tasks/${tid}`
   const devicesPath = (uid: string) => `users/${uid}/devices`
+  const desktopTasksPath = (uid: string) => `users/${uid}/desktopTasks`
+  const desktopTaskPath = (uid: string, tid: string) => `users/${uid}/desktopTasks/${tid}`
   const schedulerRunPath = (uid: string, runKey: string) => `users/${uid}/schedulerRuns/${runKey}`
 
   return {
@@ -56,13 +82,149 @@ export function createFirestoreSession(db: FirestoreLike) {
         .limit(50)
         .get()
       const eligible = snap.docs.filter((d) => {
-        const data = d.data() as unknown as DeviceDoc
-        return data.isPaused !== true
+        const data = d.data() as unknown as DeviceDoc & { type?: string }
+        return data.isPaused !== true && data.type !== 'desktop'
       })
       if (eligible.length === 0) return null
       const d = eligible[0]
       const data = d.data() as unknown as DeviceDoc
       return { deviceId: d.id, fcmToken: data.fcmToken, deviceName: data.deviceName }
+    },
+
+    async getActiveDesktopDevice(uid: string): Promise<{ deviceId: string; deviceName: string } | null> {
+      const snap = await db.collection(devicesPath(uid))
+        .where('active', '==', true)
+        .orderBy('lastSeenAt', 'desc')
+        .limit(50)
+        .get()
+      const eligible = snap.docs.filter((d) => {
+        const data = d.data() as Record<string, unknown>
+        return data.type === 'desktop'
+          && data.isPaused !== true
+          && data.online === true
+          && Date.now() - toMillis(data.lastSeenAt) <= DESKTOP_LIVENESS_MS
+      })
+      if (eligible.length === 0) return null
+      const d = eligible[0]
+      return { deviceId: d.id, deviceName: (d.data() as { deviceName?: string }).deviceName ?? '' }
+    },
+
+    async getDesktopDeviceDoc(uid: string, deviceId: string): Promise<{ exists: boolean; isPaused: boolean }> {
+      const doc = await db.doc(`${devicesPath(uid)}/${deviceId}`).get()
+      if (!doc.exists) return { exists: false, isPaused: false }
+      const data = doc.data() as { isPaused?: boolean } | undefined
+      return { exists: true, isPaused: data?.isPaused === true }
+    },
+
+    watchDesktopDeviceDoc(
+      uid: string,
+      deviceId: string,
+      cb: (doc: { exists: boolean; isPaused: boolean }) => void,
+    ): () => void {
+      const ref = db.doc(`${devicesPath(uid)}/${deviceId}`)
+      if (!ref.onSnapshot) throw new Error('watchDesktopDeviceDoc requires onSnapshot support')
+      return ref.onSnapshot((snap) => {
+        if (!snap.exists) {
+          cb({ exists: false, isPaused: false })
+          return
+        }
+        const data = snap.data() as { isPaused?: boolean } | undefined
+        cb({ exists: true, isPaused: data?.isPaused === true })
+      })
+    },
+
+    async createDesktopTask(
+      uid: string,
+      taskId: string,
+      deviceId: string,
+      tool: string,
+      params: Record<string, unknown>,
+    ): Promise<void> {
+      const expiresAt = admin.firestore?.Timestamp
+        ? admin.firestore.Timestamp.fromMillis(Date.now() + DESKTOP_TASK_TTL_MS)
+        : (Date.now() + DESKTOP_TASK_TTL_MS as unknown)
+      await db.doc(desktopTaskPath(uid, taskId)).set({
+        taskId, deviceId, status: 'pending', tool, params,
+        result: null, error: null, createdAt: now(), updatedAt: now(), expiresAt,
+      })
+    },
+
+    async markDesktopTaskExecuting(uid: string, taskId: string): Promise<void> {
+      await db.doc(desktopTaskPath(uid, taskId)).update({ status: 'executing', updatedAt: now() })
+    },
+
+    async writeDesktopTaskResult(
+      uid: string,
+      taskId: string,
+      outcome: { status: 'complete'; result: unknown } | { status: 'failed'; error: DesktopTaskError },
+    ): Promise<boolean> {
+      const ref = db.doc(desktopTaskPath(uid, taskId))
+      const snap = await ref.get()
+      if (!snap.exists) return false
+      const current = snap.data() as unknown as DesktopTaskDoc
+      if (current.status === 'complete' || current.status === 'failed') return false
+      await ref.update(
+        outcome.status === 'complete'
+          ? { status: 'complete', result: outcome.result, updatedAt: now() }
+          : { status: 'failed', error: outcome.error, updatedAt: now() },
+      )
+      return true
+    },
+
+    async getDesktopTask(uid: string, taskId: string): Promise<DesktopTaskDoc | null> {
+      const doc = await db.doc(desktopTaskPath(uid, taskId)).get()
+      if (!doc.exists) return null
+      return doc.data() as unknown as DesktopTaskDoc
+    },
+
+    async failDesktopTaskIfUnresolved(uid: string, taskId: string, error: DesktopTaskError): Promise<boolean> {
+      const ref = db.doc(desktopTaskPath(uid, taskId))
+      const snap = await ref.get()
+      if (!snap.exists) return false
+      const current = snap.data() as unknown as DesktopTaskDoc
+      if (current.status === 'complete' || current.status === 'failed') return false
+      await ref.update({ status: 'failed', error, updatedAt: now() })
+      return true
+    },
+
+    watchDesktopTask(uid: string, taskId: string, cb: (task: DesktopTaskDoc) => void): () => void {
+      const ref = db.doc(desktopTaskPath(uid, taskId))
+      if (!ref.onSnapshot) throw new Error('watchDesktopTask requires onSnapshot support')
+      return ref.onSnapshot((snap) => {
+        if (snap.exists) cb(snap.data() as unknown as DesktopTaskDoc)
+      })
+    },
+
+    watchPendingDesktopTasks(uid: string, deviceId: string, cb: (tasks: DesktopTaskDoc[]) => void): () => void {
+      const q = db.collection(desktopTasksPath(uid))
+        .where('status', '==', 'pending')
+        .where('deviceId', '==', deviceId)
+      if (!q.onSnapshot) throw new Error('watchPendingDesktopTasks requires onSnapshot support')
+      return q.onSnapshot((docs) => {
+        cb(docs.map((d) => d.data() as unknown as DesktopTaskDoc))
+      })
+    },
+
+    async markDesktopDeviceOnline(uid: string, deviceId: string, instanceId: string): Promise<void> {
+      await db.doc(`${devicesPath(uid)}/${deviceId}`).update({
+        online: true, connectedInstanceId: instanceId, lastSeenAt: now(),
+      })
+    },
+
+    async markDesktopDeviceOffline(uid: string, deviceId: string, expectedInstanceId?: string): Promise<void> {
+      const ref = db.doc(`${devicesPath(uid)}/${deviceId}`)
+      const snap = await ref.get()
+      if (!snap.exists) return
+      const data = snap.data() as { connectedInstanceId?: string | null } | undefined
+      if (expectedInstanceId !== undefined && data?.connectedInstanceId !== expectedInstanceId) return
+      await ref.update({ online: false, connectedInstanceId: null })
+    },
+
+    async touchDesktopDeviceLastSeen(uid: string, deviceId: string): Promise<void> {
+      const ref = db.doc(`${devicesPath(uid)}/${deviceId}`)
+      const snap = await ref.get()
+      if (!snap.exists) throw new Error('DEVICE_NOT_FOUND')
+      await ref.update({ lastSeenAt: now() })
     },
 
     async createSession(uid: string, sid: string, meta: SessionMeta): Promise<void> {
@@ -233,7 +395,20 @@ export function defaultFirestoreSession(): FirestoreSession {
         create: (data: Record<string, unknown>) => ref.create(data),
       }
     },
-    collection: (path) => raw.collection(path) as unknown as CollectionQuery,
+    collection: (path) => {
+      const col = raw.collection(path)
+      const wrap = (q: FirebaseFirestore.Query): CollectionQuery => ({
+        where: (f, op, v) => wrap(q.where(f, op as FirebaseFirestore.WhereFilterOp, v)),
+        orderBy: (f, dir) => wrap(q.orderBy(f, dir)),
+        limit: (n) => wrap(q.limit(n)),
+        get: async () => {
+          const snap = await q.get()
+          return { empty: snap.empty, docs: snap.docs.map((d) => ({ id: d.id, data: () => d.data() })) }
+        },
+        onSnapshot: (cb) => q.onSnapshot((snap) => cb(snap.docs.map((d) => ({ id: d.id, data: () => d.data() })))),
+      })
+      return wrap(col)
+    },
     batch: () => {
       const batch = raw.batch()
       return {

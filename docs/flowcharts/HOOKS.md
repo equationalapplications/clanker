@@ -7,7 +7,7 @@ graph LR
   useAIChat --> useMachines
   useAIChat --> useMessages
   useAIChat --> useCharacterWiki
-  useAIChat --> ensureDevSandboxCharacter
+  useAIChat --> devSandboxFlag
   useAIChat --> useEdgeAgent
   useAIChat --> messageDatabase
   useAIChat --> aiChatService
@@ -56,7 +56,7 @@ graph LR
   useTabCharacterId --> useMessages
   useTabCharacterId --> useCharacters
   useTabCharacterId --> useMachines
-  useTabCharacterId --> ensureDevSandboxCharacter
+  useTabCharacterId --> devSandboxFlag
   useUser --> useMachines
   useUser --> useBootstrapRefresh
   useUser --> userService
