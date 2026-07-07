@@ -8,8 +8,8 @@ export interface PrivacyConfig {
 }
 
 export const PRIVACY: PrivacyConfig = {
-  version: '1.7',
-  lastUpdated: 'July 4, 2026',
+  version: '1.8',
+  lastUpdated: 'July 7, 2026',
   privacy: `
 Equational Applications LLC ("we", "us", "our") is committed to protecting your privacy.
 This privacy policy explains how we collect, use, and disclose information through our
@@ -43,6 +43,23 @@ processes this content as our service provider under the Google Cloud Privacy No
 foundation models. Please do not submit sensitive personal information (such as government
 identifiers, financial account numbers, or health records) in chat.
 
+Crash Reporting and Diagnostics
+
+To ensure the stability and reliability of the App, we use Firebase Crashlytics, 
+a crash reporting service provided by Google LLC. If the App crashes or encounters 
+an error, Crashlytics automatically collects diagnostic information to help us identify, 
+troubleshoot, and resolve the issue.
+
+The information collected does not include your name or email, but may include your 
+device's Internet Protocol (IP) address, hardware model, operating system version, 
+a unique device installation identifier (UUID), and the state of the App at the time 
+of the crash. This diagnostic data is transmitted to and stored by Google in 
+accordance with the Google Privacy Policy.
+
+Crash reporting is disabled by default. We rely on your explicit consent before 
+collecting this diagnostic data. You can enable or disable crash reporting at any 
+time within the App's settings.
+
 Cookies and Similar Technologies (Web Only)
 
 We use cookies and similar storage on the web app for the following purposes:
@@ -54,7 +71,7 @@ We use cookies and similar storage on the web app for the following purposes:
   preferences, additional non-essential preference storage is off by default unless
   you enable the Preferences category.
 - Analytics: helps us understand product usage to improve the app (off by default,
-  not currently active).
+  requires explicit opt-in).
 - Marketing: reserved for future advertising measurement (off by default,
   not currently active).
 
@@ -93,6 +110,19 @@ Policy, including the Limited Use requirements.
 **No Data Sale:** We do not sell your browser data to third parties. Your data is
 not used for advertising, creditworthiness, or lending purposes.
 
+Payment Processing
+
+We use Stripe, a third-party payment processor, to handle securely all payment 
+transactions. When you make a purchase, you provide your payment details directly 
+to Stripe. We do not collect, process, or store your full credit card numbers or 
+bank account information on our servers.
+
+The payment information you provide to Stripe is governed by Stripe's Privacy Policy 
+(https://stripe.com/privacy). We only receive limited information from Stripe, such 
+as payment confirmation, the last four digits of your card, and billing zip code, 
+which we use solely to fulfill your order, prevent fraud, and maintain transaction 
+records for tax and legal purposes.
+
 Retention of Information
 We may retain your information for as long as necessary to provide and improve the App, to
 comply with legal obligations, and to protect our rights and property.
@@ -108,9 +138,21 @@ Any changes will be effective immediately upon posting the revised privacy polic
 App. Your continued use of the App following the posting of changes to this privacy policy
 constitutes your acceptance of those changes.
 
-Data Deletion
-If you wish to have your data deleted, please contact us at
-info@equationalapplications.com.
+Your Data Rights and Account Deletion
+
+You have the right to access, update, or delete the personal information we hold 
+about you.
+
+How to request deletion: You can delete your account and associated personal data 
+at any time directly within the App by navigating to Settings > Account > Delete 
+Account. Alternatively, you can request data deletion by contacting us at
+support@clanker.app.
+
+What happens when you delete your account: Upon receiving a deletion request, we 
+will promptly delete your account and personal data from our active databases. Please 
+note that we may retain certain limited information (such as transaction records) for 
+a period of time as required by law, for tax and accounting purposes, or to resolve 
+disputes.
 
 Data Portability
 You can export your character's complete memory (facts, tasks, and interaction
@@ -123,7 +165,7 @@ new one.
 
 Contact Us
 If you have any questions or concerns about this privacy policy, please contact us at
-info@equationalapplications.com.
+support@clanker.app.
 
 Governing Law
 This privacy policy shall be governed by and construed in accordance with the laws of the
