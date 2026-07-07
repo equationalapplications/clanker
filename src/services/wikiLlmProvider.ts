@@ -1,4 +1,4 @@
-import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { wikiLlm, generateEmbedding } from './apiClient'
 
 interface WikiLlmRequest {

@@ -31,7 +31,7 @@ import { useInitializeApp } from '~/hooks/useInitializeApp'
 import { authMachine } from '~/machines/authMachine'
 import { termsMachine } from '~/machines/termsMachine'
 import { characterMachine } from '~/machines/characterMachine'
-import { isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import {
   GlobalStateContext,
   useAuthMachine,

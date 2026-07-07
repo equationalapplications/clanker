@@ -13,9 +13,9 @@ graph LR
   characterMachine --> characterSyncService
   characterMachine --> defaultAvatarService
   characterMachine --> wikiOrchestrator
-  characterMachine --> ensureDevSandboxCharacter
+  characterMachine --> devSandboxFlag
   liveVoiceMachine --> analyticsService
-  liveVoiceMachine --> ensureDevSandboxCharacter
+  liveVoiceMachine --> devSandboxFlag
   liveVoiceMachine --> wikiService
   liveVoiceMachine --> apiClient
   liveVoiceMachine --> wikiSourceType

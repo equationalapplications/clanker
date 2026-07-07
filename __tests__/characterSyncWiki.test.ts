@@ -36,7 +36,7 @@ jest.mock('~/utilities/kvStorage', () => ({
   Storage: { getItem: jest.fn(), setItem: jest.fn() },
 }))
 jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
-jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+jest.mock('~/auth/devSandboxFlag', () => ({
   isDevSandboxEnabled: jest.fn(() => process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true'),
 }))
 jest.mock('~/services/apiClient', () => ({

@@ -120,8 +120,10 @@ jest.mock('~/database/taskDatabase', () => ({
 }))
 
 const mockIsDevSandboxEnabled = jest.fn(() => false)
-jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
+jest.mock('~/auth/devSandboxFlag', () => ({
   isDevSandboxEnabled: () => mockIsDevSandboxEnabled(),
+}))
+jest.mock('~/auth/ensureDevSandboxCharacter', () => ({
   ensureDevSandboxCharacter: jest.fn(),
 }))
 

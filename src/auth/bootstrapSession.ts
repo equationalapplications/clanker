@@ -1,5 +1,5 @@
 import { getCurrentUser, exchangeToken, appCheckReady } from '~/config/firebaseConfig'
-import { ensureDevSandboxCharacter, isDevSandboxEnabled } from '~/auth/ensureDevSandboxCharacter'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { DEV_CLOUD_CHARACTER_ID, DEV_CLOUD_USER_ID, DEV_FIREBASE_UID } from '../../shared/dev-sandbox'
 
 export interface UserSnapshot {
@@ -97,6 +97,7 @@ export async function bootstrapSession(): Promise<BootstrapResponse> {
   if (isDevSandboxEnabled()) {
     let devCharacterId: string | null = null
     try {
+      const { ensureDevSandboxCharacter } = await import('~/auth/ensureDevSandboxCharacter')
       devCharacterId = await ensureDevSandboxCharacter(DEV_FIREBASE_UID)
     } catch (error) {
       console.warn('Failed to provision dev sandbox character during bootstrap:', error)
