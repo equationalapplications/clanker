@@ -73,7 +73,7 @@ Wiring: `buildAgent` in `agentCore.ts` (text), `buildLiveTools` in `liveToolAdap
 
 **Per-turn cap:** 5 calls shared across the family. After the first `DESKTOP_TIMEOUT` or `DESKTOP_DISCONNECTED`, remaining budget drops to 1.
 
-**Billing:** No flat `spendCredit`. Text path is pre-billed per turn; voice path pauses wall-clock billing during vault fetch (no additional credit spend).
+**Billing:** No flat `spendCredit` — vault calls never spend credits. Voice is billed per minute of wall clock; the billing timer is paused during a vault fetch so waiting on the desktop costs nothing.
 
 ---
 

@@ -102,24 +102,43 @@ export function handleDesktopWsUpgrade(
       uid = resolved.uid; deviceId = resolved.deviceId; authed = true
       clearTimeout(authTimer)
 
-      generation = bridge.register(uid, deviceId, ws)
+      // Single dispatch path for both the pending-queue listener and the
+      // same-instance shortcut (desktopBridge.get().dispatchTask): every task
+      // sent over this socket enters `dispatched`, so the disconnect path can
+      // fail it immediately, and concurrent dispatch attempts dedupe here.
+      const dispatchTask = (taskId: string, tool: string, params: Record<string, unknown>): boolean => {
+        if (dispatched.has(taskId)) return false
+        if (!socketOpen()) {
+          void fs.failDesktopTaskIfUnresolved(uid!, taskId, {
+            code: 'DESKTOP_DISCONNECTED', message: 'Desktop connection lost mid-call',
+          }).catch(() => { /* caller timeout covers */ })
+          return false
+        }
+        dispatched.add(taskId)
+        // Send frame immediately; markDesktopTaskExecuting race is handled below
+        ws.send(JSON.stringify({ type: 'task', taskId, tool, params }))
+        void fs.markDesktopTaskExecuting(uid!, taskId)
+          .then((ok) => {
+            if (!ok) {
+              // Task already terminal (race with disconnect). Best-effort remove frame.
+              try { ws.send(JSON.stringify({ type: 'cancel_task', taskId })) } catch { /* ignore */ }
+            }
+          })
+          .catch((err) => {
+            dispatched.delete(taskId)
+            console.error('[desktop-bridge] dispatch failed:', taskId, err)
+          })
+        return true
+      }
+
+      generation = bridge.register(uid, deviceId, ws, dispatchTask)
       await fs.markDesktopDeviceOnline(uid, deviceId, options.instanceId)
       if (!socketOpen()) return
       lastTouch = Date.now()
 
       unsubPending = fs.watchPendingDesktopTasks(uid, deviceId, (tasks) => {
         for (const task of tasks) {
-          if (dispatched.has(task.taskId)) continue
-          dispatched.add(task.taskId)
-          void fs.markDesktopTaskExecuting(uid!, task.taskId)
-            .then(() => {
-              if (socketOpen()) {
-                ws.send(JSON.stringify({
-                  type: 'task', taskId: task.taskId, tool: task.tool, params: task.params,
-                }))
-              }
-            })
-            .catch((err) => console.error('[desktop-bridge] dispatch failed:', task.taskId, err))
+          dispatchTask(task.taskId, task.tool, task.params)
         }
       })
 

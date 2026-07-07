@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 
-const { buildVaultTools, createVaultToolDeps, VAULT_WIRE_TOOL } = await import('./vaultTools.js')
+const { buildVaultTools, createVaultToolDeps, resetVaultTurnState, VAULT_WIRE_TOOL } = await import('./vaultTools.js')
 const { browserActionTool } = await import('./browserAction.js')
 const { createDesktopBridge } = await import('../services/desktopBridge.js')
 
@@ -142,6 +142,24 @@ test('cap decays to 1 remaining after DESKTOP_DISCONNECTED', async () => {
   assert.match(String(capped), /answer with what you already have/)
 })
 
+test('resetVaultTurnState restores the full budget and clears decay (live turn boundary)', async () => {
+  const fs = fakeSession()
+  const d = deps(fs, { maxCallsPerTurn: 2, callTimeoutMs: 20 })
+  const tools = buildVaultTools(d)
+  const search = tools.find((t) => t.name === 'vault_wiki_search')!
+  await execTool(search, { query: 'timeout-me' }) // times out → decay triggered
+  assert.equal(d.capDecay.triggered, true)
+  resetVaultTurnState(d)
+  assert.equal(d.callsThisTurn.count, 0)
+  assert.equal(d.capDecay.triggered, false)
+  assert.equal(d.capDecay.maxAllowed, 2)
+  const p = execTool(search, { query: 'next turn' })
+  await new Promise((r) => setTimeout(r, 0))
+  fs.resolveTask('complete', { result: [] })
+  await p
+  assert.equal(fs.created.length, 2)
+})
+
 test('tool error from CT surfaces its message', async () => {
   const fs = fakeSession()
   const tools = buildVaultTools(deps(fs))
@@ -183,11 +201,15 @@ test('no spendCredit on vault path (text preBilled analogue)', async () => {
   assert.equal(fs.created.length, 1)
 })
 
-test('same-instance shortcut dispatches over local desktopBridge socket', async () => {
+test('same-instance shortcut dispatches via the handler-owned dispatchTask', async () => {
   const fs = fakeSession()
   const bridge = createDesktopBridge()
   const ws = new FakeWs()
-  bridge.register('u1', 'desk1', ws as never)
+  // dispatchTask mimics the handler: it owns the send and the dispatched-set bookkeeping.
+  bridge.register('u1', 'desk1', ws as never, (taskId, tool, params) => {
+    ws.send(JSON.stringify({ type: 'task', taskId, tool, params }))
+    return true
+  })
   const d = deps(fs, { desktopBridge: bridge, callTimeoutMs: 500 })
   const search = buildVaultTools(d).find((t) => t.name === 'vault_wiki_search')!
   const p = execTool(search, { query: 'local' })

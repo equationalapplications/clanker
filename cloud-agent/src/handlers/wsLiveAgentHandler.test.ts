@@ -33,7 +33,10 @@ function makeMockDb(queryRowSets: Record<string, unknown>[][] = []) {
           const p = Promise.resolve(rows)
           return Object.assign(p, {
             limit: (_n: unknown) => Promise.resolve(rows),
-            orderBy: (_ord: unknown) => Promise.resolve(rows),
+            // queryWikiContext chains .orderBy(...).limit(n) on the vector path.
+            orderBy: (_ord: unknown) => Object.assign(Promise.resolve(rows), {
+              limit: (_n: unknown) => Promise.resolve(rows),
+            }),
           })
         },
       }),
@@ -401,11 +404,18 @@ test('memoryQuery preloads wiki context into the live system instruction', async
       const msg = JSON.parse(data.toString()) as { type: string }
       if (msg.type === 'session_ready') {
         clearTimeout(timeout)
-        const cfg = mock.getLastConnectConfig() as { config?: { systemInstruction?: string } }
-        assert.match(cfg.config?.systemInstruction ?? '', /Known facts about the user/)
-        assert.match(cfg.config?.systemInstruction ?? '', /Weather in Austin/)
-        ws.close()
-        resolve()
+        // Reject (don't throw) on assertion failure: a throw inside the ws
+        // callback leaves this promise pending and hangs the whole test file.
+        try {
+          const cfg = mock.getLastConnectConfig() as { config?: { systemInstruction?: string } }
+          assert.match(cfg.config?.systemInstruction ?? '', /Known facts about the user/)
+          assert.match(cfg.config?.systemInstruction ?? '', /Weather in Austin/)
+          ws.close()
+          resolve()
+        } catch (err) {
+          ws.close()
+          reject(err as Error)
+        }
       }
     })
     ws.on('error', reject)
