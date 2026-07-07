@@ -20,8 +20,12 @@ import { assertAgentTurnCredits, AgentInsufficientCreditsError, consumeAgentEven
 import { handleWsUpgrade, type WsHandlerOptions } from './handlers/wsAgentHandler.js'
 import { handleLiveWsUpgrade, type WsLiveHandlerOptions } from './handlers/wsLiveAgentHandler.js'
 import { handleBrowserWsUpgrade } from './handlers/wsBrowserAgentHandler.js'
+import { handleDesktopWsUpgrade } from './handlers/wsDesktopAgentHandler.js'
 import { defaultFirestoreSession } from './services/firestoreSession.js'
 import { defaultFcmDispatcher } from './services/fcmDispatcher.js'
+import { desktopBridge } from './services/desktopBridge.js'
+import { pairDesktopDevice, revokeDesktopDevice, resolvePairingToken, type PairingFirestore } from './services/desktopPairing.js'
+import { createVaultToolDeps } from './tools/vaultTools.js'
 import { upsertDeviceRecord } from './services/deviceUpsert.js'
 import { getExpoPushToken } from './handlers/expoPushToken.js'
 import { handleApproveAction } from './handlers/approveAction.js'
@@ -74,7 +78,12 @@ export async function runAgentReal(params: RunAgentParams): Promise<{ reply: str
     creditService: createCreditService(db),
     instanceId: INSTANCE_ID,
   } : undefined
-  const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed, bridge)
+  const vault = admin.apps.length ? createVaultToolDeps({
+    firebaseUid,
+    firestoreSession: defaultFirestoreSession(),
+    desktopBridge,
+  }) : undefined
+  const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed, bridge, vault)
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
 
@@ -310,6 +319,34 @@ export function createApp(options: AppOptions) {
     }
   })
 
+  app.post('/agent/desktop/pair', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    if (!browserBridgeAvailable) { res.status(503).json({ error: 'Desktop bridge unavailable' }); return }
+    const parsed = z.object({ deviceName: z.string().trim().min(1).max(100) }).safeParse(req.body)
+    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
+    try {
+      const { pairingToken, deviceId } = await pairDesktopDevice(
+        admin.firestore() as unknown as PairingFirestore, req.uid!, parsed.data.deviceName,
+      )
+      res.json({ pairingToken, deviceId })
+    } catch (err) {
+      console.error('desktop pair error:', err)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
+  app.post('/agent/desktop/revoke', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+    if (!browserBridgeAvailable) { res.status(503).json({ error: 'Desktop bridge unavailable' }); return }
+    const parsed = z.object({ deviceId: z.string().uuid() }).safeParse(req.body)
+    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
+    try {
+      await revokeDesktopDevice(admin.firestore() as unknown as PairingFirestore, req.uid!, parsed.data.deviceId)
+      res.json({ ok: true })
+    } catch (err) {
+      console.error('desktop revoke error:', err)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
   app.post('/agent/browser/approve-action', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     if (!browserBridgeAvailable) { res.status(503).json({ error: 'Browser bridge unavailable' }); return }
     const parsed = z.object({
@@ -376,6 +413,7 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
   const streamWss = new WebSocketServer({ noServer: true })
   const liveWss = new WebSocketServer({ noServer: true })
   const browserWss = new WebSocketServer({ noServer: true })
+  const desktopWss = new WebSocketServer({ noServer: true })
 
   server.on('upgrade', (req, socket, head) => {
     const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname
@@ -413,6 +451,20 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
             const data = doc.data()
             return doc.exists && data?.active === true && data?.isPaused !== true
           },
+          instanceId: INSTANCE_ID,
+        })
+      })
+    } else if (pathname === '/agent/desktop') {
+      if (!browserBridgeAvailable) {
+        socket.destroy()
+        return
+      }
+      desktopWss.handleUpgrade(req, socket, head, (ws) => {
+        handleDesktopWsUpgrade(ws, req, {
+          firestoreSession: defaultFirestoreSession(),
+          desktopBridge,
+          resolvePairingToken: (raw: string) =>
+            resolvePairingToken(admin.firestore() as unknown as PairingFirestore, raw),
           instanceId: INSTANCE_ID,
         })
       })
