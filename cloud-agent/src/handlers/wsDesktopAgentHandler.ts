@@ -185,7 +185,7 @@ export function handleDesktopWsUpgrade(
     }
 
     if (!authed) {
-      void onAuth(parsed).catch(() => { if (ws.readyState === ws.OPEN) ws.close(1011, 'Internal error') })
+      void onAuth(parsed).catch(() => { if (socketOpen()) ws.close(1011, 'Internal error') })
       return
     }
 
