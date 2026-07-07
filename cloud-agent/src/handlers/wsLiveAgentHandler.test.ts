@@ -123,7 +123,7 @@ function listen(server: Server): Promise<number> {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-test('first spend fires after the grace delay so short calls are billed', () => {
+test('first spend fires after the grace delay so very short calls are free', () => {
   let spends = 0
   let graceFn: (() => void) | null = null
   let graceDelay: number | null = null

@@ -45,10 +45,12 @@ export function makeBillingController(opts: BillingControllerOpts) {
   return {
     // First spend after a short grace delay (instant hang-ups are free), then
     // once per interval so calls shorter than one interval are still billed.
+    // Note: pause/resume does not affect the grace window; the first spend
+    // is always charged after graceMs unless the call ends first.
     start() {
       graceTimer = setT(() => {
         graceTimer = null
-        if (!paused) opts.spend()
+        opts.spend()
         timer = setI(() => { if (!paused) opts.spend() }, opts.intervalMs)
       }, graceMs)
     },

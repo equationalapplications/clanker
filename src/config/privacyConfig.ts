@@ -45,18 +45,18 @@ identifiers, financial account numbers, or health records) in chat.
 
 Crash Reporting and Diagnostics
 
-To ensure the stability and reliability of the App, we use Firebase Crashlytics, 
-a crash reporting service provided by Google LLC. If the App crashes or encounters 
-an error, Crashlytics automatically collects diagnostic information to help us identify, 
+To ensure the stability and reliability of the App, we use Firebase Crashlytics,
+a crash reporting service provided by Google LLC. If the App crashes or encounters
+an error, Crashlytics automatically collects diagnostic information to help us identify,
 troubleshoot, and resolve the issue.
 
-The information collected does not include your name or email, but may include your 
-device's Internet Protocol (IP) address, hardware model, operating system version, 
-a unique device installation identifier (UUID), and the state of the App at the time 
-of the crash. This diagnostic data is transmitted to and stored by Google in 
+The information collected does not include your name or email, but may include your
+device's Internet Protocol (IP) address, hardware model, operating system version,
+a unique device installation identifier (UUID), and the state of the App at the time
+of the crash. This diagnostic data is transmitted to and stored by Google in
 accordance with the Google Privacy Policy.
 
-Crash reporting is disabled by default. We rely on your explicit consent before 
+Crash reporting is disabled by default. We rely on your explicit consent before
 collecting this diagnostic data. You can enable or disable crash reporting at any 
 time within the App's settings.
 
