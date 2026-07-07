@@ -66,18 +66,23 @@ export function handleDesktopWsUpgrade(
 
   function runDisconnectPath(): void {
     if (!authed || !uid || !deviceId) return
-    if (!bridge.deregister(uid, deviceId, generation)) return
+    const ownsRegistration = bridge.deregister(uid, deviceId, generation)
+
+    // Always clean up local listeners/state, even if a newer connection replaced this socket.
     unsubPending?.()
     unsubPending = null
     unsubDevice?.()
     unsubDevice = null
-    if (!deviceDocGone) {
+
+    if (ownsRegistration && !deviceDocGone) {
       void fs.markDesktopDeviceOffline(uid, deviceId, options.instanceId).catch(() => { /* liveness bound covers */ })
     }
-    for (const taskId of dispatched) {
-      void fs.failDesktopTaskIfUnresolved(uid, taskId, {
-        code: 'DESKTOP_DISCONNECTED', message: 'Desktop connection lost mid-call',
-      }).catch(() => { /* caller timeout covers */ })
+    if (ownsRegistration) {
+      for (const taskId of dispatched) {
+        void fs.failDesktopTaskIfUnresolved(uid, taskId, {
+          code: 'DESKTOP_DISCONNECTED', message: 'Desktop connection lost mid-call',
+        }).catch(() => { /* caller timeout covers */ })
+      }
     }
     dispatched.clear()
   }
