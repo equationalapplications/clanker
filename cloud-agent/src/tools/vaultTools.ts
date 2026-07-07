@@ -84,13 +84,13 @@ async function dispatchVaultCall(
   adkName: VaultAdkName,
   params: Record<string, unknown>,
 ): Promise<string> {
-  const cap = effectiveCap(deps)
-  if (deps.callsThisTurn.count >= cap) return CAP_MSG
-  deps.callsThisTurn.count++
-
   const fs = deps.firestoreSession
   const device = await fs.getActiveDesktopDevice(deps.firebaseUid)
   if (!device) return NO_DEVICE_MSG
+
+  const cap = effectiveCap(deps)
+  if (deps.callsThisTurn.count >= cap) return CAP_MSG
+  deps.callsThisTurn.count++
 
   const wireTool = VAULT_WIRE_TOOL[adkName]
   try {
