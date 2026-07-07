@@ -199,5 +199,7 @@ export function handleDesktopWsUpgrade(
     clearTimeout(authTimer)
     runDisconnectPath()
   })
-  ws.on('error', () => { clearTimeout(authTimer) })
-}
+  ws.on('error', () => {
+    clearTimeout(authTimer)
+    runDisconnectPath()
+  })
