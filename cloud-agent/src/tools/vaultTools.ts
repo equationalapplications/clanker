@@ -1,6 +1,6 @@
 import { FunctionTool } from '@google/adk'
 import { z } from 'zod'
-import type { WebSocket } from 'ws'
+import { WebSocket } from 'ws'
 import type { FirestoreSession, DesktopTaskDoc } from '../services/firestoreSession.js'
 import type { DesktopBridge } from '../services/desktopBridge.js'
 
@@ -62,7 +62,7 @@ function effectiveCap(deps: VaultToolDeps): number {
 function triggerCapDecay(deps: VaultToolDeps): void {
   if (deps.capDecay.triggered) return
   deps.capDecay.triggered = true
-  deps.capDecay.maxAllowed = deps.callsThisTurn.count + 1
+  deps.capDecay.maxAllowed = Math.min(deps.callsThisTurn.count + 1, deps.maxCallsPerTurn)
 }
 
 async function dispatchLocalIfConnected(
@@ -74,7 +74,7 @@ async function dispatchLocalIfConnected(
 ): Promise<void> {
   const conn = deps.desktopBridge?.get(deps.firebaseUid, deviceId)
   const ws = conn?.ws
-if (!ws || ws.readyState !== 1) return
+  if (!ws || ws.readyState !== WebSocket.OPEN) return
   await deps.firestoreSession.markDesktopTaskExecuting(deps.firebaseUid, taskId)
   ws.send(JSON.stringify({ type: 'task', taskId, tool: wireTool, params }))
 }

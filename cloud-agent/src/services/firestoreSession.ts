@@ -178,9 +178,13 @@ export function createFirestoreSession(db: FirestoreLike) {
     },
 
     async failDesktopTaskIfUnresolved(uid: string, taskId: string, error: DesktopTaskError): Promise<boolean> {
-      const task = await this.getDesktopTask(uid, taskId)
-      if (!task || task.status === 'complete' || task.status === 'failed') return false
-      return this.writeDesktopTaskResult(uid, taskId, { status: 'failed', error })
+      const ref = db.doc(desktopTaskPath(uid, taskId))
+      const snap = await ref.get()
+      if (!snap.exists) return false
+      const current = snap.data() as unknown as DesktopTaskDoc
+      if (current.status === 'complete' || current.status === 'failed') return false
+      await ref.update({ status: 'failed', error, updatedAt: now() })
+      return true
     },
 
     watchDesktopTask(uid: string, taskId: string, cb: (task: DesktopTaskDoc) => void): () => void {

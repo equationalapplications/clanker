@@ -1,4 +1,5 @@
 import type { WebSocket } from 'ws'
+import { WebSocket as WS } from 'ws'
 import type { IncomingMessage } from 'http'
 import { z } from 'zod'
 import type { FirestoreSession } from '../services/firestoreSession.js'
@@ -54,10 +55,8 @@ export function handleDesktopWsUpgrade(
   let deviceDocGone = false
   const dispatched = new Set<string>()
 
-  const WS_OPEN = 1
-
   function socketOpen(): boolean {
-    return ws.readyState === WS_OPEN
+    return ws.readyState === WS.OPEN
   }
 
   const authTimer = setTimeout(() => {
@@ -141,25 +140,19 @@ export function handleDesktopWsUpgrade(
     if (!authed || !uid) return
     const r = taskResultSchema.safeParse(raw)
     if (r.success) {
-      if (!dispatched.has(r.data.taskId)) {
-        console.warn('[desktop-bridge] ignored result for unknown task:', r.data.taskId)
-        return
-      }
       dispatched.delete(r.data.taskId)
-      await fs.writeDesktopTaskResult(uid, r.data.taskId, { status: 'complete', result: r.data.result })
+      const written = await fs.writeDesktopTaskResult(uid, r.data.taskId, { status: 'complete', result: r.data.result })
+      if (!written) console.warn('[desktop-bridge] result write rejected for unknown/terminal task:', r.data.taskId)
       return
     }
     const e = taskErrorSchema.safeParse(raw)
     if (e.success) {
-      if (!dispatched.has(e.data.taskId)) {
-        console.warn('[desktop-bridge] ignored error for unknown task:', e.data.taskId)
-        return
-      }
       dispatched.delete(e.data.taskId)
-      await fs.writeDesktopTaskResult(uid, e.data.taskId, {
+      const written = await fs.writeDesktopTaskResult(uid, e.data.taskId, {
         status: 'failed',
         error: { code: 'TOOL_ERROR', message: e.data.error.message },
       })
+      if (!written) console.warn('[desktop-bridge] error write rejected for unknown/terminal task:', e.data.taskId)
       return
     }
     console.warn('[desktop-bridge] dropped malformed post-auth frame')
@@ -210,3 +203,4 @@ export function handleDesktopWsUpgrade(
     clearTimeout(authTimer)
     runDisconnectPath()
   })
+}
