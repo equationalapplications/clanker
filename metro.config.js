@@ -19,7 +19,11 @@ config.resolver.blockList = [
   new RegExp(escapedFunctionsDir + '/.*'),
 ]
 
-config.resolver.assetExts.push('cjs')
+// NOTE: '.cjs' must NOT be added to assetExts. It is already in Expo's default
+// sourceExts; registering it as an asset extension makes Metro bundle CommonJS
+// entry points (e.g. superstruct's dist/index.cjs, a dependency of
+// @react-native-firebase/analytics) as static assets instead of code, so their
+// exports resolve to undefined and the app crashes at startup.
 config.resolver.assetExts.push('wasm')
 
 config.watchFolders = [
