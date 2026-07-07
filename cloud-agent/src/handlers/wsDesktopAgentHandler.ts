@@ -54,12 +54,14 @@ export function handleDesktopWsUpgrade(
   let deviceDocGone = false
   const dispatched = new Set<string>()
 
+  const WS_OPEN = 1
+
   function socketOpen(): boolean {
-    return ws.readyState === ws.OPEN
+    return ws.readyState === WS_OPEN
   }
 
   const authTimer = setTimeout(() => {
-    if (!authed && ws.readyState === ws.OPEN) ws.close(4001, 'Auth timeout')
+    if (!authed && socketOpen()) ws.close(4001, 'Auth timeout')
   }, authTimeoutMs)
 
   function runDisconnectPath(): void {
