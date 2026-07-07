@@ -22,6 +22,8 @@ export interface VaultToolConfig {
   maxCallsPerTurn?: number
   pauseBilling?: () => void
   resumeBilling?: () => void
+  /** Unused by vault tools; optional test hook to assert no credit spend. */
+  creditService?: { spendCredit: (...args: unknown[]) => Promise<unknown> }
 }
 
 export interface VaultToolDeps extends Required<Pick<VaultToolConfig, 'firebaseUid' | 'firestoreSession'>> {
@@ -90,10 +92,10 @@ async function dispatchVaultCall(
   const device = await fs.getActiveDesktopDevice(deps.firebaseUid)
   if (!device) return NO_DEVICE_MSG
 
-  deps.pauseBilling?.()
   const wireTool = VAULT_WIRE_TOOL[adkName]
-  const taskId = crypto.randomUUID()
   try {
+    deps.pauseBilling?.()
+    const taskId = crypto.randomUUID()
     await fs.createDesktopTask(deps.firebaseUid, taskId, device.deviceId, wireTool, params)
     await dispatchLocalIfConnected(deps, device.deviceId, taskId, wireTool, params)
 
@@ -118,7 +120,7 @@ async function dispatchVaultCall(
     }
     if (task.status === 'failed') {
       const code = task.error?.code
-      if (code === 'DESKTOP_DISCONNECTED') {
+      if (code === 'DESKTOP_DISCONNECTED' || code === 'DESKTOP_TIMEOUT') {
         triggerCapDecay(deps)
         return TIMEOUT_MSG
       }

@@ -116,8 +116,10 @@ test('cap decays to 1 remaining after first timeout', async () => {
   const ontology = tools.find((t) => t.name === 'vault_get_ontology')!
   await execTool(search, { query: 'timeout-me' })
   assert.equal(d.capDecay.triggered, true)
+  const p2 = execTool(ontology, { entityId: 'tier_fact' })
+  await new Promise((r) => setTimeout(r, 0))
   fs.resolveTask('complete', { result: { ok: true } })
-  await execTool(ontology, { entityId: 'tier_fact' })
+  await p2
   const capped = await execTool(search, { query: 'third' })
   assert.match(String(capped), /answer with what you already have/)
   assert.equal(fs.created.length, 2)
@@ -165,14 +167,20 @@ test('voice billing pause/resume wraps the call', async () => {
 })
 
 test('no spendCredit on vault path (text preBilled analogue)', async () => {
+  const spendCalls: unknown[] = []
   const fs = fakeSession()
-  const d = deps(fs, { callTimeoutMs: 500 })
+  const d = deps(fs, {
+    callTimeoutMs: 500,
+    creditService: { spendCredit: async (...args: unknown[]) => { spendCalls.push(args); return [] } },
+  })
   const tools = buildVaultTools(d)
   const search = tools.find((t) => t.name === 'vault_wiki_search')!
   const p = execTool(search, { query: 'x' })
   await new Promise((r) => setTimeout(r, 0))
   fs.resolveTask('complete', { result: [] })
   await p
+  assert.equal(spendCalls.length, 0)
+  assert.equal(fs.created.length, 1)
 })
 
 test('same-instance shortcut dispatches over local desktopBridge socket', async () => {

@@ -298,6 +298,11 @@ function desktopFakeDb() {
         onSnapshot(cb: (rows: Array<{ id: string; data(): Record<string, unknown> }>) => void) {
           const w = { filters: [...filters], cb }
           const arr = collectionWatchers.get(colPath) ?? []; arr.push(w); collectionWatchers.set(colPath, arr)
+          const rows = [...docs.entries()]
+            .filter(([p]) => p.startsWith(`${colPath}/`) && p.split('/').length === colPath.split('/').length + 1)
+            .filter(([, d]) => w.filters.every(([f, , v]) => (d as Record<string, unknown>)[f] === v))
+            .map(([p, d]) => ({ id: p.split('/').pop()!, data: () => d }))
+          cb(rows)
           return () => { collectionWatchers.set(colPath, (collectionWatchers.get(colPath) ?? []).filter((x) => x !== w)) }
         },
       }
@@ -380,9 +385,39 @@ test('desktop device online/offline/touch update device doc', async () => {
   assert.equal(db._docs.get('users/u1/devices/desk1')?.connectedInstanceId, 'instance-A')
   await fs.touchDesktopDeviceLastSeen('u1', 'desk1')
   assert.ok(typeof db._docs.get('users/u1/devices/desk1')?.lastSeenAt !== 'undefined')
-  await fs.markDesktopDeviceOffline('u1', 'desk1')
+  await fs.markDesktopDeviceOffline('u1', 'desk1', 'instance-A')
   assert.equal(db._docs.get('users/u1/devices/desk1')?.online, false)
   assert.equal(db._docs.get('users/u1/devices/desk1')?.connectedInstanceId, null)
+})
+
+test('watchPendingDesktopTasks emits existing pending tasks on subscribe', async () => {
+  const db = desktopFakeDb()
+  const fs = createFirestoreSession(db as never)
+  await fs.createDesktopTask('u1', 'queued', 'desk1', 'wiki_search', { query: 'pre-existing' })
+  const seen: string[] = []
+  const unsub = fs.watchPendingDesktopTasks('u1', 'desk1', (tasks) => { for (const t of tasks) seen.push(t.taskId) })
+  assert.deepEqual(seen, ['queued'])
+  unsub()
+})
+
+test('markDesktopDeviceOffline ignores stale instance disconnects', async () => {
+  const db = desktopFakeDb()
+  db._docs.set('users/u1/devices/desk1', {
+    active: true, type: 'desktop', online: true, connectedInstanceId: 'instance-B', deviceName: 'Mac mini',
+  })
+  const fs = createFirestoreSession(db as never)
+  await fs.markDesktopDeviceOffline('u1', 'desk1', 'instance-A')
+  assert.equal(db._docs.get('users/u1/devices/desk1')?.online, true)
+  assert.equal(db._docs.get('users/u1/devices/desk1')?.connectedInstanceId, 'instance-B')
+})
+
+test('writeDesktopTaskResult skips terminal overwrite races', async () => {
+  const db = desktopFakeDb()
+  const fs = createFirestoreSession(db as never)
+  await fs.createDesktopTask('u1', 't1', 'desk1', 'wiki_search', {})
+  await fs.writeDesktopTaskResult('u1', 't1', { status: 'complete', result: { ok: true } })
+  assert.equal(await fs.writeDesktopTaskResult('u1', 't1', { status: 'failed', error: { code: 'DESKTOP_TIMEOUT', message: 'late' } }), false)
+  assert.equal((db._docs.get('users/u1/desktopTasks/t1') as { status: string }).status, 'complete')
 })
 
 test('getDesktopDeviceDoc reports existence and pause state', async () => {

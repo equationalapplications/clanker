@@ -8,10 +8,13 @@ export interface PairingFirestore {
     delete?(): Promise<unknown>
   }
   collection?(path: string): {
-    where(field: string, op: string, value: unknown): {
-      get(): Promise<{ docs: Array<{ id: string; ref: { delete(): Promise<unknown> } }> }>
-    }
+    where(field: string, op: string, value: unknown): PairingQuery
   }
+}
+
+interface PairingQuery {
+  where(field: string, op: string, value: unknown): PairingQuery
+  get(): Promise<{ docs: Array<{ id: string; ref: { delete(): Promise<unknown> } }> }>
 }
 
 function now() { return admin.firestore?.Timestamp ? admin.firestore.Timestamp.now() : (Date.now() as unknown) }
@@ -63,6 +66,7 @@ export async function revokeDesktopDevice(db: PairingFirestore, uid: string, dev
 
   if (db.collection) {
     const snap = await db.collection('desktopPairings')
+      .where('uid', '==', uid)
       .where('deviceId', '==', deviceId)
       .get()
     for (const doc of snap.docs) {

@@ -20,10 +20,15 @@ function fakeDb() {
     collection(path: string) {
       return {
         where(field: string, _op: string, value: unknown) {
-          return {
+          const filters: Array<[string, unknown]> = [[field, value]]
+          const query = {
+            where(nextField: string, _nextOp: string, nextValue: unknown) {
+              filters.push([nextField, nextValue])
+              return query
+            },
             async get() {
               const matching = [...docs.entries()]
-                .filter(([p, d]) => p.startsWith(`${path}/`) && (d as Record<string, unknown>)[field] === value)
+                .filter(([p, d]) => p.startsWith(`${path}/`) && filters.every(([f, v]) => (d as Record<string, unknown>)[f] === v))
                 .map(([p]) => ({
                   id: p.split('/').pop()!,
                   ref: {
@@ -33,6 +38,7 @@ function fakeDb() {
               return { docs: matching }
             },
           }
+          return query
         },
       }
     },
@@ -75,4 +81,18 @@ test('revokeDesktopDevice deletes device doc; token no longer resolves (fails cl
   await revokeDesktopDevice(db as never, 'u1', deviceId)
   assert.equal(db.docs.has(`users/u1/devices/${deviceId}`), false)
   assert.equal(await resolvePairingToken(db as never, pairingToken), null)
+})
+
+test('revokeDesktopDevice scoped by uid: revoking u1 does not affect u2 with same deviceId', async () => {
+  const db = fakeDb()
+  const { pairingToken: t1, deviceId: d1 } = await pairDesktopDevice(db as never, 'u1', 'Mac mini')
+  const { pairingToken: t2 } = await pairDesktopDevice(db as never, 'u2', 'Mac mini')
+  const u2DeviceId = [...db.docs.entries()]
+    .find(([p, d]) => p.startsWith('users/u2/devices/') && (d as any).deviceName === 'Mac mini')?.[0]
+    .split('/')[3]!
+  await revokeDesktopDevice(db as never, 'u1', d1)
+  assert.equal(db.docs.has(`users/u1/devices/${d1}`), false, 'u1 device doc deleted')
+  assert.equal(await resolvePairingToken(db as never, t1), null, 'u1 token no longer resolves')
+  assert.equal(db.docs.has(`users/u2/devices/${u2DeviceId}`), true, 'u2 device doc still exists')
+  assert.deepEqual(await resolvePairingToken(db as never, t2), { uid: 'u2', deviceId: u2DeviceId }, 'u2 token still resolves')
 })

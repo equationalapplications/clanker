@@ -170,3 +170,25 @@ test('device-doc listener: pause closes socket 4001', async () => {
   await tick()
   assert.equal(ws.closeCode, 4001)
 })
+
+test('duplicate auth frames: second frame is ignored, no self-close', async () => {
+  const ws = new FakeWs(); const fs = fakeSession()
+  const bridge = createDesktopBridge()
+  handleDesktopWsUpgrade(ws as never, {} as never, options(fs, bridge) as never)
+  ws.emit('message', Buffer.from(authFrame()))
+  ws.emit('message', Buffer.from(authFrame())); await tick()
+  assert.equal(ws.closeCode, null, 'no close due to duplicate auth')
+  assert.ok(ws.frames().some((f) => f.type === 'ready'))
+  assert.equal(bridge.get('u1', 'desk1')?.ws, ws as never)
+})
+
+test('close during auth: does not register, does not call markDesktopDeviceOnline', async () => {
+  const ws = new FakeWs(); const fs = fakeSession()
+  const bridge = createDesktopBridge()
+  handleDesktopWsUpgrade(ws as never, {} as never, options(fs, bridge) as never)
+  ws.emit('message', Buffer.from(authFrame()))
+  ws.readyState = 3
+  ws.emit('close'); await tick()
+  assert.equal(fs.calls.markDesktopDeviceOnline.length, 0, 'auth did not complete before close')
+  assert.equal(bridge.get('u1', 'desk1'), undefined, 'connection not registered after close')
+})

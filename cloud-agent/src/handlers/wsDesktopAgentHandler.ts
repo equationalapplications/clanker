@@ -44,6 +44,7 @@ export function handleDesktopWsUpgrade(
   const lastSeenRefreshMs = options.lastSeenRefreshMs ?? 40_000
 
   let authed = false
+  let authInFlight = false
   let uid: string | null = null
   let deviceId: string | null = null
   let generation = 0
@@ -52,6 +53,10 @@ export function handleDesktopWsUpgrade(
   let lastTouch = 0
   let deviceDocGone = false
   const dispatched = new Set<string>()
+
+  function socketOpen(): boolean {
+    return ws.readyState === ws.OPEN
+  }
 
   const authTimer = setTimeout(() => {
     if (!authed && ws.readyState === ws.OPEN) ws.close(4001, 'Auth timeout')
@@ -65,7 +70,7 @@ export function handleDesktopWsUpgrade(
     unsubDevice?.()
     unsubDevice = null
     if (!deviceDocGone) {
-      void fs.markDesktopDeviceOffline(uid, deviceId).catch(() => { /* liveness bound covers */ })
+      void fs.markDesktopDeviceOffline(uid, deviceId, options.instanceId).catch(() => { /* liveness bound covers */ })
     }
     for (const taskId of dispatched) {
       void fs.failDesktopTaskIfUnresolved(uid, taskId, {
@@ -76,56 +81,73 @@ export function handleDesktopWsUpgrade(
   }
 
   async function onAuth(raw: unknown): Promise<void> {
+    if (authed || authInFlight) return
     const parsed = desktopAuthSchema.safeParse(raw)
     if (!parsed.success) { ws.close(4001, 'Invalid auth frame'); return }
-    const resolved = await options.resolvePairingToken(parsed.data.pairingToken)
-    if (!resolved) { ws.close(4001, 'Unknown pairing token'); return }
-    const device = await fs.getDesktopDeviceDoc(resolved.uid, resolved.deviceId)
-    if (!device.exists || device.isPaused) { ws.close(4001, 'Device unavailable'); return }
+    authInFlight = true
+    try {
+      const resolved = await options.resolvePairingToken(parsed.data.pairingToken)
+      if (!socketOpen()) return
+      if (!resolved) { ws.close(4001, 'Unknown pairing token'); return }
+      const device = await fs.getDesktopDeviceDoc(resolved.uid, resolved.deviceId)
+      if (!socketOpen()) return
+      if (!device.exists || device.isPaused) { ws.close(4001, 'Device unavailable'); return }
 
-    uid = resolved.uid; deviceId = resolved.deviceId; authed = true
-    clearTimeout(authTimer)
+      uid = resolved.uid; deviceId = resolved.deviceId; authed = true
+      clearTimeout(authTimer)
 
-    generation = bridge.register(uid, deviceId, ws)
-    await fs.markDesktopDeviceOnline(uid, deviceId, options.instanceId)
-    lastTouch = Date.now()
+      generation = bridge.register(uid, deviceId, ws)
+      await fs.markDesktopDeviceOnline(uid, deviceId, options.instanceId)
+      if (!socketOpen()) return
+      lastTouch = Date.now()
 
-    unsubPending = fs.watchPendingDesktopTasks(uid, deviceId, (tasks) => {
-      for (const task of tasks) {
-        if (dispatched.has(task.taskId)) continue
-        dispatched.add(task.taskId)
-        void fs.markDesktopTaskExecuting(uid!, task.taskId)
-          .then(() => {
-            if (ws.readyState === ws.OPEN) {
-              ws.send(JSON.stringify({
-                type: 'task', taskId: task.taskId, tool: task.tool, params: task.params,
-              }))
-            }
-          })
-          .catch((err) => console.error('[desktop-bridge] dispatch failed:', task.taskId, err))
-      }
-    })
+      unsubPending = fs.watchPendingDesktopTasks(uid, deviceId, (tasks) => {
+        for (const task of tasks) {
+          if (dispatched.has(task.taskId)) continue
+          dispatched.add(task.taskId)
+          void fs.markDesktopTaskExecuting(uid!, task.taskId)
+            .then(() => {
+              if (socketOpen()) {
+                ws.send(JSON.stringify({
+                  type: 'task', taskId: task.taskId, tool: task.tool, params: task.params,
+                }))
+              }
+            })
+            .catch((err) => console.error('[desktop-bridge] dispatch failed:', task.taskId, err))
+        }
+      })
 
-    unsubDevice = fs.watchDesktopDeviceDoc(uid, deviceId, (doc) => {
-      if (!doc.exists || doc.isPaused) {
-        deviceDocGone = !doc.exists
-        if (ws.readyState === ws.OPEN) ws.close(4001, doc.exists ? 'Device paused' : 'Device revoked')
-      }
-    })
+      unsubDevice = fs.watchDesktopDeviceDoc(uid, deviceId, (doc) => {
+        if (!doc.exists || doc.isPaused) {
+          deviceDocGone = !doc.exists
+          if (socketOpen()) ws.close(4001, doc.exists ? 'Device paused' : 'Device revoked')
+        }
+      })
 
-    ws.send(JSON.stringify({ type: 'ready' }))
+      if (socketOpen()) ws.send(JSON.stringify({ type: 'ready' }))
+    } finally {
+      if (!authed) authInFlight = false
+    }
   }
 
   async function onResult(raw: unknown): Promise<void> {
     if (!authed || !uid) return
     const r = taskResultSchema.safeParse(raw)
     if (r.success) {
+      if (!dispatched.has(r.data.taskId)) {
+        console.warn('[desktop-bridge] ignored result for unknown task:', r.data.taskId)
+        return
+      }
       dispatched.delete(r.data.taskId)
       await fs.writeDesktopTaskResult(uid, r.data.taskId, { status: 'complete', result: r.data.result })
       return
     }
     const e = taskErrorSchema.safeParse(raw)
     if (e.success) {
+      if (!dispatched.has(e.data.taskId)) {
+        console.warn('[desktop-bridge] ignored error for unknown task:', e.data.taskId)
+        return
+      }
       dispatched.delete(e.data.taskId)
       await fs.writeDesktopTaskResult(uid, e.data.taskId, {
         status: 'failed',
@@ -147,9 +169,14 @@ export function handleDesktopWsUpgrade(
       if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'pong' }))
       if (authed && uid && deviceId && Date.now() - lastTouch >= lastSeenRefreshMs) {
         lastTouch = Date.now()
-        void fs.touchDesktopDeviceLastSeen(uid, deviceId).catch(() => {
-          deviceDocGone = true
-          if (ws.readyState === ws.OPEN) ws.close(4001, 'Device revoked or unavailable')
+        void fs.touchDesktopDeviceLastSeen(uid, deviceId).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err)
+          if (msg === 'DEVICE_NOT_FOUND') {
+            deviceDocGone = true
+            if (socketOpen()) ws.close(4001, 'Device revoked or unavailable')
+            return
+          }
+          console.error('[desktop-bridge] lastSeen touch failed:', err)
         })
       }
       return

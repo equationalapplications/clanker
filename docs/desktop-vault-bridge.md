@@ -81,10 +81,12 @@ Wiring: `buildAgent` in `agentCore.ts` (text), `buildLiveTools` in `liveToolAdap
 
 | Code | Surfaced to model |
 |---|---|
-| `DESKTOP_OFFLINE` | No home computer connected |
+| `DESKTOP_OFFLINE`* | No home computer connected |
 | `DESKTOP_TIMEOUT` | Didn't respond in time |
 | `DESKTOP_DISCONNECTED` | Same as timeout |
 | `TOOL_ERROR` | CT error message, prefixed |
+
+*`DESKTOP_OFFLINE` is a synthesized message returned by `vaultTools` before any task doc is written; it is not a `DesktopTaskError.code` value stored in Firestore. Only `DESKTOP_TIMEOUT`, `DESKTOP_DISCONNECTED`, and `TOOL_ERROR` are persisted.
 
 ---
 

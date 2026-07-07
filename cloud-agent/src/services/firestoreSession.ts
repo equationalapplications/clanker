@@ -157,12 +157,18 @@ export function createFirestoreSession(db: FirestoreLike) {
       uid: string,
       taskId: string,
       outcome: { status: 'complete'; result: unknown } | { status: 'failed'; error: DesktopTaskError },
-    ): Promise<void> {
-      await db.doc(desktopTaskPath(uid, taskId)).update(
+    ): Promise<boolean> {
+      const ref = db.doc(desktopTaskPath(uid, taskId))
+      const snap = await ref.get()
+      if (!snap.exists) return false
+      const current = snap.data() as unknown as DesktopTaskDoc
+      if (current.status === 'complete' || current.status === 'failed') return false
+      await ref.update(
         outcome.status === 'complete'
           ? { status: 'complete', result: outcome.result, updatedAt: now() }
           : { status: 'failed', error: outcome.error, updatedAt: now() },
       )
+      return true
     },
 
     async getDesktopTask(uid: string, taskId: string): Promise<DesktopTaskDoc | null> {
@@ -174,8 +180,7 @@ export function createFirestoreSession(db: FirestoreLike) {
     async failDesktopTaskIfUnresolved(uid: string, taskId: string, error: DesktopTaskError): Promise<boolean> {
       const task = await this.getDesktopTask(uid, taskId)
       if (!task || task.status === 'complete' || task.status === 'failed') return false
-      await this.writeDesktopTaskResult(uid, taskId, { status: 'failed', error })
-      return true
+      return this.writeDesktopTaskResult(uid, taskId, { status: 'failed', error })
     },
 
     watchDesktopTask(uid: string, taskId: string, cb: (task: DesktopTaskDoc) => void): () => void {
@@ -202,12 +207,20 @@ export function createFirestoreSession(db: FirestoreLike) {
       })
     },
 
-    async markDesktopDeviceOffline(uid: string, deviceId: string): Promise<void> {
-      await db.doc(`${devicesPath(uid)}/${deviceId}`).update({ online: false, connectedInstanceId: null })
+    async markDesktopDeviceOffline(uid: string, deviceId: string, expectedInstanceId?: string): Promise<void> {
+      const ref = db.doc(`${devicesPath(uid)}/${deviceId}`)
+      const snap = await ref.get()
+      if (!snap.exists) return
+      const data = snap.data() as { connectedInstanceId?: string | null } | undefined
+      if (expectedInstanceId !== undefined && data?.connectedInstanceId !== expectedInstanceId) return
+      await ref.update({ online: false, connectedInstanceId: null })
     },
 
     async touchDesktopDeviceLastSeen(uid: string, deviceId: string): Promise<void> {
-      await db.doc(`${devicesPath(uid)}/${deviceId}`).update({ lastSeenAt: now() })
+      const ref = db.doc(`${devicesPath(uid)}/${deviceId}`)
+      const snap = await ref.get()
+      if (!snap.exists) throw new Error('DEVICE_NOT_FOUND')
+      await ref.update({ lastSeenAt: now() })
     },
 
     async createSession(uid: string, sid: string, meta: SessionMeta): Promise<void> {
