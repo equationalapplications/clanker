@@ -149,8 +149,14 @@ export function createFirestoreSession(db: FirestoreLike) {
       })
     },
 
-    async markDesktopTaskExecuting(uid: string, taskId: string): Promise<void> {
-      await db.doc(desktopTaskPath(uid, taskId)).update({ status: 'executing', updatedAt: now() })
+    async markDesktopTaskExecuting(uid: string, taskId: string): Promise<boolean> {
+      const ref = db.doc(desktopTaskPath(uid, taskId))
+      const snap = await ref.get()
+      if (!snap.exists) return false
+      const current = snap.data() as unknown as DesktopTaskDoc
+      if (current.status === 'complete' || current.status === 'failed') return false
+      await ref.update({ status: 'executing', updatedAt: now() })
+      return true
     },
 
     async writeDesktopTaskResult(

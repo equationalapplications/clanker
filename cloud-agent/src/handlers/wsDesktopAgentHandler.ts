@@ -115,10 +115,13 @@ export function handleDesktopWsUpgrade(
           return false
         }
         dispatched.add(taskId)
+        // Send frame immediately; markDesktopTaskExecuting race is handled below
+        ws.send(JSON.stringify({ type: 'task', taskId, tool, params }))
         void fs.markDesktopTaskExecuting(uid!, taskId)
-          .then(() => {
-            if (socketOpen()) {
-              ws.send(JSON.stringify({ type: 'task', taskId, tool, params }))
+          .then((ok) => {
+            if (!ok) {
+              // Task already terminal (race with disconnect). Best-effort remove frame.
+              try { ws.send(JSON.stringify({ type: 'cancel_task', taskId })) } catch { /* ignore */ }
             }
           })
           .catch((err) => {
