@@ -84,7 +84,7 @@ const mockRunAgent = async (_params: RunAgentParams): Promise<{ reply: string; t
 const mockCreditService = {
   spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 1 }],
   refundCredit: async (_userId: string, _allocations: { transactionId: string; amount: number }[]): Promise<void> => {},
-  getBalance: async (_userId: string): Promise<number> => 42,
+  getBalance: async (_userId: string): Promise<number> => 1000,
 }
 
 const CHAR_UUID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -201,6 +201,7 @@ test('POST /agent/run passes DB user UUID and Firebase UID to runAgentFn', async
       capturedFirebaseUid = params.firebaseUid
       return { reply: 'ok', toolCalls: [] }
     },
+    creditService: mockCreditService,
   })
   await request(app)
     .post('/agent/run')
@@ -212,7 +213,7 @@ test('POST /agent/run passes DB user UUID and Firebase UID to runAgentFn', async
 
 test('POST /agent/run returns reply from runAgentFn', async () => {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: mockCreditService })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
@@ -286,7 +287,7 @@ test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', asyn
     throw new Error('ADK error (unknown): something went wrong')
   }
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: failingAgent })
+  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: failingAgent, creditService: mockCreditService })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
@@ -301,7 +302,7 @@ test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', asyn
 test('POST /agent/run rate-limits after 20 requests in 60s window', async () => {
   // Cycle user → character → wiki rows per request (queryWikiContext adds a 3rd select).
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: mockCreditService })
   for (let i = 0; i < 20; i++) {
     const res = await request(app)
       .post('/agent/run')
@@ -343,14 +344,14 @@ test('POST /agent/run returns 402 when balance is zero before agent starts', asy
 
 test('POST /agent/run returns usageSnapshot.remainingCredits on success', async () => {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const cs = { ...mockCreditService, getBalance: async (_userId: string) => 27 }
+  const cs = { ...mockCreditService, getBalance: async (_userId: string) => 2700 }
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: cs })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
     .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(res.status, 200)
-  assert.deepEqual((res.body as { usageSnapshot: unknown }).usageSnapshot, { remainingCredits: 27 })
+  assert.deepEqual((res.body as { usageSnapshot: unknown }).usageSnapshot, { remainingCredits: 2700 })
 })
 
 test('POST /agent/run returns usageSnapshot: null and 200 when getBalance throws', async () => {
@@ -375,6 +376,7 @@ test('POST /agent/run captures X-Timezone header and passes it to runAgentFn', a
     verifyToken: mockVerify,
     db,
     runAgentFn: async (params) => { capturedTimezone = params.timezone; return { reply: 'ok', toolCalls: [] } },
+    creditService: mockCreditService,
   })
   await request(app)
     .post('/agent/run')
