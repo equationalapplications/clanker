@@ -36,6 +36,7 @@ module.exports = {
     '<rootDir>/__tests__/helpers/',
     '.*\\.int\\.test\\.ts$'
   ],
+  modulePathIgnorePatterns: ['<rootDir>/.worktrees/'],
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-firebase/.*|firebase/.*|@firebase/.*)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)'
   ]
