@@ -133,7 +133,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
           and(
             eq(creditTransactions.userId, userId),
             gt(creditTransactions.remainingBalance, 0),
-            or(isNull(creditTransactions.expiresAt), gt(creditTransactions.expiresAt, sql`NOW()`)),
+            or(isNull(creditTransactions.expiresAt), gt(creditTransactions.expiresAt, new Date())),
           ),
         );
       return Number(rows[0]?.total ?? 0);
