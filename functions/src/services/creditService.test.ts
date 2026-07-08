@@ -625,6 +625,38 @@ test('renewSubscriptionCredits returns true, inserts credits first, then expires
 });
 
 // ---------------------------------------------------------------------------
+// getGrantedTotal — sums initial_amount over live rows (remaining > 0, unexpired)
+// ---------------------------------------------------------------------------
+
+test('getGrantedTotal sums initial_amount over live rows only', async () => {
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: async () => [{ total: '35000' }],
+      }),
+    }),
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  const total = await service.getGrantedTotal('user-1');
+  assert.equal(total, 35000);
+});
+
+test('getGrantedTotal returns 0 when user has no live rows', async () => {
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: async () => [{ total: '0' }],
+      }),
+    }),
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  const total = await service.getGrantedTotal('user-1');
+  assert.equal(total, 0);
+});
+
+// ---------------------------------------------------------------------------
 // getLastProcessedChargeRefundTotal — delta-based partial refund tracking
 // ---------------------------------------------------------------------------
 
