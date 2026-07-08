@@ -36,7 +36,7 @@ export type BootstrapResponse = BootstrapSessionResult
 const mockBootstrapUserId = '11111111-1111-4111-8111-111111111111'
 const mockBootstrapFirebaseUid = 'local_test_user_123'
 const mockBootstrapEmail = 'dev@localhost.com'
-const mockBootstrapCurrentCredits = 100
+const mockBootstrapCurrentCredits = 5000
 const mockBootstrapPlanTier = 'free'
 const mockBootstrapPlanStatus = 'active'
 const mockBootstrapTermsVersion = null
@@ -54,7 +54,15 @@ function normalizeBootstrapResponse(response: {
     throw new Error('Invalid bootstrap response: missing or invalid user timestamps')
   }
 
-  const user: any = {
+  if (
+    typeof response.user.id !== 'string' ||
+    typeof response.user.firebaseUid !== 'string' ||
+    typeof response.user.email !== 'string'
+  ) {
+    throw new Error('Invalid bootstrap response: missing or invalid required user fields')
+  }
+
+  const user: UserSnapshot = {
     id: response.user.id,
     firebaseUid: response.user.firebaseUid,
     email: response.user.email,
@@ -66,7 +74,7 @@ function normalizeBootstrapResponse(response: {
     updatedAt: response.user.updatedAt,
   }
 
-  const subscription: any = {
+  const subscription: SubscriptionSnapshot = {
     planTier: response.subscription.planTier ?? null,
     planStatus: response.subscription.planStatus ?? null,
     currentCredits: response.subscription.currentCredits ?? 0,

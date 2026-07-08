@@ -117,7 +117,7 @@ describe('bootstrapSession', () => {
       expect(result.user.defaultCharacterId).toBe('22222222-2222-4222-8222-222222222222')
       expect(result.user.email).toBe('dev@localhost.com')
       expect(result.subscription.planTier).toBe('free')
-      expect(result.subscription.currentCredits).toBe(100)
+      expect(result.subscription.currentCredits).toBe(5000)
     })
 
     it('returns consistent mock data across multiple calls', async () => {

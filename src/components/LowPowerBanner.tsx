@@ -2,23 +2,21 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'expo-router'
 import { Banner } from 'react-native-paper'
 import { usePowerBalance } from '~/hooks/usePowerBalance'
+import { getAmberShownThisSession, setAmberShownThisSession } from '~/state/lowPowerSession'
 
-let amberShownThisSession = false
-export function resetLowPowerSession() {
-  amberShownThisSession = false
-}
+export { resetLowPowerSession } from '~/state/lowPowerSession'
 
 export function LowPowerBanner() {
   const router = useRouter()
   const { band, isLoading } = usePowerBalance()
   const [dismissed, setDismissed] = useState(false)
-  const [amberLatched, setAmberLatched] = useState(amberShownThisSession)
-  const hasShownAmberRef = useRef(amberShownThisSession)
+  const [amberLatched, setAmberLatched] = useState(getAmberShownThisSession())
+  const hasShownAmberRef = useRef(getAmberShownThisSession())
 
   useEffect(() => {
     if (band === 'amber' && !hasShownAmberRef.current) {
       hasShownAmberRef.current = true
-      amberShownThisSession = true
+      setAmberShownThisSession()
       setAmberLatched(true)
     }
   }, [band])
@@ -27,7 +25,7 @@ export function LowPowerBanner() {
     router?.push?.('/(drawer)/subscribe')
   }
 
-  if (isLoading || dismissed) return null
+  if (isLoading) return null
 
   if (band === 'red') {
     return (
@@ -39,6 +37,8 @@ export function LowPowerBanner() {
       </Banner>
     )
   }
+
+  if (dismissed) return null
 
   if (band === 'amber' && amberLatched) {
     return (

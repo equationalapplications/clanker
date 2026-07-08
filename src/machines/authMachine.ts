@@ -13,7 +13,7 @@ import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
 import { setCrashlyticsUserId } from '~/services/crashlyticsService'
 import { logEvent, setUserId } from '~/services/analyticsService'
 import { queryClient } from '~/config/queryClient'
-import { resetLowPowerSession } from '~/components/LowPowerBanner'
+import { resetLowPowerSession } from '~/state/lowPowerSession'
 import { kvStorePersister } from '~/config/queryPersister'
 import { clearSettings } from '~/utilities/settingsStorage'
 

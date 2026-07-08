@@ -214,31 +214,8 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [characterId, userId, hasChanged, forget, ingest, onPhaseChange])
 
-const skipNativeSubmitRef = useRef(false)
-
-  const handleNativeKeyPress = useCallback(
-    (event: { nativeEvent: { key: string; shiftKey?: boolean } }) => {
-      const nativeEvent = event.nativeEvent
-      if (!nativeEvent || nativeEvent.key !== 'Enter') return
-
-      if (nativeEvent.shiftKey) {
-        skipNativeSubmitRef.current = true
-        setTimeout(() => {
-          skipNativeSubmitRef.current = false
-        }, 0)
-
-        const onTextChanged = (props as any).onTextChanged as ((value: string) => void) | undefined
-        if (typeof onTextChanged === 'function') {
-          onTextChanged(`${text ?? ''}\n`)
-        }
-      }
-    },
-    [props, text],
-  )
-
   const handleNativeSubmitEditing = useCallback(
     (event: { nativeEvent: { text: string } }) => {
-      if (skipNativeSubmitRef.current) return
       const value = event.nativeEvent?.text
       if (typeof value === 'string') {
         const trimmed = value.trim()
@@ -283,7 +260,7 @@ const skipNativeSubmitRef = useRef(false)
           marginVertical: 4,
           marginRight: 12,
           overflow: 'hidden',
-        }]}> 
+        }]}>
           <Composer
             {...props}
             text={text}
@@ -298,10 +275,6 @@ const skipNativeSubmitRef = useRef(false)
               accessibilityLabel: 'Message input',
               submitBehavior: 'submit',
               returnKeyType: 'send',
-              onKeyPress: (event: any) => {
-                textInputProps?.onKeyPress?.(event)
-                handleNativeKeyPress(event)
-              },
               onSubmitEditing: (event: any) => {
                 textInputProps?.onSubmitEditing?.(event)
                 handleNativeSubmitEditing(event)

@@ -104,7 +104,7 @@ function ChatViewContent({
   userDisplayName,
   userPhotoUrl,
 }: ChatViewContentProps) {
-  const { totalPower: credits } = usePowerBalance()
+  const { totalPower: credits, isLoading: creditsLoading } = usePowerBalance()
   const { colors, roundness } = useTheme()
 
   const wikiStatus = useEntityStatus(characterId)
@@ -172,7 +172,7 @@ function ChatViewContent({
 
   const handleSend = useCallback(
     async (newMessages: IMessage[] = []) => {
-      if (credits <= 0) {
+      if (!creditsLoading && credits <= 0) {
         router.push('/subscribe')
         return
       }
@@ -181,7 +181,7 @@ function ChatViewContent({
         await sendMessage(newMessages[0])
       }
     },
-    [sendMessage, credits],
+    [sendMessage, credits, creditsLoading],
   )
 
   const renderBubble = useCallback(
