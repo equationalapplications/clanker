@@ -13,6 +13,7 @@ import { useWebCheckoutSync } from '~/hooks/useWebCheckoutSync'
 import { makePackagePurchase, type ProductType } from '~/utilities/makePackagePurchase'
 import { restorePurchases } from '~/config/revenueCatConfig'
 import { APPLE_EULA_URL } from '~/config/constants'
+import { usePowerBalance } from '~/hooks/usePowerBalance'
 
 export default function SubscribeScreen() {
   const router = useRouter()
@@ -35,8 +36,7 @@ export default function SubscribeScreen() {
     logEvent('subscribe_flow_started')
   }, [])
 
-  const { userPrivate } = useUserPrivateData()
-  const power = userPrivate?.credits || 0
+  const { totalPower } = usePowerBalance()
   const [inFlightAction, setInFlightAction] = useState<'monthly_20' | 'payg' | 'restore' | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -96,7 +96,7 @@ export default function SubscribeScreen() {
                 <Text variant="bodyLarge" style={styles.statusText}>
                   {isPremium
                     ? 'You receive 30,000 Power each month. Power expires at the end of each billing cycle.'
-                    : `Current Power: ${power.toLocaleString()}`}
+                    : `Current Power: ${totalPower.toLocaleString()}`}
                 </Text>
                 <Text variant="bodyMedium" style={styles.description}>
                   Power powers chat, voice, images, and more. Purchase more anytime.
