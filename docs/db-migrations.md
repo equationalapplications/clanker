@@ -49,6 +49,8 @@ Keep this table up to date — it is the source of truth for what has actually r
 | 16 | `0016_llm_wiki_graph.sql` | `llm_wiki_edges`/`llm_wiki_ontology` tables |
 | 17 | `0017_expo_push_token.sql` | `users.expo_push_token` column for Expo Push (bridge Phase 2) |
 | 18 | `0018_billing_hardening.sql` | `subscriptions.subscription_provider`/`cancel_at_period_end`, `processed_stripe_events` dedupe table, unique `stripe_customer_id` index |
+| 19 | `0019_character_voice_default_fix.sql` | Fix `characters.voice` default/backfill off stale `Umbriel` value |
+| 20 | `0020_credit_power_scale.sql` | Inflate `credit_transactions`/`subscriptions` credit balances ×100 for Power unit rename |
 
 > **Gap:** `0014_pgvector_wiki_embeddings.sql` is on disk but **not yet applied** to `clanker-prod` (verified via `information_schema.columns` — `llm_wiki_entries.embedding` does not exist).
 

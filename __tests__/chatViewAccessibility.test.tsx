@@ -44,6 +44,13 @@ jest.mock('expo-router/react-navigation', () => ({
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn() },
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => false),
+    setParams: jest.fn(),
+  }),
   Stack: Object.assign(
     ({ children }: any) => {
       const React = require('react')
@@ -124,8 +131,8 @@ jest.mock('~/hooks/useAIChat', () => ({
 }))
 
 let mockCreditsData: { totalCredits: number; nextExpiryDate: string | null } = { totalCredits: 10, nextExpiryDate: null }
-jest.mock('~/hooks/useUserCredits', () => ({
-  useUserCredits: () => ({ data: mockCreditsData }),
+jest.mock('~/hooks/usePowerBalance', () => ({
+  usePowerBalance: () => ({ totalPower: mockCreditsData.totalCredits }),
 }))
 
 // ── Child components / services ───────────────────────────────────────────────

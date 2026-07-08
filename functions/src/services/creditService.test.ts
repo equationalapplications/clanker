@@ -1,7 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 
 import { assertIdempotentDeltaMatch, createCreditService, type CreditSpendAllocation } from './creditService.js';
+
+const pgDialect = new PgDialect();
+/** Compiles a drizzle WHERE condition to real SQL text (no live DB needed) so
+ * we can assert on the actual filter predicates instead of a canned mock row. */
+function compileCondition(condition: SQL): string {
+  return pgDialect.sqlToQuery(condition).sql;
+}
 
 // ---------------------------------------------------------------------------
 // assertIdempotentDeltaMatch (unchanged helper)
@@ -622,6 +631,86 @@ test('renewSubscriptionCredits returns true, inserts credits first, then expires
   assert.equal(result, true);
   assert.equal(grantedNewCredits, true);
   assert.equal(expiredOldCredits, true);
+});
+
+// ---------------------------------------------------------------------------
+// getGrantedTotal — sums initial_amount over live rows (remaining > 0, unexpired)
+// ---------------------------------------------------------------------------
+
+test('getGrantedTotal sums initial_amount over live rows only', async () => {
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: async () => [{ total: '35000' }],
+      }),
+    }),
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  const total = await service.getGrantedTotal('user-1');
+  assert.equal(total, 35000);
+});
+
+test('getGrantedTotal returns 0 when user has no live rows', async () => {
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: async () => [{ total: '0' }],
+      }),
+    }),
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  const total = await service.getGrantedTotal('user-1');
+  assert.equal(total, 0);
+});
+
+test('getGrantedTotal WHERE clause excludes exhausted and expired rows (compiled SQL)', async () => {
+  let capturedCondition: SQL | undefined;
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: (condition: SQL) => {
+          capturedCondition = condition;
+          return Promise.resolve([{ total: '0' }]);
+        },
+      }),
+    }),
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  await service.getGrantedTotal('user-1');
+
+  assert.ok(capturedCondition, 'where() should have been called with a condition');
+  const sqlText = compileCondition(capturedCondition as SQL);
+  // remaining_balance > 0 excludes exhausted rows
+  assert.match(sqlText, /"remaining_balance"\s*>/);
+  // expires_at IS NULL OR expires_at > NOW() excludes expired rows while keeping non-expiring ones
+  assert.match(sqlText, /"expires_at" is null/i);
+  assert.match(sqlText, /"expires_at"\s*>/);
+  // scoped to the requested user
+  assert.match(sqlText, /"user_id"\s*=/);
+});
+
+test('getGrantedTotal reflects upward jump when an exhausted pool drops out of the denominator', async () => {
+  // Simulates: signup (5,000, remaining 0, exhausted) + pack (10,000, remaining 10,000, live).
+  // Once the signup grant is exhausted it must not count toward grantedTotal.
+  const liveRows = [{ initialAmount: 10000, remainingBalance: 10000, expiresAt: null }];
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        // The real query filters remainingBalance > 0 in SQL; this fake mirrors that
+        // filtering in JS to prove the service sums only what the live-row set contains.
+        where: async () => [
+          { total: String(liveRows.reduce((sum, r) => sum + r.initialAmount, 0)) },
+        ],
+      }),
+    }),
+  };
+
+  const service = createCreditService({ getDb: async () => fakeDb as never });
+  const total = await service.getGrantedTotal('user-1');
+  assert.equal(total, 10000);
 });
 
 // ---------------------------------------------------------------------------

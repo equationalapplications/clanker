@@ -349,7 +349,7 @@ export async function handleLiveWsUpgrade(
       userId = dbUser.id
 
       const balance = await cs.getBalance(userId)
-      if (balance < 5) {
+      if (balance < 500) {
         ws.send(JSON.stringify({ type: 'error', code: 'INSUFFICIENT_CREDITS', message: 'Insufficient credits' }))
         ws.close(4402, 'Insufficient credits')
         return
@@ -372,7 +372,7 @@ export async function handleLiveWsUpgrade(
         billingInFlight = true
         void (async () => {
           try {
-            await cs.spendCredit(userId!, 5)
+            await cs.spendCredit(userId!, 500)
             let newBalance: number
             try {
               newBalance = await cs.getBalance(userId!)

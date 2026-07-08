@@ -249,7 +249,7 @@ test("handleInvoicePaymentSucceeded renews subscription credits only on subscrip
 
   assert.deepEqual(renewalArgs, {
     userId: "user-1",
-    amount: 300,
+    amount: 30000,
     expiresAt: new Date(1710000000 * 1000),
     referenceId: "sub_sub_123_1710000000",
   });
@@ -294,7 +294,7 @@ test("handleSubscriptionUpdated renews credits when planStatus is active", async
 
   assert.deepEqual(renewalArgs, {
     userId: "user-1",
-    amount: 300,
+    amount: 30000,
     expiresAt: new Date(1720000000 * 1000),
     referenceId: "sub_sub_abc_1720000000",
   });
@@ -465,7 +465,7 @@ test("handleSubscriptionUpdated falls back to metadata.firebase_uid when custome
   assert.equal(firebaseUidLookedUp, "firebase-uid-1");
   assert.deepEqual(renewalArgs, {
     userId: "user-1",
-    amount: 300,
+    amount: 30000,
     expiresAt: new Date(1720000000 * 1000),
     referenceId: "sub_sub_abc_1720000000",
   });
@@ -660,7 +660,7 @@ test("handleChargeRefunded deducts the full amount on a full refund", async () =
     getLastProcessedChargeRefundTotal: async () => 0,
   } as never);
 
-  assert.deepEqual(adjustArgs, {delta: -100, reason: "stripe_refund", referenceId: "ch_123_1000"});
+  assert.deepEqual(adjustArgs, {delta: -10000, reason: "stripe_refund", referenceId: "ch_123_1000"});
 });
 
 test("handleChargeRefunded prorates a partial refund", async () => {
@@ -701,7 +701,7 @@ test("handleChargeRefunded prorates a partial refund", async () => {
     getLastProcessedChargeRefundTotal: async () => 0,
   } as never);
 
-  assert.deepEqual(adjustArgs, {delta: -20});
+  assert.deepEqual(adjustArgs, {delta: -2000});
 });
 
 test("handleChargeRefunded does not call adjustCredits when charge.amount is 0", async () => {
@@ -843,8 +843,8 @@ test("handleChargeRefunded uses a per-refund referenceId so sequential partial r
   } as unknown as Stripe.Charge, priceIds, deps);
 
   assert.equal(adjustCalls.length, 2);
-  assert.deepEqual(adjustCalls[0], {delta: -20, referenceId: "ch_partial_200"});
-  assert.deepEqual(adjustCalls[1], {delta: -30, referenceId: "ch_partial_500"});
+  assert.deepEqual(adjustCalls[0], {delta: -2000, referenceId: "ch_partial_200"});
+  assert.deepEqual(adjustCalls[1], {delta: -3000, referenceId: "ch_partial_500"});
 });
 
 test("handleChargeRefunded cumulative proration deducts full grant after many small partial refunds", async () => {
@@ -905,7 +905,7 @@ test("handleChargeRefunded cumulative proration deducts full grant after many sm
   }
 
   const totalDeducted = adjustCalls.reduce((sum, call) => sum + call.delta, 0);
-  assert.equal(totalDeducted, -100);
+  assert.equal(totalDeducted, -10000);
 });
 
 test("handleSubscriptionDeleted falls back to stored stripe_customer_id when Stripe customer is deleted", async () => {

@@ -50,6 +50,8 @@ graph LR
   useLiveVoiceChat --> twoWayAudioAdapter
   useMessages --> useMachines
   useMessages --> messageService
+  usePowerBalance --> useUserCredits
+  usePowerBalance --> useAuthSnapshot
   useRegisterExpoPushToken --> googleSignin
   useScreenTracking --> analyticsService
   useTabCharacterId --> useActiveCharacterId

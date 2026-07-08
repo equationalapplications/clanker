@@ -59,7 +59,7 @@ const mockRunAgent = async (_params: RunAgentParams): Promise<{ reply: string; t
 const mockCreditService = {
   spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 1 }],
   refundCredit: async (_userId: string, _allocations: { transactionId: string; amount: number }[]): Promise<void> => {},
-  getBalance: async (_userId: string): Promise<number> => 42,
+  getBalance: async (_userId: string): Promise<number> => 1000,
 }
 
 const { createApp, attachWebSocketRoutes } = await import('./index.js')

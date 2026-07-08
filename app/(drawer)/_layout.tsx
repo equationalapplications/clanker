@@ -9,7 +9,7 @@ import { AcceptTerms } from '~/components/AcceptTerms'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { useEffect, useRef } from 'react'
 import { TERMS } from '~/config/termsConfig'
-import { CreditCounterIcon } from '~/components/CreditCounterIcon'
+import { PowerMeter } from '~/components/PowerMeter'
 
 const DRAWER_ROUTE_CONFIG: Record<string, { label: string; icon: string }> = {
   '(tabs)': { label: 'Chat', icon: 'chat' },
@@ -121,7 +121,7 @@ const AppLayout = () => {
         drawerActiveTintColor: theme.colors.primary,
         drawerInactiveTintColor: theme.colors.onSurfaceVariant,
         headerLeft: ({ tintColor }) => <DrawerToggleButton tintColor={tintColor} />,
-        headerRight: () => <CreditCounterIcon />,
+        headerRight: () => <PowerMeter />,
       })}
     >
       <Drawer.Screen name="(tabs)" options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS} />

@@ -426,7 +426,7 @@ async function handleCheckoutCompleted(
           if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
             const cycleEnd = new Date(periodEnd * 1000);
             const referenceId = `sub_${subscriptionId}_${periodEnd}`;
-            const granted = await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, referenceId);
+            const granted = await deps.renewSubscriptionCredits(user.id, 30000, cycleEnd, referenceId);
             logger.info(
               granted
                 ? "checkout.session.completed: subscription credits granted"
@@ -520,7 +520,7 @@ export async function handleSubscriptionUpdated(
     if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
       const cycleEnd = new Date(periodEnd * 1000);
       const referenceId = `sub_${sub.id}_${periodEnd}`;
-      const renewed = await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, referenceId);
+      const renewed = await deps.renewSubscriptionCredits(user.id, 30000, cycleEnd, referenceId);
       logger.info(
         renewed
           ? "customer.subscription.updated: subscription credits renewed"
@@ -588,7 +588,7 @@ export async function handleInvoicePaymentSucceeded(
         if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
           // Use sub_${id}_${periodEnd} so this is idempotent with customer.subscription.updated.
           const referenceId = `sub_${subscriptionId}_${periodEnd}`;
-          const renewed = await deps.renewSubscriptionCredits(user.id, 300, new Date(periodEnd * 1000), referenceId);
+          const renewed = await deps.renewSubscriptionCredits(user.id, 30000, new Date(periodEnd * 1000), referenceId);
           logger.info(
             renewed
               ? 'invoice.payment_succeeded: subscription credits renewed'

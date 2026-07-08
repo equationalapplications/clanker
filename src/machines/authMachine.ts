@@ -13,6 +13,7 @@ import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
 import { setCrashlyticsUserId } from '~/services/crashlyticsService'
 import { logEvent, setUserId } from '~/services/analyticsService'
 import { queryClient } from '~/config/queryClient'
+import { resetLowPowerSession } from '~/components/LowPowerBanner'
 import { kvStorePersister } from '~/config/queryPersister'
 import { clearSettings } from '~/utilities/settingsStorage'
 
@@ -57,6 +58,7 @@ export interface AuthMachineContext {
   pendingRefreshReason: BootstrapRefreshReason | null
   lastUsageSnapshotAt: string | null
   identitySetupUid: string | null
+  grantedTotal: number
 }
 
 export type AuthMachineEvents =
@@ -106,6 +108,7 @@ export const authMachine = createMachine(
       pendingRefreshReason: null,
       lastUsageSnapshotAt: null,
       identitySetupUid: null,
+      grantedTotal: 0,
     } as AuthMachineContext,
     invoke: {
       id: 'listenToAuthState',
@@ -164,6 +167,7 @@ export const authMachine = createMachine(
           lastRefreshAt: null,
           lastUsageSnapshotAt: null,
           identitySetupUid: null,
+          grantedTotal: 0,
         }),
         on: {
           SIGN_IN: 'signingIn',
@@ -208,6 +212,7 @@ export const authMachine = createMachine(
                 dbUser: ({ event }) => event.output.user,
                 subscription: ({ event }) => event.output.subscription,
                 error: null,
+                grantedTotal: ({ event }) => event.output.subscription?.grantedTotal ?? 0,
               }),
               'markRefreshCompleted',
             ],
@@ -534,6 +539,7 @@ export const authMachine = createMachine(
         await runCleanupStep('queryClient.clear', () => {
           queryClient.clear()
         })
+        await runCleanupStep('resetLowPowerSession', () => resetLowPowerSession())
 
         if (firebaseSignOutError) {
           throw firebaseSignOutError instanceof Error

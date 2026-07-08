@@ -54,7 +54,7 @@ export async function assertAgentTurnCredits(
     // Can't verify balance pre-flight — allow the turn; per-loop spend will gate if needed.
     return
   }
-  if (balance < 1) {
+  if (balance < 100) {
     throw new AgentInsufficientCreditsError()
   }
 }

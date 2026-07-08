@@ -33,8 +33,11 @@ const bootstrapData = {
     planTier: 'free',
     planStatus: 'active',
     currentCredits: 10,
+    grantedTotal: 0,
     termsVersion: 'v1',
     termsAcceptedAt: null,
+    nextExpiryDate: null,
+    cancelAtPeriodEnd: false,
   },
 }
 

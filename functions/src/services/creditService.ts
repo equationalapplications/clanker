@@ -124,6 +124,21 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       });
     },
 
+    async getGrantedTotal(userId: string): Promise<number> {
+      const db = await deps.getDb();
+      const rows = await db
+        .select({ total: sql<string>`COALESCE(SUM(${creditTransactions.initialAmount}), 0)` })
+        .from(creditTransactions)
+        .where(
+          and(
+            eq(creditTransactions.userId, userId),
+            gt(creditTransactions.remainingBalance, 0),
+            or(isNull(creditTransactions.expiresAt), gt(creditTransactions.expiresAt, sql`NOW()`)),
+          ),
+        );
+      return Number(rows[0]?.total ?? 0);
+    },
+
     async spendCredits(userId: string, amount: number): Promise<CreditSpendAllocation[] | null> {
       const db = await deps.getDb();
       try {

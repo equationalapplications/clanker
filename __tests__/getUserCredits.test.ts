@@ -47,9 +47,11 @@ describe('getUserCredits', () => {
         planTier: 'monthly_20',
         planStatus: 'cancelled',
         currentCredits: 12,
+        grantedTotal: 0,
         termsVersion: 'v1',
         termsAcceptedAt: null,
         nextExpiryDate: null,
+        cancelAtPeriodEnd: false,
       },
     })
 

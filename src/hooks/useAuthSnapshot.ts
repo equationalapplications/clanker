@@ -4,6 +4,7 @@ import type { SubscriptionSnapshot } from '~/auth/bootstrapSession'
 
 export interface AuthCreditsSnapshot {
   totalCredits: number
+  grantedTotal: number
   nextExpiryDate: string | null
 }
 
@@ -15,9 +16,11 @@ export function useAuthSubscription(): SubscriptionSnapshot | null {
 export function useAuthCredits(): AuthCreditsSnapshot {
   const authService = useAuthMachine()
   const subscription = useSelector(authService, (state) => state.context.subscription)
+  const grantedTotal = useSelector(authService, (state) => state.context.grantedTotal)
 
   return {
     totalCredits: Math.max(0, subscription?.currentCredits ?? 0),
+    grantedTotal: Math.max(0, grantedTotal ?? 0),
     nextExpiryDate: subscription?.nextExpiryDate ?? null,
   }
 }

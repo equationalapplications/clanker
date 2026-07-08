@@ -8,8 +8,9 @@ import ConfirmationModal from '~/components/ConfirmationModal'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { defaultAvatarUrl } from '~/config/constants'
 import { useAuthMachine } from '~/hooks/useMachines'
-import { useUserPublicData, useUserPrivateData } from '~/hooks/useUser'
+import { useUserPublicData } from '~/hooks/useUser'
 import { useIsPremium } from '~/hooks/useIsPremium'
+import { usePowerBalance } from '~/hooks/usePowerBalance'
 import { deleteUser } from '~/utilities/deleteUser'
 
 const asTrimmedString = (value: unknown): string => {
@@ -26,8 +27,8 @@ export default function Profile() {
   const authService = useAuthMachine()
   const user = useSelector(authService, (state) => state.context.user)
   const { userPublic } = useUserPublicData()
-  const { userPrivate } = useUserPrivateData()
   const isPremium = useIsPremium()
+  const { totalPower } = usePowerBalance()
 
   const displayName =
     asTrimmedString(userPublic?.name) || asTrimmedString(user?.displayName) || ''
@@ -37,8 +38,6 @@ export default function Profile() {
     userPublic?.avatar,
     asNonEmptyUri(user?.photoURL, defaultAvatarUrl),
   )
-  const credits = userPrivate?.credits ?? 0
-
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -87,11 +86,11 @@ export default function Profile() {
           ) : null}
 
           <View style={styles.creditsContainer}>
-            <Text variant="titleMedium">Credits: {credits}</Text>
+            <Text variant="titleMedium">Power: {totalPower}</Text>
             <Text variant="bodySmall" style={styles.subscriptionText}>
               {isPremium
-                ? 'Subscribed plan: 300 credits per month. Credits expire at the end of each billing cycle.'
-                : 'You are using free signup credits. Purchase more credits anytime.'}
+                ? 'Subscribed plan: 30,000 Power per month. Power expires at the end of each billing cycle.'
+                : 'You are using free signup Power. Purchase more Power anytime.'}
             </Text>
           </View>
 

@@ -533,7 +533,7 @@ function parseInput(data: unknown): {
 }
 
 function computeReplyCost(tools?: ToolDeclaration[]): number {
-  return tools && tools.length > 0 ? 1 : 3;
+  return tools && tools.length > 0 ? 100 : 300;
 }
 
 async function chargeForReply(

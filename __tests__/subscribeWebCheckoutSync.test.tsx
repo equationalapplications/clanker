@@ -105,6 +105,32 @@ jest.mock('~/config/firebaseConfig', () => ({
     onAuthStateChanged: (...args: unknown[]) => mockOnAuthStateChanged(...args),
 }))
 
+jest.mock('~/hooks/useMachines', () => ({
+    useAuthMachine: () => ({ send: jest.fn(), getSnapshot: jest.fn(), subscribe: jest.fn() }),
+    useTermsMachine: () => ({ send: jest.fn(), getSnapshot: jest.fn(), subscribe: jest.fn() }),
+    useCharacterMachine: () => ({ send: jest.fn(), getSnapshot: jest.fn(), subscribe: jest.fn() }),
+}))
+
+jest.mock('~/hooks/usePowerBalance', () => ({
+    usePowerBalance: () => ({
+        totalPower: 0,
+        grantedPower: 0,
+        rawFill: 0,
+        barFill: 0,
+        band: 'normal',
+        isUnknown: false,
+        isLoading: false,
+    }),
+}))
+
+jest.mock('~/hooks/useUserCredits', () => ({
+    useUserCredits: () => ({ data: undefined, isLoading: false, error: null, refetch: jest.fn() }),
+}))
+
+jest.mock('~/hooks/useAuthSnapshot', () => ({
+    useAuthCredits: () => ({ grantedTotal: 0 }),
+}))
+
 jest.mock('~/utilities/checkoutStateStore', () => ({
     readCheckoutAttempts: (...args: unknown[]) => mockReadCheckoutAttempts(...args),
     clearPendingCheckoutAttempts: (...args: unknown[]) => mockClearPendingCheckoutAttempts(...args),

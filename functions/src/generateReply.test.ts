@@ -212,8 +212,8 @@ test("generateReplyHandler allows intro requests with structured payload to proc
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async (_userId, amount) => {
-      assert.equal(amount, 3);
-      return [{ transactionId: 'mock-tx-id', amount: 3 }];
+      assert.equal(amount, 300);
+      return [{ transactionId: 'mock-tx-id', amount: 300 }];
     };
     creditService.getCredits = async () => 2;
 
@@ -239,7 +239,7 @@ test("generateReplyHandler allows intro requests with structured payload to proc
 
     assert.ok(generateTextCalled, 'generateText should be invoked for intro requests');
     assert.equal(result.reply, 'intro response');
-    assert.equal(result.creditsSpent, 3);
+    assert.equal(result.creditsSpent, 300);
     assert.equal(result.remainingCredits, 2);
   });
 });
@@ -626,7 +626,7 @@ test("generateReplyHandler returns functionCalls instead of throwing on an empty
 
     assert.deepEqual(result.functionCalls, functionCalls);
     assert.equal(result.reply, '');
-    assert.equal(result.creditsSpent, 1);
+    assert.equal(result.creditsSpent, 100);
     assert.equal(result.remainingCredits, 2);
   });
 });
@@ -656,8 +656,8 @@ test("generateReplyHandler charges 3 credits when no tools are supplied (grounde
       }
     );
 
-    assert.equal(capturedAmount, 3);
-    assert.equal(result.creditsSpent, 3);
+    assert.equal(capturedAmount, 300);
+    assert.equal(result.creditsSpent, 300);
   });
 });
 
@@ -690,8 +690,8 @@ test("generateReplyHandler charges 1 credit when explicit tools are supplied (st
       }
     );
 
-    assert.equal(capturedAmount, 1);
-    assert.equal(result.creditsSpent, 1);
+    assert.equal(capturedAmount, 100);
+    assert.equal(result.creditsSpent, 100);
   });
 });
 
@@ -706,8 +706,8 @@ test("generateReplyHandler spends three credits for payg users on the grounded d
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
-      assert.equal(amount, 3);
-      return [{ transactionId: 'mock-tx-id', amount: 3 }];
+      assert.equal(amount, 300);
+      return [{ transactionId: 'mock-tx-id', amount: 300 }];
     };
     creditService.getCredits = async () => 2;
 
@@ -722,7 +722,7 @@ test("generateReplyHandler spends three credits for payg users on the grounded d
     );
 
     assert.equal(result.reply, "reply from model");
-    assert.equal(result.creditsSpent, 3);
+    assert.equal(result.creditsSpent, 300);
     assert.equal(result.remainingCredits, 2);
     assert.equal(result.planTier, "payg");
     assert.equal(result.planStatus, "active");
@@ -775,8 +775,8 @@ test("generateReplyHandler allows cancelled plans to spend remaining credits", a
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3, "cancelled");
     creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
-      assert.equal(amount, 3);
-      return [{ transactionId: 'mock-tx-id', amount: 3 }];
+      assert.equal(amount, 300);
+      return [{ transactionId: 'mock-tx-id', amount: 300 }];
     };
     creditService.getCredits = async () => 2;
 
@@ -790,7 +790,7 @@ test("generateReplyHandler allows cancelled plans to spend remaining credits", a
       }
     );
 
-    assert.equal(result.creditsSpent, 3);
+    assert.equal(result.creditsSpent, 300);
     assert.equal(result.remainingCredits, 2);
     assert.equal(spendCalls, 1);
   });
@@ -949,7 +949,7 @@ test("generateReplyHandler does not bootstrap a subscription in the new credit f
       bootstrapCalls += 1;
       return buildSubscription(user.id, "payg", 50);
     };
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 3 }];
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 300 }];
     creditService.getCredits = async () => 49;
 
     const result = await generateReplyHandler(
@@ -962,7 +962,7 @@ test("generateReplyHandler does not bootstrap a subscription in the new credit f
       }
     );
 
-    assert.equal(result.creditsSpent, 3);
+    assert.equal(result.creditsSpent, 300);
     assert.equal(result.remainingCredits, 49);
     assert.equal(bootstrapCalls, 0);
   });
@@ -1151,7 +1151,7 @@ test("generateReplyHandler still returns reply when unsyncedHistory DB insert fa
 
     userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 3 }];
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 300 }];
     creditService.getCredits = async () => 4;
 
     const failingDb = {
@@ -1189,7 +1189,7 @@ test("generateReplyHandler still returns reply when unsyncedHistory DB insert fa
     );
 
     assert.equal(result.reply, "reply despite db failure");
-    assert.equal(result.creditsSpent, 3);
+    assert.equal(result.creditsSpent, 300);
   });
 });
 

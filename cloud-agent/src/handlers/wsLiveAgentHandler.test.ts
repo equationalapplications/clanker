@@ -45,9 +45,9 @@ function makeMockDb(queryRowSets: Record<string, unknown>[][] = []) {
 }
 
 const mockCreditService = {
-  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 5 }],
+  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 500 }],
   refundCredit: async (_userId: string, _allocations: { transactionId: string; amount: number }[]): Promise<void> => {},
-  getBalance: async (_userId: string): Promise<number> => 42,
+  getBalance: async (_userId: string): Promise<number> => 5000,
 }
 
 type MockGeminiSession = {
@@ -317,9 +317,9 @@ test('one credit at open closes with 4402', async () => {
   await close()
 })
 
-test('four credits at open closes with 4402 (below new gate)', async () => {
+test('499 credits at open closes with 4402 (below new gate)', async () => {
   const db = makeMockDb([[mockUser]])
-  const cs = { ...mockCreditService, getBalance: async () => 4 }
+  const cs = { ...mockCreditService, getBalance: async () => 499 }
   const mock = makeMockLiveConnect()
   const { server, close } = createLiveTestServer({
     db,
@@ -346,9 +346,9 @@ test('four credits at open closes with 4402 (below new gate)', async () => {
   await close()
 })
 
-test('five credits at open allows the session to proceed', async () => {
+test('500 credits at open allows the session to proceed', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter]])
-  const cs = { ...mockCreditService, getBalance: async () => 5 }
+  const cs = { ...mockCreditService, getBalance: async () => 500 }
   const mock = makeMockLiveConnect()
   const { server, close } = createLiveTestServer({
     db,
@@ -369,7 +369,7 @@ test('five credits at open allows the session to proceed', async () => {
       const msg = JSON.parse(data.toString()) as { type: string; remainingCredits?: number }
       if (msg.type === 'session_ready') {
         clearTimeout(timeout)
-        assert.equal(msg.remainingCredits, 5)
+        assert.equal(msg.remainingCredits, 500)
         ws.close()
         resolve()
       }
@@ -382,7 +382,7 @@ test('five credits at open allows the session to proceed', async () => {
 
 test('valid auth sends session_ready with balance', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter]])
-  const cs = { ...mockCreditService, getBalance: async () => 77 }
+  const cs = { ...mockCreditService, getBalance: async () => 7700 }
   const mock = makeMockLiveConnect()
   const { server, close } = createLiveTestServer({
     db,
@@ -403,7 +403,7 @@ test('valid auth sends session_ready with balance', async () => {
       const msg = JSON.parse(data.toString()) as { type: string; remainingCredits?: number }
       if (msg.type === 'session_ready') {
         clearTimeout(timeout)
-        assert.equal(msg.remainingCredits, 77)
+        assert.equal(msg.remainingCredits, 7700)
         ws.close()
         resolve()
       }
@@ -895,7 +895,7 @@ test('billing ticks do not overlap when spendCredit is slow', async () => {
     spendCredit: async (): Promise<{ transactionId: string; amount: number }[]> => {
       spendCalls++
       await new Promise((resolve) => setTimeout(resolve, 120))
-      return [{ transactionId: 'mock-txid', amount: 5 }]
+      return [{ transactionId: 'mock-txid', amount: 500 }]
     },
   }
   const db = makeMockDb([[mockUser], [mockCharacter]])
