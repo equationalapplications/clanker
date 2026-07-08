@@ -112,18 +112,18 @@ test('spendCredit throws INSUFFICIENT_CREDITS when net balance across all rows i
   )
 })
 
-test('spendCredit defaults amount to 1 when not passed', async () => {
+test('spendCredit defaults amount to 100 when not passed', async () => {
   const db = makeExecuteDb([
     { rows: [] },
     { rows: [{ user_id: 'user-1' }] },
-    { rows: [{ total: '1' }] },
-    { rows: [{ id: 'tx-abc', remaining_balance: '1' }] },
+    { rows: [{ total: '100' }] },
+    { rows: [{ id: 'tx-abc', remaining_balance: '100' }] },
     { rows: [] },
     { rows: [] },
   ])
   const cs = createCreditService(db)
   const allocations = await cs.spendCredit('user-1')
-  assert.deepEqual(allocations, [{ transactionId: 'tx-abc', amount: 1 }])
+  assert.deepEqual(allocations, [{ transactionId: 'tx-abc', amount: 100 }])
 })
 
 // ── refundCredit ──────────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@ function assertPositiveCreditAmount(amount: number): void {
 
 export function createCreditService(db: DrizzleClient): CreditService {
   return {
-    async spendCredit(userId: string, amount = 1): Promise<CreditSpendAllocation[]> {
+    async spendCredit(userId: string, amount = 100): Promise<CreditSpendAllocation[]> {
       assertPositiveCreditAmount(amount)
       // Match functions/ lock order to prevent deadlocks:
       // 1. Ensure subscriptions row exists and lock it first
