@@ -8,6 +8,7 @@ import { subscriptionService } from "./services/subscriptionService.js";
 import { creditService, type CreditSpendAllocation } from "./services/creditService.js";
 import { buildUsageSnapshotForUser } from "./usageSnapshot.js";
 import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
+import { IMAGE_GENERATION_COST } from "./constants/credits.js";
 
 const DEFAULT_MODEL = "gemini-2.5-flash-image";
 const DEFAULT_REGION = "us-central1";
@@ -124,7 +125,7 @@ async function chargeForImage(
   userId: string,
   credits: Pick<typeof creditService, 'spendCredits'>
 ): Promise<CreditSpendAllocation[]> {
-  const spendAllocations = await credits.spendCredits(userId, 200);
+  const spendAllocations = await credits.spendCredits(userId, IMAGE_GENERATION_COST);
   if (spendAllocations === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
@@ -348,7 +349,7 @@ const handler = async (
     logger.info("generateImage succeeded", {
       firebaseUid: request.auth.uid,
       userId: user.id,
-      creditsSpent: 200,
+      creditsSpent: IMAGE_GENERATION_COST,
       remainingCredits,
       latencyMs,
       imageBytesApprox: Math.floor(imageResult.imageBase64.length * 0.75),
@@ -363,7 +364,7 @@ const handler = async (
     return {
       imageBase64: imageResult.imageBase64,
       mimeType: normalizedMimeType,
-      creditsSpent: 200,
+      creditsSpent: IMAGE_GENERATION_COST,
       remainingCredits,
       ...usageSnapshot,
     };

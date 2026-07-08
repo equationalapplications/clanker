@@ -3,6 +3,7 @@ import type { Event as AdkEvent } from '@google/adk'
 import type { GroundingMetadata } from '@google/genai'
 import { hasGroundingData } from '../groundingMetadata.js'
 import type { CreditService, CreditSpendAllocation } from './creditService.js'
+import { AGENT_TURN_CREDIT_COST } from '../constants/credits.js'
 
 export const MAX_LOOP_ITERATIONS = 5
 export const DEGRADED_FALLBACK_REPLY =
@@ -54,7 +55,7 @@ export async function assertAgentTurnCredits(
     // Can't verify balance pre-flight — allow the turn; per-loop spend will gate if needed.
     return
   }
-  if (balance < 100) {
+  if (balance < AGENT_TURN_CREDIT_COST) {
     throw new AgentInsufficientCreditsError()
   }
 }

@@ -11,8 +11,8 @@ export interface TermsConfig {
 }
 
 export const TERMS: TermsConfig = {
-  version: '2.3',
-  lastUpdated: 'July 7, 2026',
+  version: '2.4',
+  lastUpdated: 'July 8, 2026',
 
   summary: `
 By using Clanker, you agree to these key terms:
@@ -23,7 +23,7 @@ By using Clanker, you agree to these key terms:
 
 • Privacy: Personal information is handled according to our Privacy Policy. Please do not submit sensitive personal information in chat
 
-• Subscription & Billing: Premium features use Power. Monthly plans provide 30,000 Power per billing cycle. One-time packs provide 10,000 Power and expire after 31 days. Billing, renewal, and refunds are handled by your app store provider
+• Subscription & Billing: Premium features use Power. Monthly plans provide 30,000 Power per billing cycle. One-time packs provide 10,000 Power and expire after 31 days. Billing, renewal, and refunds are handled by your app store provider (Apple App Store or Google Play) on mobile, or by Stripe when purchased on the web
 
 • iOS Legal Terms: Purchases made through the Apple App Store are governed by Apple's Standard EULA
   (${APPLE_EULA_URL})

@@ -9,6 +9,7 @@ import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import { userRepository } from './services/userRepository.js';
 import { creditService, type CreditSpendAllocation } from './services/creditService.js';
+import { MEMORY_ACTION_COST } from './constants/credits.js';
 import { getDb } from './db/cloudSql.js';
 import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
 
@@ -1497,7 +1498,7 @@ export const memoryWriteHandler = async (
 
   let spendAllocations: CreditSpendAllocation[] | null = null;
   try {
-    spendAllocations = await deps.creditService.spendCredits(identity.userId, 100);
+    spendAllocations = await deps.creditService.spendCredits(identity.userId, MEMORY_ACTION_COST);
     if (spendAllocations === null) {
       throw new HttpsError('failed-precondition', 'Insufficient credits.');
     }
@@ -1558,7 +1559,7 @@ export const memoryHealHandler = async (
 
   let spendAllocations: CreditSpendAllocation[] | null = null;
   try {
-    spendAllocations = await deps.creditService.spendCredits(identity.userId, 100);
+    spendAllocations = await deps.creditService.spendCredits(identity.userId, MEMORY_ACTION_COST);
     if (spendAllocations === null) {
       throw new HttpsError('failed-precondition', 'Insufficient credits.');
     }

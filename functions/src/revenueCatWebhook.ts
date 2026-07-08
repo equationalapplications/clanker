@@ -7,7 +7,7 @@ import {userRepository} from "./services/userRepository.js";
 import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
-import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS} from "./constants/credits.js";
+import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT} from "./constants/credits.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -404,7 +404,7 @@ export const revenueCatWebhookHandler = async (
             // Use a per-cycle key: original_transaction_id alone would block all future renewals
             // since it is stable for the lifetime of the subscription.
             const referenceId = `${original_transaction_id}_${expiration_at_ms}`;
-            await deps.renewSubscriptionCredits(cloudUser.id, 30000, renewalAt, referenceId);
+            await deps.renewSubscriptionCredits(cloudUser.id, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT, renewalAt, referenceId);
           }
 
           logger.info("RevenueCat: subscription upserted + credits renewed", {

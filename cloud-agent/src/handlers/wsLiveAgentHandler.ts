@@ -13,6 +13,7 @@ import { buildLiveTools, resolveVoice } from '../services/liveToolAdapter.js'
 import { createVaultToolDeps, resetVaultTurnState, type VaultToolDeps } from '../tools/vaultTools.js'
 import { desktopBridge } from '../services/desktopBridge.js'
 import { createCreditService } from '../services/creditService.js'
+import { LIVE_SESSION_CREDIT_COST } from '../constants/credits.js'
 import type { CreditService } from '../services/creditService.js'
 import { hasGroundingData } from '../groundingMetadata.js'
 import { defaultFcmDispatcher } from '../services/fcmDispatcher.js'
@@ -349,7 +350,7 @@ export async function handleLiveWsUpgrade(
       userId = dbUser.id
 
       const balance = await cs.getBalance(userId)
-      if (balance < 500) {
+      if (balance < LIVE_SESSION_CREDIT_COST) {
         ws.send(JSON.stringify({ type: 'error', code: 'INSUFFICIENT_CREDITS', message: 'Insufficient credits' }))
         ws.close(4402, 'Insufficient credits')
         return
@@ -372,7 +373,7 @@ export async function handleLiveWsUpgrade(
         billingInFlight = true
         void (async () => {
           try {
-            await cs.spendCredit(userId!, 500)
+            await cs.spendCredit(userId!, LIVE_SESSION_CREDIT_COST)
             let newBalance: number
             try {
               newBalance = await cs.getBalance(userId!)

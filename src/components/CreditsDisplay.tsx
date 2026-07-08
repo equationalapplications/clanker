@@ -2,7 +2,6 @@ import React from 'react'
 import { View, StyleSheet, Platform } from 'react-native'
 import { Card, Text, Button, Snackbar, useTheme } from 'react-native-paper'
 import { useUserCredits } from '~/hooks/useUserCredits'
-import { usePowerBalance } from '~/hooks/usePowerBalance'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
 import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
@@ -20,7 +19,7 @@ export default function CreditsDisplay({
   onDismissExpiredMessage,
 }: CreditsDisplayProps) {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
-  const { totalPower } = usePowerBalance()
+  const totalPower = credits?.totalCredits ?? 0
   const refreshBootstrap = useBootstrapRefresh()
   const { colors } = useTheme()
   const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
@@ -149,8 +148,8 @@ export default function CreditsDisplay({
             Your Power
           </Text>
 
-          <View style={styles.creditsContainer}>
-            <Text variant="displaySmall" style={[styles.creditsCount, { color: colors.primary }]}>
+          <View style={styles.powerContainer}>
+            <Text variant="displaySmall" style={[styles.powerCount, { color: colors.primary }]}>
               {totalPower}
             </Text>
             <Text variant="bodyMedium">Power Available</Text>
@@ -220,11 +219,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
   },
-  creditsContainer: {
+  powerContainer: {
     alignItems: 'center',
     marginBottom: 16,
   },
-  creditsCount: {
+  powerCount: {
     fontWeight: 'bold',
   },
   expiryText: {

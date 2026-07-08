@@ -11,6 +11,8 @@ export interface PowerFill {
 }
 
 const MIN_SLIVER = 0.03
+const AMBER_THRESHOLD = 0.2
+const RED_THRESHOLD = 0.05
 
 export function computePowerFill(totalPower: number, grantedPower: number): PowerFill {
   if (grantedPower <= 0) {
@@ -21,7 +23,7 @@ export function computePowerFill(totalPower: number, grantedPower: number): Powe
   if (totalPower > 0 && barFill === 0) {
     barFill = MIN_SLIVER
   }
-  const band: PowerBand = rawFill >= 0.2 ? 'normal' : rawFill >= 0.05 ? 'amber' : 'red'
+  const band: PowerBand = rawFill >= AMBER_THRESHOLD ? 'normal' : rawFill >= RED_THRESHOLD ? 'amber' : 'red'
   return { rawFill, barFill, band, isUnknown: false }
 }
 

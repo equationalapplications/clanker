@@ -6,7 +6,6 @@ import { usePowerBalance, type PowerBand } from '~/hooks/usePowerBalance'
 
 const METER_WIDTH = 44
 const METER_HEIGHT = 14
-const AMBER_COLOR = '#E6A817'
 
 export function PowerMeter() {
   const router = useRouter()
@@ -16,7 +15,7 @@ export function PowerMeter() {
 
   const bandColor: Record<PowerBand, string> = {
     normal: theme.colors.primary,
-    amber: AMBER_COLOR,
+    amber: theme.colors.tertiary,
     red: theme.colors.error,
   }
 

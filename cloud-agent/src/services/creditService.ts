@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../db/client.js'
+import { AGENT_TURN_CREDIT_COST } from '../constants/credits.js'
 
 export type CreditSpendAllocation = {
   transactionId: string
@@ -20,7 +21,7 @@ function assertPositiveCreditAmount(amount: number): void {
 
 export function createCreditService(db: DrizzleClient): CreditService {
   return {
-    async spendCredit(userId: string, amount = 100): Promise<CreditSpendAllocation[]> {
+    async spendCredit(userId: string, amount = AGENT_TURN_CREDIT_COST): Promise<CreditSpendAllocation[]> {
       assertPositiveCreditAmount(amount)
       // Match functions/ lock order to prevent deadlocks:
       // 1. Ensure subscriptions row exists and lock it first

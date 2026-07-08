@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { GoogleGenAI } from "@google/genai";
 import type { Content, GroundingMetadata, Tool } from "@google/genai";
 import { buildAuthorizedToolsArray, googleSearchManifest } from "@equationalapplications/core-llm-tools";
+import { REPLY_COST_WITH_TOOLS, REPLY_COST_NO_TOOLS } from "./constants/credits.js";
 import type { GeminiToolEntry } from "@equationalapplications/core-llm-tools";
 import { userRepository } from "./services/userRepository.js";
 import { subscriptionService } from "./services/subscriptionService.js";
@@ -533,7 +534,7 @@ function parseInput(data: unknown): {
 }
 
 function computeReplyCost(tools?: ToolDeclaration[]): number {
-  return tools && tools.length > 0 ? 100 : 300;
+  return tools && tools.length > 0 ? REPLY_COST_WITH_TOOLS : REPLY_COST_NO_TOOLS;
 }
 
 async function chargeForReply(

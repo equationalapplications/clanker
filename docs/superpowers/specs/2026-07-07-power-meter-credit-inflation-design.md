@@ -93,7 +93,7 @@ Between steps 1 and 2, old server code spends old-unit amounts against inflated 
 
 - All user-facing strings: "Credits" → "Power". Includes badge/meter, subscribe screen, purchase copy, error messages, accessibility labels.
 - No database, table, column, function, or service renames. `credit_transactions`, `creditService`, `getUserCredits` etc. all keep their names.
-- **Frontend boundary rule:** new and modified frontend components, props, and interfaces use `power*` naming. The credit→power translation is isolated to a single hook, `usePowerBalance` (wraps `useUserCredits` + `useCurrentPlan`, returns `{ totalPower, grantedPower, rawFill, barFill, band, isLoading }`). Existing hooks keep their names; components consume only the new hook.
+- **Frontend boundary rule:** new and modified frontend components, props, and interfaces use `power*` naming. The credit→power translation is isolated to a single hook, `usePowerBalance` (wraps `useUserCredits` + `useAuthCredits`, returns `{ totalPower, grantedPower, rawFill, barFill, band, isLoading }`). `useCurrentPlan` stays owned by `PowerMeter`. Existing hooks keep their names; components consume only the new hook.
 
 ---
 
@@ -109,7 +109,7 @@ The `remaining_balance > 0` filter is required: exhausted rows must drop out of 
 
 **Accepted artifact:** when a row is fully drained it leaves the denominator and fill recomputes upward (e.g. signup 5,000 + pack 10,000: pack exhausts → fill jumps 33% → 100%). Jump direction is always upward ("good news"), expiring pools are spent first (`expires_at NULLS LAST`), and quantization smooths small cases — acceptable.
 
-```
+```text
 rawFill   = grantedTotal > 0 ? min(totalCredits / grantedTotal, 1) : 0
 barFill   = round(rawFill * 20) / 20            // quantize bar width to 5% steps
 if (totalCredits > 0 && barFill === 0) barFill = 0.03   // minimum visible sliver
