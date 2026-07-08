@@ -9,7 +9,7 @@ export function resetLowPowerSession() {
 }
 
 export function LowPowerBanner() {
-  const router = typeof useRouter === 'function' ? useRouter() : null
+  const router = useRouter()
   const { band, isLoading } = usePowerBalance()
   const [dismissed, setDismissed] = useState(false)
   const [amberLatched, setAmberLatched] = useState(amberShownThisSession)
