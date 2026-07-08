@@ -124,7 +124,7 @@ async function chargeForImage(
   userId: string,
   credits: Pick<typeof creditService, 'spendCredits'>
 ): Promise<CreditSpendAllocation[]> {
-  const spendAllocations = await credits.spendCredits(userId, 2);
+  const spendAllocations = await credits.spendCredits(userId, 200);
   if (spendAllocations === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }
@@ -348,7 +348,7 @@ const handler = async (
     logger.info("generateImage succeeded", {
       firebaseUid: request.auth.uid,
       userId: user.id,
-      creditsSpent: 2,
+      creditsSpent: 200,
       remainingCredits,
       latencyMs,
       imageBytesApprox: Math.floor(imageResult.imageBase64.length * 0.75),
@@ -363,7 +363,7 @@ const handler = async (
     return {
       imageBase64: imageResult.imageBase64,
       mimeType: normalizedMimeType,
-      creditsSpent: 2,
+      creditsSpent: 200,
       remainingCredits,
       ...usageSnapshot,
     };

@@ -1497,7 +1497,7 @@ export const memoryWriteHandler = async (
 
   let spendAllocations: CreditSpendAllocation[] | null = null;
   try {
-    spendAllocations = await deps.creditService.spendCredits(identity.userId, 1);
+    spendAllocations = await deps.creditService.spendCredits(identity.userId, 100);
     if (spendAllocations === null) {
       throw new HttpsError('failed-precondition', 'Insufficient credits.');
     }
@@ -1558,7 +1558,7 @@ export const memoryHealHandler = async (
 
   let spendAllocations: CreditSpendAllocation[] | null = null;
   try {
-    spendAllocations = await deps.creditService.spendCredits(identity.userId, 1);
+    spendAllocations = await deps.creditService.spendCredits(identity.userId, 100);
     if (spendAllocations === null) {
       throw new HttpsError('failed-precondition', 'Insufficient credits.');
     }

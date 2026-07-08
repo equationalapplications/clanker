@@ -65,7 +65,7 @@ export const createSubscriptionService = (
         .length > 0;
 
       if (!hasAnyCreditRow) {
-        await creditService.addCredits(userId, 50, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
+        await creditService.addCredits(userId, 5000, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
       }
 
       return await service.getSubscription(userId) ?? subscription;
@@ -79,7 +79,7 @@ export const createSubscriptionService = (
           userId: params.userId,
           planTier: params.planTier,
           planStatus: params.planStatus,
-          currentCredits: params.currentCredits ?? 50,
+          currentCredits: params.currentCredits ?? 5000,
           stripeSubscriptionId: params.stripeSubscriptionId,
           stripeCustomerId: params.stripeCustomerId,
           billingCycleStart: params.billingCycleStart,

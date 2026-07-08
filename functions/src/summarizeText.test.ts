@@ -102,12 +102,12 @@ test("summarizeTextHandler spends 1 credit before summarizing", async () => {
     makeOptions({
       spendCreditsImpl: async (_userId, amount) => {
         spentAmount = amount;
-        return [{transactionId: "mock-tx-id", amount: 1}];
+        return [{transactionId: "mock-tx-id", amount: 100}];
       },
     }),
   );
 
-  assert.equal(spentAmount, 1);
+  assert.equal(spentAmount, 100);
   assert.equal(result.summary, "mock summary");
 });
 

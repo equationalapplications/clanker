@@ -237,7 +237,7 @@ test("generateEmbedding: spends 1 credit for a request under 50,000 characters",
     }),
   );
 
-  assert.equal(spentAmount, 1);
+  assert.equal(spentAmount, 100);
 });
 
 test("generateEmbedding: rejects when credits are insufficient", async () => {
@@ -276,10 +276,10 @@ test("generateEmbedding: refunds the credit when the embedder fails", async () =
 });
 
 test("computeEmbeddingCreditCost: 1 credit under 50,000 characters", () => {
-  assert.equal(computeEmbeddingCreditCost(1), 1);
-  assert.equal(computeEmbeddingCreditCost(50_000), 1);
+  assert.equal(computeEmbeddingCreditCost(1), 100);
+  assert.equal(computeEmbeddingCreditCost(50_000), 100);
 });
 
 test("computeEmbeddingCreditCost: 2 credits at 50,001 characters", () => {
-  assert.equal(computeEmbeddingCreditCost(50_001), 2);
+  assert.equal(computeEmbeddingCreditCost(50_001), 200);
 });

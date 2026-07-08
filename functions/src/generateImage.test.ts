@@ -134,10 +134,10 @@ test("generateImageHandler spends two credits for payg users", async () => {
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
     creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
-      assert.equal(amount, 2);
-      return [{ transactionId: 'mock-tx-id', amount: 2 }];
+      assert.equal(amount, 200);
+      return [{ transactionId: 'mock-tx-id', amount: 200 }];
     };
-    creditService.getCredits = async () => 2;
+    creditService.getCredits = async () => 200;
 
     const result = await generateImageHandler(
       {
@@ -157,8 +157,8 @@ test("generateImageHandler spends two credits for payg users", async () => {
 
     assert.equal(result.imageBase64, "aGVsbG8=");
     assert.equal(result.mimeType, "image/png");
-    assert.equal(result.creditsSpent, 2);
-    assert.equal(result.remainingCredits, 2);
+    assert.equal(result.creditsSpent, 200);
+    assert.equal(result.remainingCredits, 200);
     assert.equal(result.planTier, "payg");
     assert.equal(result.planStatus, "active");
     assert.ok(typeof result.verifiedAt === "string" && result.verifiedAt.length > 0);
@@ -260,10 +260,10 @@ test("generateImageHandler allows cancelled plans to spend remaining credits", a
     subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3, "cancelled");
     creditService.spendCredits = async (_userId, amount) => {
       spendCalls += 1;
-      assert.equal(amount, 2);
-      return [{ transactionId: 'mock-tx-id', amount: 2 }];
+      assert.equal(amount, 200);
+      return [{ transactionId: 'mock-tx-id', amount: 200 }];
     };
-    creditService.getCredits = async () => 2;
+    creditService.getCredits = async () => 200;
 
     const result = await generateImageHandler(
       {
@@ -281,8 +281,8 @@ test("generateImageHandler allows cancelled plans to spend remaining credits", a
       }
     );
 
-    assert.equal(result.creditsSpent, 2);
-    assert.equal(result.remainingCredits, 2);
+    assert.equal(result.creditsSpent, 200);
+    assert.equal(result.remainingCredits, 200);
     assert.equal(spendCalls, 1);
   });
 });
