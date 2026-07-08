@@ -28,7 +28,7 @@ export interface UseLiveVoiceChatReturn {
   cancelCall: () => void
 }
 
-const MIN_CREDITS_FOR_CALL = 5
+const MIN_CREDITS_FOR_CALL = 500
 
 /** Controller hook that wires liveVoiceMachine to hardware I/O, app lifecycle, and navigation. */
 export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
@@ -136,8 +136,8 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
 
     if (typeof remainingCredits === 'number' && remainingCredits < MIN_CREDITS_FOR_CALL) {
       Alert.alert(
-        'Insufficient Credits',
-        'Live voice calls require credits. Purchase more to continue.',
+        'Not Enough Power',
+        'Live voice calls need more Power. Recharge to continue.',
         [{ text: 'Cancel' }, { text: 'Get More', onPress: () => router.push('/subscribe') }],
       )
       return
@@ -207,7 +207,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   }, [errorState, isSaving, stopRecording, clearPlaybackQueue])
   const error = errorState
     ? state.context.socketError === 'credit_exhausted'
-      ? 'Out of credits. Tap to get more.'
+      ? 'Out of Power. Tap to recharge.'
       : (state.context.socketError ?? 'Connection error')
     : audioIO.error
 

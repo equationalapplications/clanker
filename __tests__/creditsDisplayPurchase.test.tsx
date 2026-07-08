@@ -107,13 +107,13 @@ describe('CreditsDisplay purchase flows', () => {
       tree = create(<CreditsDisplay />)
     })
 
-    const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
+    const buyButton = tree.root.findByProps({ testID: 'Buy 10,000 Power - $10' })
 
     await act(async () => {
       await buyButton.props.onPress()
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
+    const subscribeButton = tree.root.findByProps({ testID: '30,000 Power / month · $20' })
 
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('payg')
     expect(mockRefetch).not.toHaveBeenCalled()
@@ -123,11 +123,11 @@ describe('CreditsDisplay purchase flows', () => {
 
   it.each([
     {
-      buttonTestId: 'Buy 100 Credits - $10',
+      buttonTestId: 'Buy 10,000 Power - $10',
       packageType: 'payg',
     },
     {
-      buttonTestId: '300 credits / month · $20',
+      buttonTestId: '30,000 Power / month · $20',
       packageType: 'monthly_20',
     },
   ])('ignores a rapid second same-tab web purchase start for %s', async ({ buttonTestId, packageType }) => {
@@ -164,13 +164,13 @@ describe('CreditsDisplay purchase flows', () => {
       tree = create(<CreditsDisplay />)
     })
 
-    const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
+    const buyButton = tree.root.findByProps({ testID: 'Buy 10,000 Power - $10' })
 
     await act(async () => {
       await buyButton.props.onPress()
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
+    const subscribeButton = tree.root.findByProps({ testID: '30,000 Power / month · $20' })
 
     expect(buyButton.props.disabled).toBe(false)
     expect(subscribeButton.props.disabled).toBe(false)
@@ -190,7 +190,7 @@ describe('CreditsDisplay purchase flows', () => {
       tree = create(<CreditsDisplay />)
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
+    const subscribeButton = tree.root.findByProps({ testID: '30,000 Power / month · $20' })
 
     await act(async () => {
       await subscribeButton.props.onPress()
@@ -211,7 +211,7 @@ describe('CreditsDisplay purchase flows', () => {
       tree = create(<CreditsDisplay />)
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
+    const subscribeButton = tree.root.findByProps({ testID: '30,000 Power / month · $20' })
 
     await act(async () => {
       await subscribeButton.props.onPress()
@@ -230,13 +230,13 @@ describe('CreditsDisplay purchase flows', () => {
       tree = create(<CreditsDisplay />)
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
+    const subscribeButton = tree.root.findByProps({ testID: '30,000 Power / month · $20' })
 
     await act(async () => {
       await subscribeButton.props.onPress()
     })
 
-    const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
+    const buyButton = tree.root.findByProps({ testID: 'Buy 10,000 Power - $10' })
 
     expect(mockMakePackagePurchase).toHaveBeenCalledWith('monthly_20')
     expect(mockRefetch).not.toHaveBeenCalled()
@@ -255,7 +255,7 @@ describe('CreditsDisplay purchase flows', () => {
       tree = create(<CreditsDisplay />)
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
+    const subscribeButton = tree.root.findByProps({ testID: '30,000 Power / month · $20' })
 
     await act(async () => {
       await subscribeButton.props.onPress()
@@ -275,7 +275,7 @@ describe('CreditsDisplay purchase flows', () => {
       tree = create(<CreditsDisplay />)
     })
 
-    const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
+    const buyButton = tree.root.findByProps({ testID: 'Buy 10,000 Power - $10' })
 
     await act(async () => {
       await buyButton.props.onPress()
@@ -293,7 +293,7 @@ describe('CreditsDisplay purchase flows', () => {
       tree = create(<CreditsDisplay />)
     })
 
-    const restoreButton = tree.root.findByProps({ testID: 'Sync Subscription & Credits' })
+    const restoreButton = tree.root.findByProps({ testID: 'Sync Subscription & Power' })
 
     await act(async () => {
       await restoreButton.props.onPress()
@@ -318,8 +318,8 @@ describe('CreditsDisplay purchase flows', () => {
       )
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
-    const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
+    const subscribeButton = tree.root.findByProps({ testID: '30,000 Power / month · $20' })
+    const buyButton = tree.root.findByProps({ testID: 'Buy 10,000 Power - $10' })
 
     expect(subscribeButton.props.disabled).toBe(true)
     expect(buyButton.props.disabled).toBe(false)
@@ -340,8 +340,8 @@ describe('CreditsDisplay purchase flows', () => {
       )
     })
 
-    const subscribeButton = tree.root.findByProps({ testID: '300 credits / month · $20' })
-    const buyButton = tree.root.findByProps({ testID: 'Buy 100 Credits - $10' })
+    const subscribeButton = tree.root.findByProps({ testID: '30,000 Power / month · $20' })
+    const buyButton = tree.root.findByProps({ testID: 'Buy 10,000 Power - $10' })
 
     expect(subscribeButton.props.disabled).toBe(false)
     expect(buyButton.props.disabled).toBe(true)

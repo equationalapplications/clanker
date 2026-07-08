@@ -105,7 +105,7 @@ describe('useLiveVoiceChat', () => {
     expect(mockSend).not.toHaveBeenCalled()
   })
 
-  test('startCall shows alert if insufficient credits', async () => {
+  test('startCall shows alert when remaining Power is below the start-call gate', async () => {
     mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 1 })
 
@@ -119,15 +119,15 @@ describe('useLiveVoiceChat', () => {
     })
 
     expect(Alert.alert).toHaveBeenCalledWith(
-      'Insufficient Credits',
+      'Not Enough Power',
       expect.any(String),
       expect.any(Array),
     )
   })
 
-  test('startCall shows alert if credits are below the new gate of 5', async () => {
+  test('startCall shows alert if credits are below the new gate of 500', async () => {
     mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
-    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 4 })
+    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 499 })
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
     await act(async () => {
@@ -139,7 +139,7 @@ describe('useLiveVoiceChat', () => {
     })
 
     expect(Alert.alert).toHaveBeenCalledWith(
-      'Insufficient Credits',
+      'Not Enough Power',
       expect.any(String),
       expect.any(Array),
     )
@@ -147,7 +147,7 @@ describe('useLiveVoiceChat', () => {
 
   test('startCall shows alert if save_to_cloud is disabled', async () => {
     mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 0 } })
-    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
+    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 500 })
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
     await act(async () => {
@@ -167,7 +167,7 @@ describe('useLiveVoiceChat', () => {
 
   test('startCall sends START_CALL to machine when all checks pass', async () => {
     mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
-    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
+    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 500 })
     mockStartRecording.mockResolvedValue(true)
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null

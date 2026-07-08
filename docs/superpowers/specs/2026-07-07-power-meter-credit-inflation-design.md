@@ -1,7 +1,7 @@
 # Power Meter & 100x Credit Inflation — Design Spec
 
 **Date:** 2026-07-07
-**Status:** Approved (pending implementation plan)
+**Status:** Implemented
 **Goal:** Reduce credit-spend anxiety (the "taxi meter" effect) by inflating credit units 100x, renaming the user-facing unit to **Power**, and replacing the numeric credit badge with a plan-relative power meter.
 
 ---

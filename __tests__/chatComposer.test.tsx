@@ -647,7 +647,7 @@ describe('ChatComposer', () => {
     })
 
     expect(mockIngest).not.toHaveBeenCalled()
-    expect(capturedSnackbarProps.children).toBe('Insufficient credits to convert this document.')
+    expect(capturedSnackbarProps.children).toBe('Out of Power — recharge to keep chatting.')
   })
 
   it('maps non-credit failed-precondition from convertDocumentText to a generic toast (native)', async () => {
