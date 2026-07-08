@@ -39,9 +39,11 @@ describe('userService profile timestamp mapping', () => {
         planTier: 'free',
         planStatus: 'active',
         currentCredits: 50,
+        grantedTotal: 0,
         termsVersion: null,
         termsAcceptedAt: null,
         nextExpiryDate: null,
+        cancelAtPeriodEnd: false,
       },
     })
 

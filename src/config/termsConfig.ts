@@ -34,7 +34,7 @@ By using Clanker, you agree to these key terms:
 
 • Amendments: We may modify these terms at any time. Continued use constitutes acceptance of changes
 
-• Contact: For questions, contact [EMAIL]
+• Contact: For questions, email info@equationalapplications.com
 
 For the complete terms and conditions, please tap "View Full Terms" below.
 `,

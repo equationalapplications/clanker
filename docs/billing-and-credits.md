@@ -84,7 +84,7 @@ New users receive **5 000 Power** upon their first login, seeded by the Cloud 
 
 ## Power Meter Denominator (`grantedTotal`)
 
-The meter on the app header shows a fraction of **available / grantedTotal**. `grantedTotal` is the total Power ever granted to the user (including Power that has expired or been spent) since the user’s first sign-up grant. This denominator remains constant after bootstrap and is **not updated from live usage snapshots** (design decision; may be refined in future work). The fraction gives a coarse visual of how much of the user’s lifetime Power has been consumed.
+The meter on the app header shows a fraction of **available / grantedTotal**. `grantedTotal` is the total Power granted by currently active, unexpired grants (remaining balance > 0). This denominator reflects the live pool of Power available from active grants and excludes expired or fully spent transactions.
 
 ---
 

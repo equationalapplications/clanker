@@ -116,6 +116,7 @@ export default function SubscribeScreen() {
           <View style={styles.buttonContainer}>
             {!isPremium && (
               <Button
+                testID="30,000 Power / month · $20"
                 mode="contained"
                 onPress={() => handlePurchase('monthly_20')}
                 disabled={inFlightAction !== null}

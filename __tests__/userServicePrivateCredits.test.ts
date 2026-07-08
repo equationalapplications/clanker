@@ -35,9 +35,11 @@ describe('getUserPrivate', () => {
         planTier: 'monthly_20',
         planStatus: 'active',
         currentCredits: 77,
+        grantedTotal: 0,
         termsVersion: 'v1',
         termsAcceptedAt: '2026-04-20T00:00:00.000Z',
         nextExpiryDate: null,
+        cancelAtPeriodEnd: false,
       },
     })
 
@@ -64,9 +66,11 @@ describe('getUserPrivate', () => {
         planTier: 'monthly_20',
         planStatus: 'active',
         currentCredits: 77,
+        grantedTotal: 0,
         termsVersion: 'v1',
         termsAcceptedAt: '2026-04-20T00:00:00.000Z',
         nextExpiryDate: null,
+        cancelAtPeriodEnd: false,
       },
     })
 

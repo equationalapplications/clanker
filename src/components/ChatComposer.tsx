@@ -4,6 +4,7 @@ import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Portal, Snackbar, useTheme } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
+import { File as ExpoFile } from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { convertDocumentText } from '~/services/apiClient'
@@ -26,25 +27,8 @@ type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   }
 
 async function readAsBase64(uri: string): Promise<string> {
-  const response = await fetch(uri)
-  if (!response.ok) {
-    throw new Error(`Failed to read file (HTTP ${response.status})`)
-  }
-  const blob = await response.blob()
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === 'string' ? reader.result : null
-      const base64 = dataUrl?.split(',')[1]
-      if (!base64) {
-        reject(new Error('Failed to extract base64 from file data'))
-        return
-      }
-      resolve(base64)
-    }
-    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'))
-    reader.readAsDataURL(blob)
-  })
+  const file = new ExpoFile(uri)
+  return file.base64()
 }
 
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
@@ -78,7 +62,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
     try {
       const pickerResult = await DocumentPicker.getDocumentAsync({
-        copyToCacheDirectory: false,
+        copyToCacheDirectory: true,
         type: [...TEXT_MIME_TYPES, ...CONVERT_MIME_TYPES],
       })
       if (pickerResult.canceled || !pickerResult.assets?.[0]) return
@@ -107,11 +91,8 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         if (isConvertType) {
           fileContent = await readAsBase64(uri)
         } else {
-          const response = await fetch(uri)
-          if (!response.ok) {
-            throw new Error(`Failed to read file (HTTP ${response.status})`)
-          }
-          fileContent = await response.text()
+          const file = new ExpoFile(uri)
+          fileContent = await file.text()
         }
       } catch {
         if (isStaleRequest()) return

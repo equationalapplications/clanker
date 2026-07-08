@@ -1,5 +1,4 @@
-import { exchangeToken } from '~/services/apiClient'
-import type { FirebaseUser } from '~/config/firebaseConfig'
+import { exchangeToken } from '~/config/firebaseConfig'
 
 export interface UserSnapshot {
   id: string
@@ -29,9 +28,16 @@ export interface BootstrapSessionResult {
   subscription: SubscriptionSnapshot
 }
 
+export type BootstrapResponse = BootstrapSessionResult
+
 export async function bootstrapSession(): Promise<BootstrapSessionResult> {
   try {
-    const response = await exchangeToken()
+    const response = (await exchangeToken()) as {
+      data: {
+        user: any
+        subscription: any
+      }
+    }
 
     if (!response?.data?.user || !response?.data?.subscription) {
       throw new Error('Invalid exchange token response')
@@ -83,7 +89,7 @@ export async function bootstrapSession(): Promise<BootstrapSessionResult> {
           planStatus: 'active',
           currentCredits: 5000,
           grantedTotal: 5000,
-          termsVersion: '2.2',
+          termsVersion: '2.3',
           termsAcceptedAt: new Date().toISOString(),
           nextExpiryDate: null,
           cancelAtPeriodEnd: false,
