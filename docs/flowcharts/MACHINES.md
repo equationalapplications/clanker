@@ -8,7 +8,7 @@ graph LR
   authMachine --> bootstrapSession
   authMachine --> crashlyticsService
   authMachine --> analyticsService
-  authMachine --> LowPowerBanner
+  authMachine --> lowPowerSession
   characterMachine --> characterService
   characterMachine --> characterDatabase
   characterMachine --> characterSyncService

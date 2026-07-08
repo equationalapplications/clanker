@@ -21,7 +21,6 @@ graph LR
   CookieConsentContext --> analyticsService
   CookiePreferencesModal --> CookieConsentContext
   CreditsDisplay --> useUserCredits
-  CreditsDisplay --> usePowerBalance
   CreditsDisplay --> useBootstrapRefresh
   GroundingHtml --> sanitizeGroundingHtml
   GroundingHtml --> isSafeHttpUrl
@@ -30,6 +29,7 @@ graph LR
   HeroSection --> useMachines
   LandingFooter --> CookieConsentContext
   LowPowerBanner --> usePowerBalance
+  LowPowerBanner --> lowPowerSession
   PowerMeter --> useCurrentPlan
   PowerMeter --> usePowerBalance
   SubscribeButton --> useBootstrapRefresh
