@@ -1,7 +1,7 @@
 import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { Button, Card, Divider, Text } from 'react-native-paper'
 
-const SUPPORT_EMAIL = 'support@clanker.app'
+const SUPPORT_EMAIL = 'info@equationalapplications.com'
 
 export default function Support() {
   const onPressEmail = async () => {

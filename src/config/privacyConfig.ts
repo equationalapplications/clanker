@@ -8,8 +8,8 @@ export interface PrivacyConfig {
 }
 
 export const PRIVACY: PrivacyConfig = {
-  version: '1.9',
-  lastUpdated: 'July 7, 2026',
+  version: '1.10',
+  lastUpdated: 'July 8, 2026',
   privacy: `
 Equational Applications LLC ("we", "us", "our") is committed to protecting your privacy.
 This privacy policy explains how we collect, use, and disclose information through our
@@ -146,7 +146,7 @@ about you.
 How to request deletion: You can delete your account and associated personal data 
 at any time directly within the App from the Profile page by using the Delete Account 
 button. Alternatively, you can request data deletion by contacting us at
-support@clanker.app.
+info@equationalapplications.com.
 
 What happens when you delete your account: Upon receiving a deletion request, we 
 will promptly delete your account and personal data from our active databases. Please 
@@ -165,7 +165,7 @@ new one.
 
 Contact Us
 If you have any questions or concerns about this privacy policy, please contact us at
-support@clanker.app.
+info@equationalapplications.com.
 
 Governing Law
 This privacy policy shall be governed by and construed in accordance with the laws of the
