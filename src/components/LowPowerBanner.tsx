@@ -10,7 +10,7 @@ export function LowPowerBanner() {
   const router = useRouter()
   const { band, isLoading } = usePowerBalance()
   const [dismissed, setDismissed] = useState(false)
-  const [amberLatched, setAmberLatched] = useState(getAmberShownThisSession())
+  const [amberLatched, setAmberLatched] = useState(false)
   const hasShownAmberRef = useRef(getAmberShownThisSession())
 
   useEffect(() => {
@@ -18,6 +18,10 @@ export function LowPowerBanner() {
       hasShownAmberRef.current = true
       setAmberShownThisSession()
       setAmberLatched(true)
+      return
+    }
+    if (band !== 'amber') {
+      setAmberLatched(false)
     }
   }, [band])
 
