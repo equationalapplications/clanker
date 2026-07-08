@@ -1,3 +1,35 @@
+# [30.24.0](https://github.com/equationalapplications/clanker/compare/v30.23.0...v30.24.0) (2026-07-08)
+
+
+### Bug Fixes
+
+* **cloud-agent:** update test mocks for 100-credit turn minimum ([0cd6619](https://github.com/equationalapplications/clanker/commit/0cd6619727f148fc26776c9e18b1b895b7f61a91))
+* detect band transitions in LowPowerBanner to avoid setState in effect ([f4a9560](https://github.com/equationalapplications/clanker/commit/f4a956046e1a4d002bfcb6c91065334cc9b07641))
+* **lint:** remove unused imports/vars flagged by eslint ([04daaa2](https://github.com/equationalapplications/clanker/commit/04daaa24a20bbbcc6bf8b5cd083e330a27e5b63e))
+* **power meter:** address code review findings from spec implementation ([157df5f](https://github.com/equationalapplications/clanker/commit/157df5f5b7340c63bc74a2f5df6dcd4f8cb2b361))
+* **power meter:** call useRouter unconditionally in LowPowerBanner ([fefbd7e](https://github.com/equationalapplications/clanker/commit/fefbd7ea39c651cdc9f0ba241cf2ab399bece1e3))
+* **power meter:** resolve code review findings from spec review ([b2e688c](https://github.com/equationalapplications/clanker/commit/b2e688cafbd6c54a59720f8a30c5715a0f885e4c))
+* **power meter:** resolve review feedback and restore chat UI ([d754914](https://github.com/equationalapplications/clanker/commit/d754914d3f0974c9fb8ca10497e22694b06ed3db))
+* **pr-review:** address major findings from PR [#550](https://github.com/equationalapplications/clanker/issues/550) review ([f7e0ed1](https://github.com/equationalapplications/clanker/commit/f7e0ed1e6dc4772cd95672206e9fbc0c622122c0))
+* **privacy:** join wrapped source lines into paragraphs for RN Text ([991099b](https://github.com/equationalapplications/clanker/commit/991099ba7bb69910d1067d00b3d203062e2f9ead))
+* **privacy:** replace wrong support@clanker.app with correct contact email ([54e574f](https://github.com/equationalapplications/clanker/commit/54e574f4ca131ab58e3326ccd5eed6a9dcc8802f))
+* **tests:** add useRouter to expo-router mock in chatViewAccessibility ([3275458](https://github.com/equationalapplications/clanker/commit/3275458d0ccaaca60595e7de7ec381c71b67d68d))
+* **tests:** resolve bootstrapSession dedupe and native ChatComposer submit handling ([db23b0b](https://github.com/equationalapplications/clanker/commit/db23b0b339952564d8580b6e2ddbf5eacdd148bb))
+
+
+### Features
+
+* add grantedTotal, show Power balance, and update credit messages ([e70dd10](https://github.com/equationalapplications/clanker/commit/e70dd1051f9fa68e489f31f41f00fa02349a8124))
+* add LowPowerBanner, update error strings, inflate dev sandbox ([b624c1b](https://github.com/equationalapplications/clanker/commit/b624c1b5bb47f760739694f9e046174bd9f63412))
+* **cloud-agent:** credit costs and voice gate x100 (Power units) ([7797f5b](https://github.com/equationalapplications/clanker/commit/7797f5b06a05feb4eefdec0c4c2c147ae69ba86b))
+* **db:** inflate credit units x100 for Power migration ([7f3127d](https://github.com/equationalapplications/clanker/commit/7f3127d7b5d8651ae57fbe8a0298330f9344e234))
+* **functions:** credit costs and grants x100 (Power units) ([a261c7a](https://github.com/equationalapplications/clanker/commit/a261c7a2da67ea3c70a764b739c37c91328b65d7))
+* **functions:** expose grantedTotal for power meter denominator ([637329f](https://github.com/equationalapplications/clanker/commit/637329fed72e91d904f36551f905f7a367a9228f))
+* grantedTotal plumbing and usePowerBalance hook ([125ae07](https://github.com/equationalapplications/clanker/commit/125ae07a062f636e62e24aa9e38e549625756611))
+* replace credit badge with PowerMeter ([45fe5fc](https://github.com/equationalapplications/clanker/commit/45fe5fc27fbe3d5a219e78fc158f894998904c01))
+* replace credits with Power terminology and add pricing section ([5e24813](https://github.com/equationalapplications/clanker/commit/5e248130d8ebd7c3286ab7477ce3c8e7e1cd1074))
+* thread grantedTotal through auth machine and fix creditService query ([a33fae8](https://github.com/equationalapplications/clanker/commit/a33fae8b9365d8e480e5ee1baa25c5d1f4f6561e))
+
 # [30.23.0](https://github.com/equationalapplications/clanker/compare/v30.22.1...v30.23.0) (2026-07-07)
 
 
